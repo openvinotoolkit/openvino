@@ -22,9 +22,25 @@ namespace pytorch {
 namespace op {
 
 using namespace ov::op;
-
-OutputVector translate_avg_pool_base(const NodeContext& context, const Output<Node>& input) {
+OutputVector translate_avg_pool_base(const NodeContext& context, int dims) {
     num_inputs_check(context, 2, 7);
+    auto input = context.get_input(0);
+    auto input_shape = context.mark_node(std::make_shared<v3::ShapeOf>(input));
+
+    auto const_0 = v0::Constant::create(element::i64, Shape{1}, {0});
+    auto const_1 = v0::Constant::create(element::i64, Shape{1}, {1});
+
+    // Unsqueeze axis to add batch dimension
+    input = context.mark_node(std::make_shared<v0::Unsqueeze>(input, const_0));
+
+    // Reshape pattern based on dimensions
+    auto unsqueeze_shape = context.mark_node(std::make_shared<v3::ShapeOf>(input));
+    auto rank = context.mark_node(std::make_shared<v0::ShapeOf>(unsqueeze_shape));
+    auto end_index = context.mark_node(std::make_shared<v1::Add>(rank, const_1));
+    auto start_index = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-dims - 2}));
+    auto reshape_pattern = context.mark_node(std::make_shared<v8::Slice>(unsqueeze_shape, start_index, end_index, const_1, const_0));
+    input = context.mark_node(std::make_shared<v1::Reshape>(input, reshape_pattern, true));
+
     auto kernel = context.const_input<Shape>(1);
     Strides strides;
     if (!context.input_is_none(2)) {
@@ -51,152 +67,32 @@ OutputVector translate_avg_pool_base(const NodeContext& context, const Output<No
     }
     PYTORCH_OP_CONVERSION_CHECK(context.input_is_none(6),
                                 "Translation for aten::avg_pool2d do not support divisor_override input.");
-    return {context.mark_node(
-        std::make_shared<v14::AvgPool>(input, strides, pads, pads, kernel, !count_include_pad, rounding_type))};
+    auto res = context.mark_node(
+        std::make_shared<v14::AvgPool>(input, strides, pads, pads, kernel, !count_include_pad, rounding_type));
 
-};
-
-OutputVector translate_avg_pool3d(const NodeContext& context) {
-    auto input = context.get_input(0);
-
-    auto input_shape = context.mark_node(std::make_shared<v3::ShapeOf>(input));
-
-    auto unsqueeze_axis = context.mark_node(v0::Constant::create(element::i64, Shape{}, {0}));
-    input = context.mark_node(std::make_shared<v0::Unsqueeze>(input, unsqueeze_axis));
-
-    // If there was no batch dimension, added dimension by slicing the input tensor
-    auto unsqueeze_shape = context.mark_node(std::make_shared<v3::ShapeOf>(input));
-    auto rank = context.mark_node(std::make_shared<v0::ShapeOf>(unsqueeze_shape));
-    auto end_index = context.mark_node(std::make_shared<v1::Add>(rank,
-    context.mark_node(v0::Constant::create(element::i64, Shape{1}, {1}))));
-
-    auto reshape_pattern = context.mark_node(std::make_shared<v8::Slice>(unsqueeze_shape, 
-    context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-5})), 
-    end_index, 
-    context.mark_node(v0::Constant::create(element::i64, Shape{1}, {1})), 
-    context.mark_node(v0::Constant::create(element::i64, Shape{1}, {0}))));
-
-    input = context.mark_node(std::make_shared<v1::Reshape>(input, reshape_pattern, true));
-
-    auto pooled_output = translate_avg_pool_base(context, input);
-
-    // If there was no batch dimension, remove the added dimension by slicing the output tensor
-    auto pooled_output_shape = context.mark_node(std::make_shared<v3::ShapeOf>(pooled_output[0]));
-
-    auto slice_input_shape = context.mark_node(std::make_shared<v8::Slice>(input_shape, 
-        context.mark_node(v0::Constant::create(element::i64, Shape{1}, {0})), 
-        context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-3})), 
-        context.mark_node(v0::Constant::create(element::i64, Shape{1}, {1})), 
-        context.mark_node(v0::Constant::create(element::i64, Shape{1}, {0}))));
-
-    auto slice_pooled_output_shape = context.mark_node(std::make_shared<v8::Slice>(pooled_output_shape, 
-        context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-3})), 
-        context.mark_node(v0::Constant::create(element::i64, Shape{1}, {5})), 
-        context.mark_node(v0::Constant::create(element::i64, Shape{1}, {1})), 
-        context.mark_node(v0::Constant::create(element::i64, Shape{1}, {0}))));
-
+    // Reshape back to original shape
+    auto pooled_output_shape = context.mark_node(std::make_shared<v3::ShapeOf>(res));
+    auto slice_input_shape = context.mark_node(std::make_shared<v8::Slice>(input_shape, const_0,
+        context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-dims})), const_1, const_0));
+    auto slice_pooled_output_shape = context.mark_node(std::make_shared<v8::Slice>(pooled_output_shape, context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-dims})),
+        context.mark_node(v0::Constant::create(element::i64, Shape{1}, {2 + dims})), const_1, const_0));
     auto concat_shape = context.mark_node(std::make_shared<v0::Concat>(OutputVector{slice_input_shape, slice_pooled_output_shape}, 0));
+    res = context.mark_node(std::make_shared<v1::Reshape>(res, concat_shape, true));
+    return {res};
 
-    for (auto& node : pooled_output) {
-        node = context.mark_node(std::make_shared<v1::Reshape>(node, concat_shape, true));
-    }
-    return pooled_output; 
-};
-
-OutputVector translate_avg_pool2d(const NodeContext& context) {
-    auto input = context.get_input(0);
-
-    auto input_shape = context.mark_node(std::make_shared<v3::ShapeOf>(input));
-
-    auto unsqueeze_axis = context.mark_node(v0::Constant::create(element::i64, Shape{}, {0}));
-    input = context.mark_node(std::make_shared<v0::Unsqueeze>(input, unsqueeze_axis));
-
-    // If there was no batch dimension, added dimension by slicing the input tensor
-    auto unsqueeze_shape = context.mark_node(std::make_shared<v3::ShapeOf>(input));
-    auto rank = context.mark_node(std::make_shared<v0::ShapeOf>(unsqueeze_shape));
-    auto end_index = context.mark_node(std::make_shared<v1::Add>(rank,
-    context.mark_node(v0::Constant::create(element::i64, Shape{1}, {1}))));
-
-    auto reshape_pattern = context.mark_node(std::make_shared<v8::Slice>(unsqueeze_shape, 
-    context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-4})), 
-    end_index, 
-    context.mark_node(v0::Constant::create(element::i64, Shape{1}, {1})), 
-    context.mark_node(v0::Constant::create(element::i64, Shape{1}, {0}))));
-    
-    input = context.mark_node(std::make_shared<v1::Reshape>(input, reshape_pattern, true));
-
-    auto pooled_output = translate_avg_pool_base(context, input);
-
-    // If there was no batch dimension, remove the added dimension by slicing the output tensor
-    auto pooled_output_shape = context.mark_node(std::make_shared<v3::ShapeOf>(pooled_output[0]));
-
-    auto slice_input_shape = context.mark_node(std::make_shared<v8::Slice>(input_shape, 
-        context.mark_node(v0::Constant::create(element::i64, Shape{1}, {0})), 
-        context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-2})), 
-        context.mark_node(v0::Constant::create(element::i64, Shape{1}, {1})), 
-        context.mark_node(v0::Constant::create(element::i64, Shape{1}, {0}))));
-
-    auto slice_pooled_output_shape = context.mark_node(std::make_shared<v8::Slice>(pooled_output_shape, 
-        context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-2})), 
-        context.mark_node(v0::Constant::create(element::i64, Shape{1}, {4})), 
-        context.mark_node(v0::Constant::create(element::i64, Shape{1}, {1})), 
-        context.mark_node(v0::Constant::create(element::i64, Shape{1}, {0}))));
-
-    auto concat_shape = context.mark_node(std::make_shared<v0::Concat>(OutputVector{slice_input_shape, slice_pooled_output_shape}, 0));
-
-    for (auto& node : pooled_output) {
-        node = context.mark_node(std::make_shared<v1::Reshape>(node, concat_shape, true));
-    }
-    return pooled_output; 
 };
 
 OutputVector translate_avg_pool1d(const NodeContext& context) {
-    auto input = context.get_input(0);
-
-    auto input_shape = context.mark_node(std::make_shared<v3::ShapeOf>(input));
-
-    auto unsqueeze_axis = context.mark_node(v0::Constant::create(element::i64, Shape{}, {0}));
-    input = context.mark_node(std::make_shared<v0::Unsqueeze>(input, unsqueeze_axis));
-
-    // If there was no batch dimension, added dimension by slicing the input tensor
-    auto unsqueeze_shape = context.mark_node(std::make_shared<v3::ShapeOf>(input));
-    auto rank = context.mark_node(std::make_shared<v0::ShapeOf>(unsqueeze_shape));
-    auto end_index = context.mark_node(std::make_shared<v1::Add>(rank,
-    context.mark_node(v0::Constant::create(element::i64, Shape{1}, {1}))));
-
-    auto reshape_pattern = context.mark_node(std::make_shared<v8::Slice>(unsqueeze_shape, 
-    context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-3})), 
-    end_index, 
-    context.mark_node(v0::Constant::create(element::i64, Shape{1}, {1})), 
-    context.mark_node(v0::Constant::create(element::i64, Shape{1}, {0}))));
-    
-    input = context.mark_node(std::make_shared<v1::Reshape>(input, reshape_pattern, true));
-
-    auto pooled_output = translate_avg_pool_base(context, input);
-
-    // If there was no batch dimension, remove the added dimension by slicing the output tensor
-    auto pooled_output_shape = context.mark_node(std::make_shared<v3::ShapeOf>(pooled_output[0]));
-
-    auto slice_input_shape = context.mark_node(std::make_shared<v8::Slice>(input_shape, 
-        context.mark_node(v0::Constant::create(element::i64, Shape{1}, {0})), 
-        context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-1})), 
-        context.mark_node(v0::Constant::create(element::i64, Shape{1}, {1})), 
-        context.mark_node(v0::Constant::create(element::i64, Shape{1}, {0}))));
-
-    auto slice_pooled_output_shape = context.mark_node(std::make_shared<v8::Slice>(pooled_output_shape, 
-        context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-1})), 
-        context.mark_node(v0::Constant::create(element::i64, Shape{1}, {3})), 
-        context.mark_node(v0::Constant::create(element::i64, Shape{1}, {1})), 
-        context.mark_node(v0::Constant::create(element::i64, Shape{1}, {0}))));
-
-    auto concat_shape = context.mark_node(std::make_shared<v0::Concat>(OutputVector{slice_input_shape, slice_pooled_output_shape}, 0));
-
-    for (auto& node : pooled_output) {
-        node = context.mark_node(std::make_shared<v1::Reshape>(node, concat_shape, true));
-    }
-    return pooled_output; 
+    return translate_avg_pool_base(context, 1);
 };
 
+OutputVector translate_avg_pool2d(const NodeContext& context) {
+    return translate_avg_pool_base(context, 2);
+};
+
+OutputVector translate_avg_pool3d(const NodeContext& context) {
+    return translate_avg_pool_base(context, 3);
+};
 
 
 }  // namespace op
