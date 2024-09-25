@@ -106,7 +106,7 @@ jobs:
       CCACHE_REMOTE_DIR: /mount/caches/ccache/sanitizers/${{ matrix.SANITIZER }}/${{ github.base_ref || github.ref_name }}
       CCACHE_DIR: /__w/openvino/openvino/ccache
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
-      CCACHE_MAXSIZE: 15G
+      CCACHE_MAXSIZE: 20G
       CXX: clang++
       CC: clang
 
