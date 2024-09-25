@@ -57,7 +57,7 @@ file(
     LINK_LIBRARIES c++fs)
 
 if(MSVC)
-  set(STD_FS_LIB stdc++fs)
+  set(STD_FS_LIB "")
 elseif(${STD_FS_NEEDS_STDCXXFS})
   set(STD_FS_LIB stdc++fs)
 elseif(${STD_FS_NEEDS_CXXFS})

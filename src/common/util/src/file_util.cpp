@@ -192,7 +192,7 @@ void ov::util::iterate_files(const ov::util::Path& path,
     std::vector<ov::util::Path> dirs;
 #ifdef _WIN32
 #    ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-    std::wstring pathw = string_to_wstring(path);
+    std::wstring pathw = path.native();
     std::wstring file_match = path_join_w({pathw, L"*"});
     WIN32_FIND_DATAW data;
     HANDLE hFind = FindFirstFileW(file_match.c_str(), &data);
@@ -508,14 +508,14 @@ ov::util::FilePath ov::util::get_compiled_plugin_path(const std::string& plugin)
     str << "openvino-" << OpenVINO_VERSION;
     const auto sub_folder = str.str();
 
-    std::string abs_file_path = ov::util::path_join({ov_library_path, sub_folder, plugin});
+    ov::util::Path abs_file_path = ov::util::path_join({ov_library_path, sub_folder, plugin});
     if (ov::util::file_exists(abs_file_path))
-        return ov::util::to_file_path(abs_file_path);
+        return abs_file_path.native();
 
     // 2. in the openvino.so location
     abs_file_path = ov::util::path_join({ov_library_path, plugin});
     if (ov::util::file_exists(abs_file_path))
-        return ov::util::to_file_path(abs_file_path);
+        return abs_file_path.native();
 
     auto lib_name = plugin;
     // For 3rd case - convert to 4th case
@@ -541,27 +541,27 @@ ov::util::FilePath ov::util::get_plugin_path(const std::string& plugin, const st
     if (ov::util::is_absolute_file_path(plugin))
         return ov::util::to_file_path(plugin);
 
-    auto xml_path_ = xml_path;
+    ov::util::Path xml_path_ = xml_path;
     if (xml_path.find(ov::util::FileTraits<char>::file_separator) == std::string::npos)
         xml_path_ = ov::util::path_join({std::string("."), xml_path});  // treat plugins.xml as CWD/plugins.xml
 
     // For 2nd case
     if (plugin.find(ov::util::FileTraits<char>::file_separator) != std::string::npos) {
         auto path_ = ov::util::path_join({ov::util::get_directory(xml_path_), plugin});
-        return ov::util::to_file_path(ov::util::get_absolute_file_path(path_));  // canonicalize path
+        return ov::util::to_file_path(ov::util::get_absolute_file_path(path_.string()));  // canonicalize path
     }
 
-    auto lib_file_name = plugin;
+    ov::util::Path lib_file_name = plugin;
     // For 3rd case - convert to 4th case
     if (!ov::util::ends_with(plugin, ov::util::FileTraits<char>::library_ext()))
         lib_file_name = ov::util::make_plugin_library_name({}, plugin);
 
     // For 4th case
-    auto lib_path = ov::util::path_join({ov::util::get_directory(xml_path_), lib_file_name});
-    lib_path = ov::util::get_absolute_file_path(lib_path);  // canonicalize path
+    ov::util::Path lib_path = ov::util::path_join({ov::util::get_directory(xml_path_), lib_file_name});
+    lib_path = ov::util::get_absolute_file_path(lib_path.string());  // canonicalize path
     if (as_abs_only || ov::util::file_exists(lib_path))
-        return ov::util::to_file_path(lib_path);
-    return ov::util::to_file_path(lib_file_name);
+        return ov::util::to_file_path(lib_path.string());
+    return ov::util::to_file_path(lib_file_name.string());
 }
 
 std::vector<uint8_t> ov::util::load_binary(const std::string& path) {
