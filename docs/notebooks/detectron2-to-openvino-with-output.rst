@@ -15,6 +15,7 @@ using OpenVINO™. We will use ``Faster R-CNN FPN x1`` model and
 `COCO <https://cocodataset.org/#home>`__ dataset as examples for object
 detection and instance segmentation respectively.
 
+
 **Table of contents:**
 
 
@@ -65,6 +66,13 @@ Install required packages for running model
     %pip install -q "torch" "torchvision" "opencv-python" "wheel" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "git+https://github.com/facebookresearch/detectron2.git" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "openvino>=2023.1.0"
+    
+    import requests
+    
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+    )
+    open("notebook_utils.py", "w").write(r.text)
 
 
 .. parsed-literal::
@@ -72,6 +80,14 @@ Install required packages for running model
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
+
+
+
+
+.. parsed-literal::
+
+    24692
+
 
 
 Define helpers for PyTorch model initialization and conversion
@@ -278,16 +294,11 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
+    from notebook_utils import device_widget
     
     core = ov.Core()
     
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
     
     device
 
