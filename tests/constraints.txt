@@ -26,9 +26,12 @@ jax<=0.4.33
 jaxlib<=0.4.33
 kornia==0.7.0
 networkx<=3.3
-timm==1.0.8
-transformers~=4.44
 flax<=0.9.0
+
+# PyTorch tests
+timm==1.0.8
+transformers~=4.44.0
+easyocr==1.7.2
 
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch~=2.4.1; platform_system != "Darwin" or platform_machine != "x86_64"
