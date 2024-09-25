@@ -27,6 +27,7 @@ The tutorial consists from following steps:
 -  Prepare OpenVINO-based inference pipeline
 -  Run OpenVINO model
 
+
 **Table of contents:**
 
 
@@ -903,16 +904,18 @@ Select device from dropdown list for running inference using OpenVINO.
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-
     core = ov.Core()
 
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
+    import requests
+
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
+    open("notebook_utils.py", "w").write(r.text)
+
+    from notebook_utils import device_widget
+
+    device = device_widget(exclude=["NPU"])
 
     device
 

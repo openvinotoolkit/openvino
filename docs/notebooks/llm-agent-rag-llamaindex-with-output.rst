@@ -43,6 +43,7 @@ manner.
 This example will demonstrate using RAG engines as a tool in an agent
 with OpenVINO and LlamaIndex.
 
+
 **Table of contents:**
 
 
@@ -80,36 +81,48 @@ Install required dependencies
 .. code:: ipython3
 
     import os
-
+    import requests
+    
+    
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+    )
+    open("notebook_utils.py", "w").write(r.text)
+    
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/pip_helper.py",
+    )
+    open("pip_helper.py", "w").write(r.text)
+    
     os.environ["GIT_CLONE_PROTECTION_ACTIVE"] = "false"
-
-    %pip uninstall -q -y optimum optimum-intel
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu \
-    "llama-index" "llama-index-readers-file" "llama-index-llms-openvino>=0.2.2" "llama-index-embeddings-openvino>=0.2.0" "transformers>=4.40"
-
-    %pip install -q "git+https://github.com/huggingface/optimum-intel.git" \
-    "git+https://github.com/openvinotoolkit/nncf.git" \
-    "datasets" \
-    "accelerate"
-    %pip install --pre -Uq "openvino>=2024.2.0" openvino-tokenizers[transformers] --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
-
-
-.. parsed-literal::
-
-    WARNING: Skipping optimum as it is not installed.
-    WARNING: Skipping optimum-intel as it is not installed.
-    Note: you may need to restart the kernel to use updated packages.
-
+    
+    from pip_helper import pip_install
+    
+    pip_install(
+        "-q",
+        "--extra-index-url",
+        "https://download.pytorch.org/whl/cpu",
+        "llama-index",
+        "llama-index-llms-huggingface==0.3.3",  # pin to keep compatibility due to https://github.com/run-llama/llama_index/commit/f037de8d0471b37f9c4069ebef5dfb329633d2c6
+        "llama-index-readers-file",
+        "llama-index-llms-openvino>=0.3.1",
+        "llama-index-embeddings-openvino>=0.2.0",
+        "transformers>=4.43.1",
+    )
+    pip_install("-q", "git+https://github.com/huggingface/optimum-intel.git", "git+https://github.com/openvinotoolkit/nncf.git", "datasets", "accelerate")
+    pip_install("--pre", "-Uq", "openvino>=2024.2.0", "--extra-index-url", "https://storage.openvinotoolkit.org/simple/wheels/nightly")
+    pip_install("--pre", "-Uq", "openvino-tokenizers[transformers]", "--extra-index-url", "https://storage.openvinotoolkit.org/simple/wheels/nightly")
 
 .. code:: ipython3
 
     from pathlib import Path
     import requests
     import io
-
+    
+    
     text_example_en_path = Path("text_example_en.pdf")
     text_example_en = "https://github.com/user-attachments/files/16171326/xeon6-e-cores-network-and-edge-brief.pdf"
-
+    
     if not text_example_en_path.exists():
         r = requests.get(url=text_example_en)
         content = io.BytesIO(r.content)
@@ -144,21 +157,18 @@ reasoning dense properties. More details about model can be found in
 `model
 card <https://huggingface.co/microsoft/Phi-3-mini-4k-instruct>`__,
 `Microsoft blog <https://aka.ms/phi3blog-april>`__ and `technical
-report <https://aka.ms/phi3-tech-report>`__. \* **llama-3-8b-instruct**
-- Llama 3 is an auto-regressive language model that uses an optimized
-transformer architecture. The tuned versions use supervised fine-tuning
-(SFT) and reinforcement learning with human feedback (RLHF) to align
-with human preferences for helpfulness and safety. The Llama 3
-instruction tuned models are optimized for dialogue use cases and
-outperform many of the available open source chat models on common
-industry benchmarks. More details about model can be found in `Meta blog
-post <https://ai.meta.com/blog/meta-llama-3/>`__, `model
-website <https://llama.meta.com/llama3>`__ and `model
-card <https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct>`__.
+report <https://aka.ms/phi3-tech-report>`__. \*
+**llama-3.1-8b-instruct** - The Llama 3.1 instruction tuned text only
+models (8B, 70B, 405B) are optimized for multilingual dialogue use cases
+and outperform many of the available open source and closed chat models
+on common industry benchmarks. More details about model can be found in
+`Meta blog post <https://ai.meta.com/blog/meta-llama-3-1/>`__, `model
+website <https://llama.meta.com>`__ and `model
+card <https://huggingface.co/meta-llama/Meta-Llama-3.1-8B-Instruct>`__.
 >\ **Note**: run model with demo, you will need to accept license
 agreement. >You must be a registered user in Hugging Face Hub. Please
 visit `HuggingFace model
-card <https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct>`__,
+card <https://huggingface.co/meta-llama/Meta-Llama-3.1-8B-Instruct>`__,
 carefully read terms of usage and click accept button. You will need to
 use an access token for the code below to run. For more information on
 access tokens, refer to `this section of the
@@ -168,7 +178,7 @@ code:
 
 .. code:: python
 
-       ## login to huggingfacehub to get access to pretrained model
+       ## login to huggingfacehub to get access to pretrained model 
 
        from huggingface_hub import notebook_login, whoami
 
@@ -181,16 +191,16 @@ code:
 .. code:: ipython3
 
     import ipywidgets as widgets
-
-    llm_model_ids = ["OpenVINO/Phi-3-mini-4k-instruct-int4-ov", "meta-llama/Meta-Llama-3-8B-Instruct"]
-
+    
+    llm_model_ids = ["OpenVINO/Phi-3-mini-4k-instruct-int4-ov", "meta-llama/Meta-Llama-3.1-8B-Instruct"]
+    
     llm_model_id = widgets.Dropdown(
         options=llm_model_ids,
         value=llm_model_ids[0],
         description="Model:",
         disabled=False,
     )
-
+    
     llm_model_id
 
 
@@ -198,7 +208,7 @@ code:
 
 .. parsed-literal::
 
-    Dropdown(description='Model:', options=('OpenVINO/Phi-3-mini-4k-instruct-int4-ov', 'meta-llama/Meta-Llama-3-8B…
+    Dropdown(description='Model:', options=('OpenVINO/Phi-3-mini-4k-instruct-int4-ov', 'meta-llama/Meta-Llama-3.1-…
 
 
 
@@ -206,118 +216,15 @@ code:
 
     from pathlib import Path
     import huggingface_hub as hf_hub
-
+    
     llm_model_path = llm_model_id.value.split("/")[-1]
     repo_name = llm_model_id.value.split("/")[0]
-
+    
     if not Path(llm_model_path).exists():
         if repo_name == "OpenVINO":
             hf_hub.snapshot_download(llm_model_id.value, local_dir=llm_model_path)
         else:
             !optimum-cli export openvino --model {llm_model_id.value} --task text-generation-with-past --trust-remote-code --weight-format int4 --group-size 128 --ratio 0.8 {llm_model_path}
-
-
-
-.. parsed-literal::
-
-    Fetching 16 files:   0%|          | 0/16 [00:00<?, ?it/s]
-
-
-
-.. parsed-literal::
-
-    .gitattributes:   0%|          | 0.00/1.52k [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    config.json:   0%|          | 0.00/884 [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    README.md:   0%|          | 0.00/3.75k [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    openvino_detokenizer.xml:   0%|          | 0.00/3.25k [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    generation_config.json:   0%|          | 0.00/172 [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    configuration_phi3.py:   0%|          | 0.00/10.4k [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    openvino_model.xml:   0%|          | 0.00/3.04M [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    openvino_detokenizer.bin:   0%|          | 0.00/500k [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    special_tokens_map.json:   0%|          | 0.00/569 [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    added_tokens.json:   0%|          | 0.00/293 [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    openvino_tokenizer.xml:   0%|          | 0.00/12.7k [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    openvino_model.bin:   0%|          | 0.00/2.45G [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    openvino_tokenizer.bin:   0%|          | 0.00/500k [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    tokenizer.json:   0%|          | 0.00/1.84M [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    tokenizer_config.json:   0%|          | 0.00/3.34k [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    tokenizer.model:   0%|          | 0.00/500k [00:00<?, ?B/s]
-
 
 Download Embedding model
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -336,7 +243,7 @@ example.
 
     embedding_model_id = "BAAI/bge-small-en-v1.5"
     embedding_model_path = "bge-small-en-v1.5"
-
+    
     if not Path(embedding_model_path).exists():
         !optimum-cli export openvino --model {embedding_model_id} --task feature-extraction {embedding_model_path}
 
@@ -354,35 +261,11 @@ Select device for LLM model inference
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    import openvino as ov
-
-    core = ov.Core()
-
-    support_devices = core.available_devices
-
-    llm_device = widgets.Dropdown(
-        options=support_devices + ["AUTO"],
-        value="CPU",
-        description="Device:",
-        disabled=False,
-    )
-
+    from notebook_utils import device_widget
+    
+    llm_device = device_widget("CPU", exclude=["NPU"])
+    
     llm_device
-
-
-.. parsed-literal::
-
-    [ERROR] 09:10:57.134 [NPUBackends] Cannot find backend for inference. Make sure the device is available.
-
-
-
-
-.. parsed-literal::
-
-    Dropdown(description='Device:', options=('CPU', 'AUTO'), value='CPU')
-
-
 
 OpenVINO models can be run locally through the ``OpenVINOLLM`` class in
 `LlamaIndex <https://docs.llamaindex.ai/en/stable/examples/llm/openvino/>`__.
@@ -392,52 +275,36 @@ inference on it.
 .. code:: ipython3
 
     from llama_index.llms.openvino import OpenVINOLLM
-
-    ov_config = {"PERFORMANCE_HINT": "LATENCY", "NUM_STREAMS": "1", "CACHE_DIR": ""}
-
-
-    def completion_to_prompt(completion):
+    
+    import openvino.properties as props
+    import openvino.properties.hint as hints
+    import openvino.properties.streams as streams
+    
+    
+    ov_config = {hints.performance_mode(): hints.PerformanceMode.LATENCY, streams.num(): "1", props.cache_dir(): ""}
+    
+    
+    def phi_completion_to_prompt(completion):
         return f"<|system|><|end|><|user|>{completion}<|end|><|assistant|>\n"
-
-
-    def messages_to_prompt(messages):
-        prompt = ""
-        for message in messages:
-            if message.role == "system":
-                prompt += f"<|system|>{message.content}<|end|>"
-            elif message.role == "user":
-                prompt += f"<|user|>{message.content}<|end|>"
-            elif message.role == "assistant":
-                prompt += f"<|assistant|>{message.content}<|end|>"
-
-        # ensure we start with a system prompt, insert blank if needed
-        if not prompt.startswith("<|system|>"):
-            prompt = "<|system|><|end|>" + prompt
-
-        # add final assistant prompt
-        prompt = prompt + "<|assistant|>\n"
-
-        return prompt
-
-
+    
+    
+    def llama3_completion_to_prompt(completion):
+        return f"<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n{completion}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
+    
+    
     llm = OpenVINOLLM(
         model_id_or_path=str(llm_model_path),
         context_window=3900,
         max_new_tokens=1000,
         model_kwargs={"ov_config": ov_config},
         generate_kwargs={"do_sample": False, "temperature": None, "top_p": None},
-        completion_to_prompt=completion_to_prompt,
-        messages_to_prompt=messages_to_prompt,
+        completion_to_prompt=phi_completion_to_prompt if llm_model_path == "Phi-3-mini-4k-instruct-int4-ov" else llama3_completion_to_prompt,
         device_map=llm_device.value,
     )
 
 
 .. parsed-literal::
 
-    /home/ethan/intel/openvino_notebooks/openvino_env/lib/python3.11/site-packages/pydantic/_internal/_fields.py:161: UserWarning: Field "model_id" has conflict with protected namespace "model_".
-
-    You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
-      warnings.warn(
     Compiling the model to CPU ...
 
 
@@ -450,15 +317,8 @@ Select device for embedding model inference
 
 .. code:: ipython3
 
-    support_devices = core.available_devices
-
-    embedding_device = widgets.Dropdown(
-        options=support_devices + ["AUTO"],
-        value="CPU",
-        description="Device:",
-        disabled=False,
-    )
-
+    embedding_device = device_widget()
+    
     embedding_device
 
 
@@ -477,7 +337,7 @@ class of LlamaIndex.
 .. code:: ipython3
 
     from llama_index.embeddings.huggingface_openvino import OpenVINOEmbedding
-
+    
     embedding = OpenVINOEmbedding(model_id_or_path=embedding_model_path, device=embedding_device.value)
 
 
@@ -498,21 +358,21 @@ In this examples, we will create 2 customized tools for ``multiply`` and
 
     from llama_index.core.agent import ReActAgent
     from llama_index.core.tools import FunctionTool
-
-
+    
+    
     def multiply(a: float, b: float) -> float:
         """Multiply two numbers and returns the product"""
         return a * b
-
-
+    
+    
     multiply_tool = FunctionTool.from_defaults(fn=multiply)
-
-
+    
+    
     def divide(a: float, b: float) -> float:
         """Add two numbers and returns the sum"""
         return a / b
-
-
+    
+    
     divide_tool = FunctionTool.from_defaults(fn=divide)
 
 To demonstrate using RAG engines as a tool in an agent, we’re going to
@@ -525,10 +385,10 @@ create a very simple RAG query engine as one of the tools.
 
     from llama_index.core import SimpleDirectoryReader
     from llama_index.core import VectorStoreIndex, Settings
-
+    
     Settings.embed_model = embedding
     Settings.llm = llm
-
+    
     reader = SimpleDirectoryReader(input_files=[text_example_en_path])
     documents = reader.load_data()
     index = VectorStoreIndex.from_documents(
@@ -542,12 +402,12 @@ extracted so we didn’t need to add it):
 .. code:: ipython3
 
     from llama_index.core.tools import QueryEngineTool, ToolMetadata
-
+    
     vector_tool = QueryEngineTool(
         index.as_query_engine(streaming=True),
         metadata=ToolMetadata(
             name="vector_search",
-            description="Useful for searching for basic facts about Intel Xeon 6 processors",
+            description="Useful for searching for basic facts about 'Intel Xeon 6 processors'",
         ),
     )
 
@@ -567,27 +427,78 @@ Ask a question using multiple tools.
 
 .. code:: ipython3
 
-    response = agent.chat("What's the maximum number of cores of 6731 sockets of Intel Xeon 6 processors ? Go step by step, using a tool to do any math.")
+    response = agent.chat("What's the maximum number of cores of 8 sockets of 'Intel Xeon 6 processors' ? Go step by step, using a tool to do any math.")
 
 
 .. parsed-literal::
 
-    > Running step 49b4846c-74d1-4766-9321-06aa21df11e1. Step input: What's the maximum number of cores of 6731 sockets of Intel Xeon 6 processors ? Go step by step, using a tool to do any math.
+    Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+
+
+.. parsed-literal::
+
+    > Running step ee829c21-5642-423d-afcf-27e894aede35. Step input: What's the maximum number of cores of 8 sockets of 'Intel Xeon 6 processors' ? Go step by step, using a tool to do any math.
+
+
+.. parsed-literal::
+
+    Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+
+
+.. parsed-literal::
+
     Thought: The current language of the user is English. I need to use a tool to help me answer the question.
     Action: vector_search
-    Action Input: {'input': 'maximum number of cores of Intel Xeon 6 processors'}
-    Observation: The Intel Xeon 6 processors with Efficient-cores have up to 144 cores per socket in 1- or 2-socket configurations.
-    > Running step cb9c570c-09b4-4ac6-9121-cd1ef67e63cc. Step input: None
-    Thought: I can answer without using any more tools. I'll use the user's language to answer.
-    Answer: The maximum number of cores for Intel Xeon 6 processors is 144 cores per socket.
-    Support: To calculate the maximum number of cores for 6731 sockets, you would multiply the number of cores per socket by the number of sockets.
-    Action: multiply
-    Action Input: {'a': 144, 'b': 6731}
-    Observation: 969264
-    > Running step 9601596a-63db-4791-92fe-750f3a0cd924. Step input: None
-    Thought: I can answer without using any more tools. I'll use the user's language to answer.
-    Answer: The maximum number of cores for 6731 sockets of Intel Xeon 6 processors is 969,264 cores.
+    Action Input: {'input': 'Intel Xeon 6 processors'}
+    
 
+.. parsed-literal::
+
+    Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+
+
+.. parsed-literal::
+
+    Observation: According to the provided text, Intel Xeon 6 processors with Efficient-cores are described as having the following features and benefits:
+    
+    * Up to 144 cores per socket in 1- or 2-socket configurations, boosting processing capacity, accelerating service mesh performance, and decreasing transaction latency.
+    * Improved power efficiency and lower idle power ISO configurations, contributing to enhanced sustainability with a TDP range of 205W-330W.
+    * Intel QuickAssist Technology (Intel QAT) drives fast encryption/key protection, while Intel Software Guard Extensions (Intel SGX) and Intel Trust Domain Extensions (Intel TDX) enable confidential computing for regulated workloads.
+    * Intel Xeon 6 processor-based platforms with Intel Ethernet 800 Series Network Adapters set the bar for maximum 5G core workload performance and lower operating costs.
+    
+    These processors are suitable for various industries, including:
+    
+    * Telecommunications: 5G core networks, control plane (CP), and user plane functions (UPF)
+    * Enterprise: Network security appliances, secure access service edge (SASE), next-gen firewall (NGFW), real-time deep packet inspection, antivirus, intrusion prevention and detection, and SSL/TLS inspection
+    * Media and Entertainment: Content delivery networks, media processing, video on demand (VOD)
+    * Industrial/Energy: Digitalization of automation, protection, and control
+    
+    The processors are also mentioned to be suitable for various use cases, including:
+    
+    * 5G core networks
+    * Network security appliances
+    * Content delivery networks
+    * Media processing
+    * Video on demand (VOD)
+    * Digitalization of automation, protection, and control in industrial and energy sectors
+    > Running step c8d3f8b5-0a3e-4254-87a8-c13cd4f992ad. Step input: None
+
+
+.. parsed-literal::
+
+    Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+
+
+.. parsed-literal::
+
+    Thought: The current language of the user is English. I need to use a tool to help me answer the question.
+    Action: multiply
+    Action Input: {'a': 8, 'b': 144}
+    Observation: 1152
+    > Running step 437a7fcf-7f53-4d7c-b3d4-06b2714a1b9d. Step input: None
+    Thought: The current language of the user is English. I can answer without using any more tools. I'll use the user's language to answer.
+    Answer: The maximum number of cores of 8 sockets of 'Intel Xeon 6 processors' is 1152.
+    
 
 .. code:: ipython3
 

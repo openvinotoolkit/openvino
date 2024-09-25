@@ -22,6 +22,7 @@ additional part demonstrates how to run optimization with
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ to speed up
 pipeline.
 
+
 **Table of contents:**
 
 
@@ -44,7 +45,9 @@ pipeline.
    -  `Compare inference time of the FP16 and INT8
       pipelines <#compare-inference-time-of-the-fp16-and-int8-pipelines>`__
 
--  `Interactive Demo <#interactive-demo>`__
+-  `Interactive Demo <#interactive-demo>`__ 
+   
+
 
 This is a self-contained example that relies solely on its own code.
 
@@ -61,13 +64,13 @@ Prerequisites
 .. code:: ipython3
 
     import platform
-
+    
     %pip install -q "tensorflow-macos>=2.15; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version > '3.8'" # macOS M1 and M2
     %pip install -q "tensorflow>=2.15; sys_platform == 'darwin' and platform_machine != 'arm64' and python_version > '3.8'" # macOS x86
     %pip install -q "tensorflow>=2.15; sys_platform != 'darwin' and python_version > '3.8'"
     %pip install -q keras-cv tf_keras numpy "openvino>=2024.1.0" "gradio>=4.19" datasets "nncf>=2.10.0"
-
-
+    
+    
     if platform.system() != "Windows":
         %pip install -q "matplotlib>=3.4"
     else:
@@ -98,27 +101,27 @@ Import required modules and set constants
 .. code:: ipython3
 
     import os
-
+    
     os.environ["TF_USE_LEGACY_KERAS"] = "1"
-
+    
     import keras_cv
     import openvino as ov
     import numpy as np
     from pathlib import Path
     import requests
-
+    
     # Fetch `notebook_utils` module
     if not Path("notebook_utils.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py")
         open("notebook_utils.py", "w").write(r.text)
     from notebook_utils import download_file, device_widget
-
+    
     IMAGE_WIDTH = 512
     IMAGE_HEIGHT = 512
     BATCH_SIZE = 1
     MAX_PROMPT_LENGTH = 77
-
-
+    
+    
     OV_TEXT_ENCODER_MODEL_PATH = Path("models/ov_text_encoder_model.xml")
     OV_DIFFUSION_MODEL_PATH = Path("models/ov_diffusion_model.xml")
     OV_DECODER_MODEL_PATH = Path("models/ov_decoder_model.xml")
@@ -143,12 +146,12 @@ shapes and provide example data for model tracing.
         "tokens": (BATCH_SIZE, MAX_PROMPT_LENGTH),
         "positions": (BATCH_SIZE, MAX_PROMPT_LENGTH),
     }
-
+    
     text_encoder_example_input = (
         np.random.randint(len(pipeline.tokenizer.vocab), size=(1, MAX_PROMPT_LENGTH)),
         np.expand_dims(np.arange(MAX_PROMPT_LENGTH), axis=0),
     )
-
+    
     ov_text_encoder = ov.convert_model(
         pipeline.text_encoder,
         example_input=text_encoder_example_input,
@@ -173,13 +176,13 @@ tracing.
         "timestep_embedding": [BATCH_SIZE, 320],
         "context": [BATCH_SIZE, MAX_PROMPT_LENGTH, 768],
     }
-
+    
     diffusion_model_example_input = (
         np.random.random(size=(1, pipeline.img_height // 8, pipeline.img_width // 8, 4)),
         np.random.random(size=(1, 320)),
         np.random.random(size=(1, MAX_PROMPT_LENGTH, 768)),
     )
-
+    
     ov_diffusion_model = ov.convert_model(
         pipeline.diffusion_model,
         input=diffusion_model_input,
@@ -199,9 +202,9 @@ example data for model tracing.
 .. code:: ipython3
 
     decoder_input = [BATCH_SIZE, pipeline.img_height // 8, pipeline.img_width // 8, 4]
-
+    
     decoder_example_input = np.random.random(size=(1, pipeline.img_height // 8, pipeline.img_width // 8, 4))
-
+    
     ov_decoder = ov.convert_model(pipeline.decoder, input=decoder_input, example_input=decoder_example_input)
     ov.save_model(ov_decoder, OV_DECODER_MODEL_PATH)
     del ov_decoder
@@ -210,7 +213,7 @@ example data for model tracing.
 
     # free memory
     import gc
-
+    
     del pipeline
     gc.collect();
 
@@ -227,7 +230,7 @@ and replace original models with OpenVINO ones.
 
     """
     Credits:
-
+    
     - Original implementation:
       https://github.com/CompVis/stable-diffusion
     - Initial TF/Keras port:
@@ -235,21 +238,21 @@ and replace original models with OpenVINO ones.
     - Keras CV implementation:
       https://github.com/keras-team/keras-cv/tree/master/keras_cv/models/stable_diffusion
     """
-
+    
     import math
     import tf_keras as keras
     import numpy as np
     import tensorflow as tf
     from pathlib import Path
-
+    
     from keras_cv.models.stable_diffusion import SimpleTokenizer
-
-
+    
+    
     if not Path("./constants.py").exists():
         download_file(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/stable-diffusion-keras-cv/constants.py")
     from constants import UNCONDITIONAL_TOKENS, ALPHAS_CUMPROD
-
-
+    
+    
     class StableDiffusion:
         def __init__(self, text_encoder, diffusion_model, decoder):
             # UNet requires multiples of 2**7 = 128
@@ -257,18 +260,18 @@ and replace original models with OpenVINO ones.
             img_width = round(IMAGE_WIDTH / 128) * 128
             self.img_height = img_height
             self.img_width = img_width
-
+    
             self._tokenizer = None
             self._text_encoder = text_encoder
             self._diffusion_model = diffusion_model
             self._decoder = decoder
-
+    
             print(
                 "By using this model checkpoint, you acknowledge that its usage is "
                 "subject to the terms of the CreativeML Open RAIL-M license at "
                 "https://raw.githubusercontent.com/CompVis/stable-diffusion/main/LICENSE"
             )
-
+    
         def text_to_image(
             self,
             prompt,
@@ -278,7 +281,7 @@ and replace original models with OpenVINO ones.
             seed=None,
         ):
             encoded_text = self.encode_text(prompt)
-
+    
             return self._generate_image(
                 encoded_text,
                 negative_prompt=negative_prompt,
@@ -287,28 +290,28 @@ and replace original models with OpenVINO ones.
                 unconditional_guidance_scale=unconditional_guidance_scale,
                 seed=seed,
             )
-
+    
         def encode_text(self, prompt):
             # Tokenize prompt (i.e. starting context)
             inputs = self.tokenizer.encode(prompt)
             if len(inputs) > MAX_PROMPT_LENGTH:
                 raise ValueError(f"Prompt is too long (should be <= {MAX_PROMPT_LENGTH} tokens)")
-
+    
             phrase = inputs + [49407] * (MAX_PROMPT_LENGTH - len(inputs))
-
+    
             phrase = tf.convert_to_tensor([phrase], dtype="int32")
-
+    
             return self.text_encoder({"tokens": phrase, "positions": self._get_pos_ids()})
-
+    
         def text_encoder(self, args):
             return self._call_ov_model(self._text_encoder, args)
-
+    
         def diffusion_model(self, args):
             return self._call_ov_model(self._diffusion_model, args)
-
+    
         def decoder(self, args):
             return self._call_ov_model(self._decoder, args)
-
+    
         def _generate_image(
             self,
             encoded_text,
@@ -325,36 +328,36 @@ and replace original models with OpenVINO ones.
                     "`generate_image`. `seed` is only used to generate diffusion "
                     "noise when it's not already user-specified."
                 )
-
+    
             context = self._expand_tensor(encoded_text, batch_size)
-
+    
             if negative_prompt is None:
                 unconditional_context = np.repeat(self._get_unconditional_context(), batch_size, axis=0)
             else:
                 unconditional_context = self.encode_text(negative_prompt)
                 unconditional_context = self._expand_tensor(unconditional_context, batch_size)
-
+    
             if diffusion_noise is not None:
                 diffusion_noise = np.squeeze(diffusion_noise)
-
+    
                 if len(np.shape(diffusion_noise)) == 3:
                     diffusion_noise = np.repeat(np.expand_dims(diffusion_noise, axis=0), batch_size, axis=0)
                 latent = diffusion_noise
             else:
                 latent = self._get_initial_diffusion_noise(batch_size, seed)
-
+    
             # Iterative reverse diffusion stage
             num_timesteps = 1000
             ratio = (num_timesteps - 1) / (num_steps - 1)
             timesteps = (np.arange(0, num_steps) * ratio).round().astype(np.int64)
-
+    
             alphas, alphas_prev = self._get_initial_alphas(timesteps)
             progbar = keras.utils.Progbar(len(timesteps))
             iteration = 0
             for index, timestep in list(enumerate(timesteps))[::-1]:
                 latent_prev = latent  # Set aside the previous latent vector
                 t_emb = self._get_timestep_embedding(timestep, batch_size)
-
+    
                 unconditional_latent = self.diffusion_model(
                     {
                         "latent": latent,
@@ -362,7 +365,7 @@ and replace original models with OpenVINO ones.
                         "context": unconditional_context,
                     }
                 )
-
+    
                 latent = self.diffusion_model(
                     {
                         "latent": latent,
@@ -370,7 +373,7 @@ and replace original models with OpenVINO ones.
                         "context": context,
                     }
                 )
-
+    
                 latent = np.array(unconditional_latent + unconditional_guidance_scale * (latent - unconditional_latent))
                 a_t, a_prev = alphas[index], alphas_prev[index]
                 # Keras backend array need to cast explicitly
@@ -380,35 +383,35 @@ and replace original models with OpenVINO ones.
                 latent = np.array(latent) * math.sqrt(1.0 - a_prev) + math.sqrt(a_prev) * pred_x0
                 iteration += 1
                 progbar.update(iteration)
-
+    
             # Decoding stage
             decoded = self.decoder(latent)
-
+    
             decoded = ((decoded + 1) / 2) * 255
             return np.clip(decoded, 0, 255).astype("uint8")
-
+    
         def _get_unconditional_context(self):
             unconditional_tokens = tf.convert_to_tensor([UNCONDITIONAL_TOKENS], dtype="int32")
-
+    
             unconditional_context = self.text_encoder({"tokens": unconditional_tokens, "positions": self._get_pos_ids()})
-
+    
             return unconditional_context
-
+    
         def _expand_tensor(self, text_embedding, batch_size):
             text_embedding = np.squeeze(text_embedding)
             if len(text_embedding.shape) == 2:
                 text_embedding = np.repeat(np.expand_dims(text_embedding, axis=0), batch_size, axis=0)
             return text_embedding
-
+    
         @property
         def tokenizer(self):
             if self._tokenizer is None:
                 self._tokenizer = SimpleTokenizer()
             return self._tokenizer
-
+    
         def _call_ov_model(self, ov_model, args):
             return ov_model(args)[ov_model.output(0)]
-
+    
         def _get_timestep_embedding(self, timestep, batch_size, dim=320, max_period=10000):
             half = dim // 2
             range = np.array(np.arange(0, half), "float32")
@@ -417,19 +420,19 @@ and replace original models with OpenVINO ones.
             embedding = np.concatenate([np.cos(args), np.sin(args)], 0)
             embedding = np.reshape(embedding, [1, -1])
             return np.repeat(embedding, batch_size, axis=0)
-
+    
         def _get_initial_alphas(self, timesteps):
             alphas = [ALPHAS_CUMPROD[t] for t in timesteps]
             alphas_prev = [1.0] + alphas[:-1]
-
+    
             return alphas, alphas_prev
-
+    
         def _get_initial_diffusion_noise(self, batch_size, seed):
             np.random.seed(seed)
             return np.random.normal(
                 size=(batch_size, self.img_height // 8, self.img_width // 8, 4),
             )
-
+    
         @staticmethod
         def _get_pos_ids():
             return np.expand_dims(np.arange(MAX_PROMPT_LENGTH, dtype="int32"), 0)
@@ -439,7 +442,7 @@ Select device from dropdown list for running inference using OpenVINO.
 .. code:: ipython3
 
     device = device_widget()
-
+    
     device
 
 
@@ -456,7 +459,7 @@ Read and compile pipeline models using selected device.
 .. code:: ipython3
 
     import openvino as ov
-
+    
     core = ov.Core()
     ov_text_encoder = core.compile_model(OV_TEXT_ENCODER_MODEL_PATH, device.value)
     ov_diffusion_model = core.compile_model(OV_DIFFUSION_MODEL_PATH, device.value)
@@ -465,8 +468,8 @@ Read and compile pipeline models using selected device.
 .. code:: ipython3
 
     import matplotlib.pyplot as plt
-
-
+    
+    
     def plot_images(images):
         plt.figure(figsize=(8 * len(images), 10))
         for i in range(len(images)):
@@ -479,9 +482,9 @@ Create and run Stable Diffusion pipeline using OpenVINO models.
 .. code:: ipython3
 
     ov_pipeline = StableDiffusion(text_encoder=ov_text_encoder, diffusion_model=ov_diffusion_model, decoder=ov_decoder)
-
+    
     images = ov_pipeline.text_to_image("photograph of an astronaut riding a horse", num_steps=50, seed=80)
-
+    
     plot_images(images)
 
 
@@ -489,7 +492,7 @@ Create and run Stable Diffusion pipeline using OpenVINO models.
 
     By using this model checkpoint, you acknowledge that its usage is subject to the terms of the CreativeML Open RAIL-M license at https://raw.githubusercontent.com/CompVis/stable-diffusion/main/LICENSE
     50/50 [==============================] - 65s 1s/step
-
+    
 
 
 .. image:: stable-diffusion-keras-cv-with-output_files/stable-diffusion-keras-cv-with-output_23_1.png
@@ -536,12 +539,10 @@ improve model inference speed.
 
 .. code:: ipython3
 
-    to_quantize = widgets.Checkbox(
-        value=True,
-        description="Quantization",
-        disabled=False,
-    )
-
+    from notebook_utils import quantization_widget
+    
+    to_quantize = quantization_widget()
+    
     to_quantize
 
 
@@ -557,17 +558,17 @@ improve model inference speed.
 
     # Fetch `skip_kernel_extension` module
     import requests
-
+    
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
     )
     open("skip_kernel_extension.py", "w").write(r.text)
-
+    
     ov_int8_pipeline = None
     OV_INT8_DIFFUSION_MODEL_PATH = Path("models/ov_int8_diffusion_model.xml")
     OV_INT8_TEXT_ENCODER_MODEL_PATH = Path("models/ov_int8_text_encoder_model.xml")
     OV_INT8_DECODER_MODEL_PATH = Path("models/ov_int8_decoder_model.xml")
-
+    
     %load_ext skip_kernel_extension
 
 Prepare calibration dataset
@@ -584,32 +585,32 @@ model inputs for UNet optimization we should customize
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     import datasets
     import numpy as np
     from tqdm.notebook import tqdm
     from typing import Any, Dict, List
-
-
+    
+    
     class CompiledModelDecorator(ov.CompiledModel):
         def __init__(self, compiled_model: ov.CompiledModel, data_cache: List[Any] = None, keep_prob: float = 0.5):
             super().__init__(compiled_model)
             self.data_cache = data_cache if data_cache is not None else []
             self.keep_prob = keep_prob
-
+    
         def __call__(self, *args, **kwargs):
             if np.random.rand() <= self.keep_prob:
                 self.data_cache.append(*args)
             return super().__call__(*args, **kwargs)
-
-
+    
+    
     def collect_calibration_data(ov_pipe, calibration_dataset_size: int, num_inference_steps: int = 50) -> List[Dict]:
         original_unet = ov_pipe._diffusion_model
         calibration_data = []
         ov_pipe._diffusion_model = CompiledModelDecorator(original_unet, calibration_data, keep_prob=0.7)
-
+    
         dataset = datasets.load_dataset("google-research-datasets/conceptual_captions", split="train", streaming=True, trust_remote_code=True).shuffle(seed=42)
-
+    
         # Run inference for data collection
         pbar = tqdm(total=calibration_dataset_size)
         for batch in dataset:
@@ -620,14 +621,14 @@ model inputs for UNet optimization we should customize
             pbar.update(len(calibration_data) - pbar.n)
             if pbar.n >= calibration_dataset_size:
                 break
-
+    
         ov_pipe._diffusion_model = original_unet
         return calibration_data[:calibration_dataset_size]
 
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     if not OV_INT8_DIFFUSION_MODEL_PATH.exists() :
         subset_size = 200
         calibration_data = collect_calibration_data(ov_pipeline, calibration_dataset_size=subset_size)
@@ -639,7 +640,7 @@ model inputs for UNet optimization we should customize
     You can avoid this message in future by passing the argument `trust_remote_code=True`.
     Passing `trust_remote_code=True` will be mandatory to load this dataset from the next major release of `datasets`.
       warnings.warn(
-
+    
 
 
 .. parsed-literal::
@@ -652,7 +653,7 @@ model inputs for UNet optimization we should customize
     50/50 [==============================] - 65s 1s/step
     50/50 [==============================] - 65s 1s/step
     50/50 [==============================] - 65s 1s/step
-
+    
 
 Run Quantization
 ^^^^^^^^^^^^^^^^
@@ -662,15 +663,15 @@ Run Quantization
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     from collections import deque
-
+    
     def get_operation_const_op(operation, const_port_id: int):
         node = operation.input_value(const_port_id).get_node()
         queue = deque([node])
         constant_node = None
         allowed_propagation_types_list = ["Convert", "FakeQuantize", "Reshape"]
-
+    
         while len(queue) != 0:
             curr_node = queue.popleft()
             if curr_node.get_type_name() == "Constant":
@@ -680,10 +681,10 @@ Run Quantization
                 break
             if curr_node.get_type_name() in allowed_propagation_types_list:
                 queue.append(curr_node.input_value(0).get_node())
-
+    
         return constant_node
-
-
+    
+    
     def is_embedding(node) -> bool:
         allowed_types_list = ["f16", "f32", "f64"]
         const_port_id = 0
@@ -692,10 +693,10 @@ Run Quantization
             const_node = get_operation_const_op(node, const_port_id)
             if const_node is not None:
                 return True
-
+    
         return False
-
-
+    
+    
     def collect_ops_with_weights(model):
         ops_with_weights = []
         for op in model.get_ops():
@@ -706,16 +707,16 @@ Run Quantization
                     ops_with_weights.append(op.get_friendly_name())
             if op.get_type_name() == "Gather" and is_embedding(op):
                 ops_with_weights.append(op.get_friendly_name())
-
+    
         return ops_with_weights
 
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     import nncf
     from nncf.quantization.advanced_parameters import AdvancedSmoothQuantParameters
-
+    
     if not OV_INT8_DIFFUSION_MODEL_PATH.exists():
         diffusion_model = core.read_model(OV_DIFFUSION_MODEL_PATH)
         unet_ignored_scope = collect_ops_with_weights(diffusion_model)
@@ -742,7 +743,7 @@ Run Quantization
     +==============+===========================+===================================+
     | 8            | 100% (184 / 184)          | 100% (184 / 184)                  |
     +--------------+---------------------------+-----------------------------------+
-
+    
 
 
 .. parsed-literal::
@@ -754,6 +755,7 @@ Run Quantization
 
 
 
+    
 
 
 
@@ -761,8 +763,7 @@ Run Quantization
 
 
 
-
-
+    
 
 
 .. parsed-literal::
@@ -772,7 +773,7 @@ Run Quantization
     INFO:nncf:Not adding activation input quantizer for operation: 4 diffusion_model/dense_72/MatMul
     8 diffusion_model/dense_72/BiasAdd
     44 diffusion_model/activation/mul_1
-
+    
     INFO:nncf:Not adding activation input quantizer for operation: 10 diffusion_model/spatial_transformer/basic_transformer_block/cross_attention_1/dense_81/Tensordot/MatMul
     INFO:nncf:Not adding activation input quantizer for operation: 11 diffusion_model/spatial_transformer_1/basic_transformer_block_1/cross_attention_3/dense_91/Tensordot/MatMul
     INFO:nncf:Not adding activation input quantizer for operation: 12 diffusion_model/spatial_transformer_1/basic_transformer_block_1/cross_attention_3/dense_92/Tensordot/MatMul
@@ -807,73 +808,73 @@ Run Quantization
     INFO:nncf:Not adding activation input quantizer for operation: 84 diffusion_model/dense_73/MatMul
     122 diffusion_model/dense_73/BiasAdd
     168 diffusion_model/res_block/activation_2/mul_1
-
+    
     INFO:nncf:Not adding activation input quantizer for operation: 218 diffusion_model/res_block/dense_74/MatMul
     287 diffusion_model/res_block/dense_74/BiasAdd
-
+    
     INFO:nncf:Not adding activation input quantizer for operation: 219 diffusion_model/res_block_1/dense_85/MatMul
     288 diffusion_model/res_block_1/dense_85/BiasAdd
-
+    
     INFO:nncf:Not adding activation input quantizer for operation: 220 diffusion_model/res_block_10/dense_154/MatMul
     289 diffusion_model/res_block_10/dense_154/BiasAdd
-
+    
     INFO:nncf:Not adding activation input quantizer for operation: 221 diffusion_model/res_block_11/dense_155/MatMul
     290 diffusion_model/res_block_11/dense_155/BiasAdd
-
+    
     INFO:nncf:Not adding activation input quantizer for operation: 222 diffusion_model/res_block_12/dense_156/MatMul
     291 diffusion_model/res_block_12/dense_156/BiasAdd
-
+    
     INFO:nncf:Not adding activation input quantizer for operation: 223 diffusion_model/res_block_13/dense_157/MatMul
     292 diffusion_model/res_block_13/dense_157/BiasAdd
-
+    
     INFO:nncf:Not adding activation input quantizer for operation: 224 diffusion_model/res_block_14/dense_168/MatMul
     293 diffusion_model/res_block_14/dense_168/BiasAdd
-
+    
     INFO:nncf:Not adding activation input quantizer for operation: 225 diffusion_model/res_block_15/dense_179/MatMul
     294 diffusion_model/res_block_15/dense_179/BiasAdd
-
+    
     INFO:nncf:Not adding activation input quantizer for operation: 226 diffusion_model/res_block_16/dense_190/MatMul
     295 diffusion_model/res_block_16/dense_190/BiasAdd
-
+    
     INFO:nncf:Not adding activation input quantizer for operation: 227 diffusion_model/res_block_17/dense_201/MatMul
     296 diffusion_model/res_block_17/dense_201/BiasAdd
-
+    
     INFO:nncf:Not adding activation input quantizer for operation: 228 diffusion_model/res_block_18/dense_212/MatMul
     297 diffusion_model/res_block_18/dense_212/BiasAdd
-
+    
     INFO:nncf:Not adding activation input quantizer for operation: 229 diffusion_model/res_block_19/dense_223/MatMul
     298 diffusion_model/res_block_19/dense_223/BiasAdd
-
+    
     INFO:nncf:Not adding activation input quantizer for operation: 230 diffusion_model/res_block_2/dense_96/MatMul
     299 diffusion_model/res_block_2/dense_96/BiasAdd
-
+    
     INFO:nncf:Not adding activation input quantizer for operation: 231 diffusion_model/res_block_20/dense_234/MatMul
     300 diffusion_model/res_block_20/dense_234/BiasAdd
-
+    
     INFO:nncf:Not adding activation input quantizer for operation: 232 diffusion_model/res_block_21/dense_245/MatMul
     301 diffusion_model/res_block_21/dense_245/BiasAdd
-
+    
     INFO:nncf:Not adding activation input quantizer for operation: 233 diffusion_model/res_block_3/dense_107/MatMul
     302 diffusion_model/res_block_3/dense_107/BiasAdd
-
+    
     INFO:nncf:Not adding activation input quantizer for operation: 234 diffusion_model/res_block_4/dense_118/MatMul
     303 diffusion_model/res_block_4/dense_118/BiasAdd
-
+    
     INFO:nncf:Not adding activation input quantizer for operation: 235 diffusion_model/res_block_5/dense_129/MatMul
     304 diffusion_model/res_block_5/dense_129/BiasAdd
-
+    
     INFO:nncf:Not adding activation input quantizer for operation: 236 diffusion_model/res_block_6/dense_140/MatMul
     305 diffusion_model/res_block_6/dense_140/BiasAdd
-
+    
     INFO:nncf:Not adding activation input quantizer for operation: 237 diffusion_model/res_block_7/dense_141/MatMul
     306 diffusion_model/res_block_7/dense_141/BiasAdd
-
+    
     INFO:nncf:Not adding activation input quantizer for operation: 238 diffusion_model/res_block_8/dense_142/MatMul
     307 diffusion_model/res_block_8/dense_142/BiasAdd
-
+    
     INFO:nncf:Not adding activation input quantizer for operation: 239 diffusion_model/res_block_9/dense_153/MatMul
     308 diffusion_model/res_block_9/dense_153/BiasAdd
-
+    
     INFO:nncf:Not adding activation input quantizer for operation: 9 diffusion_model/spatial_transformer/basic_transformer_block/cross_attention_1/dense_80/Tensordot/MatMul
     INFO:nncf:Not adding activation input quantizer for operation: 2355 diffusion_model/spatial_transformer/basic_transformer_block/cross_attention/dense_75/Tensordot/MatMul
     INFO:nncf:Not adding activation input quantizer for operation: 2356 diffusion_model/spatial_transformer/basic_transformer_block/cross_attention/dense_76/Tensordot/MatMul
@@ -1003,6 +1004,27 @@ Run Quantization
     INFO:nncf:Not adding activation input quantizer for operation: 723 diffusion_model/spatial_transformer_15/basic_transformer_block_15/cross_attention_31/dense_253/Tensordot/MatMul
     INFO:nncf:Not adding activation input quantizer for operation: 2958 diffusion_model/spatial_transformer_15/basic_transformer_block_15/geglu_15/dense_254/Tensordot/MatMul
     INFO:nncf:Not adding activation input quantizer for operation: 5020 diffusion_model/spatial_transformer_15/basic_transformer_block_15/dense_255/Tensordot/MatMul
+    
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+    
+
+
+
+
+
+
+
+    
 
 
 
@@ -1015,6 +1037,7 @@ Run Quantization
 
 
 
+    
 
 
 
@@ -1022,29 +1045,7 @@ Run Quantization
 
 
 
-
-
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    
 
 
 Run Weight Compression
@@ -1060,12 +1061,12 @@ applied to footprint reduction.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     if not OV_INT8_TEXT_ENCODER_MODEL_PATH.exists():
         text_encoder_model = core.read_model(OV_TEXT_ENCODER_MODEL_PATH)
         compressed_text_encoder_model = nncf.compress_weights(text_encoder_model)
         ov.save_model(compressed_text_encoder_model, OV_INT8_TEXT_ENCODER_MODEL_PATH)
-
+    
     if not OV_INT8_DECODER_MODEL_PATH.exists():
         decoder_model = core.read_model(OV_DECODER_MODEL_PATH)
         compressed_decoder_model = nncf.compress_weights(decoder_model)
@@ -1081,7 +1082,7 @@ applied to footprint reduction.
     +==============+===========================+===================================+
     | 8            | 100% (74 / 74)            | 100% (74 / 74)                    |
     +--------------+---------------------------+-----------------------------------+
-
+    
 
 
 .. parsed-literal::
@@ -1093,6 +1094,7 @@ applied to footprint reduction.
 
 
 
+    
 
 
 
@@ -1100,8 +1102,7 @@ applied to footprint reduction.
 
 
 
-
-
+    
 
 
 .. parsed-literal::
@@ -1113,7 +1114,7 @@ applied to footprint reduction.
     +==============+===========================+===================================+
     | 8            | 100% (40 / 40)            | 100% (40 / 40)                    |
     +--------------+---------------------------+-----------------------------------+
-
+    
 
 
 .. parsed-literal::
@@ -1125,6 +1126,7 @@ applied to footprint reduction.
 
 
 
+    
 
 
 
@@ -1132,8 +1134,7 @@ applied to footprint reduction.
 
 
 
-
-
+    
 
 
 Let’s compare the images generated by the original and optimized
@@ -1142,15 +1143,15 @@ pipelines.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     ov_int8_text_encoder = core.compile_model(OV_INT8_TEXT_ENCODER_MODEL_PATH, device.value)
     ov_int8_diffusion_model = core.compile_model(OV_INT8_DIFFUSION_MODEL_PATH, device.value)
     ov_int8_decoder = core.compile_model(OV_INT8_DECODER_MODEL_PATH, device.value)
-
+    
     ov_int8_pipeline = StableDiffusion(
         text_encoder=ov_int8_text_encoder, diffusion_model=ov_int8_diffusion_model, decoder=ov_int8_decoder,
     )
-
+    
     int8_image = ov_int8_pipeline.text_to_image(
         "photograph of an astronaut riding a horse",
         num_steps=50,
@@ -1162,18 +1163,18 @@ pipelines.
 
     By using this model checkpoint, you acknowledge that its usage is subject to the terms of the CreativeML Open RAIL-M license at https://raw.githubusercontent.com/CompVis/stable-diffusion/main/LICENSE
     50/50 [==============================] - 39s 785ms/step
-
+    
 
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     import matplotlib.pyplot as plt
-
+    
     def visualize_results(orig_img, optimized_img):
         """
         Helper function for results visualization
-
+    
         Parameters:
            orig_img (Image.Image): generated image using FP16 models
            optimized_img (Image.Image): generated image using quantized models
@@ -1195,7 +1196,7 @@ pipelines.
         list_axes[1].imshow(np.array(optimized_img))
         list_axes[0].set_title(orig_title, fontsize=15)
         list_axes[1].set_title(control_title, fontsize=15)
-
+    
         fig.subplots_adjust(wspace=0.01, hspace=0.01)
         fig.tight_layout()
         return fig
@@ -1203,7 +1204,7 @@ pipelines.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     visualize_results(images[0], int8_image)
 
 
@@ -1219,10 +1220,10 @@ Compare model file sizes
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     fp16_model_paths = [OV_TEXT_ENCODER_MODEL_PATH, OV_DIFFUSION_MODEL_PATH, OV_DECODER_MODEL_PATH]
     int8_model_paths = [OV_INT8_TEXT_ENCODER_MODEL_PATH, OV_INT8_DIFFUSION_MODEL_PATH, OV_INT8_DECODER_MODEL_PATH]
-
+    
     for fp16_path, int8_path in zip(fp16_model_paths, int8_model_paths):
         fp16_ir_model_size = fp16_path.with_suffix(".bin").stat().st_size
         int8_model_size = int8_path.with_suffix(".bin").stat().st_size
@@ -1234,7 +1235,7 @@ Compare model file sizes
     ov_text_encoder_model compression rate: 1.992
     ov_diffusion_model compression rate: 1.997
     ov_decoder_model compression rate: 1.997
-
+    
 
 Compare inference time of the FP16 and INT8 pipelines
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1251,9 +1252,9 @@ pipelines, we use median inference time on calibration subset.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     import time
-
+    
     def calculate_inference_time(pipeline, validation_data):
         inference_time = []
         for prompt in validation_data:
@@ -1267,11 +1268,11 @@ pipelines, we use median inference time on calibration subset.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     validation_size = 3
     validation_dataset = datasets.load_dataset("google-research-datasets/conceptual_captions", split="train", streaming=True, trust_remote_code=True).take(validation_size)
     validation_data = [batch["caption"] for batch in validation_dataset]
-
+    
     fp_latency = calculate_inference_time(ov_pipeline, validation_data)
     int8_latency = calculate_inference_time(ov_int8_pipeline, validation_data)
     print(f"Performance speed-up: {fp_latency / int8_latency:.3f}")
@@ -1283,7 +1284,7 @@ pipelines, we use median inference time on calibration subset.
     You can avoid this message in future by passing the argument `trust_remote_code=True`.
     Passing `trust_remote_code=True` will be mandatory to load this dataset from the next major release of `datasets`.
       warnings.warn(
-
+    
 
 .. parsed-literal::
 
@@ -1294,7 +1295,7 @@ pipelines, we use median inference time on calibration subset.
     50/50 [==============================] - 39s 783ms/step
     50/50 [==============================] - 39s 784ms/step
     Performance speed-up: 1.628
-
+    
 
 Interactive Demo
 ~~~~~~~~~~~~~~~~
@@ -1306,12 +1307,14 @@ launch the interactive demo.
 
 .. code:: ipython3
 
+    import ipywidgets as widgets
+    
     use_quantized_model = widgets.Checkbox(
         description="Use quantized model",
         value=ov_int8_pipeline is not None,
         disabled=ov_int8_pipeline is None,
     )
-
+    
     use_quantized_model
 
 
@@ -1327,13 +1330,13 @@ launch the interactive demo.
 
     if not Path("gradio_helper.py").exists():
         download_file(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/stable-diffusion-keras-cv/gradio_helper.py")
-
+    
     from gradio_helper import make_demo
-
+    
     pipeline = ov_int8_pipeline if use_quantized_model.value else ov_pipeline
-
+    
     demo = make_demo(pipeline)
-
+    
     try:
         demo.launch(debug=True, height=1000)
     except Exception:

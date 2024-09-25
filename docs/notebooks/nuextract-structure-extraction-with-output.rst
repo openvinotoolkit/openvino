@@ -45,6 +45,7 @@ The tutorial consists of the following steps:
    API <https://github.com/openvinotoolkit/openvino.genai>`__
 -  Launch interactive Gradio demo with structure extraction pipeline
 
+
 **Table of contents:**
 
 
@@ -90,9 +91,6 @@ Prerequisites
 
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
-    ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    mobileclip 0.1.0 requires torch==1.13.1, but you have torch 2.2.2+cpu which is incompatible.
-    mobileclip 0.1.0 requires torchvision==0.14.1, but you have torchvision 0.17.2+cpu which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -102,17 +100,17 @@ Prerequisites
     from pathlib import Path
     import requests
     import shutil
-
+    
     if not Path("notebook_utils.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py")
         open("notebook_utils.py", "w").write(r.text)
-
+    
     from notebook_utils import download_file
-
+    
     # Fetch llm_config.py
     llm_config_shared_path = Path("../../utils/llm_config.py")
     llm_config_dst_path = Path("llm_config.py")
-
+    
     if not llm_config_dst_path.exists():
         if llm_config_shared_path.exists():
             try:
@@ -160,15 +158,15 @@ dataset for information extraction.
 .. code:: ipython3
 
     from llm_config import get_llm_selection_widget
-
+    
     models = {
         "NuExtract_tiny": {"model_id": "numind/NuExtract-tiny"},
         "NuExtract": {"model_id": "numind/NuExtract"},
         "NuExtract_large": {"model_id": "numind/NuExtract-large"},
     }
-
+    
     form, _, model_dropdown, compression_dropdown, _ = get_llm_selection_widget(languages=None, models=models, show_preconverted_checkbox=False)
-
+    
     form
 
 
@@ -253,7 +251,7 @@ parameters. An example of this approach usage you can find in
 .. code:: ipython3
 
     from llm_config import convert_and_compress_model
-
+    
     model_dir = convert_and_compress_model(model_name, model_config, compression_dropdown.value, use_preconverted=False)
 
 
@@ -272,15 +270,20 @@ parameters. An example of this approach usage you can find in
 
 .. parsed-literal::
 
-    2024-08-28 03:15:15.152201: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-08-28 03:15:15.185403: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-09-24 01:56:02.315697: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-09-24 01:56:02.348697: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-08-28 03:15:15.703698: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-09-24 01:56:02.867203: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
     Framework not specified. Using pt to export the model.
     Using framework PyTorch: 2.2.2+cpu
     Overriding 1 configuration item(s)
     	- use_cache -> True
     We detected that you are passing `past_key_values` as a tuple and this is deprecated and will be removed in v4.43. Please use an appropriate `Cache` class (https://huggingface.co/docs/transformers/v4.41.3/en/internal/generation_utils#transformers.Cache)
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/optimum/exporters/openvino/model_patcher.py:489: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if sequence_length != 1:
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/qwen2/modeling_qwen2.py:165: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if seq_len > self.max_seq_len_cached:
+    Set tokenizer padding side to left for `text-generation-with-past` task.
 
 
 .. parsed-literal::
@@ -294,21 +297,7 @@ parameters. An example of this approach usage you can find in
     ├────────────────┼─────────────────────────────┼────────────────────────���───────────────┤
     │              4 │ 53% (122 / 169)             │ 80% (122 / 168)                        │
     ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
-    [2KApplying Weight Compression ━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% • 0:00:07 • 0:00:00
-
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/optimum/exporters/openvino/model_patcher.py:489: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if sequence_length != 1:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/qwen2/modeling_qwen2.py:110: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if seq_len > self.max_seq_len_cached:
-    Set tokenizer padding side to left for `text-generation-with-past` task.
-    Replacing `(?!\S)` pattern to `(?:$|[^\S])` in RegexSplit operation
-
-
-.. parsed-literal::
-
+    [2KApplying Weight Compression ━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% • 0:00:08 • 0:00:00
     ✅ INT4 NuExtract_tiny model converted and can be found in NuExtract_tiny/INT4_compressed_weights
 
 
@@ -317,7 +306,7 @@ Let’s compare model size for different compression types
 .. code:: ipython3
 
     from llm_config import compare_model_size
-
+    
     compare_model_size(model_dir)
 
 
@@ -337,9 +326,9 @@ Select device for inference and model variant
 .. code:: ipython3
 
     from notebook_utils import device_widget
-
+    
     device = device_widget(default="CPU", exclude=["NPU"])
-
+    
     device
 
 
@@ -374,15 +363,15 @@ potentially improving accuracy for complex or ambiguous cases.
 
     import json
     from typing import List
-
-
+    
+    
     def prepare_input(text: str, schema: str, examples: List[str] = ["", "", ""]) -> str:
         schema = json.dumps(json.loads(schema), indent=4)
         input_llm = "<|input|>\n### Template:\n" + schema + "\n"
         for example in examples:
             if example != "":
                 input_llm += "### Example:\n" + json.dumps(json.loads(example), indent=4) + "\n"
-
+    
         input_llm += "### Text:\n" + text + "\n<|output|>\n"
         return input_llm
 
@@ -406,10 +395,10 @@ LLMPipeline.
 .. code:: ipython3
 
     from openvino_genai import LLMPipeline
-
+    
     pipe = LLMPipeline(model_dir.as_posix(), device.value)
-
-
+    
+    
     def run_structure_extraction(text: str, schema: str) -> str:
         input = prepare_input(text, schema)
         return pipe.generate(input, max_new_tokens=200)
@@ -431,7 +420,7 @@ schema format:
     automated benchmarks. Our models are released under the Apache 2.0 license.
     Code: https://github.com/mistralai/mistral-src
     Webpage: https://mistral.ai/news/announcing-mistral-7b/"""
-
+    
     schema = """{
         "Model": {
             "Name": "",
@@ -444,7 +433,7 @@ schema format:
             "Licence": ""
         }
     }"""
-
+    
     output = run_structure_extraction(text, schema)
     print(output)
 
@@ -455,12 +444,10 @@ schema format:
         "Model": {
             "Name": "Mistral 7B",
             "Number of parameters": "7-billion",
-             "Number of max token": "",
-             "Architecture": [
-                "Llama 2",
-                "Llama 1",
-                "Llama 2",
-                "Llama 1"
+            "Number of max token": "",
+            "Architecture": [
+                "grouped-query attention",
+                "sliding window attention"
             ]
         },
         "Usage": {
@@ -472,7 +459,7 @@ schema format:
             "Licence": "Apache 2.0"
         }
     }
-
+    
 
 
 Run interactive structure extraction demo with Gradio
@@ -487,11 +474,11 @@ Run interactive structure extraction demo with Gradio
             url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/nuextract-structure-extraction/gradio_helper.py"
         )
         open("gradio_helper.py", "w").write(r.text)
-
+    
     from gradio_helper import make_demo
-
+    
     demo = make_demo(fn=run_structure_extraction)
-
+    
     try:
         demo.launch(height=800)
     except Exception:
@@ -504,7 +491,7 @@ Run interactive structure extraction demo with Gradio
 .. parsed-literal::
 
     Running on local URL:  http://127.0.0.1:7860
-
+    
     To create a public link, set `share=True` in `launch()`.
 
 

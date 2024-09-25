@@ -13,6 +13,7 @@ achieves excellent performance on a wide variety of tasks, even when
 using very few labeled examples from the target dataset. This tutorial
 uses OpenVINO backend for performing model quantization in NNCF.
 
+
 **Table of contents:**
 
 
@@ -103,11 +104,26 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
     
     tfds.core.utils.gcs_utils._is_gcs_disabled = True
     os.environ["NO_GCE_CHECK"] = "true"
+    
+    import requests
+    
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+    )
+    open("notebook_utils.py", "w").write(r.text)
 
 
 .. parsed-literal::
 
     INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
+
+
+
+
+.. parsed-literal::
+
+    24692
+
 
 
 .. code:: ipython3
@@ -279,7 +295,7 @@ Model Fine-tuning
 
 .. parsed-literal::
 
-    101/101 [==============================] - 958s 9s/step - loss: 0.3845 - accuracy: 0.8996 - val_loss: 0.0824 - val_accuracy: 0.9780
+    101/101 [==============================] - 960s 9s/step - loss: 0.4825 - accuracy: 0.8779 - val_loss: 0.0626 - val_accuracy: 0.9780
 
 
 .. parsed-literal::
@@ -348,16 +364,9 @@ Select device for inference:
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
+    from notebook_utils import device_widget
     
-    core = ov.Core()
-    
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
     
     device
 
@@ -372,6 +381,8 @@ Select device for inference:
 
 .. code:: ipython3
 
+    core = ov.Core()
+    
     ov_fp32_model = core.read_model(ir_path)
     ov_fp32_model.reshape([1, IMG_SIZE[0], IMG_SIZE[1], 3])
     
@@ -494,8 +505,8 @@ Compare FP32 and INT8 accuracy
 
     Accuracy of the tensorflow model (fp32):  97.80%
     Accuracy of the OpenVINO optimized model (fp32):  97.80%
-    Accuracy of the OpenVINO quantized model (int8):  97.20%
-    Accuracy drop between OV FP32 and INT8 model: 0.6% 
+    Accuracy of the OpenVINO quantized model (int8):  96.80%
+    Accuracy drop between OV FP32 and INT8 model: 1.0% 
 
 
 Compare inference results on one picture

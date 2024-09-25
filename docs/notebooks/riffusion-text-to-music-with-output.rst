@@ -57,9 +57,12 @@ transform
 which approximates the audio as a combination of sine waves of varying
 amplitudes and phases.
 
+
+
 The STFT is invertible, so the original audio can be reconstructed from
 a spectrogram. This idea is a behind approach to using Riffusion for
 audio generation.
+
 
 **Table of contents:**
 
@@ -143,17 +146,16 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    import openvino as ov
+    import requests
 
-    core = ov.Core()
-
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
+    open("notebook_utils.py", "w").write(r.text)
+
+    from notebook_utils import device_widget
+
+    device = device_widget()
 
     device
 
@@ -500,21 +502,6 @@ Interactive demo
 
     import gradio as gr
 
-    available_devices = core.available_devices + ["AUTO"]
-
-    examples = [
-        "acoustic folk violin jam",
-        "bossa nova with distorted guitar",
-        "arabic gospel vocals",
-        "piano funk",
-        "swing jazz trumpet",
-        "jamaican dancehall vocals",
-        "ibiza at 3am",
-        "k-pop boy group",
-        "laughing",
-        "water drops",
-    ]
-
 
     def select_device(device_str: str, current_text: str = "", progress: gr.Progress = gr.Progress()):
         """
@@ -535,35 +522,25 @@ Interactive demo
                 pipe.compile()
         return current_text
 
+.. code:: ipython3
 
-    with gr.Blocks() as demo:
-        with gr.Column():
-            gr.Markdown("# Riffusion music generation with OpenVINO\n" " Describe a musical prompt, generate music by getting a spectrogram image and sound.")
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/riffusion-text-to-music/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
 
-            prompt_input = gr.Textbox(placeholder="", label="Musical prompt")
-            negative_prompt = gr.Textbox(label="Negative prompt")
-            device = gr.Dropdown(choices=available_devices, value=DEVICE, label="Device")
+    from gradio_helper import make_demo
 
-            send_btn = gr.Button(value="Get a new spectrogram!")
-            gr.Examples(examples, prompt_input, examples_per_page=15)
+    demo = make_demo(generate_fn=generate, select_device_fn=select_device)
 
-        with gr.Column():
-            sound_output = gr.Audio(type="filepath", label="spectrogram sound")
-            spectrogram_output = gr.Image(label="spectrogram image result", height=256)
-
-        send_btn.click(
-            generate,
-            inputs=[prompt_input, negative_prompt],
-            outputs=[spectrogram_output, sound_output],
-        )
-        device.change(select_device, [device, prompt_input], [prompt_input])
-
-    if __name__ == "__main__":
-        try:
-            demo.queue().launch(debug=False, height=800)
-        except Exception:
-            demo.queue().launch(debug=False, share=True, height=800)
-
+    try:
+        demo.queue().launch(debug=False, height=800)
+    except Exception:
+        demo.queue().launch(debug=False, share=True, height=800)
     # If you are launching remotely, specify server_name and server_port
     # EXAMPLE: `demo.launch(server_name='your server name', server_port='server port in int')`
     # To learn more please refer to the Gradio docs: https://gradio.app/docs/
+
+.. code:: ipython3
+
+    # please uncomment and run this cell for stopping gradio interface
+    # demo.close()

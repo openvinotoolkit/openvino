@@ -11,6 +11,7 @@ device is busy with inference, the application can perform other tasks
 in parallel (for example, populating inputs or scheduling other
 requests) rather than wait for the current inference to complete first.
 
+
 **Table of contents:**
 
 
@@ -354,7 +355,7 @@ Test performance in Sync Mode
 .. parsed-literal::
 
     Source ended
-    average throuput in sync mode: 60.84 fps
+    average throuput in sync mode: 62.96 fps
 
 
 Async Mode
@@ -493,7 +494,7 @@ Test the performance in Async Mode
 .. parsed-literal::
 
     Source ended
-    average throuput in async mode: 104.64 fps
+    average throuput in async mode: 105.40 fps
 
 
 Compare the performance
@@ -636,5 +637,5 @@ Test the performance with ``AsyncInferQueue``
 
 .. parsed-literal::
 
-    average throughput in async mode with async infer queue: 147.78 fps
+    average throughput in async mode with async infer queue: 140.92 fps
 

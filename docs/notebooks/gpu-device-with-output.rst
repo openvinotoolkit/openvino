@@ -1,6 +1,7 @@
 Working with GPUs in OpenVINO™
 ==============================
 
+
 **Table of contents:**
 
 
@@ -190,9 +191,12 @@ To get the value of a property, such as the device name, we can use the
 
 .. code:: ipython3
 
+    import openvino.properties as props
+    
+    
     device = "GPU"
     
-    core.get_property(device, "FULL_DEVICE_NAME")
+    core.get_property(device, props.device.full_name)
 
 
 
@@ -207,13 +211,13 @@ Each device also has a specific property called
 ``SUPPORTED_PROPERTIES``, that enables viewing all the available
 properties in the device. We can check the value for each property by
 simply looping through the dictionary returned by
-``core.get_property("GPU", "SUPPORTED_PROPERTIES")`` and then querying
-for that property.
+``core.get_property("GPU", props.supported_properties)`` and then
+querying for that property.
 
 .. code:: ipython3
 
     print(f"{device} SUPPORTED_PROPERTIES:\n")
-    supported_properties = core.get_property(device, "SUPPORTED_PROPERTIES")
+    supported_properties = core.get_property(device, props.supported_properties)
     indent = len(max(supported_properties, key=len))
     
     for property_key in supported_properties:
@@ -480,7 +484,7 @@ following:
     core = ov.Core()
     
     # Set cache folder
-    core.set_property({"CACHE_DIR": cache_folder})
+    core.set_property({props.cache_dir(): cache_folder})
     
     # Compile the model as before
     model = core.read_model(model=model_path)
@@ -500,7 +504,7 @@ compile times with caching enabled and disabled as follows:
 
     start = time.time()
     core = ov.Core()
-    core.set_property({"CACHE_DIR": "cache"})
+    core.set_property({props.cache_dir(): "cache"})
     model = core.read_model(model=model_path)
     compiled_model = core.compile_model(model, device)
     print(f"Cache enabled  - compile time: {time.time() - start}s")
@@ -537,24 +541,28 @@ performance hint optimizes for fast inference times while the
 FPS.
 
 To use the “LATENCY” performance hint, add
-``{"PERFORMANCE_HINT": "LATENCY"}`` when compiling the model as shown
-below. For GPUs, this automatically minimizes the batch size and number
-of parallel streams such that all of the compute resources can focus on
-completing a single inference as fast as possible.
+``{hints.performance_mode(): hints.PerformanceMode.LATENCY}`` when
+compiling the model as shown below. For GPUs, this automatically
+minimizes the batch size and number of parallel streams such that all of
+the compute resources can focus on completing a single inference as fast
+as possible.
 
 .. code:: ipython3
 
-    compiled_model = core.compile_model(model, device, {"PERFORMANCE_HINT": "LATENCY"})
+    import openvino.properties.hint as hints
+    
+    
+    compiled_model = core.compile_model(model, device, {hints.performance_mode(): hints.PerformanceMode.LATENCY})
 
 To use the “THROUGHPUT” performance hint, add
-``{"PERFORMANCE_HINT": "THROUGHPUT"}`` when compiling the model. For
-GPUs, this creates multiple processing streams to efficiently utilize
-all the execution cores and optimizes the batch size to fill the
-available memory.
+``{hints.performance_mode(): hints.PerformanceMode.THROUGHPUT}`` when
+compiling the model. For GPUs, this creates multiple processing streams
+to efficiently utilize all the execution cores and optimizes the batch
+size to fill the available memory.
 
 .. code:: ipython3
 
-    compiled_model = core.compile_model(model, device, {"PERFORMANCE_HINT": "THROUGHPUT"})
+    compiled_model = core.compile_model(model, device, {hints.performance_mode(): hints.PerformanceMode.THROUGHPUT})
 
 Using Multiple GPUs with Multi-Device and Cumulative Throughput
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -588,7 +596,11 @@ devices automatically selected by AUTO. This way, we do not need to
 manually specify devices to use. Below is an example showing how to use
 “CUMULATIVE_THROUGHPUT”, equivalent to the MULTI one:
 
-``compiled_model = core.compile_model(model=model, device_name="AUTO", config={"PERFORMANCE_HINT": "CUMULATIVE_THROUGHPUT"})``
+\`
+
+compiled_model = core.compile_model(model=model, device_name=“AUTO”,
+config={hints.performance_mode():
+hints.PerformanceMode.CUMULATIVE_THROUGHPUT}) \`
 
    **Important**: **The “THROUGHPUT”, “MULTI”, and
    “CUMULATIVE_THROUGHPUT” modes are only applicable to asynchronous
@@ -1160,7 +1172,7 @@ Compile the Model
     # Read model and compile it on GPU in THROUGHPUT mode
     model = core.read_model(model=model_path)
     device_name = "GPU"
-    compiled_model = core.compile_model(model=model, device_name=device_name, config={"PERFORMANCE_HINT": "THROUGHPUT"})
+    compiled_model = core.compile_model(model=model, device_name=device_name, config={hints.performance_mode(): hints.PerformanceMode.THROUGHPUT})
     
     # Get the input and output nodes
     input_layer = compiled_model.input(0)
@@ -1447,7 +1459,7 @@ Process Results
         )
         cv2.putText(
             frame,
-            f"hint {compiled_model.get_property('PERFORMANCE_HINT')}",
+            f"hint {compiled_model.get_property(hints.performance_mode)}",
             (5, 60),
             cv2.FONT_ITALIC,
             0.6,

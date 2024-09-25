@@ -81,6 +81,7 @@ dataset can be found in `Databricks blog
 post <https://www.databricks.com/blog/2023/04/12/dolly-first-open-commercially-viable-instruction-tuned-llm>`__
 and `repo <https://github.com/databrickslabs/dolly>`__
 
+
 **Table of contents:**
 
 
@@ -140,8 +141,15 @@ documentation <https://huggingface.co/docs/optimum/intel/inference>`__.
 
     %pip uninstall -q -y optimum optimum-intel
     %pip install --pre -Uq "openvino>=2024.2.0" openvino-tokenizers[transformers] --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
-    %pip install -q "diffusers>=0.16.1" "transformers>=4.33.0" "torch>=2.1" "nncf>=2.10.0" onnx "gradio>=4.19" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "diffusers>=0.16.1" "transformers>=4.33.0" "torch>=2.1" "nncf>=2.10.0" "onnx<1.16.2" "gradio>=4.19" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "git+https://github.com/huggingface/optimum-intel.git"
+
+    import requests
+
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+    )
+    open("notebook_utils.py", "w").write(r.text)
 
 Convert model using Optimum-CLI tool
 ------------------------------------
@@ -203,7 +211,7 @@ to make it
 `symmetric <https://github.com/openvinotoolkit/nncf/blob/develop/docs/compression_algorithms/Quantization.md#symmetric-quantization>`__
 you can add ``--sym``.
 
-For INT4 quantization you can also specify the following arguments:
+For INT4 quantization you can also specify the following arguments :
 
 - The ``--group-size`` parameter will define the group size to use for
   quantization, -1 it will results in per-column quantization.
@@ -433,18 +441,12 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
+    from notebook_utils import device_widget
     import openvino as ov
 
     core = ov.Core()
 
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="CPU",
-        description="Device:",
-        disabled=False,
-    )
-
+    device = device_widget("CPU", exclude=["NPU"])
     device
 
 
@@ -495,8 +497,14 @@ guide <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html>`__
 .. code:: ipython3
 
     from pathlib import Path
+
     from transformers import AutoTokenizer
     from optimum.intel.openvino import OVModelForCausalLM
+
+    import openvino.properties as props
+    import openvino.properties.hint as hints
+    import openvino.properties.streams as streams
+
 
     if model_to_run.value == "INT4":
         model_dir = int4_model_dir
@@ -510,7 +518,7 @@ guide <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html>`__
 
     current_device = device.value
 
-    ov_config = {"PERFORMANCE_HINT": "LATENCY", "NUM_STREAMS": "1", "CACHE_DIR": ""}
+    ov_config = {hints.performance_mode(): hints.PerformanceMode.LATENCY, streams.num(): "1", props.cache_dir(): ""}
 
     ov_model = OVModelForCausalLM.from_pretrained(model_dir, device=current_device, ov_config=ov_config)
 

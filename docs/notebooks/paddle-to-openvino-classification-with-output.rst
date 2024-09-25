@@ -14,6 +14,7 @@ IR model.
 Source of the
 `model <https://www.paddlepaddle.org.cn/hubdetail?name=mobilenet_v3_large_imagenet_ssld&en_category=ImageClassification>`__.
 
+
 **Table of contents:**
 
 
@@ -88,11 +89,11 @@ Imports
 
 .. parsed-literal::
 
-    --2024-08-28 03:23:05--  http://nz2.archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb
+    --2024-09-24 02:03:28--  http://nz2.archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb
     Resolving proxy-dmz.intel.com (proxy-dmz.intel.com)... 10.241.208.166
     Connecting to proxy-dmz.intel.com (proxy-dmz.intel.com)|10.241.208.166|:911... connected.
     Proxy request sent, awaiting response... 404 Not Found
-    2024-08-28 03:23:05 ERROR 404: Not Found.
+    2024-09-24 02:03:28 ERROR 404: Not Found.
     
     dpkg: error: cannot access archive 'libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb': No such file or directory
 
@@ -123,8 +124,8 @@ Imports
 
 .. parsed-literal::
 
-    2024-08-28 03:23:07 INFO: Loading faiss with AVX512 support.
-    2024-08-28 03:23:07 INFO: Successfully loaded faiss with AVX512 support.
+    2024-09-24 02:03:30 INFO: Loading faiss with AVX512 support.
+    2024-09-24 02:03:30 INFO: Successfully loaded faiss with AVX512 support.
 
 
 Settings
@@ -208,7 +209,7 @@ inference on that image, and then show the top three prediction results.
 
 .. parsed-literal::
 
-    [2024/08/28 03:23:29] ppcls WARNING: The current running environment does not support the use of GPU. CPU has been used instead.
+    [2024/09/24 02:03:51] ppcls WARNING: The current running environment does not support the use of GPU. CPU has been used instead.
     Labrador retriever, 0.75138
     German short-haired pointer, 0.02373
     Great Dane, 0.01848
@@ -274,7 +275,7 @@ clipping values.
 
 .. parsed-literal::
 
-    2024-08-28 03:23:30 WARNING: Clipping input data to the valid range for imshow with RGB data ([0..1] for floats or [0..255] for integers).
+    2024-09-24 02:03:52 WARNING: Clipping input data to the valid range for imshow with RGB data ([0..1] for floats or [0..255] for integers).
 
 
 .. parsed-literal::
@@ -286,7 +287,7 @@ clipping values.
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f394c042a90>
+    <matplotlib.image.AxesImage at 0x7f2a485ba640>
 
 
 
@@ -425,12 +426,15 @@ Note that many optimizations are possible to improve the performance.
 
 .. code:: ipython3
 
+    import openvino.properties as props
+    
+    
     # Show device information
     core = ov.Core()
     devices = core.available_devices
     
     for device_name in devices:
-        device_full_name = core.get_property(device_name, "FULL_DEVICE_NAME")
+        device_full_name = core.get_property(device_name, props.device.full_name)
         print(f"{device_name}: {device_full_name}")
 
 
@@ -458,7 +462,7 @@ Note that many optimizations are possible to improve the performance.
 
 .. parsed-literal::
 
-    PaddlePaddle model on CPU: 0.0076 seconds per image, FPS: 131.68
+    PaddlePaddle model on CPU: 0.0076 seconds per image, FPS: 131.64
     
     PaddlePaddle result:
     Labrador retriever, 0.75138
@@ -519,7 +523,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    OpenVINO IR model in OpenVINO Runtime (AUTO): 0.0029 seconds per image, FPS: 344.93
+    OpenVINO IR model in OpenVINO Runtime (AUTO): 0.0026 seconds per image, FPS: 383.19
     
     OpenVINO result:
     Labrador retriever, 0.74909

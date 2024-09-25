@@ -60,8 +60,7 @@ pipeline.
 - `Perform Face Identity extraction <#perform-face-identity-extraction>`__
 - `Prepare InstantID pipeline <#prepare-instantid-pipeline>`__
 - `Convert InstantID pipeline components to OpenVINO Intermediate
-  Representation
-  format <#convert-instantid-pipeline-components-to-openvino-intermediate-representation-format>`__
+  Representation format <#convert-instantid-pipeline-components-to-openvino-intermediate-representation-format>`__
 - `ControlNet <#controlnet>`__
 - `Unet <#unet>`__
 - `VAE Decoder <#vae-decoder>`__
@@ -69,8 +68,7 @@ pipeline.
 - `Image Projection Model <#image-projection-model>`__
 - `Prepare OpenVINO InstantID Pipeline <#prepare-openvino-instantid-pipeline>`__
 - `Run OpenVINO pipeline inference <#run-openvino-pipeline-inference>`__
-- `Select inference device for
-  InstantID <#select-inference-device-for-instantid>`__
+- `Select inference device for InstantID <#select-inference-device-for-instantid>`__
 - `Create pipeline <#create-pipeline>`__
 - `Run inference <#run-inference>`__
 - `Quantization <#quantization>`__
@@ -115,7 +113,7 @@ Prerequisites
 
 .. code:: ipython3
 
-    %pip install -q "openvino>=2023.3.0" opencv-python transformers diffusers accelerate gdown "scikit-image>=0.19.2" "gradio>=4.19" "nncf>=2.9.0" "datasets>=2.14.6" "peft==0.6.2"
+    %pip install -q "openvino>=2023.3.0" opencv-python transformers "diffusers>=0.24.0" accelerate gdown "scikit-image>=0.19.2" "gradio>=4.19" "nncf>=2.9.0" "datasets>=2.14.6" "peft>=0.6.2"
 
 Convert and prepare Face IdentityNet
 ------------------------------------
@@ -244,8 +242,6 @@ recognition results.
             outputs = self.ov_model.outputs
             self.input_mean = 127.5
             self.input_std = 128.0
-            # print(self.output_names)
-            # assert len(outputs)==10 or len(outputs)==15
             self.use_kps = False
             self._anchor_ratio = 1.0
             self._num_anchors = 1
@@ -508,16 +504,16 @@ Select Inference Device for Face Recognition
 .. code:: ipython3
 
     import openvino as ov
-    import ipywidgets as widgets
+    import requests
 
-    core = ov.Core()
-
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
+    open("notebook_utils.py", "w").write(r.text)
+
+    from notebook_utils import device_widget
+
+    device = device_widget()
 
     device
 
@@ -1785,8 +1781,10 @@ improve model inference speed.
 
 .. code:: ipython3
 
+    from notebook_utils import quantization_widget
+
     skip_for_device = "GPU" in device.value
-    to_quantize = widgets.Checkbox(value=not skip_for_device, description="Quantization", disabled=skip_for_device)
+    to_quantize = quantization_widget(skip_for_device)
     to_quantize
 
 
@@ -4125,6 +4123,8 @@ Please select below whether you would like to use the quantized models
 to launch the interactive demo.
 
 .. code:: ipython3
+
+    import ipywidgets as widgets
 
     quantized_models_present = int8_pipe is not None
 

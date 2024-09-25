@@ -25,6 +25,7 @@ To simplify the user experience, the `Hugging Face
 Optimum <https://huggingface.co/docs/optimum>`__ library is used to
 convert the model to OpenVINO™ IR format and quantize it.
 
+
 **Table of contents:**
 
 
@@ -58,7 +59,7 @@ Prerequisites
 
 .. code:: ipython3
 
-    %pip install -q "diffusers>=0.17.1" "openvino>=2023.1.0" "nncf>=2.5.0" "gradio>=4.19" "onnx>=1.11.0" "transformers>=4.33.0" "torch>=2.1" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "diffusers>=0.17.1" "openvino>=2023.1.0" "nncf>=2.5.0" "gradio>=4.19" "onnx>=1.11.0,<1.16.2" "transformers>=4.33.0" "torch>=2.1" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "git+https://github.com/huggingface/optimum-intel.git"
 
 Download the NER model
@@ -261,16 +262,16 @@ corresponding ``OVModelForXxx`` class. So we use
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    import openvino as ov
+    import requests
     
-    core = ov.Core()
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
+    open("notebook_utils.py", "w").write(r.text)
+    
+    from notebook_utils import device_widget
+    
+    device = device_widget()
     
     device
 
@@ -385,10 +386,6 @@ text.
 
     import gradio as gr
     
-    examples = [
-        "My name is Wolfgang and I live in Berlin.",
-    ]
-    
     
     def run_ner(text):
         output = ner_pipeline_optimized(text)
@@ -396,18 +393,24 @@ text.
     
     
     demo = gr.Interface(
-        run_ner,
-        gr.Textbox(placeholder="Enter sentence here...", label="Input Text"),
-        gr.HighlightedText(label="Output Text"),
-        examples=examples,
+        fn=run_ner,
+        inputs=gr.Textbox(placeholder="Enter sentence here...", label="Input Text"),
+        outputs=gr.HighlightedText(label="Output Text"),
+        examples=[
+            "My name is Wolfgang and I live in Berlin.",
+        ],
         allow_flagging="never",
     )
     
-    if __name__ == "__main__":
-        try:
-            demo.launch(debug=False)
-        except Exception:
-            demo.launch(share=True, debug=False)
+    try:
+        demo.launch(debug=False)
+    except Exception:
+        demo.launch(share=True, debug=False)
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
+
+.. code:: ipython3
+
+    # please uncomment and run this cell for stopping gradio interface
+    # demo.close()

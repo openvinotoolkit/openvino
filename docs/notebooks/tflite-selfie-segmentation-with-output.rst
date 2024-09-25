@@ -34,6 +34,7 @@ The tutorial consists of following steps:
 2. Run inference on the image.
 3. Run interactive background blurring demo on video.
 
+
 **Table of contents:**
 
 
@@ -112,7 +113,7 @@ Install required dependencies
 
 .. parsed-literal::
 
-    24165
+    24692
 
 
 
@@ -142,7 +143,7 @@ Download pretrained model and test image
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/tflite-selfie-segmentation/selfie_multiclass_256x256.tflite')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/notebooks/tflite-selfie-segmentation/selfie_multiclass_256x256.tflite')
 
 
 

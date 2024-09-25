@@ -8,6 +8,7 @@ running multiple times.
 
 |image0|
 
+
 **Table of contents:**
 
 
@@ -76,12 +77,14 @@ If you just have either an iGPU or dGPU that will be assigned to
 .. code:: ipython3
 
     import openvino as ov
+    import openvino.properties as props
+    
     
     core = ov.Core()
     devices = core.available_devices
     
     for device in devices:
-        device_name = core.get_property(device, "FULL_DEVICE_NAME")
+        device_name = core.get_property(device, props.device.full_name)
         print(f"{device}: {device_name}")
 
 
@@ -101,14 +104,16 @@ Select device from dropdown list for running inference using OpenVINO.
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
+    import requests
     
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="CPU",
-        description="Device:",
-        disabled=False,
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
+    open("notebook_utils.py", "w").write(r.text)
+    
+    from notebook_utils import device_widget
+    
+    device = device_widget("CPU")
     
     device
 

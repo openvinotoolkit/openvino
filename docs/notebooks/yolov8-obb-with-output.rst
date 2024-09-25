@@ -13,6 +13,7 @@ labels and confidence scores for each box. Object detection is a good
 choice when you need to identify objects of interest in a scene, but
 don’t need to know exactly where the object is or its exact shape.
 
+
 **Table of contents:**
 
 
@@ -32,6 +33,8 @@ don’t need to know exactly where the object is or its exact shape.
 -  `Quantization <#quantization>`__
 -  `Compare inference time and model
    sizes. <#compare-inference-time-and-model-sizes>`__
+
+
 
 This is a self-contained example that relies solely on its own code.
 

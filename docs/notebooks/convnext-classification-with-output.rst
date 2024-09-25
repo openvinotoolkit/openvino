@@ -22,6 +22,7 @@ maintaining the simplicity and efficiency of standard ConvNets. The
 several pretrained ConvNeXt model. In this tutorial we will use ConvNeXt
 Tiny model.
 
+
 **Table of contents:**
 
 
@@ -73,14 +74,14 @@ image from an open dataset.
 .. code:: ipython3
 
     import requests
-
+    
     from torchvision.io import read_image
     import torchvision.transforms as transforms
-
-
+    
+    
     img_path = "cats_image.jpeg"
     r = requests.get("https://huggingface.co/datasets/huggingface/cats-image/resolve/main/cats_image.jpeg")
-
+    
     with open(img_path, "wb") as f:
         f.write(r.content)
     image = read_image(img_path)
@@ -101,12 +102,12 @@ models <https://pytorch.org/vision/stable/models.html#listing-and-retrieving-ava
 .. code:: ipython3
 
     import torchvision.models as models
-
+    
     # List available models
     all_models = models.list_models()
     # List of models by type. Classification models are in the parent module.
     classification_models = models.list_models(module=models)
-
+    
     print(classification_models)
 
 
@@ -142,10 +143,10 @@ wight <https://pytorch.org/vision/stable/models.html#using-the-pre-trained-model
 .. code:: ipython3
 
     import torch
-
-
+    
+    
     preprocess = models.ConvNeXt_Tiny_Weights.DEFAULT.transforms()
-
+    
     input_data = preprocess(image)
     input_data = torch.stack([input_data], dim=0)
 
@@ -167,17 +168,17 @@ And print results
     r = requests.get(
         url="https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/datasets/imagenet/imagenet_2012.txt",
     )
-
+    
     with open(imagenet_classes_file_path, "w") as f:
         f.write(r.text)
-
+    
     imagenet_classes = open(imagenet_classes_file_path).read().splitlines()
-
-
+    
+    
     def print_results(outputs: torch.Tensor):
         _, predicted_class = outputs.max(1)
         predicted_probability = torch.softmax(outputs, dim=1)[0, predicted_class].item()
-
+    
         print(f"Predicted Class: {predicted_class.item()}")
         print(f"Predicted Label: {imagenet_classes[predicted_class.item()]}")
         print(f"Predicted Probability: {predicted_probability}")
@@ -211,12 +212,12 @@ interface. However, it can also be saved on disk using
 .. code:: ipython3
 
     from pathlib import Path
-
+    
     import openvino as ov
-
-
+    
+    
     ov_model_xml_path = Path("models/ov_convnext_model.xml")
-
+    
     if not ov_model_xml_path.exists():
         ov_model_xml_path.parent.mkdir(parents=True, exist_ok=True)
         converted_model = ov.convert_model(model, example_input=torch.randn(1, 3, 224, 224))
@@ -236,16 +237,17 @@ Select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-
-    core = ov.Core()
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
+    import requests
+    
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
-
+    open("notebook_utils.py", "w").write(r.text)
+    
+    from notebook_utils import device_widget
+    
+    device = device_widget()
+    
     device
 
 
@@ -260,7 +262,7 @@ Select device from dropdown list for running inference using OpenVINO
 .. code:: ipython3
 
     core = ov.Core()
-
+    
     compiled_model = core.compile_model(ov_model_xml_path, device_name=device.value)
 
 Use the OpenVINO IR model to run an inference

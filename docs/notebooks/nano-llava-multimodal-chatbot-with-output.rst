@@ -10,6 +10,7 @@ this tutorial, we consider how to convert and run nanoLLaVA model using
 OpenVINO. Additionally, we will optimize model using
 `NNCF <https://github.com/openvinotoolkit/nncf>`__
 
+
 **Table of contents:**
 
 
@@ -59,8 +60,6 @@ Prerequisites
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
     mobileclip 0.1.0 requires torch==1.13.1, but you have torch 2.2.2+cpu which is incompatible.
     mobileclip 0.1.0 requires torchvision==0.14.1, but you have torchvision 0.17.2+cpu which is incompatible.
-    optimum 1.22.0.dev0 requires transformers[sentencepiece]<4.44.0,>=4.29.0, but you have transformers 4.44.2 which is incompatible.
-    optimum-intel 1.19.0.dev0+9a18ae0 requires transformers<4.44.0,>=4.36.0, but you have transformers 4.44.2 which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -105,13 +104,31 @@ Prerequisites
 
 .. parsed-literal::
 
+    added_tokens.json:   0%|          | 0.00/80.0 [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
     configuration_llava_qwen2.py:   0%|          | 0.00/8.87k [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    added_tokens.json:   0%|          | 0.00/80.0 [00:00<?, ?B/s]
+    example_1.png:   0%|          | 0.00/200k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    config.json:   0%|          | 0.00/1.28k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    README.md:   0%|          | 0.00/3.58k [00:00<?, ?B/s]
 
 
 
@@ -129,37 +146,7 @@ Prerequisites
 
 .. parsed-literal::
 
-    config.json:   0%|          | 0.00/1.28k [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    example_1.png:   0%|          | 0.00/200k [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
     generation_config.json:   0%|          | 0.00/172 [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    README.md:   0%|          | 0.00/3.47k [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    special_tokens_map.json:   0%|          | 0.00/510 [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    tokenizer_config.json:   0%|          | 0.00/1.32k [00:00<?, ?B/s]
 
 
 
@@ -171,7 +158,19 @@ Prerequisites
 
 .. parsed-literal::
 
+    tokenizer_config.json:   0%|          | 0.00/1.32k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
     modeling_llava_qwen2.py:   0%|          | 0.00/103k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    special_tokens_map.json:   0%|          | 0.00/510 [00:00<?, ?B/s]
 
 
 
@@ -212,10 +211,10 @@ previous step.
 
 .. parsed-literal::
 
-    2024-08-28 03:13:42.981452: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-08-28 03:13:43.015054: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-09-24 01:54:43.372628: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-09-24 01:54:43.407003: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-08-28 03:13:43.533092: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-09-24 01:54:43.926110: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Run PyTorch Model Inference
@@ -264,7 +263,8 @@ Run PyTorch Model Inference
 
 .. parsed-literal::
 
-    The image primarily features a white, fluffy llama with a small pink nose and a cute smiley face. The llama is standing in the middle of a fire, which is bright and orange in color. The fire is so intense that it's causing the llama to glow in a fiery blaze. The llama's ears are pink and the fire is so intense that it's causing the fire to spread. The fire is also casting a bright yellow light, and the llama's face is lit up with a warm, inviting glow. The llama's fur is fluffy and white, and it has black eyes that are wide open. The llama's face has
+    This image features a cute white llama with large black eyes and pink lips, standing in the middle of a bright, lit-up fire. The llama is adorned with a tiny yellow sticker on its face, and its ears are pink and white. The llama's white fur is slightly burnt, giving it a unique and playful appearance. The llama's right and left front legs are also white, matching the rest of its body. The llama's eyes are a striking shade of pink, and its nose is black, adding to its adorable features.
+    The fire in which the llama stands is bright and orange, with a few small flames flickering, adding
 
 
 Convert and Optimize model
@@ -1056,20 +1056,16 @@ Select device
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
+    import requests
     
-    core = ov.Core()
-    
-    support_devices = core.available_devices
-    if "NPU" in support_devices:
-        support_devices.remove("NPU")
-    
-    device = widgets.Dropdown(
-        options=support_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
+    open("notebook_utils.py", "w").write(r.text)
+    
+    from notebook_utils import device_widget
+    
+    device = device_widget("CPU", exclude=["NPU"])
     
     device
 
@@ -1078,12 +1074,14 @@ Select device
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+    Dropdown(description='Device:', options=('CPU', 'AUTO'), value='CPU')
 
 
 
 .. code:: ipython3
 
+    core = ov.Core()
+    
     ov_model = OVLlavaQwen2ForCausalLM(core, ov_out_path, device.value)
 
 .. code:: ipython3
@@ -1095,7 +1093,7 @@ Select device
 
 .. parsed-literal::
 
-    The image features a white, fluffy lamb with a playful expression. The lamb is positioned in the center of the image, and it appears to be in motion, as if it's running. The lamb's fur is fluffy and white, and it has a cute, adorable appearance. The lamb's eyes are wide open, and it has a big, black nose. The lamb's ears are also visible, and it has a cute, adorable expression. The lamb's mouth is open, and it seems to be smiling. The lamb's legs are also visible, and it appears to be in motion, as if it's running. The lamb
+    The image features a white, fluffy lamb with a playful, cheerful expression. The lamb is positioned in the center of the image, and it appears to be in motion, as if it's running. The lamb's face is white and it has a cute, adorable expression. It has a pair of bright, black eyes that are wide open, and it has a small, pink nose. The lamb's ears are also white and are quite large. The lamb's legs are white and are positioned behind it. The lamb's tail is also white and is quite long. The lamb's body is fluffy and it covers a large portion of the
 
 
 Interactive demo
@@ -1105,27 +1103,9 @@ Interactive demo
 
 .. code:: ipython3
 
-    import gradio as gr
     import time
     from transformers import TextIteratorStreamer, StoppingCriteria
     from threading import Thread
-    import requests
-    
-    example_image_urls = [
-        (
-            "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/1d6a0188-5613-418d-a1fd-4560aae1d907",
-            "bee.jpg",
-        ),
-        (
-            "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/6cc7feeb-0721-4b5d-8791-2576ed9d2863",
-            "baklava.png",
-        ),
-        ("https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/dd5105d6-6a64-4935-8a34-3058a82c8d5d", "small.png"),
-        ("https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/1221e2a8-a6da-413a-9af6-f04d56af3754", "chart.png"),
-    ]
-    for url, file_name in example_image_urls:
-        if not Path(file_name).exists():
-            Image.open(requests.get(url, stream=True).raw).save(file_name)
     
     
     class KeywordsStoppingCriteria(StoppingCriteria):
@@ -1216,29 +1196,24 @@ Interactive demo
             generated_text_without_prompt = buffer[:]
             time.sleep(0.04)
             yield generated_text_without_prompt
+
+.. code:: ipython3
+
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/nano-llava-multimodal-chatbot/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
     
+    from gradio_helper import make_demo
     
-    demo = gr.ChatInterface(
-        fn=bot_streaming,
-        title="🚀nanoLLaVA",
-        examples=[
-            {"text": "What is on the flower?", "files": ["./bee.jpg"]},
-            {"text": "How to make this pastry?", "files": ["./baklava.png"]},
-            {"text": "What is the text saying?", "files": ["./small.png"]},
-            {"text": "What does the chart display?", "files": ["./chart.png"]},
-        ],
-        description="Try [nanoLLaVA](https://huggingface.co/qnguyen3/nanoLLaVA) using OpenVINO in this demo. Upload an image and start chatting about it, or simply try one of the examples below. If you don't upload an image, you will receive an error.",
-        stop_btn="Stop Generation",
-        multimodal=True,
-    )
+    demo = make_demo(fn=bot_streaming)
     
-    # if you are launching remotely, specify server_name and server_port
-    # demo.launch(server_name='your server name', server_port='server port in int')
-    # Read more in the docs: https://gradio.app/docs/
     try:
         demo.launch(debug=False)
     except Exception:
         demo.launch(share=True, debug=False)
+    # if you are launching remotely, specify server_name and server_port
+    # demo.launch(server_name='your server name', server_port='server port in int')
+    # Read more in the docs: https://gradio.app/docs/
 
 
 .. parsed-literal::
@@ -1253,3 +1228,8 @@ Interactive demo
 
 
 
+
+.. code:: ipython3
+
+    # please uncomment and run this cell for stopping gradio interface
+    # demo.close()

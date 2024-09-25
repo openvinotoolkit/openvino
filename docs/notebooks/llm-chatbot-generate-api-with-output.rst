@@ -52,6 +52,7 @@ need a Jupyter server to start. For details, please refer to
 `Installation
 Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
+
 **Table of contents:**
 
 
@@ -93,6 +94,7 @@ Install required dependencies
     "datasets" \
     "accelerate" \
     "gradio>=4.19" \
+    "transformers>=4.43.1" \
     "onnx<=1.16.1; sys_platform=='win32'" "einops" "transformers_stream_generator" "tiktoken" "bitsandbytes"
 
 
@@ -134,10 +136,6 @@ Install required dependencies
             r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/llm_config.py")
             with open("llm_config.py", "w", encoding="utf-8") as f:
                 f.write(r.text)
-    
-    if not Path("genai_gradio_helper.py").exists():
-        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/llm-chatbot/genai_gradio_helper.py")
-        open("gradio_helper.py", "w").write(r.text)
     
     if not Path("notebook_utils.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py")
@@ -253,7 +251,41 @@ Click here to see available models options
        except OSError:
            notebook_login()
 
--  **phi3-mini-instruct** - The Phi-3-Mini is a 3.8B parameters,
+-  **gemma-2-2b-it** - Gemma2 is the second generation of a Gemma family
+   of lightweight, state-of-the-art open models from Google, built from
+   the same research and technology used to create the Gemini models.
+   They are text-to-text, decoder-only large language models, available
+   in English, with open weights, pre-trained variants, and
+   instruction-tuned variants. Gemma models are well-suited for a
+   variety of text generation tasks, including question answering,
+   summarization, and reasoning. This model is instruction-tuned version
+   of 2B parameters model. More details about model can be found in
+   `model card <https://huggingface.co/google/gemma-2-2b-it>`__.
+   >\ **Note**: run model with demo, you will need to accept license
+   agreement. >You must be a registered user in Hugging Face Hub.
+   Please visit `HuggingFace model
+   card <https://huggingface.co/google/gemma-2-2b-it>`__, carefully read
+   terms of usage and click accept button. You will need to use an
+   access token for the code below to run. For more information on
+   access tokens, refer to `this section of the
+   documentation <https://huggingface.co/docs/hub/security-tokens>`__.
+   >You can login on Hugging Face Hub in notebook environment, using
+   following code:
+
+.. code:: python
+
+       # login to huggingfacehub to get access to pretrained model 
+
+
+       from huggingface_hub import notebook_login, whoami
+
+       try:
+           whoami()
+           print('Authorization token already provided')
+       except OSError:
+           notebook_login()
+
+-  **phi-3-mini-instruct** - The Phi-3-Mini is a 3.8B parameters,
    lightweight, state-of-the-art open model trained with the Phi-3
    datasets that includes both synthetic data and the filtered publicly
    available websites data with a focus on high-quality and reasoning
@@ -261,6 +293,19 @@ Click here to see available models options
    card <https://huggingface.co/microsoft/Phi-3-mini-4k-instruct>`__,
    `Microsoft blog <https://aka.ms/phi3blog-april>`__ and `technical
    report <https://aka.ms/phi3-tech-report>`__.
+-  **phi-3.5-mini-instruct** - Phi-3.5-mini is a lightweight,
+   state-of-the-art open model built upon datasets used for Phi-3 -
+   synthetic data and filtered publicly available websites - with a
+   focus on very high-quality, reasoning dense data. The model belongs
+   to the Phi-3 model family and supports 128K token context length. The
+   model underwent a rigorous enhancement process, incorporating both
+   supervised fine-tuning, proximal policy optimization, and direct
+   preference optimization to ensure precise instruction adherence and
+   robust safety measures. More details about model can be found in
+   `model
+   card <https://huggingface.co/microsoft/Phi-3.5-mini-instruct>`__,
+   `Microsoft blog <https://aka.ms/phi3.5-techblog>`__ and `technical
+   report <https://arxiv.org/abs/2404.14219>`__.
 -  **red-pajama-3b-chat** - A 2.8B parameter pre-trained language model
    based on GPT-NEOX architecture. It was developed by Together Computer
    and leaders from the open-source AI community. The model is
@@ -290,6 +335,40 @@ Click here to see available models options
 .. code:: python
 
        # login to huggingfacehub to get access to pretrained model 
+
+       from huggingface_hub import notebook_login, whoami
+
+       try:
+           whoami()
+           print('Authorization token already provided')
+       except OSError:
+           notebook_login()
+
+-  **gemma-2-9b-it** - Gemma2 is the second generation of a Gemma family
+   of lightweight, state-of-the-art open models from Google, built from
+   the same research and technology used to create the Gemini models.
+   They are text-to-text, decoder-only large language models, available
+   in English, with open weights, pre-trained variants, and
+   instruction-tuned variants. Gemma models are well-suited for a
+   variety of text generation tasks, including question answering,
+   summarization, and reasoning. This model is instruction-tuned version
+   of 9B parameters model. More details about model can be found in
+   `model card <https://huggingface.co/google/gemma-2-9b-it>`__.
+   >\ **Note**: run model with demo, you will need to accept license
+   agreement. >You must be a registered user in Hugging Face Hub.
+   Please visit `HuggingFace model
+   card <https://huggingface.co/google/gemma-2-2b-it>`__, carefully read
+   terms of usage and click accept button. You will need to use an
+   access token for the code below to run. For more information on
+   access tokens, refer to `this section of the
+   documentation <https://huggingface.co/docs/hub/security-tokens>`__.
+   >You can login on Hugging Face Hub in notebook environment, using
+   following code:
+
+.. code:: python
+
+       # login to huggingfacehub to get access to pretrained model 
+
 
        from huggingface_hub import notebook_login, whoami
 
@@ -644,15 +723,20 @@ be additionally applied during model export with INT4 precision using
 
 .. parsed-literal::
 
-    2024-08-28 02:56:11.289127: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-08-28 02:56:11.322171: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-09-24 01:36:43.036338: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-09-24 01:36:43.069837: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-08-28 02:56:11.841318: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-09-24 01:36:43.595089: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
     Framework not specified. Using pt to export the model.
     Using framework PyTorch: 2.2.2+cpu
     Overriding 1 configuration item(s)
     	- use_cache -> True
     We detected that you are passing `past_key_values` as a tuple and this is deprecated and will be removed in v4.43. Please use an appropriate `Cache` class (https://huggingface.co/docs/transformers/v4.41.3/en/internal/generation_utils#transformers.Cache)
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/optimum/exporters/openvino/model_patcher.py:489: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if sequence_length != 1:
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/qwen2/modeling_qwen2.py:165: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if seq_len > self.max_seq_len_cached:
+    Set tokenizer padding side to left for `text-generation-with-past` task.
 
 
 .. parsed-literal::
@@ -666,21 +750,7 @@ be additionally applied during model export with INT4 precision using
     ├────────────────┼─────────────────────────────┼────────────────────────���───────────────┤
     │              4 │ 57% (88 / 169)              │ 79% (88 / 168)                         │
     ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
-    [2KApplying Weight Compression ━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% • 0:00:10 • 0:00:00
-    
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/optimum/exporters/openvino/model_patcher.py:489: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if sequence_length != 1:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/qwen2/modeling_qwen2.py:110: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if seq_len > self.max_seq_len_cached:
-    Set tokenizer padding side to left for `text-generation-with-past` task.
-    Replacing `(?!\S)` pattern to `(?:$|[^\S])` in RegexSplit operation
-
-
-.. parsed-literal::
-
+    [2KApplying Weight Compression ━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% • 0:00:09 • 0:00:00
     ✅ INT4 qwen2-0.5b-instruct model converted and can be found in qwen2/INT4_compressed_weights
 
 
@@ -902,17 +972,21 @@ Click here to see detailed description of advanced options
 
 .. code:: ipython3
 
-    from genai_gradio_helper import get_gradio_helper
+    if not Path("gradio_helper_genai.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/llm-chatbot/gradio_helper_genai.py")
+        open("gradio_helper_genai.py", "w").write(r.text)
     
-    demo = get_gradio_helper(pipe, model_configuration, model_id, lang.value)
+    from gradio_helper_genai import make_demo
+    
+    demo = make_demo(pipe, model_configuration, model_id, lang.value)
     
     try:
         demo.launch(debug=False)
     except Exception:
         demo.launch(debug=False, share=True)
-    # if you are launching remotely, specify server_name and server_port
-    # demo.launch(server_name='your server name', server_port='server port in int')
-    # Read more in the docs: https://gradio.app/docs/
+    # If you are launching remotely, specify server_name and server_port
+    # EXAMPLE: `demo.launch(server_name='your server name', server_port='server port in int')`
+    # To learn more please refer to the Gradio docs: https://gradio.app/docs/
 
 
 .. parsed-literal::
@@ -927,3 +1001,8 @@ Click here to see detailed description of advanced options
 
 
 
+
+.. code:: ipython3
+
+    # please uncomment and run this cell for stopping gradio interface
+    # demo.close()

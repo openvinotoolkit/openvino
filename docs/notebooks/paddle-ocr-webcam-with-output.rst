@@ -22,6 +22,7 @@ the PaddleOCR is as follows:
    server, the webcam will not work. You can still do inference on a
    video file.
 
+
 **Table of contents:**
 
 
@@ -206,7 +207,7 @@ Download the Model for Text **Detection**
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/paddle-o…
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/notebooks/paddle-o…
 
 
 .. parsed-literal::
@@ -252,7 +253,7 @@ Download the Model for Text **Recognition**
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/paddle-o…
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/notebooks/paddle-o…
 
 
 .. parsed-literal::
