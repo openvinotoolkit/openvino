@@ -145,6 +145,16 @@ void get_cpu_mapping_from_cores(const int _processors,
                                 std::vector<std::vector<int>>& _proc_type_table,
                                 std::vector<std::vector<int>>& _cpu_mapping_table);
 
+/**
+ * @brief     Move processors type information for current numa node and socket to the top of the table
+ * @param[in] _processor_id current processor id
+ * @param[in] _proc_type_table summary table of number of processors per type
+ * @param[in] _cpu_mapping_table CPU mapping table for each processor
+ * @return
+ */
+void update_table_for_proc(const int _processor_id,
+                           std::vector<std::vector<int>>& _proc_type_table,
+                           const std::vector<std::vector<int>>& _cpu_mapping_table);
 #endif
 
 #if defined(_WIN32)

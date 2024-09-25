@@ -280,9 +280,37 @@ CPU::CPU() {
         OPENVINO_THROW("CPU affinity check failed. No CPU is eligible to run inference.");
     };
 
+    int cur_processor_id = sched_getcpu();
+
+    if ((_proc_type_table.size() > 1) && (_numa_nodes > _sockets)) {
+        update_table_for_proc(cur_processor_id, _proc_type_table, _cpu_mapping_table);
+    }
+
     _org_proc_type_table = _proc_type_table;
 
     cpu_debug();
+}
+
+void update_table_for_proc(const int _processor_id,
+                           std::vector<std::vector<int>>& _proc_type_table,
+                           const std::vector<std::vector<int>>& _cpu_mapping_table) {
+    int current_numa_node = 0;
+    int current_socket = 0;
+
+    for (auto& row : _cpu_mapping_table) {
+        if (_processor_id == row[CPU_MAP_PROCESSOR_ID]) {
+            current_numa_node = row[CPU_MAP_NUMA_NODE_ID];
+            current_socket = row[CPU_MAP_SOCKET_ID];
+            break;
+        }
+    }
+    for (size_t i = 1; i < _proc_type_table.size(); i++) {
+        if ((current_numa_node == _proc_type_table[i][PROC_NUMA_NODE_ID]) &&
+            (current_socket == _proc_type_table[i][PROC_SOCKET_ID])) {
+            std::rotate(_proc_type_table.begin() + 1, _proc_type_table.begin() + i, _proc_type_table.end());
+            break;
+        }
+    }
 }
 
 void parse_node_info_linux(const std::vector<std::string> node_info_table,
