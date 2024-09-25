@@ -295,7 +295,6 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
         manager.register_pass<ov::frontend::pytorch::pass::ReversepropResolver>();
         manager.register_pass<ov::frontend::pytorch::pass::MovePackThroughLstm>();
         manager.register_pass<ov::frontend::pytorch::pass::RemovePackingOps>();
-        manager.register_pass<ov::pass::ConvertConvertLike>();
         bool is_changed = manager.run_passes(model);
 
         // make validation after previously non-validated passes
@@ -323,9 +322,23 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::frontend::pytorch::pass::U4BlockRepack>(sym);
 
     manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParamsResults>();
-    manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
-    manager.register_pass<ov::pass::ResolveNameCollisions>(true);
     manager.run_passes(model);
+
+    {
+        ov::pass::Manager manager("Frontend:Pytorch:normalize::followup_no_val");
+        manager.set_per_pass_validation(false);
+
+        // ReverseShapeAndTypeInfer needs to run on validated model, it relies on shapes and types
+        manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
+        // ConvertConvertLike will benefit from types inserted by ReverseShapeAndTypeInfer
+        manager.register_pass<ov::pass::ConvertConvertLike>();
+        manager.register_pass<ov::pass::ResolveNameCollisions>(true);
+        bool is_changed = manager.run_passes(model);
+
+        // make validation after previously non-validated passes
+        if (is_changed)
+            model->validate_nodes_and_infer_types();
+    }
 
     // Usually if nn.Module.forward is given as a source model for conversion, there is the first Parameter
     // that represents original `self` argument in forward(self, ...). `self` shouldn't play any role in model
