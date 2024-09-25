@@ -63,7 +63,7 @@ Now deprecated
 
   * The macOS x86_64 debug bins
   * Python 3.8
-  * dKMB support
+  * Discrete Keem Bay support
 
 * Intel® Streaming SIMD Extensions (Intel® SSE) will be supported in source code form, but not
   enabled in the binary package by default, starting with OpenVINO 2025.0.
@@ -1323,6 +1323,11 @@ Deprecated and to be removed in the future
   with OpenVINO 2024.5.
 * Python 3.8 is now considered deprecated, and it will not be available beyond the 2024.4
   OpenVINO version.
+
+  * As MxNet doesn't support Python version higher than 3.8, according to the
+    `MxNet PyPI project <https://pypi.org/project/mxnet/>`__,
+    it will no longer be supported in future versions, either.
+
 * dKMB support is now considered deprecated and will be fully removed with OpenVINO 2024.5
 * Intel® Streaming SIMD Extensions (Intel® SSE) will be supported in source code form, but not
   enabled in the binary package by default, starting with OpenVINO 2025.0
