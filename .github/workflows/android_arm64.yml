@@ -43,6 +43,7 @@ jobs:
 
   Docker:
     needs: Smart_CI
+    if: "!needs.smart_ci.outputs.skip_workflow"
     runs-on: aks-linux-4-cores-16gb-docker-build
     container:
       image: openvinogithubactions.azurecr.io/docker_build:0.2
@@ -95,7 +96,6 @@ jobs:
       VCPKG_DEFAULT_BINARY_CACHE: '/mount/caches/ccache/android_arm64/vcpkg_cache'
       VCPKG_FORCE_SYSTEM_BINARIES: '1'
       SCCACHE_AZURE_KEY_PREFIX: android_arm64
-    if: "!needs.smart_ci.outputs.skip_workflow"
     steps:
       - name: Clone OpenVINO
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
