@@ -13,15 +13,10 @@ namespace ov {
 namespace test {
 namespace snippets {
 namespace {
-constexpr float i8_fq_il = -35.0172004;
-constexpr float i8_fq_ih = 34.7436294;
-constexpr float u8_fq_il = 0;
-constexpr float u8_fq_ih = 0.820726;
-
-std::shared_ptr<ov::Node> build_mm_second_input(const ov::element::Type& precision,
-                                                const ov::PartialShape& shape,
-                                                MatMulType type,
-                                                ov::ParameterVector& params) {
+std::shared_ptr<ov::Node> make_matmul_b_input(const ov::element::Type& precision,
+                                              const ov::PartialShape& shape,
+                                              MatMulType type,
+                                              ov::ParameterVector& params) {
     std::shared_ptr<ov::Node> result;
     switch (type) {
         case MatMulType::FullyConnected:
@@ -32,8 +27,18 @@ std::shared_ptr<ov::Node> build_mm_second_input(const ov::element::Type& precisi
             return param;
         }
         default:
-            OPENVINO_THROW("Unexpected MatMulType is passed in build_mm_second_input");
+            OPENVINO_THROW("Unexpected MatMulType is passed in make_matmul_b_input");
     }
+}
+
+std::shared_ptr<ov::Node> make_fake_quantize(const ov::Output<ov::Node>& in, bool signed_interval) {
+    static const float i8_fq_il = -35.0172004;
+    static const float i8_fq_ih = 34.7436294;
+    static const float u8_fq_il = 0;
+    static const float u8_fq_ih = 0.820726;
+    const auto low = signed_interval ? i8_fq_il : u8_fq_il;
+    const auto high = signed_interval ? i8_fq_ih : u8_fq_ih;
+    return ov::test::utils::make_fake_quantize(in, ov::element::f32, 256, {1}, {low}, {high}, {low}, {high});
 }
 } // namespace
 
@@ -65,14 +70,14 @@ MatMulFunctionBase::MatMulFunctionBase(const std::vector<PartialShape>& inputSha
 
 void MatMulFunctionBase::validate_function(const std::shared_ptr<Model> &f) const {
     OPENVINO_ASSERT(f != nullptr, "The test requires Model to be defined");
-    const auto shape_size = input_shapes.size();
+    const auto count_of_shapes = input_shapes.size();
     const auto idces_to_remove = get_constant_input_idces();
-    OPENVINO_ASSERT(std::all_of(idces_to_remove.begin(), idces_to_remove.end(), [&shape_size](size_t x) { return x < shape_size; }),
+    OPENVINO_ASSERT(std::all_of(idces_to_remove.begin(), idces_to_remove.end(), [&count_of_shapes](size_t x) { return x < count_of_shapes; }),
                     "constant_input_idces must be less than input shapes size");
 
     std::vector<ov::PartialShape> shapes_to_check;
     for (size_t i = 0; i < input_shapes.size(); ++i) {
-        if (idces_to_remove.find(i) == idces_to_remove.end())
+        if (idces_to_remove.count(i) == 0)
             shapes_to_check.push_back(input_shapes[i]);
     }
     SnippetsFunctionBase::validate_params_shape(shapes_to_check, f->get_parameters());
@@ -81,7 +86,7 @@ void MatMulFunctionBase::validate_function(const std::shared_ptr<Model> &f) cons
 std::shared_ptr<ov::Model> MatMulFunction::initOriginal() const {
     auto data0 = std::make_shared<op::v0::Parameter>(precisions[0], input_shapes[0]);
     ov::ParameterVector params{data0};
-    auto data1 = build_mm_second_input(precisions[1], input_shapes[1], matmul_type, params);
+    auto data1 = make_matmul_b_input(precisions[1], input_shapes[1], matmul_type, params);
     std::shared_ptr<Node> matmul;
     if (precisions[1] == ov::element::i8) {
         matmul = std::make_shared<op::TypeRelaxed<op::v0::MatMul>>(
@@ -98,7 +103,7 @@ std::shared_ptr<ov::Model> MatMulFunction::initOriginal() const {
 std::shared_ptr<ov::Model> MatMulFunction::initReference() const {
     auto data0 = std::make_shared<op::v0::Parameter>(precisions[0], input_shapes[0]);
     ov::ParameterVector params{data0};
-    auto data1 = build_mm_second_input(precisions[1], input_shapes[1], matmul_type, params);
+    auto data1 = make_matmul_b_input(precisions[1], input_shapes[1], matmul_type, params);
     auto indata0 = std::make_shared<op::v0::Parameter>(precisions[0], data0->get_output_partial_shape(0));
     auto indata1 = std::make_shared<op::v0::Parameter>(precisions[1], data1->get_output_partial_shape(0));
     std::shared_ptr<Node> matmul;
@@ -122,17 +127,12 @@ std::shared_ptr<ov::Model> FQMatMulFunction::initOriginal() const {
     auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
     ParameterVector params{data0};
 
-    auto ih = std::make_shared<op::v0::Constant>(ov::element::f32, ov::Shape{1}, std::vector<float>{i8_fq_ih});
-    auto il = std::make_shared<op::v0::Constant>(ov::element::f32, ov::Shape{1}, std::vector<float>{i8_fq_il});
-    auto oh = std::make_shared<op::v0::Constant>(ov::element::f32, ov::Shape{1}, std::vector<float>{i8_fq_ih});
-    auto ol = std::make_shared<op::v0::Constant>(ov::element::f32, ov::Shape{1}, std::vector<float>{i8_fq_il});
-    auto fq = std::make_shared<op::v0::FakeQuantize>(data0, il, ih, ol, oh, 256);
-    std::shared_ptr<ov::Node> in0 = fq;
+    auto in0 = make_fake_quantize(data0, true);
     if (pos == 0) {
         in0 = std::make_shared<op::v1::Transpose>(in0, const_order);
     }
 
-    auto data1 = build_mm_second_input(ov::element::i8, input_shapes[1], matmul_type, params);
+    auto data1 = make_matmul_b_input(ov::element::i8, input_shapes[1], matmul_type, params);
     auto convert = std::make_shared<op::v0::Convert>(data1, ov::element::f32);
     auto deq_mul = std::make_shared<op::v0::Constant>(ov::element::f32, ov::Shape{1}, std::vector<float>{0.00499185826});
     auto mul = std::make_shared<op::v1::Multiply>(convert, deq_mul);
@@ -150,7 +150,7 @@ std::shared_ptr<ov::Model> FQMatMulFunction::initOriginal() const {
 std::shared_ptr<ov::Model> MatMulBiasFunction::initOriginal() const {
     auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
     ParameterVector params{data0};
-    auto data1 = build_mm_second_input(precision, input_shapes[1], matmul_type, params);
+    auto data1 = make_matmul_b_input(precision, input_shapes[1], matmul_type, params);
     auto data2 = std::make_shared<op::v0::Parameter>(precision, input_shapes[2]);
     params.push_back(data2);
 
@@ -170,7 +170,7 @@ std::shared_ptr<ov::Model> MatMulBiasFunction::initOriginal() const {
 std::shared_ptr<ov::Model> MatMulBiasQuantizedFunction::initOriginal() const {
     auto data0 = std::make_shared<op::v0::Parameter>(precisions[0], input_shapes[0]);
     ParameterVector params{data0};
-    auto data1 = build_mm_second_input(precisions[1], input_shapes[1], matmul_type, params);
+    auto data1 = make_matmul_b_input(precisions[1], input_shapes[1], matmul_type, params);
     auto data2 = std::make_shared<op::v0::Parameter>(precision, input_shapes[2]);
     params.push_back(data2);
 
@@ -179,22 +179,22 @@ std::shared_ptr<ov::Model> MatMulBiasQuantizedFunction::initOriginal() const {
         std::vector<element::Type>{element::f32},
         ov::op::TemporaryReplaceOutputType(data0, element::f32).get(),
         ov::op::TemporaryReplaceOutputType(data1, element::f32).get());
-    auto fq2 = ov::test::utils::make_fake_quantize(matmul, ov::element::f32, 256, {1}, {i8_fq_il}, {i8_fq_ih}, {i8_fq_il}, {i8_fq_ih});
+    auto fq2 = make_fake_quantize(matmul, true);
     auto bias = std::make_shared<op::v1::Add>(fq2, data2);
     return std::make_shared<ov::Model>(NodeVector{bias}, params);
 }
 std::shared_ptr<ov::Model> MatMulsQuantizedFunction::initOriginal() const {
     auto data0 = std::make_shared<op::v0::Parameter>(precisions[0], input_shapes[0]);
     ParameterVector params{data0};
-    auto data1 = build_mm_second_input(precisions[1], input_shapes[1], matmul_type, params);
-    auto data2 = build_mm_second_input(precision, input_shapes[2], matmul_type, params);
+    auto data1 = make_matmul_b_input(precisions[1], input_shapes[1], matmul_type, params);
+    auto data2 = make_matmul_b_input(precision, input_shapes[2], matmul_type, params);
     auto matmul0 = std::make_shared<op::TypeRelaxed<op::v0::MatMul>>(
         std::vector<element::Type>{ov::element::f32, element::f32},
         std::vector<element::Type>{element::f32},
         ov::op::TemporaryReplaceOutputType(data0, element::f32).get(),
         ov::op::TemporaryReplaceOutputType(data1, element::f32).get());
-    auto fq0 = ov::test::utils::make_fake_quantize(matmul0, ov::element::f32, 256, {1}, {u8_fq_il}, {u8_fq_ih}, {u8_fq_il}, {u8_fq_ih});
-    auto fq2 = ov::test::utils::make_fake_quantize(data2, ov::element::f32, 256, {1}, {i8_fq_il}, {i8_fq_ih}, {i8_fq_il}, {i8_fq_ih});
+    auto fq0 = make_fake_quantize(matmul0, false);
+    auto fq2 = make_fake_quantize(data2, true);
     auto new_shape = std::make_shared<ov::op::v0::Constant>(ov::element::u64, ov::Shape{4},
                                                             std::vector<uint64_t>{1, 1, input_shapes[2].get_shape()[0], input_shapes[2].get_shape()[1]});
     auto reshape = std::make_shared<ov::op::v1::Reshape>(fq2, new_shape, false);
@@ -203,20 +203,13 @@ std::shared_ptr<ov::Model> MatMulsQuantizedFunction::initOriginal() const {
         std::vector<element::Type>{element::f32},
         ov::op::TemporaryReplaceOutputType(fq0, element::f32).get(),
         ov::op::TemporaryReplaceOutputType(reshape, element::f32).get());
-    auto fq3 = ov::test::utils::make_fake_quantize(matmul1,
-                                                   ov::element::f32,
-                                                   256,
-                                                   {1},
-                                                   {i8_fq_il},
-                                                   {i8_fq_ih},
-                                                   {i8_fq_il},
-                                                   {i8_fq_ih});
+    auto fq3 = make_fake_quantize(matmul1, true);
     return std::make_shared<ov::Model>(NodeVector{fq3}, params);
 }
 std::shared_ptr<ov::Model> Transpose0213MatMulFunction::initOriginal() const {
     auto data0 = std::make_shared<op::v0::Parameter>(precisions[0], input_shapes[0]);
     ParameterVector params{data0};
-    auto data1 = build_mm_second_input(precisions[1], input_shapes[1], matmul_type, params);
+    auto data1 = make_matmul_b_input(precisions[1], input_shapes[1], matmul_type, params);
     auto const_order = std::make_shared<op::v0::Constant>(ov::element::i32, Shape {4}, std::vector<int>{0, 2, 1, 3});
     std::shared_ptr<Node> result;
     switch (transpose_position) {
@@ -295,16 +288,16 @@ std::shared_ptr<ov::Model> TransposeMulMatMulBiasFunction::initOriginal() const 
 std::shared_ptr<ov::Model> MatMulsQuantizedSoftmaxFunction::initOriginal() const {
     auto data0 = std::make_shared<op::v0::Parameter>(precisions[0], input_shapes[0]);
     ParameterVector params{data0};
-    auto data1 = build_mm_second_input(precisions[1], input_shapes[1], matmul_type, params);
-    auto data2 = build_mm_second_input(precision, input_shapes[2], matmul_type, params);
+    auto data1 = make_matmul_b_input(precisions[1], input_shapes[1], matmul_type, params);
+    auto data2 = make_matmul_b_input(precision, input_shapes[2], matmul_type, params);
     auto matmul0 = std::make_shared<op::TypeRelaxed<op::v0::MatMul>>(
         std::vector<element::Type>{ov::element::f32, element::f32},
         std::vector<element::Type>{element::f32},
         ov::op::TemporaryReplaceOutputType(data0, element::f32).get(),
         ov::op::TemporaryReplaceOutputType(data1, element::f32).get());
     auto softmax = std::make_shared<ov::op::v8::Softmax>(matmul0, -1);
-    auto fq0 = ov::test::utils::make_fake_quantize(softmax, ov::element::f32, 256, {1}, {u8_fq_il}, {u8_fq_ih}, {u8_fq_il}, {u8_fq_ih});
-    auto fq2 = ov::test::utils::make_fake_quantize(data2, ov::element::f32, 256, {1}, {i8_fq_il}, {i8_fq_ih}, {i8_fq_il}, {i8_fq_ih});
+    auto fq0 = make_fake_quantize(softmax, false);
+    auto fq2 = make_fake_quantize(data2, true);
     auto new_shape = std::make_shared<ov::op::v0::Constant>(ov::element::u64, ov::Shape{4},
                                                             std::vector<uint64_t>{1, 1, input_shapes[2].get_shape()[0], input_shapes[2].get_shape()[1]});
     auto reshape = std::make_shared<ov::op::v1::Reshape>(fq2, new_shape, false);
@@ -313,21 +306,14 @@ std::shared_ptr<ov::Model> MatMulsQuantizedSoftmaxFunction::initOriginal() const
         std::vector<element::Type>{element::f32},
         ov::op::TemporaryReplaceOutputType(fq0, element::f32).get(),
         ov::op::TemporaryReplaceOutputType(reshape, element::f32).get());
-    auto fq3 = ov::test::utils::make_fake_quantize(matmul1,
-                                                   ov::element::f32,
-                                                   256,
-                                                   {1},
-                                                   {i8_fq_il},
-                                                   {i8_fq_ih},
-                                                   {i8_fq_il},
-                                                   {i8_fq_ih});
+    auto fq3 = make_fake_quantize(matmul1, true);
     return std::make_shared<ov::Model>(NodeVector{fq3}, params);
 }
 
 std::shared_ptr<ov::Model> MatMulEltwiseChainFunction::initOriginal() const {
     auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
     ParameterVector params{data0};
-    auto data1 = build_mm_second_input(precision, input_shapes[1], matmul_type, params);
+    auto data1 = make_matmul_b_input(precision, input_shapes[1], matmul_type, params);
 
     const auto matmul = std::make_shared<op::TypeRelaxed<op::v0::MatMul>>(
         std::vector<element::Type>{element::f32, element::f32},
@@ -352,8 +338,8 @@ std::shared_ptr<ov::Model> MatMulEltwiseChainFunction::initOriginal() const {
 std::shared_ptr<ov::Model> MatMulEltwiseChainCascadeFunction::initOriginal() const {
     auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
     ParameterVector params{data0};
-    auto data1 = build_mm_second_input(precision, input_shapes[1], matmul_type, params);
-    auto data2 = build_mm_second_input(precision, input_shapes[2], matmul_type, params);
+    auto data1 = make_matmul_b_input(precision, input_shapes[1], matmul_type, params);
+    auto data2 = make_matmul_b_input(precision, input_shapes[2], matmul_type, params);
 
     const auto matmul1 = std::make_shared<op::TypeRelaxed<op::v0::MatMul>>(
         std::vector<element::Type>{element::f32, element::f32},

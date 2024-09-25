@@ -65,7 +65,8 @@ bool tokenize_node(const std::shared_ptr<ov::Node>& node, const SnippetsTokeniza
         op::update_out_tensor_name(subgraph);
     };
 
-    auto abort_with_strategy = [&](const std::string& message_reset, const std::string& message_abort = "") {
+    auto abort = [&](const std::string& message) {
+        remark(3) << message << std::endl;
         create_single_node_subgraph(node);
         return true;
     };
@@ -203,7 +204,7 @@ bool tokenize_node(const std::shared_ptr<ov::Node>& node, const SnippetsTokeniza
                             // todo: In principle, we can still attach the node to the subgraph if cyclic dependency is introduced during ternary merge.
                             //  Need to support.
                             if (cyclicDependencyIsIntoduced(to_replace_with, currentTopoBounds))
-                                return abort_with_strategy("Attempt to perform recurrent merge for cyclic-dependent subgraphs. Aborting.");
+                                return abort("Attempt to perform recurrent merge for cyclic-dependent subgraphs. Aborting.");
                             for (const auto& output : internal_consumers) {
                                     for (auto consumer : output.get_target_inputs()) {
                                         auto other_body = clones[subgraph->get_input_node_shared_ptr(i)];
@@ -260,7 +261,7 @@ bool tokenize_node(const std::shared_ptr<ov::Node>& node, const SnippetsTokeniza
                 }
 
                 if (!ov::is_type<ov::op::v0::Parameter>(grandparent)) {
-                    return abort_with_strategy("Convert supports only as Input and as Result of subgraph. Aborting");
+                    return abort("Convert supports only as Input and as Result of subgraph. Aborting");
                 }
             }
             // Result op has a single input
@@ -288,7 +289,7 @@ bool tokenize_node(const std::shared_ptr<ov::Node>& node, const SnippetsTokeniza
     fusedNames += node->get_friendly_name();
     num_result_children += get_num_result_children(node);
     if (num_result_children > 1)
-        return abort_with_strategy("New subgraph is created since too many Result children are detected");
+        return abort("New subgraph is created since too many Result children are detected");
 
     auto body_node = node->copy_with_new_inputs(internal_inputs);
     body_node->set_friendly_name(node->get_friendly_name());
@@ -380,10 +381,7 @@ bool tokenize_node(const std::shared_ptr<ov::Node>& node, const SnippetsTokeniza
         const std::string message_reset = "new subgraph is created. Impossible to schedule subgraph with " +
         std::to_string(body_parameters.size()) + " inputs, " + std::to_string(body_results.size()) + " outputs and " +
         std::to_string(hidden_data_count) + " non-scalar constants and " + std::to_string(unique_buffer_count) + "buffers.";
-        const std::string message_abort = "failed to continue subgraph. Impossible to schedule subgraph with " +
-        std::to_string(body_parameters.size()) + " inputs, " + std::to_string(body_results.size()) + " outputs and " +
-        std::to_string(hidden_data_count) + " non-scalar constants and " + std::to_string(unique_buffer_count) + "buffers.";
-        return abort_with_strategy(message_reset, message_abort);
+        return abort(message_reset);
     }
 
     auto body = op::create_body(node->get_friendly_name(), body_results, body_parameters);
@@ -402,7 +400,7 @@ bool tokenize_node(const std::shared_ptr<ov::Node>& node, const SnippetsTokeniza
     }
 
     if (outputs_are_not_broadcastable(subgraph))
-        return abort_with_strategy("New subgraph is created due to outputs of a subgraph not broadcastable.");
+        return abort("New subgraph is created due to outputs of a subgraph not broadcastable.");
 
     for (size_t i = 0; i < subgraph->get_output_size(); ++i) {
         for (auto target_input : subgraph_result_inputs[i]) {

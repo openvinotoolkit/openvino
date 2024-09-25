@@ -4,10 +4,8 @@
 
 #include "snippets/pass/fc_tokenization.hpp"
 
-#include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "snippets/itt.hpp"
-#include "snippets/op/subgraph.hpp"
 #include "snippets/utils/tokenization_utils.hpp"
 
 ov::snippets::pass::TokenizeFCSnippets::TokenizeFCSnippets(const SnippetsTokenization::Config& config) {

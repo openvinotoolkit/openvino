@@ -41,34 +41,28 @@ void TransposeMatMul::SetUp() {
     std::tie(input_shapes, transpose_position, elem_types, matmul_type, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
     init_input_shapes(input_shapes);
 
-    init_subgraph(elem_types);
+    const auto builder = get_builder(elem_types);
+    function = builder->getOriginal();
+    filter_shape_info(builder->get_constant_input_idces());
     if (!configuration.count("SNIPPETS_MODE")) {
         configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
     }
 }
 
-void TransposeMatMul::init_subgraph(const std::vector<ov::element::Type>& types) {
-    auto f = ov::test::snippets::Transpose0213MatMulFunction(inputDynamicShapes, types, matmul_type, transpose_position);
-    function = f.getOriginal();
-    MatMulBase::filter_shape_info(f.get_constant_input_idces());
+std::shared_ptr<MatMulFunctionBase> TransposeMatMul::get_builder(const std::vector<ov::element::Type>& types) {
+    return std::make_shared<Transpose0213MatMulFunction>(inputDynamicShapes, types, matmul_type, transpose_position);
 }
 
-void TransposeMatMulFQ::init_subgraph(const std::vector<ov::element::Type>& types) {
-    auto f = ov::test::snippets::FQMatMulFunction(inputDynamicShapes, matmul_type, transpose_position);
-    function = f.getOriginal();
-    MatMulBase::filter_shape_info(f.get_constant_input_idces());
+std::shared_ptr<MatMulFunctionBase> TransposeMatMulFQ::get_builder(const std::vector<ov::element::Type>& types) {
+    return std::make_shared<FQMatMulFunction>(inputDynamicShapes, matmul_type, transpose_position);
 }
 
-void ExplicitTransposeMatMul::init_subgraph(const std::vector<ov::element::Type>& types) {
-    auto f = ov::test::snippets::TransposeMatMulFunction(inputDynamicShapes);
-    function = f.getOriginal();
-    MatMulBase::filter_shape_info(f.get_constant_input_idces());
+std::shared_ptr<MatMulFunctionBase> ExplicitTransposeMatMul::get_builder(const std::vector<ov::element::Type>& types) {
+    return std::make_shared<TransposeMatMulFunction>(inputDynamicShapes);
 }
 
-void ExplicitTransposeMatMulBias::init_subgraph(const std::vector<ov::element::Type>& types) {
-    auto f = ov::test::snippets::TransposeMatMulBiasFunction(inputDynamicShapes);
-    function = f.getOriginal();
-    MatMulBase::filter_shape_info(f.get_constant_input_idces());
+std::shared_ptr<MatMulFunctionBase> ExplicitTransposeMatMulBias::get_builder(const std::vector<ov::element::Type>& types) {
+    return std::make_shared<TransposeMatMulBiasFunction>(inputDynamicShapes);
 }
 
 TEST_P(TransposeMatMul, CompareWithRefImpl) {

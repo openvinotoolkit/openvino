@@ -81,19 +81,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_FullyConnected, TransposeMatMul,
                                  ::testing::Values(1), // Tokenized MatMul + FusedTranspose
                                  ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          TransposeMatMul::getTestCaseName);
-
-// TODO: FuseTransposeToBrgemm supports fusing only if Transpose is before Parameter in cases when Transpose is on input at the moment
-//       When we support the branch Parameter->FQ->Transpose->MatMul[0th input], uncomment this test case please
-// INSTANTIATE_TEST_SUITE_P(smoke_Snippets_TransposeMatMulFQ, TransposeMatMulFQ,
-//                          ::testing::Combine(
-//                                  ::testing::ValuesIn(transpose_input_shapes),
-//                                  ::testing::Values(0), // Transpose on 0th Matmul input
-//                                  ::testing::Values(ov::element::i8),
-//                                  ::testing::Values(MatMulType::MatMul),
-//                                  ::testing::Values(1), // MatMul
-//                                  ::testing::Values(1), // Tokenized MatMul + FusedTranspose
-//                                  ::testing::Values(ov::test::utils::DEVICE_CPU)),
-//                          TransposeMatMulFQ::getTestCaseName);
 } // namespace transpose_zero_input
 
 namespace transpose_first_input {
@@ -181,24 +168,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_FullyConnected, TransposeMatMul,
                                  ::testing::ValuesIn(fc_transpose_input_shapes),
                                  ::testing::Values(2), // Transpose on Matmul output
                                  ::testing::ValuesIn(precisions(true)),
-                                 ::testing::Values(MatMulType::MatMul),
+                                 ::testing::Values(MatMulType::FullyConnected),
                                  ::testing::Values(1), // MatMul
                                  ::testing::Values(1), // Tokenized MatMul + FusedTranspose
                                  ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          TransposeMatMul::getTestCaseName);
-
-// TODO: At the moment we doesn't support the branch MatMul[output]->Transpose->FQ.
-//      When we add support, uncomment this test case please
-// INSTANTIATE_TEST_SUITE_P(smoke_Snippets_TransposeMatMulFQ, TransposeMatMulFQ,
-//                          ::testing::Combine(
-//                                  ::testing::ValuesIn(transpose_input_shapes),
-//                                  ::testing::Values(2), // Transpose on Matmul output
-//                                  ::testing::Values(ov::element::i8),
-//                                  ::testing::Values(MatMulType::MatMul),
-//                                  ::testing::Values(1), // MatMul
-//                                  ::testing::Values(1), // Tokenized MatMul + FusedTranspose
-//                                  ::testing::Values(ov::test::utils::DEVICE_CPU)),
-//                          TransposeMatMulFQ::getTestCaseName);
 } // namespace transpose_output
 
 namespace explicit_transpose {

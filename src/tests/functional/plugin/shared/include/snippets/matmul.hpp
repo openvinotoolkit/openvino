@@ -26,7 +26,7 @@ protected:
      * @brief Erases shapes with the given indices from inputDynamicShapes and targetStaticShapes
      */
     void filter_shape_info(const std::set<size_t>& idces_to_remove);
-    virtual void init_subgraph(const std::vector<ov::element::Type>& types) = 0;
+    virtual std::shared_ptr<MatMulFunctionBase> get_builder(const std::vector<ov::element::Type>& types) = 0;
 
     MatMulType matmul_type;
 };
@@ -38,47 +38,47 @@ public:
 
 protected:
     void SetUp() override;
-    void init_subgraph(const std::vector<ov::element::Type>& types) override;
+    std::shared_ptr<MatMulFunctionBase> get_builder(const std::vector<ov::element::Type>& types) override;
 };
 
 class MatMulTransposeB : public MatMul {
 protected:
-    void init_subgraph(const std::vector<ov::element::Type>& types) override;
+    std::shared_ptr<MatMulFunctionBase> get_builder(const std::vector<ov::element::Type>& types) override;
 };
 
 class MatMulFQ : public MatMul {
 protected:
-    void init_subgraph(const std::vector<ov::element::Type>& types) override;
+    std::shared_ptr<MatMulFunctionBase> get_builder(const std::vector<ov::element::Type>& types) override;
 };
 
 class MatMulBias : public MatMul {
 protected:
-    void init_subgraph(const std::vector<ov::element::Type>& types) override;
+    std::shared_ptr<MatMulFunctionBase> get_builder(const std::vector<ov::element::Type>& types) override;
 };
 
 class MatMulBiasQuantized : public MatMul {
 protected:
-    void init_subgraph(const std::vector<ov::element::Type>& types) override;
+    std::shared_ptr<MatMulFunctionBase> get_builder(const std::vector<ov::element::Type>& types) override;
 };
 
 class MatMulsQuantized : public MatMul {
 protected:
-    void init_subgraph(const std::vector<ov::element::Type>& types) override;
+    std::shared_ptr<MatMulFunctionBase> get_builder(const std::vector<ov::element::Type>& types) override;
 };
 
 class MatMulsQuantizedSoftmax : public MatMul {
 protected:
-    void init_subgraph(const std::vector<ov::element::Type>& types) override;
+    std::shared_ptr<MatMulFunctionBase> get_builder(const std::vector<ov::element::Type>& types) override;
 };
 
 class MatMulEltwiseChain : public MatMul {
 protected:
-    void init_subgraph(const std::vector<ov::element::Type>& types) override;
+    std::shared_ptr<MatMulFunctionBase> get_builder(const std::vector<ov::element::Type>& types) override;
 };
 
 class MatMulEltwiseChainCascade : public MatMul {
 protected:
-    void init_subgraph(const std::vector<ov::element::Type>& types) override;
+    std::shared_ptr<MatMulFunctionBase> get_builder(const std::vector<ov::element::Type>& types) override;
 };
 
 } // namespace snippets

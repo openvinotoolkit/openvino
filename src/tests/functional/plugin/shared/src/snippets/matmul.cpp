@@ -51,64 +51,48 @@ void MatMul::SetUp() {
     std::tie(input_shapes, elem_types, matmul_type, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
     init_input_shapes(input_shapes);
 
-    init_subgraph(elem_types);
+    const auto builder = get_builder(elem_types);
+    function = builder->getOriginal();
+    filter_shape_info(builder->get_constant_input_idces());
     if (!configuration.count("SNIPPETS_MODE")) {
         configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
     }
 }
 
-void MatMul::init_subgraph(const std::vector<ov::element::Type>& types) {
-    auto f = ov::test::snippets::MatMulFunction(inputDynamicShapes, types, matmul_type);
-    function = f.getOriginal();
-    filter_shape_info(f.get_constant_input_idces());
+std::shared_ptr<MatMulFunctionBase> MatMul::get_builder(const std::vector<ov::element::Type>& types) {
+    return std::make_shared<MatMulFunction>(inputDynamicShapes, types, matmul_type);
 }
 
-void MatMulTransposeB::init_subgraph(const std::vector<ov::element::Type>& types) {
-    auto f = ov::test::snippets::MatMulFunction(inputDynamicShapes, types, matmul_type, true);
-    function = f.getOriginal();
-    filter_shape_info(f.get_constant_input_idces());
+std::shared_ptr<MatMulFunctionBase> MatMulTransposeB::get_builder(const std::vector<ov::element::Type>& types) {
+    return std::make_shared<MatMulFunction>(inputDynamicShapes, types, matmul_type, true);
 }
 
-void MatMulFQ::init_subgraph(const std::vector<ov::element::Type>& types) {
-    auto f = ov::test::snippets::FQMatMulFunction(inputDynamicShapes, matmul_type);
-    function = f.getOriginal();
-    filter_shape_info(f.get_constant_input_idces());
+std::shared_ptr<MatMulFunctionBase> MatMulFQ::get_builder(const std::vector<ov::element::Type>& types) {
+    return std::make_shared<FQMatMulFunction>(inputDynamicShapes, matmul_type);
 }
 
-void MatMulBias::init_subgraph(const std::vector<ov::element::Type>& types) {
-    auto f = ov::test::snippets::MatMulBiasFunction(inputDynamicShapes, types, matmul_type);
-    function = f.getOriginal();
-    filter_shape_info(f.get_constant_input_idces());
+std::shared_ptr<MatMulFunctionBase> MatMulBias::get_builder(const std::vector<ov::element::Type>& types) {
+    return std::make_shared<MatMulBiasFunction>(inputDynamicShapes, types, matmul_type);
 }
 
-void MatMulBiasQuantized::init_subgraph(const std::vector<ov::element::Type>& types) {
-    auto f = ov::test::snippets::MatMulBiasQuantizedFunction(inputDynamicShapes, types, matmul_type);
-    function = f.getOriginal();
-    filter_shape_info(f.get_constant_input_idces());
+std::shared_ptr<MatMulFunctionBase> MatMulBiasQuantized::get_builder(const std::vector<ov::element::Type>& types) {
+    return std::make_shared<MatMulBiasQuantizedFunction>(inputDynamicShapes, types, matmul_type);
 }
 
-void MatMulsQuantized::init_subgraph(const std::vector<ov::element::Type>& types) {
-    auto f = ov::test::snippets::MatMulsQuantizedFunction(inputDynamicShapes, types, matmul_type);
-    function = f.getOriginal();
-    filter_shape_info(f.get_constant_input_idces());
+std::shared_ptr<MatMulFunctionBase> MatMulsQuantized::get_builder(const std::vector<ov::element::Type>& types) {
+    return std::make_shared<MatMulsQuantizedFunction>(inputDynamicShapes, types, matmul_type);
 }
 
-void MatMulsQuantizedSoftmax::init_subgraph(const std::vector<ov::element::Type>& types) {
-    auto f = ov::test::snippets::MatMulsQuantizedSoftmaxFunction(inputDynamicShapes, types, matmul_type);
-    function = f.getOriginal();
-    filter_shape_info(f.get_constant_input_idces());
+std::shared_ptr<MatMulFunctionBase> MatMulsQuantizedSoftmax::get_builder(const std::vector<ov::element::Type>& types) {
+    return std::make_shared<MatMulsQuantizedSoftmaxFunction>(inputDynamicShapes, types, matmul_type);
 }
 
-void MatMulEltwiseChain::init_subgraph(const std::vector<ov::element::Type>& types) {
-    auto f = ov::test::snippets::MatMulEltwiseChainFunction(inputDynamicShapes, types, matmul_type);
-    function = f.getOriginal();
-    filter_shape_info(f.get_constant_input_idces());
+std::shared_ptr<MatMulFunctionBase> MatMulEltwiseChain::get_builder(const std::vector<ov::element::Type>& types) {
+    return std::make_shared<MatMulEltwiseChainFunction>(inputDynamicShapes, types, matmul_type);
 }
 
-void MatMulEltwiseChainCascade::init_subgraph(const std::vector<ov::element::Type>& types) {
-    auto f = ov::test::snippets::MatMulEltwiseChainCascadeFunction(inputDynamicShapes, types, matmul_type);
-    function = f.getOriginal();
-    filter_shape_info(f.get_constant_input_idces());
+std::shared_ptr<MatMulFunctionBase> MatMulEltwiseChainCascade::get_builder(const std::vector<ov::element::Type>& types) {
+    return std::make_shared<MatMulEltwiseChainCascadeFunction>(inputDynamicShapes, types, matmul_type);
 }
 
 TEST_P(MatMul, CompareWithRefImpl) {

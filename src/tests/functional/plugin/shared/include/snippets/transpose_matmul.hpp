@@ -28,24 +28,24 @@ public:
 
 protected:
     void SetUp() override;
-    void init_subgraph(const std::vector<ov::element::Type>& types) override;
+    std::shared_ptr<MatMulFunctionBase> get_builder(const std::vector<ov::element::Type>& types) override;
 
     size_t transpose_position;
 };
 
 class TransposeMatMulFQ : public TransposeMatMul {
 protected:
-    void init_subgraph(const std::vector<ov::element::Type>& types) override;
+    std::shared_ptr<MatMulFunctionBase> get_builder(const std::vector<ov::element::Type>& types) override;
 };
 
 class ExplicitTransposeMatMul : public TransposeMatMul {
 protected:
-    void init_subgraph(const std::vector<ov::element::Type>& types) override;
+    std::shared_ptr<MatMulFunctionBase> get_builder(const std::vector<ov::element::Type>& types) override;
 };
 
 class ExplicitTransposeMatMulBias : public TransposeMatMul {
 protected:
-    void init_subgraph(const std::vector<ov::element::Type>& types) override;
+    std::shared_ptr<MatMulFunctionBase> get_builder(const std::vector<ov::element::Type>& types) override;
 };
 
 } // namespace snippets

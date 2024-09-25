@@ -82,8 +82,9 @@ bool SnippetsTokenization::run_on_model(const std::shared_ptr<ov::Model>& m) {
 
     manager.register_pass<EnumerateNodes>();
     manager.register_pass<ExtractReshapesFromMHA>();
-    // This pass mustn't be registered in GraphRewrite with other tokenization passes
-    // since it changes the nodes after the matched root node
+    // This pass mustn't be registered in GraphRewrite with other tokenization passes because of 2 reasons:
+    // 1. It has higher priority than other tokenization passes
+    // 2. It changes the nodes after the matched root node
     manager.register_pass<TokenizeMHASnippets>(m_config);
 
     auto tokenization_passes = manager.register_pass<ov::pass::GraphRewrite>();
