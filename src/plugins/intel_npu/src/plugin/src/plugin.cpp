@@ -760,16 +760,16 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         }
         _logger.debug("Successfully read %zu bytes into blob.", graphSize);
 
-        std::string openvinoVersion {ov::get_openvino_version().buildNumber};
-        auto tokenizedVersion {ov::util::split(openvinoVersion, '-', false)};
-        const char* openvinoHash = tokenizedVersion.at(2).c_str();
-        const size_t hashLength = tokenizedVersion.at(2).length();
+        const ov::Version& ovVersion = ov::get_openvino_version();
+        std::string ovVersionName {ovVersion.buildNumber};
+        const size_t versionLength = ovVersionName.length();
 
-        char* blobHash = new char[hashLength + 1]();
-        stream.seekg(graphSize - hashLength, stream.beg);
-        stream.read(blobHash, hashLength);
+        stream.seekg(graphSize - versionLength, stream.beg);
         
-        if(strncmp(openvinoHash, blobHash, hashLength)) {
+        char* blobVersion = new char[versionLength + 1]();
+        std::copy(blob.begin() + (graphSize - versionLength), blob.end(), blobVersion);
+        _logger.info("Openvino version is: %s ... and blob version is %s\n", ovVersionName.c_str(), blobVersion);
+        if(strncmp(ovVersionName.c_str(), blobVersion, versionLength)) {
             OPENVINO_THROW("OpenVINO version does not match imported blob version.");
         }
 

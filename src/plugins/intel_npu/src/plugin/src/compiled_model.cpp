@@ -143,12 +143,11 @@ void CompiledModel::export_model(std::ostream& stream) const {
     const auto&& blob = _compiler->getCompiledNetwork(_networkPtr);
     stream.write(reinterpret_cast<const char*>(blob.data()), blob.size());
 
-    const auto& version = ov::get_openvino_version();
-    std::string ov_version {version.buildNumber};
-    std::vector tokened_version {ov::util::split(ov_version, '-', true)};
+    const ov::Version& ovVersion = ov::get_openvino_version();
+    std::string ovVersionName {ovVersion.buildNumber};
+    const size_t versionLength = ovVersionName.length();
 
-    const size_t hash_length = tokened_version.at(2).length();
-    stream.write(tokened_version.at(2).c_str(), hash_length);
+    stream.write(ovVersionName.c_str(), versionLength);
 
     std::stringstream str;
     str << "Blob size: " << blob.size() << ", hash: " << std::hex << hash(blob);
