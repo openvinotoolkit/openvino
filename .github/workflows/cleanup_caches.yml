@@ -52,7 +52,7 @@ jobs:
       - name: Cleanup ccache
         uses: ./.github/actions/cache/cleanup
         with:
-          cache-size: 500
+          cache-size: 100
           max-cache-size: 750
           cache-path: ${{ env.CCACHE_PATH }}
           recursive: true
