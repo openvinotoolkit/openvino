@@ -39,7 +39,7 @@ protected:
     }
 
     const std::string vt_svg_file_path =
-        util::path_join({utils::getExecutableDirectory(), utils::generateTestFilePrefix() + "_tree.svg"});
+        util::path_join({utils::getExecutableDirectory(), utils::generateTestFilePrefix() + "_tree.svg"}).string();
     const std::string dot_file_path = vt_svg_file_path + ".dot";
 };
 
