@@ -120,7 +120,7 @@ jobs:
             skip_list=$(cat ./openvino/src/plugins/intel_cpu/tests/functional/skip_lists/debian/arm/skip_list.txt)
           fi
 
-          python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_cpu_func_tests -c ${PARALLEL_TEST_CACHE} -w ${INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_print_time=1 --gtest_filter=*smoke*:${skip_list}
+          python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_cpu_func_tests -c ${PARALLEL_TEST_CACHE} -w ${INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_print_time=1 --gtest_filter=*smoke*
         timeout-minutes: 100
 
       - name: Upload Test Results
