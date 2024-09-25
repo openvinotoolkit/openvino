@@ -4,6 +4,7 @@
 
 #include "primitive_base.hpp"
 
+#include "softmax.hpp"
 #include "softmax_inst.h"
 #include "softmax/softmax_kernel_selector.h"
 #include "softmax/softmax_kernel_base.h"
@@ -74,28 +75,11 @@ struct softmax_impl : typed_primitive_impl_ocl<softmax> {
     }
 };
 
-namespace detail {
-
-attach_softmax_impl::attach_softmax_impl() {
-    auto types = {data_types::f16, data_types::f32};
-    auto formats = {
-            format::bfyx,
-            format::byxf,
-            format::yxfb,
-            format::bfzyx
-    };
-
-    implementation_map<softmax>::add(impl_types::ocl, shape_types::static_shape, typed_primitive_impl_ocl<softmax>::create<softmax_impl>, types, formats);
-
-    auto dyn_formats = {
-        format::bfyx,
-        format::bfzyx,
-    };
-
-    implementation_map<softmax>::add(impl_types::ocl, shape_types::dynamic_shape, typed_primitive_impl_ocl<softmax>::create<softmax_impl>, types, dyn_formats);
+std::unique_ptr<primitive_impl> SoftmaxImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const {
+    assert(node.is_type<softmax>());
+    return typed_primitive_impl_ocl<softmax>::create<softmax_impl>(static_cast<const softmax_node&>(node), params);
 }
 
-}  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
 

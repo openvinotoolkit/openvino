@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "impls/registry/implementation_manager.hpp"
+#include "intel_gpu/runtime/internal_properties.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 
@@ -17,6 +20,7 @@
 #include "pass_manager.h"
 #include "primitive_type.h"
 #include "program_dump_graph.h"
+#include "program_node.h"
 #include "sliding_window_utils.hpp"
 #include "program_helpers.h"
 
@@ -51,6 +55,7 @@
 #include "border_inst.h"
 #include "primitive_inst.h"
 #include "prior_box_inst.h"
+#include "scatter_elements_update_inst.h"
 #include "proposal_inst.h"
 #include "reorder_inst.h"
 #include "mvn_inst.h"
@@ -72,12 +77,6 @@
 #include "impls/ocl/register.hpp"
 #include "impls/cpu/register.hpp"
 #include "impls/common/register.hpp"
-#ifdef ENABLE_ONEDNN_FOR_GPU
-#include "impls/onednn/register.hpp"
-#endif
-#ifdef OV_GPU_WITH_SYCL
-#include "impls/sycl/register.hpp"
-#endif
 
 #include "kernel_base.h"
 
@@ -257,13 +256,7 @@ void program::init_primitives() {
     if (!is_initialized) {
         common::register_implementations();
         ocl::register_implementations();
-#ifdef ENABLE_ONEDNN_FOR_GPU
-        onednn::register_implementations();
-#endif
         cpu::register_implementations();
-#ifdef OV_GPU_WITH_SYCL
-        sycl::register_implementations();
-#endif
         is_initialized = true;
     }
 }
@@ -610,7 +603,7 @@ void program::pre_optimize_graph(bool is_internal) {
 
     // Call shape_of subgraphs markup second time to update newely added nodes after graph
     // optimization passes
-    apply_opt_pass<mark_shape_of_subgraphs>(true);
+    apply_opt_pass<mark_shape_of_subgraphs>();
 
     // Mark operations that might be skipped at runtime as can_be_optimized.
     apply_opt_pass<mark_runtime_skippable_nodes>();
@@ -1635,10 +1628,12 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
         lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::bs_fs_yx_bsv16_fsv16_network, 1);
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
+    bool enable_onednn_for_tests = get_config().get_property(ov::intel_gpu::optimize_data) || is_internal_program();
     auto& engine = get_engine();
     if (engine.get_device_info().supports_immad &&
         engine.get_device_info().vendor_id == INTEL_VENDOR_ID &&
-        get_config().get_property(ov::intel_gpu::queue_type) == QueueTypes::in_order)
+        get_config().get_property(ov::intel_gpu::queue_type) == QueueTypes::in_order &&
+        enable_onednn_for_tests)
         lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, 1);
 #endif
 }
@@ -1795,6 +1790,8 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
         ob << kernels_cache;
         ob << impl_ids;
         for (auto& impl_id : impl_ids) {
+            std::string type_name = get_node_ptr(impl_id)->get_selected_impl()->m_manager->get_type_info().name;
+            ob << type_name;
             if (get_node_ptr(impl_id)->get_selected_impl()->is_onednn()) {
                 ob << true;
                 auto params = get_node_ptr(impl_id)->get_kernel_impl_params();
@@ -1911,7 +1908,10 @@ void program::load(cldnn::BinaryInputBuffer& ib) {
 
         for (auto& impl_id : impl_ids) {
             auto& p_node = get_node(impl_id);
-
+            std::string type_name;
+            ib >> type_name;
+            ov::DiscreteTypeInfo type(type_name.c_str());
+            auto impl_manager = p_node.type()->get(type);
             bool is_onednn;
             ib >> is_onednn;
             if (is_onednn) {
@@ -1921,6 +1921,8 @@ void program::load(cldnn::BinaryInputBuffer& ib) {
             } else {
                 ib >> p_node.selected_impl;
             }
+
+            p_node.selected_impl->m_manager = impl_manager.get();
 
             std::vector<std::string> cached_kernel_ids;
             ib >> cached_kernel_ids;
