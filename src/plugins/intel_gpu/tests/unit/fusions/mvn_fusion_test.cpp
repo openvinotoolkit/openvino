@@ -158,15 +158,14 @@ TEST_P(mvn_scale_quantize_i8, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, mvn_scale_quantize_i8, ::testing::ValuesIn(std::vector<mvn_test_params>{
-    // Full fusing for fp input not supported yet, it may lead to output padding and non-optimal kernel
-    // mvn_test_params{ CASE_MVN_F32_1, 2, 4 },
-    // mvn_test_params{ CASE_MVN_F32_2, 2, 4 },
-    // mvn_test_params{ CASE_MVN_3D_F32_1, 2, 4 },
-    // mvn_test_params{ CASE_MVN_3D_F32_2, 2, 4 },
-    // mvn_test_params{ CASE_MVN_F16_1, 2, 4 },
-    // mvn_test_params{ CASE_MVN_F16_2, 2, 4 },
-    // mvn_test_params{ CASE_MVN_3D_F16_1, 2, 4 },
-    // mvn_test_params{ CASE_MVN_3D_F16_2, 2, 4 },
+    mvn_test_params{ CASE_MVN_F32_1, 2, 2, 4 },
+    mvn_test_params{ CASE_MVN_F32_2, 2, 2, 4 },
+    mvn_test_params{ CASE_MVN_3D_F32_1, 2, 2, 4 },
+    mvn_test_params{ CASE_MVN_3D_F32_2, 2, 2, 4 },
+    mvn_test_params{ CASE_MVN_F16_1, 2, 2, 4 },
+    mvn_test_params{ CASE_MVN_F16_2, 2, 2, 4 },
+    mvn_test_params{ CASE_MVN_3D_F16_1, 2, 2, 4 },
+    mvn_test_params{ CASE_MVN_3D_F16_2, 2, 2, 4 },
     mvn_test_params{ CASE_MVN_I8_1, 2, 2, 4 },
     mvn_test_params{ CASE_MVN_I8_2, 2, 2, 4 },
     mvn_test_params{ CASE_MVN_I8_3, 2, 2, 4 },
@@ -207,15 +206,14 @@ TEST_P(mvn_scale_activation_eltwise_fp32_quantize_i8, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, mvn_scale_activation_eltwise_fp32_quantize_i8, ::testing::ValuesIn(std::vector<mvn_test_params>{
-    // Full using for fp input not supported yet, it may lead to output padding and non-optimal kernel
-    // mvn_test_params{ CASE_MVN_F32_1, 2, 7 },
-    // mvn_test_params{ CASE_MVN_F32_2, 2, 7 },
-    // mvn_test_params{ CASE_MVN_3D_F32_1, 2, 7 },
-    // mvn_test_params{ CASE_MVN_3D_F32_2, 2, 7 },
-    // mvn_test_params{ CASE_MVN_F16_1, 2, 7 },
-    // mvn_test_params{ CASE_MVN_F16_2, 2, 7 },
-    // mvn_test_params{ CASE_MVN_3D_F16_1, 2, 7 },
-    // mvn_test_params{ CASE_MVN_3D_F16_2, 2, 7 },
+    mvn_test_params{ CASE_MVN_F32_1, 2, 4, 6 },
+    mvn_test_params{ CASE_MVN_F32_2, 2, 4, 6 },
+    mvn_test_params{ CASE_MVN_3D_F32_1, 2, 4, 6 },
+    mvn_test_params{ CASE_MVN_3D_F32_2, 2, 4, 6 },
+    mvn_test_params{ CASE_MVN_F16_1, 2, 4, 6 },
+    mvn_test_params{ CASE_MVN_F16_2, 2, 4, 6 },
+    mvn_test_params{ CASE_MVN_3D_F16_1, 2, 4, 6 },
+    mvn_test_params{ CASE_MVN_3D_F16_2, 2, 4, 6 },
     mvn_test_params{ CASE_MVN_I8_1, 2, 4, 6 },
     mvn_test_params{ CASE_MVN_I8_2, 2, 4, 6 },
     mvn_test_params{ CASE_MVN_I8_3, 2, 4, 6 },

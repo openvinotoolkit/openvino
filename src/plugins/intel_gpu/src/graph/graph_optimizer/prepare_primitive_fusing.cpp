@@ -534,11 +534,11 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             return does_support_fusings;
         };
 
-        auto mvn_supports_fusings = [](mvn_node& node, bool for_eltwise = false) -> bool {
+        auto mvn_supports_fusings = [](mvn_node& node) -> bool {
             auto in_layout = node.get_input_layout(0);
             if (node.get_primitive()->requires_alignment(in_layout.get_partial_shape()))
                 return false;
-            return data_type_traits::is_i8_u8(in_layout.data_type) || for_eltwise;
+            return true;
         };
 
         auto dts_supports_fusings = [](depth_to_space_node& node) -> bool {
@@ -896,7 +896,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 can_fuse_parents[i] = (parents[i].first->is_type<convolution>() &&
                                        conv_supports_fusings(parents[i].first->as<convolution>())) ||
                                       (parents[i].first->is_type<mvn>() &&
-                                       mvn_supports_fusings(parents[i].first->as<mvn>(), true)) ||
+                                       mvn_supports_fusings(parents[i].first->as<mvn>())) ||
                                       (parents[i].first->is_type<group_normalization>()) ||
                                       (parents[i].first->is_type<deconvolution>()) ||
                                       (parents[i].first->is_type<permute>()) ||

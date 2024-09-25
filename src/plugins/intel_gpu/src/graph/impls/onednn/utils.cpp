@@ -447,6 +447,7 @@ dnnl::algorithm convert_activation_func(cldnn::activation_func func) {
         case cldnn::activation_func::relu: return dnnl::algorithm::eltwise_relu;
         case cldnn::activation_func::relu_negative_slope: return dnnl::algorithm::eltwise_relu;
         case cldnn::activation_func::gelu: return dnnl::algorithm::eltwise_gelu_erf;
+        case cldnn::activation_func::gelu_tanh: return dnnl::algorithm::eltwise_gelu_tanh;
         case cldnn::activation_func::elu: return dnnl::algorithm::eltwise_elu;
         case cldnn::activation_func::mish: return dnnl::algorithm::eltwise_mish;
         case cldnn::activation_func::swish: return dnnl::algorithm::eltwise_swish;
