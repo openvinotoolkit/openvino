@@ -510,12 +510,12 @@ ov::util::FilePath ov::util::get_compiled_plugin_path(const std::string& plugin)
 
     ov::util::Path abs_file_path = ov::util::path_join({ov_library_path, sub_folder, plugin});
     if (ov::util::file_exists(abs_file_path))
-        return abs_file_path.native();
+        return abs_file_path.wstring();
 
     // 2. in the openvino.so location
     abs_file_path = ov::util::path_join({ov_library_path, plugin});
     if (ov::util::file_exists(abs_file_path))
-        return abs_file_path.native();
+        return abs_file_path.wstring();
 
     auto lib_name = plugin;
     // For 3rd case - convert to 4th case
