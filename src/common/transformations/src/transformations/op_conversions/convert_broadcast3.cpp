@@ -64,7 +64,7 @@ ov::pass::ConvertBroadcast3::ConvertBroadcast3() {
     auto broadcast = pattern::wrap_type<ov::op::v3::Broadcast>();
 
     matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto broadcast = std::dynamic_pointer_cast<ov::op::v3::Broadcast>(m.get_match_root());
+        auto broadcast = ov::as_type_ptr<ov::op::v3::Broadcast>(m.get_match_root());
         if (!broadcast) {
             return false;
         }
@@ -85,7 +85,7 @@ ov::pass::ConvertBroadcast3::ConvertBroadcast3() {
                                                             op::AutoBroadcastType::NONE);
         } else if (broadcast_type == op::BroadcastType::BIDIRECTIONAL) {
             if (auto const_target_shape =
-                    std::dynamic_pointer_cast<ov::op::v0::Constant>(target_shape_input.get_node_shared_ptr())) {
+                    ov::as_type_ptr<ov::op::v0::Constant>(target_shape_input.get_node_shared_ptr())) {
                 const auto& input_shape = input.get_partial_shape();
                 const auto& target_shape = const_target_shape->cast_vector<size_t>();
                 std::vector<size_t> aligned_target_shape{target_shape};

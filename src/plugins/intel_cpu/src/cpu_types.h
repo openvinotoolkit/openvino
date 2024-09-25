@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "transformations/cpu_opset/common/op/submodel.hpp"
 #include "utils/caseless.hpp"
 
 namespace ov {
@@ -116,6 +117,7 @@ enum class Type {
     MulticlassNms,
     Multinomial,
     Subgraph,
+    SubModel,
     PriorBox,
     PriorBoxClustered,
     Interaction,

@@ -161,6 +161,24 @@ static constexpr ov::Property<bool> cwai{"NPUW_CWAI"};
 
 /**
  * @brief
+ * Type: bool.
+ * Apply dynamic quantization transformations at the plugin side.
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> dyn_quant{"NPUW_DQ"};
+
+/**
+ * @brief
+ * Type: string.
+ * Identify and merge parallel MatMuls over dimension(s) specified.
+ * When set to YES, applies transformation for all dimensions.
+ * Works with FOLD enabled only.
+ * Default value: 2.
+ */
+static constexpr ov::Property<std::string> par_matmul_merge_dims{"NPUW_PMM"};
+
+/**
+ * @brief
  * Type: std::string.
  * Promotional data type for weights decompression. Works only with function "NPUW_FOLD"ing.
  * Possible values: "i8", "f16"

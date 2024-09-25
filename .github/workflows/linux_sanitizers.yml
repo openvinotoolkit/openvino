@@ -16,6 +16,7 @@ permissions: read-all
 env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
   PYTHON_VERSION: '3.11'
+  TARGET_BRANCH: ${{ github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
 jobs:
   Build:
@@ -24,6 +25,7 @@ jobs:
       run:
         shell: bash
     runs-on: aks-linux-16-cores-32gb
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
       volumes:
@@ -35,8 +37,8 @@ jobs:
         include:
           - SANITIZER: 'AddressAndLeak'
             SANITIZER_CMAKE_OPTION: '-DENABLE_SANITIZER=ON'
-#          - SANITIZER: 'UndefinedBehavior'  # Ticket: 144163
-#            SANITIZER_CMAKE_OPTION: '-DENABLE_UB_SANITIZER=ON'
+          - SANITIZER: 'UndefinedBehavior'
+            SANITIZER_CMAKE_OPTION: '-DENABLE_UB_SANITIZER=ON'
 #          - SANITIZER: 'Thread'  # Problems with protobuf
 #            SANITIZER_CMAKE_OPTION: '-DENABLE_THREAD_SANITIZER=ON'
     env:
@@ -75,7 +77,7 @@ jobs:
           repository: 'openvinotoolkit/openvino_contrib'
           path: ${{ env.OPENVINO_CONTRIB_REPO }}
           submodules: 'true'
-          ref: 'master'
+          ref: ${{ env.TARGET_BRANCH }}
 
       #
       # Print system info
