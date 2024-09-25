@@ -56,12 +56,12 @@ void CheckpointV1Reader::initialize() {
             std::make_shared<std::ifstream>(checkpoint_path, std::ifstream::in | std::ifstream::binary);
         FRONT_END_GENERAL_CHECK(
             shard_stream && shard_stream->is_open(),
-            "[TensorFlow Frontend] incorrect model: checkpoint file " + checkpoint_path.native() + "does not exist");
+            "[TensorFlow Frontend] incorrect model: checkpoint file " + checkpoint_path.string() + "does not exist");
         const int32_t shard_ind = static_cast<int32_t>(m_shards.size());
         m_shards.push_back(shard_stream);
-        m_shard_names.push_back(checkpoint_path);
+        m_shard_names.push_back(checkpoint_path.string());
         std::string value;
-        find_entry(shard_stream, checkpoint_path, SAVED_TENSOR_SLICES_KEY, value);
+        find_entry(shard_stream, checkpoint_path.string(), SAVED_TENSOR_SLICES_KEY, value);
 
         // parse empty index block
         // This is only present at the first item of each checkpoint file and serves
