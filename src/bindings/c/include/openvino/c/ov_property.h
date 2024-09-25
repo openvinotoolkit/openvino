@@ -246,10 +246,3 @@ ov_property_key_enable_mmap;
  */
 OPENVINO_C_VAR(const char*)
 ov_property_key_auto_batch_timeout;
-
-/**
- * @brief Read-write property to pass GPU config file
- * @ingroup ov_property_c_api
- */
-OPENVINO_C_VAR(const char*)
-ov_property_key_config_file;
