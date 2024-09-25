@@ -91,7 +91,8 @@ RemainFCParallelFusion::RemainFCParallelFusion(size_t world_size, size_t world_r
                 auto ranked_weight = std::make_shared<ov::intel_gpu::op::RankConstant>(weight_node, world_size, world_rank, tp_mode, part_fraction, group_size);
                 std::shared_ptr<ov::Node> ranked_bias, ranked_scale, ranked_zp;
                 if (!std::dynamic_pointer_cast<op::Placeholder>(m_bias)) {
-                    ranked_bias = std::make_shared<ov::intel_gpu::op::RankConstant>(m_bias, world_size, world_rank, tp_mode, part_fraction, group_size);
+                    auto bias_tp_mode = tp_mode == op::TP_MODE::ALL_GATHERH ? op::TP_MODE::ALL_REDUCE : op::TP_MODE::ALL_GATHERH;
+                    ranked_bias = std::make_shared<ov::intel_gpu::op::RankConstant>(m_bias, world_size, world_rank, bias_tp_mode, part_fraction, group_size);
                 }
                 if (compressed_fc) {
                     auto scale_node = compressed_fc->get_input_node_shared_ptr(3);

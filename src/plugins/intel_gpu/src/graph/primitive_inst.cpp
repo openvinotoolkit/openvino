@@ -2237,9 +2237,11 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
 
     static const char* env = getenv("OV_GPU_P2P_DISABLED");
     if (!env) {
-        if (_node.is_type<fully_connected>() && _node.as<fully_connected>().w_size != 1) {
+        if (_node.is_type<fully_connected>() && _node.as<fully_connected>().w_size != 1 && !is_output_buffer) {
             alloc_type = allocation_type::cl_mem;
         }
+        if (is_output_buffer && getenv("OV_ENABLE_LAST_FC"))
+            alloc_type = allocation_type::cl_mem;
         if (_node.is_type<sync_tensor>()) {
             alloc_type = allocation_type::cl_mem;
             // std::cout << "Sync_tensor allocate: shape = " << layout.get_shape().to_string() << ", impl_params.layout["
