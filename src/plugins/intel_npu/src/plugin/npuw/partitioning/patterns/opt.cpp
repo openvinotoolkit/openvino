@@ -86,7 +86,7 @@ Context::PPtr Context::unpack(Context::PPtr w, Context::PPtr s, ov::element::Typ
     Context::PPtr new_param;
     if (w_shape.size() == 3 && s_shape.size() == 3) {
         // Assume already reshaped tensor (as it does with unpack)
-        ov::Shape new_shape = {w_shape[0], w_shape[1]*w_shape[2]};
+        ov::Shape new_shape = {w_shape[0], w_shape[1] * w_shape[2]};
         new_param = std::make_shared<ov::op::v0::Parameter>(type, new_shape);
     } else if (w_shape.size() == 2 && s_shape.size() == 2) {
         new_param = std::make_shared<ov::op::v0::Parameter>(type, w_shape);
@@ -685,7 +685,9 @@ DQLiftGatherSymGQ::DQLiftGatherSymGQ() {
 
         auto new_mul = std::make_shared<ov::op::v1::Multiply>(new_g_w, new_g_s);
 
-        auto new_rshp_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{matched_gather_shape.size()}, matched_gather_shape);
+        auto new_rshp_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32,
+                                                                 ov::Shape{matched_gather_shape.size()},
+                                                                 matched_gather_shape);
         auto new_reshape = std::make_shared<ov::op::v1::Reshape>(new_mul, new_rshp_c, false);
 
         auto new_out = std::make_shared<ov::op::v0::Convert>(new_reshape, ov::element::f32);
@@ -698,7 +700,6 @@ DQLiftGatherSymGQ::DQLiftGatherSymGQ() {
     };
     register_matcher(std::make_shared<opp::Matcher>(gather, "DQGatherSymGQ"), std::move(callback));
 }
-
 
 // This is a companion to DQLiftGatherAsymCW step. This pass runs if
 // the respective block (mainly, a head) was turned a function
@@ -746,7 +747,6 @@ DQUnpackDictGatherCWu::DQUnpackDictGatherCWu(Context::Ref ctx) {
     };
     register_matcher(std::make_shared<opp::Matcher>(qcvtm, "DQDictGatherCWu"), std::move(callback));
 }
-
 
 // This is a follow-up to DQLiftGatherSymGQ step, which happens if the respective
 // block (mainly, a head) was turned a function (e.g. with FUNCALL_FOR_ALL)
@@ -814,8 +814,7 @@ HostGather::HostGather(Context::Ref ctx) {
             return readers.begin()->get_node();
         };
 
-        if (out_shape.back() >= 2048 &&
-            (qweight_type == ov::element::f16 || qweight_type == ov::element::f32) &&
+        if (out_shape.back() >= 2048 && (qweight_type == ov::element::f16 || qweight_type == ov::element::f32) &&
             (matched_out_gather.get_target_inputs().size() > 1 ||
              ov::is_type<ov::op::v0::Convert>(sole_reader(matched_out_gather)))) {
             auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
@@ -835,12 +834,12 @@ HostGather::HostGather(Context::Ref ctx) {
                 new_cvt = std::make_shared<ov::op::v0::Convert>(new_param, ov::element::f32);
             }
             NPUW_ASSERT(new_cvt);
-            for (auto &&r : matched_out_gthr.get_target_inputs()) {
+            for (auto&& r : matched_out_gthr.get_target_inputs()) {
                 r.replace_source_output(new_cvt);
             }
-            return true; // Root has changed
+            return true;  // Root has changed
         }
-        return false; // Root hasn't changed (yet)
+        return false;  // Root hasn't changed (yet)
     };
     register_matcher(std::make_shared<opp::Matcher>(qgthrw, "HostGather"), std::move(callback));
 }
@@ -874,7 +873,7 @@ HostGatherDQ::HostGatherDQ(Context::Ref ctx) {
         // shape=3 == CW model, 1 x N x Hs
         // shape=4 == GQ model, 1 x G x(N/G) x Hs
         // were Hs = hidden size, G is # of groups, N is the prompt size.
-        auto out_len = out_shape.size() == 3 ? out_shape[2] : out_shape[2]*out_shape[3];
+        auto out_len = out_shape.size() == 3 ? out_shape[2] : out_shape[2] * out_shape[3];
 
         auto matched_out_qweight = node_to_output.at(qweight);
         auto qweight_type = matched_out_qweight.get_element_type();
@@ -890,16 +889,15 @@ HostGatherDQ::HostGatherDQ(Context::Ref ctx) {
 
             auto fp16vocab = ctx.get().unpack(matched_qweight, matched_qcoeff, ov::element::f16);
             auto new_param = ctx.get().host_gather(fp16vocab, matched_ids);
-            for (auto &&r : matched_out_mul.get_target_inputs()) {
+            for (auto&& r : matched_out_mul.get_target_inputs()) {
                 r.replace_source_output(new_param);
             }
-            return true; // Root has changed
+            return true;  // Root has changed
         }
-        return false; // Root hasn't changed (yet)
+        return false;  // Root hasn't changed (yet)
     };
     register_matcher(std::make_shared<opp::Matcher>(qmul, "HostGatherDQ"), std::move(callback));
 }
-
 
 // FROM:
 //     Param(W) -> to(f16) ->
@@ -1006,7 +1004,10 @@ DQUnpackDictMatMulGQi::DQUnpackDictMatMulGQi(Context::Ref ctx) {
             auto new_cvt_a = std::make_shared<ov::op::v0::Convert>(matched_mmi, ov::element::f16);
 
             auto new_wi = ctx.get().unpack(matched_qweight, matched_qcoeff, ov::element::f16);
-            auto new_mm = std::make_shared<ov::op::v0::MatMul>(new_cvt_a, new_wi, matched_matmul->get_transpose_a(), matched_matmul->get_transpose_b());
+            auto new_mm = std::make_shared<ov::op::v0::MatMul>(new_cvt_a,
+                                                               new_wi,
+                                                               matched_matmul->get_transpose_a(),
+                                                               matched_matmul->get_transpose_b());
             auto new_out = std::make_shared<ov::op::v0::Convert>(new_mm, ov::element::f32);
 
             matched_result->input(0).replace_source_output(new_out);
@@ -1047,7 +1048,10 @@ CompressDictMatMulf32::CompressDictMatMulf32(Context::Ref ctx) {
             auto new_cvt_a = std::make_shared<ov::op::v0::Convert>(matched_mmi, ov::element::f16);
 
             ctx.get().to_f16(matched_weight);
-            auto new_mm = std::make_shared<ov::op::v0::MatMul>(new_cvt_a, matched_weight, matched_matmul->get_transpose_a(), matched_matmul->get_transpose_b());
+            auto new_mm = std::make_shared<ov::op::v0::MatMul>(new_cvt_a,
+                                                               matched_weight,
+                                                               matched_matmul->get_transpose_a(),
+                                                               matched_matmul->get_transpose_b());
             auto new_out = std::make_shared<ov::op::v0::Convert>(new_mm, ov::element::f32);
 
             matched_result->input(0).replace_source_output(new_out);

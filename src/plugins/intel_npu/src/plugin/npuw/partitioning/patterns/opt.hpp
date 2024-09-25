@@ -6,8 +6,8 @@
 
 #include <functional>
 #include <memory>
-#include <string>
 #include <optional>
+#include <string>
 
 #include "openvino/openvino.hpp"
 #include "openvino/pass/graph_rewrite.hpp"

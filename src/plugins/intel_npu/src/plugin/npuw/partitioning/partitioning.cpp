@@ -1566,7 +1566,7 @@ void Partitioner::optimize(const std::string& func_name) {
     ov::npuw::Function& f = P.functions.at(func_name);
     auto& func_group = all_functions.at(func_name);
 
-    auto do_permute = [&](ov::npuw::patterns::opt::Context &ctx) {
+    auto do_permute = [&](ov::npuw::patterns::opt::Context& ctx) {
         for (auto&& p : ctx.closures_to_permute) {
             auto param_idx = f._model->get_parameter_index(p.first);
             auto closure_idx = param_idx - f._param_offset;
@@ -1576,7 +1576,7 @@ void Partitioner::optimize(const std::string& func_name) {
             });
         }
     };
-    auto do_cvtf16 = [&](ov::npuw::patterns::opt::Context &ctx) {
+    auto do_cvtf16 = [&](ov::npuw::patterns::opt::Context& ctx) {
         for (auto&& p : ctx.closures_to_f16) {
             auto param_idx = f._model->get_parameter_index(p);
             auto closure_idx = param_idx - f._param_offset;
@@ -1685,7 +1685,7 @@ void Partitioner::optimize(const std::string& func_name) {
         if (ctx.params_to_gather) {
             auto& params_to_gather = *ctx.params_to_gather;
             new_params.push_back(params_to_gather.pnew);
-            for (auto &&funcall : func_group.refs) {
+            for (auto&& funcall : func_group.refs) {
                 auto new_elem_type = params_to_gather.pnew->get_element_type();
                 auto new_shape = params_to_gather.pnew->get_shape();
                 funcall.get()._closure.push_back(ov::Tensor(new_elem_type, new_shape));
@@ -1719,7 +1719,7 @@ void Partitioner::optimize(const std::string& func_name) {
             auto gather_dst_id = f._model->get_parameter_index(params_to_gather.pnew);
             auto gather_src_id = f._model->get_parameter_index(params_to_gather.pold);
             auto gather_idx_id = f._model->get_parameter_index(params_to_gather.pids);
-            for (auto &&funcall : func_group.refs) {
+            for (auto&& funcall : func_group.refs) {
                 funcall.get()._host_gather = ov::npuw::Subgraph::Gather{gather_dst_id, gather_src_id, gather_idx_id};
             }
         }
