@@ -12,14 +12,14 @@
 namespace ov {
 namespace intel_cpu {
 
-class ReadValueWithSubgraphNode : public ov::op::util::SubGraphOp {
+class ReadValueWithSubgraph : public ov::op::util::SubGraphOp, public ov::op::util::VariableExtension {
 public:
     OPENVINO_OP("ReadValueWithSubgraph", "cpu_plugin_opset");
 
-    ReadValueWithSubgraphNode() = default;
-    ReadValueWithSubgraphNode(const std::shared_ptr<ov::op::util::Variable>& variable);
+    ReadValueWithSubgraph() = default;
+    ReadValueWithSubgraph(const std::shared_ptr<ov::op::util::Variable>& variable);
 
-    std::string get_variable_id() const;
+    std::string get_variable_id() const override;
 
     void set_input(const Output<Node>& value, const std::shared_ptr<op::v0::Parameter>& body_parameter);
 
@@ -28,9 +28,6 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
-
-private:
-    std::shared_ptr<op::util::Variable> m_variable;
 };
 
 }   // namespace intel_cpu

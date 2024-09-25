@@ -364,8 +364,8 @@ bool MemoryInputBase::isSupportedOperation(const std::shared_ptr<const ov::Node>
         if (!one_of(op->get_type_info(),
                     ov::op::v3::ReadValue::get_type_info_static(),
                     ov::op::v6::ReadValue::get_type_info_static(),
-                    ov::intel_cpu::ReadValueWithSubgraphNode::get_type_info_static())) {
-            errorMessage = "Node is not an instance of ReadValue/ReadValueWithSubgraphNode from the operation set v3 "
+                    ov::intel_cpu::ReadValueWithSubgraph::get_type_info_static())) {
+            errorMessage = "Node is not an instance of ReadValue/ReadValueWithSubgraph from the operation set v3 "
                            "or v6, intel_cpu";
             return false;
         }
@@ -817,7 +817,7 @@ MemStatePtr MemoryInput::makeState() const {
 
 MemoryInput::MemoryInput(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : MemoryInputBase::MemoryInputBase(op, context) {
-    auto rvWithSubgraph = ov::as_type_ptr<ov::intel_cpu::ReadValueWithSubgraphNode>(op);
+    auto rvWithSubgraph = ov::as_type_ptr<ov::intel_cpu::ReadValueWithSubgraph>(op);
     if (rvWithSubgraph) {
         body = rvWithSubgraph->get_function();
     }
@@ -825,8 +825,8 @@ MemoryInput::MemoryInput(const std::shared_ptr<ov::Node>& op, const GraphContext
 
 bool MemoryInput::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!one_of(op->get_type_info(), ov::intel_cpu::ReadValueWithSubgraphNode::get_type_info_static())) {
-            errorMessage = "Node is not an instance of ReadValueWithSubgraphNode from the operation set ov::intel_cpu.";
+        if (!one_of(op->get_type_info(), ov::intel_cpu::ReadValueWithSubgraph::get_type_info_static())) {
+            errorMessage = "Node is not an instance of ReadValueWithSubgraph from the operation set ov::intel_cpu.";
             return false;
         }
     } catch (...) {

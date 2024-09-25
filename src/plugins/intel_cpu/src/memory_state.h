@@ -108,10 +108,6 @@ private:
     void reset_impl() override;
     void commit_impl() override {};
 
-    void reset_prime_mem(const MemoryPtr& mem) {
-        m_internal_mem = mem;
-    }
-
     const MemoryPtr& prime_mem() const {
         return m_internal_mem;
     }

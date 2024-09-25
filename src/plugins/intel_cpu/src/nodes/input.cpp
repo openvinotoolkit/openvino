@@ -225,7 +225,7 @@ Input::Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr conte
                 op::v0::Result::get_type_info_static(),
                 op::v3::ReadValue::get_type_info_static(),
                 op::v6::ReadValue::get_type_info_static(),
-                ov::intel_cpu::ReadValueWithSubgraphNode::get_type_info_static()))
+                ov::intel_cpu::ReadValueWithSubgraph::get_type_info_static()))
         OPENVINO_THROW_NOT_IMPLEMENTED("CPU Input node doesn't support ngraph operation ",
                                        op->get_type_name(),
                                        " with name ",

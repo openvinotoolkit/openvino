@@ -6,17 +6,17 @@
 #include "itt.hpp"
 #include "transformations/itt.hpp"
 
-ov::intel_cpu::ReadValueWithSubgraphNode::ReadValueWithSubgraphNode(
+ov::intel_cpu::ReadValueWithSubgraph::ReadValueWithSubgraph(
     const std::shared_ptr<ov::op::util::Variable>& variable) {
     m_variable = variable;
 }
 
-std::string ov::intel_cpu::ReadValueWithSubgraphNode::get_variable_id() const {
+std::string ov::intel_cpu::ReadValueWithSubgraph::get_variable_id() const {
     OPENVINO_ASSERT(m_variable, "Variable is not initialized. Variable_id is unavailable");
-    return m_variable->get_info().variable_id;
+    return get_variable()->get_info().variable_id;
 }
 
-void ov::intel_cpu::ReadValueWithSubgraphNode::set_input(const Output<Node>& value,
+void ov::intel_cpu::ReadValueWithSubgraph::set_input(const Output<Node>& value,
                                                          const std::shared_ptr<op::v0::Parameter>& body_parameter) {
     OPENVINO_ASSERT(body_parameter != nullptr, "Missing parameter! parameter is is nullptr!");
     auto param_index = m_bodies[0]->get_parameter_index(body_parameter);
@@ -26,7 +26,7 @@ void ov::intel_cpu::ReadValueWithSubgraphNode::set_input(const Output<Node>& val
     set_invariant_inputs(value, {body_parameter});
 }
 
-ov::Output<ov::Node> ov::intel_cpu::ReadValueWithSubgraphNode::set_output(
+ov::Output<ov::Node> ov::intel_cpu::ReadValueWithSubgraph::set_output(
     const std::shared_ptr<op::v0::Result>& body_result) {
     OPENVINO_ASSERT(body_result != nullptr, "Incorrect result in \"body\"! Result cant be \'nullptr\'");
     auto result_id = m_bodies[0]->get_result_index(body_result);
@@ -36,12 +36,12 @@ ov::Output<ov::Node> ov::intel_cpu::ReadValueWithSubgraphNode::set_output(
     return set_body_outputs({body_result});
 }
 
-std::shared_ptr<ov::Node> ov::intel_cpu::ReadValueWithSubgraphNode::clone_with_new_inputs(
+std::shared_ptr<ov::Node> ov::intel_cpu::ReadValueWithSubgraph::clone_with_new_inputs(
     const OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(intel_cpu_ReadValueWithSubgraphNode_clone_with_new_inputs);
 
     check_new_args_count(this, new_args);
-    auto op = std::make_shared<ov::intel_cpu::ReadValueWithSubgraphNode>();
+    auto op = std::make_shared<ov::intel_cpu::ReadValueWithSubgraph>();
     OPENVINO_ASSERT(op.get(),
                     op != nullptr,
                     "Cannot clone ",
@@ -61,7 +61,7 @@ std::shared_ptr<ov::Node> ov::intel_cpu::ReadValueWithSubgraphNode::clone_with_n
     return op;
 }
 
-bool ov::intel_cpu::ReadValueWithSubgraphNode::visit_attributes(AttributeVisitor& visitor) {
+bool ov::intel_cpu::ReadValueWithSubgraph::visit_attributes(AttributeVisitor& visitor) {
     INTERNAL_OP_SCOPE(intel_cpu_ReadValueWithSubgraphNode_visit_attributes);
     visitor.on_attribute("body", m_bodies[0]);
     visitor.on_attribute("inputs", m_input_descriptions[0]);
@@ -69,7 +69,7 @@ bool ov::intel_cpu::ReadValueWithSubgraphNode::visit_attributes(AttributeVisitor
     return true;
 }
 
-void ov::intel_cpu::ReadValueWithSubgraphNode::validate_and_infer_types() {
+void ov::intel_cpu::ReadValueWithSubgraph::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(intel_cpu_ReadValueWithSubgraphNode_validate_and_infer_types);
 
     NODE_VALIDATION_CHECK(this, m_bodies.size() == 1, "If contains incorrect number of bodies:", m_bodies.size());

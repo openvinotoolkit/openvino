@@ -31,9 +31,9 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
         }
 
         int recursive_deep_check_node = 0;
-#define MAX_RECURSIVE_DEEP_CHECK_NODE 10
+        constexpr int MAX_RECURSIVE_DEEP_CHECK_NODE = 10;
         int recursive_deep_check_successor = 0;
-#define MAX_RECURSIVE_DEEP_CHECK_SUCCESSOR 10
+        constexpr int MAX_RECURSIVE_DEEP_CHECK_SUCCESSOR = 10;
         bool final_successor_is_only_root = true;
         std::string root_name = readvalue->get_friendly_name();
 
@@ -82,7 +82,6 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
             check_node_successor(node);
             if (!final_successor_is_only_root) {
                 inputs.emplace_back(node);
-                // std::cout << "== " << node->get_friendly_name() << " final successor have others." << std::endl;
                 return;
             }
 
@@ -113,7 +112,7 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
             return false;
         }
 
-        auto new_rv = std::make_shared<ov::intel_cpu::ReadValueWithSubgraphNode>(readvalue->get_variable());
+        auto new_rv = std::make_shared<ov::intel_cpu::ReadValueWithSubgraph>(readvalue->get_variable());
 
         auto is_in_subgraph = [&subgraph](std::shared_ptr<ov::Node> n) {
             for (auto& sub : subgraph) {
@@ -146,7 +145,7 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
         }
         new_rv->set_output(output);
 
-        // Replace ReadValue with ov::intel_cpu::ReadValueWithSubgraphNode
+        // Replace ReadValue with ov::intel_cpu::ReadValueWithSubgraph
         ov::replace_node(readvalue, new_rv);
         ov::copy_runtime_info(subgraph, new_rv);
         new_rv->validate_and_infer_types();

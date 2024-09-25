@@ -161,7 +161,7 @@ VariableStateSingleBuffer::VariableStateSingleBuffer(const std::string& name,
                                                      const MemoryDescPtr& external_desc)
     : VariableStateBase(name, external_desc) {
     OPENVINO_ASSERT(external_buffer);
-    reset_prime_mem(external_buffer);
+    m_internal_mem = external_buffer;
     m_internal_desc = prime_mem()->getDescPtr();
     auto&& shape = m_internal_desc->getShape();
 
