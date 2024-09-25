@@ -1,10 +1,11 @@
 name: Cleanup caches
 on:
   workflow_dispatch:
+  pull_request:
   schedule:
     # at 00:00 on the 1st day of every month
     - cron: '0 0 1 * *'
-
+ 
 permissions: read-all
 
 jobs:
@@ -40,7 +41,7 @@ jobs:
       volumes:
         - /mount:/mount
     env:
-      CCACHE_PATH: /mount/caches/ccache/ubuntu22_riscv64
+      CCACHE_PATH: /mount/caches/ccache
 
     steps:
       - name: Checkout cach action
@@ -51,7 +52,8 @@ jobs:
       - name: Cleanup ccache
         uses: ./.github/actions/cache/cleanup
         with:
-          cache-size: 10
-          max-cache-size: 50
+          cache-size: 500
+          max-cache-size: 750
           cache-path: ${{ env.CCACHE_PATH }}
+          recursive: true
           key: '.'
