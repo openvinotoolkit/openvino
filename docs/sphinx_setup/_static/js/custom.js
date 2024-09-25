@@ -90,6 +90,7 @@ function addLegalNotice() {
 $(document).ready(function () {
     initSidebar();
     handleSidebar();
+    addFooter();
     createVersions();
     updateTitleTag();
     updateLanguageSelector();
@@ -103,7 +104,6 @@ $(document).ready(function () {
     initCollapsibleHeaders(); // included with the new benchmarks page
     createSphinxTabSets();
     initSplide();
-    addFooter();
 });
 
 function handleSidebar() {
@@ -346,6 +346,7 @@ function addFooter() {
     const footerAnchor = $('.footer');
 
     fetch('/footer.html').then((response) => response.text()).then((text) => {
+        console.log(text)
         const footerContent = $(text);
         footerAnchor.append(footerContent);
     });
