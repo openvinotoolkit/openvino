@@ -59,29 +59,26 @@ void cvt_copy(TA* dst, TB* src, size_t n) {
         mm256_uni_storeu_ps(dst + i, vb);
     }
 #elif defined(OPENVINO_ARCH_ARM64)
-    auto _dst = reinterpret_cast<float32_t*>(dst);
-    for (; i + vec_len_f32_neon <= n; i += vec_len_f32_neon) {
-        float32x4_t vb1 = vld1q_f32(src + i);
-        vst1q_f32(_dst + i, vb1);
+    if (std::is_same<TA, float>::value && std::is_same<TB, float>::value) {
+        auto _dst = reinterpret_cast<float32_t*>(dst);
+        for (; i + vec_len_f32_neon <= n; i += vec_len_f32_neon) {
+            float32x4_t vb1 = vld1q_f32(reinterpret_cast<const float32_t*>(src + i));
+            vst1q_f32(_dst + i, vb1);
+        }
     }
-#endif
-    for (; i < n; i++) {
-        dst[i] = src[i];
-    }
-}
-
 #if defined(HAVE_ARM_FP16) && defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
-void cvt_copy(ov::float16* dst, ov::float16* src, size_t n) {
-    size_t i = 0;
-    for (; i + vec_len_f16_neon <= n; i += vec_len_f16_neon) {
-        auto vb1 = vld1q_f16(reinterpret_cast<float16_t*>(src + i));
-        vst1q_f16(reinterpret_cast<float16_t* >(dst + i), vb1);
+    if (std::is_same<TA, ov::float16>::value && std::is_same<TB, ov::float16>::value) {
+        for (; i + vec_len_f16_neon <= n; i += vec_len_f16_neon) {
+            auto vb1 = vld1q_f16(reinterpret_cast<const float16_t*>(src + i));
+            vst1q_f16(reinterpret_cast<float16_t*>(dst + i), vb1);
+        }
     }
+#endif
+#endif
     for (; i < n; i++) {
         dst[i] = src[i];
     }
 }
-#endif
 
 template<typename T>
 static void attn_acc_value(float* out, float weight, T* v, size_t S, float* scale, float* zp) {

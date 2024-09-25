@@ -1705,10 +1705,8 @@ ov::element::Type ScaledDotProductAttention::getRuntimePrecision() const {
     // bf16 should be enabled only when platform supports
     if (rtPrecision == ov::element::bf16 && ov::with_cpu_x86_bfloat16()) {
         rtPrecision = ov::element::bf16;
-#if defined(OPENVINO_ARCH_ARM64) && defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
     } else if (rtPrecision == ov::element::f16 && ov::intel_cpu::hasHardwareSupport(ov::element::f16)) {
         rtPrecision = ov::element::f16;
-#endif
     } else {
         rtPrecision = ov::element::f32;
     }

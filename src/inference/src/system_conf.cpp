@@ -111,7 +111,6 @@ bool with_cpu_x86_avx512_core_amx() {
     return with_cpu_x86_avx512_core_amx_int8() || with_cpu_x86_avx512_core_amx_bf16();
 }
 
-
 #else  // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
 
 bool with_cpu_x86_sse42() {
