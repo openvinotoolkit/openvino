@@ -64,6 +64,12 @@ LevelZeroCompilerAdapter::LevelZeroCompilerAdapter(std::shared_ptr<IEngineBacken
                                                                                               zeContext,
                                                                                               graph_ddi_table_ext);
         break;
+    case ZE_GRAPH_EXT_VERSION_1_7:
+        apiAdapter = std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_7_t>>(driverHandle,
+                                                                                              deviceHandle,
+                                                                                              zeContext,
+                                                                                              graph_ddi_table_ext);
+        break;
     default:
         apiAdapter = std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_2_t>>(driverHandle,
                                                                                               deviceHandle,
@@ -109,10 +115,9 @@ void LevelZeroCompilerAdapter::release(std::shared_ptr<const NetworkDescription>
     apiAdapter->release(std::move(networkDescription));
 }
 
-std::vector<uint8_t> LevelZeroCompilerAdapter::getCompiledNetwork(
-    std::shared_ptr<const NetworkDescription> networkDescription) {
+CompiledNetwork LevelZeroCompilerAdapter::getCompiledNetwork(const NetworkDescription& networkDescription) {
     _logger.info("getCompiledNetwork - using adapter to perform getCompiledNetwork(networkDescription)");
-    return apiAdapter->getCompiledNetwork(std::move(networkDescription));
+    return apiAdapter->getCompiledNetwork(networkDescription);
 }
 
 }  // namespace driverCompilerAdapter
