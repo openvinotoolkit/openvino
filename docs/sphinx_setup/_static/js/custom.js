@@ -43,8 +43,6 @@ document.addEventListener('click', () => {
     });
 });
 
-
-
 document.addEventListener('DOMContentLoaded', function () {
     var dropdownButtons = document.querySelectorAll('.sst-btn');
     dropdownButtons.forEach((ddBtn) => {
@@ -88,7 +86,10 @@ function addLegalNotice() {
     }
 }
 
+
 $(document).ready(function () {
+    initSidebar();
+    handleSidebar();
     addFooter();
     createVersions();
     updateTitleTag();
@@ -104,6 +105,36 @@ $(document).ready(function () {
     createSphinxTabSets();
     initSplide();
 });
+
+function handleSidebar() {
+    const resizer = document.querySelector("#bd-resizer");
+    const sidebar = document.querySelector("#bd-sidebar");
+    resizer.addEventListener("mousedown", (event) => {
+        document.addEventListener("mousemove", resize, false);
+        document.addEventListener("mouseup", () => {
+            document.removeEventListener("mousemove", resize, false);
+        }, false);
+    });
+
+    function resize(e) {
+        const size = `${e.x}px`;
+        localStorage['resizeSidebarX'] = size;
+        sidebar.style.flexBasis = size;
+    }
+}
+
+function initSidebar() {
+    const sidebar = document.querySelector("#bd-sidebar");
+    if (sidebar) {
+        var size;
+        if (localStorage['resizeSidebarX'] == null) {
+            size = "350px";
+        } else {
+            size = localStorage['resizeSidebarX'];
+        }
+        sidebar.style.flexBasis = size;
+    }
+}
 
 // Determine where we'd go if clicking on a version selector option
 function getPageUrlWithVersion(version) {
@@ -315,13 +346,13 @@ function addFooter() {
     const footerAnchor = $('.footer');
 
     fetch('/footer.html').then((response) => response.text()).then((text) => {
+        console.log(text)
         const footerContent = $(text);
         footerAnchor.append(footerContent);
     });
 }
 
 function initSplide() {
-
     var splide = new Splide('.splide', {
         type: 'fade',
         autoHeight: true,

@@ -5,8 +5,8 @@ from common.tflite_layer_test_class import TFLiteLayerTest
 from common.utils.tflite_utils import parametrize_tests
 
 test_ops = [
-    {'op_name': ['RESIZE_BILINEAR'], 'op_func': tf.compat.v1.image.resize_bilinear},
-    {'op_name': ['RESIZE_NEAREST_NEIGHBOR'], 'op_func': tf.compat.v1.image.resize_nearest_neighbor},
+    {'op_name': ['RESIZE_BILINEAR'], 'op_func': 'tf.compat.v1.image.resize_bilinear'},
+    {'op_name': ['RESIZE_NEAREST_NEIGHBOR'], 'op_func': 'tf.compat.v1.image.resize_nearest_neighbor'},
 ]
 
 test_params = [
@@ -35,7 +35,7 @@ class TestTFLiteResizeLayerTest(TFLiteLayerTest):
         with tf.compat.v1.Session() as sess:
             placeholder = tf.compat.v1.placeholder(params.get("dtype", tf.float32), params["shape"],
                                                    name=self.inputs[0])
-            params['op_func'](placeholder, size=params['size'],
+            eval(params['op_func'])(placeholder, size=params['size'],
                               align_corners=params['align_corners'],
                               half_pixel_centers=params['half_pixel_centers'],
                               name=self.outputs[0])
