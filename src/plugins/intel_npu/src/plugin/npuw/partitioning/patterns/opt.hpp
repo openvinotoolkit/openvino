@@ -133,6 +133,11 @@ public:
     DQUnpackDictMatMulGQi(Context::Ref ctx);
 };
 
+class CompressDictMatMulf32 : public ov::pass::MatcherPass {
+public:
+    CompressDictMatMulf32(Context::Ref ctx);
+};
+
 }  // namespace opt
 }  // namespace patterns
 }  // namespace npuw

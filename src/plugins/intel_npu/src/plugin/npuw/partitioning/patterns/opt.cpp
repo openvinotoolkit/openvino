@@ -35,6 +35,9 @@ void Context::permute(PPtr orig_param, const Context::Axes& order) {
 
 void Context::to_f16(PPtr orig_param) {
     closures_to_f16.insert(orig_param);
+
+    orig_param->set_element_type(ov::element::f16);
+    orig_param->validate_and_infer_types();
 }
 
 void Context::register_parallel_matmul(O multiply, std::size_t axis, DQParMM&& mm) {
@@ -251,9 +254,6 @@ DQMatMulGQi::DQMatMulGQi(Context::Ref ctx) {
             ov::Shape tw_shape = {qweight_shape[0], qweight_shape[2], qweight_shape[1]};
             matched_qweight->set_partial_shape(tw_shape);
             matched_qweight->validate_and_infer_types();
-
-            matched_qcoeff->set_element_type(ov::element::f16);
-            matched_qcoeff->validate_and_infer_types();
 
             // Reshape the Act to group format
             const auto NSPLIT = qweight_shape[0];
@@ -790,7 +790,7 @@ DQUnpackDictGatherGQi::DQUnpackDictGatherGQi(Context::Ref ctx) {
 
 // Identify the case* where the FP16/32 vocab tensor is gathered with
 // input_ids and the embedding size is high. In this case, substitute
-// gather with a host-side op.
+// gather with a host-side op. Lower vocab tensor to f16.
 // * - This case normally happens as a result of other
 // * - DictGather-related transformations
 HostGather::HostGather(Context::Ref ctx) {
@@ -824,9 +824,19 @@ HostGather::HostGather(Context::Ref ctx) {
             auto matched_qweight = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qweight);
             auto matched_ids = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_ids);
 
+            if (qweight_type == ov::element::f32) {
+                ctx.get().to_f16(matched_qweight);
+            }
             auto new_param = ctx.get().host_gather(matched_qweight, matched_ids);
+            std::shared_ptr<ov::Node> new_cvt;
+            if (qweight_type == ov::element::f16) {
+                new_cvt = new_param;
+            } else {
+                new_cvt = std::make_shared<ov::op::v0::Convert>(new_param, ov::element::f32);
+            }
+            NPUW_ASSERT(new_cvt);
             for (auto &&r : matched_out_gthr.get_target_inputs()) {
-                r.replace_source_output(new_param);
+                r.replace_source_output(new_cvt);
             }
             return true; // Root has changed
         }
@@ -1004,6 +1014,47 @@ DQUnpackDictMatMulGQi::DQUnpackDictMatMulGQi(Context::Ref ctx) {
         return false;  // root has changed (yet)
     };
     register_matcher(std::make_shared<opp::Matcher>(qres, "OptDQDictMatMulGQi"), std::move(callback));
+}
+
+// FROM:
+//     Param(W):f32 ->
+//     ???(Act) -----> MatMul -> Result
+//
+// TO:
+//     Param(W):f16 -------->
+//     ???(Act) -> to(f16) -> MatMul -> to(f32) -> Result
+// NB: This pass only worsens the performance so is disabled
+CompressDictMatMulf32::CompressDictMatMulf32(Context::Ref ctx) {
+    auto weight = opp::wrap_type<ov::op::v0::Parameter>();
+    auto mmi = opp::any_input();
+    auto mm = opp::wrap_type<ov::op::v0::MatMul>({mmi, weight});
+    auto res = opp::wrap_type<ov::op::v0::Result>({mm});
+
+    // Note: Use [=] to make sure the above objects stay alive in the callback
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+
+        auto matched_node_weight = node_to_output.at(weight).get_node_shared_ptr();
+        auto matched_node_matmul = node_to_output.at(mm).get_node_shared_ptr();
+        auto matched_mmi = node_to_output.at(mmi);
+        auto matched_node_res = node_to_output.at(res).get_node_shared_ptr();
+
+        auto matched_weight = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_weight);
+        auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
+        auto matched_result = std::static_pointer_cast<ov::op::v0::Result>(matched_node_res);
+
+        if (ov::element::f32 == matched_weight->get_element_type()) {
+            auto new_cvt_a = std::make_shared<ov::op::v0::Convert>(matched_mmi, ov::element::f16);
+
+            ctx.get().to_f16(matched_weight);
+            auto new_mm = std::make_shared<ov::op::v0::MatMul>(new_cvt_a, matched_weight, matched_matmul->get_transpose_a(), matched_matmul->get_transpose_b());
+            auto new_out = std::make_shared<ov::op::v0::Convert>(new_mm, ov::element::f32);
+
+            matched_result->input(0).replace_source_output(new_out);
+        }
+        return false;  // root has changed (yet)
+    };
+    register_matcher(std::make_shared<opp::Matcher>(res, "OptCompressDictMatMulf32"), std::move(callback));
 }
 
 }  // namespace opt
