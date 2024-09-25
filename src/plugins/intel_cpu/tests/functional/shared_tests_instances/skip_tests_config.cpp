@@ -531,12 +531,12 @@ std::vector<std::string> disabledTestPatterns() {
     if (!ov::with_cpu_x86_avx512_core_fp16()) {
         // Skip fp16 tests for paltforms that don't support fp16 precision
         retVector.emplace_back(R"(.*INFERENCE_PRECISION_HINT=(F|f)16.*)");
-        retVector.emplace_back(R"(.*Prc=f16.*)");
     }
 #elif defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
     if (!ov::intel_cpu::hasHardwareSupport(ov::element::f16)) {
         // Skip fp16 tests for paltforms that don't support fp16 precision
         retVector.emplace_back(R"(.*INFERENCE_PRECISION_HINT=(F|f)16.*)");
+        retVector.emplace_back(R"(.*Prc=f16.*)");
     } else {
         // Issue 117407
         retVector.emplace_back(
