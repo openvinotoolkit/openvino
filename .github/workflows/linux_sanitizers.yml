@@ -107,8 +107,6 @@ jobs:
       CCACHE_DIR: /__w/openvino/openvino/ccache
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
       CCACHE_MAXSIZE: 20G
-      CXX: clang++
-      CC: clang
 
     steps:
       - name: Clone OpenVINO
@@ -254,8 +252,7 @@ jobs:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       TBB_ENABLE_SANITIZERS: 1
-      CXX: clang++
-      CC: clang
+
     steps:
       - name: Download OpenVINO package
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
