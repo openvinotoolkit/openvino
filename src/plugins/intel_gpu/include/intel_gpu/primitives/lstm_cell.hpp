@@ -28,8 +28,12 @@ struct lstm_cell : public primitive_base<lstm_cell> {
     /// @brief Constructs lstm layer.
     /// @param RNNParam common params for rnns
     /// @param input_forget Provide 0 if using lstm without coupled input-forget gates.
-    lstm_cell(const RNNParams& p, bool input_forget): primitive_base(p.id, p.get_inputs(), p.num_outputs, \
-    {optional_data_type()}, {p.output_padding}), params(p), input_forget(input_forget) {}
+    lstm_cell(const RNNParams& p,
+              bool input_forget)
+              : primitive_base(p.id, p.get_inputs(), p.num_outputs, \
+                {optional_data_type()}, {p.output_padding}), \
+                params(p),
+                input_forget(input_forget) {}
 
     RNNParams params;
     bool input_forget;
@@ -37,6 +41,7 @@ struct lstm_cell : public primitive_base<lstm_cell> {
     size_t hash() const override {
         size_t seed = primitive::hash();
         seed = hash_combine(seed, params.hash());
+        seed = hash_combine(seed, input_forget);
         return seed;
     }
 
@@ -44,7 +49,7 @@ struct lstm_cell : public primitive_base<lstm_cell> {
         if (!compare_common_params(rhs))
             return false;
         auto rhs_casted = downcast<const lstm_cell>(rhs);
-        return params == rhs_casted.params;
+        return params == rhs_casted.params && input_forget == rhs_casted.input_forget;
     }
 
     void save(BinaryOutputBuffer& ob) const override {

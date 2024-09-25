@@ -67,7 +67,7 @@ protected:
         }
 
         {
-            int i = 4;
+            int i = 5;
             auto& input = instance.input_memory(i);
             auto offset = onednn::get_offset(instance.get_input_layout(i),
                                              _pd.dnnl::primitive_desc_base::weights_desc(1));
@@ -107,31 +107,23 @@ protected:
         return args;
     }
 
-    static std::shared_ptr<dnnl::lstm_forward::primitive_desc> get_lstm_primitive_descriptor(const kernel_impl_params& impl_params, cldnn::engine& engine,
+    static std::shared_ptr<dnnl::lstm_forward::primitive_desc> get_lstm_primitive_descriptor(const kernel_impl_params& impl_params, const cldnn::engine& engine,
                                                                                            const dnnl::primitive_attr& attr, int direction) {
         auto prim = impl_params.typed_desc<lstm_seq>();
         auto initial_shape = impl_params.get_input_layout(1).get_shape();
         auto src_shape = impl_params.get_input_layout(0).get_shape();
         auto mod_src_shape = src_shape;
-        auto T = mod_src_shape[1];
-        mod_src_shape[1] = mod_src_shape[0];
-        mod_src_shape[0] = T;
+        std::swap(mod_src_shape[0], mod_src_shape[1]);
         auto input_md = onednn::layout_to_memory_desc(impl_params.get_input_layout(0).clone_with_other_shape(mod_src_shape), dnnl::memory::format_tag::abc);
         auto initial_hidden_shape_mod = impl_params.get_input_layout(1).get_shape();
-        initial_hidden_shape_mod[3] = initial_hidden_shape_mod[2];
-        initial_hidden_shape_mod[2] = initial_hidden_shape_mod[0];
-        initial_hidden_shape_mod[0] = 1;
-        initial_hidden_shape_mod[0] = 1;
+        initial_hidden_shape_mod = { 1, 1, initial_hidden_shape_mod[0], initial_hidden_shape_mod[2] };
         auto initial_hidden =  onednn::layout_to_memory_desc(impl_params.get_input_layout(1).clone_with_other_shape(initial_hidden_shape_mod));
         auto initial_cell =  onednn::layout_to_memory_desc(impl_params.get_input_layout(2));
         auto W_md = onednn::layout_to_memory_desc(impl_params.get_input_layout(3));
         auto R_md = onednn::layout_to_memory_desc(impl_params.get_input_layout(4));
         auto B_md = onednn::layout_to_memory_desc(impl_params.get_input_layout(5));
         auto out_shape = impl_params.get_output_layout().get_shape();
-        out_shape[1] = out_shape[0];
-        out_shape[0] = out_shape[2];
-        out_shape[2] = out_shape[3];
-        out_shape[3] = 1;
+        out_shape = {out_shape[2], out_shape[0], out_shape[3], 1};
         auto output_md = onednn::layout_to_memory_desc(impl_params.get_output_layout().clone_with_other_shape(out_shape), dnnl::memory::format_tag::abc);
         auto output1_md = onednn::layout_to_memory_desc(impl_params.get_input_layout(7).clone_with_other_shape(initial_hidden_shape_mod));
         auto output2_md = onednn::layout_to_memory_desc(impl_params.get_input_layout(7).clone_with_other_shape(initial_hidden_shape_mod));
@@ -141,7 +133,7 @@ protected:
                         "[GPU] The format kind of the output memory descriptor of onednn lstm_seq cannot be 'any'.");
 
         dnnl::memory::desc emptyMemDescriptorForPeephole;
-        //engine.create_onednn_engine(config);
+
         auto eng = engine.get_onednn_engine();
         return std::make_shared<dnnl::lstm_forward::primitive_desc>(
             eng,
@@ -170,9 +162,6 @@ public:
     }
 
     void load(BinaryInputBuffer& ib) override {
-        std::cout << "LOADING" << std::endl;
-        std::cout << "2LOADING" << std::endl;
-        std::cout << "3LOADING" << std::endl;
 #ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         parent::load(ib);
 
@@ -186,7 +175,6 @@ public:
         auto B_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(5));
         auto output_md = onednn::layout_to_memory_desc(impl_params->get_output_layout());
         auto output2_md = onednn::layout_to_memory_desc(impl_params->get_output_layout());
-        std::cout << "LOAD IB" << std::endl;
         auto prim_desc = std::make_shared<dnnl::lstm_forward::primitive_desc>(
             ib.get_engine().get_onednn_engine(),
             dnnl::prop_kind::forward_inference,

@@ -20,8 +20,7 @@ public:
     lstm_weights_order offset_order() const { return get_primitive()->params.offset_order; }
     float clip() const {
         float clip_val = get_primitive()->params.clip;
-        if (clip_val < 0)
-            throw std::range_error("Clip value < 0");
+        OPENVINO_ASSERT(clip_val >= 0, "Clip value < 0");
         return clip_val;
     }
     int32_t direction() const { return get_primitive()->params.direction; }

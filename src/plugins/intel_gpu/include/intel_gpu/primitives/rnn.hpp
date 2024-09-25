@@ -30,27 +30,42 @@ struct RNNParams{
     RNNParams() = default;
     RNNParams(const RNNParams&) = default;
     RNNParams(const primitive_id& id,
-             const input_info& x,
-             const input_info& initial_hidden_state,
-             const input_info& initial_cell_state,
-             const input_info& W,
-             const input_info& R,
-             const input_info& B,
-             const input_info& seq_lenghts,
-             const primitive_id& out1_prim_id = "",
-             const primitive_id& out2_prim_id = "",
-             const float clip = 0,
-             const std::vector<activation_func> activations = {activation_func::logistic,
-                                                               activation_func::hyperbolic_tan,
-                                                               activation_func::hyperbolic_tan},
-             const std::vector<activation_additional_params> activation_params = {},
-             const lstm_weights_order offset_order = lstm_weights_order::iofz,
-             const uint32_t direction = 0,
-             const padding& output_padding = padding(),
-             const int num_outputs = 1) : id(id),
-             x(x), initial_hidden_state(initial_hidden_state), initial_cell_state(initial_cell_state), W(W), R(R), B(B), seq_lenghts(seq_lenghts), \
-             out1_prim_id(out1_prim_id), out2_prim_id(out2_prim_id), clip(clip), activations(activations), activation_params(activation_params), \
-             offset_order(offset_order), direction(direction), output_padding(output_padding), num_outputs(num_outputs) {}
+              const input_info& x,
+              const input_info& initial_hidden_state,
+              const input_info& initial_cell_state,
+              const input_info& W,
+              const input_info& R,
+              const input_info& B,
+              const input_info& seq_lenghts,
+              const primitive_id& out1_prim_id = "",
+              const primitive_id& out2_prim_id = "",
+              const float clip = 0,
+              const std::vector<activation_func>& activations = {activation_func::logistic,
+                                                                activation_func::hyperbolic_tan,
+                                                                activation_func::hyperbolic_tan},
+              const std::vector<activation_additional_params>& activation_params = {},
+              const lstm_weights_order& offset_order = lstm_weights_order::iofz,
+              const uint32_t direction = 0,
+              const padding& output_padding = padding(),
+              const int num_outputs = 1)
+              : id(id),
+                x(x),
+                initial_hidden_state(initial_hidden_state),
+                initial_cell_state(initial_cell_state),
+                W(W),
+                R(R),
+                B(B),
+                seq_lenghts(seq_lenghts),
+                out1_prim_id(out1_prim_id),
+                out2_prim_id(out2_prim_id),
+                clip(clip),
+                activations(activations),
+                activation_params(activation_params),
+                offset_order(offset_order),
+                direction(direction),
+                output_padding(output_padding),
+                num_outputs(num_outputs) {}
+
     primitive_id id;
     input_info x;
     input_info initial_hidden_state;
@@ -170,7 +185,7 @@ struct RNNParams{
     }
 
 protected:
-    std::vector<input_info> filter_empty_id(std::vector<input_info> inputs_info) const {
+    std::vector<input_info> filter_empty_id(const std::vector<input_info> inputs_info) const {
         std::vector<input_info> out;
         for (const auto& input_info : inputs_info) {
             if (!input_info.pid.empty()) {

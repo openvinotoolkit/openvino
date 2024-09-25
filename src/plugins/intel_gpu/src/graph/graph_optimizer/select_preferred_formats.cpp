@@ -67,9 +67,9 @@ void select_preferred_formats::run(program& p) {
                 auto prim_desc = onednn::get_deconvolution_primitive_descriptor(*n->get_kernel_impl_params(),
                                                                                 dnnl::primitive_attr(),
                                                                                 dnnl::memory::format_tag::any);
-                _lo.select_preferred_formats_for_onednn(*n, *prim_desc);
+                lo.select_preferred_formats_for_onednn(*n, *prim_desc);
             } else if (n->is_type<fully_connected>() || n->is_type<gemm>() || n->is_type<lstm_seq>()) {
-                _lo.select_preferred_formats_for_onednn(*n);
+                lo.select_preferred_formats_for_onednn(*n);
             }
         } catch(std::exception &exception) {
             GPU_DEBUG_INFO << "WARNING(select_preferred_formats): " << exception.what() << std::endl;

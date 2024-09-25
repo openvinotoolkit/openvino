@@ -18,7 +18,6 @@ template<typename ShapeType>
 std::vector<layout> lstm_cell_inst::calc_output_layouts(lstm_cell_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<lstm_cell>();
 
-
     auto input_layout_x = impl_param.get_input_layout(0);
     auto input_pshape_x = input_layout_x.get_partial_shape();
     auto input_layout_hidden = impl_param.get_input_layout(1);
