@@ -172,7 +172,8 @@ PATensorParallelFusion::PATensorParallelFusion(size_t world_size, size_t world_r
                 auto ranked_weight = std::make_shared<ov::intel_gpu::op::RankConstant>(weight_node, world_size, world_rank, tp_mode, qkv_parts);
                 std::shared_ptr<ov::Node> ranked_bias, ranked_scale, ranked_zp;
                 if (!std::dynamic_pointer_cast<op::Placeholder>(m_bias)) {
-                    ranked_bias = std::make_shared<ov::intel_gpu::op::RankConstant>(m_bias, world_size, world_rank, tp_mode, qkv_parts);
+                    auto bias_tp_mode = tp_mode == op::TP_MODE::ALL_GATHERQKV ? op::TP_MODE::ALL_REDUCEQKV : op::TP_MODE::ALL_GATHERH;
+                    ranked_bias = std::make_shared<ov::intel_gpu::op::RankConstant>(m_bias, world_size, world_rank, bias_tp_mode, qkv_parts);
                 }
                 auto compressed_fc = std::dynamic_pointer_cast<op::FullyConnectedCompressed>(org_fc);
                 if (compressed_fc) {

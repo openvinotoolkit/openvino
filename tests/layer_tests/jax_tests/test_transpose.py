@@ -38,6 +38,7 @@ class TestTranspose(JaxLayerTest):
         [3, 0, 1, 2], [3, 0, 2, 1], [3, 1, 0, 2], [3, 1, 2, 0], [3, 2, 0, 1], [3, 2, 1, 0],
     ])
     @pytest.mark.nightly
+    @pytest.mark.precommit
     @pytest.mark.precommit_jax_fe
     def test_transpose(self, ie_device, precision, ir_version, input_shape, permutation):
         self._test(*self.create_model(input_shape=input_shape, permutation=permutation),

@@ -30,6 +30,18 @@ def mix_array_with_several_values(input_array, values, rng):
     return input_array
 
 
+# mix two arrays with a list of value pairs
+def mix_two_arrays_with_several_values(input_array1, input_array2, values, rng):
+    num_values = len(values)
+    input_shape = input_array1.shape
+    # generate the common mask for both input arrays
+    mask = rng.choice(num_values + 1, input_shape).astype(np.int32)
+    for ind, value in enumerate(values):
+        input_array1 = np.where(mask == ind, input_array1, value[0])
+        input_array2 = np.where(mask == ind, input_array2, value[1])
+    return input_array1, input_array2
+
+
 def load_graph(model_file, output_nodes_for_freeze=None):
     is_meta = os.path.splitext(model_file)[-1] == ".meta"
 

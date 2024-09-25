@@ -31,8 +31,7 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         return (output.get_element_type() == ov::element::u8 ||
                 output.get_element_type() == ov::element::i8 ||
                 output.get_element_type() == ov::element::u4 ||
-                output.get_element_type() == ov::element::i4) &&
-               output.get_target_inputs().size() == 1;
+                output.get_element_type() == ov::element::i4);
     };
 
     auto reshape_3d_to_2d = [](const ov::Output<ov::Node>& output) {
@@ -44,13 +43,13 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
     auto weights_m = wrap_type<ov::op::v0::Constant>(compressed_constant);
     auto convert_m = wrap_type<ov::op::v0::Convert>({weights_m});
 
-    auto sub_const_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
+    auto sub_const_m = wrap_type<ov::op::v0::Constant>();
     auto sub_convert_const_m = wrap_type<ov::op::v0::Convert>({sub_const_m});
     auto sub_with_convert_m = wrap_type<ov::op::v1::Subtract>({convert_m, sub_convert_const_m});
     auto sub_no_convert_m = wrap_type<ov::op::v1::Subtract>({convert_m, sub_const_m});
     auto subtract_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{sub_with_convert_m, sub_no_convert_m});
 
-    auto mul_const_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
+    auto mul_const_m = wrap_type<ov::op::v0::Constant>();
     auto mul_with_sub_m = wrap_type<ov::op::v1::Multiply>({subtract_m, mul_const_m});
     auto mul_no_sub_m = wrap_type<ov::op::v1::Multiply>({convert_m, mul_const_m});
     auto mul_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{mul_with_sub_m, mul_no_sub_m});

@@ -654,7 +654,7 @@ std::string to_string(const T* values, size_t N, size_t maxsize) {
 std::ostream& operator<<(std::ostream& os, const IMemory& mem) {
     const auto& desc = mem.getDesc();
     os << desc;
-    if (mem.isAllocated()) {
+    if (mem.isDefined()) {
         os << " [";
         if (desc.getPrecision() == ov::element::i32) {
             os << to_string(mem.getDataAs<int32_t>(), mem.getSize() / sizeof(int32_t), 256);

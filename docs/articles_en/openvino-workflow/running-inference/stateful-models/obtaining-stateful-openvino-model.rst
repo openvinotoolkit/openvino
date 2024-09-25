@@ -1,5 +1,3 @@
-.. {#openvino_docs_OV_UG_ways_to_get_stateful_model}
-
 Obtaining a Stateful OpenVINO Model
 ======================================
 

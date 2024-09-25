@@ -155,7 +155,6 @@ TEST(add_intermediate_gpu, test2)
 
     prog->add_intermediate(new_conv, prog->get_node("conv2a"), 0, true, true);
     program_wrapper::add_connection(*prog, prog->get_or_create(weights_node), prog->get_or_create(new_conv));
-    prog->dump_program("custom_dump", true);
 
     program_wrapper::build(*prog);
 

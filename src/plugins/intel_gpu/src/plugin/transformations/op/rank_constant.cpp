@@ -37,6 +37,10 @@ RankConstant::RankConstant(const std::shared_ptr<ov::Node>& constant_data,
         split_dim = m_shape.size() - 1;
         break;
     }
+    case ov::intel_gpu::op::TP_MODE::ALL_REDUCEQKV: {
+        split_dim = m_shape.size() - 1;
+        break;
+    }
     case ov::intel_gpu::op::TP_MODE::ALL_GATHERQKV: {
         split_dim = 0;
         break;

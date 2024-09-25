@@ -57,6 +57,7 @@ Napi::Function CoreWrap::get_class(Napi::Env env) {
                         InstanceMethod("getVersions", &CoreWrap::get_versions),
                         InstanceMethod("setProperty", &CoreWrap::set_property),
                         InstanceMethod("getProperty", &CoreWrap::get_property),
+                        InstanceMethod("queryModel", &CoreWrap::query_model),
                         InstanceMethod("addExtension", &CoreWrap::add_extension)});
 }
 
@@ -461,5 +462,31 @@ void CoreWrap::add_extension(const Napi::CallbackInfo& info) {
         _core.add_extension(library_path);
     } catch (std::runtime_error& err) {
         reportError(info.Env(), err.what());
+    }
+}
+
+Napi::Value CoreWrap::query_model(const Napi::CallbackInfo& info) {
+    std::vector<std::string> allowed_signatures;
+    try {
+        if (ov::js::validate<ModelWrap, Napi::String>(info, allowed_signatures) ||
+            ov::js::validate<ModelWrap, Napi::String, Napi::Object>(info, allowed_signatures)) {
+            ov::AnyMap properties;
+            auto model = Napi::ObjectWrap<ModelWrap>::Unwrap(info[0].ToObject())->get_model();
+            auto device_name = info[1].ToString();
+            if (info.Length() == 3) {
+                properties = to_anyMap(info.Env(), info[2]);
+            }
+            auto query_result = _core.query_model(model, device_name, properties);
+            Napi::Object result = Napi::Object::New(info.Env());
+            for (const auto& elem : query_result) {
+                result.Set(elem.first, elem.second);
+            }
+            return result;
+        } else {
+            OPENVINO_THROW("'queryModel'", ov::js::get_parameters_error_msg(info, allowed_signatures));
+        }
+    } catch (std::exception& err) {
+        reportError(info.Env(), err.what());
+        return info.Env().Undefined();
     }
 }

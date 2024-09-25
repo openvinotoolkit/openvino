@@ -3,7 +3,6 @@
 //
 
 #include "pass_manager.h"
-#include "data_inst.h"
 #include "fully_connected_inst.h"
 #include "gemm_inst.h"
 #include "program_node.h"
@@ -31,8 +30,9 @@ void select_preferred_formats::run(program& p) {
         return;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
+    auto& lo = p.get_layout_optimizer();
 
-    auto forcing_map = _lo.get_implementation_forcing();
+    auto forcing_map = lo.get_implementation_forcing();
 
     engine.create_onednn_engine(p.get_config());
     for (auto n : p.get_processing_order()) {
@@ -61,20 +61,18 @@ void select_preferred_formats::run(program& p) {
                 auto prim_desc = onednn::get_convolution_primitive_descriptor(*n->get_kernel_impl_params(),
                                                                               dnnl::primitive_attr(),
                                                                               dnnl::memory::format_tag::any);
-                _lo.select_preferred_formats_for_onednn(*n, *prim_desc);
+                lo.select_preferred_formats_for_onednn(*n, *prim_desc);
             } else if (n->is_type<deconvolution>()) {
                 auto prim_desc = onednn::get_deconvolution_primitive_descriptor(*n->get_kernel_impl_params(),
                                                                                 dnnl::primitive_attr(),
                                                                                 dnnl::memory::format_tag::any);
-                _lo.select_preferred_formats_for_onednn(*n, *prim_desc);
+                lo.select_preferred_formats_for_onednn(*n, *prim_desc);
             } else if (n->is_type<fully_connected>() || n->is_type<gemm>()) {
-                _lo.select_preferred_formats_for_onednn(*n);
+                lo.select_preferred_formats_for_onednn(*n);
             }
         } catch(std::exception &exception) {
             GPU_DEBUG_INFO << "WARNING(select_preferred_formats): " << exception.what() << std::endl;
         }
     }
-#else
-    (void)_lo;
 #endif  // ENABLE_ONEDNN_FOR_GPU
 }

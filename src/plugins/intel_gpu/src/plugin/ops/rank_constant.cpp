@@ -168,6 +168,22 @@ static void CreateRankConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::in
                 }
                 break;
             }
+            case ov::intel_gpu::op::TP_MODE::ALL_REDUCEQKV: {
+                auto qkv_parts = op->get_qkv_parts();
+                int32_t copysize = bufSize / std::accumulate(qkv_parts.begin(), qkv_parts.end(), 0);
+                int32_t q_copysize = copysize * qkv_parts[0];
+                int32_t k_copysize = copysize * qkv_parts[1];
+                int32_t v_copysize = copysize * qkv_parts[2];
+                int step_r = bufSize / const_shape[0];
+                //int step_h = step_r * w_size;
+                for (size_t i = 0; i < const_shape[0]; i++) {
+                    std::memcpy(&buf[0] + i * step_r, (&data[0] + rank * q_copysize), q_copysize);
+                    std::memcpy(&buf[0] + i * step_r + q_copysize, (&data[0] + (w_size * q_copysize) + (rank * k_copysize)), k_copysize);
+                    std::memcpy(&buf[0] + i * step_r + q_copysize + k_copysize, (
+                                &data[0] + (w_size * (q_copysize + k_copysize)) + (rank * v_copysize)), v_copysize);
+                }
+                break;
+            }
             case ov::intel_gpu::op::TP_MODE::ALL_GATHERQKV: {
                 auto qkv_parts = op->get_qkv_parts();
                 int32_t copysize = bufSize / std::accumulate(qkv_parts.begin(), qkv_parts.end(), 0);

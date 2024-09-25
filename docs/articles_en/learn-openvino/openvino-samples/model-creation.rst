@@ -1,5 +1,3 @@
-.. {#openvino_sample_model_creation}
-
 Model Creation Sample
 =====================
 
