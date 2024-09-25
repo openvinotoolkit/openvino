@@ -18,7 +18,7 @@ namespace intel_cpu {
 namespace {
 class jit_aux_gpr_holder {
 public:
-    jit_aux_gpr_holder(dnnl::impl::cpu::x64::jit_generator* host, std::vector<size_t>& pool_gpr_idxs, std::vector<size_t> used_gpr_idxs)
+    jit_aux_gpr_holder(dnnl::impl::cpu::x64::jit_generator* host, std::vector<size_t>& pool_gpr_idxs, const std::vector<size_t>& used_gpr_idxs)
         : m_h(host), m_pool_gpr_idxs(pool_gpr_idxs) {
         // If the pool is empty, let's manualy allocate the gpr and push original vlaue on stack
         if (m_pool_gpr_idxs.empty()) {

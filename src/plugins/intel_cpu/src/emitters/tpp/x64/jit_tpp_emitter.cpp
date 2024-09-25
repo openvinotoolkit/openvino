@@ -78,7 +78,9 @@ void TppEmitter::emit_code(const std::vector<size_t> &in, const std::vector<size
 }
 
 void TppEmitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
-    JitSafeInternalCall safe_internal_caller(h);
+    EmitABIRegSpills spill(h);
+    spill.preamble();
+
     // Note: 4 args is currently enough for unary and binary ops.
     // To enable ternary ops, we will have to pass extra regs on stack for Windows,
     std::array<Xbyak::Reg64, 4> abi_params{abi_param1, abi_param2, abi_param3, abi_param4};
@@ -105,7 +107,11 @@ void TppEmitter::emit_impl(const std::vector<size_t>& in, const std::vector<size
     for (int i = 0; i < num_kernel_args; i++)
         data_ptr_reg(Xmm(i), abi_params[i + 1], io_offsets[i]);
 
-    safe_internal_caller.call(h->rbp);
+    spill.rsp_align();
+    h->call(h->rbp);
+    spill.rsp_restore();
+
+    spill.postamble();
 }
 
 libxsmm_datatype TppEmitter::ov_to_xsmm_dtype(ov::element::Type_t elemet_type) {

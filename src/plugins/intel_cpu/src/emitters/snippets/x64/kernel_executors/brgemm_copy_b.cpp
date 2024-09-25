@@ -192,7 +192,8 @@ void BrgemmCopyBKernel::generate() {
 }
 
 void BrgemmCopyBKernel::emit_brgemm_copy_b_kernel_call(size_t N, size_t K, size_t offset_in, size_t offset_out, size_t offset_comp) {
-    JitSafeInternalCall safe_internal_caller(this);
+    EmitABIRegSpills spill(this);
+    spill.preamble();
 
     const auto add_offset = [&](Xbyak::Reg64 reg, size_t bytes_offset) {
         if (bytes_offset) add(reg, bytes_offset);
@@ -220,12 +221,16 @@ void BrgemmCopyBKernel::emit_brgemm_copy_b_kernel_call(size_t N, size_t K, size_
     mov(abi_param6, K);
 #endif
 
-    safe_internal_caller.call(rbp);
+    spill.rsp_align();
+    call(rbp);
+    spill.rsp_restore();
 
 #ifdef _WIN32
     static constexpr int gpr_size = 8;
     add(rsp, gpr_size * 2);
 #endif
+
+    spill.postamble();
 }
 
 void BrgemmCopyBKernel::execute(matmul::jit_brgemm_matmul_copy_b_t* kernel, const void* src, const void* dst, const void* comp, size_t N, size_t K) {
@@ -278,6 +283,7 @@ void BrgemmCopyBKernelExecutor::update_config(const ov::snippets::lowered::Expre
     const auto& loop_manager = linear_ir->get_loop_manager();
 
     auto init = [&](size_t& dim, size_t& blk, size_t idx) {
+        OPENVINO_ASSERT(idx < planar_shape.size() && idx < in_subtensor.size(), "Index must be less than shape/subtensor rank!");
         dim = *(planar_shape.rbegin() + idx);
         blk = *(in_subtensor.rbegin() + idx);
         if (ov::snippets::utils::is_full_dim_value(blk)) {

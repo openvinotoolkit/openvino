@@ -984,18 +984,12 @@ void Transformations::MainSnippets(void) {
         // The current solution with ExtractExplicitMatMulTranspose pass is slower for non-f32 cases than using of brgemm_copy_b kernel
         if (matmul->get_transpose_a() || matmul->get_transpose_b())
             return false;
-        // If Brgemm INT8/BF16 with (K % VNNIFactor != 0) is executed on a machine with AMX,
-        // there should be BrgemmCopyA to repack input0 data. However, it's not implemented in Snippets yet.
-        // see "init_brgemm_matmul_conf" in `src/plugins/intel_cpu/thirdparty/onednn/src/cpu/x64/matmul/brgemm_matmul_utils.cpp`
+        // [150842] The execution of Brgemm INT8/BF16 on AMX platforms depends on the value of "K % VNNIFactor".
+        //          For more details, please teake a look at the ticket 150842
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
             const auto& b_shape = matmul->get_input_partial_shape(1);
             const auto K = matmul->get_transpose_b() ? *b_shape.rbegin() : *++b_shape.rbegin();
-            // In case of BF16 with `K % VNNIFactor != 0` there will be fallback on vector impl,
-            // where madd BF16 instruction on SPR has reduced performance on HW level, which results in overall perf degradation
             if (is_bf16) return K.is_static() && (K.get_length() % 2 == 0);
-            // In INT8 case with `K % VNNIFactor != 0` there will be fallback wo perf degradations.
-            // However, Currently only static K is supported to avoid different result of "get_brgemm_type()" in `brgemm_utils.hpp`.
-            // (The result of this method depends on defined K value)
             if (is_int8) return K.is_static();
         }
         if (is_int8)

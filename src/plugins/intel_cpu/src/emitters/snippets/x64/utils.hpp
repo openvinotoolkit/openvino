@@ -39,17 +39,27 @@ size_t get_buffer_cluster_id(const ov::snippets::lowered::ExpressionPort& port);
 Xbyak::Reg64 get_aux_gpr(const std::vector<size_t>& used_gpr_idxs);
 
 /**
- * @brief Push data pointer on stack adding offset. If the offset is dynamic, gets it from runtime params `abi_param1`
+ * @brief Push data pointer on stack adding offset. The offset is gotting from runtime params `abi_param1`
+ * @param h generator
+ * @param stack_offset stack offset
+ * @param ptr_reg register contains data pointer
+ * @param aux_reg aux register
+ * @param runtime_offset offset in runtime params `abi_param1`
+ * @return register
+ */
+void push_ptr_with_runtime_offset_on_stack(dnnl::impl::cpu::x64::jit_generator* h, size_t stack_offset,
+                                           Xbyak::Reg64 ptr_reg, Xbyak::Reg64 aux_reg, size_t runtime_offset);
+
+/**
+ * @brief Push data pointer on stack adding static offset `ptr_offset`
  * @param h generator
  * @param stack_offset stack offset
  * @param ptr_reg register contains data pointer
  * @param aux_reg aux register
  * @param ptr_offset offset which will be added to data pointer
- * @param runtime_offset offset in runtime params `abi_param1`
- * @return register
  */
-void write_data_ptr_on_stack(dnnl::impl::cpu::x64::jit_generator* h, size_t stack_offset, Xbyak::Reg64 ptr_reg, Xbyak::Reg64 aux_reg,
-                             size_t ptr_offset, size_t runtime_offset);
+void push_ptr_with_static_offset_on_stack(dnnl::impl::cpu::x64::jit_generator* h, size_t stack_offset,
+                                          Xbyak::Reg64 ptr_reg, Xbyak::Reg64 aux_reg, size_t ptr_offset);
 
 }   // namespace utils
 }   // namespace intel_cpu

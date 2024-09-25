@@ -68,10 +68,6 @@ jit_brgemm_copy_b_emitter::jit_brgemm_copy_b_emitter(jit_generator* h, cpu_isa_t
         m_memory_offsets.push_back(brgemm_repack->get_offset_compensations());
         m_buffer_ids.push_back(utils::get_buffer_cluster_id(expr->get_output_port(1)));
     }
-
-    for (size_t i = 0; i < m_buffer_ids.size(); ++i)
-        OPENVINO_ASSERT(IMPLICATION(ov::snippets::utils::is_dynamic_value(m_memory_offsets[i]), m_buffer_ids[i] != SIZE_MAX),
-                        "In dynamic case Buffer Cluster ID must be known!");
 }
 
 void jit_brgemm_copy_b_emitter::validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
@@ -86,7 +82,8 @@ void jit_brgemm_copy_b_emitter::emit_impl(const std::vector<size_t>& in, const s
     if (out.size() > 1)
         mem_ptrs_idxs.emplace_back(out[1]);
 
-    JitSafeInternalCall safe_internal_caller(h);
+    EmitABIRegSpills spill(h);
+    spill.preamble();
 
     h->mov(h->rbp, reinterpret_cast<uint64_t>(BrgemmCopyBKernelExecutor::execute));
     auto reserved_stack_size = sizeof(BrgemmCopyBKernel::call_args);
@@ -97,9 +94,13 @@ void jit_brgemm_copy_b_emitter::emit_impl(const std::vector<size_t>& in, const s
 
     const std::vector<size_t> args_offsets {GET_OFF_BRGEMM_COPY_B_ARGS(src), GET_OFF_BRGEMM_COPY_B_ARGS(tr_src), GET_OFF_BRGEMM_COPY_B_ARGS(compensation_ptr)};
     const auto& mem_ptrs = ov::intel_cpu::utils::transform_idxs_to_regs(mem_ptrs_idxs);
-    for (size_t i = 0; i < mem_ptrs.size(); i++)
-        utils::write_data_ptr_on_stack(h, args_offsets[i], mem_ptrs[i], aux_reg, m_memory_offsets[i],
-                                       GET_OFF(buffer_offsets) + m_buffer_ids[i] * sizeof(size_t));
+    for (size_t i = 0; i < mem_ptrs.size(); i++) {
+        if (ov::snippets::utils::is_dynamic_value(m_memory_offsets[i]))
+            utils::push_ptr_with_runtime_offset_on_stack(h, args_offsets[i], mem_ptrs[i], aux_reg,
+                                                         GET_OFF(buffer_offsets) + m_buffer_ids[i] * sizeof(size_t));
+        else
+            utils::push_ptr_with_static_offset_on_stack(h, args_offsets[i], mem_ptrs[i], aux_reg, m_memory_offsets[i]);
+    }
 
     // No scratchpad => need to write nullptr manually
     if (!m_with_comp)
@@ -108,9 +109,13 @@ void jit_brgemm_copy_b_emitter::emit_impl(const std::vector<size_t>& in, const s
     h->mov(abi_param1, reinterpret_cast<uintptr_t>(m_kernel_executor.get()));
     h->mov(abi_param2, h->rsp);
 
-    safe_internal_caller.call(h->rbp);
+    spill.rsp_align();
+    h->call(h->rbp);
+    spill.rsp_restore();
 
     h->add(h->rsp, reserved_stack_size);
+
+    spill.postamble();
 }
 
 }   // namespace intel_cpu

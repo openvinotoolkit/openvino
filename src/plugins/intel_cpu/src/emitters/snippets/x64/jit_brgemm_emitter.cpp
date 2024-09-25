@@ -5,8 +5,6 @@
 #include "jit_brgemm_emitter.hpp"
 
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
-#include <cpu/x64/brgemm/brgemm.hpp>
-#include <cpu/x64/amx_tile_configure.hpp>
 #include "snippets/utils/utils.hpp"
 #include "emitters/plugin/x64/utils.hpp"
 #include "utils.hpp"
@@ -48,10 +46,6 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h, cpu_isa_t isa,
         m_memory_offsets.push_back(brgemm_node->get_offset_scratch());
         m_buffer_ids.push_back(utils::get_buffer_cluster_id(expr->get_input_port(2)));
     }
-
-    for (size_t i = 0; i < m_buffer_ids.size(); ++i)
-        OPENVINO_ASSERT(IMPLICATION(ov::snippets::utils::is_dynamic_value(m_memory_offsets[i]), m_buffer_ids[i] != SIZE_MAX),
-                        "In dynamic case Buffer Cluster ID must be known!");
 }
 
 std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
@@ -88,7 +82,8 @@ void jit_brgemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
     if (in.size() > 2)
         mem_ptrs_idxs.emplace_back(in[2]);
 
-    JitSafeInternalCall safe_internal_caller(h);
+    EmitABIRegSpills spill(h);
+    spill.preamble();
 
     h->mov(h->rbp, reinterpret_cast<uint64_t>(BrgemmKernelExecutor::execute));
     auto reserved_stack_size = sizeof(BrgemmKernelExecutor::call_args);
@@ -99,9 +94,13 @@ void jit_brgemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
 
     const std::vector<size_t> brgemm_args_offsets {GET_OFF_BRGEMM_ARGS(A), GET_OFF_BRGEMM_ARGS(B), GET_OFF_BRGEMM_ARGS(C), GET_OFF_BRGEMM_ARGS(scratch)};
     const auto& mem_ptrs = utils::transform_idxs_to_regs(mem_ptrs_idxs);
-    for (size_t i = 0; i < mem_ptrs.size(); i++)
-        utils::write_data_ptr_on_stack(h, brgemm_args_offsets[i], mem_ptrs[i], aux_reg, m_memory_offsets[i],
-                                       GET_OFF(buffer_offsets) + m_buffer_ids[i] * sizeof(size_t));
+    for (size_t i = 0; i < mem_ptrs.size(); i++) {
+        if (ov::snippets::utils::is_dynamic_value(m_memory_offsets[i]))
+            utils::push_ptr_with_runtime_offset_on_stack(h, brgemm_args_offsets[i], mem_ptrs[i], aux_reg,
+                                                         GET_OFF(buffer_offsets) + m_buffer_ids[i] * sizeof(size_t));
+        else
+            utils::push_ptr_with_static_offset_on_stack(h, brgemm_args_offsets[i], mem_ptrs[i], aux_reg, m_memory_offsets[i]);
+    }
 
     // No scratchpad => need to write nullptr manually
     if (mem_ptrs.size() < 4)
@@ -114,9 +113,13 @@ void jit_brgemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
     h->mov(abi_param1, reinterpret_cast<uintptr_t>(m_kernel_executor.get()));
     h->mov(abi_param2, h->rsp);
 
-    safe_internal_caller.call(h->rbp);
+    spill.rsp_align();
+    h->call(h->rbp);
+    spill.rsp_restore();
 
     h->add(h->rsp, reserved_stack_size);
+
+    spill.postamble();
 }
 
 }   // namespace intel_cpu

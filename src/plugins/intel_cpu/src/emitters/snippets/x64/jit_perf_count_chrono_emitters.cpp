@@ -31,12 +31,18 @@ void jit_perf_count_chrono_start_emitter::set_start_time(snippets::op::PerfCount
 }
 
 void jit_perf_count_chrono_start_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const {
-    JitSafeInternalCall safe_internal_caller(h);
+    EmitABIRegSpills spill(h);
+    spill.preamble();
 
     const auto &set_start_time_overload = static_cast<void (*)(snippets::op::PerfCountBegin*)>(set_start_time);
     h->mov(h->rax, reinterpret_cast<size_t>(set_start_time_overload));
     h->mov(abi_param1, reinterpret_cast<size_t>(m_start_node.get()));
-    safe_internal_caller.call(h->rax);
+
+    spill.rsp_align();
+    h->call(h->rax);
+    spill.rsp_restore();
+
+    spill.postamble();
 }
 
 ///////////////////jit_perf_count_chrono_end_emitter////////////////////////////////////
@@ -54,12 +60,18 @@ void jit_perf_count_chrono_end_emitter::set_accumulated_time(snippets::op::PerfC
 }
 
 void jit_perf_count_chrono_end_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const {
-    JitSafeInternalCall safe_internal_caller(h);
+    EmitABIRegSpills spill(h);
+    spill.preamble();
 
     const auto &set_accumulated_time_overload = static_cast<void (*)(snippets::op::PerfCountEnd*)>(set_accumulated_time);
     h->mov(h->rax, reinterpret_cast<size_t>(set_accumulated_time_overload));
     h->mov(abi_param1, reinterpret_cast<size_t>(m_end_node.get()));
-    safe_internal_caller.call(h->rax);
+
+    spill.rsp_align();
+    h->call(h->rax);
+    spill.rsp_restore();
+
+    spill.postamble();
 }
 
 }   // namespace intel_cpu
