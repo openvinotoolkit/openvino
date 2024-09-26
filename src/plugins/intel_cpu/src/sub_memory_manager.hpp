@@ -16,17 +16,15 @@ namespace intel_cpu {
 class SubMemoryManager {
 public:
     struct MemoryInfo {
-        void* send_buf;
-        bool flag;
-        bool last_used;
+        void* send_buf = nullptr;
+        bool flag = false;
+        bool last_used = false;
     };
 
     SubMemoryManager(int num_sub_streams) {
         assert(num_sub_streams);
         _num_sub_streams = num_sub_streams;
         MemoryInfo memory_info;
-        memory_info.flag = false;
-        memory_info.last_used = false;
         std::vector<MemoryInfo> memorys;
         memorys.assign(_num_sub_streams, memory_info);
         _memorys_table.assign(2, memorys);
