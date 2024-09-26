@@ -49,7 +49,6 @@ static std::shared_ptr<dnnl::deconvolution_forward::primitive_desc> get_deconvol
     int64_t insert_count = static_cast<int64_t>(output_md.get_dims().size()) - 2 - stride.size();
     if (insert_count > 0) {
         stride.insert(stride.end(), insert_count, 1);
-        dilation.insert(dilation.end(), insert_count, 0);
         pad_l.insert(pad_l.end(), insert_count, 0);
         pad_r.insert(pad_r.end(), insert_count, 0);
     }
