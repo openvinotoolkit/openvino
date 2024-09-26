@@ -362,7 +362,7 @@ def get_moc_frontends(argv: argparse.Namespace):
 def prepare_ir(argv: argparse.Namespace):
     # TODO: remove this workaround once new TensorFlow frontend supports non-frozen formats: checkpoint, MetaGraph, and SavedModel
     # Now it converts all TensorFlow formats to the frozen .pb format in case new TensorFlow frontend
-    is_tf, _, _, _, _ = deduce_legacy_frontend_by_namespace(argv)
+    is_tf, _, _, _ = deduce_legacy_frontend_by_namespace(argv)
     argv = arguments_post_parsing(argv)
     t = tm.Telemetry()
 
@@ -798,7 +798,7 @@ def framework_is_tf(args, argv):
     if input_model_is_object(args) and check_model_object(args) == "tf":
         return True
     if argv is not None:
-        is_tf, _, _, _, _ = deduce_legacy_frontend_by_namespace(argv)
+        is_tf, _, _, _ = deduce_legacy_frontend_by_namespace(argv)
         return is_tf
     return False
 
