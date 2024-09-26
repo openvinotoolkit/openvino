@@ -74,7 +74,7 @@ NPU plugin will use the Level Zero (L0) API to execute the precompiled model on 
 
 ### Device management
 
-There is currently no support for multiple devices, one single level zero device will be enumerated during level zero backend initialization. Support for multiple devices will be added in future releases.
+There is currently no support for multiple devices, which means only one level-zero device will be enumerated during level-zero backend initialization. Support for multiple devices will be added in future releases.
 
 ### Inference pipeline
 
