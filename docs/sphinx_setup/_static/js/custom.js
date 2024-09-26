@@ -90,6 +90,7 @@ function addLegalNotice() {
 $(document).ready(function () {
     initSidebar();
     handleSidebar();
+    addFooter();
     createVersions();
     updateTitleTag();
     updateLanguageSelector();
@@ -103,7 +104,6 @@ $(document).ready(function () {
     initCollapsibleHeaders(); // included with the new benchmarks page
     createSphinxTabSets();
     initSplide();
-    addFooter();
 });
 
 function handleSidebar() {
@@ -352,18 +352,21 @@ function addFooter() {
 }
 
 function initSplide() {
-    var splide = new Splide('.splide', {
-        type: 'fade',
-        autoHeight: true,
-        perPage: 1,
-        autoplay: true,
-        arrows: false,
-        waitForTransition: true,
-        wheel: true,
-        wheelSleep: 250,
-        interval: 3000,
-    });
-    splide.mount();
+    var splider = document.getElementsByClassName('.splide');
+    if(splider.length != 0){
+        var splide = new Splide('.splide', {
+            type: 'fade',
+            autoHeight: true,
+            perPage: 1,
+            autoplay: true,
+            arrows: false,
+            waitForTransition: true,
+            wheel: true,
+            wheelSleep: 250,
+            interval: 3000,
+        });
+        splide.mount();
+    }
 }
 
 // ---------- COVEO SEARCH -----------

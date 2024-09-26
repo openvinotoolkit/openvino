@@ -21,14 +21,24 @@ class Snapshot;  // Forward declaration
 namespace patterns {
 namespace compute {
 
-class DQMatMulGQ : public ov::pass::MatcherPass {
+class DQMatMulGQu4 : public ov::pass::MatcherPass {
 public:
-    DQMatMulGQ(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
+    DQMatMulGQu4(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
 };
 
-class DQMatMulCW : public ov::pass::MatcherPass {
+class DQMatMulCWu4 : public ov::pass::MatcherPass {
 public:
-    DQMatMulCW(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
+    DQMatMulCWu4(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
+};
+
+class DQMatMulGQi4 : public ov::pass::MatcherPass {
+public:
+    DQMatMulGQi4(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
+};
+
+class DQMatMulCWi4 : public ov::pass::MatcherPass {
+public:
+    DQMatMulCWi4(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
 };
 
 class RMSNorm : public ov::pass::MatcherPass {
