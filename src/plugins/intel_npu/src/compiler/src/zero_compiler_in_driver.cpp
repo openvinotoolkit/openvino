@@ -667,17 +667,7 @@ ze_result_t LevelZeroCompilerInDriver<TableExtension>::seriazlideIRModelAndQuery
 
     // Create querynetwork handle
     ze_result_t result = _graphDdiTableExt.pfnQueryNetworkCreate(_context, _deviceHandle, &desc, &hGraphQueryNetwork);
-
-    if (ZE_RESULT_SUCCESS != result) {
-        OPENVINO_THROW("L0 seriazlideIRModelAndQueryNetworkCreateV1",
-                       " result: ",
-                       ze_result_to_string(result),
-                       ", code 0x",
-                       std::hex,
-                       uint64_t(result),
-                       ". ",
-                       getLatestBuildError());
-    }
+    PFN_THROW_ON_FAIL("seriazlideIRModelAndQueryNetworkCreateV1", result);
 
     return result;
 }
@@ -692,16 +682,7 @@ std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::query
 
     ze_device_graph_properties_t deviceGraphProperties{};
     auto result = _graphDdiTableExt.pfnDeviceGetGraphProperties(_deviceHandle, &deviceGraphProperties);
-    if (ZE_RESULT_SUCCESS != result) {
-        OPENVINO_THROW("L0 pfnDeviceGetGraphProperties",
-                       " result: ",
-                       ze_result_to_string(result),
-                       ", code 0x",
-                       std::hex,
-                       uint64_t(result),
-                       ". ",
-                       getLatestBuildError());
-    }
+    PFN_THROW_ON_FAIL("pfnDeviceGetGraphProperties", result);
 
     ze_graph_query_network_handle_t hGraphQueryNetwork = nullptr;
 
@@ -742,17 +723,7 @@ ze_result_t LevelZeroCompilerInDriver<TableExtension>::seriazlideIRModelAndQuery
     // Create querynetwork handle
     _logger.debug("seriazlideIRModelAndQueryNetworkCreateV2 - performing pfnQueryNetworkCreate2");
     ze_result_t result = _graphDdiTableExt.pfnQueryNetworkCreate2(_context, _deviceHandle, &desc, &hGraphQueryNetwork);
-
-    if (ZE_RESULT_SUCCESS != result) {
-        OPENVINO_THROW("L0 seriazlideIRModelAndQueryNetworkCreateV2",
-                       " result: ",
-                       ze_result_to_string(result),
-                       ", code 0x",
-                       std::hex,
-                       uint64_t(result),
-                       ". ",
-                       getLatestBuildError());
-    }
+    PFN_THROW_ON_FAIL("seriazlideIRModelAndQueryNetworkCreateV2", result);
 
     return result;
 }
@@ -767,16 +738,7 @@ std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::query
 
     ze_device_graph_properties_t deviceGraphProperties{};
     auto result = _graphDdiTableExt.pfnDeviceGetGraphProperties(_deviceHandle, &deviceGraphProperties);
-    if (ZE_RESULT_SUCCESS != result) {
-        OPENVINO_THROW("L0 pfnDeviceGetGraphProperties",
-                       " result: ",
-                       ze_result_to_string(result),
-                       ", code 0x",
-                       std::hex,
-                       uint64_t(result),
-                       ". ",
-                       getLatestBuildError());
-    }
+    PFN_THROW_ON_FAIL("pfnDeviceGetGraphProperties", result);
 
     ze_graph_query_network_handle_t hGraphQueryNetwork = nullptr;
 
@@ -825,16 +787,7 @@ std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::getQu
     }
 
     result = _graphDdiTableExt.pfnQueryNetworkDestroy(hGraphQueryNetwork);
-    if (ZE_RESULT_SUCCESS != result) {
-        OPENVINO_THROW("L0 pfnQueryNetworkDestroy",
-                       " result: ",
-                       ze_result_to_string(result),
-                       ", code 0x",
-                       std::hex,
-                       uint64_t(result),
-                       ". ",
-                       getLatestBuildError());
-    }
+    PFN_THROW_ON_FAIL("pfnQueryNetworkDestroy", result);
 
     return parseQueryResult(supportedLayers);
 }
@@ -879,16 +832,7 @@ ze_result_t LevelZeroCompilerInDriver<TableExtension>::createGraph(const ze_grap
     _logger.debug("createGraph - performing pfnCreate");
     // Create querynetwork handle
     auto result = _graphDdiTableExt.pfnCreate(_context, _deviceHandle, &desc, graph);
-    if (ZE_RESULT_SUCCESS != result) {
-        OPENVINO_THROW("L0 pfnCreate",
-                       " result: ",
-                       ze_result_to_string(result),
-                       ", code 0x",
-                       std::hex,
-                       uint64_t(result),
-                       ". ",
-                       getLatestBuildError());
-    }
+    PFN_THROW_ON_FAIL("pfnCreate", result);
 
     return result;
 }
@@ -912,16 +856,7 @@ ze_result_t LevelZeroCompilerInDriver<TableExtension>::createGraph(const ze_grap
     _logger.debug("createGraph - performing pfnCreate2");
     // Create querynetwork handle
     auto result = _graphDdiTableExt.pfnCreate2(_context, _deviceHandle, &desc, graph);
-    if (ZE_RESULT_SUCCESS != result) {
-        OPENVINO_THROW("L0 pfnCreate2",
-                       " result: ",
-                       ze_result_to_string(result),
-                       ", code 0x",
-                       std::hex,
-                       uint64_t(result),
-                       ". ",
-                       getLatestBuildError());
-    }
+    PFN_THROW_ON_FAIL("pfnCreate2", result);
 
     return result;
 }
@@ -965,16 +900,7 @@ NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compile(const std:
 
     ze_device_graph_properties_t deviceGraphProperties{};
     auto result = _graphDdiTableExt.pfnDeviceGetGraphProperties(_deviceHandle, &deviceGraphProperties);
-    if (ZE_RESULT_SUCCESS != result) {
-        OPENVINO_THROW("Failed to compile network. L0 pfnDeviceGetGraphProperties",
-                       " result: ",
-                       ze_result_to_string(result),
-                       ", code 0x",
-                       std::hex,
-                       uint64_t(result),
-                       ". ",
-                       getLatestBuildError());
-    }
+    PFN_THROW_ON_FAIL("pfnDeviceGetGraphProperties, Failed to compile network.", result);
 
     // Graph handle should be used only in scope of compile / parse functions.
     ze_graph_handle_t graphHandle;
@@ -1008,17 +934,7 @@ NetworkMetadata LevelZeroCompilerInDriver<TableExtension>::parse(const std::vect
 
         auto result = _graphDdiTableExt.pfnCreate(_context, _deviceHandle, &desc, &graphHandle);
         OV_ITT_TASK_NEXT(PARSE_BLOB, "_graphDdiTableExt");
-
-        if (ZE_RESULT_SUCCESS != result) {
-            OPENVINO_THROW("L0 pfnCreate",
-                           " result: ",
-                           ze_result_to_string(result),
-                           ", code 0x",
-                           std::hex,
-                           uint64_t(result),
-                           ". ",
-                           getLatestBuildError());
-        }
+        PFN_THROW_ON_FAIL("pfnCreate", result);
     } else {
         OPENVINO_THROW("Empty blob");
     }
@@ -1038,17 +954,7 @@ uint32_t LevelZeroCompilerInDriver<TableExtension>::getSupportedOpsetVersion() c
     ze_device_graph_properties_t graphProperties;
 
     auto result = _graphDdiTableExt.pfnDeviceGetGraphProperties(_deviceHandle, &graphProperties);
-
-    if (ZE_RESULT_SUCCESS != result) {
-        OPENVINO_THROW("L0 pfnDeviceGetGraphProperties",
-                       " result: ",
-                       ze_result_to_string(result),
-                       ", code 0x",
-                       std::hex,
-                       uint64_t(result),
-                       ". ",
-                       getLatestBuildError());
-    }
+    PFN_THROW_ON_FAIL("pfnDeviceGetGraphProperties", result);
     const auto maxOpsetVersion = graphProperties.maxOVOpsetVersionSupported;
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
     _logger.debug("getSupportedOpset end");
@@ -1119,16 +1025,7 @@ void LevelZeroCompilerInDriver<TableExtension>::getMetadata(ze_graph_dditable_ex
                                                             std::vector<IODescriptor>& outputs) const {
     ze_graph_argument_properties_3_t arg;
     auto result = graphDdiTableExt.pfnGetArgumentProperties3(graphHandle, index, &arg);
-    if (ZE_RESULT_SUCCESS != result) {
-        OPENVINO_THROW("L0 pfnGetArgumentProperties3",
-                       " result: ",
-                       ze_result_to_string(result),
-                       ", code 0x",
-                       std::hex,
-                       uint64_t(result),
-                       ". ",
-                       getLatestBuildError());
-    }
+    PFN_THROW_ON_FAIL("pfnGetArgumentProperties3", result);
 
     switch (arg.type) {
     case ZE_GRAPH_ARGUMENT_TYPE_INPUT: {
@@ -1152,32 +1049,14 @@ void LevelZeroCompilerInDriver<TableExtension>::getMetadata(ze_graph_dditable_ex
                                                             std::vector<IODescriptor>& outputs) const {
     ze_graph_argument_properties_3_t arg;
     auto result = graphDdiTableExt.pfnGetArgumentProperties3(graphHandle, index, &arg);
-    if (ZE_RESULT_SUCCESS != result) {
-        OPENVINO_THROW("L0 pfnGetArgumentProperties3",
-                       " result: ",
-                       ze_result_to_string(result),
-                       ", code 0x",
-                       std::hex,
-                       uint64_t(result),
-                       ". ",
-                       getLatestBuildError());
-    }
+    PFN_THROW_ON_FAIL("pfnGetArgumentProperties3", result);
 
     std::optional<ze_graph_argument_metadata_t> optionalMetadata = std::nullopt;
 
     if (!isStateInputName(arg.name) && !isStateOutputName(arg.name) && !isShapeTensorName(arg.name)) {
         ze_graph_argument_metadata_t metadata;
         result = graphDdiTableExt.pfnGraphGetArgumentMetadata(graphHandle, index, &metadata);
-        if (ZE_RESULT_SUCCESS != result) {
-            OPENVINO_THROW("L0 pfnGraphGetArgumentMetadata",
-                           " result: ",
-                           ze_result_to_string(result),
-                           ", code 0x",
-                           std::hex,
-                           uint64_t(result),
-                           ". ",
-                           getLatestBuildError());
-        }
+        PFN_THROW_ON_FAIL("pfnGraphGetArgumentMetadata", result);
 
         optionalMetadata = std::optional(metadata);
     }
@@ -1200,17 +1079,7 @@ NetworkMetadata LevelZeroCompilerInDriver<TableExtension>::getNetworkMeta(ze_gra
     ze_graph_properties_t graphProperties{};
 
     auto result = _graphDdiTableExt.pfnGetProperties(graphHandle, &graphProperties);
-
-    if (ZE_RESULT_SUCCESS != result) {
-        OPENVINO_THROW("L0 pfnGetProperties",
-                       " result: ",
-                       ze_result_to_string(result),
-                       ", code 0x",
-                       std::hex,
-                       uint64_t(result),
-                       ". ",
-                       getLatestBuildError());
-    }
+    PFN_THROW_ON_FAIL("pfnGetProperties", result);
 
     NetworkMetadata meta;
 

@@ -13,6 +13,19 @@
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "zero_executor.hpp"
 
+#define PFN_THROW_ON_FAIL(step, result) \
+if (ZE_RESULT_SUCCESS != result) { \
+    OPENVINO_THROW("L0 ", \
+                    step, \
+                    " result: ", \
+                    ze_result_to_string(result), \
+                    ", code 0x", \
+                    std::hex, \
+                    uint64_t(result), \
+                    ". ", \
+                    getLatestBuildError()); \
+}
+
 namespace intel_npu {
 namespace driverCompilerAdapter {
 
