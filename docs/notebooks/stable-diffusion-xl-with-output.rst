@@ -65,6 +65,7 @@ The tutorial consists of the following steps:
    **Note**: Some demonstrated models can require at least 64GB RAM for
    conversion and running.
 
+
 **Table of contents:**
 
 
@@ -109,7 +110,7 @@ Install prerequisites
 
 .. code:: ipython3
 
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "torch>=2.1,<2.4" "torchvision<0.19.0" "diffusers>=0.18.0" "invisible-watermark>=0.2.0" "transformers>=4.33.0" "accelerate" "onnx" "peft==0.6.2"
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "torch>=2.1" "torchvision" "diffusers>=0.24.0" "invisible-watermark>=0.2.0" "transformers>=4.33.0" "accelerate" "onnx!=1.16.2" "peft>=0.6.2"
     %pip install -q "git+https://github.com/huggingface/optimum-intel.git"
     %pip install -q "openvino>=2023.1.0" "gradio>=4.19" "nncf>=2.9.0"
 
@@ -152,17 +153,16 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    import openvino as ov
+    import requests
     
-    core = ov.Core()
-    
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
+    open("notebook_utils.py", "w").write(r.text)
+    
+    from notebook_utils import device_widget
+    
+    device = device_widget()
     
     device
 
@@ -186,6 +186,8 @@ compression parameters.
 
 .. code:: ipython3
 
+    import ipywidgets as widgets
+    
     compress_weights = widgets.Checkbox(
         description="Apply weight compression",
         value=True,
