@@ -92,7 +92,8 @@ enum class ExecutorType {
 enum class OperationType {
     FullyConnected,
     MatMul,
-    Convolution
+    Convolution,
+    MVN
 };
 
 std::string ExecutorTypeToString(const ExecutorType type);

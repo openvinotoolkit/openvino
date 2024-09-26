@@ -16,8 +16,10 @@ template<typename Attrs> struct Config;
 }
 
 struct FCAttrs;
+struct MVNAttrs;
 
 std::ostream & operator<<(std::ostream & os, const FCAttrs& attrs);
+std::ostream & operator<<(std::ostream & os, const MVNAttrs& attrs);
 std::ostream & operator<<(std::ostream & os, const PostOps& postOps);
 
 template<typename Attrs>

@@ -8,6 +8,7 @@
 
 #include "nodes/executors/executor_implementation.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
+#include "nodes/executors/mvn_config.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -25,6 +26,10 @@ const std::vector<ExecutorImplementation<Attrs>>& getImplementations() {
 // FullyConnected
 template <>
 const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations();
+
+// MVN
+template <>
+const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations();
 
 // ...
 
