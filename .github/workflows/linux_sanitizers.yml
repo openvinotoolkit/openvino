@@ -218,7 +218,7 @@ jobs:
       matrix:
         include:
           - SANITIZER: 'AddressAndLeak'
-#          - SANITIZER: 'UndefinedBehavior'  # the UB library is not linked properly at the Build stage
+          - SANITIZER: 'UndefinedBehavior'
 #          - SANITIZER: 'Thread'  # Problems with protobuf at the Build stage
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
