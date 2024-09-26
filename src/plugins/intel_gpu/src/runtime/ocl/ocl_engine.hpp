@@ -45,6 +45,8 @@ public:
     stream_ptr create_stream(const ExecutionConfig& config, void *handle) const override;
     stream& get_service_stream() const override;
 
+    kernel::ptr prepare_kernel(const kernel::ptr kernel) const override;
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
     void create_onednn_engine(const ExecutionConfig& config) override;
     // Returns onednn engine object which shares device and context with current engine
@@ -56,7 +58,6 @@ public:
 private:
     std::string _extensions;
     std::unique_ptr<stream> _service_stream;
-    std::unique_ptr<cl::UsmHelper> _usm_helper;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     std::mutex onednn_mutex;

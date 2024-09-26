@@ -369,7 +369,9 @@ ocl_device::ocl_device(const cl::Device dev, const cl::Context& ctx, const cl::P
 , _device(dev)
 , _platform(platform)
 , _info(init_device_info(dev, ctx))
-, _mem_caps(init_memory_caps(dev, _info)) { }
+, _mem_caps(init_memory_caps(dev, _info))
+, _usm_helper(new cl::UsmHelper(_context, _device, use_unified_shared_memory())) {
+}
 
 bool ocl_device::is_same(const device::ptr other) {
     auto casted = downcast<ocl_device>(other.get());

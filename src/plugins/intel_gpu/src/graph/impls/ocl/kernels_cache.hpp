@@ -5,7 +5,7 @@
 #pragma once
 
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
-#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/device.hpp"
 #include "intel_gpu/runtime/kernel.hpp"
 #include "intel_gpu/runtime/execution_config.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
@@ -16,11 +16,9 @@
 #include <memory>
 #include <atomic>
 #include <string>
-#include <set>
 
-#include "openvino/runtime/threading/cpu_streams_executor.hpp"
-#include "kernels_factory.hpp"
-#include "ocl/ocl_engine.hpp"
+#include "openvino/runtime/threading/itask_executor.hpp"
+
 
 namespace cldnn {
 
@@ -89,7 +87,7 @@ public:
 
 private:
     static std::mutex _mutex;
-    engine& _engine;
+    const device::ptr _device;
     std::shared_ptr<ov::threading::ITaskExecutor> _task_executor;
     ExecutionConfig _config;
     uint32_t _prog_id = 0;
@@ -101,7 +99,7 @@ private:
     std::map<std::string, std::string> batch_headers;
     std::unordered_map<kernel_impl_params, size_t, impl_hasher> _kernel_batch_hash;
     void get_program_source(const kernels_code& kernels_source_code, std::vector<batch_program>*) const;
-    void build_batch(const engine& build_engine, const batch_program& batch, compiled_kernels& compiled_kernels);
+    void build_batch(const batch_program& batch, compiled_kernels& compiled_kernels);
 
     std::string get_cache_path() const;
     bool is_cache_enabled() const;
@@ -116,7 +114,7 @@ public:
                            std::shared_ptr<ov::threading::ITaskExecutor> task_executor = nullptr,
                            const std::map<std::string, std::string>& batch_headers = {});
     kernel::ptr get_kernel_from_cached_kernels(std::string id) const;
-    std::vector<kernel::ptr> get_kernels(kernel_impl_params params) const;
+    std::vector<kernel::ptr> get_kernels(const kernel_impl_params& params) const;
 
     void set_kernels_reuse(bool reuse_kernels) { _reuse_kernels = reuse_kernels; }
     bool get_kernels_reuse() const { return _reuse_kernels; }

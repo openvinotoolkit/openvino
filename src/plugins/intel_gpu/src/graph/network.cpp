@@ -38,11 +38,7 @@
 #include "kv_cache_inst.h"
 #include "program_helpers.h"
 #include "to_string_utils.h"
-#include "kernels_cache.hpp"
 #include "program_dump_graph.h"
-
-// TODO: Remove once we have an abstraction for kernels_cache
-#include "kernel_base.h"
 
 #include <algorithm>
 #include <string>

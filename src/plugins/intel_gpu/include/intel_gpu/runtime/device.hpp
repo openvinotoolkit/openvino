@@ -24,6 +24,7 @@ public:
     virtual bool is_same(const device::ptr other) = 0;
 
     float get_gops(cldnn::data_types dt) const;
+    bool use_unified_shared_memory() const;
 
     virtual ~device() = default;
 };
