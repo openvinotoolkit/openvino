@@ -41,6 +41,7 @@ The tutorial consists from following steps:
 -  Prepare OpenVINO-based inference pipeline
 -  Run OpenVINO model
 
+
 **Table of contents:**
 
 
@@ -1054,20 +1055,16 @@ Select device from dropdown list for running inference using OpenVINO.
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
+    import requests
     
-    core = ov.Core()
-    
-    support_devices = core.available_devices
-    if "NPU" in support_devices:
-        support_devices.remove("NPU")
-    
-    device = widgets.Dropdown(
-        options=support_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
+    open("notebook_utils.py", "w").write(r.text)
+    
+    from notebook_utils import device_widget
+    
+    device = device_widget(exclude=["NPU"])
     
     device
 
@@ -1087,6 +1084,8 @@ Load OpenVINO model
 
 .. code:: ipython3
 
+    core = ov.Core()
+    
     ov_model = OVLlavaMPTForCausalLM(core, compressed_model_dir, device.value)
 
 Prepare input data
