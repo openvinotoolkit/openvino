@@ -4,6 +4,7 @@
 
 #include "primitive_base.hpp"
 
+#include "scatter_update.hpp"
 #include "scatter_update_inst.h"
 #include "scatter_update/scatter_update_kernel_selector.h"
 #include "scatter_update/scatter_update_kernel_ref.h"
@@ -80,47 +81,12 @@ public:
     }
 };
 
-namespace detail {
 
-attach_scatter_update_impl::attach_scatter_update_impl() {
-    auto types = {data_types::f32, data_types::f16, data_types::i32};
-    auto formats = {
-        format::bfyx,
-        format::b_fs_yx_fsv16,
-        format::b_fs_yx_fsv32,
-        format::bs_fs_yx_bsv16_fsv16,
-        format::bs_fs_yx_bsv32_fsv16,
-        format::bs_fs_yx_bsv32_fsv32,
-        format::bfzyx,
-        format::b_fs_zyx_fsv16,
-        format::b_fs_zyx_fsv32,
-        format::bs_fs_zyx_bsv16_fsv16,
-        format::bs_fs_zyx_bsv16_fsv32,
-        format::bs_fs_zyx_bsv32_fsv16,
-        format::bs_fs_zyx_bsv32_fsv32,
-        format::bfwzyx
-    };
-
-    implementation_map<scatter_update>::add(impl_types::ocl,
-                                            shape_types::static_shape,
-                                            typed_primitive_impl_ocl<scatter_update>::create<scatter_update_impl>,
-                                            types,
-                                            formats);
-
-    auto dyn_formats = {
-        format::bfyx,
-        format::bfzyx,
-        format::bfwzyx
-    };
-
-    implementation_map<scatter_update>::add(impl_types::ocl,
-                                            shape_types::dynamic_shape,
-                                            typed_primitive_impl_ocl<scatter_update>::create<scatter_update_impl>,
-                                            types,
-                                            dyn_formats);
+std::unique_ptr<primitive_impl> ScatterUpdateImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const {
+    assert(node.is_type<scatter_update>());
+    return typed_primitive_impl_ocl<scatter_update>::create<scatter_update_impl>(static_cast<const scatter_update_node&>(node), params);
 }
 
-}  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
 

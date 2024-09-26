@@ -42,6 +42,7 @@ Below, we present examples of saliency map analysis for the following
 cases: correct and highly-confident prediction, correct and
 low-confident prediction, and wrong prediction.
 
+
 **Table of contents:**
 
 
@@ -104,13 +105,13 @@ Install requirements
 .. code:: ipython3
 
     %%capture
-
+    
     import platform
-
+    
     # Install openvino package
     %pip install -q "openvino>=2024.2.0" opencv-python tqdm
     %pip install -q --no-deps "openvino-xai>=1.0.0"
-
+    
     if platform.system() != "Windows":
         %pip install -q "matplotlib>=3.4"
     else:
@@ -124,26 +125,25 @@ Imports
 .. code:: ipython3
 
     import os
-    import random
     import zipfile
     from pathlib import Path
-
+    
     import cv2
     import matplotlib.pyplot as plt
     import numpy as np
     import requests
-
+    
     import openvino.runtime as ov
     import openvino_xai as xai
     from openvino_xai.explainer import ExplainMode
-
+    
     # Fetch `notebook_utils` module
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
-
+    
     open("notebook_utils.py", "w").write(r.text)
-
+    
     from notebook_utils import download_file, device_widget
 
 Download dataset
@@ -172,23 +172,23 @@ classify since they’re all dog breeds.
             "https://ultralytics.com/assets/imagewoof320.zip",
             directory=data_folder,
         )
-
+    
         # Define the path to the zip file and the destination directory
         zip_path = data_folder / "imagewoof320.zip"
         extract_dir = data_folder / "imagewoof320"
         with zipfile.ZipFile(zip_path, "r") as zip_ref:
             zip_ref.extractall(extract_dir)
-
+    
     else:
         print(f"Dataset is already downloaded to {base_artifacts_dir} and extracted.")
-
+    
     image_folder_path = data_folder / "imagewoof320" / "imagewoof320"
 
 
 .. parsed-literal::
 
     Dataset is already downloaded to artifacts and extracted.
-
+    
 
 .. code:: ipython3
 
@@ -196,10 +196,10 @@ classify since they’re all dog breeds.
     img_files = []
     img_files.extend(image_folder_path.rglob("*.JPEG"))
     print(f"Number of images to get explanations: {len(img_files)}")
-
+    
     # Get a fewer subset for fast execution
-    random.seed(42)
-    img_files = random.sample(img_files, 1)
+    np.random.seed(42)
+    img_files = np.random.choice(img_files, 1)
     print(f"Run explanations on fewer number of images: {len(img_files)}")
 
 
@@ -207,7 +207,7 @@ classify since they’re all dog breeds.
 
     Number of images to get explanations: 12954
     Run explanations on fewer number of images: 1
-
+    
 
 Download IR model
 ~~~~~~~~~~~~~~~~~
@@ -225,11 +225,11 @@ scaling and normalization with certain values.
     model_name = "mobilenetv3_large_100.ra_in1k"
     model_xml_name = f"{model_name}.xml"
     model_bin_name = f"{model_name}.bin"
-
+    
     model_xml_path = base_artifacts_dir / model_xml_name
-
+    
     base_url = "https://storage.openvinotoolkit.org/repositories/openvino_training_extensions/models/custom_image_classification/"
-
+    
     if not model_xml_path.exists():
         download_file(base_url + model_xml_name, model_xml_name, base_artifacts_dir)
         download_file(base_url + model_bin_name, model_bin_name, base_artifacts_dir)
@@ -240,7 +240,7 @@ scaling and normalization with certain values.
 .. parsed-literal::
 
     mobilenetv3_large_100.ra_in1k already downloaded to artifacts
-
+    
 
 Prepare model to run inference
 ------------------------------
@@ -257,7 +257,7 @@ select device from dropdown list for running inference using OpenVINO
 .. code:: ipython3
 
     device = device_widget()
-
+    
     device
 
 
@@ -277,7 +277,7 @@ Load the Model
 .. code:: ipython3
 
     core = ov.Core()
-
+    
     model = core.read_model(model=model_xml_path)
     compiled_model = core.compile_model(model=model, device_name=device.value)
 
@@ -300,20 +300,20 @@ scaling with certain values.
         Implementing own pre-process function based on model's implementation
         """
         x = cv2.resize(src=x, dsize=(224, 224))
-
+    
         #  Specific normalization for timm model
         mean = np.array([123.675, 116.28, 103.53])
         std = np.array([58.395, 57.12, 57.375])
         x = (x - std) / mean
-
+    
         # Reshape to model input shape to [channels, height, width].
         x = x.transpose((2, 0, 1))
-
+    
         # Add batch dimension
         x = np.expand_dims(x, 0)
         return x
-
-
+    
+    
     def postprocess_fn(x: np.ndarray) -> np.ndarray:
         """
         Process model prediction
@@ -321,8 +321,8 @@ scaling with certain values.
         prediction_processed = softmax(x)
         # Remove batch dimention
         return prediction_processed[0]
-
-
+    
+    
     def softmax(x):
         """Compute softmax values of x."""
         e_x = np.exp(x - np.max(x))
@@ -351,7 +351,7 @@ If it’s not defined, it is assumed that the input is preprocessed.
 
     # Create ov.Model
     model = core.read_model(model=model_xml_path)
-
+    
     # Create explainer object
     explainer = xai.Explainer(
         model=model,
@@ -366,7 +366,7 @@ If it’s not defined, it is assumed that the input is preprocessed.
     INFO:openvino_xai:Target insertion layer is not provided - trying to find it in auto mode.
     INFO:openvino_xai:Using ReciproCAM method (for CNNs).
     INFO:openvino_xai:Explaining the model in white-box mode.
-
+    
 
 Import ImageNet label names
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -388,7 +388,7 @@ label names information to the explanation call.
         "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/datasets/imagenet/imagenet_2012.txt",
         directory=".data",
     )
-
+    
     imagenet_classes = imagenet_filename.read_text().splitlines()
 
 .. code:: ipython3
@@ -399,7 +399,7 @@ label names information to the explanation call.
         class_label = " ".join(label.split(" ")[1:])
         first_class_label = class_label.split(",")[0].replace(" ", "_")
         imagenet_labels.append(first_class_label)
-
+    
     # Check, how dog breed labels will look in saved saliency map names
     dog_breeds_indices = [155, 159, 162, 167, 193, 207, 229, 258, 273]
     print(" ".join([imagenet_labels[ind] for ind in dog_breeds_indices]))
@@ -408,7 +408,7 @@ label names information to the explanation call.
 .. parsed-literal::
 
     Shih-Tzu Rhodesian_ridgeback beagle English_foxhound Australian_terrier golden_retriever Old_English_sheepdog Samoyed dingo
-
+    
 
 Explain using ImageNet labels
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -421,7 +421,7 @@ to the explainer.
 .. code:: ipython3
 
     output = base_artifacts_dir / "saliency_maps" / "multiple_images"
-
+    
     # Explain model and save results using ImageNet label names
     for image_path in img_files:
         image = cv2.imread(str(image_path))
@@ -449,7 +449,7 @@ you can see saved saliency maps:
 
     artifacts/saliency_maps/multiple_images/n02105641_2491_target_flat-coated_retriever.jpg
     artifacts/saliency_maps/multiple_images/n02105641_2491_target_Samoyed.jpg
-
+    
 
 Notable use cases in ImageWoof dataset
 --------------------------------------
@@ -525,10 +525,10 @@ The cell below contains paths to images with those respective use cases:
     def get_model_predictions(conf_thr: float = 0.1) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Run model inference and get predictions above a confidence threshold.
-
+    
         Args:
             conf_thr (float): Confidence threshold for filtering predictions. Defaults to 0.1.
-
+    
         Returns:
             tuple: A tuple containing:
                 - result_infer (np.ndarray): The raw inference results from the model.
@@ -539,10 +539,10 @@ The cell below contains paths to images with those respective use cases:
         result_infer = postprocess_fn(logits)
         result_idxs = np.argwhere(result_infer > conf_thr).flatten()
         result_scores = result_infer[result_idxs]
-
+    
         for index, score in zip(result_idxs, result_scores):
             print(f"Predicted class {imagenet_labels[index]}, index {index}, probability: {score:.2f}")
-
+    
         return result_infer, result_idxs, result_scores
 
 Explain for each use case
@@ -553,31 +553,31 @@ Explain for each use case
 .. code:: ipython3
 
     output = base_artifacts_dir / "saliency_maps" / "imagewoof320"
-
+    
     # Run explanation for chosen paths
     for use_case in use_cases_image_paths:
         os.makedirs(output / use_case, exist_ok=True)
         image_paths = use_cases_image_paths[use_case]["paths"]
         use_case_conf_thr = use_cases_image_paths[use_case]["confidence"]
-
+    
         for image_path in image_paths:
             image = cv2.imread(str(image_folder_path / image_path))
             image_name = Path(image_path).stem
-
+    
             folder_name = image_name.split("_")[0]
             gt_class, gt_class_idx = label_mapping[folder_name]
-
+    
             scores, result_idxs, result_scores = get_model_predictions(use_case_conf_thr)
             gt_conf = scores[gt_class_idx]
             gt_info = f"gt_{gt_class}_{gt_conf:.2f}"
-
+    
             explanation = explainer(
                 image,
                 targets=result_idxs,  # Return saliency maps for predicted classes
                 label_names=imagenet_labels,
                 overlay=True,
             )
-
+    
             # Save saliency maps, use detailed implementation instead of `explanation.save`
             # to return predicted scores for saliency maps as well
             for idx, score in zip(result_idxs, result_scores):
@@ -613,7 +613,7 @@ Explain for each use case
     Predicted class Labrador_retriever, index 208, probability: 0.57
     Predicted class Samoyed, index 258, probability: 0.43
     Predicted class crib, index 520, probability: 0.39
-
+    
 
 .. code:: ipython3
 
@@ -626,19 +626,19 @@ Explain for each use case
 
 .. parsed-literal::
 
-
+    
      True_positive_high_confidence
     n02111889_17737_gt_Samoyed_0.94_pr_Samoyed_0.94
     n02099601_6505_gt_golden retriever_0.88_pr_golden_retriever_0.88
     n02088364_2019_gt_beagle_0.97_pr_beagle_0.97
     n02105641_817_gt_Old English sheepdog_0.96_pr_Old_English_sheepdog_0.96
-
+    
      True_positive_low_confidence
     n02086240_1422_gt_Shih-Tzu_0.18_pr_Shih-Tzu_0.18
     n02086240_3709_gt_Shih-Tzu_0.20_pr_Shih-Tzu_0.20
     n02099601_7942_gt_golden retriever_0.18_pr_golden_retriever_0.18
     n02086240_1765_gt_Shih-Tzu_0.18_pr_Shih-Tzu_0.18
-
+    
      False_positive_high_confidence
     n02088364_12304_gt_beagle_0.01_pr_car_mirror_0.82
     n02111889_14926_gt_Samoyed_0.03_pr_Arctic_fox_0.95
@@ -648,13 +648,13 @@ Explain for each use case
     n02096294_2323_gt_Australian terrier_0.00_pr_quilt_0.80
     n02088364_2430_gt_beagle_0.00_pr_bannister_0.78
     n02087394_6357_gt_Rhodesian ridgeback_0.00_pr_dalmatian_0.98
-
+    
      True_positive_two_predictions
     n02111889_374_gt_Samoyed_0.43_pr_Samoyed_0.43
     n02099601_634_gt_golden retriever_0.30_pr_golden_retriever_0.30
     n02099601_634_gt_golden retriever_0.30_pr_Labrador_retriever_0.57
     n02111889_374_gt_Samoyed_0.43_pr_crib_0.39
-
+    
 
 See the list of use case names:
 
@@ -666,7 +666,7 @@ See the list of use case names:
 .. parsed-literal::
 
     Names of use cases: ['True_positive_high_confidence', 'True_positive_low_confidence', 'False_positive_high_confidence', 'True_positive_two_predictions']
-
+    
 
 Visualize use case saliency maps
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -681,30 +681,30 @@ of pictures, their names, and the confidence of predictions:
     # Function to show result saliency maps for each use case
     def show_use_case_image(use_case):
         use_case_output_dir = output / use_case
-
+    
         image_paths = sorted(os.listdir(use_case_output_dir))
         number_images = len(image_paths)
-
+    
         fig, axs = plt.subplots((number_images + 1) // 2, 2, figsize=(10, 10))
         fig.tight_layout()
         fig.suptitle(use_case)
         fig.subplots_adjust(top=0.92)
         axs = axs.flatten()
-
+    
         for image_path, ax in zip(image_paths, axs):
             image_sal_map = cv2.imread(f"{use_case_output_dir}/{image_path}")
-
+    
             image_name = Path(image_path).stem
             image_name = image_name.replace("_target", "")
             image_name = "_".join(image_name.split("_")[1:])
-
+    
             ax.imshow(image_sal_map)
             ax.set_title(f"{image_name}", wrap=True)
             ax.axis("off")
-
+    
         if number_images % 2 == 1:
             axs[-1].set_visible(False)
-
+    
         plt.show()
 
 Naming logic

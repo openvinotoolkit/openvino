@@ -78,6 +78,7 @@ jobs:
       INSTALL_DIR_JS: ${{ github.workspace }}/openvino_install/js
       INSTALL_TEST_DIR: ${{ github.workspace }}/tests_install
       BUILD_DIR: ${{ github.workspace }}/build
+    if: "!needs.smart_ci.outputs.skip_workflow"
     steps:
       - name: Clone OpenVINO
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
