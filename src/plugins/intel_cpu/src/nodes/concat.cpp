@@ -19,7 +19,7 @@
 #include "common/cpu_memcpy.h"
 #include "common/blocked_desc_creator.h"
 #include <memory_desc/cpu_memory_desc_utils.h>
-#include <partitioned_mem_mgr.h>
+#include <partitioned_mem_blk.h>
 using namespace dnnl;
 
 namespace ov {

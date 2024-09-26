@@ -5,7 +5,7 @@
 #include "node.h"
 #include "cpu_types.h"
 #include "edge.h"
-#include "partitioned_mem_mgr.h"
+#include "partitioned_mem_blk.h"
 
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
