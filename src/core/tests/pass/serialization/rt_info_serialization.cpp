@@ -304,13 +304,14 @@ TEST(OvSerializationTests, SerializeRawMeta) {
 #include <sstream>
 
 using namespace ov;
+using ov::op::v0::Abs;
 using ov::op::v0::Parameter;
 using ov::op::v0::Result;
 using ov::op::v1::Add;
 
 TEST(SerializeCustomRTI, basic_RENAMEME) {
     std::string ir = R"V0G0N(<?xml version="1.0"?>
-<net name="model_T" version="11">
+<net name="CustomRTI" version="11">
 	<layers>
 		<layer id="0" name="node_A" type="Parameter" version="opset1">
 			<data shape="10,10" element_type="f32" />
@@ -387,22 +388,93 @@ TEST(SerializeCustomRTI, basic_RENAMEME) {
 </net>
 )V0G0N";
 
+    const auto data = std::make_shared<Parameter>(element::Type_t::f32, Shape{10, 10});
+    const auto one = std::make_shared<op::v0::Constant>(element::f32, Shape{1}, std::vector<float>{1.f});
+    const auto add = std::make_shared<Add>(data, one);
+    const auto result = std::make_shared<Result>(add);
+
     const auto add_info = [](const std::shared_ptr<Node>& node, const std::string& value) {
         const_cast<std::string&>(node->get_name()) = "node_" + value;
         node->get_rt_info()["node_info_" + value] = "v_" + value;
         node->output(0).get_rt_info()["output_info_" + value] = "o_" + value;
     };
-
-    const auto data = std::make_shared<Parameter>(element::Type_t::f32, Shape{10, 10});
     add_info(data, "A");
-    const auto one = std::make_shared<op::v0::Constant>(element::f32, Shape{1}, std::vector<float>{1.f});
     add_info(one, "B");
-    const auto add = std::make_shared<Add>(data, one);
     add_info(add, "C");
-    const auto result = std::make_shared<Result>(add);
     add_info(result, "D");
+
     const auto model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
-    const_cast<std::string&>(model->get_name()) = "model_T";
+    const_cast<std::string&>(model->get_name()) = "CustomRTI";
+
+    std::stringstream model_ss, weights_ss;
+    EXPECT_NO_THROW((ov::pass::Serialize{model_ss, weights_ss}.run_on_model(model)));
+    EXPECT_EQ(ir.compare(model_ss.str()), 0);
+}
+
+TEST(SerializeCustomRTI, AnyMap_RENAMEME) {
+    std::string ir = R"V0G0N(<?xml version="1.0"?>
+<net name="CustomRTI" version="11">
+	<layers>
+		<layer id="0" name="data" type="Parameter" version="opset1">
+			<data shape="111" element_type="f64" />
+			<output>
+				<port id="0" precision="FP64">
+					<dim>111</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="abs" type="Abs" version="opset1">
+			<rt_info>
+				<custom name="AnyMap">
+					<custom name="a" value="b" />
+					<custom name="i" value="7" />
+					<custom name="nested">
+						<custom name="c" value="d" />
+					</custom>
+					<custom name="x" value="3.14" />
+				</custom>
+			</rt_info>
+			<input>
+				<port id="0" precision="FP64">
+					<dim>111</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1" precision="FP64">
+					<dim>111</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="result" type="Result" version="opset1">
+			<input>
+				<port id="0" precision="FP64">
+					<dim>111</dim>
+				</port>
+			</input>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="1" to-port="0" />
+		<edge from-layer="1" from-port="1" to-layer="2" to-port="0" />
+	</edges>
+	<rt_info />
+</net>
+)V0G0N";
+
+    const auto data = std::make_shared<Parameter>(element::Type_t::f64, Shape{111});
+    const auto abs = std::make_shared<Abs>(data);
+    const auto result = std::make_shared<Result>(abs);
+
+    const_cast<std::string&>(data->get_name()) = "data";
+    const_cast<std::string&>(abs->get_name()) = "abs";
+    const_cast<std::string&>(result->get_name()) = "result";
+
+    const auto empty = AnyMap{};
+    const auto nested = AnyMap{{"c", "d"}};
+    abs->get_rt_info()["AnyMap"] = AnyMap{{"a", "b"}, {"empty", empty}, {"i", 7}, {"x", 3.14}, {"nested", nested}};
+
+    const auto model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
+    const_cast<std::string&>(model->get_name()) = "CustomRTI";
 
     std::stringstream model_ss, weights_ss;
     EXPECT_NO_THROW((ov::pass::Serialize{model_ss, weights_ss}.run_on_model(model)));
