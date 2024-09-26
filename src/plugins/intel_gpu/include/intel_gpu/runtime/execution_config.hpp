@@ -150,7 +150,7 @@ public:
     void register_device_context_for_tp(const ov::Any context) { device_world_contexts.push_back(context);}
     ov::AnyVector get_context_for_tp() const { return device_world_contexts; }
     std::string to_string() const;
-    bool enableSubStreams;
+    bool enableSubStreams = false;
     ov::threading::IStreamsExecutor::Config subStreamExecConfig;
     std::vector<std::vector<int>> streamsRankTable;
 
