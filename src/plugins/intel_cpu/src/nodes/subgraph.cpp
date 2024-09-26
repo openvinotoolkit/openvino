@@ -508,7 +508,7 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
 }
 
 void Subgraph::selectOptimalPrimitiveDescriptor() {
-    selectPreferPrimitiveDescriptor(getImplPriority(), true);
+    selectPreferPrimitiveDescriptorWithShape(getImplPriority(), true);
 }
 
 ov::element::Type Subgraph::getRuntimePrecision() const {
