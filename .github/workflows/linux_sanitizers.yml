@@ -106,7 +106,7 @@ jobs:
       CCACHE_REMOTE_DIR: /mount/caches/ccache/sanitizers/${{ matrix.SANITIZER }}/${{ github.base_ref || github.ref_name }}
       CCACHE_DIR: /__w/openvino/openvino/ccache
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
-      CCACHE_MAXSIZE: 30G
+      CCACHE_MAXSIZE: 20G
       CCACHE_LOGFILE: /__w/openvino/openvino/openvino_build/ccache.log
       CCACHE_DEBUG: 1
 
@@ -169,12 +169,12 @@ jobs:
             -DCMAKE_VERBOSE_MAKEFILE=ON \
             -DCPACK_GENERATOR=TGZ \
             -DBUILD_SHARED_LIBS=ON \
-            -DENABLE_OV_TF_FRONTEND=OFF \
-            -DENABLE_OV_TF_LITE_FRONTEND=OFF \
-            -DENABLE_OV_PADDLE_FRONTEND=OFF \
-            -DENABLE_OV_PYTORCH_FRONTEND=OFF \
-            -DENABLE_OV_JAX_FRONTEND=OFF \
-            -DENABLE_OV_ONNX_FRONTEND=OFF \
+            -DENABLE_OV_TF_FRONTEND=ON \
+            -DENABLE_OV_TF_LITE_FRONTEND=ON \
+            -DENABLE_OV_PADDLE_FRONTEND=ON \
+            -DENABLE_OV_PYTORCH_FRONTEND=ON \
+            -DENABLE_OV_JAX_FRONTEND=ON \
+            -DENABLE_OV_ONNX_FRONTEND=ON \
             -DENABLE_ONEDNN_FOR_GPU=OFF \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
             ${{ matrix.SANITIZER_CMAKE_OPTION }} \
