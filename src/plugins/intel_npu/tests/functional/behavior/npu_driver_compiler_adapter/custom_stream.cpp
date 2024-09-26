@@ -5,6 +5,7 @@
 #include <random>
 
 #include "base/ov_behavior_test_utils.hpp"
+#include "common/functions.h"
 #include "common/npu_test_env_cfg.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "graph_transformations.hpp"
@@ -22,22 +23,6 @@ namespace ov::test::behavior {
 class DriverCompilerAdapterCustomStreamTestNPU : public ov::test::behavior::OVPluginTestBase,
                                                  public testing::WithParamInterface<CompilationParams> {
 public:
-    std::shared_ptr<ov::Model> createModelWithLargeSize() {
-        auto data = std::make_shared<ov::opset11::Parameter>(ov::element::f16, ov::Shape{4000, 4000});
-        auto mul_constant = ov::opset11::Constant::create(ov::element::f16, ov::Shape{1}, {1.5});
-        auto mul = std::make_shared<ov::opset11::Multiply>(data, mul_constant);
-        auto add_constant = ov::opset11::Constant::create(ov::element::f16, ov::Shape{1}, {0.5});
-        auto add = std::make_shared<ov::opset11::Add>(mul, add_constant);
-        // Just a sample model here, large iteration to make the model large
-        for (int i = 0; i < 1000; i++) {
-            add = std::make_shared<ov::opset11::Add>(add, add_constant);
-        }
-        auto res = std::make_shared<ov::opset11::Result>(add);
-
-        /// Create the OpenVINO model
-        return std::make_shared<ov::Model>(ov::ResultVector{std::move(res)}, ov::ParameterVector{std::move(data)});
-    }
-
     std::string generateRandomFileName() {
         std::stringstream ss;
         auto now = std::chrono::high_resolution_clock::now();

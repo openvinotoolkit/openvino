@@ -10,6 +10,7 @@
 #include <string>
 
 #include "pyopenvino/core/common.hpp"
+#include "pyopenvino/core/remote_tensor.hpp"
 #include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
@@ -469,6 +470,23 @@ void regclass_InferRequest(py::module m) {
             :return: An output Tensor for the model.
                      If model has several outputs, an exception is thrown.
             :rtype: openvino.runtime.Tensor
+        )");
+
+    cls.def(
+        "set_tensor",
+        [](InferRequestWrapper& self, const std::string& name, const RemoteTensorWrapper& tensor) {
+            self.m_request->set_tensor(name, tensor.tensor);
+        },
+        py::arg("name"),
+        py::arg("tensor"),
+        R"(
+            Sets input/output tensor of InferRequest.
+
+            :param name: Name of input/output tensor.
+            :type name: str
+            :param tensor: RemoteTensor object. The element_type and shape of a tensor
+                           must match the model's input/output element_type and shape.
+            :type tensor: openvino.runtime.RemoteTensor
         )");
 
     cls.def(

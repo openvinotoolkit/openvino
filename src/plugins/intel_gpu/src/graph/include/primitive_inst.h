@@ -110,6 +110,11 @@ struct primitive_impl {
         OPENVINO_ASSERT(false, "[GPU] update() is not implemented for dynamic implemenation ", _kernel_name);
     }
 
+    virtual bool requires_update(primitive_inst& inst, const kernel_impl_params& impl_params) const {
+        OPENVINO_ASSERT(_is_dynamic, "[GPU] requires_update() is called for static shape implementation ", _kernel_name);
+        return false;
+    }
+
     static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params);
 
     virtual kernel_impl_params canonicalize_shapes(const kernel_impl_params& impl_params) const {
@@ -158,6 +163,8 @@ public:
     }
     memory& output_memory(size_t index = 0) const { return *_outputs[index]; }
     memory::ptr output_memory_ptr(size_t index = 0) const { return _outputs[index]; }
+    std::vector<memory::ptr>& get_output_memorys() { return _outputs; }
+
     size_t inputs_memory_count() const { return _inputs_memory_count; }
     size_t outputs_memory_count() const { return _outputs_memory_count; }
     bool outputs_allocated() const {
@@ -306,6 +313,7 @@ public:
 
     virtual int32_t get_prealloc_iter_num() { return -1; }
     virtual void update_shape_info_tensor(const kernel_impl_params& params);
+    int64_t sync_wait_times;
 
 protected:
     primitive_inst(network& network, program_node const& node, bool allocate_memory);
@@ -378,7 +386,6 @@ protected:
     bool _can_share_buffer = true;
     bool _is_constant = false;
     bool _needs_completion_event = false;
-
     std::vector<size_t> _max_output_layout_count;
     std::vector<size_t> max_intermediates_memory_sizes;
 
@@ -386,6 +393,7 @@ protected:
                                               bool reset_mem = true,
                                               bool runtime_alloc = false);
     memory::ptr allocate_internal_buffer(size_t idx, bool reset = true);
+    void allocate_shape_info_memory();
     static std::vector<primitive_inst*> build_exec_deps(
         std::vector<std::pair<primitive_inst*, int32_t>> const& mem_deps);
     int32_t get_index_in_deps(memory::cptr arg) const;

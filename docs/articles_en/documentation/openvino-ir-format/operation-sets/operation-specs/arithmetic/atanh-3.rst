@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_arithmetic_Atanh_3}
-
 Atanh
 =====
 
 
 .. meta::
-  :description: Learn about Atanh-3 - an element-wise, arithmetic operation, which 
+  :description: Learn about Atanh-3 - an element-wise, arithmetic operation, which
                 can be performed on a single tensor in OpenVINO.
 
 **Versioned name**: *Atanh-3*
@@ -53,7 +51,7 @@ Unsigned Integral type put:
 
 .. code-block:: xml
    :force:
-   
+
    <layer ... type="Atanh">
        <input>
            <port id="0">

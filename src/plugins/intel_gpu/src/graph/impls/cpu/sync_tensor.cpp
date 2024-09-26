@@ -44,12 +44,14 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
     event::ptr execute_impl(const std::vector<event::ptr>& events, sync_tensor_inst& instance) override {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "sync_tensor::execute_impl");
         auto& stream = instance.get_network().get_stream();
+        auto start = std::chrono::high_resolution_clock::now();
         const bool pass_through_events = (stream.get_queue_type() == QueueTypes::out_of_order) && instance.get_node().is_in_shape_of_subgraph();
         if (!pass_through_events) {
             for (auto e : events) {
                 e->wait();
             }
         }
+        instance.sync_wait_times = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count();
         auto sub_mem_mgr = instance.get_network().get_sub_mem_mgr();
         auto w_rank = instance.get_network().get_program()->get_config().subStreamExecConfig.get_rank()[0];
         auto w_size = instance.get_network().get_program()->get_config().get_context_for_tp().size();
@@ -97,14 +99,15 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
                 input_mem_ptrs.push_back(instance.output_memory_ptr(i));
             auto output_mem_ptr = instance.output_memory_ptr();
             cldnn::mem_lock<uint8_t, mem_lock_type::write> output_lock(output_mem_ptr, stream);
-            for (size_t i = 0; i < input_mem_ptrs.size(); i++)
-                input_host_tensors.push_back(
-                    make_tensor(instance.get_output_layout(), input_mem_ptrs[i]->lock(stream, mem_lock_type::read)));
             output_host_tensors.push_back(make_tensor(instance.get_output_layout(), output_lock.data()));
-            OPENVINO_ASSERT(op->evaluate(output_host_tensors, input_host_tensors),
+            for (size_t i = 0; i < input_mem_ptrs.size(); i++) {
+                input_host_tensors.clear();
+                input_host_tensors.push_back(make_tensor(instance.get_output_layout(), input_mem_ptrs[0]->lock(stream, mem_lock_type::read)));
+                input_host_tensors.push_back(make_tensor(instance.get_output_layout(), input_mem_ptrs[i]->lock(stream, mem_lock_type::read)));
+                OPENVINO_ASSERT(op->evaluate(output_host_tensors, input_host_tensors),
                             "[GPU] Couldn't execute eltwise primitive with id ",
                             instance.id());
-
+            }
             for (size_t i = 0; i < input_mem_ptrs.size(); i++)
                 input_mem_ptrs[i]->unlock(stream);
         }
@@ -144,4 +147,4 @@ attach_sync_tensor_impl::attach_sync_tensor_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::cpu::sync_tensor_impl)
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::sync_tensor)
+// BIND_BINARY_BUFFER_WITH_TYPE(cldnn::sync_tensor)

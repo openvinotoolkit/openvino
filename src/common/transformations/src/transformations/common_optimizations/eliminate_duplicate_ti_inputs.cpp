@@ -18,7 +18,7 @@ ov::pass::EliminateDuplicateTIInputs::EliminateDuplicateTIInputs() {
     MATCHER_SCOPE(EliminateDuplicateTIInputs);
     auto ti = pattern::wrap_type<ov::op::v0::TensorIterator>();
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto ti = std::dynamic_pointer_cast<ov::op::v0::TensorIterator>(m.get_match_root());
+        auto ti = ov::as_type_ptr<ov::op::v0::TensorIterator>(m.get_match_root());
         if (ti == nullptr) {
             return false;
         }

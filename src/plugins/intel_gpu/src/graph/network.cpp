@@ -375,18 +375,17 @@ static std::string get_file_path_for_binary_dump(cldnn::layout layout, std::stri
 Network will always have net_id = 0 when it will be cldnn internal micronetwork (created i.e by propagate_constants
 opt pass).
 */
-network::network(program::ptr program, const ExecutionConfig& config, stream::ptr stream, bool is_internal, bool is_primary_stream,
-    ov::intel_gpu::SubMemoryManager::cptr sub_memory_manager)
+network::network(program::ptr program, stream::ptr stream, bool is_internal, bool is_primary_stream, ov::intel_gpu::SubMemoryManager::cptr sub_memory_manager)
     : _program(program)
-    , _config(config)
+    , _config(program->get_config())
     , _engine(program->get_engine())
     , _stream(stream)
     , _memory_pool(new memory_pool(program->get_engine()))
     , _internal(is_internal)
     , _is_primary_stream(is_primary_stream)
-    , _enable_profiling(config.get_property(ov::enable_profiling))
+    , _enable_profiling(program->get_config().get_property(ov::enable_profiling))
     , _reset_arguments(true)
-    , _shape_predictor(new ShapePredictor(&program->get_engine(), config.get_property(ov::intel_gpu::buffers_preallocation_ratio)))
+    , _shape_predictor(new ShapePredictor(&program->get_engine(), program->get_config().get_property(ov::intel_gpu::buffers_preallocation_ratio)))
     , _sub_memory_manager(sub_memory_manager) {
     if (!_internal) {
         net_id = get_unique_net_id();
@@ -415,7 +414,16 @@ network::network(program::ptr program, const ExecutionConfig& config, stream::pt
     build_exec_order();
     validate_primitives();
     add_default_output_chains();
+
+    if (_sub_memory_manager) {
+        auto id = get_program()->get_config().subStreamExecConfig.get_rank()[0];
+        _sub_memory_manager->_memorys_table[0][id].stream_ptr = _stream;
+        _sub_memory_manager->_memorys_table[1][id].stream_ptr = _stream;
+    }
 }
+
+network::network(program::ptr program, bool is_internal, bool is_primary_stream, ov::intel_gpu::SubMemoryManager::cptr sub_memory_manager)
+    :  network(program, program->get_engine().create_stream(program->get_config()), is_internal, is_primary_stream, sub_memory_manager) {}
 
 network::network(engine& engine,
                  const topology& topo,
@@ -423,8 +431,7 @@ network::network(engine& engine,
                  bool is_internal,
                  std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
                  ov::intel_gpu::SubMemoryManager::cptr sub_memory_manager)
-    : network(program::build_program(engine, topo, config, task_executor, is_internal), config, engine.create_stream(config), is_internal, true,
-            sub_memory_manager) {}
+    : network(program::build_program(engine, topo, config, task_executor, is_internal), is_internal, true, sub_memory_manager) {}
 
 network::network(engine& engine,
                  const std::set<std::shared_ptr<program_node>>& nodes,
@@ -432,60 +439,33 @@ network::network(engine& engine,
                  std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
                  bool is_internal,
                  ov::intel_gpu::SubMemoryManager::cptr sub_memory_manager)
-    : network(program::build_program(engine, nodes, config, task_executor, is_internal), config, engine.create_stream(config), is_internal, true,
-            sub_memory_manager) {}
+    : network(program::build_program(engine, nodes, config, task_executor, is_internal), is_internal, true, sub_memory_manager) {}
 
 network::network(program::ptr program, uint16_t stream_id, ov::intel_gpu::SubMemoryManager::cptr sub_memory_manager)
-    : network(program, program->get_config(), program->get_engine().create_stream(program->get_config()), false, stream_id == 0, sub_memory_manager) {}
+    : network(program, program->get_engine().create_stream(program->get_config()), false, stream_id == 0, sub_memory_manager) {}
 
 network::network(program::ptr program, stream::ptr stream, uint16_t stream_id, ov::intel_gpu::SubMemoryManager::cptr sub_memory_manager)
-    : network(program, program->get_config(), stream, false, stream_id == 0, sub_memory_manager) {}
+    : network(program, stream, false, stream_id == 0, sub_memory_manager) {}
 
 network::~network() {
     GPU_DEBUG_IF(debug_configuration::get_instance()->host_time_profiling) {
-        if (tp_host_times["sync_tensor_all_reduce"].size() >= 2) {
-            double first = static_cast<double>(tp_host_times["sync_tensor_all_reduce"][0]);
-            double avg = static_cast<double>(
-                std::accumulate(
-                    tp_host_times["sync_tensor_all_reduce"].begin() + 1, tp_host_times["sync_tensor_all_reduce"].end(), (size_t)0, std::plus<size_t>()));
-            avg /= (tp_host_times["sync_tensor_all_reduce"].size() - 1);
-            std::string resolution = " us";
-            if (avg > 1000.0) {
-                resolution = " ms";
-                avg /= 1000.0;
-                first /= 1000.0;
+        for (auto& iter : tp_host_times) {
+            if (tp_host_times[iter.first].size() >= 2) {
+                double first = static_cast<double>(tp_host_times[iter.first][0]);
+                double avg = static_cast<double>(
+                    std::accumulate(
+                        tp_host_times[iter.first].begin() + 1, tp_host_times[iter.first].end(),
+                        (size_t)0, std::plus<size_t>()));
+                avg /= (tp_host_times[iter.first].size() - 1);
+                std::string resolution = " us";
+                if (avg > 1000.0) {
+                    resolution = " ms";
+                    avg /= 1000.0;
+                    first /= 1000.0;
+                }
+                GPU_DEBUG_COUT << "Network[" << net_id << "] First infer total " << iter.first << "  time: " << first << resolution << std::endl;
+                GPU_DEBUG_COUT << "Network[" << net_id << "] total " << iter.first << " avg host time: " << avg << resolution << std::endl;
             }
-            GPU_DEBUG_COUT << "Network[" << net_id << "] First infer total sync tensor all reduce host time: " << first << resolution << std::endl;
-            GPU_DEBUG_COUT << "Network[" << net_id << "] total sync tensor all reduce avg host time: " << avg << resolution << std::endl;
-        }
-        if (tp_host_times["sync_tensor_all_gather"].size() >= 2) {
-            double first = static_cast<double>(tp_host_times["sync_tensor_all_gather"][0]);
-            double avg = static_cast<double>(
-                std::accumulate(
-                    tp_host_times["sync_tensor_all_gather"].begin() + 1, tp_host_times["sync_tensor_all_gather"].end(), (size_t)0, std::plus<size_t>()));
-            avg /= (tp_host_times["sync_tensor_all_gather"].size() - 1);
-            std::string resolution = " us";
-            if (avg > 1000.0) {
-                resolution = " ms";
-                avg /= 1000.0;
-                first /= 1000.0;
-            }
-            GPU_DEBUG_COUT << "Network[" << net_id << "] First infer total sync tensor all gather host time: " << first << resolution << std::endl;
-            GPU_DEBUG_COUT << "Network[" << net_id << "] total sync tensor all gather avg host time: " << avg << resolution << std::endl;
-        }
-        if (tp_host_times["concat"].size() >= 2) {
-            double first = static_cast<double>(tp_host_times["concat"][0]);
-            double avg = static_cast<double>(
-                std::accumulate(tp_host_times["concat"].begin() + 1, tp_host_times["concat"].end(), (size_t)0, std::plus<size_t>()));
-            avg /= (tp_host_times["concat"].size() - 1);
-            std::string resolution = " us";
-            if (avg > 1000.0) {
-                resolution = " ms";
-                avg /= 1000.0;
-                first /= 1000.0;
-            }
-            GPU_DEBUG_COUT << "Network[" << net_id << "] First infer total concat host time: " << first << resolution << std::endl;
-            GPU_DEBUG_COUT << "Network[" << net_id << "] total concat avg host time: " << avg << resolution << std::endl;
         }
     }
     #ifdef GPU_DEBUG_CONFIG
@@ -502,12 +482,12 @@ network::~network() {
 }
 
 network::ptr network::allocate_network(stream::ptr stream, program::ptr program, bool is_internal, bool is_primary_stream) {
-    return std::make_shared<network>(program, program->get_config(), stream, is_internal, is_primary_stream);
+    return std::make_shared<network>(program, stream, is_internal, is_primary_stream);
 }
 
 network::ptr network::allocate_network(engine& engine, program::ptr program, bool is_internal, bool is_primary_stream) {
     auto stream = engine.create_stream(program->get_config());
-    return std::make_shared<network>(program, program->get_config(), stream, is_internal, is_primary_stream);
+    return std::make_shared<network>(program, stream, is_internal, is_primary_stream);
 }
 
 network::ptr network::build_network(engine& engine,
@@ -1010,6 +990,10 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         if (iters.empty() || iters.find(curr_iter) != iters.end()) {
             GPU_DEBUG_COUT << "============================================================================" << std::endl;
             GPU_DEBUG_COUT << "Start network execution (net_id : " << get_id() << ", iter :" << curr_iter << ")" << std::endl;
+            if (curr_iter == 0 && get_id() > 0) {
+                dump_memory_pool(debug_config->dump_memory_pool_path, curr_iter);
+                GPU_DEBUG_COUT << "============================================================================" << std::endl;
+            }
         }
     } else {
         GPU_DEBUG_TRACE << "============================================================================" << std::endl;
@@ -1085,14 +1069,8 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     const size_t flush_frequency = needs_flushing ? 16 : 0;
     size_t executed_prims = 0;
     std::map<std::string, std::vector<int64_t>> tp_host_times_each_iter;
-    tp_host_times_each_iter["sync_tensor_all_reduce"];
-    tp_host_times_each_iter["sync_tensor_all_gather"];
-    tp_host_times_each_iter["concat"];
     for (auto& inst : _exec_order) {
         auto start = std::chrono::high_resolution_clock::now();
-        if (inst->get_node().is_type<sync_tensor>() || inst->get_node().is_type<concatenation>()) {
-            start = std::chrono::high_resolution_clock::now();
-        }
         // Load binary dump for input layers
         GPU_DEBUG_IF(!debug_config->load_layers_raw_dump.empty()) {
             const std::string layer_name = inst->id();
@@ -1258,36 +1236,30 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
                 }
             }
         }
-        if (inst->get_node().is_type<sync_tensor>() || inst->get_node().is_type<concatenation>()) {
-            auto end = std::chrono::high_resolution_clock::now();
+        if (net_id == 1) {
             GPU_DEBUG_IF(debug_configuration::get_instance()->host_time_profiling) {
+                auto end = std::chrono::high_resolution_clock::now();
                 if (inst->get_node().is_type<sync_tensor>()) {
-                    if (inst->get_impl_params()->need_add)
+                    if (inst->get_impl_params()->need_add) {
                         tp_host_times_each_iter["sync_tensor_all_reduce"].push_back(std::chrono::duration_cast<std::chrono::microseconds>(end - start).count());
-                    else
+                        tp_host_times_each_iter["sync_tensor_all_reduce_wait"].push_back(inst->sync_wait_times);
+                    } else {
                         tp_host_times_each_iter["sync_tensor_all_gather"].push_back(std::chrono::duration_cast<std::chrono::microseconds>(end - start).count());
+                        tp_host_times_each_iter["sync_tensor_all_gather_wait"].push_back(inst->sync_wait_times);
+                    }
                 } else {
-                    tp_host_times_each_iter["concat"].push_back(std::chrono::duration_cast<std::chrono::microseconds>(end - start).count());
+                    tp_host_times_each_iter[inst->get_node().get_primitive()->get_type_info()].push_back(
+                        std::chrono::duration_cast<std::chrono::microseconds>(end - start).count());
                 }
             }
         }
     }
     // statistic for each iter
     GPU_DEBUG_IF(debug_configuration::get_instance()->host_time_profiling) {
-        if (tp_host_times_each_iter["sync_tensor_all_reduce"].size() >= 1) {
-            const auto begin = std::begin(tp_host_times_each_iter["sync_tensor_all_reduce"]);
-            const auto end = std::end(tp_host_times_each_iter["sync_tensor_all_reduce"]);
-            tp_host_times["sync_tensor_all_reduce"].push_back(std::accumulate(begin, end, (size_t)0, std::plus<size_t>()));
-        }
-        if (tp_host_times_each_iter["sync_tensor_all_gather"].size() >= 1) {
-            const auto begin = std::begin(tp_host_times_each_iter["sync_tensor_all_gather"]);
-            const auto end = std::end(tp_host_times_each_iter["sync_tensor_all_gather"]);
-            tp_host_times["sync_tensor_all_gather"].push_back(std::accumulate(begin, end, (size_t)0, std::plus<size_t>()));
-        }
-        if (tp_host_times_each_iter["concat"].size() >= 1) {
-            const auto begin = std::begin(tp_host_times_each_iter["concat"]);
-            const auto end = std::end(tp_host_times_each_iter["concat"]);
-            tp_host_times["concat"].push_back(std::accumulate(begin, end, (size_t)0, std::plus<size_t>()));
+        for (auto& iter : tp_host_times_each_iter) {
+            const auto begin = std::begin(tp_host_times_each_iter[iter.first]);
+            const auto end = std::end(tp_host_times_each_iter[iter.first]);
+            tp_host_times[iter.first].push_back(std::accumulate(begin, end, (size_t)0, std::plus<size_t>()));
         }
     }
     #ifdef GPU_DEBUG_CONFIG
@@ -1411,7 +1383,7 @@ void network::dump_memory_pool(std::string dump_path, int64_t curr_iter) {
     auto get_variables_mem_size = [&](allocation_type type) -> size_t {
         size_t mem_size = 0;
         for (auto& var : get_variables()) {
-            if (var.second->get_memory()->get_allocation_type() == type)
+            if (var.second->get_memory() && var.second->get_memory()->get_allocation_type() == type)
                 mem_size += var.second->get_actual_mem_size();
         }
         return mem_size;
@@ -1559,7 +1531,8 @@ void network::execute_primitive(const std::shared_ptr<primitive_inst>& primitive
     // 1) OOO queue execution
     // 2) Profiling mode is enabled
     // 3) Primitive has CPU user or primitive is output
-    if (get_stream().get_queue_type() == QueueTypes::out_of_order || _enable_profiling || primitive->needs_completion_event()) {
+    if (get_stream().get_queue_type() == QueueTypes::out_of_order || _enable_profiling ||
+        primitive->needs_completion_event() || primitive->get_node().is_type<sync_tensor>()) {
         auto id = primitive->id();
         _events.insert({id, ev});
     }

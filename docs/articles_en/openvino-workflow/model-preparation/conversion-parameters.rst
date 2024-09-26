@@ -1,5 +1,3 @@
-.. {#openvino_docs_OV_Converter_UG_Conversion_Options}
-
 Conversion Parameters
 =====================
 
@@ -49,9 +47,9 @@ which are described below.
 
 - ``example_input`` parameter available in Python ``openvino.convert_model`` only is
   intended to trace the model to obtain its graph representation. This parameter is crucial
-  for converting PyTorch models and may sometimes be required for TensorFlow models.
-  For more details, refer to the :doc:`PyTorch Model Conversion <convert-model-pytorch>`
-  or :doc:`TensorFlow Model Conversion <convert-model-tensorflow>`.
+  for converting PyTorch and Flax models and may sometimes be required for TensorFlow models.
+  For more details, refer to the :doc:`PyTorch Model Conversion <convert-model-pytorch>`,
+  :doc:`TensorFlow Model Conversion <convert-model-tensorflow>`, or :doc:`JAX/Flax Model Conversion <convert-model-jax>`.
 
 - ``input`` parameter to set or override shapes for model inputs. It configures dynamic
   and static dimensions in model inputs depending on your inference requirements. For more

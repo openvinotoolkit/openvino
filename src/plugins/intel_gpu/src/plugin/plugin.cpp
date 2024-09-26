@@ -196,6 +196,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         iter_devices_for_tp ? "" : config.get_property(ov::device::priorities.name()).as<std::string>();
     auto parse_devices_id = [&](const std::string devices_for_tp,
                                 const std::string delimiter = ",") -> std::vector<std::string> {
+        std::cout << "devices_for_tp: " << devices_for_tp << std::endl;
         bool is_set_device_id = orig_config.find(ov::device::id.name()) != orig_config.end();
         std::vector<std::string> ret;
         if (is_set_device_id)
@@ -239,7 +240,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         }
         std::string target_device = is_set_device_id ? std::string("GPU.") + device_id : "GPU";
         if (is_set_device_id) {
-            if (ret.size() < 2) {
+            if (ret.size() < 4) {
                 OPENVINO_THROW("Invalid number of parsed device found for TP from specified device candidate list: ",
                                devices_for_tp,
                                " when compiling model to target device: ",
@@ -263,12 +264,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                         }
                     }
                 }
-            }
-            if (ret.size() > 2) {
-                GPU_DEBUG_LOG << "Will only select 2 devices for TP." << std::endl;
-                std::cout << "[WY-DEBUG][" << __FILE__ << ":" << __LINE__
-                          << "] will keep the first 2 device from list.";
-                ret = std::vector<std::string>(ret.begin(), ret.begin() + 2);
             }
         }
         return ret;

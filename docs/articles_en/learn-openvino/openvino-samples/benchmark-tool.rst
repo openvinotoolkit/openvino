@@ -1,5 +1,3 @@
-.. {#openvino_sample_benchmark_tool}
-
 Benchmark Tool
 ====================
 

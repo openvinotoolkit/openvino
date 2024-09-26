@@ -60,6 +60,20 @@ dnnl::memory::dims convert_gemm_tensor(cldnn::tensor t, size_t dims, bool batche
     return res;
 }
 
+dnnl::memory::dims convert_gemm_dims(const std::vector<int32_t> &sizes, size_t dims, bool batched_dims_can_be_removed) {
+    dnnl::memory::dims res(sizes.begin(), sizes.end());
+    if (dims > 4) {
+        for (size_t i = 0; i < dims - 4; i++) {
+            res[i + 1] *= res[i];
+        }
+        res.erase(res.begin(), res.begin() + dims - 4);
+    }
+    if (res.size() == 4 && batched_dims_can_be_removed) {
+        res.erase(res.begin(), res.begin() + 2);
+    }
+    return res;
+}
+
 dnnl::memory::format_tag convert_gemm_data_format(dnnl::memory::dims dims, format target) {
     if (dims.size() == target.dimension()) {
         auto tag = convert_data_format(target);
@@ -215,11 +229,11 @@ void combine_bf_with_first_spatial_dim(cldnn::layout& l) {
 
 int64_t get_offset(cldnn::layout&& l, dnnl::memory::desc&& desc) {
     int64_t offset = 0;
-    auto b_padding = l.data_padding.lower_size().batch[0];
-    auto f_padding = l.data_padding.lower_size().feature[0];
+    auto b_padding = l.data_padding._lower_size[0];
+    auto f_padding = l.data_padding._lower_size[1];
     if (b_padding != 0) {
         auto input_pitches = l.get_pitches();
-        offset = b_padding * input_pitches.batch[0];
+        offset = b_padding * input_pitches[0];
     } else if (f_padding != 0) {
         offset = f_padding;
         for (size_t i = 0; i < l.get_spatial_rank(); ++i) {
@@ -533,6 +547,15 @@ cldnn::format_traits convert_memory_desc_to_traits(const dnnl::memory::desc& des
     }
     std::string outer_order = get_external_order(order, is_weights, is_grouped);
 
+    std::vector<std::pair<size_t, int>> logic_block_sizes(inner_nblks);
+    for (int i = 0; i < inner_nblks; i++) {
+        auto c = internal_order[block_sizes[i].first];
+        auto pos = outer_order.find(c);
+        OPENVINO_ASSERT(pos != std::string::npos, "[GPU] Unknown coord type: ", c);
+
+        logic_block_sizes[i] = std::make_pair(order[pos], inner_blks[i]);
+    }
+
     format_traits traits;
     traits.batch_num = batch_num;
     traits.feature_num = feature_num;
@@ -542,6 +565,7 @@ cldnn::format_traits convert_memory_desc_to_traits(const dnnl::memory::desc& des
     traits.order = outer_order;
     traits.internal_order = internal_order;
     traits.block_sizes = block_sizes;
+    traits.logic_block_sizes = logic_block_sizes;
     traits.str = "custom";
 
     return traits;
