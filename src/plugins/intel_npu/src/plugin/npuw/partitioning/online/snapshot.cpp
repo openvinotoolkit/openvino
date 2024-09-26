@@ -404,14 +404,21 @@ void Snapshot::earlyRegroup() {
             if (isolate.pattern == "RMSNorm") {
                 rewr.add_matcher<ov::npuw::patterns::compute::RMSNorm>(shared_from_this(), isolate.tag);
                 handle_patterns = true;
-            } else if (isolate.pattern == "DQMatMulCW") {
-                rewr.add_matcher<ov::npuw::patterns::compute::DQMatMulCW>(shared_from_this(), isolate.tag);
+            } else if (isolate.pattern == "DQMatMulCWu4") {
+                rewr.add_matcher<ov::npuw::patterns::compute::DQMatMulCWu4>(shared_from_this(), isolate.tag);
                 handle_patterns = true;
-            } else if (isolate.pattern == "DQMatMulGQ") {
-                rewr.add_matcher<ov::npuw::patterns::compute::DQMatMulGQ>(shared_from_this(), isolate.tag);
+            } else if (isolate.pattern == "DQMatMulGQu4") {
+                rewr.add_matcher<ov::npuw::patterns::compute::DQMatMulGQu4>(shared_from_this(), isolate.tag);
+                handle_patterns = true;
+            } else if (isolate.pattern == "DQMatMulCWi4") {
+                rewr.add_matcher<ov::npuw::patterns::compute::DQMatMulCWi4>(shared_from_this(), isolate.tag);
+                handle_patterns = true;
+            } else if (isolate.pattern == "DQMatMulGQi4") {
+                rewr.add_matcher<ov::npuw::patterns::compute::DQMatMulGQi4>(shared_from_this(), isolate.tag);
                 handle_patterns = true;
             } else {
-                LOG_WARN("OPENVINO_NPUW_ISOLATE only supports RMSNorm, DQMatMulCW, DQMatMulGQ "
+                LOG_WARN("OPENVINO_NPUW_ISOLATE only supports RMSNorm, DQMatMulCWu4, DQMatMulGQu4, DQMatMulCWi4, "
+                         "DQMatMulGQi4 "
                          << "as patterns. Isolate pattern " << isolate.pattern << " is skipped!");
             }
         }
