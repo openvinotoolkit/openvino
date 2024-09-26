@@ -335,10 +335,8 @@ bool Node::isReorderRequired(ov::intel_cpu::MemoryDescPtr desc1, ov::intel_cpu::
 
 void Node::selectPreferPrimitiveDescriptorWithShape(const std::vector<impl_desc_type>& priority, bool ignoreConstInputs) {
     // Filter out dynamic shape.
-    for (size_t i = 0; i < this->getOriginalInputsNumber(); i++) {
-        if (this->getInputShapeAtPort(i).isDynamic()) {
-            return selectPreferPrimitiveDescriptor(priority, ignoreConstInputs);
-        }
+    if (isDynamic) {
+        return selectPreferPrimitiveDescriptor(priority, ignoreConstInputs);
     }
 
     auto estimateReorderOverhead = [&](const ov::intel_cpu::NodeDesc& supportedPrimitiveDesc, size_t i) {
