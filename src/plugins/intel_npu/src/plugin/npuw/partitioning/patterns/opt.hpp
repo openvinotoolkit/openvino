@@ -66,6 +66,11 @@ public:
     explicit DQMatMulGQiP(Context::Ref ctx);
 };
 
+class DQMatMulGQ2iP : public ov::pass::MatcherPass {
+public:
+    explicit DQMatMulGQ2iP(Context::Ref ctx);
+};
+
 class DQParMMGQ : public ov::pass::MatcherPass {
 public:
     explicit DQParMMGQ(Context::Ref ctx);
