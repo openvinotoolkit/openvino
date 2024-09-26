@@ -11,6 +11,7 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/add.hpp"
 #include "utils.hpp"
@@ -29,17 +30,22 @@ OutputVector translate_avg_pool_base(const NodeContext& context, int dims) {
 
     auto const_0 = v0::Constant::create(element::i64, Shape{1}, {0});
     auto const_1 = v0::Constant::create(element::i64, Shape{1}, {1});
+    bool is_static = input.get_partial_shape().rank().is_static();
+    bool no_batch_dim = is_static && input.get_partial_shape().rank().get_length() == dims + 1;
 
-    // Unsqueeze axis to add batch dimension
-    input = context.mark_node(std::make_shared<v0::Unsqueeze>(input, const_0));
-
-    // Reshape pattern based on dimensions
-    auto unsqueeze_shape = context.mark_node(std::make_shared<v3::ShapeOf>(input));
-    auto rank = context.mark_node(std::make_shared<v0::ShapeOf>(unsqueeze_shape));
-    auto end_index = context.mark_node(std::make_shared<v1::Add>(rank, const_1));
-    auto start_index = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-dims - 2}));
-    auto reshape_pattern = context.mark_node(std::make_shared<v8::Slice>(unsqueeze_shape, start_index, end_index, const_1, const_0));
-    input = context.mark_node(std::make_shared<v1::Reshape>(input, reshape_pattern, true));
+    if (is_static) {
+        if (no_batch_dim) {
+            input = context.mark_node(std::make_shared<v0::Unsqueeze>(input, const_0));
+        }
+    } else {
+        input = context.mark_node(std::make_shared<v0::Unsqueeze>(input, const_0));
+        auto unsqueeze_shape = context.mark_node(std::make_shared<v3::ShapeOf>(input));
+        auto rank = context.mark_node(std::make_shared<v0::ShapeOf>(unsqueeze_shape));
+        auto end_index = context.mark_node(std::make_shared<v1::Add>(rank, const_1));
+        auto start_index = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-dims - 2}));
+        auto reshape_pattern = context.mark_node(std::make_shared<v8::Slice>(unsqueeze_shape, start_index, end_index, const_1, const_0));
+        input = context.mark_node(std::make_shared<v1::Reshape>(input, reshape_pattern, true));
+    }
 
     auto kernel = context.const_input<Shape>(1);
     Strides strides;
@@ -70,14 +76,20 @@ OutputVector translate_avg_pool_base(const NodeContext& context, int dims) {
     auto res = context.mark_node(
         std::make_shared<v14::AvgPool>(input, strides, pads, pads, kernel, !count_include_pad, rounding_type));
 
-    // Reshape back to original shape
-    auto pooled_output_shape = context.mark_node(std::make_shared<v3::ShapeOf>(res));
-    auto slice_input_shape = context.mark_node(std::make_shared<v8::Slice>(input_shape, const_0,
-        context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-dims})), const_1, const_0));
-    auto slice_pooled_output_shape = context.mark_node(std::make_shared<v8::Slice>(pooled_output_shape, context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-dims})),
-        context.mark_node(v0::Constant::create(element::i64, Shape{1}, {2 + dims})), const_1, const_0));
-    auto concat_shape = context.mark_node(std::make_shared<v0::Concat>(OutputVector{slice_input_shape, slice_pooled_output_shape}, 0));
-    res = context.mark_node(std::make_shared<v1::Reshape>(res, concat_shape, true));
+    if (is_static) {
+        if (no_batch_dim) {
+            res = context.mark_node(std::make_shared<v0::Squeeze>(res, const_0));
+        }
+    } else {
+        auto pooled_output_shape = context.mark_node(std::make_shared<v3::ShapeOf>(res));
+        auto slice_input_shape = context.mark_node(std::make_shared<v8::Slice>(input_shape, const_0,
+            context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-dims})), const_1, const_0));
+        auto slice_pooled_output_shape = context.mark_node(std::make_shared<v8::Slice>(pooled_output_shape, context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-dims})),
+            context.mark_node(v0::Constant::create(element::i64, Shape{1}, {2 + dims})), const_1, const_0));
+        auto concat_shape = context.mark_node(std::make_shared<v0::Concat>(OutputVector{slice_input_shape, slice_pooled_output_shape}, 0));
+        res = context.mark_node(std::make_shared<v1::Reshape>(res, concat_shape, true));
+    }
+    
     return {res};
 
 };
