@@ -13,16 +13,39 @@ namespace node {
 
 class Input : public Node {
 public:
+    struct InputConfig {
+        MemoryDescPtr desc;
+        bool inPlace;
+    };
+
+    struct OutputConfig {
+        // @todo better to use memory desc with any layout and undefined precision
+        bool useParentMemoryDescForOutput;
+        bool inPlace;
+    };
+
     Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+
     Input(const Shape& shape,
           const ov::element::Type& prc,
           const std::string& name,
           const std::string& type,
           const GraphContext::CPtr context);
+
     Input(MemoryDescPtr memDesc, const std::string& name, const std::string& type, const GraphContext::CPtr context);
+
+    Input(const std::shared_ptr<ov::Node>& op,
+          const GraphContext::CPtr context,
+          InputConfig config);
+
+    Input(const std::shared_ptr<ov::Node>& op,
+          const GraphContext::CPtr context,
+          OutputConfig config);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
+    void initOptimalPrimitiveDescriptor() override;
+    void selectOptimalPrimitiveDescriptor() override;
     void createPrimitive() override;
     bool created() const override;
 
@@ -46,8 +69,10 @@ private:
 private:
     std::shared_ptr<ov::op::v0::Constant> constOp;
     MemoryCPtr memoryPtr;
-    MemoryDescPtr extMemDesc = nullptr;
     bool isMeanImage = false;
+    MemoryDescPtr extMemDesc = nullptr;
+    bool m_useParentMemoryDescForOutput = false;
+    bool m_isInPlace = false;
 };
 
 }   // namespace node

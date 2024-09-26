@@ -46,11 +46,11 @@ ov::pass::GeluFusionWithErfOne::GeluFusionWithErfOne() {
         auto x_output = pattern_to_output.at(input);
 
         auto div_const_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(div_constant).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(div_constant).get_node_shared_ptr());
         auto add_const_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
         auto mul_const_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(mul_constant).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(mul_constant).get_node_shared_ptr());
 
         if (!div_const_value || !add_const_value || !mul_const_value) {
             return false;
@@ -106,11 +106,11 @@ ov::pass::GeluFusionWithErfTwo::GeluFusionWithErfTwo() {
         auto x_output = pattern_to_output.at(input);
 
         auto div_const_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(div_constant).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(div_constant).get_node_shared_ptr());
         auto add_const_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
         auto mul_const_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(mul_constant).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(mul_constant).get_node_shared_ptr());
 
         if (!div_const_value || !add_const_value || !mul_const_value) {
             return false;
@@ -166,11 +166,11 @@ ov::pass::GeluFusionWithErfThree::GeluFusionWithErfThree() {
         auto x_output = pattern_to_output.at(input);
 
         auto div_const_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(div_constant).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(div_constant).get_node_shared_ptr());
         auto add_const_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
         auto mul_const_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(mul_constant).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(mul_constant).get_node_shared_ptr());
 
         if (!div_const_value || !add_const_value || !mul_const_value) {
             return false;
@@ -227,9 +227,9 @@ ov::pass::GeluFusionWithErfFour::GeluFusionWithErfFour() {
         auto pattern_to_output = m.get_pattern_map();
         auto x_output = pattern_to_output.at(input);
 
-        auto mul1_const_value = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(mul1_constant));
-        auto add_const_value = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(add_constant));
-        auto mul2_const_value = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(mul2_constant));
+        auto mul1_const_value = ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(mul1_constant));
+        auto add_const_value = ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(add_constant));
+        auto mul2_const_value = ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(mul2_constant));
 
         if (!mul1_const_value || !add_const_value || !mul2_const_value) {
             return false;
@@ -289,15 +289,15 @@ ov::pass::GeluFusionWithTanh::GeluFusionWithTanh() {
         auto x_output = pattern_to_output.at(input);
 
         auto pow_constant_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(pow_constant).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(pow_constant).get_node_shared_ptr());
         auto mul_0_constant_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(mul_0_constant).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(mul_0_constant).get_node_shared_ptr());
         auto mul_1_constant_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(mul_1_constant).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(mul_1_constant).get_node_shared_ptr());
         auto mul_2_constant_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(mul_2_constant).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(mul_2_constant).get_node_shared_ptr());
         auto add_1_constant_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(add_1_constant).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(add_1_constant).get_node_shared_ptr());
 
         if (!pow_constant_value || !add_1_constant_value || !mul_0_constant_value || !mul_1_constant_value ||
             !mul_2_constant_value) {
