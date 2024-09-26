@@ -99,10 +99,6 @@ jobs:
 
           extras_to_install="caffe,kaldi,onnx,tensorflow2,pytorch"
 
-          if [[ "${{ runner.arch }}" != "ARM64" ]]; then
-            extras_to_install="mxnet,$extras_to_install"
-          fi
-
           # Find and install OV dev wheel
           pushd ${INSTALL_DIR}/tools
             ov_dev_wheel_name=$(find . -name 'openvino_dev*.whl')
@@ -142,8 +138,7 @@ jobs:
 
           # Skips under tickets: 133405, 122666
           python3 -m pytest -s ${INSTALL_TEST_DIR}/mo/unit_tests \
-              --junitxml=${INSTALL_TEST_DIR}/TEST-ModelOptimizer.xml \
-              --ignore-glob="**/mo/unit_tests/mo/front/mxnet/**"
+              --junitxml=${INSTALL_TEST_DIR}/TEST-ModelOptimizer.xml
 
       - name: Python ONNX operators tests
         if: (fromJSON(inputs.affected-components).Python_API.test ||
