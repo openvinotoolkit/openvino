@@ -2835,11 +2835,12 @@ void Interpolate::InterpolateJitExecutor::pillowCGathered(const uint8_t *in_ptr_
             size_t threadsNum = parallel_get_num_threads();
             size_t parallelNum = B;
             // IH * OW * C buf needed
+            size_t buffer_size = static_cast<size_t>(OW * IH * C);
             if (parallelNum < threadsNum) {
-                arg.src_ptr[1] = static_cast<uint8_t*>(&pillow_working_buf[(b * OW * IH * C) * srcDataSize]);
+                arg.src_ptr[1] = static_cast<uint8_t*>(&pillow_working_buf[b * buffer_size * srcDataSize]);
             } else {
                 size_t threadsIdx = parallel_get_thread_num();
-                arg.src_ptr[1] = static_cast<uint8_t*>(&pillow_working_buf[(threadsIdx * OW * IH * C) * srcDataSize]);
+                arg.src_ptr[1] = static_cast<uint8_t*>(&pillow_working_buf[threadsIdx * buffer_size * srcDataSize]);
             }
         }
         arg.dst = out_ptr_ + (OW * OH * C * b) * dstDataSize;
@@ -3719,8 +3720,9 @@ void Interpolate::InterpolateRefExecutor::pillowRef(const uint8_t *in_ptr_, uint
                 ypass_in_ptr_nc = static_cast<const uint8_t*>(&pillow_working_buf[(OW * IH * C * b + OW * IH * c) * srcDataSize]);
             } else {
                 size_t threadsIdx = parallel_get_thread_num();
-                xpass_out_ptr_nc = static_cast<uint8_t*>(&pillow_working_buf[(threadsIdx * OW * IH) * srcDataSize]);
-                ypass_in_ptr_nc = static_cast<const uint8_t*>(&pillow_working_buf[(threadsIdx * OW * IH) * srcDataSize]);
+                size_t buffer_size = static_cast<size_t>(OW * IH);
+                xpass_out_ptr_nc = static_cast<uint8_t*>(&pillow_working_buf[threadsIdx * buffer_size * srcDataSize]);
+                ypass_in_ptr_nc = static_cast<const uint8_t*>(&pillow_working_buf[threadsIdx * buffer_size * srcDataSize]);
             }
         } else if (xPass && !yPass) {
             xpass_out_ptr_nc = out_ptr_nc;
