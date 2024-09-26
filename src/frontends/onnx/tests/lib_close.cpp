@@ -15,6 +15,6 @@ INSTANTIATE_TEST_SUITE_P(ONNX,
                          FrontendLibCloseTest,
                          Values(std::make_tuple("onnx",
                                                 path_join({std::string(TEST_ONNX_MODELS_DIRNAME),
-                                                           std::string("external_data/external_data.onnx")}),
+                                                           std::string("external_data/external_data.onnx")}).string(),
                                                 "Y")),
                          FrontendLibCloseTest::get_test_case_name);
