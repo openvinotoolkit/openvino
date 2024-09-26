@@ -559,8 +559,8 @@ void Concat::execNspcSpecCase() {
 
         nonZeroInShapes++;
     }
-
-    const size_t iter_count = getParentEdgeAt(firstNonZeroEdge)->getMemory().getSize() / channelsDataSize[0];
+    const Shape& shape = getSrcMemoryAtPort(firstNonZeroEdge)->getShape();
+    const size_t iter_count = shape.getElementsCount() / shape.getStaticDims()[channelAxis];
 
     parallel_for(iter_count, [&](int i) {
         const size_t dst_off = i * channels_size;
