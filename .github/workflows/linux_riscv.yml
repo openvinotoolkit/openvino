@@ -48,7 +48,7 @@ jobs:
       - name: Get target branch
         id: set_target_branch
         run: |
-          echo "::set-output name=target_branch::${TARGET_BRANCH#refs/heads/}"
+          echo "target_branch=${TARGET_BRANCH#refs/heads/}" >> $GITHUB_OUTPUT
         shell: bash
 
   Docker:
@@ -93,7 +93,7 @@ jobs:
       OPENVINO_BUILD_DIR: /__w/openvino/openvino/openvino_build
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
       CONAN_USER_HOME: /mount/caches/ccache/ubuntu22_riscv64_master_release/.conan
-      CCACHE_REMOTE_DIR: /mount/caches/ccache/ubuntu22_riscv64/${{ needs.Smart_CI.outputs.target_branch }}
+      CCACHE_REMOTE_DIR: /mount/caches/ccache/ubuntu22_riscv64/${{ needs.Smart_CI.outputs.target_branch }}/${{ needs.Smart_CI.outputs.target_branch != 'master' && '..' }} # Use the same cache for major release branches
       CCACHE_DIR: /__w/openvino/openvino/ccache
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
       CCACHE_MAXSIZE: 2G
