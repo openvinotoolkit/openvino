@@ -243,6 +243,8 @@ void StridedSlice::initSupportedPrimitiveDescriptors() {
     std::vector<LayoutType> supportedTypes;
     if (nDims > 2 && attrs.equalDims) {
         auto canUseBlocked = [&](StridedSliceAttributes& tmpAttrs, const size_t blockSize) {
+            if (attrs.isSliceScatterOp)
+                return false;
             if (!isConstantInput[attrs.BEGIN_ID])
                 return false;
             const auto& srcDims = getInputShapeAtPort(attrs.DATA_ID).getDims();
