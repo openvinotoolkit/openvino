@@ -174,6 +174,7 @@ void regclass_graph_Node(py::module m) {
              &ov::Node::get_instance_id,
              R"(
                 Returns id of the node.
+                May be used to compare nodes if they are same instances.
 
                 :return: id of the node.
                 :rtype: int
