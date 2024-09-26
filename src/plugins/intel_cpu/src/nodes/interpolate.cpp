@@ -2832,7 +2832,7 @@ void Interpolate::InterpolateJitExecutor::pillowCGathered(const uint8_t *in_ptr_
         auto arg = jit_interpolate_call_args();
         arg.src_ptr[0] = in_ptr_ + (IW * IH * C * b) * srcDataSize;
         if (xPass && yPass) {
-            size_t threadsNum = parallel_get_num_threads();
+            size_t threadsNum = parallel_get_max_threads();
             size_t parallelNum = B;
             // IH * OW * C buf needed
             size_t buffer_size = static_cast<size_t>(OW * IH * C);
@@ -3712,7 +3712,7 @@ void Interpolate::InterpolateRefExecutor::pillowRef(const uint8_t *in_ptr_, uint
         uint8_t *xpass_out_ptr_nc = nullptr;
         const uint8_t *ypass_in_ptr_nc = nullptr;
         if (xPass && yPass) {
-            size_t threadsNum = parallel_get_num_threads();
+            size_t threadsNum = parallel_get_max_threads();
             size_t parallelNum = B * C;
             // IH * OW buf needed
             if (parallelNum < threadsNum) {
@@ -3777,7 +3777,7 @@ void Interpolate::InterpolateExecutorBase::create_pillow_working_buf(Interpolate
     if (srcDimPad5d[3] == dstDim5d[3] || srcDimPad5d[4] == dstDim5d[4])
         return;
     size_t bufSize = srcDimPad5d[3] * dstDim5d[4] * srcDataSize; // IH * OW
-    size_t threadsNum = parallel_get_num_threads();
+    size_t threadsNum = parallel_get_max_threads();
     if (layout == InterpolateLayoutType::planar) {
         // B and C execute in parallel, need separate buf
         size_t parallelNum = srcDimPad5d[0] * srcDimPad5d[1];

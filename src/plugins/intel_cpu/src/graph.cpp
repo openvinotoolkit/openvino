@@ -1278,6 +1278,11 @@ public:
         m_completion.store(false);
         auto startCounter = m_prepareCounter.load();
 
+        // Allow nested parallel execution.
+        auto origin_nested_levels = omp_get_max_active_levels();
+        if (origin_nested_levels < 2) {
+            omp_set_max_active_levels(2);
+        }
         #pragma omp parallel
         #pragma omp sections
         {
@@ -1289,6 +1294,9 @@ public:
             {
                 updateShapes(startCounter, stopIndx);
             }
+        }
+        if (origin_nested_levels != 2) {
+            omp_set_max_active_levels(origin_nested_levels);
         }
     }
 };
