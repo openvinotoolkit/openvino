@@ -30,8 +30,8 @@ protected:
     void SetUp() override {
         SubgraphsDumperBaseTest::SetUp();
         test_model_name = "test_model_name";
-        test_artifacts_dir = ov::util::path_join({ov::test::utils::getCurrentWorkingDir(), "test_artifacts"});
-        test_model_path = ov::util::path_join({test_artifacts_dir, test_model_name + ".xml"});
+        test_artifacts_dir = ov::util::path_join({ov::test::utils::getCurrentWorkingDir(), "test_artifacts"}).string();
+        test_model_path = ov::util::path_join({test_artifacts_dir, test_model_name + ".xml"}).string();
         ov::util::create_directory_recursive(test_artifacts_dir);
         {
             auto params = ov::ParameterVector {
@@ -101,7 +101,7 @@ TEST_F(OpCacheUnitTest, update_cache_by_model) {
     this->update_cache(convert_node, test_model_path, 1);
     ASSERT_EQ(m_ops_cache.size(), 1);
     std::shared_ptr<ov::Model> test_model_1;
-    std::string test_model_path_1 = ov::util::path_join({test_artifacts_dir, "model_1", test_model_name + ".xml"});
+    std::string test_model_path_1 = ov::util::path_join({test_artifacts_dir, "model_1", test_model_name + ".xml"}).string();
     {
         auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::Type_t::f32, ov::PartialShape{1, 1, 1, 1});
         param->set_friendly_name("in_0");
