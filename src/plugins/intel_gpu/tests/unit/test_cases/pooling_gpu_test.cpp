@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/primitives/implementation_desc.hpp"
+#include "intel_gpu/runtime/internal_properties.hpp"
 #include "test_utils.h"
 #include "random_generator.hpp"
 
@@ -304,6 +306,7 @@ TEST(pooling_forward_gpu, basic_max_pooling_int8) {
     );
 
     ExecutionConfig cfg = get_test_default_config(engine);
+    cfg.set_property(ov::intel_gpu::optimize_data(true)); // to enable onednn
     cfg.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "reorder2" }));
     network network(engine, topology, cfg);
 
@@ -722,9 +725,13 @@ TEST(pooling_forward_gpu, offsets_avg_bfyx_f32_wsiz3x3_wstr3x3_i1x1x3x3_zeropad)
     topology.add(input_layout("input_prim", input_prim->get_layout()));
     topology.add(pooling("pool_prim", input_info("input_prim"), pooling_mode::average, { 3, 3 }, { 3, 3 }, {1, 1}));
 
-    network network(engine, topology, get_test_default_config(engine));
+    auto cfg = get_test_default_config(engine);
+    cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"pool_prim", {format::any, "", impl_types::ocl}}}));
+    network network(engine, topology, cfg);
 
-    std::vector<float> input_vec = { 1.5f, -0.5f, -1.0f, 0.5f, 0.1f, 0.2f, 0.9f, 1.1f, 2.2f };
+    std::vector<float> input_vec = { 1.5f, -0.5f, -1.0f,
+                                     0.5f, 0.1f, 0.2f,
+                                     0.9f, 1.1f, 2.2f };
     set_values(input_prim, input_vec);
 
     network.set_input_data("input_prim", input_prim);
@@ -1239,7 +1246,9 @@ static void generic_average_wo_padding_test(format fmt, tensor output, tensor in
     }
     tpl.add(pooling("pool", input_info(pool_in), pooling_mode::average_no_padding, window, stride, offset));
 
-    network net(engine, tpl);
+    auto cfg = get_test_default_config(get_test_engine());
+    cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"pool", {format::any, "", impl_types::ocl}}}));
+    network net(engine, tpl, cfg);
     net.set_input_data("in", input_mem);
     auto output_mem = net.execute().at("pool").get_memory();
 

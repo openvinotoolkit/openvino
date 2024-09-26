@@ -36,6 +36,7 @@ The notebook contains the following steps:
 8. Compare performance of converted and quantized models.
 9. Launch interactive demo
 
+
 **Table of contents:**
 
 
@@ -119,6 +120,13 @@ tokenizer and preparing the images.
         %pip install -q "matplotlib>=3.4"
     else:
         %pip install -q "matplotlib>=3.4,<3.7"
+
+    import requests
+
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+    )
+    open("notebook_utils.py", "w").write(r.text)
 
 .. code:: ipython3
 
@@ -270,14 +278,9 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
+    from notebook_utils import device_widget
 
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
 
     device
 
@@ -337,11 +340,9 @@ inference faster. The optimization process contains the following steps:
 
 .. code:: ipython3
 
-    to_quantize = widgets.Checkbox(
-        value=True,
-        description="Quantization",
-        disabled=False,
-    )
+    from notebook_utils import quantization_widget
+
+    to_quantize = quantization_widget()
 
     to_quantize
 
