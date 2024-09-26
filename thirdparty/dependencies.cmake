@@ -357,8 +357,8 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
         endif()
     else()
         add_subdirectory(thirdparty/protobuf EXCLUDE_FROM_ALL)
-        # protobuf fails to build with -fsanitize=thread
-        if(ENABLE_THREAD_SANITIZER)
+        # protobuf fails to build with -fsanitize=thread by clang
+        if(ENABLE_THREAD_SANITIZER AND OV_COMPILER_IS_CLANG)
             foreach(proto_target protoc libprotobuf libprotobuf-lite)
                 if(TARGET ${proto_target})
                     target_compile_options(${proto_target} PUBLIC -fno-sanitize=thread)
