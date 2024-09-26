@@ -16,6 +16,7 @@ Knowledge Graph Embeddings” (https://arxiv.org/abs/1707.01476). The
 sample dataset can be downloaded from:
 https://github.com/TimDettmers/ConvE/tree/master/countries/countries_S1
 
+
 **Table of contents:**
 
 
@@ -232,7 +233,7 @@ Download Model Checkpoint
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/knowledge-graphs-conve/models/conve.pt')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/notebooks/knowledge-graphs-conve/models/conve.pt')
 
 
 
@@ -394,7 +395,7 @@ typical to use metrics such as Mean Reciprocal Rank, Hits@10 etc.
 
 .. parsed-literal::
 
-    Average time taken for inference: 1.1004706223805745 ms
+    Average time taken for inference: 1.0327498118082683 ms
     Mean accuracy of the model on the test dataset: 0.875
 
 
@@ -533,7 +534,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    Average time taken for inference: 1.0703106721242268 ms
+    Average time taken for inference: 1.1225839455922444 ms
     Mean accuracy of the model on the test dataset: 0.10416666666666667
 
 
@@ -552,7 +553,7 @@ Determine the platform specific speedup obtained through OpenVINO graph optimiza
 
 .. parsed-literal::
 
-    Speedup with OpenVINO optimizations: 1.03 X
+    Speedup with OpenVINO optimizations: 0.92 X
 
 
 Benchmark the converted OpenVINO model using benchmark app
@@ -586,18 +587,18 @@ inference can also be obtained by looking at the benchmark app results.
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.4.0-16508-1d6e97cabaa
+    [ INFO ] Build ................................. 2024.4.0-16579-c3152d32c9c-releases/2024/4
     [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2024.4.0-16508-1d6e97cabaa
+    [ INFO ] Build ................................. 2024.4.0-16579-c3152d32c9c-releases/2024/4
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 4.32 ms
+    [ INFO ] Read model took 4.58 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     e1 (node: e1) : i64 / [...] / []
@@ -613,7 +614,7 @@ inference can also be obtained by looking at the benchmark app results.
     [ INFO ] Model outputs:
     [ INFO ]     ***NO_NAME*** (node: aten::softmax/Softmax) : f32 / [...] / [1,271]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 50.59 ms
+    [ INFO ] Compile model took 72.17 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -652,17 +653,17 @@ inference can also be obtained by looking at the benchmark app results.
     [ INFO ] Fill input 'rel' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 10000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 1.49 ms
+    [ INFO ] First inference took 1.76 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            94800 iterations
-    [ INFO ] Duration:         10001.82 ms
+    [ INFO ] Count:            88896 iterations
+    [ INFO ] Duration:         10001.38 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        1.08 ms
-    [ INFO ]    Average:       1.09 ms
-    [ INFO ]    Min:           0.74 ms
+    [ INFO ]    Median:        1.17 ms
+    [ INFO ]    Average:       1.17 ms
+    [ INFO ]    Min:           0.86 ms
     [ INFO ]    Max:           8.19 ms
-    [ INFO ] Throughput:   9478.27 FPS
+    [ INFO ] Throughput:   8888.37 FPS
 
 
 Conclusions
