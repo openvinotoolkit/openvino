@@ -11,6 +11,7 @@
 static constexpr size_t simd = 16;
 static constexpr size_t min_quantize_grp_size = 32;
 static constexpr size_t min_slm_size = 256;
+static constexpr size_t min_opt_num_threads = 3072;
 static std::vector<size_t> available_quantize_grp_size = {128, 64, 32};
 
 namespace kernel_selector {
@@ -131,8 +132,9 @@ static bool is_weight_with_small_ofm(const fully_connected_params& params, size_
 }
 
 static bool is_weight_with_large_ofm(const fully_connected_params& params, size_t output_f) {
-    size_t min_num_threads = params.engineInfo.computeUnitsCount * simd;
-    return (output_f / 4 /* tile_ofm=4 */ > min_num_threads);
+    GPU_DEBUG_TRACE_DETAIL << "out_ofm (== weight N dim) size " << output_f << " is large compared to minimum optimal threads. "
+                           << "(min_opt_num_threads : " << min_opt_num_threads << ")" << std::endl;
+    return (output_f / 4 /* tile_ofm=4 */ > min_opt_num_threads);
 }
 
 static bool is_weight_with_large_ifm(const fully_connected_params& fc_params) {
@@ -140,7 +142,7 @@ static bool is_weight_with_large_ifm(const fully_connected_params& fc_params) {
 }
 
 static bool is_suitable_outer_ofm(size_t output_f) {
-    return (output_f / 8 /* tile_ofm=4 and outer_ofm=2 */ > 3072);
+    return (output_f / 8 /* tile_ofm=4 and outer_ofm=2 */ > min_opt_num_threads);
 }
 
 FullyConnected_bf_tiled::FullyConnected_bf_tiled() : FullyConnectedKernelBase("fully_connected_gpu_bf_tiled") {
