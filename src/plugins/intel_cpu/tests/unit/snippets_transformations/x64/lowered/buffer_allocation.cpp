@@ -28,7 +28,6 @@
 namespace ov {
 namespace test {
 namespace snippets {
-using BRGEMM_TYPE = intel_cpu::brgemm_utils::BRGEMM_TYPE;
 
 /*  Note[74841]:
  *  This test is almost full copy of BufferAllocationTest class from openvino/src/common/snippets/tests/include/lowered/pass/buffer_allocation.hpp.
@@ -150,7 +149,8 @@ protected:
         const auto load_reshape = std::make_shared<ov::snippets::op::LoadReshape>(parameter1, 1, 0, order);
         const auto store = std::make_shared<ov::snippets::op::Store>(load_reshape);
         const auto relu0 = std::make_shared<ov::op::v0::Relu>(store);
-        const auto brgemm_cpu0 = std::make_shared<ov::intel_cpu::BrgemmCPU>(parameter0, relu0, BRGEMM_TYPE::STAND_ALONE);
+        const auto brgemm_config = intel_cpu::brgemm_utils::BrgemmConfig(ov::element::f32, dnnl::impl::cpu::x64::cpu_isa_t::avx512_core);
+        const auto brgemm_cpu0 = std::make_shared<ov::intel_cpu::BrgemmCPU>(parameter0, relu0, brgemm_config);
 
         const auto relu1 = std::make_shared<ov::op::v0::Relu>(brgemm_cpu0);
 
@@ -165,7 +165,7 @@ protected:
         const auto power = std::make_shared<ov::snippets::op::PowerStatic>(reduce_sum, -1.f);
         const auto multiply = std::make_shared<ov::op::v1::Multiply>(exp, power);
 
-        const auto brgemm_cpu1 = std::make_shared<ov::intel_cpu::BrgemmCPU>(multiply, parameter2, BRGEMM_TYPE::STAND_ALONE);
+        const auto brgemm_cpu1 = std::make_shared<ov::intel_cpu::BrgemmCPU>(multiply, parameter2, brgemm_config);
 
         const auto relu2 = std::make_shared<ov::op::v0::Relu>(brgemm_cpu1);
 
@@ -208,10 +208,11 @@ protected:
         const auto relu0 = std::make_shared<ov::op::v0::Relu>(convert0);
         const auto convert1 = std::make_shared<ov::snippets::op::ConvertSaturation>(relu0, ov::element::bf16);
 
-        const auto brgemm_copyb0 = std::make_shared<ov::intel_cpu::BrgemmCopyB>(convert1, ov::element::bf16);
+        const auto brgemm_config0 = intel_cpu::brgemm_utils::BrgemmConfig(ov::element::bf16, dnnl::impl::cpu::x64::cpu_isa_t::avx512_core_amx,
+                                                                          false, true, false, true);
+        const auto brgemm_copyb0 = std::make_shared<ov::intel_cpu::BrgemmCopyB>(convert1, ov::element::bf16, brgemm_config0);
         const auto scratch0 = std::make_shared<ov::snippets::op::Buffer>(ov::Shape{ov::intel_cpu::BrgemmCPU::SCRATCH_BYTE_SIZE});
-        const auto brgemm_cpu0 = std::make_shared<ov::intel_cpu::BrgemmCPU>(
-            parameter0, brgemm_copyb0->output(0), scratch0, BRGEMM_TYPE::WITH_AMX);
+        const auto brgemm_cpu0 = std::make_shared<ov::intel_cpu::BrgemmCPU>(parameter0, brgemm_copyb0->output(0), scratch0, brgemm_config0);
 
         const auto relu1 = std::make_shared<ov::op::v0::Relu>(brgemm_cpu0);
 
@@ -228,10 +229,12 @@ protected:
 
         const auto convert2 = std::make_shared<ov::snippets::op::ConvertSaturation>(multiply, ov::element::bf16);
 
-        const auto brgemm_copyb1 = std::make_shared<ov::intel_cpu::BrgemmCopyB>(parameter2, ov::element::bf16);
+
+        const auto brgemm_config1 = intel_cpu::brgemm_utils::BrgemmConfig(ov::element::bf16, dnnl::impl::cpu::x64::cpu_isa_t::avx512_core_amx,
+                                                                          false, true, false, true);
+        const auto brgemm_copyb1 = std::make_shared<ov::intel_cpu::BrgemmCopyB>(parameter2, ov::element::bf16, brgemm_config1);
         const auto scratch1 = std::make_shared<ov::snippets::op::Buffer>(ov::Shape{ov::intel_cpu::BrgemmCPU::SCRATCH_BYTE_SIZE});
-        const auto brgemm_cpu1 = std::make_shared<ov::intel_cpu::BrgemmCPU>(
-            convert2, brgemm_copyb1->output(0), scratch1, BRGEMM_TYPE::WITH_AMX);
+        const auto brgemm_cpu1 = std::make_shared<ov::intel_cpu::BrgemmCPU>(convert2, brgemm_copyb1->output(0), scratch1, brgemm_config1);
 
         const auto relu2 = std::make_shared<ov::op::v0::Relu>(brgemm_cpu1);
 

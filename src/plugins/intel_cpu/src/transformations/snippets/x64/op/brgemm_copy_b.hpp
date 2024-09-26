@@ -22,13 +22,13 @@ namespace intel_cpu {
 */
 class BrgemmCopyB : public snippets::modifier::MemoryAccess, public ov::op::Op {
 public:
-    using BRGEMM_TYPE = brgemm_utils::BRGEMM_TYPE;
+    using BrgemmConfig = brgemm_utils::BrgemmConfig;
     OPENVINO_OP("BrgemmCopyB", "SnippetsOpset");
 
-    BrgemmCopyB(const Output<Node>& x, const element::Type src_type, BRGEMM_TYPE type = BRGEMM_TYPE::REPACKING_ONLY,
+    BrgemmCopyB(const Output<Node>& x, const element::Type src_type, BrgemmConfig config,
                 const size_t offset_in = 0lu, const size_t offset_out0 = 0lu, const size_t offset_out1 = 0lu,
                 std::vector<size_t> layout_input = {});
-    BrgemmCopyB(const Output<Node>& x, const element::Type src_type, BRGEMM_TYPE type,
+    BrgemmCopyB(const Output<Node>& x, const element::Type src_type, BrgemmConfig config,
                 const PortDescriptor& desc_in0, const PortDescriptor& desc_out0, const PortDescriptor& desc_out1,
                 std::vector<size_t> layout_input = {});
     BrgemmCopyB() = default;
@@ -37,8 +37,8 @@ public:
     size_t get_offset_out() const { return get_output_offset(0); }
     size_t get_offset_compensations() const;
 
-    BRGEMM_TYPE get_type() const { return m_type; }
     element::Type get_src_element_type() const { return m_src_type; }
+    const BrgemmConfig& get_config() const { return m_config; }
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
@@ -57,7 +57,7 @@ private:
     void custom_constructor_validate_and_infer_types(std::vector<size_t> layout_input = {});
     void validate_element_type(const ov::element::Type& element_type);
 
-    BRGEMM_TYPE m_type = BRGEMM_TYPE::REPACKING_ONLY;
+    const BrgemmConfig m_config {};
     element::Type m_src_type = ov::element::undefined;  // src element type of the corresponding BRGEMM
 };
 } // namespace intel_cpu

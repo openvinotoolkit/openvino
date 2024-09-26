@@ -5,6 +5,7 @@
 #include "utils.hpp"
 
 #include "emitters/utils.hpp"
+#include "utils/general_utils.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -12,7 +13,9 @@ namespace intel_cpu {
 using namespace Xbyak;
 using namespace dnnl::impl::cpu::x64;
 
-EmitABIRegSpills::EmitABIRegSpills(jit_generator* h) : h(h), isa(get_isa()) {}
+EmitABIRegSpills::EmitABIRegSpills(jit_generator* h, Type type) : h(h), isa(get_isa()), type(type) {
+    OPENVINO_ASSERT(one_of(type, Type::GPRS, Type::VECS, Type::ALL), "Incorrect type");
+}
 
 EmitABIRegSpills::~EmitABIRegSpills() {
     OPENVINO_ASSERT(spill_status, "postamble or preamble is missed");
@@ -20,31 +23,34 @@ EmitABIRegSpills::~EmitABIRegSpills() {
 }
 
 void EmitABIRegSpills::preamble() {
-    // gprs
-    Xbyak::Operand gprs_to_save[] = {h->r8, h->r9, h->r10, h->r11, h->r12, h->r13, h->r14, h->r15,
-                                     h->rax, h->rbx, h->rcx, h->rdx, h->rdi, h->rsi, h->rbp};
-    size_t n_gprs_to_save = sizeof(gprs_to_save) / sizeof(gprs_to_save[0]);
+    if (type & Type::GPRS) {
+        Xbyak::Operand gprs_to_save[] = {h->r8, h->r9, h->r10, h->r11, h->r12, h->r13, h->r14, h->r15,
+                                         h->rax, h->rbx, h->rcx, h->rdx, h->rdi, h->rsi, h->rbp};
+        size_t n_gprs_to_save = sizeof(gprs_to_save) / sizeof(gprs_to_save[0]);
 
-    h->sub(h->rsp, n_gprs_to_save * gpr_size);
-    for (size_t i = 0; i < n_gprs_to_save; ++i)
-        h->mov(h->ptr[h->rsp + i * gpr_size], gprs_to_save[i]);
-
-    if (isa == avx512_core) {
-        h->sub(h->rsp, k_mask_num * k_mask_size);
-        for (size_t i = 0; i < k_mask_num; ++i) {
-            h->kmovq(h->ptr[h->rsp + i * k_mask_size], Xbyak::Opmask(static_cast<int>(i)));
-        }
+        h->sub(h->rsp, n_gprs_to_save * gpr_size);
+        for (size_t i = 0; i < n_gprs_to_save; ++i)
+            h->mov(h->ptr[h->rsp + i * gpr_size], gprs_to_save[i]);
     }
 
-    h->sub(h->rsp, get_max_vecs_count() * get_vec_length());
-    for (size_t i = 0; i < get_max_vecs_count(); ++i) {
-        const auto addr = h->ptr[h->rsp + i * get_vec_length()];
-        if (isa == sse41) {
-            h->uni_vmovups(addr, Xmm(i));
-        } else if (isa == avx2) {
-            h->uni_vmovups(addr, Ymm(i));
-        } else {
-            h->uni_vmovups(addr, Zmm(i));
+    if (type & Type::VECS) {
+        if (isa == avx512_core) {
+            h->sub(h->rsp, k_mask_num * k_mask_size);
+            for (size_t i = 0; i < k_mask_num; ++i) {
+                h->kmovq(h->ptr[h->rsp + i * k_mask_size], Xbyak::Opmask(static_cast<int>(i)));
+            }
+        }
+
+        h->sub(h->rsp, get_max_vecs_count() * get_vec_length());
+        for (size_t i = 0; i < get_max_vecs_count(); ++i) {
+            const auto addr = h->ptr[h->rsp + i * get_vec_length()];
+            if (isa == sse41) {
+                h->uni_vmovups(addr, Xmm(i));
+            } else if (isa == avx2) {
+                h->uni_vmovups(addr, Ymm(i));
+            } else {
+                h->uni_vmovups(addr, Zmm(i));
+            }
         }
     }
 
@@ -53,34 +59,36 @@ void EmitABIRegSpills::preamble() {
 }
 
 void EmitABIRegSpills::postamble() {
-    // restore vector registers
-    for (int i = static_cast<int>(get_max_vecs_count()) - 1; i >= 0; --i) {
-        const auto addr = h->ptr[h->rsp + i * get_vec_length()];
-        if (isa == sse41) {
-            h->uni_vmovups(Xmm(i), addr);
-        } else if (isa == avx2) {
-            h->uni_vmovups(Ymm(i), addr);
-        } else {
-            h->uni_vmovups(Zmm(i), addr);
+    if (type & Type::VECS) {
+        for (int i = static_cast<int>(get_max_vecs_count()) - 1; i >= 0; --i) {
+            const auto addr = h->ptr[h->rsp + i * get_vec_length()];
+            if (isa == sse41) {
+                h->uni_vmovups(Xmm(i), addr);
+            } else if (isa == avx2) {
+                h->uni_vmovups(Ymm(i), addr);
+            } else {
+                h->uni_vmovups(Zmm(i), addr);
+            }
+        }
+        h->add(h->rsp, (get_max_vecs_count()) * get_vec_length());
+
+        if (isa == avx512_core) {
+            for (int i = k_mask_num - 1; i >= 0; --i) {
+                h->kmovq(Xbyak::Opmask(i), h->ptr[h->rsp + i * k_mask_size]);
+            }
+            h->add(h->rsp, k_mask_num * k_mask_size);
         }
     }
-    h->add(h->rsp, (get_max_vecs_count()) * get_vec_length());
 
-    // restore k reg
-    if (isa == avx512_core) {
-        for (int i = k_mask_num - 1; i >= 0; --i) {
-            h->kmovq(Xbyak::Opmask(i), h->ptr[h->rsp + i * k_mask_size]);
-        }
-        h->add(h->rsp, k_mask_num * k_mask_size);
+    if (type & Type::GPRS) {
+        // restore gpr registers
+        Xbyak::Operand gprs_to_save[] = {h->r8, h->r9, h->r10, h->r11, h->r12, h->r13, h->r14, h->r15,
+                                         h->rax, h->rbx, h->rcx, h->rdx, h->rdi, h->rsi, h->rbp};
+        size_t n_gprs_to_save = sizeof(gprs_to_save) / sizeof(gprs_to_save[0]);
+        for (int i = n_gprs_to_save - 1; i >= 0; --i)
+            h->mov(gprs_to_save[i], h->ptr[h->rsp + i * gpr_size]);
+        h->add(h->rsp, n_gprs_to_save * gpr_size);
     }
-
-    // restore gpr registers
-    Xbyak::Operand gprs_to_save[] = {h->r8, h->r9, h->r10, h->r11, h->r12, h->r13, h->r14, h->r15,
-                                     h->rax, h->rbx, h->rcx, h->rdx, h->rdi, h->rsi, h->rbp};
-    size_t n_gprs_to_save = sizeof(gprs_to_save) / sizeof(gprs_to_save[0]);
-    for (int i = n_gprs_to_save - 1; i >= 0; --i)
-        h->mov(gprs_to_save[i], h->ptr[h->rsp + i * gpr_size]);
-    h->add(h->rsp, n_gprs_to_save * gpr_size);
 
     // Update the status
     spill_status = true;

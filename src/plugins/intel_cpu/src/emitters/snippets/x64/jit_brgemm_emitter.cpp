@@ -26,12 +26,10 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h, cpu_isa_t isa,
     const auto& brgemm_node = as_type_ptr<ov::intel_cpu::BrgemmCPU>(expr->get_node());
     const auto& brg0Prc = brgemm_node->get_input_element_type(0);
     const auto& brg1Prc = brgemm_node->get_input_element_type(1);
-    const auto brgemm_type = brgemm_node->get_type();
-    BrgemmKernelConfig kernel_config(brg0Prc, brg1Prc, with_amx(brgemm_type), with_compensations(brgemm_type),
-                                     brgemm_utils::get_primitive_isa(brg0Prc, with_amx(brgemm_type)));
-    m_kernel_executor = kernel_table->register_kernel<BrgemmKernelExecutor>(expr,
-                                                                            compiled_kernel_cache,
-                                                                            kernel_config);
+    const auto& brgemm_config = brgemm_node->get_config();
+    BrgemmKernelConfig kernel_config(brg0Prc, brg1Prc, brgemm_config.is_amx(), brgemm_config.need_compensations(), brgemm_config.isa());
+    m_kernel_executor = kernel_table->register_kernel<BrgemmKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
+
     // Note: even if the Brgemm node is dynamic, the first shapeInfer and RuntimeConfigurator::update()
     // are performed before the BrgemmKernelExecutor registration. So we have to trigger update() manually
     // for both static and the 1st dynamic shapes.
@@ -42,7 +40,7 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h, cpu_isa_t isa,
     m_memory_offsets = {brgemm_node->get_offset_a(), brgemm_node->get_offset_b(), brgemm_node->get_offset_c()};
     m_buffer_ids = {utils::get_buffer_cluster_id(expr->get_input_port(0)), utils::get_buffer_cluster_id(expr->get_input_port(1)),
                     utils::get_buffer_cluster_id(expr->get_output_port(0))};
-    if (with_scratchpad(brgemm_type)) {
+    if (brgemm_node->get_input_size() == 3) {
         m_memory_offsets.push_back(brgemm_node->get_offset_scratch());
         m_buffer_ids.push_back(utils::get_buffer_cluster_id(expr->get_input_port(2)));
     }
@@ -51,29 +49,28 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h, cpu_isa_t isa,
 std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
     const auto brgemm = as_type_ptr<ov::intel_cpu::BrgemmCPU>(node);
     OV_CPU_JIT_EMITTER_ASSERT(brgemm, "get_supported_precisions() expects BrgemmCPU node");
-    using brgemm_utils::BRGEMM_TYPE;
-    if (brgemm->get_type() == BRGEMM_TYPE::STAND_ALONE) {
-        return {{element::f32, element::f32}};
-    } else if (brgemm->get_type() == BRGEMM_TYPE::REPACKING_ONLY) {
+    const auto& config = brgemm->get_config();
+    if (config.need_compensations()) {
+        return {{element::i8, element::i8, element::f32}};
+    }
+    if (config.is_amx()) {
+        return {{element::i8, element::i8, element::u8},
+                {element::u8, element::i8, element::u8},
+                {element::bf16, element::bf16, element::u8}};
+    }
+    if (config.need_copy_b()) {
         std::set<std::vector<element::Type>> supported_types = {{element::u8, element::i8},
                                                                 {element::bf16, element::bf16},
                                                                 {element::f32, element::f32}};
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2))
             supported_types.insert({element::i8, element::i8});
         return supported_types;
-    } else if (brgemm->get_type() == BRGEMM_TYPE::WITH_COMPENSATIONS) {
-        return {{element::i8, element::i8, element::f32}};
-    } else if (brgemm->get_type() == BRGEMM_TYPE::WITH_AMX) {
-        return {{element::i8, element::i8, element::u8},
-                {element::u8, element::i8, element::u8},
-                {element::bf16, element::bf16, element::u8}};
     }
-    OV_CPU_JIT_EMITTER_THROW("got BrgemmCPU node with unsupported type");
+    return {{element::f32, element::f32}};
 }
 
 void jit_brgemm_emitter::validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
-    OV_CPU_JIT_EMITTER_ASSERT(m_memory_offsets.size() == in.size() + 1 && (out.size() == 1),
-                              "expects 3 inputs if there are compensations/wsp");
+    OV_CPU_JIT_EMITTER_ASSERT((m_memory_offsets.size() == in.size() + 1) && (out.size() == 1), "incorrect count of registers");
 }
 
 void jit_brgemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {

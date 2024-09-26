@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "brgemm_copy_b_buffer_expressions.hpp"
+#include "brgemm_copy_buffer_expressions.hpp"
 
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/utils/utils.hpp"
 
+#include "transformations/snippets/x64/op/brgemm_copy_a.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "utils/general_utils.h"
 
@@ -16,6 +17,31 @@ using namespace ov::snippets::lowered;
 
 namespace ov {
 namespace intel_cpu {
+
+RepackedActivationsBufferExpression::RepackedActivationsBufferExpression(const std::shared_ptr<ov::Node>& n,
+    const std::shared_ptr<snippets::IShapeInferSnippetsFactory>& factory) : BufferExpression(n, factory) {}
+
+snippets::lowered::ExpressionPtr RepackedActivationsBufferExpression::clone() const {
+    return std::shared_ptr<RepackedActivationsBufferExpression>(new RepackedActivationsBufferExpression(*this));
+}
+
+void RepackedActivationsBufferExpression::validate() const {
+    BufferExpression::validate();
+    OPENVINO_ASSERT(get_input_count() == 1, "RepackedActivationsBufferExpression must have only one input");
+    const auto& parent_out = get_input_port_connector(0)->get_source();
+    OPENVINO_ASSERT(ov::is_type<ov::intel_cpu::BrgemmCopyA>(parent_out.get_expr()->get_node()) && parent_out.get_index() == 0,
+                    "RepackedActivationsBufferExpression expects BrgemmCopyA as parent expression");
+}
+
+void RepackedActivationsBufferExpression::init_allocation_size(const std::shared_ptr<snippets::lowered::LoopManager>& loop_manager, size_t allocation_rank) {
+    const auto& in_subtensor = ov::snippets::utils::get_projected_subtensor(get_input_port_connector(0)->get_source());
+
+    const size_t k_inner_blk = brgemm_utils::repacking::compute_inner_k_block(get_node()->get_input_element_type(0));
+    const size_t k_blk = *in_subtensor.rbegin();
+    const size_t m_blk = *++in_subtensor.rbegin();
+
+    m_allocation_size = snippets::utils::dynamic_safe_mul(m_blk, snippets::utils::rnd_up(k_blk, k_inner_blk));
+}
 
 RepackedWeightsBufferExpression::RepackedWeightsBufferExpression(const std::shared_ptr<ov::Node>& n,
     const std::shared_ptr<snippets::IShapeInferSnippetsFactory>& factory) : BufferExpression(n, factory) {}

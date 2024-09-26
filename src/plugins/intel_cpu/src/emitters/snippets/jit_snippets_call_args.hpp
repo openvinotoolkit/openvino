@@ -20,6 +20,9 @@ namespace intel_cpu {
 #define SNIPPETS_MAX_DATA_PTR_COUNT 11
 #endif
 
+// Maximum count of Buffer offsets (clusters)
+#define SNIPPETS_MAX_BUFFER_COUNT 16
+
 #define GET_OFF(field) offsetof(jit_snippets_call_args, field)
 #define GET_OFF_LOOP_ARGS(field) offsetof(jit_snippets_call_args::loop_args_t, field)
 
@@ -46,7 +49,7 @@ struct jit_snippets_call_args {
     // for all non-static data members. So we can keep them public or friend all control-flow emitters
     loop_args_t* loop_args = nullptr;
     amx_tile_config_t amx_tile_config;
-    size_t buffer_offsets[SNIPPETS_MAX_DATA_PTR_COUNT] = {};
+    size_t buffer_offsets[SNIPPETS_MAX_BUFFER_COUNT] = {};
 };
 
 struct jit_snippets_call_args::loop_args_t {

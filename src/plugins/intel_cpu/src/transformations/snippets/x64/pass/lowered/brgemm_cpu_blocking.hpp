@@ -39,9 +39,13 @@ public:
 private:
     static snippets::lowered::LinearIR::constExprIt move_new_memory_buffer(snippets::lowered::LinearIR& linear_ir,
                                                                            const snippets::lowered::LinearIR::constExprIt& brgemm_it);
+    static snippets::lowered::LinearIR::constExprIt move_brgemm_copy_a(snippets::lowered::LinearIR& linear_ir,
+                                                                       const snippets::lowered::LinearIR::constExprIt& insert_it,
+                                                                       const snippets::lowered::LinearIR::constExprIt& brgemm_copy_a_it);
 
     static snippets::lowered::LinearIR::constExprIt get_loop_begin_pos(snippets::lowered::LinearIR& linear_ir,
                                                                        const snippets::lowered::LinearIR::constExprIt& brgemm_it,
+                                                                       const snippets::lowered::ExpressionPtr& copy_a_expr,
                                                                        const snippets::lowered::ExpressionPtr& copy_b_expr);
 
     snippets::lowered::SpecificIterationHandlers get_k_loop_handlers(size_t work_amount, size_t block_size) const override;

@@ -7,7 +7,6 @@
 #include "dnnl_extension_utils.h"
 #include "emitters/utils.hpp"
 #include "snippets/utils/utils.hpp"
-#include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "utils/general_utils.h"
 
 using namespace Xbyak;
@@ -19,49 +18,45 @@ namespace ov {
 namespace intel_cpu {
 namespace brgemm_utils {
 
-cpu_isa_t get_primitive_isa(const ov::element::Type& dt_in0, bool is_with_amx) {
-    auto isa = isa_undef;
-#define SUPPORT(X, Y) if (mayiuse(X)) { isa = X; } else { Y }
-#define SUPPORT_ONE(X, MESSAGE) SUPPORT(X, OV_CPU_JIT_EMITTER_THROW(MESSAGE);)
-#define SUPPORT_TWO(X, Y, MESSAGE) SUPPORT(X, SUPPORT_ONE(Y, MESSAGE))
-#define SUPPORT_THREE(X, Y, Z, MESSAGE) SUPPORT(X, SUPPORT_TWO(Y, Z, MESSAGE))
+BrgemmConfig::BrgemmConfig(const ov::element::Type& src_dt, const ov::element::Type& wei_dt, size_t K, bool transposed_b) {
+    const auto is_fp32 = src_dt == ov::element::f32 && wei_dt == ov::element::f32;
+    const auto is_bf16 = src_dt == ov::element::bf16 && wei_dt == ov::element::bf16;
+    const auto is_int8 = (src_dt == ov::element::i8 || src_dt == ov::element::u8) && wei_dt == ov::element::i8;
+    OPENVINO_ASSERT(is_fp32 || is_bf16 || is_int8, "Incorrect configuration");
 
-    // Note: AMX might be not used even if it's supported by the hardware, check the BrgemmToBrgemmCPU pass for details
-    if (is_with_amx) {
-        SUPPORT_ONE(avx512_core_amx, "Unsupported hardware configuration: amx is supported only on avx512 platforms")
-    } else if (dt_in0 == ov::element::bf16) {
-        SUPPORT_ONE(avx512_core_bf16, "Unsupported hardware configuration: bf16 is supported only on avx512 platforms")
-    } else if (one_of(dt_in0, ov::element::u8, ov::element::i8)) {
-        SUPPORT_THREE(avx512_core_vnni, avx2_vnni_2, avx2_vnni, "Unsupported hardware configuration: int8 is supported only on vnni platforms")
-    } else {
-        SUPPORT_TWO(avx512_core, cpu::x64::avx2, "Unsupported hardware configuration: brgemm requires at least avx2 isa")
+    // Init ISA
+    if (is_bf16) {
+        m_isa = mayiuse(avx512_core_amx) ? avx512_core_amx :
+                mayiuse(avx512_core_bf16) ? avx512_core_bf16 : isa_undef;
+    } else if (is_int8) {
+        m_isa = mayiuse(avx512_core_amx) ? avx512_core_amx :
+                mayiuse(avx512_core_vnni) ? avx512_core_vnni :
+                mayiuse(avx2_vnni_2) ? avx2_vnni_2 :
+                mayiuse(avx2_vnni) ? avx2_vnni : isa_undef;
+    } else if (is_fp32) {
+        m_isa = mayiuse(avx512_core) ? avx512_core :
+                mayiuse(cpu::x64::avx2) ? cpu::x64::avx2 : isa_undef;
     }
-    return isa;
-#undef SUPPORT_TWO
-#undef SUPPORT_ONE
-#undef SUPPORT
+    OPENVINO_ASSERT(m_isa != isa_undef, "ISA is undefined!");
+
+    m_need_copy_a = is_amx() && (is_dynamic_value(K) || (K % compute_vnni_factor(src_dt) != 0));
+    m_need_copy_b = !is_fp32 || transposed_b;
+
+    m_need_compensations = src_dt == ov::element::i8 && !one_of(m_isa, avx512_core_amx, avx2_vnni_2);
+    m_need_wsp = m_isa == avx512_core_amx;
+
+    validate();
 }
 
-BRGEMM_TYPE get_brgemm_type(const ov::element::Type& element_type_a, const Dimension& K_dim, bool transpose_b) {
-    if (element_type_a == element::f32)
-        return transpose_b ? BRGEMM_TYPE::REPACKING_ONLY : BRGEMM_TYPE::STAND_ALONE;
+BrgemmConfig::BrgemmConfig(const ov::element::Type& src_dt, cpu_isa_t isa, bool need_copy_a, bool need_copy_b, bool need_compensations, bool need_wsp)
+    : m_isa(isa), m_need_copy_a(need_copy_a), m_need_copy_b(need_copy_b), m_need_compensations(need_compensations), m_need_wsp(need_wsp) {
+    validate();
+}
 
-    OPENVINO_ASSERT(element_type_a != element::bf16 || mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16),
-                    "BF16 precision is not supported on this hardware");
-
-    const auto brgemmVNNIFactor = 4 / element_type_a.size();
-    if (one_of(element_type_a, element::u8, element::i8, element::bf16) &&
-        dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) &&
-        K_dim.is_static() && K_dim.get_length() % brgemmVNNIFactor == 0)
-        return BRGEMM_TYPE::WITH_AMX;
-    // Note: this condition reproduces logic from the OneDNN Brgemm implementation. This is needed to align with the
-    // backend requirements. More details in onednn/src/cpu/x64/brgemm/brgemm_utils.cpp
-    if (element_type_a == ov::element::i8)
-       return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2) ? BRGEMM_TYPE::REPACKING_ONLY : BRGEMM_TYPE::WITH_COMPENSATIONS;
-
-    if (one_of(element_type_a, element::u8, ov::element::bf16))
-        return BRGEMM_TYPE::REPACKING_ONLY;
-    OV_CPU_JIT_EMITTER_THROW("Failed to determine brgemm mode");
+void BrgemmConfig::validate() const {
+    OPENVINO_ASSERT(m_isa != isa_undef, "ISA is undefined");
+    OPENVINO_ASSERT(IMPLICATION(m_need_wsp, is_amx()), "Scratchpad with empty memory is needed only for AMX");
+    OPENVINO_ASSERT(IMPLICATION(m_need_compensations, !is_amx() && m_need_copy_b), "Compensations must be only with BrgemmCopyB on non-amx platforms");
 }
 
 size_t compute_vnni_factor(const ov::element::Type& precision) {
@@ -76,7 +71,12 @@ size_t get_elems_in_vec(const ov::element::Type& precision) {
 }
 
 namespace repacking {
-size_t compute_out_leading_dim(const size_t n_block, const ov::element::Type& precision) {
+
+size_t compute_LDA(const size_t k_block, const ov::element::Type& precision) {
+    return rnd_up(k_block, compute_inner_k_block(precision));
+}
+
+size_t compute_LDB(const size_t n_block, const ov::element::Type& precision) {
     return std::max(n_block, compute_inner_n_block(precision));
 }
 
@@ -88,17 +88,27 @@ size_t compute_inner_n_block(const ov::element::Type& precision) {
         default: OPENVINO_THROW("BrgemmCopyB doesn't support precision ", precision);
     }
 }
+
+size_t compute_inner_k_block(const ov::element::Type& precision) {
+    return brgemm_utils::get_elems_in_vec(precision);
+}
 }   // namespace repacking
 }   // namespace brgemm_utils
 }   // namespace intel_cpu
-template <>
-EnumNames<ov::intel_cpu::brgemm_utils::BRGEMM_TYPE>& EnumNames<ov::intel_cpu::brgemm_utils::BRGEMM_TYPE>::get() {
-    static auto enum_names =
-            EnumNames<ov::intel_cpu::brgemm_utils::BRGEMM_TYPE>("ov::intel_cpu::jit_bgremm_utils::BRGEMM_TYPE",
-                                                                {{"stand_alone", ov::intel_cpu::brgemm_utils::BRGEMM_TYPE::STAND_ALONE},
-                                                                 {"with_amx", ov::intel_cpu::brgemm_utils::BRGEMM_TYPE::WITH_AMX},
-                                                                 {"with_compensations", ov::intel_cpu::brgemm_utils::BRGEMM_TYPE::WITH_COMPENSATIONS},
-                                                                 {"repacking_only", ov::intel_cpu::brgemm_utils::BRGEMM_TYPE::REPACKING_ONLY}});
-    return enum_names;
+
+bool AttributeAdapter<ov::intel_cpu::brgemm_utils::BrgemmConfig>::visit_attributes(AttributeVisitor& visitor) {
+    bool need_copy_a = m_ref.need_copy_a();
+    bool need_copy_b = m_ref.need_copy_b();
+    bool need_comps = m_ref.need_compensations();
+    bool need_wsp = m_ref.need_wsp();
+    std::string isa = isa2str(m_ref.isa());
+
+    visitor.on_attribute("with_brgemm_copy_a", need_copy_a);
+    visitor.on_attribute("with_brgemm_copy_b", need_copy_b);
+    visitor.on_attribute("with_compensations", need_comps);
+    visitor.on_attribute("with_wsp", need_wsp);
+    visitor.on_attribute("prim_isa", isa);
+
+    return true;
 }
 }   // namespace ov
