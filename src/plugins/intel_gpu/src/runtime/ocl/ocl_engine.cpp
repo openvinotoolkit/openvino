@@ -128,7 +128,7 @@ allocation_type ocl_engine::detect_usm_allocation_type(const void* memory) const
 bool ocl_engine::check_allocatable(const layout& layout, allocation_type type) {
     OPENVINO_ASSERT(supports_allocation(type) || type == allocation_type::cl_mem, "[GPU] Unsupported allocation type: ", type);
 
-    bool exceed_allocatable_mem_size = (layout.bytes_count() > get_device_info().max_alloc_mem_size);
+    bool exceed_allocatable_mem_size = false;// (layout.bytes_count() > get_device_info().max_alloc_mem_size);
 
     // When dynamic shape upper bound makes bigger buffer, then return false.
     if (exceed_allocatable_mem_size && layout.is_dynamic()) {
