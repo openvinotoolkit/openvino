@@ -590,35 +590,20 @@ void MemoryInput::initOptimalPrimitiveDescriptor() {
 void MemoryInput::selectOptimalPrimitiveDescriptor() {
     if (haveSubgraph()) {
         // for the input configution, just always use the parent configuration
-        std::vector<PortConfig> inConfs;
         std::vector<Input::InputConfig> graphInputConfig;
 
         for (size_t i = 0; i < getParentEdges().size(); i++) {
             auto desc = getParentOutputMemDesc(getParentEdgeAt(i));
-            inConfs.emplace_back(desc);
             graphInputConfig.emplace_back(node::Input::InputConfig{desc, true});
         }
 
         std::vector<Input::OutputConfig> graphOutputConfig;
-        for (size_t i = 0; i < getParentEdges().size(); i++) {
+        for (size_t i = 0; i < getChildEdges().size(); i++) {
             graphOutputConfig.emplace_back(node::Input::OutputConfig{true, true});
         }
 
         // configure the inner graph to get the information about output memory descriptors
         subGraph.Init(body, context, graphInputConfig, graphOutputConfig);
-
-        // for the output decriptors, use the configuration of the graph's output nodes
-        auto outputDescriptors = subGraph.getOutputMemoryDescriptors();
-
-        std::vector<PortConfig> outConfs;
-        for (const auto& desc : outputDescriptors) {
-            outConfs.emplace_back(desc);
-        }
-
-        const NodeConfig config(inConfs, outConfs);
-
-        supportedPrimitiveDescriptors.clear();
-        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::undef);
 
         selectPrimitiveDescriptorByIndex(0);
     } else {
