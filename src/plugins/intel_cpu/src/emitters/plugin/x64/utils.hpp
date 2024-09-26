@@ -13,16 +13,17 @@ namespace intel_cpu {
 class EmitABIRegSpills {
 public:
     EmitABIRegSpills(dnnl::impl::cpu::x64::jit_generator* h);
+    ~EmitABIRegSpills();
 
     // push (save) all registers on the stack
-    void preamble() const;
+    void preamble();
     // pop (take) all registers from the stack
-    void postamble() const;
+    void postamble();
 
     // align stack on 16-byte and allocate shadow space as ABI reqiures
     // callee is responsible to save and restore `rbx`. `rbx` must not be changed after call callee.
-    void rsp_align() const;
-    void rsp_restore() const;
+    void rsp_align();
+    void rsp_restore();
 
 private:
     EmitABIRegSpills() = default;
@@ -38,6 +39,9 @@ private:
     static constexpr int k_mask_size = 8;
     static constexpr int k_mask_num = 8;
     static constexpr int gpr_size = 8;
+
+    bool spill_status = true;
+    bool rsp_status = true;
 };
 
 }   // namespace intel_cpu

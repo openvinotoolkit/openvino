@@ -14,7 +14,12 @@ using namespace dnnl::impl::cpu::x64;
 
 EmitABIRegSpills::EmitABIRegSpills(jit_generator* h) : h(h), isa(get_isa()) {}
 
-void EmitABIRegSpills::preamble() const {
+EmitABIRegSpills::~EmitABIRegSpills() {
+    OPENVINO_ASSERT(spill_status, "postamble or preamble is missed");
+    OPENVINO_ASSERT(rsp_status, "rsp_align or rsp_restore is missed");
+}
+
+void EmitABIRegSpills::preamble() {
     // gprs
     Xbyak::Operand gprs_to_save[] = {h->r8, h->r9, h->r10, h->r11, h->r12, h->r13, h->r14, h->r15,
                                      h->rax, h->rbx, h->rcx, h->rdx, h->rdi, h->rsi, h->rbp};
@@ -42,9 +47,12 @@ void EmitABIRegSpills::preamble() const {
             h->uni_vmovups(addr, Zmm(i));
         }
     }
+
+    // Update the status
+    spill_status = false;
 }
 
-void EmitABIRegSpills::postamble() const {
+void EmitABIRegSpills::postamble() {
     // restore vector registers
     for (int i = static_cast<int>(get_max_vecs_count()) - 1; i >= 0; --i) {
         const auto addr = h->ptr[h->rsp + i * get_vec_length()];
@@ -73,9 +81,12 @@ void EmitABIRegSpills::postamble() const {
     for (int i = n_gprs_to_save - 1; i >= 0; --i)
         h->mov(gprs_to_save[i], h->ptr[h->rsp + i * gpr_size]);
     h->add(h->rsp, n_gprs_to_save * gpr_size);
+
+    // Update the status
+    spill_status = true;
 }
 
-void EmitABIRegSpills::rsp_align() const {
+void EmitABIRegSpills::rsp_align() {
     h->mov(h->rbx, h->rsp);
     h->and_(h->rbx, 0xf);
     h->sub(h->rsp, h->rbx);
@@ -83,14 +94,20 @@ void EmitABIRegSpills::rsp_align() const {
     // Allocate shadow space (home space) according to ABI
     h->sub(h->rsp, 32);
 #endif
+
+    // Update the status
+    rsp_status = false;
 }
 
-void EmitABIRegSpills::rsp_restore() const {
+void EmitABIRegSpills::rsp_restore() {
 #ifdef _WIN32
     // Release shadow space (home space)
     h->add(h->rsp, 32);
 #endif
     h->add(h->rsp, h->rbx);
+
+    // Update the status
+    rsp_status = true;
 }
 
 cpu_isa_t EmitABIRegSpills::get_isa() {
