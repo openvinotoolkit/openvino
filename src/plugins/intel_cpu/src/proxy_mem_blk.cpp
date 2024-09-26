@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "proxy_mem_mgr.h"
+#include "proxy_mem_blk.h"
 #include "utils/debug_capabilities.h"
 
 using namespace ov::intel_cpu;
