@@ -6,6 +6,7 @@
 #include "shl_utils.hpp"
 #include "csinn/csi_nn.h"
 #include "utils/debug_capabilities.h"
+#include "memory_desc/cpu_blocked_memory_desc.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -39,6 +40,19 @@ bool ShlEltwiseExecutorBuilder::isSupported(const EltwiseAttrs& eltwiseAttrs,
     if (!(std::all_of(srcDescs.cbegin(), srcDescs.cend(), is_precision_supported) &&
           std::all_of(dstDescs.cbegin(), dstDescs.cend(), is_precision_supported))) {
         DEBUG_LOG("ShlEltwise supports only f32");
+        return false;
+    }
+
+    // check whether input and output layouts are equal
+    if(srcDescs.front()->hasLayoutType(LayoutType::nCsp16c) || srcDescs.front()->hasLayoutType(LayoutType::nCsp8c)) {
+        DEBUG_LOG("ShlEltwise does not support 'nCsp16c' or 'nCsp8c' layouts");
+        return false;
+    }
+    const auto unifiedLayout = srcDescs.front()->hasLayoutType(LayoutType::ncsp) ? LayoutType::ncsp : LayoutType::nspc;
+    auto has_unified_layout = [unifiedLayout](const MemoryDescPtr& desc) { return desc->hasLayoutType(unifiedLayout); };
+    if (!(std::all_of(srcDescs.cbegin(), srcDescs.cend(), has_unified_layout) &&
+          std::all_of(dstDescs.cbegin(), dstDescs.cend(), has_unified_layout))) {
+        DEBUG_LOG("ShlEltwise needs to ensure all inputs and outputs are in the same 'ncsp' or 'nspc' layouts");
         return false;
     }
 
