@@ -282,7 +282,7 @@ CPU::CPU() {
 
     int cur_processor_id = sched_getcpu();
 
-    if ((_proc_type_table.size() > 1) && (_numa_nodes > _sockets)) {
+    if (_proc_type_table.size() > 1) {
         update_table_for_proc(cur_processor_id, _proc_type_table, _cpu_mapping_table);
     }
 
