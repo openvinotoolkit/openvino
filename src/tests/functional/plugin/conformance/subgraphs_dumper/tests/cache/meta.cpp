@@ -227,7 +227,7 @@ TEST_F(MetaInfoUnitTest, read_meta_from_file) {
 TEST_F(MetaInfoUnitTest, update) {
     auto test_meta = MetaInfo(test_model_name, test_in_info);
     std::map<std::string, InputInfo> test_meta_1 = {{ "test_in_0", InputInfo({20}, 0, 1, true) }};
-std::string test_model_1 = "test_model_1";
+    const std::string test_model_1 = "test_model_1";
     std::string test_model_path_1 = ov::util::path_join({ "path", "to",  test_model_1 + ".xml"}).string();
     OV_ASSERT_NO_THROW(this->update(test_model_path_1, test_meta_1));
     ASSERT_NE(this->model_info.find(test_model_1), this->model_info.end());
