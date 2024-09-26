@@ -133,6 +133,7 @@ void pre_replace_deconv::run(program& p) {
                 program_node& new_node = p.get_or_create(conv_prim);
 
                 auto& conv_node = new_node.as<convolution>();
+                conv_node.set_forced_impl_type(deconv_node.get_forced_impl_type());
 
                 // add connections input->convolution, weights->convolution and bias->convolution
                 p.add_connection(input_node, conv_node);
