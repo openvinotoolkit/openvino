@@ -58,7 +58,7 @@ jobs:
 
   rerunner_tests:
     name: Rerunner Tests
-    if: ${{ github.event_name == 'pull_request' }}
+    if: ${{ github.event_name == 'pull_request' && github.repository_owner == 'openvinotoolkit' }}
     runs-on: aks-linux-2-cores-8gb
     steps:
       - name: Checkout
