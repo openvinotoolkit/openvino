@@ -43,8 +43,6 @@ document.addEventListener('click', () => {
     });
 });
 
-
-
 document.addEventListener('DOMContentLoaded', function () {
     var dropdownButtons = document.querySelectorAll('.sst-btn');
     dropdownButtons.forEach((ddBtn) => {
@@ -88,7 +86,10 @@ function addLegalNotice() {
     }
 }
 
+
 $(document).ready(function () {
+    initSidebar();
+    handleSidebar();
     addFooter();
     createVersions();
     updateTitleTag();
@@ -104,6 +105,36 @@ $(document).ready(function () {
     createSphinxTabSets();
     initSplide();
 });
+
+function handleSidebar() {
+    const resizer = document.querySelector("#bd-resizer");
+    const sidebar = document.querySelector("#bd-sidebar");
+    resizer.addEventListener("mousedown", (event) => {
+        document.addEventListener("mousemove", resize, false);
+        document.addEventListener("mouseup", () => {
+            document.removeEventListener("mousemove", resize, false);
+        }, false);
+    });
+
+    function resize(e) {
+        const size = `${e.x}px`;
+        localStorage['resizeSidebarX'] = size;
+        sidebar.style.flexBasis = size;
+    }
+}
+
+function initSidebar() {
+    const sidebar = document.querySelector("#bd-sidebar");
+    if (sidebar) {
+        var size;
+        if (localStorage['resizeSidebarX'] == null) {
+            size = "350px";
+        } else {
+            size = localStorage['resizeSidebarX'];
+        }
+        sidebar.style.flexBasis = size;
+    }
+}
 
 // Determine where we'd go if clicking on a version selector option
 function getPageUrlWithVersion(version) {
@@ -321,19 +352,21 @@ function addFooter() {
 }
 
 function initSplide() {
-
-    var splide = new Splide('.splide', {
-        type: 'fade',
-        autoHeight: true,
-        perPage: 1,
-        autoplay: true,
-        arrows: false,
-        waitForTransition: true,
-        wheel: true,
-        wheelSleep: 250,
-        interval: 3000,
-    });
-    splide.mount();
+    var splider = document.getElementsByClassName('.splide');
+    if(splider.length != 0){
+        var splide = new Splide('.splide', {
+            type: 'fade',
+            autoHeight: true,
+            perPage: 1,
+            autoplay: true,
+            arrows: false,
+            waitForTransition: true,
+            wheel: true,
+            wheelSleep: 250,
+            interval: 3000,
+        });
+        splide.mount();
+    }
 }
 
 // ---------- COVEO SEARCH -----------

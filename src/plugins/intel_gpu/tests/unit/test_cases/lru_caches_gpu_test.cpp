@@ -133,8 +133,8 @@ struct ImplHasher {
 }  // namespace
 
 TEST(lru_cache, collisions) {
-    auto l1 = layout{{1, 3, 40, 20}, data_types::f32, format::bfyx};
-    auto l2 = layout{{1, 3, 39, 83}, data_types::f32, format::bfyx};
+    auto l1 = layout{{1, 3, 27, 85}, data_types::f32, format::bfyx};
+    auto l2 = layout{{1, 3, 26, 24}, data_types::f32, format::bfyx};
 
     auto input1_prim = std::make_shared<input_layout>("input1", l1);
     auto input2_prim = std::make_shared<input_layout>("input2", l2);
@@ -164,8 +164,8 @@ TEST(lru_cache, collisions) {
     shape_of1_node.set_preferred_impl_type(impl_types::ocl);
     shape_of2_node.set_preferred_impl_type(impl_types::ocl);
 
-    auto impl1 = shape_of1_node.type()->choose_impl(shape_of1_node);
-    auto impl2 = shape_of2_node.type()->choose_impl(shape_of2_node);
+    auto impl1 = shape_of1_node.type()->create_impl(shape_of1_node);
+    auto impl2 = shape_of2_node.type()->create_impl(shape_of2_node);
 
     // Ensure that hashes for primitive, input layouts and full impl params are same due to collision
     ASSERT_EQ(shape_of1_prim->hash(), shape_of2_prim->hash());

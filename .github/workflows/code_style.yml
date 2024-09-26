@@ -10,10 +10,11 @@ permissions: read-all
 jobs:
   clang-format:
     runs-on: ubuntu-22.04
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
     permissions:
       pull-requests: write
     steps:
-      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+      - uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
         with:
           submodules: 'true'
 
@@ -31,7 +32,7 @@ jobs:
 
       - name: suggester / clang-format
         if: startsWith(github.event_name, 'pull_request')
-        uses: reviewdog/action-suggester@63b8f8cc21dfa052ac44436e65ed31edcffcb6c1 # v1.17.0
+        uses: reviewdog/action-suggester@db4abb16fbaabe386831e5addb7be1485d0d63d3 # v1.18.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           level: warning
@@ -39,10 +40,11 @@ jobs:
 
   ShellCheck:
     runs-on: ubuntu-22.04
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
     permissions:
       pull-requests: write
     steps:
-      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+      - uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
         with:
           submodules: 'true'
 
@@ -60,7 +62,7 @@ jobs:
       # always provide suggestions even for skipped scripts in ov_shellcheck tagret
       - name: ShellCheck action
         if: always()
-        uses: reviewdog/action-shellcheck@d99499e855260c9c56f7a1d066933b57326e9e7c # v1.26.0
+        uses: reviewdog/action-shellcheck@ccaafec556ffa154f112bfcb7b9c9574190b7091 # v1.27.0
         with:
           level: style
           reporter: github-pr-review
@@ -72,8 +74,9 @@ jobs:
 
   NamingConventionCheck:
     runs-on: ubuntu-22.04
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
     steps:
-      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+      - uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
         with:
           submodules: 'true'
 

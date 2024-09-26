@@ -4,6 +4,7 @@
 
 #include "primitive_base.hpp"
 
+#include "detection_output.hpp"
 #include "detection_output_inst.h"
 #include "detection_output/detection_output_kernel_selector.h"
 #include "detection_output/detection_output_kernel_ref.h"
@@ -55,29 +56,18 @@ public:
         detectOutParams.clip_after_nms = primitive->clip_after_nms;
         detectOutParams.conf_size_x = confidence_layout.get_padded_dims()[2];
         detectOutParams.conf_size_y = confidence_layout.get_padded_dims()[3];
-        detectOutParams.conf_padding_x = confidence_layout.data_padding.lower_size().spatial[0];
-        detectOutParams.conf_padding_y = confidence_layout.data_padding.lower_size().spatial[1];
+        detectOutParams.conf_padding_x = confidence_layout.data_padding._lower_size[2];
+        detectOutParams.conf_padding_y = confidence_layout.data_padding._lower_size[3];
 
         return params;
     }
 };
 
-namespace detail {
-
-attach_detection_output_impl::attach_detection_output_impl() {
-    std::vector<data_types> dt = {
-        data_types::f32,
-        data_types::f16,
-    };
-    std::vector<format::type> fmt = {
-        format::bfyx,
-        format::bs_fs_yx_bsv16_fsv32,
-        format::bs_fs_zyx_bsv16_fsv32,
-    };
-    implementation_map<detection_output>::add(impl_types::ocl, typed_primitive_impl_ocl<detection_output>::create<detection_output_impl>, dt, fmt);
+std::unique_ptr<primitive_impl> DetectionOutputImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const {
+    assert(node.is_type<detection_output>());
+    return typed_primitive_impl_ocl<detection_output>::create<detection_output_impl>(static_cast<const detection_output_node&>(node), params);
 }
 
-}  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
 

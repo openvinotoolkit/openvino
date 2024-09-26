@@ -176,10 +176,7 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
 
     _outputAllocator = std::make_shared<const zeroMemory::HostMemAllocator>(_initStructs);
     _inputAllocator =
-        (_properties.flags & ZE_DEVICE_PROPERTY_FLAG_INTEGRATED)
-            ? std::make_shared<const zeroMemory::HostMemAllocator>(_initStructs,
-                                                                   ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED)
-            : _outputAllocator;
+        std::make_shared<const zeroMemory::HostMemAllocator>(_initStructs, ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED);
 
     if (config.get<BATCH_MODE>() != ov::intel_npu::BatchMode::COMPILER) {
         _batchSize = getBatchSize(_metadata);
@@ -260,14 +257,16 @@ void ZeroInferRequest::create_pipeline() {
 
     _logger.debug("ZeroInferRequest::create_pipeline - constructing pipeline");
     // Construct pipeline
-    _pipeline = makePipeline(_executorPtr,
-                             _config,
-                             _profilingPool,
-                             _profilingQuery,
-                             _npuProfiling,
-                             _inputTensorsData,
-                             _outputTensorsData,
-                             _numberOfCommandLists);
+
+    _pipeline = std::make_unique<Pipeline>(_config,
+                                           _executorPtr,
+                                           _profilingPool,
+                                           _profilingQuery,
+                                           _npuProfiling,
+                                           _inputTensorsData,
+                                           _outputTensorsData,
+                                           _numberOfCommandLists);
+
     _logger.debug("ZeroInferRequest::create_pipeline - SyncInferRequest completed");
 }
 
@@ -552,6 +551,8 @@ void ZeroInferRequest::check_network_precision(const ov::element::Type_t precisi
         break;
     case ov::element::Type_t::f16:
         break;
+    case ov::element::Type_t::bf16:
+        break;
     case ov::element::Type_t::u4:
         break;
     case ov::element::Type_t::i4:
@@ -576,7 +577,7 @@ void ZeroInferRequest::check_network_precision(const ov::element::Type_t precisi
         break;
     default:
         OPENVINO_THROW("Unsupported tensor precision: " + ov::element::Type(precision).get_type_name() +
-                       "! Supported precisions: FP32, FP16, U4, I4, U8, I8, U16, I16, U32, I32, U64, I64, FP64");
+                       "! Supported precisions: FP32, FP16, BF16, U4, I4, U8, I8, U16, I16, U32, I32, U64, I64, FP64");
     }
 }
 

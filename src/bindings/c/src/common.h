@@ -65,7 +65,7 @@
             }                                                                                                  \
             return out_str;                                                                                    \
         };                                                                                                     \
-        ov::EncryptionCallbacks encryption_callbacks{encrypt_value, decrypt_value};                            \
+        ov::EncryptionCallbacks encryption_callbacks{std::move(encrypt_value), std::move(decrypt_value)};      \
         property[property_key] = encryption_callbacks;                                                         \
     } else {                                                                                                   \
         std::string _value = va_arg(args_ptr, char*);                                                          \
