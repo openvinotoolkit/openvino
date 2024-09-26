@@ -24,6 +24,7 @@ of increased latency, however.
 
 .. |image0| image:: https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/transformers/model_doc/oneformer_architecture.png
 
+
 **Table of contents:**
 
 
@@ -442,13 +443,11 @@ improve model inference speed.
 
 .. code:: ipython3
 
+    from notebook_utils import quantization_widget
+    
     compiled_quantized_model = None
     
-    to_quantize = widgets.Checkbox(
-        value=False,
-        description="Quantization",
-        disabled=False,
-    )
+    to_quantize = quantization_widget(False)
     
     to_quantize
 
@@ -701,7 +700,6 @@ Interactive Demo
 .. code:: ipython3
 
     import time
-    import gradio as gr
     
     quantized_model_present = compiled_quantized_model is not None
     
@@ -726,50 +724,16 @@ Interactive Demo
         plt.close("all")
         result = stack_images_horizontally(segmentation_image, legend_image)
         return result, f"{end_time - start_time:.2f}"
+
+.. code:: ipython3
+
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/oneformer-segmentation/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
     
+    from gradio_helper import make_demo
     
-    with gr.Blocks() as demo:
-        with gr.Row():
-            with gr.Column():
-                inp_img = gr.Image(label="Image", type="pil")
-                inp_task = gr.Radio(["semantic", "instance", "panoptic"], label="Task", value="semantic")
-                inp_device = gr.Dropdown(label="Device", choices=core.available_devices + ["AUTO"], value="AUTO")
-            with gr.Column():
-                out_result = gr.Image(label="Result (Original)" if quantized_model_present else "Result")
-                inference_time = gr.Textbox(label="Time (seconds)")
-                out_result_quantized = gr.Image(label="Result (Quantized)", visible=quantized_model_present)
-                inference_time_quantized = gr.Textbox(label="Time (seconds)", visible=quantized_model_present)
-        run_button = gr.Button(value="Run")
-        run_button.click(
-            segment_wrapper,
-            [inp_img, inp_task, gr.Number(0, visible=False)],
-            [out_result, inference_time],
-        )
-        run_quantized_button = gr.Button(value="Run quantized", visible=quantized_model_present)
-        run_quantized_button.click(
-            segment_wrapper,
-            [inp_img, inp_task, gr.Number(1, visible=False)],
-            [out_result_quantized, inference_time_quantized],
-        )
-        gr.Examples(examples=[["sample.jpg", "semantic"]], inputs=[inp_img, inp_task])
-    
-        def on_device_change_begin():
-            return (
-                run_button.update(value="Changing device...", interactive=False),
-                run_quantized_button.update(value="Changing device...", interactive=False),
-                inp_device.update(interactive=False),
-            )
-    
-        def on_device_change_end():
-            return (
-                run_button.update(value="Run", interactive=True),
-                run_quantized_button.update(value="Run quantized", interactive=True),
-                inp_device.update(interactive=True),
-            )
-    
-        inp_device.change(on_device_change_begin, outputs=[run_button, run_quantized_button, inp_device]).then(compile_model, inp_device).then(
-            on_device_change_end, outputs=[run_button, run_quantized_button, inp_device]
-        )
+    demo = make_demo(run_fn=segment_wrapper, compile_model_fn=compile_model, quantized=quantized_model_present)
     
     try:
         demo.launch(debug=False)
@@ -778,3 +742,8 @@ Interactive Demo
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
+
+.. code:: ipython3
+
+    # please uncomment and run this cell for stopping gradio interface
+    # demo.close()
