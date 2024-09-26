@@ -56,7 +56,7 @@ find_models(const std::vector<std::string> &dirs, const std::string& regexp) {
                     continue;
                 }
             } catch (std::exception) {
-                not_read_model.emplace_back(model_file);
+                not_read_model.emplace_back(model_file.string());
                 // std::cout << "[ ERROR ] Impossible to read model: " << model_file << std::endl << "Exception: " << e.what();
             }
         }
