@@ -52,9 +52,9 @@ void MockInferRequestBase::create_implementation() {
 MockCompiledModelBase::MockCompiledModelBase(const std::shared_ptr<const ov::Model>& model,
                                              std::shared_ptr<ov::IPlugin> plugin,
                                              const ov::AnyMap& config,
-                                             std::shared_ptr<std::pair<std::function<void(MockInferRequest&)>, bool>> infer_req_expectations_ptr)
+                                             std::shared_ptr<std::map<int, std::pair<std::function<void(MockInferRequest&)>, bool>>> infer_reqs_to_expectations_ptr)
             : ov::ICompiledModel(model, plugin),
-            m_infer_req_expectations_ptr(infer_req_expectations_ptr),
+            m_infer_reqs_to_expectations_ptr(infer_reqs_to_expectations_ptr),
             m_model(model),
             m_config(config) {
     }
@@ -99,12 +99,17 @@ void MockCompiledModelBase::create_implementation() {
         auto mock_sync_infer_request = std::make_shared<MockInferRequest>(
                 std::dynamic_pointer_cast<const MockCompiledModel>(shared_from_this()));
         mock_sync_infer_request->create_implementation();
-        if (m_infer_req_expectations_ptr) {
-            auto& expectation = m_infer_req_expectations_ptr->first;
-            auto& status = m_infer_req_expectations_ptr->second;
+        if (m_infer_reqs_to_expectations_ptr &&
+            m_infer_reqs_to_expectations_ptr->count(m_num_created_infer_requests)) {
+            auto& expectation_and_status = (*m_infer_reqs_to_expectations_ptr)[m_num_created_infer_requests];
+            auto& expectation = expectation_and_status.first;
+            auto& status = expectation_and_status.second;
             expectation(*mock_sync_infer_request);
             status = true;  // Expectation will be checked
         }
+
+        ++m_num_created_infer_requests;
+
         return mock_sync_infer_request;
     });
 }
@@ -134,14 +139,14 @@ void MockPluginBase<DeviceType>::create_implementation() {
             .WillByDefault([this](const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& properties) {
                 std::lock_guard<std::mutex> lock(m_mock_creation_mutex);
 
-                std::shared_ptr<std::pair<std::function<void(MockInferRequest&)>, bool>> infer_req_expectations;
-                if (m_infer_reqs_to_expectations.count(m_num_compiled_models)) {
-                    infer_req_expectations = m_infer_reqs_to_expectations[m_num_compiled_models];
+                std::shared_ptr<std::map<int, std::pair<std::function<void(MockInferRequest&)>, bool>>> infer_reqs_to_expectations;
+                if (m_models_to_reqs_to_expectations.count(m_num_compiled_models)) {
+                    infer_reqs_to_expectations = m_models_to_reqs_to_expectations[m_num_compiled_models];
                 }
 
                 auto mock_compiled_model = std::make_shared<MockCompiledModel>(
                     model, shared_from_this(), properties,
-                    infer_req_expectations);
+                    infer_reqs_to_expectations);
 
                 mock_compiled_model->create_implementation();
 
@@ -265,10 +270,14 @@ void MockPluginBase<DeviceType>::set_expectations_to_comp_models(int model_idx, 
 }
 
 template <typename DeviceType>
-void MockPluginBase<DeviceType>::set_expectations_to_infer_reqs(int req_idx,
+void MockPluginBase<DeviceType>::set_expectations_to_infer_reqs(int model_idx, int req_idx,
                                                                 std::function<void(MockInferRequest&)> expectations) {
-    m_infer_reqs_to_expectations[req_idx] =
-            std::make_shared<std::pair<std::function<void(MockInferRequest&)>, bool>>(expectations, false);
+    if (!m_models_to_reqs_to_expectations.count(model_idx)) {
+        m_models_to_reqs_to_expectations[model_idx] =
+                std::make_shared<std::map<int, std::pair<std::function<void(MockInferRequest&)>, bool>>>();
+    }
+    m_models_to_reqs_to_expectations[model_idx]->insert(            
+            {req_idx, std::pair<std::function<void(MockInferRequest&)>, bool>(expectations, false)});
 }
 
 template <typename DeviceType>
@@ -277,16 +286,21 @@ MockPluginBase<DeviceType>::~MockPluginBase() {
         auto idx = idx_to_expectation_and_status.first;
         auto expectation_and_status = idx_to_expectation_and_status.second;
         if (!expectation_and_status.second) {
-            ADD_FAILURE() << DeviceType::name  << ": Expectation for model with index " << idx
-                          << " was set, but model with that idx was not compiled";
+            ADD_FAILURE() << DeviceType::name  << ": Expectation for model[" << idx
+                          << "] was set, but that model was not compiled";
         }
     }
-    for (auto const& idx_to_expectation_and_status : m_infer_reqs_to_expectations) {
-        auto idx = idx_to_expectation_and_status.first;
-        auto expectation_and_status = *idx_to_expectation_and_status.second;
-        if (!expectation_and_status.second) {
-            ADD_FAILURE() << DeviceType::name << ": Expectation for request with index " << idx
-                          << " was set, but request with that idx was not created";
+    for (auto const& idx_to_reqs_to_expectation_and_status : m_models_to_reqs_to_expectations) {
+        OPENVINO_ASSERT(idx_to_reqs_to_expectation_and_status.second);
+        for (auto const& req_to_expectation_and_status : *idx_to_reqs_to_expectation_and_status.second) {
+            auto req_idx = req_to_expectation_and_status.first;
+            auto expectation_and_status = req_to_expectation_and_status.second;
+            if (!expectation_and_status.second) {
+                auto model_idx = idx_to_reqs_to_expectation_and_status.first;
+                ADD_FAILURE() << DeviceType::name << ": Expectation for request[" << req_idx
+                            << "] of model[" << model_idx << "] was set, but that request was "
+                            << "not created";
+            }
         }
     }
 }
