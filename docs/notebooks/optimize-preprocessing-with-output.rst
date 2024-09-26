@@ -23,6 +23,7 @@ This tutorial include following steps:
 -  Comparing results on one picture.
 -  Comparing performance.
 
+
 **Table of contents:**
 
 
@@ -365,7 +366,7 @@ for mean/scale normalization.
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.InputTensorInfo at 0x7fc9480c3b30>
+    <openvino._pyopenvino.preprocess.InputTensorInfo at 0x7fbb39d78930>
 
 
 
@@ -396,7 +397,7 @@ may be specified is input data
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.InputModelInfo at 0x7fc9480cacf0>
+    <openvino._pyopenvino.preprocess.InputModelInfo at 0x7fbbd475f4f0>
 
 
 
@@ -434,7 +435,7 @@ then such conversion will be added explicitly.
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.PreProcessSteps at 0x7fc9480c3870>
+    <openvino._pyopenvino.preprocess.PreProcessSteps at 0x7fbda078ef70>
 
 
 
@@ -648,6 +649,6 @@ Compare performance
 
 .. parsed-literal::
 
-    IR model in OpenVINO Runtime/CPU with manual image preprocessing: 0.0151 seconds per image, FPS: 66.44
-    IR model in OpenVINO Runtime/CPU with preprocessing API: 0.0140 seconds per image, FPS: 71.66
+    IR model in OpenVINO Runtime/CPU with manual image preprocessing: 0.0146 seconds per image, FPS: 68.47
+    IR model in OpenVINO Runtime/CPU with preprocessing API: 0.0140 seconds per image, FPS: 71.20
 
