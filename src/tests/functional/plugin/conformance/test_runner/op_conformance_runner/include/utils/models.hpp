@@ -56,23 +56,20 @@ get_model_paths(const std::vector<std::string>& conformance_ir_paths,
             for (auto& val : tmp_buf) {
                 bool is_op = false;
 #ifdef _WIN32
-                for (auto it = val.begin(); it != val.end(); ++it) {
-                    if (*it == '/')
-                        val.replace(it, it + 1, ov::test::utils::FileSeparator);
-                }
+                val.make_preferred();
 #endif
-                for (const auto& path_item : ov::test::utils::splitStringByDelimiter(val.native(), ov::test::utils::FileSeparator)) {
+                for (const auto& path_item : ov::test::utils::splitStringByDelimiter(val.string(), ov::test::utils::FileSeparator)) {
                     auto pos = path_item.find('-');
                     auto tmp_path_item = pos == std::string::npos ? path_item : path_item.substr(0, pos);
 
                     if (op_filelist.find(tmp_path_item) != op_filelist.end()) {
-                        op_filelist[tmp_path_item].push_back({val, get_ref_path(val)});
+                        op_filelist[tmp_path_item].push_back({val.string(), get_ref_path(val.string())});
                         is_op = true;
                         break;
                     }
                 }
                 if (!is_op) {
-                    op_filelist["undefined"].push_back({val, get_ref_path(val)});
+                    op_filelist["undefined"].push_back({val.string(), get_ref_path(val.string())});
                 }
             }
         }
