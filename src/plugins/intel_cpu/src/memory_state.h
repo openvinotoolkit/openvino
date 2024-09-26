@@ -108,10 +108,6 @@ private:
     void reset_impl() override;
     void commit_impl() override {};
 
-    const MemoryPtr& prime_mem() const {
-        return m_internal_mem;
-    }
-
     MemoryPtr internal_state_mem() const override;
 
 private:

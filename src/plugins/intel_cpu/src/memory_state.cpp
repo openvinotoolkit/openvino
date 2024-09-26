@@ -162,22 +162,22 @@ VariableStateSingleBuffer::VariableStateSingleBuffer(const std::string& name,
     : VariableStateBase(name, external_desc) {
     OPENVINO_ASSERT(external_buffer);
     m_internal_mem = external_buffer;
-    m_internal_desc = prime_mem()->getDescPtr();
+    m_internal_desc = m_internal_mem->getDescPtr();
     auto&& shape = m_internal_desc->getShape();
 
     if (shape.isStatic()) {
-        prime_mem()->nullify();
+        m_internal_mem->nullify();
     } else {
         // in the case of the original desc has dynamic shape we create an empty tensor
         auto new_desc = to_static(m_internal_desc);
-        prime_mem()->redefineDesc(new_desc);
+        m_internal_mem->redefineDesc(new_desc);
     }
 }
 MemoryPtr VariableStateSingleBuffer::input_mem() {
-    return prime_mem();
+    return m_internal_mem;
 }
 MemoryPtr VariableStateSingleBuffer::output_mem() {
-    return prime_mem();
+    return m_internal_mem;
 }
 MemoryDescPtr VariableStateSingleBuffer::internal_desc() const {
     return m_internal_desc;
@@ -192,7 +192,7 @@ void VariableStateSingleBuffer::reset_impl() {
 }
 
 MemoryPtr VariableStateSingleBuffer::internal_state_mem() const {
-    return prime_mem();
+    return m_internal_mem;
 }
 
 VariableStateKVcache::VariableStateKVcache(

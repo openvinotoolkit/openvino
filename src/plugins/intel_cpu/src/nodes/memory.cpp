@@ -822,9 +822,11 @@ MemoryInput::MemoryInput(const std::shared_ptr<ov::Node>& op, const GraphContext
 
 bool MemoryInput::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!one_of(op->get_type_info(), ov::intel_cpu::ReadValueWithSubgraph::get_type_info_static())) {
-            errorMessage = "Node is not an instance of ReadValueWithSubgraph from the operation set ov::intel_cpu.";
-            return false;
+        if (!MemoryInputBase::isSupportedOperation(op, errorMessage)) {
+            if (!one_of(op->get_type_info(), ov::intel_cpu::ReadValueWithSubgraph::get_type_info_static())) {
+                errorMessage = "Node is not an instance of ReadValueWithSubgraph from the operation set ov::intel_cpu.";
+                return false;
+            }
         }
     } catch (...) {
         return false;
