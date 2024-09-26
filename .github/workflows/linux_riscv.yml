@@ -110,6 +110,7 @@ jobs:
           cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
           cache-size: 10
           max-cache-size: 50
+          recursive: true
           cache-path: ${{ env.CCACHE_REMOTE_DIR }}
           path: ${{ env.CCACHE_DIR }}
           key: ${{ runner.os }}-${{ runner.arch }}-ccache-${{ github.sha }}
