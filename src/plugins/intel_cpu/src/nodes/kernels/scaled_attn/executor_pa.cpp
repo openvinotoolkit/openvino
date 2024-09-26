@@ -14,6 +14,7 @@
 #endif
 
 #include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "openvino/core/parallel.hpp"
 #include "executor_pa.hpp"
 #include "executor_pa_common.hpp"
@@ -619,7 +620,8 @@ void transpose_16NxK(TDST* dst, TSRC* src, TDST* tmp, size_t N, size_t K, size_t
 }
 
 #if defined(HAVE_AVX512F)
-static void transpose_16NxK(ov::bfloat16* dst, ov::bfloat16* src, ov::bfloat16* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride) {
+template<typename T, typename = typename std::enable_if<(std::is_same<T, ov::bfloat16>::value || std::is_same<T, ov::float16>::value), bool>::type>
+static void transpose_16NxK(T* dst, T* src, T* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride) {
     // will treat as uint32_t transpose
     auto s = reinterpret_cast<uint32_t*>(src);
     auto d = reinterpret_cast<uint32_t*>(dst);
@@ -669,8 +671,8 @@ void dequant(TDST* dst, uint8_t* src, size_t N, size_t K) {
 }
 
 #if defined(HAVE_AVX512F)
-// pack bf16/u8 to bf16
-static void pack_32x32_kernel(ov::bfloat16* dst, ov::bfloat16* src, size_t dst_stride, size_t src_stride) {
+template<typename T, typename = typename std::enable_if<(std::is_same<T, ov::bfloat16>::value || std::is_same<T, ov::float16>::value), bool>::type>
+static void pack_32x32_kernel(T* dst, T* src, size_t dst_stride, size_t src_stride) {
     static const uint64_t idx[8] = {0, 4, 1, 5, 2, 6, 3, 7};
     auto midx = _mm512_loadu_si512(idx);
     for (size_t i = 0; i < 16; i++) {
@@ -687,7 +689,8 @@ static void pack_32x32_kernel(ov::bfloat16* dst, ov::bfloat16* src, size_t dst_s
     }
 }
 
-static void pack_32x16_kernel(ov::bfloat16* dst, ov::bfloat16* src, size_t dst_stride, size_t src_stride) {
+template<typename T, typename = typename std::enable_if<(std::is_same<T, ov::bfloat16>::value || std::is_same<T, ov::float16>::value), bool>::type>
+static void pack_32x16_kernel(T* dst, T* src, size_t dst_stride, size_t src_stride) {
     static const uint64_t idx[8] = {0, 4, 1, 5, 2, 6, 3, 7};
     auto midx = _mm512_loadu_si512(idx);
     for (size_t i = 0; i < 16; i++) {
@@ -704,7 +707,8 @@ static void pack_32x16_kernel(ov::bfloat16* dst, ov::bfloat16* src, size_t dst_s
     }
 }
 
-static void pack_32Nx16K(ov::bfloat16* dst, ov::bfloat16* src, ov::bfloat16* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride) {
+template<typename T, typename = typename std::enable_if<(std::is_same<T, ov::bfloat16>::value || std::is_same<T, ov::float16>::value), bool>::type>
+static void pack_32Nx16K(T* dst, T* src, T* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride) {
     for (size_t n = 0; n < N; n += 32) {
         size_t k = 0;
         for (; k + 32 <= K; k += 32) {
@@ -718,7 +722,8 @@ static void pack_32Nx16K(ov::bfloat16* dst, ov::bfloat16* src, ov::bfloat16* tmp
     }
 }
 
-static void pack_32Nx16K(ov::bfloat16* dst, uint8_t* src, ov::bfloat16* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride) {
+template<typename T, typename = typename std::enable_if<(std::is_same<T, ov::bfloat16>::value || std::is_same<T, ov::float16>::value), bool>::type>
+static void pack_32Nx16K(T* dst, uint8_t* src, T* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride) {
     // The layout for per token per head:
     // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized feature(u8,idx_S)|
     // The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
@@ -730,7 +735,7 @@ static void pack_32Nx16K(ov::bfloat16* dst, uint8_t* src, ov::bfloat16* tmp, siz
         s += src_stride + 2 * sizeof(float);
         t += src_stride;
     }
-    pack_32Nx16K(dst, tmp, reinterpret_cast<ov::bfloat16*>(0), N, K, dst_stride, src_stride);
+    pack_32Nx16K(dst, tmp, reinterpret_cast<T*>(0), N, K, dst_stride, src_stride);
 }
 #endif
 
@@ -769,7 +774,8 @@ struct MHAHelper {
     std::vector<std::shared_ptr<BrgemmKernel>> _wv_gemm_acc;
     // second token
     std::shared_ptr<JitMatMulVecAMX> _gemv;
-    bool _fastpath_valid = false;
+    // bool _fastpath_valid = false;
+    ov::element::Type _fastpath_valid_prec = ov::element::undefined;
     // second token for bhl loop
     PlainTensor _weight_bhl;
     PlainTensor _output_bhl;
@@ -851,11 +857,25 @@ struct MHAHelper {
             _qk_scratch_a.resize<DATA_TYPE>({_nthr, _qk_gemm[_block_size - 1]->get_scratch_a_size() / sizeof(DATA_TYPE)});
             _wv_scratch_a.resize<DATA_TYPE>({_nthr, _wv_gemm[_block_size - 1]->get_scratch_a_size() / sizeof(DATA_TYPE)});
 
-            _fastpath_valid = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::amx_bf16) &&
-                (S % 32 == 0) && (block_size % 16 == 0) && (S <= 32 * 6) && precision_of<KVCACHE_TYPE>::value == ov::element::bf16;
-            // aligned to cache line (64bytes=16*sizeof(float)) to avoid false sharing
-            if (_fastpath_valid && !_gemv)
-                _gemv = std::make_shared<JitMatMulVecAMX>(static_cast<int>(S), static_cast<int>(block_size));
+            // _fastpath_valid = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::amx_bf16) &&
+            //     (S % 32 == 0) && (block_size % 16 == 0) && (S <= 32 * 6) && precision_of<KVCACHE_TYPE>::value == ov::element::bf16;
+            // // aligned to cache line (64bytes=16*sizeof(float)) to avoid false sharing
+            // if (_fastpath_valid && !_gemv)
+            //     _gemv = std::make_shared<JitMatMulVecAMX>(static_cast<int>(S), static_cast<int>(block_size));
+
+            if ((S % 32 == 0) && (block_size % 16 == 0) && (S <= 32 * 6)) {
+                if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::amx_bf16) &&
+                    precision_of<KVCACHE_TYPE>::value == ov::element::bf16) {
+                    _fastpath_valid_prec = ov::element::bf16;
+                } else if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::amx_fp16) &&
+                           precision_of<KVCACHE_TYPE>::value == ov::element::f16) {
+                    _fastpath_valid_prec = ov::element::f16;
+                }
+            }
+            if (one_of(_fastpath_valid_prec, ov::element::bf16, ov::element::f16) && !_gemv) {
+                // aligned to cache line (64bytes=16*sizeof(float)) to avoid false sharing
+                _gemv = std::make_shared<JitMatMulVecAMX>(static_cast<int>(S), static_cast<int>(block_size), _fastpath_valid_prec);
+            }
         }
 
         if (init_alibi_lookup && (!_alibi_lookup || _alibi_lookup.m_dims[0] < kv_len)) {
@@ -903,7 +923,7 @@ struct MHAHelper {
         auto q_start = q_blk * _block_size;
         auto q_end = std::min(q_start + _block_size, q_len);
         auto q_cnt = q_end - q_start;
-        constexpr bool q_is_bf16 = precision_of<DATA_TYPE>::value == ov::element::bf16;
+        constexpr bool q_is_xf16 = one_of(precision_of<DATA_TYPE>::value, ov::element::bf16, ov::element::f16);
         constexpr bool q_cache_is_same = precision_of<DATA_TYPE>::value == precision_of<KVCACHE_TYPE>::value;
         auto cur_kv_len_blocks = div_up(cur_kv_len, _block_size);
         for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++) {
@@ -977,12 +997,12 @@ struct MHAHelper {
 
             // reuse float buffer, need to use float to compute offset
             auto* w_ptr = reinterpret_cast<DATA_TYPE*>(_weight.ptr<float>(ithr, h, 0, 0));
-            float* fp32_out_ptr = q_is_bf16 ? _output.ptr<float>(ithr, 0, h, 0) : output_emb.ptr<float>(q_start, h * _S);
+            float* fp32_out_ptr = q_is_xf16 ? _output.ptr<float>(ithr, 0, h, 0) : output_emb.ptr<float>(q_start, h * _S);
 
             // for each weight block, loop through all value block
             for (size_t v_blk = 0; v_blk < cur_kv_len_blocks; v_blk++) {
                 DATA_TYPE* v_ptr;
-                if (q_is_bf16 || !q_cache_is_same) {
+                if (q_is_xf16 || !q_cache_is_same) {
                     v_ptr = wv_scratch_b.ptr<DATA_TYPE>(v_blk, hk);
                 } else {
                     v_ptr = present_value.ptr<DATA_TYPE>(block_table[v_blk], hk);
@@ -1003,11 +1023,11 @@ struct MHAHelper {
                                                          _wv_scratch_a ? _wv_scratch_a.ptr<DATA_TYPE>(ithr, 0) : nullptr);
                 }
             }
-            if (q_is_bf16) {
+            if (q_is_xf16) {
                 attn_memcpy2d_kernel(_output.ptr<float>(ithr, 0, h, 0),
                                      output_emb.ptr<DATA_TYPE>(q_start, h * _S),
                                      ov::element::f32,
-                                     ov::element::bf16,
+                                     precision_of<DATA_TYPE>::value,
                                      _output.stride(1),
                                      output_emb.stride(0),
                                      _S,
@@ -1025,13 +1045,25 @@ struct MHAHelper {
     //  output: [nthr, 32, H, S]
     void exec_kernel_one_bh(const PlainTensor& query, const PlainTensor& present_key, const PlainTensor& present_value, const PlainTensor& output_emb,
         const int32_t* block_table, size_t ithr, size_t hk, size_t q_len, size_t cur_kv_len, const PlainTensor& alibi_slopes, float* score_output) {
-        if (_fastpath_valid) {
+        if (_fastpath_valid_prec == ov::element::bf16) {
             _gemv->tile_config();
             for (size_t pk = 0, i = 0; pk < cur_kv_len; pk += _block_size, i++) {
                 auto block_number = block_table[i];
                 for (size_t pq = 0; pq < q_len; pq++) {
                     for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++) {
                         (*_gemv)(query.ptr<ov::bfloat16>(h, pq), present_key.ptr<ov::bfloat16>(block_number, hk),
+                            _weight.ptr<float>(ithr, h, pq) + pk);
+                    }
+                }
+            }
+            _gemv->tile_release();
+        } else if (_fastpath_valid_prec == ov::element::f16) {
+            _gemv->tile_config();
+            for (size_t pk = 0, i = 0; pk < cur_kv_len; pk += _block_size, i++) {
+                auto block_number = block_table[i];
+                for (size_t pq = 0; pq < q_len; pq++) {
+                    for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++) {
+                        (*_gemv)(query.ptr<ov::float16>(h, pq), present_key.ptr<ov::float16>(block_number, hk),
                             _weight.ptr<float>(ithr, h, pq) + pk);
                     }
                 }
@@ -1127,11 +1159,20 @@ struct MHAHelper {
             auto pk = pk_in_blocks * _block_size;
             if (pk < context_len) {
                 auto block_number = block_indices.ptr<int32_t>()[block_indices_begins.ptr<int32_t>()[b] + pk_in_blocks];
-                if (_fastpath_valid) {
+                if (_fastpath_valid_prec == ov::element::bf16) {
                     _gemv->tile_config();
                     for (size_t pq = 0; pq < q_len; pq++) {
                         for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++) {
                             (*_gemv)(query.ptr<ov::bfloat16>(b, h, pq), present_key.ptr<ov::bfloat16>(block_number, hk),
+                                _weight_bhl.ptr<float>(b, h, pq) + pk);
+                        }
+                    }
+                    _gemv->tile_release();
+                } else if (_fastpath_valid_prec == ov::element::f16) {
+                    _gemv->tile_config();
+                    for (size_t pq = 0; pq < q_len; pq++) {
+                        for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++) {
+                            (*_gemv)(query.ptr<ov::float16>(b, h, pq), present_key.ptr<ov::float16>(block_number, hk),
                                 _weight_bhl.ptr<float>(b, h, pq) + pk);
                         }
                     }
@@ -1333,7 +1374,7 @@ struct MHA {
                          const PlainTensor& alibi_slopes) {
         auto Hk = v_cache.m_dims[1];
 
-        constexpr bool q_is_bf16 = precision_of<DATA_TYPE>::value == ov::element::bf16;
+        constexpr bool q_is_xf16 = one_of(precision_of<DATA_TYPE>::value, ov::element::bf16, ov::element::f16);
         constexpr bool q_cache_is_same = precision_of<DATA_TYPE>::value == precision_of<KVCACHE_TYPE>::value;
         auto attn_work_count = _workitems.attn_work_size();
         auto reorder_work_count = _workitems.reorder_work_size();
@@ -1359,7 +1400,7 @@ struct MHA {
                 _helper._output.template ptr<DATA_TYPE>(ithr),
                 _helper._block_size,
                 _helper._S, _helper._block_size, _helper._S);
-            if (q_is_bf16) {
+            if (q_is_xf16) {
                 pack_32Nx16K(_helper._wv_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
                     v_ptr,
                     _helper._output.template ptr<DATA_TYPE>(ithr),
@@ -1603,6 +1644,17 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
         }
 #else
         OPENVINO_THROW("make_pa_executor: bf16 needs avx512+ hardware.");
+#endif
+    } else if (data_type == ov::element::f16) {
+#if defined(HAVE_AVX512F)
+        if (kvcache_type == ov::element::u8) {
+            executor = std::make_shared<AttentionExecutor<ov::float16, uint8_t>>();
+        } else {
+            OPENVINO_ASSERT(kvcache_type == ov::element::f16, "expect kvcache type f16, current: ", kvcache_type);
+            executor = std::make_shared<AttentionExecutor<ov::float16, ov::float16>>();
+        }
+#else
+     OPENVINO_THROW("make_pa_executor: f16 needs avx512+ hardware.");
 #endif
     } else if (data_type == ov::element::f32) {
         if (kvcache_type == ov::element::u8) {
