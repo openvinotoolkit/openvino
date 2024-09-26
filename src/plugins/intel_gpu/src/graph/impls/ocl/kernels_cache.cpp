@@ -2,19 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "kernels_factory.hpp"
 #include "kernels_cache.hpp"
-#include "ocl/ocl_kernel.hpp"
-#include "ocl/ocl_engine.hpp"
-#include "ocl/ocl_common.hpp"
+
+#include "openvino/util/pp.hpp"
 #include "intel_gpu/graph/serialization/set_serializer.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
 #include "intel_gpu/graph/serialization/map_serializer.hpp"
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
+#include "intel_gpu/graph/program.hpp"
+
+#include "intel_gpu/runtime/utils.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/file_util.hpp"
-#include "openvino/util/pp.hpp"
+
+#include "ocl/ocl_kernel.hpp"
+#include "ocl/ocl_common.hpp"
+#include "ocl/ocl_device.hpp"
 
 #ifdef WIN32
 #include <sdkddkver.h>
@@ -23,7 +27,6 @@
 #endif
 #endif
 
-#include <algorithm>
 #include <cassert>
 #include <sstream>
 #include <fstream>
@@ -46,6 +49,26 @@
 
 namespace {
 std::mutex cacheAccessMutex;
+
+static const cldnn::device::ptr get_target_device(const cldnn::engine& engine) {
+    using namespace cldnn;
+    if (engine.runtime_type() == runtime_types::ocl) {
+        return engine.get_device();
+    } else {
+        ocl::ocl_device_detector detector;
+        auto device_map = detector.get_available_devices(nullptr, nullptr);
+        auto original_device = engine.get_device();
+
+        for (auto& d : device_map) {
+            const auto& target_uuid = d.second->get_info().uuid;
+            const auto& original_uuid = original_device->get_info().uuid;
+            if (target_uuid.uuid == original_uuid.uuid)
+                return d.second;
+        }
+    }
+
+    OPENVINO_THROW("[GPU] Couldn't find target device for kernels cache");
+}
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 cl::Program fuse_microkernels(const cl::Context& context, const cl::Device& device, cl::Program& program, const std::string& code) {
@@ -212,8 +235,8 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
         auto options = c.first;
         auto& batches = std::get<1>(c.second);
         for (auto& b : batches) {
-            std::string full_code = options + " " + _engine.get_device_info().driver_version;
-            full_code += _engine.get_device_info().dev_name;
+            std::string full_code = options + " " + _device->get_info().driver_version;
+            full_code += _device->get_info().dev_name;
             for (auto& ss : b.source)
                 full_code += ss;
 
@@ -248,7 +271,7 @@ kernels_cache::kernels_cache(engine& engine,
                              uint32_t prog_id,
                              std::shared_ptr<ov::threading::ITaskExecutor> task_executor,
                              const std::map<std::string, std::string>& batch_headers)
-    : _engine(engine)
+    : _device(get_target_device(engine))
     , _task_executor(task_executor)
     , _config(config)
     , _prog_id(prog_id)
@@ -271,10 +294,10 @@ static std::vector<unsigned char> getProgramBinaries(cl::Program program) {
 }
 
 // TODO: This build_batch method should be backend specific
-void kernels_cache::build_batch(const engine& build_engine, const batch_program& batch, compiled_kernels& compiled_kernels) {
+void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& compiled_kernels) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::build_batch");
 
-    auto& cl_build_engine = dynamic_cast<const ocl::ocl_engine&>(build_engine);
+    auto& cl_build_device = dynamic_cast<const ocl::ocl_device&>(*_device);
 
     bool dump_sources = batch.dump_custom_program;
     std::string dump_sources_dir = "";
@@ -325,10 +348,10 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
 
         // Run compilation
         if (precompiled_kernels.empty()) {
-            cl::Program program(cl_build_engine.get_cl_context(), batch.source);
+            cl::Program program(cl_build_device.get_context(), batch.source);
             {
                 OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::BuildProgram::RunCompilation");
-                if (program.build({cl_build_engine.get_cl_device()}, batch.options.c_str()) != CL_SUCCESS)
+                if (program.build({cl_build_device.get_device()}, batch.options.c_str()) != CL_SUCCESS)
                     throw std::runtime_error("Failed in building program.");
             }
 
@@ -344,7 +367,7 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
 #ifdef ENABLE_ONEDNN_FOR_GPU
                 OPENVINO_ASSERT(batch.kernels_counter == 1);
                 // Do we need full source code here (with batch headers)?
-                program = fuse_microkernels(cl_build_engine.get_cl_context(), cl_build_engine.get_cl_device(), program, batch.source.back());
+                program = fuse_microkernels(cl_build_device.get_context(), cl_build_device.get_device(), program, batch.source.back());
 #else  // ENABLE_ONEDNN_FOR_GPU
                 OPENVINO_THROW("[GPU] Can't compile kernel w/ microkernels as onednn is not available");
 #endif  // ENABLE_ONEDNN_FOR_GPU
@@ -362,8 +385,8 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
                 ov::intel_gpu::save_binary(cached_bin_name, getProgramBinaries(program));
             }
         } else {
-            cl::Program program(cl_build_engine.get_cl_context(), {cl_build_engine.get_cl_device()}, precompiled_kernels);
-            if (program.build({cl_build_engine.get_cl_device()}, batch.options.c_str()) != CL_SUCCESS)
+            cl::Program program(cl_build_device.get_context(), {cl_build_device.get_device()}, precompiled_kernels);
+            if (program.build({cl_build_device.get_device()}, batch.options.c_str()) != CL_SUCCESS)
                 throw std::runtime_error("Failed in building program with a precompiled kernel.");
 
             program.createKernels(&kernels);
@@ -375,9 +398,8 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
                 const auto& entry_point = k.getInfo<CL_KERNEL_FUNCTION_NAME>();
                 const auto& iter = batch.entry_point_to_id.find(entry_point);
                 if (iter != batch.entry_point_to_id.end()) {
-                    cl_kernel kern = k.get();
-                    cl_context context = cl_build_engine.get_cl_context().get();
-                    kernel::ptr kernel = kernels_factory::create(_engine, context, kern, entry_point);
+                    kernel::ptr kernel = std::make_shared<ocl::ocl_kernel>(ocl::ocl_kernel_type(k, cl_build_device.get_usm_helper()), entry_point);
+
                     auto& params = iter->second.first;
                     auto kernel_part_idx = iter->second.second;
                     if (compiled_kernels.find(params) != compiled_kernels.end()) {
@@ -437,7 +459,7 @@ kernel::ptr kernels_cache::get_kernel_from_cached_kernels(std::string id) const 
     return res->second->clone(_reuse_kernels);
 }
 
-std::vector<kernel::ptr> kernels_cache::get_kernels(kernel_impl_params params) const {
+std::vector<kernel::ptr> kernels_cache::get_kernels(const kernel_impl_params& params) const {
     OPENVINO_ASSERT((_pending_compilation == false), "Kernel cache is not compiled, call build_all() first!");
 
     std::string current_node_id;
@@ -448,11 +470,13 @@ std::vector<kernel::ptr> kernels_cache::get_kernels(kernel_impl_params params) c
     OPENVINO_ASSERT(_kernels.end() != res, "Kernel for {" + current_node_id + "} is not found in the kernel cache!");
     OPENVINO_ASSERT(res->second.size() != 0, "Number of kernels should not be zero for " + current_node_id);
 
+    auto& engine = params.get_program().get_engine();
+
     std::vector<kernel::ptr> kernels(res->second.size());
     for (auto& k : res->second) {
         auto& kernel_ptr = k.first;
         auto kernel_part_idx = k.second;
-        kernels[kernel_part_idx] = kernel_ptr->clone(_reuse_kernels);
+        kernels[kernel_part_idx] = engine.prepare_kernel(kernel_ptr->clone(_reuse_kernels));
     }
     return kernels;
 }
@@ -461,7 +485,7 @@ bool kernels_cache::validate_simple_kernel_execution(kernel::ptr krl) {
     auto casted = downcast<ocl::ocl_kernel>(krl.get());
     auto kernel = casted->get_handle();
     try {
-        auto casted_dev = dynamic_cast<ocl::ocl_device*>(_engine.get_device().get());
+        auto casted_dev = dynamic_cast<ocl::ocl_device*>(_device.get());
         auto device = casted_dev->get_device();
         cl::Context ctx(device);
 
@@ -496,7 +520,6 @@ void kernels_cache::build_all() {
     if (!_pending_compilation)
         return;
 
-    ocl::ocl_engine& _build_engine = downcast<ocl::ocl_engine>(_engine);
     std::vector<batch_program> batches;
     {
         std::lock_guard<std::mutex> lock(_mutex);
@@ -518,9 +541,9 @@ void kernels_cache::build_all() {
         std::vector<ov::threading::Task> tasks;
         for (size_t idx = 0; idx < batches.size(); idx++) {
             auto& batch = batches[idx];
-            tasks.push_back([this, &_build_engine, &batch, &exception] {
+            tasks.push_back([this, &batch, &exception] {
                 try {
-                    build_batch(_build_engine, batch, _kernels);
+                    build_batch(batch, _kernels);
                 } catch (...) {
                     exception = std::current_exception();
                 }
@@ -534,7 +557,7 @@ void kernels_cache::build_all() {
         }
     } else {
         for (size_t idx = 0; idx < batches.size(); idx++) {
-            build_batch(_build_engine, batches[idx], _kernels);
+            build_batch(batches[idx], _kernels);
         }
     }
 
@@ -620,8 +643,6 @@ void kernels_cache::add_to_cached_kernels(const std::vector<kernel::ptr>& kernel
 }
 
 void kernels_cache::save(BinaryOutputBuffer& ob) const {
-    OPENVINO_ASSERT(_engine.type() == engine_types::ocl || _engine.type() == engine_types::sycl, "[GPU] Not supported engine type");
-
     ob << _cached_binaries.size();
     for (auto& cached_binary : _cached_binaries) {
         ob << cached_binary.second;
@@ -630,8 +651,6 @@ void kernels_cache::save(BinaryOutputBuffer& ob) const {
 }
 
 void kernels_cache::load(BinaryInputBuffer& ib) {
-    OPENVINO_ASSERT(_engine.type() == engine_types::ocl || _engine.type() == engine_types::sycl, "[GPU] Not supported engine type");
-
     std::unordered_map<uint32_t, std::vector<unsigned char>> precompiled_kernels;
 
     size_t num_cached_binaries;
@@ -642,8 +661,7 @@ void kernels_cache::load(BinaryInputBuffer& ib) {
         ib >> precompiled_kernels[id];
     }
 
-    std::unique_ptr<ocl::ocl_engine> build_engine =
-        cldnn::make_unique<ocl::ocl_engine>(_engine.get_device(), runtime_types::ocl);
+    const auto& build_device = downcast<ocl::ocl_device>(*_device);
 
     try {
         std::lock_guard<std::mutex> lock(_mutex);
@@ -651,8 +669,8 @@ void kernels_cache::load(BinaryInputBuffer& ib) {
 
         for (auto& precompiled_kernel : precompiled_kernels) {
             cl::vector<cl::Kernel> kernels;
-            cl::Program program(build_engine->get_cl_context(), {build_engine->get_cl_device()}, {precompiled_kernel.second});
-            program.build({build_engine->get_cl_device()});
+            cl::Program program(build_device.get_context(), {build_device.get_device()}, {precompiled_kernel.second});
+            program.build({build_device.get_device()});
             program.createKernels(&kernels);
 
             for (auto& k : kernels) {
@@ -660,10 +678,7 @@ void kernels_cache::load(BinaryInputBuffer& ib) {
                 std::string cached_kernel_id = entry_point + "@" + std::to_string(precompiled_kernel.first);
                 const auto& iter = _cached_kernels.find(cached_kernel_id);
                 if (iter == _cached_kernels.end()) {
-                    cl_kernel cl_kernel = k.get();
-                    cl_context cl_context = build_engine->get_cl_context().get();
-                    kernel::ptr kernel = kernels_factory::create(_engine, cl_context, cl_kernel, entry_point);
-                    _cached_kernels[cached_kernel_id] = kernel;
+                    _cached_kernels[cached_kernel_id] = std::make_shared<ocl::ocl_kernel>(ocl::ocl_kernel_type(k, build_device.get_usm_helper()), entry_point);
                 }
             }
         }
@@ -690,8 +705,6 @@ kernels_cache::compiled_kernels kernels_cache::compile(const kernel_impl_params&
         t_kernels_code.insert({params, {kernel_sources, params, dump_custom_program}});
     }
 
-    ocl::ocl_engine& _build_engine = downcast<ocl::ocl_engine>(_engine);
-
     // Create batches
     std::vector<batch_program> batches;
     get_program_source(t_kernels_code, &batches);
@@ -699,7 +712,7 @@ kernels_cache::compiled_kernels kernels_cache::compile(const kernel_impl_params&
     compiled_kernels output_kernels;
     // Build batches
     for (size_t idx = 0; idx < batches.size(); ++idx) {
-        build_batch(_build_engine, batches[idx], output_kernels);
+        build_batch(batches[idx], output_kernels);
     }
 
     OPENVINO_ASSERT(output_kernels.size() == 1, "Only the kernels of the single primitive should be compiled.");
