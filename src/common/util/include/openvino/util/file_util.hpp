@@ -395,7 +395,7 @@ void save_binary(const std::string& path, const char* binary, size_t bin_size);
  * @param fname  Pointer to OpenVINO file name path.
  * @return Pointer to trimmed file name path.
  */
-const char* trim_file_name(const char* const fname);
+ov::util::Path trim_file_name(const ov::util::Path& fname);
 
 template <typename C>
 using enableIfSupportedChar =

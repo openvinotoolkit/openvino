@@ -125,14 +125,14 @@ TEST_F(TrimFileTest, relative_path_to_source) {
 
     const auto file_path = ov::util::path_join({"..", "..", "..", project_dir_name, "src", "test_src.cpp"});
 
-    auto str_ptr = ov::util::trim_file_name(file_path.string().c_str());
+    auto str_ptr = ov::util::trim_file_name(file_path);
     EXPECT_EQ(exp_path, str_ptr);
 }
 
 TEST_F(TrimFileTest, relative_path_to_source_but_no_project_dir) {
     const auto file_path = ov::util::path_join({"..", "..", "..", "src", "test_src.cpp"});
 
-    auto str_ptr = ov::util::trim_file_name(file_path.string().c_str());
+    auto str_ptr = ov::util::trim_file_name(file_path);
     EXPECT_EQ(file_path, str_ptr);
 }
 
@@ -141,14 +141,14 @@ TEST_F(TrimFileTest, absolute_path_to_source) {
 
     const auto file_path = ov::util::path_join({"home", "user", project_dir_name, "src", "test_src.cpp"});
 
-    auto str_ptr = ov::util::trim_file_name(file_path.string().c_str());
+    auto str_ptr = ov::util::trim_file_name(file_path);
     EXPECT_EQ(exp_path, str_ptr);
 }
 
 TEST_F(TrimFileTest, absolute_path_to_source_but_no_project_dir) {
     const auto file_path = ov::util::path_join({"home", "user", "src", "test_src.cpp"});
 
-    auto str_ptr = ov::util::trim_file_name(file_path.string().c_str());
+    auto str_ptr = ov::util::trim_file_name(file_path);
     EXPECT_EQ(file_path, str_ptr);
 }
 
@@ -156,7 +156,7 @@ TEST_F(TrimFileTest, absolute_path_to_source_forward_slash_always_supported) {
     const auto exp_path = std::string("src/test_src.cpp");
 
     const auto file_path = std::string("home/user/") + project_dir_name + "/src/test_src.cpp";
-    auto str_ptr = ov::util::trim_file_name(file_path.c_str());
+    auto str_ptr = ov::util::trim_file_name(file_path);
     EXPECT_EQ(exp_path, str_ptr);
 }
 
@@ -164,6 +164,6 @@ TEST_F(TrimFileTest, relatice_path_to_source_forward_slash_always_supported) {
     const auto exp_path = std::string("src/test_src.cpp");
 
     const auto file_path = std::string("../../") + project_dir_name + "/src/test_src.cpp";
-    auto str_ptr = ov::util::trim_file_name(file_path.c_str());
+    auto str_ptr = ov::util::trim_file_name(file_path);
     EXPECT_EQ(exp_path, str_ptr);
 }

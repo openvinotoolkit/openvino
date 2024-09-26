@@ -616,21 +616,14 @@ void ov::util::save_binary(const std::string& path, const char* binary, size_t b
     }
 }
 
-const char* ov::util::trim_file_name(const char* const fname) {
-    static const auto pattern_native_sep =
-        std::string(OV_NATIVE_PARENT_PROJECT_ROOT_DIR) + FileTraits<char>::file_separator;
+ov::util::Path ov::util::trim_file_name(const ov::util::Path& fname) {
+    // fs::relative, fs::proximate not avalieble in experimantal, upgrade on C++17.
 
-    const auto has_native_sep_pattern_ptr = std::strstr(fname, pattern_native_sep.c_str());
-    auto fname_trim_ptr = has_native_sep_pattern_ptr ? has_native_sep_pattern_ptr + pattern_native_sep.size() : fname;
+    auto it = std::find(fname.begin(), fname.end(), ov::util::Path::string_type{OV_NATIVE_PARENT_PROJECT_ROOT_DIR});
 
-#if defined(_WIN32)
-    // On windows check also forward slash as in some case the __FILE__ can have it instead native backward slash.
-    if (fname_trim_ptr == fname) {
-        static const auto pattern_fwd_sep = std::string(OV_NATIVE_PARENT_PROJECT_ROOT_DIR) + '/';
-        if (const auto has_fwd_sep_pattern_ptr = std::strstr(fname, pattern_fwd_sep.c_str())) {
-            fname_trim_ptr = has_fwd_sep_pattern_ptr + pattern_fwd_sep.size();
-        }
+    if(it != fname.end()){
+        return ov::util::path_join({++it, fname.end()});
+    }else{
+        return fname;
     }
-#endif
-    return fname_trim_ptr;
 }
