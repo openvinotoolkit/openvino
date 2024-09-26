@@ -346,7 +346,6 @@ function addFooter() {
     const footerAnchor = $('.footer');
 
     fetch('/footer.html').then((response) => response.text()).then((text) => {
-        console.log(text)
         const footerContent = $(text);
         footerAnchor.append(footerContent);
     });
