@@ -1328,7 +1328,7 @@ Deprecated and to be removed in the future
     `MxNet PyPI project <https://pypi.org/project/mxnet/>`__,
     it will no longer be supported in future versions, either.
 
-* dKMB support is now considered deprecated and will be fully removed with OpenVINO 2024.5
+* Discrete Keem Bay support is now considered deprecated and will be fully removed with OpenVINO 2024.5
 * Intel® Streaming SIMD Extensions (Intel® SSE) will be supported in source code form, but not
   enabled in the binary package by default, starting with OpenVINO 2025.0
 * The openvino-nightly PyPI module will soon be discontinued. End-users should proceed with the
