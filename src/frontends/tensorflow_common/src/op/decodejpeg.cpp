@@ -43,12 +43,6 @@ OutputVector translate_decodejpeg_op(const NodeContext& node) {
     if (!ratio_str.empty())
         ratio = std::atoi(ratio_str.c_str());
 
-    std::cout << "$$$ translate_decodeimg_op : name=" << node.get_name() << ", op_type=" << node.get_op_type()
-              << ", input size=" << node.get_input_size() << ", input0=" << input
-              << ", dct_method_str=" << dct_method_str << "(" << std::to_string(dct_method) << ")"
-              << ", fancy_upscaling=" << fancy_upscaling_str << "(" << std::to_string(fancy_upscaling) << ")"
-              << ", ratio=" << ratio_str << "(" << std::to_string(ratio) << ")" << std::endl;
-
     auto res = make_shared<v0::DecodeImg>(input, dct_method, fancy_upscaling, ratio);
     set_node_name(node.get_name(), res);
     return res->outputs();
