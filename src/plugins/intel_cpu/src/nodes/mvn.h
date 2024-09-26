@@ -53,7 +53,6 @@ private:
     ExecutorFactoryPtr<MVNAttrs, node::MVN> factory;
     ExecutorPtr executor = nullptr;
     bool onlyUnaryPostOps = true;
-    bool canUseAclExecutor = false;
 };
 
 }   // namespace node

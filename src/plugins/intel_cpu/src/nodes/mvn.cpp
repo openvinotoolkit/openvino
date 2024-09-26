@@ -273,8 +273,7 @@ void MVN::initSupportedPrimitiveDescriptors() {
 #if defined(OV_CPU_WITH_ACL)
         pushDesc(LayoutType::nspc, acl, true);
         pushDesc(LayoutType::ncsp, acl, true);
-        canUseAclExecutor = !supportedPrimitiveDescriptors.empty();
-        if (canUseAclExecutor)
+        if (!supportedPrimitiveDescriptors.empty())
             return;
         else
             // Reference MVN implementation does not support fp16, so set fp32 explicitly
