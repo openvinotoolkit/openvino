@@ -118,6 +118,8 @@ private:
 
         // FIXME: This is a 1:1 copy of the ov::npuw::Subgraph structure
         // w.r.t. function calls
+        Subgraph::Gather host_gather;
+
         std::size_t param_base = 0;
         std::vector<ov::Tensor> closure;
         std::vector<ov::Tensor> scales;

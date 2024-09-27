@@ -381,6 +381,15 @@ void ov::npuw::JustInferRequest::bind_global_parameters(std::size_t idx) {
         it.first->copy_to(dst._ptr);
     });
 
+    // Run host-side gather, if required
+    if (comp_model_desc.host_gather.dst_idx != -1) {
+        auto& dst = comp_model_desc.closure[comp_model_desc.host_gather.dst_idx - comp_model_desc.param_base];
+        const auto& vocab = comp_model_desc.closure[comp_model_desc.host_gather.src_idx - comp_model_desc.param_base];
+        const auto& lport = comp_model_desc.compiled_model->inputs()[comp_model_desc.host_gather.idx_idx];
+        const auto lookup = subr->get_tensor(lport);
+        ov::npuw::util::gather(ov::get_tensor_impl(vocab), lookup, ov::get_tensor_impl(dst));
+    }
+
     LOG_DEBUG("Done");
 }
 
