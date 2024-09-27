@@ -106,6 +106,14 @@ void ActivationLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targe
                 static_cast<float*>(tensor.data())[3] = std::numeric_limits<float>::infinity(); // infinite
                 static_cast<float*>(tensor.data())[4] = -std::numeric_limits<float>::infinity(); // -infinite
             }
+            if ((activationType == utils::ActivationTypes::Greater) && funcInput.get_element_type() == ov::element::f32 && tensor.get_size() >= 6) {
+                static_cast<float*>(tensor.data())[0] = std::numeric_limits<float>::quiet_NaN();
+                static_cast<float*>(tensor.data())[1] = std::numeric_limits<float>::infinity();
+                static_cast<float*>(tensor.data())[2] = std::numeric_limits<float>::min() * -1; // -0.0
+                static_cast<float*>(tensor.data())[3] = std::numeric_limits<float>::infinity(); // infinite
+                static_cast<float*>(tensor.data())[4] = -std::numeric_limits<float>::infinity(); // -infinite
+                static_cast<float*>(tensor.data())[5] = std::numeric_limits<float>::signaling_NaN(); // nan
+            }
         } else {
             tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
         }
@@ -190,6 +198,7 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
         (activation_type == utils::ActivationTypes::Mish) ||
         (activation_type == utils::ActivationTypes::GeluErf) ||
         (activation_type == utils::ActivationTypes::GeluTanh) ||
+        (activation_type == utils::ActivationTypes::Greater) ||
         (activation_type == utils::ActivationTypes::Relu) ||
         (activation_type == utils::ActivationTypes::Sigmoid) ||
         (activation_type == utils::ActivationTypes::Swish) ||
@@ -249,6 +258,7 @@ const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activat
         {PReLu,       {{-0.01f}}},
         {GeluErf,     {{}}},
         {GeluTanh,    {{}}},
+        {Greater,     {{-2.0f, 2.0f}}},
         {SoftSign,    {{}}},
         {SoftPlus,    {{}}},
         {IsFinite,    {{}}},
