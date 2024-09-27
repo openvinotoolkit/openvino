@@ -487,7 +487,7 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
         return;
     }
 
-    auto& foundPort = find_port(port);
+    auto foundPort = find_port(port);
     OPENVINO_ASSERT(foundPort.found(), "Cannot find input tensor for port ", port);
     if (!foundPort.is_input()) {
         OPENVINO_THROW("set_input_tensors/set_tensors is not supported for output port.");
@@ -605,7 +605,7 @@ ov::SoPtr<ov::ITensor> ZeroInferRequest::get_tensor(const ov::Output<const ov::N
 std::vector<ov::SoPtr<ov::ITensor>> ZeroInferRequest::get_tensors(const ov::Output<const ov::Node>& port) const {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "get_tensors");
 
-    auto& foundPort = find_port(port);
+    auto foundPort = find_port(port);
     OPENVINO_ASSERT(foundPort.found(), "Cannot find input tensors for port ", port);
 
     if (foundPort.is_input() && is_batched_input(foundPort.idx)) {

@@ -143,7 +143,7 @@ TEST_P(BatchedTensorsRunTests, SetInputRemoteTensorsMultipleInfer) {
     ov::InferRequest req;
     req = execNet.create_infer_request();
     std::vector<ov::Tensor> tensors;
-    for (auto i = 0; i < batch; ++i) {
+    for (size_t i = 0; i < batch; ++i) {
         // non contiguous memory
         auto tensor = context.create_host_tensor(ov::element::f32, one_shape);
         tensors.push_back(std::move(tensor));
@@ -153,14 +153,14 @@ TEST_P(BatchedTensorsRunTests, SetInputRemoteTensorsMultipleInfer) {
     auto actual_tensor = req.get_tensor("tensor_output0");
     auto* actual = actual_tensor.data<float>();
     for (auto testNum = 0; testNum < 5; testNum++) {
-        for (auto i = 0; i < batch; ++i) {
+        for (size_t i = 0; i < batch; ++i) {
             auto* f = tensors[i].data<float>();
-            for (auto j = 0; j < one_shape_size; ++j) {
+            for (size_t j = 0; j < one_shape_size; ++j) {
                 f[j] = static_cast<float>(testNum + 20);
             }
         }
         req.infer();  // Adds '1' to each element
-        for (auto j = 0; j < one_shape_size * batch; ++j) {
+        for (size_t j = 0; j < one_shape_size * batch; ++j) {
             EXPECT_EQ(actual[j], testNum + 21) << "Infer " << testNum << ": Expected=" << testNum + 21
                                                << ", actual=" << actual[j] << " for index " << j;
         }
@@ -200,14 +200,14 @@ TEST_P(BatchedTensorsRunTests, SetInputDifferentTensorsMultipleInfer) {
     auto actual_tensor = req.get_tensor("tensor_output0");
     auto* actual = actual_tensor.data<float>();
     for (auto testNum = 0; testNum < 5; testNum++) {
-        for (auto i = 0; i < batch; ++i) {
+        for (size_t i = 0; i < batch; ++i) {
             auto* f = tensors[i].data<float>();
-            for (auto j = 0; j < one_shape_size; ++j) {
+            for (size_t j = 0; j < one_shape_size; ++j) {
                 f[j] = static_cast<float>(testNum + 20);
             }
         }
         req.infer();  // Adds '1' to each element
-        for (auto j = 0; j < one_shape_size * batch; ++j) {
+        for (size_t j = 0; j < one_shape_size * batch; ++j) {
             EXPECT_EQ(actual[j], testNum + 21) << "Infer " << testNum << ": Expected=" << testNum + 21
                                                << ", actual=" << actual[j] << " for index " << j;
         }
@@ -249,14 +249,14 @@ TEST_P(BatchedTensorsRunTests, SetInputDifferentTensorsMultipleInferMCL) {
         auto actual_tensor = req.get_tensor("tensor_output0");
         auto* actual = actual_tensor.data<float>();
         for (auto testNum = 0; testNum < 5; testNum++) {
-            for (auto i = 0; i < batch; ++i) {
+            for (size_t i = 0; i < batch; ++i) {
                 auto* f = tensors[i].data<float>();
-                for (auto j = 0; j < one_shape_size; ++j) {
+                for (size_t j = 0; j < one_shape_size; ++j) {
                     f[j] = static_cast<float>(testNum + 20);
                 }
             }
             req.infer();  // Adds '1' to each element
-            for (auto j = 0; j < one_shape_size * batch; ++j) {
+            for (size_t j = 0; j < one_shape_size * batch; ++j) {
                 EXPECT_EQ(actual[j], testNum + 21) << "Infer " << testNum << ": Expected=" << testNum + 21
                                                    << ", actual=" << actual[j] << " for index " << j;
             }
@@ -281,14 +281,14 @@ TEST_P(BatchedTensorsRunTests, SetInputDifferentTensorsMultipleInferMCL) {
         auto actual_tensor = req.get_tensor("tensor_output0");
         auto* actual = actual_tensor.data<float>();
         for (auto testNum = 0; testNum < 5; testNum++) {
-            for (auto i = 0; i < batch; ++i) {
+            for (size_t i = 0; i < batch; ++i) {
                 auto* f = tensors[i].data<float>();
-                for (auto j = 0; j < one_shape_size; ++j) {
+                for (size_t j = 0; j < one_shape_size; ++j) {
                     f[j] = static_cast<float>(testNum + 200);
                 }
             }
             req.infer();  // Adds '1' to each element
-            for (auto j = 0; j < one_shape_size * batch; ++j) {
+            for (size_t j = 0; j < one_shape_size * batch; ++j) {
                 EXPECT_EQ(actual[j], testNum + 201) << "Infer " << testNum << ": Expected=" << testNum + 21
                                                     << ", actual=" << actual[j] << " for index " << j;
             }

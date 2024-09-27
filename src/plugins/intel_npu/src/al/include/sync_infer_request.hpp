@@ -164,7 +164,7 @@ protected:
     mutable std::vector<std::shared_ptr<ov::ITensor>> _userInputTensors;
     mutable std::vector<std::shared_ptr<ov::ITensor>> _userOutputTensors;
 
-    mutable std::unordered_map<size_t, std::vector<ov::SoPtr<ov::ITensor>>> _userBatchedTensors;
+    std::unordered_map<size_t, std::vector<ov::SoPtr<ov::ITensor>>> _userBatchedTensors;
 
     mutable std::vector<ov::SoPtr<ov::IVariableState>> _variableStates;
 
