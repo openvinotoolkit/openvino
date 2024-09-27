@@ -373,6 +373,26 @@ std::shared_ptr<ov::Model> MatMulEltwiseChainCascadeFunction::initOriginal() con
     return std::make_shared<ov::Model>(NodeVector{eltwise_chain_2}, params);
 }
 
+std::shared_ptr<ov::Model> MLPFunction::initOriginal() const {
+    auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
+    ParameterVector params{data0};
+    auto data_generator = utils::InputGenerateData(1, 9, 1000, 1);
+//    auto fc1_weights = ov::test::utils::make_constant(precision, ov::Shape{11008, 4096}, data_generator);
+//    auto fc2_weights = ov::test::utils::make_constant(precision, ov::Shape{11008, 4096}, data_generator);
+//    auto fc3_weights = ov::test::utils::make_constant(precision, ov::Shape{4096, 11008}, data_generator);
+    auto fc1_weights = ov::test::utils::make_constant(precision, ov::Shape{110, 4096}, data_generator);
+    auto fc2_weights = ov::test::utils::make_constant(precision, ov::Shape{110, 4096}, data_generator);
+    auto fc3_weights = ov::test::utils::make_constant(precision, ov::Shape{4096, 110}, data_generator);
+
+    auto matmul1 = std::make_shared<op::v0::MatMul>(data0, fc1_weights, false, true);
+    auto matmul2 = std::make_shared<op::v0::MatMul>(data0, fc2_weights, false, true);
+    auto activation = std::make_shared<op::v4::Swish>(matmul2);
+    auto mul = std::make_shared<op::v1::Multiply>(matmul1, activation);
+    auto matmul3 = std::make_shared<op::v0::MatMul>(mul, fc3_weights, false, true);
+
+    return std::make_shared<ov::Model>(NodeVector{matmul3}, params);
+}
+
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov
