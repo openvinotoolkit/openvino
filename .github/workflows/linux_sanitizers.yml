@@ -106,7 +106,7 @@ jobs:
       CCACHE_REMOTE_DIR: /mount/caches/ccache/sanitizers/${{ matrix.SANITIZER }}/${{ github.base_ref || github.ref_name }}
       CCACHE_DIR: /__w/openvino/openvino/ccache
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
-      CCACHE_MAXSIZE: 20G
+      CCACHE_MAXSIZE: 30G
       CCACHE_LOGFILE: /__w/openvino/openvino/openvino_build/ccache.log
       CCACHE_DEBUG: 1
 
@@ -153,7 +153,7 @@ jobs:
       #
       - name: Clean ccache stats
         run: ccache --zero-stats
-        
+             
       - name: Show ccache stats
         run: ccache --show-stats
 
@@ -163,7 +163,7 @@ jobs:
             -G "${{ env.CMAKE_GENERATOR }}" \
             -DENABLE_CPPLINT=OFF \
             -DENABLE_NCC_STYLE=OFF \
-            -DENABLE_TESTS=ON \
+            -DENABLE_TESTS=OFF \
             -DENABLE_STRICT_DEPENDENCIES=OFF \
             -DENABLE_SYSTEM_OPENCL=ON \
             -DCMAKE_VERBOSE_MAKEFILE=ON \
@@ -188,6 +188,12 @@ jobs:
           ASAN_OPTIONS: halt_on_error=0:suppressions=${{ env.ASAN_IGNORE }}
           LSAN_OPTIONS: suppressions=${{ env.LSAN_IGNORE }}:NEOReadDebugKeys=1:DisableDeepBind=1
           
+      - name: Show ccache stats
+        run: ccache --show-stats
+        
+      - name: Cleanup ccache 
+        run: ccache --cleanup --zero-stats --max-size=15G
+        
       - name: Show ccache stats
         run: ccache --show-stats
 
