@@ -45,11 +45,35 @@ bool isOp(const std::shared_ptr<ov::Node>& node) {
     }
     return true;
 }
+
+std::vector<std::string> getWeightsPrecision(const std::shared_ptr<ov::Node>& node) {
+    NPUW_ASSERT(!ov::op::util::is_constant(node) && !ov::op::util::is_parameter(node) &&
+                !ov::op::util::is_output(node));
+
+    std::vector<std::string> precisions;
+
+    for (size_t i = 0; i < node->inputs().size(); ++i) {
+        auto target_input = node->get_input_source_output(i);
+        auto ov_node_parent = target_input.get_node()->shared_from_this();
+
+        if (ov::is_type<ov::opset1::Convert>(ov_node_parent) && ov_node_parent->inputs().size() == 1) {
+            auto target_op_input = ov_node_parent->get_input_source_output(0);
+            auto parent_op_node = target_op_input.get_node()->shared_from_this();
+
+            if (ov::op::util::is_constant(parent_op_node)) {
+                precisions.push_back(parent_op_node->get_element_type().to_string());
+            }
+        }
+    }
+
+    return precisions;
+}
 }  // namespace detail
 }  // namespace online
 }  // namespace npuw
 }  // namespace ov
 
+using ov::npuw::online::detail::getWeightsPrecision;
 using ov::npuw::online::detail::isOp;
 
 void Snapshot::buildGraph() {
@@ -68,6 +92,7 @@ void Snapshot::buildGraph() {
 
         auto nh = m_graph->create();
         auto group = std::make_shared<Group>(ov_node, gid, nh, m_graph, shared_from_this());
+        group->addWeightsPrecision(getWeightsPrecision(ov_node));
         m_graph->meta(nh).set(group);
         m_node_to_gr->emplace(std::make_pair(ov_node, group));
         ++gid;
@@ -124,6 +149,37 @@ void Snapshot::buildGraph() {
 
     LOG_DEBUG("Initial number of groups: " << graphSize());
     LOG_INFO("DONE.");
+}
+
+void Snapshot::splitMixedPrecision() {
+    LOG_INFO("Online partitioning: executing splitMixedPrecision pass...");
+    LOG_BLOCK();
+
+    auto reptag_to_gset = repeating();
+    for (const auto& elem : reptag_to_gset) {
+        auto reptag = elem.first;
+        auto gset = elem.second;
+
+        std::unordered_map<std::vector<std::string>, GPtrSet> prec_to_new_gset;
+        for (const auto& gptr : gset) {
+            prec_to_new_gset[gptr->getWeightsPrecision()].insert(gptr);
+        }
+
+        if (prec_to_new_gset.size() == 1) {
+            continue;
+        }
+
+        // Need to assign new reptags
+        for (const auto& elem : prec_to_new_gset) {
+            std::shared_ptr<Repeated> rep = std::make_shared<Repeated>();
+
+            for (const auto& gptr : elem.second) {
+                gptr->setRepeated(rep);
+            }
+        }
+    }
+
+    LOG_INFO("DONE");
 }
 
 void Snapshot::singleGroup() {
@@ -446,6 +502,7 @@ void Snapshot::repeatedBlocks() {
         markInternalCompute();
         resetExcludedRep();
     });
+    splitMixedPrecision();
     cleanUpUniques();
 
     LOG_INFO("Number of groups after compiler pass: " << graphSize());
@@ -951,7 +1008,8 @@ bool Snapshot::cleanUpUniquesImpl(const GPtrSet& gptrs) {
     // Another special case, actually a workaround. Keep it
     // FIXME: slightly different from Ensemble since we don't check flops and keep it by size only
     auto block_layer_size = (*(gptrs.begin()))->size();
-    if (gptrs.size() >= m_ctx.keep_blocks && block_layer_size >= m_ctx.keep_block_size) {
+    if ((gptrs.size() >= m_ctx.keep_blocks && block_layer_size >= m_ctx.keep_block_size) ||
+        (gptrs.size() * block_layer_size > 500)) {
         LOG_DEBUG("Keeping a repeated block of " << gptrs.size() << " groups with " << block_layer_size << " layers.");
         for (const auto& g : gptrs) {
             g->freeze();

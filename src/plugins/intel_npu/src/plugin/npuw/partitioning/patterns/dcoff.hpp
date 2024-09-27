@@ -173,6 +173,10 @@ public:
     DCOFFPassReshape(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref);
 };
 
+class DCOFFPassReshape2 : public ov::pass::MatcherPass {
+public:
+    DCOFFPassReshape2(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref);
+};
 }  // namespace AsymmZP
 
 }  // namespace patterns
