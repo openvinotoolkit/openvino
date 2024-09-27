@@ -20,13 +20,25 @@ namespace npuw {
 namespace online {
 
 namespace detail {
+
+namespace {
+static const std::map<std::string, std::string> ISOL_PRESETS = {
+    {"COMPUTE",
+     "P:DQMatMulGQu4/compute,P:DQMatMulCWu4/compute,"
+     "P:DQMatMulGQi4/compute,P:DQMatMulCWi4/compute,"
+     "P:RMSNorm/compute"
+    }
+};
+}
+
 // For missing declaration warning
+// FIXME: Instead, one should use namespace{}
 size_t getMinGraphSize(::intel_npu::Config& cfg);
 size_t getMinRepBlocks(::intel_npu::Config& cfg);
 size_t getMinRepBlockSize(::intel_npu::Config& cfg);
 std::vector<Avoid> getAvoids(::intel_npu::Config& cfg);
 std::vector<Isolate> getIsolates(::intel_npu::Config& cfg);
-std::vector<Isolate> getIsolates(const std::string isolates_unparsed);
+std::vector<Isolate> getIsolates(const std::string& isolates_unparsed);
 std::vector<std::string> getNoFolds(::intel_npu::Config& cfg);
 std::vector<std::string> getNoFolds(const std::string& nofolds_unparsed);
 // Set default predefined values for COMPUTE pipeline
@@ -108,13 +120,18 @@ std::vector<Isolate> getIsolates(::intel_npu::Config& cfg) {
     return getIsolates(cfg.getString<::intel_npu::NPUW_ONLINE_ISOLATE>());
 }
 
-std::vector<Isolate> getIsolates(const std::string isolates_unparsed) {
+std::vector<Isolate> getIsolates(const std::string &isolates_unparsed) {
     if (isolates_unparsed.empty()) {
         return {};
     }
 
     std::vector<Isolate> isolates;
-    std::string s = std::move(isolates_unparsed);
+    std::string s = isolates_unparsed;
+
+    auto preset_iter = ISOL_PRESETS.find(s);
+    if (preset_iter != ISOL_PRESETS.end()) {
+        s = preset_iter->second;
+    }
 
     size_t pos = 0;
     size_t start = 0;
@@ -191,8 +208,7 @@ std::vector<std::string> getNoFolds(const std::string& nofolds_unparsed) {
 
 void setComputeConfig(PassContext& ctx) {
     // FIXME: initialize via a dedicated function instead of parsing
-    ctx.isolates = detail::getIsolates("P:DQMatMulGQu4/compute,P:DQMatMulCWu4/compute,P:DQMatMulGQi4/"
-                                       "compute,P:DQMatMulCWi4/compute,P:RMSNorm/compute");
+    ctx.isolates = detail::getIsolates(ISOL_PRESETS.at("COMPUTE"));
     ctx.nofolds = detail::getNoFolds("compute");
 }
 

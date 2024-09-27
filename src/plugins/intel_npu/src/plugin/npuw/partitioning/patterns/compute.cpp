@@ -10,6 +10,7 @@
 #include "openvino/op/ops.hpp"
 #include "openvino/pass/pattern/op/label.hpp"  // any_input
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/util/common_util.hpp"
 
 namespace ov {
@@ -135,7 +136,7 @@ DQMatMulGQi4::DQMatMulGQi4(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
 
     auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qcvtw, qcoeff});
     auto qreshp = opp::wrap_type<ov::op::v1::Reshape>({qmuls, opp::any_input()});
-    auto qcvtr = opp::wrap_type<ov::op::v0::Convert>({qreshp});
+    auto qcvtr = opp::optional<ov::op::v0::Convert>({qreshp->output(0)});
     auto qmm = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), qcvtr});
 
     auto node_to_gptr = snapshot->getNodeToGroupMap();
@@ -155,17 +156,22 @@ DQMatMulGQi4::DQMatMulGQi4(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
 
         if ((ov::element::i4 == matched_qweight->get_element_type() ||
              ov::element::i8 == matched_qweight->get_element_type()) &&
-            ov::element::f16 == matched_qcoeff->get_element_type()) {
+            (ov::element::f16 == matched_qcoeff->get_element_type() ||
+             ov::element::f32 == matched_qcoeff->get_element_type())) {
             // Partitioning ignores Const->Convert nodes, so qcvtw is not used
             auto matched_qmuls = node_to_output.at(qmuls).get_node_shared_ptr();
             auto matched_qreshp = node_to_output.at(qreshp).get_node_shared_ptr();
-            auto matched_qcvtr = node_to_output.at(qcvtr).get_node_shared_ptr();
             auto matched_qmm = node_to_output.at(qmm).get_node_shared_ptr();
 
             node_to_gptr->at(matched_qmuls)->isolate(isol_tag);
             node_to_gptr->at(matched_qreshp)->isolate(isol_tag);
-            node_to_gptr->at(matched_qcvtr)->isolate(isol_tag);
             node_to_gptr->at(matched_qmm)->isolate(isol_tag);
+
+            auto qcvtr_iter = node_to_output.find(qcvtr);
+            if (qcvtr_iter != node_to_output.end()) {
+                auto matched_qcvtr = qcvtr_iter->second.get_node_shared_ptr();
+                node_to_gptr->at(matched_qcvtr)->isolate(isol_tag);
+            }
         }
 
         return false;  // root hasn't changed
