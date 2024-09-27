@@ -27,10 +27,11 @@ constexpr std::string_view NO_EXECUTOR_FOR_INFERENCE =
     "Can't create infer request!\n"
     "Please make sure that the device is available. Only exports can be made.";
 
-std::uint32_t hash(const std::vector<uint8_t>& data) {
+std::uint32_t hash(const intel_npu::CompiledNetwork& blob) {
     std::uint32_t result = 1171117u;
-    for (const auto& c : data)
-        result = ((result << 7) + result) + static_cast<uint32_t>(c);
+    for (const uint8_t* it = blob.data; it != blob.data + blob.size; ++it) {
+        result = ((result << 7) + result) + static_cast<uint32_t>(*it);
+    }
     return result;
 }
 
@@ -139,15 +140,17 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
 
 void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
-    const auto&& blob = _compiler->getCompiledNetwork(_networkPtr);
-    stream.write(reinterpret_cast<const char*>(blob.data()), blob.size());
-    std::stringstream str;
-    str << "Blob size: " << blob.size() << ", hash: " << std::hex << hash(blob);
-    _logger.info(str.str().c_str());
+    const auto blob = _compiler->getCompiledNetwork(*_networkPtr);
+    stream.write(reinterpret_cast<const char*>(blob.data), blob.size);
 
     if (!stream) {
         _logger.error("Write blob to stream failed. Blob is broken!");
     } else {
+        if (_logger.level() >= ov::log::Level::INFO) {
+            std::stringstream str;
+            str << "Blob size: " << blob.size << ", hash: " << std::hex << hash(blob);
+            _logger.info(str.str().c_str());
+        }
         _logger.info("Write blob to stream successfully.");
     }
 }

@@ -36,7 +36,7 @@ def _infer_pipelines(test_input, preprocess_pipeline, input_channels=3):
         try:
             return _infer_pipelines_impl(test_input, preprocess_pipeline, input_channels)
         except RuntimeError as e:
-            if "builtin cannot be used as a value" in e:
+            if "builtin cannot be used as a value" in str(e):
                 # This is a potentially sporadic issue
                 print(f"An error occurred: {e}. Retrying...")
                 retries += 1
