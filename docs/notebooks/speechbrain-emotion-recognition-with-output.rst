@@ -19,6 +19,7 @@ repo <https://github.com/speechbrain/speechbrain>`__ and
 This notebook tutorial demonstrates optimization and inference of
 speechbrain emotion recognition model with OpenVINO.
 
+
 **Table of contents:**
 
 
@@ -58,6 +59,33 @@ Installations
     %pip install -q "transformers>=4.30.0" "huggingface_hub>=0.8.0" "SoundFile"
     %pip install -q "openvino>=2024.1.0"
 
+
+.. parsed-literal::
+
+    ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+    descript-audiotools 0.7.2 requires protobuf<3.20,>=3.9.2, but you have protobuf 3.20.3 which is incompatible.
+    mobileclip 0.1.0 requires torch==1.13.1, but you have torch 2.3.1+cpu which is incompatible.
+    mobileclip 0.1.0 requires torchvision==0.14.1, but you have torchvision 0.17.2+cpu which is incompatible.
+    parler-tts 0.2 requires transformers<=4.43.3,>=4.43.0, but you have transformers 4.44.2 which is incompatible.
+    torchvision 0.17.2+cpu requires torch==2.2.2, but you have torch 2.3.1+cpu which is incompatible.
+    Note: you may need to restart the kernel to use updated packages.
+    ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+    albucore 0.0.17 requires numpy>=1.24, but you have numpy 1.23.5 which is incompatible.
+    albumentations 1.4.16 requires numpy>=1.24.4, but you have numpy 1.23.5 which is incompatible.
+    altair 5.4.1 requires typing-extensions>=4.10.0; python_version < "3.13", but you have typing-extensions 4.9.0 which is incompatible.
+    descript-audiotools 0.7.2 requires protobuf<3.20,>=3.9.2, but you have protobuf 3.20.3 which is incompatible.
+    mobileclip 0.1.0 requires torch==1.13.1, but you have torch 2.4.1+cpu which is incompatible.
+    mobileclip 0.1.0 requires torchvision==0.14.1, but you have torchvision 0.17.2+cpu which is incompatible.
+    modelscope-studio 0.5.0 requires gradio<5.0,>=4.0, but you have gradio 3.43.1 which is incompatible.
+    openvino-dev 2024.4.0 requires openvino==2024.4.0, but you have openvino 2024.5.0.dev20240919 which is incompatible.
+    parler-tts 0.2 requires transformers<=4.43.3,>=4.43.0, but you have transformers 4.44.2 which is incompatible.
+    torchvision 0.17.2+cpu requires torch==2.2.2, but you have torch 2.4.1+cpu which is incompatible.
+    typeguard 4.3.0 requires typing-extensions>=4.10.0, but you have typing-extensions 4.9.0 which is incompatible.
+    Note: you may need to restart the kernel to use updated packages.
+    Note: you may need to restart the kernel to use updated packages.
+    Note: you may need to restart the kernel to use updated packages.
+
+
 Imports
 ~~~~~~~
 
@@ -68,14 +96,8 @@ Imports
     import torch
     import torchaudio
     from speechbrain.inference.interfaces import foreign_class
-
+    
     import openvino as ov
-
-
-.. parsed-literal::
-
-    torchvision is not available - cannot save figures
-
 
 Prepare base model
 ~~~~~~~~~~~~~~~~~~
@@ -107,6 +129,44 @@ SpeechBrain codebase.
     classifier = foreign_class(
         source="speechbrain/emotion-recognition-wav2vec2-IEMOCAP", pymodule_file="custom_interface.py", classname="CustomEncoderWav2vec2Classifier"
     )
+
+
+
+.. parsed-literal::
+
+    config.json:   0%|          | 0.00/1.84k [00:00<?, ?B/s]
+
+
+.. parsed-literal::
+
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/configuration_utils.py:364: UserWarning: Passing `gradient_checkpointing` to a config initialization is deprecated and will be removed in v5 Transformers. Using `model.gradient_checkpointing_enable()` instead, or if you are using the `Trainer` API, pass `gradient_checkpointing=True` in your `TrainingArguments`.
+      warnings.warn(
+
+
+
+.. parsed-literal::
+
+    pytorch_model.bin:   0%|          | 0.00/380M [00:00<?, ?B/s]
+
+
+.. parsed-literal::
+
+    Some weights of Wav2Vec2Model were not initialized from the model checkpoint at facebook/wav2vec2-base and are newly initialized: ['wav2vec2.encoder.pos_conv_embed.conv.parametrizations.weight.original0', 'wav2vec2.encoder.pos_conv_embed.conv.parametrizations.weight.original1']
+    You should probably TRAIN this model on a down-stream task to be able to use it for predictions and inference.
+    speechbrain.lobes.models.huggingface_transformers.huggingface - Wav2Vec2Model is frozen.
+
+
+
+.. parsed-literal::
+
+    preprocessor_config.json:   0%|          | 0.00/159 [00:00<?, ?B/s]
+
+
+.. parsed-literal::
+
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/speechbrain/utils/checkpoints.py:194: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+      state_dict = torch.load(path, map_location=device)
+
 
 Initialize model
 ~~~~~~~~~~~~~~~~
@@ -164,9 +224,9 @@ Step 1: Prepare input tensor
     signal, sr = torchaudio.load(str("./anger.wav"), channels_first=False)
     norm_audio = classifier.audio_normalizer(signal, sr)
     signals.append(norm_audio)
-
+    
     sequence_length = norm_audio.shape[-1]
-
+    
     wavs = torch.stack(signals, dim=0)
     wav_len = torch.tensor([sequence_length] * batch_size).unsqueeze(0)
 
@@ -181,6 +241,15 @@ Step 2: Convert model to OpenVINO IR
     input_tensor = wavs.float()
     ov_model = ov.convert_model(torch_model, example_input=input_tensor)
 
+
+.. parsed-literal::
+
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4713: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+      warnings.warn(
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/wav2vec2/modeling_wav2vec2.py:871: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if attn_output.size() != (bsz, self.num_heads, tgt_len, self.head_dim):
+
+
 Step 3: OpenVINO model inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -188,18 +257,17 @@ Step 3: OpenVINO model inference
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-
-    core = ov.Core()
-
-    # Device selection
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
+    import requests
+    
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
-
+    open("notebook_utils.py", "w").write(r.text)
+    
+    from notebook_utils import device_widget
+    
+    device = device_widget()
+    
     device
 
 
@@ -213,13 +281,15 @@ Step 3: OpenVINO model inference
 
 .. code:: ipython3
 
+    core = ov.Core()
+    
     # OpenVINO Compiled model
     compiled_model = core.compile_model(ov_model, device.value)
-
+    
     # Perform model inference
     output_tensor = compiled_model(wavs)[0]
     output_tensor = torch.from_numpy(output_tensor)
-
+    
     # output post-processing
     outputs = classifier.mods.avg_pool(output_tensor, wav_len)
     outputs = outputs.view(outputs.shape[0], -1)
@@ -227,7 +297,7 @@ Step 3: OpenVINO model inference
     ov_out_prob = classifier.hparams.softmax(outputs)
     score, index = torch.max(ov_out_prob, dim=-1)
     text_lab = classifier.hparams.label_encoder.decode_torch(index)
-
+    
     print(f"Emotion Recognition with OpenVINO Model: {text_lab}")
 
 
