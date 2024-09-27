@@ -7,6 +7,7 @@
 #include <string>
 #include <algorithm>
 #include "utils.hpp"
+#include "swiglu_inst.h"
 
 #include "matmul_shape_inference.hpp"
 
@@ -171,14 +172,37 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
         output_type = impl_param.get_output_element_type();
     }
 
-    ov::op::v0::MatMul op;
-    op.set_transpose_b(true);
+    ov::op::v0::MatMul matmul_op;
+    matmul_op.set_transpose_b(true);
     std::vector<ShapeType> input_shapes = {
         input_layout.get<ShapeType>(),
         weights_layout.get<ShapeType>()
     };
 
-    std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&op, input_shapes);
+    std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&matmul_op, input_shapes);
+    bool has_swiglu = false;
+    auto& fused_prims = node.get_fused_primitives();
+    for (auto f : fused_prims) {
+        if (f.is_type<swiglu>()) {
+            has_swiglu = true;
+            OPENVINO_ASSERT(fused_prims.size() == 1, "Other operation is fused in addition to swiglu!");
+        }
+    }
+    if (has_swiglu) {
+        ov::intel_gpu::op::SwiGLU swiglu_op;
+        for (auto f : fused_prims) {
+            if (f.is_type<swiglu>()) {
+                swiglu_op.set_axis(f.typed_desc<swiglu>()->axis);
+                swiglu_op.set_split_lengths(f.typed_desc<swiglu>()->split_lengths);
+            }
+        }
+        std::vector<ShapeType> input_shapes = {
+            output_shapes[0],
+            ShapeType(ov::Shape({})),
+            ShapeType(ov::Shape{2})
+        };
+        output_shapes = shape_infer(&swiglu_op, input_shapes);
+    }
 
     bool is_static = input_layout.is_static() && weights_layout.is_static();
     bool allow_new_shape_infer = impl_param.get_program().is_new_shape_infer();
