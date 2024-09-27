@@ -121,30 +121,29 @@ static bool should_dynamic_quantize(const fully_connected_params& params) {
     return false;
 }
 
-static bool is_weight_with_small_ofm(const fully_connected_params& params, size_t output_f) {
+static bool is_weight_vertical(const fully_connected_params& params, size_t output_f) {
     size_t min_num_threads = params.engineInfo.computeUnitsCount * simd;
     GPU_DEBUG_TRACE_DETAIL << "out_ofm (== weight N dim) size " << output_f << " is small compared to the available threads. "
                            << "(computeUnitsCount : " << params.engineInfo.computeUnitsCount
                            << " min_num_threads : " << min_num_threads << ")" << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "Use ofm_tile size 1 if the batch size is 1." << std::endl;
-    return (output_f / 2 /*most frequently used tile_ofm*/ <= min_num_threads);
+    return (params.weights.IFM().v >= params.weights.OFM().v * 3
+            && output_f / 2 /*most frequently used tile_ofm*/ <= min_num_threads);
 }
 
-static bool is_weight_with_large_ofm(const fully_connected_params& params, size_t output_f) {
+static bool is_weight_horizontal(const fully_connected_params& params, size_t output_f) {
     size_t min_num_threads = params.engineInfo.computeUnitsCount * simd;
     GPU_DEBUG_TRACE_DETAIL << "out_ofm (== weight N dim) size " << output_f << " is large compared to the available threads. "
                            << "(computeUnitsCount : " << params.engineInfo.computeUnitsCount
                            << " min_num_threads : " << min_num_threads << ")" << std::endl;
-    return (output_f / 4 /* tile_ofm=4 */ > min_num_threads * 2 * 0.8);
-}
-
-static bool is_weight_with_large_ifm(const fully_connected_params& fc_params) {
-    return (fc_params.weights.IFM().v >= fc_params.weights.OFM().v * 3 && fc_params.weights.OFM().v <= 4096);
+    return (params.weights.OFM().v > params.weights.IFM().v * 3
+            && output_f / 4 /* tile_ofm=4 */ > min_num_threads * 1.5);
 }
 
 static bool is_suitable_outer_ofm(const fully_connected_params& params, size_t output_f) {
     size_t min_num_threads = params.engineInfo.computeUnitsCount * simd;
-    return (output_f / 8 /* tile_ofm=4 and outer_ofm=2 */ > min_num_threads * 2 * 0.8);
+    return (params.weights.OFM().v > params.weights.IFM().v * 6
+            && output_f / 8 /* tile_ofm=4 and outer_ofm=2 */ > min_num_threads * 1.5);
 }
 
 FullyConnected_bf_tiled::FullyConnected_bf_tiled() : FullyConnectedKernelBase("fully_connected_gpu_bf_tiled") {
@@ -377,7 +376,7 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
     if (params.weights.GetDType() == WeightsType::UINT4 || params.weights.GetDType() == WeightsType::INT4) {
         if (!params.is_shape_agnostic && batch == 1) {
             // Tuning for Meteor Lake
-            if (is_weight_with_small_ofm(params, output_f)) {
+            if (is_weight_vertical(params, output_f)) {
                 if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2) {
                     return selector.Default(tune_params(1, 1, 4, 2, 1, 1, 1, EXE_MODE_DEFAULT));
                 } else if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16) {
@@ -784,16 +783,16 @@ KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &pa
     WeightsLayout weights_layout = WeightsLayout::os_iyx_osv16;
     // TODO: Update may also be required to fc_bf_tiled_kernel_dyn_quan kernel to support os_is_yx_osv64_isv2 format as needed
     if (!should_dynamic_quantize(fc_params) && fc_params.compressed && fc_params.inputs[0].GetDType() == Datatype::F16
-        && is_weight_with_large_ofm(fc_params, output_f) && !is_weight_with_large_ifm(fc_params)
         && (fc_params.weights.GetLayout() == WeightsLayout::oiyx || fc_params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2)
-        && (fc_params.weights.GetDType() == WeightsType::INT4 || fc_params.weights.GetDType() == WeightsType::UINT4)) {
-        // Large N + Small K case to use [osv64_isv2] + TILE_OFM 4 for batch 1
+        && (fc_params.weights.GetDType() == WeightsType::INT4 || fc_params.weights.GetDType() == WeightsType::UINT4)
+        && is_weight_horizontal(fc_params, output_f)) {
+        // Large N + Small K case (horizontal weight) to use [osv64_isv2] + TILE_OFM 4 for batch 1
         weights_layout = WeightsLayout::os_is_yx_osv64_isv2;
     } else if (fc_params.compressed && fc_params.inputs[0].GetDType() == Datatype::F16
         && (fc_params.weights.GetDType() == WeightsType::INT4 || fc_params.weights.GetDType() == WeightsType::UINT4)
-        && is_weight_with_small_ofm(fc_params, output_f) && is_weight_with_large_ifm(fc_params)
-        && (fc_params.weights.GetLayout() == WeightsLayout::oiyx || fc_params.weights.GetLayout() == WeightsLayout::os_iyx_osv16)) {
-        // Large K + Small N case to use [osv16 + TILE_K 4] + TILE_OFM 1 for batch 1
+        && (fc_params.weights.GetLayout() == WeightsLayout::oiyx || fc_params.weights.GetLayout() == WeightsLayout::os_iyx_osv16)
+        && is_weight_vertical(fc_params, output_f)) {
+        // Large K + Small N case (vertical weight)  to use [osv16 + TILE_K 4] + TILE_OFM 1 for batch 1
         weights_layout = WeightsLayout::os_iyx_osv16;
     } else if (fc_params.compressed && fc_params.inputs[0].GetDType() == Datatype::F16
         // ioyx => os_is_yx_osv32_isv2 is not supported yet
