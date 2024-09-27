@@ -3,6 +3,7 @@
 //
 
 #include "intel_gpu/runtime/device.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
 namespace cldnn {
 
@@ -61,6 +62,17 @@ float device::get_gops(cldnn::data_types dt) const {
     }
 
     return freqGHz * opsPerComputeBlock * computeBlockIPC * numEUs;
+}
+
+bool device::use_unified_shared_memory() const {
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->disable_usm) {
+        return false;
+    }
+    if (get_mem_caps().supports_usm()) {
+        return true;
+    }
+    return false;
 }
 
 }  // namespace cldnn

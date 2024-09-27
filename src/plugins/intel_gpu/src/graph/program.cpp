@@ -71,7 +71,7 @@
 #include "to_string_utils.h"
 
 // TODO: Remove once we have interface for kernels cache
-#include "runtime/kernels_cache.hpp"
+#include "impls/ocl/kernels_cache.hpp"
 
 // TODO: implement self-registration for impls
 #include "impls/ocl/register.hpp"
