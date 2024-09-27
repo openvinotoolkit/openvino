@@ -8,7 +8,7 @@ Wheels are portable Python packages that are ready to install upon download. The
 
 OpenVINO wheels for various platforms are available on [PyPI](https://pypi.org/project/openvino/#files), enabling you to install OpenVINO™ in your Python distribution or a dedicated virtual environment.
 
-OpenVino builds two different wheels with separate ```setup.py``` files for [```openvino```](../wheel/setup.py) and [```openvino-dev```](../../../../tools/openvino_dev/setup.py). To build the wheels while building the project from source, your ```cmake``` command must include ```-DENABLE_PYTHON=ON``` and ```-DENABLE_WHEEL=ON```. Once built, the wheels should be available under ```openvino_install_dir/tools``` 
+OpenVINO builds two different wheels with separate ```setup.py``` files for [```openvino```](../wheel/setup.py) and [```openvino-dev```](../../../../tools/openvino_dev/setup.py). To build the wheels while building the project from source, your ```cmake``` command should include ```-DENABLE_PYTHON=ON``` and ```-DENABLE_WHEEL=ON```. Once built, the wheels can be found under ```openvino_install_dir/tools```.
 
 While wheels make installation easier, using wheels for development offers less customization than building from source and exporting ```PYTHONPATH``` and other environment variables to OpenVINO directories. Wheels are usually provided for specific packaged versions and might not contain the most recent changes that are available if you choose to clone the repository and build it yourself.
 
