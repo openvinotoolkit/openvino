@@ -89,6 +89,7 @@ private:
     OP_EXTENSION_X64(ov::intel_cpu::LLMMLPNode)                             \
     OP_EXTENSION_X64(ov::intel_cpu::QKVProjectionNode)                      \
     OP_EXTENSION_X64(ov::intel_cpu::ScaledDotProductAttentionWithKVCache)   \
+    OP_EXTENSION_X64(ov::intel_cpu::SDPAWithTransposeReshape)               \
     OP_EXTENSION_X64(ov::intel_cpu::LoadConvertSaturation)                  \
     OP_EXTENSION_X64(ov::intel_cpu::LoadConvertTruncation)                  \
     OP_EXTENSION_X64(ov::intel_cpu::StoreConvertSaturation)                 \
