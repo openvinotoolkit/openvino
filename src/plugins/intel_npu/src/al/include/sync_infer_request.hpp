@@ -44,7 +44,7 @@ public:
      * @brief Currently there is no support implemented for batches of tensors, thus this call is a simple redirection
      * to the "get_tensor" one.
      */
-    virtual std::vector<ov::SoPtr<ov::ITensor>> get_tensors(const ov::Output<const ov::Node>& port) const override;
+    std::vector<ov::SoPtr<ov::ITensor>> get_tensors(const ov::Output<const ov::Node>& port) const override;
 
     /**
      * @brief Currently there is no support implemented for batches of tensors, thus this call is a simple redirection

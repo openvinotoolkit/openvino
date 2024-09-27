@@ -144,11 +144,16 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
     }
 }
 
-std::vector<ov::SoPtr<ov::ITensor>> SyncInferRequest::get_tensors(const ov::Output<const ov::Node>& /*port*/) const {
+std::vector<ov::SoPtr<ov::ITensor>> SyncInferRequest::get_tensors(const ov::Output<const ov::Node>& port) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::Plugin, "get_tensors");
 
-    // Using batches of tensors is currently not supported by the NPU plugin. In this scenario, the OpenVINO API demands
-    // returning an empty vector.
+    auto foundPort = find_port(port);
+    OPENVINO_ASSERT(foundPort.found(), "Cannot find input tensors for port ", port);
+
+    if (foundPort.is_input() && is_batched_input(foundPort.idx)) {
+        return _userBatchedTensors.at(foundPort.idx);
+    }
+
     return {};
 }
 
