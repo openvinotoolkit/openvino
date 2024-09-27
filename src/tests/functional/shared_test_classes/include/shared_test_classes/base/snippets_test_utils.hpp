@@ -9,6 +9,8 @@
 
 namespace ov {
 namespace test {
+namespace snippets {
+using ov::test::operator<<;
 class SnippetsTestsCommon : virtual public ov::test::SubgraphBaseTest {
 protected:
     void validateNumSubgraphs();
@@ -22,5 +24,6 @@ protected:
     size_t ref_num_nodes = 0;
     size_t ref_num_subgraphs = 0;
 };
+}  // namespace snippets
 }  // namespace test
 }  // namespace ov

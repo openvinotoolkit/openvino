@@ -27,7 +27,7 @@ typedef std::tuple<
 > AddSoftmaxParams;
 
 class Softmax : public testing::WithParamInterface<ov::test::snippets::SoftmaxParams>,
-                virtual public ov::test::SnippetsTestsCommon {
+                virtual public SnippetsTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::SoftmaxParams> obj);
 
@@ -36,7 +36,7 @@ protected:
 };
 
 class AddSoftmax : public testing::WithParamInterface<ov::test::snippets::AddSoftmaxParams>,
-                   virtual public ov::test::SnippetsTestsCommon {
+                   virtual public SnippetsTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::AddSoftmaxParams> obj);
 

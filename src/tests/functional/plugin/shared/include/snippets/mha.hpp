@@ -34,7 +34,7 @@ typedef std::tuple<std::vector<InputShape>,         // Input shapes
                    >
 MHAWithDynamicMulParams;
 
-class MHABase :  virtual public ov::test::SnippetsTestsCommon {
+class MHABase :  virtual public SnippetsTestsCommon {
 public:
     constexpr static size_t default_thread_count = 0;
 

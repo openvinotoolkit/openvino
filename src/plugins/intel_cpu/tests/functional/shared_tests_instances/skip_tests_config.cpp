@@ -578,14 +578,14 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*smoke_Snippets_AddSoftmax.*)");
     retVector.emplace_back(R"(.*smoke_Snippets_TransposeSoftmaxEltwise.*)");
     // Low-precision Matmuls are not supported by TPP yet
-    retVector.emplace_back(R"(.*smoke_Snippets_MatMulFQ.*)");
-    retVector.emplace_back(R"(.*smoke_Snippets_MatMulBiasQuantized.*)");
-    retVector.emplace_back(R"(.*smoke_Snippets_MatMulQuantized.*)");
-    retVector.emplace_back(R"(.*smoke_Snippets_MatMulQuantizedSoftmax.*)");
-    retVector.emplace_back(R"(.*smoke_Snippets_MHAINT8MatMul.*)");
-    retVector.emplace_back(R"(.*smoke_Snippets_MHAQuantMatMul0.*)");
-    retVector.emplace_back(R"(.*smoke_Snippets_MHAFQ.*)");
-    retVector.emplace_back(R"(.*smoke_Snippets_PrecisionPropagation_Convertion.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets.*MatMulFQ.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets.*MatMulBiasQuantized.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets.*MatMulsQuantized.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets.*MatMulsQuantizedSoftmax.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets.*MHAINT8MatMul.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets.*MHAQuantMatMul0.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets.*MHAFQ.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets.*PrecisionPropagation_Convertion.*)");
     retVector.emplace_back(R"(.*smoke_MHAQuant.*)");
 #endif
 

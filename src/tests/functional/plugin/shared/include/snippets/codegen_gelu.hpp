@@ -19,7 +19,7 @@ typedef std::tuple<
 > CodegenGeluParams;
 
 class CodegenGelu : public testing::WithParamInterface<ov::test::snippets::CodegenGeluParams>,
-                    virtual public ov::test::SnippetsTestsCommon {
+                    virtual public SnippetsTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::CodegenGeluParams> obj);
 
