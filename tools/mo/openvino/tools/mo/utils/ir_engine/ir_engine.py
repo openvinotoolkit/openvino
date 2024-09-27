@@ -540,7 +540,8 @@ class IREngine(object):
     @staticmethod
     def __read_rt_info_common(attr):
         attr_name = attr.attrib['name']
-        version = int(attr.attrib['version'])
+        #  TODO add notice why fixed to 0
+        version = 0
         rt_info = OrderedDict()
         for key in attr.attrib:
             if key not in ('name', 'version'):

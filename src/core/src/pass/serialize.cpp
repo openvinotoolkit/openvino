@@ -1016,7 +1016,10 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
                     auto& rt_attribute = item.second.as<ov::RuntimeAttribute>();
                     const auto& type_info = rt_attribute.get_type_info();
                     attribute_node.append_attribute("name").set_value(type_info.name);
-                    attribute_node.append_attribute("version").set_value(type_info.get_version().c_str());
+                    // TODO add deprecation notice with explanation (RuntimeAttribute should not be versioned, 0 remains
+                    // as legacy for backword compatibity)
+                    assert(type_info.get_version() == "0");
+                    attribute_node.append_attribute("version").set_value("0");
                     rt_info::RTInfoSerializer serializer(attribute_node);
                     if (!rt_attribute.visit_attributes(serializer)) {
                         rt_node.remove_child(attribute_node);

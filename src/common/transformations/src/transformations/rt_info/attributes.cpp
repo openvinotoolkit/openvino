@@ -19,7 +19,7 @@ ov::pass::Attributes::Attributes() {
     register_factory<PreprocessingAttribute>();
 }
 
-ov::Any ov::pass::Attributes::create_by_type_info(const ov::DiscreteTypeInfo& type_info) {
+ov::Any ov::pass::Attributes::create_by_type_info(const ov::DiscreteTypeInfo& type_info) const {
     auto it_type = m_factory_registry.find(type_info);
     if (it_type != m_factory_registry.end()) {
         return it_type->second();
