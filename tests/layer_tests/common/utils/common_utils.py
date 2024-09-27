@@ -62,10 +62,9 @@ def generate_ir_python_api(coverage=False, **kwargs):
         if 'output_dir' in kwargs:
             del kwargs['output_dir']
 
-        compress_to_fp16 = False
+        compress_to_fp16 = True
         if 'compress_to_fp16' in kwargs:
-            # TODO 132871: fix error with no tensor name in case of compression
-            # compress_to_fp16 = kwargs['compress_to_fp16']
+            compress_to_fp16 = kwargs['compress_to_fp16']
             del kwargs['compress_to_fp16']
 
         ov_model = convert_model(**kwargs)
