@@ -99,6 +99,8 @@ std::vector<std::shared_ptr<ov::ITensor>> ZeroDevice::runInit(const std::shared_
                                                               const Config& config) {
     const auto zeroInitExecutor = static_cast<const ZeroExecutor*>(initExecutor.get());
     std::unordered_map<size_t, TensorData> constantIdToTensorData;
+    std::vector<std::optional<TensorData>> inputTensorsData;
+    std::vector<std::optional<TensorData>> outputTensorsData;
 
     // Match the inputs of the "init" model with the Constant nodes of the original model
     for (auto&& node : model->get_ordered_ops()) {
@@ -113,6 +115,15 @@ std::vector<std::shared_ptr<ov::ITensor>> ZeroDevice::runInit(const std::shared_
 
         constantIdToTensorData.emplace(id, TensorData{address, size});
     }
+
+    for (const auto& descriptor : zeroInitExecutor->get_input_descriptors()) {
+        size_t id = std::stoi(std::string(descriptor.info.name).substr(INIT_INPUT_WEIGHTS_PREFIX.length()));
+        OPENVINO_ASSERT(constantIdToTensorData.count(id), "Mismatch between weights IDs and parsed inputs");
+
+        inputTensorsData.push_back(constantIdToTensorData.at(id));
+    }
+
+    // TODO remte tensor stuff
 
     // const Pipeline pipeline = std::make_unique<Pipeline>(
     //     config,
