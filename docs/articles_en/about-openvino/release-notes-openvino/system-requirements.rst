@@ -89,7 +89,7 @@ Intel® Neural Processing Unit
 
       * Ubuntu 24.04 long-term support (LTS), 64-bit (preview support)
       * Ubuntu 22.04 long-term support (LTS), 64-bit
-      * Windows 11, 64-bit (22H2, 23H2)
+      * Windows 11, 64-bit (22H2 and later)
 
    .. tab-item:: Additional considerations
 
