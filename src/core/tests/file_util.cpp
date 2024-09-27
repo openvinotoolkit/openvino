@@ -50,13 +50,13 @@ TEST(file_util, path_join) {
         string s1 = "/x1/x2/";
         string s2 = "/";
 
-        EXPECT_EQ(ov::util::Path{"/x1/x2//"}, ov::util::path_join({s1, s2}));
+        EXPECT_EQ(ov::util::Path{"/"}, ov::util::path_join({s1, s2}));
     }
     {
         string s1 = "/x1/x2";
         string s2 = "/test1/test2";
 
-        EXPECT_EQ(ov::util::Path{"/x1/x2/test1/test2"}, ov::util::path_join({s1, s2}));
+        EXPECT_EQ(ov::util::Path{"/test1/test2"}, ov::util::path_join({s1, s2}));
     }
     {
         string s1 = "/x1/x2/";

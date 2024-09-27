@@ -105,7 +105,15 @@ std::wstring ov::util::get_directory(const std::wstring& s) {
 
 namespace {
 ov::util::Path join_paths(const ov::util::Path& s1, const ov::util::Path& s2) {
-    return s1 / s2;
+    if(s2.empty()){
+        return s1;
+    }
+    else if(s1.empty() || *s2.begin() == ov::util::Path{"/"}){
+        return s2;
+    }
+    else{
+        return s1 / s2;
+    }
 }
 }  // namespace
 
