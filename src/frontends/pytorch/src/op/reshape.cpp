@@ -21,7 +21,8 @@ OutputVector translate_reshape(const NodeContext& context) {
     // Schema: aten::reshape(Tensor input, int[] shape) -> Tensor
     // For shape parameter, int[] is converted into single dimensional Tensor.
     num_inputs_check(context, 2, 2);
-    auto reshape = std::make_shared<ov::op::v1::Reshape>(context.get_input(0), context.get_input(1), false);
+    auto shape = get_input_concat_if_list(context, 1);
+    auto reshape = std::make_shared<ov::op::v1::Reshape>(context.get_input(0), shape, false);
     return {context.mark_node(reshape)};
 };
 
