@@ -108,7 +108,7 @@ jobs:
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
       CCACHE_MAXSIZE: 30G
       CCACHE_LOGFILE: /__w/openvino/openvino/openvino_build/ccache.log
-      CCACHE_DEBUG: 1
+      # CCACHE_DEBUG: 1
 
     steps:
       - name: Clone OpenVINO
@@ -193,6 +193,8 @@ jobs:
         
       - name: Cleanup ccache 
         run: ccache --cleanup --zero-stats --max-size=15G
+        env:
+          CCACHE_MAXSIZE: 15G
         
       - name: Show ccache stats
         run: ccache --show-stats
