@@ -74,8 +74,7 @@ StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphConte
 
     for (size_t i = 0lu; i < op->get_input_size(); i++) {
         isConstantInput[i] = ov::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(i));
-
-        if (!isConstantInput[i] && one_of(i, attrs.BEGIN_ID, attrs.END_ID, attrs.STRIDE_ID)) {
+        if (!isConstantInput[i] && one_of(i, attrs.BEGIN_ID, attrs.END_ID, attrs.STRIDE_ID) && !attrs.isSliceScatterOp) {
             shapeHasDataDependency = true;
         }
     }
@@ -326,11 +325,6 @@ bool StridedSlice::needShapeInfer() const {
 }
 
 void StridedSlice::execute(dnnl::stream strm) {
-    if (attrs.isSliceScatterOp && shapeHasDataDependency) {
-        // Workaround for SliceScatter op.
-        // Since shape doesn't depend on input values, prepareParams might not be called resulting in empty executor.
-        prepareParams();
-    }
     if (!execPtr)
         OPENVINO_THROW(errorPrefix, "doesn't have compiled executor!");
 

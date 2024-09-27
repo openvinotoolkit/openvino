@@ -282,7 +282,11 @@ const std::vector<SliceScatterSpecificParams> testCasesCommon4D = {
     SliceScatterSpecificParams{{{{-1, -1, -1, -1}, {{1, 3, 30, 4}}}}, {0, 0, 2, 10}, {1, 8, 32, 18}, {1, 2, 1, 2}, {}},
     SliceScatterSpecificParams{{{{-1, -1, -1, -1}, {{1, 5, 32, 8}}}}, {0, 0, 10}, {25, 32, 18}, {5, 1, 1}, {0, 2, 3}},
     SliceScatterSpecificParams{{{{-1, -1, -1, -1}, {{1, 5, 8, 32}}}}, {15, 0, 0}, {30, 32, 32}, {2, 15, 1}, {2, 0, 3}},
-    SliceScatterSpecificParams{{{{-1, -1, -1, -1}, {{0, 5, 8, 0}}}}, {15, 32, 64}, {30, 32, 128}, {2, 15, 1}, {2, 0, 3}}};
+    SliceScatterSpecificParams{{{{-1, -1, -1, -1}, {{0, 5, 8, 0}}}},
+                               {15, 32, 64},
+                               {30, 32, 128},
+                               {2, 15, 1},
+                               {2, 0, 3}}};
 
 const std::vector<std::vector<ov::Shape>> inputShapesStatic4D = {{{1, 5, 32, 32}}, {{2, 5, 32, 48}}};
 
@@ -413,6 +417,31 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Common_Dynamic_5D,
                          ::testing::Combine(::testing::ValuesIn(inputShapesDynamic5D),
                                             ::testing::ValuesIn(testCasesCommon5D),
                                             ::testing::ValuesIn(inputLayerTypes),
+                                            ::testing::ValuesIn(inputPrecisions),
+                                            ::testing::ValuesIn(CPUParamsCommon5D)),
+                         SliceScatterLayerCPUTest::getTestCaseName);
+
+const std::vector<SliceScatterSpecificParams> testCasesFullSlice5D = {
+    SliceScatterSpecificParams{{{{-1, -1, -1, -1, -1}, {{1, 5, 32, 32, 32}}}}, {}, {}, {}, {}},
+    SliceScatterSpecificParams{{{{-1, -1, -1, -1, -1}, {{1, 5, 32, 32, 32}}}}, {-64}, {64}, {1}, {-1}},
+    SliceScatterSpecificParams{{{{1, 5, 32, 32, 32}, {{1, 5, 32, 32, 32}}}},
+                               {-64, 0, -32, 32},
+                               {64, 33, 32, -33},
+                               {1, 1, 1, -1},
+                               {4, -2, 2, 1}},
+};
+
+const std::vector<std::vector<InputShape>> inputShapesFullSlice5D = {
+    {{{1, 5, 32, 32, 32}, {{1, 5, 32, 32, 32}}}},
+    {{{-1, -1, -1, -1, -1}, {{1, 5, 32, 32, 32}}}},
+    {{{-1, 5, -1, -1, -1}, {{1, 5, 32, 32, 32}}}},
+    {{{-1, 5, 32, {31, 64}, 32}, {{1, 5, 32, 32, 32}}}}};
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Common_Full_Slice_5D,
+                         SliceScatterLayerCPUTest,
+                         ::testing::Combine(::testing::ValuesIn(inputShapesFullSlice5D),
+                                            ::testing::ValuesIn(testCasesFullSlice5D),
+                                            ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
                                             ::testing::ValuesIn(inputPrecisions),
                                             ::testing::ValuesIn(CPUParamsCommon5D)),
                          SliceScatterLayerCPUTest::getTestCaseName);
