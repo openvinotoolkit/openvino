@@ -55,6 +55,8 @@ public:
 
 private:
     ov::SoPtr<ICompiler> getCompiler(const Config& config) const;
+    void init_options(compilerVersion comp_ver);
+    void init_properties();
 
     std::shared_ptr<NPUBackends> _backends;
 
