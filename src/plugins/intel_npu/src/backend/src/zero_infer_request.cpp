@@ -422,15 +422,24 @@ void ZeroInferRequest::check_batched_tensors(const ov::Output<const ov::Node>& i
         "Internal error (plugin): check_batched_tensors is not allowed to have only one tensor inside batch");
 
     auto layout = ov::layout::get_layout(input);
-    OPENVINO_ASSERT(ov::layout::has_batch(layout),
-                    "set_input_tensors/set_tensors can be used only for inputs with N(batch) dimension"
-                    " 'layout' defined. Current layout is ",
-                    layout.to_string());
-    auto batch_idx = ov::layout::batch_idx(layout);
-    if (batch_idx < 0) {
-        batch_idx += static_cast<int64_t>(tensors[0]->get_shape().size());
+
+    int64_t batch_idx;
+
+    if (layout.empty()) {
+        _logger.warning("set_input_tensors/set_tensors layout is not set, assuming batch dimension is found on 0 axis");
+        batch_idx = BATCH_AXIS;
+    } else {
+        OPENVINO_ASSERT(ov::layout::has_batch(layout),
+                        "set_input_tensors/set_tensors can be used only for inputs with N(batch) dimension"
+                        " 'layout' defined. Current layout is ",
+                        layout.to_string());
+        batch_idx = ov::layout::batch_idx(layout);
     }
-    OPENVINO_ASSERT(batch_idx == 0,
+
+    if (batch_idx < 0) {
+        batch_idx += static_cast<int64_t>(tensors[BATCH_AXIS]->get_shape().size());
+    }
+    OPENVINO_ASSERT(batch_idx == BATCH_AXIS,
                     "set_input_tensors/set_tensors is not currently supported for batch dimension index ",
                     batch_idx,
                     " != 0");
@@ -459,8 +468,8 @@ void ZeroInferRequest::check_batched_tensors(const ov::Output<const ov::Node>& i
                         tensors_size);
     }
 
-    auto batched_shape = tensors[0]->get_shape();
-    auto element_type = tensors[0]->get_element_type();
+    auto batched_shape = tensors[BATCH_AXIS]->get_shape();
+    auto element_type = tensors[BATCH_AXIS]->get_element_type();
     batched_shape[batch_idx] = tensors_size;
     for (const auto& item : tensors) {
         OPENVINO_ASSERT(item, "Unintialized tensor is provided!");
@@ -678,8 +687,8 @@ void ZeroInferRequest::infer_async() {
             } else {
                 void* levelZeroBuffer = _levelZeroInputTensors.at(inputIndex)->data();
 
-                _logger.info("Batched Tensors - Tensor is not allocated in the current Level Zero context or it has to "
-                             "be in a continued memory space");
+                _logger.info("Batched Tensors - Tensor is not allocated in the current Level Zero context or must be "
+                             "in a continued memory space");
 
                 const auto& batched_tensors = _userBatchedTensors.at(inputIndex);
 

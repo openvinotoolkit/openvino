@@ -704,9 +704,7 @@ std::vector<std::string> disabledTestPatterns() {
 
         _skipRegistry.addPatterns(
                 "NPU plugin doesn't support infer dynamic", {
-                ".*OVInferRequestBatchedTests.SetInputTensorsBase_Caching.*",
                 ".*OVInferRequestBatchedTests.SetInputTensors_Can_Infer_Dynamic.*",
-                ".*OVInferRequestBatchedTests.SetInputTensors_Cache_CheckDeepCopy.*"
         });
 
         // [Tracking number: E#118381]
