@@ -428,6 +428,7 @@ void Subgraph::data_flow_transformations(const BlockedShapeVector& blocked_input
 
     manager.register_positioned_passes(backend_passes);
     manager.run_passes(body_ptr());
+    ov::pass::Serialize("snsdebug_ngraph.xml", "snsdebug_ngraph.bin").run_on_model(body_ptr());
 }
 
 void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, size_t min_kernel_work_amount,

@@ -240,6 +240,26 @@ public:
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
 };
+//           Input
+//          /     \
+//         FC     FC
+//          \    Swish
+//           Multiply
+//             FC
+class MLPFunction : public SnippetsFunctionBase {
+public:
+    explicit MLPFunction(const std::vector<PartialShape>& inputShapes,
+                         const ov::element::Type& precision)
+                         : SnippetsFunctionBase(inputShapes, precision) {
+        OPENVINO_ASSERT(input_shapes.size() == 1, "Got invalid number of input shapes");
+        // todo: add shape validation
+        //ov::PartialShape allowed_shape {"1, -1, 4096"};
+        //OPENVINO_ASSERT(allowed_shape.same_scheme(inputShapes[0]), "Got incompatible input shapes");
+    }
+
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+};
 
 }  // namespace snippets
 }  // namespace test
