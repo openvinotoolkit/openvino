@@ -529,6 +529,10 @@ extern template bool evaluate_node<ov::op::v15::SliceScatter>(std::shared_ptr<ov
                                                               ov::TensorVector& outputs,
                                                               const ov::TensorVector& inputs);
 
+extern template bool evaluate_node<ov::op::v15::STFT>(std::shared_ptr<ov::Node> node,
+                                                      ov::TensorVector& outputs,
+                                                      const ov::TensorVector& inputs);
+
 extern template bool evaluate_node<ov::op::internal::AUGRUCell>(std::shared_ptr<ov::Node> node,
                                                                 ov::TensorVector& outputs,
                                                                 const ov::TensorVector& inputs);
