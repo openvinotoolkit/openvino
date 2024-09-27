@@ -462,11 +462,13 @@ void Partitioner::identifySubgraphs() {
         // Stabilize input order - sort layers based on names
         using PairNodePtr = std::pair<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>>;
         std::vector<PairNodePtr> input_mapping_sorted(input_mapping.begin(), input_mapping.end());
-        std::sort(input_mapping_sorted.begin(), input_mapping_sorted.end(), [](const PairNodePtr& p1, const PairNodePtr& p2) {
-            // Sanity check
-            NPUW_ASSERT(p1.first->get_friendly_name() != p2.first->get_friendly_name());
-            return p1.first->get_friendly_name() < p2.first->get_friendly_name();
-        });
+        std::sort(input_mapping_sorted.begin(),
+                  input_mapping_sorted.end(),
+                  [](const PairNodePtr& p1, const PairNodePtr& p2) {
+                      // Sanity check
+                      NPUW_ASSERT(p1.first->get_friendly_name() != p2.first->get_friendly_name());
+                      return p1.first->get_friendly_name() < p2.first->get_friendly_name();
+                  });
 
         // Now (after unknown slices/converts were introduced) params may be referred to
         // from multiple places in the model - so may be added multiple times to the

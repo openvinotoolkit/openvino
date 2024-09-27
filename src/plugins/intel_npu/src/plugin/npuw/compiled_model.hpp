@@ -61,6 +61,8 @@ private:
     void remove_long_output_names(const std::shared_ptr<ov::Model>& model);
     void fill_empty_tensor_names(const std::shared_ptr<ov::Model>& model);
 
+    void ShapeOfToConst(const std::shared_ptr<ov::Model>& model);
+
     std::shared_ptr<const ::intel_npu::Plugin> get_npuw_plugin() const;
 
     std::shared_ptr<ov::ISyncInferRequest> create_just_sync_infer_request();

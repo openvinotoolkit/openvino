@@ -18,6 +18,7 @@
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
+#include "partitioning/patterns/util.hpp"
 #include "plugin.hpp"
 #include "util.hpp"
 
@@ -135,6 +136,9 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     // FIXME: Find a better place to call this transformation
     ov::pass::ConvertPrecision(ov::element::bf16, ov::element::f16).run_on_model(model);
 
+    // FIXME: Could be a problem in case of dynamic shapes
+    ShapeOfToConst(model);
+
     auto partitioning = getPartitioning(model, m_cfg);
     m_total_stat.gflops = partitioning.total_gflops;
     m_total_stat.ops = partitioning.total_ops;
@@ -167,6 +171,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         }
         auto process_params = [&](const ov::ParameterVector& _parameters) {
             for (size_t i = 0; i < _parameters.size(); i++) {
+                NPUW_ASSERT(_parameters[i]);
                 LOG_VERB(_parameters[i]);
                 for (size_t j = 0; j < orig_parameters.size(); j++) {
                     if (_parameters[i] == orig_parameters[j]) {
@@ -311,10 +316,14 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     const std::string fsd_opt = m_cfg.get<::intel_npu::NPUW_SUBMODEL_DEVICE>();
     forced_sub_devices = ::intel_npu ::OptionParser<std::map<std::size_t, std::string>>::parse(fsd_opt);
 
-    // Exclude optimized out subgraphs from compilation target beforehand - otherwise we might get head and repeated block in the same chunk
+    // Exclude optimized out subgraphs from compilation target beforehand - otherwise we might get head and repeated
+    // block in the same chunk
     std::vector<std::size_t> idx_subgraph_to_compile;
     for (std::size_t i = 0u; i < orderedSubgraphs.size(); i++) {
-        if (!orderedSubgraphs[i]._optimized_out) {
+        if (orderedSubgraphs[i]._optimized_out ||
+            (m_compiled_submodels[i].replaced_by && m_compiled_submodels[i].replaced_by != i)) {
+            continue;
+        } else {
             idx_subgraph_to_compile.push_back(i);
         }
     }
@@ -400,6 +409,13 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 
     m_finalized = true;
     reset_io();
+}
+
+void ov::npuw::CompiledModel::ShapeOfToConst(const std::shared_ptr<ov::Model>& model) {
+    ov::pass::GraphRewrite rewr;
+    // FIXME: pass some kind of context instead of ov::Model - required to remove parameter
+    rewr.add_matcher<ov::npuw::patterns::util::ShapeOfToConst>(model);
+    rewr.run_on_model(model);
 }
 
 void ov::npuw::CompiledModel::fill_weights_bank(const std::size_t idx) {
@@ -566,6 +582,9 @@ ov::SoPtr<ov::ICompiledModel> ov::npuw::CompiledModel::compile_submodel(const st
                                                                         const std::string& device) {
     auto plugin = get_npuw_plugin();
     auto core = plugin->get_core();
+
+    // FIXME: probably should handle CACHE_DIR right here - if the device is available and does support EXPORT/IMPORT
+
     // set exclusive_async_requests in case when model is split
     // NOTE(dm): Not sure if it is required for the NPUW plugin, but likely it is
     auto& device_config = m_meta_devices[device];

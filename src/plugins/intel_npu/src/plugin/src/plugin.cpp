@@ -617,9 +617,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     if (localProperties.count(useNpuwKey)) {
         if (localProperties.at(useNpuwKey).as<bool>() == true) {
             // CACHE_DIR isn't supported with NPU_USE_NPUW
-            if (localProperties.count(ov::cache_dir.name()) || !_globalConfig.get<CACHE_DIR>().empty()) {
-                OPENVINO_THROW("Option 'CACHE_DIR' is not supported with NPU_USE_NPUW");
-            }
+            // if (localProperties.count(ov::cache_dir.name()) || !_globalConfig.get<CACHE_DIR>().empty()) {
+            //     OPENVINO_THROW("Option 'CACHE_DIR' is not supported with NPU_USE_NPUW");
+            // }
+            // FIXME: perhaps we should not just pass this option here and introduce NPUW_CACHE_DIR
+            // Then just before compile we need to ensure that our target device is available and only after that set CACHE_DIR
             return std::make_shared<ov::npuw::CompiledModel>(model->clone(), shared_from_this(), localProperties);
         } else {
             // NPUW is disabled, remove the key from the properties
