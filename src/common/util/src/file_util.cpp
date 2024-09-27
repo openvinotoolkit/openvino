@@ -619,10 +619,10 @@ void ov::util::save_binary(const std::string& path, const char* binary, size_t b
 ov::util::Path ov::util::trim_file_name(const ov::util::Path& fname) {
     // fs::relative, fs::proximate not avalieble in experimantal, upgrade on C++17.
 
-    auto it = std::find(fname.begin(), fname.end(), ov::util::Path::string_type{OV_NATIVE_PARENT_PROJECT_ROOT_DIR});
+    auto it = std::find(fname.begin(), fname.end(), ov::util::Path{OV_NATIVE_PARENT_PROJECT_ROOT_DIR});
 
     if(it != fname.end()){
-        return ov::util::path_join({++it, fname.end()});
+        return ov::util::path_join(std::vector<ov::util::Path>(++it, fname.end()));
     }else{
         return fname;
     }
