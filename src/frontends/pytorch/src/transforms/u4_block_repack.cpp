@@ -22,10 +22,10 @@ using namespace ov::op;
 using namespace ov::pass::pattern;
 
 U4BlockRepack::U4BlockRepack(bool is_symmetrical) {
-    const auto& m_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    const auto& m_reshape1 = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({m_constant, any_input()});
-    const auto& m_transpose = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({m_reshape1, any_input()});
-    const auto& m_reshape2 = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({m_transpose, any_input()});
+    const auto& m_constant = wrap_type<v0::Constant>();
+    const auto& m_reshape1 = wrap_type<v1::Reshape>({m_constant, any_input()});
+    const auto& m_transpose = wrap_type<v1::Transpose>({m_reshape1, any_input()});
+    const auto& m_reshape2 = wrap_type<v1::Reshape>({m_transpose, any_input()});
 
     auto pack_byte = [](uint8_t lo, uint8_t hi) -> uint8_t {
         return (hi << 4) | (lo & 0x0F);
@@ -43,8 +43,8 @@ U4BlockRepack::U4BlockRepack(bool is_symmetrical) {
     };
 
     register_matcher(
-        std::make_shared<ov::pass::pattern::Matcher>(m_reshape2, "ov::frontend::pytorch::pass::U4BlockRepack"),
-        [=](ov::pass::pattern::Matcher& m) {
+        std::make_shared<Matcher>(m_reshape2, "ov::frontend::pytorch::pass::U4BlockRepack"),
+        [=](Matcher& m) {
             auto& pattern_to_output = m.get_pattern_value_map();
             auto constant =
                 std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output[m_constant].get_node_shared_ptr());

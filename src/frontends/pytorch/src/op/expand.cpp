@@ -28,7 +28,7 @@ OutputVector translate_expand(const NodeContext& context) {
     // aten::expand(Tensor(a) self, SymInt[] size, *, bool implicit=False) -> Tensor(a)
     num_inputs_check(context, 2, 3);
     auto x = context.get_input(0);
-    auto sizes = context.get_input(1);
+    auto sizes = get_input_concat_if_list(context, 1);
     // TODO: figure out what implicit means
     PYTORCH_OP_CONVERSION_CHECK(context.input_is_none(2) || context.const_input<bool>(2) == false,
                                 "Unexpected value of implicit for expand operation");
