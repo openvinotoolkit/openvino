@@ -4,15 +4,15 @@
 
 #include "openvino/reference/convert.hpp"
 
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#if OV_CORE_USE_XBYAK_JIT
 #    include "jit_generator.hpp"
 
 using namespace ov::runtime;
-#endif
+#endif  // OV_CORE_USE_XBYAK_JIT
 
 namespace ov {
 namespace reference {
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#if OV_CORE_USE_XBYAK_JIT
 namespace {
 template <typename src_t, typename dst_t, bool clamp = false>
 void jit_convert_vec(jit::Generator&, const Xbyak::RegExp&, const Xbyak::RegExp&);
@@ -522,19 +522,6 @@ void convert<float, float16>(const float* arg, float16* out, size_t count) {
 }
 
 template <>
-void convert<int32_t, float16>(const int32_t* arg, float16* out, size_t count) {
-    for (size_t i = 0; i < count; ++i) {
-        if (arg[i] > std::numeric_limits<ov::float16>::max()) {
-            out[i] = std::numeric_limits<ov::float16>::max();
-        } else if (arg[i] < std::numeric_limits<ov::float16>::lowest()) {
-            out[i] = std::numeric_limits<ov::float16>::lowest();
-        } else {
-            out[i] = static_cast<ov::float16>(arg[i]);
-        }
-    }
-}
-
-template <>
 void convert<float, int8_t>(const float* arg, int8_t* out, size_t count) {
     convert_impl(arg, out, count);
 }
@@ -554,10 +541,10 @@ void convert<bfloat16, float>(const bfloat16* arg, float* out, size_t count) {
     convert_impl(arg, out, count);
 }
 
-#endif  // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
+#endif  // OV_CORE_USE_XBYAK_JIT
 
 void convert_from_f32_to_f16_with_clamp(const float* arg, float16* out, size_t count) {
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#if OV_CORE_USE_XBYAK_JIT
     convert_impl<float, float16, true>(arg, out, count);
 #else
     // FIXME CVS-125496: duplicate and stub for ARM, provide optimized solution
@@ -570,11 +557,24 @@ void convert_from_f32_to_f16_with_clamp(const float* arg, float16* out, size_t c
             out[i] = static_cast<ov::float16>(arg[i]);
         }
     }
-#endif  // defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#endif  // OV_CORE_USE_XBYAK_JIT
+}
+
+template <>
+void convert<int32_t, float16>(const int32_t* arg, float16* out, size_t count) {
+    for (size_t i = 0; i < count; ++i) {
+        if (arg[i] > std::numeric_limits<ov::float16>::max()) {
+            out[i] = std::numeric_limits<ov::float16>::max();
+        } else if (arg[i] < std::numeric_limits<ov::float16>::lowest()) {
+            out[i] = std::numeric_limits<ov::float16>::lowest();
+        } else {
+            out[i] = static_cast<ov::float16>(arg[i]);
+        }
+    }
 }
 
 void convert_from_bf16_to_f16_with_clamp(const bfloat16* arg, float16* out, size_t count) {
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#if OV_CORE_USE_XBYAK_JIT
     convert_impl<bfloat16, float16, true>(arg, out, count);
 #else
     // FIXME CVS-125496: duplicate and stub for ARM, provide optimized solution
@@ -587,20 +587,20 @@ void convert_from_bf16_to_f16_with_clamp(const bfloat16* arg, float16* out, size
             out[i] = static_cast<ov::float16>(arg[i]);
         }
     }
-#endif  // defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#endif  // OV_CORE_USE_XBYAK_JIT
 }
 
 size_t count_out_of_f16_range(const float* arg, size_t count) {
     size_t num_out_of_range = 0;
 
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#if OV_CORE_USE_XBYAK_JIT
     auto converter = jit_count_out_of_range::get<float, float16>();
     if (converter) {
         jit_count_out_of_range::args_t args = {arg, &num_out_of_range, count};
         converter(&args);
         return num_out_of_range;
     }
-#endif
+#endif  // OV_CORE_USE_XBYAK_JIT
     for (size_t i = 0; i < count; ++i) {
         // if abs value is smaller than the smallest positive fp16, but not zero
         if (std::abs(arg[i]) < ov::float16::from_bits(0x0001) && arg[i] != 0.0f) {

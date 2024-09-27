@@ -111,8 +111,7 @@ static bool should_dynamic_quantize(const fully_connected_params& params) {
     if ((scale_group_size % simd == 0) && (input_f % dynamic_quantization_group_size == 0) &&
         (params.is_shape_agnostic || (params.inputs[0].Batch().v > 1 && input_b > min_slm_size)) &&
         params.inputs[0].GetDType() == Datatype::F16 &&
-        (params.weights.GetDType() == WeightsType::INT4 || params.weights.GetDType() == WeightsType::UINT4) &&
-        (params.decompression_zero_point.Feature().v == 1)) {
+        (params.weights.GetDType() == WeightsType::INT4 || params.weights.GetDType() == WeightsType::UINT4)) {
         GPU_DEBUG_TRACE_DETAIL << " Dynamic quantizing for FC : scale_group_size " << scale_group_size << ", Input (" <<
             kernel_selector::toString(params.inputs[0].GetDType()) << ", " << kernel_selector::toString(params.outputs[0].GetLayout()) <<
             ") B: " << params.inputs[0].Batch().v << ", F: " << params.inputs[0].Feature().v << ", Y: " << params.inputs[0].Y().v << std ::endl;
@@ -524,13 +523,15 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
         if (scale_group_size % simd == 0 && !dispatchData.use_slm)
             jit.AddConstant(MakeJitConstant("DECOMPRESSION_SCALE_POST_OP", 1));
     }
-    if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2)
+    if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2) {
         jit.AddConstant(MakeJitConstant("W_IDX", "fi * TILE_K + kii"));
-    else if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16)
+    } else if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16) {
         jit.AddConstant(MakeJitConstant("W_IDX", "fi * TILE_K + kii"));
-    else
+    } else {
         jit.AddConstant(MakeJitConstant("W_IDX", "kii * TILE_OFM + fi"));
+    }
 
+    jit.AddConstant(MakeJitConstant("W_DYN_QUAN_IDX", "fi * TILE_K + kii"));
 
     if (dispatchData.use_slm) {
         OPENVINO_ASSERT(dispatchData.tile_n == 2, "[GPU] Unsupported TILE_OFM size for SLM kernel configuration");
@@ -576,14 +577,14 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     }
 
     // Validated perf gain, Dynamic quantize force enable SCALE_POST_OP for char type multiplication
-    if (should_dynamic_quantize(params) && dispatchData.tile_m > 1 && dispatchData.tile_n == 2) {
+    if (should_dynamic_quantize(params)) {
         jit.AddConstant(MakeJitConstant("DYNAMIC_QUANTIZE", 1));
         jit.AddConstant(MakeJitConstant("DECOMPRESSION_SCALE_POST_OP", 1));
         jit.AddConstant(MakeJitConstant("DQ_TYPE", "char"));
         jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", quantize_grp_size));
     } else {
         jit.AddConstant(MakeJitConstant("DYNAMIC_QUANTIZE", 0));
-        jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", -1));
+        jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", min_quantize_grp_size));
     }
 
     jit.AddConstant(MakeJitConstant("IFM_SIZE", get_input_bf_size(params).second));

@@ -151,7 +151,8 @@
 - 'tests/layer_tests/tensorflow2_keras_tests/**/*'
 - 'tests/layer_tests/jax_tests/**/*'
 - any: ['tests/model_hub_tests/**',
-        '!tests/model_hub_tests/pytorch/**/*']
+        '!tests/model_hub_tests/pytorch/**/*',
+        '!tests/model_hub_tests/jax/**/*']
 
 'category: TFL FE':
 - 'src/frontends/tensorflow_lite/**/*'
@@ -165,12 +166,16 @@
 - 'tests/layer_tests/py_frontend_tests/test_torch_decoder.py'
 - 'tests/layer_tests/py_frontend_tests/test_torch_frontend.py'
 - any: ['tests/model_hub_tests/**',
-        '!tests/model_hub_tests/tensorflow/**/*']
+        '!tests/model_hub_tests/tensorflow/**/*',
+        '!tests/model_hub_tests/jax/**/*']
 
 'category: JAX FE':
 - 'src/frontends/jax/**/*'
 - 'src/bindings/python/src/openvino/frontend/jax/**/*'
 - 'tests/layer_tests/jax_tests/**/*'
+- any: ['tests/model_hub_tests/**',
+        '!tests/model_hub_tests/tensorflow/**/*',
+        '!tests/model_hub_tests/pytorch/**/*']
 
 'category: tools':
 - any: ['tools/**',
