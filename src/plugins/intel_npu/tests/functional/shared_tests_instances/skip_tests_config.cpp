@@ -702,9 +702,8 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*OVCompiledModelPropertiesDefaultSupportedTests.CanCompileWithDefaultValueFromPlugin.*"
         });
 
-        // [Tracking number: E#116494]
         _skipRegistry.addPatterns(
-                "NPU plugin doesn't implement `set_tensors` function", {
+                "NPU plugin doesn't support infer dynamic", {
                 ".*OVInferRequestBatchedTests.SetInputTensorsBase_Caching.*",
                 ".*OVInferRequestBatchedTests.SetInputTensors_Can_Infer_Dynamic.*",
                 ".*OVInferRequestBatchedTests.SetInputTensors_Cache_CheckDeepCopy.*"
