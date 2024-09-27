@@ -293,11 +293,13 @@ class TorchScriptPythonDecoder(Decoder):
         return "ts"
 
     def get_subgraphs(self) -> list:
-        if self.graph_element.kind() == "prim::PythonOp":
+        if self.graph_element.kind() in ["prim::PythonOp", "prim::fork"]:
             if "Subgraph" in self.graph_element.attributeNames():
                 assert isinstance(
                     self.graph_element, torch.Node), "Graph element must be of type torch.Node."
-                return [getattr(self.graph_element, self.graph_element.kindOf("Subgraph"))("Subgraph")]
+                subgraph = getattr(self.graph_element, self.graph_element.kindOf("Subgraph"))("Subgraph")
+                torch._C._jit_pass_inline(subgraph)
+                return [subgraph]
             else:
                 # Attribute "Subgraph" is only available if Graph was created using tracing.
                 # TODO Find way to extract subgraph for scripted Graph.
