@@ -39,7 +39,7 @@ BrgemmKernel::BrgemmKernel(size_t M,
     M_blk = matmulOptimalM;
     M_tail = M % M_blk;
 
-    if (inType != ov::element::bf16 && inType != ov::element::f32 && inType != ov::element::f16)
+    if (!one_of(inType, ov::element::bf16, ov::element::f16, ov::element::f32))
         THROW_ERROR("brgemm kernel only supports f16, bf16, f32");
     bool is_f32 = inType == ov::element::f32;
 
@@ -280,7 +280,6 @@ void BrgemmKernel::init_brgemm_copy_b(
     bool transpose,
     size_t copy_B_wei_stride) {
     brgemm_matmul_conf_t brgCopyKernelConf;
-    // TODO: AMX_FP16
     brgCopyKernelConf.src_dt = is_avx_f16_only ? dnnl_data_type_t::dnnl_f32 : dt_in0;
     brgCopyKernelConf.wei_dt = is_avx_f16_only ? dnnl_data_type_t::dnnl_f32 : dt_in1;
     brgCopyKernelConf.orig_wei_dt = dt_in1;
@@ -389,7 +388,6 @@ void BrgemmKernel::executeGemm(bool is_M_tail, void* a, void* b, void* c, void* 
             size_t mIdx = is_M_tail ? 1 : 0;
             auto& brgemmCtx = brgCtxs[getBrgIdx(mIdx, k, n)];
             if (brgemmCtx.K != 0 && brgemmCtx.N != 0 && brgemmCtx.M != 0) {
-                // TODO: AMX_FP16
                 auto local_a_ptr = is_avx_f16_only ? ptr_scartch_a : (k > 0 ? ptr_scartch_a : ptr_A);
                 auto B_stride = (k * count_K + n * count_N * brgVnniFactor) * weiType.size();
                 auto weight_ptr = ptr_scartch_b + B_stride;

@@ -774,7 +774,6 @@ struct MHAHelper {
     std::vector<std::shared_ptr<BrgemmKernel>> _wv_gemm_acc;
     // second token
     std::shared_ptr<JitMatMulVecAMX> _gemv;
-    // bool _fastpath_valid = false;
     ov::element::Type _fastpath_valid_prec = ov::element::undefined;
     // second token for bhl loop
     PlainTensor _weight_bhl;
@@ -856,12 +855,6 @@ struct MHAHelper {
             // allocate scratch a/b, notice get_scratch_a_size/get_scratch_b_size returns in bytes
             _qk_scratch_a.resize<DATA_TYPE>({_nthr, _qk_gemm[_block_size - 1]->get_scratch_a_size() / sizeof(DATA_TYPE)});
             _wv_scratch_a.resize<DATA_TYPE>({_nthr, _wv_gemm[_block_size - 1]->get_scratch_a_size() / sizeof(DATA_TYPE)});
-
-            // _fastpath_valid = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::amx_bf16) &&
-            //     (S % 32 == 0) && (block_size % 16 == 0) && (S <= 32 * 6) && precision_of<KVCACHE_TYPE>::value == ov::element::bf16;
-            // // aligned to cache line (64bytes=16*sizeof(float)) to avoid false sharing
-            // if (_fastpath_valid && !_gemv)
-            //     _gemv = std::make_shared<JitMatMulVecAMX>(static_cast<int>(S), static_cast<int>(block_size));
 
             if ((S % 32 == 0) && (block_size % 16 == 0) && (S <= 32 * 6)) {
                 if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::amx_bf16) &&
