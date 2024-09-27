@@ -199,7 +199,7 @@ std::vector<ov::PropertyName> OptionsDesc::getSupportedProperties(bool includePr
 
     for (const auto& p : _impl) {
         if (p.second.isPublic() || includePrivate) {
-            res.push_back({p.first, p.second.isReadOnly() ? ov::PropertyMutability::RO : ov::PropertyMutability::RW});
+            res.push_back({p.first, p.second.mutability()});
         }
     }
 

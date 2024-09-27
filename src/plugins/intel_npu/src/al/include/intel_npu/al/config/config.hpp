@@ -270,8 +270,8 @@ struct OptionBase {
     }
 
     // Overload this for read-only options (metrics)
-    static bool isReadOnly() {
-        return false;
+    static ov::PropertyMutability mutability() {
+        return ov::PropertyMutability::RW;
     }
 
     /// Overload this for options conditioned by compiler version
@@ -341,7 +341,7 @@ struct OptionConcept final {
     std::string_view (*envVar)() = nullptr;
     OptionMode (*mode)() = nullptr;
     bool (*isPublic)() = nullptr;
-    bool (*isReadOnly)() = nullptr;
+    ov::PropertyMutability (*mutability)() = nullptr;
     compilerVersion (*compilerSupportVersion)() = nullptr;
     std::shared_ptr<OptionValue> (*validateAndParse)(std::string_view val) = nullptr;
 };
@@ -365,7 +365,7 @@ OptionConcept makeOptionModel() {
             &Opt::envVar,
             &Opt::mode,
             &Opt::isPublic,
-            &Opt::isReadOnly,
+            &Opt::mutability,
             &Opt::compilerSupportVersion,
             &validateAndParse<Opt>};
 }
@@ -389,7 +389,7 @@ public:
     std::vector<std::string> getSupported(bool includePrivate = false) const;
     std::vector<ov::PropertyName> getSupportedProperties(bool includePrivate = false) const;
 
-    details::OptionConcept get(std::string_view key, OptionMode mode) const;
+    details::OptionConcept get(std::string_view key, OptionMode mode = OptionMode::Both) const;
     void walk(std::function<void(const details::OptionConcept&)> cb) const;
 
 private:
