@@ -1300,3 +1300,33 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_pad_1d) {
 
     test_case.run();
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_3x4) {
+    const auto model = convert_model("com.microsoft/matmulnbits_3x4.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
+    test_case.add_expected_output<float>(Shape{3, 3},
+                                         {31.25f, 28.125f, 24.f, 78.75f, 75.625f, 72.f, 126.25f, 123.125f, 120.f});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_3x17) {
+    const auto model = convert_model("com.microsoft/matmulnbits_3x17.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>({1, 2, 3, 4,  5, 6, 7, 8, 9, 10, 1, 2, 3, 4,  5, 6, 7, 8, 9, 10, 1, 2, 3, 4,  5, 6,
+                                7, 8, 9, 10, 1, 2, 3, 4, 5, 6,  7, 8, 9, 10, 1, 2, 3, 4, 5, 6,  7, 8, 9, 10, 1});
+
+    if (std::string("${BACKEND_NAME}") == std::string("IE_GPU")) {
+        test_case.add_expected_output<float>(
+            Shape{3, 3},
+            {425.25f, 372.5f, 352.25f, 446.5f, 448.75f, 476.5f, 400.25f, 480.5f, 533.f});
+    } else {
+        test_case.add_expected_output<float>(
+            Shape{3, 3},
+            {425.25f, 372.375f, 352.375f, 446.625f, 448.875f, 476.5f, 400.5f, 480.375f, 533.125f});
+    }
+    test_case.run();
+}
