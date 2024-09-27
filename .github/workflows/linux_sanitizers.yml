@@ -38,8 +38,8 @@ jobs:
             SANITIZER_CMAKE_OPTION: '-DENABLE_SANITIZER=ON'
           - SANITIZER: 'UndefinedBehavior'
             SANITIZER_CMAKE_OPTION: '-DENABLE_UB_SANITIZER=ON'
-#          - SANITIZER: 'Thread'  # Problems with protobuf
-#            SANITIZER_CMAKE_OPTION: '-DENABLE_THREAD_SANITIZER=ON'
+          - SANITIZER: 'Thread'
+            SANITIZER_CMAKE_OPTION: '-DENABLE_THREAD_SANITIZER=ON'
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       CMAKE_BUILD_TYPE: 'RelWithDebInfo'
@@ -218,8 +218,8 @@ jobs:
       matrix:
         include:
           - SANITIZER: 'AddressAndLeak'
-#          - SANITIZER: 'UndefinedBehavior'  # the UB library is not linked properly at the Build stage
-#          - SANITIZER: 'Thread'  # Problems with protobuf at the Build stage
+          - SANITIZER: 'UndefinedBehavior'
+          - SANITIZER: 'Thread'
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       INSTALL_DIR: ${{ github.workspace }}/install
@@ -467,6 +467,6 @@ jobs:
         uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         if: ${{ !cancelled() }}
         with:
-          name: test-results-cpp
+          name: test-results-cpp_${{ matrix.SANITIZER }}
           path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
           if-no-files-found: 'error'
