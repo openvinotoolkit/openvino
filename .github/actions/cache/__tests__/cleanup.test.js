@@ -12,7 +12,12 @@ const getInputMock = jest.spyOn(core, 'getInput').mockImplementation();
 const setFailedMock = jest.spyOn(core, 'setFailed').mockImplementation();
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'test-cleanup-'));
-const cacheRemotePath = path.join(tempDir, 'cache_remote');
+const cacheRemotePath = path.join(
+  tempDir,
+  'subdir_1',
+  'subdir_2',
+  'cache_remote'
+);
 
 const cacheFiles = ['cache_1.cache', 'cache_2.cache', 'cache_3.cache'];
 const minAccessTime = 7 * 24 * 60 * 60 * 1000; // 1 week
@@ -282,5 +287,61 @@ describe('cleanup', () => {
     expect(fs.existsSync(path.join(cacheRemotePath, cacheFiles[0]))).toBe(true);
     // check that sub directory exists
     expect(fs.existsSync(cacheSubPath)).toBe(true);
+  });
+
+  it('Cleanup directory with subdirectories and files (recursive=true)', async () => {
+    const cacheSubPath = path.join(tempDir, 'subdir_1');
+    // Set the action's inputs as return values from core.getInput()
+    getInputMock.mockImplementation(name => {
+      switch (name) {
+        case 'cache-path':
+          return cacheSubPath;
+        case 'restore-keys':
+          return 'cache';
+        case 'cache-size':
+          return 1;
+        case 'recursive':
+          return true;
+        default:
+          return '';
+      }
+    });
+
+    await cleanupImpl.cleanUp();
+
+    expect(runMock).toHaveReturned();
+    // cache2 and cache3 should be removed
+    for (const cache of cacheFiles.slice(1, 2)) {
+      expect(fs.existsSync(path.join(cacheRemotePath, cache))).toBe(false);
+    }
+    // check that file1 exists
+    expect(fs.existsSync(path.join(cacheRemotePath, cacheFiles[0]))).toBe(true);
+  });
+
+  it('Cleanup directory with subdirectories and files (recursive=false)', async () => {
+    const cacheSubPath = path.join(tempDir, 'subdir_1');
+    // Set the action's inputs as return values from core.getInput()
+    getInputMock.mockImplementation(name => {
+      switch (name) {
+        case 'cache-path':
+          return cacheSubPath;
+        case 'restore-keys':
+          return 'cache';
+        case 'cache-size':
+          return 1;
+        case 'recursive':
+          return false;
+        default:
+          return '';
+      }
+    });
+
+    await cleanupImpl.cleanUp();
+
+    expect(runMock).toHaveReturned();
+    // cache2 and cache3 should be removed
+    for (const cache of cacheFiles) {
+      expect(fs.existsSync(path.join(cacheRemotePath, cache))).toBe(true);
+    }
   });
 });

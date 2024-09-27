@@ -2,7 +2,7 @@ const core = require('@actions/core');
 const fs = require('fs');
 const path = require('path');
 
-async function getSortedCacheFiles(cachePath, key = '') {
+async function getSortedCacheFiles(cachePath, key = '', recursive = false) {
   if (!(await checkFileExists(cachePath))) {
     core.warning(`${cachePath} doesn't exist`);
     return [];
@@ -10,8 +10,8 @@ async function getSortedCacheFiles(cachePath, key = '') {
 
   const cachePattern = new RegExp(`^((${key}).*[.]cache)$`);
 
-  const filesSorted = (await fs.promises.readdir(cachePath))
-    .filter(fileName => cachePattern.test(fileName))
+  const filesSorted = (await fs.promises.readdir(cachePath, { recursive }))
+    .filter(fileName => cachePattern.test(path.basename(fileName)))
     .map(fileName => ({
       name: fileName,
       time: fs.statSync(path.join(cachePath, fileName)).atimeMs
