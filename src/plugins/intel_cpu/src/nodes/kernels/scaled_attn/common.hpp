@@ -113,7 +113,6 @@ static constexpr size_t vec_len_f16_neon = vec_len_neon / sizeof(ov::float16);
 
     inline void mm512_uni_storeu_tail_ps(ov::bfloat16 *addr, __m512 v, size_t count) {
         __mmask16 mask_addr = (1 << count) - 1;
-        // mm512_uni_mask_storeu_ps(addr, mask_addr, v); // TODO can remove
         __m512i xpi32 = _mm512_castps_si512(v);
         __m512i nan = _mm512_set1_epi32(0xffff);
         auto mask = _mm512_cmp_ps_mask(v, v, _CMP_ORD_Q);
