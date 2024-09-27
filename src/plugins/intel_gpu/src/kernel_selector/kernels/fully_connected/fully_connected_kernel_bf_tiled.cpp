@@ -11,7 +11,6 @@
 static constexpr size_t simd = 16;
 static constexpr size_t min_quantize_grp_size = 32;
 static constexpr size_t min_slm_size = 256;
-static constexpr size_t min_opt_num_threads = 3072;
 static std::vector<size_t> available_quantize_grp_size = {128, 64, 32};
 
 namespace kernel_selector {
@@ -132,17 +131,20 @@ static bool is_weight_with_small_ofm(const fully_connected_params& params, size_
 }
 
 static bool is_weight_with_large_ofm(const fully_connected_params& params, size_t output_f) {
-    GPU_DEBUG_TRACE_DETAIL << "out_ofm (== weight N dim) size " << output_f << " is large compared to minimum optimal threads. "
-                           << "(min_opt_num_threads : " << min_opt_num_threads << ")" << std::endl;
-    return (output_f / 4 /* tile_ofm=4 */ > min_opt_num_threads);
+    size_t min_num_threads = params.engineInfo.computeUnitsCount * simd;
+    GPU_DEBUG_TRACE_DETAIL << "out_ofm (== weight N dim) size " << output_f << " is large compared to the available threads. "
+                           << "(computeUnitsCount : " << params.engineInfo.computeUnitsCount
+                           << " min_num_threads : " << min_num_threads << ")" << std::endl;
+    return (output_f / 4 /* tile_ofm=4 */ > min_num_threads * 2 * 0.8);
 }
 
 static bool is_weight_with_large_ifm(const fully_connected_params& fc_params) {
     return (fc_params.weights.IFM().v >= fc_params.weights.OFM().v * 3 && fc_params.weights.OFM().v <= 4096);
 }
 
-static bool is_suitable_outer_ofm(size_t output_f) {
-    return (output_f / 8 /* tile_ofm=4 and outer_ofm=2 */ > min_opt_num_threads);
+static bool is_suitable_outer_ofm(const fully_connected_params& params, size_t output_f) {
+    size_t min_num_threads = params.engineInfo.computeUnitsCount * simd;
+    return (output_f / 8 /* tile_ofm=4 and outer_ofm=2 */ > min_num_threads * 2 * 0.8);
 }
 
 FullyConnected_bf_tiled::FullyConnected_bf_tiled() : FullyConnectedKernelBase("fully_connected_gpu_bf_tiled") {
@@ -291,11 +293,6 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
     size_t output_b = bf_size.first;
     size_t output_f = bf_size.second;
 
-    if (params.compressed &&
-        (params.weights.GetDType() == WeightsType::INT4 || params.weights.GetDType() == WeightsType::UINT4) &&
-        tparams.tile_ofm != 2)
-        return false;
-
     auto batch_size = params.is_shape_agnostic ? Align(output_b, tparams.tile_b) : output_b;
     if (batch_size % (tparams.tile_b * tparams.dispatch_bsv) != 0)
         return false;
@@ -309,8 +306,8 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
     if (tparams.tile_ofm * simd > 64)
         return false;
 
+    bool is_i4_u4 = (params.weights.GetDType() == WeightsType::INT4 || params.weights.GetDType() == WeightsType::UINT4);
     if (tparams.kernel_type == FullyConnected_bf_tiled::KernelType::SLM) {
-        bool is_i4_u4 = (params.weights.GetDType() == WeightsType::INT4 || params.weights.GetDType() == WeightsType::UINT4);
         const auto required_batch_alignment = 64;
         if (!params.is_shape_agnostic && (!IsAligned(output_b, required_batch_alignment) || output_b < min_slm_size))
             return false;
@@ -333,6 +330,13 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
         if (params.engineInfo.maxLocalMemSize < required_slm_size)
             return false;
 
+        return true;
+    }
+    if (params.compressed && is_i4_u4) {
+        if (!(tparams.tile_ofm == 2 || tparams.tile_ofm == 4))
+            return false;
+        if (tparams.tile_ofm == 4 && tparams.outer_ofm == 2 && !is_suitable_outer_ofm(params, output_f))
+            return false;
         return true;
     }
 
@@ -383,10 +387,8 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
                 if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16) {
                     return selector.Default(tune_params(1, 1, 4, 4, 1, 1, 1, EXE_MODE_DEFAULT));
                 } else if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2) {
-                    if (is_suitable_outer_ofm(output_f))
-                        return selector.Default(tune_params(1, 4, 4, 2, 2, 1, 1, EXE_MODE_DEFAULT));
-                    else
-                        return selector.Default(tune_params(1, 4, 4, 2, 1, 1, 1, EXE_MODE_DEFAULT));
+                    selector.Case(tune_params(1, 4, 4, 2, 2, 1, 1, EXE_MODE_DEFAULT))
+                            .Case(tune_params(1, 4, 4, 2, 1, 1, 1, EXE_MODE_DEFAULT));
                 } else {
                     return selector.Default(tune_params(1, 2, 4, 2, 1, 1, 1, EXE_MODE_DEFAULT));
                 }
