@@ -284,6 +284,7 @@ jobs:
       - name: OpenVINO Core Unit Tests
         if: always()
         run: |
+          sysctl -w vm.mmap_rnd_bits=28
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OVCoreUT.xml
@@ -291,6 +292,7 @@ jobs:
       - name: OpenVINO Inference Functional Tests
         if: always()
         run: |
+          sysctl -w vm.mmap_rnd_bits=30
           source ${INSTALL_DIR}/setupvars.sh
 
           ${INSTALL_TEST_DIR}/ov_inference_functional_tests --gtest_print_time=1 \
@@ -299,6 +301,7 @@ jobs:
       - name: OpenVINO Inference Unit Tests
         if: always()
         run: |
+          sysctl -w vm.mmap_rnd_bits=32
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_inference_unit_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-InferenceUnit.xml
