@@ -340,9 +340,11 @@ def constant(
 
 
 @constant.register
+@nameable_op
 def _(
     tensor: Tensor,
     shared_memory: bool = False,
+    name: Optional[str] = None,
 ) -> Constant:
     return Constant(tensor, shared_memory=shared_memory)
 
