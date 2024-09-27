@@ -11,7 +11,7 @@
 #include "input.h"
 #include "memory_state_base.h"
 #include "ov_optional.hpp"
-#include "proxy_mem_mgr.h"
+#include "proxy_mem_blk.h"
 
 namespace ov {
 namespace intel_cpu {
