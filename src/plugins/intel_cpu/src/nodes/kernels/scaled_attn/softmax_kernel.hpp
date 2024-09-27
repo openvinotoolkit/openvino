@@ -449,7 +449,7 @@ inline void scale_add2_reduce_max(float* a,
     }
 }
 
-#if defined(HAVE_ARM_FP16) && defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
 template <bool has_alibi, bool has_attn_mask, bool has_causal_mask, typename T>
 inline void scale_add2_reduce_max(ov::float16* a,
                                   float scale,
@@ -677,7 +677,7 @@ inline void exp_reduce_sum(float* a, const float max, const size_t size, float& 
     }
 }
 
-#if defined(HAVE_ARM_FP16) && defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
 inline void exp_reduce_sum(ov::float16* a, const ov::float16 max, const size_t size, ov::float16& sum) {
     const size_t vec_len_f16_neon = 8;
     float16x8_t v_a;
@@ -780,7 +780,7 @@ inline void multiply_scalar(float* a, ov::bfloat16* a_dst, const float val, cons
 #endif
 }
 
-#if defined(HAVE_ARM_FP16) && defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
 inline void multiply_scalar(ov::float16* a, ov::float16* a_dst, const ov::float16 val, const size_t size) {
     const size_t vec_len_f16_neon = 8;
     float16x8_t v_a, v_res;
@@ -872,7 +872,7 @@ inline void attn_softmax_kernel<float>(float* a,
             memset(static_cast<ov::bfloat16*>(a_dst) + len, 0, sizeof(ov::bfloat16) * (total_size - len));
     }
 }
-#if defined(HAVE_ARM_FP16) && defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
 template <>
 inline void attn_softmax_kernel<ov::float16>(ov::float16* a,
                                              void* a_dst,

@@ -35,7 +35,7 @@ void attn_softmax(void* a,
                   ov::element::Type precision,
                   ov::element::Type attn_mask_prec,
                   ov::element::Type dst_precision) {
-#if defined(HAVE_ARM_FP16) && defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
     if (precision == ov::element::f16) {
         auto _a = reinterpret_cast<ov::float16*>(a);
         auto _alibi = reinterpret_cast<ov::float16*>(alibi);
