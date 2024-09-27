@@ -156,10 +156,8 @@ void parallel_nt(int nthr, const F& func) {
     if (origin_dyn_val != 0) {
         omp_set_dynamic(0);
     }
-#   pragma omp parallel num_threads(nthr)
-    {
-        func(parallel_get_thread_num(), parallel_get_num_threads());
-    }
+#    pragma omp parallel num_threads(nthr)
+    { func(parallel_get_thread_num(), parallel_get_num_threads()); }
     if (origin_dyn_val != 0) {
         omp_set_dynamic(origin_dyn_val);
     }
