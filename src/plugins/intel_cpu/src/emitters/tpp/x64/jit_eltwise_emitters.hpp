@@ -23,7 +23,6 @@ protected:
     libxsmm_meltw_binary_shape m_shape;
     libxsmm_meltw_binary_type m_op_type;
     void validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const override;
-    static  libxsmm_blasint get_broadcasted_dim(libxsmm_blasint dim0, libxsmm_blasint dim1, std::pair<bool, bool>& bcast_flags);
 };
 
 class UnaryEltwiseTppEmitter : public TppEmitter {

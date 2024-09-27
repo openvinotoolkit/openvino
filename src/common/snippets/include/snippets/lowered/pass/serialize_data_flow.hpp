@@ -23,7 +23,12 @@ class SerializeDataFlow : public SerializeBase {
 public:
     OPENVINO_RTTI("SerializeDataFlow", "Pass", SerializeBase)
     SerializeDataFlow(const std::string& xml_path) : SerializeBase(xml_path) {}
-    bool run(LinearIR& linear_ir) override;
+
+    bool run(LinearIR& linear_ir) override {
+        return run(const_cast<const LinearIR&>(linear_ir));
+    }
+    // We need a const method to run from functions that can't change LIR
+    bool run(const LinearIR& linear_ir);
 };
 
 } // namespace pass

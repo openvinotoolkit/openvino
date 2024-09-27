@@ -55,6 +55,10 @@ void MHABase::SetUp() {
 
     setInferenceType(prc);
     inType = outType = prc;
+    // Note: Libxsmm calculates Exp in a slightly different way, so the abs values might differ a bit. Ticket: 130699
+#ifdef SNIPPETS_LIBXSMM_TPP
+    abs_threshold = 1e-6;
+#endif
     if (prc == ov::element::bf16)
         rel_threshold = 0.05f;
 }
