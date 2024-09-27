@@ -397,18 +397,19 @@ def test_lstm_sequence_operator_bidirectional_opset1(dtype, op_name):
     parameter_b = ov.parameter(b_shape, name="B", dtype=dtype)
 
     direction = "BIDIRECTIONAL"
-    node = ov_opset1.lstm_sequence(
-        parameter_x,
-        parameter_h_t,
-        parameter_c_t,
-        parameter_seq_len,
-        parameter_w,
-        parameter_r,
-        parameter_b,
-        hidden_size,
-        direction,
-        name=op_name,
-    )
+    with pytest.warns(DeprecationWarning):
+        node = ov_opset1.lstm_sequence(
+            parameter_x,
+            parameter_h_t,
+            parameter_c_t,
+            parameter_seq_len,
+            parameter_w,
+            parameter_r,
+            parameter_b,
+            hidden_size,
+            direction,
+            name=op_name,
+        )
 
     assert node.get_type_name() == "LSTMSequence"
     assert node.get_friendly_name() == op_name
@@ -419,21 +420,22 @@ def test_lstm_sequence_operator_bidirectional_opset1(dtype, op_name):
     activation_beta = [3.0, 2.0, 1.0]
     clip = 1.22
 
-    node_param = ov_opset1.lstm_sequence(
-        parameter_x,
-        parameter_h_t,
-        parameter_c_t,
-        parameter_seq_len,
-        parameter_w,
-        parameter_r,
-        parameter_b,
-        hidden_size,
-        direction,
-        activations,
-        activation_alpha,
-        activation_beta,
-        clip,
-    )
+    with pytest.warns(DeprecationWarning):
+        node_param = ov_opset1.lstm_sequence(
+            parameter_x,
+            parameter_h_t,
+            parameter_c_t,
+            parameter_seq_len,
+            parameter_w,
+            parameter_r,
+            parameter_b,
+            hidden_size,
+            direction,
+            activations,
+            activation_alpha,
+            activation_beta,
+            clip,
+        )
 
     assert node_param.get_type_name() == "LSTMSequence"
     assert node_param.get_output_size() == 3
@@ -464,18 +466,18 @@ def test_lstm_sequence_operator_reverse_opset1(dtype):
     parameter_b = ov.parameter(b_shape, name="B", dtype=dtype)
 
     direction = "REVERSE"
-
-    node_default = ov_opset1.lstm_sequence(
-        parameter_x,
-        parameter_h_t,
-        parameter_c_t,
-        parameter_seq_len,
-        parameter_w,
-        parameter_r,
-        parameter_b,
-        hidden_size,
-        direction,
-    )
+    with pytest.warns(DeprecationWarning):
+        node_default = ov_opset1.lstm_sequence(
+            parameter_x,
+            parameter_h_t,
+            parameter_c_t,
+            parameter_seq_len,
+            parameter_w,
+            parameter_r,
+            parameter_b,
+            hidden_size,
+            direction,
+        )
 
     assert node_default.get_type_name() == "LSTMSequence"
     assert node_default.get_output_size() == 3
@@ -484,22 +486,22 @@ def test_lstm_sequence_operator_reverse_opset1(dtype):
     activation_alpha = [1.0, 2.0, 3.0]
     activation_beta = [3.0, 2.0, 1.0]
     clip = 1.22
-
-    node_param = ov_opset1.lstm_sequence(
-        parameter_x,
-        parameter_h_t,
-        parameter_c_t,
-        parameter_seq_len,
-        parameter_w,
-        parameter_r,
-        parameter_b,
-        hidden_size,
-        direction,
-        activations,
-        activation_alpha,
-        activation_beta,
-        clip,
-    )
+    with pytest.warns(DeprecationWarning):
+        node_param = ov_opset1.lstm_sequence(
+            parameter_x,
+            parameter_h_t,
+            parameter_c_t,
+            parameter_seq_len,
+            parameter_w,
+            parameter_r,
+            parameter_b,
+            hidden_size,
+            direction,
+            activations,
+            activation_alpha,
+            activation_beta,
+            clip,
+        )
 
     assert node_param.get_type_name() == "LSTMSequence"
     assert node_param.get_output_size() == 3
@@ -530,18 +532,18 @@ def test_lstm_sequence_operator_forward_opset1(dtype):
     parameter_b = ov.parameter(b_shape, name="B", dtype=dtype)
 
     direction = "forward"
-
-    node_default = ov_opset1.lstm_sequence(
-        parameter_x,
-        parameter_h_t,
-        parameter_c_t,
-        parameter_seq_len,
-        parameter_w,
-        parameter_r,
-        parameter_b,
-        hidden_size,
-        direction,
-    )
+    with pytest.warns(DeprecationWarning):
+        node_default = ov_opset1.lstm_sequence(
+            parameter_x,
+            parameter_h_t,
+            parameter_c_t,
+            parameter_seq_len,
+            parameter_w,
+            parameter_r,
+            parameter_b,
+            hidden_size,
+            direction,
+        )
 
     assert node_default.get_type_name() == "LSTMSequence"
     assert node_default.get_output_size() == 3
@@ -550,22 +552,22 @@ def test_lstm_sequence_operator_forward_opset1(dtype):
     activation_alpha = [2.0]
     activation_beta = [1.0]
     clip = 0.5
-
-    node = ov_opset1.lstm_sequence(
-        parameter_x,
-        parameter_h_t,
-        parameter_c_t,
-        parameter_seq_len,
-        parameter_w,
-        parameter_r,
-        parameter_b,
-        hidden_size,
-        direction,
-        activations,
-        activation_alpha,
-        activation_beta,
-        clip,
-    )
+    with pytest.warns(DeprecationWarning):
+        node = ov_opset1.lstm_sequence(
+            parameter_x,
+            parameter_h_t,
+            parameter_c_t,
+            parameter_seq_len,
+            parameter_w,
+            parameter_r,
+            parameter_b,
+            hidden_size,
+            direction,
+            activations,
+            activation_alpha,
+            activation_beta,
+            clip,
+        )
 
     assert node.get_type_name() == "LSTMSequence"
     assert node.get_output_size() == 3
