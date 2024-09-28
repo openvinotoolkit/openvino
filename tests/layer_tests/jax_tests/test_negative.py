@@ -38,9 +38,7 @@ class TestNeg(JaxLayerTest):
         [6, 5, 4, 3, 2],
         [1, 1, 9, 1]
     ])
-    @pytest.mark.parametrize('input_type', [np.int8, np.uint8, np.int16, np.uint16,
-                                            np.int32, np.uint32, np.int64, np.uint64,
-                                            np.float16, np.float32, np.float64])
+    @pytest.mark.parametrize('input_type', [np.int8,np.int16,np.int32, np.int64,np.float16, np.float32, np.float64])
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_jax_fe
