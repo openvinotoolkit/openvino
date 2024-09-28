@@ -38,6 +38,7 @@ a model source.
    video encoder. Ubuntu has it preinstalled, but for Windows, you
    should install it manually.
 
+
 **Table of contents:**
 
 
@@ -118,6 +119,14 @@ Prerequisites
     import gradio as gr
     import PIL
     import IPython
+    
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+    )
+    
+    open("notebook_utils.py", "w").write(r.text)
+    
+    from notebook_utils import device_widget
 
 .. code:: ipython3
 
@@ -394,15 +403,8 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    
     core = ov.Core()
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
     device
 
 
