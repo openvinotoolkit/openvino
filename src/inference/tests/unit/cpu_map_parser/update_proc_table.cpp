@@ -6,8 +6,8 @@
 
 #include "common_test_utils/test_common.hpp"
 #include "openvino/runtime/system_conf.hpp"
-#include "os/cpu_map_info.hpp"
 #include "os/common_table_op.hpp"
+#include "os/cpu_map_info.hpp"
 
 using namespace testing;
 using namespace ov;

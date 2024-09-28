@@ -14,8 +14,8 @@
 #include "dev/threading/parallel_custom_arena.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/system_conf.hpp"
-#include "os/cpu_map_info.hpp"
 #include "os/common_table_op.hpp"
+#include "os/cpu_map_info.hpp"
 
 namespace ov {
 
