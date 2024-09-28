@@ -3,6 +3,7 @@
 //
 
 #include "op_table.hpp"
+
 #include "openvino/op/add.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/equal.hpp"
@@ -52,6 +53,7 @@ OP_CONVERTER(translate_rsqrt);
 OP_CONVERTER(translate_slice);
 OP_CONVERTER(translate_squeeze);
 OP_CONVERTER(translate_transpose);
+
 }  // namespace op
 
 // Supported ops for Jaxpr
