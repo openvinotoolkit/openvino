@@ -8,7 +8,6 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/fake_quantize.hpp"
 
-
 namespace ov {
 namespace frontend {
 namespace paddle {
@@ -110,7 +109,6 @@ NamedOutputs quantize_linear(const NodeContext& node) {
 
     const auto& destination_type = y_zero_point.get_element_type();
     const auto& data_type = x.get_element_type();
-
 
     std::shared_ptr<ov::Node> output_low, output_high;
     std::tie(output_low, output_high) = get_output_bands(destination_type, data_type);
