@@ -19,7 +19,6 @@ class TestIota(JaxLayerTest):
 
         # Generate random input using numpy and cast it to the correct type
         inp = jnp.array(np.random.rand(*size).astype(self.input_type))
-        print(f"Generated input: {inp}")  # Debug statement
         return [inp]
 
     def create_model(self, input_type, size):
