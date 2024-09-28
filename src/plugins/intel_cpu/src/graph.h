@@ -21,7 +21,7 @@
 #include <vector>
 
 #include "openvino/runtime/so_ptr.hpp"
-#include "proxy_mem_mgr.h"
+#include "proxy_mem_blk.h"
 
 namespace ov {
 namespace intel_cpu {
