@@ -12,6 +12,7 @@
 #include <intel_gpu/primitives/crop.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/reshape.hpp>
+#include <intel_gpu/primitives/permute.hpp>
 
 #include <algorithm>
 #include <array>
@@ -1637,6 +1638,47 @@ TEST(convolution_f32_fw_gpu, basic_convolution) {
             ASSERT_EQ(output_vec[y][x], output_ptr[y * x_size + x]);
         }
     }
+}
+
+TEST(convolution_f32_fw_gpu, input_f32_output_f16_dynamic_ref_kernel) {
+    auto& engine = get_test_engine();
+
+    auto in_layout = layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx};
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 5, 4 } });
+    auto weights = engine.allocate_memory({ data_types::i8, format::bfyx, { 1, 1, 3, 2 } });
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
+    auto eltwise_data = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
+
+    set_values(input, {
+        1.0f, 2.0f, 3.0f, 4.0f,
+        5.0f, 2.0f, 2.0f, 3.0f,
+        4.0f, 6.0f, 3.0f, 3.0f,
+        3.0f, 5.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f, 1.0f }
+    );
+
+    topology topology(
+        input_layout("input", in_layout),
+        data("weights", weights),
+        data("biases", biases),
+        data("eltwise_data", eltwise_data),
+        convolution( "conv", input_info("input"), "weights", "biases", 1, {2, 1}, {1, 1}, {0, 0}, {0, 0}, false),
+        eltwise("eltwise", { input_info("conv"), input_info("eltwise_data") }, eltwise_mode::prod, data_types::f16),
+        permute("permute", input_info("eltwise"), {0, 1, 2, 3}));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc conv_impl_ref = { format::bfyx, "convolution_gpu_ref", impl_types::ocl };
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", conv_impl_ref } }));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_FALSE(has_node(*network.get_program(), "eltwise"));
+    ASSERT_EQ(outputs.at("permute").get_layout().data_type, data_types::f16);
 }
 
 TEST(convolution_f32_fw_gpu, convolution_big_size_weights) {
@@ -5500,7 +5542,7 @@ TEST(convolution_f16_fsv_gpu, convolution_f16_fsv_gpu_padding) {
     topology.add(conv_fsv);
 
     ExecutionConfig config = get_test_default_config(engine);
-    ov::intel_gpu::ImplementationDesc conv_impl = { format::fs_b_yx_fsv32, "convolution_gpu_bfyx_to_fs_byx_fsv32" };
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::fs_b_yx_fsv32, "convolution_gpu_bfyx_to_fs_byx_fsv32", impl_types::ocl };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_fsv", conv_impl } }));
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
@@ -10397,7 +10439,7 @@ TEST(convolution_f32_fw_gpu, basic_convolution_no_bias_swap_xy) {
 
     auto inst = network.get_primitive("conv");
     const auto& node = inst->get_node();
-    auto selected_impl = node.type()->choose_impl(node);
+    auto selected_impl = node.type()->create_impl(node);
     bool found_define = false;
     for (auto& s : selected_impl->get_kernels_source()) {
         if (s != nullptr && !s->get_str().empty()

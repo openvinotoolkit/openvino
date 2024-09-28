@@ -19,26 +19,25 @@ CPU
 
    .. tab-item:: Supported Hardware
 
+      * Intel® Core™ Ultra Series 1 and Series 2 (Windows only)
       * Intel® Xeon® 6 processor (preview)
       * Intel Atom® Processor X Series
       * Intel Atom® processor with Intel® SSE4.2 support
       * Intel® Pentium® processor N4200/5, N3350/5, N3450/5 with Intel® HD Graphics
       * 6th - 14th generation Intel® Core™ processors
-      * Intel® Core™ Ultra (codename Meteor Lake)
       * 1st - 5th generation Intel® Xeon® Scalable Processors
       * ARM CPUs with armv7a and higher, ARM64 CPUs with arm64-v8a and higher, Apple® Mac with Apple silicon
 
    .. tab-item:: Supported Operating Systems
 
+      * Windows 11, 64-bit
+      * Windows 10, 64-bit
       * Ubuntu 24.04 long-term support (LTS), 64-bit (Kernel 6.8+) (preview support)
       * Ubuntu 22.04 long-term support (LTS), 64-bit (Kernel 5.15+)
       * Ubuntu 20.04 long-term support (LTS), 64-bit (Kernel 5.15+)
-      * Ubuntu 18.04 long-term support (LTS) with limitations, 64-bit (Kernel 5.4+)
-      * Windows 10, 64-bit
-      * Windows 11, 64-bit
       * macOS 12.6 and above, 64-bit and ARM64
       * CentOS 7
-      * Red Hat Enterprise Linux 8, 64-bit
+      * Red Hat Enterprise Linux 9.3-9.4, 64-bit
       * openSUSE Tumbleweed, 64-bit and ARM64
       * Ubuntu 20.04 ARM64
 
@@ -49,24 +48,24 @@ GPU
 
    .. tab-item::  Supported Hardware
 
+      * Intel® Arc™ GPU Series
       * Intel® HD Graphics
       * Intel® UHD Graphics
       * Intel® Iris® Pro Graphics
       * Intel® Iris® Xe Graphics
       * Intel® Iris® Xe Max Graphics
-      * Intel® Arc™ GPU Series
       * Intel® Data Center GPU Flex Series
       * Intel® Data Center GPU Max Series
 
    .. tab-item::  Supported Operating Systems
 
-      * Ubuntu 24.04 long-term support (LTS), 64-bit (preview support)
+      * Windows 11, 64-bit
+      * Windows 10, 64-bit
+      * Ubuntu 24.04 long-term support (LTS), 64-bit
       * Ubuntu 22.04 long-term support (LTS), 64-bit
       * Ubuntu 20.04 long-term support (LTS), 64-bit
-      * Windows 10, 64-bit
-      * Windows 11, 64-bit
       * CentOS 7
-      * Red Hat Enterprise Linux 8, 64-bit
+      * Red Hat Enterprise Linux 9.3-9.4, 64-bit
 
    .. tab-item:: Additional considerations
 
@@ -78,10 +77,8 @@ GPU
       * While this release of OpenVINO supports Ubuntu 20.04, the driver stack
         for Intel discrete graphic cards does not fully support Ubuntu 20.04.
         We recommend using Ubuntu 22.04 and later when executing on discrete graphics.
-      * The following minimum (i.e., used for old hardware) OpenCL™ driver's versions
-        were used during OpenVINO internal validation: 22.43 for Ubuntu 22.04, 21.48
-        for Ubuntu 20.04 and 21.49 for Red Hat Enterprise Linux 8 (some hardware may require
-        higher versions of drivers).
+      * OpenCL™ driver versions required may vary, depending on hardware and operating Systems
+        used. Consult driver documentation to select the best version for your setup.
 
 Intel® Neural Processing Unit
 ################################
@@ -92,7 +89,7 @@ Intel® Neural Processing Unit
 
       * Ubuntu 24.04 long-term support (LTS), 64-bit (preview support)
       * Ubuntu 22.04 long-term support (LTS), 64-bit
-      * Windows 11, 64-bit (22H2, 23H2)
+      * Windows 11, 64-bit (22H2 and later)
 
    .. tab-item:: Additional considerations
 
@@ -110,14 +107,14 @@ Operating systems and developer environment
 
    .. tab-item:: Linux OS
 
-      * Ubuntu 24.04 with Linux kernel 6.8+ (preview support)
+      * Ubuntu 24.04 with Linux kernel 6.8+
       * Ubuntu 22.04 with Linux kernel 5.15+
       * Ubuntu 20.04 with Linux kernel 5.15+
-      * Red Hat Enterprise Linux 8 with Linux kernel 5.4
+      * Red Hat Enterprise Linux 9.3-9.4 with Linux kernel 5.4
 
       Build environment components:
 
-      * Python* 3.8-3.11
+      * Python 3.8-3.12
       * `Intel® HD Graphics Driver <https://downloadcenter.intel.com/product/80939/Graphics-Drivers>`__
         required for inference on GPU
       * GNU Compiler Collection and CMake are needed for building from source:
@@ -135,7 +132,7 @@ Operating systems and developer environment
 
       * `Microsoft Visual Studio 2019 <https://visualstudio.microsoft.com/vs/older-downloads/>`__
       * `CMake <https://cmake.org/download/>`__ 3.16 or higher
-      * `Python <http://www.python.org/downloads/>`__ 3.8-3.11
+      * `Python <http://www.python.org/downloads/>`__ 3.8-3.12
       * `Intel® HD Graphics Driver <https://downloadcenter.intel.com/product/80939/Graphics-Drivers>`__
         required for inference on GPU
 
@@ -147,13 +144,15 @@ Operating systems and developer environment
 
       * `Xcode <https://developer.apple.com/xcode/>`__ 10.3
       * `CMake <https://cmake.org/download/>`__ 3.13 or higher
-      * `Python <http://www.python.org/downloads/>`__ 3.8-3.11
+      * `Python <http://www.python.org/downloads/>`__ 3.8-3.12
 
-   .. tab-item:: DL frameworks versions:
+   .. tab-item:: DL framework versions:
 
-      * TensorFlow 1.15.5, 2.16.1
-      * ONNX 1.15
+      * TensorFlow 1.15.5 - 2.17
+      * PyTorch 2.4
+      * ONNX 1.16
       * PaddlePaddle 2.6
+      * JAX 0.4.31 (via a path of jax2tf with native_serialization=False)
 
       This package can be installed on other versions of DL Frameworks
       but only the versions specified here are fully validated.
@@ -165,45 +164,5 @@ Operating systems and developer environment
 
 
 
-
-Legal Information
-+++++++++++++++++++++++++++++++++++++++++++++
-
-You may not use or facilitate the use of this document in connection with any infringement
-or other legal analysis concerning Intel products described herein.
-
-You agree to grant Intel a non-exclusive, royalty-free license to any patent claim
-thereafter drafted which includes subject matter disclosed herein.
-
-No license (express or implied, by estoppel or otherwise) to any intellectual property
-rights is granted by this document.
-
-All information provided here is subject to change without notice. Contact your Intel
-representative to obtain the latest Intel product specifications and roadmaps.
-
-The products described may contain design defects or errors known as errata which may
-cause the product to deviate from published specifications. Current characterized errata
-are available on request.
-
-Intel technologies' features and benefits depend on system configuration and may require
-enabled hardware, software or service activation. Learn more at
-`http://www.intel.com/ <http://www.intel.com/>`__
-or from the OEM or retailer.
-
-No computer system can be absolutely secure.
-
-Intel, Atom, Arria, Core, Movidius, Xeon, OpenVINO, and the Intel logo are trademarks
-of Intel Corporation in the U.S. and/or other countries.
-
-OpenCL and the OpenCL logo are trademarks of Apple Inc. used by permission by Khronos
-
-Other names and brands may be claimed as the property of others.
-
-Copyright © 2024, Intel Corporation. All rights reserved.
-
-For more complete information about compiler optimizations, see our Optimization Notice.
-
-Performance varies by use, configuration and other factors. Learn more at
-`www.Intel.com/PerformanceIndex <www.Intel.com/PerformanceIndex>`__.
-
-
+The claims stated here may not apply to all use cases and setups. See
+:doc:`Legal notices and terms of use <../additional-resources/terms-of-use>` for more information.

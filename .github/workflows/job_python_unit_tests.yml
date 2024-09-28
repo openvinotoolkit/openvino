@@ -29,7 +29,7 @@ env:
 jobs:
   Python_Unit_Tests:
     name: Python unit tests
-    timeout-minutes: 60
+    timeout-minutes: 70
     runs-on: ${{ inputs.runner }}
     container: ${{ fromJSON(inputs.container) }}
     defaults:
@@ -73,7 +73,7 @@ jobs:
           popd
 
       - name: Fetch setup_python action
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
         with:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
@@ -177,7 +177,7 @@ jobs:
             export LD_PRELOAD=${GOMP_LIB}
           fi
 
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/mo_python_api_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_mo_convert.xml
+          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/mo_python_api_tests -n logical --junitxml=${INSTALL_TEST_DIR}/TEST-test_mo_convert.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
@@ -195,7 +195,7 @@ jobs:
             export LD_PRELOAD=${GOMP_LIB}
           fi
 
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/ovc_python_api_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_ovc_convert.xml
+          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/ovc_python_api_tests -n logical --junitxml=${INSTALL_TEST_DIR}/TEST-test_ovc_convert.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
@@ -260,7 +260,7 @@ jobs:
 
       - name: TensorFlow Lite Layer Tests - TFL FE
         if: fromJSON(inputs.affected-components).TFL_FE.test
-        run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_lite_tests/ --junitxml=${INSTALL_TEST_DIR}/TEST-tfl_fe.xml
+        run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_lite_tests/ -n logical --junitxml=${INSTALL_TEST_DIR}/TEST-tfl_fe.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
@@ -283,7 +283,7 @@ jobs:
 
       - name: Clone API snippets
         if: runner.os != 'macOS'
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
         with:
           sparse-checkout: docs/articles_en/assets/snippets
           path: ${{ env.OPENVINO_REPO }}
@@ -299,7 +299,7 @@ jobs:
           python3 ${OPENVINO_REPO}/docs/articles_en/assets/snippets/main.py
 
       - name: Python API Tests -- numpy>=2.0.0
-        if: ${{ fromJSON(inputs.affected-components).Python_API.test && inputs.python-version != '3.12' }} # Ticket: 152242
+        if: ${{ fromJSON(inputs.affected-components).Python_API.test }}
         run: |
           python3 -m pip uninstall -y numpy
           python3 -m pip install "numpy>=2.0.0,<2.1.0"

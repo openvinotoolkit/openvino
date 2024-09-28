@@ -13,6 +13,7 @@
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #ifdef SNIPPETS_LIBXSMM_TPP
 #include "transformations/tpp/x64/op/brgemm.hpp"
+#include "transformations/tpp/x64/op/equation.hpp"
 #include "transformations/tpp/x64/op/scalar.hpp"
 #include "transformations/tpp/x64/op/reduce.hpp"
 #endif
@@ -50,6 +51,7 @@ const CPUShapeInferSnippetsFactory::TRegistry CPUShapeInferSnippetsFactory::spec
 #endif
 #ifdef SNIPPETS_LIBXSMM_TPP
         SHAPE_INFER_OP_SPECIFIC_EXTERNAL(ov::intel_cpu::tpp::op::BrgemmTPP, BrgemmShapeInfer),
+        SHAPE_INFER_PREDEFINED(ov::intel_cpu::tpp::op::EquationTPP, NumpyBroadcastShapeInfer),
         SHAPE_INFER_PREDEFINED(ov::intel_cpu::tpp::op::Scalar, SingleElementShapeInfer),
         SHAPE_INFER_OP_SPECIFIC_EXTERNAL(ov::intel_cpu::tpp::op::ReduceMax, ReduceShapeInfer),
         SHAPE_INFER_OP_SPECIFIC_EXTERNAL(ov::intel_cpu::tpp::op::ReduceSum, ReduceShapeInfer),

@@ -72,7 +72,7 @@ std::shared_ptr<ov::Model> create_v4_model(const bool with_axes,
     const size_t num_scales_or_sizes = with_axes ? 2 : 4;
     if (shape_calc_mode == ov::opset4::Interpolate::ShapeCalcMode::SCALES) {
         scales = std::make_shared<ov::opset4::Parameter>(ov::element::f32, ov::Shape{num_scales_or_sizes});
-        model_params.push_back(std::dynamic_pointer_cast<ov::opset4::Parameter>(scales));
+        model_params.push_back(ov::as_type_ptr<ov::opset4::Parameter>(scales));
         output_shape = ov::opset4::Constant::create(ov::element::i32, ov::Shape{}, {1});
         if (with_axes) {
             output_shape = ov::op::util::make_try_fold<ov::opset4::Broadcast>(
@@ -86,7 +86,7 @@ std::shared_ptr<ov::Model> create_v4_model(const bool with_axes,
         }
     } else {
         output_shape = std::make_shared<ov::opset4::Parameter>(ov::element::i32, ov::Shape{num_scales_or_sizes});
-        model_params.push_back(std::dynamic_pointer_cast<ov::opset4::Parameter>(output_shape));
+        model_params.push_back(ov::as_type_ptr<ov::opset4::Parameter>(output_shape));
         scales = ov::opset4::Constant::create(ov::element::f32, ov::Shape{}, {1.0f});
         if (with_axes) {
             scales = ov::op::util::make_try_fold<ov::opset4::Broadcast>(
