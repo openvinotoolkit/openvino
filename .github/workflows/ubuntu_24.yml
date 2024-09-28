@@ -97,6 +97,15 @@ jobs:
             -DCPACK_GENERATOR=TGZ \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
 
+  CXX_Unit_Tests:
+    name: C++ unit tests
+    needs: [ Docker, Build, Smart_CI ]
+    uses: ./.github/workflows/job_cxx_unit_tests.yml
+    with:
+      runner: 'aks-linux-4-cores-16gb'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64 }}
+      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+
   Debian_Packages:
     name: Debian Packages
     needs: [ Docker, Build ]

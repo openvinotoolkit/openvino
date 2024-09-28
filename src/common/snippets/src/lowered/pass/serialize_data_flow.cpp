@@ -15,7 +15,7 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
-bool SerializeDataFlow::run(LinearIR& linear_ir) {
+bool SerializeDataFlow::run(const LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::SerializeDataFlow")
     if (linear_ir.empty())
         return false;
