@@ -87,16 +87,16 @@ class TestTFScatterNDComplex(CommonTFLayerTest):
 
         return inputs_data
 
-    def create_tf_scatternd_complex_placeholder_const_net(self, x_shape, indices, updates_shape, ir_version,
-                                                  use_legacy_frontend):
+    def create_tf_scatternd_complex_placeholder_const_net(self, x_shape, indices, updates_shape, indices_type,
+                                                          ir_version, use_legacy_frontend):
         import tensorflow as tf
         tf.compat.v1.reset_default_graph()
         with tf.compat.v1.Session() as sess:
             param_real = tf.compat.v1.placeholder(tf.float32, updates_shape, 'param_real')
             param_imag = tf.compat.v1.placeholder(tf.float32, updates_shape, 'param_imag')
 
-            tf_indices = tf.constant(indices)
-            tf_shape = tf.constant(x_shape)
+            tf_indices = tf.constant(indices, dtype=indices_type)
+            tf_shape = tf.constant(x_shape, dtype=indices_type)
 
             complex = tf.raw_ops.Complex(real=param_real, imag=param_imag)
 
@@ -111,10 +111,10 @@ class TestTFScatterNDComplex(CommonTFLayerTest):
         return tf_net, None
 
     test_data = [
-        dict(x_shape=[8], indices=[[4], [3], [1], [7]], updates_shape=[4]),
-        dict(x_shape=[10], indices=[[0], [2], [4], [6], [8]], updates_shape=[5]),
-        dict(x_shape=[5, 5], indices=[[0, 0], [1, 1], [2, 2], [3, 3]], updates_shape=[4]),
-        dict(x_shape=[3, 3, 3], indices=[[0, 0, 0], [1, 1, 1], [2, 2, 2]], updates_shape=[3]),
+        dict(x_shape=[8], indices=[[4], [3], [1], [7]], updates_shape=[4], indices_type=np.int32),
+        dict(x_shape=[10], indices=[[0], [2], [4], [6], [8]], updates_shape=[5], indices_type=np.int64),
+        dict(x_shape=[5, 5], indices=[[0, 0], [1, 1], [2, 2], [3, 3]], updates_shape=[4], indices_type=np.int64),
+        dict(x_shape=[3, 3, 3], indices=[[0, 0, 0], [1, 1, 1], [2, 2, 2]], updates_shape=[3], indices_type=np.int32),
     ]
 
     @pytest.mark.parametrize("params", test_data)
