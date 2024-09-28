@@ -50,7 +50,7 @@ void post_input_reorder::run(program& p) {
         // add a reorder if primitive's input format doesn't match implementation's input format
         if (node->is_type<fully_connected>()) {
             const auto fc_impl = dynamic_cast<ocl::typed_primitive_impl_ocl<fully_connected>*>(impl);
-            if (!fc_impl)
+            if (!fc_impl || node->can_be_optimized())
                 continue;
             const auto& fc_params =
                 *static_cast<kernel_selector::fully_connected_params*>(fc_impl->_kernel_data.params.get());
