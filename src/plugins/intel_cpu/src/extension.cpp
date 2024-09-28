@@ -75,6 +75,7 @@ private:
     OP_EXTENSION(ov::intel_cpu::PowerStaticNode)                            \
     OP_EXTENSION(ov::intel_cpu::CausalMaskPreprocessNode)                   \
     OP_EXTENSION(ov::intel_cpu::SwishNode)                                  \
+    OP_EXTENSION(ov::intel_cpu::SDPAWithTransposeReshape)                   \
     OP_EXTENSION(ov::intel_cpu::NgramNode)                                  \
     OP_EXTENSION(ov::op::internal::GatherCompressed)                        \
     OP_EXTENSION(ov::op::internal::NonMaxSuppressionIEInternal)             \
@@ -89,7 +90,6 @@ private:
     OP_EXTENSION_X64(ov::intel_cpu::LLMMLPNode)                             \
     OP_EXTENSION_X64(ov::intel_cpu::QKVProjectionNode)                      \
     OP_EXTENSION_X64(ov::intel_cpu::ScaledDotProductAttentionWithKVCache)   \
-    OP_EXTENSION_X64(ov::intel_cpu::SDPAWithTransposeReshape)               \
     OP_EXTENSION_X64(ov::intel_cpu::LoadConvertSaturation)                  \
     OP_EXTENSION_X64(ov::intel_cpu::LoadConvertTruncation)                  \
     OP_EXTENSION_X64(ov::intel_cpu::StoreConvertSaturation)                 \

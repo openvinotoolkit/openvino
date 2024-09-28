@@ -896,7 +896,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
 
         if (beam_input)
             beam_table.reset(beam_input);
-        if (input_num > 3 && (!has_in_reshape)) {
+        if (input_num > 3) {
             // attn_mask
             if (inputs[3]->getDesc().getPrecision() == ov::element::u8) {
                 // bool->f32
@@ -1017,54 +1017,48 @@ void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
         rtPrecision, getInputShapeAtPort(1)));
     config.inConfs[2].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
         rtPrecision, getInputShapeAtPort(2)));
-
     auto nextPortIdx = 3;
     if (orginSDPInputNumber > 3) {
         // attn_mask
         if (getOriginalInputPrecisionAtPort(nextPortIdx) == ov::element::u8) {
-            config.inConfs[nextPortIdx].setMemDesc(
-                creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::u8, getInputShapeAtPort(nextPortIdx)));
+            config.inConfs[nextPortIdx].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
+                ov::element::u8, getInputShapeAtPort(nextPortIdx)));
         } else {
-            config.inConfs[nextPortIdx].setMemDesc(
-                creatorsMap.at(LayoutType::ncsp)->createSharedDesc(rtPrecision, getInputShapeAtPort(nextPortIdx)));
+            config.inConfs[nextPortIdx].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
+                rtPrecision, getInputShapeAtPort(nextPortIdx)));
         }
         nextPortIdx++;
     }
     if (orginSDPInputNumber > 4) {
-        config.inConfs[nextPortIdx].setMemDesc(
-            creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::f32, getInputShapeAtPort(nextPortIdx)));
+        config.inConfs[nextPortIdx].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
+            ov::element::f32, getInputShapeAtPort(nextPortIdx)));
     }
 
     if (m_config.config.fuse_concat) {
         // beam_idx
-        config.inConfs[orginSDPInputNumber + 0].setMemDesc(
-            creatorsMap.at(LayoutType::ncsp)
-                ->createSharedDesc(ov::element::i32, getInputShapeAtPort(orginSDPInputNumber + 0)));
+        config.inConfs[orginSDPInputNumber + 0].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
+            ov::element::i32, getInputShapeAtPort(orginSDPInputNumber + 0)));
 
         // Since the InputMemory nodes are simple proxy for the state memory as well as the init subgraph memory,
         // it doesn't make sense to set the real KV cache precision, since we don't need any precision conversions
         // provided by the common graph logic. We set precisions equal to the precisions of the state nodes to avoid
         // reorder insertion in between MemoryInputSDPA and SDPA nodes.
 
-        auto past_k_input_mem_precision =
-            getParentEdgeAt(orginSDPInputNumber + 1)->getParent()->getOriginalOutputPrecisionAtPort(0);
+        auto past_k_input_mem_precision = getParentEdgeAt(orginSDPInputNumber + 1)->getParent()->getOriginalOutputPrecisionAtPort(0);
         // pastk
-        config.inConfs[orginSDPInputNumber + 1].setMemDesc(
-            creatorsMap.at(LayoutType::ncsp)
-                ->createSharedDesc(past_k_input_mem_precision, getInputShapeAtPort(orginSDPInputNumber + 1)));
+        config.inConfs[orginSDPInputNumber + 1].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
+            past_k_input_mem_precision, getInputShapeAtPort(orginSDPInputNumber + 1)));
 
-        auto past_v_input_mem_precision =
-            getParentEdgeAt(orginSDPInputNumber + 2)->getParent()->getOriginalOutputPrecisionAtPort(0);
+        auto past_v_input_mem_precision = getParentEdgeAt(orginSDPInputNumber + 2)->getParent()->getOriginalOutputPrecisionAtPort(0);
         // pastv
-        config.inConfs[orginSDPInputNumber + 2].setMemDesc(
-            creatorsMap.at(LayoutType::ncsp)
-                ->createSharedDesc(past_v_input_mem_precision, getInputShapeAtPort(orginSDPInputNumber + 2)));
+        config.inConfs[orginSDPInputNumber + 2].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
+            past_v_input_mem_precision, getInputShapeAtPort(orginSDPInputNumber + 2)));
 
-        config.outConfs[1].setMemDesc(
-            creatorsMap.at(LayoutType::ncsp)->createSharedDesc(past_k_input_mem_precision, getOutputShapeAtPort(1)));
+        config.outConfs[1].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
+            past_k_input_mem_precision, getOutputShapeAtPort(1)));
         config.outConfs[1].inPlace(-1);
-        config.outConfs[2].setMemDesc(
-            creatorsMap.at(LayoutType::ncsp)->createSharedDesc(past_v_input_mem_precision, getOutputShapeAtPort(2)));
+        config.outConfs[2].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
+            past_v_input_mem_precision, getOutputShapeAtPort(2)));
         config.outConfs[2].inPlace(-1);
     }
 

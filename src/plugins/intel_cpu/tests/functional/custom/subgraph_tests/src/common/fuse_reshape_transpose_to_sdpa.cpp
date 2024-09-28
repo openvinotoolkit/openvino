@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,7 +29,7 @@ namespace test {
  *                  |
  *                Result
  */
-#define DEBUG_POS std::cout << "fuse_reshape_transpose_to_sdpa.cpp:" << __LINE__ << " " << __FUNCTION__ << " "
+
 // <Input_shapes, [H,S]>
 using InputShapeAndReshapeOrder = std::pair<std::vector<InputShape>, std::vector<int32_t>>;
 using FuseSDPAReshapeTransposeTestParams = std::tuple<ElementType, InputShapeAndReshapeOrder>;
