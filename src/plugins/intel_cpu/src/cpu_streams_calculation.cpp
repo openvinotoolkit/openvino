@@ -242,13 +242,26 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                 n_threads_per_stream = proc_type_table[0][ALL_PROC];
             }
         } else {
-            for (auto& row : proc_socket_table) {
-                if (row[PROC_SOCKET_ID] == current_socket_id) {
-                    n_threads_per_stream = std::max(n_threads_per_stream, row[ALL_PROC]);
-                }
+            int numa_index = 1;
+            n_threads_per_stream = model_prefer_threads == 0
+                                       ? proc_type_table[numa_index][ALL_PROC]
+                                       : std::min(proc_type_table[numa_index][ALL_PROC], model_prefer_threads);
+            stream_info[THREADS_PER_STREAM] = n_threads_per_stream;
+            if (proc_type_table[numa_index][ALL_PROC] == proc_type_table[numa_index][MAIN_CORE_PROC]) {
+                stream_info[PROC_TYPE] = MAIN_CORE_PROC;
+                update_streams_per_node(MAIN_CORE_PROC, proc_type_table[numa_index]);
+            } else if (proc_type_table[numa_index][ALL_PROC] == proc_type_table[numa_index][EFFICIENT_CORE_PROC]) {
+                stream_info[PROC_TYPE] = EFFICIENT_CORE_PROC;
+                update_streams_per_node(EFFICIENT_CORE_PROC, proc_type_table[numa_index]);
+            } else {
+                stream_info[PROC_TYPE] = ALL_PROC;
+                update_mix_stream_info(proc_type_table[numa_index],
+                                       {proc_type_table[numa_index]},
+                                       n_threads_per_stream,
+                                       IStreamsExecutor::Config::StreamsMode::SUB_STREAMS_NULL,
+                                       ALL_PROC);
             }
-            n_threads_per_stream =
-                model_prefer_threads == 0 ? n_threads_per_stream : std::min(n_threads_per_stream, model_prefer_threads);
+            update_ids_method(proc_type_table[numa_index]);
         }
     } else {
         n_threads =
@@ -470,7 +483,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                 }
             }
         }
-    } else {
+    } else if (proc_type_table.size() == 1) {
         if (stream_info[PROC_TYPE] == ALL_PROC) {
             update_mix_stream_info(proc_socket_table[0],
                                    proc_type_table,
@@ -631,36 +644,12 @@ int get_model_prefer_threads(const int num_streams,
             // By default the latency case uses (faster) Big cores only, depending on the compute ratio
             // But on MTL detected by ov::get_number_of_blocked_cores(), use Big and Little cores together in Big
             // cores only cases except LLM.
-#    ifdef __linux__
-            if ((proc_type_table.size() > 1) && (ov::get_num_numa_nodes() > ov::get_num_sockets())) {
-                model_prefer = proc_type_table[1][MAIN_CORE_PROC];
-                if (llm_related && (model_prefer < TP_CPU_LIMIT)) {
-                    size_t i = 2;
-                    while ((model_prefer < TP_CPU_LIMIT) && i < proc_type_table.size()) {
-                        if (proc_type_table[i][PROC_SOCKET_ID] == proc_type_table[1][PROC_SOCKET_ID]) {
-                            model_prefer += proc_type_table[i][MAIN_CORE_PROC];
-                        }
-                        i++;
-                    }
-                    i = 1;
-                    while ((model_prefer < TP_CPU_LIMIT) && i < proc_type_table.size()) {
-                        if (proc_type_table[i][PROC_SOCKET_ID] == proc_type_table[1][PROC_SOCKET_ID]) {
-                            model_prefer += proc_type_table[i][HYPER_THREADING_PROC];
-                        }
-                        i++;
-                    }
-                }
-            } else {
-#    endif
             model_prefer = proc_type_table[0][MAIN_CORE_PROC] > (proc_type_table[0][EFFICIENT_CORE_PROC] /
                                                                  (int8_intensive ? int8_threshold : fp32_threshold))
                                ? ((!llm_related && ov::get_number_of_blocked_cores())
                                       ? proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC]
                                       : proc_type_table[0][MAIN_CORE_PROC])
                                : proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC];
-#    ifdef __linux__
-        }
-#    endif
 #endif
         }
     } else {  // throughput
