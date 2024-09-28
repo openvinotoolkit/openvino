@@ -14,6 +14,7 @@
 #include "openvino/op/less_eq.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/negative.hpp"
 #include "openvino/op/not_equal.hpp"
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reduce_sum.hpp"
@@ -43,7 +44,6 @@ OP_CONVERTER(translate_convolution);
 OP_CONVERTER(translate_copy);
 OP_CONVERTER(translate_dot_general);
 OP_CONVERTER(translate_integer_pow);
-OP_CONVERTER(translate_negative);
 OP_T_CONVERTER(translate_reduce_op);
 OP_CONVERTER(translate_reduce_window_max);
 OP_CONVERTER(translate_reduce_window_sum);
@@ -76,7 +76,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_jaxpr() {
             {"le", op::translate_binary_op<v1::LessEqual>},
             {"max", op::translate_1to1_match_2_inputs<v1::Maximum>},
             {"mul", op::translate_1to1_match_2_inputs<v1::Multiply>},
-            {"neg", op::translate_negative},
+            {"neg", op::translate_1to1_match_1_input<v0::Negative>},
             {"ne", op::translate_binary_op<v1::NotEqual>},
             {"reduce_max", op::translate_reduce_op<v1::ReduceMax>},
             {"reduce_sum", op::translate_reduce_op<v1::ReduceSum>},
