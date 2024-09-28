@@ -174,20 +174,18 @@ void add_required_reorders::run(program& p) {
             usr->recalc_output_layouts(false);
         }
 
-        // If usr is assign or concatenation and input and output data types are different
+        // If usr is assign and input and output data types are different
         // add reorder with usr's output data type between dep and usr
-        if (usr->is_type<assign>() || usr->is_type<concatenation>()) {
+        if (usr->is_type<assign>()) {
+            auto& dep = usr->get_dependency(0);
+            auto dep_layout = dep.get_output_layout();
             auto out_layout = usr->get_output_layout();
-            for (size_t i = 0; i < usr->get_dependencies().size(); ++i) {
-                auto& dep = usr->get_dependency(i);
-                auto dep_layout = dep.get_output_layout();
-                bool required_reorder = out_layout.data_type != dep_layout.data_type;
-                if (required_reorder) {
-                    auto new_reorder = std::make_shared<reorder>(dep.id() + "_reorder_" + usr->id(), dep.id(), out_layout.format, out_layout.data_type);
-                    auto& new_reorder_node = p.get_or_create(new_reorder);
-                    p.add_intermediate(new_reorder_node, *usr, dep);
-                    new_reorder_node.recalc_output_layouts(false);
-                }
+            bool required_reorder = out_layout.data_type != dep_layout.data_type;
+            if (required_reorder) {
+                auto new_reorder = std::make_shared<reorder>(dep.id() + "_reorder_" + usr->id(), dep.id(), out_layout.format, out_layout.data_type);
+                auto& new_reorder_node = p.get_or_create(new_reorder);
+                p.add_intermediate(new_reorder_node, *usr, dep);
+                new_reorder_node.recalc_output_layouts(false);
             }
         }
 

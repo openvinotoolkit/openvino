@@ -1831,6 +1831,26 @@ TEST(reduce_gpu, b_fs_yx_fsv16_max_dynamic) {
     }
 }
 
+TEST(reduce_gpu, reducemax_default_output_element_type_should_be_input_element_type) {
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({data_types::i8, format::bfyx, {1, 1, 2, 2}});
+    set_values(input, {1, 1, 1, 1});
+
+    topology topology(
+        input_layout("input", input->get_layout()),
+        reduce("reduce", input_info("input"), reduce_mode::max, {1}, 0),
+        reorder("reorder", input_info("reduce"), format::bfyx, data_types::i8)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+    auto output = network.execute();
+
+    ASSERT_EQ(network.get_program()->get_node("reduce").get_output_layout().data_type, data_types::i8);
+}
+
 template <data_types InputT, data_types OutputT>
 class ReduceXYWithBigTensorTestBase : public ::testing::TestWithParam<TestParamType_general_reduce_gpu> {
 protected:

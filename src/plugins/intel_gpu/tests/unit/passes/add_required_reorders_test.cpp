@@ -198,24 +198,3 @@ TEST(add_required_reorders, skip_adding_reorder_batch_axis_padding) {
     auto concate = network.get_primitive("concat");
     ASSERT_EQ(concate->can_be_optimized(), false);
 }
-
-TEST(add_required_reorders, input_reorder_to_concat_for_mismatched_input) {
-    auto& engine = get_test_engine();
-
-    auto in_layout1 = layout{ ov::PartialShape{1, 1, 44, 44}, data_types::f32, format::bfyx };
-    auto in_layout2 = layout{ ov::PartialShape{1, 1, 44, 44}, data_types::i8, format::bfyx };
-
-    topology topology(
-        input_layout("input1", in_layout1),
-        input_layout("input2", in_layout2),
-        concatenation("concat", { input_info("input1"), input_info("input2") }, 1, data_types::i8),
-        reorder("reorder", input_info("concat"), format::bfyx, data_types::i8)
-    );
-
-    ExecutionConfig config = get_test_default_config(engine);
-    auto program = program::build_program(engine, topology, config, false, true);
-    program_wrapper::apply_opt_pass<add_required_reorders>(*program);
-
-    ASSERT_EQ(program->get_node("concat").get_input_layout(0).data_type, data_types::i8);
-    ASSERT_EQ(program->get_node("concat").get_input_layout(1).data_type, data_types::i8);
-}
