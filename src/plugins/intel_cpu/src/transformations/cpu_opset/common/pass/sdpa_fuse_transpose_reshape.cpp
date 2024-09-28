@@ -37,8 +37,6 @@
 using namespace ov;
 using namespace ov::pass::pattern;
 
-#define DEBUG_POS std::cout << __FUNCTION__ << ":" << __LINE__ << " "
-
 intel_cpu::SDPAFuseTransposeReshape::SDPAFuseTransposeReshape() {
     MATCHER_SCOPE(SDPAFuseTransposeReshape);
 
@@ -61,7 +59,6 @@ intel_cpu::SDPAFuseTransposeReshape::SDPAFuseTransposeReshape() {
     auto out_reshape_node = wrap_type<op::v1::Reshape>({out_transpose_node, wrap_type<op::v0::Constant>()});
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pass::pattern::Matcher& m) {
-        DEBUG_POS << "== Enter callback------>" << std::endl;
         auto& pattern_map = m.get_pattern_value_map();
         auto sdpa = as_type_ptr<op::v13::ScaledDotProductAttention>(pattern_map.at(sdpa_node).get_node_shared_ptr());
         if (sdpa == nullptr || transformation_callback(sdpa)) {
@@ -114,7 +111,13 @@ intel_cpu::SDPAFuseTransposeReshape::SDPAFuseTransposeReshape() {
             return false;
         }
         // K,V Reshape's order should be same node.
-        if (k_reshape->get_input_node_shared_ptr(1) != v_reshape->get_input_node_shared_ptr(1)) {
+        auto k_reshape_order = as_type_ptr<op::v0::Constant>(k_reshape->get_input_node_shared_ptr(1));
+        auto v_reshape_order = as_type_ptr<op::v0::Constant>(v_reshape->get_input_node_shared_ptr(1));
+        if (k_reshape_order && v_reshape_order) {
+            if (k_reshape_order->cast_vector<int32_t>() != v_reshape_order->cast_vector<int32_t>()) {
+                return false;
+            }
+        } else if (k_reshape->get_input_node_shared_ptr(1) != v_reshape->get_input_node_shared_ptr(1)) {
             return false;
         }
 
@@ -189,7 +192,6 @@ intel_cpu::SDPAFuseTransposeReshape::SDPAFuseTransposeReshape() {
                                      out_reshape};
         copy_runtime_info(replaced_nodes, new_sdpa);
         ov::replace_node(out_reshape, new_sdpa);
-        DEBUG_POS << "== Done.............................\n";
         return true;
     };
 
