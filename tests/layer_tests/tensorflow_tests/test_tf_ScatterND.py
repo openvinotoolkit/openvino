@@ -120,8 +120,6 @@ class TestTFScatterNDComplex(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
-                       reason='Ticket - 122716')
     def test_tf_scatter_nd_complex(self, params, ie_device, precision, ir_version, temp_dir,
                            use_legacy_frontend):
         self._test(*self.create_tf_scatternd_complex_placeholder_const_net(**params, ir_version=ir_version,
