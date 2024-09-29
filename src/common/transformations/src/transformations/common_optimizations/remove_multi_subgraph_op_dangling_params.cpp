@@ -190,11 +190,13 @@ bool ov::pass::RemoveMultiSubGraphOpDanglingParamsResults::run_on_model(const st
                         if (std::count(std::begin(required_inputs_indices),
                                        std::end(required_inputs_indices),
                                        current_input_idx) == 0 &&
-                            std::count(std::begin(op_inputs), std::end(op_inputs), current_input) > 0) {
-                            op_inputs.erase(std::next(op_inputs.begin(), current_input_idx));
-                            // Move all input indexes (in all bodies) which are after these indicated by
-                            // to_remove_descriptors_indexes and are not used in any body
-                            update_op_inputs_desc(multi_subgraph_op, required_inputs_indices, current_input_idx);
+                            (op_inputs.size() > current_input_idx) &&
+                            (op_inputs[current_input_idx] == current_input)
+                            ) {
+                                op_inputs.erase(std::next(op_inputs.begin(), current_input_idx));
+                                // Move all input indexes (in all bodies) which are after these indicated by
+                                // to_remove_descriptors_indexes and are not used in any body
+                                update_op_inputs_desc(multi_subgraph_op, required_inputs_indices, current_input_idx);
                         }
                     } else {
                         updated_body_in_descriptors.emplace_back(body_in_descriptors[desc_idx]);

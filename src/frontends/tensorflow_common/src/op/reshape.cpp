@@ -22,6 +22,7 @@ OutputVector translate_reshape_op(const NodeContext& node) {
     auto tensor = node.get_input(0);
     auto complex_type_mark = as_type_ptr<ComplexTypeMark>(tensor.get_node_shared_ptr());
     auto shape = node.get_input(1);
+
     if (complex_type_mark) {
         element::Type complex_part_type = complex_type_mark->get_complex_part_type();
         tensor = complex_type_mark->input_value(0);
@@ -37,6 +38,13 @@ OutputVector translate_reshape_op(const NodeContext& node) {
         return {complex_reshape->output(0)};
     }
 
+    std::string output_shape_str = node.get_attribute<std::string>("_output_shapes", "");
+    if (!output_shape_str.empty()) {
+        ov::PartialShape output_shape = ov::PartialShape(output_shape_str);
+        if (output_shape.is_static() && tensor.get_partial_shape().is_dynamic()) {
+            shape = make_shared<v0::Constant>(shape.get_element_type(), shape.get_shape() , output_shape.to_shape());
+        }
+    }
     auto reshape = make_shared<v1::Reshape>(tensor, shape, false);
     set_node_name(node.get_name(), reshape);
     return {reshape};

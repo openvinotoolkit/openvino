@@ -47,7 +47,10 @@ std::vector<TRShape> shape_infer(const util::ScatterNDBase* op, const std::vecto
 
                 auto update_iter = updates_shape.begin();
                 auto is_update_compatible = [&update_iter](const typename TShape::value_type& d) -> bool {
-                    return d.compatible(*update_iter++);
+                    auto s = *update_iter++;
+                    if(s==0)
+                      return true;
+                    return d.compatible(s);
                 };
 
                 NODE_VALIDATION_CHECK(
