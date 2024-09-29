@@ -15,7 +15,7 @@
 #include "openvino/core/shape.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/tensor.hpp"
-#include "proxy_mem_mgr.h"
+#include "proxy_mem_blk.h"
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
 #include "openvino/runtime/threading/cpu_message.hpp"

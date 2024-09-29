@@ -49,7 +49,6 @@
 
 #include "json_object.h"
 #include <string>
-#include <stack>
 #include <vector>
 #include <memory>
 #include <algorithm>

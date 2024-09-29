@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "partitioned_mem_mgr.h"
+#include "partitioned_mem_blk.h"
 
 using namespace ov::intel_cpu;
 
