@@ -354,7 +354,6 @@ void BrgemmKernel::executeGemm(bool is_M_tail, void* a, void* b, void* c, void* 
     auto ptr_C = reinterpret_cast<uint8_t*>(c);
     auto ptr_scartch_a = reinterpret_cast<uint8_t*>(scratch_a);
     auto ptr_scartch_b = reinterpret_cast<uint8_t*>(b);
-    uint8_t* ptr_a_tail = nullptr;
 
     size_t brgIdx0 = getBrgIdx(0, 0, 0);
     // The step for matrix A over main K dimension
@@ -378,8 +377,6 @@ void BrgemmKernel::executeGemm(bool is_M_tail, void* a, void* b, void* c, void* 
         ctx.current_K_blk = K % K_blk;
 
         (*brgCopyAKernel)(&ctx);
-
-        ptr_a_tail = pCopyKernelOut;
     }
     size_t count_N = 0;
     for (size_t n = 0; n < 2; n++) {
