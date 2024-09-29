@@ -4,6 +4,7 @@
 
 #include "openvino/frontend/jax/node_context.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/topk.hpp"
 #include "utils.hpp"
@@ -18,15 +19,16 @@ using namespace ov::op;
 OutputVector translate_argmax(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
     Output<Node> input = context.get_input(0);
-    auto axis = context.const_named_param<int64_t>("axes");
+    auto axis_val = context.const_named_param<int64_t>("axes");
+    auto axis = context.const_named_param<std::shared_ptr<v0::Constant>>("axes");
+    auto dtype = convert_dtype(context.const_named_param<int64_t>("index_dtype"));
 
-    const auto k = v0::Constant::create(element::i64, Shape{}, {1});
-    auto topk = std::make_shared<v11::TopK>(input, k, axis, v11::TopK::Mode::MAX, v1::TopK::SortType::NONE);
+    auto k = std::make_shared<v0::Constant>(element::i64, Shape{}, 1);
+    auto topk = std::make_shared<v11::TopK>(input, k, axis_val, v11::TopK::Mode::MAX, v1::TopK::SortType::NONE);
     auto indices = topk->output(1);
 
-    auto squeeze_axis = v0::Constant::create(element::u64, Shape{}, {topk->get_axis()});
-    auto res = std::make_shared<v0::Squeeze>(indices, squeeze_axis);
-
+    auto squeeze = std::make_shared<v0::Squeeze>(indices, axis);
+    auto res = std::make_shared<v0::Convert>(squeeze, dtype);
     return {res};
 };
 
