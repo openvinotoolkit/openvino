@@ -77,18 +77,16 @@ intel_cpu::SDPAFuseTransposeReshape::SDPAFuseTransposeReshape() {
         // Reshape [B,L,H*S] -> [B,L,H,S]
         auto is_expected_reshape = [&](std::shared_ptr<op::v1::Reshape>& reshape_node, bool reverse = false) {
             if (reshape_node) {
-                if (reshape_node->get_input_size() != 2u) {
-                    return false;
-                }
                 auto inp_shape = reshape_node->get_input_partial_shape(0);
                 auto outp_shape = reshape_node->get_output_partial_shape(0);
                 // Expect shape: [?, ?, val]
                 auto check_dim_3 = [](ov::PartialShape shape) {
-                    return shape.rank() == 3 && shape[2].is_static();
+                    return shape.rank().is_static() && shape.rank() == 3 && shape[2].is_static();
                 };
                 // Expect shape: [?, ?, val, val]
                 auto check_dim_4 = [](ov::PartialShape shape) {
-                    return shape.rank() == 4 && shape[2].is_static() && shape[3].is_static();
+                    return shape.rank().is_static() && shape.rank() == 4 && shape[2].is_static() &&
+                           shape[3].is_static();
                 };
 
                 if (reverse) {
@@ -153,20 +151,10 @@ intel_cpu::SDPAFuseTransposeReshape::SDPAFuseTransposeReshape() {
         intel_cpu::SDPAWithTransposeReshape::Config config;
         config.is_causal = sdpa->get_causal();
         config.fuse_concat = false;
-
-        const auto& permute_q = qkv_transpose_order[0]->cast_vector<int32_t>();
-        const auto& permute_k = qkv_transpose_order[1]->cast_vector<int32_t>();
-        const auto& permute_v = qkv_transpose_order[2]->cast_vector<int32_t>();
-        const auto& permute_output = out_transpose_order->cast_vector<int32_t>();
-        if (permute_q != permute_k || permute_q != permute_v || permute_q != permute_output) {
-            return false;
-        }
-        if (permute_q != std::vector<int32_t>({0, 2, 1, 3})) {
-            return false;
-        }
         config.output_BLHxS = true;
 
         // Config::permute_axes
+        const auto& permute_q = qkv_transpose_order[0]->cast_vector<int32_t>();
         config.permute_axes.resize(permute_q.size());
         for (size_t i = 0; i < permute_q.size(); i++) {
             config.permute_axes[i] = static_cast<size_t>(permute_q[i]);
