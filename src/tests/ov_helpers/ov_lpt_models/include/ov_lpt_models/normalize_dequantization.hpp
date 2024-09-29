@@ -16,7 +16,8 @@ public:
     static std::shared_ptr<ov::Model> getOriginal(
         const ov::element::Type precision,
         const ov::Shape& inputShape,
-        const ov::builder::subgraph::DequantizationOperations dequantization);
+        const ov::builder::subgraph::DequantizationOperations dequantization,
+        bool constant_path);
 };
 
 }  // namespace subgraph

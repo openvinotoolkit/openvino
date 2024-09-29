@@ -47,9 +47,11 @@
 #include "transformations/tpp/x64/op/reduce.hpp"
 #include "transformations/tpp/x64/op/modifiers.hpp"
 #include "transformations/tpp/x64/op/scalar.hpp"
+#include "transformations/tpp/x64/op/equation.hpp"
 #include "emitters/tpp/x64/jit_eltwise_emitters.hpp"
 #include "emitters/tpp/x64/jit_brgemm_emitter.hpp"
 #include "emitters/tpp/x64/jit_scalar_emitter.hpp"
+#include "emitters/tpp/x64/jit_equation_emitter.hpp"
 #include "emitters/tpp/x64/jit_debug_emitter.hpp"
 // Note: for reference implementations
 #include <cmath>
@@ -159,8 +161,7 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
     // data movement
     jitters[op::v0::Parameter::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_nop_emitter);
     jitters[op::v0::Result::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_nop_emitter);
-    jitters[snippets::op::IntermediateMemoryBuffer::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_nop_emitter);
-    jitters[snippets::op::NewMemoryBuffer::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_nop_emitter);
+    jitters[snippets::op::Buffer::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_nop_emitter);
     jitters[snippets::op::VectorBuffer::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_nop_emitter);
     jitters[snippets::op::RankNormalization::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_nop_emitter);
     jitters[snippets::op::Reshape::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_nop_emitter);
@@ -277,6 +278,7 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
     jitters[intel_cpu::tpp::op::ReduceMax::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(ReduceTppEmitter);
     jitters[intel_cpu::tpp::op::ReduceSum::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(ReduceTppEmitter);
     jitters[intel_cpu::tpp::op::Scalar::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(ScalarTppEmitter);
+    jitters[intel_cpu::tpp::op::EquationTPP::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(EquationTppEmitter);
 #endif
 }
 

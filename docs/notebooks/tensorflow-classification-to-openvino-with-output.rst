@@ -2,7 +2,7 @@ Convert a TensorFlow Model to OpenVINO™
 =======================================
 
 This short tutorial shows how to convert a TensorFlow
-`MobileNetV3 <https://docs.openvino.ai/2024/omz_models_model_mobilenet_v3_small_1_0_224_tf.html>`__
+`MobileNetV3 <https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/public/mobilenet-v3-small-1.0-224-tf/README.md>`__
 image classification model to OpenVINO `Intermediate
 Representation <https://docs.openvino.ai/2024/documentation/openvino-ir-format/operation-sets.html>`__
 (OpenVINO IR) format, using `Model Conversion
@@ -10,6 +10,7 @@ API <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__.
 After creating the OpenVINO IR, load the model in `OpenVINO
 Runtime <https://docs.openvino.ai/2024/openvino-workflow/running-inference.html>`__
 and do inference with a sample image.
+
 
 **Table of contents:**
 
@@ -343,5 +344,5 @@ performance.
 
 .. parsed-literal::
 
-    IR model in OpenVINO Runtime/CPU: 0.0011 seconds per image, FPS: 919.27
+    IR model in OpenVINO Runtime/CPU: 0.0010 seconds per image, FPS: 966.94
 

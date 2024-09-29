@@ -67,7 +67,8 @@ struct network {
 public:
     using ptr = std::shared_ptr<network>;
 
-    explicit network(program::ptr program, const ExecutionConfig& config, stream::ptr stream, bool is_internal = false, bool is_primary_stream = true);
+    network(program::ptr program, stream::ptr stream, bool is_internal, bool is_primary_stream);
+    network(program::ptr program, bool is_internal, bool is_primary_stream);
     network(engine& engine,
             const topology& topo,
             const ExecutionConfig& config = {},

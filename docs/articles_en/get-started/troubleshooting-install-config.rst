@@ -59,7 +59,7 @@ Troubleshooting Guide for OpenVINO™ Installation & Configuration
 .. dropdown:: Check the versions of Python and PIP
 
    To check your Python version, run ``python -VV`` or ``python --version``. The supported
-   Python versions are 64-bit, between 3.8 and 3.11. If your Python version does not meet the
+   Python versions are 64-bit, between 3.9 and 3.12. If your Python version does not meet the
    requirements, you need to upgrade:
 
    * For Windows, **do not install Python from the Windows Store** as it can cause issues.
