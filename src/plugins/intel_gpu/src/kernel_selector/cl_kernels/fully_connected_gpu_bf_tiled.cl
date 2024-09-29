@@ -198,14 +198,14 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
     // full dispatch pipeline.
     uint feature_mini_block = gid % DISPATCH_FSV;
     uint batch_mini_block = gid / DISPATCH_FSV % DISPATCH_BSV;
-    uint feature_mega_block = gid / (DISPATCH_FSV * DISPATCH_BSV) % (CEIL_DIV(TILE_OUT_F_NUM, TILE_OFM * SIMD) / DISPATCH_FSV);
-    uint batch_mega_block = gid / (DISPATCH_FSV * DISPATCH_BSV * CEIL_DIV(TILE_OUT_F_NUM, TILE_OFM * SIMD) / DISPATCH_FSV);
+    uint feature_mega_block = gid / (DISPATCH_FSV * DISPATCH_BSV) % (CEIL_DIV(TILE_OUT_F_NUM, OUTER_OFM * TILE_OFM * SIMD) / DISPATCH_FSV);
+    uint batch_mega_block = gid / (DISPATCH_FSV * DISPATCH_BSV * CEIL_DIV(TILE_OUT_F_NUM, OUTER_OFM * TILE_OFM * SIMD) / DISPATCH_FSV);
 
 #if USE_SLM
-    uint out_f = gid * (TILE_OFM * SIMD);
+    uint out_f = gid * (OUTER_OFM * TILE_OFM * SIMD);
     uint out_b = LWS_BATCHES * TILE_B * (uint)get_group_id(2) + local_id * TILE_B;
 #else
-    uint out_f = (feature_mega_block * DISPATCH_FSV + feature_mini_block) * (TILE_OFM * SIMD);
+    uint out_f = (feature_mega_block * DISPATCH_FSV + feature_mini_block) * (OUTER_OFM * TILE_OFM * SIMD);
     uint out_b = ((batch_mega_block * DISPATCH_BSV + batch_mini_block) * TILE_B);
 #endif
 
@@ -232,11 +232,22 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
     const uint osv32_weight_base = (( (int) (out_f >> power_of_two_for_osv) ) << power_of_two_for_osv);
     const uint osv_weight_stride = (INPUT_ELEMENTS_COUNT >> 1);
     const uint out_f_offset = (int)((out_f >> power_of_two_for_simd) & 0x1) << power_of_two_for_simd;
-    // out_f(32) : 32 + osv_weight_stride + 0;
-    // out_f(48) : 32 + osv_weight_stride + 16;
-    // out_f(64) : 64 + osv_weight_stride + 0;
+    // out_f(32) : 32 * osv_weight_stride + 0;
+    // out_f(48) : 32 * osv_weight_stride + 16;
+    // out_f(64) : 64 * osv_weight_stride + 0;
     // ...
     uint weights_offset =  osv32_weight_base * osv_weight_stride + out_f_offset;
+    #elif TILE_OFM == 2 && FILTER_LAYOUT_OS_IS_YX_OSV64_ISV2
+    const int power_of_two_for_simd = 5;
+    const int power_of_two_for_osv = 6;
+    const uint osv64_weight_base = (( (int) (out_f >> power_of_two_for_osv) ) << power_of_two_for_osv);
+    const uint osv_weight_stride = (INPUT_ELEMENTS_COUNT >> 1);
+    const uint out_f_offset = (int)((out_f >> power_of_two_for_simd) & 0x1) << power_of_two_for_simd;
+    // out_f(32)  : 0  * osv_weight_stride + 32;
+    // out_f(64)  : 64 * osv_weight_stride + 0;
+    // out_f(128) : 64 * osv_weight_stride + 32;
+    // ...
+    uint weights_offset =  osv64_weight_base * osv_weight_stride + out_f_offset;
     #else
     uint weights_offset = out_f * (INPUT_ELEMENTS_COUNT / 2);
     #endif
@@ -275,6 +286,11 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
         ACCUMULATOR_VEC_TYPE d_zp = decompression_zp[0];
     #endif
     ACCUMULATOR_TYPE* d_zps = (ACCUMULATOR_TYPE*)(&d_zp);
+#endif
+
+#if OUTER_OFM > 1
+    uint input_offset_init = input_offset;
+    unroll_for (uint oi = 0; oi < OUTER_OFM; ++oi) {
 #endif
 
 #if REALIGN_FP16_OFFSET
@@ -327,7 +343,11 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
 
             __local SLM_FILTER_VEC* slm_wei_vec = (__local SLM_FILTER_VEC*)wei_local_mem;
 
+            #if FILTER_LAYOUT_OS_IS_YX_OSV64_ISV2
+            uint weights_idx = weights_offset + local_id * SIMD * FILTER_LOAD_ITERS * FILTER_LOAD_BLOCK_SIZE * 2;
+            #else
             uint weights_idx = weights_offset + local_id * SIMD * FILTER_LOAD_ITERS * FILTER_ACTUAL_LOAD_BLOCK_SIZE;
+            #endif
             uint wei_local_idx = local_id * SIMD * FILTER_LOAD_ITERS * FILTER_LOAD_BLOCK_SIZE + sglid;
             unroll_for(uint load_iter = 0; load_iter < FILTER_LOAD_ITERS; ++load_iter) {
                 #if FILTER_LAYOUT_OS_IYX_OSV16
@@ -336,6 +356,17 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                 SLM_FILTER_UNPACKED_VEC wei_unpacked;
                 wei_unpacked.s0123 = UNPACK_INT4(ACCUMULATOR_TYPE, *((INT4_PACKED_TYPE_PRELOAD*)&wei_packed0));
                 wei_unpacked.s4567 = UNPACK_INT4(ACCUMULATOR_TYPE, *((INT4_PACKED_TYPE_PRELOAD*)&wei_packed1));
+                #elif FILTER_LAYOUT_OS_IS_YX_OSV64_ISV2
+                SLM_FILTER_PACKED_VEC wei_packed0 = BLOCK_READN(FILTER_TYPE, FILTER_ACTUAL_LOAD_BLOCK_SIZE, weights, weights_idx);
+                SLM_FILTER_PACKED_VEC wei_packed1 = BLOCK_READN(FILTER_TYPE, FILTER_ACTUAL_LOAD_BLOCK_SIZE, weights, (weights_idx + (FILTER_LOAD_BLOCK_SIZE * SIMD)));
+                SLM_FILTER_UNPACKED_VEC wei_unpacked;
+                SLM_FILTER_UNPACKED_VEC wei_unpacked_tmp;
+                wei_unpacked_tmp.s0123 = UNPACK_INT4(ACCUMULATOR_TYPE, *((INT4_PACKED_TYPE_PRELOAD*)&wei_packed0));
+                wei_unpacked_tmp.s4567 = UNPACK_INT4(ACCUMULATOR_TYPE, *((INT4_PACKED_TYPE_PRELOAD*)&wei_packed1));
+                wei_unpacked.s01 = wei_unpacked_tmp.s01;
+                wei_unpacked.s23 = wei_unpacked_tmp.s45;
+                wei_unpacked.s45 = wei_unpacked_tmp.s23;
+                wei_unpacked.s67 = wei_unpacked_tmp.s67;
                 #else
                 SLM_FILTER_PACKED_VEC wei_packed = BLOCK_READN(FILTER_TYPE, FILTER_LOAD_BLOCK_SIZE/*4*/, weights, weights_idx);
                 SLM_FILTER_UNPACKED_VEC wei_unpacked = UNPACK_INT4(ACCUMULATOR_TYPE, *((INT4_PACKED_TYPE_PRELOAD*)&wei_packed));
@@ -490,14 +521,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                     }
                 }
             }
-            #if TILE_OFM == 1 && FILTER_LAYOUT_OS_IS_YX_OSV32_ISV2
-            weights_offset += TILE_K_OFM_PACKED * 2 * SIMD;
-            #elif FILTER_LAYOUT_OS_IYX_OSV16 && TILE_OFM == 2 && USE_SLM == 1
-            weights_offset += TILE_K_OFM_PACKED / 2 * SIMD;
-            #else
-            weights_offset += TILE_K_OFM_PACKED * SIMD;
-            #endif
-
+            weights_offset += TILE_K_OFM_PACKED * TILE_OFM_PER_OSV_SIZE * SIMD;
 
 #if DECOMPRESSION_SCALE_POST_OP && (TILE_IFM * SIMD > DECOMPRESSION_SCALE_GROUP_SIZE)
             unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
@@ -611,11 +635,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                     }
                 }
             #endif
-            #if TILE_OFM == 1 && FILTER_LAYOUT_OS_IS_YX_OSV32_ISV2
-            weights_offset += TILE_K_OFM_PACKED * SIMD * 2;
-            #else
-            weights_offset += TILE_K_OFM_PACKED * SIMD;
-            #endif
+            weights_offset += TILE_K_OFM_PACKED * TILE_OFM_PER_OSV_SIZE * SIMD;
 
             unroll_for (uint kii = 0; kii < TILE_K; ++kii) {
                 unroll_for (uint fi = 0; fi < TILE_OFM; ++fi) {
@@ -641,10 +661,13 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
     ACTIVATION_VEC_TYPE activated[TILE_B] = { };
     for (uint bi = 0; bi < TILE_B; ++bi) {
         activated[bi] = TO_ACTIVATION_VEC_TYPE(acc[bi]);
+#if OUTER_OFM > 1
+        acc[bi] = 0;
+#endif
     }
 
 #if BIAS_TERM
-    #if TILE_OUT_F_NUM % (TILE_OFM * SIMD) == 0
+    #if TILE_OUT_F_NUM % (OUTER_OFM * TILE_OFM * SIMD) == 0
         BIAS_VEC_TYPE bias = BIAS_BLOCK_READ(biases, out_f);
     #else
         BIAS_VEC_TYPE bias = 0;
@@ -679,7 +702,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
     // Write results
     uint output_offset = out_f * TILE_OUT_F_PITCH + out_b * TILE_OUT_B_PITCH + OUTPUT_OFFSET;
 
-    if (USE_BLOCK_WRITE && (TILE_OUT_F_NUM % (TILE_OFM * SIMD) == 0 || out_f + (TILE_OFM * SIMD) <= TILE_OUT_F_NUM)) {
+    if (USE_BLOCK_WRITE && (TILE_OUT_F_NUM % (OUTER_OFM * TILE_OFM * SIMD) == 0 || out_f + (OUTER_OFM * TILE_OFM * SIMD) <= TILE_OUT_F_NUM)) {
 #if IS_DYNAMIC
         #define WRITE_OUTPUT(bi) do {                                       \
                 if (bi + out_b < BATCH_SIZE)                                \
@@ -702,7 +725,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
 #if IS_DYNAMIC
                     bi + out_b < BATCH_SIZE &&
 #endif
-                    (TILE_OUT_F_NUM % (TILE_OFM * SIMD) == 0 ||
+                    (TILE_OUT_F_NUM % (OUTER_OFM * TILE_OFM * SIMD) == 0 ||
                     out_f + fi * SIMD + sglid < TILE_OUT_F_NUM);
                 if (should_write) {
                     output[output_offset] = ((OUTPUT_TYPE*)(&result[bi]))[fi];
@@ -712,6 +735,11 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
             output_offset += TILE_OUT_B_PITCH - TILE_OFM * SIMD;
         }
     }
+#if OUTER_OFM > 1
+    out_f += TILE_OFM * SIMD;
+    input_offset = input_offset_init;
+    }
+#endif
     // =====================================================================================================================================
 }
 
