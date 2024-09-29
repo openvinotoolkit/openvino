@@ -795,10 +795,11 @@ inline void multiply_scalar(float* a, float* a_dst, const float val, const size_
 
 template<typename T, typename = typename std::enable_if<(std::is_same<T, ov::bfloat16>::value || std::is_same<T, ov::float16>::value), bool>::type>
 inline void multiply_scalar(float* a, T* a_dst, const float val, const size_t size) {
+
+    size_t i = 0;
 #if defined(HAVE_AVX512F)
     auto v_scale = _mm512_set1_ps(val);
     __m512 v_a = {0};
-    size_t i = 0;
     while (i + vec_len_f32_avx512 <= size) {
         v_a = _mm512_loadu_ps(a + i);
         v_a = _mm512_mul_ps(v_a, v_scale);
@@ -809,10 +810,12 @@ inline void multiply_scalar(float* a, T* a_dst, const float val, const size_t si
         __mmask16 mask = (1 << (size - i)) - 1;
         v_a = _mm512_maskz_loadu_ps(mask, a + i);
         v_a = _mm512_mul_ps(v_a, v_scale);
-        mm512_uni_mask_storeu_ps(a_dst + i, mask, v_a);
+        mm512_uni_storeu_tail_ps(a_dst + i, v_a, size - i);
+
+        i += (size - i);
     }
 #else
-    for (size_t i = 0; i < size; i++) {
+    for (; i < size; i++) {
         a_dst[i] = a[i] * val;
     }
 #endif
