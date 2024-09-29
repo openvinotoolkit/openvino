@@ -22,20 +22,35 @@ namespace XARCH {
 
 #if defined(HAVE_AVX2)
 inline void exp_ps_avx2(__m256& src) {
-    static __m256 exp_ln_flt_min_f = _mm256_castsi256_ps(_mm256_set1_epi32(0xc2aeac50));  // log(FLT_MIN)
-    static __m256 exp_ln_flt_max_f = _mm256_castsi256_ps(_mm256_set1_epi32(0x42b17218));  // log(FLT_MAX)
-    static __m256 exp_log2ef = _mm256_castsi256_ps(_mm256_set1_epi32(0x3fb8aa3b));        // log2(e)
-    static __m256 half = _mm256_castsi256_ps(_mm256_set1_epi32(0x3f000000));              // 0.5f
-    static __m256 ln2f = _mm256_castsi256_ps(_mm256_set1_epi32(0x3f317218));              // ln(2)
-    static __m256 one = _mm256_castsi256_ps(_mm256_set1_epi32(0x3f800000));               // 1.0f
-    static __m256i exponent_bias = _mm256_set1_epi32(0x0000007f);                         // 127
+#define REPEAT8(x) x, x, x, x, x, x, x, x
+    static const uint32_t c_min[] = {REPEAT8(0xc2aeac50)};
+    static const uint32_t c_max[] = {REPEAT8(0x42b17218)};
+    static const uint32_t c_e[] = {REPEAT8(0x3fb8aa3b)};
+    static const uint32_t c_half[] = {REPEAT8(0x3f000000)};
+    static const uint32_t c_ln2[] = {REPEAT8(0x3f317218)};
+    static const uint32_t c_1[] = {REPEAT8(0x3f800000)};
+    static const uint32_t c_bias[] = {REPEAT8(0x0000007f)};
+    static const uint32_t c_p1[] = {REPEAT8(0x3f7ffffb)};
+    static const uint32_t c_p2[] = {REPEAT8(0x3efffee3)};
+    static const uint32_t c_p3[] = {REPEAT8(0x3e2aad40)};
+    static const uint32_t c_p4[] = {REPEAT8(0x3d2b9d0d)};
+    static const uint32_t c_p5[] = {REPEAT8(0x3c07cfce)};
+    static const uint32_t c_2[] = {REPEAT8(0x40000000)};
+#undef REPEAT8
     static constexpr int n_mantissa_bits = 23;
-    static __m256 exp_pol1 = _mm256_castsi256_ps(_mm256_set1_epi32(0x3f7ffffb));  // p1 = 0.999999701f
-    static __m256 exp_pol2 = _mm256_castsi256_ps(_mm256_set1_epi32(0x3efffee3));  // p2 = 0.499991506f
-    static __m256 exp_pol3 = _mm256_castsi256_ps(_mm256_set1_epi32(0x3e2aad40));  // p3 = 0.166676521f
-    static __m256 exp_pol4 = _mm256_castsi256_ps(_mm256_set1_epi32(0x3d2b9d0d));  // p4 = 0.0418978221f
-    static __m256 exp_pol5 = _mm256_castsi256_ps(_mm256_set1_epi32(0x3c07cfce));  // p5 = 0.00828929059f
-    static __m256 two = _mm256_castsi256_ps(_mm256_set1_epi32(0x40000000));       // 2
+    __m256 exp_ln_flt_min_f = _mm256_loadu_ps(reinterpret_cast<const float*>(c_min));    // log(FLT_MIN)
+    __m256 exp_ln_flt_max_f = _mm256_loadu_ps(reinterpret_cast<const float*>(c_max));    // log(FLT_MAX)
+    __m256 exp_log2ef = _mm256_loadu_ps(reinterpret_cast<const float*>(c_e));            // log2(e)
+    __m256 half = _mm256_loadu_ps(reinterpret_cast<const float*>(c_half));               // 0.5f
+    __m256 ln2f = _mm256_loadu_ps(reinterpret_cast<const float*>(c_ln2));                // ln(2)
+    __m256 one = _mm256_loadu_ps(reinterpret_cast<const float*>(c_1));                   // 1.0f
+    __m256i exponent_bias = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(c_bias));// 127
+    __m256 exp_pol1 = _mm256_loadu_ps(reinterpret_cast<const float*>(c_p1));             // p1 = 0.999999701f
+    __m256 exp_pol2 = _mm256_loadu_ps(reinterpret_cast<const float*>(c_p2));             // p2 = 0.499991506f
+    __m256 exp_pol3 = _mm256_loadu_ps(reinterpret_cast<const float*>(c_p3));             // p3 = 0.166676521f
+    __m256 exp_pol4 = _mm256_loadu_ps(reinterpret_cast<const float*>(c_p4));             // p4 = 0.0418978221f
+    __m256 exp_pol5 = _mm256_loadu_ps(reinterpret_cast<const float*>(c_p5));             // p5 = 0.00828929059f
+    __m256 two = _mm256_loadu_ps(reinterpret_cast<const float*>(c_2));                   // 2
     // exp(x) =
     // = exp(n * ln(2) + r) // divide x by ln(2) and get quot and rem
     // = 2^n * exp(r)       // simplify the exp(n*ln(2)) expression
@@ -167,14 +182,46 @@ inline void scale_add2_reduce_max(float* a,
                                   float& max) {
     size_t i = 0;
 #if defined(HAVE_AVX512F)
-    auto v_max = _mm512_set1_ps(std::numeric_limits<float>::lowest());
+    auto v_max0 = _mm512_set1_ps(std::numeric_limits<float>::lowest());
+    auto v_max1 = v_max0;
+    auto v_max2 = v_max0;
+    auto v_max3 = v_max0;
     auto v_scale = _mm512_set1_ps(scale);
-    auto v_a = v_max;
     auto v_zeroi32 = _mm512_setzero_epi32();
     auto v_nfltmax = _mm512_set1_ps(-FLT_MAX);
     auto kmask_xor = _cvtu32_mask16(select_nfltmax_at_0 ? 0xFFFF : 0);
     auto v_alibi_slope = _mm512_set1_ps(alibi_slope);
+    __m512 v_a;
     // process vector body
+    // unroll to avoid dependency caused by _mm256_max_ps
+    for (; i + 4 * vec_len_f32_avx512 <= size; i += 4 * vec_len_f32_avx512) {
+    #define ITEM(n) \
+        v_a = _mm512_loadu_ps(a + i + n * vec_len_f32_avx512);  \
+        v_a = _mm512_mul_ps(v_a, v_scale);  \
+        if (has_alibi) {    \
+            auto v_lookup = _mm512_loadu_ps(alibi_lookup + i + n * vec_len_f32_avx512); \
+            v_a = _mm512_fmadd_ps(v_lookup, v_alibi_slope, v_a); \
+        } \
+        if (has_attn_mask) {    \
+            auto v_mask = mm512_uni_loadu_ps(attn_mask + i + n * vec_len_f32_avx512);   \
+            v_a = _mm512_add_ps(v_a, v_mask);   \
+        }   \
+        if (has_causal_mask) {  \
+            auto v_maski8 = _mm_loadu_si128(reinterpret_cast<__m128i const*>(causal_mask + i + n * vec_len_f32_avx512));    \
+            auto v_maski32 = _mm512_cvtepi8_epi32(v_maski8);    \
+            auto kmask = _mm512_cmp_epi32_mask(v_maski32, v_zeroi32, _MM_CMPINT_NE);    \
+            kmask = _kxor_mask16(kmask, kmask_xor);                                     \
+            v_a = _mm512_mask_blend_ps(kmask, v_a, v_nfltmax);                          \
+        }   \
+        v_max##n = _mm512_max_ps(v_max##n, v_a);   \
+        _mm512_storeu_ps(a + i + n * vec_len_f32_avx512, v_a);
+
+        ITEM(0);
+        ITEM(1);
+        ITEM(2);
+        ITEM(3);
+    #undef ITEM
+    }
     while (i + vec_len_f32_avx512 <= size) {
         v_a = _mm512_loadu_ps(a + i);
         v_a = _mm512_mul_ps(v_a, v_scale);
@@ -196,7 +243,7 @@ inline void scale_add2_reduce_max(float* a,
             kmask = _kxor_mask16(kmask, kmask_xor);                                   // reverse, mask at ==0
             v_a = _mm512_mask_blend_ps(kmask, v_a, v_nfltmax);                        // mask => -FLT_MAX
         }
-        v_max = _mm512_max_ps(v_max, v_a);
+        v_max0 = _mm512_max_ps(v_max0, v_a);
         _mm512_storeu_ps(a + i, v_a);
         i += vec_len_f32_avx512;
     }
@@ -224,22 +271,58 @@ inline void scale_add2_reduce_max(float* a,
             kmask = _kxor_mask16(kmask, kmask_xor);                                   // reverse, mask at ==0
             v_a = _mm512_mask_blend_ps(kmask, v_a, v_nfltmax);                        // mask => -FLT_MAX
         }
-        v_max = _mm512_mask_max_ps(v_max, mask, v_a, v_max);
+        v_max0 = _mm512_mask_max_ps(v_max0, mask, v_a, v_max0);
         _mm512_mask_storeu_ps(a + i, mask, v_a);
 
         i += (size - i);
     }
 
-    max = _mm512_reduce_max_ps(v_max);
+    v_max0 = _mm512_max_ps(v_max0, v_max1);
+    v_max2 = _mm512_max_ps(v_max2, v_max3);
+    v_max0 = _mm512_max_ps(v_max0, v_max2);
+    max = _mm512_reduce_max_ps(v_max0);
 #elif defined(HAVE_AVX2)
-    auto v_max = _mm256_set1_ps(std::numeric_limits<float>::lowest());
+    auto v_max0 = _mm256_set1_ps(std::numeric_limits<float>::lowest());
+    auto v_max1 = v_max0;
+    auto v_max2 = v_max0;
+    auto v_max3 = v_max0;
+    __m256 v_a;
     auto v_scale = _mm256_set1_ps(scale);
-    auto v_a = v_max;
     auto v_zeroi32 = _mm256_setzero_si256();
     auto v_mask_xor = _mm256_set1_epi32(select_nfltmax_at_0 ? -1 : 0);
     auto v_nfltmax = _mm256_set1_ps(-FLT_MAX);
     auto v_alibi_slope = _mm256_set1_ps(alibi_slope);
     // process vector body
+    // unroll to avoid dependency caused by _mm512_max_ps
+    for (; i + 4 * vec_len_f32_avx2 <= size; i += 4 * vec_len_f32_avx2) {
+    #define ITEM(n) \
+        v_a = _mm256_loadu_ps(a + i + n * vec_len_f32_avx2);    \
+        v_a = _mm256_mul_ps(v_a, v_scale);                      \
+        if (has_alibi) {                                        \
+            auto v_lookup = _mm256_loadu_ps(alibi_lookup + i + n * vec_len_f32_avx2);   \
+            v_a = _mm256_fmadd_ps(v_lookup, v_alibi_slope, v_a);                        \
+        }                                                       \
+        if (has_attn_mask) {                                    \
+            auto v_mask = mm256_uni_loadu_ps(attn_mask + i + n * vec_len_f32_avx2);     \
+            v_a = _mm256_add_ps(v_a, v_mask);                                           \
+        }                                                       \
+        if (has_causal_mask) {                                  \
+            auto v_maski8 = _mm_loadu_si128(reinterpret_cast<__m128i const*>(causal_mask + i + n * vec_len_f32_avx2));  \
+            auto v_maski32 = _mm256_cvtepi8_epi32(v_maski8);    \
+            v_maski32 = _mm256_cmpeq_epi32(v_maski32, v_zeroi32);\
+            v_maski32 = _mm256_xor_si256(v_maski32, v_mask_xor);\
+            v_a = _mm256_blendv_ps(v_nfltmax, v_a, _mm256_castsi256_ps(v_maski32));     \
+        }                                                       \
+        v_max##n = _mm256_max_ps(v_max##n, v_a);                      \
+        _mm256_storeu_ps(a + i + n * vec_len_f32_avx2, v_a);
+
+        ITEM(0);
+        ITEM(1);
+        ITEM(2);
+        ITEM(3);
+    #undef ITEM
+    }
+
     while (i + vec_len_f32_avx2 <= size) {
         v_a = _mm256_loadu_ps(a + i);
         v_a = _mm256_mul_ps(v_a, v_scale);
@@ -262,7 +345,7 @@ inline void scale_add2_reduce_max(float* a,
             v_a = _mm256_blendv_ps(v_nfltmax, v_a, _mm256_castsi256_ps(v_maski32));  // mask => -FLT_MAX
         }
 
-        v_max = _mm256_max_ps(v_max, v_a);
+        v_max0 = _mm256_max_ps(v_max0, v_a);
         _mm256_storeu_ps(a + i, v_a);
         i += vec_len_f32_avx2;
     }
@@ -291,14 +374,17 @@ inline void scale_add2_reduce_max(float* a,
             v_a = _mm256_blendv_ps(v_nfltmax, v_a, _mm256_castsi256_ps(v_maski32));  // mask => -FLT_MAX
         }
 
-        v_a = _mm256_blendv_ps(v_max, v_a, _mm256_castsi256_ps(mask));
-        v_max = _mm256_max_ps(v_max, v_a);
+        v_a = _mm256_blendv_ps(v_max0, v_a, _mm256_castsi256_ps(mask));
+        v_max0 = _mm256_max_ps(v_max0, v_a);
         _mm256_maskstore_ps(a + i, mask, v_a);
 
         i += (size - i);
     }
-    hmax(v_max);
-    max = _mm256_cvtss_f32(v_max);
+    v_max0 = _mm256_max_ps(v_max0, v_max1);
+    v_max2 = _mm256_max_ps(v_max2, v_max3);
+    v_max0 = _mm256_max_ps(v_max0, v_max2);
+    hmax(v_max0);
+    max = _mm256_cvtss_f32(v_max0);
 #elif defined(OPENVINO_ARCH_ARM64)
     auto v_max = vdupq_n_f32(std::numeric_limits<float>::lowest());
     auto v_scale = vdupq_n_f32(scale);
@@ -364,21 +450,36 @@ inline void scale_add2_reduce_max(float* a,
 }
 
 #if defined(HAVE_AVX512F)
-inline void exp_ps_avx512(__m512& src) {
-    static __m512 exp_ln_flt_min_f = _mm512_castsi512_ps(_mm512_set1_epi32(0xc2aeac50));  // log(FLT_MIN)
-    static __m512 exp_ln_flt_max_f = _mm512_castsi512_ps(_mm512_set1_epi32(0x42b17218));  // log(FLT_MAX)
-    static __m512 exp_log2ef = _mm512_castsi512_ps(_mm512_set1_epi32(0x3fb8aa3b));        // log2(e)
-    static __m512 half = _mm512_castsi512_ps(_mm512_set1_epi32(0x3f000000));              // 0.5f
-    static __m512 ln2f = _mm512_castsi512_ps(_mm512_set1_epi32(0x3f317218));              // ln(2)
-    static __m512 one = _mm512_castsi512_ps(_mm512_set1_epi32(0x3f800000));               // 1.0f
-    static __m512i exponent_bias = _mm512_set1_epi32(0x0000007f);                         // 127
+static inline void exp_ps_avx512(__m512& src) {
+#define REPEAT16(x) x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x
+    static const uint32_t c_min[] = {REPEAT16(0xc2aeac50)};
+    static const uint32_t c_max[] = {REPEAT16(0x42b17218)};
+    static const uint32_t c_e[] = {REPEAT16(0x3fb8aa3b)};
+    static const uint32_t c_half[] = {REPEAT16(0x3f000000)};
+    static const uint32_t c_ln2[] = {REPEAT16(0x3f317218)};
+    static const uint32_t c_1[] = {REPEAT16(0x3f800000)};
+    static const uint32_t c_bias[] = {REPEAT16(0x0000007f)};
+    static const uint32_t c_p1[] = {REPEAT16(0x3f7ffffb)};
+    static const uint32_t c_p2[] = {REPEAT16(0x3efffee3)};
+    static const uint32_t c_p3[] = {REPEAT16(0x3e2aad40)};
+    static const uint32_t c_p4[] = {REPEAT16(0x3d2b9d0d)};
+    static const uint32_t c_p5[] = {REPEAT16(0x3c07cfce)};
+    static const uint32_t c_2[] = {REPEAT16(0x40000000)};
+#undef REPEAT16
     static constexpr int n_mantissa_bits = 23;
-    static __m512 exp_pol1 = _mm512_castsi512_ps(_mm512_set1_epi32(0x3f7ffffb));  // p1 = 0.999999701f
-    static __m512 exp_pol2 = _mm512_castsi512_ps(_mm512_set1_epi32(0x3efffee3));  // p2 = 0.499991506f
-    static __m512 exp_pol3 = _mm512_castsi512_ps(_mm512_set1_epi32(0x3e2aad40));  // p3 = 0.166676521f
-    static __m512 exp_pol4 = _mm512_castsi512_ps(_mm512_set1_epi32(0x3d2b9d0d));  // p4 = 0.0418978221f
-    static __m512 exp_pol5 = _mm512_castsi512_ps(_mm512_set1_epi32(0x3c07cfce));  // p5 = 0.00828929059f
-    static __m512 two = _mm512_castsi512_ps(_mm512_set1_epi32(0x40000000));       // 2
+    __m512 exp_ln_flt_min_f = _mm512_loadu_ps(reinterpret_cast<const float*>(c_min));    // log(FLT_MIN)
+    __m512 exp_ln_flt_max_f = _mm512_loadu_ps(reinterpret_cast<const float*>(c_max));    // log(FLT_MAX)
+    __m512 exp_log2ef = _mm512_loadu_ps(reinterpret_cast<const float*>(c_e));            // log2(e)
+    __m512 half = _mm512_loadu_ps(reinterpret_cast<const float*>(c_half));               // 0.5f
+    __m512 ln2f = _mm512_loadu_ps(reinterpret_cast<const float*>(c_ln2));                // ln(2)
+    __m512 one = _mm512_loadu_ps(reinterpret_cast<const float*>(c_1));                   // 1.0f
+    __m512i exponent_bias = _mm512_loadu_si512(c_bias);                                  // 127
+    __m512 exp_pol1 = _mm512_loadu_ps(reinterpret_cast<const float*>(c_p1));             // p1 = 0.999999701f
+    __m512 exp_pol2 = _mm512_loadu_ps(reinterpret_cast<const float*>(c_p2));             // p2 = 0.499991506f
+    __m512 exp_pol3 = _mm512_loadu_ps(reinterpret_cast<const float*>(c_p3));             // p3 = 0.166676521f
+    __m512 exp_pol4 = _mm512_loadu_ps(reinterpret_cast<const float*>(c_p4));             // p4 = 0.0418978221f
+    __m512 exp_pol5 = _mm512_loadu_ps(reinterpret_cast<const float*>(c_p5));             // p5 = 0.00828929059f
+    __m512 two = _mm512_loadu_ps(reinterpret_cast<const float*>(c_2));                   // 2
     // exp(x) =
     // = exp(n * ln(2) + r) // divide x by ln(2) and get quot and rem
     // = 2^n * exp(r)       // simplify the exp(n*ln(2)) expression

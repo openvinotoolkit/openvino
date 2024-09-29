@@ -17,6 +17,10 @@ public:
     OPENVINO_RTTI("CPURuntimeConfig", "0", ov::snippets::RuntimeConfig)
     CPURuntimeConfig() = default;
 
+#ifdef SNIPPETS_DEBUG_CAPS
+    std::string to_string() const override;
+#endif
+
     std::vector<jit_snippets_call_args::loop_args_t> loop_args = {};
 };
 

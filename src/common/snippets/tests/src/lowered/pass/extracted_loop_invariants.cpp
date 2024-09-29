@@ -7,12 +7,8 @@
 #include "openvino/opsets/opset10.hpp"
 #include "snippets/lowered/pass/extract_loop_invariants.hpp"
 #include "snippets/lowered/pass/normalize_loop_ids.hpp"
-#include "snippets/op/broadcastmove.hpp"
-#include "snippets/op/scalar.hpp"
-#include "snippets/op/vector_buffer.hpp"
-#include "snippets/op/horizon_max.hpp"
-#include "snippets/op/horizon_sum.hpp"
-#include "snippets/op/powerstatic.hpp"
+#include "snippets/lowered/pass/split_loops.hpp"
+#include "snippets/snippets_isa.hpp"
 
 namespace ov {
 namespace test {
@@ -289,6 +285,110 @@ TEST_F(ExtractLoopInvariantsTest, ExtractedLoopInvariantsFromInnermostToLoopOuts
                                                      std::vector<LoopPort>{LoopPort((*add.first)->get_input_port(0), true, 1),
                                                                            LoopPort((*add.first)->get_input_port(1), true, 1)},
                                                      std::vector<LoopPort>{LoopPort((*add.first)->get_output_port(0), true, 1)});
+    }
+}
+
+TEST_F(ExtractLoopInvariantsTest, ExtractedLoopInvariantsImpossible) {
+    const auto input_precision = ov::element::f32;
+    const ov::Shape input_shape_0{32, 8, 1};
+    ov::snippets::VectorDims order{1, 2, 0};
+    ov::snippets::VectorDims layout{0, 1, 2};
+    ov::snippets::VectorDims subtensor{1, 1};
+    /* 
+     *  < Transpose decomposition >
+     *
+     *        Param0(32,8,1)
+     *             |
+     *       LoadReshape with order (1,2,0)
+     *             |
+     *           Store
+     *             |
+     *           Result
+    */
+    {
+        auto param = linear_ir->push_node<ov::opset10::Parameter>(input_precision, input_shape_0);
+        auto load_reshape = linear_ir->push_node<ov::snippets::op::LoadReshape>(param.second, 1, 0, layout);
+        auto store = linear_ir->push_node<ov::snippets::op::Store>(load_reshape.second, 1, 0);
+        init_expr_descriptors(*load_reshape.first, {subtensor, subtensor}, {order, layout});
+        init_expr_descriptors(*store.first, {subtensor, subtensor}, {layout, layout});
+        auto result = linear_ir->push_node<ov::opset10::Result>(store.second);
+        linear_ir->get_loop_manager()->mark_loop(load_reshape.first, result.first, 32, 1,
+                                                 std::vector<LoopPort>{LoopPort((*load_reshape.first)->get_input_port(0), true, 0)},
+                                                 std::vector<LoopPort>{LoopPort((*store.first)->get_output_port(0), true, 0)});
+        linear_ir->get_loop_manager()->mark_loop(load_reshape.first, result.first, 1, 1,
+                                                 std::vector<LoopPort>{LoopPort((*load_reshape.first)->get_input_port(0), true, 1)},
+                                                 std::vector<LoopPort>{LoopPort((*store.first)->get_output_port(0), true, 1)});
+        linear_ir->set_loop_depth(2);
+    }
+}
+
+TEST_F(ExtractLoopInvariantsTest, ExtractedLoopInvariantsSplitLoops) {
+    size_t vector_size = 16;
+    size_t block_size = 32;
+    const auto input_precision = ov::element::f32;
+    const ov::Shape input_shape_0{128, 512};
+    const ov::Shape input_shape_1{512, 64};
+    const ov::Shape input_shape_2{1, 1};
+    const ov::snippets::VectorDims layout{0, 1};
+    const ov::snippets::VectorDims subtensor{1, vector_size};
+    /*
+     *            Params    Param2(1,1)
+     *              \         /
+     *            MatMul   Broadcast
+     *                \     /
+     *                  Add
+     *                   |
+     *                 Result
+    */
+    {
+        const auto param0 = linear_ir->push_node<ov::opset10::Parameter>(input_precision, input_shape_0);
+        const auto param1 = linear_ir->push_node<ov::opset10::Parameter>(input_precision, input_shape_1);
+        const auto param2 = linear_ir->push_node<ov::opset10::Parameter>(input_precision, input_shape_2);
+        const auto matmul = linear_ir->push_node<ov::snippets::op::Brgemm>(param0.second, param1.second);
+        const auto broadcastmove = linear_ir->push_node<ov::snippets::op::BroadcastMove>(param2.second, input_shape_1.back());
+        init_expr_descriptors(*broadcastmove.first, {{1, 1}, subtensor}, {layout, layout});
+        const auto add = linear_ir->push_node<ov::opset10::Add>(matmul.second, broadcastmove.second);
+        init_expr_descriptors(*add.first, {subtensor, subtensor, subtensor}, {layout, layout, layout});
+        const auto result = linear_ir->push_node<ov::opset10::Result>(add.second);
+        const auto& loop_manager = linear_ir->get_loop_manager();
+        loop_manager->mark_loop(matmul.first, broadcastmove.first, 128, block_size, 1,
+                                std::vector<LoopPort>{LoopPort((*matmul.first)->get_input_port(0)),
+                                                      LoopPort((*matmul.first)->get_input_port(1), false)},
+                                std::vector<LoopPort>{LoopPort((*matmul.first)->get_output_port(0))});
+        loop_manager->mark_loop(broadcastmove.first, result.first, 64, vector_size, 0,
+                                std::vector<LoopPort>{LoopPort((*broadcastmove.first)->get_input_port(0)),
+                                                      LoopPort((*add.first)->get_input_port(0))},
+                                std::vector<LoopPort>{LoopPort((*add.first)->get_output_port(0))});
+        loop_manager->mark_loop(broadcastmove.first, result.first, 128, 1, 1,
+                                std::vector<LoopPort>{LoopPort((*broadcastmove.first)->get_input_port(0)),
+                                                      LoopPort((*add.first)->get_input_port(0))},
+                                std::vector<LoopPort>{LoopPort((*add.first)->get_output_port(0))});
+        ov::snippets::lowered::pass::SplitLoops().run(*linear_ir, linear_ir->begin(), linear_ir->end());
+    }
+    {
+        const auto param0 = linear_ir_ref->push_node<ov::opset10::Parameter>(input_precision, input_shape_0);
+        const auto param1 = linear_ir_ref->push_node<ov::opset10::Parameter>(input_precision, input_shape_1);
+        const auto param2 = linear_ir_ref->push_node<ov::opset10::Parameter>(input_precision, input_shape_2);
+        auto broadcastmove = linear_ir_ref->push_node<ov::snippets::op::BroadcastMove>(param2.second, input_shape_1.back());
+        init_expr_descriptors(*broadcastmove.first, {{1, 1}, subtensor}, {layout, layout});
+        const auto matmul = linear_ir_ref->push_node<ov::snippets::op::Brgemm>(param0.second, param1.second);
+        const auto add = linear_ir_ref->push_node<ov::opset10::Add>(matmul.second, broadcastmove.second);
+        init_expr_descriptors(*add.first, {subtensor, subtensor, subtensor}, {layout, layout, layout});
+        auto result = linear_ir_ref->push_node<ov::opset10::Result>(add.second);
+        const auto& loop_manager = linear_ir_ref->get_loop_manager();
+        loop_manager->mark_loop(matmul.first, add.first, 128, block_size, 1,
+                                std::vector<LoopPort>{LoopPort((*matmul.first)->get_input_port(0)),
+                                                      LoopPort((*matmul.first)->get_input_port(1), false)},
+                                std::vector<LoopPort>{LoopPort((*matmul.first)->get_output_port(0))});
+        loop_manager->mark_loop(add.first, result.first, 64, vector_size, 0,
+                                std::vector<LoopPort>{LoopPort((*add.first)->get_input_port(0)),
+                                                      LoopPort((*add.first)->get_input_port(1))},
+                                std::vector<LoopPort>{LoopPort((*add.first)->get_output_port(0))});
+        loop_manager->mark_loop(add.first, result.first, 128, 1, 1,
+                                std::vector<LoopPort>{LoopPort((*add.first)->get_input_port(0)),
+                                                      LoopPort((*add.first)->get_input_port(1))},
+                                std::vector<LoopPort>{LoopPort((*add.first)->get_output_port(0))});
+        ov::snippets::lowered::pass::SplitLoops().run(*linear_ir_ref, linear_ir_ref->begin(), linear_ir_ref->end());
     }
 }
 

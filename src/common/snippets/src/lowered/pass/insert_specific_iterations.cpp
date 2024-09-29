@@ -32,15 +32,19 @@ void connect_cloned_body_with_buffers_outside(LinearIR::constExprIt cur_begin, L
                 const auto& consumers = original_expr->get_output_port_connector(i)->get_consumers();
                 for (const auto& consumer : consumers) {
                     const auto consumer_expr = consumer.get_expr();
-                    const auto buffer = ov::as_type_ptr<op::IntermediateMemoryBuffer>(consumer_expr->get_node());
-                    if (buffer && std::find(cur_begin, cur_end, consumer.get_expr()) == cur_end) {
-                        OutputVector new_inputs = {result_expr->get_node()->output(i)};
-                        for (const auto& input : consumer_expr->get_input_port_connectors()) {
-                            const auto& source = input->get_source();
-                            new_inputs.push_back(source.get_expr()->get_node()->output(source.get_index()));
+                    const auto buffer_expr = ov::as_type_ptr<BufferExpression>(consumer_expr);
+                    if (buffer_expr && std::find(cur_begin, cur_end, consumer.get_expr()) == cur_end) {
+                        std::vector<PortDescriptorPtr> new_descs = {buffer_expr->get_input_port_descriptor(consumer.get_index())->clone()};
+                        std::vector<PortConnectorPtr> new_inputs = {result_expr->get_output_port_connector(i)};
+                        OutputVector new_op_inputs = {result_expr->get_node()->output(i)};
+                        for (size_t j = 0; j < buffer_expr->get_input_count(); ++j) {
+                            const auto& source = buffer_expr->get_input_port_connector(j)->get_source();
+                            new_op_inputs.push_back(source.get_expr()->get_node()->output(source.get_index()));
+                            new_descs.push_back(buffer_expr->get_input_port_descriptor(j)->clone());
+                            new_inputs.push_back(buffer_expr->get_input_port_connector(j));
                         }
-                        const auto new_buffer = buffer->clone_with_new_inputs(new_inputs);
-                        linear_ir.replace_with_node({consumer_expr}, new_buffer);
+                        const auto new_buffer_op = buffer_expr->get_node()->clone_with_new_inputs(new_op_inputs);
+                        linear_ir.replace_with_expr({consumer_expr}, buffer_expr->clone_with_new_inputs(new_buffer_op, new_inputs, new_descs));
                         break;
                     }
                 }
@@ -81,8 +85,12 @@ size_t InsertSpecificIterations::get_decomposed_loop_work_amount(const UnifiedLo
             return is_dynamic ? remaining_work_amount : increment;
         case (SpecificLoopIterType::MAIN_BODY):
             return is_dynamic ? remaining_work_amount : (remaining_work_amount / increment) * increment;
-        case (SpecificLoopIterType::LAST_ITER):
+        case (SpecificLoopIterType::LAST_ITER): {
+            OPENVINO_ASSERT(is_dynamic || remaining_work_amount < unified_loop_info->get_increment(),
+                            "Last iter work amount (", remaining_work_amount,
+                            ") must be less than the UnifiedLoopInfo's increment: ", unified_loop_info->get_increment());
             return remaining_work_amount;
+        }
         default:
             OPENVINO_THROW("Unknown SpecificLoopIterType!");
     }
@@ -91,14 +99,13 @@ size_t InsertSpecificIterations::get_decomposed_loop_increment(const UnifiedLoop
                                                                size_t remaining_work_amount) {
     OPENVINO_ASSERT(unified_loop_info, "UnifiedLoopInfo is missed!");
     const auto increment = unified_loop_info->get_increment();
-    const auto is_dynamic = utils::is_dynamic_value(remaining_work_amount);
 
     switch (type) {
         case (SpecificLoopIterType::FIRST_ITER):
         case (SpecificLoopIterType::MAIN_BODY):
             return increment;
         case(SpecificLoopIterType::LAST_ITER):
-            return is_dynamic ? 1 : remaining_work_amount;
+            return remaining_work_amount;
         default:
             OPENVINO_THROW("Unknown SpecificLoopIterType!");
     }
@@ -167,10 +174,9 @@ bool InsertSpecificIterations::decompose(LinearIR& linear_ir, LinearIR::constExp
         if (is_decomposed_loop_needed(unified_loop_info, iter_type, remaining_work_amount)) {
             const auto work_amount = get_decomposed_loop_work_amount(unified_loop_info, iter_type, remaining_work_amount);
             const auto increment = get_decomposed_loop_increment(unified_loop_info, iter_type, remaining_work_amount);
-            const auto evaluate_once = !utils::is_dynamic_value(work_amount) && work_amount == increment;
             // Update remaining Loop work amount
             // Note: if work_amount is unknown and increment = 1, it means that a loop will iterate by whole work_amount
-            if (!is_wa_dynamic || increment == 1) {
+            if (!is_wa_dynamic || increment == 1 || iter_type == SpecificLoopIterType::LAST_ITER) {
                 remaining_work_amount -= work_amount;
             }
 
@@ -200,7 +206,7 @@ bool InsertSpecificIterations::decompose(LinearIR& linear_ir, LinearIR::constExp
             const auto decomposed_loop_info = std::make_shared<ExpandedLoopInfo>(work_amount, increment,
                                                                                  decomposed_loop_entry_ports, decomposed_loop_exit_ports,
                                                                                  decomposed_ptr_increments, decomposed_finalization_offsets,
-                                                                                 decomposed_data_sizes, iter_type, unified_loop_info, false, evaluate_once);
+                                                                                 decomposed_data_sizes, iter_type, unified_loop_info);
             init_decomposed_loop(linear_ir, decomposed_loop_begin_it, decomposed_loop_end_it, decomposed_loop_info, loop_id, decomposed_loop_end);
 
             decomposed = true;

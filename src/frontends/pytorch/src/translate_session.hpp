@@ -18,7 +18,7 @@ namespace pytorch {
 class TranslateSession {
 public:
     TranslateSession(const frontend::InputModel::Ptr& input_model,
-                     const std::map<std::string, CreatorFunction>& translator_map,
+                     const std::unordered_map<std::string, CreatorFunction>& translator_map,
                      const std::shared_ptr<TelemetryExtension>& telemetry);
     ~TranslateSession();
     std::shared_ptr<Model> get_converted_model();
@@ -42,7 +42,7 @@ public:
     /// \brief Writes pytorch tensor index into openvino tensor
     void encode_tensor_name(Output<Node> tensor_desc,
                             size_t tensor_idx,
-                            std::vector<std::string> additional_names = {});
+                            const std::vector<std::string>& additional_names = {});
 
     /// \brief Gets pytorch tensor index from openvino tensor
     size_t decode_tensor_name(const Output<Node>& tensor_desc);
@@ -55,7 +55,7 @@ private:
     OutputVector convert_node(const NodeContext& context);
 
     const frontend::InputModel::Ptr m_input_model;
-    const std::map<std::string, CreatorFunction>& m_translator_map;
+    const std::unordered_map<std::string, CreatorFunction>& m_translator_map;
     std::shared_ptr<TelemetryExtension> m_telemetry;
     std::shared_ptr<Model> m_ov_model;
 

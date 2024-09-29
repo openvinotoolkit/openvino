@@ -12,7 +12,7 @@ namespace pass {
 
 /**
  * @interface AnalyzeBroadcastableInputs
- * @brief Analyzes body parameters which affects inputs of broadcastable operations (If needed, `Broadcast` op should be inserted there).s
+ * @brief Analyzes body parameters which affects inputs of broadcastable operations (If needed, `Broadcast` op should be inserted there).
  *        Also the pass initializes special map `BroadcastableInputsMap`
  *        Notes:
  *          - Must be called after Canonicalization pass

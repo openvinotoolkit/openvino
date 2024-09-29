@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_infrastructure_Result_1}
-
 Result
 ======
 
 
 .. meta::
-  :description: Learn about Result-1 - an infrastructure operation, which 
+  :description: Learn about Result-1 - an infrastructure operation, which
                 can be performed on a single input tensor to specify output of the model.
 
 **Versioned name**: *Result-1*

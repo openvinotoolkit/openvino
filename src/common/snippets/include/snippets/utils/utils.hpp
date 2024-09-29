@@ -124,6 +124,11 @@ std::string vector2str(const std::vector<T>& values) {
 
 bool broadcast_merge_dim(size_t& dst, const size_t& d1, const size_t& d2);
 
+// If one of the dims is dynamic, return the other dim (might also be dynamic)
+// If both dims are static, they must be equal - this is the difference from the utility above
+// Can be used in SpecificLoopIterationHandlers
+bool merge_dynamic_dim(size_t& dst, const size_t& d1, const size_t& d2);
+
 VectorDims pshape_to_vdims(const PartialShape&);
 ov::PartialShape vdims_to_pshape(const VectorDims&);
 
@@ -280,7 +285,7 @@ int64_t get_dim_stride(const lowered::ExpressionPort& expr_port, size_t idx = 1)
  * Traversal direction is defined by "visit_parent_path"
  * @param expr The expr from which path is started.
  * @param visited Set of expressions which were visited.
- * @param func The function which is called for each visited node.
+ * @param func The function which is called for each visited node. Please note: the function mustn't modify graph connectivity
  * @param visit_parent_path if true, parent nodes are visited. Otherwise, consumers are visited.
  */
 void visit_path(const lowered::ExpressionPtr& expr,

@@ -7,6 +7,9 @@
 #include "sdpa_kernel_opt.h"
 #include "sdpa_kernel_micro.h"
 
+#include "pa_sdpa_kernel_opt.h"
+#include "pa_kv_cache_update_kernel_ref.h"
+
 namespace kernel_selector {
 
 sdpa_kernel_selector::sdpa_kernel_selector() {
@@ -19,5 +22,21 @@ sdpa_kernel_selector::sdpa_kernel_selector() {
 
 KernelsData sdpa_kernel_selector::GetBestKernels(const Params& params) const {
     return GetNaiveBestKernel(params, KernelType::SDPA);
+}
+
+kv_cache_update_kernel_selector::kv_cache_update_kernel_selector() {
+    Attach<KVCacheUpdateKernelRef>();
+}
+
+KernelsData kv_cache_update_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::PA_KV_CACHE_UPDATE);
+}
+
+pa_sdpa_kernel_selector::pa_sdpa_kernel_selector() {
+    Attach<PagedAttentionSDPAKernelOpt>();
+}
+
+KernelsData pa_sdpa_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::PA_SDPA);
 }
 }  // namespace kernel_selector

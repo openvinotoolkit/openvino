@@ -119,21 +119,28 @@ private:
 
 class Subgraph::SubgraphExecutor {
 public:
+    using BufferScratchpadAllocator = std::function<MemoryPtr(size_t)>;
+
     SubgraphExecutor(const std::shared_ptr<Subgraph::SubgraphAttrs>& snippet_attrs,
                      const std::shared_ptr<Subgraph::SubgraphCodeGenerator>& snippet,
                      const std::vector<ptrdiff_t>& start_offset_in,
-                     const std::vector<ptrdiff_t>& start_offset_out);
+                     const std::vector<ptrdiff_t>& start_offset_out,
+                     const std::shared_ptr<CPURuntimeConfig>& snippet_config,
+                     const BufferScratchpadAllocator& allocator);
     virtual ~SubgraphExecutor() = default;
 
     virtual void exec(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) = 0;
 
 protected:
-    void parallel_for6d(const std::function<void(jit_snippets_call_args&)>& initializer,
+    void parallel_for6d(const std::function<void(jit_snippets_call_args&, size_t)>& initializer,
                         const std::function<void(jit_snippets_call_args&, const size_t*)>& caller);
-    void parallel_forNd(const std::function<void(jit_snippets_call_args&)>& initializer,
+    void parallel_forNd(const std::function<void(jit_snippets_call_args&, size_t)>& initializer,
                         const std::function<void(jit_snippets_call_args&, const size_t*)>& caller);
 
-    virtual void init_runtime_params(const std::shared_ptr<CPURuntimeConfig>& snippet_config);
+    inline void update_scratchpad_ptr(void*& scratchpad_ptr, size_t ithr) const {
+        if (m_buffer_scratchpad_size > 0)
+            scratchpad_ptr = m_buffer_scratchpad->getDataAs<uint8_t>() + ithr * m_buffer_scratchpad_size;
+    }
 
     std::shared_ptr<snippets::Schedule> m_schedule;
     // Holds index of output used as in execution domain
@@ -142,7 +149,7 @@ protected:
     size_t m_harness_work_amount = 0;
 
     // Buffer scratchpad
-    std::vector<uint8_t> m_buffer_scratchpad = {};
+    MemoryPtr m_buffer_scratchpad = nullptr;
     size_t m_buffer_scratchpad_size = 0;
 
     const size_t rank6D = 6;

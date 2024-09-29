@@ -57,6 +57,7 @@ jobs:
           echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
           echo "MODELS_SHARE_PATH=/mount/testdata$((GITHUB_RUN_NUMBER % NUMBER_OF_REPLICAS))" >> "$GITHUB_ENV"
           echo $MODELS_SHARE_PATH
+          echo "LOGS_FOLDER=$GITHUB_WORKSPACE/onnx_models_tests_logs" >> "$GITHUB_ENV"
 
       - name: Extract OpenVINO packages
         run: |
@@ -68,16 +69,20 @@ jobs:
             tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
           popd
 
-      - name: Fetch model_zoo_preprocess script
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
-        with:
-          sparse-checkout: |
-            src/frontends/onnx/tests/tests_python/model_zoo_preprocess.sh
-          sparse-checkout-cone-mode: false
-          path: 'openvino'
+      # Issue 148922
+      # Can be a possible root cause for the bug
+      # Uncomment only when there's a need
+      # to update the models on the shared drive
+      # - name: Fetch model_zoo_preprocess script
+      #   uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+      #   with:
+      #     sparse-checkout: |
+      #       src/frontends/onnx/tests/tests_python/model_zoo_preprocess.sh
+      #     sparse-checkout-cone-mode: false
+      #     path: 'openvino'
 
-      - name: Update Models
-        run: bash ${OPENVINO_REPO}/src/frontends/onnx/tests/tests_python/model_zoo_preprocess.sh -d ${MODELS_SHARE_PATH} -o -s "${{ env.ONNX_MODEL_ZOO_SHA }}"
+      # - name: Update Models
+      #   run: bash ${OPENVINO_REPO}/src/frontends/onnx/tests/tests_python/model_zoo_preprocess.sh -d ${MODELS_SHARE_PATH} -o -s "${{ env.ONNX_MODEL_ZOO_SHA }}"
 
       - name: Install OpenVINO Python wheels
         run: |
@@ -97,5 +102,22 @@ jobs:
           # To enable pytest parallel features
           python3 -m pip install pytest-xdist[psutil] pytest-forked
 
+      - name: Find ONNX models
+        run: |
+          find ${MODELS_SHARE_PATH} -depth -type f -name "*.onnx" -print
+
+      - name: Collect ONNX Models tests
+        run: |
+          python3 -m pytest --backend="CPU" --model_zoo_dir="${MODELS_SHARE_PATH}" ${INSTALL_TEST_DIR}/onnx/tests/tests_python/test_zoo_models.py -v -n 1 -k 'not _cuda' --model_zoo_xfail --collect-only
+
       - name: ONNX Models Tests
-        run: python3 -m pytest --backend="CPU" --model_zoo_dir="${MODELS_SHARE_PATH}" ${INSTALL_TEST_DIR}/onnx/tests/tests_python/test_zoo_models.py -v -n auto --forked -k 'not _cuda' --model_zoo_xfail
+        run: |
+          python3 -m pytest --backend="CPU" --model_zoo_dir="${MODELS_SHARE_PATH}" ${INSTALL_TEST_DIR}/onnx/tests/tests_python/test_zoo_models.py -v -n auto --forked -k 'not _cuda' --model_zoo_xfail
+
+      - name: Upload logs from pytest
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        if: always()
+        with:
+          name: onnx_models_tests_logs
+          path: ${{ env.LOGS_FOLDER }}
+          if-no-files-found: 'ignore'

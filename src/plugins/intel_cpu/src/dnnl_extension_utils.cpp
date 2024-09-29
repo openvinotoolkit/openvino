@@ -172,16 +172,13 @@ DnnlMemoryDescPtr DnnlExtensionUtils::makeDescriptor(const_dnnl_memory_desc_t de
 }
 
 size_t DnnlExtensionUtils::getMemSizeForDnnlDesc(const dnnl::memory::desc& desc) {
-    auto tmpDesc = desc;
+    OPENVINO_ASSERT(IMPLICATION(desc.get_format_kind() == dnnl::memory::format_kind::blocked, desc.get()->offset0 == 0),
+                    "Unexpected non zero offset for a dnnl blocked memory desc");
 
-    const auto offset0 = tmpDesc.get()->offset0;
-    tmpDesc.get()->offset0 = 0;
-
-    size_t size = tmpDesc.get_size();
+    size_t size = desc.get_size();
     if (size == DNNL_RUNTIME_SIZE_VAL)
         return MemoryDesc::UNDEFINED_SIZE;
 
-    size += offset0 * sizeOfDataType(tmpDesc.get_data_type());
     return size;
 }
 
@@ -266,8 +263,8 @@ bool DnnlExtensionUtils::isUnarySupportedAsPostOp(Algorithm alg) {
 #endif
 }
 
-std::string DnnlExtensionUtils::computeWeightsStringHash(const std::shared_ptr<const IMemory> memory,
-                                                         const std::shared_ptr<DnnlMemoryDesc> dstDesc) {
+std::string DnnlExtensionUtils::computeWeightsStringHash(const std::shared_ptr<const IMemory>& memory,
+                                                         const std::shared_ptr<DnnlMemoryDesc>& dstDesc) {
     const auto desc_hash = dnnl::impl::primitive_hashing::get_md_hash(*dstDesc->getDnnlDesc().get());
     return std::to_string(desc_hash) + "_" + std::to_string(reinterpret_cast<uint64_t>(memory->getData()));
 }

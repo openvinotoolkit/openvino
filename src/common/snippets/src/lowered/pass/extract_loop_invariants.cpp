@@ -14,6 +14,34 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 namespace {
+
+// Sort Loop IDs by execution order of these Loops
+std::vector<size_t> get_reordered_loop_ids(const LoopManagerPtr& loop_manager) {
+    const auto& loop_map = loop_manager->get_map();
+    std::vector<size_t> loop_ids_need_extract;
+    loop_ids_need_extract.reserve(loop_map.size());
+    for (const auto& p : loop_map)
+        loop_ids_need_extract.push_back(p.first);
+
+    auto sorter = [&](size_t lhs, size_t rhs) {
+        const auto lhs_last_expr = loop_manager->get_loop_info(lhs)->get_output_ports().back().expr_port->get_expr();
+        const auto rhs_last_expr = loop_manager->get_loop_info(rhs)->get_output_ports().back().expr_port->get_expr();
+        // If last output loop ports are the same expressions - first executive Loop has inner ID in expression loop IDs.
+        if (lhs_last_expr == rhs_last_expr) {
+            for (const auto& id : lhs_last_expr->get_loop_ids()) {
+                if (id == lhs) return false;
+                if (id == rhs) return true;
+            }
+            OPENVINO_THROW("Incorrect Loop IDs");
+        } else {
+            return lhs_last_expr->get_exec_num() < rhs_last_expr->get_exec_num();
+        }
+    };
+
+    std::sort(loop_ids_need_extract.begin(), loop_ids_need_extract.end(), sorter);
+    return loop_ids_need_extract;
+}
+
 void remove_last_loop_id(const std::shared_ptr<Expression>& expr) {
     auto loop_ids = expr->get_loop_ids();
     OPENVINO_ASSERT(!loop_ids.empty(), "Expr loop_ids should not be empty when remove last loop id.");
@@ -33,7 +61,14 @@ int64_t get_stride_after_move_outer(const LoopPort& loop_port) {
     }
 }
 
-bool is_extraction_applicable(const ExpressionPtr& expr, const UnifiedLoopInfoPtr& inner_loop_info) {
+bool is_extraction_applicable(const ExpressionPtr& expr, const UnifiedLoopInfoPtr& inner_loop_info, size_t loop_id) {
+    // Extraction is possible only from the innermost Loop!
+    // We cannot extract Expression from the outermost or any intermediate Loop with other Loops inside
+    const auto& loop_ids = expr->get_loop_ids();
+    OPENVINO_ASSERT(!loop_ids.empty(), "Expression must be in a Loop");
+    if (loop_ids.back() != loop_id)
+        return false;
+
     const auto& expr_input_ports = expr->get_input_ports();
     const auto& input_port_size = expr_input_ports.size();
     if (input_port_size == 0)
@@ -134,7 +169,7 @@ bool extract_from_loop(const size_t& inner_loop_id, LinearIR& linear_ir) {
         const auto& potential_extractable_exprs = get_loop_input_exprs(inner_loop_input_ports);
         bool expr_extracted = false;
         for (const auto& port_expr : potential_extractable_exprs) {
-            if (is_extraction_applicable(port_expr, inner_loop_info)) {
+            if (is_extraction_applicable(port_expr, inner_loop_info, inner_loop_id)) {
                 status = true;
                 LinearIR::constExprIt inner_loop_begin_pos, inner_loop_end_pos;
                 std::tie(inner_loop_begin_pos, inner_loop_end_pos) = loop_manager->get_loop_bounds(linear_ir, inner_loop_id);
@@ -179,22 +214,10 @@ bool ExtractLoopInvariants::run(LinearIR& linear_ir, lowered::LinearIR::constExp
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::ExtractLoopInvariants")
     bool modified = false;
 
-    const auto& loop_depth = linear_ir.get_config().m_loop_depth;
-    std::vector<std::set<size_t>> loop_ids_need_extract(loop_depth);
-    const auto& loop_map = linear_ir.get_loop_manager()->get_map();
-    for (const auto& loop : loop_map) {
-        const auto& loop_dim = loop.second->get_dim_idx();
-        if (loop_dim != LoopInfo::UNDEFINED_DIM_IDX) {
-            OPENVINO_ASSERT(loop_dim < loop_depth, "dim_idx of loop should be smaller than loop_depth");
-            loop_ids_need_extract[loop_dim].insert(loop.first);
-        }
-    }
     // move invariant expr to top(outside) of current loop
-    for (size_t d = 0; d < loop_depth; d++) {
-        const auto& loops_in_this_depth = loop_ids_need_extract[d];
-        for (const auto& loop_id : loops_in_this_depth) {
-            modified |= extract_from_loop(loop_id, linear_ir);
-        }
+    const auto loop_ids_need_extract = get_reordered_loop_ids(linear_ir.get_loop_manager());
+    for (const auto& loop_id : loop_ids_need_extract) {
+        modified |= extract_from_loop(loop_id, linear_ir);
     }
 
     return modified;

@@ -236,8 +236,8 @@ Convert Tokenizers:
 
          tokenizer_dir = Path("tokenizer/")
          core = Core()
-         ov_tokenizer = core.read_model(tokenizer_dir / "openvino_tokenizer")
-         ov_detokenizer = core.read_model(tokenizer_dir / "openvino_detokenizer")
+         ov_tokenizer = core.read_model(tokenizer_dir / "openvino_tokenizer.xml")
+         ov_detokenizer = core.read_model(tokenizer_dir / "openvino_detokenizer.xml")
 
          tokenizer, detokenizer = core.compile_model(ov_tokenizer), core.compile_model(ov_detokenizer)
 
@@ -278,7 +278,7 @@ You can find more information and code snippets in the `OpenVINO Tokenizers Note
 
 .. code-block:: python
 
-   input numpy as np
+   import numpy as np
 
    text_input = ["Quick brown fox jumped"]
 

@@ -10,6 +10,7 @@
 #include "openvino/frontend/manager.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/runtime/core.hpp"
 #include "transformations/rt_info/attributes.hpp"
 
 class RTInfoSerializationTest : public ov::test::TestsCommon {
@@ -220,4 +221,81 @@ TEST_F(RTInfoSerializationTest, tag_names_verification) {
                       ASSERT_TRUE(model_rt_info.count(item.first));
                       ASSERT_EQ(model_rt_info[item.first], item.second);
                   });
+}
+
+TEST(OvSerializationTests, SerializeRawMeta) {
+    std::string ir_with_rt_info = R"V0G0N(<?xml version="1.0"?>
+<net name="Model0" version="11">
+	<layers>
+		<layer id="0" name="Parameter_1" type="Parameter" version="opset1">
+			<data shape="3,20,20" element_type="u8" />
+			<output>
+				<port id="0" precision="U8">
+					<dim>3</dim>
+					<dim>20</dim>
+					<dim>20</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="Result_2" type="Result" version="opset1">
+			<input>
+				<port id="0" precision="U8">
+					<dim>3</dim>
+					<dim>20</dim>
+					<dim>20</dim>
+				</port>
+			</input>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="1" to-port="0" />
+	</edges>
+	<rt_info>
+		<custom_rt_info1>
+			<item0 value="testvalue1" />
+		</custom_rt_info1>
+		<custom_rt_info2>
+			<item0 value="testvalue2" />
+		</custom_rt_info2>
+	</rt_info>
+</net>
+)V0G0N";
+    ov::Core core;
+    {
+        // Don't read meta data. Copy raw pugixml::node from MetaDataWithPugixml to serialized model
+        auto model = core.read_model(ir_with_rt_info, ov::Tensor());
+
+        std::stringstream model_ss, weights_ss;
+        ov::pass::Serialize(model_ss, weights_ss).run_on_model(model);
+
+        auto serialized_model = model_ss.str();
+        EXPECT_EQ(0, serialized_model.compare(ir_with_rt_info));
+    }
+
+    {
+        // Don't read meta data. Fully serialize AnyMap with meta
+        auto model = core.read_model(ir_with_rt_info, ov::Tensor());
+        auto custom_rt_info1_value = model->get_rt_info<std::string>("custom_rt_info1", "item0");
+        EXPECT_EQ(0, custom_rt_info1_value.compare("testvalue1"));
+        auto custom_rt_info2_value = model->get_rt_info<std::string>("custom_rt_info2", "item0");
+        EXPECT_EQ(0, custom_rt_info2_value.compare("testvalue2"));
+
+        std::stringstream model_ss, weights_ss;
+        ov::pass::Serialize(model_ss, weights_ss).run_on_model(model);
+
+        auto serialized_model = model_ss.str();
+        EXPECT_EQ(0, serialized_model.compare(ir_with_rt_info));
+    }
+
+    {
+        auto model = core.read_model(ir_with_rt_info, ov::Tensor());
+        auto custom_rt_info1_value = model->get_rt_info<std::string>("custom_rt_info1", "item0");
+        EXPECT_EQ(0, custom_rt_info1_value.compare("testvalue1"));
+
+        std::stringstream model_ss, weights_ss;
+        ov::pass::Serialize(model_ss, weights_ss).run_on_model(model);
+
+        auto serialized_model = model_ss.str();
+        EXPECT_EQ(0, serialized_model.compare(ir_with_rt_info));
+    }
 }

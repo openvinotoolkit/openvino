@@ -27,10 +27,11 @@ constexpr std::string_view NO_EXECUTOR_FOR_INFERENCE =
     "Can't create infer request!\n"
     "Please make sure that the device is available. Only exports can be made.";
 
-std::uint32_t hash(const std::vector<uint8_t>& data) {
+std::uint32_t hash(const intel_npu::CompiledNetwork& blob) {
     std::uint32_t result = 1171117u;
-    for (const auto& c : data)
-        result = ((result << 7) + result) + static_cast<uint32_t>(c);
+    for (const uint8_t* it = blob.data; it != blob.data + blob.size; ++it) {
+        result = ((result << 7) + result) + static_cast<uint32_t>(*it);
+    }
     return result;
 }
 
@@ -51,12 +52,13 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
       _config(config),
       _logger("CompiledModel", config.get<LOG_LEVEL>()),
       _device(device),
-      _compiler(profiling ? std::optional(compiler) : std::nullopt) {
+      _compiler(compiler) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::CompiledModel");
     OPENVINO_ASSERT(compiler != nullptr, "NPU CompiledModel: the pointer towards the compiler object is null");
 
     try {
-        _networkPtr = std::make_shared<const NetworkDescription>(compiler->compile(model, config));
+        _logger.debug("performing compile and expecting a network description");
+        _networkPtr = std::make_shared<const NetworkDescription>(_compiler->compile(model, config));
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {
@@ -78,7 +80,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
                              const std::shared_ptr<const NetworkDescription>& networkDescription,
                              const std::shared_ptr<IDevice>& device,
-                             const std::optional<ov::SoPtr<ICompiler>>& compiler,
+                             const ov::SoPtr<ICompiler>& compiler,
                              const Config& config)
     : ICompiledModel(model, plugin),
       _networkPtr(networkDescription),
@@ -99,6 +101,15 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
     create_executor();
 
     OV_ITT_TASK_SKIP(COMPILED_MODEL);
+}
+
+CompiledModel::~CompiledModel() {
+    _logger.debug("~CompiledModel()");
+    // Call compiler to destroy graphHandle only if no executor created
+    if (_executorPtr == nullptr) {
+        _logger.debug("~CompiledModel() - _executorPtr is a nullptr, compiler release _executorPtr");
+        _compiler->release(_networkPtr);
+    }
 }
 
 std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() const {
@@ -128,17 +139,20 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
 }
 
 void CompiledModel::export_model(std::ostream& stream) const {
-    const auto& blob = _networkPtr->compiledNetwork;
-    stream.write(reinterpret_cast<const char*>(blob.data()), blob.size());
+    _logger.debug("CompiledModel::export_model");
+    const auto blob = _compiler->getCompiledNetwork(*_networkPtr);
+    stream.write(reinterpret_cast<const char*>(blob.data), blob.size);
+
     if (!stream) {
         _logger.error("Write blob to stream failed. Blob is broken!");
     } else {
+        if (_logger.level() >= ov::log::Level::INFO) {
+            std::stringstream str;
+            str << "Blob size: " << blob.size << ", hash: " << std::hex << hash(blob);
+            _logger.info(str.str().c_str());
+        }
         _logger.info("Write blob to stream successfully.");
     }
-
-    std::stringstream str;
-    str << "Blob size: " << blob.size() << ", hash: " << std::hex << hash(blob);
-    _logger.info(str.str().c_str());
 }
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
@@ -185,10 +199,7 @@ const Config& CompiledModel::get_config() const {
 }
 
 const ov::SoPtr<ICompiler>& CompiledModel::get_compiler() const {
-    if (_compiler.has_value()) {
-        return _compiler.value();
-    }
-    OPENVINO_THROW("PERF_COUNT property is not set");
+    return _compiler;
 }
 
 void CompiledModel::configure_stream_executors() {
@@ -214,7 +225,7 @@ void CompiledModel::configure_stream_executors() {
 }
 
 void CompiledModel::initialize_properties() {
-    const auto& pluginSupportedProperties =
+    const auto pluginSupportedProperties =
         get_plugin()->get_property(ov::supported_properties.name(), {}).as<std::vector<ov::PropertyName>>();
     const auto isPropertySupported = [&pluginSupportedProperties](const std::string& name) {
         return std::any_of(pluginSupportedProperties.begin(),

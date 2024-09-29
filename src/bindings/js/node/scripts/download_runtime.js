@@ -25,10 +25,11 @@ async function main() {
 
   try {
     await downloadRuntime(destinationPath, { force, ignoreIfExists, proxy });
-  } catch (error) {
+  } catch(error) {
     if (error instanceof RuntimeExistsError) {
       console.error(
-        `Directory '${destinationPath}' already exists. To force runtime downloading run 'npm run download_runtime -- -f'`
+        `Directory '${destinationPath}' already exists. ` +
+          'To force runtime downloading run \'npm run download_runtime -- -f\'',
       );
     } else {
       throw error;
@@ -52,27 +53,35 @@ class RuntimeExistsError extends Error {
  * @function downloadRuntime
  * @param {string} destinationPath - The destination directory path.
  * @param {Object} [config] - The configuration object.
- * @param {boolean} [config.force=false] - The flag to force install and replace runtime if it exists. Default is `false`.
- * @param {boolean} [config.ignoreIfExists=true] - The flag to skip installation if it exists Default is `true`.
+ * @param {boolean} [config.force=false] - The flag
+ * to force install and replace runtime if it exists. Default is `false`.
+ * @param {boolean} [config.ignoreIfExists=true] - The flag
+ * to skip installation if it exists Default is `true`.
  * @param {string|null} [config.proxy=null] - The proxy URL. Default is `null`.
  * @returns {Promise<void>}
  * @throws {RuntimeExistsError}
  */
-async function downloadRuntime(destinationPath, config = { force: false, ignoreIfExists: true, proxy: null }) {
+async function downloadRuntime(
+  destinationPath,
+  config = { force: false, ignoreIfExists: true, proxy: null },
+) {
   const { version } = packageJson;
   const osInfo = await getOsInfo();
-  const isRuntimeDirectoryExists = await checkIfDirectoryExists(destinationPath);
+  const isRuntimeDirectoryExists = await checkIfPathExists(destinationPath);
 
   if (isRuntimeDirectoryExists && !config.force) {
     if (config.ignoreIfExists) {
       console.warn(
-        `Directory '${destinationPath}' already exists. Skipping runtime downloading because 'ignoreIfExists' flag is passed.`
+        `Directory '${destinationPath}' already exists. Skipping ` +
+          'runtime downloading because \'ignoreIfExists\' flag is passed.',
       );
+
       return;
     }
 
     throw new RuntimeExistsError(
-      `Directory '${destinationPath}' already exists. To force runtime downloading use 'force' flag.`
+      `Directory '${destinationPath}' already exists. ` +
+        'To force runtime downloading use \'force\' flag.',
     );
   }
 
@@ -87,7 +96,12 @@ async function downloadRuntime(destinationPath, config = { force: false, ignoreI
     await fs.mkdir(tempDirectoryPath);
 
     console.log('Downloading OpenVINO runtime archive...');
-    await downloadFile(runtimeArchiveUrl, filename, tempDirectoryPath, config.proxy);
+    await downloadFile(
+      runtimeArchiveUrl,
+      tempDirectoryPath,
+      filename,
+      config.proxy,
+    );
     console.log('OpenVINO runtime archive downloaded.');
 
     await removeDirectory(destinationPath);
@@ -96,7 +110,7 @@ async function downloadRuntime(destinationPath, config = { force: false, ignoreI
     await unarchive(archiveFilePath, destinationPath);
 
     console.log('The archive was successfully extracted.');
-  } catch (error) {    
+  } catch(error) {
     console.error(`Failed to download OpenVINO runtime: ${error}.`);
     throw error;
   } finally {
@@ -139,18 +153,19 @@ async function getOsInfo() {
 }
 
 /**
- * Check if directory exists.
+ * Check if path exists.
  *
  * @async
- * @function checkIfDirectoryExists
- * @param {string} directoryPath - The directory path.
+ * @function checkIfPathExists
+ * @param {string} path - The path to directory or file.
  * @returns {Promise<boolean>}
  */
-async function checkIfDirectoryExists(directoryPath) {
+async function checkIfPathExists(path) {
   try {
-    await fs.access(directoryPath);
+    await fs.access(path);
+
     return true;
-  } catch (error) {
+  } catch(error) {
     if (error.code === codeENOENT) {
       return false;
     }
@@ -167,12 +182,12 @@ async function checkIfDirectoryExists(directoryPath) {
  * @returns {string}
  */
 function getRuntimeArchiveUrl(version, osInfo) {
-  const { 
+  const {
     host,
     package_name: packageNameTemplate,
     remote_path: remotePathTemplate,
   } = packageJson.binary;
-  const fullPathTemplate = `${remotePathTemplate}${packageNameTemplate}`
+  const fullPathTemplate = `${remotePathTemplate}${packageNameTemplate}`;
   const fullPath = fullPathTemplate
     .replace(new RegExp('{version}', 'g'), version)
     .replace(new RegExp('{platform}', 'g'), osInfo.platform)
@@ -193,7 +208,7 @@ async function removeDirectory(path) {
   try {
     console.log(`Removing ${path}`);
     await fs.rm(path, { recursive: true, force: true });
-  } catch (error) {
+  } catch(error) {
     if (error.code === codeENOENT) console.log(`Path: ${path} doesn't exist`);
 
     throw error;
@@ -210,12 +225,12 @@ async function removeDirectory(path) {
  * @param {string} [proxy=null] - (Optional) The proxy URL.
  * @returns {Promise<void>}
  */
-function downloadFile(url, filename, destination, proxy = null) {
+function downloadFile(url, destination, filename, proxy = null) {
   const timeout = 5000;
   const fullPath = path.resolve(destination, filename);
   const file = createWriteStream(fullPath);
 
-  if (new URL(url).protocol === 'http') 
+  if (new URL(url).protocol === 'http')
     throw new Error('Http link doesn\'t support');
 
   let agent;
@@ -271,14 +286,17 @@ function unarchive(tarFilePath, dest) {
   return new Promise((resolve, reject) => {
     createReadStream(tarFilePath)
       .pipe(gunzip())
-      .pipe(tar.extract(dest)
-        .on('finish', () => {
-          resolve();
-        }).on('error', (err) => {
-          reject(err);
-        }),
+      .pipe(
+        tar
+          .extract(dest)
+          .on('finish', () => {
+            resolve();
+          })
+          .on('error', (err) => {
+            reject(err);
+          }),
       );
   });
 }
 
-module.exports = { downloadRuntime };
+module.exports = { downloadRuntime, downloadFile, checkIfPathExists };

@@ -8,7 +8,7 @@ Run LLM Inference on OpenVINO with the GenAI Flavor
    :maxdepth: 1
    :hidden:
 
-   genai-guide-npu
+   NPU inference of LLMs <genai-guide-npu>
 
 
 This guide will show you how to integrate the OpenVINO GenAI flavor into your application, covering
@@ -317,7 +317,7 @@ OpenVINO GenAI Flavor includes the following API:
 
 * visibility  -  controls the visibility of the GenAI library.
 
-Learn more about API in the `GenAI repository <https://github.com/openvinotoolkit/openvino.genai/tree/master/src/cpp/include/openvino/genai>`__.
+Learn more in the `GenAI API reference <https://docs.openvino.ai/2024/api/genai_api/api.html>`__.
 
 Additional Resources
 ####################

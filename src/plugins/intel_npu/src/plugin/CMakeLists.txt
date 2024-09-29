@@ -62,16 +62,13 @@ target_include_directories(${TARGET_NAME}
 )
 target_include_directories(${TARGET_NAME}
     SYSTEM PRIVATE
-        ${NPU_PLUGIN_SOURCE_DIR}/thirdparty/level-zero/include
-        ${NPU_PLUGIN_SOURCE_DIR}/thirdparty/level-zero-ext
+        $<TARGET_PROPERTY:LevelZero::LevelZero,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:LevelZero::NPUExt,INTERFACE_INCLUDE_DIRECTORIES>
 )
 
-if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-  target_compile_options(${TARGET_NAME} PRIVATE -mavx2 -mf16c)
-elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-  target_compile_options(${TARGET_NAME} PRIVATE /arch:AVX2)
-else()
-  message(AUTHOR_WARNING "Unknown compiler, may miss the AVX2 baseline setting")
+if(ENABLE_AVX2)
+    ov_avx2_optimization_flags(avx2_flags)
+    target_compile_options(${TARGET_NAME} PRIVATE "${avx2_flags}")
 endif()
 
 ov_add_api_validator_post_build_step(TARGET ${NPU_PLUGIN_TARGET})

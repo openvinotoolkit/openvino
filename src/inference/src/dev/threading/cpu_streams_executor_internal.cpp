@@ -92,8 +92,15 @@ void reserve_cpu_by_streams_info(const std::vector<std::vector<int>> _streams_in
     int num_conditions = 0;
     int condition_idx = 0;
     bool last_all_proc = false;
+    bool sub_stream_enable = false;
 
     for (size_t i = 0; i < _streams_info_table.size(); i++) {
+        if (i > 0 && _streams_info_table[i][NUMBER_OF_STREAMS] < 0 &&
+            _streams_info_table[i - 1][NUMBER_OF_STREAMS] > 0) {
+            stream_pos.clear();
+            num_streams = 0;
+            sub_stream_enable = true;
+        }
         if (_streams_info_table[i][NUMBER_OF_STREAMS] != 0) {
             stream_pos.push_back(num_streams);
         }
@@ -109,11 +116,15 @@ void reserve_cpu_by_streams_info(const std::vector<std::vector<int>> _streams_in
         std::string proc_type = "";
         std::string numa_node = "";
         std::string socket = "";
-        if (_streams_info_table[i][NUMBER_OF_STREAMS] != 0) {
+        if ((_streams_info_table[i][NUMBER_OF_STREAMS] > 0 && !sub_stream_enable) ||
+            (_streams_info_table[i][NUMBER_OF_STREAMS] < 0 && sub_stream_enable)) {
             streams_table.push_back(_streams_info_table[i]);
             if (_streams_info_table[i][NUMBER_OF_STREAMS] < 0) {
-                streams_table[streams_table.size() - 1][NUMBER_OF_STREAMS] = 1;
+                streams_table[streams_table.size() - 1][NUMBER_OF_STREAMS] =
+                    std::abs(_streams_info_table[i][NUMBER_OF_STREAMS]);
             }
+        } else if (_streams_info_table[i][NUMBER_OF_STREAMS] != 0) {
+            continue;
         }
         if (last_all_proc && _streams_info_table[i][NUMBER_OF_STREAMS] != 0) {
             last_all_proc = false;
@@ -135,7 +146,7 @@ void reserve_cpu_by_streams_info(const std::vector<std::vector<int>> _streams_in
                 std::make_pair(proc_type + numa_node + socket, _streams_info_table[i][THREADS_PER_STREAM]));
             threads_status[condition_idx].push_back(0);
         }
-        if (_streams_info_table[i][PROC_TYPE] > ALL_PROC && _streams_info_table[i][NUMBER_OF_STREAMS] > 0) {
+        if (_streams_info_table[i][PROC_TYPE] > ALL_PROC && _streams_info_table[i][NUMBER_OF_STREAMS] != 0) {
             condition_idx++;
         }
     }

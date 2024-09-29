@@ -58,17 +58,14 @@ StreamsCalculationTestCase _2sockets_104cores_latency_auto_1 = {
     0,          // param[in]: the current socket id of the running thread in this simulation
     "LATENCY",  // param[in]: the performance hint in this simulation
     {ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL},  // param[in]: the hint of max threads per stream in this
-                                                        // simulation
+                                                           // simulation
     {{208, 104, 0, 104, -1, -1},
      {104, 52, 0, 52, 0, 0},
      {104, 52, 0, 52, 1, 1}},  // param[in]: the proc_type_table in this simulation
-    {{1, ALL_PROC, 104, 0, 0},
-     {0, MAIN_CORE_PROC, 52, 0, 0},
-     {0, HYPER_THREADING_PROC, 52, 0, 0},
-     {-1, ALL_PROC, 104, 1, 1},
-     {0, MAIN_CORE_PROC, 52, 1, 1},
-     {0, HYPER_THREADING_PROC, 52, 1, 1}},  // param[expected out]: the expected result of streams_info_table in this
-                                            // simulation
+    {{1, MAIN_CORE_PROC, 64, -1, -1},
+     {-1, MAIN_CORE_PROC, 32, 0, 0},
+     {-1, MAIN_CORE_PROC, 32, 1, 1}},  // param[expected out]: the expected result of streams_info_table in this
+                                       // simulation
 };
 
 StreamsCalculationTestCase _2sockets_104cores_latency_auto_2 = {
@@ -81,7 +78,7 @@ StreamsCalculationTestCase _2sockets_104cores_latency_auto_2 = {
     "LATENCY",
     {ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL},
     {{104, 104, 0, 0, -1, -1}, {52, 52, 0, 0, 0, 0}, {52, 52, 0, 0, 1, 1}},
-    {{1, MAIN_CORE_PROC, 52, 0, 0}, {-1, MAIN_CORE_PROC, 52, 1, 1}},
+    {{1, MAIN_CORE_PROC, 64, -1, -1}, {-1, MAIN_CORE_PROC, 32, 0, 0}, {-1, MAIN_CORE_PROC, 32, 1, 1}},
 };
 StreamsCalculationTestCase _2sockets_104cores_latency_auto_3 = {
     1,
@@ -97,16 +94,13 @@ StreamsCalculationTestCase _2sockets_104cores_latency_auto_3 = {
      {52, 26, 0, 26, 1, 0},
      {52, 26, 0, 26, 2, 1},
      {52, 26, 0, 26, 3, 1}},
-    {{1, ALL_PROC, 104, -1, 0},
+    {{1, ALL_PROC, 64, -1, -1},
+     {-1, ALL_PROC, 32, -1, 0},
      {0, MAIN_CORE_PROC, 26, 0, 0},
-     {0, MAIN_CORE_PROC, 26, 1, 0},
-     {0, HYPER_THREADING_PROC, 26, 0, 0},
-     {0, HYPER_THREADING_PROC, 26, 1, 0},
-     {-1, ALL_PROC, 104, -1, 1},
+     {0, MAIN_CORE_PROC, 6, 1, 0},
+     {-1, ALL_PROC, 32, -1, 1},
      {0, MAIN_CORE_PROC, 26, 2, 1},
-     {0, MAIN_CORE_PROC, 26, 3, 1},
-     {0, HYPER_THREADING_PROC, 26, 2, 1},
-     {0, HYPER_THREADING_PROC, 26, 3, 1}},
+     {0, MAIN_CORE_PROC, 6, 3, 1}},
 };
 StreamsCalculationTestCase _2sockets_104cores_latency_auto_4 = {
     1,
@@ -118,12 +112,13 @@ StreamsCalculationTestCase _2sockets_104cores_latency_auto_4 = {
     "LATENCY",
     {ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL},
     {{104, 104, 0, 0, -1, -1}, {26, 26, 0, 0, 0, 0}, {26, 26, 0, 0, 1, 0}, {26, 26, 0, 0, 2, 1}, {26, 26, 0, 0, 3, 1}},
-    {{1, ALL_PROC, 52, -1, 0},
+    {{1, ALL_PROC, 64, -1, -1},
+     {-1, ALL_PROC, 32, -1, 0},
      {0, MAIN_CORE_PROC, 26, 0, 0},
-     {0, MAIN_CORE_PROC, 26, 1, 0},
-     {-1, ALL_PROC, 52, -1, 1},
+     {0, MAIN_CORE_PROC, 6, 1, 0},
+     {-1, ALL_PROC, 32, -1, 1},
      {0, MAIN_CORE_PROC, 26, 2, 1},
-     {0, MAIN_CORE_PROC, 26, 3, 1}},
+     {0, MAIN_CORE_PROC, 6, 3, 1}},
 };
 StreamsCalculationTestCase _2sockets_104cores_latency_platform_1 = {
     1,
@@ -2295,9 +2290,10 @@ StreamsCalculationTestCase _2sockets_mock_latency_22 = {
     "LATENCY",
     {ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL},
     {{60, 30, 0, 30, -1, -1}, {40, 20, 0, 20, 0, 0}, {20, 10, 0, 10, 1, 1}},
-    {{1, ALL_PROC, 40, 0, 0},
+    {{1, ALL_PROC, 52, -1, -1},
+     {-1, ALL_PROC, 32, 0, 0},
      {0, MAIN_CORE_PROC, 20, 0, 0},
-     {0, HYPER_THREADING_PROC, 20, 0, 0},
+     {0, HYPER_THREADING_PROC, 12, 0, 0},
      {-1, ALL_PROC, 20, 1, 1},
      {0, MAIN_CORE_PROC, 10, 1, 1},
      {0, HYPER_THREADING_PROC, 10, 1, 1}},
@@ -2340,16 +2336,12 @@ StreamsCalculationTestCase _2sockets_mock_latency_25 = {
      {60, 30, 0, 30, 1, 0},
      {40, 20, 0, 20, 2, 1},
      {20, 10, 0, 10, 3, 1}},
-    {{1, ALL_PROC, 140, -1, 0},
-     {0, MAIN_CORE_PROC, 40, 0, 0},
-     {0, MAIN_CORE_PROC, 30, 1, 0},
-     {0, HYPER_THREADING_PROC, 40, 0, 0},
-     {0, HYPER_THREADING_PROC, 30, 1, 0},
-     {-1, ALL_PROC, 60, -1, 1},
+    {{1, ALL_PROC, 64, -1, -1},
+     {-1, MAIN_CORE_PROC, 32, 0, 0},
+     {-1, ALL_PROC, 32, -1, 1},
      {0, MAIN_CORE_PROC, 20, 2, 1},
      {0, MAIN_CORE_PROC, 10, 3, 1},
-     {0, HYPER_THREADING_PROC, 20, 2, 1},
-     {0, HYPER_THREADING_PROC, 10, 3, 1}},
+     {0, HYPER_THREADING_PROC, 2, 2, 1}},
 };
 StreamsCalculationTestCase _2sockets_mock_latency_26 = {
     1,
@@ -2405,16 +2397,12 @@ StreamsCalculationTestCase _2sockets_mock_latency_28 = {
      {60, 30, 0, 30, 1, 0},
      {40, 20, 0, 20, 2, 1},
      {20, 10, 0, 10, 3, 1}},
-    {{1, ALL_PROC, 140, -1, 0},
-     {0, MAIN_CORE_PROC, 40, 0, 0},
-     {0, MAIN_CORE_PROC, 30, 1, 0},
-     {0, HYPER_THREADING_PROC, 40, 0, 0},
-     {0, HYPER_THREADING_PROC, 30, 1, 0},
-     {-1, ALL_PROC, 60, -1, 1},
+    {{1, ALL_PROC, 64, -1, -1},
+     {-1, MAIN_CORE_PROC, 32, 0, 0},
+     {-1, ALL_PROC, 32, -1, 1},
      {0, MAIN_CORE_PROC, 20, 2, 1},
      {0, MAIN_CORE_PROC, 10, 3, 1},
-     {0, HYPER_THREADING_PROC, 20, 2, 1},
-     {0, HYPER_THREADING_PROC, 10, 3, 1}},
+     {0, HYPER_THREADING_PROC, 2, 2, 1}},
 };
 StreamsCalculationTestCase _2sockets_mock_latency_29 = {
     1,
@@ -2470,11 +2458,12 @@ StreamsCalculationTestCase _2sockets_mock_latency_31 = {
      {60, 30, 0, 30, 1, 0},
      {40, 20, 0, 20, 2, 1},
      {20, 10, 0, 10, 3, 1}},
-    {{1, ALL_PROC, 140, -1, 0},
-     {0, MAIN_CORE_PROC, 40, 0, 0},
-     {0, MAIN_CORE_PROC, 30, 1, 0},
-     {0, HYPER_THREADING_PROC, 40, 0, 0},
-     {0, HYPER_THREADING_PROC, 30, 1, 0}},
+    {{1, ALL_PROC, 64, -1, -1},
+     {-1, MAIN_CORE_PROC, 32, 0, 0},
+     {-1, ALL_PROC, 32, -1, 1},
+     {0, MAIN_CORE_PROC, 20, 2, 1},
+     {0, MAIN_CORE_PROC, 10, 3, 1},
+     {0, HYPER_THREADING_PROC, 2, 2, 1}},
 };
 StreamsCalculationTestCase _2sockets_mock_latency_32 = {
     1,
@@ -2518,7 +2507,7 @@ StreamsCalculationTestCase _2sockets_mock_latency_34 = {
     "LATENCY",
     {ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL},
     {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
-    {{1, MAIN_CORE_PROC, 24, 0, 0}, {-1, MAIN_CORE_PROC, 24, 1, 1}},
+    {{1, MAIN_CORE_PROC, 48, -1, -1}, {-1, MAIN_CORE_PROC, 24, 0, 0}, {-1, MAIN_CORE_PROC, 24, 1, 1}},
 };
 StreamsCalculationTestCase _1sockets_mock_latency_1 = {
     1,
@@ -2642,7 +2631,23 @@ StreamsCalculationTestCase _2sockets_mock_latency_37 = {
     "LATENCY",
     {ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL},
     {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
-    {{1, MAIN_CORE_PROC, 24, 1, 1}, {-1, MAIN_CORE_PROC, 24, 0, 0}},
+    {{1, MAIN_CORE_PROC, 48, -1, -1}, {-1, MAIN_CORE_PROC, 24, 1, 1}, {-1, MAIN_CORE_PROC, 24, 0, 0}},
+};
+StreamsCalculationTestCase _2sockets_mock_latency_38 = {
+    1,
+    false,
+    0,
+    0,
+    0,
+    0,
+    "LATENCY",
+    {ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL},
+    {{256, 128, 0, 128, 0, 0},
+     {64, 32, 0, 32, 0, 0},
+     {64, 32, 0, 32, 1, 0},
+     {64, 32, 0, 32, 2, 1},
+     {64, 32, 0, 32, 3, 1}},
+    {{1, MAIN_CORE_PROC, 64, -1, -1}, {-1, MAIN_CORE_PROC, 32, 0, 0}, {-1, MAIN_CORE_PROC, 32, 2, 1}},
 };
 TEST_P(StreamsCalculationTests, StreamsCalculation) {}
 
@@ -2826,6 +2831,7 @@ INSTANTIATE_TEST_SUITE_P(StreamsInfoTable,
                                          _2sockets_mock_latency_35,
                                          _2sockets_mock_latency_36,
                                          _2sockets_mock_latency_37,
+                                         _2sockets_mock_latency_38,
                                          _1sockets_mock_latency_1,
                                          _1sockets_mock_latency_2,
                                          _1sockets_mock_latency_3,

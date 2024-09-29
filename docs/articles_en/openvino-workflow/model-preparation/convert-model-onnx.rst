@@ -1,5 +1,3 @@
-.. {#openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_ONNX}
-
 Converting an ONNX Model
 ========================
 
@@ -63,10 +61,13 @@ OpenVINO model conversion API supports ONNX models with external data representa
 Supported ONNX Layers
 #####################
 
-For the list of supported standard layers, refer to the :doc:`Supported Operations <../../about-openvino/compatibility-and-support/supported-operations-framework-frontend>` page.
+For the list of supported standard layers, refer to the
+:doc:`Supported Operations <../../about-openvino/compatibility-and-support/supported-operations>`
+page.
 
 Additional Resources
 ####################
 
-Check out more examples of model conversion in :doc:`interactive Python tutorials <../../learn-openvino/interactive-tutorials-python>`.
+Check out more examples of model conversion in
+:doc:`interactive Python tutorials <../../learn-openvino/interactive-tutorials-python>`.
 

@@ -8,6 +8,7 @@ running multiple times.
 
 |image0|
 
+
 **Table of contents:**
 
 
@@ -57,7 +58,7 @@ OpenVINO’s integration into Optimum.
 .. code:: ipython3
 
     import warnings
-
+    
     warnings.filterwarnings("ignore")
 
 Showing Info Available Devices
@@ -76,12 +77,14 @@ If you just have either an iGPU or dGPU that will be assigned to
 .. code:: ipython3
 
     import openvino as ov
-
+    import openvino.properties as props
+    
+    
     core = ov.Core()
     devices = core.available_devices
-
+    
     for device in devices:
-        device_name = core.get_property(device, "FULL_DEVICE_NAME")
+        device_name = core.get_property(device, props.device.full_name)
         print(f"{device}: {device_name}")
 
 
@@ -101,15 +104,17 @@ Select device from dropdown list for running inference using OpenVINO.
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="CPU",
-        description="Device:",
-        disabled=False,
+    import requests
+    
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
-
+    open("notebook_utils.py", "w").write(r.text)
+    
+    from notebook_utils import device_widget
+    
+    device = device_widget("CPU")
+    
     device
 
 
@@ -129,7 +134,7 @@ Using full precision model in choice device with ``OVStableDiffusionPipeline``
 .. code:: ipython3
 
     from optimum.intel.openvino import OVStableDiffusionPipeline
-
+    
     # download the pre-converted SD v2.1 model from Hugging Face Hub
     name = "helenai/stabilityai-stable-diffusion-2-1-base-ov"
     ov_pipe = OVStableDiffusionPipeline.from_pretrained(name, compile=False)
@@ -140,7 +145,7 @@ Using full precision model in choice device with ``OVStableDiffusionPipeline``
 .. code:: ipython3
 
     import gc
-
+    
     # Generate an image.
     prompt = "red car in snowy forest, epic vista, beautiful landscape, 4k, 8k"
     output_ov = ov_pipe(prompt, num_inference_steps=17, output_type="pil").images[0]

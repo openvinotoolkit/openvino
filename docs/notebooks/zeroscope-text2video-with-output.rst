@@ -1,6 +1,7 @@
 Video generation with ZeroScope and OpenVINO
 ============================================
 
+
 **Table of contents:**
 
 
@@ -65,7 +66,7 @@ Both versions of the ZeroScope model are available on Hugging Face:
 
 We will use the first one.
 
-.. container:: alert alert-block alert-warning
+.. warning::
 
    ::
 
@@ -96,7 +97,6 @@ provides already pretrained model from ``cerspense``.
     import transformers
     import numpy as np
     import IPython
-    import ipywidgets as widgets
     import torch
     import PIL
     import gradio as gr
@@ -726,12 +726,16 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
+    import requests
+
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
+    open("notebook_utils.py", "w").write(r.text)
+
+    from notebook_utils import device_widget
+
+    device = device_widget()
 
     device
 
@@ -853,27 +857,25 @@ Interactive demo
         images[0].save(out_file, save_all=True, append_images=images[1:], duration=125, loop=0)
         return out_file.name
 
+.. code:: ipython3
 
-    demo = gr.Interface(
-        generate,
-        [
-            gr.Textbox(label="Prompt"),
-            gr.Slider(0, 1000000, value=42, label="Seed", step=1),
-            gr.Slider(10, 50, value=25, label="Number of inference steps", step=1),
-        ],
-        gr.Image(label="Result"),
-        examples=[
-            ["An astronaut riding a horse.", 0, 25],
-            ["A panda eating bamboo on a rock.", 0, 25],
-            ["Spiderman is surfing.", 0, 25],
-        ],
-        allow_flagging="never",
-    )
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/zeroscope-text2video/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
+
+    from gradio_helper import make_demo
+
+    demo = make_demo(fn=generate)
 
     try:
         demo.queue().launch(debug=False)
     except Exception:
         demo.queue().launch(share=True, debug=False)
-    # if you are launching remotely, specify server_name and server_port
-    # demo.launch(server_name='your server name', server_port='server port in int')
-    # Read more in the docs: https://gradio.app/docs/
+    # If you are launching remotely, specify server_name and server_port
+    # EXAMPLE: `demo.launch(server_name='your server name', server_port='server port in int')`
+    # To learn more please refer to the Gradio docs: https://gradio.app/docs/
+
+.. code:: ipython3
+
+    # please uncomment and run this cell for stopping gradio interface
+    # demo.close()

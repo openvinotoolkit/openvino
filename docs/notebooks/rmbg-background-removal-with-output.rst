@@ -109,13 +109,6 @@ it may take some time.
 
     net = AutoModelForImageSegmentation.from_pretrained("briaai/RMBG-1.4", trust_remote_code=True)
 
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/huggingface_hub/file_download.py:1150: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
-      warnings.warn(
-
-
 Run PyTorch model inference
 ---------------------------
 
@@ -233,7 +226,7 @@ function or directly loading on device using ``core.complie_model``.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4371: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4769: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
       warnings.warn(
 
 
@@ -304,57 +297,44 @@ Interactive demo
 
 .. code:: ipython3
 
-    import gradio as gr
-
-
-    title = "# RMBG background removal with OpenVINO"
-
-
     def get_background_mask(model, image):
         return model(image)[0]
 
 
-    with gr.Blocks() as demo:
-        gr.Markdown(title)
+    def on_submit(image):
+        original_image = image.copy()
 
-        with gr.Row():
-            input_image = gr.Image(label="Input Image", type="numpy")
-            background_image = gr.Image(label="Background removal Image")
-        submit = gr.Button("Submit")
+        h, w = image.shape[:2]
+        image = preprocess_image(original_image, model_input_size)
 
-        def on_submit(image):
-            original_image = image.copy()
+        mask = get_background_mask(ov_compiled_model, image)
+        result_image = postprocess_image(torch.from_numpy(mask), (h, w))
+        pil_im = Image.fromarray(result_image)
+        orig_img = Image.fromarray(original_image)
+        no_bg_image = Image.new("RGBA", pil_im.size, (0, 0, 0, 0))
+        no_bg_image.paste(orig_img, mask=pil_im)
 
-            h, w = image.shape[:2]
-            image = preprocess_image(original_image, model_input_size)
+        return no_bg_image
 
-            mask = get_background_mask(ov_compiled_model, image)
-            result_image = postprocess_image(torch.from_numpy(mask), (h, w))
-            pil_im = Image.fromarray(result_image)
-            orig_img = Image.fromarray(original_image)
-            no_bg_image = Image.new("RGBA", pil_im.size, (0, 0, 0, 0))
-            no_bg_image.paste(orig_img, mask=pil_im)
+.. code:: ipython3
 
-            return no_bg_image
+    import requests
 
-        submit.click(on_submit, inputs=[input_image], outputs=[background_image])
-        examples = gr.Examples(
-            examples=["./example_input.jpg"],
-            inputs=[input_image],
-            outputs=[background_image],
-            fn=on_submit,
-            cache_examples=False,
-        )
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/rmbg-background-removal/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
 
+    from gradio_helper import make_demo
 
-    if __name__ == "__main__":
-        try:
-            demo.launch(debug=False)
-        except Exception:
-            demo.launch(share=True, debug=False)
-    # if you are launching remotely, specify server_name and server_port
-    # demo.launch(server_name='your server name', server_port='server port in int')
-    # Read more in the docs: https://gradio.app/docs/
+    demo = make_demo(fn=on_submit)
+
+    try:
+        demo.launch(debug=False)
+    except Exception:
+        demo.launch(share=True, debug=False)
+    # If you are launching remotely, specify server_name and server_port
+    # EXAMPLE: `demo.launch(server_name='your server name', server_port='server port in int')`
+    # To learn more please refer to the Gradio docs: https://gradio.app/docs/
 
 
 .. parsed-literal::
@@ -369,3 +349,8 @@ Interactive demo
 
 
 
+
+.. code:: ipython3
+
+    # please uncomment and run this cell for stopping gradio interface
+    # demo.close()

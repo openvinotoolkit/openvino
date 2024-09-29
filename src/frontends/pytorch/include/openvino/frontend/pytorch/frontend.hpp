@@ -61,7 +61,8 @@ public:
 protected:
     bool supported_impl(const std::vector<ov::Any>& variants) const override;
     ov::frontend::InputModel::Ptr load_impl(const std::vector<ov::Any>& variants) const override;
-    std::map<std::string, CreatorFunction> get_supported_ops(const ov::frontend::InputModel::Ptr& model) const;
+    std::unordered_map<std::string, CreatorFunction> get_supported_ops(
+        const ov::frontend::InputModel::Ptr& model) const;
 
     std::map<std::string, CreatorFunction> m_op_extension_translators;
     std::vector<ConversionExtensionBase::Ptr> m_conversion_extensions;

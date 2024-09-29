@@ -71,6 +71,32 @@ protected:
 };
 
 /* Graph:
+ *       Transpose1[0,2,3,1]  Parameter
+ *                     \       /
+ * Transpose0[0,2,1,3] Multiply
+ *              \     /
+ *              MatMul0
+ *                 \   /
+ *                  Add
+ *                Softmax  Transpose2[0,2,1,3]
+ *                    \      /
+ *                     MatMul1
+ *                   Transpose3[0,2,1,3]
+ */
+class MHAWithDynamicMulFunction : public SnippetsFunctionBase {
+public:
+    explicit MHAWithDynamicMulFunction(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& precisions)
+        : SnippetsFunctionBase(inputShapes), precisions(precisions) {
+        OPENVINO_ASSERT(input_shapes.size() == 5, "Got invalid number of input shapes");
+        OPENVINO_ASSERT(precisions.size() == 5, "Got invalid number of input precisions");
+    }
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+
+    const std::vector<ov::element::Type> precisions;
+};
+
+/* Graph:
  *       Transpose1[0,2,1,3]  Constant
  *                     \       /
  * Transpose0[0,2,1,3] Multiply

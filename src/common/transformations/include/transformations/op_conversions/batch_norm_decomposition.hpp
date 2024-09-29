@@ -6,7 +6,7 @@
 
 #include <memory>
 
-#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
 
 using namespace std;

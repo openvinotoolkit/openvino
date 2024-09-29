@@ -21,7 +21,7 @@ class TestBroadcastInDim(JaxLayerTest):
             out = lax.broadcast_in_dim(inp, target_shape, dimensions)
             return out
 
-        return jax_broadcast_in_dim, None
+        return jax_broadcast_in_dim, None, 'broadcast_in_dim'
 
     test_data_basic = [
         dict(input_shape=[2, 3], target_shape=[1, 2, 3], dimensions=[1, 2]),
@@ -38,6 +38,7 @@ class TestBroadcastInDim(JaxLayerTest):
 
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.nightly
+    @pytest.mark.precommit
     @pytest.mark.precommit_jax_fe
     def test_broadcast_in_dim(self, ie_device, precision, ir_version, params):
         self._test(*self.create_model(**params),

@@ -9,13 +9,16 @@
 #include "intel_npu/al/config/npuw.hpp"
 #include "online/compiler.hpp"
 #include "online/utils/utils.hpp"  // getMetaDesc
+#include "openvino/core/parallel.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/validate.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
 #include "patterns/dcoff.hpp"
+#include "patterns/opt.hpp"
 
 namespace {
 
@@ -238,7 +241,8 @@ private:
         if (!ov::is_type<ov::op::v0::Constant>(node_ptr)) {
             OPENVINO_THROW("NPUW: trying to get a unique name of a non-Constant node");
         }
-        return node_ptr->get_friendly_name() + " with meta " + ov::npuw::online::util::getMetaDesc(node_ptr);
+        return node_ptr->get_friendly_name() + " with meta " + ov::npuw::online::util::getMetaDesc(node_ptr) +
+               " with output " + (*node_ptr->output(0).get_target_inputs().begin()).get_node()->description();
     }
 
 public:
@@ -277,6 +281,7 @@ public:
     void matchResults(const std::string& func_name);
     void createFunction(const std::string& func_name);
     void matchRepeatedSubgraphs(const std::string& func_name);
+    void optimize(const std::string& func_name);
     void decompressionCutOff(const std::string& func_name);
 
     // Final steps
@@ -1557,6 +1562,195 @@ void Partitioner::matchRepeatedSubgraphs(const std::string& func_name) {
     LOG_VERB("Done");
 }
 
+void Partitioner::optimize(const std::string& func_name) {
+    ov::npuw::Function& f = P.functions.at(func_name);
+    auto& func_group = all_functions.at(func_name);
+
+    auto do_permute = [&](ov::npuw::patterns::opt::Context& ctx) {
+        for (auto&& p : ctx.closures_to_permute) {
+            auto param_idx = f._model->get_parameter_index(p.first);
+            auto closure_idx = param_idx - f._param_offset;
+            ov::parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
+                auto& funcall = func_group.refs[f_idx].get();
+                ov::npuw::util::permute(funcall._closure[closure_idx], p.second);
+            });
+        }
+    };
+    auto do_cvtf16 = [&](ov::npuw::patterns::opt::Context& ctx) {
+        for (auto&& p : ctx.closures_to_f16) {
+            auto param_idx = f._model->get_parameter_index(p);
+            auto closure_idx = param_idx - f._param_offset;
+            ov::parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
+                auto& funcall = func_group.refs[f_idx].get();
+                ov::npuw::util::to_f16(funcall._closure[closure_idx]);
+            });
+        }
+    };
+
+    // Regardless of DQ setting, run this first
+    {
+        ov::npuw::patterns::opt::Context ctx;
+        ctx.pmm_dims = cfg.get<::intel_npu::NPUW_PMM>();
+
+        // Run Head/Tail passes
+        ov::pass::GraphRewrite rewr;
+        rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictGatherCWu>(std::ref(ctx));
+        rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictGatherGQi>(std::ref(ctx));
+        rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictMatMulCWu>(std::ref(ctx));
+        // NB: This pass is disabled for reason! It doesn't make things better
+        // rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictMatMulGQi>(std::ref(ctx));
+        rewr.add_matcher<ov::npuw::patterns::opt::CompressDictMatMulf32>(std::ref(ctx));
+        rewr.add_matcher<ov::npuw::patterns::opt::DQParMMGQ>(std::ref(ctx));
+        rewr.run_on_model(f._model);
+
+        // Move Gather to host, if required
+        if (cfg.get<::intel_npu::NPUW_HOST_GATHER>()) {
+            ov::pass::GraphRewrite rewr2;
+            rewr2.add_matcher<ov::npuw::patterns::opt::HostGather>(std::ref(ctx));
+            rewr2.add_matcher<ov::npuw::patterns::opt::HostGatherDQ>(std::ref(ctx));
+            rewr2.run_on_model(f._model);
+        }
+
+        // Run parallel matmul merge
+        mergeParallelMatMuls(f._model, ctx);
+
+        ov::ParameterVector new_params;
+        std::vector<ov::npuw::patterns::opt::Context::PPtr> to_remove;
+        std::set<std::size_t> to_remove_idx;
+
+        // Concatenate closures for "concatenated" parameters
+        for (auto&& p : ctx.params_to_concat) {
+            new_params.push_back(p.first);
+            const auto& params_to_concat = p.second.first;
+            const auto axis = p.second.second;
+
+            std::vector<std::size_t> to_concat_idx;
+            for (auto&& p_to_concat : params_to_concat) {
+                auto p_to_concat_idx = f._model->get_parameter_index(p_to_concat);
+                to_remove.push_back(p_to_concat);
+                to_concat_idx.push_back(p_to_concat_idx - f._param_offset);
+                to_remove_idx.insert(p_to_concat_idx);
+            }
+            ov::parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
+                auto& funcall = func_group.refs[f_idx].get();
+                std::vector<ov::Tensor> to_concat;
+                for (auto&& cidx : to_concat_idx) {
+                    to_concat.push_back(funcall._closure[cidx]);
+                }
+                funcall._closure.push_back(ov::npuw::util::concat(to_concat, axis));
+            });
+        }
+
+        // Unpack closures in compile time, where requested
+        for (auto&& p : ctx.params_to_unpack) {
+            const auto& tensor_to_unpack = p.second;
+            auto w_idx = f._model->get_parameter_index(tensor_to_unpack.w);
+            auto z_idx = f._model->get_parameter_index(tensor_to_unpack.z);
+            auto s_idx = f._model->get_parameter_index(tensor_to_unpack.s);
+
+            new_params.push_back(p.first);
+            to_remove.push_back(tensor_to_unpack.w);
+            to_remove.push_back(tensor_to_unpack.s);
+            to_remove_idx.insert(w_idx);
+            to_remove_idx.insert(s_idx);
+
+            if (tensor_to_unpack.z) {
+                to_remove.push_back(tensor_to_unpack.z);
+                to_remove_idx.insert(z_idx);
+            }
+
+            ov::parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
+                auto& funcall = func_group.refs[f_idx].get();
+                ov::Tensor cw = funcall._closure[w_idx - f._param_offset];
+                ov::Tensor cz = z_idx != -1 ? funcall._closure[z_idx - f._param_offset] : ov::Tensor{};
+                ov::Tensor cs = funcall._closure[s_idx - f._param_offset];
+                ov::Tensor dst(p.first->get_element_type(), p.first->get_shape());
+
+                const auto& gti = ov::get_tensor_impl;
+                if (cw && cz && cs) {
+                    ov::npuw::util::unpack(gti(cw), gti(cz), gti(cs), gti(dst));
+                } else if (cw && cs) {
+                    ov::npuw::util::unpack(gti(cw), gti(cs), gti(dst));
+                } else {
+                    NPUW_ASSERT(false && "Unsupported combination");
+                }
+                funcall._closure.push_back(std::move(dst));
+            });
+        }
+
+        // Convert parameters to f16 where required
+        do_cvtf16(ctx);
+
+        // Host-side gather, pt 1. Add new parameters first
+        if (ctx.params_to_gather) {
+            auto& params_to_gather = *ctx.params_to_gather;
+            new_params.push_back(params_to_gather.pnew);
+            for (auto&& funcall : func_group.refs) {
+                auto new_elem_type = params_to_gather.pnew->get_element_type();
+                auto new_shape = params_to_gather.pnew->get_shape();
+                funcall.get()._closure.push_back(ov::Tensor(new_elem_type, new_shape));
+            }
+        }
+
+        // Add all new parameters introduced by this change
+        f._model->add_parameters(new_params);
+
+        // Remove parameters and closures that were concatenated
+        std::vector<ov::Tensor> new_closure;
+        for (auto&& fref : func_group.refs) {
+            auto& funcall = fref.get();
+            std::vector<ov::Tensor> new_closure;
+            for (std::size_t cidx = 0; cidx < funcall._closure.size(); cidx++) {
+                if (to_remove_idx.count(f._param_offset + cidx) == 0) {
+                    new_closure.push_back(funcall._closure[cidx]);
+                }
+            }
+            funcall._closure = std::move(new_closure);
+        }
+        for (auto&& now_remove : to_remove) {
+            f._model->remove_parameter(now_remove);
+        }
+
+        f._model->validate_nodes_and_infer_types();
+
+        // Host-side gather, pt. 2: Write the gather mappings to funcall
+        if (ctx.params_to_gather) {
+            auto& params_to_gather = *ctx.params_to_gather;
+            auto gather_dst_id = f._model->get_parameter_index(params_to_gather.pnew);
+            auto gather_src_id = f._model->get_parameter_index(params_to_gather.pold);
+            auto gather_idx_id = f._model->get_parameter_index(params_to_gather.pids);
+            for (auto&& funcall : func_group.refs) {
+                funcall.get()._host_gather = ov::npuw::Subgraph::Gather{gather_dst_id, gather_src_id, gather_idx_id};
+            }
+        }
+    }
+
+    if (!cfg.get<::intel_npu::NPUW_DQ>()) {
+        LOG_VERB("No optimizations will be done to  " << func_name << " in model " << model->get_friendly_name()
+                                                      << "...");
+        return;
+    }
+
+    LOG_VERB("Optimize function " << func_name << " in model " << model->get_friendly_name() << "...");
+    LOG_BLOCK();
+
+    // Run "dynamic quantization"
+    ov::npuw::patterns::opt::Context ctx;
+    ov::pass::GraphRewrite rewr;
+    rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulCWi>();
+    rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulGQi>(std::ref(ctx));
+    rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulGQ2i>(std::ref(ctx));
+    rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulGQiP>(std::ref(ctx));
+    rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulGQ2iP>(std::ref(ctx));
+    rewr.run_on_model(f._model);
+    ov::pass::Validate().run_on_model(f._model);
+
+    do_permute(ctx);
+    do_cvtf16(ctx);
+
+    LOG_VERB("Done");
+}
+
 void Partitioner::decompressionCutOff(const std::string& func_name) {
     LOG_VERB("Decompression cut-off for function " << func_name << " in model " << model->get_friendly_name() << "...");
     LOG_BLOCK();
@@ -1624,8 +1818,14 @@ void Partitioner::decompressionCutOff(const std::string& func_name) {
         // LLaMaGPTQ
         rewr.add_matcher<ov::npuw::patterns::SymmZP::DCOFFPassReshape2>(dcoff_mode, dcoff_type, std::ref(params_to));
 
-        // Phi-3 4SymW16A/GPTQ
-        rewr.add_matcher<ov::npuw::patterns::SymmZP::DCOFFPassCWAI3>(dcoff_mode, dcoff_type, std::ref(params_to));
+        // Phi-3 4SymW16A
+        rewr.add_matcher<ov::npuw::patterns::SymmZP::DCOFFPassReshape3>(dcoff_mode, dcoff_type, std::ref(params_to));
+
+        // Phi-3 i4 4SymW16A
+        rewr.add_matcher<ov::npuw::patterns::SymmZP::DCOFFPassReshape4>(dcoff_mode, dcoff_type, std::ref(params_to));
+
+        // Asymmetric zeropoints
+        rewr.add_matcher<ov::npuw::patterns::AsymmZP::DCOFFPassReshape>(dcoff_mode, dcoff_type, std::ref(params_to));
 
         rewr.run_on_model(f._model);
 
@@ -1820,6 +2020,7 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
                 p.matchParameters(func_group);
                 p.matchResults(func_group);
                 p.matchRepeatedSubgraphs(func_group);
+                p.optimize(func_group);
                 p.decompressionCutOff(func_group);
             }
         } else if (cfg.get<::intel_npu::NPUW_CWAI>()) {
@@ -1835,6 +2036,7 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
                 p.saveTinyConstants(func_group);
                 p.saveScaleFactors(func_group);
                 p.createFunction(func_group);
+                p.optimize(func_group);
                 p.decompressionCutOff(func_group);
             }
         } else {

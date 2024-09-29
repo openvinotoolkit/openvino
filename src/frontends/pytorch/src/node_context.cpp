@@ -55,31 +55,23 @@ std::shared_ptr<Node> NodeContext::mark_node(std::shared_ptr<Node> ov_node) cons
 void NodeContext::mutate_input(size_t index, Output<Node> ov_output) const {
     FRONT_END_GENERAL_CHECK(!input_is_none(index), "Input is none with index: ", index);
     auto input_id = m_decoder_inputs.at(index);
-    FRONT_END_GENERAL_CHECK(m_tensor_map->count(input_id), "No tensor corresponding input: ", input_id, " exist.");
+    auto tensor_it = m_tensor_map->find(input_id);
+    FRONT_END_GENERAL_CHECK(tensor_it != m_tensor_map->end(), "No tensor corresponding input: ", input_id, " exist.");
     m_translate_session->encode_tensor_name(ov_output, input_id, {m_decoder->get_input_debug_name(index)});
-    (*m_tensor_map)[input_id] = ov_output;
+    tensor_it->second = ov_output;
     m_mutated_tensors->insert(input_id);
 
     // Resolve aliases
-    auto back_input_id = input_id;
-    auto back_node_input = ov_output;
+    auto& back_input_id = input_id;
+    auto& back_node_input = ov_output;
     while (m_translate_session->m_may_be_alias.count(back_input_id)) {
-        // Create node to reverseprop data. While loop is needed for the cases when alias to tensor point to another
+        // Create node to aliased data. While loop is needed for the cases when alias to tensor point to another
         // alias to tensor. In that case we need to create a chain of reverseprop ops
-        size_t in_tensor;
-        std::shared_ptr<TorchDecoder> node;
-        Output<Node> node_converted_output;
-        std::tie(in_tensor, node, node_converted_output) = m_translate_session->m_may_be_alias.at(back_input_id);
+        auto& alias_info = m_translate_session->m_may_be_alias.at(back_input_id);
+        size_t in_tensor = std::get<0>(alias_info);
+        auto& node = std::get<1>(alias_info);
+        auto& node_converted_output = std::get<2>(alias_info);
         auto reverseprop_node = m_translate_session->get_reverseprop_op(node, node_converted_output, back_node_input);
-        if (m_tensor_map->count(in_tensor)) {
-            // Tensor is not found in the scope of this body, need to get it from internal context and mark mutated
-            OPENVINO_DEBUG("Couldn't find in the current body the initial aliased tensor: ",
-                           in_tensor,
-                           " for operation: ",
-                           node->get_op_type(),
-                           " creating new body input.");
-            get_tensor_from_model_or_create_input(in_tensor);
-        }
         m_translate_session->encode_tensor_name(reverseprop_node, in_tensor);
         (*m_tensor_map)[in_tensor] = reverseprop_node;
         m_mutated_tensors->insert(in_tensor);
@@ -89,17 +81,20 @@ void NodeContext::mutate_input(size_t index, Output<Node> ov_output) const {
     }
 }
 
-void NodeContext::add_tensor_to_context(size_t index, Output<Node> ov_output) const {
+void NodeContext::add_tensor_to_context(size_t index, const Output<Node>& ov_output) const {
+#ifdef ENABLE_OPENVINO_DEBUG
     if (m_tensor_map->count(index)) {
         OPENVINO_DEBUG("[ WARNING ] Current context has tensor ", index, ". Assuming mutated output.\n");
     }
+#endif
     m_translate_session->encode_tensor_name(ov_output, index);
     (*m_tensor_map)[index] = ov_output;
 }
 
 Output<Node> NodeContext::get_tensor_from_model_or_create_input(size_t index) const {
-    if (m_tensor_map->find(index) != m_tensor_map->end()) {
-        return m_tensor_map->at(index);
+    auto tensor_it = m_tensor_map->find(index);
+    if (tensor_it != m_tensor_map->end()) {
+        return tensor_it->second;
     } else {
         // nested subgraphs case
         auto parameter = std::make_shared<v0::Parameter>(element::dynamic, PartialShape::dynamic());
@@ -131,7 +126,7 @@ std::shared_ptr<ov::Model> NodeContext::convert_subgraph(size_t index) const {
     // Extend external context with internal tensors except Parameter nodes, because internal Parameters are created to
     // link internal context with external
     TensorMap ext_map(m_ext_tensor_map);
-    // map::insert does not update elements if their key is already in map; so if we have real tensors in outter scope
+    // map::insert does not update elements if their key is already in map; so if we have real tensors in outer scope
     // we will not add Parameters we created in inner scope.
     ext_map.insert(m_tensor_map->begin(), m_tensor_map->end());
 
@@ -157,12 +152,18 @@ OutputVector NodeContext::inputs() const {
             // Case when input can be inlined (possible only for fx decoder)
             if (m_decoder->is_input_inlined(i)) {
                 auto inlined_input = m_decoder->inlined_input(i);
-                FRONT_END_GENERAL_CHECK(inlined_input.size() == 1, "Incorrect inlined input with index:", i);
+                FRONT_END_GENERAL_CHECK(inlined_input.size() == 1,
+                                        "Incorrect inlined input with index: ",
+                                        i,
+                                        " for operation ",
+                                        get_op_type());
                 res.push_back(inlined_input[0]);
+                continue;
             }
         }
-        FRONT_END_GENERAL_CHECK(m_tensor_map->count(input), "No tensor corresponding input: ", input, " exist.");
-        res.push_back(m_tensor_map->at(input));
+        auto tensor_it = m_tensor_map->find(input);
+        FRONT_END_GENERAL_CHECK(tensor_it != m_tensor_map->end(), "No tensor corresponding input: ", input, " exist.");
+        res.push_back(tensor_it->second);
     }
     return res;
 }

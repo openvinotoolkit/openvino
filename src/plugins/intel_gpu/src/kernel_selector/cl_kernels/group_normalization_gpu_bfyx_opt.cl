@@ -6,6 +6,9 @@
 #include "include/batch_headers/sub_group_block_read.cl"
 
 #ifdef GROUP_NORM_KERNEL_FEATURE_MEAN
+#if !IS_DYNAMIC
+__attribute__((reqd_work_group_size(LWS0, LWS1, LWS2)))
+#endif
 KERNEL(calc_mean_per_feature)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
@@ -35,8 +38,6 @@ KERNEL(calc_mean_per_feature)(
     const uint x_block_size = INPUT0_SIZE_X / x_num_workers;
     const uint x_base = get_local_id(0);
     const uint x_leftover = INPUT0_SIZE_X - x_num_workers * x_block_size;
-
-    __local ACCUMULATOR_TYPE mean_per_feature[SLM_SIZE];
 
     ACCUMULATOR_TYPE mean = ACCUMULATOR_VAL_ZERO;
 
@@ -120,22 +121,17 @@ KERNEL(calc_mean_per_feature)(
     #endif
     const uint worker_idx = get_local_linear_id();
 
-    mean_per_feature[worker_idx] = mean;
-    uint reduce_add_level = 1;
-    while (num_local_workers > reduce_add_level) {
-        barrier(CLK_LOCAL_MEM_FENCE);
-        if (worker_idx % (reduce_add_level * 2) == 0 && (worker_idx + reduce_add_level) < num_local_workers) {
-            mean_per_feature[worker_idx] += mean_per_feature[worker_idx + reduce_add_level];
-        }
-        reduce_add_level *= 2;
-    }
+    mean = work_group_reduce_add(mean);
 
     if (worker_idx == 0) {
-        mean = mean_per_feature[0] / TO_ACCUMULATOR_TYPE(INPUT0_SIZE_Z * INPUT0_SIZE_Y * INPUT0_SIZE_X);
+        mean = mean / TO_ACCUMULATOR_TYPE(INPUT0_SIZE_Z * INPUT0_SIZE_Y * INPUT0_SIZE_X);
         internal_mean[bf] = mean;
     }
 }
 #elif GROUP_NORM_KERNEL_GROUP_MEAN
+#if !IS_DYNAMIC
+__attribute__((reqd_work_group_size(LWS0, LWS1, LWS2)))
+#endif
 KERNEL(calc_mean_per_group)(
     __global ACCUMULATOR_TYPE* internal_mean
 ) {
@@ -158,6 +154,9 @@ KERNEL(calc_mean_per_group)(
     }
 }
 #elif GROUP_NORM_KERNEL_FEATURE_VAR
+#if !IS_DYNAMIC
+__attribute__((reqd_work_group_size(LWS0, LWS1, LWS2)))
+#endif
 KERNEL(calc_var_per_feature)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
@@ -188,8 +187,6 @@ KERNEL(calc_var_per_feature)(
     const uint x_block_size = INPUT0_SIZE_X / x_num_workers;
     const uint x_base = get_local_id(0);
     const uint x_leftover = INPUT0_SIZE_X - x_num_workers * x_block_size;
-
-    __local ACCUMULATOR_TYPE var_per_feature[SLM_SIZE];
 
     const ACCUMULATOR_TYPE mean = internal_mean[bf];
     ACCUMULATOR_TYPE variance = ACCUMULATOR_VAL_ZERO;
@@ -284,22 +281,17 @@ KERNEL(calc_var_per_feature)(
     #endif
     const uint worker_idx = get_local_linear_id();
 
-    var_per_feature[worker_idx] = variance;
-    uint reduce_add_level = 1;
-    while (num_local_workers > reduce_add_level) {
-        barrier(CLK_LOCAL_MEM_FENCE);
-        if (worker_idx % (reduce_add_level * 2) == 0 && (worker_idx + reduce_add_level) < num_local_workers) {
-            var_per_feature[worker_idx] += var_per_feature[worker_idx + reduce_add_level];
-        }
-        reduce_add_level *= 2;
-    }
+    variance = work_group_reduce_add(variance);
 
     if (worker_idx == 0) {
-        variance = var_per_feature[0] / TO_ACCUMULATOR_TYPE(INPUT0_SIZE_Z * INPUT0_SIZE_Y * INPUT0_SIZE_X);
+        variance = variance / TO_ACCUMULATOR_TYPE(INPUT0_SIZE_Z * INPUT0_SIZE_Y * INPUT0_SIZE_X);
         internal_variance[bf] = variance;
     }
 }
 #elif GROUP_NORM_KERNEL_GROUP_VAR
+#if !IS_DYNAMIC
+__attribute__((reqd_work_group_size(LWS0, LWS1, LWS2)))
+#endif
 KERNEL(calc_var_per_group)(
     __global ACCUMULATOR_TYPE* internal_variance
 ) {
@@ -323,6 +315,9 @@ KERNEL(calc_var_per_group)(
     }
 }
 #elif GROUP_NORM_KERNEL_FINAL
+#if !IS_DYNAMIC
+__attribute__((reqd_work_group_size(LWS0, LWS1, LWS2)))
+#endif
 KERNEL(group_normalization_b_fs_yx_fsv16)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,

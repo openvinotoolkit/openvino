@@ -43,6 +43,7 @@ manner.
 This example will demonstrate using RAG engines as a tool in an agent
 with OpenVINO and LlamaIndex.
 
+
 **Table of contents:**
 
 
@@ -80,28 +81,48 @@ Install required dependencies
 .. code:: ipython3
 
     import os
-
+    import requests
+    
+    
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+    )
+    open("notebook_utils.py", "w").write(r.text)
+    
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/pip_helper.py",
+    )
+    open("pip_helper.py", "w").write(r.text)
+    
     os.environ["GIT_CLONE_PROTECTION_ACTIVE"] = "false"
-
-    %pip uninstall -q -y optimum optimum-intel
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu \
-    "llama-index" "pymupdf" "llama-index-readers-file" "llama-index-llms-openvino>=0.2.0" "llama-index-embeddings-openvino>=0.2.0" "transformers>=4.40"
-
-    %pip install -q "git+https://github.com/huggingface/optimum-intel.git" \
-    "git+https://github.com/openvinotoolkit/nncf.git" \
-    "datasets" \
-    "accelerate"
-    %pip install --pre -Uq "openvino>=2024.2.0" openvino-tokenizers[transformers] --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
+    
+    from pip_helper import pip_install
+    
+    pip_install(
+        "-q",
+        "--extra-index-url",
+        "https://download.pytorch.org/whl/cpu",
+        "llama-index",
+        "llama-index-llms-huggingface==0.3.3",  # pin to keep compatibility due to https://github.com/run-llama/llama_index/commit/f037de8d0471b37f9c4069ebef5dfb329633d2c6
+        "llama-index-readers-file",
+        "llama-index-llms-openvino>=0.3.1",
+        "llama-index-embeddings-openvino>=0.2.0",
+        "transformers>=4.43.1",
+    )
+    pip_install("-q", "git+https://github.com/huggingface/optimum-intel.git", "git+https://github.com/openvinotoolkit/nncf.git", "datasets", "accelerate")
+    pip_install("--pre", "-Uq", "openvino>=2024.2.0", "--extra-index-url", "https://storage.openvinotoolkit.org/simple/wheels/nightly")
+    pip_install("--pre", "-Uq", "openvino-tokenizers[transformers]", "--extra-index-url", "https://storage.openvinotoolkit.org/simple/wheels/nightly")
 
 .. code:: ipython3
 
     from pathlib import Path
     import requests
     import io
-
+    
+    
     text_example_en_path = Path("text_example_en.pdf")
     text_example_en = "https://github.com/user-attachments/files/16171326/xeon6-e-cores-network-and-edge-brief.pdf"
-
+    
     if not text_example_en_path.exists():
         r = requests.get(url=text_example_en)
         content = io.BytesIO(r.content)
@@ -126,34 +147,38 @@ folder.
 
 Large Language Models (LLMs) are a core component of agent. LlamaIndex
 does not serve its own LLMs, but rather provides a standard interface
-for interacting with many different LLMs. In this example, we select
-``Meta-Llama-3-8B-Instruct`` as LLM in agent pipeline.
-
--  **llama-3-8b-instruct** - Llama 3 is an auto-regressive language
-   model that uses an optimized transformer architecture. The tuned
-   versions use supervised fine-tuning (SFT) and reinforcement learning
-   with human feedback (RLHF) to align with human preferences for
-   helpfulness and safety. The Llama 3 instruction tuned models are
-   optimized for dialogue use cases and outperform many of the available
-   open source chat models on common industry benchmarks. More details
-   about model can be found in `Meta blog
-   post <https://ai.meta.com/blog/meta-llama-3/>`__, `model
-   website <https://llama.meta.com/llama3>`__ and `model
-   card <https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct>`__.
-   >\ **Note**: run model with demo, you will need to accept license
-   agreement. >You must be a registered user in Hugging Face Hub.
-   Please visit `HuggingFace model
-   card <https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct>`__,
-   carefully read terms of usage and click accept button. You will need
-   to use an access token for the code below to run. For more
-   information on access tokens, refer to `this section of the
-   documentation <https://huggingface.co/docs/hub/security-tokens>`__.
-   >You can login on Hugging Face Hub in notebook environment, using
-   following code:
+for interacting with many different LLMs. In this example, we can select
+``Phi3-mini-instruct`` or ``Meta-Llama-3-8B-Instruct`` as LLM in agent
+pipeline. \* **phi3-mini-instruct** - The Phi-3-Mini is a 3.8B
+parameters, lightweight, state-of-the-art open model trained with the
+Phi-3 datasets that includes both synthetic data and the filtered
+publicly available websites data with a focus on high-quality and
+reasoning dense properties. More details about model can be found in
+`model
+card <https://huggingface.co/microsoft/Phi-3-mini-4k-instruct>`__,
+`Microsoft blog <https://aka.ms/phi3blog-april>`__ and `technical
+report <https://aka.ms/phi3-tech-report>`__. \*
+**llama-3.1-8b-instruct** - The Llama 3.1 instruction tuned text only
+models (8B, 70B, 405B) are optimized for multilingual dialogue use cases
+and outperform many of the available open source and closed chat models
+on common industry benchmarks. More details about model can be found in
+`Meta blog post <https://ai.meta.com/blog/meta-llama-3-1/>`__, `model
+website <https://llama.meta.com>`__ and `model
+card <https://huggingface.co/meta-llama/Meta-Llama-3.1-8B-Instruct>`__.
+>\ **Note**: run model with demo, you will need to accept license
+agreement. >You must be a registered user in Hugging Face Hub. Please
+visit `HuggingFace model
+card <https://huggingface.co/meta-llama/Meta-Llama-3.1-8B-Instruct>`__,
+carefully read terms of usage and click accept button. You will need to
+use an access token for the code below to run. For more information on
+access tokens, refer to `this section of the
+documentation <https://huggingface.co/docs/hub/security-tokens>`__. >You
+can login on Hugging Face Hub in notebook environment, using following
+code:
 
 .. code:: python
 
-       ## login to huggingfacehub to get access to pretrained model
+       ## login to huggingfacehub to get access to pretrained model 
 
        from huggingface_hub import notebook_login, whoami
 
@@ -165,13 +190,41 @@ for interacting with many different LLMs. In this example, we select
 
 .. code:: ipython3
 
+    import ipywidgets as widgets
+    
+    llm_model_ids = ["OpenVINO/Phi-3-mini-4k-instruct-int4-ov", "meta-llama/Meta-Llama-3.1-8B-Instruct"]
+    
+    llm_model_id = widgets.Dropdown(
+        options=llm_model_ids,
+        value=llm_model_ids[0],
+        description="Model:",
+        disabled=False,
+    )
+    
+    llm_model_id
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Model:', options=('OpenVINO/Phi-3-mini-4k-instruct-int4-ov', 'meta-llama/Meta-Llama-3.1-…
+
+
+
+.. code:: ipython3
+
     from pathlib import Path
-
-    llm_model_id = "meta-llama/Meta-Llama-3-8B-Instruct"
-    llm_model_path = "Meta-Llama-3-8B-Instruct-ov"
-
+    import huggingface_hub as hf_hub
+    
+    llm_model_path = llm_model_id.value.split("/")[-1]
+    repo_name = llm_model_id.value.split("/")[0]
+    
     if not Path(llm_model_path).exists():
-        !optimum-cli export openvino --model {llm_model_id} --task text-generation-with-past --trust-remote-code --weight-format int4 {llm_model_path}
+        if repo_name == "OpenVINO":
+            hf_hub.snapshot_download(llm_model_id.value, local_dir=llm_model_path)
+        else:
+            !optimum-cli export openvino --model {llm_model_id.value} --task text-generation-with-past --trust-remote-code --weight-format int4 --group-size 128 --ratio 0.8 {llm_model_path}
 
 Download Embedding model
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -189,8 +242,8 @@ example.
 .. code:: ipython3
 
     embedding_model_id = "BAAI/bge-small-en-v1.5"
-    embedding_model_path = "bge-small-en-v1.5-ov"
-
+    embedding_model_path = "bge-small-en-v1.5"
+    
     if not Path(embedding_model_path).exists():
         !optimum-cli export openvino --model {embedding_model_id} --task feature-extraction {embedding_model_path}
 
@@ -208,30 +261,11 @@ Select device for LLM model inference
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    import openvino as ov
-
-    core = ov.Core()
-
-    support_devices = core.available_devices
-
-    llm_device = widgets.Dropdown(
-        options=support_devices + ["AUTO"],
-        value="CPU",
-        description="Device:",
-        disabled=False,
-    )
-
+    from notebook_utils import device_widget
+    
+    llm_device = device_widget("CPU", exclude=["NPU"])
+    
     llm_device
-
-
-
-
-.. parsed-literal::
-
-    Dropdown(description='Device:', options=('CPU', 'AUTO'), value='CPU')
-
-
 
 OpenVINO models can be run locally through the ``OpenVINOLLM`` class in
 `LlamaIndex <https://docs.llamaindex.ai/en/stable/examples/llm/openvino/>`__.
@@ -241,28 +275,37 @@ inference on it.
 .. code:: ipython3
 
     from llama_index.llms.openvino import OpenVINOLLM
-
-    ov_config = {"PERFORMANCE_HINT": "LATENCY", "NUM_STREAMS": "1", "CACHE_DIR": ""}
-
-
-    def completion_to_prompt(completion):
-        return f"<|begin_of_text|><|start_header_id|>system<|end_header_id|><|eot_id|><|start_header_id|>user<|end_header_id|>{completion}<|eot_id|><|start_header_id|>assistant<|end_header_id|>"
-
-
+    
+    import openvino.properties as props
+    import openvino.properties.hint as hints
+    import openvino.properties.streams as streams
+    
+    
+    ov_config = {hints.performance_mode(): hints.PerformanceMode.LATENCY, streams.num(): "1", props.cache_dir(): ""}
+    
+    
+    def phi_completion_to_prompt(completion):
+        return f"<|system|><|end|><|user|>{completion}<|end|><|assistant|>\n"
+    
+    
+    def llama3_completion_to_prompt(completion):
+        return f"<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n{completion}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
+    
+    
     llm = OpenVINOLLM(
         model_id_or_path=str(llm_model_path),
         context_window=3900,
         max_new_tokens=1000,
         model_kwargs={"ov_config": ov_config},
+        generate_kwargs={"do_sample": False, "temperature": None, "top_p": None},
+        completion_to_prompt=phi_completion_to_prompt if llm_model_path == "Phi-3-mini-4k-instruct-int4-ov" else llama3_completion_to_prompt,
         device_map=llm_device.value,
-        completion_to_prompt=completion_to_prompt,
     )
 
 
 .. parsed-literal::
 
     Compiling the model to CPU ...
-    Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
 
 
 Create OpenVINO Embedding
@@ -274,15 +317,8 @@ Select device for embedding model inference
 
 .. code:: ipython3
 
-    support_devices = core.available_devices
-
-    embedding_device = widgets.Dropdown(
-        options=support_devices + ["AUTO"],
-        value="CPU",
-        description="Device:",
-        disabled=False,
-    )
-
+    embedding_device = device_widget()
+    
     embedding_device
 
 
@@ -301,7 +337,7 @@ class of LlamaIndex.
 .. code:: ipython3
 
     from llama_index.embeddings.huggingface_openvino import OpenVINOEmbedding
-
+    
     embedding = OpenVINOEmbedding(model_id_or_path=embedding_model_path, device=embedding_device.value)
 
 
@@ -322,22 +358,22 @@ In this examples, we will create 2 customized tools for ``multiply`` and
 
     from llama_index.core.agent import ReActAgent
     from llama_index.core.tools import FunctionTool
-
-
+    
+    
     def multiply(a: float, b: float) -> float:
         """Multiply two numbers and returns the product"""
         return a * b
-
-
+    
+    
     multiply_tool = FunctionTool.from_defaults(fn=multiply)
-
-
-    def add(a: float, b: float) -> float:
+    
+    
+    def divide(a: float, b: float) -> float:
         """Add two numbers and returns the sum"""
-        return a + b
-
-
-    add_tool = FunctionTool.from_defaults(fn=add)
+        return a / b
+    
+    
+    divide_tool = FunctionTool.from_defaults(fn=divide)
 
 To demonstrate using RAG engines as a tool in an agent, we’re going to
 create a very simple RAG query engine as one of the tools.
@@ -347,15 +383,17 @@ create a very simple RAG query engine as one of the tools.
 
 .. code:: ipython3
 
-    from llama_index.readers.file import PyMuPDFReader
+    from llama_index.core import SimpleDirectoryReader
     from llama_index.core import VectorStoreIndex, Settings
-
+    
     Settings.embed_model = embedding
     Settings.llm = llm
-    loader = PyMuPDFReader()
-    documents = loader.load(file_path=text_example_en_path)
-    index = VectorStoreIndex.from_documents(documents)
-    query_engine = index.as_query_engine(similarity_top_k=2)
+    
+    reader = SimpleDirectoryReader(input_files=[text_example_en_path])
+    documents = reader.load_data()
+    index = VectorStoreIndex.from_documents(
+        documents,
+    )
 
 Now we turn our query engine into a tool by supplying the appropriate
 metadata (for the python functions, this was being automatically
@@ -363,12 +401,14 @@ extracted so we didn’t need to add it):
 
 .. code:: ipython3
 
-    from llama_index.core.tools import QueryEngineTool
-
-    rag_tool = QueryEngineTool.from_defaults(
-        query_engine,
-        name="Xeon6",
-        description="A RAG engine with some basic facts about Intel Xeon 6 processors with E-cores",
+    from llama_index.core.tools import QueryEngineTool, ToolMetadata
+    
+    vector_tool = QueryEngineTool(
+        index.as_query_engine(streaming=True),
+        metadata=ToolMetadata(
+            name="vector_search",
+            description="Useful for searching for basic facts about 'Intel Xeon 6 processors'",
+        ),
     )
 
 Run Agentic RAG
@@ -381,27 +421,36 @@ remove the llm parameter, since it’s now provided by settings):
 
 .. code:: ipython3
 
-    agent = ReActAgent.from_tools([multiply_tool, add_tool, rag_tool], llm=llm, verbose=True)
+    agent = ReActAgent.from_tools([multiply_tool, divide_tool, vector_tool], llm=llm, verbose=True)
 
 Ask a question using multiple tools.
 
 .. code:: ipython3
 
-    response = agent.chat("What's the maximum number of cores in an Intel Xeon 6 processor server with 4 sockets ? Go step by step, using a tool to do any math.")
+    response = agent.chat("What's the maximum number of cores of 8 sockets of 'Intel Xeon 6 processors' ? Go step by step, using a tool to do any math.")
 
 
 .. parsed-literal::
 
     Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+
+
+.. parsed-literal::
+
+    > Running step ee829c21-5642-423d-afcf-27e894aede35. Step input: What's the maximum number of cores of 8 sockets of 'Intel Xeon 6 processors' ? Go step by step, using a tool to do any math.
+
+
+.. parsed-literal::
+
     Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
 
 
 .. parsed-literal::
 
     Thought: The current language of the user is English. I need to use a tool to help me answer the question.
-    Action: Xeon6
-    Action Input: {'input': 'maximum cores in a single socket'}
-
+    Action: vector_search
+    Action Input: {'input': 'Intel Xeon 6 processors'}
+    
 
 .. parsed-literal::
 
@@ -410,9 +459,29 @@ Ask a question using multiple tools.
 
 .. parsed-literal::
 
-    Observation:
-
-    According to the provided context information, the maximum cores in a single socket is 144.
+    Observation: According to the provided text, Intel Xeon 6 processors with Efficient-cores are described as having the following features and benefits:
+    
+    * Up to 144 cores per socket in 1- or 2-socket configurations, boosting processing capacity, accelerating service mesh performance, and decreasing transaction latency.
+    * Improved power efficiency and lower idle power ISO configurations, contributing to enhanced sustainability with a TDP range of 205W-330W.
+    * Intel QuickAssist Technology (Intel QAT) drives fast encryption/key protection, while Intel Software Guard Extensions (Intel SGX) and Intel Trust Domain Extensions (Intel TDX) enable confidential computing for regulated workloads.
+    * Intel Xeon 6 processor-based platforms with Intel Ethernet 800 Series Network Adapters set the bar for maximum 5G core workload performance and lower operating costs.
+    
+    These processors are suitable for various industries, including:
+    
+    * Telecommunications: 5G core networks, control plane (CP), and user plane functions (UPF)
+    * Enterprise: Network security appliances, secure access service edge (SASE), next-gen firewall (NGFW), real-time deep packet inspection, antivirus, intrusion prevention and detection, and SSL/TLS inspection
+    * Media and Entertainment: Content delivery networks, media processing, video on demand (VOD)
+    * Industrial/Energy: Digitalization of automation, protection, and control
+    
+    The processors are also mentioned to be suitable for various use cases, including:
+    
+    * 5G core networks
+    * Network security appliances
+    * Content delivery networks
+    * Media processing
+    * Video on demand (VOD)
+    * Digitalization of automation, protection, and control in industrial and energy sectors
+    > Running step c8d3f8b5-0a3e-4254-87a8-c13cd4f992ad. Step input: None
 
 
 .. parsed-literal::
@@ -424,8 +493,13 @@ Ask a question using multiple tools.
 
     Thought: The current language of the user is English. I need to use a tool to help me answer the question.
     Action: multiply
-    Action Input: {'a': 144, 'b': 4}
-    Observation: 576
-    Thought: The current language of the user is English. I can answer without using any more tools. I'll use the user's language to answer
-    Answer: The maximum number of cores in an Intel Xeon 6 processor server with 4 sockets is 576.
+    Action Input: {'a': 8, 'b': 144}
+    Observation: 1152
+    > Running step 437a7fcf-7f53-4d7c-b3d4-06b2714a1b9d. Step input: None
+    Thought: The current language of the user is English. I can answer without using any more tools. I'll use the user's language to answer.
+    Answer: The maximum number of cores of 8 sockets of 'Intel Xeon 6 processors' is 1152.
+    
 
+.. code:: ipython3
+
+    agent.reset()

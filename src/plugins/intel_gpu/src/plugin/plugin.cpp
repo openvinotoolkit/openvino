@@ -145,7 +145,11 @@ Plugin::Plugin() {
     register_primitives();
 
     // Set OCL runtime which should be always available
+#ifdef OV_GPU_WITH_SYCL
+    cldnn::device_query device_query(cldnn::engine_types::sycl, cldnn::runtime_types::ocl);
+#else
     cldnn::device_query device_query(cldnn::engine_types::ocl, cldnn::runtime_types::ocl);
+#endif
     m_device_map = device_query.get_available_devices();
 
     // Set default configs for each device
@@ -506,11 +510,13 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
 }
 
 std::vector<ov::PropertyName> Plugin::get_caching_properties() const {
-    static const std::vector<ov::PropertyName> caching_properties =  {
+    static const std::vector<ov::PropertyName> caching_properties = {
         ov::PropertyName{ov::device::architecture.name(), PropertyMutability::RO},
         ov::PropertyName{ov::intel_gpu::execution_units_count.name(), PropertyMutability::RO},
         ov::PropertyName{ov::hint::inference_precision.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::execution_mode.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::hint::performance_mode.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::hint::dynamic_quantization_group_size.name(), PropertyMutability::RW},
     };
 
     return caching_properties;
