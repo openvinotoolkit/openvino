@@ -282,13 +282,35 @@ public:
 class memory_dependency_pass : public base_pass {
 public:
     explicit memory_dependency_pass(const std::string& pass_name) : base_pass(pass_name) {}
+
+    // Program node with can_be_optimized true could also allocate from memory pool during runtime, if it cannot be
+    // optimized out (with inst_impl.can_be_optimized false).
+    // If it is optimized out, alternatively, it could reuse the memory from its parent (e.g. reshape) or chilren (e.g. concat).
+    // The memory dependency pass need consider both situations, by iteratively referencing to all nodes that can_be_optimized until
+    // it meets the first node with can_be_optimize==false along the searching path.
+    // For example, in such a subgraph like -
+    // Node1 (can_be_optimized false) -> Node2 (can_be_optimized false) -> Reshape (skippable true) -> Permute (skippable true)
+    // -> Node3 (can_be_optimized false).
+    // Since Reshape MAY or MAY NOT be optimized out in runtime, Permute should be memory-dependent to all of its two predecessors. Otherwise
+    // Permute may allocate from the same block of Node2 and override its input; Similarly, since Reshape and Permute MAY or MAY NOT be optimized
+    // out in runtime, Node3 should be memory-dependent to all of its three predecessors, to avoid memory conflicting.
     void add_memory_dependency(program_node* node, program_node* dep) {
-        if (node->can_be_optimized() || !dep->can_be_optimized()) {
+        if (node->get_unique_id() == dep->get_unique_id()) {
+            return;
+        }
+
+        if ((node->can_be_optimized() && !node->is_runtime_skippable()) || !dep->can_be_optimized()) {
             node->add_memory_dependency(static_cast<int32_t>(dep->get_unique_id()));
         } else {
-            if (node->id() == dep->id()) {
+            if (node->is_runtime_skippable() || dep->is_runtime_skippable()) {
+                node->add_memory_dependency(static_cast<int32_t>(dep->get_unique_id()));
+                for (const auto& subdep : dep->get_dependencies()) {
+                    add_memory_dependency(node, subdep.first);
+                    add_memory_dependency(subdep.first, node);
+                }
                 return;
             }
+
             for (const auto& subdep : dep->get_dependencies()) {
                 add_memory_dependency(node, subdep.first);
                 add_memory_dependency(subdep.first, node);
