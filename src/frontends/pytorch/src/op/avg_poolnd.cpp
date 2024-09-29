@@ -82,10 +82,14 @@ OutputVector translate_avg_pool_base(const NodeContext& context, int dims) {
         }
     } else {
         auto pooled_output_shape = context.mark_node(std::make_shared<v3::ShapeOf>(res));
-        auto slice_input_shape = context.mark_node(std::make_shared<v8::Slice>(input_shape, const_0,
-            context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-dims})), const_1, const_0));
-        auto slice_pooled_output_shape = context.mark_node(std::make_shared<v8::Slice>(pooled_output_shape, context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-dims})),
-            context.mark_node(v0::Constant::create(element::i64, Shape{1}, {2 + dims})), const_1, const_0));
+        
+        auto start_index_input = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-dims}));
+        auto slice_input_shape = context.mark_node(std::make_shared<v8::Slice>(input_shape, const_0, start_index_input, const_1, const_0));
+
+        auto start_index_pooled = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-dims}));
+        auto end_index_pooled = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {2 + dims}));
+        auto slice_pooled_output_shape = context.mark_node(std::make_shared<v8::Slice>(pooled_output_shape, start_index_pooled, end_index_pooled, const_1, const_0));
+
         auto concat_shape = context.mark_node(std::make_shared<v0::Concat>(OutputVector{slice_input_shape, slice_pooled_output_shape}, 0));
         res = context.mark_node(std::make_shared<v1::Reshape>(res, concat_shape, true));
     }
