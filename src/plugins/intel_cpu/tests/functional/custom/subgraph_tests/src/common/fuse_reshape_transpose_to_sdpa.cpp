@@ -141,7 +141,7 @@ public:
         auto create_input = [this] (std::shared_ptr<ov::op::v0::Parameter> param, ov::Shape shape, float val) {
             if (param->get_element_type() == ov::element::i32) {
                 ov::Tensor t{ov::element::i32, shape};
-                auto size = shape[0];
+                auto size = ov::shape_size<ov::Shape>(shape);
                 auto* p = static_cast<int*>(t.data());
                 auto start = static_cast<int>(val);
                 for (size_t i = 0; i < size; i++) {
@@ -169,6 +169,11 @@ public:
         inferRequest = compiledModel.create_infer_request();
         ASSERT_TRUE(inferRequest);
     }
+    void reset() {
+        for (auto&& state : inferRequest.query_state()) {
+            state.reset();
+        }
+    }
 
     std::vector<ov::Tensor> run_test(std::shared_ptr<ov::Model> model) {
         function = model;
@@ -185,6 +190,7 @@ public:
             ov::Tensor copy{outputTensor.get_element_type(), outputTensor.get_shape()};
             outputTensor.copy_to(copy);
             outputs.push_back(copy);
+            reset();
         }
         return outputs;
     }
@@ -216,7 +222,7 @@ const std::vector<InputShapeAndReshapeOrder> inputShapeAndReshapeOrders = {
     {
         {{
              // Q,K,V:[B, L, H*S]
-             {{-1, -1, 4 * 16}, {{1, 1, 4 * 16}, {1, 2, 4 * 16}, {1, 2, 4 * 16}}},
+             {{-1, -1, 4 * 16}, {{1, 1, 4 * 16}, {1, 2, 4 * 16}, {2, 2, 4 * 16}}},
          },
          // reshapeOrderHS
          {4, 16}},
