@@ -238,7 +238,7 @@ public:
             } else if (param->get_element_type() == element::f16) {
                 ov::Tensor t{ov::element::f16, shape};
                 strided_iota(static_cast<ov::float16*>(t.data()), t.get_size(), val, 0.1f);
-                inputs.insert({param, t});                
+                inputs.insert({param, t});
             } else {
                 ov::Tensor t{ov::element::bf16, shape};
                 strided_iota(static_cast<ov::bfloat16*>(t.data()), t.get_size(), val, 0.1f);
@@ -310,7 +310,7 @@ TEST_P(ConcatMultiQuerySDPTest, CompareWithRefs) {
     std::tie(qkvType, inputShapeAndOrders, forceKVU8, hasShapeOf) = this->GetParam();
     if ((qkvType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16()) ||
         (qkvType == ElementType::f16 && !ov::with_cpu_x86_avx512_core_fp16())) {
-        GTEST_SKIP();    
+        GTEST_SKIP();
     }
     auto actualOutputs = run_test(function);
     CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 1);

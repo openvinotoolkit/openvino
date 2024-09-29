@@ -167,7 +167,7 @@ void BrgemmKernel::init_brgemm(brgemmCtx& ctx,
     cpu_isa_t isa;
     if (use_amx) {
         isa = isa_undef;
-    } else if (mayiuse(avx512_core)){
+    } else if (mayiuse(avx512_core)) {
         if (ctx.dt_in0 == dnnl_data_type_t::dnnl_bf16 && mayiuse(avx512_core_bf16)) {
             isa = avx512_core_bf16;
         } else if (ctx.dt_in0 == dnnl_data_type_t::dnnl_f16 && mayiuse(avx512_core_fp16)) {
