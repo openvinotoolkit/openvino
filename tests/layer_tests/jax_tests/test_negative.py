@@ -18,6 +18,7 @@ class TestNeg(JaxLayerTest):
             inp = rng.integers(-8, 8, self.input_shape).astype(self.input_type)
         else:
             inp = rng.integers(0, 8, self.input_shape).astype(self.input_type)
+        inp = jnp.array(inp)
         return [inp]
 
     def create_model(self, input_shape, input_type):
