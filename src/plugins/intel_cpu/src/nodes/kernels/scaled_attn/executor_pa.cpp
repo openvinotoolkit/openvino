@@ -858,15 +858,16 @@ struct MHAHelper {
 
             if ((S % 32 == 0) && (block_size % 16 == 0) && (S <= 32 * 6)) {
                 if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::amx_bf16) &&
+                    precision_of<DATA_TYPE>::value == ov::element::bf16 &&
                     precision_of<KVCACHE_TYPE>::value == ov::element::bf16) {
                     _fastpath_valid_prec = ov::element::bf16;
                 } else if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::amx_fp16) &&
+                           precision_of<DATA_TYPE>::value == ov::element::f16 &&
                            precision_of<KVCACHE_TYPE>::value == ov::element::f16) {
                     _fastpath_valid_prec = ov::element::f16;
                 }
             }
             if (one_of(_fastpath_valid_prec, ov::element::bf16, ov::element::f16) && !_gemv) {
-                // aligned to cache line (64bytes=16*sizeof(float)) to avoid false sharing
                 _gemv = std::make_shared<JitMatMulVecAMX>(static_cast<int>(S), static_cast<int>(block_size), _fastpath_valid_prec);
             }
         }
@@ -1039,25 +1040,13 @@ struct MHAHelper {
     //  output: [nthr, 32, H, S]
     void exec_kernel_one_bh(const PlainTensor& query, const PlainTensor& present_key, const PlainTensor& present_value, const PlainTensor& output_emb,
         const int32_t* block_table, size_t ithr, size_t hk, size_t q_len, size_t cur_kv_len, const PlainTensor& alibi_slopes, float* score_output) {
-        if (_fastpath_valid_prec == ov::element::bf16) {
+        if (one_of(_fastpath_valid_prec, ov::element::bf16, ov::element::f16)) {
             _gemv->tile_config();
             for (size_t pk = 0, i = 0; pk < cur_kv_len; pk += _block_size, i++) {
                 auto block_number = block_table[i];
                 for (size_t pq = 0; pq < q_len; pq++) {
                     for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++) {
-                        (*_gemv)(query.ptr<ov::bfloat16>(h, pq), present_key.ptr<ov::bfloat16>(block_number, hk),
-                            _weight.ptr<float>(ithr, h, pq) + pk);
-                    }
-                }
-            }
-            _gemv->tile_release();
-        } else if (_fastpath_valid_prec == ov::element::f16) {
-            _gemv->tile_config();
-            for (size_t pk = 0, i = 0; pk < cur_kv_len; pk += _block_size, i++) {
-                auto block_number = block_table[i];
-                for (size_t pq = 0; pq < q_len; pq++) {
-                    for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++) {
-                        (*_gemv)(query.ptr<ov::float16>(h, pq), present_key.ptr<ov::float16>(block_number, hk),
+                        (*_gemv)(query.ptr<DATA_TYPE>(h, pq), present_key.ptr<KVCACHE_TYPE>(block_number, hk),
                             _weight.ptr<float>(ithr, h, pq) + pk);
                     }
                 }
@@ -1153,20 +1142,11 @@ struct MHAHelper {
             auto pk = pk_in_blocks * _block_size;
             if (pk < context_len) {
                 auto block_number = block_indices.ptr<int32_t>()[block_indices_begins.ptr<int32_t>()[b] + pk_in_blocks];
-                if (_fastpath_valid_prec == ov::element::bf16) {
+                if (one_of(_fastpath_valid_prec, ov::element::bf16, ov::element::f16)) {
                     _gemv->tile_config();
                     for (size_t pq = 0; pq < q_len; pq++) {
                         for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++) {
-                            (*_gemv)(query.ptr<ov::bfloat16>(b, h, pq), present_key.ptr<ov::bfloat16>(block_number, hk),
-                                _weight_bhl.ptr<float>(b, h, pq) + pk);
-                        }
-                    }
-                    _gemv->tile_release();
-                } else if (_fastpath_valid_prec == ov::element::f16) {
-                    _gemv->tile_config();
-                    for (size_t pq = 0; pq < q_len; pq++) {
-                        for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++) {
-                            (*_gemv)(query.ptr<ov::float16>(b, h, pq), present_key.ptr<ov::float16>(block_number, hk),
+                            (*_gemv)(query.ptr<DATA_TYPE>(b, h, pq), present_key.ptr<KVCACHE_TYPE>(block_number, hk),
                                 _weight_bhl.ptr<float>(b, h, pq) + pk);
                         }
                     }
