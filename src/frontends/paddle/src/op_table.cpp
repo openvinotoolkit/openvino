@@ -98,6 +98,7 @@ OP_CONVERTER(reshape2);
 OP_CONVERTER(reverse);
 OP_CONVERTER(rnn);
 OP_CONVERTER(roi_align);
+OP_CONVERTER(roll);
 OP_CONVERTER(round);
 OP_CONVERTER(rsqrt);
 OP_CONVERTER(scale);
@@ -238,6 +239,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"reverse", op::reverse},
             {"rnn", op::rnn},
             {"roi_align", op::roi_align},
+            {"roll", op::roll},
             {"round", op::round},
             {"rsqrt", op::rsqrt},
             {"scale", op::scale},
