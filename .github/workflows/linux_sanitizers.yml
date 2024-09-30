@@ -108,6 +108,7 @@ jobs:
       SCCACHE_ERROR_LOG: /__w/openvino/sccache_log.txt
       SCCACHE_LOG: warn
       SCCACHE_AZURE_KEY_PREFIX: sanitizers_lin_${{ matrix.SANITIZER }}_master
+      SCCACHE_CACHE_SIZE: 50G
 
     steps:
       - name: Clone OpenVINO
