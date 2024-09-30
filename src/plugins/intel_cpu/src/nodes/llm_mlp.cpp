@@ -16,8 +16,6 @@
 
 #include "openvino/core/parallel.hpp"
 
-#include "nodes/linux_perf.hpp"
-
 #if defined(OPENVINO_ARCH_X86_64)
 #include "kernels/x64/mlp_kernel.hpp"
 #include "kernels/x64/mlp_utils.hpp"
@@ -266,20 +264,16 @@ public:
                    const LLMMLPNode::Config& config,
                    MatrixDynQuantPerRow& src_dq,
                    float * w_scale) {
-        auto prof = LinuxPerf::Profile(0.1f, "GateUP", M);
         ov::parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
             auto& work = works[ithr];
             if (work) {
-                {
-                    auto prof = LinuxPerf::Profile("work", work.BN);
-                    work.run(M, pA, strideA_in_bytes);
-                }
+                work.run(M, pA, strideA_in_bytes);
+
                 // K reduce is done, results of [M, BN] sub-block is ready in L2.
                 // combine Gate & Up
                 float * ptr_c;
                 size_t stride_c;
                 if (config.gate_up_quantized) {
-                    auto prof = LinuxPerf::Profile("deq");
                     // dequantize m_C in-place
                     ptr_c = work.m_C.ptr<float>();
                     stride_c = work.m_C.stride(0);                    
@@ -443,7 +437,6 @@ struct LLMMLP::Executor : public LLMMLP::ExecutorBase {
             auto stride_src_in_bytes = strideA_in_bytes;
             auto strideA_in_bytes = strideA * sizeof(T);
             if (m_config.gate_up_quantized) {
-                auto prof = LinuxPerf::Profile("gu-quant");
                 m_quant_act.quantize(BM, reinterpret_cast<T*>(pA), strideA);
                 psrc = reinterpret_cast<uint8_t*>(m_quant_act.data);
                 stride_src_in_bytes = m_quant_act.K;

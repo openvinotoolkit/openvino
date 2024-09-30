@@ -21,8 +21,6 @@
 
 #include "openvino/core/parallel.hpp"
 
-#include "nodes/linux_perf.hpp"
-
 using namespace dnnl::impl;
 using namespace dnnl::impl::utils;
 
@@ -207,11 +205,8 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
         auto stride_dst_1 = dstStrides1[1];
         auto stride_dst_2 = dstStrides2[1];
 
-        auto prof = LinuxPerf::Profile("QKV", 0, M);
-
         auto asym = true;
         for (int m = 0; m < M;) {
-            auto prof = LinuxPerf::Profile(0.1f, "loop", M);
             int BM = std::min(M - m, CACHE_BLK_M_SIZE);
 
             setM(BM);
@@ -231,10 +226,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
             ov::parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
                 auto& work = works[ithr];
                 if (work) {
-                    {
-                        auto prof = LinuxPerf::Profile("work", ithr, work.output_id, work.BN);
-                        work.run(BM, pA, strideA);
-                    }
+                    work.run(BM, pA, strideA);
 
                     // determine destination buffer
                     T* dst = nullptr;
@@ -257,7 +249,6 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
                     auto stride_src = work.m_C.stride(0);
                     if (m_node->m_config.quantized) {
                         // dequantize output & convert to f32 in-place
-                        auto prof = LinuxPerf::Profile("dequant", ithr);
                         ov::Extensions::Cpu::XARCH::llm_mlp_dequantize_i32_f32(
                             BM,
                             work.BN,
