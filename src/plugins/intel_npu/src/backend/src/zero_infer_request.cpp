@@ -515,7 +515,7 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
                 _batchedTensorsData[foundPort.idx].resize(tensors.size());
 
                 if (remoteTensor == nullptr) {
-                    bool tensorL0Context = false;
+                    bool tensorHasSameL0Context = false;
 
                     ze_memory_allocation_properties_t desc = {};
                     desc.stype = ZE_STRUCTURE_TYPE_MEMORY_ALLOCATION_PROPERTIES;
@@ -530,7 +530,7 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
                                     "ZeroInferRequest::set_tensors - tensor was created in the same L0 context");
 
                                 _levelZeroBatchedTensors[foundPort.idx][i] = tensors[i];
-                                tensorL0Context = true;
+                                tensorHasSameL0Context = true;
                                 break;
                             case ZE_MEMORY_TYPE_UNKNOWN:
                             case ZE_MEMORY_TYPE_FORCE_UINT32:
@@ -540,7 +540,7 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
                         }
                     }
 
-                    if (!tensorL0Context) {
+                    if (!tensorHasSameL0Context) {
                         _logger.debug("ZeroInferRequest::set_tensors - tensor wasn't created in the same L0 context, "
                                       "create a L0 tensor");
 

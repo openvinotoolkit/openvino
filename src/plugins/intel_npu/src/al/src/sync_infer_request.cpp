@@ -201,6 +201,7 @@ void SyncInferRequest::check_tensors() const {
     const auto& inputs = _compiledModel->inputs();
     for (size_t i = 0; i < inputs.size(); i++) {
         if (is_batched_input(i)) {
+            // in case of batched input, user tensor is not set
             continue;
         }
         if (_userInputTensors.at(i)) {
