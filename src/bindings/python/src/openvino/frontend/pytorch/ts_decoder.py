@@ -73,7 +73,6 @@ class TorchScriptPythonDecoder(Decoder):
                     "https://pytorch.org/tutorials/beginner/Intro_to_TorchScript_tutorial.html."
                 ) from e
             self.graph_element = pt_module.inlined_graph
-            log.debug("Inlined graph:\n%s", pt_module.inlined_graph)
             self.alias_db = self.graph_element.alias_db()
         else:
             self.graph_element = graph_element
@@ -93,9 +92,12 @@ class TorchScriptPythonDecoder(Decoder):
                         self.raw_inputs[i + n].debugName())
 
         if isinstance(self.graph_element, torch.Graph):
+            torch._C._jit_pass_inline_fork_wait(self.graph_element)
+            torch._C._jit_pass_inline(self.graph_element)
             self._transform_tensor_list_constants_to_listconstruct(
                 self.graph_element)
             self._transform_optional_constants(self.graph_element)
+            log.debug("Inlined graph:\n%s", self.graph_element)
 
     @staticmethod
     def _get_preserved_attributes(model) -> list:
