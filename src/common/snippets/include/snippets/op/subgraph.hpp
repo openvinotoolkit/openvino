@@ -119,7 +119,6 @@ public:
     const std::shared_ptr<RuntimeConfigurator>& get_runtime_configurator() const;
     const std::shared_ptr<RuntimeConfig>& update_runtime_config() const;
 
-    static auto wrap_node_as_subgraph(const std::shared_ptr<ov::Node>& node) -> std::shared_ptr<Subgraph>;
     static void fill_empty_output_names(const Output<Node>& target_output_node, const Output<Node>& replacement_output_node);
 
     // Non-scalar Constants are tokenized as Parameters inside Subgraph body but some operations with constant inputs
