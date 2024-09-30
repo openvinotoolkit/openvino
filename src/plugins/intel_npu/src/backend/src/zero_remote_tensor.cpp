@@ -28,7 +28,7 @@ ZeroRemoteTensor::ZeroRemoteTensor(std::shared_ptr<ov::IRemoteContext> context,
                                    const Config& config,
                                    TensorType tensor_type,
                                    MemType mem_type,
-                                   void* mem)
+                                   const void* mem)
     : RemoteTensor(std::move(context), element_type, shape),
       _config(config),
       _logger("ZeroRemoteContext", _config.get<LOG_LEVEL>()),

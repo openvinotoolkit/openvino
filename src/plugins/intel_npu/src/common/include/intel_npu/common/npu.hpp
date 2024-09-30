@@ -73,7 +73,8 @@ public:
      * @brief TODO
      */
     virtual std::vector<std::shared_ptr<ov::ITensor>> runInit(const std::shared_ptr<IExecutor>& initExecutor,
-                                                              const std::shared_ptr<const ov::Model> model,
+                                                              const std::shared_ptr<const ov::Model>& model,
+                                                              const ov::SoPtr<ov::IRemoteContext>& context,
                                                               const Config& config) = 0;
 
     virtual std::string getName() const = 0;
@@ -101,7 +102,7 @@ public:
         const Config& config,
         ov::intel_npu::TensorType tensor_type = ov::intel_npu::TensorType::BINDED,
         ov::intel_npu::MemType mem_type = ov::intel_npu::MemType::L0_INTERNAL_BUF,
-        void* mem = nullptr);
+        const void* mem = nullptr);
 
     virtual ov::SoPtr<ov::ITensor> createHostTensor(std::shared_ptr<ov::IRemoteContext> context,
                                                     const ov::element::Type& element_type,

@@ -441,7 +441,7 @@ std::shared_ptr<IExecutor> CompiledModel::create_executor(
 
 void CompiledModel::run_init(const std::shared_ptr<IExecutor>& initExecutor) {
     if (_device != nullptr && initExecutor != nullptr) {
-        _weightsInputs = _device->runInit(initExecutor, _model, _config);
+        _weightsInputs = _device->runInit(initExecutor, _model, get_context(), _config);
     } else {
         _logger.info("The \"Init\" schedule did not run while building the \"CompiledModel\" object");
     }

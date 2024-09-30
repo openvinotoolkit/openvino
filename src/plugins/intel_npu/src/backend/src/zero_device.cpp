@@ -95,7 +95,8 @@ std::shared_ptr<IExecutor> ZeroDevice::createExecutor(
 }
 
 std::vector<std::shared_ptr<ov::ITensor>> ZeroDevice::runInit(const std::shared_ptr<IExecutor>& initExecutor,
-                                                              const std::shared_ptr<const ov::Model> model,
+                                                              const std::shared_ptr<const ov::Model>& model,
+                                                              const ov::SoPtr<ov::IRemoteContext>& context,
                                                               const Config& config) {
     const auto zeroInitExecutor = static_cast<const ZeroExecutor*>(initExecutor.get());
     std::unordered_map<size_t, TensorData> constantIdToTensorData;
@@ -121,6 +122,14 @@ std::vector<std::shared_ptr<ov::ITensor>> ZeroDevice::runInit(const std::shared_
         OPENVINO_ASSERT(constantIdToTensorData.count(id), "Mismatch between weights IDs and parsed inputs");
 
         inputTensorsData.push_back(constantIdToTensorData.at(id));
+
+        createRemoteTensor(context._ptr,
+                           zeroUtils::getOVPrecision(descriptor.info.devicePrecision),
+                           zeroUtils::getOVShape(descriptor.info),
+                           config,
+                           ov::intel_npu::TensorType::INPUT,
+                           ov::intel_npu::MemType::SHARED_BUF,
+                           constantIdToTensorData.at(id).mem);
     }
 
     // TODO remte tensor stuff
@@ -231,7 +240,7 @@ ov::SoPtr<ov::IRemoteTensor> ZeroDevice::createRemoteTensor(std::shared_ptr<ov::
                                                             const Config& config,
                                                             ov::intel_npu::TensorType tensor_type,
                                                             ov::intel_npu::MemType mem_type,
-                                                            void* mem) {
+                                                            const void* mem) {
     return {std::make_shared<
         ZeroRemoteTensor>(context, _initStructs, element_type, shape, config, tensor_type, mem_type, mem)};
 };
