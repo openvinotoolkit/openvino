@@ -1,0 +1,9 @@
+numpy~=2.1.1
+pytest~=8.3.3
+pytest-xdist[psutil]~=3.6.1
+pytest-html~=4.1.1
+transformers~=4.45.1
+tensorflow~=2.17.0
+tensorflow-hub~=0.16.1
+tensorflow-text~=2.17.0
+jax~=0.4.33

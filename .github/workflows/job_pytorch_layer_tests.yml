@@ -1,4 +1,4 @@
-name: TensorFlow Layer Tests
+name: PyTorch Layer Tests
 
 on:
   workflow_call:
@@ -28,8 +28,8 @@ env:
   PYTHON_VERSION: '3.11'
 
 jobs:
-  TensorFlow_Layer_Tests:
-    name: TensorFlow Layer Tests
+  PyTorch_Layer_Tests:
+    name: PyTorch Layer Tests
     timeout-minutes: 30
     runs-on: ${{ inputs.runner }}
     container: ${{ fromJSON(inputs.container) }}
@@ -126,40 +126,41 @@ jobs:
           $ovCoreWheelPath=Get-ChildItem -Path ${{ env.INSTALL_DIR }} -Filter openvino_tokenizers-*.whl | % { $_.FullName }
           python3 -m pip install "$ovCoreWheelPath"
 
-      - name: Install Python Layer tests dependencies
+      - name: Install Pytorch Layer tests dependencies
         run: |
-          # tensorflow test requirements
-          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/requirements_tensorflow.txt
+          # pytorch test requirements
+          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/requirements_pytorch.txt
 
-      - name: TensorFlow 1 Layer Tests - TF FE
-        if: fromJSON(inputs.affected-components).TF_FE.test
-        run: |
-          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_tests/ -n logical -m precommit  --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_fe.xml
+      - name: PyTorch Layer Tests
+        if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.arch != 'ARM64' }} # Ticket: 126287, 142196
+        run: python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/pytorch_tests -n logical -m precommit --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-pytorch.xml
         env:
           TEST_DEVICE: CPU
-          TEST_PRECISION: FP16
+          TEST_PRECISION: FP32
 
-      - name: TensorFlow 2 Layer Tests - TF FE
-        if: fromJSON(inputs.affected-components).TF_FE.test && runner.os != 'macOS' # Ticket: 123322
+      - name: PyTorch torch.export Layer Tests
+        if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.arch != 'ARM64' }} # Ticket: 126287
         run: |
-          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow2_keras_tests/ -n logical -m precommit --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf2_fe.xml
+          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/pytorch_tests -n logical -m precommit_torch_export --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-pytorch.xml
         env:
           TEST_DEVICE: CPU
-          TEST_PRECISION: FP16
+          TEST_PRECISION: FP32
+          PYTORCH_TRACING_MODE: EXPORT
 
-      - name: JAX Layer Tests - TF FE
-        # JAX single layer models converted via TF FE
-        if: ${{ fromJSON(inputs.affected-components).TF_FE.test && runner.arch != 'ARM64' && runner.os != 'macOS' }}
-        run: python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/jax_tests/ -n logical -m precommit --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-jax.xml
+      - name: PyTorch torch.compile TORCHFX Layer Tests
+        if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.os != 'macOS' && runner.arch != 'ARM64' }} # Ticket: 126287
+        run: |
+          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/pytorch_tests -m precommit_fx_backend --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-pytorch.xml
         env:
           TEST_DEVICE: CPU
-          TEST_PRECISION: FP16
+          TEST_PRECISION: FP32
+          PYTORCH_TRACING_MODE: TORCHFX
 
       - name: Upload Test Results
         uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         if: ${{ !cancelled() }}
         with:
-          name: test-results-python-tf-layers
+          name: test-results-python-pytorch-layers
           path: |
             ${{ env.INSTALL_TEST_DIR }}/TEST*.html
             ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
