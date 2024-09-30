@@ -498,6 +498,17 @@ void LLMMLP::initSupportedPrimitiveDescriptors() {
 
     auto rtPrecision = getOriginalInputPrecisionAtPort(0);
 
+    if (rtPrecision == ov::element::f32) {
+        // fallback to supported precision if possible
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16)) {
+            rtPrecision = ov::element::f16;
+        } else if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
+            rtPrecision = ov::element::bf16;
+        }
+    }
+
+    OPENVINO_ASSERT(rtPrecision == ov::element::bf16 || rtPrecision == ov::element::f16, "Unexpected rtPrecision:", rtPrecision);
+
     if (m_mlp_config.gate_up_quantized) {
         auto weightPrecision = ov::element::i8;
 
@@ -529,7 +540,7 @@ void LLMMLP::initSupportedPrimitiveDescriptors() {
 }
 
 void LLMMLP::createPrimitive() {
-    auto rtPrecision = getOriginalInputPrecisionAtPort(0);
+    auto rtPrecision = getInputPrecisions()[0];
 #ifdef OPENVINO_ARCH_X86_64
     if (rtPrecision == ov::element::bf16) {
         m_executor = std::make_shared<Executor<ov::bfloat16>>(this, m_mlp_config, context->getScratchPad());
