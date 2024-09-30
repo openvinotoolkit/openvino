@@ -3,7 +3,6 @@
 //
 
 #include "openvino/util/file_util.hpp"
-#include "openvino/util/file_path.hpp"
 
 #include <sys/stat.h>
 
@@ -14,6 +13,7 @@
 #include <sstream>
 
 #include "openvino/util/common_util.hpp"
+#include "openvino/util/file_path.hpp"
 
 #ifdef _WIN32
 #    ifndef NOMINMAX
@@ -105,13 +105,11 @@ std::wstring ov::util::get_directory(const std::wstring& s) {
 
 namespace {
 ov::util::Path join_paths(const ov::util::Path& s1, const ov::util::Path& s2) {
-    if(s2.empty()){
+    if (s2.empty()) {
         return s1;
-    }
-    else if(s1.empty() || *s2.begin() == ov::util::Path{"/"}){
+    } else if (s1.empty() || *s2.begin() == ov::util::Path{"/"}) {
         return s2;
-    }
-    else{
+    } else {
         return s1 / s2;
     }
 }
@@ -629,9 +627,9 @@ ov::util::Path ov::util::trim_file_name(const ov::util::Path& fname) {
 
     auto it = std::find(fname.begin(), fname.end(), ov::util::Path{OV_NATIVE_PARENT_PROJECT_ROOT_DIR});
 
-    if(it != fname.end()){
+    if (it != fname.end()) {
         return ov::util::path_join(std::vector<ov::util::Path>(++it, fname.end()));
-    }else{
+    } else {
         return fname;
     }
 }

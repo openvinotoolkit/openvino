@@ -135,15 +135,15 @@ TEST(ONNX_Importer_Tests, ImportModelFromStream) {
 
 TEST(ONNX_Importer_Tests, ImportModelWithoutMetadata) {
     Core core;
-    auto model = core.read_model(
-        test::utils::getModelFromTestModelZoo(util::path_join({TEST_ONNX_MODELS_DIRNAME, "priorbox_clustered.onnx"}).string()));
+    auto model = core.read_model(test::utils::getModelFromTestModelZoo(
+        util::path_join({TEST_ONNX_MODELS_DIRNAME, "priorbox_clustered.onnx"}).string()));
     ASSERT_FALSE(model->has_rt_info("framework"));
 }
 
 TEST(ONNX_Importer_Tests, ImportModelWithMetadata) {
     Core core;
-    auto model = core.read_model(
-        test::utils::getModelFromTestModelZoo(util::path_join({TEST_ONNX_MODELS_DIRNAME, "model_with_metadata.onnx"}).string()));
+    auto model = core.read_model(test::utils::getModelFromTestModelZoo(
+        util::path_join({TEST_ONNX_MODELS_DIRNAME, "model_with_metadata.onnx"}).string()));
     ASSERT_TRUE(model->has_rt_info("framework"));
 
     const auto rtinfo = model->get_rt_info();
