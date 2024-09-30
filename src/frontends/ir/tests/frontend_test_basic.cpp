@@ -1523,3 +1523,93 @@ TEST_F(IRFrontendTests, load_model_weights_not_exist_at_path) {
 
     std::remove(model_file_path.c_str());
 }
+
+TEST_F(IRFrontendTests, LongComment) {
+    std::string testModel = R"V0G0N(
+<?xml version="1.0"?>
+<!-- Long comment ............................................................................................................................................................................................................................................................................................................................................................................................................................................................ -->
+<net name="IR with long comment" version="11">
+    <layers>
+        <layer id="0" name="Parameter_1" type="Parameter" version="opset1">
+            <data shape="2" element_type="f16" />
+            <output>
+                <port id="0" precision="FP16">
+                    <dim>2</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="1" name="Convert_2" type="Convert" version="opset1">
+            <data destination_type="f32" />
+            <input>
+                <port id="0" precision="FP16">
+                    <dim>2</dim>
+                </port>
+            </input>
+            <output>
+                <port id="1" precision="FP32">
+                    <dim>2</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="2" name="Result_3" type="Result" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>2</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="0" />
+        <edge from-layer="1" from-port="1" to-layer="2" to-port="0" />
+    </edges>
+    <rt_info />
+</net>
+)V0G0N";
+
+    std::shared_ptr<ov::Model> model;
+    ov::RTMap rtInfo;
+    int64_t version = 0;
+
+    OV_ASSERT_NO_THROW(model = getWithIRFrontend(testModel));
+    ASSERT_TRUE(!!model);
+    OV_ASSERT_NO_THROW(version = model->get_rt_info().at("version").as<int64_t>());
+    ASSERT_EQ(11, version);
+}
+
+TEST_F(IRFrontendTests, VeryShortValidModel) {
+    std::string testModel = R"V0G0N(
+<?xml version="1.0"?>
+<net name="A" version="11">
+<layers>
+<layer id="0" name="P" type="Parameter" version="opset1">
+<data shape="2" element_type="f16" />
+<output>
+<port id="0" precision="FP16">
+<dim>2</dim>
+</port>
+</output>
+</layer>
+<layer id="1" name="R" type="Result" version="opset1">
+<input>
+<port id="0" precision="FP32">
+<dim>2</dim>
+</port>
+</input>
+</layer>
+</layers>
+<edges>
+<edge from-layer="0" from-port="0" to-layer="1" to-port="0" />
+</edges>
+<rt_info />
+</net>
+)V0G0N";
+
+    std::shared_ptr<ov::Model> model;
+    int64_t version = 0;
+
+    OV_ASSERT_NO_THROW(model = getWithIRFrontend(testModel));
+    ASSERT_TRUE(!!model);
+    OV_ASSERT_NO_THROW(version = model->get_rt_info().at("version").as<int64_t>());
+    ASSERT_EQ(11, version);
+}
