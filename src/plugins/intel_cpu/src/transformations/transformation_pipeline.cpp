@@ -290,7 +290,7 @@ void Transformations::UpToLpt() {
         levels::int8_narrow_range
     };
 
-    const bool useLpt = config.lpTransformsMode == Config::LPTransformsMode::On &&
+    const bool useLpt = config.lpTransformsMode == ov::intel_cpu::Config::LPTransformsMode::On &&
         LowPrecision::isFunctionQuantized(model, supported_fq_levels) &&
         CPU_DEBUG_CAP_IS_TRANSFORMATION_ENABLED(config.debugCaps, Lpt);
 
@@ -885,11 +885,11 @@ void Transformations::MainSnippets(void) {
         return false;
     };
 
-    if (snippetsMode == ov::intel_cpu::Config::SnippetsMode::Disable || !is_supported_isa())
+    if (config.snippetsMode == ov::intel_cpu::Config::SnippetsMode::Disable || !is_supported_isa())
         return;
 
     // TODO [123659] Implement common logic to split optimization and limitation conditions
-    const auto ignoreCallback = snippetsMode == ov::intel_cpu::Config::SnippetsMode::IgnoreCallback;
+    const auto ignoreCallback = config.snippetsMode == ov::intel_cpu::Config::SnippetsMode::IgnoreCallback;
 
     // [111813]: At the moment Snippets supports Transpose on output of MHA pattern only if it is an one node between MatMul and Result.
     // However there may be Convert [f32->bf16] before Result since:
@@ -1190,7 +1190,7 @@ void Transformations::PostSnippets(void) {
 }
 
 void Transformations::Snippets(void) {
-    const bool useSnippets = snippetsMode != ov::intel_cpu::Config::SnippetsMode::Disable &&
+    const bool useSnippets = config.snippetsMode != ov::intel_cpu::Config::SnippetsMode::Disable &&
         CPU_DEBUG_CAP_IS_TRANSFORMATION_ENABLED(config.debugCaps, Snippets);
     if (!useSnippets)
         return;
