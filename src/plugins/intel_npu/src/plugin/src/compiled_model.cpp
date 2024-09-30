@@ -36,6 +36,38 @@ std::uint32_t hash(const std::vector<uint8_t>& data) {
 
 namespace intel_npu {
 
+// Macro for registering simple get<> properties which have everything defined in their optionBase
+#define REGISTER_SIMPLE_PROPERTY(option_name, config_type)                                                          \
+    do {                                                                                                            \
+        std::string o_name = option_name.name();                                                                    \
+        if (_config.hasOpt(o_name)) {                                                                               \
+            _properties.emplace(                                                                                    \
+                o_name,                                                                                             \
+                std::make_tuple(_config.isOptPublic(o_name), ov::PropertyMutability::RO, [](const Config& config) { \
+                    return config.get<config_type>();                                                               \
+                }));                                                                                                \
+        }                                                                                                           \
+    } while (0)
+
+// Macro for registering properties which have custom function
+#define REGISTER_CUSTOM_PROPERTY(option_name, __func)                                                              \
+    do {                                                                                                           \
+        std::string o_name = option_name.name();                                                                   \
+        if (_config.hasOpt(o_name)) {                                                                              \
+            _properties.emplace(o_name,                                                                            \
+                                std::make_tuple(_config.isOptPublic(o_name), ov::PropertyMutability::RO, __func)); \
+        }                                                                                                          \
+    } while (0)
+
+// Macro for defining full custom properties
+#define REGISTER_PROPERTY(option_name, __isPublic, __isMutable, __func)                    \
+    do {                                                                                   \
+        std::string o_name = option_name.name();                                           \
+        if (_config.hasOpt(o_name)) {                                                      \
+            _properties.emplace(o_name, std::make_tuple(__isPublic, __isMutable, __func)); \
+        }                                                                                  \
+    } while (0)
+
 using intel_npu::envVarStrToBool;
 
 CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
@@ -216,167 +248,56 @@ void CompiledModel::initialize_properties() {
                                return property == name;
                            });
     };
-    _properties = {
-        // OV Public
-        // =========
-        {ov::supported_properties.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [&](const Config&) {
-              return _supportedProperties;
-          }}},
-        {ov::device::id.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.get<DEVICE_ID>();
-          }}},
-        {ov::enable_profiling.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.get<PERF_COUNT>();
-          }}},
-        {ov::model_name.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [&](const Config&) {
-              OPENVINO_ASSERT(_networkPtr != nullptr, "Missing network descriptor");
-              return _networkPtr->metadata.name;
-          }}},
-        {ov::optimal_number_of_infer_requests.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [&](const Config& config) {
-              // value is allowed to be queried prior the network is compiled
-              return static_cast<uint32_t>(getOptimalNumberOfInferRequestsInParallel(config));
-          }}},
-        {ov::execution_devices.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [&](const Config&) {
-              return std::string("NPU");
-          }}},
-        {ov::loaded_from_cache.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.get<LOADED_FROM_CACHE>();
-          }}},
-        {ov::workload_type.name(),
-         {isPropertySupported(ov::workload_type.name()),
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.get<WORKLOAD_TYPE>();
-          }}},
-        // OV Public Hints
-        // =========
-        {ov::hint::performance_mode.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.get<PERFORMANCE_HINT>();
-          }}},
-        {ov::hint::execution_mode.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.get<EXECUTION_MODE_HINT>();
-          }}},
-        {ov::hint::num_requests.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.get<PERFORMANCE_HINT_NUM_REQUESTS>();
-          }}},
-        {ov::hint::inference_precision.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.get<INFERENCE_PRECISION_HINT>();
-          }}},
-        {ov::hint::enable_cpu_pinning.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.get<ENABLE_CPU_PINNING>();
-          }}},
-        {ov::hint::model_priority.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.get<MODEL_PRIORITY>();
-          }}},
-        // OV Internals
-        // =========
-        {ov::internal::supported_properties.name(),
-         {false,
-          ov::PropertyMutability::RO,
-          [&](const Config&) {
-              static const std::vector<ov::PropertyName> supportedProperty{
-                  ov::PropertyName(ov::internal::caching_properties.name(), ov::PropertyMutability::RO),
-              };
-              return supportedProperty;
-          }}},
-        // NPU Public
-        // =========
-        {ov::intel_npu::compilation_mode_params.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.get<COMPILATION_MODE_PARAMS>();
-          }}},
-        {ov::intel_npu::turbo.name(),
-         {isPropertySupported(ov::intel_npu::turbo.name()),
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.get<TURBO>();
-          }}},
-        // NPU Private
-        // =========
-        {ov::intel_npu::tiles.name(),
-         {false,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.get<TILES>();
-          }}},
-        {ov::intel_npu::profiling_type.name(),
-         {false,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.getString<PROFILING_TYPE>();
-          }}},
-        {ov::intel_npu::platform.name(),
-         {false,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.get<PLATFORM>();
-          }}},
-        {ov::intel_npu::dynamic_shape_to_static.name(),
-         {false,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.getString<DYNAMIC_SHAPE_TO_STATIC>();
-          }}},
-        {ov::intel_npu::use_elf_compiler_backend.name(),
-         {false,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.getString<USE_ELF_COMPILER_BACKEND>();
-          }}},
-        {ov::intel_npu::create_executor.name(),
-         {false,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.get<CREATE_EXECUTOR>();
-          }}},
-        {ov::intel_npu::batch_mode.name(),
-         {false,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.getString<BATCH_MODE>();
-          }}},
-    };
+
+    REGISTER_SIMPLE_PROPERTY(ov::device::id, DEVICE_ID);
+    REGISTER_SIMPLE_PROPERTY(ov::enable_profiling, PERF_COUNT);
+    REGISTER_SIMPLE_PROPERTY(ov::loaded_from_cache, LOADED_FROM_CACHE);
+    REGISTER_SIMPLE_PROPERTY(ov::hint::performance_mode, PERFORMANCE_HINT);
+    REGISTER_SIMPLE_PROPERTY(ov::hint::execution_mode, EXECUTION_MODE_HINT);
+    REGISTER_SIMPLE_PROPERTY(ov::hint::num_requests, PERFORMANCE_HINT_NUM_REQUESTS);
+    REGISTER_SIMPLE_PROPERTY(ov::hint::inference_precision, INFERENCE_PRECISION_HINT);
+    REGISTER_SIMPLE_PROPERTY(ov::hint::enable_cpu_pinning, ENABLE_CPU_PINNING);
+    REGISTER_SIMPLE_PROPERTY(ov::hint::model_priority, MODEL_PRIORITY);
+    REGISTER_SIMPLE_PROPERTY(ov::intel_npu::compilation_mode_params, COMPILATION_MODE_PARAMS);
+    REGISTER_SIMPLE_PROPERTY(ov::intel_npu::tiles, TILES);
+    REGISTER_SIMPLE_PROPERTY(ov::intel_npu::profiling_type, PROFILING_TYPE);
+    REGISTER_SIMPLE_PROPERTY(ov::intel_npu::platform, PLATFORM);
+    REGISTER_SIMPLE_PROPERTY(ov::intel_npu::dynamic_shape_to_static, DYNAMIC_SHAPE_TO_STATIC);
+    REGISTER_SIMPLE_PROPERTY(ov::intel_npu::use_elf_compiler_backend, USE_ELF_COMPILER_BACKEND);
+    REGISTER_SIMPLE_PROPERTY(ov::intel_npu::create_executor, CREATE_EXECUTOR);
+    REGISTER_SIMPLE_PROPERTY(ov::intel_npu::batch_mode, BATCH_MODE);
+
+    REGISTER_CUSTOM_PROPERTY(ov::model_name, [&](const Config&) {
+        OPENVINO_ASSERT(_networkPtr != nullptr, "Missing network descriptor");
+        return _networkPtr->metadata.name;
+    });
+    REGISTER_CUSTOM_PROPERTY(ov::optimal_number_of_infer_requests, [&](const Config& config) {
+        // value is allowed to be queried prior the network is compiled
+        return static_cast<uint32_t>(getOptimalNumberOfInferRequestsInParallel(config));
+    });
+    REGISTER_CUSTOM_PROPERTY(ov::execution_devices, [&](const Config&) {
+        return std::string("NPU");
+    });
+    REGISTER_CUSTOM_PROPERTY(ov::internal::supported_properties, [&](const Config&) {
+        static const std::vector<ov::PropertyName> supportedProperty{
+            ov::PropertyName(ov::internal::caching_properties.name(), ov::PropertyMutability::RO)};
+        return supportedProperty;
+    });
+    REGISTER_CUSTOM_PROPERTY(ov::supported_properties, [&](const Config&) {
+        return _supportedProperties;
+    });
+    REGISTER_PROPERTY(ov::workload_type,
+                      isPropertySupported(ov::workload_type.name()),
+                      ov::PropertyMutability::RW,
+                      [](const Config& config) {
+                          return config.get<WORKLOAD_TYPE>();
+                      });
+    REGISTER_PROPERTY(ov::intel_npu::turbo,
+                      isPropertySupported(ov::intel_npu::turbo.name()),
+                      ov::PropertyMutability::RO,
+                      [](const Config& config) {
+                          return config.get<TURBO>();
+                      });
 
     for (auto& property : _properties) {
         if (std::get<0>(property.second)) {
