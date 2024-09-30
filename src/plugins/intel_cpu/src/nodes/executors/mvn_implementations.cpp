@@ -135,7 +135,7 @@ const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations() {
             "mvn_jit_x64_ncsp",
             ExecutorType::jit_x64,
             OperationType::MVN,
-            ShapeTolerance::Dependant,
+            ShapeTolerance::Agnostic,
             // supports
             [](const MVNConfig& config) -> bool {
                 return JITMVNExecutor::supports(config);
@@ -150,7 +150,7 @@ const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations() {
             // acceptsShapes
             [](const MemoryArgs& memory) -> bool {
                 // @todo create syntactic sugar (functor) for shape agnostic lambda
-                return memory.at(ARG_SRC)->getDescPtr()->hasLayoutType(LayoutType::ncsp);
+                return true;
             },
             // create
             [](const MVNAttrs& attrs,
@@ -163,7 +163,7 @@ const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations() {
             "mvn_jit_x64_nspc",
             ExecutorType::jit_x64,
             OperationType::MVN,
-            ShapeTolerance::Dependant,
+            ShapeTolerance::Agnostic,
             // supports
             [](const MVNConfig& config) -> bool {
                 return JITMVNExecutor::supports(config);
@@ -178,7 +178,7 @@ const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations() {
             // acceptsShapes
             [](const MemoryArgs& memory) -> bool {
                 // @todo create syntactic sugar (functor) for shape agnostic lambda
-                return memory.at(ARG_SRC)->getDescPtr()->hasLayoutType(LayoutType::nspc);
+                return true;
             },
             // create
             [](const MVNAttrs& attrs,
@@ -191,9 +191,10 @@ const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations() {
             "mvn_acl_nspc",
             ExecutorType::Acl,
             OperationType::MVN,
-            ShapeTolerance::Dependant,
+            ShapeTolerance::Agnostic,
             // supports
             [](const MVNConfig& config) -> bool {
+                if (!config.descs.at(ARG_SRC)->hasLayoutType(LayoutType::nspc)) return false;
                 return ACLMVNExecutor::supports(config);
             },
             // requiresFallback
@@ -206,7 +207,7 @@ const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations() {
             // acceptsShapes
             [](const MemoryArgs& memory) -> bool {
                 // @todo create syntactic sugar (functor) for shape agnostic lambda
-                return memory.at(ARG_SRC)->getDescPtr()->hasLayoutType(LayoutType::nspc);
+                return true;
             },
             // create
             [](const MVNAttrs& attrs,
@@ -219,9 +220,10 @@ const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations() {
             "mvn_acl_ncsp",
             ExecutorType::Acl,
             OperationType::MVN,
-            ShapeTolerance::Dependant,
+            ShapeTolerance::Agnostic,
             // supports
             [](const MVNConfig& config) -> bool {
+                if (!config.descs.at(ARG_SRC)->hasLayoutType(LayoutType::ncsp)) return false;
                 return ACLMVNExecutor::supports(config);
             },
             // requiresFallback
@@ -234,7 +236,7 @@ const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations() {
             // acceptsShapes
             [](const MemoryArgs& memory) -> bool {
                 // @todo create syntactic sugar (functor) for shape agnostic lambda
-                return memory.at(ARG_SRC)->getDescPtr()->hasLayoutType(LayoutType::ncsp);
+                return true;
             },
             // create
             [](const MVNAttrs& attrs,
@@ -247,9 +249,10 @@ const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations() {
             "mvn_ref_ncsp",
             ExecutorType::Common,
             OperationType::MVN,
-            ShapeTolerance::Dependant,
+            ShapeTolerance::Agnostic,
             // supports
             [](const MVNConfig& config) -> bool {
+                if (!config.descs.at(ARG_SRC)->hasLayoutType(LayoutType::ncsp)) return false;
                 return CommonMVNExecutor::supports(config);
             },
             // requiresFallback
@@ -262,7 +265,7 @@ const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations() {
             // acceptsShapes
             [](const MemoryArgs& memory) -> bool {
                 // @todo create syntactic sugar (functor) for shape agnostic lambda
-                return memory.at(ARG_SRC)->getDescPtr()->hasLayoutType(LayoutType::ncsp);
+                return true;
             },
             // create
             [](const MVNAttrs& attrs,
@@ -278,6 +281,7 @@ const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations() {
             ShapeTolerance::Agnostic,
             // supports
             [](const MVNConfig& config) -> bool {
+                if (!config.descs.at(ARG_SRC)->hasLayoutType(LayoutType::nspc)) return false;
                 return CommonMVNExecutor::supports(config);
             },
             // requiresFallback
@@ -290,7 +294,7 @@ const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations() {
             // acceptsShapes
             [](const MemoryArgs& memory) -> bool {
                 // @todo create syntactic sugar (functor) for shape agnostic lambda
-                return memory.at(ARG_SRC)->getDescPtr()->hasLayoutType(LayoutType::nspc);
+                return true;
             },
             // create
             [](const MVNAttrs& attrs,

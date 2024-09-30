@@ -214,61 +214,70 @@ void MVN::initSupportedPrimitiveDescriptors() {
             }
         }
     }
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-    // ref with float planar and no fusion
-    if (!mayiuse(cpu::x64::sse41)) {
-        inputPrecision = outputPrecision = ov::element::f32;
+
+    const auto& srcTypes = getOriginalInputPrecisions();
+    auto dstTypes = getOriginalOutputPrecisions();
+    // @todo graph optimizer should update original output precisions instead
+    if (!fusedWith.empty())
+        dstTypes = fusedWith.back()->getOriginalOutputPrecisions();
+
+    VecMemoryDescs srcDescs;
+    const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+    for (size_t i = 0; i < srcTypes.size(); i++) {
+        const auto srcDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(srcTypes[i], getInputShapeAtPort(i));
+        srcDescs.push_back(srcDesc);
     }
-#endif
-//Output precision has to be equal to input precision in ACL MVN
-#if defined(OV_CPU_WITH_ACL)
-    outputPrecision = inputPrecision;
-#endif
+
+    VecMemoryDescs dstDescs;
+    for (size_t i = 0; i < dstTypes.size(); i++) {
+        const auto dstDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(dstTypes[i], getOutputShapeAtPort(i));
+        dstDescs.push_back(dstDesc);
+    }
+
+    MemoryDescArgs descs{
+            {ARG_SRC, srcDescs[0]},
+            {ARG_DST, dstDescs[0]},
+    };
+
+    mvnAttrs.srcIsNHWC = descs.at(ARG_SRC)->hasLayoutType(LayoutType::nspc);
+    mvnAttrs.src_prc = descs.at(ARG_SRC)->getPrecision();
+    mvnAttrs.dst_prc = descs.at(ARG_DST)->getPrecision();
+
+    auto executionContext = std::make_shared<ExecutorContext>(context, getImplPriority(), privateWeightCache);
+    factory = std::make_shared<ExecutorFactory<MVNAttrs, node::MVN>>(mvnAttrs, postOps, executionContext, descs);
+    const auto nodeDescriptors = factory->getProperMemoryDescriptors(descs);
+
     // TODO [DS]: inplace
     bool canBeInplace = !isDynamicNode() && (inputPrecision.size() == outputPrecision.size()) &&
                         (getParentEdgeAt(0)->getParent()->getChildEdges().size() == 1) &&
                         !getParentEdgeAt(0)->getParent()->isConstant();
 
     const size_t inputsNum = getParentEdges().size();
-    NodeConfig config;
-    config.inConfs.resize(inputsNum);
-    config.outConfs.resize(1);
-    config.inConfs[0].constant(false);
-    config.outConfs[0].constant(false);
-    config.inConfs[0].inPlace(-1);
-    config.outConfs[0].inPlace(canBeInplace ? 0 : -1);
-    if (inputsNum == 2) {
-        config.inConfs[1].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(ov::element::i32, getInputShapeAtPort(1)));
-        config.inConfs[1].constant(true);
+    for (auto& nodeDesc : nodeDescriptors) {
+        NodeConfig nodeConfig;
+        nodeConfig.inConfs.emplace_back(nodeDesc.at(ARG_SRC));
+        nodeConfig.outConfs.emplace_back(nodeDesc.at(ARG_DST));
+        nodeConfig.inConfs.resize(inputsNum);
+        nodeConfig.outConfs.resize(1);
+        nodeConfig.inConfs[0].constant(false);
+        nodeConfig.outConfs[0].constant(false);
+        nodeConfig.inConfs[0].inPlace(-1);
+        nodeConfig.outConfs[0].inPlace(canBeInplace ? 0 : -1);
+        if (inputsNum == 2) {
+            nodeConfig.inConfs[1].setMemDesc(
+                    std::make_shared<CpuBlockedMemoryDesc>(ov::element::i32, getInputShapeAtPort(1)));
+            nodeConfig.inConfs[1].constant(true);
+        }
+
+        // planar
+        if (canBeInplace)
+            nodeConfig.inConfs[0].inPlace(0);
+
+        supportedPrimitiveDescriptors.emplace_back(nodeConfig, impl_desc_type::undef);
     }
+    return;
 
-    auto& creatorsMap = BlockedDescCreator::getCommonCreators();
-    auto pushDesc = [&](LayoutType format, impl_desc_type impl_type, bool useAclExecutor = false) {
-        config.inConfs[0].setMemDesc(creatorsMap.at(format)->createSharedDesc(inputPrecision, getInputShapeAtPort(0)));
-        config.outConfs[0].setMemDesc(creatorsMap.at(format)->createSharedDesc(outputPrecision, getOutputShapeAtPort(0)));
-
-        std::vector<MemoryDescPtr> srcMemoryDescs;
-        for (size_t i = 0; i < config.inConfs.size(); i++) {
-            srcMemoryDescs.push_back(config.inConfs[i].getMemDesc());
-        }
-        std::vector<MemoryDescPtr> dstMemoryDescs;
-        for (size_t i = 0; i < config.outConfs.size(); i++) {
-            dstMemoryDescs.push_back(config.outConfs[i].getMemDesc());
-        }
-
-        MemoryDescArgs descs{
-            {ARG_SRC, srcMemoryDescs[0]},
-            {ARG_DST, dstMemoryDescs[0]},
-        };
-
-        mvnAttrs.srcIsNHWC = srcMemoryDescs[0]->hasLayoutType(LayoutType::nspc);
-        mvnAttrs.src_prc = descs.at(ARG_SRC)->getPrecision();
-        mvnAttrs.dst_prc = descs.at(ARG_DST)->getPrecision();
-        auto executionContext = std::make_shared<ExecutorContext>(context, getImplPriority(), privateWeightCache);
-        factory = std::make_shared<ExecutorFactory<MVNAttrs, node::MVN>>(mvnAttrs, postOps, executionContext, descs);
-        const auto nodeDescriptors = factory->getProperMemoryDescriptors(descs);
-        supportedPrimitiveDescriptors.push_back({config, impl_type});
-    };
+    auto pushDesc = [&](LayoutType format, impl_desc_type impl_type, bool useAclExecutor = false) {};
 
 #if defined(OV_CPU_WITH_ACL)
         pushDesc(LayoutType::nspc, acl, true);
@@ -307,10 +316,6 @@ void MVN::initSupportedPrimitiveDescriptors() {
             }
         }
     }
-
-    // planar
-    if (canBeInplace)
-        config.inConfs[0].inPlace(0);
     pushDesc(LayoutType::ncsp, impl_type);
 }
 

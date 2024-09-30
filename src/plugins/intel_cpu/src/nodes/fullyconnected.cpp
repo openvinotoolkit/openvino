@@ -428,15 +428,17 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
     factory = std::make_shared<ExecutorFactory<FCAttrs, node::FullyConnected>>(attrs, postOps, executionContext, descs);
     const auto nodeDescriptors = factory->getProperMemoryDescriptors(descs);
 
-    NodeConfig nodeConfig;
-    nodeConfig.inConfs.emplace_back(nodeDescriptors.at(ARG_SRC));
-    nodeConfig.inConfs.emplace_back(nodeDescriptors.at(ARG_WEI));
-    if (attrs.withBias) nodeConfig.inConfs.emplace_back(nodeDescriptors.at(ARG_BIAS));
+    for (auto& nodeDesc : nodeDescriptors) {
+        NodeConfig nodeConfig;
+        nodeConfig.inConfs.emplace_back(nodeDesc.at(ARG_SRC));
+        nodeConfig.inConfs.emplace_back(nodeDesc.at(ARG_WEI));
+        if (attrs.withBias) nodeConfig.inConfs.emplace_back(nodeDesc.at(ARG_BIAS));
 
-    const int inPlace = canBeInPlace() ? 0 : -1;
-    nodeConfig.outConfs.emplace_back(nodeDescriptors.at(ARG_DST), BlockedMemoryDesc::FULL_MASK, inPlace);
+        const int inPlace = canBeInPlace() ? 0 : -1;
+        nodeConfig.outConfs.emplace_back(nodeDesc.at(ARG_DST), BlockedMemoryDesc::FULL_MASK, inPlace);
 
-    supportedPrimitiveDescriptors.emplace_back(nodeConfig, impl_desc_type::undef);
+        supportedPrimitiveDescriptors.emplace_back(nodeConfig, impl_desc_type::undef);
+    }
 }
 
 void FullyConnected::needSplitMemoryForTensorParallel() {

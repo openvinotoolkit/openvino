@@ -74,24 +74,27 @@ public:
      * returns the corresponding memory descriptors.
      *
      * @param descriptors memory descriptors.
-     * @return MemoryDescArgs The proper memory descriptors based on the configuration.
+     * @return std::vector<MemoryDescArgs> The list of proper memory descriptors based on the configuration.
      * @todo Create proper memory descriptors for all the implementations
      *       to fully enable graph's layout propagation functionality
      *
      * @note The main use case is to avoid a fallback during the creation of an executor
      *       by passing proper memory descriptors to the make() method
      */
-    MemoryDescArgs getProperMemoryDescriptors(const MemoryDescArgs& descriptors) const {
+    std::vector<MemoryDescArgs> getProperMemoryDescriptors(const MemoryDescArgs& descriptors) const {
         DEBUG_LOG("Preconfiguring memory descriptors");
 
-        const auto& impl = m_suitableImplementations.front();
-        executor::Config<Attrs> config{descriptors, m_attrs, m_postOps};
+        std::vector<MemoryDescArgs> listMemDescs;
+        for (auto& impl : m_suitableImplementations) {
+            executor::Config<Attrs> config{descriptors, m_attrs, m_postOps};
 
-        if (auto fallbackConfig = impl.get().requiresFallback(config)) {
-            return fallbackConfig->descs;
+            if (auto fallbackConfig = impl.get().requiresFallback(config)) {
+                listMemDescs.emplace_back(fallbackConfig->descs);
+            } else {
+                listMemDescs.emplace_back(config.descs);
+            }
         }
-
-        return config.descs;
+        return listMemDescs;
     }
 
     /**
@@ -230,15 +233,6 @@ private:
             }
 
             suitableImplementations.push_back(std::ref(implementation));
-
-            // implementation is supported and it is shape agnostic, there is no way
-            // an implementation with a lower priority will be chosen
-            if (implementation.shapeAgnostic()) {
-                DEBUG_LOG("Implementation is shape agnostic: ",
-                          implementation.name(),
-                          ". Stop processing implementations");
-                break;
-            }
         }
 
         return suitableImplementations;
