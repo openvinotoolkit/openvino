@@ -36,7 +36,6 @@ public:
         size_t leftovers;
         size_t dataSetsCount;
         size_t dataSetSize;
-        size_t maxSlmSize;
         size_t normIndex;  // which dimension (from in-memory representation) is normalized, e.g. for bfyx and
                            // softmax::normalize_f, it will be f's index == 2 (used only by naive kernel)
         size_t subgroupBlockSize;
