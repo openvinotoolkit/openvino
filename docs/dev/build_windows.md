@@ -1,6 +1,6 @@
 # Build OpenVINO™ Runtime for Windows systems
 
-OpenVINO can be compiled for different architectures on Windows: X64 or ARM64. In order to build for ARM64 architecture, the machine with Windows on ARM is required as only native compilation is supported (see [similar documents](https://www.linaro.org/blog/how-to-set-up-windows-on-arm-for-llvm-development/#:~:text=Install%20the%20Latest%20LLVM%20for,PATH%20yourself%2C%20as%20described%20above.) for details).
+OpenVINO can be compiled for different architectures on Windows: X64 or ARM64. In order to build for ARM64 architecture, the machine with Windows on ARM is required as only native compilation is supported. Refer to [the page](https://learn.arm.com/install-guides/llvm-woa/) for details.
 
 Supported configurations:
 - Windows 10 x86 64-bit or higher with Visual Studio 2019 or higher build for X64 architecture.
