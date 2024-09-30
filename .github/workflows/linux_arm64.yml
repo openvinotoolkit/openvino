@@ -53,9 +53,9 @@ jobs:
   Docker:
     needs: Smart_CI
     if: "!needs.smart_ci.outputs.skip_workflow"
-    runs-on: aks-linux-16-cores-arm-docker-build
+    runs-on: aks-linux-16-cores-arm-docker-build-staging
     container:
-      image: openvinogithubactions.azurecr.io/docker_build:0.2
+      image: openvinogithubactionsstaging.azurecr.io/docker_build:0.2
       volumes:
         - /mount:/mount
     outputs:
@@ -70,7 +70,7 @@ jobs:
           images: |
             ov_build/ubuntu_20_04_arm64
             ov_test/ubuntu_20_04_arm64
-          registry: 'openvinogithubactions.azurecr.io'
+          registry: 'openvinogithubactionsstaging.azurecr.io'
           dockerfiles_root_dir: '.github/dockerfiles'
           changed_components: ${{ needs.Smart_CI.outputs.changed_components }}
 
@@ -78,7 +78,7 @@ jobs:
     needs: [ Docker, Smart_CI ]
     uses: ./.github/workflows/job_build_linux.yml
     with:
-      runner: 'aks-linux-16-cores-arm'
+      runner: 'aks-linux-16-cores-arm-staging'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_arm64 }}", "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       event-name: ${{ github.event_name }}
@@ -105,15 +105,15 @@ jobs:
     if: ${{ 'false' }}
     uses: ./.github/workflows/job_debian_packages.yml
     with:
-      runner: 'aks-linux-16-cores-arm'
-      image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04'
+      runner: 'aks-linux-16-cores-arm-staging'
+      image: 'openvinogithubactionsstaging.azurecr.io/dockerhub/ubuntu:20.04'
 
   Samples:
     needs: [ Build, Docker, Smart_CI ]
     if: fromJSON(needs.smart_ci.outputs.affected_components).samples
     uses: ./.github/workflows/job_samples_tests.yml
     with:
-      runner: 'aks-linux-16-cores-arm'
+      runner: 'aks-linux-16-cores-arm-staging'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_arm64 }}", "volumes": ["/mount:/mount"]}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
 
@@ -123,7 +123,7 @@ jobs:
     if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
     uses: ./.github/workflows/job_openvino_js.yml
     with:
-      runner: 'aks-linux-16-cores-arm'
+      runner: 'aks-linux-16-cores-arm-staging'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_arm64 }}"}'
 
   ONNX_Runtime:
@@ -133,7 +133,7 @@ jobs:
     needs: [ Build, Smart_CI, Docker ]
     uses: ./.github/workflows/job_onnx_runtime.yml
     with:
-      runner: 'aks-linux-16-cores-arm'
+      runner: 'aks-linux-16-cores-arm-staging'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_arm64 }}", "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}'
       sccache-azure-key-prefix: 'ubuntu20_aarch64_onnxruntime'
 
@@ -142,7 +142,7 @@ jobs:
     needs: [ Build, Docker, Smart_CI ]
     uses: ./.github/workflows/job_tokenizers.yml
     with:
-      runner: 'aks-linux-16-cores-arm'
+      runner: 'aks-linux-16-cores-arm-staging'
       shell: bash
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_arm64 }}", "volumes": ["/mount:/mount"]}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
@@ -153,7 +153,7 @@ jobs:
     needs: [ Build, Docker, Smart_CI ]
     uses: ./.github/workflows/job_cxx_unit_tests.yml
     with:
-      runner: 'aks-linux-16-cores-arm'
+      runner: 'aks-linux-16-cores-arm-staging'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_arm64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
 
@@ -162,7 +162,7 @@ jobs:
     needs: [ Build, Docker, Smart_CI ]
     uses: ./.github/workflows/job_python_unit_tests.yml
     with:
-      runner: 'aks-linux-16-cores-arm'
+      runner: 'aks-linux-16-cores-arm-staging'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_arm64 }}", "volumes": ["/mount:/mount"]}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.11'
@@ -172,7 +172,7 @@ jobs:
     needs: [ Build, Docker, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_tensorflow_layer_tests.yml
     with:
-      runner: 'aks-linux-16-cores-arm'
+      runner: 'aks-linux-16-cores-arm-staging'
       shell: bash
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_arm64 }}", "volumes": ["/mount:/mount"]}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
@@ -183,7 +183,7 @@ jobs:
     needs: [ Build, Docker, Smart_CI ]
     uses: ./.github/workflows/job_cpu_functional_tests.yml
     with:
-      runner: 'aks-linux-16-cores-arm'
+      runner: 'aks-linux-16-cores-arm-staging'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_arm64 }}
 
   TensorFlow_Models_Tests:
@@ -194,7 +194,7 @@ jobs:
     needs: [ Build, Docker, Smart_CI, Openvino_tokenizers]
     uses: ./.github/workflows/job_tensorflow_models_tests.yml
     with:
-      runner: 'aks-linux-16-cores-arm'
+      runner: 'aks-linux-16-cores-arm-staging'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_arm64 }}"}'
       model_scope: 'precommit'
 
@@ -205,7 +205,7 @@ jobs:
     needs: [ Build, Docker, Smart_CI ]
     uses: ./.github/workflows/job_pytorch_models_tests.yml
     with:
-      runner: 'aks-linux-16-cores-arm'
+      runner: 'aks-linux-16-cores-arm-staging'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_arm64 }}"}'
       model_scope: 'precommit'
 
