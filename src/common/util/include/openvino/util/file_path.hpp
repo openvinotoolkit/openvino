@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <memory>
 #include <cstdio>
 
 #include "openvino/util/ov_filesystem.hpp"
