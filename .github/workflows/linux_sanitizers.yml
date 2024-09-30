@@ -79,6 +79,7 @@ jobs:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.sanitizers }}
       volumes:
         - /mount:/mount
+      options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
     strategy:
       max-parallel: 3
       fail-fast: false
@@ -175,11 +176,11 @@ jobs:
       - name: Show ccache stats
         run: ${SCCACHE_PATH} --show-stats
         
-      # - name: Cleanup ccache 
-      #   run: ${SCCACHE_PATH} --cleanup --zero-stats
+      - name: Cleanup ccache 
+        run: ${SCCACHE_PATH} --cleanup --zero-stats
         
-      # - name: Show ccache stats
-      #   run: ${SCCACHE_PATH} --show-stats
+      - name: Show ccache stats
+        run: ${SCCACHE_PATH} --show-stats
 
       - name: Cmake install - OpenVINO
         run: |
