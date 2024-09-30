@@ -92,6 +92,12 @@ public:
      */
     void initialize_states();
 
+    /**
+     * @brief TODO
+     */
+    virtual void set_weights_inputs(
+        const std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>& weightsInputs) = 0;
+
 protected:
     /**
      * @see ov::ISyncInferRequest

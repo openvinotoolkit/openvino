@@ -94,17 +94,19 @@ std::shared_ptr<IExecutor> ZeroDevice::createExecutor(
     return std::make_shared<ZeroExecutor>(_initStructs, networkDescription, config, _group_ordinal);
 }
 
-std::vector<std::shared_ptr<ov::ITensor>> ZeroDevice::runInit(const std::shared_ptr<IExecutor>& initExecutor,
-                                                              const std::shared_ptr<const ov::Model>& model,
-                                                              const ov::SoPtr<ov::IRemoteContext>& context,
-                                                              const Config& config) {
+std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> ZeroDevice::runInit(
+    const std::shared_ptr<IExecutor>& initExecutor,
+    const std::shared_ptr<const ov::Model>& model,
+    const ov::SoPtr<ov::IRemoteContext>& context,
+    const Config& config) {
     const auto zeroInitExecutor = static_cast<const ZeroExecutor*>(initExecutor.get());
     std::unordered_map<size_t, TensorData> constantIdToTensorData;
     std::vector<std::optional<TensorData>> inputTensorsData;
     std::vector<std::optional<TensorData>> outputTensorsData;
+    std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> outputHostTensors;
 
     // Match the inputs of the "init" model with the Constant nodes of the original model
-    for (auto&& node : model->get_ordered_ops()) {
+    for (auto&& node : model->get_ops()) {
         if (!ov::is_type<ov::op::v0::Constant>(node)) {
             continue;
         }
@@ -132,24 +134,39 @@ std::vector<std::shared_ptr<ov::ITensor>> ZeroDevice::runInit(const std::shared_
                            constantIdToTensorData.at(id).mem);
     }
 
-    // TODO remte tensor stuff
+    for (const auto& descriptor : zeroInitExecutor->get_output_descriptors()) {
+        const ov::SoPtr<ov::ITensor> hostTensor =
+            createHostTensor(context._ptr,
+                             zeroUtils::getOVPrecision(descriptor.info.devicePrecision),
+                             zeroUtils::getOVShape(descriptor.info),
+                             config);
+        outputTensorsData.push_back(TensorData{hostTensor->data(), hostTensor->get_byte_size()});
+        outputHostTensors.emplace(
+            std::string(descriptor.info.debug_friendly_name).substr(INIT_OUTPUT_WEIGHTS_PREFIX.length()),
+            hostTensor._ptr);
+    }
 
-    // const Pipeline pipeline = std::make_unique<Pipeline>(
-    //     config,
-    //     zeroInitExecutor,
-    //     zeroProfiling::ProfilingPool(zeroInitExecutor->graph(),
-    //                                  zeroProfiling::POOL_SIZE,
-    //                                  zeroInitExecutor->getInitStructs()->getProfilingDdiTable()),
-    //     zeroProfiling::ProfilingQuery(0,
-    //                                   zeroInitExecutor->getInitStructs()->getDevice(),
-    //                                   zeroInitExecutor->getInitStructs()->getProfilingDdiTable()),
-    //     std::make_shared<zeroProfiling::NpuInferProfiling>(zeroInitExecutor->getInitStructs()->getContext(),
-    //                                                        zeroInitExecutor->getInitStructs()->getDevice(),
-    //                                                        config.get<LOG_LEVEL>()),
-    //     /*const std::vector<std::optional<TensorData>>&* _inputTensorsData*/ {},
-    //     /*const std::vector<std::optional<TensorData>>&* _outputTensorsData*/ {},
-    //     /*numberOfCommandLists*/ 1);
-    return {};
+    auto progilingPool = zeroProfiling::ProfilingPool(zeroInitExecutor->graph(),
+                                                      zeroProfiling::POOL_SIZE,
+                                                      zeroInitExecutor->getInitStructs()->getProfilingDdiTable());
+    auto profilingQuery = zeroProfiling::ProfilingQuery(0,
+                                                        zeroInitExecutor->getInitStructs()->getDevice(),
+                                                        zeroInitExecutor->getInitStructs()->getProfilingDdiTable());
+    const auto pipeline = std::make_unique<Pipeline>(
+        config,
+        initExecutor,
+        progilingPool,
+        profilingQuery,
+        std::make_shared<zeroProfiling::NpuInferProfiling>(zeroInitExecutor->getInitStructs()->getContext(),
+                                                           zeroInitExecutor->getInitStructs()->getDevice(),
+                                                           config.get<LOG_LEVEL>()),
+        inputTensorsData,
+        outputTensorsData,
+        /*numberOfCommandLists*/ 1);
+    pipeline->push();
+    pipeline->pull();
+
+    return outputHostTensors;
 }
 
 std::string ZeroDevice::getName() const {

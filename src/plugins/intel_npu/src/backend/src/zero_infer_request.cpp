@@ -526,6 +526,26 @@ ov::SoPtr<ov::ITensor> ZeroInferRequest::get_tensor(const ov::Output<const ov::N
     return levelZeroTensors;
 }
 
+void ZeroInferRequest::set_weights_inputs(
+    const std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>& weightsInputs) {
+    for (const auto& [weightName, weightTensor] : weightsInputs) {
+        size_t inputIndex;
+        for (inputIndex = 0; inputIndex < _metadata.inputs.size(); inputIndex++) {
+            if (_metadata.inputs.at(inputIndex).nodeFriendlyName == weightName) {
+                break;
+            }
+        }
+
+        OPENVINO_ASSERT(inputIndex != _metadata.inputs.size(),
+                        "Did not find an input bearing the ",
+                        weightName,
+                        " weights name");
+
+        _userInputTensors.at(inputIndex) = weightTensor;
+        set_tensor_data(weightTensor, inputIndex, INPUT);
+    }
+}
+
 void ZeroInferRequest::infer() {
     infer_async();
     get_result();

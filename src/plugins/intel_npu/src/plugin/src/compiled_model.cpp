@@ -147,6 +147,10 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
         _device->createInferRequest(shared_from_this(), _executorPtr, _config);
     syncInferRequest->initialize_states();
 
+    if (!_weightsInputs.empty()) {
+        syncInferRequest->set_weights_inputs(_weightsInputs);
+    }
+
     return std::make_shared<AsyncInferRequest>(syncInferRequest,
                                                get_task_executor(),
                                                _resultExecutor,

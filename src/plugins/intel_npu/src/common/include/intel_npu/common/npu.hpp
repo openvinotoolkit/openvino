@@ -72,10 +72,11 @@ public:
     /**
      * @brief TODO
      */
-    virtual std::vector<std::shared_ptr<ov::ITensor>> runInit(const std::shared_ptr<IExecutor>& initExecutor,
-                                                              const std::shared_ptr<const ov::Model>& model,
-                                                              const ov::SoPtr<ov::IRemoteContext>& context,
-                                                              const Config& config) = 0;
+    virtual std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> runInit(
+        const std::shared_ptr<IExecutor>& initExecutor,
+        const std::shared_ptr<const ov::Model>& model,
+        const ov::SoPtr<ov::IRemoteContext>& context,
+        const Config& config) = 0;
 
     virtual std::string getName() const = 0;
     virtual std::string getFullDeviceName() const = 0;

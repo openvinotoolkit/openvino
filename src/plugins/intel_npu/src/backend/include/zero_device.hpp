@@ -26,10 +26,11 @@ public:
     /**
      * @brief TODO
      */
-    std::vector<std::shared_ptr<ov::ITensor>> runInit(const std::shared_ptr<IExecutor>& initExecutor,
-                                                      const std::shared_ptr<const ov::Model>& model,
-                                                      const ov::SoPtr<ov::IRemoteContext>& context,
-                                                      const Config& config) override;
+    std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> runInit(
+        const std::shared_ptr<IExecutor>& initExecutor,
+        const std::shared_ptr<const ov::Model>& model,
+        const ov::SoPtr<ov::IRemoteContext>& context,
+        const Config& config) override;
 
     std::string getName() const override;
     std::string getFullDeviceName() const override;
