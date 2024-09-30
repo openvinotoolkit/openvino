@@ -5,6 +5,7 @@
 #include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/pass/manager.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
 #include "utils/cpu_test_utils.hpp"
 
 using namespace ov::test;
@@ -129,6 +130,10 @@ public:
                                                "FuseSDPAReshapeTranspose");
         targetDevice = ov::test::utils::DEVICE_CPU;
         functionRefs = function->clone();
+        pass::Manager manager;
+        // decompose ScaledDotProductAttention
+        manager.register_pass<ov::pass::ScaledDotProductAttentionDecomposition>();
+        manager.run_passes(functionRefs);
     }
 
     template <typename IT, typename T>
