@@ -539,10 +539,14 @@ class IREngine(object):
 
     @staticmethod
     def __read_rt_info_common(attr):
-        attr_name = attr.attrib['name']
-        version = int(attr.attrib['version'])
-        rt_info = OrderedDict()
-        for key in attr.attrib:
-            if key not in ('name', 'version'):
-                rt_info[key] = attr.attrib[key]
-        return {(attr_name, version): rt_info}
+        # ignore custom info, MO is deprecated so there's no needed for forward compatibility
+        if 'version' in attr.attrib:
+            attr_name = attr.attrib['name']
+            version = int(attr.attrib['version'])
+            rt_info = OrderedDict()
+            for key in attr.attrib:
+                if key not in ('name', 'version'):
+                    rt_info[key] = attr.attrib[key]
+            return {(attr_name, version): rt_info}
+        else:
+            return {}
