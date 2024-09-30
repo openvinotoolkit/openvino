@@ -21,11 +21,7 @@ type elementTypeString =
   | 'f32'
   | 'string';
 
-type Any = string | number | boolean;
-
-type AnyMap = {
-  [propertyName: string]: Any;
-};
+type OVAny = string | number | boolean;
 
 /**
  * Core represents an OpenVINO runtime Core entity.
@@ -54,7 +50,7 @@ interface Core {
   compileModel(
     model: Model,
     deviceName: string,
-    config?: AnyMap,
+    config?: Record<string, OVAny>,
   ): Promise<CompiledModel>;
   /**
    * Asynchronously reads a model and creates a compiled model
@@ -73,7 +69,7 @@ interface Core {
   compileModel(
     modelPath: string,
     deviceName: string,
-    config?: AnyMap,
+    config?: Record<string, OVAny>,
   ): Promise<CompiledModel>;
   /**
    * A synchronous version of {@link Core.compileModel}.
@@ -82,7 +78,7 @@ interface Core {
   compileModelSync(
     model: Model,
     deviceName: string,
-    config?: AnyMap,
+    config?: Record<string, OVAny>,
   ): CompiledModel;
   /**
    * A synchronous version of {@link Core.compileModel}.
@@ -91,7 +87,7 @@ interface Core {
   compileModelSync(
     modelPath: string,
     deviceName: string,
-    config?: AnyMap,
+    config?: Record<string, OVAny>,
   ): CompiledModel;
   /**
    * It returns a list of available inference devices.
@@ -107,7 +103,7 @@ interface Core {
    * It gets the properties dedicated to device behaviour.
    * @param propertyName A property name.
    */
-  getProperty(propertyName: string): Any;
+  getProperty(propertyName: string): OVAny;
 
   /**
    * It gets the properties dedicated to device behaviour.
@@ -117,7 +113,7 @@ interface Core {
   getProperty(
     deviceName: string,
     propertyName: string,
-  ): Any;
+  ): OVAny;
   /**
    * It returns information on the version of device plugins.
    * @param deviceName A device name to identify a plugin.
@@ -141,7 +137,7 @@ interface Core {
   importModel(
     modelStream: Buffer,
     device: string,
-    config?: AnyMap,
+    config?: Record<string, OVAny>,
   ): Promise<CompiledModel>;
   /**
    * A synchronous version of {@link Core.importModel}.
@@ -150,7 +146,7 @@ interface Core {
   importModelSync(
     modelStream: Buffer,
     device: string,
-    config?: AnyMap,
+    config?: Record<string, OVAny>,
   ): CompiledModel;
   /**
    * It reads models from the IR / ONNX / PDPD / TF and TFLite formats.
@@ -203,13 +199,13 @@ interface Core {
    * It sets the properties.
    * @param properties An object with the property name - property value pairs.
    */
-  setProperty(properties: AnyMap): void;
+  setProperty(properties: Record<string, OVAny>): void;
   /**
    * It sets the properties for a device.
    * @param deviceName The name of a device.
    * @param properties An object with the property name - property value pairs.
    */
-  setProperty(deviceName: string, properties: AnyMap): void;
+  setProperty(deviceName: string, properties: Record<string, OVAny>): void;
   /**
    * It queries the device if it supports specified model with the specified
    * properties.
@@ -221,7 +217,7 @@ interface Core {
   queryModel(
     model: Model,
     deviceName: string,
-    properties?: AnyMap,
+    properties?: Record<string, OVAny>,
   ): { [key: string]: string };
 }
 interface CoreConstructor {
@@ -328,7 +324,7 @@ interface CompiledModel {
    * @param propertyName A string to get the property value.
    * @returns The property value.
    */
-  getProperty(propertyName: string): Any;
+  getProperty(propertyName: string): OVAny;
   /**
    * It creates an inference request object used to infer the compiled model.
    * @return {InferRequest}
@@ -383,7 +379,7 @@ interface CompiledModel {
    * @param property An object with the key-value pairs.
    * (property name, property value)
    */
-  setProperty(properties: AnyMap): void;
+  setProperty(properties: Record<string, OVAny>): void;
 }
 
 /**
