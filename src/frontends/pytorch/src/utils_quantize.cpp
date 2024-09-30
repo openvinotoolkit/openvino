@@ -4,6 +4,7 @@
 
 #include "utils_quantize.hpp"
 
+#include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/bitwise_and.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -44,8 +45,10 @@ Output<Node> quantize_common(const NodeContext& context,
         const auto out_high_normalized =
             context.mark_node(std::make_shared<v1::Subtract>(out_high, zero_point_convert));
 
-        const auto bound_low = context.mark_node(std::make_shared<v1::Multiply>(scale_convert, out_low_normalized));
-        const auto bound_high = context.mark_node(std::make_shared<v1::Multiply>(scale_convert, out_high_normalized));
+        auto bound_low =
+            try_constfold(context.mark_node(std::make_shared<v1::Multiply>(scale_convert, out_low_normalized)));
+        auto bound_high =
+            try_constfold(context.mark_node(std::make_shared<v1::Multiply>(scale_convert, out_high_normalized)));
 
         const auto quantized_input = context.mark_node(
             std::make_shared<v0::FakeQuantize>(input_convert, bound_low, bound_high, bound_low, bound_high, levels));
@@ -60,7 +63,7 @@ Output<Node> quantize_common(const NodeContext& context,
         const auto input_convert = context.mark_node(std::make_shared<v0::Convert>(input, element::f32));
         const auto scales_convert = context.mark_node(std::make_shared<v0::Convert>(scale, element::f32));
         const auto zero_points_convert = context.mark_node(std::make_shared<v0::Convert>(zero_point, element::f32));
-        const auto axis_convert = context.mark_node(std::make_shared<v0::Convert>(axis, element::i32));
+        auto axis_convert = try_constfold(context.mark_node(std::make_shared<v0::Convert>(axis, element::i32)));
 
         const auto neg_one = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
         const auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
@@ -84,8 +87,9 @@ Output<Node> quantize_common(const NodeContext& context,
         const auto out_low_normalized = context.mark_node(std::make_shared<v1::Subtract>(out_low, zero_point_bc));
         const auto out_high_normalized = context.mark_node(std::make_shared<v1::Subtract>(out_high, zero_point_bc));
 
-        const auto bound_low = context.mark_node(std::make_shared<v1::Multiply>(scale_bc, out_low_normalized));
-        const auto bound_high = context.mark_node(std::make_shared<v1::Multiply>(scale_bc, out_high_normalized));
+        auto bound_low = try_constfold(context.mark_node(std::make_shared<v1::Multiply>(scale_bc, out_low_normalized)));
+        auto bound_high =
+            try_constfold(context.mark_node(std::make_shared<v1::Multiply>(scale_bc, out_high_normalized)));
 
         const auto quantized_input = context.mark_node(
             std::make_shared<v0::FakeQuantize>(input_convert, bound_low, bound_high, bound_low, bound_high, levels));
@@ -247,7 +251,8 @@ std::shared_ptr<Node> u4_compression_stack(const OutputVector& list_elems, int64
     if (axis != -1 && static_cast<uint64_t>(axis) != weights_u8->get_shape().size() - 1)
         return nullptr;
 
-    if (!ov::op::util::has_constant_value<uint64_t>(bitwise_and->get_input_node_shared_ptr(1), 0x0F))
+    if (!ov::op::util::has_constant_value<uint64_t>(ov::util::get_constant_from_source(bitwise_and->input_value(1)),
+                                                    0x0F))
         return nullptr;
 
     if (!ov::op::util::has_constant_value<uint64_t>(bitwise_shift->get_input_node_shared_ptr(1), 4))
