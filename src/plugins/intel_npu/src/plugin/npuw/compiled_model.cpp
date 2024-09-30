@@ -178,7 +178,6 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         }
         auto process_params = [&](const ov::ParameterVector& _parameters) {
             for (size_t i = 0; i < _parameters.size(); i++) {
-                NPUW_ASSERT(_parameters[i]);
                 LOG_VERB(_parameters[i]);
                 for (size_t j = 0; j < orig_parameters.size(); j++) {
                     if (_parameters[i] == orig_parameters[j]) {
@@ -324,25 +323,13 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     const std::string fsd_opt = m_cfg.get<::intel_npu::NPUW_SUBMODEL_DEVICE>();
     forced_sub_devices = ::intel_npu ::OptionParser<std::map<std::size_t, std::string>>::parse(fsd_opt);
 
-    // Exclude optimized out subgraphs from compilation target beforehand - otherwise we might get head and repeated
-    // block in the same chunk
-    std::vector<std::size_t> idx_subgraph_to_compile;
-    for (std::size_t i = 0u; i < orderedSubgraphs.size(); i++) {
-        if (orderedSubgraphs[i]._optimized_out ||
-            (m_compiled_submodels[i].replaced_by && m_compiled_submodels[i].replaced_by != i)) {
-            continue;
-        } else {
-            idx_subgraph_to_compile.push_back(i);
-        }
-    }
-
     // Compile submodels. Some of them can be functions: track which model will be
     // used as function(s): function name -> index of the compiled subgraph
-    auto compile = [&](size_t i) {
-        const auto& id = idx_subgraph_to_compile[i];
+    auto compile = [&](size_t id) {
         const auto& subgraph = orderedSubgraphs[id];
-
-        NPUW_ASSERT(!subgraph._optimized_out);
+        if (subgraph._optimized_out) {
+            return;
+        }
 
         const std::size_t real_id = m_compiled_submodels[id].replaced_by.value_or(id);
         if (!orderedSubgraphs[real_id]._avoid_list.empty()) {
@@ -398,11 +385,11 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     // Parallel compilation is unstable so is disabled by default.
     const bool par_opt = m_cfg.get<::intel_npu::NPUW_PARALLEL_COMPILE>();
     if (par_opt) {
-        ov::parallel_for(idx_subgraph_to_compile.size(), compile);
+        ov::parallel_for(orderedSubgraphs.size(), compile);
     } else {
         // TODO: Introduce npuw::serial(i, f) instead where f is a _funcall
-        for (std::size_t i = 0u; i < idx_subgraph_to_compile.size(); i++) {
-            compile(idx_subgraph_to_compile[i]);
+        for (std::size_t i = 0u; i < orderedSubgraphs.size(); i++) {
+            compile(i);
         }
     }
 
@@ -417,13 +404,6 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 
     m_finalized = true;
     reset_io();
-}
-
-void ov::npuw::CompiledModel::ShapeOfToConst(const std::shared_ptr<ov::Model>& model) {
-    ov::pass::GraphRewrite rewr;
-    // FIXME: pass some kind of context instead of ov::Model - required to remove parameter
-    rewr.add_matcher<ov::npuw::patterns::util::ShapeOfToConst>(model);
-    rewr.run_on_model(model);
 }
 
 void ov::npuw::CompiledModel::fill_weights_bank(const std::size_t idx) {
