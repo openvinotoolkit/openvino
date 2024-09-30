@@ -354,8 +354,8 @@ function addFooter() {
 }
 
 function initSplide() {
-    var splider = document.getElementsByClassName('.splide');
-    if(splider.length != 0){
+    var spliderLi = document.getElementById('ov-homepage-slide1');
+    if(spliderLi){
         var splide = new Splide('.splide', {
             type: 'fade',
             autoHeight: true,
