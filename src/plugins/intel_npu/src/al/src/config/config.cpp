@@ -171,7 +171,7 @@ void OptionsDesc::reset() {
     _impl.clear();
 }
 
-bool OptionsDesc::has(std::string_view key) {
+bool OptionsDesc::has(std::string_view key) const {
     std::string searchKey{key};
     const auto itDeprecated = _deprecated.find(std::string(key));
     if (itDeprecated != _deprecated.end()) {
@@ -222,6 +222,20 @@ void OptionsDesc::walk(std::function<void(const details::OptionConcept&)> cb) co
 
 Config::Config(const std::shared_ptr<const OptionsDesc>& desc) : _desc(desc) {
     OPENVINO_ASSERT(_desc != nullptr, "Got NULL OptionsDesc");
+}
+
+bool Config::hasOpt(std::string_view key) const {
+    return _desc->has(key);
+}
+
+bool Config::isOptPublic(std::string_view key) const {
+    auto log = Logger::global().clone("Config");
+    if (_desc->has(key)) {
+        return _desc->get(key).isPublic();
+    } else {
+        log.warning("Option '%s' not registered in config", key.data());
+        return true;
+    }
 }
 
 void Config::parseEnvVars() {

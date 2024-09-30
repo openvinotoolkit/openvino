@@ -384,7 +384,7 @@ public:
     template <class Opt>
     void add(compilerVersion compilerVersionRequirement);
 
-    bool has(std::string_view key);
+    bool has(std::string_view key) const;
 
     void reset();
 
@@ -454,6 +454,9 @@ public:
     void update(const ConfigMap& options, OptionMode mode = OptionMode::Both);
 
     void parseEnvVars();
+
+    bool hasOpt(std::string_view key) const;
+    bool isOptPublic(std::string_view key) const;
 
     template <class Opt>
     bool has() const;
