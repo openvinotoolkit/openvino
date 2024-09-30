@@ -211,11 +211,6 @@ facenet,Object Detection,onnx,FP16,,,+
 facenet,Object Detection,onnx,FP16-INT8,,,+
 facenet-20180408-102900,Object Detection,tf,FP16,+,+,+
 facenet-20180408-102900,Object Detection,tf,FP32,+,+,
-face-recognition-mobilefacenet-arcface,Object Detection,mxnet,FP16,,,+
-face-recognition-mobilefacenet-arcface,Object Detection,mxnet,FP16-INT8,,,+
-face-recognition-resnet50-arcface,Object Detection,mxnet,FP16,+,+,+
-face-recognition-resnet50-aws,Object Detection,mxnet,FP16,,,+
-face-recognition-resnet50-aws,Object Detection,mxnet,FP32,,,+
 face-reidentification-retail-0095,Object Detection,onnx,FP16,,,+
 face-reidentification-retail-0095,Object Detection,onnx,FP16-INT8,,,+
 facial-landmarks-35-adas-0002,Object Detection,caffe,FP16,,,+
@@ -428,8 +423,6 @@ ocrnet-hrnet-w18,Text Detection,paddle,FP16-INT8,+,+,
 ocrnet-hrnet-w18,Text Detection,paddle,FP32,+,,
 ocrnet-hrnet-w48,Text Detection,paddle,FP16,+,,
 ocrnet-hrnet-w48,Text Detection,paddle,FP32,+,,
-octave-resnext-101-0.25,Image Classification,mxnet,FP16,+,+,+
-octave-resnext-101-0.25,Image Classification,mxnet,FP32,+,,
 openchat-3.6-8b-20240522,Large Language Model,pytorch,intel-optimum default,,+,
 open-closed-eye-0001,Image Classification,onnx,FP16,,,+
 open-closed-eye-0001,Image Classification,onnx,FP16-INT8,,,+
@@ -629,8 +622,6 @@ squeezenet1.0-12,Image Classification,onnx,FP16,,,+
 squeezenet1.0-12,Image Classification,onnx,FP32,+,+,+
 squeezenet1.1-caffe,Image Classification,caffe,FP16,+,+,+
 squeezenet1.1-caffe,Image Classification,caffe,FP32,+,+,+
-squeezenet1.1-mxnet,Image Classification,mxnet,FP16,+,+,+
-squeezenet1.1-mxnet,Image Classification,mxnet,FP32,+,+,+
 squeezenet1.1-onnx,Image Classification,onnx,FP32,+,,
 srgan-onnx,"Image Processing, Enhancement",onnx,FP16,+,,+
 srgan-tf,"Image Processing, Enhancement",tf,FP16,+,+,

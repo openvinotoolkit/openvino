@@ -3,8 +3,6 @@
 # files because the version differs between them:
 # tensorflow, numpy
 h5py>=3.1.0,<3.11.0
-mxnet~=1.2.0; sys_platform == 'win32'
-mxnet>=1.7.0.post2,<=1.9.1; sys_platform != 'win32'
 onnx>=1.8.1,<=1.16.0
 networkx<=3.1.0
 pytest>=5.0,<8.4

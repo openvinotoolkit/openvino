@@ -75,7 +75,7 @@ def convert_batch_norm(graph: Graph):
 def _fused_batch_norm_decomposition(graph: Graph, tinput: Port, toutput: Port, gamma: Port, beta: Port,
                                     mean: np.ndarray, variance: np.ndarray, can_be_fused=True):
     """
-    This is common function for TF, Caffe and MXNet
+    This is common function for TF and Caffe
     It creates Mul->Add->Mul->Add sub graph
     """
     batch_norm_name = tinput.get_connection().get_destination().node.name

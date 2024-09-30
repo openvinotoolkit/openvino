@@ -898,7 +898,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               action='store_true', default=False)
     common_group.add_argument("--use_legacy_frontend",
                               help='Force the usage of legacy Frontend for model conversion into IR. '
-                                   'The legacy Frontend is Python based and is available for TensorFlow*, ONNX*, MXNet*, '
+                                   'The legacy Frontend is Python based and is available for TensorFlow*, ONNX*, '
                                    'Caffe*, and Kaldi* models.',
                               action='store_true', default=False)
     add_args_by_description(common_group, mo_convert_params_common)
@@ -953,18 +953,6 @@ def get_tf_cli_options():
                                                            'Object Detection API',
         'tensorflow_custom_layer_libraries': '- List of shared libraries with TensorFlow custom layers implementation',
         'tensorboard_logdir': '- Path to model dump for TensorBoard'
-    }
-
-    return OrderedDict(sorted(d.items(), key=lambda t: t[0]))
-
-
-def get_mxnet_cli_options():
-    d = {
-        'input_symbol': '- Deploy-ready symbol file',
-        'nd_prefix_name': '- Prefix name for args.nd and argx.nd files',
-        'pretrained_model_name': '- Pretrained model to be merged with the .nd files',
-        'save_params_from_nd': '- Enable saving built parameters file from .nd files',
-        'legacy_mxnet_model': '- Enable MXNet loader for models trained with MXNet version lower than 1.0.0',
     }
 
     return OrderedDict(sorted(d.items(), key=lambda t: t[0]))
@@ -1032,28 +1020,9 @@ def get_tf_cli_parser(parser: argparse.ArgumentParser = None):
     return parser
 
 
-def get_mxnet_cli_parser(parser: argparse.ArgumentParser = None):
-    """
-    Specifies cli arguments for Model Conversion for MXNet*
-
-    Returns
-    -------
-        ArgumentParser instance
-    """
-    if not parser:
-        parser = argparse.ArgumentParser(usage='%(prog)s [options]')
-        get_common_cli_parser(parser=parser)
-
-    mx_group = parser.add_argument_group('MXNet-specific parameters')
-    mo_convert_params_mxnet = get_mo_convert_params()['MXNet-specific parameters:']
-    add_args_by_description(mx_group, mo_convert_params_mxnet)
-
-    return parser
-
-
 def get_kaldi_cli_parser(parser: argparse.ArgumentParser = None):
     """
-    Specifies cli arguments for Model Conversion for MXNet*
+    Specifies cli arguments for Model Conversion for Kaldi*
 
     Returns
     -------
@@ -1099,7 +1068,6 @@ def get_all_cli_parser():
     get_common_cli_parser(parser=parser)
     get_tf_cli_parser(parser=parser)
     get_caffe_cli_parser(parser=parser)
-    get_mxnet_cli_parser(parser=parser)
     get_kaldi_cli_parser(parser=parser)
     get_onnx_cli_parser(parser=parser)
 

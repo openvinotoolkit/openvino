@@ -55,17 +55,11 @@ class FullyConnectedDecomposer(FrontReplacementSubgraph):
             node.insert_op_on_input_port(in_port_idx=1, new_op_class=Transpose,
                                          new_op_attrs={'name': name + '/weights_transpose'}, value=int64_array([1, 0]))
 
-        # input normalization for 4D Caffe and MXNet FullyConnected
+        # input normalization for 4D Caffe FullyConnected
         if graph.graph['fw'] == 'caffe':
             node.insert_op_on_input_port(in_port_idx=0, new_op_class=Reshape,
                                          new_op_attrs={'name': name + '/flatten_fc_input', 'special_zero': True},
                                          value=int64_array([0, -1]))
-
-        if graph.graph['fw'] == 'mxnet':
-            if node.flatten is not False:
-                node.insert_op_on_input_port(in_port_idx=0, new_op_class=Reshape,
-                                             new_op_attrs={'name': name + '/flatten_fc_input', 'special_zero': True},
-                                             value=int64_array([0, -1]))
 
         MatMul.update_node_stat(node, {})
 

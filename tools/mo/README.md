@@ -18,10 +18,6 @@ E.g. the command below will install dependencies to support ONNX\* and TensorFlo
 ```
 pip install openvino-dev[onnx,tensorflow2]
 ```
-To enable support of MxNet\* models run:
-```
-pip install openvino-dev[mxnet]
-```
 To enable support of all frameworks:
 ```
 pip install openvino-dev[all]

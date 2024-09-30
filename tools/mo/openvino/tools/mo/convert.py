@@ -59,14 +59,6 @@ def convert_model(
         tensorboard_logdir: [str, pathlib.Path] = None,
         tensorflow_custom_layer_libraries: [str, pathlib.Path] = None,
 
-        # MXNet-specific parameters:
-        input_symbol: [str, pathlib.Path] = None,
-        nd_prefix_name: str = None,
-        pretrained_model_name: str = None,
-        save_params_from_nd: bool = None,
-        legacy_mxnet_model: bool = None,
-        enable_ssd_gluoncv: bool = False,
-
         # Caffe*-specific parameters:
         input_proto: [str, pathlib.Path] = None,
         caffe_parser_path: [str, pathlib.Path] = None,
@@ -129,7 +121,7 @@ def convert_model(
             a string or list of strings of the following format. Quoted list of comma-separated
             input nodes names with shapes, data types, and values for freezing.
             If operation names are specified, the order of inputs in converted
-            model will be the same as order of specified operation names (applicable for TF2, ONNX, MxNet).
+            model will be the same as order of specified operation names (applicable for TF2, ONNX).
             The shape and value are specified as comma-separated lists. The data type of input node is specified
             in braces and can have one of the values: f64 (float64), f32 (float32), f16 (float16), i64
             (int64), i32 (int32), u8 (uint8), boolean (bool). Data type is optional.
@@ -307,24 +299,6 @@ def convert_model(
         :param tensorflow_custom_layer_libraries:
             TensorFlow*: comma separated list of shared libraries with TensorFlow*
             custom operations implementation.
-
-    MXNet-specific parameters:
-        :param input_symbol:
-            Symbol file (for example, model-symbol.json) that contains a topology
-            structure and layer attributes
-        :param nd_prefix_name:
-            Prefix name for args.nd and argx.nd files.
-        :param pretrained_model_name:
-            Name of a pretrained MXNet model without extension and epoch number.
-            This model will be merged with args.nd and argx.nd files
-        :param save_params_from_nd:
-            Enable saving built parameters file from .nd files
-        :param legacy_mxnet_model:
-            Enable MXNet loader to make a model compatible with the latest MXNet
-            version. Use only if your model was trained with MXNet version lower
-            than 1.0.0
-        :param enable_ssd_gluoncv:
-            Enable pattern matchers replacers for converting gluoncv ssd topologies.
 
     Caffe*-specific parameters:
         :param input_proto:

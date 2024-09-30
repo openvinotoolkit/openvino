@@ -101,7 +101,7 @@ def read_requirements(path: str) -> List[str]:
 requirements_txt = []
 py_modules = []
 for item in os.listdir():
-    if re.match(r'requirements_?(tf|tf2|onnx|mxnet|kaldi|caffe)?\.txt', item):
+    if re.match(r'requirements_?(tf|tf2|onnx|kaldi|caffe)?\.txt', item):
         requirements_txt.append(item)
 for item in os.listdir(prefix):
     if re.match(r'mo(.*)\.py|main(.*)\.py', item):
@@ -155,7 +155,6 @@ setup(
     },
     package_data={
       'openvino.tools.mo.front.caffe.proto': ['*.proto'],
-      'openvino.tools.mo.front.mxnet': ['*.json'],
       'openvino.tools.mo.front.onnx': ['*.json'],
       'openvino.tools.mo.front.tf': ['*.json'],
       'openvino.tools.mo.front.caffe': ['CustomLayersMapping.xml*']
@@ -163,7 +162,6 @@ setup(
     extras_require={
       'caffe': read_requirements('requirements_caffe.txt'),
       'kaldi': read_requirements('requirements_kaldi.txt'),
-      'mxnet': read_requirements('requirements_mxnet.txt'),
       'onnx': read_requirements('requirements_onnx.txt'),
       'tensorflow': read_requirements('requirements_tf.txt'),
       'tensorflow2': read_requirements('requirements_tf2.txt'),

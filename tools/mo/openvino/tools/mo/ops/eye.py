@@ -110,24 +110,3 @@ class TFEye(Op):
             'out_ports_count': 1,
             'output_type': np.float32,
         }, attrs)
-
-
-class MXEye(Op):
-    """ Eye operation that that generates shift matrix or a batch of matrices.
-        Eye operation from MXNet doesn't have inputs. Only attributes: row number, column number and diagonal index
-    """
-    op = 'MXEye'
-    enabled = False
-
-    def __init__(self, graph: Graph, attrs: dict):
-        super().__init__(graph, {
-            'type': None,
-            'op': self.op,
-            'infer': None,
-            'in_ports_count': 0,
-            'out_ports_count': 1,
-            'num_rows': 1,
-            'num_columns': 1,
-            'diagonal_index': 0,
-            'output_type': np.float32,
-        }, attrs)

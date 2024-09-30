@@ -234,7 +234,7 @@ Q14. What does the message "Cannot infer shape for node {} because there is no C
 Q15. What does the message "Framework name can not be deduced from the given options. Use --framework to choose one of Caffe, TensorFlow, MXNet" mean?
 ######################################################################################################################################################
 
-**A:** You have run Model Optimizer without a flag ``--framework caffe|tf|mxnet``. Model Optimizer tries to deduce the framework by the extension of input model file (``.pb`` for TensorFlow, ``.caffemodel`` for Caffe, ``.params`` for Apache MXNet). Your input model might have a different extension and you need to explicitly set the source framework. For example, use ``--framework caffe``.
+**A:** You have run Model Optimizer without a flag ``--framework caffe|tf``. Model Optimizer tries to deduce the framework by the extension of input model file (``.pb`` for TensorFlow, ``.caffemodel`` for Caffe, ``.params`` for Apache MXNet). Your input model might have a different extension and you need to explicitly set the source framework. For example, use ``--framework caffe``.
 
 .. _question-16:
 

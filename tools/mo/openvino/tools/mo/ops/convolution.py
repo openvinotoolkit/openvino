@@ -106,7 +106,7 @@ class Convolution(Op):
 
         weights_index = node.weights_index if node.has_valid('weights_index') else 1
         # Reshape weights kernel to original shape
-        # In case of caffe or MXNet framework, values for weights have no structured shape like OIHW
+        # In case of Caffe framework, values for weights have no structured shape like OIHW
         # so we have to reshape weights to normal shape
         # For this case, Convolution node should have attribute reshape_kernel = True
         if node.has_valid('reshape_kernel') and node.reshape_kernel:

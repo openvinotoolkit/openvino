@@ -51,7 +51,6 @@ jobs:
           # For running TensorFlow frontend unit tests
           python3 -m pip install -r ${{ github.workspace }}/src/frontends/tensorflow/tests/requirements.txt
           # For MO unit tests
-          python3 -m pip install -r ${{ github.workspace }}/tools/mo/requirements_mxnet.txt
           python3 -m pip install -r ${{ github.workspace }}/tools/mo/requirements_caffe.txt
           python3 -m pip install -r ${{ github.workspace }}/tools/mo/requirements_kaldi.txt
           python3 -m pip install -r ${{ github.workspace }}/tools/mo/requirements_onnx.txt
