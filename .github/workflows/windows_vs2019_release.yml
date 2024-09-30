@@ -13,6 +13,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  TARGET_BRANCH: ${{ github.base_ref || github.event.merge_group.base_ref || github.ref }}
   PIP_CACHE_PATH: /mount/caches/pip/win
   PYTHON_VERSION: '3.11'
 
@@ -24,6 +25,7 @@ jobs:
     outputs:
       affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
       skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
+      target_branch: ${{ steps.set_target_branch.outputs.target_branch }}
     steps:
       - name: checkout action
         uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
@@ -42,6 +44,11 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           skip_when_only_listed_labels_set: 'docs'
           skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*'
+          
+      - name: Get target branch
+        id: set_target_branch
+        run: |
+          echo "target_branch=${TARGET_BRANCH#refs/heads/}" >> $GITHUB_OUTPUT
 
   Build:
     needs: [ Smart_CI ]
@@ -51,6 +58,7 @@ jobs:
       runner: 'aks-win-16-cores-32gb'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       build-type: 'Release'
+      target-branch: ${{ needs.smart_ci.outputs.target_branch }}
 
   Samples:
     needs: [ Build, Smart_CI ]
@@ -483,7 +491,7 @@ jobs:
       - name: Intel CPU plugin func tests (parallel)
         run: |
           . "${{ env.INSTALL_DIR }}/setupvars.ps1"
-          python3 ${{ env.PARALLEL_TEST_SCRIPT }} -e ${{ env.INSTALL_TEST_DIR }}/ov_cpu_func_tests.exe -c ${{ env.PARALLEL_TEST_CACHE }} -w ${{ env.INSTALL_TEST_DIR }} -s suite -- --gtest_filter=*smoke*
+          python3 ${{ env.PARALLEL_TEST_SCRIPT }} -e ${{ env.INSTALL_TEST_DIR }}/ov_cpu_func_tests.exe -c ${{ env.PARALLEL_TEST_CACHE }} -w ${{ env.INSTALL_TEST_DIR }} -s suite -rf 0 -- --gtest_filter=*smoke*
         timeout-minutes: 60
 
       - name: Save tests execution time
