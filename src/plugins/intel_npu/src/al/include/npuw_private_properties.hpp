@@ -179,6 +179,14 @@ static constexpr ov::Property<std::string> par_matmul_merge_dims{"NPUW_PMM"};
 
 /**
  * @brief
+ * Type: boolean
+ * When applicable, do embedding gather on host.
+ * Default value: true.
+ */
+static constexpr ov::Property<bool> host_gather{"NPUW_HOST_GATHER"};
+
+/**
+ * @brief
  * Type: std::string.
  * Promotional data type for weights decompression. Works only with function "NPUW_FOLD"ing.
  * Possible values: "i8", "f16"

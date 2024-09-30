@@ -69,5 +69,6 @@
     "fs": "0.0.1-security",
     "jest": "^29.7.0",
     "prettier": "^3.2.5"
-  }
+  },
+  "license": "Apache-2.0"
 }
