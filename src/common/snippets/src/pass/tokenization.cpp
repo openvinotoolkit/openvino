@@ -91,7 +91,7 @@ bool SnippetsTokenization::run_on_model(const std::shared_ptr<ov::Model>& m) {
     tokenization_passes->add_matcher<TokenizeGNSnippets>();
     tokenization_passes->add_matcher<TokenizeFCSnippets>(m_config);
     tokenization_passes->add_matcher<TokenizeSnippets>(m_config);
-
+    manager.register_pass<ov::pass::Serialize>("snsdebug_ngraph.xml", "snsdebug_ngraph.bin");
     manager.register_pass<CommonOptimizations>(m_config);
     manager.run_passes(m);
 

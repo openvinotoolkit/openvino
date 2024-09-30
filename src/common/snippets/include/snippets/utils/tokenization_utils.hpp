@@ -23,6 +23,7 @@ namespace utils {
  * @return whether the node was tokenized or not
  */
 bool tokenize_node(const std::shared_ptr<ov::Node>& node, const ov::snippets::pass::SnippetsTokenization::Config& config);
+
 } // namespace utils
 } // namespace snippets
 } // namespace ov
