@@ -3,7 +3,6 @@
 //
 
 #include "ov_test.hpp"
-#include "openvino/core/visibility.hpp"
 
 namespace {
 
@@ -19,12 +18,7 @@ class ov_compiled_model_test : public ov_capi_test_base {
 
 INSTANTIATE_TEST_SUITE_P(ov_compiled_model, ov_compiled_model_test, ::testing::Values("CPU"));
 
-#if defined (OPENVINO_ARCH_ARM) && defined(__linux__)
-// Ticket: 153169
-TEST_P(ov_compiled_model_test, DISABLED_ov_compiled_model_inputs_size) {
-#else
 TEST_P(ov_compiled_model_test, ov_compiled_model_inputs_size) {
-#endif
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
@@ -47,12 +41,7 @@ TEST_P(ov_compiled_model_test, ov_compiled_model_inputs_size) {
     ov_core_free(core);
 }
 
-#if defined (OPENVINO_ARCH_ARM) && defined(__linux__)
-// Ticket: 153169
-TEST_P(ov_compiled_model_test, DISABLED_ov_compiled_model_input) {
-#else
 TEST_P(ov_compiled_model_test, ov_compiled_model_input) {
-#endif
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
@@ -76,12 +65,7 @@ TEST_P(ov_compiled_model_test, ov_compiled_model_input) {
     ov_core_free(core);
 }
 
-#if defined (OPENVINO_ARCH_ARM) && defined(__linux__)
-// Ticket: 153169
-TEST_P(ov_compiled_model_test, DISABLED_ov_compiled_model_input_by_index) {
-#else
 TEST_P(ov_compiled_model_test, ov_compiled_model_input_by_index) {
-#endif
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
@@ -109,12 +93,7 @@ TEST_P(ov_compiled_model_test, ov_compiled_model_input_by_index) {
     ov_core_free(core);
 }
 
-#if defined (OPENVINO_ARCH_ARM) && defined(__linux__)
-// Ticket: 153169
-TEST_P(ov_compiled_model_test, DISABLED_ov_compiled_model_input_by_name) {
-#else
 TEST_P(ov_compiled_model_test, ov_compiled_model_input_by_name) {
-#endif
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
@@ -142,12 +121,7 @@ TEST_P(ov_compiled_model_test, ov_compiled_model_input_by_name) {
     ov_core_free(core);
 }
 
-#if defined (OPENVINO_ARCH_ARM) && defined(__linux__)
-// Ticket: 153169
-TEST_P(ov_compiled_model_test, DISABLED_get_property) {
-#else
 TEST_P(ov_compiled_model_test, get_property) {
-#endif
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
