@@ -66,7 +66,6 @@ jobs:
           images: |
             ov_build/debian_10_arm
             ov_test/debian_10_arm
-            ov_test/debian_11_arm
           registry: 'openvinogithubactions.azurecr.io'
           dockerfiles_root_dir: '.github/dockerfiles'
           changed_components: ${{ needs.smart_ci.outputs.changed_components }}
@@ -106,7 +105,7 @@ jobs:
     uses: ./.github/workflows/job_cxx_unit_tests.yml
     with:
       runner: 'aks-linux-16-cores-arm'
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.debian_11_arm }}
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.debian_10_arm }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
 
   CPU_Functional_Tests:
@@ -116,7 +115,7 @@ jobs:
     uses: ./.github/workflows/job_cpu_functional_tests.yml
     with:
       runner: 'aks-linux-16-cores-arm'
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.debian_11_arm }}
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.debian_10_arm }}
       python-version: '3.9'
       os: 'debian_10'
 
