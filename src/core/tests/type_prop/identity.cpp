@@ -24,5 +24,4 @@ TEST_F(TypePropIdentityV15Test, default_ctor) {
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->get_output_element_type(0), ov::element::f64);
     EXPECT_EQ(op->get_output_partial_shape(0), ov::PartialShape({2, 2}));
-    EXPECT_EQ(op->get_copy(), false);
 }

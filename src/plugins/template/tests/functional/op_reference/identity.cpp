@@ -12,11 +12,9 @@ namespace {
 struct IdentityParams {
     IdentityParams(const reference_tests::Tensor& matrices, bool copy, std::string name)
         : matrices{matrices},
-          copy(copy),
           test_case_name{std::move(name)} {}
 
     reference_tests::Tensor matrices;
-    bool copy;
     std::string test_case_name;
 };
 
@@ -27,7 +25,6 @@ public:
         function = CreateFunction(params);
         inputData = {params.matrices.data};
         refOutData = {params.matrices.data};
-        m_copy = params.copy;
     }
 
     static std::string getTestCaseName(const testing::TestParamInfo<IdentityParams>& obj) {
@@ -37,26 +34,15 @@ public:
         name << obj.param.matrices.type;
         name << "_shape_";
         name << obj.param.matrices.shape;
-        name << "_copy_";
-        name << obj.param.copy;
         return name.str();
-    }
-
-    void Validate() {
-        CommonReferenceTest::Validate();
-
-        bool pointers_match = refOutData[0].data() == actualOutData[0].data();
-        ASSERT_EQ(pointers_match, !m_copy);
     }
 
 private:
     static std::shared_ptr<ov::Model> CreateFunction(const IdentityParams& params) {
         const auto in_matrices = std::make_shared<ov::op::v0::Parameter>(params.matrices.type, params.matrices.shape);
-        const auto identity = std::make_shared<ov::op::v15::Identity>(in_matrices, params.copy);
+        const auto identity = std::make_shared<ov::op::v15::Identity>(in_matrices);
         return std::make_shared<ov::Model>(identity->outputs(), ov::ParameterVector{in_matrices});
     }
-
-    bool m_copy;
 };
 
 template <ov::element::Type_t ET>
@@ -91,10 +77,8 @@ std::vector<IdentityParams> generateIdentityParams() {
                                                            0.0f});
 
     std::vector<IdentityParams> params;
-    params.emplace_back(matrices_2_2, false, "single_simple");
-    params.emplace_back(matrices_2_2, true, "single_simple");
-    params.emplace_back(matrices_2_3_3, false, "many_simple");
-    params.emplace_back(matrices_2_3_3, true, "many_simple");
+    params.emplace_back(matrices_2_2, "single");
+    params.emplace_back(matrices_2_3_3, "many");
 
     return params;
 }

@@ -14,13 +14,12 @@ namespace ov {
 namespace op {
 namespace v15 {
 
-Identity::Identity(const Output<Node>& data, const bool copy) : Op({data}), m_copy(copy) {
+Identity::Identity(const Output<Node>& data) : Op({data}) {
     constructor_validate_and_infer_types();
 }
 
 bool Identity::Identity::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v15_Identity_visit_attributes);
-    visitor.on_attribute("copy", m_copy);
     return true;
 }
 
@@ -36,14 +35,6 @@ std::shared_ptr<Node> Identity::Identity::clone_with_new_inputs(const OutputVect
     OV_OP_SCOPE(v15_Identity_clone_with_new_inputs);
     check_new_args_count(this, new_args);
 
-    return std::make_shared<Identity>(new_args.at(0), m_copy);
-}
-
-bool Identity::get_copy() const {
-    return m_copy;
-}
-
-void Identity::set_copy(const bool copy) {
-    m_copy = copy;
+    return std::make_shared<Identity>(new_args.at(0));
 }
 }  // namespace ov

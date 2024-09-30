@@ -14,9 +14,12 @@ inline bool evaluate(const std::shared_ptr<ov::op::v15::Identity>& op,
     using T = typename ov::element_type_traits<ET>::value_type;
 
     const std::vector<ov::PartialShape> input_shapes{op->get_input_shape(0)};
+    const auto total_size = get_shape_size(out_shape);
+    const auto total_size_in_bytes = total_size * inputs[0].get_dtype().get_element_size();
+
     outputs[0].set_shape(input_shapes[0]);
 
-    ov::reference::Identity<T>(inputs[0].data<const T>(), outputs[0].data<T>(), out_shape, op->get_copy());
+    ov::reference::Identity(static_cast<const char*>(inputs[0].data()), static_cast<char*>(outputs[0].data()), total_size_in_bytes);
     return true;
 }
 
