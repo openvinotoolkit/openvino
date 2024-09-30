@@ -107,7 +107,7 @@ jobs:
       SCCACHE_SERVER_PORT: 35555
       SCCACHE_ERROR_LOG: /__w/openvino/sccache_log.txt
       SCCACHE_LOG: warn
-      SCCACHE_AZURE_KEY_PREFIX: ${{ runner.os }}_${{ runner.arch }}_${{ matrix.SANITIZER }}_master
+      SCCACHE_AZURE_KEY_PREFIX: sanitizers_lin_${{ matrix.SANITIZER }}_master
 
     steps:
       - name: Clone OpenVINO
