@@ -305,21 +305,21 @@ Known Issues
 | ID: n/a
 | Description:
 |   For ARM binaries, the `1.16 ONNX library <https://vcpkg.link/ports/onnx/versions>`__
-    is not yet available, while the current latest has shown two significant vulnerabilities:
+    is not yet available.
+|   The ONNX library for ARM, version 1.15, does not include the latest
+    functional and security updates. OpenVINO, version 2024.5 is targeted to be released in
+    Q4 2024 and will include additional functional and security updates. Users should update to
+    the latest version as it becomes available.
+|   The current vulnerabilities are:
     `CVE-2024-27318 <https://nvd.nist.gov/vuln/detail/CVE-2024-27318>`__ and
     `CVE-2024-27319 <https://nvd.nist.gov/vuln/detail/CVE-2024-27319>`__.
-    The vulnerabilities are less severe in the context of OpenVINO and will be fixed as soon as
-    the most recent version of the library is available for ARM, expected at the 2024.5 release.
 
-
-
-
-
-
-
-
-
-
+| **Component: Kaldi**
+| ID: n/a
+| Description:
+|   There is a known issue with the Kaldi DL framework support on the Python version 3.12 due
+    to the numpy version incompatibilities. As Kaldi support in OpenVINO is currently deprecated
+    and will be discontinued with version 2025.0, the issue will not be addressed.
 
 
 Previous 2024 releases
