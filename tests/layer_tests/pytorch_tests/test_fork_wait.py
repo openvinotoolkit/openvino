@@ -32,7 +32,6 @@ class TestForkWait(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize(("to_trace"), [True, False])
     def test_fork_wait(self, to_trace, ie_device, precision, ir_version):
         self._test(*self.create_model(), ie_device, precision,
