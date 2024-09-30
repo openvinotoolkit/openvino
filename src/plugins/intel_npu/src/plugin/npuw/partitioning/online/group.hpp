@@ -32,21 +32,21 @@ public:
     Group() = delete;
     Group(const std::shared_ptr<ov::Node>& node,
           size_t gid,
-          ade::NodeHandle nh,
-          const std::shared_ptr<ade::Graph>& g,
+          own::ade::NodeHandle nh,
+          const std::shared_ptr<own::ade::Graph>& g,
           const std::weak_ptr<Snapshot>& snapshot);
     Group(size_t gid,
-          ade::NodeHandle nh,
-          const std::shared_ptr<ade::Graph>& g,
+          own::ade::NodeHandle nh,
+          const std::shared_ptr<own::ade::Graph>& g,
           const std::weak_ptr<Snapshot>& snapshot);
 
     // After we formed a final structure of partitioning,
     // we append excluded Convert layers to properly link submodels
     // Convert this representation to plugin-compatible one
     ov::npuw::Group toGroup() const;
-    std::vector<ade::NodeHandle> srcNodes() const;
-    std::vector<ade::NodeHandle> dstNodes() const;
-    ade::NodeHandle getHandle() const;
+    std::vector<own::ade::NodeHandle> srcNodes() const;
+    std::vector<own::ade::NodeHandle> dstNodes() const;
+    own::ade::NodeHandle getHandle() const;
     // Note: can only be used during initial group initialization
     std::shared_ptr<ov::Node> getInitialNode() const;
     void addInput(const std::shared_ptr<ov::Node>& node);
@@ -95,9 +95,9 @@ private:
     detail::OVNodeSet m_content;
     detail::OVNodeSet m_output_layers;
 
-    ade::NodeHandle m_nh;
+    own::ade::NodeHandle m_nh;
     size_t m_id;  // used for utility prints only
-    std::shared_ptr<ade::Graph> m_graph;
+    std::shared_ptr<own::ade::Graph> m_graph;
     std::weak_ptr<Snapshot> m_snapshot;
     bool m_frozen = false;
     bool m_nofold = false;

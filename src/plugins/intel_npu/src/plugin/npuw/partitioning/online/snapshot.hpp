@@ -29,7 +29,7 @@ class Snapshot : public std::enable_shared_from_this<Snapshot> {
 public:
     Snapshot(const std::shared_ptr<ov::Model>& model)
         : m_model(model),
-          m_graph(std::make_shared<ade::Graph>()),
+          m_graph(std::make_shared<own::ade::Graph>()),
           m_node_to_prod_cons(std::make_shared<detail::OVNodeMap>()),
           m_node_to_gr(std::make_shared<detail::OVNodeToGroupMap>()) {}
 
@@ -53,7 +53,7 @@ public:
     void resetExcludedRep();
 
     // Utility
-    std::shared_ptr<ade::Graph> getGraph() const;
+    std::shared_ptr<own::ade::Graph> getGraph() const;
     size_t graphSize() const;
     const detail::OVNodeSet& getNodeProducers(const detail::OVNodePtr& node) const;
     const detail::OVNodeSet& getNodeConsumers(const detail::OVNodePtr& node) const;
@@ -81,7 +81,7 @@ private:
     void completeRepeating(const std::shared_ptr<Repeated>& reptag, const detail::GPtrSet& gset);
 
     std::shared_ptr<ov::Model> m_model;
-    std::shared_ptr<ade::Graph> m_graph;
+    std::shared_ptr<own::ade::Graph> m_graph;
     detail::OVNodeMapPtr m_node_to_prod_cons;
     detail::OVNodeToGroupMapPtr m_node_to_gr;
     PassContext m_ctx;

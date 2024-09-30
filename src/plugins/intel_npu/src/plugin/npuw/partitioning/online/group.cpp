@@ -22,8 +22,8 @@ using ov::npuw::online::detail::isOp;
 
 Group::Group(const std::shared_ptr<ov::Node>& node,
              size_t gid,
-             ade::NodeHandle nh,
-             const std::shared_ptr<ade::Graph>& g,
+             own::ade::NodeHandle nh,
+             const std::shared_ptr<own::ade::Graph>& g,
              const std::weak_ptr<Snapshot>& snapshot)
     : m_nh(std::move(nh)),
       m_id(gid),
@@ -35,8 +35,8 @@ Group::Group(const std::shared_ptr<ov::Node>& node,
 }
 
 Group::Group(size_t gid,
-             ade::NodeHandle nh,
-             const std::shared_ptr<ade::Graph>& g,
+             own::ade::NodeHandle nh,
+             const std::shared_ptr<own::ade::Graph>& g,
              const std::weak_ptr<Snapshot>& snapshot)
     : m_nh(std::move(nh)),
       m_id(gid),
@@ -140,15 +140,15 @@ size_t Group::getId() const {
     return m_id;
 }
 
-std::vector<ade::NodeHandle> Group::srcNodes() const {
+std::vector<own::ade::NodeHandle> Group::srcNodes() const {
     return m_nh->srcNodes();
 }
 
-std::vector<ade::NodeHandle> Group::dstNodes() const {
+std::vector<own::ade::NodeHandle> Group::dstNodes() const {
     return m_nh->dstNodes();
 }
 
-ade::NodeHandle Group::getHandle() const {
+own::ade::NodeHandle Group::getHandle() const {
     return m_nh;
 }
 
@@ -234,7 +234,7 @@ void Group::fuse(const Group::GPtr& gptr_prod) {
 
 // This group absorbs the consumer
 void Group::fuseWith(const Group::GPtr& gptr_cons) {
-    // Update ov::node to ade::NodeHandle map
+    // Update ov::node to own::ade::NodeHandle map
     auto locked_snapshot = m_snapshot.lock();
     auto node_to_gr = locked_snapshot->getNodeToGroupMap();
     for (const auto& layer : gptr_cons->m_content) {
@@ -261,7 +261,7 @@ void Group::fuseInputs(const std::pair<Group::GPtr, Group::GPtr>& gptr_inputs) {
     auto locked_snapshot = m_snapshot.lock();
     auto node_to_gr = locked_snapshot->getNodeToGroupMap();
 
-    // Update ov::node to ade::NodeHandle map and merge all contents together
+    // Update ov::node to own::ade::NodeHandle map and merge all contents together
     for (const auto& layer : absorbed_group->m_content) {
         node_to_gr->at(layer) = absorbing_group;
         absorbing_group->m_content.insert(layer);
@@ -296,9 +296,9 @@ void Group::takeFlags(const Group::GPtr& gptr_other) {
 
 // Check if there is indirect path from this to gptr_cons
 bool Group::hasCycle(const Group::GPtr& gptr_cons) const {
-    std::unordered_set<ade::NodeHandle> visited;
+    std::unordered_set<own::ade::NodeHandle> visited;
 
-    std::stack<ade::NodeHandle> st;
+    std::stack<own::ade::NodeHandle> st;
 
     for (const auto& prod : gptr_cons->srcNodes()) {
         // skip self during this iter
