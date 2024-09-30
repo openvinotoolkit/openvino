@@ -12,6 +12,10 @@ using namespace ov::intel_npu;
 //
 
 void intel_npu::registerOptions(OptionsDesc& desc, compilerVersion compilerVer) {
+    // reset options first
+    desc.reset();
+
+    // register
     desc.add<PERFORMANCE_HINT>(compilerVer);
     desc.add<PERFORMANCE_HINT_NUM_REQUESTS>(compilerVer);
     desc.add<INFERENCE_PRECISION_HINT>(compilerVer);

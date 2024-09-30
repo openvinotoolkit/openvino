@@ -167,6 +167,10 @@ details::OptionConcept OptionsDesc::get(std::string_view key, OptionMode mode) c
     return desc;
 }
 
+void OptionsDesc::reset() {
+    _impl.clear();
+}
+
 bool OptionsDesc::has(std::string_view key) {
     std::string searchKey{key};
     const auto itDeprecated = _deprecated.find(std::string(key));

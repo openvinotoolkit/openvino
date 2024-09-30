@@ -386,6 +386,8 @@ public:
 
     bool has(std::string_view key);
 
+    void reset();
+
     std::vector<std::string> getSupported(bool includePrivate = false) const;
     std::vector<ov::PropertyName> getSupportedProperties(bool includePrivate = false) const;
 

@@ -277,9 +277,7 @@ Plugin::Plugin()
 }
 
 void Plugin::init_options(compilerVersion comp_ver) {
-    // TODO: implement reset here
-
-    // Initialize
+    // Initialize (note: it will reset registered options)
     OV_ITT_TASK_NEXT(PLUGIN, "initOptions");
     registerOptions(*_options, comp_ver);
     _backends->registerOptions(*_options);
@@ -296,7 +294,8 @@ void Plugin::init_options(compilerVersion comp_ver) {
 }
 
 void Plugin::init_properties() {
-    // TODO: implement reset here
+    // Reset
+    _properties.clear();
 
     // 1. Configs
     // ========
