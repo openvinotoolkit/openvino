@@ -15,12 +15,14 @@ namespace test {
 
 // Subgraph:
 /*
- *   Parameter  Parameter  Parameter
- *       |          |          |
- *    Reshape    Reshape    Reshape
- *       |          |          |
- *   Transpose  Transpoe   Transpose
- *        \         |         /
+ *             Parameter       Parameter
+ *                  |              |
+ *   Parameter   ReadValue     ReadValue
+ *       |          |   \          |    \
+ *    Reshape    Reshape Assign Reshape Assign
+ *       |          |              |
+ *   Transpose  Transpoe       Transpose
+ *        \         |            /
  *      ScaledDotProductAttention
  *                  |
  *              Tranpose
