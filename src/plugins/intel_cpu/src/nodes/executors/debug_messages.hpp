@@ -7,6 +7,7 @@
 #define UNSUPPORTED_SPARSE_WEIGHTS " sparse weights are not supported"
 #define UNSUPPORTED_WEIGHTS_DECOMPRESSION " weights decompression is not supported"
 #define UNSUPPORTED_POST_OPS " post ops are not supported"
+#define UNSUPPORTED_LAYOUT " layout are not supported"
 #define UNSUPPORTED_NUMBER_OF_POSTOPS " the number of post ops is not supported"
 #define UNSUPPORTED_TYPE_OF_POSTOPS " the type of post ops is not supported"
 #define UNSUPPORTED_SRC_PRECISIONS " unsupported src precisions"

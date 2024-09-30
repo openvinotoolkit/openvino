@@ -124,41 +124,13 @@ ov::optional<executor::Config<Attrs>> requiresFallbackCommon(const executor::Con
     return ov::optional<executor::Config<Attrs>>(MVNConfig {optimalDescriptors, config.attrs, config.postOps});
 }
 
-OV_CPU_MAYBE_UNUSED_FUNCTION static inline bool noPostOps(const MVNConfig& config) {
-    return config.postOps.empty();
+OV_CPU_MAYBE_UNUSED_FUNCTION static inline bool noLayout(const MVNConfig& config, const LayoutType& layoutType) {
+    return config.descs.at(ARG_SRC)->hasLayoutType(layoutType);
 }
 
 template <>
 const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations() {
     static const std::vector<ExecutorImplementation<MVNAttrs>> mvnImplementations {
-        OV_CPU_INSTANCE_X64(
-            "mvn_jit_x64_ncsp",
-            ExecutorType::jit_x64,
-            OperationType::MVN,
-            ShapeTolerance::Agnostic,
-            // supports
-            [](const MVNConfig& config) -> bool {
-                return JITMVNExecutor::supports(config);
-            },
-            // requiresFallback
-            [](const MVNConfig& config) -> ov::optional<executor::Config<MVNAttrs>> {
-                return requiresFallbackCommon(config,
-                                              jitMVNTypeMapping,
-                                              {LayoutType::ncsp, LayoutType::ncsp},
-                                              mvnMappingNotation);
-            },
-            // acceptsShapes
-            [](const MemoryArgs& memory) -> bool {
-                // @todo create syntactic sugar (functor) for shape agnostic lambda
-                return true;
-            },
-            // create
-            [](const MVNAttrs& attrs,
-               const PostOps& postOps,
-               const MemoryArgs& memory,
-               const ExecutorContext::CPtr context) {
-                return std::make_shared<JITMVNExecutor>(attrs, postOps, memory, context);
-        })
         OV_CPU_INSTANCE_X64(
             "mvn_jit_x64_nspc",
             ExecutorType::jit_x64,
@@ -166,6 +138,8 @@ const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations() {
             ShapeTolerance::Agnostic,
             // supports
             [](const MVNConfig& config) -> bool {
+                VERIFY(noLayout(config, LayoutType::nspc), UNSUPPORTED_LAYOUT);
+                VERIFY(one_of(srcRank(config), 4lu, 5lu), UNSUPPORTED_SRC_RANK);
                 return JITMVNExecutor::supports(config);
             },
             // requiresFallback
@@ -187,6 +161,97 @@ const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations() {
                const ExecutorContext::CPtr context) {
                 return std::make_shared<JITMVNExecutor>(attrs, postOps, memory, context);
         })
+        OV_CPU_INSTANCE_X64(
+        "mvn_jit_x64_nCsp16c",
+        ExecutorType::jit_x64,
+        OperationType::MVN,
+        ShapeTolerance::Agnostic,
+        // supports
+        [](const MVNConfig& config) -> bool {
+            VERIFY(noLayout(config, LayoutType::nCsp16c), UNSUPPORTED_LAYOUT);
+            VERIFY(one_of(srcRank(config), 4lu, 5lu), UNSUPPORTED_SRC_RANK);
+            VERIFY(mayiuse(cpu::x64::avx512_core), UNSUPPORTED_ISA);
+            return JITMVNExecutor::supports(config);
+        },
+        // requiresFallback
+        [](const MVNConfig& config) -> ov::optional<executor::Config<MVNAttrs>> {
+            return requiresFallbackCommon(config,
+                                          jitMVNTypeMapping,
+                                          {LayoutType::nCsp16c, LayoutType::nCsp16c},
+                                          mvnMappingNotation);
+        },
+        // acceptsShapes
+        [](const MemoryArgs& memory) -> bool {
+            // @todo create syntactic sugar (functor) for shape agnostic lambda
+            return true;
+        },
+        // create
+        [](const MVNAttrs& attrs,
+           const PostOps& postOps,
+           const MemoryArgs& memory,
+           const ExecutorContext::CPtr context) {
+            return std::make_shared<JITMVNExecutor>(attrs, postOps, memory, context);
+        })
+        OV_CPU_INSTANCE_X64(
+            "mvn_jit_x64_nCsp8c",
+            ExecutorType::jit_x64,
+            OperationType::MVN,
+            ShapeTolerance::Agnostic,
+            // supports
+            [](const MVNConfig& config) -> bool {
+                VERIFY(noLayout(config, LayoutType::nCsp8c), UNSUPPORTED_LAYOUT);
+                VERIFY(one_of(srcRank(config), 4lu, 5lu), UNSUPPORTED_SRC_RANK);
+                VERIFY(mayiuse(cpu::x64::avx2) || mayiuse(cpu::x64::sse41), UNSUPPORTED_ISA);
+                return JITMVNExecutor::supports(config);
+            },
+            // requiresFallback
+            [](const MVNConfig& config) -> ov::optional<executor::Config<MVNAttrs>> {
+                return requiresFallbackCommon(config,
+                                              jitMVNTypeMapping,
+                                              {LayoutType::nCsp8c, LayoutType::nCsp8c},
+                                              mvnMappingNotation);
+            },
+            // acceptsShapes
+            [](const MemoryArgs& memory) -> bool {
+                // @todo create syntactic sugar (functor) for shape agnostic lambda
+                return true;
+            },
+            // create
+            [](const MVNAttrs& attrs,
+               const PostOps& postOps,
+               const MemoryArgs& memory,
+               const ExecutorContext::CPtr context) {
+                return std::make_shared<JITMVNExecutor>(attrs, postOps, memory, context);
+        })
+        OV_CPU_INSTANCE_X64(
+            "mvn_jit_x64_ncsp",
+            ExecutorType::jit_x64,
+            OperationType::MVN,
+            ShapeTolerance::Agnostic,
+            // supports
+            [](const MVNConfig& config) -> bool {
+                VERIFY(noLayout(config, LayoutType::ncsp), UNSUPPORTED_LAYOUT);
+                return JITMVNExecutor::supports(config);
+            },
+            // requiresFallback
+            [](const MVNConfig& config) -> ov::optional<executor::Config<MVNAttrs>> {
+                return requiresFallbackCommon(config,
+                                              jitMVNTypeMapping,
+                                              {LayoutType::ncsp, LayoutType::ncsp},
+                                              mvnMappingNotation);
+            },
+            // acceptsShapes
+            [](const MemoryArgs& memory) -> bool {
+                // @todo create syntactic sugar (functor) for shape agnostic lambda
+                return true;
+            },
+            // create
+            [](const MVNAttrs& attrs,
+               const PostOps& postOps,
+               const MemoryArgs& memory,
+               const ExecutorContext::CPtr context) {
+                return std::make_shared<JITMVNExecutor>(attrs, postOps, memory, context);
+        })
         OV_CPU_INSTANCE_ACL(
             "mvn_acl_nspc",
             ExecutorType::Acl,
@@ -194,7 +259,7 @@ const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations() {
             ShapeTolerance::Agnostic,
             // supports
             [](const MVNConfig& config) -> bool {
-                if (!config.descs.at(ARG_SRC)->hasLayoutType(LayoutType::nspc)) return false;
+                VERIFY(noLayout(config, LayoutType::nspc), UNSUPPORTED_LAYOUT);
                 return ACLMVNExecutor::supports(config);
             },
             // requiresFallback
@@ -223,7 +288,7 @@ const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations() {
             ShapeTolerance::Agnostic,
             // supports
             [](const MVNConfig& config) -> bool {
-                if (!config.descs.at(ARG_SRC)->hasLayoutType(LayoutType::ncsp)) return false;
+                VERIFY(noLayout(config, LayoutType::ncsp), UNSUPPORTED_LAYOUT);
                 return ACLMVNExecutor::supports(config);
             },
             // requiresFallback
@@ -252,7 +317,7 @@ const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations() {
             ShapeTolerance::Agnostic,
             // supports
             [](const MVNConfig& config) -> bool {
-                if (!config.descs.at(ARG_SRC)->hasLayoutType(LayoutType::ncsp)) return false;
+                VERIFY(noLayout(config, LayoutType::ncsp), UNSUPPORTED_LAYOUT);
                 return CommonMVNExecutor::supports(config);
             },
             // requiresFallback
@@ -281,7 +346,7 @@ const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations() {
             ShapeTolerance::Agnostic,
             // supports
             [](const MVNConfig& config) -> bool {
-                if (!config.descs.at(ARG_SRC)->hasLayoutType(LayoutType::nspc)) return false;
+                VERIFY(noLayout(config, LayoutType::nspc), UNSUPPORTED_LAYOUT);
                 return CommonMVNExecutor::supports(config);
             },
             // requiresFallback

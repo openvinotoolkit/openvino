@@ -221,6 +221,7 @@ void MVN::initSupportedPrimitiveDescriptors() {
     if (!fusedWith.empty())
         dstTypes = fusedWith.back()->getOriginalOutputPrecisions();
 
+
     VecMemoryDescs srcDescs;
     const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     for (size_t i = 0; i < srcTypes.size(); i++) {
@@ -239,6 +240,7 @@ void MVN::initSupportedPrimitiveDescriptors() {
             {ARG_DST, dstDescs[0]},
     };
 
+    transformTo5DCase(descs.at(ARG_SRC)->getShape().getStaticDims());
     mvnAttrs.srcIsNHWC = descs.at(ARG_SRC)->hasLayoutType(LayoutType::nspc);
     mvnAttrs.src_prc = descs.at(ARG_SRC)->getPrecision();
     mvnAttrs.dst_prc = descs.at(ARG_DST)->getPrecision();
@@ -270,53 +272,11 @@ void MVN::initSupportedPrimitiveDescriptors() {
         }
 
         // planar
-        if (canBeInplace)
+        if (descs.at(ARG_SRC)->hasLayoutType(LayoutType::nspc) && canBeInplace)
             nodeConfig.inConfs[0].inPlace(0);
 
         supportedPrimitiveDescriptors.emplace_back(nodeConfig, impl_desc_type::undef);
     }
-    return;
-
-    auto pushDesc = [&](LayoutType format, impl_desc_type impl_type, bool useAclExecutor = false) {};
-
-#if defined(OV_CPU_WITH_ACL)
-        pushDesc(LayoutType::nspc, acl, true);
-        pushDesc(LayoutType::ncsp, acl, true);
-        if (!supportedPrimitiveDescriptors.empty())
-            return;
-        else
-            // Reference MVN implementation does not support fp16, so set fp32 explicitly
-            inputPrecision = outputPrecision = ov::element::f32;
-#endif // OV_CPU_WITH_ACL
-
-    impl_desc_type impl_type;
-    if (mayiuse(cpu::x64::avx512_core)) {
-        impl_type = impl_desc_type::jit_avx512;
-    } else if (mayiuse(cpu::x64::avx2)) {
-        impl_type = impl_desc_type::jit_avx2;
-    } else if (mayiuse(cpu::x64::sse41)) {
-        impl_type = impl_desc_type::jit_sse42;
-    } else {
-        impl_type = impl_desc_type::ref;
-    }
-
-    if (mayiuse(cpu::x64::sse41)) {
-        // nspc
-        if (getInputShapeAtPort(0).getRank() == 4 || getInputShapeAtPort(0).getRank() == 5) {
-            pushDesc(LayoutType::nspc, impl_type);
-        }
-        // blk
-        if (impl_desc_type::jit_avx512 == impl_type) {
-            if (getInputShapeAtPort(0).getRank() == 4 || getInputShapeAtPort(0).getRank() == 5) {
-                pushDesc(LayoutType::nCsp16c, impl_type);
-            }
-        } else if (impl_desc_type::jit_avx2 ==  impl_type || impl_desc_type::jit_sse42 == impl_type) {
-            if (getInputShapeAtPort(0).getRank() == 4 || getInputShapeAtPort(0).getRank() == 5) {
-                pushDesc(LayoutType::nCsp8c, impl_type);
-            }
-        }
-    }
-    pushDesc(LayoutType::ncsp, impl_type);
 }
 
 ExecutorPtr MVN::createExecutor() {
@@ -335,23 +295,8 @@ void MVN::prepareParams() {
     if (getSelectedPrimitiveDescriptor() == nullptr)
         OPENVINO_THROW("Preferable primitive descriptor is not set.");
 
-    const VectorDims in_dims = srcMemPtr->getStaticDims();
-    transformTo5DCase(in_dims);
+    transformTo5DCase(srcMemPtr->getStaticDims());
 
-#if defined(OPENVINO_ARCH_X86_64)
-    // New shape5D always need prepare via transformTo5DCase(), which is need in exec().
-    // MVN itself and unary post ops is totally shape agnostic, execPtr can be reused directly w/o recompilation and setPostOps when shape is changed.
-    // As key have not shape, if shape changes and new post ops attr is also the same, execPtr can still hit.
-    // If new shape(channel changes) impact post ops attr, such as entry.quantization.offset, entry.depthwise.offset, entry.quantization.per_channel,
-    // which is participate in compilation, even postOpsData is passed in runtime, still need recompilation.
-    if (executor != nullptr && (fusedWith.empty() || onlyUnaryPostOps)) {
-        return;
-    }
-#endif
-
-    auto selectedPD = getSelectedPrimitiveDescriptor();
-    mvnAttrs.src_prc = selectedPD->getConfig().inConfs[0].getMemDesc()->getPrecision();
-    mvnAttrs.dst_prc = selectedPD->getConfig().outConfs[0].getMemDesc()->getPrecision();
     if (getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::ncsp)) {
         mvnAttrs.layout = MVNLayoutType::mvn_planar;
     } else if (getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nspc)) {
