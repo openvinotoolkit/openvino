@@ -674,3 +674,22 @@ TEST(BehaviorTestsNPUWAccuracy, RepAndNonePartPipesGiveSameResults) {
         EXPECT_TRUE(nrmse(rep_tensor, none_tensor));
     }
 }
+
+TEST_F(BehaviorTestsNPUW, CanSayNoToPMMProperty) {
+    // Create model:
+    model = model_generator.get_model_with_one_op();
+
+    // Set expectation to npu plugin:
+    EXPECT_COMPILE_MODEL(mock_npu, TIMES(1));
+
+    // Register mock npu plugin in OpenVINO:
+    register_mock_plugins_in_ov();
+
+    use_npuw_props.emplace(devices("MockNPU"));
+    use_npuw_props.emplace(partitioning::par_matmul_merge_dims("NO"));
+
+    ov::CompiledModel compiled_model;
+    EXPECT_NO_THROW(compiled_model = core.compile_model(model, "NPU", use_npuw_props));
+    auto prop = compiled_model.get_property(partitioning::par_matmul_merge_dims.name());
+    EXPECT_EQ("NO", prop.as<std::string>());
+}
