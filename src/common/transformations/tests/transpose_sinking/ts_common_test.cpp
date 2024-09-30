@@ -1652,11 +1652,8 @@ auto test_backward_unsqueeze_dyn_rank = []() {
         OutputVector result = out_vec;
         for (const auto& idx : idxs) {
             const auto& out = out_vec[idx];
-            /*auto rank = out.get_partial_shape().rank().get_length();
-            vector<int64_t> axes(rank);
-            iota(axes.begin(), axes.end(), 0);
-            reverse(axes.begin(), axes.end());*/
-            // fill order with stub values {-1, -2}
+
+            // fill the order const with the stub values {-1, -2}
             auto order = make_shared<Constant>(element::i32, Shape{2}, vector<int64_t>{-1, -2});
             auto transpose = make_shared<Transpose>(out, order);
             result[idx] = transpose;
@@ -1669,7 +1666,8 @@ auto test_backward_unsqueeze_dyn_rank = []() {
     test_case.model.preprocess_outputs_of_main = {{dyn_transpose}, {{0}}};
     test_case.model.model_template = create_model;
 
-    // Ref model description
+    // Ref model description, the same as the original model, the transformation is not applied
+    // it's expected.
     test_case.model_ref.main_op = {CREATE_BINARY_FACTORY(Unsqueeze)};
     test_case.model_ref.preprocess_outputs_of_main = {{dyn_transpose}, {{0}}};
     test_case.model_ref.model_template = create_model;
