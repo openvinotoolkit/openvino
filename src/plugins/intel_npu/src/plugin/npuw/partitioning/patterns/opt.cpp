@@ -6,18 +6,7 @@
 
 #include "../../logging.hpp"
 #include "../../util.hpp"
-#include "openvino/op/add.hpp"
-#include "openvino/op/broadcast.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/gather.hpp"
-#include "openvino/op/matmul.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/reduce_sum.hpp"
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/slice.hpp"
-#include "openvino/op/split.hpp"
-#include "openvino/op/subtract.hpp"
+#include "openvino/op/ops.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/pattern/op/label.hpp"  // any_input
 #include "openvino/pass/pattern/op/optional.hpp"
@@ -1290,6 +1279,42 @@ CompressDictMatMulf32::CompressDictMatMulf32(Context::Ref ctx) {
         return false;  // root has changed (yet)
     };
     register_matcher(std::make_shared<opp::Matcher>(res, "OptCompressDictMatMulf32"), std::move(callback));
+}
+
+//
+// FROM:
+//     Param [1x4x1023x64] -> ShapeOf -> ...
+//
+// TO:
+//     Const [4] -> ...
+//
+ShapeOfToConst::ShapeOfToConst(const std::shared_ptr<ov::Model>& model) {
+    auto key_val = opp::wrap_type<ov::op::v0::Parameter>();
+    auto shapeof = opp::wrap_type<ov::op::v3::ShapeOf>({key_val});
+
+    // Note: Use [=] to make sure the above objects stay alive in the callback
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+
+        auto matched_node_key_val = node_to_output.at(key_val).get_node_shared_ptr();
+        auto matched_node_shapeof = node_to_output.at(shapeof).get_node_shared_ptr();
+
+        auto param_in_tensor = matched_node_shapeof->input(0).get_tensor_ptr();
+
+        // Create a new static Const instead of Param->ShapeOf
+        auto new_const = std::make_shared<ov::op::v0::Constant>(ov::element::i64,
+                                                                ov::Shape{param_in_tensor->get_shape().size()},
+                                                                param_in_tensor->get_shape().data());
+        // Reconnect shapeof readers to the new Const
+        for (auto&& node_outputs : matched_node_shapeof->outputs()) {
+            for (auto&& node_reader_port : node_outputs.get_target_inputs()) {
+                node_reader_port.replace_source_output(new_const);
+            }
+        }
+
+        return true;  // root has changed
+    };
+    register_matcher(std::make_shared<opp::Matcher>(shapeof, "OptShapeOfToConst"), std::move(callback));
 }
 
 }  // namespace opt

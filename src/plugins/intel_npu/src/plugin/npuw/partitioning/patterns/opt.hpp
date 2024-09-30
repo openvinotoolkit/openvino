@@ -148,6 +148,13 @@ public:
     CompressDictMatMulf32(Context::Ref ctx);
 };
 
+// Graph simplification for the partitioning
+
+class ShapeOfToConst : public ov::pass::MatcherPass {
+public:
+    ShapeOfToConst(const std::shared_ptr<ov::Model>& model);
+};
+
 }  // namespace opt
 }  // namespace patterns
 }  // namespace npuw

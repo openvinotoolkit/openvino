@@ -19,7 +19,6 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
 #include "partitioning/patterns/opt.hpp"
-#include "partitioning/patterns/util.hpp"
 #include "plugin.hpp"
 #include "util.hpp"
 
@@ -134,21 +133,22 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         }
     }
 
-    // FIXME: Could be a problem in case of dynamic shapes
-    ShapeOfToConst(model);
-
     // FIXME: Find a better place to call this transformation
     ov::pass::ConvertPrecision(ov::element::bf16, ov::element::f16).run_on_model(model);
 
+    ov::pass::GraphRewrite rewr;
+    // Convert Param->ShapeOf to const to simplify graph structure for the partitioning
+    // FIXME: pass some kind of context instead of ov::Model - required to remove parameter
+    // FIXME: Could be a problem in case of dynamic shapes
+    rewr.add_matcher<ov::npuw::patterns::opt::ShapeOfToConst>(model);
     if (m_cfg.get<::intel_npu::NPUW_FOLD>() && m_cfg.get<::intel_npu::NPUW_FUNCALL_FOR_ALL>()) {
         // If there's folding enabled AND non-repeating graphs are forced to be
         // functions, do extra lifting for gather (if any)
-        ov::pass::GraphRewrite rewr;
         rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherAsymCW>();
         rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherSymCW>();
         rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherSymGQ>();
-        rewr.run_on_model(model);
     }
+    rewr.run_on_model(model);
 
     auto partitioning = getPartitioning(model, m_cfg);
     m_total_stat.gflops = partitioning.total_gflops;
@@ -408,13 +408,6 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 
     m_finalized = true;
     reset_io();
-}
-
-void ov::npuw::CompiledModel::ShapeOfToConst(const std::shared_ptr<ov::Model>& model) {
-    ov::pass::GraphRewrite rewr;
-    // FIXME: pass some kind of context instead of ov::Model - required to remove parameter
-    rewr.add_matcher<ov::npuw::patterns::util::ShapeOfToConst>(model);
-    rewr.run_on_model(model);
 }
 
 void ov::npuw::CompiledModel::fill_weights_bank(const std::size_t idx) {
