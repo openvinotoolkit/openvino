@@ -115,7 +115,7 @@ jobs:
       - name: Install PyTorch tests requirements for precommit
         if: ${{ inputs.model_scope == 'precommit' }}
         run: |
-          python3 -m pip install -r ${INSTALL_TEST_DIR}/requirements_pytorch.txt
+          python3 -m pip install -r ${INSTALL_TEST_DIR}/requirements_pytorch
         env:
           CPLUS_INCLUDE_PATH: ${{ env.Python_ROOT_DIR }}/include/python${{ env.PYTHON_VERSION }}
 
