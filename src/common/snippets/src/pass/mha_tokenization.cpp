@@ -12,6 +12,7 @@
 #include "snippets/pass/explicit_transpose_matmul_inputs.hpp"
 #include "snippets/pass/mha_tokenization.hpp"
 #include "snippets/utils/utils.hpp"
+#include "snippets/utils/tokenization_utils.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace {
@@ -125,7 +126,7 @@ size_t get_potential_body_params(const std::shared_ptr<ov::Node>& op) {
         const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(parent);
         if (!(constant && (ov::shape_size(input.get_shape()) == 1 ||
                            ov::is_type<ov::op::v0::FakeQuantize>(op)||
-                           ov::snippets::op::Subgraph::constant_input_should_be_inside_body(op)))) {
+                           ov::snippets::utils::constant_input_should_be_inside_body(op)))) {
             count++;
         }
     }
@@ -457,7 +458,7 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
         /* ================================ */
 
         /* ====== Subgraph creation ======= */
-
+        /*
         ov::OutputVector body_inputs, subgraph_inputs;
         ov::ParameterVector body_parameters;
         ov::ResultVector body_results;
@@ -470,7 +471,7 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
                 const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(parent);
                 if (constant && (ov::shape_size(input.get_shape()) == 1 ||
                                  ov::is_type<ov::op::v0::FakeQuantize>(node) ||
-                                 op::Subgraph::constant_input_should_be_inside_body(node))) {
+                                 constant_input_should_be_inside_body(node))) {
                     // If Constant has one consumer - target node, we add Constant to body_inputs
                     // If Constant has several consumers, we should check that all these consumers are inside Subgraph body
                     // and if all of them are inside body, we can explicitly add Constant to the body_inputs, otherwise we should
@@ -544,6 +545,9 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
             act_body->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
         }
         subgraph->get_rt_info()["originalLayersNames"] = fused_names;
+        */
+
+        auto subgraph = utils::wrap_nodes_as_subgraph(ordered_ops);
         subgraph->set_virtual_port_count(hidden_virtual_ports_count);
 
         // mark the Subgraph as Completed to not allow Snippets to include any nodes into the MHA Subgraph in common Tokenization

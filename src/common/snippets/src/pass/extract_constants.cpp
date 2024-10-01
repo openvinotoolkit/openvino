@@ -6,6 +6,7 @@
 
 #include "openvino/opsets/opset1.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/utils/tokenization_utils.hpp"
 
 
 bool ov::snippets::pass::ExtractConstants::run_on_subgraph(const std::shared_ptr<op::Subgraph>& subgraph) {
@@ -21,7 +22,7 @@ bool ov::snippets::pass::ExtractConstants::run_on_subgraph(const std::shared_ptr
             continue;
 
         const auto child = constant->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
-        if (ov::snippets::op::Subgraph::constant_input_should_be_inside_body(child))
+        if (ov::snippets::utils::constant_input_should_be_inside_body(child))
             continue;
 
         auto parameter = std::make_shared<ov::op::v0::Parameter>(constant->get_element_type(), constant->get_shape());
