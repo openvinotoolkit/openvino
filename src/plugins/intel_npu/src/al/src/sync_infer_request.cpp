@@ -121,7 +121,7 @@ ov::SoPtr<ov::ITensor> SyncInferRequest::get_tensor(const ov::Output<const ov::N
     OPENVINO_ASSERT(foundPort.found(), "Cannot find tensor for port ", port);
 
     if (foundPort.is_input()) {
-        return _userInputTensors.at(foundPort.idx).at(0);
+        return get_user_input(foundPort.idx);
     }
     return _userOutputTensors.at(foundPort.idx);
 }
@@ -138,7 +138,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
     }
 
     if (foundPort.is_input()) {
-        _userInputTensors.at(foundPort.idx).at(0) = tensor;
+        get_user_input(foundPort.idx) = tensor;
     } else {
         _userOutputTensors.at(foundPort.idx) = tensor;
     }
@@ -151,7 +151,7 @@ std::vector<ov::SoPtr<ov::ITensor>> SyncInferRequest::get_tensors(const ov::Outp
     OPENVINO_ASSERT(foundPort.found(), "Cannot find input tensors for port ", port);
 
     if (foundPort.is_input() && is_batched_input(foundPort.idx)) {
-        return _userInputTensors.at(foundPort.idx);
+        return get_user_inputs(foundPort.idx);
     }
 
     return {};
@@ -204,8 +204,8 @@ void SyncInferRequest::check_tensors() const {
             // in case of batched input, user tensor is not set
             continue;
         }
-        if (_userInputTensors.at(i).at(0)) {
-            check_tensor(inputs[i], _userInputTensors.at(i).at(0));
+        if (get_user_input(i)) {
+            check_tensor(inputs[i], get_user_input(i));
         }
     }
 
@@ -238,7 +238,7 @@ std::shared_ptr<ov::ITensor> SyncInferRequest::allocate_tensor(const IODescripto
         OPENVINO_ASSERT(descriptor.relatedDescriptorIndex.has_value(),
                         "The link between state descriptors is missing, state name: ",
                         descriptor.nameFromCompiler);
-        tensor = _userInputTensors.at(*descriptor.relatedDescriptorIndex).at(0)._ptr;
+        tensor = get_user_input(*descriptor.relatedDescriptorIndex)._ptr;
     } else if (allocator) {
         tensor = ov::make_tensor(descriptor.precision, allocatedTensorShape, allocator);
     } else {
@@ -246,8 +246,8 @@ std::shared_ptr<ov::ITensor> SyncInferRequest::allocate_tensor(const IODescripto
     }
 
     if (isInput) {
-        if (_userInputTensors.at(index).at(0) == nullptr) {
-            _userInputTensors.at(index).at(0) = tensor;
+        if (get_user_input(index) == nullptr) {
+            get_user_input(index) = tensor;
         }
 
         if (descriptor.isStateInput) {
@@ -262,6 +262,14 @@ std::shared_ptr<ov::ITensor> SyncInferRequest::allocate_tensor(const IODescripto
 
 bool SyncInferRequest::is_batched_input(size_t idx) const {
     return _userInputTensors.at(idx).size() > 1;
+}
+
+ov::SoPtr<ov::ITensor>& SyncInferRequest::get_user_input(size_t index) const {
+    return _userInputTensors.at(index).at(0);
+}
+
+std::vector<ov::SoPtr<ov::ITensor>>& SyncInferRequest::get_user_inputs(size_t index) const {
+    return _userInputTensors.at(index);
 }
 
 }  // namespace intel_npu

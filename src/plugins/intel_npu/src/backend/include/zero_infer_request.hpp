@@ -79,6 +79,12 @@ private:
     void check_network_precision(const ov::element::Type_t precision) const override;
     void create_pipeline();
 
+    std::shared_ptr<ov::ITensor>& get_level_zero_input(size_t index, size_t tensorNo = 0) const;
+    std::vector<std::shared_ptr<ov::ITensor>>& get_level_zero_inputs(size_t index) const;
+
+    std::optional<TensorData>& get_input_tensor_data(size_t index, size_t tensorNo = 0) const;
+    std::vector<std::optional<TensorData>>& get_input_tensors_data(size_t index) const;
+
     const std::shared_ptr<ZeroInitStructsHolder> _initStructs;
     const std::shared_ptr<const IExecutor> _executorPtr;
     const ZeroExecutor* _executor;

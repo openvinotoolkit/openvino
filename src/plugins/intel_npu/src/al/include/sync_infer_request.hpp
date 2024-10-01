@@ -155,6 +155,9 @@ protected:
 
     bool is_batched_input(size_t idx) const;
 
+    ov::SoPtr<ov::ITensor>& get_user_input(size_t index) const;
+    std::vector<ov::SoPtr<ov::ITensor>>& get_user_inputs(size_t index) const;
+
     // This is intel_npu::ICompiledModel pointer, but need to use OV base class because
     // ov::IInferRequest::get_compiled_model returns a refernce to shared_ptr!
     std::shared_ptr<const ov::ICompiledModel> _compiledModel;
