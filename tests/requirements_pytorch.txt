@@ -1,14 +1,17 @@
-numpy~=2.1.1
---extra-index-url https://download.pytorch.org/whl/cpu
+# optimum still requires numpy<2.0.0
+numpy~=1.26.4
 torch~=2.4.1; platform_system != "Darwin" or platform_machine != "x86_64"
 torch~=2.2.0; platform_system == "Darwin" and platform_machine == "x86_64"
+--extra-index-url https://download.pytorch.org/whl/cpu
 
 torchvision~=0.19.1
-transformers~=4.45.1
-pytest~=8.3.3
+# transformers 4.45.1 is available
+# but optimum still requires <4.45.0
+transformers~=4.44.2
+pytest~=7.0.1
 defusedxml~=0.7.1
 
-auto-gptq~=0.7.1
+auto-gptq~=0.7.1; platform_system == "Linux" and platform_machine == "x86_64"
 av~=13.0.0
 basicsr~=1.4.2
 datasets~=3.0.1
@@ -47,5 +50,4 @@ rjieba~=0.1.11
 transformers_stream_generator~=0.0.5
 einops~=0.8.0
 
-# This file contains requirements dependednt from modules in requirements.txt
-natten -f https://shi-labs.com/natten/wheels/cpu/torch2.0.0/index.html 
+#natten -f https://shi-labs.com/natten/wheels/cpu/torch2.0.0/index.html; platform_system == "Linux" and platform_machine == "x86_64"
