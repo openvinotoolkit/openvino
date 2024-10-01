@@ -35,12 +35,12 @@ namespace reference {
 namespace detail {
 
 template <typename TI, typename TO>
-typename std::enable_if<!std::is_same<TO, char>::value, TO>::type convert(const TI v) {
+constexpr typename std::enable_if<!std::is_same<TO, char>::value, TO>::type convert(const TI v) {
     return static_cast<TO>(v);
 }
 
 template <typename TI, typename TO>
-typename std::enable_if<std::is_same<TO, char>::value, TO>::type convert(const TI v) {
+constexpr typename std::enable_if<std::is_same<TO, char>::value, TO>::type convert(const TI v) {
     return static_cast<char>(static_cast<bool>(v));
 }
 }  // namespace detail
