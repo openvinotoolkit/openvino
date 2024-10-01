@@ -176,34 +176,5 @@ struct data : public primitive_base<data> {
             }
         }
     }
-
-    bool operator==(const data& rhs) const {
-        auto _allocation_type = mem->get_allocation_type();
-
-        if (original_size != rhs.original_size
-            || weights_path != rhs.weights_path
-            || _allocation_type != rhs.mem->get_allocation_type()) {
-            return false;
-        }
-
-        if (_allocation_type == allocation_type::usm_host || _allocation_type == allocation_type::usm_shared) {
-            if (!std::equal(reinterpret_cast<uint8_t*>(mem->buffer_ptr()),
-                            reinterpret_cast<uint8_t*>(mem->buffer_ptr()) + original_size,
-                            reinterpret_cast<uint8_t*>(rhs.mem->buffer_ptr()))) {
-                return false;
-            }
-        } else {
-            std::vector<uint8_t> _buf, _rhs_buf;
-            _buf.resize(original_size);
-            _rhs_buf.resize(original_size);
-            auto& strm = mem->get_engine()->get_service_stream();
-            auto& rhs_strm = rhs.mem->get_engine()->get_service_stream();
-            mem->copy_to(strm, _buf.data());
-            rhs.mem->copy_to(rhs_strm, _rhs_buf.data());
-            if (!std::equal(_buf.begin(), _buf.end(), _rhs_buf.begin())) {
-                return false;
-            }
-        }
-    }
 };
 }  // namespace cldnn
