@@ -230,7 +230,7 @@ jobs:
     timeout-minutes: 100
     runs-on: ${{ matrix.RUNNER}}
     container:
-      image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.sanitizers }}
     defaults:
       run:
         shell: bash
