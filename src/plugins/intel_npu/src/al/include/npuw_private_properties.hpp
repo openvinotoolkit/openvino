@@ -173,9 +173,18 @@ static constexpr ov::Property<bool> dyn_quant{"NPUW_DQ"};
  * Identify and merge parallel MatMuls over dimension(s) specified.
  * When set to YES, applies transformation for all dimensions.
  * Works with FOLD enabled only.
+ * Set to NO or pass empty value to disable the option.
  * Default value: 2.
  */
 static constexpr ov::Property<std::string> par_matmul_merge_dims{"NPUW_PMM"};
+
+/**
+ * @brief
+ * Type: boolean
+ * When applicable, do embedding gather on host.
+ * Default value: true.
+ */
+static constexpr ov::Property<bool> host_gather{"NPUW_HOST_GATHER"};
 
 /**
  * @brief
@@ -266,7 +275,7 @@ static constexpr ov::Property<bool> full{"NPUW_DUMP_FULL"};
  * Type: std::string.
  * Dump the specified subgraph(s) in OpenVINO IR form in the current directory.
  * Possible values: Comma-separated list of subgraph indices or "YES" for all
- * subgraphs, e.g. "0,1" or "YES".
+ * subgraphs, "NO" or just empty value to turn option off. E.g. "0,1" or "YES".
  * Default value: empty.
  */
 static constexpr ov::Property<std::string> subgraphs{"NPUW_DUMP_SUBS"};
@@ -276,7 +285,7 @@ static constexpr ov::Property<std::string> subgraphs{"NPUW_DUMP_SUBS"};
  * Type: std::string.
  * Dump subgraph on disk if a compilation failure happens.
  * Possible values: Comma-separated list of subgraph indices or "YES" for all
- * subgraphs, e.g. "0,1" or "YES".
+ * subgraphs, "NO" or just empty value to turn option off. E.g. "0,1" or "YES".
  * Default value: empty.
  */
 static constexpr ov::Property<std::string> subgraphs_on_fail{"NPUW_DUMP_SUBS_ON_FAIL"};
@@ -286,7 +295,7 @@ static constexpr ov::Property<std::string> subgraphs_on_fail{"NPUW_DUMP_SUBS_ON_
  * Type: std::string.
  * Dump input & output tensors for subgraph(s).
  * Possible values: Comma-separated list of subgraph indices or "YES" for all
- * subgraphs, e.g. "0,1" or "YES".
+ * subgraphs, "NO" or just empty value to turn option off. E.g. "0,1" or "YES".
  * Default value: empty.
  */
 static constexpr ov::Property<std::string> inputs_outputs{"NPUW_DUMP_IO"};
