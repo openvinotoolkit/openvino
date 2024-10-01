@@ -236,7 +236,7 @@ jobs:
     timeout-minutes: 100
     runs-on: 'aks-linux-16-cores-32gb'
     container:
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.sanitizers }}
+      image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04'
     defaults:
       run:
         shell: bash
