@@ -34,7 +34,7 @@ from openvino.tools.ovc.logger import init_logger
 from openvino.tools.ovc.telemetry_utils import send_params_info, send_conversion_result, \
     init_mo_telemetry
 from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder, \
-    extract_input_info_from_example
+    extract_input_info_from_example, check_pytorch_model
 from openvino.tools.ovc.moc_frontend.paddle_frontend_utils import paddle_frontend_converter
 
 try:
