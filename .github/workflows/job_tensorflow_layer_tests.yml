@@ -91,7 +91,7 @@ jobs:
           popd
 
       - name: Fetch setup_python action
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
         with:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
@@ -105,10 +105,6 @@ jobs:
           pip-cache-path: ${{ runner.os == 'Linux' && env.PIP_CACHE_PATH || '' }}
           should-setup-pip-paths: ${{ runner.os == 'Linux' }}
           self-hosted-runner: ${{ runner.os == 'Linux' }}
-
-      #
-      # Tests
-      #
 
       - name: Install OpenVINO Python wheels (Linux and macOS)
         if: runner.os != 'Windows'
@@ -132,14 +128,8 @@ jobs:
 
       - name: Install Python Layer tests dependencies
         run: |
-          # To enable pytest parallel features
-          python3 -m pip install pytest-xdist[psutil]
-          # layer test requirements
-          python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
-
-      #
-      # Tests
-      #
+          # tensorflow test requirements
+          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/requirements_tensorflow
 
       - name: TensorFlow 1 Layer Tests - TF FE
         if: fromJSON(inputs.affected-components).TF_FE.test
@@ -153,6 +143,14 @@ jobs:
         if: fromJSON(inputs.affected-components).TF_FE.test && runner.os != 'macOS' # Ticket: 123322
         run: |
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow2_keras_tests/ -n logical -m precommit --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf2_fe.xml
+        env:
+          TEST_DEVICE: CPU
+          TEST_PRECISION: FP16
+
+      - name: JAX Layer Tests - TF FE
+        # JAX single layer models converted via TF FE
+        if: ${{ fromJSON(inputs.affected-components).TF_FE.test && runner.arch != 'ARM64' && runner.os != 'macOS' }}
+        run: python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/jax_tests/ -n logical -m precommit --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-jax.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
