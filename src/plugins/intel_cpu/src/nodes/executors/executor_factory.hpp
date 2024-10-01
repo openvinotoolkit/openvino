@@ -113,6 +113,12 @@ public:
     void preconfigure(const MemoryArgs& memory) {
         executor::Config<Attrs> config{memoryDescsFromMemory(memory), m_attrs, m_postOps};
 
+        for (size_t i = 0; i < m_suitableImplementations.size(); i++) {
+            if (auto fallbackConfig = m_suitableImplementations[i].get().requiresFallback(config)) {
+                m_suitableImplementations.erase(m_suitableImplementations.begin() + i);
+            }
+        }
+
         cacheFallbackStatus(config);
 
         const size_t implId = select(memory, 0);

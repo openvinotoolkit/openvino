@@ -240,7 +240,9 @@ void MVN::initSupportedPrimitiveDescriptors() {
             {ARG_DST, dstDescs[0]},
     };
 
-    transformTo5DCase(descs.at(ARG_SRC)->getShape().getStaticDims());
+    if (one_of(descs.at(ARG_SRC)->getShape().getRank(), 1, 2) && mvnAttrs.initAcrossChannels_) {
+        mvnAttrs.execAcrossChannels_ = false;
+    }
     mvnAttrs.srcIsNHWC = descs.at(ARG_SRC)->hasLayoutType(LayoutType::nspc);
     mvnAttrs.src_prc = descs.at(ARG_SRC)->getPrecision();
     mvnAttrs.dst_prc = descs.at(ARG_DST)->getPrecision();

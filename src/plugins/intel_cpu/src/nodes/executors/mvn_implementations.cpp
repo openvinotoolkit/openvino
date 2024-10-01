@@ -124,10 +124,6 @@ ov::optional<executor::Config<Attrs>> requiresFallbackCommon(const executor::Con
     return ov::optional<executor::Config<Attrs>>(MVNConfig {optimalDescriptors, config.attrs, config.postOps});
 }
 
-OV_CPU_MAYBE_UNUSED_FUNCTION static inline bool noLayout(const MVNConfig& config, const LayoutType& layoutType) {
-    return config.descs.at(ARG_SRC)->hasLayoutType(layoutType);
-}
-
 template <>
 const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations() {
     static const std::vector<ExecutorImplementation<MVNAttrs>> mvnImplementations {
@@ -138,7 +134,6 @@ const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations() {
             ShapeTolerance::Agnostic,
             // supports
             [](const MVNConfig& config) -> bool {
-                VERIFY(noLayout(config, LayoutType::nspc), UNSUPPORTED_LAYOUT);
                 VERIFY(one_of(srcRank(config), 4lu, 5lu), UNSUPPORTED_SRC_RANK);
                 return JITMVNExecutor::supports(config);
             },
@@ -168,7 +163,6 @@ const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations() {
         ShapeTolerance::Agnostic,
         // supports
         [](const MVNConfig& config) -> bool {
-            VERIFY(noLayout(config, LayoutType::nCsp16c), UNSUPPORTED_LAYOUT);
             VERIFY(one_of(srcRank(config), 4lu, 5lu), UNSUPPORTED_SRC_RANK);
             VERIFY(mayiuse(cpu::x64::avx512_core), UNSUPPORTED_ISA);
             return JITMVNExecutor::supports(config);
@@ -199,7 +193,6 @@ const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations() {
             ShapeTolerance::Agnostic,
             // supports
             [](const MVNConfig& config) -> bool {
-                VERIFY(noLayout(config, LayoutType::nCsp8c), UNSUPPORTED_LAYOUT);
                 VERIFY(one_of(srcRank(config), 4lu, 5lu), UNSUPPORTED_SRC_RANK);
                 VERIFY(mayiuse(cpu::x64::avx2) || mayiuse(cpu::x64::sse41), UNSUPPORTED_ISA);
                 return JITMVNExecutor::supports(config);
@@ -230,7 +223,6 @@ const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations() {
             ShapeTolerance::Agnostic,
             // supports
             [](const MVNConfig& config) -> bool {
-                VERIFY(noLayout(config, LayoutType::ncsp), UNSUPPORTED_LAYOUT);
                 return JITMVNExecutor::supports(config);
             },
             // requiresFallback
@@ -259,7 +251,6 @@ const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations() {
             ShapeTolerance::Agnostic,
             // supports
             [](const MVNConfig& config) -> bool {
-                VERIFY(noLayout(config, LayoutType::nspc), UNSUPPORTED_LAYOUT);
                 return ACLMVNExecutor::supports(config);
             },
             // requiresFallback
@@ -288,7 +279,6 @@ const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations() {
             ShapeTolerance::Agnostic,
             // supports
             [](const MVNConfig& config) -> bool {
-                VERIFY(noLayout(config, LayoutType::ncsp), UNSUPPORTED_LAYOUT);
                 return ACLMVNExecutor::supports(config);
             },
             // requiresFallback
@@ -317,7 +307,6 @@ const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations() {
             ShapeTolerance::Agnostic,
             // supports
             [](const MVNConfig& config) -> bool {
-                VERIFY(noLayout(config, LayoutType::ncsp), UNSUPPORTED_LAYOUT);
                 return CommonMVNExecutor::supports(config);
             },
             // requiresFallback
@@ -346,7 +335,6 @@ const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations() {
             ShapeTolerance::Agnostic,
             // supports
             [](const MVNConfig& config) -> bool {
-                VERIFY(noLayout(config, LayoutType::nspc), UNSUPPORTED_LAYOUT);
                 return CommonMVNExecutor::supports(config);
             },
             // requiresFallback
