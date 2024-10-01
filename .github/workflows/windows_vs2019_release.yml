@@ -286,7 +286,7 @@ jobs:
 
           # Find and install the dev OV wheel
           $ovDevWheelPath=Get-ChildItem -Path "${{ env.INSTALL_DIR }}\tools" -Filter openvino_dev*.whl | % { $_.FullName }
-          python3 -m pip install "$ovDevWheelPath[mxnet,caffe,kaldi,onnx,tensorflow2,pytorch]"
+          python3 -m pip install "$ovDevWheelPath[caffe,kaldi,onnx,tensorflow2,pytorch]"
 
       - name: Install Python API tests dependencies
         run: |
@@ -316,7 +316,7 @@ jobs:
         if: fromJSON(needs.smart_ci.outputs.affected_components).MO.test
         shell: cmd
         run: |
-          python3 -m pytest -s ${{ env.INSTALL_TEST_DIR }}/mo/unit_tests --ignore=${{ env.INSTALL_TEST_DIR }}/mo/unit_tests/mo/front/mxnet --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-ModelOptimizer.xml
+          python3 -m pytest -s ${{ env.INSTALL_TEST_DIR }}/mo/unit_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-ModelOptimizer.xml
 
       - name: Install Python Layer tests dependencies
         run: |
@@ -491,7 +491,7 @@ jobs:
       - name: Intel CPU plugin func tests (parallel)
         run: |
           . "${{ env.INSTALL_DIR }}/setupvars.ps1"
-          python3 ${{ env.PARALLEL_TEST_SCRIPT }} -e ${{ env.INSTALL_TEST_DIR }}/ov_cpu_func_tests.exe -c ${{ env.PARALLEL_TEST_CACHE }} -w ${{ env.INSTALL_TEST_DIR }} -s suite -- --gtest_filter=*smoke*
+          python3 ${{ env.PARALLEL_TEST_SCRIPT }} -e ${{ env.INSTALL_TEST_DIR }}/ov_cpu_func_tests.exe -c ${{ env.PARALLEL_TEST_CACHE }} -w ${{ env.INSTALL_TEST_DIR }} -s suite -rf 0 -- --gtest_filter=*smoke*
         timeout-minutes: 60
 
       - name: Save tests execution time
