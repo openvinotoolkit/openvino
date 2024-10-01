@@ -287,7 +287,8 @@ void BrgemmKernelExecutor::update_config(const ov::snippets::lowered::Expression
     // In case of data repacking LDB is chosen in accordance with repacking buffer size
     if (with_repacking(brgemm_node->get_type()))
         LDB = brgemm_utils::repacking::compute_out_leading_dim(N, brgemm_node->get_input_element_type(1));
-
+    // hack to imitate blocking layout
+    LDB = std::getenv("N_b") ? std::atoi(std::getenv("N_b")) : 64;;
     config.update(DIM_CAST(M), DIM_CAST(N), DIM_CAST(K), LDA, LDB, LDC, beta);
 }
 

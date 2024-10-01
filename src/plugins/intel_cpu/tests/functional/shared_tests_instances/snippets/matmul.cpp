@@ -149,6 +149,26 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulEltwiseChainCascade, MatMulEltwise
                              ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          MatMul::getTestCaseName);
 
+const size_t M = std::getenv("M") ? std::atoi(std::getenv("M")) : 32;
+const size_t K = std::getenv("K") ? std::atoi(std::getenv("K")) : 64;
+const size_t N = std::getenv("N") ? std::atoi(std::getenv("N")) : 256;
+
+std::vector<std::vector<ov::test::InputShape>> fc_input_shapes{
+    {
+        {PartialShape{}, {{1, 1, M, K}}},
+        {{}, {{K, N}}}
+    },
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_FullyConnected, MatMul,
+                         ::testing::Combine(
+                             ::testing::ValuesIn(fc_input_shapes),
+                             ::testing::ValuesIn(precisions(false)),
+                             ::testing::Values(MatMulType::FullyConnected),
+                             ::testing::Values(1), // MatMul
+                             ::testing::Values(1), // Tokenized MatMul
+                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         MatMul::getTestCaseName);
 const auto& transpose_b_shapes = STATIC_SHAPES(
     {{3, 3, 64, 64}, {3, 3, 64, 64}},
     {{1, 1, 32, 128}, {1, 1, 64, 128}},

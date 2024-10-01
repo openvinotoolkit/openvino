@@ -404,10 +404,13 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstAndDecompression);
     CPU_SET_CALLBACK_COMMON(manager,
         [](const_node_ptr &node) -> bool {
-            const auto consumers = node->get_output_target_inputs(0);
-            return std::all_of(consumers.begin(), consumers.end(), [](const ov::Input<ov::Node>& consumer) {
-                return !ov::is_type<ov::op::v0::MatMul>(consumer.get_node());
-            });
+            // Note: To tokenize MatMul with f16 const and f32 convert on weights in snippets,
+            // weights should be folded to f32 const before snippets, so KeepConstAndDecompression is disabled in this case
+            return true;
+            // const auto consumers = node->get_output_target_inputs(0);
+            // return std::all_of(consumers.begin(), consumers.end(), [](const ov::Input<ov::Node>& consumer) {
+            //     return !ov::is_type<ov::op::v0::MatMul>(consumer.get_node());
+            // });
         },
         ov::pass::KeepConstAndDecompression);
 

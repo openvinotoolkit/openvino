@@ -40,6 +40,10 @@
 #include "transformations/snippets/x64/shape_inference.hpp"
 #endif
 
+#include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
+#include "nodes/executors/dnnl/dnnl_utils.hpp"
+
 #include "utils/cpu_utils.hpp"
 #include "utils/ngraph_utils.hpp"
 
@@ -753,8 +757,67 @@ void Subgraph::optimizeIR() {
                                            control_flow_config, control_flow_passes);
 }
 
+// Note: copy-paste from FullyConnected executor: creates transposed weights desc if necessary
+inline DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr srcDesc,
+                                                        const DnnlMemoryDescPtr dstDesc,
+                                                        bool weightsNonTransposed) {
+    if (!weightsNonTransposed)
+        return srcDesc;
+
+    const auto& weiDesc = srcDesc->getDnnlDesc();
+    const auto reorderedWeiDesc =
+        dnnl::memory::desc{weiDesc.get_dims(), weiDesc.get_data_type(), dnnl::memory::format_tag::ba};
+    const auto transposedWeiDesc = DnnlExtensionUtils::makeDescriptor(reorderedWeiDesc.reshape(dstDesc->getDnnlDesc().get_dims()));
+    return transposedWeiDesc;
+}
+
 void Subgraph::prepareParams() {
     const auto& cache = context->getParamsCache();
+    const auto& input_shape = getSrcMemoryAtPort(0)->getDescPtr()->getShape().getStaticDims();
+    const auto& weights_shape = getSrcMemoryAtPort(1)->getDescPtr()->getShape().getStaticDims();
+
+    // Note: this code was tested only on static shapes, in case of dynamic M will most likely fail
+    const auto M = DnnlExtensionUtils::convertToDnnlDim(*++input_shape.rbegin());
+    const auto K = DnnlExtensionUtils::convertToDnnlDim(*input_shape.rbegin());
+    const auto N = DnnlExtensionUtils::convertToDnnlDim(*weights_shape.rbegin());
+
+    auto get_wei_desc = [&]() {
+        const auto inputDesc = dnnl::memory::desc({M, K}, dnnl::memory::data_type::f32, dnnl::memory::format_tag::ab);
+        // Notes:
+        // 1. "Any" layout must be set to enable weights layout selection heuristics
+        // 2. Shape must be in NK order (even if the original shape is in KN order)
+        const auto weightsDesc = dnnl::memory::desc({N, K}, dnnl::memory::data_type::f32, dnnl::memory::format_tag::any);
+        const auto biasDesc = dnnl::memory::desc();
+        const auto outputDesc = dnnl::memory::desc({M, N}, dnnl::memory::data_type::f32, dnnl::memory::format_tag::ab);
+
+        // Hack: we create inner product primitive just to know which weights layout was chosen by OneDNN heuristics
+        // Then, this layout is used in Snippets implementation
+        auto fc_desc = dnnl::inner_product_forward::primitive_desc(context->getEngine(),
+                                                                   dnnl::prop_kind::forward_inference,
+                                                                   inputDesc,
+                                                                   weightsDesc,
+                                                                   biasDesc,
+                                                                   outputDesc);
+        auto weiDesc = DnnlExtensionUtils::makeDescriptor(fc_desc.weights_desc());
+        // Note: based on weights layout, it is necessary to set N block sizes inside Snippets.
+        // Example: in case of "AB16b32a" layout, N_block must be 32. K_block can be any
+        std::cout << "[ INFO ] inner_product_forward primitive selected the following weights layout: " << weiDesc->serializeFormat() << std::endl;
+        return weiDesc;
+    };
+    // Copy-paste from FullyConnected executor: repacks weights
+    auto prepareWeightsMemory = [&]() {
+        // Note: the code was tested only with non-transposed weights
+        constexpr bool weightsNonTransposed = true;
+        const auto memory = getSrcMemoryAtPort(1);
+
+        auto originalMemDesc = DnnlExtensionUtils::makeDescriptor(dnnl::memory::desc({N, K}, dnnl::memory::data_type::f32, dnnl::memory::format_tag::ab));
+        const auto blocked_desc = get_wei_desc();
+        originalMemDesc = makeTransposedWeightDescriptor(originalMemDesc, blocked_desc, weightsNonTransposed);
+        const auto exec_context = std::make_shared<ExecutorContext>(context, std::vector<impl_desc_type>{}, privateWeightCache);
+        // Weights pointer is replaced with repacked blocked weights
+        srcMemPtrs[1] = utils::prepareWeightsMemory(originalMemDesc, blocked_desc, memory, exec_context, true);
+    };
+    prepareWeightsMemory();
 
     auto builder = [this, &cache](const SubgraphKey& key) -> std::shared_ptr<SubgraphExecutor> {
         const auto& snippet = subgraph_attrs->snippet;
