@@ -1049,9 +1049,9 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
                 }
             }
 
-            // for (const auto& item : attributes)
-            //     if (!item.second.is<ov::RuntimeAttribute>())
-            //         has_attrs |= append_custom_info(rt_node, item.first, item.second);
+            for (const auto& item : attributes)
+                if (!item.second.is<ov::RuntimeAttribute>())
+                    has_attrs |= append_custom_info(rt_node, item.first, item.second);
 
             if (!has_attrs)
                 node.remove_child(rt_node);

@@ -300,9 +300,8 @@ TEST(OvSerializationTests, SerializeRawMeta) {
     }
 }
 
-#if 0
-#    include <iostream>
-#    include <sstream>
+#include <iostream>
+#include <sstream>
 
 using namespace ov;
 using ov::op::v0::Abs;
@@ -481,4 +480,3 @@ TEST(SerializeCustomRTI, AnyMap_RENAMEME) {
     EXPECT_NO_THROW((ov::pass::Serialize{model_ss, weights_ss}.run_on_model(model)));
     EXPECT_EQ(ir.compare(model_ss.str()), 0);
 }
-#endif

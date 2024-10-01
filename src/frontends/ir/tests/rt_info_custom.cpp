@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#if 0
-#    include <gtest/gtest.h>
+#include <gtest/gtest.h>
 
-#    include "common_test_utils/test_assertions.hpp"
-#    include "openvino/runtime/core.hpp"
+#include "common_test_utils/test_assertions.hpp"
+#include "openvino/runtime/core.hpp"
 
 TEST(RTInfoCustom, basic_RENAMEME) {
     std::string ir = R"V0G0N(
@@ -100,4 +99,3 @@ TEST(RTInfoCustom, basic_RENAMEME) {
     OV_ASSERT_NO_THROW(value = result_rti.at("primitives_priority_0").as<std::string>());
     EXPECT_EQ(value.compare("the_prior"), 0);
 }
-#endif

@@ -995,15 +995,15 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
         }
 
         // Predefined attributes take precedence over custom rt info
-        // for (const auto& item : rt_attrs) {
-        //     if (std::strcmp(item.name(), "custom") == 0) {
-        //         std::string custom_name, custom_value;
-        //         if (getStrAttribute(item, "name", custom_name) && getStrAttribute(item, "value", custom_value)) {
-        //             // Duplicates are not added and are ignored
-        //             rt_info.emplace(custom_name, custom_value);
-        //         }
-        //     }
-        // }
+        for (const auto& item : rt_attrs) {
+            if (std::strcmp(item.name(), "custom") == 0) {
+                std::string custom_name, custom_value;
+                if (getStrAttribute(item, "name", custom_name) && getStrAttribute(item, "value", custom_value)) {
+                    // Duplicates are not added and are ignored
+                    rt_info.emplace(custom_name, custom_value);
+                }
+            }
+        }
     };
 
     // read runtime info only for IR v11+
