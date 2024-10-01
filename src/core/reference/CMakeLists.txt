@@ -28,7 +28,9 @@ if(ENABLE_AVX2)
     set(OV_REFERENCE_X86_AVX2_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/src/op/convert_x86_intrinsics.cpp
     )
-    set_source_files_properties(${OV_REFERENCE_X86_AVX2_SRC} PROPERTIES COMPILE_FLAGS ${avx2_flags})
+    set_source_files_properties(${OV_REFERENCE_X86_AVX2_SRC} PROPERTIES COMPILE_FLAGS ${avx2_flags}
+                                                                        SKIP_UNITY_BUILD_INCLUSION ON
+                                                                        SKIP_PRECOMPILE_HEADERS ON)
     target_compile_definitions(${TARGET_NAME} PRIVATE HAVE_AVX2)
 endif()
 
