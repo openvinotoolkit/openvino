@@ -176,11 +176,11 @@ jobs:
       - name: Show ccache stats
         run: ${SCCACHE_PATH} --show-stats
         
-      - name: Cleanup ccache 
-        run: ${SCCACHE_PATH} --cleanup --zero-stats
+      # - name: Cleanup ccache 
+      #   run: ${SCCACHE_PATH} --cleanup --zero-stats
         
-      - name: Show ccache stats
-        run: ${SCCACHE_PATH} --show-stats
+      # - name: Show ccache stats
+      #   run: ${SCCACHE_PATH} --show-stats
 
       - name: Cmake install - OpenVINO
         run: |
