@@ -54,11 +54,10 @@ void push_ptr_with_runtime_offset_on_stack(dnnl::impl::cpu::x64::jit_generator* 
  * @param h generator
  * @param stack_offset stack offset
  * @param ptr_reg register contains data pointer
- * @param aux_reg aux register
  * @param ptr_offset offset which will be added to data pointer
  */
 void push_ptr_with_static_offset_on_stack(dnnl::impl::cpu::x64::jit_generator* h, size_t stack_offset,
-                                          Xbyak::Reg64 ptr_reg, Xbyak::Reg64 aux_reg, size_t ptr_offset);
+                                          Xbyak::Reg64 ptr_reg, size_t ptr_offset);
 
 }   // namespace utils
 }   // namespace intel_cpu

@@ -90,7 +90,8 @@ void jit_brgemm_copy_b_emitter::emit_impl(const std::vector<size_t>& in, const s
     // Reserve memory on the stack
     h->sub(h->rsp, reserved_stack_size);
 
-    Xbyak::Reg64 aux_reg = ov::intel_cpu::utils::get_aux_gpr(mem_ptrs_idxs);
+    const bool is_dynamic_case = std::any_of(m_memory_offsets.cbegin(), m_memory_offsets.cend(), ov::snippets::utils::is_dynamic_value<size_t>);
+    Xbyak::Reg64 aux_reg = is_dynamic_case ? ov::intel_cpu::utils::get_aux_gpr(mem_ptrs_idxs) : Xbyak::Reg64();
 
     const std::vector<size_t> args_offsets {GET_OFF_BRGEMM_COPY_B_ARGS(src), GET_OFF_BRGEMM_COPY_B_ARGS(tr_src), GET_OFF_BRGEMM_COPY_B_ARGS(compensation_ptr)};
     const auto& mem_ptrs = ov::intel_cpu::utils::transform_idxs_to_regs(mem_ptrs_idxs);
@@ -99,7 +100,7 @@ void jit_brgemm_copy_b_emitter::emit_impl(const std::vector<size_t>& in, const s
             utils::push_ptr_with_runtime_offset_on_stack(h, args_offsets[i], mem_ptrs[i], aux_reg,
                                                          GET_OFF(buffer_offsets) + m_buffer_ids[i] * sizeof(size_t));
         else
-            utils::push_ptr_with_static_offset_on_stack(h, args_offsets[i], mem_ptrs[i], aux_reg, m_memory_offsets[i]);
+            utils::push_ptr_with_static_offset_on_stack(h, args_offsets[i], mem_ptrs[i], m_memory_offsets[i]);
     }
 
     // No scratchpad => need to write nullptr manually

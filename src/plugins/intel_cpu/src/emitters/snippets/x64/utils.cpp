@@ -65,11 +65,10 @@ void push_ptr_with_runtime_offset_on_stack(dnnl::impl::cpu::x64::jit_generator* 
 }
 
 void push_ptr_with_static_offset_on_stack(dnnl::impl::cpu::x64::jit_generator* h, size_t stack_offset,
-                                          Xbyak::Reg64 ptr_reg, Xbyak::Reg64 aux_reg, size_t ptr_offset) {
+                                          Xbyak::Reg64 ptr_reg, size_t ptr_offset) {
     const auto stack_frame = h->qword[h->rsp + stack_offset];
-    h->mov(aux_reg, ptr_reg);
-    if (ptr_offset != 0) h->add(aux_reg, ptr_offset);
-    h->mov(stack_frame, aux_reg);
+    h->mov(stack_frame, ptr_reg);
+    if (ptr_offset != 0) h->add(stack_frame, ptr_offset);
 }
 
 }   // namespace utils

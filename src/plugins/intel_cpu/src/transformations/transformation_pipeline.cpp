@@ -968,7 +968,8 @@ void Transformations::MainSnippets(void) {
             return false;
         const auto in_type0 = matmul->get_input_element_type(0);
         const auto in_type1 = matmul->get_input_element_type(1);
-        const auto is_fp32 = (in_type0 == ov::element::f32 && in_type1 == ov::element::f32 && one_of(config.inferencePrecision, element::f32, element::undefined));
+        const auto is_fp32 = (in_type0 == ov::element::f32 && in_type1 == ov::element::f32 &&
+                              one_of(config.inferencePrecision, element::f32, element::undefined));
         const auto is_fp16 = (in_type0 == ov::element::f16 || in_type1 == ov::element::f16);
         const auto is_bf16 = (in_type0 == ov::element::bf16 && in_type1 == ov::element::bf16) ||
                              ((in_type0 == element::f32 && in_type1 == ov::element::f32 && config.inferencePrecision == ov::element::bf16));
