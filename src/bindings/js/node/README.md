@@ -1,8 +1,14 @@
 # OpenVINO™ Node.js Bindings
 
-Use OpenVINO JavaScript API for your Node.js application.
+Execute deep learning models in Node.js applications with ease using OpenVINO™.
 
-## Usage
+## Introduction
+
+OpenVINO™ is an open-source toolkit designed for high-performance deep learning inference.
+Node.js API provides bindings to subset APIs from OpenVINO Runtime.
+These Node.js bindings allow JavaScript developers to use the power of OpenVINO™ in their applications.
+
+## Quick Start
 
 Install the **openvino-node** package:
 ```bash
@@ -14,15 +20,21 @@ Use the **openvino-node** package:
 const { addon: ov } = require('openvino-node');
 ```
 
+Full `addon` API you can find at documentation [page](https://docs.openvino.ai/2024/api/nodejs_api/addon.html).
+
+See more samples in [samples section](https://github.com/openvinotoolkit/openvino/blob/master/samples/js/node/README.md).
+
 ## Usage in Electron applications
 
 To use the package in development of Electron applications on Windows, make sure that
 **Desktop development with C++** component from
 [Build Tools for Visual Studio](https://aka.ms/vs/17/release/vs_BuildTools.exe) is installed.
 
-## Build From Sources
+## Supported Platforms
 
-For more details, refer to the [OpenVINO™ JavaScript API Developer Documentation](https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/docs/README.md#openvino-node-package-developer-documentation)
+- Windows x86
+- Linux x86/arm
+- MacOS x86/arm
 
 ## Documentation & Samples
 
@@ -31,10 +43,18 @@ For more details, refer to the [OpenVINO™ JavaScript API Developer Documentati
 
 ## Live Sample
 
-You can run this sample in the browser; no installation is required.
+You can run this sample in the browser, no installation is required.
 [Codesandbox](https://codesandbox.io/) is a free online service with limited resources. For optimal performance and more control,  it is recommended to run the sample locally.
 
 - [hello-classification-sample](https://codesandbox.io/p/devbox/openvino-node-hello-classification-sample-djl893)
+
+## Build From Sources
+
+For more details, refer to the [OpenVINO™ JavaScript API Developer Documentation](https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/docs/README.md#openvino-node-package-developer-documentation)
+
+## Contributing
+
+We welcome contributions! Please read our [Contributing Guide](https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/CONTRIBUTING.md) to learn how you can get involved.
 
 ## See Also
 
