@@ -235,6 +235,9 @@ void dump_partitioning(const ov::npuw::Ensemble& ens, const std::string& to) {
         if (!group.avoid_list.empty()) {
             gr.append_attribute("avoid") = group.avoid_list.data();
         }
+        if (!group.tag.empty()) {
+            gr.append_attribute("tag") = group.tag.data();
+        }
 
         // Note: Ensemble also add "id" attribute but it's not used by the plugin
         for (const auto& input : group.input_layers) {

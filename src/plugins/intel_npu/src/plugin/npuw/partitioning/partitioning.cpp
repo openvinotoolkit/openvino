@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2023-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -140,6 +140,7 @@ ov::npuw::Ensemble load_groups(const std::shared_ptr<ov::Model>& model, const st
         this_group.gflops = get_float_attr(group, "gflops");
         this_group.repeated_id = get_str_attr(group, "repeated", "");
         this_group.avoid_list = get_str_attr(group, "avoid", "");
+        this_group.tag = get_str_attr(group, "tag", "");
         FOREACH_CHILD(input, group, "input") {
             this_group.input_layers.push_back(get_str_attr(input, "name"));
         }
@@ -226,6 +227,10 @@ private:
 
     void createFunction(FunctionPipeline& func_ggg);
 
+    // NB(dm): This method should get a better place, it is here only because
+    // it is tied to the Function structure (but, in fact, not so much)
+    void identifySpatialRange(ov::npuw::Function &f);
+
     template <typename T, typename M>
     void rearrange_to_function_protocol(ov::npuw::Subgraph::Ref func_ref,
                                         const std::vector<T>& protocol,
@@ -308,6 +313,7 @@ public:
     void matchResults(const std::string& func_name);
     void createFunction(const std::string& func_name);
     void matchRepeatedSubgraphs(const std::string& func_name);
+    void spatial(const std::string& func_name);
     void optimize(const std::string& func_name);
     void decompressionCutOff(const std::string& func_name);
 
@@ -360,6 +366,7 @@ void Partitioner::identifySubgraphs() {
         P.total_ops += group.sg._ops;
 
         group.sg._avoid_list = group.avoid_list;
+        group.sg._tag = group.tag;
         // Note inputs and outputs are included in the above set, so if
         // we are here, those nodes should be present in the model.
 
@@ -1455,6 +1462,7 @@ void Partitioner::createFunction(FunctionPipeline& func_ggg) {
     ov::npuw::Function function;
     function._model = func_ggg.mdls.front();
     function._param_offset = body_sg._parameters.size();
+    function._tag = body_sg._tag;
     std::size_t new_param_idx = function._param_offset;
 
     for (auto&& node_ptr : function._model->get_ordered_ops()) {
@@ -1514,6 +1522,10 @@ void Partitioner::createFunction(FunctionPipeline& func_ggg) {
     // Write down the funcall to the list of subgraphs
     std::swap(funcall, body_sg);
     LOG_VERB("Done: " << func_name);
+}
+
+void Partitioner::identifySpatialRange(ov::npuw::Function &f) {
+    std::cout << "Identifying spatial range..." << std::endl;
 }
 
 void Partitioner::createFunction(const std::string& func_name) {
@@ -1592,6 +1604,31 @@ void Partitioner::matchRepeatedSubgraphs(const std::string& func_name) {
     }  // for(rest of models)
 
     LOG_VERB("Done");
+}
+
+void Partitioner::spatial(const std::string& func_name) {
+    ov::npuw::Function& f = P.functions.at(func_name);
+    auto& func_group = all_functions.at(func_name);
+
+    // Identify the spatial dimension for this function
+    // Works only for Compute case.
+    // FIXME: Replace this string identification with smt better
+    if (!cfg.get<::intel_npu::NPUW_SPATIAL>() || f._tag != "compute") {
+        LOG_VERB("No spatial optimizations will be done to  " << func_name << " in model " << model->get_friendly_name()
+                 << "...");
+        return;
+    }
+
+    LOG_VERB("Turn " << func_name << " into spatial execution in model " << model->get_friendly_name() << "...");
+    LOG_BLOCK();
+
+    identifySpatialRange(f);
+    if (f._spatial) {
+        std::cout << "Spatial range: " << f._spatial->_spatial_range << ", slice: " << f._spatial->_spatial_slice << std::endl;
+        LOG_VERB("Done");
+    } else {
+        LOG_WARN("No spatial ranges identified in the COMPUTE block, expect a higher compile time");
+    }
 }
 
 void Partitioner::optimize(const std::string& func_name) {
@@ -2052,6 +2089,7 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
                 p.matchParameters(func_group);
                 p.matchResults(func_group);
                 p.matchRepeatedSubgraphs(func_group);
+                p.spatial(func_group);
                 p.optimize(func_group);
                 p.decompressionCutOff(func_group);
             }
@@ -2068,7 +2106,6 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
                 p.saveTinyConstants(func_group);
                 p.saveScaleFactors(func_group);
                 p.createFunction(func_group);
-                p.optimize(func_group);
                 p.decompressionCutOff(func_group);
             }
         } else {

@@ -180,6 +180,14 @@ static constexpr ov::Property<std::string> par_matmul_merge_dims{"NPUW_PMM"};
 
 /**
  * @brief
+ * Type: boolean.
+ * Enable spatial execution for selected subgraphs. Requires COMPUTE isolation.
+ * Default value: false
+ */
+static constexpr ov::Property<bool> spatial{"NPUW_SPATIAL"};
+
+/**
+ * @brief
  * Type: boolean
  * When applicable, do embedding gather on host.
  * Default value: true.
