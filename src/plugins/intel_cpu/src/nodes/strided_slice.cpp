@@ -762,7 +762,7 @@ void StridedSlice::StridedSliceCommonExecutor::execSliceScatter(const std::vecto
     const uint8_t* srcData = srcMemory[0]->getDataAs<const uint8_t>();
     const uint8_t* srcUpdates = srcMemory[1]->getDataAs<const uint8_t>();
     uint8_t* dstData = dstMemory[0]->getDataAs<uint8_t>();
-    cpu_memcpy(dstData, srcData, srcMemory[0]->getSize());
+    cpu_parallel_memcpy(dstData, srcData, srcMemory[0]->getSize());
     if (srcMemory[1]->getSize() == 0) {
         // Updates are empty - do not apply
         return;
