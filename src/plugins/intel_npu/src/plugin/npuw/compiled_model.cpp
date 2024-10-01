@@ -576,16 +576,20 @@ ov::SoPtr<ov::ICompiledModel> ov::npuw::CompiledModel::compile_submodel(const st
     // NOTE(dm): Not sure if it is required for the NPUW plugin, but likely it is
     auto& device_config = m_meta_devices[device];
 
-    // FIXME: repeated blocks currently may have different model name from run to run - need to figure out how to fix them if we enable cache_dir
-    if (!m_cache_dir.empty() && ov::util::contains(core->get_property(device,  ov::supported_properties), ov::device::capabilities) &&
-        ov::util::contains(core->get_property(device, ov::device::capabilities), ov::device::capability::EXPORT_IMPORT) &&
-        ov::util::contains(core->get_property(device,  ov::internal::supported_properties), ov::internal::caching_properties)) {
+    // FIXME: repeated blocks currently may have different model name from run to run - need to figure out how to fix
+    // them if we enable cache_dir
+    if (!m_cache_dir.empty() &&
+        ov::util::contains(core->get_property(device, ov::supported_properties), ov::device::capabilities) &&
+        ov::util::contains(core->get_property(device, ov::device::capabilities),
+                           ov::device::capability::EXPORT_IMPORT) &&
+        ov::util::contains(core->get_property(device, ov::internal::supported_properties),
+                           ov::internal::caching_properties)) {
+        LOG_INFO("NPUW will try to utilize CACHE_DIR for " << submodel->get_friendly_name() << " submodel.");
         device_config.insert(ov::cache_dir(m_cache_dir));
     }
 
     if (m_compiled_submodels.size() > 1) {
-        auto supported_internal_properties =
-            core->get_property(device, ov::internal::supported_properties);
+        auto supported_internal_properties = core->get_property(device, ov::internal::supported_properties);
         if (std::find(supported_internal_properties.begin(),
                       supported_internal_properties.end(),
                       ov::internal::exclusive_async_requests) != supported_internal_properties.end()) {
