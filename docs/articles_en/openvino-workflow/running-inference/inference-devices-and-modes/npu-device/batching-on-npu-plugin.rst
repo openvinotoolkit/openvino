@@ -28,6 +28,8 @@ or when the model cannot yet be compiled with a batch size larger than one.
 If the **conditions are not met**, the NPU plugin tries to compile and execute the original model with the given
 batch_size to N as any other regular model.
 
-Note: Once the performance improves and multiple models can compile with a batch size larger than one,
-the default order will be changed; NPU will try first to compile and execute the original model with the given
-batch size and fall back to concurrent batching if compilation fails.
+.. note::
+
+   With future performance improvements and support for compiling multiple models with a batch size larger 
+   than one, the default order will change. NPU will try first to compile and execute the original model with the 
+   given batch size and fall back to concurrent batching if compilation fails.
