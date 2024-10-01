@@ -172,9 +172,9 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
       _executor(static_cast<const ZeroExecutor*>(_executorPtr.get())),
       _config(config),
       _logger("ZeroInferRequest", config.get<LOG_LEVEL>()),
-      _levelZeroInputTensors(_metadata.inputs.size(), std::vector<std::shared_ptr<ov::ITensor>>(1)),
+      _levelZeroInputTensors(_metadata.inputs.size(), std::vector<std::shared_ptr<ov::ITensor>>(1, nullptr)),
       _levelZeroOutputTensors(_metadata.outputs.size(), nullptr),
-      _inputTensorsData(_metadata.inputs.size(), std::vector<std::optional<TensorData>>(1)),
+      _inputTensorsData(_metadata.inputs.size(), std::vector<std::optional<TensorData>>(1, std::nullopt)),
       _outputTensorsData(_metadata.outputs.size(), std::nullopt),
       _profilingPool(_executor->graph(), zeroProfiling::POOL_SIZE, _executor->getInitStructs()->getProfilingDdiTable()),
       _profilingQuery(0,
@@ -403,9 +403,9 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
             _userInputTensors.at(foundPort.idx).resize(1);
         }
 
-        _userInputTensors.at(foundPort.idx).at(0) = tensor._ptr;
+        _userInputTensors.at(foundPort.idx).at(0) = tensor;
     } else {
-        _userOutputTensors.at(foundPort.idx) = tensor._ptr;
+        _userOutputTensors.at(foundPort.idx) = tensor;
     }
 
     if (_initStructs->getMutableCommandListVersion()) {
@@ -512,10 +512,7 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
     check_batched_tensors(port, tensors);
 
     _userInputTensors.at(foundPort.idx).resize(tensors.size());
-
-    for (size_t i = 0; i < tensors.size(); i++) {
-        _userInputTensors.at(foundPort.idx).at(i) = tensors.at(i)._ptr;
-    }
+    _userInputTensors.at(foundPort.idx) = tensors;
 
     if (_initStructs->getMutableCommandListVersion()) {
         if (_batchSize.has_value()) {
@@ -645,7 +642,7 @@ void ZeroInferRequest::infer_async() {
                     if (levelZeroBatchRemoteTensor == nullptr) {
                         void* levelZeroBuffer = _levelZeroInputTensors.at(inputIndex).at(i)->data();
 
-                        auto userBatchRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(userTensor.at(i));
+                        auto userBatchRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(userTensor.at(i)._ptr);
 
                         void* userBuffer =
                             !userBatchRemoteTensor
@@ -670,7 +667,7 @@ void ZeroInferRequest::infer_async() {
                              "in a continued memory space");
 
                 for (size_t i = 0; i < userTensor.size(); i++) {
-                    auto userBatchRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(userTensor.at(i));
+                    auto userBatchRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(userTensor.at(i)._ptr);
 
                     void* userBuffer = !userBatchRemoteTensor ? userTensor.at(i)->data()
                                                               : extract_object(userBatchRemoteTensor->get_properties(),
@@ -686,7 +683,7 @@ void ZeroInferRequest::infer_async() {
             continue;
         }
 
-        auto userRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(userTensor.at(0));
+        auto userRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(userTensor.at(0)._ptr);
         void* userBuffer = !userRemoteTensor
                                ? userTensor.at(0)->data()
                                : extract_object(userRemoteTensor->get_properties(), ov::intel_npu::mem_handle);
@@ -720,7 +717,7 @@ void ZeroInferRequest::get_result() {
     _pipeline->pull();
 
     size_t outputIndex = 0;
-    for (const std::shared_ptr<ov::ITensor>& userTensor : _userOutputTensors) {
+    for (const auto& userTensor : _userOutputTensors) {
         const IODescriptor outputDescriptor = _metadata.outputs.at(outputIndex);
         if (outputDescriptor.isShapeTensor) {
             OPENVINO_ASSERT(outputDescriptor.relatedDescriptorIndex.has_value(),
@@ -738,7 +735,7 @@ void ZeroInferRequest::get_result() {
             tensorToBeReshaped->set_shape(actualDims);
         }
 
-        auto userRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(userTensor);
+        auto userRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(userTensor._ptr);
         void* userBuffer = !userRemoteTensor
                                ? userTensor->data()
                                : extract_object(userRemoteTensor->get_properties(), ov::intel_npu::mem_handle);

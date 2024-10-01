@@ -22,8 +22,8 @@ namespace intel_npu {
 SyncInferRequest::SyncInferRequest(const std::shared_ptr<const ICompiledModel>& compiledModel)
     : _compiledModel(compiledModel),
       _metadata(compiledModel->get_network_metadata()),
-      _userInputTensors(_metadata.inputs.size(), std::vector<std::shared_ptr<ov::ITensor>>(1, nullptr)),
-      _userOutputTensors(_metadata.outputs.size(), nullptr) {
+      _userInputTensors(_metadata.inputs.size(), std::vector<ov::SoPtr<ov::ITensor>>(1, {nullptr})),
+      _userOutputTensors(_metadata.outputs.size(), {nullptr}) {
     OPENVINO_ASSERT(_compiledModel);
 
     if (get_outputs().empty()) {
@@ -138,9 +138,9 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
     }
 
     if (foundPort.is_input()) {
-        _userInputTensors.at(foundPort.idx).at(0) = tensor._ptr;
+        _userInputTensors.at(foundPort.idx).at(0) = tensor;
     } else {
-        _userOutputTensors.at(foundPort.idx) = tensor._ptr;
+        _userOutputTensors.at(foundPort.idx) = tensor;
     }
 }
 
@@ -151,7 +151,7 @@ std::vector<ov::SoPtr<ov::ITensor>> SyncInferRequest::get_tensors(const ov::Outp
     OPENVINO_ASSERT(foundPort.found(), "Cannot find input tensors for port ", port);
 
     if (foundPort.is_input() && is_batched_input(foundPort.idx)) {
-        // return _userInputTensors.at(foundPort.idx);
+        return _userInputTensors.at(foundPort.idx);
     }
 
     return {};
@@ -238,7 +238,7 @@ std::shared_ptr<ov::ITensor> SyncInferRequest::allocate_tensor(const IODescripto
         OPENVINO_ASSERT(descriptor.relatedDescriptorIndex.has_value(),
                         "The link between state descriptors is missing, state name: ",
                         descriptor.nameFromCompiler);
-        tensor = _userInputTensors.at(*descriptor.relatedDescriptorIndex).at(0);
+        tensor = _userInputTensors.at(*descriptor.relatedDescriptorIndex).at(0)._ptr;
     } else if (allocator) {
         tensor = ov::make_tensor(descriptor.precision, allocatedTensorShape, allocator);
     } else {
