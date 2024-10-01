@@ -140,6 +140,8 @@ private:
 
     execution_stats m_total_stat;
 
+    std::string m_cache_dir;
+
     std::shared_ptr<weights::Bank> m_weights_bank = nullptr;
 };
 }  // namespace npuw

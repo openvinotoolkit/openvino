@@ -113,6 +113,8 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         LOG_INFO("Accuracy check is enabled.");
     }
 
+    m_cache_dir = m_cfg.get<::intel_npu::NPUW_CACHE_DIR>();
+
     // Initialize weights bank
     const std::string weights_bank_opt = m_cfg.get<::intel_npu::NPUW_WEIGHTS_BANK>();
     m_weights_bank = ov::npuw::weights::bank(weights_bank_opt, plugin->get_core());
@@ -322,7 +324,6 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     std::map<std::size_t, std::string> forced_sub_devices{};
     const std::string fsd_opt = m_cfg.get<::intel_npu::NPUW_SUBMODEL_DEVICE>();
     forced_sub_devices = ::intel_npu ::OptionParser<std::map<std::size_t, std::string>>::parse(fsd_opt);
-
     // Compile submodels. Some of them can be functions: track which model will be
     // used as function(s): function name -> index of the compiled subgraph
     auto compile = [&](size_t id) {
@@ -571,14 +572,20 @@ ov::SoPtr<ov::ICompiledModel> ov::npuw::CompiledModel::compile_submodel(const st
     auto plugin = get_npuw_plugin();
     auto core = plugin->get_core();
 
-    // FIXME: probably should handle CACHE_DIR right here - if the device is available and does support EXPORT/IMPORT
-
     // set exclusive_async_requests in case when model is split
     // NOTE(dm): Not sure if it is required for the NPUW plugin, but likely it is
     auto& device_config = m_meta_devices[device];
+
+    // FIXME: repeated blocks currently may have different model name from run to run - need to figure out how to fix them if we enable cache_dir
+    if (!m_cache_dir.empty() && ov::util::contains(core->get_property(device,  ov::supported_properties), ov::device::capabilities) &&
+        ov::util::contains(core->get_property(device, ov::device::capabilities), ov::device::capability::EXPORT_IMPORT) &&
+        ov::util::contains(core->get_property(device,  ov::internal::supported_properties), ov::internal::caching_properties)) {
+        device_config.insert(ov::cache_dir(m_cache_dir));
+    }
+
     if (m_compiled_submodels.size() > 1) {
         auto supported_internal_properties =
-            plugin->get_core()->get_property(device, ov::internal::supported_properties);
+            core->get_property(device, ov::internal::supported_properties);
         if (std::find(supported_internal_properties.begin(),
                       supported_internal_properties.end(),
                       ov::internal::exclusive_async_requests) != supported_internal_properties.end()) {
@@ -822,6 +829,7 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::parallel_compilation, NPUW_PARALLEL_COMPILE),
                           BIND(npuw::funcall_async, NPUW_FUNCALL_ASYNC),
                           BIND(npuw::weights_bank, NPUW_WEIGHTS_BANK),
+                          BIND(npuw::cache_dir, NPUW_CACHE_DIR),
                           BIND(npuw::accuracy::check, NPUW_ACC_CHECK),
                           BIND(npuw::accuracy::threshold, NPUW_ACC_THRESH),
                           BIND(npuw::accuracy::reference_device, NPUW_ACC_DEVICE),
