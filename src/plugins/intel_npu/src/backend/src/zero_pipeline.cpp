@@ -20,9 +20,8 @@ Pipeline::Pipeline(const Config& config,
                    zeroProfiling::ProfilingPool& profiling_pool,
                    zeroProfiling::ProfilingQuery& profiling_query,
                    std::shared_ptr<zeroProfiling::NpuInferProfiling> npu_profiling,
-                   const std::vector<std::optional<TensorData>>& inputTensorsData,
+                   const std::vector<std::vector<std::optional<TensorData>>>& inputTensorsData,
                    const std::vector<std::optional<TensorData>>& outputTensorsData,
-                   const std::unordered_map<size_t, std::vector<std::optional<TensorData>>>& batchedTensorsData,
                    const size_t numberOfCommandLists)
     : _config(config),
       _executor(static_cast<const ZeroExecutor*>(executorPtr.get())),
@@ -59,9 +58,9 @@ Pipeline::Pipeline(const Config& config,
     for (size_t i = 0; i < numberOfCommandLists; i++) {
         size_t ioIndex = 0;
         for (const auto& desc : _executor->get_input_descriptors()) {
-            if (batchedTensorsData.count(ioIndex) > 0) {
+            if (inputTensorsData.at(ioIndex).size() > 1) {
                 if (numberOfCommandLists > 1) {
-                    _executor->setArgumentValue(desc.idx, batchedTensorsData.at(ioIndex)[i]->mem);
+                    _executor->setArgumentValue(desc.idx, inputTensorsData.at(ioIndex).at(i)->mem);
 
                     ++ioIndex;
                     continue;
@@ -69,8 +68,8 @@ Pipeline::Pipeline(const Config& config,
             }
 
             _executor->setArgumentValue(desc.idx,
-                                        static_cast<unsigned char*>(inputTensorsData.at(ioIndex)->mem) +
-                                            (i * inputTensorsData.at(ioIndex)->size) / numberOfCommandLists);
+                                        static_cast<unsigned char*>(inputTensorsData.at(ioIndex).at(0)->mem) +
+                                            (i * inputTensorsData.at(ioIndex).at(0)->size) / numberOfCommandLists);
 
             ++ioIndex;
         }

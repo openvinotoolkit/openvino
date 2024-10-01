@@ -56,7 +56,7 @@ private:
      * @returns The batch size deduced by the algorithm or the default value of 1 if batching cannot be performed inside
      * the plugin.
      */
-    std::optional<size_t> getBatchSize(const NetworkMetadata& metadata);
+    std::optional<size_t> get_batch_size(const NetworkMetadata& metadata);
 
     /**
      * @brief Check the received tensor and set the Level Zero tensor accordingly
@@ -87,10 +87,10 @@ private:
 
     // A copy of each tensor is needed to maintain the original L0 memory allocation in case the user provides another
     // memory area for the tensor.
-    mutable std::vector<std::shared_ptr<ov::ITensor>> _levelZeroInputTensors;
+    mutable std::vector<std::vector<std::shared_ptr<ov::ITensor>>> _levelZeroInputTensors;
     mutable std::vector<std::shared_ptr<ov::ITensor>> _levelZeroOutputTensors;
 
-    mutable std::vector<std::optional<TensorData>> _inputTensorsData;
+    mutable std::vector<std::vector<std::optional<TensorData>>> _inputTensorsData;
     mutable std::vector<std::optional<TensorData>> _outputTensorsData;
 
     ze_device_properties_t _properties = {};
@@ -119,10 +119,6 @@ private:
     std::optional<std::size_t> _batchSize = std::nullopt;
 
     bool _pipelineIsCreated = false;
-
-    std::unordered_map<size_t, std::vector<ov::SoPtr<ov::ITensor>>> _levelZeroBatchedTensors;
-
-    std::unordered_map<size_t, std::vector<std::optional<TensorData>>> _batchedTensorsData;
 };
 
 }  //  namespace intel_npu

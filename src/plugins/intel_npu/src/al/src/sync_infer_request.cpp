@@ -22,7 +22,7 @@ namespace intel_npu {
 SyncInferRequest::SyncInferRequest(const std::shared_ptr<const ICompiledModel>& compiledModel)
     : _compiledModel(compiledModel),
       _metadata(compiledModel->get_network_metadata()),
-      _userInputTensors(_metadata.inputs.size(), nullptr),
+      _userInputTensors(_metadata.inputs.size(), std::vector<std::shared_ptr<ov::ITensor>>(1, nullptr)),
       _userOutputTensors(_metadata.outputs.size(), nullptr) {
     OPENVINO_ASSERT(_compiledModel);
 
@@ -121,7 +121,7 @@ ov::SoPtr<ov::ITensor> SyncInferRequest::get_tensor(const ov::Output<const ov::N
     OPENVINO_ASSERT(foundPort.found(), "Cannot find tensor for port ", port);
 
     if (foundPort.is_input()) {
-        return _userInputTensors.at(foundPort.idx);
+        return _userInputTensors.at(foundPort.idx).at(0);
     }
     return _userOutputTensors.at(foundPort.idx);
 }
@@ -138,7 +138,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
     }
 
     if (foundPort.is_input()) {
-        _userInputTensors.at(foundPort.idx) = tensor._ptr;
+        _userInputTensors.at(foundPort.idx).at(0) = tensor._ptr;
     } else {
         _userOutputTensors.at(foundPort.idx) = tensor._ptr;
     }
@@ -151,7 +151,7 @@ std::vector<ov::SoPtr<ov::ITensor>> SyncInferRequest::get_tensors(const ov::Outp
     OPENVINO_ASSERT(foundPort.found(), "Cannot find input tensors for port ", port);
 
     if (foundPort.is_input() && is_batched_input(foundPort.idx)) {
-        return _userBatchedTensors.at(foundPort.idx);
+        // return _userInputTensors.at(foundPort.idx);
     }
 
     return {};
@@ -204,8 +204,8 @@ void SyncInferRequest::check_tensors() const {
             // in case of batched input, user tensor is not set
             continue;
         }
-        if (_userInputTensors.at(i)) {
-            check_tensor(inputs[i], _userInputTensors.at(i));
+        if (_userInputTensors.at(i).at(0)) {
+            check_tensor(inputs[i], _userInputTensors.at(i).at(0));
         }
     }
 
@@ -238,7 +238,7 @@ std::shared_ptr<ov::ITensor> SyncInferRequest::allocate_tensor(const IODescripto
         OPENVINO_ASSERT(descriptor.relatedDescriptorIndex.has_value(),
                         "The link between state descriptors is missing, state name: ",
                         descriptor.nameFromCompiler);
-        tensor = _userInputTensors.at(*descriptor.relatedDescriptorIndex);
+        tensor = _userInputTensors.at(*descriptor.relatedDescriptorIndex).at(0);
     } else if (allocator) {
         tensor = ov::make_tensor(descriptor.precision, allocatedTensorShape, allocator);
     } else {
@@ -246,8 +246,8 @@ std::shared_ptr<ov::ITensor> SyncInferRequest::allocate_tensor(const IODescripto
     }
 
     if (isInput) {
-        if (_userInputTensors.at(index) == nullptr) {
-            _userInputTensors.at(index) = tensor;
+        if (_userInputTensors.at(index).at(0) == nullptr) {
+            _userInputTensors.at(index).at(0) = tensor;
         }
 
         if (descriptor.isStateInput) {
@@ -261,7 +261,7 @@ std::shared_ptr<ov::ITensor> SyncInferRequest::allocate_tensor(const IODescripto
 }
 
 bool SyncInferRequest::is_batched_input(size_t idx) const {
-    return _userBatchedTensors.count(idx) > 0;
+    return _userInputTensors.at(idx).size() > 1;
 }
 
 }  // namespace intel_npu

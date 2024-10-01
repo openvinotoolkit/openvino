@@ -25,9 +25,8 @@ public:
              zeroProfiling::ProfilingPool& profiling_pool,
              zeroProfiling::ProfilingQuery& profiling_query,
              std::shared_ptr<zeroProfiling::NpuInferProfiling> npu_profiling,
-             const std::vector<std::optional<TensorData>>& inputTensorsData,
+             const std::vector<std::vector<std::optional<TensorData>>>& inputTensorsData,
              const std::vector<std::optional<TensorData>>& outputTensorsData,
-             const std::unordered_map<size_t, std::vector<std::optional<TensorData>>>& batchedTensorsData,
              const size_t numberOfCommandLists);
 
     Pipeline(const Pipeline&) = delete;

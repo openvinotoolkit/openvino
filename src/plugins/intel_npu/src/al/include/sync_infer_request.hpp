@@ -161,10 +161,9 @@ protected:
 
     NetworkMetadata _metadata;
 
-    mutable std::vector<std::shared_ptr<ov::ITensor>> _userInputTensors;
+    // In case set_tensors is called, we receive a vector with N tensors otherwise only 1 tensor is needed
+    mutable std::vector<std::vector<std::shared_ptr<ov::ITensor>>> _userInputTensors;
     mutable std::vector<std::shared_ptr<ov::ITensor>> _userOutputTensors;
-
-    std::unordered_map<size_t, std::vector<ov::SoPtr<ov::ITensor>>> _userBatchedTensors;
 
     mutable std::vector<ov::SoPtr<ov::IVariableState>> _variableStates;
 
