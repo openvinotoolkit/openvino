@@ -1,4 +1,4 @@
-NPU Plugin batching
+NPU Plugin Batching 
 ===============================
 
 
