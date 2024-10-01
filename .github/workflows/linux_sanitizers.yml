@@ -139,9 +139,6 @@ jobs:
       - name: Clean ccache stats
         run: ${SCCACHE_PATH} --zero-stats
              
-      - name: Show ccache stats
-        run: ${SCCACHE_PATH} --show-stats
-
       - name: CMake configure - OpenVINO
         run: |
           cmake \
@@ -176,12 +173,6 @@ jobs:
       - name: Show ccache stats
         run: ${SCCACHE_PATH} --show-stats
         
-      # - name: Cleanup ccache 
-      #   run: ${SCCACHE_PATH} --cleanup --zero-stats
-        
-      # - name: Show ccache stats
-      #   run: ${SCCACHE_PATH} --show-stats
-
       - name: Cmake install - OpenVINO
         run: |
           cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -P ${BUILD_DIR}/cmake_install.cmake --config ${{ env.CMAKE_BUILD_TYPE }}
