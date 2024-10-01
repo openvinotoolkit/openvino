@@ -21,9 +21,9 @@ and the transformed/compiled layout. Then it executes the following steps:
 2. Executes each command list for the proper offsets of input/output buffers.
 3. Notifies the user of the completion of the inference request after all command lists have been executed.
 
-This batching mode based on concurrency is transparent to the application. One single inference request will handle all inputs from the batch.
-Performance might be lower compared to regular batching; this mode is intended to offer basic batching functionality on older drivers
-or in case the model cannot yet be compiled with a batch size larger than one.
+This concurrency-based batching mode is transparent to the application. A single inference request handles all inputs from the batch.
+While performance may be lower compared to regular batching, this mode provides basic batching functionality for use with older drivers
+or when the model cannot yet be compiled with a batch size larger than one.
 
 In case these conditions are not met the NPU plugin will try to compile and execute the original model with the given
 batch_size to N as any other regular model.
