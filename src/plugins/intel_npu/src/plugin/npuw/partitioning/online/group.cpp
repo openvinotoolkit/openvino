@@ -100,11 +100,6 @@ ov::npuw::Group Group::toGroup() const {
     }
     g.gflops = 0.0001f;  // FIXME: calculate proper flops
 
-    // Sort layers to stabilize the partitioning
-    std::sort(g.input_layers.begin(), g.input_layers.end());
-    std::sort(g.output_layers.begin(), g.output_layers.end());
-    std::sort(g.all_layers.begin(), g.all_layers.end());
-
     if (m_repeated && !isNoFold()) {
         g.repeated_id = ov::npuw::online::util::repeated_id(m_repeated);
     }
