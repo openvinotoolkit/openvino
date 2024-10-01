@@ -9,6 +9,8 @@ torchvision~=0.19.1
 # but optimum still requires <4.45.0
 transformers~=4.44.2
 pytest~=7.0.1
+pytest-html~=4.1.1
+pytest-xdist[psutil]~=3.6.1
 defusedxml~=0.7.1
 
 auto-gptq~=0.7.1; platform_system == "Linux" and platform_machine == "x86_64"
@@ -23,9 +25,6 @@ packaging~=24.1
 pandas~=2.2.3
 protobuf~=5.28.2
 pyctcdecode~=0.5.0
-pytest~=8.3.3
-pytest-html~=4.1.1
-pytest-xdist[psutil]~=3.6.1
 sacremoses~=0.1.1
 sentencepiece~=0.2.0
 soundfile~=0.12.1
