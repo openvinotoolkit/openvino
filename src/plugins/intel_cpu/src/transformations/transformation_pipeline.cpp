@@ -968,9 +968,15 @@ void Transformations::MainSnippets(void) {
             return false;
         const auto in_type0 = matmul->get_input_element_type(0);
         const auto in_type1 = matmul->get_input_element_type(1);
-        if (in_type0 == ov::element::f16 || in_type1 == ov::element::f16)
+        const auto is_fp32 = (in_type0 == ov::element::f32 && in_type1 == ov::element::f32 &&
+                              one_of(config.inferencePrecision, element::f32, element::undefined));
+        const auto is_fp16 = (in_type0 == ov::element::f16 || in_type1 == ov::element::f16);
+        const auto is_bf16 = (in_type0 == ov::element::bf16 && in_type1 == ov::element::bf16) ||
+                             ((in_type0 == element::f32 && in_type1 == ov::element::f32 && config.inferencePrecision == ov::element::bf16));
+        const auto is_int8 = in_type0 == ov::element::i8;
+        if (is_fp16)
             return false;
-        if (in_type0 == ov::element::f32 && in_type1 == ov::element::f32 && one_of(config.inferencePrecision, element::f32, element::undefined))
+        if (is_fp32)
             return true;
         // Only FP32 dynamic MHA is supported
         if (matmul->is_dynamic())
@@ -979,23 +985,19 @@ void Transformations::MainSnippets(void) {
         // The current solution with ExtractExplicitMatMulTranspose pass is slower for non-f32 cases than using of brgemm_copy_b kernel
         if (matmul->get_transpose_a() || matmul->get_transpose_b())
             return false;
-        if (in_type0 == ov::element::i8)
+        // [150842] The execution of Brgemm INT8/BF16 on AMX platforms depends on the value of "K % VNNIFactor".
+        //          For more details, please teake a look at the ticket 150842
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
+            const auto& b_shape = matmul->get_input_partial_shape(1);
+            const auto K = matmul->get_transpose_b() ? *b_shape.rbegin() : *++b_shape.rbegin();
+            if (is_bf16) return K.is_static() && (K.get_length() % 2 == 0);
+            if (is_int8) return K.is_static();
+        }
+        if (is_int8)
             return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni) ||
                    dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni);
-        if ((in_type0 == ov::element::bf16 && in_type1 == ov::element::bf16) ||
-            ((in_type0 == element::f32 && in_type1 == ov::element::f32 && config.inferencePrecision == ov::element::bf16))) {
-            // Implementation calls AMX BF16 brgemm only for tensors with K and N aligned on 2, otherwise fallbacks on vector impl
-            // Vector madd BF16 instruction on SPR has reduced performance on HW level, which results in overall perf degradation
-            size_t bf16Factor = 2;
-            if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
-                const auto& b_shape = matmul->get_input_partial_shape(1);
-                const auto K = matmul->get_transpose_b() ? *b_shape.rbegin() : *++b_shape.rbegin();
-                const auto N = matmul->get_transpose_b() ? *++b_shape.rbegin() : *b_shape.rbegin();
-                return K.is_static() && (K.get_length() % bf16Factor == 0) &&
-                       N.is_static() && (N.get_length() % bf16Factor == 0);
-            }
+        if (is_bf16)
             return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16);
-        }
         return true;
     };
     auto is_unsupported_parallel_work_amount = [&](const std::shared_ptr<const ov::Node>& n, const ov::PartialShape& shape) {
@@ -1135,17 +1137,19 @@ void Transformations::MainSnippets(void) {
 
     auto mm_supports_transpose_b = [this, ignoreCallback](const std::shared_ptr<const ov::Node>& n) {
         MAYBE_UNUSED(config.inferencePrecision);
-        const auto& b_shape = n->get_input_partial_shape(1);
-        if (!ignoreCallback || b_shape.is_dynamic())
+        if (!ignoreCallback)
             return false;
         // Note: BrgemmTPP doesn't support transposed KN natively
         // so we should extract transposes for the corresponding matmul nodes
 #if defined(SNIPPETS_LIBXSMM_TPP)
+        // TPP doesn't support dynamic shapes -> there will be BrgemmCPU node
+        if (n->is_dynamic())
+            return true;
         std::vector<std::vector<size_t>> layouts(3);
         const auto matmul = ov::as_type_ptr<const ov::op::v0::MatMul>(n);
         OPENVINO_ASSERT(matmul, "ExplicitTransposeMatMulInputs callback must be called for matmul node");
         if (matmul->get_transpose_b()) {
-            std::vector<size_t> transposed_layout(b_shape.size());
+            std::vector<size_t> transposed_layout(n->get_input_partial_shape(1).size());
             std::iota(transposed_layout.begin(), transposed_layout.end(), 0);
             std::swap(*transposed_layout.rbegin(), *(transposed_layout.rbegin() + 1));
             layouts[1] = std::move(transposed_layout);
