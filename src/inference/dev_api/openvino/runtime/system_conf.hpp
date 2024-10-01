@@ -81,7 +81,7 @@ OPENVINO_RUNTIME_API bool with_cpu_x86_sse42();
  * @ingroup    ov_dev_api_system_conf
  * @return     `True` is ARM NEON FP16 instructions are available, `false` otherwise
  */
-OPENVINO_RUNTIME_API bool with_cpu_arm_fp16();
+OPENVINO_RUNTIME_API bool with_cpu_neon_fp16();
 
 /**
  * @brief      Checks whether CPU supports AVX capability
