@@ -5,6 +5,7 @@
 #include "impls/onednn/utils.hpp"
 #include "lstm_seq_inst.h"
 #include "primitive_onednn_base.h"
+#include "lstm_seq_onednn.hpp"
 #include "impls/registry/implementation_map.hpp"
 
 #include "kernel_selector_common.h"
@@ -58,7 +59,7 @@ protected:
         }
 
         {
-            int i = 4;
+            int i = 3;
             auto& input = instance.input_memory(i);
             auto offset = onednn::get_offset(instance.get_input_layout(i),
                                              _pd.dnnl::primitive_desc_base::weights_desc(0));
@@ -67,7 +68,7 @@ protected:
         }
 
         {
-            int i = 5;
+            int i = 4;
             auto& input = instance.input_memory(i);
             auto offset = onednn::get_offset(instance.get_input_layout(i),
                                              _pd.dnnl::primitive_desc_base::weights_desc(1));
@@ -76,7 +77,7 @@ protected:
         }
 
         {//bias
-            int i = 6;
+            int i = 5;
             auto& input = instance.input_memory(i);
             auto offset = onednn::get_offset(instance.get_input_layout(i),
                                              _pd.dnnl::primitive_desc_base::weights_desc(2));
@@ -107,7 +108,29 @@ protected:
         return args;
     }
 
-    static std::shared_ptr<dnnl::lstm_forward::primitive_desc> get_lstm_primitive_descriptor(const kernel_impl_params& impl_params, const cldnn::engine& engine,
+    static cldnn::layout get_reorder_layout(const kernel_impl_params& impl_params, size_t layout_nr) {
+        auto weights_shape = impl_params.get_input_layout(layout_nr).get_shape();
+        auto target_weights_layout = impl_params.get_input_layout(layout_nr);
+        target_weights_layout.format = cldnn::format::bfzyx;
+        auto layout = target_weights_layout.clone_with_other_shape(ov::Shape{weights_shape[0], weights_shape[1], 1, weights_shape[2], weights_shape[3]});
+        return layout;
+    }
+
+    static std::shared_ptr<WeightsReorderParams> get_weights_reorder(const kernel_impl_params& impl_params, const dnnl::primitive_desc& pd) {
+        auto layout_W = get_reorder_layout(impl_params, 3);
+        auto W_desc = onednn::layout_to_memory_desc(layout_W);
+        auto layout_R = get_reorder_layout(impl_params, 4);
+        auto R_desc = onednn::layout_to_memory_desc(layout_W);
+        auto grouped_weights = format::is_grouped(layout_W.format);
+
+        return std::make_shared<WeightsReorderParamsOneDNN>(layout_W,
+                                                            layout_R,
+                                                            W_desc,
+                                                            R_desc,
+                                                            false,
+                                                            grouped_weights);
+    }
+    static std::shared_ptr<dnnl::lstm_forward::primitive_desc> get_lstm_primitive_descriptor(const kernel_impl_params& impl_params, cldnn::engine& engine,
                                                                                            const dnnl::primitive_attr& attr, int direction) {
         auto prim = impl_params.typed_desc<lstm_seq>();
         auto initial_shape = impl_params.get_input_layout(1).get_shape();
@@ -118,10 +141,22 @@ protected:
         auto initial_hidden_shape_mod = impl_params.get_input_layout(1).get_shape();
         initial_hidden_shape_mod = { 1, 1, initial_hidden_shape_mod[0], initial_hidden_shape_mod[2] };
         auto initial_hidden =  onednn::layout_to_memory_desc(impl_params.get_input_layout(1).clone_with_other_shape(initial_hidden_shape_mod));
-        auto initial_cell =  onednn::layout_to_memory_desc(impl_params.get_input_layout(2));
-        auto W_md = onednn::layout_to_memory_desc(impl_params.get_input_layout(3));
-        auto R_md = onednn::layout_to_memory_desc(impl_params.get_input_layout(4));
-        auto B_md = onednn::layout_to_memory_desc(impl_params.get_input_layout(5));
+        auto initial_cell =  onednn::layout_to_memory_desc(impl_params.get_input_layout(2).clone_with_other_shape(initial_hidden_shape_mod));
+        auto W_shape_mod = impl_params.get_input_layout(3).get_shape();
+        W_shape_mod = {1, 1, W_shape_mod[2], 4, W_shape_mod[1]/4};
+        auto w_layout = impl_params.get_input_layout(3).clone_with_other_shape(W_shape_mod);
+        w_layout.format = cldnn::format::bfzyx;
+        auto W_md = onednn::layout_to_memory_desc(w_layout);
+        auto R_shape_mod = impl_params.get_input_layout(4).get_shape();
+        R_shape_mod = {1, 1, R_shape_mod[2], 4, R_shape_mod[1]/4};
+        auto r_layout = impl_params.get_input_layout(4).clone_with_other_shape(R_shape_mod);
+        r_layout.format = cldnn::format::bfzyx;
+        auto R_md = onednn::layout_to_memory_desc(r_layout);
+        auto B_shape_mod = impl_params.get_input_layout(5).get_shape();
+        B_shape_mod = {1, 1, 4, B_shape_mod[1]/4};
+        auto b_layout = impl_params.get_input_layout(5).clone_with_other_shape(B_shape_mod);
+        b_layout.format = cldnn::format::bfyx;
+        auto B_md = onednn::layout_to_memory_desc(b_layout);
         auto out_shape = impl_params.get_output_layout().get_shape();
         out_shape = {out_shape[2], out_shape[0], out_shape[3], 1};
         auto output_md = onednn::layout_to_memory_desc(impl_params.get_output_layout().clone_with_other_shape(out_shape), dnnl::memory::format_tag::abc);
@@ -205,60 +240,15 @@ public:
             auto attr = impl_params.attrs_onednn;
             auto direction = arg.direction();
             auto prim_desc = get_lstm_primitive_descriptor(impl_params, engine, *attr, direction);
-            return cldnn::make_unique<lstm_seq_onednn>(engine, config, attr, *prim_desc);
+            return cldnn::make_unique<lstm_seq_onednn>(engine, config, attr, *prim_desc, get_weights_reorder(impl_params, *prim_desc));
     }
 };
 
-namespace detail {
-
-attach_lstm_seq_onednn::attach_lstm_seq_onednn() {
-    std::vector<data_types> dt = {
-        data_types::f32,
-        data_types::f16,
-        data_types::u8,
-        data_types::i8,
-        data_types::i32
-    };
-    std::vector<format::type> fmt = {
-        format::bfyx,
-        format::bfzyx,
-        format::byxf,
-        format::bzyxf,
-        format::b_fs_yx_fsv2,
-        format::b_fs_zyx_fsv2,
-        format::b_fs_yx_fsv4,
-        format::b_fs_zyx_fsv4,
-        format::b_fs_yx_fsv8,
-        format::b_fs_zyx_fsv8,
-        format::b_fs_yx_fsv16,
-        format::b_fs_zyx_fsv16,
-        format::b_fs_zyx_fsv32,
-        format::b_fs_yx_fsv32,
-        format::bs_fs_yx_bsv16_fsv16,
-        format::bs_fs_zyx_bsv16_fsv16,
-        format::bs_fs_yx_bsv16_fsv32,
-        format::bs_fs_zyx_bsv16_fsv32,
-        format::bs_fs_yx_bsv32_fsv16,
-        format::bs_fs_zyx_bsv32_fsv16,
-        format::bs_fs_yx_bsv32_fsv32,
-        format::bs_fs_zyx_bsv32_fsv32,
-        format::bs_fs_yx_bsv4_fsv4,
-        format::bs_fs_yx_bsv8_fsv4,
-        format::bs_fs_yx_bsv16_fsv8,
-        format::bs_fs_yx_bsv16_fsv4,
-        format::bs_fs_yx_bsv16_fsv2,
-        format::bs_fs_zyx_bsv8_fsv4,
-        format::bs_fs_zyx_bsv16_fsv8,
-        format::bs_fs_zyx_bsv16_fsv4,
-        format::bs_fs_zyx_bsv16_fsv2,
-        format::bs_fs_yx_bsv8_fsv2,
-        format::bs_fs_zyx_bsv8_fsv2,
-        format::bs_fs_yx_bsv4_fsv2,
-    };
-    implementation_map<lstm_seq>::add(impl_types::onednn, lstm_seq_onednn::create, dt, fmt);
+std::unique_ptr<primitive_impl> LSTMSeqImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const  {
+    assert(node.is_type<lstm_seq>());
+    return onednn::lstm_seq_onednn::create(static_cast<const lstm_seq_node&>(node), params);
 }
 
-}  // namespace detail
 }  // namespace onednn
 }  // namespace cldnn
 

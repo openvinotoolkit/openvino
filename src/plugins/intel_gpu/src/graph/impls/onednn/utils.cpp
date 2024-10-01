@@ -151,6 +151,7 @@ std::vector<std::pair<cldnn::format, dnnl::memory::format_tag>> format_map = {
         { cldnn::format::os_is_yx_isv16_osv16,  dnnl::memory::format_tag::OIhw16i16o },
         { cldnn::format::os_is_zyx_isv16_osv16,  dnnl::memory::format_tag::OIdhw16i16o },
         { cldnn::format::is_os_zyx_isv16_osv16,  dnnl::memory::format_tag::IOdhw16i16o },
+        { cldnn::format::is_os_yx_isv16_osv16,  dnnl::memory::format_tag::IOhw16i16o },
 
         { cldnn::format::g_os_is_zyx_isv16_osv16,  dnnl::memory::format_tag::gIOdhw16i16o },
 
@@ -450,6 +451,7 @@ dnnl::algorithm convert_activation_func(cldnn::activation_func func) {
         case cldnn::activation_func::relu: return dnnl::algorithm::eltwise_relu;
         case cldnn::activation_func::relu_negative_slope: return dnnl::algorithm::eltwise_relu;
         case cldnn::activation_func::gelu: return dnnl::algorithm::eltwise_gelu_erf;
+        case cldnn::activation_func::gelu_tanh: return dnnl::algorithm::eltwise_gelu_tanh;
         case cldnn::activation_func::elu: return dnnl::algorithm::eltwise_elu;
         case cldnn::activation_func::mish: return dnnl::algorithm::eltwise_mish;
         case cldnn::activation_func::swish: return dnnl::algorithm::eltwise_swish;
@@ -602,6 +604,58 @@ bool keep_weights_reorder_shape_consistent(cldnn::layout& layout, const dnnl::me
     } else {
         return false;
     }
+}
+
+size_t get_post_ops_count(const program_node& node) {
+    size_t onednn_post_ops_count = 0;
+    for (auto& fo : node.get_fused_primitives()) {
+       onednn_post_ops_count += fo.f_param->ops_count();
+    }
+
+    return onednn_post_ops_count;
+}
+
+bool is_supported_post_ops(const program_node& node) {
+    if (get_post_ops_count(node) > 32) {
+        return false;
+    }
+
+    for (auto& fo : node.get_fused_primitives()) {
+        if (fo.is_type<activation>()) {
+            // Some activations aren't implemented in oneDNN
+            auto activation_prim = fo.typed_desc<activation>();
+            if (activation_prim->activation_function == activation_func::negative ||
+                activation_prim->activation_function == activation_func::negation ||
+                activation_prim->activation_function == activation_func::sign)
+                return false;
+        }
+    }
+
+    return true;
+}
+
+bool is_supported_pad(const layout& layout) {
+    if (!layout.data_padding)
+        return true;
+
+    const auto& pad = layout.data_padding;
+    // Check spatial padding
+    bool no_spatial_padding = true;
+    auto spatial_rank = layout.get_spatial_rank();
+    for (size_t i = 0; i < spatial_rank; ++i) {
+        no_spatial_padding &= (pad._lower_size[2 + i] == 0);
+        no_spatial_padding &= (pad._upper_size[2 + i] == 0);
+    }
+
+    // Onednn supports outer padding of batch axis (first element offset) if its format is 'bxxx'
+    bool no_batch_padding = true;
+    auto fmt = layout.format;
+    if (format::is_multi_blocked(fmt) || fmt.dims_order()[0] != 0 || fmt.dims_order()[0] != 0) {
+        no_batch_padding &= (pad._lower_size[0] == 0);
+        no_batch_padding &= (pad._upper_size[0] == 0);
+    }
+
+    return (no_spatial_padding && no_batch_padding);
 }
 
 }  // namespace onednn

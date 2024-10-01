@@ -480,6 +480,17 @@ bool crop_in_place_optimization::match(const program_node& node,
         // TODO: Need to allow optimization for gemm user
         if (node.is_dynamic() && (user->is_type<convolution>() || user->is_type<gemm>()))
             return false;
+        // For static shape, gemm ref kernel is selected if there is padding on the feature, x, or y axes.
+        // In such cases, do not optimize out this crop to use the opt kernel.
+        // TODO: Modify gemm_tiled_opt kernel to support padding even in static shape.
+        if ((!node.is_dynamic() || is_runtime) && user->is_type<gemm>() &&
+            (user->get_dependency_index(node) == 0 || user->get_dependency_index(node) == 1)) {
+            if (crop_params.input_offsets[0].feature[0] != 0 ||
+                crop_params.input_offsets[0].spatial[0] != 0 ||
+                crop_params.input_offsets[0].spatial[1] != 0) {
+                return false;
+            }
+        }
         if (user->is_type<reshape>()) {
             // runtime buffer fusing is only handled when there is only one reshape user
             if (node.is_dynamic() && node.get_users().size() != 1)

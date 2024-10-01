@@ -93,6 +93,10 @@ struct kernel_impl_params final {
     ~kernel_impl_params() = default;
 
     const layout& get_input_layout(size_t idx = 0) const {
+        if (input_layouts.size() <= idx) {
+            int f = 99;
+            std::cout << f << std::endl;
+        }
         OPENVINO_ASSERT(input_layouts.size() > idx,
                         "The size of input layouts must be greater than the requested index: ",
                         "Requested index is ", idx, ", ",
