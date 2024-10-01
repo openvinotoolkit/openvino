@@ -21,6 +21,12 @@ add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 add_library(openvino::reference ALIAS ${TARGET_NAME})
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME reference)
 
+if(ENABLE_AVX2)
+    ov_avx2_optimization_flags(avx2_flags)
+    target_compile_options(${TARGET_NAME} PRIVATE "${avx2_flags}")
+    target_compile_definitions(${TARGET_NAME} PRIVATE HAVE_AVX2)
+endif()
+
 ov_build_target_faster(${TARGET_NAME}
     UNITY
     PCH PRIVATE "src/precomp.hpp")
