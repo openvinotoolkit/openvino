@@ -944,7 +944,6 @@ void serialize_rt_info(pugi::xml_node& root, const std::string& name, const ov::
     }
 }
 
-#if 0
 bool append_custom_info(pugi::xml_node& node, const std::string& name, const ov::Any& data) {
     auto custom_node = node.append_child("custom");
     custom_node.append_attribute("name").set_value(name.c_str());
@@ -965,7 +964,6 @@ bool append_custom_info(pugi::xml_node& node, const std::string& name, const ov:
         node.remove_child(custom_node);
     return has_value;
 }
-#endif
 
 void ngfunction_2_ir(pugi::xml_node& netXml,
                      const ov::Model& model,
