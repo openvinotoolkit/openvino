@@ -1279,10 +1279,20 @@ public:
         auto startCounter = m_prepareCounter.load();
 
         // Allow nested parallel execution.
-        auto origin_nested_levels = omp_get_max_active_levels();
-        if (origin_nested_levels < 2) {
-            omp_set_max_active_levels(2);
-        }
+        int origin_nested_levels = 2;
+        /* MSVC still supports omp 2.0 only */
+#        if defined(_MSC_VER) && !defined(__INTEL_COMPILER)
+             origin_nested_levels = omp_get_nested();
+             if (origin_nested_levels < 2) {
+                 omp_set_nested(2);
+             }
+#        else  // defined(_MSC_VER) && !defined(__INTEL_COMPILER)
+             origin_nested_levels = omp_get_max_active_levels();
+             if (origin_nested_levels < 2) {
+                 omp_set_max_active_levels(2);
+             }
+#        endif
+
         #pragma omp parallel
         #pragma omp sections
         {
@@ -1295,8 +1305,13 @@ public:
                 updateShapes(startCounter, stopIndx);
             }
         }
+
         if (origin_nested_levels != 2) {
-            omp_set_max_active_levels(origin_nested_levels);
+#        if defined(_MSC_VER) && !defined(__INTEL_COMPILER)
+             omp_set_nested(origin_nested_levels);
+#        else  // defined(_MSC_VER) && !defined(__INTEL_COMPILER)
+             omp_set_max_active_levels(origin_nested_levels);
+#        endif
         }
     }
 };
