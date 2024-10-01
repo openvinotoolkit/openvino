@@ -201,7 +201,7 @@ TEST_F(TransformationTestsF, SplitFCTest_int4_weight) {
     }
 }
 
-#if(defined OPENVINO_ARCH_ARM && defined(__linux__))
+#if (defined OPENVINO_ARCH_ARM && defined(__linux__))
 // Ticket: 153166
 TEST_F(TransformationTestsF, DISABLED_SplitFCTest_int4_weight_reshape) {
 #else
