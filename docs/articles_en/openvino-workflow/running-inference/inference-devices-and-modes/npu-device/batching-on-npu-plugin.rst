@@ -3,9 +3,9 @@ NPU Plugin Batching
 
 
 .. meta::
-   :description: The Bathing is handled on the NPU plugin in OpenVINO™
-                 in two different modes, concurrency-based inferences
-                 or handled by the compiler.
+   :description: OpenVINO™ NPU plugin supports batching
+                 in two different modes: concurrency-based inference and
+                 compiler-handled execution.
 
 
 The NPU plugin will first check if the following conditions are met:
