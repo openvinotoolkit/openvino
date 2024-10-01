@@ -576,8 +576,6 @@ ov::SoPtr<ov::ICompiledModel> ov::npuw::CompiledModel::compile_submodel(const st
     // NOTE(dm): Not sure if it is required for the NPUW plugin, but likely it is
     auto& device_config = m_meta_devices[device];
 
-    // FIXME: repeated blocks currently may have different model name from run to run - need to figure out how to fix
-    // them if we enable cache_dir
     if (!m_cache_dir.empty() &&
         ov::util::contains(core->get_property(device, ov::supported_properties), ov::device::capabilities) &&
         ov::util::contains(core->get_property(device, ov::device::capabilities),
