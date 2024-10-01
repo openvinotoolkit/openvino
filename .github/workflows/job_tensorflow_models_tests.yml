@@ -97,7 +97,7 @@ jobs:
           python3 -m pip install ${INSTALL_DIR}/openvino_tokenizers-*
 
       - name: Install TF Models tests requirements
-        run: python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/tensorflow/requirements.txt
+        run: python3 -m pip install -r ${INSTALL_TEST_DIR}/requirements_tensorflow
 
       - name: TensorFlow Models Tests - TF FE
         run: |
