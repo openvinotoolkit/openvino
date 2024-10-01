@@ -8,10 +8,10 @@ NPU Plugin Batching
                  compiler-handled execution.
 
 
-The NPU plugin will first check if the following conditions are met:
-* Batch size is on the first axis.
+First, the NPU plugin checks if the following conditions are met:
+* The batch size is on the first axis.
 * All inputs and outputs have the same batch size.
-* Model does not contain states.
+* The model does not contain states.
 
 If the **conditions are met**, the NPU plugin attempts to compile and execute the original model with batch_size forced to 1. This approach is due to current compiler limitations and ongoing work to improve performance for batch_size greater than one.
 If the compilation is successful, the plugin detects a difference in batch size between the original model layout
