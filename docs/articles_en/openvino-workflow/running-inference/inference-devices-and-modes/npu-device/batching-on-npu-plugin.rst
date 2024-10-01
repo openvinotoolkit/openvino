@@ -7,6 +7,7 @@ NPU Plugin Batching
                  in two different modes: concurrency-based inference and
                  compiler-handled execution.
 
+OpenVINO™ NPU plugin supports batching in two different modes: concurrency-based inference and compiler-handled execution.
 
 First, the NPU plugin checks if the following conditions are met:
 * The batch size is on the first axis.
