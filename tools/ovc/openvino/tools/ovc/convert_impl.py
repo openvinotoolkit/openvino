@@ -12,7 +12,6 @@ from collections import OrderedDict
 from pathlib import Path
 from typing import Iterable, Callable
 
-
 try:
     import openvino_telemetry as tm
     from openvino_telemetry.backend import backend_ga4
@@ -34,8 +33,10 @@ from openvino.tools.ovc.utils import check_values_equal
 from openvino.tools.ovc.logger import init_logger
 from openvino.tools.ovc.telemetry_utils import send_params_info, send_conversion_result, \
     init_mo_telemetry
-from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder, extract_input_info_from_example
+from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder, \
+    extract_input_info_from_example
 from openvino.tools.ovc.moc_frontend.paddle_frontend_utils import paddle_frontend_converter
+
 try:
     from openvino.tools.ovc.moc_frontend.jax_frontend_utils import get_jax_decoder
 except:
@@ -205,18 +206,6 @@ def check_model_object(argv):
     if 'tensorflow' in sys.modules:
         if tf_frontend_with_python_bindings_installed and extract_model_graph(argv):
             return "tf"
-    if 'torch' in sys.modules:
-        import torch
-        if isinstance(model, (torch.nn.Module, torch.jit.ScriptFunction)) or (hasattr(torch, "export") and isinstance(model, (torch.export.ExportedProgram))):
-            return "pytorch"
-        try:
-            from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
-            from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
-
-            if isinstance(model, (TorchScriptPythonDecoder, TorchFXPythonDecoder)):
-                return "pytorch"
-        except Exception as e:
-            pass
 
     import io
     # FIXME: Consuming any io.BytesIO object as an ONNX model is too dengerous and
@@ -232,7 +221,7 @@ def check_model_object(argv):
                                                                     paddle.fluid.dygraph.layers.Layer) or isinstance(
             model, paddle.fluid.executor.Executor):
             return "paddle"
-        
+
     if 'jax' in sys.modules:
         import jax
         if isinstance(model, (jax.core.Jaxpr, jax.core.ClosedJaxpr)):
@@ -442,19 +431,19 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
             args['input_model'] = args['input_model'][0]
     try:
         model_framework = None
-        inp_model_is_object = input_model_is_object(args['input_model']) if python_api_used else False
 
+        if check_pytorch_model(args):
+            example_inputs = None
+            if 'example_input' in args and args['example_input'] is not None:
+                example_inputs = args['example_input']
+            elif 'example_inputs' in args:
+                raise AssertionError(
+                    "'example_inputs' argument is not recognized, maybe you meant to provide 'example_input'?")
+            get_pytorch_decoder(args['input_model'], example_inputs, args)
+
+        inp_model_is_object = input_model_is_object(args['input_model']) if python_api_used else False
         if inp_model_is_object:
             model_framework = check_model_object(args)
-            if model_framework == "pytorch":
-                example_inputs = None
-                if 'example_input' in args and args['example_input'] is not None:
-                    example_inputs = args['example_input']
-                elif 'example_inputs' in args:
-                    raise AssertionError(
-                        "'example_inputs' argument is not recognized, maybe you meant to provide 'example_input'?")
-
-                get_pytorch_decoder(args['input_model'], example_inputs, args)
             if model_framework == "paddle":
                 example_inputs = None
                 if 'example_input' in args and args['example_input'] is not None:
@@ -475,7 +464,6 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
                     get_jax_decoder(args['input_model'], args)
                 else:
                     raise Error("JAX Frontend is not available.")
-                
 
         argv = pack_params_to_args_namespace(args, cli_parser, python_api_used)
         argv.framework = model_framework

@@ -2,14 +2,38 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
-import sys
-
 import numpy as np
+import pathlib
+import sys
 # pylint: disable=no-name-in-module,import-error
 from openvino.runtime import Tensor, PartialShape
-from openvino.tools.ovc.error import Error
 from openvino.tools.ovc.cli_parser import single_input_to_input_cut_info, _InputCutInfo
+from openvino.tools.ovc.error import Error
 
+
+def check_pytorch_model(argv):
+    model = argv['input_model']
+    if 'torch' in sys.modules:
+        import torch
+        if isinstance(model, (torch.nn.Module, torch.jit.ScriptFunction)) or (
+                hasattr(torch, "export") and isinstance(model, (torch.export.ExportedProgram))):
+            return True
+        try:
+            from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+            from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+
+            if isinstance(model, (TorchScriptPythonDecoder, TorchFXPythonDecoder)):
+                return True
+        except Exception as e:
+            pass
+        try:
+            if isinstance(model, (str, pathlib.Path)):
+                torch.jit.load(model)
+                return True
+        except Exception as e:
+            pass
+
+    return False
 
 
 def get_pytorch_decoder(model, example_inputs, args):
@@ -21,7 +45,7 @@ def get_pytorch_decoder(model, example_inputs, args):
     except Exception as e:
         log.error("PyTorch frontend loading failed")
         raise e
-    
+
     def extract_module_extensions(args):
         extensions = args.get('extension', []) or []
         if not isinstance(extensions, (list, tuple)):
@@ -44,6 +68,19 @@ def get_pytorch_decoder(model, example_inputs, args):
                 "NNCF models produced by nncf<2.6 are not supported directly. Please upgrade nncf or export to ONNX first.")
     inputs = prepare_torch_inputs(example_inputs)
     if not isinstance(model, (TorchScriptPythonDecoder, TorchFXPythonDecoder)):
+        if isinstance(model, (str, pathlib.Path)):
+            # attempt to load scripted model
+            try:
+                model = torch.jit.load(model)
+            except:
+                pass
+        if hasattr(torch, "export") and isinstance(model, (str, pathlib.Path)):
+            # attempt to load exported model
+            try:
+                model = torch.export.load(model)
+            except:
+                pass
+
         if hasattr(torch, "export") and isinstance(model, (torch.export.ExportedProgram)):
             from packaging import version
             if version.parse(torch.__version__) >= version.parse("2.2"):
