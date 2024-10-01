@@ -73,7 +73,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-16-cores-32gb
+    runs-on: ${{ matrix.RUNNER}}
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.sanitizers }}
@@ -87,10 +87,13 @@ jobs:
         include:
           - SANITIZER: 'AddressAndLeak'
             SANITIZER_CMAKE_OPTION: '-DENABLE_SANITIZER=ON'
+            RUNNER: aks-linux-16-cores-32gb 
           - SANITIZER: 'UndefinedBehavior'
             SANITIZER_CMAKE_OPTION: '-DENABLE_UB_SANITIZER=ON'
+            RUNNER: aks-linux-16-cores-32gb
           - SANITIZER: 'Thread'
             SANITIZER_CMAKE_OPTION: '-DENABLE_THREAD_SANITIZER=ON'
+            RUNNER: aks-linux-16-cores-32gb
     env:
       CMAKE_BUILD_TYPE: 'RelWithDebInfo'
       CMAKE_GENERATOR: 'Ninja'
@@ -225,7 +228,7 @@ jobs:
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
     needs: [Docker, Build]
     timeout-minutes: 100
-    runs-on: 'aks-linux-16-cores-32gb'
+    runs-on: ${{ matrix.RUNNER}}
     container:
       image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04'
     defaults:
@@ -237,8 +240,11 @@ jobs:
       matrix:
         include:
           - SANITIZER: 'AddressAndLeak'
+            RUNNER: aks-linux-16-cores-32gb 
           - SANITIZER: 'UndefinedBehavior'
+            RUNNER: aks-linux-16-cores-32gb 
           - SANITIZER: 'Thread'
+            RUNNER: aks-linux-16-cores-32gb 
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
