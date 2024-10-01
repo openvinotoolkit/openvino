@@ -48,6 +48,180 @@ auto outputs_are_not_broadcastable(const std::shared_ptr<const Node>& node) -> b
 }
 }  // namespace
 
+void fill_empty_output_names(const Output<Node>& target_output_node, const Output<Node>& replacement_output_node) {
+    auto& out_tensor = target_output_node.get_tensor();
+    if (!replacement_output_node.get_names().empty()) {
+        out_tensor.set_names(replacement_output_node.get_names());
+    }
+}
+
+
+std::shared_ptr<op::Subgraph> wrap_nodes_as_subgraph(const NodeVector& ordered_ops) {
+    std::string fused_names;
+    ov::OutputVector subgraph_inputs;
+    ov::ParameterVector body_parameters;
+    ov::ResultVector body_results;
+    std::vector<std::set<Input<Node>>> subgraph_result_inputs;
+    std::unordered_set<std::shared_ptr<ov::Node>> body_ops_set(ordered_ops.begin(), ordered_ops.end());
+    std::unordered_map<std::shared_ptr<ov::Node>, std::shared_ptr<ov::opset1::Parameter>> parent2parameter;
+
+    auto create_body_inputs = [&](const std::shared_ptr<ov::Node>& node) -> void {
+        for (size_t i = 0; i < node->get_input_size(); ++i) {
+            const auto input = node->input(i);
+            const auto source_output = input.get_source_output();
+            const auto parent = source_output.get_node_shared_ptr();
+            const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(parent);
+            if (constant && (ov::shape_size(input.get_shape()) == 1 ||
+                             ov::is_type<ov::op::v0::FakeQuantize>(node) ||
+                             constant_input_should_be_inside_body(node))) {
+                // If Constant has one or several consumers inside the body - it would be placed there automatically
+                // based on topological sorting
+                // However, if Constant has several consumers, and NOT all of them are inside the body, we should
+                // make a copy of the Constant
+                // For example, this case is especially valid for Transposes nodes
+                //              (several Transposes have the same order so there can be the common Constant with this order)
+
+                const auto& consumers = constant->get_users();
+                bool all_consumers_are_inside = std::all_of(consumers.begin(), consumers.end(),
+                                                            [&body_ops_set](const std::shared_ptr<ov::Node>& n) {
+                                                                return body_ops_set.count(n) != 0;
+                                                            });
+                if (!all_consumers_are_inside) {
+                    const auto constant_copy = constant->clone_with_new_inputs({});
+                    input.replace_source_output(constant_copy);
+                }
+            } else if (body_ops_set.count(parent) == 0) {
+                // If subgraph has two inputs from the same parent, we need to introduce only one Parameter
+                if (parent2parameter.count(parent) == 0) {
+                    auto parameter = std::make_shared<ov::opset1::Parameter>(input.get_element_type(),
+                                                                             input.get_partial_shape());
+                    parameter->set_friendly_name(parent->get_friendly_name());
+                    parent2parameter[parent] = parameter;
+                    body_parameters.push_back(parameter);
+                    subgraph_inputs.push_back(source_output);
+                }
+                node->input(i).replace_source_output(parent2parameter[parent]);
+            }
+        }
+    };
+
+    auto create_body_outputs = [&](const std::shared_ptr<ov::Node>& node) -> void {
+        for (size_t i = 0; i < node->get_output_size(); ++i) {
+            const auto output = node->output(i);
+            const auto& target_inputs = output.get_target_inputs();
+            std::set<Input<Node>> external_consumers;
+            std::copy_if(target_inputs.begin(), target_inputs.end(),
+                         std::inserter(external_consumers, external_consumers.end()),
+                         [&body_ops_set](const Input<Node>& in){
+                             return body_ops_set.count(in.get_node()->shared_from_this()) == 0;
+                        });
+            if (!external_consumers.empty()) {
+                body_results.push_back(std::make_shared<ov::opset1::Result>(output));
+                subgraph_result_inputs.emplace_back(external_consumers);
+            }
+        }
+    };
+
+
+    for (const auto& op : ordered_ops) {
+        create_body_inputs(op);
+        create_body_outputs(op);
+        op->clear_control_dependencies();
+        fused_names += op->get_friendly_name() + ",";
+    }
+
+    const auto new_friendly_name = ordered_ops.back()->get_friendly_name();
+    auto body = create_body(new_friendly_name, body_results, body_parameters);
+    auto subgraph = std::make_shared<op::Subgraph>(subgraph_inputs, body);
+    // Copy runtime info from last node to subgraph - to copy topological order
+    copy_runtime_info(ordered_ops.back(), subgraph);
+    subgraph->set_friendly_name(new_friendly_name);
+
+    for (size_t i = 0; i < subgraph->get_output_size(); ++i) {
+        for (const auto& target_input : subgraph_result_inputs[i]) {
+            target_input.replace_source_output(subgraph->output(i));
+        }
+    }
+    update_out_tensor_name(subgraph);
+
+    subgraph->validate_and_infer_types();
+
+    auto act_body = subgraph->body_ptr();
+    for (size_t i = 0; i < act_body->get_parameters().size(); i++) {
+        act_body->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
+    }
+    subgraph->get_rt_info()["originalLayersNames"] = fused_names;
+    ov::snippets::utils::update_out_tensor_name(subgraph);
+    return subgraph;
+}
+
+
+
+
+std::shared_ptr<op::Subgraph> wrap_node_as_subgraph(const std::shared_ptr<ov::Node>& node) {
+    ov::ParameterVector body_parameters;
+    ov::OutputVector body_inputs;
+
+    ov::OutputVector subgraph_inputs;
+
+    for (const auto& input : node->input_values()) {
+        if (ov::is_type<ov::opset1::Constant>(input.get_node_shared_ptr()) &&
+            (ov::shape_size(input.get_shape()) == 1 ||
+             ov::is_type<ov::op::v0::FakeQuantize>(node) ||
+             constant_input_should_be_inside_body(node))) {
+            body_inputs.push_back(input);
+        } else {
+            auto parameter = std::make_shared<ov::opset1::Parameter>(input.get_element_type(), input.get_partial_shape());
+            body_parameters.push_back(parameter);
+            body_parameters.back()->set_friendly_name(input.get_node()->get_friendly_name());
+            body_inputs.push_back(parameter->output(0));
+
+            subgraph_inputs.push_back(input);
+        }
+    }
+
+    auto body_node = node->clone_with_new_inputs(body_inputs);
+    body_node->set_friendly_name(node->get_friendly_name());
+    for (size_t i = 0; i < node->get_output_size(); i++) {
+        fill_empty_output_names(body_node->output(i), node->output(i));
+    }
+
+    if (node->get_output_size() != body_node->get_output_size()) {
+        OPENVINO_THROW("original node outputs size and extracted subgraph node outputs size doesn't much");
+    }
+
+    ov::ResultVector body_results;
+    for (const auto& output : node->outputs()) {
+        body_results.push_back(std::make_shared<ov::opset1::Result>(body_node->output(output.get_index())));
+    }
+
+    auto body = create_body(node->get_friendly_name(), body_results, body_parameters);
+    auto subgraph = build_subgraph(node, subgraph_inputs, body);
+
+    size_t hidden_data_count = 0lu;
+    if (auto fq_node = ov::as_type_ptr<ov::op::v0::FakeQuantize>(node)) {
+        hidden_data_count += utils::get_non_scalar_constant_count_for_fq(fq_node);
+    }
+    subgraph->set_virtual_port_count(hidden_data_count);
+
+    for (size_t i = 0; i < body->get_parameters().size(); i++) {
+        body->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
+    }
+
+    if (subgraph->get_output_size() != body->get_results().size()) {
+        OPENVINO_THROW("newly create subgraph doesn't much number of original node results");
+    }
+
+    return subgraph;
+}
+
+bool constant_input_should_be_inside_body(const std::shared_ptr<ov::Node>& node) {
+    return ov::is_type<ov::op::v1::Transpose>(node) ||
+           ov::is_type<ov::op::v1::Broadcast>(node) ||
+           ov::is_type<ov::op::v3::Broadcast>(node) ||
+           ov::is_type<ov::op::v1::Reshape>(node);
+}
+
 bool tokenize_node(const std::shared_ptr<ov::Node>& node, const SnippetsTokenization::Config& config) {
     const auto getFusedNames = [](const std::shared_ptr<Node>& n) -> std::string {
         auto rt_info = n->get_rt_info();
@@ -59,10 +233,8 @@ bool tokenize_node(const std::shared_ptr<ov::Node>& node, const SnippetsTokeniza
     };
 
     auto create_single_node_subgraph = [&](const std::shared_ptr<Node> &node) {
-        auto subgraph = op::Subgraph::wrap_node_as_subgraph(node);
+        auto subgraph = wrap_nodes_as_subgraph({node});
         subgraph->get_rt_info()["originalLayersNames"] = getFusedNames(node) + node->get_friendly_name();
-        ov::replace_node(node, subgraph);
-        op::update_out_tensor_name(subgraph);
     };
 
     auto abort = [&](const std::string& message) {
@@ -240,7 +412,7 @@ bool tokenize_node(const std::shared_ptr<ov::Node>& node, const SnippetsTokeniza
             if (ov::is_type<ov::opset1::Constant>(input_node) &&
                 (ov::shape_size(input_value.get_shape()) == 1 ||
                     ov::is_type<ov::op::v0::FakeQuantize>(node) ||
-                    op::Subgraph::constant_input_should_be_inside_body(node))) {
+                    constant_input_should_be_inside_body(node))) {
                 internal_inputs.push_back(input_node->output(0));
             } else {
                 external_inputs.push_back(input_value);
@@ -349,11 +521,11 @@ bool tokenize_node(const std::shared_ptr<ov::Node>& node, const SnippetsTokeniza
         return abort(message_reset);
     }
 
-    auto body = op::create_body(node->get_friendly_name(), body_results, body_parameters);
+    auto body = create_body(node->get_friendly_name(), body_results, body_parameters);
     for (size_t i = 0; i < body->get_parameters().size(); i++) {
         body->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
     }
-    auto subgraph = op::build_subgraph(node, external_inputs, body, subgraph_name);
+    auto subgraph = build_subgraph(node, external_inputs, body, subgraph_name);
     copy_runtime_info(replaced_nodes, subgraph);
     const auto& act_body = subgraph->body();
     for (size_t i = 0; i < act_body.get_parameters().size(); i++) {
@@ -372,7 +544,7 @@ bool tokenize_node(const std::shared_ptr<ov::Node>& node, const SnippetsTokeniza
             target_input.replace_source_output(subgraph->output(i));
         }
     }
-    op::update_out_tensor_name(subgraph);
+    update_out_tensor_name(subgraph);
 
     subgraph->validate_and_infer_types();
 

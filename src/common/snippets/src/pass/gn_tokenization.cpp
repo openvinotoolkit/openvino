@@ -8,6 +8,7 @@
 #include "snippets/itt.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/utils/utils.hpp"
+#include "snippets/utils/tokenization_utils.hpp"
 
 #include "openvino/core/rt_info.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -24,10 +25,7 @@ ov::snippets::pass::TokenizeGNSnippets::TokenizeGNSnippets() {
             GetSnippetsNodeType(group_norm_node) == SnippetsNodeType::SkippedByPlugin)
             return false;
 
-        auto subgraph = op::Subgraph::wrap_node_as_subgraph(group_norm_node);
-        subgraph->get_rt_info()["originalLayersNames"] = group_norm_node->get_friendly_name();
-        ov::replace_node(group_norm_node, subgraph);
-        op::update_out_tensor_name(subgraph);
+        auto subgraph = ov::snippets::utils::wrap_nodes_as_subgraph({group_norm_node});
 
         // Mark the Subgraph as Completed to not allow Snippets to include any nodes into the GN Subgraph in common Tokenization.
         // This is because GN has specific parallel domain(bacth * group_num), which maybe suboptimal to other part if tokenized as a big subgraph,

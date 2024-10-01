@@ -34,11 +34,11 @@ ov::snippets::pass::TokenizeMLPSnippets::TokenizeMLPSnippets(const SnippetsToken
             return false;
         }
 
-        NodeVector fused_nodes {last_matmul};
-        auto fuse_single_in_chain = [&fused_nodes](const std::shared_ptr<ov::Node> start) {
+        NodeVector ordered_ops {last_matmul, last_matmul->get_input_node_shared_ptr(1)};
+        auto fuse_single_in_chain = [&ordered_ops](const std::shared_ptr<ov::Node>& start) {
             auto in = start;
             while (TokenizeSnippets::AppropriateForSubgraph(in) && in->get_input_size() == 1) {
-                fused_nodes.push_back(in);
+                ordered_ops.push_back(in);
                 in = in->get_input_node_shared_ptr(0);
             }
             return in;
@@ -47,89 +47,30 @@ ov::snippets::pass::TokenizeMLPSnippets::TokenizeMLPSnippets(const SnippetsToken
         // Next node to be fused must have 2 inputs. Abort if not true
         if (!TokenizeSnippets::AppropriateForSubgraph(last_not_fused) || last_not_fused->get_input_size() != 2)
             return false;
-        fused_nodes.push_back(last_not_fused);
+        ordered_ops.push_back(last_not_fused);
 
         const auto left_not_fused = fuse_single_in_chain(last_not_fused->get_input_node_shared_ptr(0));
         const auto right_not_fused = fuse_single_in_chain(last_not_fused->get_input_node_shared_ptr(1));
         // Eltwise fusing chains must be interrupted by FullyConnected nodes
         if (!m.match(left_not_fused) || !m.match(right_not_fused))
             return false;
-        fused_nodes.push_back(left_not_fused);
-        fused_nodes.push_back(right_not_fused);
+        ordered_ops.push_back(right_not_fused);
+        ordered_ops.push_back(left_not_fused);
+        ordered_ops.push_back(right_not_fused->get_input_node_shared_ptr(1));
+        ordered_ops.push_back(left_not_fused->get_input_node_shared_ptr(1));
+        std::reverse(ordered_ops.begin(), ordered_ops.end());
 
+        for (auto op : ordered_ops)
+            std::cerr << op->get_friendly_name() << "\n";
+        std::cerr << "++++++++++++++++++++++++++++++++++++++++\n";
 
-        /* ====== Subgraph creation ======= */
-
-        ov::OutputVector body_inputs, subgraph_inputs;
-        ov::ParameterVector body_parameters;
-        ov::ResultVector body_results;
-        std::vector<std::set<Input<Node>>> subgraph_result_inputs;
-
-        auto create_body_inputs = [&](const std::shared_ptr<ov::Node>& node) -> void {
-            for (size_t i = 0; i < node->get_input_size(); ++i) {
-                const auto input = node->input(i);
-                const auto parent = input.get_source_output().get_node_shared_ptr();
-                if (std::find(ordered_ops.begin(), ordered_ops.end(), parent) == ordered_ops.end()) {
-                    auto parameter = std::make_shared<ov::opset1::Parameter>(input.get_element_type(), input.get_partial_shape());
-                    body_parameters.push_back(parameter);
-                    body_parameters.back()->set_friendly_name(input.get_node()->get_friendly_name());
-                    body_inputs.push_back(parameter->output(0));
-
-                    subgraph_inputs.push_back(input.get_source_output());
-
-                    node->input(i).replace_source_output(parameter);
-                }
-            }
-        };
-
-        for (const auto& op : ordered_ops) {
-            create_body_inputs(op);
-            op->clear_control_dependencies();
-            fused_names += op->get_friendly_name() + ",";
-        }
-
-        for (const auto& output : last_node->outputs()) {
-            subgraph_result_inputs.push_back(output.get_target_inputs());
-        }
-        for (const auto& output : last_node->outputs()) {
-            body_results.push_back(std::make_shared<ov::opset1::Result>(last_node->output(output.get_index())));
-        }
-
-        if (body_results.size() != subgraph_result_inputs.size()) {
-            OPENVINO_THROW("body results and node results size mismatch during subgraph collapse");
-        }
-
-        auto body = op::create_body(last_node->get_friendly_name(), body_results, body_parameters);
-        auto subgraph = std::make_shared<op::Subgraph>(subgraph_inputs, body);
-        // Copy runtime info from last node to subgraph - to copy topological order
-        copy_runtime_info(last_node, subgraph);
-        subgraph->set_friendly_name(last_node->get_friendly_name());
-
-        for (size_t i = 0; i < subgraph->get_output_size(); ++i) {
-            for (const auto& target_input : subgraph_result_inputs[i]) {
-                target_input.replace_source_output(subgraph->output(i));
-            }
-        }
-        op::update_out_tensor_name(subgraph);
-
-        subgraph->validate_and_infer_types();
-
-        auto act_body = subgraph->body_ptr();
-        for (size_t i = 0; i < act_body->get_parameters().size(); i++) {
-            act_body->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
-        }
-        subgraph->get_rt_info()["originalLayersNames"] = fused_names;
-        subgraph->set_virtual_port_count(hidden_virtual_ports_count);
-
-        // mark the Subgraph as Completed to not allow Snippets to include any nodes into the MHA Subgraph in common Tokenization
+        auto subgraph = utils::wrap_nodes_as_subgraph(ordered_ops);
+        ov::pass::Serialize(std::string("snsdebug_wrapped.xml"),
+                            std::string("snsdebug_wrapped.bin")).run_on_model(subgraph->body_ptr());
+        // todo: seems like we don't need to set this thing if subgraph is already complete
+        //subgraph->set_virtual_port_count(hidden_virtual_ports_count);
         SetSnippetsSubgraphType(subgraph, SnippetsSubgraphType::Completed);
-
-
-
-
-
-        ov::replace_node();
-
+        return true;
     };
 
     auto matcher = std::make_shared<ov::pass::pattern::Matcher>(fc_matmul, matcher_name);
