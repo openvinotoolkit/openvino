@@ -46,6 +46,14 @@ struct Subgraph {
     // Stores transformation history for weights which will be applied before inference
     std::vector<weights::LazyTensor> _transformations;
 
+    struct Gather {
+        // NB.: int64_t is strange but it is used by OV to refer to parameters
+        int64_t dst_idx = -1;
+        int64_t src_idx = -1;
+        int64_t idx_idx = -1;
+    };
+    Gather _host_gather;
+
     using Ref = std::reference_wrapper<Subgraph>;
 };
 

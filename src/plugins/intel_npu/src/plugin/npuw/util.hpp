@@ -51,6 +51,8 @@ void unpack(const ov::SoPtr<ov::ITensor>& from,
             const ov::SoPtr<ov::ITensor>& to,
             const UnpackOptions& unpack_options = UnpackOptions{true, 16, false});
 
+void gather(const ov::SoPtr<ov::ITensor>& src, const ov::SoPtr<ov::ITensor>& idx, const ov::SoPtr<ov::ITensor>& dst);
+
 void to_f32(const ov::Tensor& in, ov::Tensor& out);
 ov::Tensor to_f16(const ov::Tensor& t);
 ov::Tensor transpose(const ov::Tensor& t);
