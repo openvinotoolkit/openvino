@@ -5,7 +5,7 @@
 #include "ze_device.hpp"
 #include "ze_common.hpp"
 
-#include <level_zero/ze_api.h>
+#include <ze_api.h>
 #include <vector>
 #include <algorithm>
 #include <cassert>

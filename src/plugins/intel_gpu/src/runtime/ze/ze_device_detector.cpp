@@ -5,7 +5,7 @@
 #include "ze_device_detector.hpp"
 #include "ze_device.hpp"
 #include "ze_common.hpp"
-#include <level_zero/ze_api.h>
+#include <ze_api.h>
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "openvino/core/except.hpp"
 

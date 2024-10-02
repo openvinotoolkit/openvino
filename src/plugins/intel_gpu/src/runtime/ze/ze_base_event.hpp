@@ -5,7 +5,7 @@
 #pragma once
 
 #include "intel_gpu/runtime/event.hpp"
-#include <level_zero/ze_api.h>
+#include <ze_api.h>
 
 namespace cldnn {
 namespace ze {
