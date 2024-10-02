@@ -10,9 +10,7 @@
 #include <memory>
 
 #include "fake_quantize.h"
-#include "eltwise.h"
 #include "dnnl_extension_utils.h"
-#include "utils/bfloat16.hpp"
 #include "emitters/plugin/x64/jit_bf16_emitters.hpp"
 
 #include "cpu/x64/jit_generator.hpp"
@@ -29,52 +27,6 @@ using namespace dnnl::impl::cpu::x64;
 namespace ov {
 namespace intel_cpu {
 namespace node {
-namespace {
-
-struct MVNKey {
-    MVNAttrs mvnAttrs;
-    dnnl::primitive_attr attr;
-
-    size_t hash() const;
-    bool operator==(const MVNKey& rhs) const;
-};
-
-size_t MVNKey::hash() const {
-    using namespace dnnl::impl;
-    using namespace dnnl::impl::primitive_hashing;
-
-    size_t seed = 0;
-    seed = hash_combine(seed, mvnAttrs.initAcrossChannels_);
-    seed = hash_combine(seed, mvnAttrs.execAcrossChannels_);
-    seed = hash_combine(seed, mvnAttrs.normalizeVariance_);
-    seed = hash_combine(seed, mvnAttrs.epsValue_);
-    seed = hash_combine(seed, mvnAttrs.epsMode_);
-    seed = hash_combine(seed, mvnAttrs.src_prc.hash());
-    seed = hash_combine(seed, mvnAttrs.dst_prc.hash());
-    seed = hash_combine(seed, mvnAttrs.layout);
-    seed = hash_combine(seed, mvnAttrs.srcIsNHWC);
-    seed = hash_combine(seed, get_attr_hash(*attr.get()));
-    return seed;
-}
-
-bool MVNKey::operator==(const MVNKey& rhs) const {
-    bool retVal = true;
-    retVal = retVal &&
-             mvnAttrs.initAcrossChannels_ == rhs.mvnAttrs.initAcrossChannels_ &&
-             mvnAttrs.execAcrossChannels_ == rhs.mvnAttrs.execAcrossChannels_ &&
-             mvnAttrs.normalizeVariance_ == rhs.mvnAttrs.normalizeVariance_ &&
-             mvnAttrs.epsValue_ == rhs.mvnAttrs.epsValue_ &&
-             mvnAttrs.epsMode_ == rhs.mvnAttrs.epsMode_ &&
-             mvnAttrs.src_prc == rhs.mvnAttrs.src_prc &&
-             mvnAttrs.dst_prc == rhs.mvnAttrs.dst_prc &&
-             mvnAttrs.layout == rhs.mvnAttrs.layout &&
-             mvnAttrs.srcIsNHWC == rhs.mvnAttrs.srcIsNHWC;
-    retVal = retVal && *attr.get() == *rhs.attr.get();
-    return retVal;
-}
-} // namespace
-
-//////////////////////////////////////////////////////////////////////////////////
 
 bool MVN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -169,7 +121,8 @@ MVN::MVN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     } else {
         OPENVINO_THROW_NOT_IMPLEMENTED("Node is not an instance of MVN from the operation set v0 or v6");
     }
-    mvnAttrs.execAcrossChannels_ = mvnAttrs.initAcrossChannels_;
+    mvnAttrs.execAcrossChannels_ = getAcrossChannels();
+    mvnAttrs.fusedWith = fusedWith;
 }
 
 void MVN::getSupportedDescriptors() {}
@@ -240,10 +193,9 @@ void MVN::initSupportedPrimitiveDescriptors() {
             {ARG_DST, dstDescs[0]},
     };
 
-    if (one_of(descs.at(ARG_SRC)->getShape().getRank(), 1, 2) && mvnAttrs.initAcrossChannels_) {
+    if (one_of(descs.at(ARG_SRC)->getShape().getRank(), 1lu, 2lu) && getAcrossChannels()) {
         mvnAttrs.execAcrossChannels_ = false;
     }
-    mvnAttrs.srcIsNHWC = descs.at(ARG_SRC)->hasLayoutType(LayoutType::nspc);
     mvnAttrs.src_prc = descs.at(ARG_SRC)->getPrecision();
     mvnAttrs.dst_prc = descs.at(ARG_DST)->getPrecision();
 
@@ -273,8 +225,8 @@ void MVN::initSupportedPrimitiveDescriptors() {
             nodeConfig.inConfs[1].constant(true);
         }
 
-        // planar
-        if (descs.at(ARG_SRC)->hasLayoutType(LayoutType::nspc) && canBeInplace)
+        // TODO: move canBeInplace to requiresFallbackCommon
+        if (nodeDesc.at(ARG_SRC)->hasLayoutType(LayoutType::ncsp) && canBeInplace)
             nodeConfig.inConfs[0].inPlace(0);
 
         supportedPrimitiveDescriptors.emplace_back(nodeConfig, impl_desc_type::undef);
@@ -288,35 +240,13 @@ ExecutorPtr MVN::createExecutor() {
 }
 
 void MVN::prepareParams() {
-    auto dstMemPtr = getDstMemoryAtPort(0);
-    auto srcMemPtr = getSrcMemoryAtPort(0);
-    if (!dstMemPtr || !dstMemPtr->isDefined())
+    if (!memory[ARG_DST] || !memory[ARG_DST]->isDefined())
         OPENVINO_THROW("Destination memory is undefined.");
-    if (!srcMemPtr || !srcMemPtr->isDefined())
+    if (!memory[ARG_SRC] || !memory[ARG_SRC]->isDefined())
         OPENVINO_THROW("Input memory is undefined.");
     if (getSelectedPrimitiveDescriptor() == nullptr)
         OPENVINO_THROW("Preferable primitive descriptor is not set.");
-
-    transformTo5DCase(srcMemPtr->getStaticDims());
-
-    if (getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::ncsp)) {
-        mvnAttrs.layout = MVNLayoutType::mvn_planar;
-    } else if (getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nspc)) {
-        mvnAttrs.layout = MVNLayoutType::mvn_by_channel;
-    } else {
-        mvnAttrs.layout = MVNLayoutType::mvn_block;
-    }
-
-    MVNKey key = {mvnAttrs, dnnl::primitive_attr()};
-    setPostOps(key.attr, true);
-
-    auto builder = [&](const MVNKey &key) -> ExecutorPtr {
-        return createExecutor();
-    };
-
-    auto cache = context->getParamsCache();
-    auto result = cache->getOrCreate(key, builder);
-    executor = result.first;
+    executor = createExecutor();
 }
 
 void MVN::createPrimitive() {
@@ -326,65 +256,6 @@ void MVN::createPrimitive() {
     // Since for static shapes primitive is created in scope of compile_model() anyway
     factory->preconfigure(memory);
     Node::createPrimitive();
-}
-
-void MVN::transformTo5DCase(const VectorDims& shape) {
-    size_t rank = shape.size();
-    // for 1 and 2 rank, if initAcrossChannels_ is true, adjust shape to fully vectorize under unified 5d procedure.
-    // otherwise there are not enough data in spatial dimension to process in one kernel.
-    switch (rank) {
-        case 1 :  // C
-            if (mvnAttrs.initAcrossChannels_) {
-                mvnAttrs.shape5D = {1, 1, 1, 1, shape[0]};
-                mvnAttrs.execAcrossChannels_ = false;
-                break;
-            } else {
-                mvnAttrs.shape5D = {1, shape[0], 1, 1, 1};
-                break;
-            }
-        case 2 :  // NC
-            if (mvnAttrs.initAcrossChannels_) {
-                mvnAttrs.shape5D = {1, shape[0], 1, shape[1], 1};
-                mvnAttrs.execAcrossChannels_ = false;
-                break;
-            } else {
-                mvnAttrs.shape5D = {shape[0], shape[1], 1, 1, 1};
-                break;
-            }
-        case 3 : { mvnAttrs.shape5D = {shape[0], shape[1], 1, shape[2], 1}; break; }
-        case 4 : { mvnAttrs.shape5D = {shape[0], shape[1], 1, shape[2], shape[3]}; break; }
-        case 5 : { mvnAttrs.shape5D = {shape[0], shape[1], shape[2], shape[3], shape[4]}; break; }
-        default: {
-            OPENVINO_THROW("MVN layer with name '",
-                           getName(),
-                           "' doesn't support planar layout with rank: ",
-                           shape.size());
-        }
-    }
-}
-
-void MVN::setPostOps(dnnl::primitive_attr &attr, bool initWeights) {
-    dnnl::post_ops ops;
-    mvnAttrs.postOpsDataPtrs.clear();
-    for (auto &node : fusedWith) {
-        auto* fakeQuantizeNode = dynamic_cast<FakeQuantize *>(node.get());
-        if (fakeQuantizeNode) {
-            fakeQuantizeNode->appendPostOps(ops, {}, mvnAttrs.postOpsDataPtrs);
-            continue;
-        }
-
-        auto* eltwiseNode = dynamic_cast<Eltwise *>(node.get());
-        if (eltwiseNode) {
-            eltwiseNode->appendPostOps(ops, mvnAttrs.shape5D, mvnAttrs.postOpsDataPtrs);
-            continue;
-        }
-        OPENVINO_THROW("Fusing of ",
-                       NameFromType(node->getType()),
-                       " operation to ",
-                       NameFromType(this->getType()),
-                       " node is not implemented");
-    }
-    attr.set_post_ops(ops);
 }
 
 void MVN::executeDynamicImpl(dnnl::stream strm) {
@@ -408,7 +279,7 @@ bool MVN::canFuse(const NodePtr& node) const {
     int inputRank = getInputShapeAtPort(0).getRank();
     bool unaryEltwise = isUnaryEltwise(node);
     if ((inputRank == 1 && !unaryEltwise) ||
-        (inputRank == 2 && !unaryEltwise && mvnAttrs.initAcrossChannels_)) {
+        (inputRank == 2 && !unaryEltwise && getAcrossChannels())) {
         return false;
     }
 

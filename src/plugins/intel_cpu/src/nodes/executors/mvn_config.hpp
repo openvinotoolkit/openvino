@@ -32,12 +32,12 @@ struct MVNAttrs {
     MVNEpsMode epsMode_ = INSIDE_SQRT;
     ov::element::Type src_prc;
     ov::element::Type dst_prc;
-    bool srcIsNHWC = false;
-    std::vector<const void*> postOpsDataPtrs;
-    VectorDims shape5D = {0, 0, 0, 0, 0};
+    std::vector <NodePtr> fusedWith;
 };
 
 using MVNConfig = executor::Config<MVNAttrs>;
+
+VectorDims transformTo5DCase(const VectorDims& shape, MVNAttrs& mvnAttrs);
 
 }   // namespace intel_cpu
 }   // namespace ov

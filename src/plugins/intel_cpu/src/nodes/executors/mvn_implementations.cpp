@@ -49,8 +49,9 @@ static const TypeMapping aclMVNTypeMapping {
 
 static const TypeMapping jitMVNTypeMapping {
         // {src, dst}         pt<src, dst>
-        {{_f32 | _f16, _any}, pt(bypass(), use<0>())},
-        {{_any, _any},        pt(just<f32>(), just<f32>())}
+        {{_f32 | _f16, _f32 | _f16}, pt(bypass(),    use<0>())},
+        {{_u8  | _i8,  _u8  | _i8},  pt(bypass(),    use<0>())},
+        {{_any, _any},               pt(just<f32>(), use<0>())}
 };
 
 static const TypeMapping refMVNTypeMapping {

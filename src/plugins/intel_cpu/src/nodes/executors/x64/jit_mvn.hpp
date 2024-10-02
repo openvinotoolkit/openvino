@@ -119,9 +119,7 @@ public:
     JITMVNExecutor(const MVNAttrs& attrs,
                    const PostOps& postOps,
                    const MemoryArgs& memory,
-                   const ExecutorContext::CPtr context) : jitMVNAttrs(attrs) {
-        oldMVNJitExecutor = std::make_shared<old_version::MVNJitExecutor>(jitMVNAttrs, dnnl::primitive_attr());
-    }
+                   const ExecutorContext::CPtr context) : jitContext(context), jitMVNAttrs(attrs) {}
 
     void execute(const MemoryArgs& memory) override;
 
@@ -145,8 +143,20 @@ public:
     static bool supports(const MVNConfig& config);
 
 private:
-    const MVNAttrs& jitMVNAttrs;
+    ExecutorContext::CPtr jitContext;
+    MVNAttrs jitMVNAttrs;
+    VectorDims shape5D;
+    std::vector<const void*> postOpsDataPtrs;
     std::shared_ptr<old_version::MVNJitExecutor> oldMVNJitExecutor;
+    void setPostOps(dnnl::primitive_attr &attr, bool initWeights);
+
+    struct MVNKey {
+        MVNAttrs mvnAttrs;
+        dnnl::primitive_attr attr;
+
+        size_t hash() const;
+        bool operator==(const MVNKey& rhs) const;
+    };
 };
 
 }  // namespace intel_cpu

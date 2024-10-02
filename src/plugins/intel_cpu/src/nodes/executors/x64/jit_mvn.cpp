@@ -7,7 +7,8 @@
 #include "dnnl_extension_utils.h"
 #include "utils/bfloat16.hpp"
 #include "openvino/core/parallel.hpp"
-
+#include "nodes/fake_quantize.h"
+#include "nodes/eltwise.h"
 
 #include <openvino/opsets/opset6.hpp>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
@@ -2200,11 +2201,29 @@ void MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, const v
 void JITMVNExecutor::execute(const MemoryArgs &memory) {
     oldMVNJitExecutor->exec(reinterpret_cast<uint8_t *>(memory.at(ARG_SRC_0)->getData()),
                             reinterpret_cast<uint8_t *>(memory.at(ARG_DST_0)->getData()),
-                            jitMVNAttrs.postOpsDataPtrs.data(),
-                            jitMVNAttrs.shape5D);
+                            postOpsDataPtrs.data(),
+                            shape5D);
 }
 
 bool JITMVNExecutor::update(const MemoryArgs &memory) {
+    shape5D = transformTo5DCase(memory.at(ARG_SRC)->getDescPtr()->getShape().getDims(), jitMVNAttrs);
+    if (memory.at(ARG_SRC)->getDesc().hasLayoutType(LayoutType::ncsp)) {
+        jitMVNAttrs.layout = MVNLayoutType::mvn_planar;
+    } else if (memory.at(ARG_SRC)->getDesc().hasLayoutType(LayoutType::nspc)) {
+        jitMVNAttrs.layout = MVNLayoutType::mvn_by_channel;
+    } else {
+        jitMVNAttrs.layout = MVNLayoutType::mvn_block;
+    }
+
+    MVNKey key = {jitMVNAttrs, dnnl::primitive_attr()};
+    setPostOps(key.attr, true);
+    auto builder = [&](const MVNKey &key) -> std::shared_ptr<old_version::MVNJitExecutor> {
+        return std::make_shared<old_version::MVNJitExecutor>(jitMVNAttrs, dnnl::primitive_attr());
+    };
+
+    auto cache = jitContext->getRuntimeCache();
+    auto result = cache->getOrCreate(key, builder);
+    oldMVNJitExecutor = result.first;
     return true;
 }
 
@@ -2213,6 +2232,60 @@ bool JITMVNExecutor::supports(const MVNConfig &config) {
     return false;
 }
 
+size_t JITMVNExecutor::MVNKey::hash() const {
+    using namespace dnnl::impl;
+    using namespace dnnl::impl::primitive_hashing;
+
+    size_t seed = 0;
+    seed = hash_combine(seed, mvnAttrs.initAcrossChannels_);
+    seed = hash_combine(seed, mvnAttrs.execAcrossChannels_);
+    seed = hash_combine(seed, mvnAttrs.normalizeVariance_);
+    seed = hash_combine(seed, mvnAttrs.epsValue_);
+    seed = hash_combine(seed, mvnAttrs.epsMode_);
+    seed = hash_combine(seed, mvnAttrs.src_prc.hash());
+    seed = hash_combine(seed, mvnAttrs.dst_prc.hash());
+    seed = hash_combine(seed, mvnAttrs.layout);
+    seed = hash_combine(seed, get_attr_hash(*attr.get()));
+    return seed;
+}
+
+bool JITMVNExecutor::MVNKey::operator==(const MVNKey& rhs) const {
+    bool retVal = true;
+    retVal = retVal &&
+             mvnAttrs.initAcrossChannels_ == rhs.mvnAttrs.initAcrossChannels_ &&
+             mvnAttrs.execAcrossChannels_ == rhs.mvnAttrs.execAcrossChannels_ &&
+             mvnAttrs.normalizeVariance_ == rhs.mvnAttrs.normalizeVariance_ &&
+             mvnAttrs.epsValue_ == rhs.mvnAttrs.epsValue_ &&
+             mvnAttrs.epsMode_ == rhs.mvnAttrs.epsMode_ &&
+             mvnAttrs.src_prc == rhs.mvnAttrs.src_prc &&
+             mvnAttrs.dst_prc == rhs.mvnAttrs.dst_prc &&
+             mvnAttrs.layout == rhs.mvnAttrs.layout;
+    retVal = retVal && *attr.get() == *rhs.attr.get();
+    return retVal;
+}
+
+
+void JITMVNExecutor::setPostOps(dnnl::primitive_attr &attr, bool initWeights) {
+    dnnl::post_ops ops;
+    postOpsDataPtrs.clear();
+    for (auto &node : jitMVNAttrs.fusedWith) {
+        auto* fakeQuantizeNode = dynamic_cast<node::FakeQuantize *>(node.get());
+        if (fakeQuantizeNode) {
+            fakeQuantizeNode->appendPostOps(ops, {}, postOpsDataPtrs);
+            continue;
+        }
+
+        auto* eltwiseNode = dynamic_cast<node::Eltwise *>(node.get());
+        if (eltwiseNode) {
+            eltwiseNode->appendPostOps(ops, shape5D, postOpsDataPtrs);
+            continue;
+        }
+        OPENVINO_THROW("Fusing of ",
+                       NameFromType(node->getType()),
+                       " operation to MVN node is not implemented");
+    }
+    attr.set_post_ops(ops);
+}
 
 }  // namespace intel_cpu
 }  // namespace ov

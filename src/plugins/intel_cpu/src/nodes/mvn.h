@@ -42,9 +42,7 @@ public:
     void createPrimitive() override;
 
 private:
-    void setPostOps(dnnl::primitive_attr &attr, bool initWeights = false);
-
-    void transformTo5DCase(const VectorDims& shape);
+    void setPostOps(dnnl::primitive_attr &attr, const VectorDims& shape5D, bool initWeights = false);
     ExecutorPtr createExecutor();
 
     MVNAttrs mvnAttrs;

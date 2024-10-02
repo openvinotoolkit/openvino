@@ -113,11 +113,14 @@ public:
     void preconfigure(const MemoryArgs& memory) {
         executor::Config<Attrs> config{memoryDescsFromMemory(memory), m_attrs, m_postOps};
 
-        for (size_t i = 0; i < m_suitableImplementations.size(); i++) {
-            if (auto fallbackConfig = m_suitableImplementations[i].get().requiresFallback(config)) {
-                m_suitableImplementations.erase(m_suitableImplementations.begin() + i);
+        m_suitableImplementations.erase(std::remove_if(m_suitableImplementations.begin(),
+                                                       m_suitableImplementations.end(),
+                                                       [&](const ExecutorImplementationRef& impl) -> bool {
+            if (auto fallbackConfig = impl.get().requiresFallback(config)) {
+                return true;
             }
-        }
+            return false;
+        }), m_suitableImplementations.end());
 
         cacheFallbackStatus(config);
 

@@ -8,10 +8,18 @@
 void ov::intel_cpu::CommonMVNExecutor::execute(const ov::intel_cpu::MemoryArgs &memory) {
     mvn_ref(reinterpret_cast<uint8_t *>(memory.at(ARG_SRC)->getData()),
             reinterpret_cast<uint8_t *>(memory.at(ARG_DST)->getData()),
-            refMVNAttrs.shape5D);
+            shape5D);
 }
 
 bool ov::intel_cpu::CommonMVNExecutor::update(const ov::intel_cpu::MemoryArgs &memory) {
+    shape5D = transformTo5DCase(memory.at(ARG_SRC)->getDescPtr()->getShape().getDims(), refMVNAttrs);
+    if (memory.at(ARG_SRC)->getDesc().hasLayoutType(LayoutType::ncsp)) {
+        refMVNAttrs.layout = MVNLayoutType::mvn_planar;
+    } else if (memory.at(ARG_SRC)->getDesc().hasLayoutType(LayoutType::nspc)) {
+        refMVNAttrs.layout = MVNLayoutType::mvn_by_channel;
+    } else {
+        refMVNAttrs.layout = MVNLayoutType::mvn_block;
+    }
     return true;
 }
 

@@ -29,7 +29,8 @@ public:
     static bool supports(const MVNConfig& config);
 
 private:
-    const MVNAttrs& refMVNAttrs;
+    MVNAttrs refMVNAttrs;
+    VectorDims shape5D;
     void mvn_ref(const uint8_t *in_ptr_, uint8_t *out_ptr_, const VectorDims& shape5d);
 };
 
