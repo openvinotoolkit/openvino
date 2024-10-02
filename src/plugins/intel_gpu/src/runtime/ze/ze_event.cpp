@@ -19,8 +19,8 @@ std::chrono::nanoseconds timestamp_to_duration(const device_info& device_info, c
     const double timestamp_freq = NS_IN_SEC / device_info.timer_resolution;
     const uint64_t timestamp_max_value = ~(-1L << device_info.kernel_timestamp_valid_bits);
 
-    auto d = (timestamp.kernelEnd >= timestamp.kernelStart) ? ( timestamp.kernelEnd - timestamp.kernelStart ) * timestamp_freq
-                                                            : (( timestamp_max_value - timestamp.kernelStart) + timestamp.kernelEnd + 1 ) * timestamp_freq;
+    auto d = (timestamp.kernelEnd >= timestamp.kernelStart) ? (timestamp.kernelEnd - timestamp.kernelStart) * timestamp_freq
+                                                            : ((timestamp_max_value - timestamp.kernelStart) + timestamp.kernelEnd + 1) * timestamp_freq;
 
     return std::chrono::nanoseconds(static_cast<uint64_t>(d));
 }

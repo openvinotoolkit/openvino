@@ -15,12 +15,10 @@ namespace cldnn {
 namespace ze {
 
 static std::vector<ze_device_handle_t> get_sub_devices(ze_device_handle_t root_device) {
-
     uint32_t n_subdevices = 0;
     ZE_CHECK(zeDeviceGetSubDevices(root_device, &n_subdevices, nullptr));
     if (n_subdevices == 0)
         return {};
-
 
     std::vector<ze_device_handle_t> subdevices(n_subdevices);
 

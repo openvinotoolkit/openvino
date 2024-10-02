@@ -75,6 +75,8 @@ struct device_info {
     bool supports_imad;                         ///< Does engine support int8 mad.
     bool supports_immad;                        ///< Does engine support int8 multi mad.
 
+    bool supports_mutable_command_list;         ///< Does the target runtime/device support mutable command list feature
+
     bool supports_usm;                          ///< Does engine support unified shared memory.
     bool has_separate_cache;                    ///< Does the target hardware has separate cache for usm_device and usm_host
 

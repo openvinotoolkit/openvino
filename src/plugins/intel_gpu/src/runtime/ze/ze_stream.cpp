@@ -166,7 +166,6 @@ ze_stream::ze_stream(const ze_engine &engine, const ExecutionConfig& config)
     : stream(config.get_property(ov::intel_gpu::queue_type), stream::get_expected_sync_method(config))
     , _engine(engine)
     , m_pool(engine, config.get_property(ov::enable_profiling)) {
-
     ze_command_queue_desc_t command_queue_desc = {};
     command_queue_desc.stype = ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC;
     command_queue_desc.pNext = nullptr;
@@ -221,11 +220,11 @@ event::ptr ze_stream::enqueue_kernel(kernel& kernel,
     ze_group_count_t args = { global.groupCountX / local.groupCountX, global.groupCountY / local.groupCountY, global.groupCountZ / local.groupCountZ };
     ZE_CHECK(zeKernelSetGroupSize(kern, local.groupCountX, local.groupCountY, local.groupCountZ));
     ZE_CHECK(zeCommandListAppendLaunchKernel(m_command_list,
-                                    kern,
-                                    &args,
-                                    set_output_event ? std::dynamic_pointer_cast<ze_base_event>(ev)->get() : nullptr,
-                                    dep_events_ptr == nullptr ? 0 : dep_events_ptr->size(),
-                                    dep_events_ptr == nullptr ? 0 : &dep_events_ptr->front()));
+                                             kern,
+                                             &args,
+                                             set_output_event ? std::dynamic_pointer_cast<ze_base_event>(ev)->get() : nullptr,
+                                             dep_events_ptr == nullptr ? 0 : static_cast<uint32_t>(dep_events_ptr->size()),
+                                             dep_events_ptr == nullptr ? 0 : &dep_events_ptr->front()));
 
     return ev;
 }
@@ -253,7 +252,10 @@ event::ptr ze_stream::enqueue_marker(std::vector<ze_event::ptr> const& deps, boo
             return create_user_event(true);
 
         auto ev = create_base_event();
-        ZE_CHECK(zeCommandListAppendBarrier(m_command_list, std::dynamic_pointer_cast<ze_base_event>(ev)->get(), dep_events.size(), &dep_events.front()));
+        ZE_CHECK(zeCommandListAppendBarrier(m_command_list,
+                                            std::dynamic_pointer_cast<ze_base_event>(ev)->get(),
+                                            static_cast<uint32_t>(dep_events.size()),
+                                            &dep_events.front()));
         return ev;
     } else if (m_sync_method == SyncMethods::barriers) {
         sync_events(deps, is_output);

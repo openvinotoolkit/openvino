@@ -28,14 +28,28 @@ namespace ze {
 
 namespace {
 
+bool supports_extension(const std::vector<ze_driver_extension_properties_t>& extensions, const std::string& ext_name, uint32_t ext_ver) {
+    return std::find_if(extensions.begin(), extensions.end(), [&ext_name, &ext_ver](const ze_driver_extension_properties_t& ep) {
+        return std::string(ep.name) == ext_name && ep.version == ext_ver;
+    }) != extensions.end();
+}
+
 device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t device) {
     device_info info;
+
+    uint32_t num_ext = 0;
+    ZE_CHECK(zeDriverGetExtensionProperties(driver, &num_ext, nullptr));
+
+    std::vector<ze_driver_extension_properties_t> extensions(num_ext);
+    ZE_CHECK(zeDriverGetExtensionProperties(driver, &num_ext, &extensions[0]));
 
     ze_driver_properties_t driver_properties;
     ZE_CHECK(zeDriverGetProperties(driver, &driver_properties));
 
+    bool supports_luid = supports_extension(extensions, ZE_DEVICE_LUID_EXT_NAME, ZE_DEVICE_LUID_EXT_VERSION_1_0);
+
     ze_device_ip_version_ext_t ip_version_properties = {ZE_STRUCTURE_TYPE_DEVICE_IP_VERSION_EXT, nullptr, 0};
-    ze_device_properties_t device_properties{ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES_1_2, &ip_version_properties};
+    ze_device_properties_t device_properties{ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES_1_2, supports_luid ? &ip_version_properties : nullptr};
     ZE_CHECK(zeDeviceGetProperties(device, &device_properties));
 
     ze_device_compute_properties_t device_compute_properties{ZE_STRUCTURE_TYPE_DEVICE_COMPUTE_PROPERTIES};
@@ -65,12 +79,6 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
         mp.stype = ZE_STRUCTURE_TYPE_DEVICE_MEMORY_PROPERTIES;
     }
     ZE_CHECK(zeDeviceGetMemoryProperties(device, &memory_properties_count, &device_memory_properties[0]));
-
-    uint32_t extension_properties_count = 0;
-    ZE_CHECK(zeDriverGetExtensionProperties(driver, &extension_properties_count, nullptr));
-
-    std::vector<ze_driver_extension_properties_t> driver_extension_properties(extension_properties_count);
-    ZE_CHECK(zeDriverGetExtensionProperties(driver, &extension_properties_count, &driver_extension_properties[0]));
 
     ze_device_memory_access_properties_t device_memory_access_properties{ZE_STRUCTURE_TYPE_DEVICE_MEMORY_ACCESS_PROPERTIES};
     ZE_CHECK(zeDeviceGetMemoryAccessProperties(device, &device_memory_access_properties));
@@ -149,13 +157,14 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
     static_assert(ZE_MAX_DEVICE_LUID_SIZE_EXT == ov::device::LUID::MAX_LUID_SIZE, "");
     std::copy_n(&device_properties.uuid.id[0], ZE_MAX_DEVICE_UUID_SIZE, info.uuid.uuid.begin());
 
-    {
+    if (supports_luid) {
         ze_device_luid_ext_properties_t luid_props{ZE_STRUCTURE_TYPE_DEVICE_LUID_EXT_PROPERTIES, nullptr};
         ze_device_properties_t device_properties{ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES, &luid_props};
         if (zeDeviceGetProperties(device, &device_properties) == ZE_RESULT_SUCCESS)
             std::copy_n(&luid_props.luid.id[0], ZE_MAX_DEVICE_LUID_SIZE_EXT, info.luid.luid.begin());
     }
 
+    info.supports_mutable_command_list = supports_extension(extensions, ZE_MUTABLE_COMMAND_LIST_EXP_NAME, ZE_MUTABLE_COMMAND_LIST_EXP_VERSION_1_0);
     return info;
 }
 
