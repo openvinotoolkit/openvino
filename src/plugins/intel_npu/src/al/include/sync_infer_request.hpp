@@ -22,7 +22,7 @@ namespace intel_npu {
  */
 class SyncInferRequest : public ov::IInferRequest {
 public:
-    explicit SyncInferRequest(const std::shared_ptr<const ICompiledModel>& compiledModel);
+    explicit SyncInferRequest(const std::shared_ptr<const ICompiledModel>& compiledModel, const Config& config);
 
     /**
      * @brief Gets an input/output tensor for inference.
@@ -127,6 +127,15 @@ protected:
     void check_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) const;
 
     /**
+     * @brief Basic checks for input tensors
+     *
+     * @param port Input port
+     * @param tensors Input tensors
+     */
+    void check_batched_tensors(const ov::Output<const ov::Node>& port,
+                               const std::vector<ov::SoPtr<ov::ITensor>>& tensors) const;
+
+    /**
      * @brief Check that all tensors are valid. Throws an exception if it's not.
      */
     void check_tensors() const override;
@@ -163,6 +172,8 @@ protected:
     std::shared_ptr<const ov::ICompiledModel> _compiledModel;
 
     NetworkMetadata _metadata;
+
+    Logger _logger;
 
     // In case set_tensors is called, we receive a vector with N tensors otherwise only 1 tensor is needed
     mutable std::vector<std::vector<ov::SoPtr<ov::ITensor>>> _userInputTensors;

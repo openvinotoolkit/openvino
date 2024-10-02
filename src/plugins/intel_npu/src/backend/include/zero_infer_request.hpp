@@ -74,8 +74,6 @@ private:
      */
     void set_remote_tensor_data(const std::shared_ptr<ZeroRemoteTensor> tensor, const size_t index, const bool isInput);
 
-    void check_batched_tensors(const ov::Output<const ov::Node>& input,
-                               const std::vector<ov::SoPtr<ov::ITensor>>& tensors);
     void check_network_precision(const ov::element::Type_t precision) const override;
     void create_pipeline();
 
