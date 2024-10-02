@@ -1200,7 +1200,8 @@ bool computeRRMSE(const ov::Tensor& output, const ov::Tensor& reference) {
 
     double rrmseLoss = sqrt(error / sum);
 
-    std::cout << "RRMSE loss : " << rrmseLoss << "   RRMSE threshold : " << FLAGS_rrmse_loss_threshold << std::endl;
+    std::cout << "RRMSE loss : " << std::fixed << std::setprecision(4) << rrmseLoss
+              << "   RRMSE threshold : " << FLAGS_rrmse_loss_threshold << std::endl;
     return rrmseLoss <= FLAGS_rrmse_loss_threshold;
 }
 
@@ -1267,7 +1268,8 @@ bool computeNRMSE(const ov::Tensor& output, const ov::Tensor& reference) {
     double nrmseLoss =
             sqrt(error / size) / std::max(0.001f, std::max(maxOutput - minOutput, maxReference - minReference));
 
-    std::cout << "NRMSE loss : " << nrmseLoss << "   NRMSE threshold : " << FLAGS_nrmse_loss_threshold << std::endl;
+    std::cout << "NRMSE loss : " << std::fixed << std::setprecision(4) << nrmseLoss
+              << "   NRMSE threshold : " << FLAGS_nrmse_loss_threshold << std::endl;
     return nrmseLoss <= FLAGS_nrmse_loss_threshold;
 }
 
@@ -1319,7 +1321,7 @@ bool testPSNR(const TensorMap& outputs, const TensorMap& references, const int d
 
     auto result = utils::runPSNRMetric(actOutput, refOutput, dstHeight, dstWidth, scaleBorder, normalizedImage);
 
-    if (std::fabs(result - FLAGS_psnr_reference) > FLAGS_psnr_tolerance) {
+    if (FLAGS_psnr_reference - result > FLAGS_psnr_tolerance) {
         std::cout << "Absolute difference between actual value " << result << " and reference value "
                   << FLAGS_psnr_reference << " larger then tolerance " << FLAGS_psnr_tolerance << std::endl;
         return false;
