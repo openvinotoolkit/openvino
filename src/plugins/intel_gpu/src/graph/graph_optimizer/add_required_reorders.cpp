@@ -9,6 +9,7 @@
 #include "fully_connected_inst.h"
 #include "assign_inst.h"
 #include "mvn_inst.h"
+#include "reorder_inst.h"
 
 #include <algorithm>
 #include <memory>

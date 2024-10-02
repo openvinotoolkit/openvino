@@ -47,9 +47,11 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
     ZE_CHECK(zeDriverGetProperties(driver, &driver_properties));
 
     bool supports_luid = supports_extension(extensions, ZE_DEVICE_LUID_EXT_NAME, ZE_DEVICE_LUID_EXT_VERSION_1_0);
+    bool supports_ip_version = supports_extension(extensions, ZE_DEVICE_IP_VERSION_EXT_NAME, ZE_DEVICE_IP_VERSION_VERSION_1_0);
+    bool supports_mutable_list = supports_extension(extensions, ZE_MUTABLE_COMMAND_LIST_EXP_NAME, ZE_MUTABLE_COMMAND_LIST_EXP_VERSION_1_0);
 
     ze_device_ip_version_ext_t ip_version_properties = {ZE_STRUCTURE_TYPE_DEVICE_IP_VERSION_EXT, nullptr, 0};
-    ze_device_properties_t device_properties{ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES_1_2, supports_luid ? &ip_version_properties : nullptr};
+    ze_device_properties_t device_properties{ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES_1_2, supports_ip_version ? &ip_version_properties : nullptr};
     ZE_CHECK(zeDeviceGetProperties(device, &device_properties));
 
     ze_device_compute_properties_t device_compute_properties{ZE_STRUCTURE_TYPE_DEVICE_COMPUTE_PROPERTIES};
@@ -164,7 +166,23 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
             std::copy_n(&luid_props.luid.id[0], ZE_MAX_DEVICE_LUID_SIZE_EXT, info.luid.luid.begin());
     }
 
-    info.supports_mutable_command_list = supports_extension(extensions, ZE_MUTABLE_COMMAND_LIST_EXP_NAME, ZE_MUTABLE_COMMAND_LIST_EXP_VERSION_1_0);
+    info.supports_mutable_command_list = false;
+
+    if (supports_mutable_list) {
+        ze_mutable_command_list_exp_properties_t mutable_list_props = { ZE_STRUCTURE_TYPE_MUTABLE_COMMAND_LIST_EXP_PROPERTIES,  nullptr, 0, 0 };
+        ze_device_properties_t device_properties{ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES, &mutable_list_props};
+        if (zeDeviceGetProperties(device, &device_properties) == ZE_RESULT_SUCCESS) {
+            ze_mutable_command_exp_flags_t required_features = ZE_MUTABLE_COMMAND_EXP_FLAG_KERNEL_ARGUMENTS |
+                                                               ZE_MUTABLE_COMMAND_EXP_FLAG_GROUP_COUNT |
+                                                               ZE_MUTABLE_COMMAND_EXP_FLAG_GROUP_SIZE |
+                                                               ZE_MUTABLE_COMMAND_EXP_FLAG_GLOBAL_OFFSET |
+                                                               ZE_MUTABLE_COMMAND_EXP_FLAG_SIGNAL_EVENT |
+                                                               ZE_MUTABLE_COMMAND_EXP_FLAG_WAIT_EVENTS;
+
+            info.supports_mutable_command_list = (mutable_list_props.mutableCommandFlags & required_features) == required_features;
+        }
+    }
+
     return info;
 }
 

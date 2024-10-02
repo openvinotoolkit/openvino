@@ -21,6 +21,7 @@
 #include "region_yolo_inst.h"
 #include "fully_connected_inst.h"
 #include "mvn_inst.h"
+#include "reorder_inst.h"
 
 #include <vector>
 #include <list>

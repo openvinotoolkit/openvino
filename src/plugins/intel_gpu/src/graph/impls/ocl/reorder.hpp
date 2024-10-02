@@ -3,8 +3,7 @@
 //
 
 #include "impls/registry/implementation_manager.hpp"
-#include "intel_gpu/primitives/reorder.hpp"
-#include "program_node.h"
+#include "reorder_inst.h"
 
 #include <memory>
 namespace cldnn {

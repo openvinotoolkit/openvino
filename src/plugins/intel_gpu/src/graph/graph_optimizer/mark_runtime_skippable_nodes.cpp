@@ -12,7 +12,7 @@
 #include "shape_of_inst.h"
 #include "broadcast_inst.h"
 #include "non_zero_inst.h"
-#include "non_max_suppression_inst.h"
+#include "reorder_inst.h"
 #include "unique_inst.hpp"
 #include "program_helpers.h"
 
