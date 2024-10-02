@@ -138,6 +138,7 @@ jobs:
             git submodule update --init -- ${OPENVINO_REPO}/src/plugins/intel_cpu
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/open_model_zoo
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/flatbuffers/flatbuffers
+            git submodule update --init -- ${OPENVINO_REPO}/thirdparty/level_zero
           popd
 
       #
