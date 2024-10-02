@@ -440,11 +440,10 @@ void ov::npuw::JustInferRequest::bind_global_results(std::size_t idx) {
     LOG_BLOCK();
 
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
-    const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
-    if (real_idx != idx) {
-        // Don't do here - function call will take parameter
-        // itself. Note it may be implemented more efficently
-        // than now (and in some cases, parameter can be pre-set)
+    if (comp_model_desc.replaced_by) {
+        // Don't do here - function call will take the right tensor
+        // itself. Note it may be implemented more efficently than now
+        // (and in some cases, the tensor can be pre-set)
         LOG_DEBUG("Skipping this too now - function will do it for itself");
         return;
     }
