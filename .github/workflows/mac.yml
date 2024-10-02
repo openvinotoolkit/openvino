@@ -260,6 +260,7 @@ jobs:
     with:
       runner: 'macos-13'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      os: 'mac_13'
 
   Python_Unit_Tests:
     name: Python unit tests

@@ -160,6 +160,7 @@ jobs:
       runner: 'aks-linux-4-cores-16gb'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.fedora_29 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      os: 'fedora_29'
   
   Overall_Status:
     name: ci/gha_overall_status_fedora

@@ -16,10 +16,6 @@ on:
         description: 'Python version to setup. E.g., "3.11"'
         type: string
         required: true
-      os:
-        description: 'OS that is used for testing in the form of "ubuntu_20_04"'
-        type: string
-        required: true
 
 permissions: read-all
 
@@ -78,15 +74,6 @@ jobs:
           sparse-checkout-cone-mode: false
           path: 'openvino'
 
-      - name: Fetch skip_list
-        if: ${{ inputs.os == 'debian_10' }}
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
-        with:
-          sparse-checkout: |
-            src/plugins/intel_cpu/tests/functional/skip_lists/debian/arm/skip_list.txt
-          sparse-checkout-cone-mode: false
-          path: 'openvino'
-
       - name: Setup Python ${{ inputs.python-version }}
         uses: ./openvino/.github/actions/setup_python
         with:
@@ -113,14 +100,8 @@ jobs:
           fi
           # Needed as ze_loader.so is under INSTALL_TEST_DIR
           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${INSTALL_TEST_DIR}
-          
-          skip_list_file=''
-          # Ticket: 153289
-          if [[ "${{ inputs.os }}" == 'debian_10' ]]; then
-            skip_list_file="./openvino/src/plugins/intel_cpu/tests/functional/skip_lists/debian/arm/skip_list.txt"
-          fi
 
-          python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_cpu_func_tests -c ${PARALLEL_TEST_CACHE} -w ${INSTALL_TEST_DIR} -s suite -rf 0 --excluded_tests_file ${skip_list_file} -- --gtest_print_time=1 --gtest_filter=*smoke*
+          python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_cpu_func_tests -c ${PARALLEL_TEST_CACHE} -w ${INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_print_time=1 --gtest_filter=*smoke*
         timeout-minutes: 25
 
       - name: Save tests execution time
