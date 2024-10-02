@@ -16,7 +16,7 @@ First, the NPU plugin checks if the following conditions are met:
 * The model does not contain states.
 
 If the **conditions are met**, the NPU plugin attempts to compile and execute the original model with batch_size forced to 1. This approach is due to current compiler limitations and ongoing work to improve performance for batch_size greater than one.
-If the compilation is successful, the plugin detects a difference in batch size between the original model layout (with batch size set to N)
+If the compilation is successful, the plugin detects a difference in batch size between the original model layout (with a batch size set to N)
 and the transformed/compiled layout (with a batch size set to 1). Then it executes the following steps:
 
 1. Internally constructs multiple command lists, one for each input.
