@@ -22,34 +22,25 @@ namespace weights {
 
 class Bank {
 public:
-    explicit Bank(const std::shared_ptr<const ov::ICore>& core, bool alloc_allowed)
+    explicit Bank(const std::shared_ptr<const ov::ICore>& core, const std::string& alloc_device)
         : m_core(core),
-          m_alloc_allowed(alloc_allowed) {}
-
-    // Capture CPU version of the tensor
-    ov::Tensor update(const std::shared_ptr<ov::op::v0::Constant>& node);
+          m_alloc_device(alloc_device) {}
 
     // Based on previously captured lazy tensor allocate a new tensor (if needed) on a specified device
     ov::Tensor get(const LazyTensor& tensor, const std::string& device);
-    // Store transformed and allocated tensor
-    void store(const LazyTensor& tensor, const ov::Tensor& transformed_tensor, const std::string& device);
-    // Check if there is an allocated and transformed tensor
-    bool has(const LazyTensor& tensor, const std::string& device);
 
 private:
-    // Default CPU bank. Filled by update(). Owns CPU memory
-    std::unordered_map<void*, std::shared_ptr<ov::op::v0::Constant>> m_bank;
     // Bank for specified device and their allocated memory
     std::unordered_map<std::string, std::unordered_map<LazyTensor, ov::Tensor, LazyTensor::Hash>> m_device_bank;
     std::mutex m_mutex;
     std::shared_ptr<const ov::ICore> m_core = nullptr;
     std::shared_ptr<ov::IRemoteContext> m_remote_ctx = nullptr;
-    bool m_alloc_allowed = false;
+    std::string m_alloc_device;
 };
 
 std::shared_ptr<Bank> bank(const std::string& bank_name,
                            const std::shared_ptr<const ov::ICore>& core,
-                           bool alloc_allowed);
+                           const std::string& alloc_device);
 
 }  // namespace weights
 }  // namespace npuw

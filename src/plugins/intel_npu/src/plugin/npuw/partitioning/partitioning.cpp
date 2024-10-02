@@ -1461,8 +1461,7 @@ void Partitioner::createFunction(FunctionPipeline& func_ggg) {
 
                 LOG_DEBUG("Register " << prod_output << " in the function closure");
                 funcall._transformations.push_back(LazyTensor(
-                    TransformType::TENSOR,
-                    bank->update(std::dynamic_pointer_cast<ov::op::v0::Constant>(input_node))));  // (n)/1/i/c
+                    TransformType::TENSOR, std::dynamic_pointer_cast<ov::op::v0::Constant>(input_node)));  // (n)/1/i/c
             } else if (ov::op::util::is_parameter(input_node)) {
                 LOG_DEBUG("Handling a Parameter input " << prod_output);
                 LOG_BLOCK();
@@ -1559,8 +1558,7 @@ void Partitioner::matchRepeatedSubgraphs(const std::string& func_name) {
                     LOG_DEBUG("Register " << prod_output << " in the function closure[" << param_idx
                                           << "] (via prototype " << proto_layer_name << ")");
                     funcall._transformations[param_idx - function._param_offset] = LazyTensor(
-                        TransformType::TENSOR,
-                        bank->update(std::dynamic_pointer_cast<ov::op::v0::Constant>(input_node)));  // (t)/1/c
+                        TransformType::TENSOR, std::dynamic_pointer_cast<ov::op::v0::Constant>(input_node));  // (t)/1/c
                 }
             }  // for (inputs)
         }      // for(nodes)
@@ -1651,17 +1649,14 @@ void Partitioner::optimize(const std::string& func_name) {
                 std::vector<LazyTensor> to_concat;
                 // Fill tensor vector
                 for (auto&& cidx : to_concat_idx) {
-                    to_concat.push_back(funcall._transformations[cidx]);
-                }
-                // Set to lazy tensor history
-                for (auto&& cidx : to_concat_idx) {
                     // FIXME: Assuming here concat goes first and other transformations later.
                     //        This allows to store ov::Tensor and ignore their potential history of transformations
-                    funcall._transformations[cidx].update(TransformType::CONCAT, std::make_pair(to_concat, axis));
+                    NPUW_ASSERT(!funcall._transformations[cidx].has_transformations());
+                    to_concat.push_back(funcall._transformations[cidx]);
                 }
-                // Pick the first (could be any) LazyTensor and set as new future-concatenated tensor
+                // Note: we can ignore updating funcall._transformations[cidx] here since those LazyTensors will be gone and the new one added into the vector
                 if (!to_concat.empty()) {
-                    funcall._transformations.push_back(to_concat.front());
+                    funcall._transformations.push_back(LazyTensor(TransformType::CONCAT, std::make_pair(to_concat, axis)));
                 }
             });
         }

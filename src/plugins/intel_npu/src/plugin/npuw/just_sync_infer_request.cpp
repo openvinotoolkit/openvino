@@ -192,7 +192,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
 
             // No update required to this tensor in runtime - so it can be set only once
             // Will be utilized when there is no FOLDing
-            if (!comp_model_desc.update_required[cidx]) {
+            if (!m_npuw_model->m_update_required) {
                 // At this point closure already contains allocated and transformed tensor ready to be used
                 request->set_tensor(iport, ov::get_tensor_impl(closure));
             }
@@ -498,7 +498,7 @@ void ov::npuw::JustInferRequest::unpack_closure(std::size_t idx, RqPtr request) 
         if (closure.get_element_type() != clparam->get_element_type()) {
             // Remember where the unpack is required
             closure_unpack_required.push_back(cidx);
-        } else if (comp_model_desc.update_required[cidx]) {
+        } else if (m_npuw_model->m_update_required) {
             if (needs_copy(idx, cidx)) {
                 // Remember where copy is requried
                 closure_copy_required.push_back(cidx);

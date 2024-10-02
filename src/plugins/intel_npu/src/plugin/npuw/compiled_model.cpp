@@ -115,7 +115,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 
     // Initialize weights bank
     const std::string weights_bank_opt = m_cfg.get<::intel_npu::NPUW_WEIGHTS_BANK>();
-    bool wbank_alloc = m_cfg.get<::intel_npu::NPUW_WEIGHTS_BANK_ALLOC>();
+    const std::string wbank_alloc = m_cfg.get<::intel_npu::NPUW_WEIGHTS_BANK_ALLOC>();
     m_weights_bank = ov::npuw::weights::bank(weights_bank_opt, plugin->get_core(), wbank_alloc);
 
     LOG_VERB("*** Original model ***");
@@ -235,6 +235,8 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     }  // for(ordered_subgraphs)
     // NOTE(dm): there's a better way to do it, like we do in G-API backends.
 
+    m_update_required = m_cfg.get<::intel_npu::NPUW_FOLD>() ? true : false;
+
     // Store mapping between manually splitted inputs/outputs
     // to connect tensors between compiled submodels
     m_submodels_input_to_prev_output = partitioning.input_to_prev_output;
@@ -289,8 +291,6 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             m_compiled_submodels[id].transformations = subgraph._transformations;
             m_compiled_submodels[id].scales = subgraph._scales;
             m_compiled_submodels[id].zerops = subgraph._zerops;
-            m_compiled_submodels[id].update_required.resize(subgraph._closure.size(),
-                                                            m_cfg.get<::intel_npu::NPUW_FOLD>() ? true : false);
             m_compiled_submodels[id].is_remote.resize(subgraph._closure.size(), false);
         }  // if(!funcall)
 
@@ -428,28 +428,10 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
 
         for (std::size_t tidx = 0; tidx < comp_model_desc.transformations.size(); ++tidx) {
             const auto& lt = m_compiled_submodels[idx].transformations[tidx];
-
-            // FIXME: probably should be more careful with the devices here
-            if (!m_weights_bank->has(lt, *func_desc.device_it)) {
-                ov::Tensor evaled = lt.eval();
-                if (lt.has_concat()) {
-                    // FIXME: probably setting just front() LazyTensor here is enough
-                    for (const auto& lt_to_concat : lt.get_lt_to_concat()) {
-                        // Note: this also includes this LazyTensor's original ov::Tensor
-                        m_weights_bank->store(lt_to_concat, evaled, *func_desc.device_it);
-                    }
-                } else {
-                    m_weights_bank->store(lt, evaled, *func_desc.device_it);
-                }
-            }
-
             m_compiled_submodels[idx].closure.push_back(m_weights_bank->get(lt, *func_desc.device_it));
+            // FIXME: should is_remote be set unconditionally?
             m_compiled_submodels[idx].is_remote.push_back(true);
         }
-
-        // After concat size might have changed
-        m_compiled_submodels[idx].update_required.resize(m_compiled_submodels[idx].closure.size(),
-                                                         m_cfg.get<::intel_npu::NPUW_FOLD>() ? true : false);
     });
 }
 

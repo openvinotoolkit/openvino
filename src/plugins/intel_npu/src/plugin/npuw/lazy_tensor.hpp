@@ -25,8 +25,11 @@ enum class TransformType : int { TENSOR, PERMUTE, CONVERT, CONCAT };
 class LazyTensor;
 
 using ConcatMeta = std::pair<std::vector<LazyTensor>, std::size_t>;
+using ConstPtr = std::shared_ptr<ov::op::v0::Constant>;
+using LTData = std::variant<ConstPtr, ov::Tensor>;
 
-using Transform = std::variant<ov::Tensor, std::vector<std::size_t>, std::monostate, ConcatMeta>;
+// LazyTensor owns Constant's memory
+using Transform = std::variant<LTData, std::vector<std::size_t>, std::monostate, ConcatMeta>;
 
 class LazyTensor {
 public:
@@ -43,17 +46,13 @@ public:
     void update(const TransformType& type, const Transform& transform);
     ov::Tensor eval() const;
 
-    void* get_orig_data() const;
     ov::Tensor get_orig_tensor() const;
 
-    bool has_concat() const;
     bool has_transformations() const;
-    std::vector<ov::Tensor> get_to_concat() const;
-    std::vector<LazyTensor> get_lt_to_concat() const;
 
 private:
     std::vector<std::pair<TransformType, Transform>> m_transforms;
-    void* m_orig_data;
+    void* m_orig_data = nullptr;
     ov::Shape m_orig_shape;
     ov::element::Type m_orig_type;
 };

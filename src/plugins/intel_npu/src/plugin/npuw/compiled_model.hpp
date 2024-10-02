@@ -125,7 +125,6 @@ private:
         std::vector<weights::LazyTensor> transformations;
         std::vector<ov::Tensor> scales;
         std::vector<ov::Tensor> zerops;
-        std::vector<bool> update_required;
         std::vector<bool> is_remote;
 
         // FIXME: Take it out of structure
@@ -136,6 +135,8 @@ private:
         execution_stats stat;
     };
     std::vector<CompiledModelDesc> m_compiled_submodels;
+
+    bool m_update_required;
 
     std::function<bool(const ov::SoPtr<ov::ITensor>&, const ov::SoPtr<ov::ITensor>&)> m_acc_check;
     std::string m_ref_device;

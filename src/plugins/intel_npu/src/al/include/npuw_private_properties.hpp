@@ -48,10 +48,10 @@ static constexpr ov::Property<std::string> weights_bank{"NPUW_WEIGHTS_BANK"};
 /**
  * @brief
  * Type: std::string.
- * Specify if weights bank is allowed to allocate NPU memory.
+ * Specify device name for weights bank which is used to allocate memory.
  * Default value: false.
  */
-static constexpr ov::Property<bool> weights_bank_alloc{"NPUW_WEIGHTS_BANK_ALLOC"};
+static constexpr ov::Property<std::string> weights_bank_alloc{"NPUW_WEIGHTS_BANK_ALLOC"};
 
 namespace partitioning {
 namespace online {
