@@ -36,13 +36,17 @@
 #    define HAS_EXP_FILESYSTEM 1
 #    define _SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING
 #    define _LIBCPP_NO_EXPERIMENTAL_DEPRECATION_WARNING_FILESYSTEM
+#elif defined(ANDROID) || defined(__ANDROID__)
+#    define HAS_EXP_FILESYSTEM 1
+#    define _SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING
+#    define _LIBCPP_NO_EXPERIMENTAL_DEPRECATION_WARNING_FILESYSTEM
 #elif defined(__has_include)
 #    if defined(CPP_VER_17) && (__has_include(<filesystem>)) && (!__has_include(<experimental/filesystem>))
 #        define HAS_FILESYSTEM 1
 #    elif defined(CPP_VER_11) && (__has_include(<experimental/filesystem>))
+#        define HAS_EXP_FILESYSTEM 1
 #        define _SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING
 #        define _LIBCPP_NO_EXPERIMENTAL_DEPRECATION_WARNING_FILESYSTEM
-#        define HAS_EXP_FILESYSTEM 1
 #    endif
 #endif
 
