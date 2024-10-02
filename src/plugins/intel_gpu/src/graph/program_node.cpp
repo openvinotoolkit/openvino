@@ -1550,6 +1550,10 @@ void program_node::create_onednn_primitive_attributes(
                     size_t rank = cldnn::format::dimension(in.format);
                     size_t in_batched_size = in.count() / (in.spatial(0) * in.spatial(1));
                     dnnl::memory::dims dims = onednn::convert_gemm_tensor(in.get_tensor(), rank, in_batched_size == 1);
+                    bool spatial_dims_can_be_removed = (in.spatial(0) * in.spatial(1) == 1);
+                    if (dims.size() == 4 && spatial_dims_can_be_removed) {
+                        dims.erase(dims.begin() + 2, dims.begin() + 4);
+                    }
                     dnnl::memory::data_type dt = onednn::convert_data_type(in.data_type);
                     dnnl::memory::format_tag fmt = onednn::convert_gemm_data_format(dims, in.format);
                     post_ops.append_binary(alg, dnnl::memory::desc(dims, dt, fmt));
