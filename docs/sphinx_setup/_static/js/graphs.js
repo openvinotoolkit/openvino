@@ -637,7 +637,7 @@ $(document).ready(function () {
                 }
             }
         }
-    } Throughput
+    }
 
     function getChartDataNew(labels, datasets) {
         return {
