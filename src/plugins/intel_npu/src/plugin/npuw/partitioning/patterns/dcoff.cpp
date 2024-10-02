@@ -124,30 +124,30 @@ void apply_remap(Subgraph& fcall, const ClosureRemap& m) {
     // reserve a new_scales vector to have the same size, filled with
     // empty tensors by default.
     for (auto&& i : m.closure_remap) {
-        new_transformations.push_back(fcall._transformations[i]);
+        new_transformations.push_back(fcall._lazy_closure[i]);
 
         auto scale_iter = m.scale_remap.find(i);
         auto zerop_iter = m.zerop_remap.find(i);
         // FIXME: assuming no transformations were applied to the tensor - since we are utilizing the original
         // ov::Tensor below
         if (scale_iter != m.scale_remap.end()) {
-            NPUW_ASSERT(!fcall._transformations[scale_iter->second].has_transformations());
+            NPUW_ASSERT(!fcall._lazy_closure[scale_iter->second].has_transformations());
         }
         if (zerop_iter != m.zerop_remap.end()) {
-            NPUW_ASSERT(!fcall._transformations[zerop_iter->second].has_transformations());
+            NPUW_ASSERT(!fcall._lazy_closure[zerop_iter->second].has_transformations());
         }
         new_scales.push_back(scale_iter != m.scale_remap.end()
-                                 ? fcall._transformations[scale_iter->second].get_orig_tensor()
+                                 ? fcall._lazy_closure[scale_iter->second].get_orig_tensor()
                                  : ov::Tensor());
         // Check for asymmetric zero points and add them to new_zerops
         const auto& zerop = zerop_iter != m.zerop_remap.end()
-                                ? fcall._transformations[zerop_iter->second].get_orig_tensor()
+                                ? fcall._lazy_closure[zerop_iter->second].get_orig_tensor()
                                 : m.zero_points[i];
         new_zerops.push_back(zerop);
     }
     fcall._scales = std::move(new_scales);
     fcall._zerops = std::move(new_zerops);
-    fcall._transformations = std::move(new_transformations);
+    fcall._lazy_closure = std::move(new_transformations);
 }
 
 void finalize_remap(Function& fbody, const ClosureRemap& m) {

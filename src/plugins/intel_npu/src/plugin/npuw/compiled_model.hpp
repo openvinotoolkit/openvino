@@ -122,7 +122,7 @@ private:
 
         std::size_t param_base = 0;
         std::vector<ov::Tensor> closure;
-        std::vector<weights::LazyTensor> transformations;
+        std::vector<weights::LazyTensor> lazy_closure;
         std::vector<ov::Tensor> scales;
         std::vector<ov::Tensor> zerops;
         std::vector<bool> is_remote;

@@ -1460,8 +1460,9 @@ void Partitioner::createFunction(FunctionPipeline& func_ggg) {
                 new_param_idx++;
 
                 LOG_DEBUG("Register " << prod_output << " in the function closure");
-                funcall._transformations.push_back(LazyTensor(
-                    TransformType::TENSOR, std::dynamic_pointer_cast<ov::op::v0::Constant>(input_node)));  // (n)/1/i/c
+                funcall._lazy_closure.push_back(
+                    LazyTensor(TransformType::TENSOR,
+                               std::dynamic_pointer_cast<ov::op::v0::Constant>(input_node)));  // (n)/1/i/c
             } else if (ov::op::util::is_parameter(input_node)) {
                 LOG_DEBUG("Handling a Parameter input " << prod_output);
                 LOG_BLOCK();
@@ -1536,7 +1537,7 @@ void Partitioner::matchRepeatedSubgraphs(const std::string& func_name) {
         LOG_BLOCK();
         const auto& function = func_iter->second;
         funcall._closure.resize(function._num_params_total - function._param_offset);
-        funcall._transformations.resize(function._num_params_total - function._param_offset);
+        funcall._lazy_closure.resize(function._num_params_total - function._param_offset);
 
         auto tmp_model = *mod_iter;
         for (auto&& node_ptr : tmp_model->get_ordered_ops()) {
@@ -1557,8 +1558,9 @@ void Partitioner::matchRepeatedSubgraphs(const std::string& func_name) {
                         std::make_pair(proto_layer_name, input_desc.get_index()));  // (t)/1/b
                     LOG_DEBUG("Register " << prod_output << " in the function closure[" << param_idx
                                           << "] (via prototype " << proto_layer_name << ")");
-                    funcall._transformations[param_idx - function._param_offset] = LazyTensor(
-                        TransformType::TENSOR, std::dynamic_pointer_cast<ov::op::v0::Constant>(input_node));  // (t)/1/c
+                    funcall._lazy_closure[param_idx - function._param_offset] =
+                        LazyTensor(TransformType::TENSOR,
+                                   std::dynamic_pointer_cast<ov::op::v0::Constant>(input_node));  // (t)/1/c
                 }
             }  // for (inputs)
         }      // for(nodes)
@@ -1583,7 +1585,7 @@ void Partitioner::optimize(const std::string& func_name) {
             auto closure_idx = param_idx - f._param_offset;
             ov::parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
                 auto& funcall = func_group.refs[f_idx].get();
-                funcall._transformations[closure_idx].update(TransformType::PERMUTE, p.second);
+                funcall._lazy_closure[closure_idx].update(TransformType::PERMUTE, p.second);
             });
         }
     };
@@ -1593,7 +1595,7 @@ void Partitioner::optimize(const std::string& func_name) {
             auto closure_idx = param_idx - f._param_offset;
             ov::parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
                 auto& funcall = func_group.refs[f_idx].get();
-                funcall._transformations[closure_idx].update(TransformType::CONVERT, std::monostate{});
+                funcall._lazy_closure[closure_idx].update(TransformType::CONVERT, std::monostate{});
             });
         }
     };
@@ -1625,8 +1627,6 @@ void Partitioner::optimize(const std::string& func_name) {
         // Run parallel matmul merge
         mergeParallelMatMuls(f._model, ctx);
 
-        // Mark LazyTensors to be concatenated later
-        // Note: closures are properly processed later as well
         ov::ParameterVector new_params;
         std::vector<ov::npuw::patterns::opt::Context::PPtr> to_remove;
         std::set<std::size_t> to_remove_idx;
@@ -1651,12 +1651,13 @@ void Partitioner::optimize(const std::string& func_name) {
                 for (auto&& cidx : to_concat_idx) {
                     // FIXME: Assuming here concat goes first and other transformations later.
                     //        This allows to store ov::Tensor and ignore their potential history of transformations
-                    NPUW_ASSERT(!funcall._transformations[cidx].has_transformations());
-                    to_concat.push_back(funcall._transformations[cidx]);
+                    NPUW_ASSERT(!funcall._lazy_closure[cidx].has_transformations());
+                    to_concat.push_back(funcall._lazy_closure[cidx]);
                 }
-                // Note: we can ignore updating funcall._transformations[cidx] here since those LazyTensors will be gone and the new one added into the vector
+                // Note: we can ignore updating funcall._lazy_closure[cidx] here since those LazyTensors will be gone
+                // and the new one added into the vector
                 if (!to_concat.empty()) {
-                    funcall._transformations.push_back(LazyTensor(TransformType::CONCAT, std::make_pair(to_concat, axis)));
+                    funcall._lazy_closure.push_back(LazyTensor(TransformType::CONCAT, std::make_pair(to_concat, axis)));
                 }
             });
         }
@@ -1683,15 +1684,15 @@ void Partitioner::optimize(const std::string& func_name) {
                 auto& funcall = func_group.refs[f_idx].get();
                 // FIXME: assuming no transformations were applied to the tensor - since we are utilizing the original
                 // ov::Tensor below
-                NPUW_ASSERT(!funcall._transformations[w_idx - f._param_offset].has_transformations());
+                NPUW_ASSERT(!funcall._lazy_closure[w_idx - f._param_offset].has_transformations());
                 if (z_idx != -1) {
-                    NPUW_ASSERT(!funcall._transformations[z_idx - f._param_offset].has_transformations());
+                    NPUW_ASSERT(!funcall._lazy_closure[z_idx - f._param_offset].has_transformations());
                 }
-                NPUW_ASSERT(!funcall._transformations[s_idx - f._param_offset].has_transformations());
-                ov::Tensor cw = funcall._transformations[w_idx - f._param_offset].get_orig_tensor();
+                NPUW_ASSERT(!funcall._lazy_closure[s_idx - f._param_offset].has_transformations());
+                ov::Tensor cw = funcall._lazy_closure[w_idx - f._param_offset].get_orig_tensor();
                 ov::Tensor cz =
-                    z_idx != -1 ? funcall._transformations[z_idx - f._param_offset].get_orig_tensor() : ov::Tensor{};
-                ov::Tensor cs = funcall._transformations[s_idx - f._param_offset].get_orig_tensor();
+                    z_idx != -1 ? funcall._lazy_closure[z_idx - f._param_offset].get_orig_tensor() : ov::Tensor{};
+                ov::Tensor cs = funcall._lazy_closure[s_idx - f._param_offset].get_orig_tensor();
                 ov::Tensor dst(p.first->get_element_type(), p.first->get_shape());
 
                 const auto& gti = ov::get_tensor_impl;
@@ -1702,7 +1703,7 @@ void Partitioner::optimize(const std::string& func_name) {
                 } else {
                     NPUW_ASSERT(false && "Unsupported combination");
                 }
-                funcall._transformations.push_back(LazyTensor(TransformType::TENSOR, std::move(dst)));
+                funcall._lazy_closure.push_back(LazyTensor(TransformType::TENSOR, std::move(dst)));
             });
         }
 
@@ -1716,7 +1717,7 @@ void Partitioner::optimize(const std::string& func_name) {
             for (auto&& funcall : func_group.refs) {
                 auto new_elem_type = params_to_gather.pnew->get_element_type();
                 auto new_shape = params_to_gather.pnew->get_shape();
-                funcall.get()._transformations.push_back(
+                funcall.get()._lazy_closure.push_back(
                     LazyTensor(TransformType::TENSOR, ov::Tensor(new_elem_type, new_shape)));
             }
         }
@@ -1728,12 +1729,12 @@ void Partitioner::optimize(const std::string& func_name) {
         for (auto&& fref : func_group.refs) {
             auto& funcall = fref.get();
             std::vector<LazyTensor> new_transforms;
-            for (std::size_t tidx = 0; tidx < funcall._transformations.size(); tidx++) {
+            for (std::size_t tidx = 0; tidx < funcall._lazy_closure.size(); tidx++) {
                 if (to_remove_idx.count(f._param_offset + tidx) == 0) {
-                    new_transforms.push_back(funcall._transformations[tidx]);
+                    new_transforms.push_back(funcall._lazy_closure[tidx]);
                 }
             }
-            funcall._transformations = std::move(new_transforms);
+            funcall._lazy_closure = std::move(new_transforms);
         }
         // Remove parameters that were concatenated
         for (auto&& now_remove : to_remove) {

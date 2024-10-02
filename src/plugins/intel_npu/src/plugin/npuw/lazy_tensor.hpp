@@ -23,6 +23,7 @@ enum class TransformType : int { TENSOR, PERMUTE, CONVERT, CONCAT };
 
 // Forward declaration
 class LazyTensor;
+struct LazyTensorImpl;
 
 using ConcatMeta = std::pair<std::vector<LazyTensor>, std::size_t>;
 using ConstPtr = std::shared_ptr<ov::op::v0::Constant>;
@@ -42,19 +43,17 @@ public:
     explicit LazyTensor(const TransformType& type, const Transform& transform);
 
     bool operator==(const LazyTensor& other) const;
+    bool operator!=(const LazyTensor& other) const;
 
     void update(const TransformType& type, const Transform& transform);
     ov::Tensor eval() const;
 
     ov::Tensor get_orig_tensor() const;
-
+    std::size_t get_hash() const;
     bool has_transformations() const;
 
 private:
-    std::vector<std::pair<TransformType, Transform>> m_transforms;
-    void* m_orig_data = nullptr;
-    ov::Shape m_orig_shape;
-    ov::element::Type m_orig_type;
+    std::shared_ptr<LazyTensorImpl> m_impl = nullptr;
 };
 
 }  // namespace weights

@@ -44,7 +44,7 @@ struct Subgraph {
     std::vector<ov::Tensor> _zerops;  // Zero points for manual unpacking
 
     // Stores transformation history for weights which will be applied before inference
-    std::vector<weights::LazyTensor> _transformations;
+    std::vector<weights::LazyTensor> _lazy_closure;
 
     struct Gather {
         // NB.: int64_t is strange but it is used by OV to refer to parameters

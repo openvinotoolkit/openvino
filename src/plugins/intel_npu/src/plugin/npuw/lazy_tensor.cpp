@@ -6,38 +6,83 @@
 
 using ov::npuw::weights::ConcatMeta;
 using ov::npuw::weights::ConstPtr;
-using ov::npuw::weights::LTData;
 using ov::npuw::weights::LazyTensor;
+using ov::npuw::weights::LTData;
 using ov::npuw::weights::Transform;
 using ov::npuw::weights::TransformType;
 
-std::size_t LazyTensor::Hash::operator()(const LazyTensor& lt) const {
-    std::size_t seed = std::hash<void*>()(lt.m_orig_data) + 0x9e3779b9;
-    seed ^= std::hash<std::string>()(lt.m_orig_shape.to_string()) + 0x9e3779b9;
-    seed ^= std::hash<std::string>()(lt.m_orig_type.to_string()) + 0x9e3779b9;
-    for (const auto& tr : lt.m_transforms) {
-        seed ^= std::hash<int>()(static_cast<int>(tr.first)) + 0x9e3779b9;
-        if (tr.first == TransformType::PERMUTE) {
-            const auto& axes = std::get<std::vector<std::size_t>>(tr.second);
-            for (const auto& axis : axes) {
-                seed ^= std::hash<std::size_t>()(axis) + 0x9e3779b9;
-            }
-        } else if (tr.first == TransformType::CONCAT) {
-            const auto& axis = std::get<ConcatMeta>(tr.second).second;
+namespace ov {
+namespace npuw {
+namespace weights {
+
+struct LazyTensorImpl {
+public:
+    explicit LazyTensorImpl() = default;
+    explicit LazyTensorImpl(const TransformType& type, const Transform& transform);
+
+    bool operator==(const LazyTensorImpl& other) const;
+
+    ov::Tensor eval() const;
+
+    ov::Tensor get_orig_tensor() const;
+
+    std::size_t get_hash() const;
+
+    bool has_transformations() const;
+
+    std::shared_ptr<LazyTensorImpl> m_parent = nullptr;
+    std::pair<TransformType, Transform> m_transform;
+    std::size_t m_hash = 0;
+
+    void* m_orig_data = nullptr;
+    ov::Shape m_orig_shape;
+    ov::element::Type m_orig_type;
+};
+
+std::size_t LazyTensorImpl::get_hash() const {
+    // Already calculated
+    if (m_hash != 0) {
+        return m_hash;
+    }
+
+    // Get parent's hash
+    std::size_t seed = 0;
+    if (m_parent) {
+        seed = m_parent->get_hash();
+    } else {
+        seed = std::hash<void*>()(m_orig_data) + 0x9e3779b9;
+        seed ^= std::hash<std::string>()(m_orig_shape.to_string()) + 0x9e3779b9;
+        seed ^= std::hash<std::string>()(m_orig_type.to_string()) + 0x9e3779b9;
+    }
+
+    // Combine with this hash
+    seed ^= std::hash<int>()(static_cast<int>(m_transform.first)) + 0x9e3779b9;
+    if (m_transform.first == TransformType::PERMUTE) {
+        const auto& axes = std::get<std::vector<std::size_t>>(m_transform.second);
+        for (const auto& axis : axes) {
             seed ^= std::hash<std::size_t>()(axis) + 0x9e3779b9;
-            for (const auto& lt : std::get<ConcatMeta>(tr.second).first) {
-                seed ^= LazyTensor::Hash::operator()(lt) + 0x9e3779b9;
-            }
+        }
+    } else if (m_transform.first == TransformType::CONCAT) {
+        const auto& axis = std::get<ConcatMeta>(m_transform.second).second;
+        seed ^= std::hash<std::size_t>()(axis) + 0x9e3779b9;
+        for (auto& lt : std::get<ConcatMeta>(m_transform.second).first) {
+            seed ^= lt.get_hash() + 0x9e3779b9;
         }
     }
-    return seed;
-}
 
-LazyTensor::LazyTensor(const TransformType& type, const Transform& transform) {
+    return m_hash;
+}
+}  // namespace weights
+}  // namespace npuw
+}  // namespace ov
+
+using ov::npuw::weights::LazyTensorImpl;
+
+LazyTensorImpl::LazyTensorImpl(const TransformType& type, const Transform& transform) {
     if (type == TransformType::TENSOR && std::holds_alternative<LTData>(transform)) {
-        m_transforms.push_back({type, transform});
+        m_transform = std::make_pair(type, transform);
         ov::Tensor tensor;
-        if (std::holds_alternative<ConstPtr>(std::get<LTData>(transform))){
+        if (std::holds_alternative<ConstPtr>(std::get<LTData>(transform))) {
             tensor = ov::npuw::util::tensor_from_const(std::get<ConstPtr>(std::get<LTData>(transform)));
         } else {
             tensor = std::get<ov::Tensor>(std::get<LTData>(transform));
@@ -46,56 +91,67 @@ LazyTensor::LazyTensor(const TransformType& type, const Transform& transform) {
         m_orig_shape = tensor.get_shape();
         m_orig_type = tensor.get_element_type();
     } else if (type == TransformType::CONCAT && std::holds_alternative<ConcatMeta>(transform)) {
-        m_transforms.push_back({type, transform});
+        m_transform = std::make_pair(type, transform);
     } else {
         NPUW_ASSERT(false);
     }
+
+    m_hash = get_hash();
 }
 
-bool LazyTensor::operator==(const LazyTensor& other) const {
-    if (m_orig_data != other.m_orig_data || m_orig_shape != other.m_orig_shape || m_orig_type != other.m_orig_type ||
-        m_transforms.size() != other.m_transforms.size()) {
+bool LazyTensorImpl::operator==(const LazyTensorImpl& other) const {
+    if (m_hash != other.m_hash || m_orig_data != other.m_orig_data || m_orig_shape != other.m_orig_shape ||
+        m_orig_type != other.m_orig_type || m_transform.first != other.m_transform.first) {
         return false;
     }
 
-    for (size_t i = 0; i < m_transforms.size(); ++i) {
-        if (m_transforms[i].first != other.m_transforms[i].first) {
+    ConcatMeta m1, m2;
+
+    switch (m_transform.first) {
+    case TransformType::TENSOR:
+        // everything is already compared above - skip
+        break;
+    case TransformType::CONVERT:
+        // everything is already compared above - skip
+        break;
+    case TransformType::PERMUTE:
+        if (std::get<std::vector<std::size_t>>(m_transform.second) !=
+            std::get<std::vector<std::size_t>>(other.m_transform.second)) {
             return false;
         }
-        // Only PERMUTE and CONCAT have meta which needs to be compared
-        if (m_transforms[i].first == TransformType::PERMUTE) {
-            if (std::get<std::vector<std::size_t>>(m_transforms[i].second) !=
-                std::get<std::vector<std::size_t>>(other.m_transforms[i].second)) {
+        break;
+    case TransformType::CONCAT:
+        m1 = std::get<ConcatMeta>(m_transform.second);
+        m2 = std::get<ConcatMeta>(other.m_transform.second);
+        if (m1.second != m2.second) {
+            return false;
+        }
+        if (m1.first.size() != m2.first.size()) {
+            return false;
+        }
+        for (std::size_t mi = 0; mi < m1.first.size(); ++mi) {
+            if (m1.first[mi] != m2.first[mi]) {
                 return false;
-            }
-        } else if (m_transforms[i].first == TransformType::CONCAT) {
-            const auto& m1 = std::get<ConcatMeta>(m_transforms[i].second);
-            const auto& m2 = std::get<ConcatMeta>(other.m_transforms[i].second);
-            if (m1.second != m2.second) {
-                return false;
-            }
-            if (m1.first.size() != m2.first.size()) {
-                return false;
-            }
-            for (std::size_t mi = 0; mi < m1.first.size(); ++mi) {
-                if (!(m1.first[mi] == m2.first[mi])) {
-                    return false;
-                }
             }
         }
+        break;
+    default:
+        NPUW_ASSERT(false);
+        break;
+    }
+
+    if ((m_parent && !other.m_parent) || (!m_parent && other.m_parent)) {
+        return false;
+    }
+
+    if (m_parent && other.m_parent) {
+        return *m_parent.get() == *other.m_parent.get();
     }
 
     return true;
 }
 
-void LazyTensor::update(const TransformType& type, const Transform& transform) {
-    // Sanity check
-    NPUW_ASSERT((type == TransformType::PERMUTE && std::holds_alternative<std::vector<std::size_t>>(transform)) ||
-                (type == TransformType::CONVERT && std::holds_alternative<std::monostate>(transform)));
-    m_transforms.push_back({type, transform});
-}
-
-ov::Tensor LazyTensor::eval() const {
+ov::Tensor LazyTensorImpl::eval() const {
     /* FIXME:
     Consider case:
         model1: concat->permute->f16
@@ -106,56 +162,95 @@ ov::Tensor LazyTensor::eval() const {
     Perhaps it should be done after model compilation and not handled here.
     */
 
-    ov::Tensor transformed;
-    ov::Tensor tnew;
-
-    NPUW_ASSERT(!m_transforms.empty());
-
     // Process the initial tensor - either from Const or from Concat
-    if (m_transforms.front().first == TransformType::TENSOR) {
-        transformed = get_orig_tensor();
-    } else if (m_transforms.front().first == TransformType::CONCAT) {
-        std::vector<ov::Tensor> to_concat;
-        for (const auto& lt : std::get<ConcatMeta>(m_transforms.front().second).first) {
-            // Sanity check
-            NPUW_ASSERT(!lt.has_transformations());
-            to_concat.push_back(lt.get_orig_tensor());
-        }
-        transformed = ov::npuw::util::concat(to_concat, std::get<ConcatMeta>(m_transforms.front().second).second);
-    } else {
-        NPUW_ASSERT(false);
-    }
-
-    // Process transformation on top of initial tensor
-    for (std::size_t i = 1; i < m_transforms.size(); ++i) {
-        const auto& tr = m_transforms[i];
-        switch (tr.first) {
-        case TransformType::PERMUTE:
-            tnew = ov::npuw::util::permute(transformed, std::get<std::vector<std::size_t>>(tr.second));
-            tnew.copy_to(transformed);
-        case TransformType::CONVERT:
-            tnew = ov::npuw::util::to_f16(transformed);
-            tnew.copy_to(transformed);
-        default:
+    if (!m_parent) {
+        if (m_transform.first == TransformType::TENSOR) {
+            return get_orig_tensor();
+        } else if (m_transform.first == TransformType::CONCAT) {
+            std::vector<ov::Tensor> to_concat;
+            for (const auto& lt : std::get<ConcatMeta>(m_transform.second).first) {
+                // Sanity check
+                NPUW_ASSERT(!lt.has_transformations());
+                to_concat.push_back(lt.get_orig_tensor());
+            }
+            return ov::npuw::util::concat(to_concat, std::get<ConcatMeta>(m_transform.second).second);
+        } else {
             NPUW_ASSERT(false);
         }
     }
-    return transformed;
+
+    // Process transformation
+    switch (m_transform.first) {
+    case TransformType::PERMUTE:
+        return ov::npuw::util::permute(m_parent->eval(), std::get<std::vector<std::size_t>>(m_transform.second));
+    case TransformType::CONVERT:
+        return ov::npuw::util::to_f16(m_parent->eval());
+    default:
+        NPUW_ASSERT(false);
+    }
+
+    NPUW_ASSERT(false);
+    return ov::Tensor();
 }
 
-ov::Tensor LazyTensor::get_orig_tensor() const {
+ov::Tensor LazyTensorImpl::get_orig_tensor() const {
     // Sanity check
     NPUW_ASSERT(!has_transformations());
-    if (std::holds_alternative<ConstPtr>(std::get<LTData>(m_transforms.front().second))){
-        return ov::npuw::util::tensor_from_const(std::get<ConstPtr>(std::get<LTData>(m_transforms.front().second)));
+    if (std::holds_alternative<ConstPtr>(std::get<LTData>(m_transform.second))) {
+        return ov::npuw::util::tensor_from_const(std::get<ConstPtr>(std::get<LTData>(m_transform.second)));
     }
-    return std::get<ov::Tensor>(std::get<LTData>(m_transforms.front().second));
+    return std::get<ov::Tensor>(std::get<LTData>(m_transform.second));
 }
 
-bool LazyTensor::has_transformations() const {
-    // The first transformation is always initial Tensor or Concat
-    if (m_transforms.size() == 1 && m_transforms.front().first == TransformType::TENSOR) {
+bool LazyTensorImpl::has_transformations() const {
+    if (m_parent) {
         return false;
     }
     return true;
+}
+
+LazyTensor::LazyTensor(const TransformType& type, const Transform& transform)
+    : m_impl(std::make_shared<LazyTensorImpl>(type, transform)) {}
+
+bool LazyTensor::operator==(const LazyTensor& other) const {
+    return *m_impl.get() == *other.m_impl.get();
+}
+
+bool LazyTensor::operator!=(const LazyTensor& other) const {
+    return !(*m_impl.get() == *other.m_impl.get());
+}
+
+void LazyTensor::update(const TransformType& type, const Transform& transform) {
+    const auto& curr = m_impl;
+    auto new_lt = std::make_shared<LazyTensorImpl>();
+
+    new_lt->m_orig_data = curr->m_orig_data;
+    new_lt->m_orig_shape = curr->m_orig_shape;
+    new_lt->m_orig_type = curr->m_orig_type;
+
+    new_lt->m_transform = std::make_pair(type, transform);
+    new_lt->m_parent = curr;
+    new_lt->m_hash = new_lt->get_hash();
+
+    m_impl = new_lt;
+}
+
+ov::Tensor LazyTensor::eval() const {
+    return m_impl->eval();
+}
+
+ov::Tensor LazyTensor::get_orig_tensor() const {
+    return m_impl->get_orig_tensor();
+}
+
+std::size_t LazyTensor::get_hash() const {
+    return m_impl->get_hash();
+}
+
+std::size_t LazyTensor::Hash::operator()(const LazyTensor& lt) const {
+    return lt.get_hash();
+}
+
+bool LazyTensor::has_transformations() const {
+    return m_impl->has_transformations();
 }

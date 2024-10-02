@@ -288,7 +288,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             m_compiled_submodels[id].host_gather = subgraph._host_gather;
             m_compiled_submodels[id].param_base = fcn_template._param_offset;
             m_compiled_submodels[id].closure = subgraph._closure;
-            m_compiled_submodels[id].transformations = subgraph._transformations;
+            m_compiled_submodels[id].lazy_closure = subgraph._lazy_closure;
             m_compiled_submodels[id].scales = subgraph._scales;
             m_compiled_submodels[id].zerops = subgraph._zerops;
             m_compiled_submodels[id].is_remote.resize(subgraph._closure.size(), false);
@@ -426,8 +426,8 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
         m_compiled_submodels[idx].closure.resize(0);
         m_compiled_submodels[idx].is_remote.resize(0);
 
-        for (std::size_t tidx = 0; tidx < comp_model_desc.transformations.size(); ++tidx) {
-            const auto& lt = m_compiled_submodels[idx].transformations[tidx];
+        for (std::size_t tidx = 0; tidx < comp_model_desc.lazy_closure.size(); ++tidx) {
+            const auto& lt = m_compiled_submodels[idx].lazy_closure[tidx];
             m_compiled_submodels[idx].closure.push_back(m_weights_bank->get(lt, *func_desc.device_it));
             // FIXME: should is_remote be set unconditionally?
             m_compiled_submodels[idx].is_remote.push_back(true);
