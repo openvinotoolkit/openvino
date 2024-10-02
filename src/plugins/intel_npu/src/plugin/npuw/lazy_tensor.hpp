@@ -47,6 +47,7 @@ public:
     ov::Tensor get_orig_tensor() const;
 
     bool has_concat() const;
+    bool has_transformations() const;
     std::vector<ov::Tensor> get_to_concat() const;
     std::vector<LazyTensor> get_lt_to_concat() const;
 

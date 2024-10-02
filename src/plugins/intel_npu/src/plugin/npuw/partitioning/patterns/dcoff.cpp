@@ -4,6 +4,7 @@
 
 #include "dcoff.hpp"
 
+#include "../../lazy_tensor.hpp"
 #include "../../logging.hpp"
 #include "../../util.hpp"
 #include "../partitioning.hpp"  // Subgraph
@@ -115,26 +116,38 @@ ClosureRemap build_remap(const Function& fbody, const DCOFFParams& params_to) {
 }
 
 void apply_remap(Subgraph& fcall, const ClosureRemap& m) {
-    std::vector<ov::Tensor> new_closure;
+    std::vector<ov::npuw::weights::LazyTensor> new_transformations;
     std::vector<ov::Tensor> new_scales;
     std::vector<ov::Tensor> new_zerops;
 
-    // For a new_closure vector by rearranging the old one.  Also
+    // For a new_transformations vector by rearranging the old one.  Also
     // reserve a new_scales vector to have the same size, filled with
     // empty tensors by default.
     for (auto&& i : m.closure_remap) {
-        new_closure.push_back(fcall._closure[i]);
+        new_transformations.push_back(fcall._transformations[i]);
 
         auto scale_iter = m.scale_remap.find(i);
-        new_scales.push_back(scale_iter != m.scale_remap.end() ? fcall._closure[scale_iter->second] : ov::Tensor());
-        // Check for asymmetric zero points and add them to new_zerops
         auto zerop_iter = m.zerop_remap.find(i);
-        const auto& zerop = zerop_iter != m.zerop_remap.end() ? fcall._closure[zerop_iter->second] : m.zero_points[i];
+        // FIXME: assuming no transformations were applied to the tensor - since we are utilizing the original
+        // ov::Tensor below
+        if (scale_iter != m.scale_remap.end()) {
+            NPUW_ASSERT(!fcall._transformations[scale_iter->second].has_transformations());
+        }
+        if (zerop_iter != m.zerop_remap.end()) {
+            NPUW_ASSERT(!fcall._transformations[zerop_iter->second].has_transformations());
+        }
+        new_scales.push_back(scale_iter != m.scale_remap.end()
+                                 ? fcall._transformations[scale_iter->second].get_orig_tensor()
+                                 : ov::Tensor());
+        // Check for asymmetric zero points and add them to new_zerops
+        const auto& zerop = zerop_iter != m.zerop_remap.end()
+                                ? fcall._transformations[zerop_iter->second].get_orig_tensor()
+                                : m.zero_points[i];
         new_zerops.push_back(zerop);
     }
-    fcall._closure = std::move(new_closure);
     fcall._scales = std::move(new_scales);
     fcall._zerops = std::move(new_zerops);
+    fcall._transformations = std::move(new_transformations);
 }
 
 void finalize_remap(Function& fbody, const ClosureRemap& m) {

@@ -1579,13 +1579,23 @@ void Partitioner::optimize(const std::string& func_name) {
     ov::npuw::Function& f = P.functions.at(func_name);
     auto& func_group = all_functions.at(func_name);
 
+    auto do_permute = [&](ov::npuw::patterns::opt::Context& ctx) {
+        for (auto&& p : ctx.closures_to_permute) {
+            auto param_idx = f._model->get_parameter_index(p.first);
+            auto closure_idx = param_idx - f._param_offset;
+            ov::parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
+                auto& funcall = func_group.refs[f_idx].get();
+                funcall._transformations[closure_idx].update(TransformType::PERMUTE, p.second);
+            });
+        }
+    };
     auto do_cvtf16 = [&](ov::npuw::patterns::opt::Context& ctx) {
         for (auto&& p : ctx.closures_to_f16) {
             auto param_idx = f._model->get_parameter_index(p);
             auto closure_idx = param_idx - f._param_offset;
             ov::parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
                 auto& funcall = func_group.refs[f_idx].get();
-                ov::npuw::util::to_f16(funcall._closure[closure_idx]);
+                funcall._transformations[closure_idx].update(TransformType::CONVERT, std::monostate{});
             });
         }
     };
@@ -1676,9 +1686,17 @@ void Partitioner::optimize(const std::string& func_name) {
 
             ov::parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
                 auto& funcall = func_group.refs[f_idx].get();
-                ov::Tensor cw = funcall._closure[w_idx - f._param_offset];
-                ov::Tensor cz = z_idx != -1 ? funcall._closure[z_idx - f._param_offset] : ov::Tensor{};
-                ov::Tensor cs = funcall._closure[s_idx - f._param_offset];
+                // FIXME: assuming no transformations were applied to the tensor - since we are utilizing the original
+                // ov::Tensor below
+                NPUW_ASSERT(!funcall._transformations[w_idx - f._param_offset].has_transformations());
+                if (z_idx != -1) {
+                    NPUW_ASSERT(!funcall._transformations[z_idx - f._param_offset].has_transformations());
+                }
+                NPUW_ASSERT(!funcall._transformations[s_idx - f._param_offset].has_transformations());
+                ov::Tensor cw = funcall._transformations[w_idx - f._param_offset].get_orig_tensor();
+                ov::Tensor cz =
+                    z_idx != -1 ? funcall._transformations[z_idx - f._param_offset].get_orig_tensor() : ov::Tensor{};
+                ov::Tensor cs = funcall._transformations[s_idx - f._param_offset].get_orig_tensor();
                 ov::Tensor dst(p.first->get_element_type(), p.first->get_shape());
 
                 const auto& gti = ov::get_tensor_impl;
@@ -1689,12 +1707,11 @@ void Partitioner::optimize(const std::string& func_name) {
                 } else {
                     NPUW_ASSERT(false && "Unsupported combination");
                 }
-                funcall._closure.push_back(std::move(dst));
+                funcall._transformations.push_back(LazyTensor(TransformType::TENSOR, std::move(dst)));
             });
         }
 
         // Convert parameters to f16 where required
-        // FIXME: support LazyTensor here!!!
         do_cvtf16(ctx);
 
         // Host-side gather, pt 1. Add new parameters first
@@ -1704,7 +1721,8 @@ void Partitioner::optimize(const std::string& func_name) {
             for (auto&& funcall : func_group.refs) {
                 auto new_elem_type = params_to_gather.pnew->get_element_type();
                 auto new_shape = params_to_gather.pnew->get_shape();
-                funcall.get()._closure.push_back(ov::Tensor(new_elem_type, new_shape));
+                funcall.get()._transformations.push_back(
+                    LazyTensor(TransformType::TENSOR, ov::Tensor(new_elem_type, new_shape)));
             }
         }
 
@@ -1761,25 +1779,8 @@ void Partitioner::optimize(const std::string& func_name) {
     rewr.run_on_model(f._model);
     ov::pass::Validate().run_on_model(f._model);
 
-    // Permute tensors where required
-    for (auto&& p : ctx.closures_to_permute) {
-        auto param_idx = f._model->get_parameter_index(p.first);
-        auto closure_idx = param_idx - f._param_offset;
-        ov::parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
-            auto& funcall = func_group.refs[f_idx].get();
-            funcall._transformations[closure_idx].update(TransformType::PERMUTE, p.second);
-        });
-    }
-
-    // Convert tensors where required
-    for (auto&& p : ctx.closures_to_f16) {
-        auto param_idx = f._model->get_parameter_index(p);
-        auto closure_idx = param_idx - f._param_offset;
-        ov::parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
-            auto& funcall = func_group.refs[f_idx].get();
-            funcall._transformations[closure_idx].update(TransformType::CONVERT, std::monostate{});
-        });
-    }
+    do_permute(ctx);
+    do_cvtf16(ctx);
 
     LOG_VERB("Done");
 }

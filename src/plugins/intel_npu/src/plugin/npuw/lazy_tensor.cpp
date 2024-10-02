@@ -131,6 +131,11 @@ bool LazyTensor::has_concat() const {
     return false;
 }
 
+bool LazyTensor::has_transformations() const {
+    // The first transformation is always initial Tensor
+    return m_transforms.size() > 1;
+}
+
 std::vector<ov::Tensor> LazyTensor::get_to_concat() const {
     NPUW_ASSERT(has_concat());
     std::vector<ov::Tensor> to_concat;
