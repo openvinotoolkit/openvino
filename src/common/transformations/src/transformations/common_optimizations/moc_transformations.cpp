@@ -143,7 +143,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     // In particular, if zero dim tensor is consumed in body of MultiSubGraphOp
     // RemoveConcatZeroDimInput and RemoveMultiSubGraphOpDanglingParamsResults should be called together.
     using namespace ov::pass;
-    REGISTER_PASS(manager, NopElimination, m_use_shapes)
+    REGISTER_PASS(manager, EliminateConvert)
     REGISTER_PASS(manager, EliminateScatterUpdate)
     REGISTER_PASS(manager, RemoveConcatZeroDimInput)
     REGISTER_PASS(manager, EliminateLoopInputsOutputs);
@@ -186,7 +186,6 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     REGISTER_PASS(manager, PullThroughReduce)
 
     // GRUCellFusion and SequenceFusion should be before NopElimination
-    // why??
     REGISTER_PASS(manager, LSTMCellFusion)
     REGISTER_PASS(manager, GRUCellFusion)
     REGISTER_PASS(manager, SequenceFusion)
@@ -204,7 +203,6 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
 
     auto eliminations = manager.register_pass<ov::pass::GraphRewrite>();
     ADD_MATCHER(eliminations, EliminateUnsqueezeGather)
-    // do we need 2nd NopElimination here? need to double-check
     ADD_MATCHER(eliminations, NopElimination, m_use_shapes)
     ADD_MATCHER(eliminations, SelectWithOneValueCondition)
     eliminations->set_name("ov::pass::CommonEliminations");
