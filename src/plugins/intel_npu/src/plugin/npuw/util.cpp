@@ -5,7 +5,7 @@
 #include "util.hpp"
 
 #if defined(HAVE_AVX2)
-#include <immintrin.h>
+#    include <immintrin.h>
 #endif
 
 #include <intel_npu/al/config/config.hpp>
@@ -87,30 +87,30 @@ inline int8_t upc(int8_t h) {
 
 #if defined(HAVE_AVX2)
 // NOTE: This routine implements the NEW ORDER
-#define avx2_i4toi8(vinput, vout0, vout1)                                         \
-    {                                                                             \
-        __m256i himask = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, 0xF0));    \
-        __m256i lomask = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, 0x0F));    \
-        __m256i vsgmask = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, 1 << 3)); \
-        __m256i vzero = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, 0));        \
-        __m256i vextend = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, (-8)));   \
-                                                                                  \
-        __m256i vht = _mm256_and_si256(vinput, himask);                           \
-        __m256i vhi = _mm256_srli_epi16(vht, 4);                                  \
-        __m256i vlo = _mm256_and_si256(vinput, lomask);                           \
-                                                                                  \
-        __m256i vsghi = _mm256_srli_epi16(_mm256_and_si256(vhi, vsgmask), 3);     \
-        __m256i vsglo = _mm256_srli_epi16(_mm256_and_si256(vlo, vsgmask), 3);     \
-        __m256i vsubhi = _mm256_sub_epi8(vzero, vsghi);                           \
-        __m256i vsublo = _mm256_sub_epi8(vzero, vsglo);                           \
-        __m256i vhires = _mm256_or_si256(vhi, _mm256_and_si256(vsubhi, vextend)); \
-        __m256i vlores = _mm256_or_si256(vlo, _mm256_and_si256(vsublo, vextend)); \
-                                                                                  \
-        __m256i vunlo = _mm256_unpacklo_epi8(vlores, vhires);                     \
-        __m256i vunhi = _mm256_unpackhi_epi8(vlores, vhires);                     \
-        *vout0 = _mm256_permute2x128_si256(vunlo, vunhi, 0x20);                   \
-        *vout1 = _mm256_permute2x128_si256(vunlo, vunhi, 0x31);                   \
-    }
+#    define avx2_i4toi8(vinput, vout0, vout1)                                         \
+        {                                                                             \
+            __m256i himask = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, 0xF0));    \
+            __m256i lomask = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, 0x0F));    \
+            __m256i vsgmask = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, 1 << 3)); \
+            __m256i vzero = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, 0));        \
+            __m256i vextend = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, (-8)));   \
+                                                                                      \
+            __m256i vht = _mm256_and_si256(vinput, himask);                           \
+            __m256i vhi = _mm256_srli_epi16(vht, 4);                                  \
+            __m256i vlo = _mm256_and_si256(vinput, lomask);                           \
+                                                                                      \
+            __m256i vsghi = _mm256_srli_epi16(_mm256_and_si256(vhi, vsgmask), 3);     \
+            __m256i vsglo = _mm256_srli_epi16(_mm256_and_si256(vlo, vsgmask), 3);     \
+            __m256i vsubhi = _mm256_sub_epi8(vzero, vsghi);                           \
+            __m256i vsublo = _mm256_sub_epi8(vzero, vsglo);                           \
+            __m256i vhires = _mm256_or_si256(vhi, _mm256_and_si256(vsubhi, vextend)); \
+            __m256i vlores = _mm256_or_si256(vlo, _mm256_and_si256(vsublo, vextend)); \
+                                                                                      \
+            __m256i vunlo = _mm256_unpacklo_epi8(vlores, vhires);                     \
+            __m256i vunhi = _mm256_unpackhi_epi8(vlores, vhires);                     \
+            *vout0 = _mm256_permute2x128_si256(vunlo, vunhi, 0x20);                   \
+            *vout1 = _mm256_permute2x128_si256(vunlo, vunhi, 0x31);                   \
+        }
 
 inline __m128i avx2_i8tof16(__m128i vi8) {
     __m256i i32vec = _mm256_cvtepi8_epi32(vi8);                 // extend:  8 x i8  -> 8 x i32 [256b of 256b]
@@ -1196,7 +1196,7 @@ void unpack_u4f16_asymm_zp(const ov::SoPtr<ov::ITensor>& from,
     }
 #else
     throw std::runtime_error("AVX2 support is neccessary but it's not enabled!");
-#endif 
+#endif
 }
 
 void unpack_u4f16_z(const ov::SoPtr<ov::ITensor>& from,
@@ -1297,7 +1297,7 @@ void unpack_u4f16_z(const ov::SoPtr<ov::ITensor>& from,
     }
 #else
     throw std::runtime_error("AVX2 support is neccessary but it's not enabled!");
-#endif 
+#endif
 }
 
 void unpack_u4f32(const ov::SoPtr<ov::ITensor>& from,
