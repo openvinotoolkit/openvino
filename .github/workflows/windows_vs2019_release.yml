@@ -405,7 +405,7 @@ jobs:
     with:
       runner: 'aks-win-8-cores-16gb'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
-      python-version: ${{ env.PYTHON_VERSION }}
+      python-version: '3.11'
 
   Pytorch_Layer_Tests:
     name: Pytorch Layer Tests
@@ -414,7 +414,7 @@ jobs:
     with:
       runner: 'aks-win-8-cores-16gb'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
-      python-version: ${{ env.PYTHON_VERSION }}
+      python-version: '3.11'
 
   CXX_Unit_Tests:
     name: C++ unit tests
