@@ -9,21 +9,18 @@
 #    if defined _WIN32 && !defined NOMINMAX
 #        define NOMINMAX
 #    endif
-
 #    include <xbyak/xbyak_util.h>
 
 #    include "jit_generator.hpp"
 #    include "openvino/core/type/bfloat16.hpp"
 #    include "openvino/core/type/float16.hpp"
-#    include "openvino/reference/utils/convert_util.hpp"
 
 namespace ov {
 namespace reference {
-namespace cpu {
-
+namespace jit {
 using namespace Xbyak;
 
-bool may_i_use(const isa_t cpu_isa) {
+bool Generator::mayiuse(const cpu_isa_t cpu_isa) {
     // note: MSVC 2022 (17.4) is not able to compile the next line for ARM and ARM64
     // so, we disable this code since for non-x86 platforms it returns 'false' anyway
     static Xbyak::util::Cpu cpu;
@@ -47,9 +44,9 @@ bool may_i_use(const isa_t cpu_isa) {
     case avx512_mic:
         return cpu.has(Cpu::tAVX512F) && cpu.has(Cpu::tAVX512CD) && cpu.has(Cpu::tAVX512ER) && cpu.has(Cpu::tAVX512PF);
     case avx512_mic_4ops:
-        return may_i_use(avx512_mic) && cpu.has(Cpu::tAVX512_4FMAPS) && cpu.has(Cpu::tAVX512_4VNNIW);
+        return mayiuse(avx512_mic) && cpu.has(Cpu::tAVX512_4FMAPS) && cpu.has(Cpu::tAVX512_4VNNIW);
     case avx512_core_bf16:
-        return may_i_use(avx512_core_vnni) && cpu.has(Cpu::tAVX512_BF16);
+        return mayiuse(avx512_core_vnni) && cpu.has(Cpu::tAVX512_BF16);
     case avx512_vpopcnt:
         return true && cpu.has(Cpu::tAVX512_VPOPCNTDQ);
     case fp16:
@@ -59,11 +56,6 @@ bool may_i_use(const isa_t cpu_isa) {
     }
     return false;
 }
-}  // namespace cpu
-
-namespace jit {
-#    ifdef OV_CORE_USE_XBYAK_JIT
-using namespace Xbyak;
 
 bool Generator::is_x64() {
     return sizeof(void*) == 8;
@@ -81,7 +73,7 @@ void Generator::preamble() {
     }
     for (size_t i = 0; i < num_abi_save_gpr_regs; ++i)
         push(Xbyak::Reg64(abi_save_gpr_regs[i]));
-    if (cpu::may_i_use(cpu::avx512_common)) {
+    if (mayiuse(avx512_common)) {
         mov(reg_EVEX_max_8b_offt, 2 * EVEX_max_8b_offt);
     }
 }
@@ -94,7 +86,7 @@ void Generator::postamble() {
             movdqu(Xbyak::Xmm(static_cast<int>(xmm_to_preserve_start + i)), ptr[rsp + i * xmm_len]);
         add(rsp, xmm_to_preserve * xmm_len);
     }
-    if (cpu::may_i_use(cpu::avx) && !cpu::may_i_use(cpu::avx512_mic))
+    if (mayiuse(avx) && !mayiuse(avx512_mic))
         vzeroupper();
     ret();
 }
@@ -198,7 +190,6 @@ template <>
 void Generator::copy<bfloat16>(const Xbyak::Reg64& dst, const Xbyak::Reg64& src, const Xbyak::Reg64& size) {
     copy<uint16_t>(dst, src, size);
 }
-#    endif  // OV_CORE_USE_XBYAK_JIT
 }  // namespace jit
 }  // namespace reference
 }  // namespace ov

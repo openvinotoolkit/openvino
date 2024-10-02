@@ -12,11 +12,9 @@
 
 #include <functional>
 
-// #ifdef OV_CORE_USE_XBYAK_JIT
 namespace ov {
 namespace reference {
 namespace jit {
-
 #ifdef XBYAK64
 static const Xbyak::Operand::Code abi_save_gpr_regs[] = {
     Xbyak::Operand::RBX,
@@ -40,6 +38,7 @@ static const Xbyak::Operand::Code abi_save_gpr_regs[] = {
 
 class Generator : public Xbyak::CodeGenerator {
     static constexpr size_t xmm_len = 16;
+
 #ifdef _WIN32
     static constexpr size_t xmm_to_preserve_start = 6;
     static constexpr size_t xmm_to_preserve = 10;
@@ -57,6 +56,22 @@ class Generator : public Xbyak::CodeGenerator {
 public:
     const Xbyak::Reg64 param = abi_param1;
 
+    typedef enum {
+        isa_any,
+        sse42,
+        avx,
+        avx2,
+        avx512_common,
+        avx512_core,
+        avx512_core_vnni,
+        avx512_mic,
+        avx512_mic_4ops,
+        avx512_core_bf16,
+        avx512_vpopcnt,
+        fp16
+    } cpu_isa_t;
+
+    static bool mayiuse(const cpu_isa_t cpu_isa);
     static bool is_x64();
 
     Generator(void* code_ptr = nullptr, size_t code_size = 16 * 1024);
@@ -73,5 +88,4 @@ public:
 };
 }  // namespace jit
 }  // namespace reference
-    }  // namespace ov
-    // #endif
+}  // namespace ov

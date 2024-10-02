@@ -10,26 +10,11 @@
 #include "openvino/reference/convert.hpp"
 
 namespace ov {
+
+// forward declare from inference dev API (cannot be included)
+extern bool with_cpu_x86_avx2();
+
 namespace reference {
-
-namespace cpu {
-typedef enum {
-    isa_any,
-    sse42,
-    avx,
-    avx2,
-    avx512_common,
-    avx512_core,
-    avx512_core_vnni,
-    avx512_mic,
-    avx512_mic_4ops,
-    avx512_core_bf16,
-    avx512_vpopcnt,
-    fp16
-} isa_t;
-
-bool may_i_use(const isa_t cpu_isa);
-}  // namespace cpu
 
 struct NoClamp {
     static constexpr bool enabled = false;
@@ -90,7 +75,7 @@ struct Converter {
     // Enabled when Optimized struct specialized defined for optimization
     template <class ClampMode, typename std::enable_if<Optimized<ClampMode>::enabled>::type* = nullptr>
     static void apply(const TI* in, TO* out, size_t n) {
-        if (cpu::may_i_use(cpu::avx2)) {
+        if (with_cpu_x86_avx2()) {
             for (; n >= vec_f32_size; n -= vec_f32_size, in += vec_f32_size, out += vec_f32_size) {
                 Optimized<ClampMode>::run(in, out);
             }

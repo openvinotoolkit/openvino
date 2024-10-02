@@ -256,7 +256,7 @@ public:
 
     template <typename src_t, typename dst_t, bool clamp = false>
     static fn_t get() {
-        if (is_x64() && cpu::may_i_use(cpu::avx) && cpu::may_i_use(cpu::avx2) && cpu::may_i_use(cpu::fp16)) {
+        if (is_x64() && mayiuse(avx) && mayiuse(avx2) && mayiuse(fp16)) {
             static const jit_convert_array::context_t context{{sizeof(src_t), &jit::Generator::copy<src_t>},
                                                               {sizeof(dst_t), &jit::Generator::copy<dst_t>},
                                                               jit_convert_vec<src_t, dst_t, clamp>,
@@ -460,7 +460,7 @@ public:
 
     template <typename data_t, typename range_t>
     static fn_t get() {
-        if (is_x64() && cpu::may_i_use(cpu::avx2)) {
+        if (is_x64() && mayiuse(avx2)) {
             static const jit_count_out_of_range::context_t context{
                 {sizeof(data_t), &jit::Generator::copy<data_t>},
                 jit_count_out_of_range_vec_prepare<data_t, range_t>,
