@@ -55,7 +55,7 @@ source_suffix = {
     '.md': 'markdown',
 }
 
-html_baseurl = 'https://docs.openvino.ai/canonical/'
+# html_baseurl = 'https://docs.openvino.ai/2024/'
 
 # -- Sitemap configuration ---------------------------------------------------
 
