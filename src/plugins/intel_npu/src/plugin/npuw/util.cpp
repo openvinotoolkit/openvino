@@ -4,7 +4,9 @@
 
 #include "util.hpp"
 
+#if defined(HAVE_AVX2)
 #include <immintrin.h>
+#endif
 
 #include <intel_npu/al/config/config.hpp>
 #include <iomanip>
@@ -83,6 +85,7 @@ inline int8_t upc(int8_t h) {
     return h | (-((h & (1 << 3)) >> 3) & (-8));
 }
 
+#if defined(HAVE_AVX2)
 // NOTE: This routine implements the NEW ORDER
 #define avx2_i4toi8(vinput, vout0, vout1)                                         \
     {                                                                             \
@@ -242,6 +245,7 @@ inline float avx2_load_f32(const int8_t* data, ov::element::Type type) {
         return val;
     }
 }
+#endif
 
 #ifdef UNPACK_PROFILING
 class UnpackStat {
@@ -279,6 +283,7 @@ void unpack_i4i8(const ov::SoPtr<ov::ITensor>& from,
     NPUW_ASSERT(to->is_continuous());
     NPUW_ASSERT(from->get_size() == to->get_size());
 
+#if defined(HAVE_AVX2)
     // with vectorization above, we:
     // - read  256 bits (= 32 bytes, = 64  i4 elements)
     // - write 512 bits (= 64 bytes, = 64  i8 elements)
@@ -309,6 +314,7 @@ void unpack_i4i8(const ov::SoPtr<ov::ITensor>& from,
             pDstLocal += 64;
         }
     };
+
     // ov work index / 64
     if (unpack_options.nPartitions) {
         std::size_t minPartitions;
@@ -353,6 +359,9 @@ void unpack_i4i8(const ov::SoPtr<ov::ITensor>& from,
         pSrc++;
     }
     UNPACK_SAVE_TICK();
+#else
+    throw std::runtime_error("AVX2 support is neccessary but it's not enabled!");
+#endif
 }
 
 void unpack_u4i8(const ov::SoPtr<ov::ITensor>& from,
@@ -381,6 +390,7 @@ void unpack_i4f16(const ov::SoPtr<ov::ITensor>& from,
     NPUW_ASSERT(to->is_continuous());
     NPUW_ASSERT(from->get_size() == to->get_size());
 
+#if defined(HAVE_AVX2)
     // This conversion combines i4toi8 (above) and i8tof16 (below). Here we
     // - read    256  bits (= 32  bytes, = 64  i4  elements)
     // - write   1024 bits (= 128 bytes, = 64  f16 elements)
@@ -489,6 +499,9 @@ void unpack_i4f16(const ov::SoPtr<ov::ITensor>& from,
             pDst[i] = tmp[i];
         }
     }
+#else
+    throw std::runtime_error("AVX2 support is neccessary but it's not enabled!");
+#endif
 }
 
 void unpack_i4f16(const ov::SoPtr<ov::ITensor>& from,
@@ -521,6 +534,7 @@ void unpack_i4f16(const ov::SoPtr<ov::ITensor>& from,
     const auto scale_elem_type = scale->get_element_type();
     NPUW_ASSERT(scale_elem_type == ov::element::f32 || scale_elem_type == ov::element::f16);
 
+#if defined(HAVE_AVX2)
     // This conversion combines i4toi8 (above) and i8tof16 (below). Here we
     // - read    256  bits (= 32  bytes, = 64  i4  elements)
     // - write   1024 bits (= 128 bytes, = 64  f16 elements)
@@ -642,6 +656,9 @@ void unpack_i4f16(const ov::SoPtr<ov::ITensor>& from,
             unpack_body(index, stride);
         }
     }
+#else
+    throw std::runtime_error("AVX2 support is neccessary but it's not enabled!");
+#endif
 }
 
 void unpack_i4f16_z(const ov::SoPtr<ov::ITensor>& from,
@@ -761,6 +778,7 @@ void unpack_u4f16(const ov::SoPtr<ov::ITensor>& from,
     NPUW_ASSERT(from->get_size() == to->get_size());
     NPUW_ASSERT(from->get_size() % 64 == 0);
 
+#if defined(HAVE_AVX2)
     // This conversion combines u4i8 and i8tof16 unpacks. Here we
     // - read    256  bits (= 32  bytes, = 64  i4  elements)
     // - write   1024 bits (= 128 bytes, = 64  f16 elements)
@@ -811,6 +829,9 @@ void unpack_u4f16(const ov::SoPtr<ov::ITensor>& from,
         pSrc += 32;  // shift pSrc only by 32 since it is 64 x i4
         pDst += 64;  // note pDst is int16_t
     }
+#else
+    throw std::runtime_error("AVX2 support is neccessary but it's not enabled!");
+#endif
 }
 
 void unpack_u4f16(const ov::SoPtr<ov::ITensor>& from,
@@ -850,6 +871,7 @@ void unpack_u4f16(const ov::SoPtr<ov::ITensor>& from,
     NPUW_ASSERT(zerop_elem_type == ov::element::u4);
     NPUW_ASSERT(scale_elem_type == ov::element::f16);
 
+#if defined(HAVE_AVX2)
     // This conversion combines u4tof32 and f32tof16. Here we
     // - read    256  bits (= 32  bytes, = 64  u4  elements)
     // - write   1024 bits (= 128 bytes, = 64  f16 elements)
@@ -988,6 +1010,9 @@ void unpack_u4f16(const ov::SoPtr<ov::ITensor>& from,
             unpack_body(index, stride);
         }
     }
+#else
+    throw std::runtime_error("AVX2 support is neccessary but it's not enabled!");
+#endif
 }
 
 void unpack_u4f16_asymm_zp(const ov::SoPtr<ov::ITensor>& from,
@@ -1028,6 +1053,7 @@ void unpack_u4f16_asymm_zp(const ov::SoPtr<ov::ITensor>& from,
     NPUW_ASSERT(zerop_elem_type == ov::element::u4);
     NPUW_ASSERT(scale_elem_type == ov::element::f16);
 
+#if defined(HAVE_AVX2)
     // This conversion combines u4tof32 and f32tof16. Here we
     // - read    256  bits (= 32  bytes, = 64  u4  elements)
     // - write   1024 bits (= 128 bytes, = 64  f16 elements)
@@ -1168,6 +1194,9 @@ void unpack_u4f16_asymm_zp(const ov::SoPtr<ov::ITensor>& from,
             unpack_body(index, stride);
         }
     }
+#else
+    throw std::runtime_error("AVX2 support is neccessary but it's not enabled!");
+#endif 
 }
 
 void unpack_u4f16_z(const ov::SoPtr<ov::ITensor>& from,
@@ -1198,6 +1227,7 @@ void unpack_u4f16_z(const ov::SoPtr<ov::ITensor>& from,
     NPUW_ASSERT(zerop_elem_type == ov::element::f32);
     NPUW_ASSERT(scale_elem_type == ov::element::f32);
 
+#if defined(HAVE_AVX2)
     // This conversion combines u4tof32 and f32tof16. Here we
     // - read    256  bits (= 32  bytes, = 64  u4  elements)
     // - write   1024 bits (= 128 bytes, = 64  f16 elements)
@@ -1265,6 +1295,9 @@ void unpack_u4f16_z(const ov::SoPtr<ov::ITensor>& from,
             unpack_body(job_index, stride);
         }
     }
+#else
+    throw std::runtime_error("AVX2 support is neccessary but it's not enabled!");
+#endif 
 }
 
 void unpack_u4f32(const ov::SoPtr<ov::ITensor>& from,
@@ -1294,6 +1327,7 @@ void unpack_i8f16(const ov::SoPtr<ov::ITensor>& from,
     NPUW_ASSERT(from->get_size() == to->get_size());
     NPUW_ASSERT(from->get_size() % 8 == 0);
 
+#if defined(HAVE_AVX2)
     constexpr std::size_t VECSIZE = 8;
 
     const std::size_t total = from->get_size();
@@ -1309,6 +1343,9 @@ void unpack_i8f16(const ov::SoPtr<ov::ITensor>& from,
         pSrc += 8;
         pDst += 8;
     }
+#else
+    throw std::runtime_error("AVX2 support is neccessary but it's not enabled!");
+#endif
 }
 
 void unpack_i8f16(const ov::SoPtr<ov::ITensor>& from,
@@ -1326,6 +1363,7 @@ void unpack_i8f16(const ov::SoPtr<ov::ITensor>& from,
     const auto scale_elem_type = scale->get_element_type();
     NPUW_ASSERT(scale_elem_type == ov::element::f32 || scale_elem_type == ov::element::f16);
 
+#if defined(HAVE_AVX2)
     constexpr std::size_t VECSIZE = 8;
 
     const std::size_t total = from->get_size();
@@ -1347,6 +1385,9 @@ void unpack_i8f16(const ov::SoPtr<ov::ITensor>& from,
         }  // index
         pScl += scale_elem_type.size();
     }  // sindex
+#else
+    throw std::runtime_error("AVX2 support is neccessary but it's not enabled!");
+#endif
 }
 
 void unpack_u8f16(const ov::SoPtr<ov::ITensor>& from,
@@ -1371,6 +1412,7 @@ void unpack_u8f16(const ov::SoPtr<ov::ITensor>& from,
     const auto zerop_elem_type = zerop->get_element_type();
     NPUW_ASSERT(zerop_elem_type == ov::element::u8);
 
+#if defined(HAVE_AVX2)
     constexpr std::size_t VECSIZE = 8;
 
     const std::size_t total = from->get_size();
@@ -1397,6 +1439,9 @@ void unpack_u8f16(const ov::SoPtr<ov::ITensor>& from,
         pScl += scale_elem_type.size();
         pZrp++;
     }  // sindex
+#else
+    throw std::runtime_error("AVX2 support is neccessary but it's not enabled!");
+#endif
 }
 
 }  // namespace
