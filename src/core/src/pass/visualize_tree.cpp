@@ -228,7 +228,11 @@ bool ov::pass::VisualizeTree::run_on_model(const std::shared_ptr<ov::Model>& f) 
     std::unordered_map<Node*, HeightMap> height_maps;
 
     for (auto& node : f->get_ops()) {
-        height_maps[node.get()] = HeightMap({node.get()});
+        if (node->description() == "Result") {
+            height_maps[node.get()] = HeightMap({node.get()});
+        } else {
+            height_maps[node.get()] = HeightMap();
+        }
     }
 
     auto nodes = topological_sort(f->get_ops());
