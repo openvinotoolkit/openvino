@@ -27,7 +27,7 @@ This concurrency-based batching mode is transparent to the application. A single
 While performance may be lower compared to regular batching (based on native compiler support), this mode provides basic batching functionality for use either with older drivers
 or when the model cannot yet be compiled with a batch size larger than one.
 
-If the **conditions are not met**, the NPU plugin tries to compile and execute the original model with the given
+**If the conditions are not met**, the NPU plugin tries to compile and execute the original model with the given
 batch_size to N as any other regular model.
 
 .. note::
