@@ -23,7 +23,7 @@
 #endif
 
 bool ov::npuw::util::is_set(const std::size_t sub_idx, const std::string& opt) {
-    if (opt.empty()) {
+    if (opt.empty() || opt == "NO") {
         return false;
     }
     if (opt == "YES") {
