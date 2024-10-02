@@ -190,9 +190,19 @@ TSUnsqueezeBackward::TSUnsqueezeBackward() {
                 return false;
             }
         } else {
-            auto rank = main_node->get_output_partial_shape(0).rank();
-            non_negative_axes =
-                util::try_get_normalized_axis_vector(unsqueeze_axes->get_tensor_view(), rank, *main_node);
+            const auto& axes = unsqueeze_axes->cast_vector<int64_t>();
+            if (std::all_of(axes.begin(), axes.end(), [](int64_t axis) {
+                    return axis >= 0;
+                })) {
+                non_negative_axes = std::vector<size_t>(axes.begin(), axes.end());
+            } else {
+                auto rank = main_node->get_output_partial_shape(0).rank();
+                if (rank.is_dynamic()) {
+                    return false;
+                }
+                non_negative_axes =
+                    util::try_get_normalized_axis_vector(unsqueeze_axes->get_tensor_view(), rank, *main_node);
+            }
         }
 
         auto transpose_order_values = transpose_order->cast_vector<size_t>();
