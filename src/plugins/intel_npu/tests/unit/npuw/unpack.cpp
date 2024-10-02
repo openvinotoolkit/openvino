@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#ifdef __AVX2__
+#ifdef HAVE_AVX2
 #include "unpack.hpp"
 
 namespace {
