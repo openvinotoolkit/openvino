@@ -63,7 +63,7 @@ if(ENABLE_UB_SANITIZER)
     # Mute -fsanitize=enum Load of a value of an enumerated type which is not in the range of representable values for that enumerated type.
     #   Samples cases:
     #       load of value 4294967295, which is not a valid value for type 'const (anonymous namespace)::onnx::Field'
-    set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fsanitize=undefined -fno-sanitize=null -fno-sanitize=alignment -fno-sanitize=bool -fno-sanitize=enum -fsanitize-undefined-trap-on-error")
+    set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fsanitize=undefined -fno-sanitize=null -fno-sanitize=alignment -fno-sanitize=bool -fno-sanitize=enum")
     if(OV_COMPILER_IS_CLANG)
         set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fno-sanitize=function")
     endif()
