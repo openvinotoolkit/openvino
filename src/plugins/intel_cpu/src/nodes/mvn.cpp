@@ -122,7 +122,6 @@ MVN::MVN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
         OPENVINO_THROW_NOT_IMPLEMENTED("Node is not an instance of MVN from the operation set v0 or v6");
     }
     mvnAttrs.execAcrossChannels_ = getAcrossChannels();
-    mvnAttrs.fusedWith = fusedWith;
 }
 
 void MVN::getSupportedDescriptors() {}
@@ -199,6 +198,7 @@ void MVN::initSupportedPrimitiveDescriptors() {
     mvnAttrs.src_prc = descs.at(ARG_SRC)->getPrecision();
     mvnAttrs.dst_prc = descs.at(ARG_DST)->getPrecision();
 
+    postOps = getPostOps(fusedWith);
     auto executionContext = std::make_shared<ExecutorContext>(context, getImplPriority(), privateWeightCache);
     factory = std::make_shared<ExecutorFactory<MVNAttrs, node::MVN>>(mvnAttrs, postOps, executionContext, descs);
     const auto nodeDescriptors = factory->getProperMemoryDescriptors(descs);

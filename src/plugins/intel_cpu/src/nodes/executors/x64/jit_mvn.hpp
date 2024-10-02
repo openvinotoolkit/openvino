@@ -119,7 +119,7 @@ public:
     JITMVNExecutor(const MVNAttrs& attrs,
                    const PostOps& postOps,
                    const MemoryArgs& memory,
-                   const ExecutorContext::CPtr context) : jitContext(context), jitMVNAttrs(attrs) {}
+                   const ExecutorContext::CPtr context) : jitContext(context), jitMVNAttrs(attrs), mvnPostOps(postOps) {}
 
     void execute(const MemoryArgs& memory) override;
 
@@ -145,6 +145,7 @@ public:
 private:
     ExecutorContext::CPtr jitContext;
     MVNAttrs jitMVNAttrs;
+    PostOps mvnPostOps;
     VectorDims shape5D;
     std::vector<const void*> postOpsDataPtrs;
     std::shared_ptr<old_version::MVNJitExecutor> oldMVNJitExecutor;

@@ -2266,25 +2266,25 @@ bool JITMVNExecutor::MVNKey::operator==(const MVNKey& rhs) const {
 
 
 void JITMVNExecutor::setPostOps(dnnl::primitive_attr &attr, bool initWeights) {
-    dnnl::post_ops ops;
-    postOpsDataPtrs.clear();
-    for (auto &node : jitMVNAttrs.fusedWith) {
-        auto* fakeQuantizeNode = dynamic_cast<node::FakeQuantize *>(node.get());
-        if (fakeQuantizeNode) {
-            fakeQuantizeNode->appendPostOps(ops, {}, postOpsDataPtrs);
-            continue;
-        }
-
-        auto* eltwiseNode = dynamic_cast<node::Eltwise *>(node.get());
-        if (eltwiseNode) {
-            eltwiseNode->appendPostOps(ops, shape5D, postOpsDataPtrs);
-            continue;
-        }
-        OPENVINO_THROW("Fusing of ",
-                       NameFromType(node->getType()),
-                       " operation to MVN node is not implemented");
-    }
-    attr.set_post_ops(ops);
+//    dnnl::post_ops ops;
+//    postOpsDataPtrs.clear();
+//    for (auto &node : jitMVNAttrs.fusedWith) {
+//        auto* fakeQuantizeNode = dynamic_cast<node::FakeQuantize *>(node.get());
+//        if (fakeQuantizeNode) {
+//            fakeQuantizeNode->appendPostOps(ops, {}, postOpsDataPtrs);
+//            continue;
+//        }
+//
+//        auto* eltwiseNode = dynamic_cast<node::Eltwise *>(node.get());
+//        if (eltwiseNode) {
+//            eltwiseNode->appendPostOps(ops, shape5D, postOpsDataPtrs);
+//            continue;
+//        }
+//        OPENVINO_THROW("Fusing of ",
+//                       NameFromType(node->getType()),
+//                       " operation to MVN node is not implemented");
+//    }
+//    attr.set_post_ops(ops);
 }
 
 }  // namespace intel_cpu

@@ -32,7 +32,6 @@ struct MVNAttrs {
     MVNEpsMode epsMode_ = INSIDE_SQRT;
     ov::element::Type src_prc;
     ov::element::Type dst_prc;
-    std::vector <NodePtr> fusedWith;
 };
 
 using MVNConfig = executor::Config<MVNAttrs>;
