@@ -71,9 +71,10 @@ struct Function {
             PPtr param;
             std::size_t dim;
         };
-        std::size_t _spatial_range; // Range over which spatial execution is organized, e.g. 1024
-        std::size_t _spatial_slice; // A submission size for a single execution, e.g. 128
-        std::vector<Param> _spatial_inputs;
+        std::size_t _range = 0u; // Range over which spatial execution is organized, e.g. 1024
+        std::size_t _slice = 0u; // A submission size for a single execution, e.g. 128
+        std::size_t _out_dim = 0u; // Assume it is the same dim for all Results
+        std::vector<Param> _inputs;
     };
     using SpatialOpt = std::optional<Spatial>;
     SpatialOpt _spatial;

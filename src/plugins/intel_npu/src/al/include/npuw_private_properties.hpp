@@ -188,6 +188,14 @@ static constexpr ov::Property<bool> spatial{"NPUW_SPATIAL"};
 
 /**
  * @brief
+ * Type: std::size_t.
+ * Submission size for the spatial execution.
+ * Default value: 64
+ */
+static constexpr ov::Property<std::size_t> spatial_nway{"NPUW_SPATIAL_NWAY"};
+
+/**
+ * @brief
  * Type: boolean
  * When applicable, do embedding gather on host.
  * Default value: true.

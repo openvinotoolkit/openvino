@@ -52,6 +52,8 @@ private:
     void function_prologue(std::size_t idx);
     void unpack_closure(std::size_t idx, RqPtr request);
 
+    void unsafe_during(std::size_t real_idx, const std::function<void()> &f);
+    void unsafe_infer(std::size_t real_idx);
     void unsafe_run_this_prep_next(std::size_t idx, bool& next_prepared_p);
 
     void connect_subrequests();
@@ -80,6 +82,16 @@ private:
     // subgraphs, but with only function call-related elements
     // initialized.
     std::vector<FuncallPipeline> m_funcall_pipeline;
+
+    // Another sparse vector. Represents populated spatial I/O parameters
+    // which can should be read/written by parts in multile submissions.
+    // An ugly structure, cries for refactoring
+    // See function_prologue for details
+    struct SpatialIO {
+        std::vector<ov::SoPtr<ov::ITensor>> inputs;
+        std::vector<ov::SoPtr<ov::ITensor>> outputs;
+    };
+    std::vector<SpatialIO> m_spatial_io;
 
     // This structure tracks how every individual subrequest
     // access the model's top-level (global, public, etc) parameters

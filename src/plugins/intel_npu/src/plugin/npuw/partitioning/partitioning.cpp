@@ -1525,7 +1525,73 @@ void Partitioner::createFunction(FunctionPipeline& func_ggg) {
 }
 
 void Partitioner::identifySpatialRange(ov::npuw::Function &f) {
-    std::cout << "Identifying spatial range..." << std::endl;
+    NPUW_ASSERT(f._tag == "compute");
+
+    // NB: The current logic must be changed. Here we assume we only
+    // apply this change to "compute" subgraphs which we identify
+    // based on well-known patterns. This won't work in the generic case.
+
+    // The current logic is the following:
+    // - Assume the function results are ALL SPATIAL (and this alone
+    //   is a very strong assumption)
+    // - Identify their SPATIAL dimension (which is dim[1] because
+    //   we know how COMPUTE subgraphs are organized)
+    // - Walk over the parameters (up to _param_offset), find
+    //   spatial Parameters based on the dim we're looking at
+    // - Report the findings.
+    // Hence, the logic is not robust enough and should be generalized
+    // in the future.
+
+    // First, check our assumption on the function results
+    const auto &f_results = f._model->get_results();
+    NPUW_ASSERT(f_results.size() > 0);
+
+    const auto &f_result_0 = f_results.front();
+    const auto &f_result_0_shape = f_result_0->get_shape();
+
+    if (f_result_0_shape.size() != 3) {
+        return; // NB: this is the only case we enable now
+    }
+
+    if (f_result_0_shape[1] <= 1) {
+        return; // NB: this is the only spatial dim we enable now
+    }
+
+    for (auto &&f_result_i : f_results) {
+        // Yes, it will also compare r[0] vs r[0]
+        const auto &f_result_i_shape = f_result_i->get_shape();
+        if (f_result_0_shape.size() != f_result_i_shape.size()) {
+            return; // Do nothing
+        }
+
+        if (f_result_0_shape[1] != f_result_i_shape[1]) {
+            return; // Do nothing
+        }
+    }
+
+    // Now, find the parameters with the same spatial dim
+    // NB: again, this is a very weak feature to look for
+    const auto &f_params = f._model->get_parameters();
+    NPUW_ASSERT(f_params.size() > 0);
+
+    using S = ov::npuw::Function::Spatial;
+    S spatial;
+    spatial._range = f_result_0_shape[1];
+    spatial._out_dim = 1; // the only case we're looking into now
+
+    for (std::size_t i = 0u; i < f._param_offset; i++) {
+        const auto &f_param = f_params[i];
+        const auto &f_param_dims = f_param->get_shape();
+
+        auto spatial_dim_iter = std::find(f_param_dims.begin(), f_param_dims.end(), spatial._range);
+        if (spatial_dim_iter != f_param_dims.end()) {
+            std::size_t spatial_dim_idx = std::distance(f_param_dims.begin(), spatial_dim_iter);
+            spatial._inputs.push_back(S::Param{f_param, spatial_dim_idx});
+        }
+    }
+
+    // Apply the spatial change
+    f._spatial = std::move(spatial);
 }
 
 void Partitioner::createFunction(const std::string& func_name) {
@@ -1608,7 +1674,6 @@ void Partitioner::matchRepeatedSubgraphs(const std::string& func_name) {
 
 void Partitioner::spatial(const std::string& func_name) {
     ov::npuw::Function& f = P.functions.at(func_name);
-    auto& func_group = all_functions.at(func_name);
 
     // Identify the spatial dimension for this function
     // Works only for Compute case.
@@ -1623,12 +1688,32 @@ void Partitioner::spatial(const std::string& func_name) {
     LOG_BLOCK();
 
     identifySpatialRange(f);
-    if (f._spatial) {
-        std::cout << "Spatial range: " << f._spatial->_spatial_range << ", slice: " << f._spatial->_spatial_slice << std::endl;
-        LOG_VERB("Done");
-    } else {
+    if (!f._spatial) {
         LOG_WARN("No spatial ranges identified in the COMPUTE block, expect a higher compile time");
+        return;
     }
+
+    LOG_VERB("Spatial range: " << f._spatial->_range);
+
+    // Final check before transformations
+    f._spatial->_slice = cfg.get<::intel_npu::NPUW_SPATIAL_NWAY>();
+    if (f._spatial->_slice == 0u || (f._spatial->_range % f._spatial->_slice)) {
+        LOG_WARN("Can't divide spatial range by NWAY which is " << f._spatial->_slice);
+        f._spatial.reset(); // Erase spatial information to avoid conflicts
+        return;
+    }
+
+    // Apply transformation to the model. Note: only function body is modified
+    // Accumulate the reshape map
+    std::map<ov::Output<ov::Node>, ov::PartialShape> new_shapes;
+    for (auto &&p : f._spatial->_inputs) {
+        ov::Shape shape = p.param->get_shape();
+        shape[p.dim] = f._spatial->_slice;
+        new_shapes[p.param->output(0)] = shape;
+    }
+    f._model->reshape(new_shapes);
+
+    LOG_VERB("Done");
 }
 
 void Partitioner::optimize(const std::string& func_name) {
