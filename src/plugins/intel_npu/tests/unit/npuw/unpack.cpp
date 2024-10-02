@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#if 0
+#ifdef __AVX2__
 #include "unpack.hpp"
 
 namespace {
@@ -100,4 +100,4 @@ INSTANTIATE_TEST_SUITE_P(UnpackTestsWithScaleAndZeroPointTest3, UnpackTestsWithS
 
 } // anonymous namespace
 
-#endif
+#endif // __AVX2__
