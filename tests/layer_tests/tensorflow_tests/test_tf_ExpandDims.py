@@ -57,7 +57,7 @@ class TestExpandDimsComplex(CommonTFLayerTest):
 
         return inputs_data
 
-    def create_expand_dims_complex_net(self, input_shape, axis):
+    def create_expand_dims_complex_net(self, axis_dtype, input_shape, axis):
         tf.compat.v1.reset_default_graph()
         with tf.compat.v1.Session() as sess:
             param_real = tf.compat.v1.placeholder(np.float32, input_shape, 'param_real')
@@ -65,7 +65,7 @@ class TestExpandDimsComplex(CommonTFLayerTest):
 
             complex = tf.raw_ops.Complex(real=param_real, imag=param_imag)
 
-            axis = tf.constant(axis, dtype=tf.int32)
+            axis = tf.constant(axis, dtype=axis_dtype)
 
             result = tf.raw_ops.ExpandDims(input=complex, axis=axis)
 
@@ -84,10 +84,11 @@ class TestExpandDimsComplex(CommonTFLayerTest):
         dict(input_shape=[2, 6, 5], axis=-2),
     ]
 
-    @pytest.mark.parametrize("params", test_basic)
+    @pytest.mark.parametrize("axis_dtype", [np.int32, np.int64])
+    @pytest.mark.parametrize("op_args", test_basic)
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_expand_dims_basic_complex(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
-        self._test(*self.create_expand_dims_complex_net(**params),
+    def test_expand_dims_basic_complex(self, axis_dtype, op_args, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
+        self._test(*self.create_expand_dims_complex_net(axis_dtype, **op_args),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)
