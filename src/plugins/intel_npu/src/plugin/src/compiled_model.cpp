@@ -95,7 +95,9 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
     }
 
     OV_ITT_TASK_CHAIN(COMPILED_MODEL, itt::domains::NPUPlugin, "CompiledModel::CompiledModel", "initialize_properties");
-    initialize_properties();
+    _properties = std::make_unique<Properties>(PropertiesType::COMPILED_MODEL, _config);
+    _properties->registerProperties();
+
     configure_stream_executors();
 
     OV_ITT_TASK_NEXT(COMPILED_MODEL, "create_executor");
@@ -122,7 +124,9 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                     "NPU CompiledModel: the pointer towards the NetworkDescription object is null");
 
     OV_ITT_TASK_CHAIN(COMPILED_MODEL, itt::domains::NPUPlugin, "CompiledModel::CompiledModel", "initialize_properties");
-    initialize_properties();
+    _properties = std::make_unique<Properties>(PropertiesType::COMPILED_MODEL, _config);
+    _properties->registerProperties();
+
     configure_stream_executors();
 
     OV_ITT_TASK_NEXT(COMPILED_MODEL, "create_executor");
@@ -171,34 +175,21 @@ std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
 }
 
 void CompiledModel::set_property(const ov::AnyMap& properties) {
-    std::map<std::string, std::string> config;
-    for (auto&& value : properties) {
-        config.emplace(value.first, value.second.as<std::string>());
-    }
-    for (const auto& configEntry : config) {
-        if (_properties.find(configEntry.first) == _properties.end()) {
-            OPENVINO_THROW("Unsupported configuration key: ", configEntry.first);
-        } else {
-            if (std::get<1>(_properties[configEntry.first]) == ov::PropertyMutability::RO) {
-                OPENVINO_THROW("READ-ONLY configuration key: ", configEntry.first);
-            }
-        }
-    }
+    // 1. Set the property via Properties interface
+    _properties->set_property(properties);
 
-    _config.update(config);
-    if (_executorPtr != nullptr && config.find(ov::workload_type.name()) != config.end()) {
-        const auto workloadType = properties.at(ov::workload_type.name()).as<ov::WorkloadType>();
-        _executorPtr->setWorkloadType(workloadType);
+    // 2. Extra hooks
+    if (properties.count(std::string(WORKLOAD_TYPE::key())) != 0) {
+        if (_executorPtr != nullptr) {
+            const auto workloadType = properties.at(ov::workload_type.name()).as<ov::WorkloadType>();
+            _executorPtr->setWorkloadType(workloadType);
+        }
     }
 }
 
 ov::Any CompiledModel::get_property(const std::string& name) const {
-    auto configIterator = _properties.find(name);
-    if (configIterator != _properties.cend()) {
-        return std::get<2>(configIterator->second)(_config);
-    }
-
-    OPENVINO_THROW("Unsupported property ", name);
+    ov::AnyMap dummy;
+    return _properties->get_property(name, dummy);
 }
 
 const std::shared_ptr<const NetworkDescription>& CompiledModel::get_network_description() const {
@@ -238,73 +229,17 @@ void CompiledModel::configure_stream_executors() {
     _resultExecutor = ov::threading::executor_manager()->get_executor(executorId);
 }
 
-void CompiledModel::initialize_properties() {
-    const auto pluginSupportedProperties =
-        get_plugin()->get_property(ov::supported_properties.name(), {}).as<std::vector<ov::PropertyName>>();
-    const auto isPropertySupported = [&pluginSupportedProperties](const std::string& name) {
-        return std::any_of(pluginSupportedProperties.begin(),
-                           pluginSupportedProperties.end(),
-                           [&name](const ov::PropertyName& property) {
-                               return property == name;
-                           });
-    };
-
-    REGISTER_SIMPLE_PROPERTY(ov::device::id, DEVICE_ID);
-    REGISTER_SIMPLE_PROPERTY(ov::enable_profiling, PERF_COUNT);
-    REGISTER_SIMPLE_PROPERTY(ov::loaded_from_cache, LOADED_FROM_CACHE);
-    REGISTER_SIMPLE_PROPERTY(ov::hint::performance_mode, PERFORMANCE_HINT);
-    REGISTER_SIMPLE_PROPERTY(ov::hint::execution_mode, EXECUTION_MODE_HINT);
-    REGISTER_SIMPLE_PROPERTY(ov::hint::num_requests, PERFORMANCE_HINT_NUM_REQUESTS);
-    REGISTER_SIMPLE_PROPERTY(ov::hint::inference_precision, INFERENCE_PRECISION_HINT);
-    REGISTER_SIMPLE_PROPERTY(ov::hint::enable_cpu_pinning, ENABLE_CPU_PINNING);
-    REGISTER_SIMPLE_PROPERTY(ov::hint::model_priority, MODEL_PRIORITY);
-    REGISTER_SIMPLE_PROPERTY(ov::intel_npu::compilation_mode_params, COMPILATION_MODE_PARAMS);
-    REGISTER_SIMPLE_PROPERTY(ov::intel_npu::tiles, TILES);
-    REGISTER_SIMPLE_PROPERTY(ov::intel_npu::profiling_type, PROFILING_TYPE);
-    REGISTER_SIMPLE_PROPERTY(ov::intel_npu::platform, PLATFORM);
-    REGISTER_SIMPLE_PROPERTY(ov::intel_npu::dynamic_shape_to_static, DYNAMIC_SHAPE_TO_STATIC);
-    REGISTER_SIMPLE_PROPERTY(ov::intel_npu::use_elf_compiler_backend, USE_ELF_COMPILER_BACKEND);
-    REGISTER_SIMPLE_PROPERTY(ov::intel_npu::create_executor, CREATE_EXECUTOR);
-    REGISTER_SIMPLE_PROPERTY(ov::intel_npu::batch_mode, BATCH_MODE);
-
-    REGISTER_CUSTOM_PROPERTY(ov::model_name, [&](const Config&) {
-        OPENVINO_ASSERT(_networkPtr != nullptr, "Missing network descriptor");
-        return _networkPtr->metadata.name;
-    });
-    REGISTER_CUSTOM_PROPERTY(ov::optimal_number_of_infer_requests, [&](const Config& config) {
-        // value is allowed to be queried prior the network is compiled
-        return static_cast<uint32_t>(getOptimalNumberOfInferRequestsInParallel(config));
-    });
-    REGISTER_CUSTOM_PROPERTY(ov::execution_devices, [&](const Config&) {
-        return std::string("NPU");
-    });
-    REGISTER_CUSTOM_PROPERTY(ov::internal::supported_properties, [&](const Config&) {
-        static const std::vector<ov::PropertyName> supportedProperty{
-            ov::PropertyName(ov::internal::caching_properties.name(), ov::PropertyMutability::RO)};
-        return supportedProperty;
-    });
-    REGISTER_CUSTOM_PROPERTY(ov::supported_properties, [&](const Config&) {
-        return _supportedProperties;
-    });
-    REGISTER_PROPERTY(ov::workload_type,
-                      isPropertySupported(ov::workload_type.name()),
-                      ov::PropertyMutability::RW,
-                      [](const Config& config) {
-                          return config.get<WORKLOAD_TYPE>();
-                      });
-    REGISTER_PROPERTY(ov::intel_npu::turbo,
-                      isPropertySupported(ov::intel_npu::turbo.name()),
-                      ov::PropertyMutability::RO,
-                      [](const Config& config) {
-                          return config.get<TURBO>();
-                      });
-
-    for (auto& property : _properties) {
-        if (std::get<0>(property.second)) {
-            _supportedProperties.emplace_back(property.first, std::get<1>(property.second));
-        }
-    }
-}
+// void CompiledModel::initialize_properties() {
+//     const auto pluginSupportedProperties =
+//         get_plugin()->get_property(ov::supported_properties.name(), {}).as<std::vector<ov::PropertyName>>();
+//     const auto isPropertySupported = [&pluginSupportedProperties](const std::string& name) {
+//         return std::any_of(pluginSupportedProperties.begin(),
+//                            pluginSupportedProperties.end(),
+//                            [&name](const ov::PropertyName& property) {
+//                                return property == name;
+//                            });
+//     };
+// }
 
 void CompiledModel::create_executor() {
     if (_config.get<CREATE_EXECUTOR>()) {

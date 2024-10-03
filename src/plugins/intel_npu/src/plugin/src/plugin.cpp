@@ -27,59 +27,6 @@ const std::vector<size_t> CONSTANT_NODE_DUMMY_SHAPE{1};
 
 const char* NPU_PLUGIN_LIB_NAME = "openvino_intel_npu_plugin";
 
-// Macro for registering simple get<> properties which have everything defined in their optionBase
-#define REGISTER_SIMPLE_PROPERTY(option_name, config_type)                            \
-    do {                                                                              \
-        std::string o_name = option_name.name();                                      \
-        if (_options->has(o_name)) {                                                  \
-            _properties.emplace(o_name,                                               \
-                                std::make_tuple(_options->get(o_name).isPublic(),     \
-                                                _options->get(o_name).mutability(),   \
-                                                [](const Config& config) {            \
-                                                    return config.get<config_type>(); \
-                                                }));                                  \
-        }                                                                             \
-    } while (0)
-
-// Macro for defining otherwise simple get<> properties but which have variable public/private field
-#define REGISTER_VARPUB_PROPERTY(option_name, config_type, __isPublic)                                     \
-    do {                                                                                                   \
-        std::string o_name = option_name.name();                                                           \
-        if (_options->has(o_name)) {                                                                       \
-            _properties.emplace(                                                                           \
-                o_name,                                                                                    \
-                std::make_tuple(__isPublic, _options->get(o_name).mutability(), [](const Config& config) { \
-                    return config.get<config_type>();                                                      \
-                }));                                                                                       \
-        }                                                                                                  \
-    } while (0)
-
-// Macro for registering config properties which have custom return function
-#define REGISTER_CUSTOM_PROPERTY(option_name, __retfunc)                                                           \
-    do {                                                                                                           \
-        std::string o_name = option_name.name();                                                                   \
-        if (_options->has(o_name)) {                                                                               \
-            _properties.emplace(                                                                                   \
-                o_name,                                                                                            \
-                std::make_tuple(_options->get(o_name).isPublic(), _options->get(o_name).mutability(), __retfunc)); \
-        }                                                                                                          \
-    } while (0)
-
-// Macro for defining simple single-function-call value returning metrics
-#define REGISTER_SIMPLE_METRIC(m_name, public, __retfunc)                                                   \
-    do {                                                                                                    \
-        _properties.emplace(m_name.name(),                                                                  \
-                            std::make_tuple(public, ov::PropertyMutability::RO, [&](const Config& config) { \
-                                return __retfunc;                                                           \
-                            }));                                                                            \
-    } while (0)
-
-// Macro for defining metrics with custom return function
-#define REGISTER_CUSTOM_METRIC(m_name, public, __retfunc)                                                   \
-    do {                                                                                                    \
-        _properties.emplace(m_name.name(), std::make_tuple(public, ov::PropertyMutability::RO, __retfunc)); \
-    } while (0)
-
 /**
  * @brief Creates an "ov::Model" object which contains only the given "parameter" and "result" nodes.
  * @details Using an "ov::Model" object to create the "CompiledModel" is the preferred way of using the OV API.
@@ -215,13 +162,6 @@ static Config merge_configs(const Config& globalConfig,
     return localConfig;
 }
 
-static auto get_specified_device_name(const Config config) {
-    if (config.has<DEVICE_ID>()) {
-        return config.get<DEVICE_ID>();
-    }
-    return std::string();
-}
-
 static Config add_platform_to_the_config(Config config, const std::string_view platform) {
     config.update({{ov::intel_npu::platform.name(), std::string(platform)}});
     return config;
@@ -270,10 +210,12 @@ Plugin::Plugin()
     printf("\n\n[CSOKADBG]CID version major %d minor %d \n\n", cid_ver.vclMajor, cid_ver.vclMinor);
 
     OV_ITT_TASK_NEXT(PLUGIN, "Metrics");
-    _metrics = std::make_unique<Metrics>(_backends);
+    _metrics = std::make_shared<Metrics>(_backends);
 
     init_options(cid_ver);
-    init_properties();
+    /// Init and register properties
+    _properties = std::make_unique<Properties>(PropertiesType::PLUGIN, _globalConfig, _metrics);
+    _properties->registerProperties();
 }
 
 void Plugin::init_options(compilerVersion comp_ver) {
@@ -294,155 +236,23 @@ void Plugin::init_options(compilerVersion comp_ver) {
     std::cout << "Registered options end;" << std::endl;
 }
 
-void Plugin::init_properties() {
-    // Reset
-    _properties.clear();
-
-    // 1. Configs
-    // ========
-    // 1.1 simple configs which only return value
-    // REGISTER_SIMPLE_PROPERTY format: (property, config_to_return)
-    // REGISTER_VARPUB_PROPERTY format: (property, config_to_return, dynamic public/private value)
-    // REGISTER_CUSTOM_PROPERTY format: (property, custom_return_lambda_function)
-    REGISTER_SIMPLE_PROPERTY(ov::enable_profiling, PERF_COUNT);
-    REGISTER_SIMPLE_PROPERTY(ov::hint::performance_mode, PERFORMANCE_HINT);
-    REGISTER_SIMPLE_PROPERTY(ov::hint::execution_mode, EXECUTION_MODE_HINT);
-    REGISTER_SIMPLE_PROPERTY(ov::hint::num_requests, PERFORMANCE_HINT_NUM_REQUESTS);
-    REGISTER_SIMPLE_PROPERTY(ov::compilation_num_threads, COMPILATION_NUM_THREADS);
-    REGISTER_SIMPLE_PROPERTY(ov::hint::inference_precision, INFERENCE_PRECISION_HINT);
-    REGISTER_SIMPLE_PROPERTY(ov::hint::enable_cpu_pinning, ENABLE_CPU_PINNING);
-    REGISTER_SIMPLE_PROPERTY(ov::log::level, LOG_LEVEL);
-    REGISTER_SIMPLE_PROPERTY(ov::cache_dir, CACHE_DIR);
-    REGISTER_SIMPLE_PROPERTY(ov::device::id, DEVICE_ID);
-    REGISTER_SIMPLE_PROPERTY(ov::num_streams, NUM_STREAMS);
-    REGISTER_SIMPLE_PROPERTY(ov::hint::model_priority, MODEL_PRIORITY);
-    REGISTER_SIMPLE_PROPERTY(ov::internal::exclusive_async_requests, EXCLUSIVE_ASYNC_REQUESTS);
-    REGISTER_SIMPLE_PROPERTY(ov::intel_npu::compilation_mode_params, COMPILATION_MODE_PARAMS);
-    REGISTER_SIMPLE_PROPERTY(ov::intel_npu::dma_engines, DMA_ENGINES);
-    REGISTER_SIMPLE_PROPERTY(ov::intel_npu::tiles, TILES);
-    REGISTER_SIMPLE_PROPERTY(ov::intel_npu::dpu_groups, DPU_GROUPS);
-    REGISTER_SIMPLE_PROPERTY(ov::intel_npu::compilation_mode, COMPILATION_MODE);
-    REGISTER_SIMPLE_PROPERTY(ov::intel_npu::compiler_type, COMPILER_TYPE);
-    REGISTER_SIMPLE_PROPERTY(ov::intel_npu::platform, PLATFORM);
-    REGISTER_SIMPLE_PROPERTY(ov::intel_npu::use_elf_compiler_backend, USE_ELF_COMPILER_BACKEND);
-    REGISTER_SIMPLE_PROPERTY(ov::intel_npu::create_executor, CREATE_EXECUTOR);
-    REGISTER_SIMPLE_PROPERTY(ov::intel_npu::dynamic_shape_to_static, DYNAMIC_SHAPE_TO_STATIC);
-    REGISTER_SIMPLE_PROPERTY(ov::intel_npu::profiling_type, PROFILING_TYPE);
-    REGISTER_SIMPLE_PROPERTY(ov::intel_npu::backend_compilation_params, BACKEND_COMPILATION_PARAMS);
-    REGISTER_SIMPLE_PROPERTY(ov::intel_npu::batch_mode, BATCH_MODE);
-    REGISTER_VARPUB_PROPERTY(ov::workload_type, WORKLOAD_TYPE, _backends->isCommandQueueExtSupported());
-    REGISTER_VARPUB_PROPERTY(ov::intel_npu::turbo, TURBO, _backends->isCommandQueueExtSupported());
-    REGISTER_CUSTOM_PROPERTY(ov::intel_npu::stepping, [&](const Config& config) {
-        if (!config.has<STEPPING>()) {
-            const auto specifiedDeviceName = get_specified_device_name(config);
-            return static_cast<int64_t>(_metrics->GetSteppingNumber(specifiedDeviceName));
-        } else {
-            return config.get<STEPPING>();
-        }
-    });
-    REGISTER_CUSTOM_PROPERTY(ov::intel_npu::max_tiles, [&](const Config& config) {
-        if (!config.has<MAX_TILES>()) {
-            const auto specifiedDeviceName = get_specified_device_name(config);
-            return static_cast<int64_t>(_metrics->GetMaxTiles(specifiedDeviceName));
-        } else {
-            return config.get<MAX_TILES>();
-        }
-    });
-    // 1.2. Special cases where generic macros don't fit
-
-    // 2. Metrics
-    // ========
-    // 2.1. simple metrics which only return value
-    // REGISTER_SIMPLE_METRIC format: (property, public true/false, return value)
-    // REGISTER_CUSTOM_METRIC format: (property, public true/false, return value function)
-    REGISTER_SIMPLE_METRIC(ov::available_devices, true, _metrics->GetAvailableDevicesNames());
-    REGISTER_SIMPLE_METRIC(ov::device::capabilities, true, _metrics->GetOptimizationCapabilities());
-    REGISTER_SIMPLE_METRIC(ov::optimal_number_of_infer_requests,
-                           true,
-                           static_cast<uint32_t>(getOptimalNumberOfInferRequestsInParallel(add_platform_to_the_config(
-                               config,
-                               _backends->getCompilationPlatform(config.get<PLATFORM>(), config.get<DEVICE_ID>())))));
-    REGISTER_SIMPLE_METRIC(ov::range_for_async_infer_requests, true, _metrics->GetRangeForAsyncInferRequest());
-    REGISTER_SIMPLE_METRIC(ov::range_for_streams, true, _metrics->GetRangeForStreams());
-    REGISTER_SIMPLE_METRIC(ov::device::pci_info, true, _metrics->GetPciInfo(get_specified_device_name(config)));
-    REGISTER_SIMPLE_METRIC(ov::device::gops, true, _metrics->GetGops(get_specified_device_name(config)));
-    REGISTER_SIMPLE_METRIC(ov::device::type, true, _metrics->GetDeviceType(get_specified_device_name(config)));
-    REGISTER_SIMPLE_METRIC(ov::internal::caching_properties, true, _metrics->GetCachingProperties());
-    REGISTER_SIMPLE_METRIC(ov::internal::supported_properties, true, _metrics->GetInternalSupportedProperties());
-    REGISTER_SIMPLE_METRIC(ov::intel_npu::device_alloc_mem_size,
-                           true,
-                           _metrics->GetDeviceAllocMemSize(get_specified_device_name(config)));
-    REGISTER_SIMPLE_METRIC(ov::intel_npu::device_total_mem_size,
-                           true,
-                           _metrics->GetDeviceTotalMemSize(get_specified_device_name(config)));
-    REGISTER_SIMPLE_METRIC(ov::intel_npu::driver_version, true, _metrics->GetDriverVersion());
-    REGISTER_SIMPLE_METRIC(ov::intel_npu::backend_name, false, _metrics->GetBackendName());
-    REGISTER_SIMPLE_METRIC(ov::intel_npu::batch_mode, false, _metrics->GetDriverVersion());
-    REGISTER_SIMPLE_METRIC(ov::supported_properties, true, _supportedProperties);
-    REGISTER_CUSTOM_METRIC(ov::device::architecture,
-                           !_metrics->GetAvailableDevicesNames().empty(),
-                           [&](const Config& config) {
-                               const auto specifiedDeviceName = get_specified_device_name(config);
-                               return _metrics->GetDeviceArchitecture(specifiedDeviceName);
-                           });
-    REGISTER_CUSTOM_METRIC(ov::device::full_name,
-                           !_metrics->GetAvailableDevicesNames().empty(),
-                           [&](const Config& config) {
-                               const auto specifiedDeviceName = get_specified_device_name(config);
-                               return _metrics->GetFullDeviceName(specifiedDeviceName);
-                           });
-    REGISTER_CUSTOM_METRIC(ov::device::uuid, true, [&](const Config& config) {
-        const auto specifiedDeviceName = get_specified_device_name(config);
-        auto devUuid = _metrics->GetDeviceUuid(specifiedDeviceName);
-        return decltype(ov::device::uuid)::value_type{devUuid};
-    });
-    REGISTER_CUSTOM_METRIC(ov::execution_devices, true, [&](const Config& config) {
-        if (_metrics->GetAvailableDevicesNames().size() > 1) {
-            return std::string("NPU." + config.get<DEVICE_ID>());
-        } else {
-            return std::string("NPU");
-        }
-    });
-    // 2.2. Special cases where generic macro doesn't fit
-
-    // 3. Populate supported properties list
-    // ========
-    for (auto& property : _properties) {
-        if (std::get<0>(property.second)) {
-            _supportedProperties.emplace_back(ov::PropertyName(property.first, std::get<1>(property.second)));
-        }
-    }
-}
-
 void Plugin::set_property(const ov::AnyMap& properties) {
-    const std::map<std::string, std::string> config = any_copy(properties);
-    update_log_level(config);
-    for (const auto& configEntry : config) {
-        if (_properties.find(configEntry.first) == _properties.end()) {
-            OPENVINO_THROW("Unsupported configuration key: ", configEntry.first);
-        } else {
-            if (std::get<1>(_properties[configEntry.first]) == ov::PropertyMutability::RO) {
-                OPENVINO_THROW("READ-ONLY configuration key: ", configEntry.first);
-            }
-        }
-    }
+    // 1. Set the property via Properties interface
+    _properties->set_property(properties);
 
-    _globalConfig.update(config);
+    // 2. Extra hooks
+    // Update log level if it was provided
+    if (properties.count(std::string(LOG_LEVEL::key())) != 0) {
+        Logger::global().setLevel(_globalConfig.get<LOG_LEVEL>());
+    }
+    // Init backends if needed
     if (_backends != nullptr) {
         _backends->setup(_globalConfig);
     }
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
-    const std::map<std::string, std::string>& amends = any_copy(arguments);
-    const Config amendedConfig = merge_configs(_globalConfig, amends);
-
-    auto&& configIterator = _properties.find(name);
-    if (configIterator != _properties.cend()) {
-        return std::get<2>(configIterator->second)(amendedConfig);
-    }
-
-    OPENVINO_THROW("Unsupported configuration key: ", name);
+    return _properties->get_property(name, arguments);
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
