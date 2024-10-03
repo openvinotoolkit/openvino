@@ -67,7 +67,6 @@ TEST_F(TypePropResultV0Test, set_specific_output_name_by_output) {
     EXPECT_THAT(result->output(0).get_names(), UnorderedElementsAre("input"));
     EXPECT_THAT(result->get_output_tensor(0).get_names(), UnorderedElementsAre("input"));
 
-    EXPECT_THAT(result->output(0).get_names(), UnorderedElementsAre("input"));
     result->output(0).set_names({"out"});
     EXPECT_THAT(result->output(0).get_names(), UnorderedElementsAre("out"));
     EXPECT_THAT(result->get_output_tensor(0).get_names(), UnorderedElementsAre("out"));

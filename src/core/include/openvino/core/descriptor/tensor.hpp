@@ -40,7 +40,7 @@ public:
            const PartialShape& pshape,
            const std::unordered_set<std::string>& names = {});
 
-    OPENVINO_DEPRECATED("This constructor is deprecated. Will be removed in 2025.0")
+    OPENVINO_DEPRECATED("This constructor is deprecated. Will be removed in 2026.0")
     Tensor(const element::Type& element_type, const PartialShape& pshape, Node* node, size_t node_output_number);
 
     Tensor(const Tensor&) = delete;
@@ -107,7 +107,7 @@ public:
     /// \return Read only runtime information map.
     const RTMap& get_rt_info() const;
 
-    /// \brief Clones Tensor form other.
+    /// \brief  Clones Tensor from the other.
     /// \param other  Tensor used to clone its properties.
     void clone_from(const Tensor& other);
 

@@ -59,7 +59,7 @@ public:
         : m_element_type{et},
           m_shape_info{shape},
           m_names{names},
-          m_name_it{find_new_any_name(m_names, m_names.begin())},
+          m_name_it{find_new_any_name(m_names)},
           m_rt_map{},
           m_legacy_name{} {}
 
@@ -82,12 +82,12 @@ public:
 
     void set_names(const std::unordered_set<std::string>& names) override {
         m_names = names;
-        m_name_it = find_new_any_name(m_names, m_names.begin());
+        m_name_it = find_new_any_name(m_names);
     };
 
     void add_names(const std::unordered_set<std::string>& names) override {
         m_names.insert(names.begin(), names.end());
-        m_name_it = find_new_any_name(m_names, m_name_it);
+        m_name_it = find_new_any_name(m_names);
     }
 
     const std::unordered_set<std::string>& get_names() const override {
@@ -131,7 +131,7 @@ private:
     RTMap m_rt_map;
     std::string m_legacy_name;
 
-    static decltype(m_name_it) find_new_any_name(const decltype(m_names)& names, decltype(m_name_it) name) {
+    static decltype(m_name_it) find_new_any_name(const decltype(m_names)& names) {
         return std::min_element(names.begin(), names.end());
     }
 };
@@ -159,7 +159,7 @@ Tensor::Tensor(const element::Type& element_type,
                const std::unordered_set<std::string>& names)
     : m_impl(std::make_shared<BasicTensor>(element_type, pshape, names)) {}
 
-Tensor::Tensor(const element::Type& element_type, const PartialShape& pshape, ov::Node* node, size_t node_output_number)
+Tensor::Tensor(const element::Type& element_type, const PartialShape& pshape, ov::Node* node, size_t)
     : m_impl(std::make_shared<BasicTensor>(element_type, pshape, std::unordered_set<std::string>{})) {}
 
 void Tensor::invalidate_values() {
