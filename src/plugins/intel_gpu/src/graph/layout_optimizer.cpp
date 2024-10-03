@@ -1089,11 +1089,13 @@ format layout_optimizer::get_expected_format(quantize_node const& node) {
     auto use_onednn_impls = _optimization_attributes.use_onednn_impls;
 
     if (use_onednn_impls) {
-        auto& user = node.get_users().front();
-        if (user != nullptr && user->get_preferred_input_fmt(user->get_dependency_index(node)) != format::any) {
-            expected = user->get_preferred_input_fmt(user->get_dependency_index(node));
-        } else {
-            expected = format::any;
+        expected = format::any;
+        auto& users = node.get_users();
+        if (users.size() != 0) {
+            auto& user = users.front();
+            if (user != nullptr && user->get_preferred_input_fmt(user->get_dependency_index(node)) != format::any) {
+                expected = user->get_preferred_input_fmt(user->get_dependency_index(node));
+            }
         }
     } else if (only_gemm_users(node)) {
         // TODO: Gemm is not supporting fsv layouts
