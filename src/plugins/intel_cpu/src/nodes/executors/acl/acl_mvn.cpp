@@ -17,10 +17,6 @@ bool ACLMVNExecutor::supports(const MVNConfig &config) {
         DEBUG_LOG("NEMeanStdDevNormalizationLayer supports normalize_variance=true only");
         return false;
     }
-    if (!config.attrs.initAcrossChannels_ && config.attrs.srcIsNHWC) {
-        DEBUG_LOG("initAcrossChannels = false is not supported by ACL for NHWC layout");
-        return false;
-    }
     return true;
 }
 
@@ -59,6 +55,12 @@ void ACLMVNExecutor::updateTensorsShapes(ACLShapes& aclMemoryShapes) {
 }
 
 arm_compute::Status ACLMVNExecutor::validateTensorsInfo(const ACLInfos &aclMemoryInfos) {
+    if (!aclMVNAtrrs.initAcrossChannels_ &&
+        aclMemoryInfos[ACLArgs::ACL_SRC_0]->data_layout() == arm_compute::DataLayout::NHWC) {
+        std::string error_description = "initAcrossChannels = false is not supported by ACL for NHWC layout";
+        DEBUG_LOG(error_description);
+        return arm_compute::Status(arm_compute::ErrorCode::RUNTIME_ERROR, error_description);
+    }
     return arm_compute::NEMeanStdDevNormalizationLayer::validate(
             aclMemoryInfos[ACLArgs::ACL_SRC_0].get(),
             aclMemoryInfos[ACLArgs::ACL_DST].get(),
