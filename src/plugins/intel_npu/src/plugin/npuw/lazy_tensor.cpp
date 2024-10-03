@@ -203,7 +203,7 @@ ov::Tensor LazyTensorImpl::get_orig_tensor() const {
 }
 
 bool LazyTensorImpl::has_transformations() const {
-    if (m_parent) {
+    if (m_parent == nullptr) {
         return false;
     }
     return true;
