@@ -86,8 +86,12 @@ jobs:
 
       - name: Install OpenVINO Python wheels
         run: |
-          # Install the core OV wheel
-          python3 -m pip install ${INSTALL_DIR}/tools/openvino-*.whl
+          # Find and install OV core wheel
+          pushd ${INSTALL_DIR}/tools
+            py_version=$(python3 -c "import sys; print(f'{sys.version_info.major}{sys.version_info.minor}')")
+            ov_wheel_name=$(find . -name "openvino-*cp$py_version*.whl")
+            python3 -m pip install $ov_wheel_name
+          popd
 
           extras_to_install="onnx"
 
