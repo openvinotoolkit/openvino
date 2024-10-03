@@ -174,8 +174,8 @@ void Properties::registerProperties() {
     // ==================
     if (_pType == PropertiesType::PLUGIN && _metrics != nullptr) {
         // These properties require different handling in plugin vs compiled_model
-        // TRY_REGISTER_VARPUB_PROPERTY(ov::workload_type, WORKLOAD_TYPE, _backends->isCommandQueueExtSupported());
-        // TRY_REGISTER_VARPUB_PROPERTY(ov::intel_npu::turbo, TURBO, _backends->isCommandQueueExtSupported());
+        TRY_REGISTER_VARPUB_PROPERTY(ov::workload_type, WORKLOAD_TYPE, _metrics->IsCommandQueueExtSupported());
+        TRY_REGISTER_VARPUB_PROPERTY(ov::intel_npu::turbo, TURBO, _metrics->IsCommandQueueExtSupported());
     } else if (_pType == PropertiesType::COMPILED_MODEL) {
         // These properties require different handling in plugin vs compiled_model
         TRY_REGISTER_CUSTOM_PROPERTY(ov::workload_type,
@@ -203,12 +203,12 @@ void Properties::registerProperties() {
     if (_pType == PropertiesType::PLUGIN && _metrics != nullptr) {
         REGISTER_SIMPLE_METRIC(ov::available_devices, true, _metrics->GetAvailableDevicesNames());
         REGISTER_SIMPLE_METRIC(ov::device::capabilities, true, _metrics->GetOptimizationCapabilities());
-        REGISTER_SIMPLE_METRIC(ov::optimal_number_of_infer_requests,
-                               true,
-                               static_cast<uint32_t>(getOptimalNumberOfInferRequestsInParallel(add_platform_to_the_config(
-                                   config,
-                                   _metrics->GetCompilationPlatform(config.get<PLATFORM>(),
-                                   config.get<DEVICE_ID>())))));
+        REGISTER_SIMPLE_METRIC(
+            ov::optimal_number_of_infer_requests,
+            true,
+            static_cast<uint32_t>(getOptimalNumberOfInferRequestsInParallel(add_platform_to_the_config(
+                config,
+                _metrics->GetCompilationPlatform(config.get<PLATFORM>(), config.get<DEVICE_ID>())))));
         REGISTER_SIMPLE_METRIC(ov::range_for_async_infer_requests, true, _metrics->GetRangeForAsyncInferRequest());
         REGISTER_SIMPLE_METRIC(ov::range_for_streams, true, _metrics->GetRangeForStreams());
         REGISTER_SIMPLE_METRIC(ov::device::pci_info, true, _metrics->GetPciInfo(get_specified_device_name(config)));

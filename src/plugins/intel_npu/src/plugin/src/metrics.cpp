@@ -208,4 +208,8 @@ std::string Metrics::GetCompilationPlatform(const std::string_view platform, con
     return _backends->getCompilationPlatform(platform, deviceId);
 }
 
+bool Metrics::IsCommandQueueExtSupported() const {
+    return _backends->isCommandQueueExtSupported();
+}
+
 }  // namespace intel_npu
