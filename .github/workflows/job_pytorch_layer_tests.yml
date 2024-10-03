@@ -91,10 +91,10 @@ jobs:
           sparse-checkout-cone-mode: false
           path: 'openvino'
 
-      - name: Setup Python ${{ env.PYTHON_VERSION }}
+      - name: Setup Python ${{ inputs.python-version }}
         uses: ./openvino/.github/actions/setup_python
         with:
-          version: ${{ env.PYTHON_VERSION }}
+          version: ${{ inputs.python-version }}
           pip-cache-path: ${{ runner.os == 'Linux' && env.PIP_CACHE_PATH || '' }}
           should-setup-pip-paths: ${{ runner.os == 'Linux' }}
           self-hosted-runner: ${{ runner.os == 'Linux' }}
