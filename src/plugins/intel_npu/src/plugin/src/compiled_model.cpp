@@ -188,6 +188,14 @@ void CompiledModel::set_property(const ov::AnyMap& properties) {
 }
 
 ov::Any CompiledModel::get_property(const std::string& name) const {
+    // Customized property handlers
+    // MODEL_NAME
+    if (name == ov::model_name.name()) {
+        OPENVINO_ASSERT(_networkPtr != nullptr, "Missing network descriptor");
+        return _networkPtr->metadata.name;
+    }
+
+    // Standard properties
     ov::AnyMap dummy;
     return _properties->get_property(name, dummy);
 }

@@ -244,10 +244,12 @@ void Properties::registerProperties() {
         });
     } else if (_pType == PropertiesType::COMPILED_MODEL) {
         /// 2.2 Metrics for CompiledModel-only (or those which need to be handled differently)
-        // REGISTER_CUSTOM_PROPERTY(ov::model_name, [&](const Config&) {
-        //     OPENVINO_ASSERT(_networkPtr != nullptr, "Missing network descriptor");
-        //     return _networkPtr->metadata.name;
-        // });
+        REGISTER_CUSTOM_METRIC(ov::model_name, true, [](const Config&) {
+            // TODO: log an error here as the code shouldn't have gotten here
+            // this property is implemented in compiled model directly
+            // this implementation here servers only to publish it in supported_properties
+            return std::string("invalid");
+        });
         REGISTER_SIMPLE_METRIC(ov::optimal_number_of_infer_requests,
                                true,
                                static_cast<uint32_t>(getOptimalNumberOfInferRequestsInParallel(config)));
