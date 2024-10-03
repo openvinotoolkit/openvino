@@ -23,6 +23,7 @@ You have the flexibility to run this tutorial notebook in its entirety
 or selectively execute specific sections, as each section operates
 independently.
 
+
 **Table of contents:**
 
 
@@ -69,15 +70,15 @@ Install required packages
 .. code:: ipython3
 
     import platform
-
+    
     %pip install -q pillow numpy
     %pip install -q "openvino>=2023.2.0" "opencv-python"
-
+    
     if platform.system() != "Windows":
         %pip install -q "matplotlib>=3.4"
     else:
         %pip install -q "matplotlib>=3.4,<3.7"
-
+    
     %pip install -q "tensorflow-macos>=2.5; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version > '3.8'" # macOS M1 and M2
     %pip install -q "tensorflow-macos>=2.5,<=2.12.0; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version <= '3.8'" # macOS M1 and M2
     %pip install -q "tensorflow>=2.5; sys_platform == 'darwin' and platform_machine != 'arm64' and python_version > '3.8'" # macOS x86
@@ -134,19 +135,19 @@ Import libraries
     from pathlib import Path
     import os
     import requests
-
+    
     os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
     os.environ["TF_USE_LEGACY_KERAS"] = "1"
     os.environ["TFHUB_CACHE_DIR"] = str(Path("./tfhub_modules").resolve())
-
+    
     import tensorflow_hub as hub
     import tensorflow as tf
     import PIL
     import numpy as np
     import matplotlib.pyplot as plt
-
+    
     import openvino as ov
-
+    
     tf.get_logger().setLevel("ERROR")
 
 .. code:: ipython3
@@ -186,9 +187,9 @@ For this model, the size of the input images is fixed to ``height`` x
 .. code:: ipython3
 
     IMAGE_PATH = Path(IMAGE_PATH)
-
+    
     IMAGE_PATH.parent.mkdir(parents=True, exist_ok=True)
-
+    
     r = requests.get(IMAGE_URL)
     with IMAGE_PATH.open("wb") as f:
         f.write(r.content)
@@ -231,7 +232,7 @@ additional arguments required. Then, we save the model to disk using
 .. code:: ipython3
 
     MODEL_PATH = Path(MODEL_PATH)
-
+    
     if not MODEL_PATH.exists():
         converted_model = ov.convert_model(model)
         ov.save_model(converted_model, MODEL_PATH)
@@ -245,17 +246,17 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-
-    core = ov.Core()
-
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
+    import requests
+    
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
-
+    open("notebook_utils.py", "w").write(r.text)
+    
+    from notebook_utils import device_widget
+    
+    device = device_widget()
+    
     device
 
 
@@ -269,6 +270,8 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
+    core = ov.Core()
+    
     compiled_model = core.compile_model(MODEL_PATH, device_name=device.value)
 
 Inference
@@ -366,15 +369,15 @@ Hub <https://tfhub.dev/google/magenta/arbitrary-image-stylization-v1-256/2>`__.
 .. code:: ipython3
 
     import os
-
+    
     os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
     os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
     os.environ["TF_USE_LEGACY_KERAS"] = "1"
     os.environ["TFHUB_CACHE_DIR"] = str(Path("./tfhub_modules").resolve())
     from pathlib import Path
-
+    
     import openvino as ov
-
+    
     import tensorflow_hub as hub
     import tensorflow as tf
     import cv2
@@ -385,10 +388,10 @@ Hub <https://tfhub.dev/google/magenta/arbitrary-image-stylization-v1-256/2>`__.
 
     CONTENT_IMAGE_URL = "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/525babb8-1289-45f8-a3a5-e248f74dfb24"
     CONTENT_IMAGE_PATH = Path("./data/YellowLabradorLooking_new.jpg")
-
+    
     STYLE_IMAGE_URL = "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/c212233d-9a33-4979-b8f9-2a94a529026e"
     STYLE_IMAGE_PATH = Path("./data/Vassily_Kandinsky%2C_1913_-_Composition_7.jpg")
-
+    
     MODEL_URL = "https://www.kaggle.com/models/google/arbitrary-image-stylization-v1/frameworks/tensorFlow1/variations/256/versions/2"
     MODEL_PATH = Path("./models/arbitrary-image-stylization-v1-256.xml")
 
@@ -438,17 +441,6 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-
-    core = ov.Core()
-
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
-
     device
 
 
@@ -479,8 +471,8 @@ Inference
         r = requests.get(CONTENT_IMAGE_URL)
         with CONTENT_IMAGE_PATH.open("wb") as f:
             f.write(r.content)
-
-
+    
+    
     def load_image(dst):
         image = cv2.imread(str(dst))
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)  # Convert image color to RGB space

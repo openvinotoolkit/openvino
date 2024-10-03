@@ -452,6 +452,11 @@ pointers or the ``VASurfaceID`` handle, as shown in the examples below:
          infer_request.wait();
 
 
+.. important::
+
+   Currently, only sharing of D3D11 surfaces is supported via the
+   `cl_intel_d3d11_nv12_media_sharing <https://github.com/KhronosGroup/OpenCL-Registry/blob/main/extensions/intel/cl_intel_d3d11_nv12_media_sharing.txt>`__
+   extension, which provides interoperability between OpenCL and DirectX.
 
 
 Direct NV12 Video Surface Input

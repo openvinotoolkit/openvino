@@ -23,6 +23,7 @@ stateful transformation on LLM part and model optimization techniques
 like weights compression and quantization using
 `NNCF <https://github.com/openvinotoolkit/nncf>`__
 
+
 **Table of contents:**
 
 
@@ -73,6 +74,13 @@ Prerequisites
 .. code:: ipython3
 
     from pathlib import Path
+
+    import requests
+
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+    )
+    open("notebook_utils.py", "w").write(r.text)
 
     MODEL_DIR = Path("model")
     IMAGE_ENCODER_PATH = MODEL_DIR / "image_encoder.xml"
@@ -126,7 +134,7 @@ Download PyTorch model
         gc.collect()
 
 Convert model to OpenVINO Intermediate Representation
------------------------------------------------------
+------------------------------------------------------
 
 OpenVINO supports PyTorch models via conversion to OpenVINO Intermediate
 Representation (IR). `OpenVINO model conversion
@@ -615,11 +623,9 @@ inference faster. The optimization process contains the following steps:
 
 .. code:: ipython3
 
-    to_quantize = widgets.Checkbox(
-        value=True,
-        description="Quantization",
-        disabled=False,
-    )
+    from notebook_utils import quantization_widget
+
+    to_quantize = quantization_widget()
 
     to_quantize
 
@@ -950,7 +956,7 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
             batch_size = input_ids.shape[0]
             if not self.stateful:
                 for input_name in self.key_value_input_names:
-                    model_inputs = self.modeget_anyres_image_grid_shapel.input(input_name)
+                    model_inputs = self.model.input(input_name)
                     shape = model_inputs.get_partial_shape()
                     shape[0] = batch_size
                     if shape[2].is_dynamic:
@@ -1171,18 +1177,9 @@ Select device
 
 .. code:: ipython3
 
-    core = ov.Core()
+    from notebook_utils import device_widget
 
-    support_devices = core.available_devices
-    if "NPU" in support_devices:
-        support_devices.remove("NPU")
-
-    device = widgets.Dropdown(
-        options=support_devices + ["AUTO"],
-        value="CPU",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget(exclude=["NPU"])
 
     device
 
