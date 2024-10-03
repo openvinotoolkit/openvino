@@ -154,30 +154,32 @@ void Pipeline::reset() const {
     _logger.debug("Pipeline - rest() completed");
 };
 
-void Pipeline::updateCommandList(const TensorData& tensorsData,
-                                 uint32_t index,
-                                 bool batchedInput,
-                                 size_t commandListIndex) {
+void Pipeline::updateCommandList(const TensorData& tensorsData, uint32_t index) {
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL, itt::domains::LevelZeroBackend, "Pipeline", "updateCommandList");
     _logger.debug("Pipeline - updateCommandList");
 
     const size_t numberOfCommandLists = _command_lists.size();
 
-    if (batchedInput) {
-        OPENVINO_ASSERT(commandListIndex < numberOfCommandLists,
-                        "Command list index is higgher than the number of Command lists ",
-                        commandListIndex);
-
-        _command_lists.at(commandListIndex)->updateMutableCommandList(index, tensorsData.mem);
-        _command_lists.at(commandListIndex)->close();
-    } else {
-        for (size_t i = 0; i < numberOfCommandLists; i++) {
-            _command_lists.at(i)->updateMutableCommandList(
-                index,
-                static_cast<unsigned char*>(tensorsData.mem) + (i * tensorsData.size) / numberOfCommandLists);
-            _command_lists.at(i)->close();
-        }
+    for (size_t i = 0; i < numberOfCommandLists; i++) {
+        _command_lists.at(i)->updateMutableCommandList(
+            index,
+            static_cast<unsigned char*>(tensorsData.mem) + (i * tensorsData.size) / numberOfCommandLists);
+        _command_lists.at(i)->close();
     }
+};
+
+void Pipeline::updateCommandList(const TensorData& tensorsData, uint32_t index, size_t commandListIndex) {
+    OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL, itt::domains::LevelZeroBackend, "Pipeline", "updateCommandList");
+    _logger.debug("Pipeline - updateCommandList");
+
+    const size_t numberOfCommandLists = _command_lists.size();
+
+    OPENVINO_ASSERT(commandListIndex < numberOfCommandLists,
+                    "Command list index is higgher than the number of Command lists ",
+                    commandListIndex);
+
+    _command_lists.at(commandListIndex)->updateMutableCommandList(index, tensorsData.mem);
+    _command_lists.at(commandListIndex)->close();
 };
 
 }  // namespace intel_npu

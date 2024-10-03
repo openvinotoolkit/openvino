@@ -37,10 +37,8 @@ public:
     void pull();
     void reset() const;
 
-    void updateCommandList(const TensorData& tensorsData,
-                           uint32_t index,
-                           bool batchedInput = false,
-                           size_t commandListIndex = 0);
+    void updateCommandList(const TensorData& tensorsData, uint32_t index);
+    void updateCommandList(const TensorData& tensorsData, uint32_t index, size_t commandListIndex);
 
 protected:
     const Config _config;

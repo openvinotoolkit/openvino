@@ -422,7 +422,7 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
 
 void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
                                    const std::vector<ov::SoPtr<ov::ITensor>>& tensors) {
-    OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "set_tensors");
+    OV_ITT_TASK_CHAIN(SET_TENSORS, itt::domains::LevelZeroBackend, "set_tensors", "set_tensors");
     if (tensors.size() == 1) {
         set_tensor(port, tensors[0]);
         return;
@@ -450,6 +450,7 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
                 if (remoteTensor == nullptr) {
                     bool tensorHasSameL0Context = false;
 
+                    OV_ITT_TASK_NEXT(SET_TENSORS, "check_data_allocation");
                     if (memory_was_allocated_in_the_same_l0_context(_initStructs->getContext(), tensors[i]->data())) {
                         _logger.debug("ZeroInferRequest::set_tensors - tensor was created in the same L0 context");
 
@@ -481,9 +482,9 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
                 }
 
                 if (_pipelineIsCreated) {
+                    OV_ITT_TASK_NEXT(SET_TENSORS, "updateCommandList");
                     _pipeline->updateCommandList(*get_input_tensor_data(foundPort.idx, i),
                                                  _executor->get_input_descriptors().at(foundPort.idx).idx,
-                                                 true,
                                                  i);
                 }
             }
