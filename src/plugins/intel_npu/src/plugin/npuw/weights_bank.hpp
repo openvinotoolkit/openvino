@@ -27,7 +27,8 @@ public:
           m_alloc_device(alloc_device) {}
 
     // Based on previously captured lazy tensor allocate a new tensor (if needed) on a specified device
-    ov::Tensor get(const LazyTensor& tensor, const std::string& device);
+    ov::Tensor get(const LazyTensor& tensor, const std::string& device, const ov::Tensor& evaled = ov::Tensor());
+    bool has(const LazyTensor& tensor, const std::string& device);
 
 private:
     // Bank for specified device and their allocated memory

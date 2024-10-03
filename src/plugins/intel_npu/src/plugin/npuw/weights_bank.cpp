@@ -34,7 +34,7 @@ private:
     std::mutex m_mutex;
 };
 
-ov::Tensor Bank::get(const LazyTensor& tensor, const std::string& device) {
+ov::Tensor Bank::get(const LazyTensor& tensor, const std::string& device, const ov::Tensor& evaled) {
     if (device != "CPU" && device != "NPU") {
         OPENVINO_THROW("Unsupported device in weights bank allocation: ", device);
     }
@@ -45,7 +45,7 @@ ov::Tensor Bank::get(const LazyTensor& tensor, const std::string& device) {
     auto& device_bank = m_device_bank[device];
     auto iter_device = device_bank.find(tensor);
     if (iter_device == device_bank.end()) {
-        ov::Tensor transformed_tensor = tensor.eval();
+        ov::Tensor transformed_tensor = evaled ? evaled : tensor.eval();
 
         if (device == "CPU" || m_alloc_device != device) {
             // No allocation - store as is
@@ -64,6 +64,17 @@ ov::Tensor Bank::get(const LazyTensor& tensor, const std::string& device) {
     }
 
     return iter_device->second;
+}
+
+bool Bank::has(const LazyTensor& tensor, const std::string& device) {
+    if (device != "CPU" && device != "NPU") {
+        OPENVINO_THROW("Unsupported device in weights bank allocation: ", device);
+    }
+
+    std::lock_guard<std::mutex> guard(m_mutex);
+
+    const auto& device_bank = m_device_bank[device];
+    return device_bank.find(tensor) != device_bank.end();
 }
 
 std::shared_ptr<Bank> BankManager::getBank(const std::string& bank_name,

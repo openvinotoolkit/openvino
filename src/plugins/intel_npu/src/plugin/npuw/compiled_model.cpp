@@ -413,11 +413,33 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 }
 
 void ov::npuw::CompiledModel::finalize_weights_bank() {
+    // Evaluate lazy tensors which aren't in the bank beforehand
+    std::vector<std::vector<ov::Tensor>> evaluated_tensors(m_compiled_submodels.size());
     ov::parallel_for(m_compiled_submodels.size(), [&](std::size_t idx) {
+        evaluated_tensors[idx].resize(m_compiled_submodels[idx].lazy_closure.size());
         auto& comp_model_desc = m_compiled_submodels[idx];
 
         if (!comp_model_desc.replaced_by) {
             return;
+        }
+
+        const auto real_idx = comp_model_desc.replaced_by.value();
+        auto& func_desc = m_compiled_submodels[real_idx];
+
+        for (std::size_t tidx = 0; tidx < comp_model_desc.lazy_closure.size(); ++tidx) {
+            const auto& lt = m_compiled_submodels[idx].lazy_closure[tidx];
+            if (m_weights_bank->has(lt, *func_desc.device_it)) {
+                continue;
+            }
+            evaluated_tensors[idx][tidx] = lt.eval();
+        }
+    });
+
+    for (size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
+        auto& comp_model_desc = m_compiled_submodels[idx];
+
+        if (!comp_model_desc.replaced_by) {
+            continue;
         }
 
         const auto real_idx = comp_model_desc.replaced_by.value();
@@ -429,11 +451,12 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
 
         for (std::size_t tidx = 0; tidx < comp_model_desc.lazy_closure.size(); ++tidx) {
             const auto& lt = m_compiled_submodels[idx].lazy_closure[tidx];
-            m_compiled_submodels[idx].closure.push_back(m_weights_bank->get(lt, *func_desc.device_it));
+            const auto& evaled = evaluated_tensors[idx][tidx];
+            m_compiled_submodels[idx].closure.push_back(m_weights_bank->get(lt, *func_desc.device_it, evaled));
             // FIXME: should is_remote be set unconditionally?
             m_compiled_submodels[idx].is_remote.push_back(true);
         }
-    });
+    }
 }
 
 void ov::npuw::CompiledModel::remove_long_output_names(const std::shared_ptr<ov::Model>& model) {
