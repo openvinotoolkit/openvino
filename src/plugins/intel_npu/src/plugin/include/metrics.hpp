@@ -40,6 +40,7 @@ public:
     ov::device::PCIInfo GetPciInfo(const std::string& specifiedDeviceName) const;
     std::map<ov::element::Type, float> GetGops(const std::string& specifiedDeviceName) const;
     ov::device::Type GetDeviceType(const std::string& specifiedDeviceName) const;
+    std::string GetCompilationPlatform(const std::string_view platform, const std::string& deviceId) const;
 
     std::vector<ov::PropertyName> GetCachingProperties() const;
     std::vector<ov::PropertyName> GetInternalSupportedProperties() const;

@@ -204,4 +204,8 @@ ov::device::Type Metrics::GetDeviceType(const std::string& specifiedDeviceName) 
     OPENVINO_THROW("No device with name '", specifiedDeviceName, "' is available");
 }
 
+std::string Metrics::GetCompilationPlatform(const std::string_view platform, const std::string& deviceId) const {
+    return _backends->getCompilationPlatform(platform, deviceId);
+}
+
 }  // namespace intel_npu

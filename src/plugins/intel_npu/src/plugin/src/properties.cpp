@@ -98,6 +98,11 @@ namespace intel_npu {
                             std::make_tuple(PROP_VISIBILITY, ov::PropertyMutability::RO, PROP_RETFUNC)); \
     } while (0)
 
+static Config add_platform_to_the_config(Config config, const std::string_view platform) {
+    config.update({{ov::intel_npu::platform.name(), std::string(platform)}});
+    return config;
+}
+
 static auto get_specified_device_name(const Config config) {
     if (config.has<DEVICE_ID>()) {
         return config.get<DEVICE_ID>();
@@ -198,12 +203,12 @@ void Properties::registerProperties() {
     if (_pType == PropertiesType::PLUGIN && _metrics != nullptr) {
         REGISTER_SIMPLE_METRIC(ov::available_devices, true, _metrics->GetAvailableDevicesNames());
         REGISTER_SIMPLE_METRIC(ov::device::capabilities, true, _metrics->GetOptimizationCapabilities());
-        // REGISTER_SIMPLE_METRIC(ov::optimal_number_of_infer_requests,
-        //                        true,
-        //                        static_cast<uint32_t>(getOptimalNumberOfInferRequestsInParallel(add_platform_to_the_config(
-        //                            config,
-        //                            _backends->getCompilationPlatform(config.get<PLATFORM>(),
-        //                            config.get<DEVICE_ID>())))));
+        REGISTER_SIMPLE_METRIC(ov::optimal_number_of_infer_requests,
+                               true,
+                               static_cast<uint32_t>(getOptimalNumberOfInferRequestsInParallel(add_platform_to_the_config(
+                                   config,
+                                   _metrics->GetCompilationPlatform(config.get<PLATFORM>(),
+                                   config.get<DEVICE_ID>())))));
         REGISTER_SIMPLE_METRIC(ov::range_for_async_infer_requests, true, _metrics->GetRangeForAsyncInferRequest());
         REGISTER_SIMPLE_METRIC(ov::range_for_streams, true, _metrics->GetRangeForStreams());
         REGISTER_SIMPLE_METRIC(ov::device::pci_info, true, _metrics->GetPciInfo(get_specified_device_name(config)));
