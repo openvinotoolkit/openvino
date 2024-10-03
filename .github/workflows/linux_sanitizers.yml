@@ -75,7 +75,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-16-cores-32gb
+    runs-on: aks-linux-16-cores-64gb
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.sanitizers }}
@@ -177,7 +177,7 @@ jobs:
 
       - name: Cmake build - OpenVINO
         run: |
-          cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
+          cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }}
         env:
           ASAN_OPTIONS: halt_on_error=0:suppressions=${{ env.ASAN_IGNORE }}
           LSAN_OPTIONS: suppressions=${{ env.LSAN_IGNORE }}:NEOReadDebugKeys=1:DisableDeepBind=1
