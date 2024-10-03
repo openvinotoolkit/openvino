@@ -311,7 +311,7 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeIOInfo(const std
     size_t resultIndex = 0;
     for (const std::shared_ptr<ov::op::v0::Result>& result : results) {
         const ov::element::Type_t precision = result->get_element_type();
-        const size_t rank = result->get_output_partial_shape(resultIndex).size();
+        const size_t rank = result->get_output_partial_shape(0).size();
 
         if (resultIndex != 0) {
             outputsPrecisionSS << VALUES_SEPARATOR;
