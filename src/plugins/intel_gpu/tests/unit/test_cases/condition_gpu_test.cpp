@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/primitives/permute.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "random_generator.hpp"
@@ -1038,6 +1039,7 @@ TEST(condition_gpu, set_empty_tensor) {
     net.set_input_data(empty_input_id, empty_input_mem);
     net.set_input_data(input_id, input_mem);
 
-    OV_ASSERT_NO_THROW(net.execute());
-    OV_ASSERT_NO_THROW(net.get_output(cond_id).get_memory());
+    std::map<primitive_id, network_output> outputs;
+    OV_ASSERT_NO_THROW(outputs = net.execute());
+    OV_ASSERT_NO_THROW(outputs.at(cond_id).get_memory());
 }
