@@ -386,6 +386,8 @@ public:
 
     bool has(std::string_view key) const;
 
+    void remove(std::string_view key);
+
     void reset();
 
     std::vector<std::string> getSupported(bool includePrivate = false) const;
