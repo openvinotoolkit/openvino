@@ -1030,7 +1030,7 @@ NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compile(const std:
 
 template <typename TableExtension>
 std::vector<std::shared_ptr<NetworkDescription>> LevelZeroCompilerInDriver<TableExtension>::compileWS(
-    const std::shared_ptr<const ov::Model>& /*model*/,
+    const std::shared_ptr<const ov::Model>& model,
     const Config& config) const {
     std::vector<uint8_t> compiledModel1 =
         readCompiledModel("/home/razvanapetroaie/models/weights_separation/resnet-50-blobs/init_elf.blob");
@@ -1038,6 +1038,8 @@ std::vector<std::shared_ptr<NetworkDescription>> LevelZeroCompilerInDriver<Table
         readCompiledModel("/home/razvanapetroaie/models/weights_separation/resnet-50-blobs/main_elf.blob");
     NetworkMetadata metadata1 = parse(compiledModel1, config);
     NetworkMetadata metadata2 = parse(compiledModel2, config);
+    metadata1.name = model->get_friendly_name() + "_init";
+    metadata2.name = model->get_friendly_name() + "_main";
 
     return {std::make_shared<NetworkDescription>(std::move(compiledModel1), std::move(metadata1)),
             std::make_shared<NetworkDescription>(std::move(compiledModel2), std::move(metadata2))};

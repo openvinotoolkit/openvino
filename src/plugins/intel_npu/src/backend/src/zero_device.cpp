@@ -103,6 +103,7 @@ std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> ZeroDevice::runIni
     std::unordered_map<size_t, TensorData> constantIdToTensorData;
     std::vector<std::optional<TensorData>> inputTensorsData;
     std::vector<std::optional<TensorData>> outputTensorsData;
+    std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> inputHostTensors;
     std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> outputHostTensors;
 
     // Match the inputs of the "init" model with the Constant nodes of the original model
@@ -119,19 +120,39 @@ std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> ZeroDevice::runIni
         constantIdToTensorData.emplace(id, TensorData{address, size});
     }
 
+    // TODO: Uncomment this once the plan advances
+    // for (const auto& descriptor : zeroInitExecutor->get_input_descriptors()) {
+    //     size_t id = std::stoi(std::string(descriptor.info.name).substr(INIT_INPUT_WEIGHTS_PREFIX.length()));
+    //     OPENVINO_ASSERT(constantIdToTensorData.count(id), "Mismatch between weights IDs and parsed inputs");
+
+    //     inputTensorsData.push_back(constantIdToTensorData.at(id));
+
+    //     createRemoteTensor(context._ptr,
+    //                        zeroUtils::getOVPrecision(descriptor.info.devicePrecision),
+    //                        zeroUtils::getOVShape(descriptor.info),
+    //                        config,
+    //                        ov::intel_npu::TensorType::INPUT,
+    //                        ov::intel_npu::MemType::SHARED_BUF,
+    //                        constantIdToTensorData.at(id).mem);
+    // }
+
     for (const auto& descriptor : zeroInitExecutor->get_input_descriptors()) {
-        size_t id = std::stoi(std::string(descriptor.info.name).substr(INIT_INPUT_WEIGHTS_PREFIX.length()));
-        OPENVINO_ASSERT(constantIdToTensorData.count(id), "Mismatch between weights IDs and parsed inputs");
-
-        inputTensorsData.push_back(constantIdToTensorData.at(id));
-
-        createRemoteTensor(context._ptr,
-                           zeroUtils::getOVPrecision(descriptor.info.devicePrecision),
-                           zeroUtils::getOVShape(descriptor.info),
-                           config,
-                           ov::intel_npu::TensorType::INPUT,
-                           ov::intel_npu::MemType::SHARED_BUF,
-                           constantIdToTensorData.at(id).mem);
+        const ov::SoPtr<ov::ITensor> hostTensor =
+            createHostTensor(context._ptr,
+                             zeroUtils::getOVPrecision(descriptor.info.devicePrecision),
+                             zeroUtils::getOVShape(descriptor.info),
+                             config);
+        inputTensorsData.push_back(TensorData{hostTensor->data(), hostTensor->get_byte_size()});
+        inputHostTensors.emplace(
+            std::string(descriptor.info.debug_friendly_name).substr(INIT_INPUT_WEIGHTS_PREFIX.length()),
+            hostTensor._ptr);
+        // createRemoteTensor(context._ptr,
+        //                    zeroUtils::getOVPrecision(descriptor.info.devicePrecision),
+        //                    zeroUtils::getOVShape(descriptor.info),
+        //                    config,
+        //                    ov::intel_npu::TensorType::INPUT,
+        //                    ov::intel_npu::MemType::SHARED_BUF,
+        //                    hostTensor->data());
     }
 
     for (const auto& descriptor : zeroInitExecutor->get_output_descriptors()) {
@@ -152,17 +173,14 @@ std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> ZeroDevice::runIni
     auto profilingQuery = zeroProfiling::ProfilingQuery(0,
                                                         zeroInitExecutor->getInitStructs()->getDevice(),
                                                         zeroInitExecutor->getInitStructs()->getProfilingDdiTable());
-    const auto pipeline = std::make_unique<Pipeline>(
-        config,
-        initExecutor,
-        progilingPool,
-        profilingQuery,
-        std::make_shared<zeroProfiling::NpuInferProfiling>(zeroInitExecutor->getInitStructs()->getContext(),
-                                                           zeroInitExecutor->getInitStructs()->getDevice(),
-                                                           config.get<LOG_LEVEL>()),
-        inputTensorsData,
-        outputTensorsData,
-        /*numberOfCommandLists*/ 1);
+    const auto pipeline = std::make_unique<Pipeline>(config,
+                                                     initExecutor,
+                                                     progilingPool,
+                                                     profilingQuery,
+                                                     nullptr,
+                                                     inputTensorsData,
+                                                     outputTensorsData,
+                                                     /*numberOfCommandLists*/ 1);
     pipeline->push();
     pipeline->pull();
 

@@ -73,6 +73,8 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
 
             const std::shared_ptr<IExecutor> initExecutor = create_executor(initNetworkDescription);
             run_init(initExecutor);
+
+            _networkPtr = mainNetworkDescription;
         }
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());

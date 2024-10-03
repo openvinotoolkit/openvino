@@ -531,7 +531,10 @@ void ZeroInferRequest::set_weights_inputs(
     for (const auto& [weightName, weightTensor] : weightsInputs) {
         size_t inputIndex;
         for (inputIndex = 0; inputIndex < _metadata.inputs.size(); inputIndex++) {
-            if (_metadata.inputs.at(inputIndex).nodeFriendlyName == weightName) {
+            std::string_view mainInputName = _metadata.inputs.at(inputIndex).nodeFriendlyName;
+
+            if (isMainInputWeightsName(mainInputName) &&
+                mainInputName.substr(MAIN_INPUT_WEIGHTS_PREFIX.size()) == weightName) {
                 break;
             }
         }
