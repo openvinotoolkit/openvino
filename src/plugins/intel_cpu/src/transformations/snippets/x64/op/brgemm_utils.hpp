@@ -8,6 +8,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/dimension.hpp"
 #include "snippets/lowered/expression.hpp"
+#include "snippets/utils/utils.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -42,14 +43,19 @@ size_t compute_vnni_factor(const ov::element::Type& precision);
 size_t get_elems_in_vec(const ov::element::Type& precision);
 
 namespace repacking {
+/// \brief  Computes inner N block size used by OneDNN implementation. Depends on tensor precision
+size_t compute_inner_n_block(const ov::element::Type& precision);
 /**
  * @brief Computes leading dimension (LDB) which must be used in brgemm and brgemm_copy_b emitters
  * @param n_block N block size shared between BrgemmCPU and BrgemmCopyB node
  * @param precision tensor precision
  */
-size_t compute_out_leading_dim(const size_t n_block, const ov::element::Type& precision);
-/// \brief  Computes inner N block size used by OneDNN implementation. Depends on tensor precision
-size_t compute_inner_n_block(const ov::element::Type& precision);
+template<typename T, typename = typename std::enable_if<(std::is_same<T, size_t>::value || std::is_same<T, int64_t>::value), bool>::type>
+T compute_out_leading_dim(T n_block, const ov::element::Type& precision) {
+    return snippets::utils::is_dynamic_value<T>(n_block) ?
+           n_block :
+           std::max(n_block, static_cast<T>(compute_inner_n_block(precision)));
+}
 }   // namespace repacking
 }   // namespace brgemm_utils
 }   // namespace intel_cpu
