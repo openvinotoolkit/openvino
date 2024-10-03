@@ -127,8 +127,7 @@ jobs:
           PARALLEL: ${{ runner.os == 'Windows' && ' ' || '-n logical'}}
 
       - name: PyTorch torch.export Layer Tests
-        if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.arch != 'ARM64' }} # Ticket: 126287
-        # due to CVS-152795, parallel run is not possible on Windows
+        if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.arch != 'ARM64' && runner.os != 'Windows' }} # Ticket: 126287
         run: |
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/pytorch_tests ${PARALLEL} -m precommit_torch_export --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-pytorch.xml
         env:
@@ -138,7 +137,7 @@ jobs:
           PARALLEL: ${{ runner.os == 'Windows' && ' ' || '-n logical'}}
 
       - name: PyTorch torch.compile TORCHFX Layer Tests
-        if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.os != 'macOS' && runner.arch != 'ARM64' }} # Ticket: 126287
+        if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.os != 'macOS' && runner.arch != 'ARM64' && runner.os != 'Windows' }} # Ticket: 126287
         run: |
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/pytorch_tests -m precommit_fx_backend --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-pytorch.xml
         env:
