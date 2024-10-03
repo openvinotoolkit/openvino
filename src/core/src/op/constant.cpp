@@ -340,6 +340,27 @@ Constant::Constant(const Constant& other, const Shape& new_shape)
     constructor_validate_and_infer_types();
 }
 
+Constant::Constant(const element::Type& type,
+                   const Shape& shape,
+                   const void* data,
+                   size_t size,
+                   std::shared_ptr<void> so)
+    : Constant(
+          type,
+          shape,
+          // Note: const_cast used to store pointer only
+          std::make_shared<ov::SharedBuffer<std::shared_ptr<void>>>(reinterpret_cast<char*>(const_cast<void*>(data)),
+                                                                    element::get_memory_size(type, shape_size(shape)),
+                                                                    so)) {
+    const auto const_size = get_byte_size();
+    NODE_VALIDATION_CHECK(this,
+                          const_size <= size,
+                          "The given precision and shape has size larger than the memory size: ",
+                          const_size,
+                          " > ",
+                          size);
+}
+
 Constant::~Constant() = default;
 
 struct ValueToString : ov::element::NotSupported<std::string> {
