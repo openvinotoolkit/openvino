@@ -9,6 +9,7 @@
 #include "openvino/op/select.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "utils.hpp"
 
 using namespace std;
 using namespace ov::op;
@@ -28,11 +29,11 @@ OutputVector translate_expand_dims_op(const NodeContext& node) {
         element::Type complex_part_type = complex_type_mark->get_complex_part_type();
         input = complex_type_mark->input_value(0);
 
-        auto const_zero = make_shared<v0::Constant>(element::i32, Shape{1}, 0);
+        auto const_zero = create_same_type_const_scalar<int32_t>(axis, 0);
 
         auto is_axis_neg = make_shared<v1::Less>(axis, const_zero);
 
-        auto const_one = make_shared<v0::Constant>(element::i32, Shape{1}, 1);
+        auto const_one = create_same_type_const_scalar<int32_t>(axis, 1);
         auto axis_min_one = make_shared<v1::Subtract>(axis, const_one);
 
         auto new_axis = make_shared<v1::Select>(is_axis_neg, axis_min_one, axis);
