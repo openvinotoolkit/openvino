@@ -219,6 +219,14 @@ void Plugin::init_options(compilerVersion comp_ver) {
     registerOptions(*_options, comp_ver);
     _backends->registerOptions(*_options);
 
+    // Extras
+    // Additional filtering of options, based on other criteria (other than compiler version)
+    if (!_backends->isCommandQueueExtSupported()) {
+        // Remove options which are tied to CommandQueueExtension
+        _options->remove(ov::workload_type.name());
+        _options->remove(ov::intel_npu::turbo.name());
+    }
+
     // parse again env_variables after backend is initialized to get backend proprieties
     _globalConfig.parseEnvVars();
 

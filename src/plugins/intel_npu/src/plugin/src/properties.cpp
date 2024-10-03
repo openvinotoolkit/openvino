@@ -153,6 +153,7 @@ void Properties::registerProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::profiling_type, PROFILING_TYPE);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::backend_compilation_params, BACKEND_COMPILATION_PARAMS);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::batch_mode, BATCH_MODE);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::turbo, TURBO);
 
     TRY_REGISTER_CUSTOMFUNC_PROPERTY(ov::intel_npu::stepping, STEPPING, [&](const Config& config) {
         if (!config.has<STEPPING>()) {
@@ -174,21 +175,13 @@ void Properties::registerProperties() {
     // ==================
     if (_pType == PropertiesType::PLUGIN && _metrics != nullptr) {
         // These properties require different handling in plugin vs compiled_model
-        TRY_REGISTER_VARPUB_PROPERTY(ov::workload_type, WORKLOAD_TYPE, _metrics->IsCommandQueueExtSupported());
-        TRY_REGISTER_VARPUB_PROPERTY(ov::intel_npu::turbo, TURBO, _metrics->IsCommandQueueExtSupported());
+        TRY_REGISTER_SIMPLE_PROPERTY(ov::workload_type, WORKLOAD_TYPE);
     } else if (_pType == PropertiesType::COMPILED_MODEL) {
         // These properties require different handling in plugin vs compiled_model
         TRY_REGISTER_CUSTOM_PROPERTY(ov::workload_type,
                                      WORKLOAD_TYPE,
-                                     true,  // isPropertySupported(ov::workload_type.name()),
+                                     true,
                                      ov::PropertyMutability::RW,
-                                     [](const Config& config) {
-                                         return config.get<WORKLOAD_TYPE>();
-                                     });
-        TRY_REGISTER_CUSTOM_PROPERTY(ov::intel_npu::turbo,
-                                     TURBO,
-                                     true,  // isPropertySupported(ov::intel_npu::turbo.name()),
-                                     ov::PropertyMutability::RO,
                                      [](const Config& config) {
                                          return config.get<WORKLOAD_TYPE>();
                                      });
