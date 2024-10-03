@@ -296,6 +296,12 @@ void ze_stream::wait_for_events(const std::vector<event::ptr>& events) {
     for (auto& ev : events) {
         ev->wait();
     }
+
+    // Enqueue additional event as `events` may contain user events only due to barrier based synchronization
+    // TODO: Detect that scenarion somehow and don't enqueue extra barrier if not needed
+    auto ev = std::dynamic_pointer_cast<ze_event>(create_base_event());
+    ZE_CHECK(zeCommandListAppendBarrier(m_command_list, ev->get(), 0, nullptr));
+    ev->wait();
 }
 
 void ze_stream::sync_events(std::vector<event::ptr> const& deps, bool is_output) {
