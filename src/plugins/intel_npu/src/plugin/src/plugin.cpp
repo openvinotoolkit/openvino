@@ -285,7 +285,8 @@ void Plugin::init_options(compilerVersion comp_ver) {
     // parse again env_variables after backend is initialized to get backend proprieties
     _globalConfig.parseEnvVars();
 
-    std::vector<ov::PropertyName> sup_props = _options->getSupportedProperties();
+    /// DEBUG TODO:remove
+    std::vector<ov::PropertyName> sup_props = _options->getSupportedOptions();
     std::cout << "Registered options: " << std::endl;
     for (const std::string& prop : sup_props) {
         std::cout << prop << std::endl;

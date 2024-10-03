@@ -389,7 +389,7 @@ public:
     void reset();
 
     std::vector<std::string> getSupported(bool includePrivate = false) const;
-    std::vector<ov::PropertyName> getSupportedProperties(bool includePrivate = false) const;
+    std::vector<ov::PropertyName> getSupportedOptions(bool includePrivate = false) const;
 
     details::OptionConcept get(std::string_view key, OptionMode mode = OptionMode::Both) const;
     void walk(std::function<void(const details::OptionConcept&)> cb) const;
@@ -457,6 +457,7 @@ public:
 
     bool hasOpt(std::string_view key) const;
     bool isOptPublic(std::string_view key) const;
+    details::OptionConcept getOpt(std::string_view key) const;
 
     template <class Opt>
     bool has() const;

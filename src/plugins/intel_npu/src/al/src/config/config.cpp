@@ -197,7 +197,7 @@ std::vector<std::string> OptionsDesc::getSupported(bool includePrivate) const {
     return res;
 }
 
-std::vector<ov::PropertyName> OptionsDesc::getSupportedProperties(bool includePrivate) const {
+std::vector<ov::PropertyName> OptionsDesc::getSupportedOptions(bool includePrivate) const {
     std::vector<ov::PropertyName> res;
     res.reserve(_impl.size());
 
@@ -226,6 +226,10 @@ Config::Config(const std::shared_ptr<const OptionsDesc>& desc) : _desc(desc) {
 
 bool Config::hasOpt(std::string_view key) const {
     return _desc->has(key);
+}
+
+details::OptionConcept Config::getOpt(std::string_view key) const {
+    return _desc->get(key);
 }
 
 bool Config::isOptPublic(std::string_view key) const {
