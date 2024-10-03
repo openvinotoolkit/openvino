@@ -4,7 +4,6 @@
 
 #include "zero_compiler_in_driver.hpp"
 
-#include <fstream>
 #include <regex>
 #include <string_view>
 
@@ -278,7 +277,7 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeIOInfo(const std
 
         for (const std::shared_ptr<ov::op::v0::Parameter>& parameter : parameters) {
             const ov::element::Type& precision = parameter->get_element_type();
-            const size_t rank = parameter->get_shape().size();
+            const size_t rank = parameter->get_partial_shape().size();
 
             if (parameterIndex != 0) {
                 inputsPrecisionSS << VALUES_SEPARATOR;
@@ -310,10 +309,9 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeIOInfo(const std
     outputsLayoutSS << OUTPUTS_LAYOUTS_KEY << KEY_VALUE_SEPARATOR << VALUE_DELIMITER;
 
     size_t resultIndex = 0;
-
     for (const std::shared_ptr<ov::op::v0::Result>& result : results) {
         const ov::element::Type_t precision = result->get_element_type();
-        const size_t rank = result->get_shape().size();
+        const size_t rank = result->get_output_partial_shape(resultIndex).size();
 
         if (resultIndex != 0) {
             outputsPrecisionSS << VALUES_SEPARATOR;
