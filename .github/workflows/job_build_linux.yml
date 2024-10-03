@@ -51,6 +51,11 @@ on:
         type: boolean
         required: false
         default: false
+      build-additional-python-wheels:
+        description: 'Whether to build additional, i.e., non-system Python wheels. Should have Python 3.9-3.12 installed under /usr/bin'
+        type: boolean
+        required: false
+        default: false
 
 permissions: read-all
 
@@ -179,6 +184,18 @@ jobs:
           cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_TEST_DIR} -DCOMPONENT=tests -P ${BUILD_DIR}/cmake_install.cmake
           cmake -DCMAKE_INSTALL_PREFIX=${DEVELOPER_PACKAGE_DIR} -DCOMPONENT=developer_package -P ${BUILD_DIR}/cmake_install.cmake
           cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -DCOMPONENT=python_wheels -P ${BUILD_DIR}/cmake_install.cmake
+
+      - name: Build additional Python wheels
+        if: ${{ inputs.build-additional-python-wheels }}
+        run: |
+          for py_version in "3.9" "3.10" "3.11" "3.12"
+          do
+            export PY_BUILD_DIR=/__w/openvino/openvino/py$py_version
+            mkdir -p ${PY_BUILD_DIR}
+            cmake -DPython3_EXECUTABLE=/usr/bin/python$py_version -DOpenVINODeveloperPackage_DIR=${BUILD_DIR} -S ${OPENVINO_REPO}/src/bindings/python -B ${PY_BUILD_DIR}
+            cmake --build ${PY_BUILD_DIR} --parallel
+            cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -DCOMPONENT=python_wheels -P ${PY_BUILD_DIR}/cmake_install.cmake
+          done
 
       - name: Pack Artifacts
         run: |
