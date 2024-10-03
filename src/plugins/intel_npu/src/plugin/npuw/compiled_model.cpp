@@ -179,6 +179,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         }
         auto process_params = [&](const ov::ParameterVector& _parameters) {
             for (size_t i = 0; i < _parameters.size(); i++) {
+                NPUW_ASSERT(_parameters[i]);
                 LOG_VERB(_parameters[i]);
                 for (size_t j = 0; j < orig_parameters.size(); j++) {
                     if (_parameters[i] == orig_parameters[j]) {
