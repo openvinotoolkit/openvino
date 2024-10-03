@@ -611,9 +611,9 @@ bool program_node::is_padded_spatial(size_t idx) const {
     auto& layout = get_output_layout(idx);
     const auto& lower_size = layout.data_padding._lower_size;
     const auto& upper_size = layout.data_padding._upper_size;
-    return std::any_of(std::begin(lower_size) + 2, std::begin(lower_size) + layout.get_spatial_rank() - 1,
+    return std::any_of(std::begin(lower_size) + 2, std::begin(lower_size) + 2 + layout.get_spatial_rank(),
                         [](const tensor::value_type& el) { return el != 0; }) ||
-           std::any_of(std::begin(upper_size) + 2, std::begin(upper_size) + layout.get_spatial_rank() - 1,
+           std::any_of(std::begin(upper_size) + 2, std::begin(upper_size) + 2 + layout.get_spatial_rank(),
                         [](const tensor::value_type& el) { return el != 0; });
 }
 
