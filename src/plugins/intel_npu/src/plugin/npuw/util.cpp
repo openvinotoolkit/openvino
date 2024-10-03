@@ -1425,14 +1425,14 @@ void ov::npuw::util::gather(const ov::SoPtr<ov::ITensor>& src,
     NPUW_ASSERT(src_type == ov::element::f16 || src_type == ov::element::f32);
     NPUW_ASSERT(src_type == dst_type);
 
-    const auto idx_shape = idx->get_shape();
+    const auto& idx_shape = idx->get_shape();
     NPUW_ASSERT(idx_shape.size() == 2);
     NPUW_ASSERT(idx_shape[0] == 1);
 
-    const auto src_shape = src->get_shape();
+    const auto& src_shape = src->get_shape();
     NPUW_ASSERT(src_shape.size() == 2);
 
-    const auto dst_shape = dst->get_shape();
+    const auto& dst_shape = dst->get_shape();
     NPUW_ASSERT(dst_shape.size() == 3);
     NPUW_ASSERT(src_shape[1] == dst_shape[2]);
 

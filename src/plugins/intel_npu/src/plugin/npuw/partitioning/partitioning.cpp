@@ -1719,7 +1719,7 @@ void Partitioner::optimize(const std::string& func_name) {
             new_params.push_back(params_to_gather.pnew);
             for (auto&& funcall : func_group.refs) {
                 auto new_elem_type = params_to_gather.pnew->get_element_type();
-                auto new_shape = params_to_gather.pnew->get_shape();
+                const auto& new_shape = params_to_gather.pnew->get_shape();
                 funcall.get()._closure.push_back(ov::Tensor(new_elem_type, new_shape));
             }
         }
