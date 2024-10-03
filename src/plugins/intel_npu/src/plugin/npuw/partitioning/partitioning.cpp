@@ -1744,6 +1744,7 @@ void Partitioner::optimize(const std::string& func_name) {
     // Regardless of DQ setting, run this first
     {
         ov::npuw::patterns::opt::Context ctx;
+        ctx.is_spatial = f._spatial.has_value();
         ctx.pmm_dims = cfg.get<::intel_npu::NPUW_PMM>();
 
         // Run Head/Tail passes
@@ -1890,6 +1891,8 @@ void Partitioner::optimize(const std::string& func_name) {
 
     // Run "dynamic quantization"
     ov::npuw::patterns::opt::Context ctx;
+    ctx.is_spatial = f._spatial.has_value();
+
     ov::pass::GraphRewrite rewr;
     rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulCWi>();
     rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulGQi>(std::ref(ctx));
