@@ -66,10 +66,11 @@ std::tuple<size_t, size_t, size_t> BrgemmCPUBlocking::get_blocking_params(const 
 
     size_t m_blk, n_blk, k_blk;
     std::tie(m_blk, n_blk, k_blk) = BrgemmBlockingBase::get_blocking_params(brgemm_expr);
-    if (with_repacking(brgemm->get_type())) {
-        n_blk = get_full_dim_value();
-        k_blk = get_full_dim_value();
-    }
+//    if (with_repacking(brgemm->get_type())) {
+//        n_blk = get_full_dim_value();
+//        k_blk = get_full_dim_value();
+//    }
+    std::cerr << "Blocking params: " << m_blk << " : " << n_blk << " : " << k_blk << "\n";
     return std::make_tuple(m_blk, n_blk, k_blk);
 }
 
