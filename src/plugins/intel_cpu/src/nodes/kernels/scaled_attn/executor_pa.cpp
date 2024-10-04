@@ -26,6 +26,10 @@
 #include "attn_quant.hpp"
 #include "nodes/kernels/x64/brgemm_kernel.hpp"
 
+#if defined(OPENVINO_ARCH_ARM64)
+#    include <arm_neon.h>
+#endif
+
 namespace ov {
 namespace Extensions {
 namespace Cpu {
