@@ -266,8 +266,8 @@ TEST_P(BatchedTensorsRunTests, SetInputDifferentTensorsMultipleInferMCL) {
     {
         std::vector<ov::Tensor> tensors;
 
-        auto tensor0 = ov::Tensor(element::f32, one_shape, &buffer[(2 * 2) * one_shape_size]);
-        auto tensor1 = context.create_host_tensor(ov::element::f32, one_shape);
+        auto tensor0 = context.create_host_tensor(ov::element::f32, one_shape);
+        auto tensor1 = ov::Tensor(element::f32, one_shape, &buffer[(2 * 2) * one_shape_size]);
         auto tensor2 = ov::Tensor(element::f32, one_shape, &buffer[(3 * 2) * one_shape_size]);
         auto tensor3 = context.create_host_tensor(ov::element::f32, one_shape);
 
@@ -291,6 +291,130 @@ TEST_P(BatchedTensorsRunTests, SetInputDifferentTensorsMultipleInferMCL) {
             for (size_t j = 0; j < one_shape_size * batch; ++j) {
                 EXPECT_EQ(actual[j], testNum + 201) << "Infer " << testNum << ": Expected=" << testNum + 21
                                                     << ", actual=" << actual[j] << " for index " << j;
+            }
+        }
+    }
+}
+
+TEST_P(BatchedTensorsRunTests, SetInputDifferentRemoteTensorsMultipleInferMCL) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    size_t batch = 4;
+    auto one_shape = Shape{1, 2, 2, 2};
+    auto batch_shape = Shape{batch, 2, 2, 2};
+    auto one_shape_size = ov::shape_size(one_shape);
+    auto model = BatchedTensorsRunTests::create_n_inputs(2, element::f32, batch_shape, "N...");
+    auto execNet = core->compile_model(model, target_device, configuration);
+    auto context = core->get_default_context(target_device).as<ov::intel_npu::level_zero::ZeroContext>();
+    // Create InferRequest
+    ov::InferRequest req;
+    req = execNet.create_infer_request();
+
+    std::vector<float> buffer(one_shape_size * 2 * 2, 0);
+
+    {
+        std::vector<ov::Tensor> tensors;
+
+        auto tensor0 = ov::Tensor(element::f32, one_shape, &buffer[(0 * 2) * one_shape_size]);
+        auto tensor1 = context.create_l0_host_tensor(ov::element::f32, one_shape);
+        auto tensor2 = context.create_l0_host_tensor(ov::element::f32, one_shape);
+        auto tensor3 = context.create_host_tensor(ov::element::f32, one_shape);
+
+        tensors.push_back(tensor0);
+        tensors.push_back(tensor1);
+        tensors.push_back(tensor2);
+        tensors.push_back(tensor3);
+
+        req.set_tensors("tensor_input0", tensors);
+
+        auto actual_tensor = req.get_tensor("tensor_output0");
+        auto* actual = actual_tensor.data<float>();
+        for (auto testNum = 0; testNum < 5; testNum++) {
+            {
+                auto* f = tensor0.data<float>();
+                for (size_t j = 0; j < one_shape_size; ++j) {
+                    f[j] = static_cast<float>(testNum + 20);
+                }
+            }
+            {
+                auto* data = tensor1.get();
+                float* f = static_cast<float*>(data);
+                for (size_t j = 0; j < one_shape_size; ++j) {
+                    f[j] = static_cast<float>(testNum + 20);
+                }
+            }
+            {
+                auto* data = tensor2.get();
+                float* f = static_cast<float*>(data);
+                for (size_t j = 0; j < one_shape_size; ++j) {
+                    f[j] = static_cast<float>(testNum + 20);
+                }
+            }
+            {
+                auto* f = tensor3.data<float>();
+                for (size_t j = 0; j < one_shape_size; ++j) {
+                    f[j] = static_cast<float>(testNum + 20);
+                }
+            }
+
+            req.infer();  // Adds '1' to each element
+            for (size_t j = 0; j < one_shape_size * batch; ++j) {
+                EXPECT_EQ(actual[j], testNum + 21) << "Infer " << testNum << ": Expected=" << testNum + 21
+                                                   << ", actual=" << actual[j] << " for index " << j;
+            }
+        }
+    }
+
+    {
+        std::vector<ov::Tensor> tensors;
+
+        auto tensor0 = context.create_l0_host_tensor(ov::element::f32, one_shape);
+        auto tensor1 = context.create_host_tensor(ov::element::f32, one_shape);
+        auto tensor2 = ov::Tensor(element::f32, one_shape, &buffer[(1 * 2) * one_shape_size]);
+        auto tensor3 = context.create_l0_host_tensor(ov::element::f32, one_shape);
+
+        tensors.push_back(tensor0);
+        tensors.push_back(tensor1);
+        tensors.push_back(tensor2);
+        tensors.push_back(tensor3);
+
+        req.set_tensors("tensor_input0", tensors);
+
+        auto actual_tensor = req.get_tensor("tensor_output0");
+        auto* actual = actual_tensor.data<float>();
+        for (auto testNum = 0; testNum < 5; testNum++) {
+            {
+                auto* data = tensor0.get();
+                float* f = static_cast<float*>(data);
+                for (size_t j = 0; j < one_shape_size; ++j) {
+                    f[j] = static_cast<float>(testNum + 20);
+                }
+            }
+            {
+                auto* f = tensor1.data<float>();
+                for (size_t j = 0; j < one_shape_size; ++j) {
+                    f[j] = static_cast<float>(testNum + 20);
+                }
+            }
+            {
+                auto* f = tensor2.data<float>();
+                for (size_t j = 0; j < one_shape_size; ++j) {
+                    f[j] = static_cast<float>(testNum + 20);
+                }
+            }
+            {
+                auto* data = tensor3.get();
+                float* f = static_cast<float*>(data);
+                for (size_t j = 0; j < one_shape_size; ++j) {
+                    f[j] = static_cast<float>(testNum + 20);
+                }
+            }
+
+            req.infer();  // Adds '1' to each element
+            for (size_t j = 0; j < one_shape_size * batch; ++j) {
+                EXPECT_EQ(actual[j], testNum + 21) << "Infer " << testNum << ": Expected=" << testNum + 21
+                                                   << ", actual=" << actual[j] << " for index " << j;
             }
         }
     }
