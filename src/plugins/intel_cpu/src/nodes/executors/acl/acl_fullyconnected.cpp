@@ -2,13 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <oneapi/dnnl/dnnl_types.h>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
+#include <common/primitive_desc_iface.hpp>
 #include "dnnl_postops_composer.h"
 
 #include "acl_fullyconnected.hpp"
 #include "acl_utils.hpp"
 #include "nodes/executors/dnnl/dnnl_post_op_data.hpp"
+#include "nodes/convert.h"
 #include "nodes/reorder.h"
 #include "nodes/executors/dnnl/dnnl_utils.hpp"
 #include "nodes/executors/executor.hpp"
@@ -17,7 +20,10 @@
 #include "nodes/executors/debug_messages.hpp"
 #include "nodes/executors/implementation_utils.hpp"
 #include "nodes/common/cpu_convert.h"
+#include "nodes/common/cpu_memcpy.h"
+#include "nodes/common/reorder_prim.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
+#include "memory_desc/dnnl_memory_desc.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -70,147 +76,83 @@ DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr srcDesc
     return DnnlExtensionUtils::makeDescriptor(transposedWeiDesc);
 }
 
-template <typename T>
-static std::vector<T> normalizeDimsTo2D(const std::vector<T>& dims) {
-    return {std::accumulate(dims.begin(), dims.end() - 1, (T)1, std::multiplies<T>()), dims[dims.size() - 1]};
-}
+void reorderData(const IMemory &input, const IMemory &output, MultiCachePtr cache) {
+    if (!input.getDesc().isDefined() || !output.getDesc().isDefined())
+        OPENVINO_THROW("Can't reorder data with dynamic shapes");
 
-static dnnl::memory::desc normalizeDescriptor(const dnnl::memory::desc& desc) {
-    const auto& dims = desc.get_dims();
-
-    if (dims.size() > 2)
-        return desc.reshape(normalizeDimsTo2D(dims));
-
-    return desc;
-}
-
-static dnnl::inner_product_forward::primitive_desc createDescriptorInternal(const dnnl::memory::desc& inputDesc,
-                                                                            const dnnl::memory::desc& weightDesc,
-                                                                            const dnnl::memory::desc& biasDesc,
-                                                                            const dnnl::memory::desc& outputDesc,
-                                                                            const dnnl::primitive_attr& attr,
-                                                                            const dnnl::engine& engine,
-                                                                            const bool useSparseWeights,
-                                                                            const bool useWeightsDecompression) {
-    const auto normalizedInputDesc = normalizeDescriptor(inputDesc);
-    const auto normalizedOutputDesc = normalizeDescriptor(outputDesc);
-
-    const auto indt = normalizedInputDesc.get_data_type();
-    auto wdt = indt;
-
-    /*if (useWeightsDecompression) {
-        wdt = weightDesc.get_data_type();
-
-        // dynamic quantization with symmetric quantized weights needs unsigned weights
-        uint64_t dynQuantGroupSize = 0;
-        attr.get_src_dyn_quant_params(dynQuantGroupSize);
-        if (dynQuantGroupSize > 0) {
-            if (wdt == dnnl::memory::data_type::s8)
-                wdt = memory::data_type::u8;
-            if (wdt == dnnl::memory::data_type::s4)
-                wdt = memory::data_type::u4;
-        }
-    } else if (indt == dnnl::memory::data_type::u8 || indt == dnnl::memory::data_type::s8) {
-        wdt = memory::data_type::s8;
-    }*/
-
-    const dnnl::memory::desc weightsDesc =
-        useSparseWeights ? dnnl::memory::desc().sparse_desc(weightDesc.get_dims(), wdt)
-                         : dnnl::memory::desc(weightDesc.get_dims(), wdt, memory::format_tag::any);
-
-    return dnnl::inner_product_forward::primitive_desc(engine,
-                                                       dnnl::prop_kind::forward_inference,
-                                                       normalizedInputDesc,
-                                                       weightsDesc,
-                                                       biasDesc,
-                                                       normalizedOutputDesc,
-                                                       attr);
-}
-
-static primitive_desc createPrimitiveDesc(const dnnl::memory::desc& inputDesc,
-                                          const dnnl::memory::desc& weightDesc,
-                                          const dnnl::memory::desc& biasDesc,
-                                          const dnnl::memory::desc& outputDesc,
-                                          const dnnl::primitive_attr& attr,
-                                          const dnnl::engine& engine,
-                                          const std::vector<impl_desc_type>& implPriorities,
-                                          const bool useSparseWeights,
-                                          const bool useWeightsDecompression) {
-    auto prim_desc = createDescriptorInternal(inputDesc,
-                                              weightDesc,
-                                              biasDesc,
-                                              outputDesc,
-                                              attr,
-                                              engine,
-                                              useSparseWeights,
-                                              useWeightsDecompression);
-    OPENVINO_ASSERT(prim_desc, "Failed to create inner_product primitive descriptor");
-    auto first_desc = dnnl::inner_product_forward::primitive_desc(prim_desc.get());
-
-    const bool found = DnnlExtensionUtils::find_implementation(prim_desc, [&](impl_desc_type implType) {
-        return contains(implPriorities, implType);
-    });
-
-    if (found)
-        return std::move(prim_desc);
-
-    return std::move(first_desc);
-}
-
-static DnnlPrimitiveAttrs createPrimitiveAttrs(const FCAttrs& attrs,
-                                               const PostOps& postOps,
-                                               const MemoryArgs& memory,
-                                               ExecutorContext::CPtr context,
-                                               bool useDynamicQuantization) {
-    const auto& srcDesc = memory.at(ARG_SRC)->getDescPtr();
-    const auto& weiDesc = memory.at(ARG_WEI)->getDescPtr();
-    const auto& dstDesc = memory.at(ARG_DST)->getDescPtr();
-
-    const auto& originalDims = dstDesc->getShape().getMinDims();
-    const auto& dims = normalizeDimsTo2D(originalDims);
-
-    auto isINT8 =
-        one_of(srcDesc->getPrecision(), ov::element::u8, ov::element::i8) && weiDesc->getPrecision() == ov::element::i8;
-    auto outputDataType = DnnlExtensionUtils::ElementTypeToDataType(dstDesc->getPrecision());
-
-    DnnlPostOpsComposer dnnlpoc(postOps,
-                                context->getEngine(),
-                                dims,
-                                dims.size() - 1,
-                                isINT8,
-                                1 << 0,
-                                attrs.dequantizationScales,
-                                !memory.at(ARG_BIAS)->getDesc().empty(),
-                                outputDataType);
-
-    if (attrs.decompressionMultiplyPtr) {
-        auto dstPrc = attrs.decompressionMultiplyPtr->getPrecision();
-        if (dstPrc != f8e8m0 || useDynamicQuantization)
-            dstPrc = ov::element::f32;
-
-        dnnlpoc.appendDecompressionScales(attrs.decompressionMultiplyPtr, !attrs.weightsNonTransposed, dstPrc);
+    if (input.getShape().hasZeroDims() || output.getShape().hasZeroDims()) {
+        return;
     }
-    if (attrs.decompressionSubtractPtr) {
-        auto dstPrc = useDynamicQuantization ? ov::element::u8 : ov::element::f32;
-        dnnlpoc.appendDecompressionZeroPoints(attrs.decompressionSubtractPtr, !attrs.weightsNonTransposed, dstPrc);
-    }
-    /*if (useDynamicQuantization) {
-        auto wei_precision = weiDesc->getPrecision();
-        bool is_symmetric_weights = (wei_precision == ov::element::i8) || (wei_precision == ov::element::i4);
-        if (is_symmetric_weights) {
-            // dynamic Quantization needs unsigned quantized weights, conversion from i8/i4 to u8/u4 by adding 128/8
-            // introduces 128/8 as zero-points.
-            uint8_t zp_value = (wei_precision == ov::element::i8) ? 128 : 8;
-            DnnlBlockedMemoryDesc zpMemoryDesc(ov::element::u8, Shape({1}));
-            auto decompressionSubtractPtr = std::make_shared<Memory>(context->getEngine(), zpMemoryDesc, &zp_value);
-            dnnlpoc.appendDecompressionZeroPoints(decompressionSubtractPtr,
-                                                  !attrs.weightsNonTransposed,
-                                                  ov::element::u8);
-        }
-        dnnlpoc.setDynamicQuantizationParams(attrs.dynamicQuantizationGroupSize);
-    }*/
 
-    return dnnlpoc.compose();
+    if (input.getDesc().isCompatible(output.getDesc())) {
+        if (input.getDesc().getPrecision() == element::string) {
+            auto srcPtr = input.getDataAs<StringMemory::OvString>();
+            auto dstPtr = output.getDataAs<StringMemory::OvString>();
+            std::copy(srcPtr, srcPtr + output.getShape().getElementsCount(), dstPtr);
+        } else {
+            auto srcPtr = static_cast<uint8_t*>(input.getData());
+            auto dstPtr = static_cast<uint8_t*>(output.getData());
+
+            auto copySize = output.getSize();
+            cpu_memcpy(dstPtr, srcPtr, copySize);
+        }
+    } else {
+        dnnl::reorder reorder;
+        std::vector<uint8_t> tmpBuff;
+
+        auto srcMemory = input.getPrimitive();
+        auto dstMemory = output.getPrimitive();
+
+        auto srcMemoryDesc = srcMemory.get_desc();
+        auto dstMemoryDesc = dstMemory.get_desc();
+
+        auto engine = dstMemory.get_engine();
+
+        if (srcMemoryDesc.get_ndims() != dstMemoryDesc.get_ndims()) {
+            //rank mismatch, try to reshape source mem descriptor
+            constexpr bool allowEmpty = true;
+            auto reshapedSrcMemDesc = srcMemoryDesc.reshape(dstMemoryDesc.get_dims(), allowEmpty);
+            if (reshapedSrcMemDesc) {
+                srcMemoryDesc = reshapedSrcMemDesc;
+                srcMemory = dnnl::memory(srcMemoryDesc, engine, srcMemory.get_data_handle());
+            }
+        }
+
+        // try directly reorder
+        reorder = getReorderPrim(cache, engine, srcMemoryDesc, dstMemoryDesc);
+        if (!reorder) {
+            // try precision conversion then do the reorder
+            if (output.getDataType() != input.getDataType() && node::Convert::isSupportedDesc(input.getDesc()) &&
+                node::Convert::isSupportedDesc(output.getDesc())) {
+                //we probably could not make the reorder because there is no one supporting this precision conversion
+                //lets try to convert data first using cpu_convert
+                auto data = static_cast<const uint8_t *>(input.getData());
+                tmpBuff.resize(output.getSize());
+
+                const auto outPrc = DnnlExtensionUtils::DataTypeToElementType(output.getDataType());
+                cpu_convert(data, tmpBuff.data(), DnnlExtensionUtils::DataTypeToElementType(input.getDataType()),
+                            outPrc, input.getSize() / input.getDesc().getPrecision().size());
+
+                auto tmpDesc = input.getDesc().cloneWithNewPrecision(outPrc);
+                Memory tmpMem(engine, std::move(tmpDesc), tmpBuff.data());
+
+                srcMemory = tmpMem.getPrimitive();
+                reorder = getReorderPrim(cache, dstMemory.get_engine(), srcMemory.get_desc(), dstMemory.get_desc());
+            }
+            if (!reorder) {
+                OPENVINO_THROW("No reorder available for the following tensor descriptors: ",
+                               input.getDesc().serializeFormat(),
+                               " and ",
+                               output.getDesc().serializeFormat());
+            }
+        }
+        if (reorder) {
+            dnnl::stream loc_stream(engine, dnnl::stream::flags::in_order);
+            reorder.execute(loc_stream, {{DNNL_ARG_FROM, srcMemory}, {DNNL_ARG_TO, dstMemory}});
+        } else {
+            OPENVINO_THROW("Could not make onednn reorder.");
+        }
+    }
 }
 
 static MemoryPtr prepareWeightMemory(const MemoryArgs &memory,
@@ -383,7 +325,7 @@ static MemoryPtr prepareWeightMemory(const MemoryArgs &memory,
             Memory srcMemory{context->getEngine(), srcWeightDesc, weightsMem->getData()};
             MemoryPtr _ptr = std::make_shared<Memory>(context->getEngine(), dstWeightDesc);
             auto rtCache = context->getRuntimeCache();
-            node::Reorder::reorderData(srcMemory, *_ptr, rtCache);
+            /*node::Reorder::*/reorderData(srcMemory, *_ptr, rtCache);
             final_ptr = _ptr;
             //ONEDNN SECTION END
             //std::chrono::high_resolution_clock::time_point __finish = std::chrono::high_resolution_clock::now();
