@@ -144,6 +144,8 @@ jobs:
         run: |
           # For converting model_zoo models
           python3 -m pip install --force-reinstall -r ${OPENVINO_REPO}/src/frontends/onnx/tests/requirements.txt
+          python3 -m pip install --force-reinstall -r ${OPENVINO_REPO}/src/frontends/tensorflow/tests/requirements.txt
+          python3 -m pip install --force-reinstall -r ${OPENVINO_REPO}/src/frontends/paddle/tests/requirements.txt
     
       #
       # Build
