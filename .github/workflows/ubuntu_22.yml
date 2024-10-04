@@ -294,11 +294,15 @@ jobs:
     name: Python unit tests
     needs: [ Docker, Build, Smart_CI ]
     uses: ./.github/workflows/job_python_unit_tests.yml
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.9', '3.10', '3.11', '3.12']
     with:
       runner: 'aks-linux-4-cores-16gb'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
-      python-version: '3.11'
+      python-version: ${{ matrix.python-version }}
 
   TensorFlow_Layer_Tests:
     name: TensorFlow Layer Tests
