@@ -8,9 +8,38 @@
 #include "intel_npu/al/config/options.hpp"
 
 namespace intel_npu {
-// namespace intel_npu
 
-// Macro for registering simple get<> properties which have everything defined in their optionBase
+//
+// Helper macro functions to ease registration of properties (both from configs and from metrics)
+//
+
+/**
+ * @brief Macro for registering simple get<> properties which have everything defined in their optionBase.
+ *
+ * This macro can be used for registering properties which have entry in the optionsDesc table and
+ * requre a simple globalconfig.get<TEMPLATE>() callback for value, without any extra data manipulation
+ * It will check if the configuration option is available in the globalconfig and if it exists,
+ * then registers it as a property in the internal property map. It handles
+ * public/private property visibility and the mutability of the property
+ * based on the configuration from the optionBase type.
+ *
+ * @param OPT_NAME Class/type of the option (will fetch .name() from it)
+ * @param OPT_TYPE Type (template) of the option
+ *
+ * @details
+ * - It first checks if the option was registered in the global config. Options not present in the global config
+ *   are not supported in the current configuration and were previously filtered out on plugin level.
+ * - The property visibility (public/private) and mutability (RO/RW) are read from the base option descriptor
+ * (optionBase) the property will map to
+ * - COMPILED_MODEL only: In case the property is registered for a compiled_model, mutability will be automatically
+ * forced to READ-ONLY
+ * - COMPILED_MODEL only: If the configuration has no entry for the option, it means it was not set, which means it will
+ * skip registering it
+ * - A simple config.get<OPT_TYPE> lambda function is defined as the property's callback function
+ *
+ * @note The macro ensures that compiled model properties are marked read-only unless the configuration lacks the
+ * specified option type.
+ */
 #define TRY_REGISTER_SIMPLE_PROPERTY(OPT_NAME, OPT_TYPE)                                                \
     do {                                                                                                \
         std::string o_name = OPT_NAME.name();                                                           \
@@ -30,7 +59,20 @@ namespace intel_npu {
         }                                                                                               \
     } while (0)
 
-// Macro for defining otherwise simple get<> properties but which have variable public/private field
+/**
+ * @brief Macro for defining otherwise simple get<> properties but which have variable public/private field
+ *
+ * This macro offers the same functionality as TRY_REGISTER_SIMPLE_PROPERTY (see its description for more)
+ * with the extra feature that enforces plugin property visibility (public/private) given by user.
+ * Compiled model properties will still be forced to READ-ONLY
+ *
+ * @param OPT_NAME Class/type of the option (will fetch .name() from it)
+ * @param OPT_TYPE Type (template) of the option
+ * @param PROP_VISIBILITY Visibility (true=public, false=private) of the resulting property
+ *
+ * @details
+ * @see TRY_REGISTER_SIMPLE_PROPERTY
+ */
 #define TRY_REGISTER_VARPUB_PROPERTY(OPT_NAME, OPT_TYPE, PROP_VISIBILITY)                                      \
     do {                                                                                                       \
         std::string o_name = OPT_NAME.name();                                                                  \
@@ -49,7 +91,19 @@ namespace intel_npu {
         }                                                                                                      \
     } while (0)
 
-// Macro for registering config properties which have custom return function
+/**
+ * @brief Macro for registering properties which need a custom return function
+ *
+ * This macro offers the same functionality as TRY_REGISTER_SIMPLE_PROPERTY (see its description for more)
+ * but with a custom callback function.
+ *
+ * @param OPT_NAME Class/type of the option (will fetch .name() from it)
+ * @param OPT_TYPE Type (template) of the option
+ * @param PROP_RETFUNC Custom lambda callback function for the resulting property
+ *
+ * @details
+ * @see TRY_REGISTER_SIMPLE_PROPERTY
+ */
 #define TRY_REGISTER_CUSTOMFUNC_PROPERTY(OPT_NAME, OPT_TYPE, PROP_RETFUNC)                   \
     do {                                                                                     \
         std::string o_name = OPT_NAME.name();                                                \
@@ -67,7 +121,27 @@ namespace intel_npu {
         }                                                                                    \
     } while (0)
 
-// Macro for registering fully custom property, with option entry validation
+/**
+ * @brief Macro for registering a fully custom property, with option entry validation
+ *
+ * This macro offers the flexibility of registering a fully custom property where all its parameters
+ * are user provided: visibility (public/private), mutability and callback function 
+ *
+ * @param OPT_NAME Class/type of the option (will fetch .name() from it)
+ * @param OPT_TYPE Type (template) of the option
+ * @param PROP_VISIBILITY Visibility (true=public, false=private) of the resulting property
+ * @param PROP_MUTABILITY Mutability (RO/RW) of the resulting property
+ * @param PROP_RETFUNC Custom lambda callback function for the resulting property
+ *
+ * @details
+ * - It first checks if the option was registered in the global config. Options not present in the global config
+ *   are not supported in the current configuration and were previously filtered out on plugin level.
+ * - A new entry is added to the properties table with the user provided parameters (visibility,mutability,callback)
+ *   without any further checks and validations
+ * 
+ * @note This macro does not offer any compiled-model specific checks, such as 
+ * if the config options this property maps to has actual value, nor it enforces RO, like previous macros.
+ */
 #define TRY_REGISTER_CUSTOM_PROPERTY(OPT_NAME, OPT_TYPE, PROP_VISIBILITY, PROP_MUTABILITY, PROP_RETFUNC)  \
     do {                                                                                                  \
         std::string o_name = OPT_NAME.name();                                                             \
@@ -76,13 +150,46 @@ namespace intel_npu {
         }                                                                                                 \
     } while (0)
 
-// Macro for force registering a fully custom property (no option entry validation)
+/**
+ * @brief Macro for force registering a fully custom property (no option entry validation.
+ *
+ * Same as TRY_REGISTER_CUSTOM_PROPERTY but without any checks. It will force register the property.
+ *
+ * @param OPT_NAME Class/type of the option (will fetch .name() from it)
+ * @param OPT_TYPE Type (template) of the option
+ * @param PROP_VISIBILITY Visibility (true=public, false=private) of the resulting property
+ * @param PROP_MUTABILITY Mutability (RO/RW) of the resulting property
+ * @param PROP_RETFUNC Custom lambda callback function for the resulting property
+ *
+ * @details
+ * - A new entry is added to the properties table with the user provided parameters (visibility,mutability,callback)
+ *   without any checks and validations
+ * 
+ * @note This macro does not offer any compiled-model specific checks, such as 
+ * if the config options this property maps to has actual value, nor it enforces RO, like previous macros.
+ */
 #define FORCE_REGISTER_CUSTOM_PROPERTY(OPT_NAME, OPT_TYPE, PROP_VISIBILITY, PROP_MUTABILITY, PROP_RETFUNC)     \
     do {                                                                                                       \
         _properties.emplace(OPT_NAME.name(), std::make_tuple(PROP_VISIBILITY, PROP_MUTABILITY, PROP_RETFUNC)); \
     } while (0)
 
-// Macro for defining simple single-function-call value returning metrics
+/**
+ * @brief Macro for defining properties which have simmple single value returning metrics
+ *
+ * The key differentiator for Metrics (from configs) is that they don't have an entry in the config map, nor an OptionBase descriptor.
+ * Metrics are static, Read-Only properties returning fixed characteristics of the device, plugin or environment.
+ * Since they don't have an entry in the config map, nor an optionBase descriptor, their callback function returns custom data.
+ *
+ * @param PROP_NAME Class/type of the property (will fetch .name() from it)
+ * @param PROP_VISIBILITY Visibility (true=public, false=private) of the resulting property
+ * @param PROP_RETVAL Value for the callback function to return
+ *
+ * @details
+ * - A new entry is added to the properties table with the user provided parameters (visibility,mutability,callback val)
+ *   without any checks and validations
+ * 
+ * @note This macro does not offer any compiled-model specific checks 
+ */
 #define REGISTER_SIMPLE_METRIC(PROP_NAME, PROP_VISIBILITY, PROP_RETVAL)                                              \
     do {                                                                                                             \
         _properties.emplace(PROP_NAME.name(),                                                                        \
@@ -91,6 +198,21 @@ namespace intel_npu {
                             }));                                                                                     \
     } while (0)
 
+/**
+ * @brief Macro for defining metric properties with full callback lambda functions
+ *
+ * The difference from REGISTER_SIMPLE_METRIC is that here we can define the whole callback lambdafunction, not just the return value
+ *
+ * @param PROP_NAME Class/type of the property (will fetch .name() from it)
+ * @param PROP_VISIBILITY Visibility (true=public, false=private) of the resulting property
+ * @param PROP_RETFUNC Callback lambda function of the resulting property
+ *
+ * @details
+ * - A new entry is added to the properties table with the user provided parameters (visibility,mutability,callback func)
+ *   without any checks and validations
+ * 
+ * @note This macro does not offer any compiled-model specific checks 
+ */
 // Macro for defining metrics with custom return function
 #define REGISTER_CUSTOM_METRIC(PROP_NAME, PROP_VISIBILITY, PROP_RETFUNC)                                 \
     do {                                                                                                 \
@@ -98,11 +220,13 @@ namespace intel_npu {
                             std::make_tuple(PROP_VISIBILITY, ov::PropertyMutability::RO, PROP_RETFUNC)); \
     } while (0)
 
+// Local helper function for appending platform name to the config
 static Config add_platform_to_the_config(Config config, const std::string_view platform) {
     config.update({{ov::intel_npu::platform.name(), std::string(platform)}});
     return config;
 }
 
+// Local helper function for retrieving the device name
 static auto get_specified_device_name(const Config config) {
     if (config.has<DEVICE_ID>()) {
         return config.get<DEVICE_ID>();
@@ -114,6 +238,7 @@ Properties::Properties(const PropertiesType pType, Config& config, const std::sh
     : _pType(pType),
       _config(config),
       _metrics(metrics) {}
+
 
 void Properties::registerProperties() {
     // Reset
@@ -269,12 +394,6 @@ void Properties::registerProperties() {
             _supportedProperties.emplace_back(ov::PropertyName(property.first, std::get<1>(property.second)));
         }
     }
-    // DEBUG
-    std::cout << "[CSOKADBG] Registered properties (all): " << std::endl;
-    for (const auto& prop : _properties) {
-        std::cout << "Key: " << prop.first << std::endl;
-    }
-    std::cout << "[CSOKADBG] Registered properties END: " << std::endl;
 }
 
 ov::Any Properties::get_property(const std::string& name, const ov::AnyMap& arguments) const {
