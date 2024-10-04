@@ -59,12 +59,10 @@ Pipeline::Pipeline(const Config& config,
         size_t ioIndex = 0;
         for (const auto& desc : _executor->get_input_descriptors()) {
             if (inputTensorsData.at(ioIndex).size() > 1) {
-                if (numberOfCommandLists > 1) {
-                    _executor->setArgumentValue(desc.idx, inputTensorsData.at(ioIndex).at(i)->mem);
+                _executor->setArgumentValue(desc.idx, inputTensorsData.at(ioIndex).at(i)->mem);
 
-                    ++ioIndex;
-                    continue;
-                }
+                ++ioIndex;
+                continue;
             }
 
             _executor->setArgumentValue(desc.idx,
