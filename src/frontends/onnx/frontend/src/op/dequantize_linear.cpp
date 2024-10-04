@@ -245,38 +245,6 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
         src_x.get_shape()[0] % block_size == 0,
         "DequantizeLinear doesn't support case when first dimension of X cannot be divided by block_size");
 
-    /*
-        // Working solution with transpose
-        const auto& x = src_x.get_element_type() == scale_type ? src_x : std::make_shared<v1::ConvertLike>(src_x,
-    scale);
-        // For further broadcasting scales and zp - reshape input to a shape [x.shape[0]/block_size, block_size,
-    x.shape[1]] const auto& reshaped_x = op::util::reshape(x, Shape{static_cast<uint64_t>(x.get_shape()[0] /
-    block_size), static_cast<uint64_t>(block_size), x.get_shape()[1]});
-        // Making x broadcastable by transposing from [a,b,c] -> [a,c,b]
-        const auto& broadcastable_shape =
-            std::make_shared<v0::Constant>(ov::element::i64, Shape{3}, std::vector<int64_t>{0, 2, 1});
-        ov::Output<ov::Node> broadcastable_x = std::make_shared<v1::Transpose>(reshaped_x, broadcastable_shape);
-
-        // Adding additional dimension for broadcasting
-        scale = std::make_shared<v0::Unsqueeze>(scale, unsqueezed_axes);
-
-        if (zp.get_node_shared_ptr()) {
-            broadcastable_x = std::make_shared<v1::Subtract>(broadcastable_x, zp);
-        }
-
-        const auto& scaled_x = std::make_shared<v1::Multiply>(broadcastable_x, scale);
-
-        // Returning back a transposed matrix
-        const auto& transposed_scaled_x = std::make_shared<v1::Transpose>(scaled_x, broadcastable_shape);
-
-        // Returning back a shape
-        const auto& reshaped_scaled_x =
-            std::make_shared<v1::Reshape>(transposed_scaled_x, std::make_shared<v0::ShapeOf>(src_x), false);
-
-        reshaped_scaled_x->set_friendly_name(node.get_name());
-
-        return {reshaped_scaled_x};
-    //*/
     const auto& x = src_x.get_element_type() == scale_type ? src_x : std::make_shared<v1::ConvertLike>(src_x, scale);
     // For further broadcasting scales and zp - reshape input to a shape [x.shape[0]/block_size, block_size, x.shape[1]]
     ov::Output<ov::Node> broadcastable_x = op::util::reshape(x,
