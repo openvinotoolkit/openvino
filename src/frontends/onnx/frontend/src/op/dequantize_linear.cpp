@@ -240,6 +240,7 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
     const auto block_size = static_cast<size_t>(node.get_attribute_value<int64_t>("block_size", 0));
     const auto scale_type = scale.get_element_type();
 
+    FRONT_END_GENERAL_CHECK(axis == 1, "Axis != 1 isn't supported");
     FRONT_END_GENERAL_CHECK(block_size > 0, "block_size must be greater than zero");
     FRONT_END_GENERAL_CHECK(
         src_x.get_shape()[0] % block_size == 0,
