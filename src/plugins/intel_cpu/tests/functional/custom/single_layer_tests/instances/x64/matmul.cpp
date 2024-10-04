@@ -1108,6 +1108,45 @@ INSTANTIATE_TEST_SUITE_P(
     testParamsDynamicFusingFullUndefShapes,
     MatMulLayerCPUTest::getTestCaseName);
 
+class FCNotFuseFQCPUTest : public MatMulLayerCPUTest {
+    void SetUp() override {
+        MatMulLayerCPUTest::SetUp();
+        expectPostOpsToBeFused = false;
+    }
+};
+
+TEST_P(FCNotFuseFQCPUTest, CompareWithRefs) {
+    run();
+    CheckPluginRelatedResults(compiledModel, cpuNodeType);
+}
+
+const std::vector<ShapeRelatedParams>& notFuseSmoke() {
+    static const std::vector<ShapeRelatedParams> params = {
+        {static_shapes_to_test_representation({{59, 1}, {1, 120}}), {false, true}},
+        {static_shapes_to_test_representation({{59, 1}, {1, 120}}), {true, true}},
+
+        {static_shapes_to_test_representation({{59, 120}, {120, 1}}), {false, false}},
+        {static_shapes_to_test_representation({{59, 120}, {120, 1}}), {true, true}},
+
+        {static_shapes_to_test_representation({{71, 128}, {128, 20}}), {true, false}},
+        {static_shapes_to_test_representation({{71, 128}, {128, 20}}), {false, true}},
+    };
+    return params;
+}
+
+const auto notFuseTestParamsSmoke = ::testing::Combine(::testing::Combine(::testing::ValuesIn(notFuseSmoke()),
+                                                                          ::testing::Values(ElementType::f32),
+                                                                          ::testing::Values(ElementType::undefined),
+                                                                          ::testing::Values(ElementType::undefined),
+                                                                          ::testing::Values(utils::InputLayerType::CONSTANT),
+                                                                          ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                                                          ::testing::Values(emptyAdditionalConfig())),
+                                                       ::testing::Values(MatMulNodeType::FullyConnected),
+                                                       ::testing::ValuesIn({fusingFakeQuantizePerBatch, fusingFakeQuantizeFullTensor}),
+                                                       ::testing::ValuesIn({CPUSpecificParams{{}, {}, {""}, "any_type"}}));
+
+INSTANTIATE_TEST_SUITE_P(smoke_FC, FCNotFuseFQCPUTest, notFuseTestParamsSmoke, FCNotFuseFQCPUTest::getTestCaseName);
+
 }  // namespace
 }  // namespace MatMul
 }  // namespace test

@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2023-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,8 @@ public:
     InitLoops() = default;
     bool run(LinearIR& linear_ir) override;
 
-    static void init_loop_info(const UnifiedLoopInfoPtr& loop_info, size_t loop_id, bool only_runtime_args = false);
+private:
+    static void update_compile_parameters(const UnifiedLoopInfoPtr& loop_info, size_t loop_id);
 };
 
 } // namespace pass

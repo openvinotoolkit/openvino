@@ -1,5 +1,3 @@
-.. {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_RetinaNet_From_Tensorflow}
-
 Converting a TensorFlow RetinaNet Model
 =======================================
 
@@ -14,11 +12,11 @@ Converting a TensorFlow RetinaNet Model
    The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
 
    This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Python ../../../../../../learn-openvino/interactive-tutorials-python <../../../../../../learn-openvino/interactive-tutorials-python>`.
-   
+
 This tutorial explains how to convert a RetinaNet model to the Intermediate Representation (IR).
 
 `Public RetinaNet model <https://github.com/fizyr/keras-retinanet>`__ does not contain pretrained TensorFlow weights.
-To convert this model to the TensorFlow format, follow the `Reproduce Keras to TensorFlow Conversion tutorial <https://docs.openvino.ai/2024/omz_models_model_retinanet_tf.html>`__.
+To convert this model to the TensorFlow format, follow the `Reproduce Keras to TensorFlow Conversion tutorial <https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/public/retinanet-tf/README.md>`__.
 
 After converting the model to TensorFlow format, run the following command:
 

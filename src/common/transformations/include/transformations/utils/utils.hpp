@@ -201,6 +201,12 @@ TRANSFORMATIONS_API bool constantIsEqualTo(const std::shared_ptr<ov::op::v0::Con
 
 TRANSFORMATIONS_API bool has_f16_constants(const std::shared_ptr<const ov::Model>& function);
 
+/**
+ * \brief Check if 'other_shape' can be broadcasted to 'ref_shape'
+ *
+ * \param ref_shape  The target shape we use as reference we are trying to broadcast to.
+ * \param other_shape  The shape we use to check if it can be broadcasted to 'ref_shape'.
+ */
 TRANSFORMATIONS_API bool check_for_broadcast(const PartialShape& ref_shape, const PartialShape& other_shape);
 
 TRANSFORMATIONS_API std::shared_ptr<Node> activation(const std::string& activation_name, const Output<Node>& apply_to);
@@ -214,6 +220,19 @@ TRANSFORMATIONS_API std::shared_ptr<Node> clone_try_fold(const std::shared_ptr<N
 
 TRANSFORMATIONS_API bool shapes_equal_except_dynamic_expected_batch(const PartialShape& expected,
                                                                     const PartialShape& actual);
+
+/**
+ * \brief Traverses path starting from `node`, and calls "func" for each ov::Node.
+ *
+ * \param node  The node from which path is started.
+ * \param visited  Set of nodes which were visited.
+ * \param func  The function which is called for each visited node.
+ * \param skip_node_predicate  predicte to skip nodes.
+ */
+TRANSFORMATIONS_API void visit_path(ov::Node* node,
+                                    std::unordered_set<ov::Node*>& visited,
+                                    std::function<void(ov::Node*)> func,
+                                    std::function<bool(ov::Node*)> skip_node_predicate);
 
 /**
  * \brief Traverses a shapeOf subgraph starting from the node and not including the ShapeOf nodes,

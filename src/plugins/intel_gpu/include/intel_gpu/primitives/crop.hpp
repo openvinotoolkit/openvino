@@ -54,9 +54,8 @@ struct crop : public primitive_base<crop> {
     crop(const primitive_id& id,
          const input_info& input,
          const tensor& reference_input,
-         const tensor& offsets,
-         const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding}), reference_input(reference_input),
+         const tensor& offsets)
+        : primitive_base(id, {input}), reference_input(reference_input),
             offsets(offsets), op_mode(crop_ngraph_op_mode::none) {}
 
     /// @brief Constructs crop primitive (borders variant).
@@ -75,9 +74,8 @@ struct crop : public primitive_base<crop> {
          const input_info& input,
          const tensor& lt_borders,
          const tensor& rb_borders,
-         const crop_borders_t,
-         const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding}), reference_input(rb_borders.negate()),
+         const crop_borders_t)
+        : primitive_base(id, {input}), reference_input(rb_borders.negate()),
             offsets(lt_borders), op_mode(crop_ngraph_op_mode::none) {}
 
     /// @brief Constructs crop primitive (symmetric borders variant).
@@ -93,9 +91,8 @@ struct crop : public primitive_base<crop> {
     crop(const primitive_id& id,
          const input_info& input,
          const tensor& xy_borders,
-         const crop_borders_t,
-         const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding}), reference_input(xy_borders.negate()),
+         const crop_borders_t)
+        : primitive_base(id, {input}), reference_input(xy_borders.negate()),
             offsets(xy_borders), op_mode(crop_ngraph_op_mode::none) {}
 
     /// @brief Constructs crop primitive.
@@ -113,9 +110,8 @@ struct crop : public primitive_base<crop> {
          const crop_ngraph_op_mode op_mode,
          const int output_idx,
          const int64_t axis = -1,
-         const size_t num_splits = 1,
-         const padding& output_padding = padding())
-        : primitive_base(id, inputs, {output_padding}), reference_input(reference_input), offsets(offsets),
+         const size_t num_splits = 1)
+        : primitive_base(id, inputs), reference_input(reference_input), offsets(offsets),
             output_idx(output_idx), axis(axis), num_splits(num_splits), op_mode(op_mode) {}
 
     /// @brief Reference input tensor with the required dimensions.

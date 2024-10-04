@@ -8,15 +8,10 @@ using namespace ov::test::behavior;
 using namespace ov;
 
 namespace {
-std::vector<memoryStateParams> memoryStateTestCases = {
-    memoryStateParams(OVInferRequestVariableStateTest::get_network(),
-                      {"c_1-3", "r_1-3"},
-                      ov::test::utils::DEVICE_CPU,
-                      {}),
-    memoryStateParams(OVInferRequestVariableStateTest::get_network(),
-                      {"c_1-3", "r_1-3"},
-                      ov::test::utils::DEVICE_HETERO,
-                      {ov::device::priorities(ov::test::utils::DEVICE_CPU)})};
+std::vector<memoryStateParams> memoryStateTestCases = {memoryStateParams(OVInferRequestVariableStateTest::get_network(),
+                                                                         {"c_1-3", "r_1-3"},
+                                                                         ov::test::utils::DEVICE_CPU,
+                                                                         {})};
 
 INSTANTIATE_TEST_SUITE_P(smoke_VariableState,
                          OVInferRequestVariableStateTest,

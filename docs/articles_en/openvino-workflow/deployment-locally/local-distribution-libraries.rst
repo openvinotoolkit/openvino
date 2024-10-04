@@ -1,5 +1,3 @@
-.. {#openvino_docs_deploy_local_distribution}
-
 Libraries for Local Distribution
 ================================
 
@@ -41,9 +39,6 @@ to optimally saturate devices with computations.
 
 If your application is in C language, you need to additionally include the ``openvino_c`` library.
 
-The ``plugins.xml`` file with information about inference devices must also be taken as a support file for ``openvino``.
-
-
 Libraries for Pluggable Components
 ##################################
 
@@ -58,6 +53,7 @@ For each inference device, OpenVINO Runtime has its own plugin library:
 
 - ``openvino_intel_cpu_plugin`` for :doc:`Intel® CPU devices <../running-inference/inference-devices-and-modes/cpu-device>`
 - ``openvino_intel_gpu_plugin`` for :doc:`Intel® GPU devices <../running-inference/inference-devices-and-modes/gpu-device>`
+- ``openvino_intel_npu_plugin`` for :doc:`Intel® NPU devices <../running-inference/inference-devices-and-modes/npu-device>`
 - ``openvino_arm_cpu_plugin`` for :doc:`ARM CPU devices <../running-inference/inference-devices-and-modes/cpu-device>`
 
 Depending on which devices are used in the app, the corresponding libraries should be included in the distribution package.
@@ -79,6 +75,8 @@ Refer to the table below for details:
       |     GPU      | | OpenCL.dll            | | ``C:\Windows\System32\opencl.dll``                  |
       |              | | cache.json            | | ``.\runtime\bin\intel64\Release\cache.json``   or   |
       |              | |                       | | ``.\runtime\bin\intel64\Debug\cache.json``          |
+      +--------------+-------------------------+-------------------------------------------------------+
+      |     NPU      |            —            |                          —                            |
       +--------------+-------------------------+-------------------------------------------------------+
       |  Arm® CPU    |            —            |                          —                            |
       +--------------+-------------------------+-------------------------------------------------------+
@@ -102,6 +100,8 @@ Refer to the table below for details:
       +--------------+-------------------------+-------------------------------------------------------+
       |     GPU      | | libOpenCL.so          | | ``/usr/lib/x86_64-linux-gnu/libOpenCL.so.1``        |
       |              | | cache.json            | | ``./runtime/lib/intel64/cache.json``                |
+      +--------------+-------------------------+-------------------------------------------------------+
+      |     NPU      |            —            |                          —                            |
       +--------------+-------------------------+-------------------------------------------------------+
 
    .. tab-item:: macOS arm64

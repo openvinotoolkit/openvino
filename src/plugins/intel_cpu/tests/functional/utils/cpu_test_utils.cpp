@@ -410,30 +410,6 @@ void CPUTestsBase::updateSelectedType(const std::string& primitiveType,
     selectedType += execType.get_type_name();
 }
 
-std::vector<CPUSpecificParams> filterCPUSpecificParams(const std::vector<CPUSpecificParams>& paramsVector) {
-    auto adjustBlockedFormatByIsa = [](std::vector<cpu_memory_format_t>& formats) {
-        for (auto& format : formats) {
-            if (format == nCw16c)
-                format = nCw8c;
-            if (format == nChw16c)
-                format = nChw8c;
-            if (format == nCdhw16c)
-                format = nCdhw8c;
-        }
-    };
-
-    std::vector<CPUSpecificParams> filteredParamsVector = paramsVector;
-
-    if (!ov::with_cpu_x86_avx512f()) {
-        for (auto& param : filteredParamsVector) {
-            adjustBlockedFormatByIsa(std::get<0>(param));
-            adjustBlockedFormatByIsa(std::get<1>(param));
-        }
-    }
-
-    return filteredParamsVector;
-}
-
 inline void CheckNumberOfNodesWithTypeImpl(std::shared_ptr<const ov::Model> function,
                                            const std::unordered_set<std::string>& nodeTypes,
                                            size_t expectedCount) {
@@ -542,4 +518,23 @@ CPUTestsBase::deduce_expected_precision(const ov::element::Type& opPrecision,
     return deducedType;
 #endif
 }
+
+bool containsNonSupportedFormat(const std::vector<cpu_memory_format_t>& formats, const std::vector<cpu_memory_format_t>& non_supported_f) {
+    for (const auto& format : formats) {
+        if (std::find(non_supported_f.begin(), non_supported_f.end(), format) != non_supported_f.end()) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool containsSupportedFormatsOnly(const std::vector<cpu_memory_format_t>& formats, const std::vector<cpu_memory_format_t>& supported_f) {
+    for (const auto& format : formats) {
+        if (std::find(supported_f.begin(), supported_f.end(), format) == supported_f.end()) {
+            return false;
+        }
+    }
+    return true;
+}
+
 }  // namespace CPUTestUtils

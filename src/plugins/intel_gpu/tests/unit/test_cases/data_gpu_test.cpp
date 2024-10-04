@@ -33,7 +33,7 @@ TEST(data_gpu, attach_host_buffer) {
     cldnn::topology topology{
         input_layout("input", in_layout),
         data("weights", weights_memory),
-        fully_connected("fc", input_info("input"), "weights", "", cldnn::padding(), in_layout.get_partial_shape().size()),
+        fully_connected("fc", input_info("input"), "weights", "", in_layout.get_partial_shape().size()),
     };
 
     ExecutionConfig config = get_test_default_config(engine);
@@ -82,7 +82,7 @@ TEST(data_gpu, usm_device_buffer) {
     cldnn::topology topology{
         input_layout("input", in_layout),
         data("weights", weights_memory),
-        fully_connected("fc", input_info("input"), "weights", "", cldnn::padding(), in_layout.get_partial_shape().size()),
+        fully_connected("fc", input_info("input"), "weights", "", in_layout.get_partial_shape().size()),
     };
 
     ExecutionConfig config = get_test_default_config(engine);

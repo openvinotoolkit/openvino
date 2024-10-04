@@ -29,6 +29,11 @@ protected:
     virtual void init_subgraph(const std::vector<ov::element::Type>& types);
 };
 
+class MatMulTransposeB : public MatMul {
+protected:
+    void init_subgraph(const std::vector<ov::element::Type>& types) override;
+};
+
 class MatMulFQ : public MatMul {
 protected:
     void init_subgraph(const std::vector<ov::element::Type>& types) override;

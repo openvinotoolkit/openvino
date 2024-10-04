@@ -8,6 +8,8 @@
 
 #include <cpu/x64/matmul/brgemm_matmul_copy_utils.hpp>
 
+#include "emitters/plugin/x64/jit_emitter.hpp"
+#include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -19,7 +21,7 @@ public:
 
     size_t get_inputs_num() const override {return 1;}
     static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& node = nullptr) {
-        return {{element::i8}, {element::bf16}};
+        return {{element::i8}, {element::bf16}, {element::f32}};
     }
 
 private:
@@ -27,8 +29,8 @@ private:
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
 
     void init_brgemm_copy(std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t>& kernel,
-                          size_t N, size_t N_blk, size_t N_tail, size_t LDB, size_t K,
-                          bool is_with_amx, dnnl_data_type_t dt_in0, dnnl_data_type_t dt_in1) const;
+                          size_t N, size_t N_blk, size_t N_tail, size_t out_leading_dim, size_t K_blk, brgemm_utils::BRGEMM_TYPE brgemm_type,
+                          const ov::element::Type& dt_in0, const ov::element::Type& dt_in1, size_t wei_stride, dnnl_format_tag_t format) const;
     void emit_kernel_call(const dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t* kernel,
                           Xbyak::Reg64 src, Xbyak::Reg64 dst, Xbyak::Reg64 comp, size_t N, size_t K,
                           size_t offset_in, size_t offset_out, size_t offset_comp) const;
@@ -46,6 +48,7 @@ private:
     size_t m_inner_N_block = 0lu;
     size_t m_inner_N_tail = 0lu;
 
+    size_t m_K = 0lu;
     size_t m_K_blk = 0lu;
     size_t m_brgemmVNNIFactor = 0lu;
 
@@ -54,6 +57,7 @@ private:
     size_t m_comp_offset = 0lu;
 
     bool m_with_comp = false;
+    bool m_transpose = false;
 
 #ifdef SNIPPETS_DEBUG_CAPS
     friend std::string init_info_jit_brgemm_copy_b_emitter(const jit_brgemm_copy_b_emitter *emitter);

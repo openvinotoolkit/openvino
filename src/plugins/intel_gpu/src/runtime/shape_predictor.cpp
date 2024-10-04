@@ -53,6 +53,9 @@ bool ShapePredictor::can_preallocate(size_t desired_buffer_size) {
     const auto memory_threshold = 0.90f;
     auto device_mem_usage = _engine->get_used_device_memory(cldnn::allocation_type::usm_device);
 
+    if (desired_buffer_size > _engine->get_device_info().max_alloc_mem_size)
+        return false;
+
     return device_mem_usage + desired_buffer_size < _engine->get_device_info().max_global_mem_size * memory_threshold;
 }
 
@@ -60,7 +63,8 @@ std::pair<bool, ov::Shape> ShapePredictor::predict_preallocation_shape(const std
                                                                        const cldnn::layout& layout,
                                                                        bool can_reuse_buffer,
                                                                        const size_t out_idx,
-                                                                       int32_t custom_next_iters_prealloc_count) {
+                                                                       int32_t custom_next_iters_prealloc_count,
+                                                                       int32_t custom_prealloc_dim) {
     size_t next_iters_prealloc_count = custom_next_iters_prealloc_count > 0
                                            ? static_cast<size_t>(custom_next_iters_prealloc_count)
                                            : _next_iters_preallocation_count;
@@ -78,6 +82,13 @@ std::pair<bool, ov::Shape> ShapePredictor::predict_preallocation_shape(const std
     // buffer can be reused
     if (can_reuse_buffer)
         return {false, {}};
+
+    // If both prealloc dim and prealloc count are specified, dont predict and just use the given info
+    if (custom_prealloc_dim >= 0 && custom_next_iters_prealloc_count > 0) {
+        auto new_shape = current_shape;
+        new_shape[custom_prealloc_dim] += custom_next_iters_prealloc_count;
+        return {true, new_shape};
+    }
 
     // Check if there is enough data for prediction
     const auto& shapes = _shapes_info[id_record];

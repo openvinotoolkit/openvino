@@ -81,4 +81,28 @@ std::vector<CPUSpecificParams> filterCPUInfoForDeviceWithFP16(const std::vector<
     });
     return specificParams;
 }
+
+std::vector<CPUSpecificParams> filterCPUSpecificParams(const std::vector<CPUSpecificParams>& paramsVector) {
+    auto adjustBlockedFormatByIsa = [](std::vector<cpu_memory_format_t>& formats) {
+        for (auto& format : formats) {
+            if (format == nCw16c)
+                format = nCw8c;
+            if (format == nChw16c)
+                format = nChw8c;
+            if (format == nCdhw16c)
+                format = nCdhw8c;
+        }
+    };
+
+    std::vector<CPUSpecificParams> filteredParamsVector = paramsVector;
+
+    if (!ov::with_cpu_x86_avx512f()) {
+        for (auto& param : filteredParamsVector) {
+            adjustBlockedFormatByIsa(std::get<0>(param));
+            adjustBlockedFormatByIsa(std::get<1>(param));
+        }
+    }
+
+    return filteredParamsVector;
+}
 } // namespace CPUTestUtils

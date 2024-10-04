@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,8 @@ public:
         const RNNType type,
         const std::vector<FakeQuantizeOnDataWithConstant>& fqOnDatas,
         const std::vector<DequantizationOperations::Convert>& converts,
-        const std::vector<DequantizationOperations>& dequantizations);
+        const std::vector<DequantizationOperations>& dequantizations,
+        const bool addPrecisionTransparentOperations = false);
 };
 
 std::shared_ptr<Node> makeQuantizationAndDequantization(const std::shared_ptr<Node> input,
@@ -33,7 +34,8 @@ std::shared_ptr<Node> makeQuantizationAndDequantization(const std::shared_ptr<No
                                                         const std::string friendly_name,
                                                         const FakeQuantizeOnDataWithConstant& fqOnData,
                                                         const DequantizationOperations::Convert& convert,
-                                                        const DequantizationOperations& dequantization);
+                                                        const DequantizationOperations& dequantization,
+                                                        const bool addPrecisionTransparentOperations = false);
 }  // namespace subgraph
 }  // namespace builder
 }  // namespace ov

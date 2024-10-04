@@ -10,20 +10,16 @@
 namespace ov {
 namespace op {
 namespace v0 {
-
 /// \brief Result operation.
 ///
 /// \ingroup ov_ops_cpp_api
 ///
 /// The Result operator output is special output which share tensor with node connected to this node.
-/// The Result's output names are visible as model outputs names.
-/// To set these use
-/// - `Result::output(0)::set_names/add_names` to set/add this names on Result's output.
 ///
-/// Using `Result::get_output_tensor(0)::set_names/add_names` will set/add names on tensor without modify
-/// Result's output names.
-/// The Result's output names are appended to connected tensor or transferred to new tensor when Result is connected
-/// with new node.
+/// The Result's output names are visible as model outputs names.
+/// When set/add Result's output tensor names they will treat as this result specific names which will be appended to
+/// connect input tensor or transferred to new tensor connect Result to new input.
+/// When Result has not specific names the names from connected input will be used.
 class OPENVINO_API Result : public Op {
 public:
     OPENVINO_OP("Result", "opset1");

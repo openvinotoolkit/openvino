@@ -79,6 +79,16 @@ The tutorial consists of the following steps:
 
    -  `Run Live Object Detection <#run-live-object-detection>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Get PyTorch model
 -----------------
 
@@ -128,7 +138,7 @@ Import required utility functions. The lower cell will download the
 
     open("notebook_utils.py", "w").write(r.text)
 
-    from notebook_utils import download_file, VideoPlayer
+    from notebook_utils import download_file, VideoPlayer, device_widget, quantization_widget
 
 .. code:: ipython3
 
@@ -253,17 +263,7 @@ Select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    import openvino as ov
-
-    core = ov.Core()
-
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
 
     device
 
@@ -287,6 +287,7 @@ ready to check model prediction for object detection.
 .. code:: ipython3
 
     import torch
+    import openvino as ov
 
     core = ov.Core()
 
@@ -601,15 +602,10 @@ improve model inference speed.
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-
     int8_model_det_path = models_dir / f"{DET_MODEL_NAME}_openvino_int8_model/{DET_MODEL_NAME}.xml"
+    quantized_det_model = None
 
-    to_quantize = widgets.Checkbox(
-        value=True,
-        description="Quantization",
-        disabled=False,
-    )
+    to_quantize = quantization_widget()
 
     to_quantize
 
@@ -720,129 +716,6 @@ point precision, using the ``ignored_scope`` parameter.
         preset=nncf.QuantizationPreset.MIXED,
         ignored_scope=ignored_scope
     )
-
-
-.. parsed-literal::
-
-    INFO:nncf:20 ignored nodes were found by name in the NNCFGraph
-    INFO:nncf:Not adding activation input quantizer for operation: 1 __module.model.0.conv/aten::_convolution/Convolution
-    2 __module.model.0.conv/aten::_convolution/Add
-    3 __module.model.22.cv3.2.1.act/aten::silu_/Swish
-
-    INFO:nncf:Not adding activation input quantizer for operation: 25 __module.model.4.cv1.conv/aten::_convolution/Convolution
-    26 __module.model.4.cv1.conv/aten::_convolution/Add
-    27 __module.model.22.cv3.2.1.act/aten::silu_/Swish_7
-
-    INFO:nncf:Not adding activation input quantizer for operation: 43 __module.model.5.conv/aten::_convolution/Convolution
-    47 __module.model.5.conv/aten::_convolution/Add
-    51 __module.model.22.cv3.2.1.act/aten::silu_/Swish_13
-
-    INFO:nncf:Not adding activation input quantizer for operation: 54 __module.model.6.cv1.conv/aten::_convolution/Convolution
-    56 __module.model.6.cv1.conv/aten::_convolution/Add
-    59 __module.model.22.cv3.2.1.act/aten::silu_/Swish_14
-
-    INFO:nncf:Not adding activation input quantizer for operation: 92 __module.model.7.conv/aten::_convolution/Convolution
-    99 __module.model.7.conv/aten::_convolution/Add
-    106 __module.model.22.cv3.2.1.act/aten::silu_/Swish_20
-
-    INFO:nncf:Not adding activation input quantizer for operation: 98 __module.model.12.cv1.conv/aten::_convolution/Convolution
-    105 __module.model.12.cv1.conv/aten::_convolution/Add
-    111 __module.model.22.cv3.2.1.act/aten::silu_/Swish_27
-
-    INFO:nncf:Not adding activation input quantizer for operation: 46 __module.model.15.cv1.conv/aten::_convolution/Convolution
-    50 __module.model.15.cv1.conv/aten::_convolution/Add
-    53 __module.model.22.cv3.2.1.act/aten::silu_/Swish_31
-
-    INFO:nncf:Not adding activation input quantizer for operation: 74 __module.model.16.conv/aten::_convolution/Convolution
-    81 __module.model.16.conv/aten::_convolution/Add
-    88 __module.model.22.cv3.2.1.act/aten::silu_/Swish_39
-
-    INFO:nncf:Not adding activation input quantizer for operation: 75 __module.model.22.cv2.0.0.conv/aten::_convolution/Convolution
-    82 __module.model.22.cv2.0.0.conv/aten::_convolution/Add
-    89 __module.model.22.cv3.2.1.act/aten::silu_/Swish_35
-
-    INFO:nncf:Not adding activation input quantizer for operation: 76 __module.model.22.cv3.0.0.conv/aten::_convolution/Convolution
-    83 __module.model.22.cv3.0.0.conv/aten::_convolution/Add
-    90 __module.model.22.cv3.2.1.act/aten::silu_/Swish_37
-
-    INFO:nncf:Not adding activation input quantizer for operation: 96 __module.model.22.cv2.0.1.conv/aten::_convolution/Convolution
-    103 __module.model.22.cv2.0.1.conv/aten::_convolution/Add
-    109 __module.model.22.cv3.2.1.act/aten::silu_/Swish_36
-
-    INFO:nncf:Not adding activation input quantizer for operation: 115 __module.model.22.cv3.0.2/aten::_convolution/Convolution
-    120 __module.model.22.cv3.0.2/aten::_convolution/Add
-
-    INFO:nncf:Not adding activation input quantizer for operation: 204 __module.model.22.cv3.1.1.conv/aten::_convolution/Convolution
-    216 __module.model.22.cv3.1.1.conv/aten::_convolution/Add
-    226 __module.model.22.cv3.2.1.act/aten::silu_/Swish_47
-
-    INFO:nncf:Not adding activation input quantizer for operation: 254 __module.model.21.m.0.cv1.conv/aten::_convolution/Convolution
-    261 __module.model.21.m.0.cv1.conv/aten::_convolution/Add
-    266 __module.model.22.cv3.2.1.act/aten::silu_/Swish_50
-
-    INFO:nncf:Not adding activation input quantizer for operation: 260 __module.model.21.cv2.conv/aten::_convolution/Convolution
-    265 __module.model.21.cv2.conv/aten::_convolution/Add
-    269 __module.model.22.cv3.2.1.act/aten::silu_/Swish_52
-
-    INFO:nncf:Not adding activation input quantizer for operation: 293 __module.model.22.cv2.2.1.conv/aten::_convolution/Convolution
-    300 __module.model.22.cv2.2.1.conv/aten::_convolution/Add
-    304 __module.model.22.cv3.2.1.act/aten::silu_/Swish_54
-
-    INFO:nncf:Not adding activation input quantizer for operation: 308 __module.model.22.cv3.2.2/aten::_convolution/Convolution
-    311 __module.model.22.cv3.2.2/aten::_convolution/Add
-
-    INFO:nncf:Not adding activation input quantizer for operation: 212 __module.model.22.dfl.conv/aten::_convolution/Convolution
-    INFO:nncf:Not adding activation input quantizer for operation: 230 __module.model.22/aten::sub/Subtract
-    INFO:nncf:Not adding activation input quantizer for operation: 231 __module.model.22/aten::add/Add_6
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-.. parsed-literal::
-
-    /home/maleksandr/test_notebooks/update_ultralytics/openvino_notebooks/notebooks/yolov8-optimization/venv/lib/python3.10/site-packages/nncf/experimental/tensor/tensor.py:84: RuntimeWarning: invalid value encountered in multiply
-      return Tensor(self.data * unwrap_tensor_data(other))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 .. code:: ipython3
 
@@ -1218,7 +1091,7 @@ preprocessing and postprocessing steps for a model.
 
     from openvino.preprocess import PrePostProcessor
 
-    ppp = PrePostProcessor(quantized_det_model)
+    ppp = PrePostProcessor(quantized_det_model if quantized_det_model is not None else det_model)
 
 Define input data format
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1285,10 +1158,13 @@ IR, using ``openvino.runtime.serialize``.
 .. code:: ipython3
 
     quantized_model_with_preprocess = ppp.build()
-    ov.save_model(
-        quantized_model_with_preprocess,
-        str(int8_model_det_path.with_name(f"{DET_MODEL_NAME}_with_preprocess.xml")),
+
+    with_preprocess_path = (
+        int8_model_det_path.with_name(f"{DET_MODEL_NAME}_with_preprocess.xml")
+        if quantized_det_model is not None
+        else det_model_path.with_name(f"{DET_MODEL_NAME}_with_preprocess.xml")
     )
+    ov.save_model(quantized_model_with_preprocess, str(with_preprocess_path))
 
 The model with integrated preprocessing is ready for loading to a
 device.
@@ -1299,6 +1175,7 @@ device.
     import cv2
     import numpy as np
     from ultralytics.utils.plotting import colors
+    import random
 
 
     def plot_one_box(
@@ -1529,6 +1406,8 @@ The following code runs model inference on a video:
     import time
     from IPython import display
 
+    det_ov_model
+
 
     # Main processing function to run object detection.
     def run_object_detection(
@@ -1583,7 +1462,7 @@ The following code runs model inference on a video:
                 input_image = np.array(frame)
 
                 start_time = time.time()
-                detections = det_model(input_image)
+                detections = det_model(input_image, verbose=False)
                 stop_time = time.time()
                 frame = detections[0].plot()
 

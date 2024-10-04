@@ -41,20 +41,17 @@ ov_add_target(ADD_CPPLINT
               LINK_LIBRARIES
                   PRIVATE
                       openvino::runtime
-                      TBB::tbb
                       opencv_core
                       opencv_imgproc
                       opencv_imgcodecs
                       npu_tools_utils
                       gflags)
 
+ov_set_threading_interface_for(${TARGET_NAME})
+
 set_target_properties(${TARGET_NAME} PROPERTIES
                           FOLDER ${CMAKE_CURRENT_SOURCE_DIR}
                           CXX_STANDARD 17)
-
-if (CMAKE_COMPILER_IS_GNUCXX)
-    target_compile_options(${TARGET_NAME} PRIVATE -Wall)
-endif()
 
 # TODO: fix warnings and remove this exception
 if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)

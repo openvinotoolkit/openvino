@@ -114,7 +114,7 @@ class TestElementwiseTypeAlignment(unittest.TestCase):
 
         type_infer(graph)
         const_node = Node(graph, 'const')
-        self.assertEquals(const_node.out_port(0).get_data_type(), np.float32)
+        self.assertEqual(const_node.out_port(0).get_data_type(), np.float32)
 
     def test_second_input_const(self):
         edges = [
@@ -126,7 +126,7 @@ class TestElementwiseTypeAlignment(unittest.TestCase):
 
         type_infer(graph)
         const_node = Node(graph, 'const')
-        self.assertEquals(const_node.out_port(0).get_data_type(), np.float32)
+        self.assertEqual(const_node.out_port(0).get_data_type(), np.float32)
 
     def test_raises(self):
         edges = [
@@ -148,4 +148,4 @@ class TestElementwiseTypeAlignment(unittest.TestCase):
 
         type_infer(graph)
         add_node = Node(graph, 'add')
-        self.assertEquals(add_node.out_port(0).get_data_type(), np.float32)
+        self.assertEqual(add_node.out_port(0).get_data_type(), np.float32)

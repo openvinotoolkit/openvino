@@ -93,6 +93,7 @@ protected:
     std::shared_ptr<postOpMgr> postOpMgrPtr;
     std::vector<std::string> fusedOps;
     bool checkFusingPosition = true;
+    bool expectPostOpsToBeFused = true;
 };
 
 static int getChannelAxis(const ov::AxisSet &axes, bool keep_dims) {
@@ -303,6 +304,26 @@ const auto fusingFakeQuantizePerChannel = fusingSpecificParams{std::make_shared<
                 ov::Shape newShape = generatePerChannelShape(cfg.target);
                 return ov::test::utils::make_fake_quantize(cfg.input, localPrc, 256, newShape);
             }, "FakeQuantize(PerChannel)"}}), {"FakeQuantize"}};
+
+const auto fusingFakeQuantizePerBatch = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
+            {[](postNodeConfig& cfg){
+                auto localPrc = cfg.input->get_element_type();
+                const auto shape = cfg.input->get_output_partial_shape(0);
+                ov::Shape perBatchSize(shape.size(), 1);
+                perBatchSize[0] = shape[0].get_length();
+                return ov::test::utils::make_fake_quantize(cfg.input, localPrc, 256, perBatchSize);
+            }, "FakeQuantize(PerBatch)"}}), {"FakeQuantize"}};
+
+const auto fusingFakeQuantizeFullTensor = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
+            {[](postNodeConfig& cfg){
+                auto localPrc = cfg.input->get_element_type();
+                const auto shape = cfg.input->get_output_partial_shape(0);
+                ov::Shape fullTensorShape(shape.size(), 1);
+                for (size_t axis = 0; axis < shape.size(); axis++) {
+                    fullTensorShape[axis] = shape[axis].get_length();
+                }
+                return ov::test::utils::make_fake_quantize(cfg.input, localPrc, 256, fullTensorShape);
+            }, "FakeQuantize(FullTensor)"}}), {"FakeQuantize"}};
 
 const auto fusingFakeQuantizePerChannelRelu = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
             {[](postNodeConfig& cfg){

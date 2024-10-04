@@ -33,6 +33,8 @@ public:
     RegInfo get_reg_info() const;
     void set_reg_info(const RegInfo& rinfo);
 
+    double get_exec_num() const { return m_exec_num; }
+
     const PortConnectorPtr& get_input_port_connector(size_t i) const;
     const PortConnectorPtr& get_output_port_connector(size_t i) const;
     const std::vector<PortConnectorPtr>& get_input_port_connectors() const { return m_input_port_connectors; }
@@ -81,6 +83,13 @@ protected:
     std::vector<size_t> m_loop_ids{};
     std::shared_ptr<IShapeInferSnippets> m_shapeInference{nullptr};
     const bool m_need_shape_infer = true;
+
+    // The serial number of the execution in LinearIR
+    // Attention!
+    //   1. This number can be fractional to avoid frequent enumerations after each insertion to the Linear IR.
+    //   2. This number can be changed and updated during whole pipeline, so its absolute values are meaningless.
+    //   3. This number can be negative, positive and zero.
+    double m_exec_num = 0;
 };
 
 } // namespace lowered

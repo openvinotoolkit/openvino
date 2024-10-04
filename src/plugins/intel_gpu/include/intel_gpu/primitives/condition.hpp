@@ -88,13 +88,12 @@ struct condition : public primitive_base<condition> {
     ///                           sometimes, if
     /// @param branch_true        Branch containg primitives, which will be executed when pred is true. then body in ngraph
     /// @param branch_false       Branch containg primitives, which will be executed when pred is false. else body in ngraph
-    /// @param output_padding     Optional padding for output from primitive.
     condition(const primitive_id& id,
             const std::vector<input_info>& inputs,
             const branch& branch_true,
             const branch& branch_false,
             const size_t num_outputs = 1)
-        : primitive_base(id, inputs, {padding()}, {optional_data_type()}, num_outputs),
+        : primitive_base(id, inputs, num_outputs, {optional_data_type()}),
         branch_true(branch_true),
         branch_false(branch_false) {}
 

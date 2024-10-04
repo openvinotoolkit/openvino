@@ -17,23 +17,20 @@ public:
                        const snippets::KernelExecutorTablePtr& kernel_table,
                        const ov::intel_cpu::MultiCacheWeakPtr& compiled_kernel_cache);
 
-    size_t get_inputs_num() const override { return m_with_scratch ? 3 : 2; }
+    size_t get_inputs_num() const override { return m_memory_offsets.size() - 1; }
     static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& node = nullptr);
 
 private:
     void validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const override;
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
 
-    void emit_brgemm_kernel_call(Xbyak::Reg64 addr_A, Xbyak::Reg64 addr_B, Xbyak::Reg64 scratch, Xbyak::Reg64 addr_C,
-                                 size_t in0_kernel_offset = 0, size_t in1_kernel_offset = 0,
-                                 size_t in2_kernel_offset = 0, size_t out0_kernel_offset = 0) const;
+    // Note: expected arguments order: A, B, C (+ scratchpad, if needed)
+    void emit_brgemm_kernel_call(const std::vector<size_t>& mem_ptrs_idxs, const std::vector<size_t>& mem_offsets) const;
 
-    bool m_with_scratch = false;
-
-    size_t m_load_offset_a = 0lu;
-    size_t m_load_offset_b = 0lu;
-    size_t m_load_offset_scratch = 0lu;
-    size_t m_store_offset_c = 0lu;
+    // Note: offsets order: A, B, C (+ scratchpad, if needed). Values can be dynamic_value if offset is calculated in runtime
+    std::vector<size_t> m_memory_offsets{};
+    // Note: cluster ids order: A, B, C (+ scratchpad, if needed). Values can be dynamic_value if there is no buffer
+    std::vector<size_t> m_buffer_ids{};
     std::shared_ptr<BrgemmKernelExecutor> m_kernel_executor = nullptr;
 
 #ifdef SNIPPETS_DEBUG_CAPS

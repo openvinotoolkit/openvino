@@ -82,6 +82,8 @@ std::string ExtremumLayerCPUTest::getPrimitiveType() {
     return "jit";
 #endif
     return "acl";
+#elif defined(OV_CPU_WITH_SHL)
+    return "shl";
 #else
     return CPUTestsBase::getPrimitiveType();
 #endif

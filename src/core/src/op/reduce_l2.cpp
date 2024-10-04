@@ -6,7 +6,7 @@
 
 #include "element_visitor.hpp"
 #include "itt.hpp"
-#include "openvino/op/util/axes_util.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/reference/reduce_l2.hpp"
 #include "reduce_shape_inference.hpp"
 
@@ -43,7 +43,7 @@ bool ReduceL2::evaluate(TensorVector& outputs, const TensorVector& inputs) const
     OPENVINO_ASSERT(outputs.size() == 1);
     OPENVINO_ASSERT(inputs.size() == 2);
 
-    const auto reduction_axes = get_normalized_axes_from_tensor(this, inputs[1], inputs[0].get_shape().size());
+    const auto reduction_axes = ov::util::try_get_normalized_axis_set(inputs[1], inputs[0].get_shape().size(), *this);
     outputs[0].set_shape(ov::util::reduce(inputs[0].get_shape(), reduction_axes, get_keep_dims()));
 
     using namespace ov::element;

@@ -27,9 +27,8 @@ struct swiglu : public primitive_base<swiglu> {
            const int64_t& split_lengths,
            const ov::intel_gpu::op::SwiGLU::GluType glu_type,
            const size_t split_to_glu_idx,
-           const tensor output_size,
-           const padding& output_padding = padding())
-           : primitive_base(id, {input}, {output_padding}),
+           const tensor output_size)
+           : primitive_base(id, {input}),
              axis(axis),
              split_lengths(split_lengths),
              glu_type(glu_type),

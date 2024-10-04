@@ -11,9 +11,12 @@
 
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset2.hpp"
+#include "openvino/opsets/opset3.hpp"
 #include "openvino/opsets/opset4.hpp"
 #include "openvino/opsets/opset5.hpp"
 #include "openvino/opsets/opset6.hpp"
+#include "openvino/opsets/opset7.hpp"
+#include "openvino/opsets/opset8.hpp"
 #include "openvino/opsets/opset12.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
@@ -152,6 +155,8 @@ bool ov::pass::low_precision::MarkupPrecisions::isPrecisionPreserved(const std::
         { name<opset1::Relu>() },
         // TODO: there are conditions
         { name<opset2::BatchToSpace>() },
+        { name<opset1::Broadcast>() },
+        { name<opset3::Broadcast>() },
         { name<opset1::Pad>() },
         { name<ov::opset12::Pad>() },
         { name<opset1::Reshape>() },
@@ -162,7 +167,10 @@ bool ov::pass::low_precision::MarkupPrecisions::isPrecisionPreserved(const std::
         { name<opset1::ShuffleChannels>() },
         { name<opset1::Transpose>() },
         { name<opset1::Unsqueeze>() },
-        { name<opset1::VariadicSplit>() }
+        { name<opset1::VariadicSplit>() },
+        { name<opset1::Gather>() },
+        { name<opset7::Gather>() },
+        { name<opset8::Gather>() },
     };
 
     const bool precisionPreserved = precisionPreservedOps.find(node->get_type_name()) != precisionPreservedOps.end();
@@ -192,6 +200,8 @@ bool ov::pass::low_precision::MarkupPrecisions::isSupported(const std::shared_pt
         { name<opset1::Add>() },
         { name<opset1::AvgPool>() },
         { name<opset2::BatchToSpace>() },
+        { name<opset1::Broadcast>() },
+        { name<opset3::Broadcast>() },
         { name<opset1::Clamp>() },
         { name<opset1::Concat>() },
         // ?
@@ -231,6 +241,9 @@ bool ov::pass::low_precision::MarkupPrecisions::isSupported(const std::shared_pt
         { name<opset1::VariadicSplit>() },
         { name<opset5::LSTMSequence>() },
         { name<opset6::GRUSequence>() },
+        { name<opset1::Gather>() },
+        { name<opset7::Gather>() },
+        { name<opset8::Gather>() },
     };
 
     return supportedOps.find(node->get_type_name()) != supportedOps.end();

@@ -91,6 +91,7 @@ size_t ReduceKey::hash() const {
     seed = hash_combine(seed, jcp.reduce_mode);
     seed = hash_combine(seed, jcp.fuse_low_precision);
     seed = hash_combine(seed, jcp.fuse_broadcast);
+    seed = hash_combine(seed, jcp.round_to_zero);
     seed = hash_combine(seed, jcp.src_dt);
     seed = hash_combine(seed, jcp.dst_dt);
     seed = get_post_op_hash(seed, *postOps.get());
@@ -101,16 +102,17 @@ size_t ReduceKey::hash() const {
 bool ReduceKey::operator==(const ReduceKey &rhs) const {
     return jcp.layout == rhs.jcp.layout && jcp.reduce_mode == rhs.jcp.reduce_mode &&
            jcp.fuse_low_precision == rhs.jcp.fuse_low_precision &&
+           jcp.fuse_broadcast == rhs.jcp.fuse_broadcast && jcp.round_to_zero == rhs.jcp.round_to_zero &&
            jcp.src_dt == rhs.jcp.src_dt && jcp.dst_dt == rhs.jcp.dst_dt && *postOps.get() == *rhs.postOps.get();
 }
 } // namespace
-
-#if defined(OPENVINO_ARCH_X86_64)
 
 // some utility functions
 static inline bool isFloatCompatible(memory::data_type type) {
     return memory::data_type::f32 == type || memory::data_type::bf16 == type || memory::data_type::f16 == type;
 }
+
+#if defined(OPENVINO_ARCH_X86_64)
 
 template <cpu_isa_t isa>
 struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_generator {
@@ -966,7 +968,9 @@ private:
     inline void store_vector(const Xbyak::Address &op, Vmm vmm_dst, memory::data_type dst_dt) {
         Xmm xmm_dst = Xmm(vmm_dst.getIdx());
         Ymm ymm_dst = Ymm(vmm_dst.getIdx());
-
+        if (jcp_.round_to_zero && !support_intermediate_int) {
+            uni_vroundps(vmm_dst, vmm_dst, 3); // rounding to zero
+        }
         if (convert_f32_to_i32(dst_dt)) {
             uni_vcvtps2dq(vmm_dst, vmm_dst);
         }
@@ -1018,6 +1022,9 @@ private:
     }
 
     inline void store_scalar(const Xbyak::Address &op, Xmm xmm_dst, memory::data_type dst_dt) {
+        if (jcp_.round_to_zero && !support_intermediate_int) {
+            uni_vroundps(xmm_dst, xmm_dst, 3);
+        }
         if (convert_f32_to_i32(dst_dt)) {
             uni_vcvtps2dq(xmm_dst, xmm_dst);
         }
@@ -1517,6 +1524,10 @@ private:
         int depthwise_inj_idx = 0;
         int quantization_inj_idx = 0;
         int post_ops_data_offset = 0;
+        if (jcp_.round_to_zero) {
+            uni_vroundps(vmm_dst, vmm_dst, 3); // rounding to zero
+        }
+
         for (int i = 0; i < p.len(); i++) {
             auto& post_op = p.entry_[i];
             if (post_op.is_eltwise()) {
@@ -1646,7 +1657,10 @@ private:
     inline void store_vector(const Xbyak::Address &op, Vmm vmm_dst, memory::data_type dst_dt) {
         Xmm xmm_dst = Xmm(vmm_dst.getIdx());
         Ymm ymm_dst = Ymm(vmm_dst.getIdx());
-
+        // If there is post ops fusing, necessary rounding has ready been done, no need to do it again.
+        if (!post_ops_fusing && jcp_.round_to_zero) {
+            uni_vroundps(vmm_dst, vmm_dst, 3);
+        }
         if (!isFloatCompatible(dst_dt)) {
             uni_vcvtps2dq(vmm_dst, vmm_dst);
         }
@@ -1698,6 +1712,9 @@ private:
     }
 
     inline void store_scalar(const Xbyak::Address &op, Xmm xmm_dst, memory::data_type dst_dt) {
+        if (!post_ops_fusing && jcp_.round_to_zero) {
+            uni_vroundps(xmm_dst, xmm_dst, 3);
+        }
         if (!isFloatCompatible(dst_dt)) {
             uni_vcvtps2dq(xmm_dst, xmm_dst);
         }
@@ -1898,6 +1915,7 @@ Reduce::Reduce(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr con
         }
         set_use_aux_kernel = false;
         fuse_low_precision = false;
+        round_to_zero = false;
         vec_reduceDH_prc.clear();
         vec_reduceCDW_prc.clear();
         setJITBeyond5D();
@@ -1935,18 +1953,9 @@ void Reduce::initSupportedPrimitiveDescriptors() {
     input_prec = getOriginalInputPrecisionAtPort(REDUCE_DATA);
     output_prec = getOriginalOutputPrecisionAtPort(0);
 
-    if (!fusedWith.empty()) {
-        // In jit mode we use the output memory as an intermediate accumulator for certain reduce modes.
-        // If the post ops node has a lower precision for such modes, working buffer with original precision is needed,
-        // in order to avoid accuracy loss.
-        auto fused_prec = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0);
-        if (output_prec == ov::element::f32 && fused_prec != ov::element::f32) {
-            if (algorithm != Algorithm::ReduceAnd && algorithm != Algorithm::ReduceOr &&
-                algorithm != Algorithm::ReduceMin && algorithm != Algorithm::ReduceMax) {
-                fuse_low_precision = true;
-            }
-        }
-        output_prec = fused_prec;
+    if (!isFloatCompatible(DnnlExtensionUtils::ElementTypeToDataType(input_prec)) &&
+        !isFloatCompatible(DnnlExtensionUtils::ElementTypeToDataType(output_prec))) {
+        round_to_zero = true;
     }
 
     jit_mode = canApplyJIT(input_prec, output_prec);
@@ -1965,6 +1974,20 @@ void Reduce::initSupportedPrimitiveDescriptors() {
         } else if (ov::element::f16 == output_prec) {
             if (!mayiuse(cpu::x64::avx2) || is_precision_sensitive_reduce(algorithm))
                 output_prec = ov::element::f32;
+        }
+
+        if (!fusedWith.empty()) {
+            // In jit mode we use the output memory as an intermediate accumulator for certain reduce modes.
+            // If the post ops node has a lower precision for such modes, working buffer with original precision is needed,
+            // in order to avoid accuracy loss.
+            auto fused_prec = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0);
+            if (output_prec == ov::element::f32 && fused_prec != ov::element::f32) {
+                if (algorithm != Algorithm::ReduceAnd && algorithm != Algorithm::ReduceOr &&
+                    algorithm != Algorithm::ReduceMin && algorithm != Algorithm::ReduceMax) {
+                    fuse_low_precision = true;
+                }
+            }
+            output_prec = fused_prec;
         }
     }
 
@@ -2124,7 +2147,10 @@ void Reduce::prepareParams() {
     if (compile_post_kernel) {
         setPostOps(attr, dst_dims, true);
 
-        ReduceKey key = {jcp, attr.get_post_ops()};
+        auto reduce_post_jcp = jcp;
+        reduce_post_jcp.src_dt = fuse_low_precision ? DnnlExtensionUtils::ElementTypeToDataType(intermediate_prec) : jcp.src_dt;
+        reduce_post_jcp.src_data_size = DnnlExtensionUtils::sizeOfDataType(reduce_post_jcp.src_dt);
+        ReduceKey key = {reduce_post_jcp, attr.get_post_ops()};
         auto cache = context->getParamsCache();
         auto result = cache->getOrCreate(key, builder);
         if (!result.first) {
@@ -2146,10 +2172,10 @@ void Reduce::createPrimitive() {
     }
     auto dstMemPtr = getDstMemoryAtPort(0);
     auto srcMemPtr = getSrcMemoryAtPort(REDUCE_DATA);
-    if (!dstMemPtr || !dstMemPtr->isAllocated())
-        OPENVINO_THROW(errorPrefix, " has not allocated destination memory.");
-    if (!srcMemPtr || !srcMemPtr->isAllocated())
-        OPENVINO_THROW(errorPrefix, " has not allocate input memory.");
+    if (!dstMemPtr)
+        OPENVINO_THROW(errorPrefix, " has null destination memory.");
+    if (!srcMemPtr)
+        OPENVINO_THROW(errorPrefix, " has null input memory.");
     if (getSelectedPrimitiveDescriptor() == nullptr)
         OPENVINO_THROW(errorPrefix, " has nullable preferable primitive descriptor");
 
@@ -2176,6 +2202,7 @@ void Reduce::createPrimitive() {
     jcp.layout = layout;
     jcp.reduce_mode = getAlgorithm();
     jcp.fuse_low_precision = fuse_low_precision;
+    jcp.round_to_zero = round_to_zero;
 
 #if defined(OPENVINO_ARCH_X86_64)
     compile_post_kernel = true;

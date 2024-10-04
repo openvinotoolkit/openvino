@@ -40,12 +40,12 @@ std::vector<layout> kv_cache_inst::calc_output_layouts(kv_cache_node const& /*no
 
     std::vector<ShapeType> output_shapes = shape_infer(&op, input_shapes);
 
-    const std::map<size_t, size_t> ports_map = {{0, 0}, {1, 2}};
+    static const std::map<size_t, size_t> ports_map = {{0, 0}, {1, 2}};
 
     std::vector<layout> out_layouts;
     for (size_t i = 0; i < desc->num_outputs; i++) {
         auto out_type = desc->output_data_types[i].value_or(impl_param.get_input_layout(ports_map.at(i)).data_type);
-        out_layouts.push_back(layout(output_shapes[i], out_type, impl_param.get_output_layout(i).format));
+        out_layouts.emplace_back(output_shapes[i], out_type, impl_param.get_output_layout(i).format);
     }
 
     return out_layouts;
@@ -70,10 +70,22 @@ std::string kv_cache_inst::to_string(const kv_cache_node& node) {
 }
 
 int32_t kv_cache_inst::get_prealloc_iter_num() {
+    // - When a kv_cache_inst runs out of the pre-allocated memory and requires additional memory,
+    //   it allocate a new memory. And then it copies data in the original memory to the new memory.
+    //   Since the original memory is still assigned to the ReadValue, even after the copying is finished,
+    //   we will have 2x memories for the kv cache. And the original memory will be released when the ReadValue is
+    //   called, i.e., at the next iteration.
+    // - If this alloc/copy happens at the same time for all the kv cache memory, there will be a memory peak at that
+    //   iteration.
+    // - Therfore, to avoid this situation where the allocation and copying occurs simutaneously for all the kv_cache_insts,
+    //   we assigned different prealloc-size for each kv cache so that we could prevent a memory peak
     return 128 + kv_cache_id % 64;
 }
 
 void kv_cache_inst::update_shape_info_tensor(const kernel_impl_params& params) {
+    if (!_shape_info_memory) {
+        allocate_shape_info_memory();
+    }
     mem_lock<int32_t> lock(_shape_info_memory, _network.get_stream());
     auto shape_info_ptr = lock.data();
     size_t offset = 0;

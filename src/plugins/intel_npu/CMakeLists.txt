@@ -32,6 +32,8 @@ if(ENABLE_TESTS)
     add_subdirectory(tests)
 endif()
 
-add_subdirectory(tools)
+if(ENABLE_INTEL_NPU_INTERNAL)
+    add_subdirectory(tools)
 
-ov_cpack_add_component(${NPU_INTERNAL_COMPONENT} HIDDEN)
+    ov_cpack_add_component(${NPU_INTERNAL_COMPONENT} HIDDEN)
+endif()

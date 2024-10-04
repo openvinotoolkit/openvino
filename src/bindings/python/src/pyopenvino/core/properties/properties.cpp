@@ -55,6 +55,8 @@ void regmodule_properties(py::module m) {
     wrap_property_RO(m_properties, ov::execution_devices, "execution_devices");
     wrap_property_RO(m_properties, ov::loaded_from_cache, "loaded_from_cache");
 
+    wrap_property_WO(m_properties, ov::cache_encryption_callbacks, "cache_encryption_callbacks");
+
     // Submodule hint
     py::module m_hint =
         m_properties.def_submodule("hint", "openvino.properties.hint submodule that simulates ov::hint");

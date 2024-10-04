@@ -4,7 +4,7 @@
 
 #include "pass_manager.h"
 #include "program_helpers.h"
-#include "implementation_map.hpp"
+#include "impls/registry/implementation_map.hpp"
 
 #include "convolution_inst.h"
 #include "deconvolution_inst.h"

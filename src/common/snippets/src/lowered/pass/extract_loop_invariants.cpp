@@ -7,13 +7,41 @@
 #include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/snippets_isa.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 namespace ov {
 namespace snippets {
 namespace lowered {
 namespace pass {
 namespace {
+
+// Sort Loop IDs by execution order of these Loops
+std::vector<size_t> get_reordered_loop_ids(const LoopManagerPtr& loop_manager) {
+    const auto& loop_map = loop_manager->get_map();
+    std::vector<size_t> loop_ids_need_extract;
+    loop_ids_need_extract.reserve(loop_map.size());
+    for (const auto& p : loop_map)
+        loop_ids_need_extract.push_back(p.first);
+
+    auto sorter = [&](size_t lhs, size_t rhs) {
+        const auto lhs_last_expr = loop_manager->get_loop_info(lhs)->get_output_ports().back().expr_port->get_expr();
+        const auto rhs_last_expr = loop_manager->get_loop_info(rhs)->get_output_ports().back().expr_port->get_expr();
+        // If last output loop ports are the same expressions - first executive Loop has inner ID in expression loop IDs.
+        if (lhs_last_expr == rhs_last_expr) {
+            for (const auto& id : lhs_last_expr->get_loop_ids()) {
+                if (id == lhs) return false;
+                if (id == rhs) return true;
+            }
+            OPENVINO_THROW("Incorrect Loop IDs");
+        } else {
+            return lhs_last_expr->get_exec_num() < rhs_last_expr->get_exec_num();
+        }
+    };
+
+    std::sort(loop_ids_need_extract.begin(), loop_ids_need_extract.end(), sorter);
+    return loop_ids_need_extract;
+}
+
 void remove_last_loop_id(const std::shared_ptr<Expression>& expr) {
     auto loop_ids = expr->get_loop_ids();
     OPENVINO_ASSERT(!loop_ids.empty(), "Expr loop_ids should not be empty when remove last loop id.");
@@ -76,8 +104,7 @@ void extract_expr(const ExpressionPtr& expr, LinearIR& linear_ir,
     }
 }
 
-void update_loop_ports(const ExpressionPtr& expr, const LoopManagerPtr& loop_manager, size_t inner_loop_id,
-                       const LinearIR::constExprIt& inner_loop_begin_pos, const LinearIR::constExprIt& inner_loop_end_pos) {
+void update_loop_ports(const ExpressionPtr& expr, const LoopManagerPtr& loop_manager, size_t inner_loop_id) {
     const auto& inner_loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(inner_loop_id);
     // delete expr input ports from loop input points, add expr output ports' consumers if
     // consumed in inner loop to loop input ports.
@@ -91,25 +118,24 @@ void update_loop_ports(const ExpressionPtr& expr, const LoopManagerPtr& loop_man
             }
         }
     }
-    const auto& expr_input_ports = expr->get_input_ports();
-    inner_loop_info->update_loop_ports(expr_input_ports, new_loop_input_ports);
+
+    // Need to replace several existing LoopPorts (which are expression ports) with new several.
+    // However, LoopInfo can replace only one LoopPort with several other.
+    // We can replace one real port with new ports and delete other existing loop ports.
+    bool inserted = false;
+    for (const auto& port : expr->get_input_ports()) {
+        if (inner_loop_info->is_loop_port(port)) {
+            inner_loop_info->replace_with_new_ports(port, (inserted ? std::vector<ExpressionPort>{} : new_loop_input_ports));
+            inserted = true;
+        }
+    }
 
     // delete expr out ports from loop out ports directly if it's in loop output ports
-    std::vector<ExpressionPort> out_ports_to_delete;
     for (size_t i = 0; i < expr->get_output_count(); ++i) {
         const auto& out_port = expr->get_output_port(i);
         if (inner_loop_info->is_loop_port(out_port)) {
-            out_ports_to_delete.push_back(out_port);
+            inner_loop_info->replace_with_new_ports(out_port, {});
         }
-    }
-    if (!out_ports_to_delete.empty()) {
-        std::vector<ExpressionPort> new_ports;
-        inner_loop_info->update_loop_ports(out_ports_to_delete, new_ports);
-    }
-    // TODO: 142990.
-    // Need sort after update loop ports. There are possibility that all exprs are moved to outer loop.
-    if (!inner_loop_info->get_input_ports().empty() && !inner_loop_info->get_output_ports().empty()) {
-        loop_manager->sort_loop_ports(inner_loop_begin_pos, inner_loop_end_pos, inner_loop_id);
     }
 }
 
@@ -139,8 +165,8 @@ bool extract_from_loop(const size_t& inner_loop_id, LinearIR& linear_ir) {
             if (is_extraction_applicable(port_expr, inner_loop_info)) {
                 status = true;
                 LinearIR::constExprIt inner_loop_begin_pos, inner_loop_end_pos;
-                std::tie(inner_loop_begin_pos, inner_loop_end_pos) =
-                    loop_manager->get_loop_bounds(linear_ir, inner_loop_id);
+                std::tie(inner_loop_begin_pos, inner_loop_end_pos) = loop_manager->get_loop_bounds(linear_ir, inner_loop_id);
+
                 // extract scalar on inputs if there are
                 for (size_t i = 0; i < port_expr->get_input_count(); ++i) {
                     auto parent = port_expr->get_input_port_connector(i)->get_source().get_expr();
@@ -148,8 +174,18 @@ bool extract_from_loop(const size_t& inner_loop_id, LinearIR& linear_ir) {
                         extract_expr(parent, linear_ir, inner_loop_begin_pos, inner_loop_end_pos);
                     }
                 }
+                // Inner Loops can contain ports which are ports of outer Loops as well.
+                // When we move extract expressions from inner loops and move them, we can corrupt the sort of LoopPorts of outer Loops.
+                // Firstly, we should save outer loop ids, before extraction
+                const auto outer_loop_ids = LoopManager::get_outer_expr_loops(port_expr, inner_loop_id);
+
+                // Secondly, complete extraction
                 extract_expr(port_expr, linear_ir, inner_loop_begin_pos, inner_loop_end_pos);
-                update_loop_ports(port_expr, loop_manager, inner_loop_id, inner_loop_begin_pos, inner_loop_end_pos);
+                update_loop_ports(port_expr, loop_manager, inner_loop_id);
+
+                // Thirdly, update outer loops
+                loop_manager->sort_loop_ports(outer_loop_ids);
+
                 expr_extracted = true;
                 break;  // extracted and refreshed loop_input_ports. break potential_extractable_exprs loop, and go while() to start again.
             }
@@ -171,22 +207,10 @@ bool ExtractLoopInvariants::run(LinearIR& linear_ir, lowered::LinearIR::constExp
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::ExtractLoopInvariants")
     bool modified = false;
 
-    const auto& loop_depth = linear_ir.get_config().m_loop_depth;
-    std::vector<std::set<size_t>> loop_ids_need_extract(loop_depth);
-    const auto& loop_map = linear_ir.get_loop_manager()->get_map();
-    for (const auto& loop : loop_map) {
-        const auto& loop_dim = loop.second->get_dim_idx();
-        if (loop_dim != LoopInfo::UNDEFINED_DIM_IDX) {
-            OPENVINO_ASSERT(loop_dim < loop_depth, "dim_idx of loop should be smaller than loop_depth");
-            loop_ids_need_extract[loop_dim].insert(loop.first);
-        }
-    }
     // move invariant expr to top(outside) of current loop
-    for (size_t d = 0; d < loop_depth; d++) {
-        const auto& loops_in_this_depth = loop_ids_need_extract[d];
-        for (const auto& loop_id : loops_in_this_depth) {
-            modified |= extract_from_loop(loop_id, linear_ir);
-        }
+    const auto loop_ids_need_extract = get_reordered_loop_ids(linear_ir.get_loop_manager());
+    for (const auto& loop_id : loop_ids_need_extract) {
+        modified |= extract_from_loop(loop_id, linear_ir);
     }
 
     return modified;

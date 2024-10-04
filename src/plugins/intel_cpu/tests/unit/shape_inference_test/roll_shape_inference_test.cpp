@@ -66,7 +66,7 @@ TEST_F(RollV7StaticShapeInferenceTest, axes_over_arg_rank) {
 
     OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, constant_data),
                     NodeValidationFailure,
-                    HasSubstr("Parameter axis 3 out of the tensor rank range"));
+                    HasSubstr("Axis 3 out of the tensor rank range"));
 }
 
 TEST_F(RollV7StaticShapeInferenceTest, axes_has_negative_after_normalization) {
@@ -84,7 +84,7 @@ TEST_F(RollV7StaticShapeInferenceTest, axes_has_negative_after_normalization) {
 
     OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, constant_data),
                     NodeValidationFailure,
-                    HasSubstr(" Parameter axis -4 out of the tensor rank range"));
+                    HasSubstr("Axis -4 out of the tensor rank range"));
 }
 
 TEST_F(RollV7StaticShapeInferenceTest, default_ctor) {

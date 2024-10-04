@@ -25,21 +25,21 @@ const std::vector<LayerTestsDefinitions::ConvolutionBackpropDataTransformationPa
         {256ul, ov::Shape{1, 1, 1, 1}, { 0.f }, { 25.5f }, { 0.f }, { 25.5f }},
         {255ul, ov::Shape{1, 1, 1, 1}, { -12.7f }, { 12.7f }, { -12.7f }, { 12.7f }},
         "convolutionBackpropData_original",
-        "U8"
+        "u8"
     },
     // FQ on weights
     {
         {256ul, ov::Shape{}, { 0.f }, { 25.5f }, { 0.f }, { 25.5f }},
         {255ul, ov::Shape{}, { -12.7f }, { 12.7f }, { -12.7f }, { 12.7f }},
         "convolutionBackpropData_original",
-        "U8"
+        "u8"
     },
     // FQ on weights
     {
         {256ul, ov::Shape{1, 1, 1, 1}, { -12.8f }, { 12.7f }, { -12.8f }, { 12.7f }},
         {255ul, ov::Shape{1, 1, 1, 1}, { -12.7f }, { 12.7f }, { -12.7f }, { 12.7f }},
         "convolutionBackpropData_original",
-        "I8"
+        "i8"
     },
     // FQ on weights
     // with zero point

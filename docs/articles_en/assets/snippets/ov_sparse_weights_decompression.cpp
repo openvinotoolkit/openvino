@@ -11,7 +11,7 @@ int main() {
         ov::AnyMap config;
         //! [ov:intel_cpu:sparse_weights_decompression:part0]
         ov::Core core;                                                              // Step 1: create ov::Core object
-        core.set_property(ov::intel_cpu::sparse_weights_decompression_rate(0.8));   // Step 1b: Enable sparse weights decompression feature
+        core.set_property(ov::intel_cpu::sparse_weights_decompression_rate(0.8f));   // Step 1b: Enable sparse weights decompression feature
         auto model = core.read_model(modelPath);                                    // Step 2: Read Model
         //...                                                                       // Step 3: Prepare inputs/outputs
         //...                                                                       // Step 4: Set device configuration

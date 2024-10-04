@@ -141,7 +141,7 @@ pass::MarkCompressedFloatConstants::MarkCompressedFloatConstants() {
         mark_as_decompression(convert_node);
         disable_constant_folding(const_node);
         disable_constant_folding(convert_node);
-        return true;
+        return false;
     };
 
     auto m = std::make_shared<pass::pattern::Matcher>(convert, matcher_name);

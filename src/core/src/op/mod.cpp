@@ -78,8 +78,8 @@ namespace {
  * @return Vector with inputs bounds tensors.
  */
 TensorVector get_bounds(const Node* const op) {
-    auto&& v_bounds = ov::evaluate_both_bounds(op->input_value(0));
-    auto&& m_bounds = ov::evaluate_both_bounds(op->input_value(1));
+    auto&& v_bounds = ov::util::evaluate_both_bounds(op->input_value(0));
+    auto&& m_bounds = ov::util::evaluate_both_bounds(op->input_value(1));
     return {std::move(v_bounds.first),
             std::move(v_bounds.second),
             std::move(m_bounds.first),

@@ -1,5 +1,3 @@
-.. {#openvino_docs_MO_DG_Getting_Performance_Numbers}
-
 Getting Performance Numbers
 ===========================
 

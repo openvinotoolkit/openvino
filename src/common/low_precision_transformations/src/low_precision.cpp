@@ -44,6 +44,7 @@
 #include "low_precision/assign_and_read_value.hpp"
 #include "low_precision/avg_pool.hpp"
 #include "low_precision/batch_to_space.hpp"
+#include "low_precision/broadcast.hpp"
 #include "low_precision/clamp.hpp"
 #include "low_precision/convolution.hpp"
 #include "low_precision/convolution_backprop_data.hpp"
@@ -189,7 +190,7 @@ MarkupOptimizations::MarkupOptimizations(
 
 bool ov::pass::low_precision::MarkupOptimizations::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(MarkupOptimizations);
-    ov::pass::Manager markup(get_pass_config());
+    ov::pass::Manager markup(get_pass_config(), "LPT:MarkupOptimizations");
     markup.set_per_pass_validation(false);
     markup.register_pass<low_precision::MarkupCanBeQuantized>(params.defaultPrecisions);
     if (!precisionRestrictions.empty()) {
@@ -216,7 +217,7 @@ bool ov::pass::low_precision::LowPrecision::run_on_model(const std::shared_ptr<o
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "LowPrecision");
 
     auto passConfig = get_pass_config();
-    ov::pass::Manager manager(passConfig);
+    ov::pass::Manager manager(passConfig, "LowPrecision");
 
     auto prerequisites = manager.register_pass<ov::pass::GraphRewrite>();
     const std::vector<ov::element::Type> supportedTypes = {ov::element::i8, ov::element::u8};
@@ -240,6 +241,7 @@ bool ov::pass::low_precision::LowPrecision::run_on_model(const std::shared_ptr<o
     ADD_MATCHER(common, AssignAndReadValueTransformation, f, params)
     ADD_MATCHER(common, AvgPoolTransformation, params)
     ADD_MATCHER(common, BatchToSpaceTransformation, params)
+    ADD_MATCHER(common, BroadcastTransformation, params)
     ADD_MATCHER(common, ClampTransformation, params)
     ADD_MATCHER(common, ConcatTransformation, params)
     ADD_MATCHER(common, ConvolutionTransformation, params)

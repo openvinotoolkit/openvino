@@ -29,9 +29,8 @@ struct region_yolo : public primitive_base<region_yolo> {
                 const uint32_t mask_size,
                 const int32_t axis,
                 const int32_t end_axis,
-                const bool do_softmax = true,
-                const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding}),
+                const bool do_softmax = true)
+        : primitive_base(id, {input}),
           coords(coords),
           classes(classes),
           num(num),

@@ -66,6 +66,16 @@ documentation <https://pytorch.org/vision/main/models/lraspp.html>`__
 -  `Performance Comparison <#performance-comparison>`__
 -  `References <#references>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 .. code:: ipython3
 
     # Install openvino package
@@ -111,13 +121,7 @@ Imports
     
     open("notebook_utils.py", "w").write(r.text)
     
-    from notebook_utils import (
-        segmentation_map_to_image,
-        viz_result_image,
-        SegmentationMap,
-        Label,
-        download_file,
-    )
+    from notebook_utils import segmentation_map_to_image, viz_result_image, SegmentationMap, Label, download_file, device_widget
 
 Settings
 ~~~~~~~~
@@ -359,14 +363,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
     
     device
 
@@ -559,9 +556,9 @@ performance.
 
 .. parsed-literal::
 
-    PyTorch model on CPU: 0.039 seconds per image, FPS: 25.86
-    ONNX model in OpenVINO Runtime/AUTO: 0.018 seconds per image, FPS: 54.43
-    OpenVINO IR model in OpenVINO Runtime/AUTO: 0.027 seconds per image, FPS: 36.71
+    PyTorch model on CPU: 0.039 seconds per image, FPS: 25.82
+    ONNX model in OpenVINO Runtime/AUTO: 0.018 seconds per image, FPS: 55.39
+    OpenVINO IR model in OpenVINO Runtime/AUTO: 0.028 seconds per image, FPS: 35.83
 
 
 **Show Device Information**

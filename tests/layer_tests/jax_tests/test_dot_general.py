@@ -23,7 +23,7 @@ class TestDotGeneral(JaxLayerTest):
             out = lax.dot_general(lhs, rhs, dimension_numbers)
             return out
 
-        return jax_dot_general, None
+        return jax_dot_general, None, 'dot_general'
 
     test_data = [
         # 1D vector dot 1D vector
@@ -40,6 +40,7 @@ class TestDotGeneral(JaxLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_jax_fe
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.parametrize("input_type", [np.float32, np.int32])
     def test_dot_general(self, ie_device, precision, ir_version, params, input_type):

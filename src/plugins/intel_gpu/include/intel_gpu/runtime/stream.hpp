@@ -40,6 +40,7 @@ public:
     virtual void wait_for_events(const std::vector<event::ptr>& events) = 0;
     virtual event::ptr create_user_event(bool set) = 0;
     virtual event::ptr create_base_event() = 0;
+    virtual event::ptr aggregate_events(const std::vector<event::ptr>& events, bool group = false, bool is_output = false);
 
     QueueTypes get_queue_type() const { return queue_type; }
 

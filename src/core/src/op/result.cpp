@@ -12,69 +12,10 @@
 #include "openvino/core/descriptor_tensor.hpp"
 
 namespace ov {
-namespace descriptor {
-
-/**
- * @brief Dedicated output descriptor for Result's output.
- *
- * The class holds Result's output specific names which are assigned tensor descriptor.
- */
-class ResultOutput : public Output {
-public:
-    ResultOutput(Node* node, const size_t index, const std::shared_ptr<Tensor>& tensor)
-        : Output{node, index, tensor},
-          m_output_names{} {};
-
-    void set_names(const std::unordered_set<std::string>& names) override {
-        rm_tensor_output_names();
-        m_output_names = names;
-        get_tensor().add_names(m_output_names);
-    }
-
-    void add_names(const std::unordered_set<std::string>& names) override {
-        m_output_names.insert(names.begin(), names.end());
-        get_tensor().add_names(m_output_names);
-    }
-
-    void set_tensor_ptr(const std::shared_ptr<Tensor>& tensor) override {
-        OPENVINO_ASSERT(tensor, "Cannot link to NULL tensor");
-        rm_tensor_output_names();
-        auto prev_rt_info = get_rt_info();
-
-        m_tensor = tensor;
-
-        auto& current_rt_info = get_rt_info();
-        for (auto&& item : prev_rt_info) {
-            current_rt_info[item.first] = std::move(item.second);
-        }
-        add_names(m_output_names);
-    }
-
-private:
-    void rm_tensor_output_names() {
-        auto names = get_tensor().get_names();
-        for (const auto& output_name : m_output_names) {
-            names.erase(output_name);
-        }
-        get_tensor().set_names(names);
-    }
-
-    std::unordered_set<std::string> m_output_names;
-};
-
-namespace {
-std::unique_ptr<descriptor::Output> make_result_output(Node* node,
-                                                       const size_t index,
-                                                       const std::shared_ptr<descriptor::Tensor> tensor) {
-    return std::unique_ptr<descriptor::ResultOutput>(new descriptor::ResultOutput(node, index, tensor));
-}
-}  // namespace
-}  // namespace descriptor
-
 namespace op {
 namespace v0 {
 
-Result::Result(const Output<Node>& arg) : Op({arg}, descriptor::make_result_output) {
+Result::Result(const Output<Node>& arg) : Op({arg}) {
     constructor_validate_and_infer_types();
 }
 
@@ -82,10 +23,8 @@ void Result::validate_and_infer_types() {
     OV_OP_SCOPE(v0_Result_validate_and_infer_types);
     NODE_VALIDATION_CHECK(this, get_input_size() == 1, "Argument has ", get_input_size(), " outputs (1 expected).");
 
-    // Result doesn't change change in/out tensors
-    auto& output = get_output_descriptor(0);
-    auto& input = get_input_descriptor(0);
-    output.set_tensor_ptr(input.get_tensor_ptr());
+    // Result shares input tensor but can have specific properties which are added/removed to input.
+    descriptor::set_shared_tensor(get_output_descriptor(0), get_input_descriptor(0));
 }
 
 std::shared_ptr<Node> Result::clone_with_new_inputs(const OutputVector& new_args) const {

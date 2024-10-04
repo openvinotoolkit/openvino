@@ -1,5 +1,3 @@
-.. {#openvino_docs_install_guides_installing_openvino_pip}
-
 Install Intel® Distribution of OpenVINO™ Toolkit from PyPI Repository
 ========================================================================
 

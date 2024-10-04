@@ -38,10 +38,8 @@ static void TopKImpl(ProgramBuilder& p,
                                             stype,
                                             true,
                                             stable,
-                                            cldnn::padding({0, 0, 0, 0}, 0),
                                             cldnn::element_type_to_data_type(op->get_output_element_type(0)),
                                             num_outputs);
-        argmaxPrim.output_paddings = get_output_paddings(op);
         argmaxPrim.output_data_types = get_output_data_types(op);
         p.add_primitive(*op, argmaxPrim);
     } else {
@@ -73,7 +71,6 @@ static void TopKImpl(ProgramBuilder& p,
                                                  stype,
                                                  true,
                                                  stable,
-                                                 cldnn::padding({0, 0, 0, 0}, 0),
                                                  cldnn::element_type_to_data_type(op->get_output_element_type(0)));
 
             p.add_primitive(*op, argmaxPrim);
@@ -92,7 +89,6 @@ static void TopKImpl(ProgramBuilder& p,
                                                  stype,
                                                  true,
                                                  stable,
-                                                 cldnn::padding({0, 0, 0, 0}, 0),
                                                  cldnn::element_type_to_data_type(op->get_output_element_type(0)));
 
             p.add_primitive(*op, argmaxPrim);

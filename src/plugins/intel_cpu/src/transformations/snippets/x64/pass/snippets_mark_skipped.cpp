@@ -5,7 +5,7 @@
 
 #include "snippets/pass/tokenization.hpp"
 #include "snippets/op/subgraph.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 #include "transformations/utils/utils.hpp"
 #include "transformations/utils.hpp"
@@ -403,7 +403,7 @@ bool isSuitableChildForFusingSumActivation(const std::shared_ptr<const Node> &no
     return SupportsFusingWithConvolution_SumActivation(node);
 }
 bool isSuitableReduceChild(const std::shared_ptr<const Node> &node, const int channelAxis = DEFAULT_AXIS) {
-    return node->get_output_element_type(0) == ov::element::f32 && isSuitableChildForFusingSimple(node, channelAxis);
+    return isSuitableChildForFusingSimple(node, channelAxis);
 }
 bool isSuitableMatMulWithConstantPath(const std::shared_ptr<Node>& node) {
     return ov::is_type<ov::opset1::MatMul>(node) &&

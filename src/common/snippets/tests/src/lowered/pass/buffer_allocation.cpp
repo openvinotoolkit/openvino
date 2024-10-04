@@ -95,8 +95,7 @@ void BufferAllocationTest::Validate() {
 
 std::shared_ptr<ov::Model> EltwiseBufferAllocationTest::GetModel() const {
     const auto subtensor_eltwise = std::vector<size_t>{1, m_vector_size};
-    const auto subtensor_buffer = std::vector<size_t>{ov::snippets::lowered::PortDescriptor::ServiceDimensions::FULL_DIM,
-                                                      ov::snippets::lowered::PortDescriptor::ServiceDimensions::FULL_DIM};
+    const auto subtensor_buffer = std::vector<size_t>(2, ov::snippets::utils::get_full_dim_value());
 
     const auto parameter0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape({1, 3, 100, 100}));
     const auto parameter1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape({1, 3, 100, 100}));

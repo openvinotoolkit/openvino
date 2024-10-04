@@ -62,6 +62,16 @@ quantized models. - Live demo
    -  `Run Keypoint Detection on
       video <#run-keypoint-detection-on-video>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Get PyTorch model
 -----------------
 
@@ -110,7 +120,7 @@ Import required utility functions. The lower cell will download the
     )
 
     open("notebook_utils.py", "w").write(r.text)
-    from notebook_utils import download_file, VideoPlayer
+    from notebook_utils import download_file, VideoPlayer, device_widget
 
 .. code:: ipython3
 
@@ -247,17 +257,7 @@ Select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    import openvino as ov
-
-    core = ov.Core()
-
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
 
     device
 
@@ -281,6 +281,7 @@ ready to check model prediction.
 .. code:: ipython3
 
     import torch
+    import openvino as ov
 
     core = ov.Core()
     pose_ov_model = core.read_model(pose_model_path)
@@ -517,12 +518,6 @@ validator class instance.
     pose_validator.stride = 32
     pose_data_loader = pose_validator.get_dataloader(OUT_DIR / "coco8-pose", 1)
 
-
-.. parsed-literal::
-
-    val: Scanning /home/maleksandr/test_notebooks/ultrali/datasets/coco8-pose/labels/train.cache... 8 images, 0 backgrounds,
-
-
 .. code:: ipython3
 
     from ultralytics.utils.metrics import OKS_SIGMA
@@ -727,137 +722,6 @@ point precision, using the ``ignored_scope`` parameter.
         preset=nncf.QuantizationPreset.MIXED,
         ignored_scope=ignored_scope
     )
-
-
-.. parsed-literal::
-
-    INFO:nncf:22 ignored nodes were found by name in the NNCFGraph
-    INFO:nncf:Not adding activation input quantizer for operation: 1 __module.model.0.conv/aten::_convolution/Convolution
-    2 __module.model.0.conv/aten::_convolution/Add
-    3 __module.model.22.cv4.2.1.act/aten::silu_/Swish
-
-    INFO:nncf:Not adding activation input quantizer for operation: 25 __module.model.4.cv1.conv/aten::_convolution/Convolution
-    26 __module.model.4.cv1.conv/aten::_convolution/Add
-    27 __module.model.22.cv4.2.1.act/aten::silu_/Swish_7
-
-    INFO:nncf:Not adding activation input quantizer for operation: 43 __module.model.5.conv/aten::_convolution/Convolution
-    47 __module.model.5.conv/aten::_convolution/Add
-    51 __module.model.22.cv4.2.1.act/aten::silu_/Swish_13
-
-    INFO:nncf:Not adding activation input quantizer for operation: 54 __module.model.6.cv1.conv/aten::_convolution/Convolution
-    56 __module.model.6.cv1.conv/aten::_convolution/Add
-    59 __module.model.22.cv4.2.1.act/aten::silu_/Swish_14
-
-    INFO:nncf:Not adding activation input quantizer for operation: 99 __module.model.7.conv/aten::_convolution/Convolution
-    112 __module.model.7.conv/aten::_convolution/Add
-    123 __module.model.22.cv4.2.1.act/aten::silu_/Swish_20
-
-    INFO:nncf:Not adding activation input quantizer for operation: 111 __module.model.12.cv1.conv/aten::_convolution/Convolution
-    122 __module.model.12.cv1.conv/aten::_convolution/Add
-    131 __module.model.22.cv4.2.1.act/aten::silu_/Swish_27
-
-    INFO:nncf:Not adding activation input quantizer for operation: 46 __module.model.15.cv1.conv/aten::_convolution/Convolution
-    50 __module.model.15.cv1.conv/aten::_convolution/Add
-    53 __module.model.22.cv4.2.1.act/aten::silu_/Swish_31
-
-    INFO:nncf:Not adding activation input quantizer for operation: 74 __module.model.16.conv/aten::_convolution/Convolution
-    83 __module.model.16.conv/aten::_convolution/Add
-    92 __module.model.22.cv4.2.1.act/aten::silu_/Swish_39
-
-    INFO:nncf:Not adding activation input quantizer for operation: 75 __module.model.22.cv2.0.0.conv/aten::_convolution/Convolution
-    84 __module.model.22.cv2.0.0.conv/aten::_convolution/Add
-    93 __module.model.22.cv4.2.1.act/aten::silu_/Swish_35
-
-    INFO:nncf:Not adding activation input quantizer for operation: 103 __module.model.22.cv2.0.1.conv/aten::_convolution/Convolution
-    116 __module.model.22.cv2.0.1.conv/aten::_convolution/Add
-    126 __module.model.22.cv4.2.1.act/aten::silu_/Swish_36
-
-    INFO:nncf:Not adding activation input quantizer for operation: 76 __module.model.22.cv3.0.0.conv/aten::_convolution/Convolution
-    85 __module.model.22.cv3.0.0.conv/aten::_convolution/Add
-    94 __module.model.22.cv4.2.1.act/aten::silu_/Swish_37
-
-    INFO:nncf:Not adding activation input quantizer for operation: 135 __module.model.22.cv3.0.2/aten::_convolution/Convolution
-    143 __module.model.22.cv3.0.2/aten::_convolution/Add
-
-    INFO:nncf:Not adding activation input quantizer for operation: 77 __module.model.22.cv4.0.0.conv/aten::_convolution/Convolution
-    86 __module.model.22.cv4.0.0.conv/aten::_convolution/Add
-    95 __module.model.22.cv4.2.1.act/aten::silu_/Swish_57
-
-    INFO:nncf:Not adding activation input quantizer for operation: 234 __module.model.22.cv3.1.1.conv/aten::_convolution/Convolution
-    247 __module.model.22.cv3.1.1.conv/aten::_convolution/Add
-    258 __module.model.22.cv4.2.1.act/aten::silu_/Swish_47
-
-    INFO:nncf:Not adding activation input quantizer for operation: 289 __module.model.21.m.0.cv1.conv/aten::_convolution/Convolution
-    296 __module.model.21.m.0.cv1.conv/aten::_convolution/Add
-    302 __module.model.22.cv4.2.1.act/aten::silu_/Swish_50
-
-    INFO:nncf:Not adding activation input quantizer for operation: 295 __module.model.21.cv2.conv/aten::_convolution/Convolution
-    301 __module.model.21.cv2.conv/aten::_convolution/Add
-    305 __module.model.22.cv4.2.1.act/aten::silu_/Swish_52
-
-    INFO:nncf:Not adding activation input quantizer for operation: 332 __module.model.22.cv2.2.1.conv/aten::_convolution/Convolution
-    340 __module.model.22.cv2.2.1.conv/aten::_convolution/Add
-    345 __module.model.22.cv4.2.1.act/aten::silu_/Swish_54
-
-    INFO:nncf:Not adding activation input quantizer for operation: 334 __module.model.22.cv4.2.1.conv/aten::_convolution/Convolution
-    342 __module.model.22.cv4.2.1.conv/aten::_convolution/Add
-    347 __module.model.22.cv4.2.1.act/aten::silu_/Swish_62
-
-    INFO:nncf:Not adding activation input quantizer for operation: 350 __module.model.22.cv3.2.2/aten::_convolution/Convolution
-    354 __module.model.22.cv3.2.2/aten::_convolution/Add
-
-    INFO:nncf:Not adding activation input quantizer for operation: 243 __module.model.22.dfl.conv/aten::_convolution/Convolution
-    INFO:nncf:Not adding activation input quantizer for operation: 263 __module.model.22/aten::sub/Subtract
-    INFO:nncf:Not adding activation input quantizer for operation: 264 __module.model.22/aten::add/Add_6
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-.. parsed-literal::
-
-    /home/maleksandr/test_notebooks/update_ultralytics/openvino_notebooks/notebooks/yolov8-optimization/venv/lib/python3.10/site-packages/nncf/experimental/tensor/tensor.py:84: RuntimeWarning: invalid value encountered in multiply
-      return Tensor(self.data * unwrap_tensor_data(other))
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 .. code:: ipython3
 
@@ -1206,7 +1070,7 @@ utilization. For more information, refer to the overview of
 tutorial <optimize-preprocessing-with-output.html>`__. To
 see, how it could be used with YOLOV8 object detection model , please,
 see `Convert and Optimize YOLOv8 real-time object detection with
-OpenVINO tutorial <./yolov8-object-detection.ipynb>`__
+OpenVINO tutorial <yolov8-object-detection-with-output.html>`__
 
 Live demo
 ---------

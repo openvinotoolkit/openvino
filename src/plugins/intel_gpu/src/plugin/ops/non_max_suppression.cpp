@@ -64,7 +64,6 @@ static void CreateNonMaxSuppressionIEInternalOp(ProgramBuilder& p, const std::sh
                 op->m_sort_result_descending,
                 "", "", "", "", "", "", num_outputs);
 
-        prim.output_paddings = get_output_paddings(op);
         prim.output_data_types = get_output_data_types(op, {{ov::element::i64, ov::element::i32}});
         prim.rotation = rotation;
 

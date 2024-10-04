@@ -115,9 +115,10 @@ def mvn(
     return _get_node_factory_opset6().create("MVN", inputs, attributes)
 
 
-@overloading(Union[Node, Output], str, Optional[Union[type, np.dtype, Type, str]], Optional[Union[TensorShape, Shape, PartialShape]], Optional[str])
+@overloading(Union[Node, Output, int, float, np.ndarray], str, Optional[Union[type, np.dtype, Type, str]],
+             Optional[Union[TensorShape, Shape, PartialShape]], Optional[str])
 @nameable_op
-def read_value(init_value: Union[Node, Output],
+def read_value(init_value: Union[Node, Output, int, float, np.ndarray],
                variable_id: str,
                variable_type: Optional[Union[type, np.dtype, Type, str]] = None,
                variable_shape: Optional[Union[TensorShape, Shape, PartialShape]] = None,
@@ -139,9 +140,13 @@ def read_value(init_value: Union[Node, Output],
             info.data_type = get_element_type(variable_type)
         else:
             info.data_type = variable_type
+    else:
+        info.data_type = Type.dynamic
 
     if variable_shape is not None:
         info.data_shape = PartialShape(variable_shape)
+    else:
+        info.data_shape = PartialShape.dynamic()
 
     var_from_info = Variable(info)
     return _read_value(new_value=as_node(init_value, name=name), variable=var_from_info)
@@ -169,9 +174,13 @@ def read_value(variable_id: str,  # noqa: F811
             info.data_type = get_element_type(variable_type)
         else:
             info.data_type = variable_type
+    else:
+        info.data_type = Type.dynamic
 
     if variable_shape is not None:
         info.data_shape = PartialShape(variable_shape)
+    else:
+        info.data_shape = PartialShape.dynamic()
 
     var_from_info = Variable(info)
 
@@ -191,9 +200,9 @@ def read_value(ov_variable: Variable,  # noqa: F811
     return _read_value(ov_variable)
 
 
-@overloading(Union[Node, Output], Variable, Optional[str])  # type: ignore
+@overloading(Union[Node, Output, int, float, np.ndarray], Variable, Optional[str])  # type: ignore
 @nameable_op
-def read_value(init_value: Union[Node, Output],  # noqa: F811
+def read_value(init_value: Union[Node, Output, int, float, np.ndarray],  # noqa: F811
                ov_variable: Variable,
                name: Optional[str] = None) -> Node:
     """Return a node which produces the Assign operation.

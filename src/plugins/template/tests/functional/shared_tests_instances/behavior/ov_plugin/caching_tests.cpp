@@ -39,4 +39,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_Template,
                          ::testing::Combine(::testing::ValuesIn(TestTemplateTargets),
                                             ::testing::ValuesIn(TemplateConfigs)),
                          CompileModelLoadFromCacheTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_Template,
+                         CompileModelWithCacheEncryptionTest,
+                         testing::ValuesIn(TestTemplateTargets),
+                         CompileModelWithCacheEncryptionTest::getTestCaseName);
 }  // namespace

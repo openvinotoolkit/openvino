@@ -53,6 +53,7 @@ struct primitive_impl {
     virtual ~primitive_impl() = default;
 
     virtual std::vector<layout> get_internal_buffer_layouts() const = 0;
+    virtual std::set<size_t> get_lockable_internal_buffers() const { return {}; }
     virtual void set_node_params(const program_node&) {}
     virtual const std::string& get_type_info() const = 0;
     virtual void set_arguments(primitive_inst& instance) = 0;
@@ -99,13 +100,19 @@ struct primitive_impl {
 
     // If this flag is set as false, the memory allocated for this primitive is not allowed to be reused
     bool can_reuse_memory = true;
+    bool can_share_kernels = false;
 
     void set_dynamic(bool val) { _is_dynamic = val; }
     bool is_dynamic() const { return _is_dynamic; }
 
-    virtual void update_dispatch_data(const kernel_impl_params& impl_params) {
-        OPENVINO_ASSERT(_is_dynamic, "[GPU] update_dispatch_data is called for static shape implementation ", _kernel_name);
-        OPENVINO_ASSERT(false, "[GPU] update_dispatch_data is not implemented for dynamic implemenation ", _kernel_name);
+    virtual void update(primitive_inst& inst, const kernel_impl_params& impl_params) {
+        OPENVINO_ASSERT(_is_dynamic, "[GPU] update() is called for static shape implementation ", _kernel_name);
+        OPENVINO_ASSERT(false, "[GPU] update() is not implemented for dynamic implemenation ", _kernel_name);
+    }
+
+    virtual bool requires_update(primitive_inst& inst, const kernel_impl_params& impl_params) const {
+        OPENVINO_ASSERT(_is_dynamic, "[GPU] requires_update() is called for static shape implementation ", _kernel_name);
+        return false;
     }
 
     static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params);
@@ -303,6 +310,7 @@ public:
     virtual void update_output_memory() {}
 
     virtual int32_t get_prealloc_iter_num() { return -1; }
+    virtual void update_shape_info_tensor(const kernel_impl_params& params);
 
 protected:
     primitive_inst(network& network, program_node const& node, bool allocate_memory);
@@ -383,6 +391,7 @@ protected:
                                               bool reset_mem = true,
                                               bool runtime_alloc = false);
     memory::ptr allocate_internal_buffer(size_t idx, bool reset = true);
+    void allocate_shape_info_memory();
     static std::vector<primitive_inst*> build_exec_deps(
         std::vector<std::pair<primitive_inst*, int32_t>> const& mem_deps);
     int32_t get_index_in_deps(memory::cptr arg) const;
@@ -393,7 +402,6 @@ protected:
 
     virtual void update_shape();
     virtual event::ptr update_weights();
-    virtual void update_shape_info_tensor(const kernel_impl_params& params);
 
     void fill_shape_info_data(const layout& runtime_layout, const layout& node_layout, int32_t* shape_info_ptr, size_t& offset);
     bool use_async_compilation();
@@ -438,12 +446,7 @@ protected:
     }
 
     virtual bool need_reset_output_memory() const {
-        std::vector<std::pair<primitive_id, size_t>> users;
-        for (auto u : _node->get_users())
-            users.emplace_back(u->id(), u->get_dependency_index(*_node));
-
-        for (const auto& u : users) {
-            auto user_inst = _network.get_primitive(u.first);
+        for (const auto& user_inst : get_user_insts()) {
             // Check users of optimized_out inst, as the optimized out inst will not be able to
             // reset it's memory
             if (user_inst->can_be_optimized()) {
@@ -452,12 +455,11 @@ protected:
                 continue;
             }
 
-            if (user_inst->need_reset_input_memory(u.second))
+            if (user_inst->need_reset_input_memory(user_inst->get_node().get_dependency_index(*_node)))
                 return true;
         }
         return false;
     }
-
     kernel_impl_params get_fake_aligned_params_if_possible(kernel_impl_params const& orig_impl_param);
 
     // This could be implemented via single map std::unordered_map<instrumentation::perf_counter_key, std::tuple<int64_t, size_t>>

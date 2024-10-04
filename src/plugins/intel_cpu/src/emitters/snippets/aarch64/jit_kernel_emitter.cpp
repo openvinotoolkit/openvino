@@ -5,7 +5,7 @@
 #include "jit_kernel_emitter.hpp"
 
 #include "emitters/utils.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 using namespace Xbyak_aarch64;
 

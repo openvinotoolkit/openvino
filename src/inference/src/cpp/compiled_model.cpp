@@ -74,7 +74,7 @@ const ov::Output<const ov::Node>& CompiledModel::input(size_t i) const {
         OPENVINO_ASSERT(i < _impl->inputs().size(),
                         "Cannot get input for index: ",
                         i,
-                        " outputs size is ",
+                        " inputs size is ",
                         _impl->inputs().size());
         return _impl->inputs().at(i);
     });
@@ -143,6 +143,10 @@ Any CompiledModel::get_property(const std::string& name) const {
             property._so = _so;
         return property;
     });
+}
+
+void CompiledModel::release_memory() {
+    OV_COMPILED_MODEL_CALL_STATEMENT(_impl->release_memory());
 }
 
 RemoteContext CompiledModel::get_context() const {

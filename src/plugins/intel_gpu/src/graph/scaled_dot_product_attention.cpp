@@ -5,7 +5,6 @@
 #include "scaled_dot_product_attention_inst.h"
 
 #include "primitive_type_base.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 #include <vector>
@@ -47,7 +46,7 @@ template<typename ShapeType>
 std::vector<layout> scaled_dot_product_attention_inst::calc_output_layouts(scaled_dot_product_attention_node const& /*node*/,
                                                                            const kernel_impl_params& impl_param) {
     auto prim = impl_param.typed_desc<scaled_dot_product_attention>();
-    auto input0_layout = impl_param.get_input_layout(0);
+    const auto& input0_layout = impl_param.get_input_layout(0);
 
     auto default_out_dt = data_type_traits::is_floating_point(input0_layout.data_type) ? input0_layout.data_type : data_types::f32;
     auto output_type = prim->output_data_types[0].value_or(default_out_dt);

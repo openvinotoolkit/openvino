@@ -43,9 +43,8 @@ struct dft : public primitive_base<dft> {
         std::vector<int64_t> signal_size,
         const ov::Shape& output_shape,
         dft_direction direction,
-        dft_mode mode,
-        const padding& output_padding = {})
-        : primitive_base(id, {input}, {output_padding}),
+        dft_mode mode)
+        : primitive_base(id, {input}),
           axes(std::move(axes)),
           signal_size(std::move(signal_size)),
           output_shape(output_shape),
@@ -63,9 +62,8 @@ struct dft : public primitive_base<dft> {
         const input_info& axes,
         std::vector<int64_t> constant_axes,
         dft_direction direction,
-        dft_mode mode,
-        const padding& output_padding = {})
-        : primitive_base(id, {input, axes}, {output_padding}),
+        dft_mode mode)
+        : primitive_base(id, {input, axes}),
           axes(constant_axes),
           signal_size({}),
           output_shape(ov::Shape(0)),
@@ -86,9 +84,8 @@ struct dft : public primitive_base<dft> {
         std::vector<int64_t> constant_axes,
         std::vector<int64_t> constant_signal_size,
         dft_direction direction,
-        dft_mode mode,
-        const padding& output_padding = {})
-        : primitive_base(id, {input, axes, signal_size}, {output_padding}),
+        dft_mode mode)
+        : primitive_base(id, {input, axes, signal_size}),
           axes(constant_axes),
           signal_size(constant_signal_size),
           output_shape(ov::Shape(0)),

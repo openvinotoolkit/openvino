@@ -253,7 +253,31 @@ py::object from_ov_any(const ov::Any& any) {
 std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string, py::object>& properties) {
     std::map<std::string, ov::Any> properties_to_cpp;
     for (const auto& property : properties) {
-        properties_to_cpp[property.first] = Common::utils::py_object_to_any(property.second);
+        if (property.first == ov::cache_encryption_callbacks.name()) {
+            auto property_value = property.second;
+            if (!py::isinstance<py::list>(property_value)) {
+                OPENVINO_THROW("The value type of ov::cache_encryption_callbacks property is expected list");
+            }
+            std::function<std::string(const std::string&)> encrypt_func =
+                [property_value](const std::string& in_str) -> std::string {
+                // Acquire GIL, execute Python function
+                py::gil_scoped_acquire acquire;
+                auto _list = property_value.cast<py::list>();
+                return _list[0](in_str).cast<std::string>();
+            };
+
+            std::function<std::string(const std::string&)> decrypt_func =
+                [property_value](const std::string& in_str) -> std::string {
+                // Acquire GIL, execute Python function
+                py::gil_scoped_acquire acquire;
+                auto _list = property_value.cast<py::list>();
+                return _list[1](in_str).cast<std::string>();
+            };
+            ov::EncryptionCallbacks encryption_callbacks{encrypt_func, decrypt_func};
+            properties_to_cpp[property.first] = encryption_callbacks;
+        } else {
+            properties_to_cpp[property.first] = Common::utils::py_object_to_any(property.second);
+        }
     }
     return properties_to_cpp;
 }
@@ -442,3 +466,36 @@ std::shared_ptr<py::function> wrap_pyfunction(py::function f_callback) {
 }
 };  // namespace utils
 };  // namespace Common
+
+namespace pybind11 {
+namespace ov_extension {
+void conditional_keep_alive_impl(size_t Nurse,
+                                 size_t Patient,
+                                 size_t Condition,
+                                 detail::function_call& call,
+                                 handle ret) {
+    auto get_arg = [&](size_t n) {
+        if (n == 0) {
+            return ret;
+        }
+        if (n == 1 && call.init_self) {
+            return call.init_self;
+        }
+        if (n <= call.args.size()) {
+            return call.args[n - 1];
+        }
+        return handle();
+    };
+
+    const auto cd = get_arg(Condition);
+    if (!cd || !py::isinstance<py::bool_>(cd)) {
+        pybind11_fail("Could not activate conditional_keep_alive!");
+    }
+
+    if (cd.cast<bool>()) {
+        detail::keep_alive_impl(get_arg(Nurse), get_arg(Patient));
+    }
+}
+
+};  // namespace ov_extension
+};  // namespace pybind11

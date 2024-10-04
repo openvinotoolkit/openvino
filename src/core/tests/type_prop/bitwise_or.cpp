@@ -9,3 +9,4 @@
 using Type = ::testing::Types<ov::op::v13::BitwiseOr>;
 
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_bitwise_or, BitwiseOperator, Type);
+INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_bitwise_or, BitwiseOperatorBoolean, Type);

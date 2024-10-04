@@ -148,22 +148,21 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
 
         execute_stage(events, instance, res_events, concat_stage);
 
-        auto impl_param = *instance.get_impl_params();
-        auto kv_in_shape = impl_param.input_layouts[0].get_partial_shape();
-        auto kv_out_shape = impl_param.output_layouts[0].get_partial_shape();
+        const auto& impl_param = *instance.get_impl_params();
+        const auto& kv_in_shape = impl_param.input_layouts[0].get_partial_shape();
+        const auto& kv_out_shape = impl_param.output_layouts[0].get_partial_shape();
         if (desc->indirect && ((kv_out_shape[desc->gather_axis].get_length() > 1) ||
                                (kv_in_shape[desc->concat_axis].get_length() == 0))) {
             const auto bt_alloc_type = engine.get_preferred_memory_allocation_type(false);
             auto beam_table_state =
                 dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCache&>(variable).get_beam_table_state();
-            auto bt_layout = instance.get_impl_params()->output_layouts[1];
+            const auto& bt_layout = instance.get_impl_params()->output_layouts[1];
             auto bt_shape = bt_layout.get_shape();
             std::swap(beam_table_prev, beam_table_new);
 
             if (!beam_table_new || beam_table_new->count() < ov::shape_size(bt_shape)) {
-                auto alloc_shape = bt_shape;
-                alloc_shape[desc->concat_axis] += instance.get_prealloc_iter_num();
-                const layout bt_alloc_layout = {alloc_shape, bt_layout.data_type, bt_layout.format};
+                bt_shape[desc->concat_axis] += instance.get_prealloc_iter_num();
+                const layout bt_alloc_layout = {bt_shape, bt_layout.data_type, bt_layout.format};
                 GPU_DEBUG_TRACE_DETAIL << "Realloc beam table to " << bt_alloc_layout.to_short_string() << std::endl;
                 beam_table_new = engine.allocate_memory(bt_alloc_layout, bt_alloc_type, false);
 
@@ -188,7 +187,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         if (can_be_optimized) {
             GPU_DEBUG_TRACE_DETAIL << desc->id  << " : Output is same as variable memory! Skip copying " << std::endl;
             // When primitive is optimized, concat kernel writes directly to variable memory
-            return aggregate_events(res_events, stream, res_events.size() > 1);
+            return stream.aggregate_events(res_events, res_events.size() > 1);
         } else {
             // Othwerise, we need to copy result from out buffer to state memory
             GPU_DEBUG_TRACE_DETAIL << desc->id  << " : Copying output to variable meomry" << std::endl;

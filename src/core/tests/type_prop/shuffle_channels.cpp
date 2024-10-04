@@ -117,7 +117,7 @@ TEST(type_prop, shuffle_channels_axis_validation) {
 
     OV_EXPECT_THROW(const auto op = make_shared<op::v0::ShuffleChannels>(data, -5, 5),
                     ov::AssertFailure,
-                    HasSubstr("ShuffleChannels Parameter axis -5 out of the tensor rank range [-4, 3]"));
+                    HasSubstr("Axis -5 out of the tensor rank range [-4, 3]"));
 }
 
 TEST(type_prop, shuffle_channels_negative_axis_calculation) {

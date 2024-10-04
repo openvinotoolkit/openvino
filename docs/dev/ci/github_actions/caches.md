@@ -35,7 +35,7 @@ This cache is used for sharing small dependencies or artifacts between runs.
 Refer to the [GitHub Actions official documentation](https://docs.github.com/en/actions/using-workflows/caching-dependencies-to-speed-up-workflows)
 for a complete reference.
 
-The `CPU functional tests` job in the [`linux.yml`](./../../../../.github/workflows/linux.yml)
+The `CPU functional tests` job in the [`ubuntu_22.yml`](./../../../../.github/workflows/ubuntu_22.yml)
 workflow uses this cache for sharing test execution time to speed up the subsequent runs.
 First, the artifacts are saved with `actions/cache/save` with a particular
 key `${{ runner.os }}-${{ runner.arch }}-tests-functional-cpu-stamp-${{ github.sha }}`:
@@ -107,7 +107,7 @@ path in the Docker container where the resources will be available.
   * Used in jobs that involve Python usage
 * onnx models for tests
   * Accessible at the path: `/mount/onnxtestdata`
-  * Used in the `ONNX Models tests` job in the [`linux.yml`](./../../../../.github/workflows/linux.yml) workflow
+  * Used in the `ONNX Models tests` job in the [`ubuntu_22.yml`](./../../../../.github/workflows/ubuntu_22.yml) workflow
 * Linux RISC-V with Conan build artifacts
   * Used in the [`linux_riscv.yml`](./../../../../.github/workflows/linux_riscv.yml) workflow
 

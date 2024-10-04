@@ -1,5 +1,3 @@
-.. {#openvino_docs_OV_UG_supported_plugins_AUTO}
-
 Automatic Device Selection
 ==========================
 
@@ -94,6 +92,10 @@ model and perform the first inference) is reduced when using AUTO. For example:
 .. note::
 
    The longer the process runs, the closer realtime performance will be to that of the best-suited device.
+
+.. note::
+
+   **Testing accuracy with the AUTO device is not recommended.** Since the CPU and GPU (or other target devices) may produce slightly different accuracy numbers, using AUTO could lead to inconsistent accuracy results from run to run due to a different number of inferences on CPU and GPU. This is particularly true when testing with a small number of inputs. To achieve consistent inference on the GPU (or another target device), you can disable CPU acceleration by setting ``ov::intel_auto::enable_startup_fallback`` to false.
 
 
 Using AUTO

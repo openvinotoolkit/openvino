@@ -11,12 +11,4 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 
-namespace ov {
-namespace op {
-Op::Op(const ov::OutputVector& args) : Node(args) {}
-
-Op::Op(const OutputVector& arguments, Node::OutputDescriptorFactory make_output_descriptor)
-    : Node(arguments, std::move(make_output_descriptor)) {}
-
-}  // namespace op
-}  // namespace ov
+ov::op::Op::Op(const ov::OutputVector& args) : Node(args) {}

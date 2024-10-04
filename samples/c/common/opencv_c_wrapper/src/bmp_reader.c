@@ -83,7 +83,7 @@ int readBmpImage(const char* fileName, BitMap* image) {
     int padSize = image->width & 3;
     size_t row_size = (size_t)image->width * 3;
     char pad[3];
-    size_t size = row_size * image->height;
+    size_t size = row_size * (size_t)image->height;
 
     image->data = malloc(sizeof(char) * size);
     if (NULL == image->data) {

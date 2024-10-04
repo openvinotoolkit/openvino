@@ -27,9 +27,9 @@
 #include "transformations/cpu_opset/x64/op/qkv_proj.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
-#include "transformations/snippets/x64/op/load_convert.hpp"
+#include "transformations/snippets/common/op/load_convert.hpp"
 #include "transformations/snippets/x64/op/perf_count_rdtsc.hpp"
-#include "transformations/snippets/x64/op/store_convert.hpp"
+#include "transformations/snippets/common/op/store_convert.hpp"
 
 namespace {
 

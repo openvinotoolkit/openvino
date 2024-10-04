@@ -1,9 +1,8 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import platform
-
 import numpy as np
+import platform
 import pytest
 import tensorflow as tf
 from common.tf_layer_test_class import CommonTFLayerTest
@@ -44,6 +43,8 @@ class TestUnsortedSegmentSum(CommonTFLayerTest):
         dict(data_shape=[8], segment_ids_shape=[8], num_segments_val=10),
         dict(data_shape=[10, 4], segment_ids_shape=[10], num_segments_val=5),
         dict(data_shape=[5, 6, 7], segment_ids_shape=[5], num_segments_val=100),
+        dict(data_shape=[5, 2], segment_ids_shape=[5, 2], num_segments_val=5),
+        dict(data_shape=[4, 3, 7], segment_ids_shape=[4, 3], num_segments_val=10),
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)

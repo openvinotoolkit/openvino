@@ -2076,9 +2076,11 @@ TEST(pre_post_process, postprocess_one_node_many_outputs) {
         results.emplace_back(res);
     }
     auto model = std::make_shared<Model>(ResultVector{results}, ParameterVector{data1});
-    // Add tensor name to model output 0
+    // Set tensor name to model output 0
     model->output(0).set_names({"output_split0"});
-    EXPECT_EQ(model->output(0).get_tensor().get_names().count("tensor_Split0"), 1);
+    EXPECT_EQ(model->output(0).get_tensor().get_names().count("output_split0"), 1);
+    // Result input has still tensor_split0 names from split op
+    EXPECT_EQ(model->output(0).get_node()->get_input_tensor(0).get_names().count("tensor_Split0"), 1);
     EXPECT_EQ(model->output(1).get_tensor().get_names().count("tensor_Split1"), 1);
     EXPECT_EQ(model->output(2).get_tensor().get_names().count("tensor_Split2"), 1);
 

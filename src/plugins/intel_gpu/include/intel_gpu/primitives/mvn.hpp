@@ -26,9 +26,8 @@ struct mvn : public primitive_base<mvn> {
         const bool normalize_variance,
         const float epsilon,
         const bool eps_inside_sqrt,
-        const std::vector<int64_t>& reduction_axes,
-        const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding}),
+        const std::vector<int64_t>& reduction_axes)
+        : primitive_base(id, {input}),
           normalize_variance(normalize_variance),
           epsilon(epsilon),
           eps_inside_sqrt(eps_inside_sqrt),

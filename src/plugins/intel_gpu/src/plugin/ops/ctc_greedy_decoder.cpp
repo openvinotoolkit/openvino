@@ -63,10 +63,8 @@ static void CreateCommonCTCGreedyDecoderOp(ProgramBuilder& p, const std::shared_
                     reordered_inputs,
                     blank_index,
                     ctc_merge_repeated,
-                    cldnn::padding({0, 0, 0, 0}, 0),
                     cldnn::element_type_to_data_type(op->get_output_element_type(0)),
                     op->get_output_size());
-        primitive.output_paddings = get_output_paddings(op);
         primitive.output_data_types = get_output_data_types(op);
         p.add_primitive(*op, primitive);
     } else {

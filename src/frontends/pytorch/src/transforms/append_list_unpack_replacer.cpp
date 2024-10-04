@@ -44,20 +44,23 @@ AppendListUnpackReplacer::AppendListUnpackReplacer() {
 
         while (auto append_node = cast_fw_node(input_node, "aten::append")) {
             rt_copy_from.push_back(append_node);
-            tmp_inputs.push_back(append_node->input(1).get_source_output());
+            tmp_inputs.emplace_back(append_node->input(1).get_source_output());
             input_node = append_node->input(0).get_source_output().get_node_shared_ptr();
         }
         OutputVector inputs;
-        auto list_construct_node = cast_fw_node(input_node, "prim::ListConstruct");
+        auto list_construct_node = cast_fw_node(std::move(input_node), "prim::ListConstruct");
         if (!list_construct_node) {
             return false;
         }
+        inputs.reserve(list_construct_node->inputs().size() + tmp_inputs.size());
         rt_copy_from.push_back(list_construct_node);
         for (auto& input : list_construct_node->inputs()) {
             inputs.push_back(input.get_source_output());
         }
 
-        inputs.insert(inputs.end(), tmp_inputs.rbegin(), tmp_inputs.rend());
+        inputs.insert(inputs.end(),
+                      std::make_move_iterator(tmp_inputs.rbegin()),
+                      std::make_move_iterator(tmp_inputs.rend()));
         if (getitem_node) {
             // If aten::__getitem__, expect inputs to be equivalent of pytorch Tensor[][].
             // Tensor selected by aten::__getitem__ index needs to be splitted in axis 0.
@@ -81,7 +84,7 @@ AppendListUnpackReplacer::AppendListUnpackReplacer() {
                 to_copy_rt.push_back(squeeze);
                 res.push_back(squeeze);
             }
-            copy_runtime_info_and_name(list_unpack, to_copy_rt, rt_copy_from);
+            copy_runtime_info_and_name(list_unpack, std::move(to_copy_rt), rt_copy_from);
             replace_node(list_unpack, res);
             return true;
         } else {

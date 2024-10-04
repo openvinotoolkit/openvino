@@ -9,7 +9,7 @@
 #include "snippets/lowered/specific_loop_iter_types.hpp"
 #include "snippets/op/memory_access.hpp"
 #include "snippets/op/buffer.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 #include "snippets/itt.hpp"
 
 #include <array>
@@ -91,14 +91,13 @@ size_t InsertSpecificIterations::get_decomposed_loop_increment(const UnifiedLoop
                                                                size_t remaining_work_amount) {
     OPENVINO_ASSERT(unified_loop_info, "UnifiedLoopInfo is missed!");
     const auto increment = unified_loop_info->get_increment();
-    const auto is_dynamic = utils::is_dynamic_value(remaining_work_amount);
 
     switch (type) {
         case (SpecificLoopIterType::FIRST_ITER):
         case (SpecificLoopIterType::MAIN_BODY):
             return increment;
         case(SpecificLoopIterType::LAST_ITER):
-            return is_dynamic ? 1 : remaining_work_amount;
+            return remaining_work_amount;
         default:
             OPENVINO_THROW("Unknown SpecificLoopIterType!");
     }
@@ -169,7 +168,7 @@ bool InsertSpecificIterations::decompose(LinearIR& linear_ir, LinearIR::constExp
             const auto increment = get_decomposed_loop_increment(unified_loop_info, iter_type, remaining_work_amount);
             // Update remaining Loop work amount
             // Note: if work_amount is unknown and increment = 1, it means that a loop will iterate by whole work_amount
-            if (!is_wa_dynamic || increment == 1) {
+            if (!is_wa_dynamic || increment == 1 || iter_type == SpecificLoopIterType::LAST_ITER) {
                 remaining_work_amount -= work_amount;
             }
 

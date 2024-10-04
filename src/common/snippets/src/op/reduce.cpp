@@ -5,6 +5,7 @@
 #include "snippets/op/reduce.hpp"
 
 #include "snippets/itt.hpp"
+#include "snippets/utils/utils.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
 
 namespace ov {
@@ -33,7 +34,7 @@ void ReduceBase::compute_and_set_reduce_subtensors(const std::shared_ptr<ReduceB
 
     std::vector<size_t> subtensor(reduce_rank, 1);
     for (size_t i = axis; i < reduce_rank; ++i)
-        subtensor[i] = lowered::PortDescriptor::ServiceDimensions::FULL_DIM;
+        subtensor[i] = utils::get_full_dim_value();
     lowered::PortDescriptorUtils::set_port_descriptor_ptr(reduce->input(0), std::make_shared<lowered::PortDescriptor>(reduce->input(0), subtensor));
     lowered::PortDescriptorUtils::set_port_descriptor_ptr(reduce->output(0), std::make_shared<lowered::PortDescriptor>(reduce->output(0), subtensor));
 }

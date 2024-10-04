@@ -401,6 +401,7 @@ std::shared_ptr<ov::Node> LayerTransformation::moveDequantizationAfter(
     const FakeQuantizeDequantization& dequantization,
     const bool updateOutputPrecision,
     const bool moveSubtract) const {
+    OPENVINO_ASSERT(!dequantization.empty());
     const auto result = ov::pass::low_precision::NetworkHelper::moveDequantizationAfter(operation,
         dequantization,
         updateOutputPrecision,

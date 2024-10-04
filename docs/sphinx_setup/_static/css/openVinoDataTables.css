@@ -26,6 +26,12 @@ table.dataTable {
     width: 100%;
 }
 
+.dt-container {
+    background-color: white !important;
+    padding: .5rem !important;
+    border: 1px solid rgba(211, 211, 211, 0.4);
+}
+
 th span p {
     margin-bottom: .15rem !important;
     white-space: nowrap;
