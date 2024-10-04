@@ -532,7 +532,6 @@ void ZeroInferRequest::set_weights_inputs(
         size_t inputIndex;
         for (inputIndex = 0; inputIndex < _metadata.inputs.size(); inputIndex++) {
             std::string_view mainInputName = _metadata.inputs.at(inputIndex).nodeFriendlyName;
-
             if (isMainInputWeightsName(mainInputName) &&
                 mainInputName.substr(MAIN_INPUT_WEIGHTS_PREFIX.size()) == weightName) {
                 break;
@@ -571,7 +570,7 @@ void ZeroInferRequest::infer_async() {
     for (const auto& userTensor : _userInputTensors) {
         const IODescriptor inputDescriptor = _metadata.inputs.at(inputIndex);
 
-        OPENVINO_ASSERT(!inputDescriptor.isInitInputWeights && !inputDescriptor.isInitOutputWeights,
+        OPENVINO_ASSERT(!inputDescriptor.isInitInputWeights,
                         "This path should not be used for running inferences for the \"init\" model");
 
         if (inputDescriptor.isShapeTensor) {

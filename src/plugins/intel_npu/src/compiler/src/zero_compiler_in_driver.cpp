@@ -1033,9 +1033,9 @@ std::vector<std::shared_ptr<NetworkDescription>> LevelZeroCompilerInDriver<Table
     const std::shared_ptr<const ov::Model>& model,
     const Config& config) const {
     std::vector<uint8_t> compiledModel1 =
-        readCompiledModel("/home/razvanapetroaie/models/weights_separation/resnet-50-blobs/init_elf.blob");
+        readCompiledModel("/home/razvanapetroaie/models/weights_separation/resnet-50-blobs/MTL-resnet_f16/init.blob");
     std::vector<uint8_t> compiledModel2 =
-        readCompiledModel("/home/razvanapetroaie/models/weights_separation/resnet-50-blobs/main_elf.blob");
+        readCompiledModel("/home/razvanapetroaie/models/weights_separation/resnet-50-blobs/MTL-resnet_f16/main.blob");
     NetworkMetadata metadata1 = parse(compiledModel1, config);
     NetworkMetadata metadata2 = parse(compiledModel2, config);
     metadata1.name = model->get_friendly_name() + "_init";
@@ -1135,28 +1135,29 @@ static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
 
     // Flags will be used instead of indices for informing the type of the current entry
     std::string nameFromCompiler = arg.name;
+    const bool isInput = (arg.type == ZE_GRAPH_ARGUMENT_TYPE_INPUT) ? true : false;
     bool isStateInput = false;
     bool isStateOutput = false;
     bool isShapeTensor = false;
     bool isInitInputWeights = false;
     bool isInitOutputWeights = false;
     bool isMainInputWeights = false;
-    if (isStateInputName(nameFromCompiler)) {
+    if (isInput && isStateInputName(nameFromCompiler)) {
         nameFromCompiler = nameFromCompiler.substr(READVALUE_PREFIX.length());
         isStateInput = true;
-    } else if (isStateOutputName(nameFromCompiler)) {
+    } else if (!isInput && isStateOutputName(nameFromCompiler)) {
         nameFromCompiler = nameFromCompiler.substr(ASSIGN_PREFIX.length());
         isStateOutput = true;
     } else if (isShapeTensorName(nameFromCompiler)) {
         nameFromCompiler = nameFromCompiler.substr(SHAPE_TENSOR_PREFIX.length());
         isShapeTensor = true;
-    } else if (isInitInputWeightsName(nameFromCompiler)) {
+    } else if (isInput && isInitInputWeightsName(nameFromCompiler)) {
         nameFromCompiler = nameFromCompiler.substr(INIT_INPUT_WEIGHTS_PREFIX.length());
         isInitInputWeights = true;
-    } else if (isInitOutputWeightsName(nameFromCompiler)) {
+    } else if (!isInput && isInitOutputWeightsName(nameFromCompiler)) {
         nameFromCompiler = nameFromCompiler.substr(INIT_OUTPUT_WEIGHTS_PREFIX.length());
         isInitOutputWeights = true;
-    } else if (isMainInputWeightsName(nameFromCompiler)) {
+    } else if (isInput && isMainInputWeightsName(nameFromCompiler)) {
         nameFromCompiler = nameFromCompiler.substr(MAIN_INPUT_WEIGHTS_PREFIX.length());
         isMainInputWeights = true;
     }
