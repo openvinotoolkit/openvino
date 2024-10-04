@@ -33,9 +33,9 @@ public:
                 9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.8f
         });
 
-        set_values<int64_t>(begin, {0, 0, 0, 0});
-        set_values<int64_t>(end, {2, 2, 2, 2});
-        set_values<int64_t>(strides, {1, 1, 1, 1});
+        set_values<int64_t>(begin, {0, 0, 0});
+        set_values<int64_t>(end, {2, 2, 2});
+        set_values<int64_t>(strides, {1, 1, 1});
 
         topology topology;
         topology.add(input_layout("input", input->get_layout()));

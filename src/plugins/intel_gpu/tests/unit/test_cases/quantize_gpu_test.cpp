@@ -572,7 +572,7 @@ TEST(quantize_gpu, eltwise_quantize_fs_b_yx_fsv32) {
     auto output_low = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
     auto output_high = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
 
-    set_values(input, { -1.0f, 2.0f, 3.0f, 4.0f,
+    set_values<ov::float16>(input, {-1.0f, 2.0f, 3.0f, 4.0f,
                          5.0f, 2.0f, 2.0f, 3.0f,
                          4.0f, 6.0f, 3.0f, 3.0f,
                          3.0f, 5.0f, 1.0f, 1.0f,

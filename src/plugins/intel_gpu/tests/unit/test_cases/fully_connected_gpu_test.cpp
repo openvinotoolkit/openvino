@@ -1420,7 +1420,7 @@ public:
         auto scale_mem = engine.allocate_memory({ {ofm_num, ifm_num / scales_group_size}, data_types::f16, format::bfyx });
         auto dcomp_zp_mem = engine.allocate_memory({ {1, 1, 1, 1}, data_types::u8, format::bfyx });
 
-        set_values(dcomp_zp_mem, {8});
+        set_values<int8_t>(dcomp_zp_mem, {8});
 
         auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -2.0f, 2.0f);
         set_values(input_mem, input_data);
@@ -1528,7 +1528,7 @@ public:
         auto scale_mem = engine.allocate_memory({ {ofm_num, ifm_num / scales_group_size}, data_types::f16, format::bfyx });
         auto dcomp_zp_mem = engine.allocate_memory({ {1, 1, 1, 1}, data_types::u8, format::bfyx });
 
-        set_values(dcomp_zp_mem, {8});
+        set_values<int8_t>(dcomp_zp_mem, {8});
 
         auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -1.0f, 1.0f);
         set_values(input_mem, input_data);
@@ -1698,7 +1698,7 @@ public:
         auto scale_mem = engine.allocate_memory({ {ofm_num, ifm_num / scales_group_size}, data_types::f16, format::bfyx });
         auto dcomp_zp_mem = engine.allocate_memory({ {1, 1, 1, 1}, data_types::u8, format::bfyx });
 
-        set_values(dcomp_zp_mem, {8});
+        set_values<int8_t>(dcomp_zp_mem, {8});
 
         auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -2.0f, 2.0f);
         set_values(input_mem, input_data);
@@ -1804,7 +1804,7 @@ public:
         auto scale_mem = engine.allocate_memory({ {32, 1}, data_types::f32, format::bfyx });
         auto zp_mem = engine.allocate_memory({ {32, 1}, data_types::f32, format::bfyx });
 
-        set_values<ov::float16>(input_mem, { -0.5f, 2.0f, 0.5f, 1.0f });
+        set_values<ov::float16>(input_mem, { -0.5f, 2.0f});
         set_values<uint8_t>(weights_mem, { 1, 2, 3, 4, 5, 6, 7, 8,
                                            9, 10, 11, 12, 13, 14, 15, 0,
                                            15, 14, 13, 12, 11, 10, 9, 8,
@@ -2085,7 +2085,7 @@ public:
         auto scale_mem = engine.allocate_memory({ { ofm_num, 1 }, data_types::f16, format::bfyx });
         auto dcomp_zp_mem = engine.allocate_memory({ {1, 1, 1, 1}, data_types::u8, format::bfyx });
 
-        set_values(dcomp_zp_mem, {8});
+        set_values<int8_t>(dcomp_zp_mem, {8});
 
         set_values<ov::float16>(input_mem, { -0.5f, 2.0f, 0.5f, 1.0f, 0.5f, 2.0f });
         set_values<uint8_t>(weights_mem, { 0, 1, 2, 3, 4, 5,
@@ -3605,7 +3605,7 @@ TEST(fully_connected_3d_onednn_gpu, compressed_int4_scale_static) {
     auto scale_mem = engine.allocate_memory({ {ofm_num, ifm_num / scales_group_size, 1, 1}, data_types::f16, format::bfyx });
     auto dcomp_zp_mem = engine.allocate_memory({ {1, 1, 1, 1}, data_types::u8, format::bfyx });
 
-    set_values(dcomp_zp_mem, {8});
+    set_values<int8_t>(dcomp_zp_mem, {8});
 
     auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -2.0f, 2.0f);
     set_values(input_mem, input_data);
