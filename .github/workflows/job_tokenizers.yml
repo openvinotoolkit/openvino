@@ -55,6 +55,7 @@ jobs:
         with:
           sparse-checkout: |
             .github/actions/setup_python
+            .github/actions/install_ov_wheels/action.yml
             .github/actions/cache
             install_build_dependencies.sh
 
@@ -97,25 +98,13 @@ jobs:
       # Dependencies
       #
 
-      - name: Install OpenVINO Python wheel (Linux and macOS)
-        if: runner.os != 'Windows'
-        run: |
-          # Find and install OV core wheel
-          pushd ${INSTALL_DIR}/tools
-            py_version=$(python3 -c "import sys; print(f'{sys.version_info.major}{sys.version_info.minor}')")
-            ov_wheel_name=$(find . -name "openvino-*cp$py_version*.whl")
-            python3 -m pip install $ov_wheel_name
-          popd
-
-      - name: Install OpenVINO Python wheel (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          # Find and install OV core wheel
-          Push-Location "${{ env.INSTALL_DIR }}\tools"
-            $py_version = python3 -c "import sys; print(f'{sys.version_info.major}{sys.version_info.minor}')"
-            $ov_wheel_name = Get-ChildItem -Name "openvino-*cp$py_version*.whl" -Recurse
-            python3 -m pip install $ov_wheel_name
-          Pop-Location
+      - name: Install OpenVINO Python wheels
+        uses: ./.github/actions/install_ov_wheels
+        with:
+          install-dir-path: ${{ env.INSTALL_DIR }}
+          install-core-wheel: true
+          install-dev-wheel: false
+          install-tokenizers-wheel: false
 
       #
       # Build

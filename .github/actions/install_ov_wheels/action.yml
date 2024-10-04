@@ -10,8 +10,10 @@ inputs:
   install-dev-wheel:
     description: 'Whether to install the OpenVINO Dev wheel (openvino_dev*.whl)'
     required: true
-  install-extras:
-    description: 'Whether to install the OpenVINO Dev wheel extras (openvino_dev.whl[caffe,kaldi,onnx,tensorflow2,pytorch])'
+  extras-to-install:
+    description: 'Extras to install with the OpenVINO Dev wheel (openvino_dev.whl[caffe,kaldi,onnx,tensorflow2,pytorch])'
+    required: false
+    default: ''
   install-tokenizers-wheel:
     description: 'Whether to install the OpenVINO Dev wheel (openvino_tokenizes*.whl)'
     required: true
@@ -40,9 +42,9 @@ runs:
         if ( "${{ inputs.install-core-wheel }}" -eq "true" )
         {
             $ovDevWheelPath=Get-ChildItem -Path "${{ inputs.install-dir-path }}\tools" -Filter openvino_dev*.whl | % { $_.FullName }
-            if ( "${{ inputs.install-extras }}" -eq "true" )
+            if ( "${{ inputs.extras-to-install }}" )
             {
-              python3 -m pip install "$ovDevWheelPath[caffe,kaldi,onnx,tensorflow2,pytorch]"
+              python3 -m pip install "$ovDevWheelPath[${{ inputs.extras-to-install }}]"
             }
             else
             {
@@ -67,11 +69,10 @@ runs:
         fi
         
         if [[ "${{ inputs.install-dev-wheel }}" == "true" ]]; then
-          extras_to_install="caffe,kaldi,onnx,tensorflow2,pytorch"
           pushd ${{ inputs.install-dir-path }}/tools
             ov_dev_wheel_name=$(find . -name 'openvino_dev*.whl')
-            if [[ "${{ inputs.install-extras }}" == "true" ]]; then
-              python3 -m pip install $ov_dev_wheel_name[$extras_to_install]
+            if [[ "${{ inputs.extras-to-install }}" ]]; then
+              python3 -m pip install $ov_dev_wheel_name[${{ inputs.extras-to-install }}]
             else
               python3 -m pip install $ov_dev_wheel_name
             fi

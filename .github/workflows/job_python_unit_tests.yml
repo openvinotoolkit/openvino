@@ -98,7 +98,7 @@ jobs:
           install-dir-path: ${{ env.INSTALL_DIR }}
           install-core-wheel: true
           install-dev-wheel: true
-          install-extras: true
+          extras-to-install: 'caffe,kaldi,onnx,tensorflow2,pytorch'
           install-tokenizers-wheel: false
 
       - name: Install Python API tests dependencies
