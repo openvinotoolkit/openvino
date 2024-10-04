@@ -7,7 +7,6 @@
 #include <map>
 #include <vector>
 
-#include "../../weights_bank.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 

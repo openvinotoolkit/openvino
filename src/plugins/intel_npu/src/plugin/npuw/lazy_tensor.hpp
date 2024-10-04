@@ -19,7 +19,7 @@ namespace ov {
 namespace npuw {
 namespace weights {
 
-enum class TransformType : int { TENSOR, PERMUTE, CONVERT, CONCAT };
+enum class TransformType : int { THIS, PERMUTE, CONVERT, CONCAT };
 
 // Forward declaration
 class LazyTensor;
@@ -27,10 +27,9 @@ struct LazyTensorImpl;
 
 using ConcatMeta = std::pair<std::vector<LazyTensor>, std::size_t>;
 using ConstPtr = std::shared_ptr<ov::op::v0::Constant>;
-using LTData = std::variant<ConstPtr, ov::Tensor>;
+using OrigData = std::variant<ConstPtr, ov::Tensor>;
 
-// LazyTensor owns Constant's memory
-using Transform = std::variant<LTData, std::vector<std::size_t>, std::monostate, ConcatMeta>;
+using Transform = std::variant<OrigData, std::vector<std::size_t>, std::monostate, ConcatMeta>;
 
 class LazyTensor {
 public:

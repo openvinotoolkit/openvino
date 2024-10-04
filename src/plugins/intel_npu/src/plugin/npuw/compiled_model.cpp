@@ -147,7 +147,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         rewr.run_on_model(model);
     }
 
-    auto partitioning = getPartitioning(model, m_cfg, m_weights_bank);
+    auto partitioning = getPartitioning(model, m_cfg);
     m_total_stat.gflops = partitioning.total_gflops;
     m_total_stat.ops = partitioning.total_ops;
     const std::vector<ov::npuw::Subgraph>& orderedSubgraphs = partitioning.subgraphs;
@@ -236,7 +236,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     }  // for(ordered_subgraphs)
     // NOTE(dm): there's a better way to do it, like we do in G-API backends.
 
-    m_update_required = m_cfg.get<::intel_npu::NPUW_FOLD>() ? true : false;
+    m_update_required = m_cfg.get<::intel_npu::NPUW_FOLD>();
 
     // Store mapping between manually splitted inputs/outputs
     // to connect tensors between compiled submodels
@@ -438,6 +438,7 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
     for (size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
         auto& comp_model_desc = m_compiled_submodels[idx];
 
+        // FIXME: Head and tail don't have their closures set !!!
         if (!comp_model_desc.replaced_by) {
             continue;
         }
@@ -453,6 +454,11 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
             const auto& lt = m_compiled_submodels[idx].lazy_closure[tidx];
             const auto& evaled = evaluated_tensors[idx][tidx];
             m_compiled_submodels[idx].closure.push_back(m_weights_bank->get(lt, *func_desc.device_it, evaled));
+
+            // Sanity check
+            const auto& tensor = m_compiled_submodels[idx].closure.back();
+            NPUW_ASSERT(tensor && tensor.data() && (tensor.get_size() > 0));
+
             // FIXME: should is_remote be set unconditionally?
             m_compiled_submodels[idx].is_remote.push_back(true);
         }

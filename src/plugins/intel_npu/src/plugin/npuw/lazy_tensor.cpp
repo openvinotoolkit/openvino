@@ -7,7 +7,7 @@
 using ov::npuw::weights::ConcatMeta;
 using ov::npuw::weights::ConstPtr;
 using ov::npuw::weights::LazyTensor;
-using ov::npuw::weights::LTData;
+using ov::npuw::weights::OrigData;
 using ov::npuw::weights::Transform;
 using ov::npuw::weights::TransformType;
 
@@ -17,8 +17,8 @@ namespace weights {
 
 struct LazyTensorImpl {
 public:
-    explicit LazyTensorImpl() = default;
-    explicit LazyTensorImpl(const TransformType& type, const Transform& transform);
+    LazyTensorImpl() = default;
+    LazyTensorImpl(const TransformType& type, const Transform& transform);
 
     bool operator==(const LazyTensorImpl& other) const;
 
@@ -51,8 +51,10 @@ std::size_t LazyTensorImpl::get_hash() const {
         seed = m_parent->get_hash();
     } else {
         seed = std::hash<void*>()(m_orig_data) + 0x9e3779b9;
-        seed ^= std::hash<std::string>()(m_orig_shape.to_string()) + 0x9e3779b9;
-        seed ^= std::hash<std::string>()(m_orig_type.to_string()) + 0x9e3779b9;
+        for (const auto& dim : m_orig_shape) {
+            seed ^= std::hash<std::size_t>()(dim) + 0x9e3779b9;
+        }
+        seed ^= m_orig_type.hash() + 0x9e3779b9;
     }
 
     // Combine with this hash
@@ -79,13 +81,13 @@ std::size_t LazyTensorImpl::get_hash() const {
 using ov::npuw::weights::LazyTensorImpl;
 
 LazyTensorImpl::LazyTensorImpl(const TransformType& type, const Transform& transform) {
-    if (type == TransformType::TENSOR && std::holds_alternative<LTData>(transform)) {
+    if (type == TransformType::THIS && std::holds_alternative<OrigData>(transform)) {
         m_transform = std::make_pair(type, transform);
         ov::Tensor tensor;
-        if (std::holds_alternative<ConstPtr>(std::get<LTData>(transform))) {
-            tensor = ov::npuw::util::tensor_from_const(std::get<ConstPtr>(std::get<LTData>(transform)));
+        if (std::holds_alternative<ConstPtr>(std::get<OrigData>(transform))) {
+            tensor = ov::npuw::util::tensor_from_const(std::get<ConstPtr>(std::get<OrigData>(transform)));
         } else {
-            tensor = std::get<ov::Tensor>(std::get<LTData>(transform));
+            tensor = std::get<ov::Tensor>(std::get<OrigData>(transform));
         }
         m_orig_data = tensor.data();
         m_orig_shape = tensor.get_shape();
@@ -108,7 +110,7 @@ bool LazyTensorImpl::operator==(const LazyTensorImpl& other) const {
     ConcatMeta m1, m2;
 
     switch (m_transform.first) {
-    case TransformType::TENSOR:
+    case TransformType::THIS:
         // everything is already compared above - skip
         break;
     case TransformType::CONVERT:
@@ -164,7 +166,7 @@ ov::Tensor LazyTensorImpl::eval() const {
 
     // Process the initial tensor - either from Const or from Concat
     if (!m_parent) {
-        if (m_transform.first == TransformType::TENSOR) {
+        if (m_transform.first == TransformType::THIS) {
             return get_orig_tensor();
         } else if (m_transform.first == TransformType::CONCAT) {
             std::vector<ov::Tensor> to_concat;
@@ -196,17 +198,17 @@ ov::Tensor LazyTensorImpl::eval() const {
 ov::Tensor LazyTensorImpl::get_orig_tensor() const {
     // Sanity check
     NPUW_ASSERT(!has_transformations());
-    if (std::holds_alternative<ConstPtr>(std::get<LTData>(m_transform.second))) {
-        return ov::npuw::util::tensor_from_const(std::get<ConstPtr>(std::get<LTData>(m_transform.second)));
+    if (std::holds_alternative<ConstPtr>(std::get<OrigData>(m_transform.second))) {
+        return ov::npuw::util::tensor_from_const(std::get<ConstPtr>(std::get<OrigData>(m_transform.second)));
     }
-    return std::get<ov::Tensor>(std::get<LTData>(m_transform.second));
+    return std::get<ov::Tensor>(std::get<OrigData>(m_transform.second));
 }
 
 bool LazyTensorImpl::has_transformations() const {
-    if (m_parent == nullptr) {
-        return false;
+    if (m_parent) {
+        return true;
     }
-    return true;
+    return false;
 }
 
 LazyTensor::LazyTensor(const TransformType& type, const Transform& transform)

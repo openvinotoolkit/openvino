@@ -276,14 +276,12 @@ public:
     Partitioner(const std::shared_ptr<ov::Model>& _model,
                 ov::npuw::Ensemble& _ens,
                 ov::npuw::Partitioning& _P,
-                ::intel_npu::Config& _cfg,
-                const std::shared_ptr<ov::npuw::weights::Bank>& _bank)
+                ::intel_npu::Config& _cfg)
         : model(_model),
           ens(_ens),
           P(_P),
           func_pipeline_type(FunctionPipelineType::FOLD),
-          cfg(_cfg),
-          bank(_bank) {}
+          cfg(_cfg) {}
 
     ////////////////////////////////////////////////////////
     // Partitioning execution pipeline
@@ -319,7 +317,6 @@ public:
 private:
     FunctionPipelineType func_pipeline_type;
     ::intel_npu::Config& cfg;
-    const std::shared_ptr<ov::npuw::weights::Bank>& bank;
 };
 
 void Partitioner::identifySubgraphs() {
@@ -1493,7 +1490,7 @@ void Partitioner::createFunction(FunctionPipeline& func_ggg) {
 
                 LOG_DEBUG("Register " << prod_output << " in the function closure");
                 funcall._lazy_closure.push_back(
-                    LazyTensor(TransformType::TENSOR,
+                    LazyTensor(TransformType::THIS,
                                std::dynamic_pointer_cast<ov::op::v0::Constant>(input_node)));  // (n)/1/i/c
             } else if (ov::op::util::is_parameter(input_node)) {
                 LOG_DEBUG("Handling a Parameter input " << prod_output);
@@ -1591,7 +1588,7 @@ void Partitioner::matchRepeatedSubgraphs(const std::string& func_name) {
                     LOG_DEBUG("Register " << prod_output << " in the function closure[" << param_idx
                                           << "] (via prototype " << proto_layer_name << ")");
                     funcall._lazy_closure[param_idx - function._param_offset] =
-                        LazyTensor(TransformType::TENSOR,
+                        LazyTensor(TransformType::THIS,
                                    std::dynamic_pointer_cast<ov::op::v0::Constant>(input_node));  // (t)/1/c
                 }
             }  // for (inputs)
@@ -1716,11 +1713,6 @@ void Partitioner::optimize(const std::string& func_name) {
                 auto& funcall = func_group.refs[f_idx].get();
                 // FIXME: assuming no transformations were applied to the tensor - since we are utilizing the original
                 // ov::Tensor below
-                NPUW_ASSERT(!funcall._lazy_closure[w_idx - f._param_offset].has_transformations());
-                if (z_idx != -1) {
-                    NPUW_ASSERT(!funcall._lazy_closure[z_idx - f._param_offset].has_transformations());
-                }
-                NPUW_ASSERT(!funcall._lazy_closure[s_idx - f._param_offset].has_transformations());
                 ov::Tensor cw = funcall._lazy_closure[w_idx - f._param_offset].get_orig_tensor();
                 ov::Tensor cz =
                     z_idx != -1 ? funcall._lazy_closure[z_idx - f._param_offset].get_orig_tensor() : ov::Tensor{};
@@ -1735,7 +1727,7 @@ void Partitioner::optimize(const std::string& func_name) {
                 } else {
                     NPUW_ASSERT(false && "Unsupported combination");
                 }
-                funcall._lazy_closure.push_back(LazyTensor(TransformType::TENSOR, std::move(dst)));
+                funcall._lazy_closure.push_back(LazyTensor(TransformType::THIS, std::move(dst)));
             });
         }
 
@@ -1750,7 +1742,7 @@ void Partitioner::optimize(const std::string& func_name) {
                 auto new_elem_type = params_to_gather.pnew->get_element_type();
                 auto new_shape = params_to_gather.pnew->get_shape();
                 funcall.get()._lazy_closure.push_back(
-                    LazyTensor(TransformType::TENSOR, ov::Tensor(new_elem_type, new_shape)));
+                    LazyTensor(TransformType::THIS, ov::Tensor(new_elem_type, new_shape)));
             }
         }
 
@@ -2003,9 +1995,7 @@ void Partitioner::finalizeLinks() {
 
 }  // namespace
 
-ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model>& model,
-                                                 ::intel_npu::Config& cfg,
-                                                 const std::shared_ptr<weights::Bank>& bank) {
+ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model>& model, ::intel_npu::Config& cfg) {
     LOG_INFO("Building partitioning for model " << model->get_friendly_name() << "...");
     LOG_BLOCK();
 
@@ -2064,7 +2054,7 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
     Partitioning P;
     P.total_gflops = ens.gflops;
 
-    Partitioner p(model, ens, P, cfg, bank);
+    Partitioner p(model, ens, P, cfg);
     p.identifySubgraphs();
 
     if (!ens.repeated.empty()) {
