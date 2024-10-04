@@ -188,10 +188,9 @@ public:
 
     /// \brief Construct a tensor constant from shared memory.
     ///
-    /// The constant byte size (defined by type and shape) must be lower than shred memory size, otherwise throw
+    /// The constant byte size (defined by type and shape) must be lower than shared memory size, otherwise throw
     /// exception.
-    /// The Constant can take ownership of shared memory if provided shared object is not null pointer manges memory
-    /// lifetime.
+    /// The Constant can take ownership of shared memory if provided shared object is not null manges memory lifetime.
     ///
     /// \param type   The element type of the tensor constant.
     /// \param shape  The shape of the tensor constant.
