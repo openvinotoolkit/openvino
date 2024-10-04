@@ -92,8 +92,6 @@ class TorchScriptPythonDecoder(Decoder):
                         self.raw_inputs[i + n].debugName())
 
         if isinstance(self.graph_element, torch.Graph):
-            torch._C._jit_pass_inline_fork_wait(self.graph_element)
-            torch._C._jit_pass_inline(self.graph_element)
             self._transform_tensor_list_constants_to_listconstruct(
                 self.graph_element)
             self._transform_optional_constants(self.graph_element)
@@ -309,10 +307,17 @@ class TorchScriptPythonDecoder(Decoder):
         return list(self.graph_element.blocks())
 
     def get_subgraph_decoder(self, index: int):
-        decoder = TorchScriptPythonDecoder(
-            self.pt_module, self.get_subgraphs(
-            )[index], alias_db=self.alias_db, shared_memory=self._shared_memory, module_extensions=self.module_extensions
-        )
+        module = self.pt_module
+        if self.graph_element.kind() == "prim::fork":
+            in0 = self.raw_inputs[0]
+            if in0.node().kind() == "prim::GetAttr":
+                module, _ = get_value_from_getattr(in0.node(), self.pt_module)
+        decoder = TorchScriptPythonDecoder(module,
+                                           self.get_subgraphs()[index],
+                                           alias_db=self.alias_db,
+                                           shared_memory=self._shared_memory,
+                                           module_extensions=self.module_extensions
+                                           )
         self.m_decoders.append(decoder)
         return decoder
 
@@ -460,8 +465,8 @@ class TorchScriptPythonDecoder(Decoder):
 
     @staticmethod
     def _as_constant_list(pt_value: torch.Value):
-        # For now it is treat a list as a 1D tensor; it is required by converters to avoid need to massively
-        # rewrite them in that part where constant attributes are queried
+        # For now we treat a list as a 1D tensor; it is required by converters to avoid
+        # need to massively rewrite them in that part where constant attributes are queried
         pt_element_type = str(pt_value.type().getElementType())
         ivalue = pt_value.toIValue()
         is_known_type = pt_element_type in pt_to_ov_type_map
@@ -471,6 +476,7 @@ class TorchScriptPythonDecoder(Decoder):
             ovshape = PartialShape([len(ivalue)])
             ov_const = op.Constant(ovtype, ovshape.get_shape(), ivalue)
             return ov_const.outputs()
+        return []
 
     def _get_device_string(self) -> str:
         assert self.graph_element.kind(
