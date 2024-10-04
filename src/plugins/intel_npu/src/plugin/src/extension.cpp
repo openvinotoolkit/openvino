@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#pragma once
-
 #include "openvino/core/extension.hpp"
+
 #include "openvino/core/op_extension.hpp"
 #include "ov_ops/rms.hpp"
 

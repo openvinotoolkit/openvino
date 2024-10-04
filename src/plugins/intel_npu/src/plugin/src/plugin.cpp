@@ -9,7 +9,6 @@
 #include "compiled_model.hpp"
 #include "compiler.hpp"
 #include "device_helpers.hpp"
-#include "extension.hpp"
 #include "intel_npu/al/config/common.hpp"
 #include "intel_npu/al/config/compiler.hpp"
 #include "intel_npu/al/config/npuw.hpp"
