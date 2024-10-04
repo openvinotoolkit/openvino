@@ -145,6 +145,7 @@ MemoryPtr reorderData(DnnlMemoryDescPtr srcWeightDesc,
             std::cout << "out: " << static_cast<int>(output->getDataType()) << " in: " << static_cast<int>(input.getDataType()) << std::endl;
             if (output->getDataType() != input.getDataType() && node::Convert::isSupportedDesc(input.getDesc()) &&
                 node::Convert::isSupportedDesc(output->getDesc())) {
+                std::cout << "CONVERT" << std::endl;
                 //we probably could not make the reorder because there is no one supporting this precision conversion
                 //lets try to convert data first using cpu_convert
                 auto data = static_cast<const uint8_t *>(input.getData());
@@ -188,7 +189,32 @@ static MemoryPtr prepareWeightMemory(const MemoryArgs &memory,
     const auto K = wgtDims[1];
 
     auto create = [&]() {
-
+        MemoryPtr final_ptr = memory.at(ARG_WEI);
+        // Convert weights precision
+        /*if (aclfcAttrs.isConvertedWeights) {
+            MemoryArgs convertMemoryArgs;
+            convertMemoryArgs[ARG_SRC_0] = memory.at(ARG_WEI);
+            convertMemoryArgs[ARG_DST] = std::make_shared<Memory>(context->getEngine(),
+                                                           convertMemoryArgs[ARG_SRC_0]->getDescPtr()->cloneWithNewPrecision(
+                                                                   aclfcAttrs.inputPrecision));
+            auto aclWeightsConverter = std::make_shared<acl_fc_executor::ACLWeightsConverter>();
+            if (aclWeightsConverter->update(convertMemoryArgs)) {
+                aclWeightsConverter->execute(convertMemoryArgs);
+            } else {
+                auto count_wei_elem = std::accumulate(convertMemoryArgs[ARG_SRC_0]->getStaticDims().begin(),
+                                                      convertMemoryArgs[ARG_SRC_0]->getStaticDims().end(),
+                                                      1,
+                                                      std::multiplies<>());
+                cpu_convert(convertMemoryArgs[ARG_SRC_0]->getData(),
+                            convertMemoryArgs[ARG_DST]->getData(),
+                            convertMemoryArgs[ARG_SRC_0]->getPrecision(),
+                            convertMemoryArgs[ARG_DST]->getPrecision(),
+                            count_wei_elem);
+            }
+            final_ptr = convertMemoryArgs[ARG_DST];
+        }*/
+        // Transpose weights
+        //if (!aclfcAttrs.weightsNonTransposed) {
             auto reverse_weights_dims = memory.at(ARG_WEI)->getStaticDims();
             if (reverse_weights_dims.size() == 3) {
                 reverse_weights_dims = VectorDims(
@@ -196,25 +222,27 @@ static MemoryPtr prepareWeightMemory(const MemoryArgs &memory,
             }
             std::reverse(reverse_weights_dims.begin(), reverse_weights_dims.end());
             MemoryArgs memoryArgs;
-            memoryArgs[ARG_SRC_0] = memory.at(ARG_WEI);
+            memoryArgs[ARG_SRC_0] = final_ptr;
             memoryArgs[ARG_DST] = std::make_shared<Memory>(context->getEngine(),
-                                                           CpuBlockedMemoryDesc(aclfcAttrs.inputPrecision,//memory.at(ARG_WEI)->getPrecision(),
+                                                           CpuBlockedMemoryDesc(aclfcAttrs.inputPrecision,
                                                                                 intel_cpu::Shape(reverse_weights_dims)));
 //ONEDNN SECTION START
             //const auto& eng = context->getEngine();
-            const auto& weiDesc = memoryArgs[ARG_SRC_0]->getDescPtr();//memory.at(ARG_WEI)->getDescPtr();
-            auto dstDesc = memoryArgs[ARG_DST]->getDescPtr();//memory.at(ARG_DST)->getDescPtr();
+            //auto srcDesc = memory.at(ARG_SRC)->getDescPtr();
+            const auto& weiDesc = memoryArgs[ARG_SRC_0]->getDescPtr();
+            auto dstDesc = memoryArgs[ARG_DST]->getDescPtr();
 
-            auto dstDescDims = dstDesc->getShape().getDims();
-            std::swap(dstDescDims[0], dstDescDims[1]);
-            auto dstDescRevertedDims = dstDesc->cloneWithNewDims(dstDescDims, true);
+            auto weiDescDims = weiDesc->getShape().getDims();
+            std::swap(weiDescDims[0], weiDescDims[1]);
+            auto weiDescRevertedDims = weiDesc->cloneWithNewDims(weiDescDims, true);
 
-            auto dnnl_weiDesc = MemoryDescUtils::convertToDnnlMemoryDesc(weiDesc);
-            const auto dnnl_dstDescRevertedDims = MemoryDescUtils::convertToDnnlMemoryDesc(dstDescRevertedDims);
-            dnnl_weiDesc = makeTransposedWeightDescriptor(dnnl_weiDesc, dnnl_dstDescRevertedDims, !aclfcAttrs.weightsNonTransposed);
+            auto dnnlSrcDesc = MemoryDescUtils::convertToDnnlMemoryDesc(weiDescRevertedDims);
+            const auto dnnlDstDesc = MemoryDescUtils::convertToDnnlMemoryDesc(dstDesc);
 
-            MemoryPtr final_ptr = reorderData(dnnl_weiDesc, dnnl_dstDescRevertedDims, memoryArgs, context);
+            dnnlSrcDesc = makeTransposedWeightDescriptor(dnnlSrcDesc, dnnlDstDesc, !aclfcAttrs.weightsNonTransposed);
 
+            final_ptr = reorderData(dnnlSrcDesc, dnnlDstDesc, memoryArgs, context);
+        //}
         DEBUG_LOG("ACLFullyConnectedExecutor: cache miss, perform packing");
         return final_ptr;
     };
