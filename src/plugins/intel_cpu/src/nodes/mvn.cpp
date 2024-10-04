@@ -2562,7 +2562,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, co
                 //                      //  |
                 //                      // \|/
                 /////////////////////////////////
-                auto mean_buffer_ptr = &mean_buffer[aux_buffer_size * parallel_get_thread_num()];
+                auto mean_buffer_ptr = &mean_buffer[aux_buffer_size * static_cast<size_t>(parallel_get_thread_num())];
                 for (size_t i = 0; i < blk_size; i++)
                     mean_buffer_ptr[i] = 0.f;
 
@@ -2589,7 +2589,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, co
                     size_t src_offset = b_offset + cb * C2 + d * C1 + h * C0;
 
                     float variance_internal = 0.0f;
-                    auto variance_buffer_ptr = &variance_buffer[aux_buffer_size * parallel_get_thread_num()];
+                    auto variance_buffer_ptr = &variance_buffer[aux_buffer_size * static_cast<size_t>(parallel_get_thread_num())];
                     for (size_t i = 0; i < blk_size; i++)
                         variance_buffer_ptr[i] = 0.f;
 

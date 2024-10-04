@@ -72,4 +72,3 @@ Additional Resources
 - :doc:`Convert a Model <legacy-features/transition-legacy-conversion-api/legacy-conversion-api>`.
 - :doc:`OpenVINO™ Runtime User Guide <../openvino-workflow/running-inference>`.
 - For more information on Sample Applications, see the :doc:`OpenVINO Samples Overview <../learn-openvino/openvino-samples>`
-- For IoT Libraries and Code Samples, see the `Intel® IoT Developer Kit <https://github.com/intel-iot-devkit>`__.

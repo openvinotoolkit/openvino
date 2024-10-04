@@ -96,12 +96,11 @@ void BrgemmCPU::validate_and_infer_types() {
 
 void BrgemmCPU::validate_with_scratchpad() const {
     // Additional check for 3rd input
-    if (one_of(m_type, BRGEMM_TYPE::WITH_COMPENSATIONS, BRGEMM_TYPE::WITH_AMX)) {
-        const auto& pshape = get_input_partial_shape(2);
-        OPENVINO_ASSERT(pshape.is_static(), "BRGEMM Scratch must have static shape");
-        if (with_compensations(m_type)) {
-            OPENVINO_ASSERT(get_input_element_type(2) == ov::element::f32, "BRGEMM Scratch with compensations must have FP32 element type");
-        }
+    if (with_compensations(m_type)) {
+        OPENVINO_ASSERT(get_input_element_type(2) == ov::element::f32, "BRGEMM Scratch with compensations must have FP32 element type");
+    } else if (with_amx(m_type)) {
+        OPENVINO_ASSERT(get_input_partial_shape(2).is_static(), "BRGEMM Scratch must have static shape");
+        OPENVINO_ASSERT(get_input_element_type(2) == ov::element::u8, "BRGEMM Scratch must have U8 element type");
     }
 }
 
@@ -137,7 +136,7 @@ std::shared_ptr<BrgemmCopyB> BrgemmCPU::get_brgemm_copy() const {
     if (const auto brgemm_copy_b = ov::as_type_ptr<BrgemmCopyB>(b_input_node)) {
         return brgemm_copy_b;
     }
-    if (ov::is_type<snippets::op::IntermediateMemoryBuffer>(b_input_node)) {
+    if (ov::is_type<snippets::op::Buffer>(b_input_node)) {
         if (const auto brgemm_copy_b = ov::as_type_ptr<BrgemmCopyB>(b_input_node->get_input_node_shared_ptr(0))) {
             return brgemm_copy_b;
         }
