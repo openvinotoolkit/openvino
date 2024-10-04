@@ -237,7 +237,7 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
     }
 
     const auto axis = node.get_attribute_value<int64_t>("axis", 1);
-    const auto block_size = node.get_attribute_value<int64_t>("block_size", 0);
+    const auto block_size = node.get_attribute_value<size_t>("block_size", 0);
     const auto scale_type = scale.get_element_type();
 
     FRONT_END_GENERAL_CHECK(block_size > 0, "block_size must be greater than zero");
@@ -248,8 +248,8 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
     const auto& x = src_x.get_element_type() == scale_type ? src_x : std::make_shared<v1::ConvertLike>(src_x, scale);
     // For further broadcasting scales and zp - reshape input to a shape [x.shape[0]/block_size, block_size, x.shape[1]]
     ov::Output<ov::Node> broadcastable_x = op::util::reshape(x,
-                                                             Shape{static_cast<uint64_t>(x.get_shape()[0] / block_size),
-                                                                   static_cast<uint64_t>(block_size),
+                                                             Shape{static_cast<size_t>(x.get_shape()[0]) / block_size,
+                                                                   block_size,
                                                                    x.get_shape()[1]});
 
     // Adding additional dimension for broadcasting
