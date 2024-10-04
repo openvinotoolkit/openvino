@@ -72,7 +72,7 @@ std::size_t LazyTensorImpl::get_hash() const {
         }
     }
 
-    return m_hash;
+    return seed;
 }
 }  // namespace weights
 }  // namespace npuw
@@ -205,10 +205,7 @@ ov::Tensor LazyTensorImpl::get_orig_tensor() const {
 }
 
 bool LazyTensorImpl::has_transformations() const {
-    if (m_transform.first == TransformType::THIS) {
-        return true;
-    }
-    return false;
+    return m_transform.first != TransformType::THIS;
 }
 
 LazyTensor::LazyTensor(const TransformType& type, const Transform& transform)
