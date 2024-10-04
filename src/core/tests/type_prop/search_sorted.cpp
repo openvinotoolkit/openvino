@@ -9,14 +9,14 @@
 using namespace std;
 using namespace ov;
 
-#define EXPECT_THROW_SUBSTRING(STATEMENT, SUBSTRING)              \
-    try {                                                         \
-        STATEMENT;                                                \
-        FAIL() << "Exception not thrown";                         \
-    } catch (const NodeValidationFailure& error) {                \
-        EXPECT_THAT(error.what(), testing::HasSubstr(SUBSTRING)); \
-    } catch (...) {                                               \
-        FAIL() << "Unexpected exception thrown";                  \
+#define EXPECT_THROW_SUBSTRING(SORTED, VALUES, SUBSTRING)             \
+    try {                                                             \
+        auto op = make_shared<op::v15::SearchSorted>(SORTED, VALUES); \
+        FAIL() << "Exception not thrown";                             \
+    } catch (const NodeValidationFailure& error) {                    \
+        EXPECT_THAT(error.what(), testing::HasSubstr(SUBSTRING));     \
+    } catch (...) {                                                   \
+        FAIL() << "Unexpected exception thrown";                      \
     }
 
 static void PerformShapeTest(const PartialShape& sorted_shape,
@@ -64,21 +64,19 @@ TEST(type_prop, search_sorted_shape_infer_both_dynamic_4) {
 TEST(type_prop, search_sorted_shape_infer_different_types) {
     auto sorted = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 6});
     auto values = make_shared<ov::op::v0::Parameter>(element::i32, Shape{1, 3, 6});
-    EXPECT_THROW_SUBSTRING(make_shared<op::v15::SearchSorted>(values, sorted),
-                           std::string("must have the same element type"));
+    EXPECT_THROW_SUBSTRING(values, sorted, std::string("must have the same element type"));
 }
 
 TEST(type_prop, search_sorted_shape_infer_wrong_rank) {
     auto sorted = make_shared<ov::op::v0::Parameter>(element::i32, Shape{1, 1, 3, 6});
     auto values = make_shared<ov::op::v0::Parameter>(element::i32, Shape{1, 3, 6});
-    EXPECT_THROW_SUBSTRING(make_shared<op::v15::SearchSorted>(sorted, values),
-                           std::string("Sorted sequence and values have different ranks"));
+    EXPECT_THROW_SUBSTRING(sorted, values, std::string("Sorted sequence and values have different ranks"));
 }
 
 TEST(type_prop, search_sorted_shape_infer_wrong_dim) {
     auto sorted = make_shared<ov::op::v0::Parameter>(element::i32, Shape{1, 1, 3, 6});
     auto values = make_shared<ov::op::v0::Parameter>(element::i32, Shape{1, 1, 5, 6});
-    EXPECT_THROW_SUBSTRING(make_shared<op::v15::SearchSorted>(sorted, values), std::string(" different 2 dimension."));
+    EXPECT_THROW_SUBSTRING(sorted, values, std::string(" different 2 dimension."));
 }
 
 #undef EXPECT_THROW_SUBSTRING
