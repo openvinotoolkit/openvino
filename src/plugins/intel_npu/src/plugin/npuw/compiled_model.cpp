@@ -419,31 +419,31 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
         evaluated_tensors[idx].resize(m_compiled_submodels[idx].lazy_closure.size());
         auto& comp_model_desc = m_compiled_submodels[idx];
 
-        if (!comp_model_desc.replaced_by) {
+        // Skip optimized out
+        if (!comp_model_desc.compiled_model && !comp_model_desc.replaced_by) {
             return;
         }
 
-        const auto real_idx = comp_model_desc.replaced_by.value();
+        const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
         auto& func_desc = m_compiled_submodels[real_idx];
 
         for (std::size_t tidx = 0; tidx < comp_model_desc.lazy_closure.size(); ++tidx) {
             const auto& lt = m_compiled_submodels[idx].lazy_closure[tidx];
-            if (m_weights_bank->has(lt, *func_desc.device_it)) {
-                continue;
+            if (!m_weights_bank->has(lt, *func_desc.device_it)) {
+                evaluated_tensors[idx][tidx] = lt.eval();
             }
-            evaluated_tensors[idx][tidx] = lt.eval();
         }
     });
 
     for (size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
         auto& comp_model_desc = m_compiled_submodels[idx];
 
-        // FIXME: Head and tail don't have their closures set !!!
-        if (!comp_model_desc.replaced_by) {
+        // Skip optimized out
+        if (!comp_model_desc.compiled_model && !comp_model_desc.replaced_by) {
             continue;
         }
 
-        const auto real_idx = comp_model_desc.replaced_by.value();
+        const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
         auto& func_desc = m_compiled_submodels[real_idx];
 
         // Due to concat some tensor should be skipped in closure
