@@ -527,6 +527,7 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
     gen_pipeline.register_pass<lowered::pass::CleanupLoopOffsets>();
     gen_pipeline.register_pass<lowered::pass::OptimizeLoopSingleEvaluation>();
     gen_pipeline.run(*m_linear_ir);
+    snippets::lowered::pass::SerializeControlFlow("snsdebug_lowered.xml").run(*m_linear_ir);
 }
 
 snippets::Schedule Subgraph::generate(const BlockedShapeVector& blocked_input_shapes,
