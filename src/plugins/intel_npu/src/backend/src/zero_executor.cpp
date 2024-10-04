@@ -88,7 +88,7 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& i
     }
 
     if (_graph_ddi_table_ext.version() < ZE_GRAPH_EXT_VERSION_1_8) {
-        initilize_graph_through_command_list();
+        initialize_graph_through_command_list();
     } else {
         ze_graph_properties_2_t properties = {};
         properties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES;
@@ -97,10 +97,10 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& i
         if (properties.initStageRequired & ZE_GRAPH_STAGE_INITIALIZE) {
             OV_ITT_TASK_NEXT(ZERO_EXECUTOR_GRAPH, "pfnGraphInitialize");
             _graph_ddi_table_ext.pfnGraphInitialize(_graph);
+        }
 
-            if (properties.initStageRequired & ZE_GRAPH_STAGE_COMMAND_LIST_INITIALIZE) {
-                initilize_graph_through_command_list();
-            }
+        if (properties.initStageRequired & ZE_GRAPH_STAGE_COMMAND_LIST_INITIALIZE) {
+            initialize_graph_through_command_list();
         }
     }
 
@@ -109,11 +109,11 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& i
     }
 }
 
-void ZeroExecutor::initilize_graph_through_command_list() const {
+void ZeroExecutor::initialize_graph_through_command_list() const {
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_GRAPH,
                       itt::domains::LevelZeroBackend,
                       "Executor::ZeroExecutor",
-                      "initilize_graph_through_command_list");
+                      "initialize_graph_through_command_list");
 
     _logger.debug("ZeroExecutor::ZeroExecutor init start - create graph_command_list");
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Executor::ZeroExecutor");

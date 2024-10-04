@@ -61,7 +61,7 @@ public:
     }
 
 private:
-    void initilize_graph_through_command_list() const;
+    void initialize_graph_through_command_list() const;
 
     const Config _config;
     Logger _logger;
