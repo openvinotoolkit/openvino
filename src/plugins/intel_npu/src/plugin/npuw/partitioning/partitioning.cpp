@@ -4,6 +4,8 @@
 
 #include "partitioning.hpp"
 
+#include <memory>
+
 #include "../logging.hpp"
 #include "../util.hpp"
 #include "intel_npu/al/config/npuw.hpp"
@@ -19,6 +21,26 @@
 #include "openvino/util/xml_parse_utils.hpp"
 #include "patterns/dcoff.hpp"
 #include "patterns/opt.hpp"
+
+namespace ov {
+namespace npuw {
+inline bool operator==(const std::reference_wrapper<Subgraph>& lhs, const std::reference_wrapper<Subgraph>& rhs) {
+    ov::npuw::Subgraph& llink = lhs.get();
+    ov::npuw::Subgraph& rlink = rhs.get();
+    return &llink == &rlink;
+}
+}  // namespace npuw
+}  // namespace ov
+
+template <typename T2>
+struct std::hash<std::pair<ov::npuw::Subgraph::Ref, T2>> {
+    std::size_t operator()(std::pair<ov::npuw::Subgraph::Ref, T2> const& p) const noexcept {
+        ov::npuw::Subgraph& sg = p.first.get();
+        std::size_t h1 = std::hash<void*>{}(&sg);
+        std::size_t h2 = std::hash<T2>{}(p.second);
+        return h1 ^ (h2 << 1);
+    }
+};
 
 namespace {
 
@@ -161,6 +183,8 @@ private:
 
     using PPtr = std::shared_ptr<ov::op::v0::Parameter>;
     using RPtr = std::shared_ptr<ov::op::v0::Result>;
+    using SubgParam = std::pair<ov::npuw::Subgraph::Ref, PPtr>;
+    using SubgResult = std::pair<ov::npuw::Subgraph::Ref, RPtr>;
     using LinkPtrTo = std::pair<size_t /*submodel_idx*/
                                 ,
                                 PPtr /*param ptr*/
@@ -182,8 +206,8 @@ private:
 
         // Map every function call instance' Parameter and result
         // back to its prototype Parameter and Result
-        std::unordered_map<PPtr, PPtr> param_call_to_proto;
-        std::unordered_map<RPtr, RPtr> result_call_to_proto;
+        std::unordered_map<SubgParam, PPtr> param_call_to_proto;
+        std::unordered_map<SubgResult, RPtr> result_call_to_proto;
     };
     std::map<std::string, FunctionPipeline> all_functions;
 
@@ -203,7 +227,10 @@ private:
     void createFunction(FunctionPipeline& func_ggg);
 
     template <typename T, typename M>
-    void rearrange_to_function_protocol(const std::vector<T>& protocol, std::vector<T>& call, const M& call_to_proto) {
+    void rearrange_to_function_protocol(ov::npuw::Subgraph::Ref func_ref,
+                                        const std::vector<T>& protocol,
+                                        std::vector<T>& call,
+                                        const M& call_to_proto) {
         LOG_DEBUG("Rearranging...");
         LOG_BLOCK();
         LOG_DEBUG("Protocol: " << protocol.size());
@@ -215,7 +242,7 @@ private:
         LOG_DEBUG("Call: " << call.size());
         for (auto&& c : call) {
             LOG_BLOCK();
-            auto p_c = call_to_proto.at(c);
+            auto p_c = call_to_proto.at(typename M::key_type(func_ref, c));
             to_proto.push_back(p_c);
             LOG_DEBUG(c << " (which is " << p_c << ")");
         }
@@ -536,7 +563,7 @@ void Partitioner::identifySubgraphs() {
             LOG_VERB("Processing group's output layer " << output_layer_name);
             LOG_BLOCK();
             auto output_layer_ptr = node_id_cache.at(output_layer_name);
-            if (output_layer_ptr->inputs().empty()) {
+            if (output_layer_ptr->outputs().empty()) {
                 OPENVINO_THROW("The group's output layer ",
                                output_layer_name,
                                " has NO OUTPUTS!! - Graph contracts are broken??");
@@ -1327,9 +1354,12 @@ void Partitioner::matchParameters(const std::string& func_name) {
 
     // Now walk other submodels and match parameters with the same key
     // (yes, including the first one)
-    for (auto&& call : model_group) {
+    for (std::size_t call_id = 0; call_id < model_group.size(); ++call_id) {
         LOG_DEBUG("Handle function call...");
         LOG_BLOCK();
+        auto call = model_group[call_id];
+        auto subg_ref = func.refs[call_id];
+
         std::unordered_set<ov::Node*> this_model_nodes;
         for (auto&& node_ptr : call->get_ordered_ops()) {
             this_model_nodes.insert(node_ptr.get());
@@ -1348,7 +1378,7 @@ void Partitioner::matchParameters(const std::string& func_name) {
                 LOG_DEBUG("Find orig parameter for " << node);
                 auto& orig_param = proto_parameters.at(pkey);
                 auto this_param = std::dynamic_pointer_cast<PPtr::element_type>(node);
-                func.param_call_to_proto[this_param] = orig_param;
+                func.param_call_to_proto[SubgParam(subg_ref, this_param)] = orig_param;
             }
         }
     }
@@ -1386,14 +1416,16 @@ void Partitioner::matchResults(const std::string& func_name) {
 
     // Now walk all submodels and match parameters with the same key
     // (yes, including the first one)
-    for (auto&& call : model_group) {
+    for (std::size_t call_idx = 0; call_idx < model_group.size(); ++call_idx) {
+        auto call = model_group[call_idx];
+        auto subg_ref = func.refs[call_idx];
         for (auto&& node : call->get_ordered_ops()) {
             if (ov::op::util::is_output(node)) {
                 auto&& port = node->input(0).get_source_output();
                 RKey rkey = {layer_to_prototype.at(port.get_node()->get_friendly_name()), port.get_index()};
                 auto& orig_result = proto_results.at(rkey);
                 auto this_result = std::dynamic_pointer_cast<RPtr::element_type>(node);
-                func.result_call_to_proto[this_result] = orig_result;
+                func.result_call_to_proto[SubgResult(subg_ref, this_result)] = orig_result;
             }
         }
     }
@@ -1517,8 +1549,8 @@ void Partitioner::matchRepeatedSubgraphs(const std::string& func_name) {
         funcall._gflops = this_sg._gflops;          // duplicated code again!
         funcall._ops = this_sg._ops;                // duplicated code again!
         funcall._avoid_list = this_sg._avoid_list;  // duplicated code again!
-        rearrange_to_function_protocol(body_params, funcall._parameters, func_ggg.param_call_to_proto);
-        rearrange_to_function_protocol(body_results, funcall._results, func_ggg.result_call_to_proto);
+        rearrange_to_function_protocol(this_sg, body_params, funcall._parameters, func_ggg.param_call_to_proto);
+        rearrange_to_function_protocol(this_sg, body_results, funcall._results, func_ggg.result_call_to_proto);
 
         auto func_iter = P.functions.find(func_name);
         NPUW_ASSERT(func_iter != P.functions.end());
@@ -1883,7 +1915,7 @@ void Partitioner::finalizeLinks() {
             auto& params = P.functions.at(sg_desc._funcall)._model->get_parameters();
             auto& proto = func_pipeline_type == FunctionPipelineType::CWAI
                               ? ptr  // no protos in the CWAI case..
-                              : all_functions.at(sg_desc._funcall).param_call_to_proto.at(ptr);
+                              : all_functions.at(sg_desc._funcall).param_call_to_proto.at(SubgParam(sg_desc, ptr));
             auto param_iter = std::find(params.begin(), params.end(), proto);
             NPUW_ASSERT(param_iter != params.end());
             return std::distance(params.begin(), param_iter);
@@ -1904,7 +1936,7 @@ void Partitioner::finalizeLinks() {
             auto& results = P.functions.at(sg_desc._funcall)._model->get_results();
             auto& proto = func_pipeline_type == FunctionPipelineType::CWAI
                               ? ptr  // no protos in the CWAI case...
-                              : all_functions.at(sg_desc._funcall).result_call_to_proto.at(ptr);
+                              : all_functions.at(sg_desc._funcall).result_call_to_proto.at(SubgResult(sg_desc, ptr));
             auto result_iter = std::find(results.begin(), results.end(), proto);
             NPUW_ASSERT(result_iter != results.end());
             return std::distance(results.begin(), result_iter);

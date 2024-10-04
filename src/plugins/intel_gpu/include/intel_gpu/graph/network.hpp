@@ -4,17 +4,15 @@
 
 #pragma once
 
-#include "openvino/runtime/threading/cpu_streams_executor.hpp"
+#include "openvino/runtime/threading/istreams_executor.hpp"
 
 #include "intel_gpu/graph/topology.hpp"
 #include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
-#include "intel_gpu/runtime/compounds.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/event.hpp"
 #include "intel_gpu/runtime/stream.hpp"
-#include "intel_gpu/runtime/lru_cache.hpp"
 #include "intel_gpu/runtime/shape_predictor.hpp"
 #include "intel_gpu/plugin/variable_state.hpp"
 
@@ -211,7 +209,7 @@ public:
     bool is_dynamic() const { return _is_dynamic; }
     size_t get_weights_cache_capacity() const { return _weights_cache_capacity; }
 
-    memory_pool& get_memory_pool() {
+    memory_pool& get_memory_pool() const {
         return *_memory_pool;
     }
 
@@ -284,7 +282,9 @@ private:
     void dump_memory_pool(std::string dump_path, int64_t curr_iter);
 
 #ifdef GPU_DEBUG_CONFIG
-    int64_t iteration = 0;
+    mutable int64_t iteration = 0;
+    friend class NetworkDebugHelper;
+    friend class NodeDebugHelper;
 #endif
 };
 }  // namespace cldnn
