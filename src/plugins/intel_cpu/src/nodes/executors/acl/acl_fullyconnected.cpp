@@ -148,17 +148,24 @@ MemoryPtr reorderData(DnnlMemoryDescPtr srcWeightDesc,
                 std::cout << "CONVERT" << std::endl;
                 //we probably could not make the reorder because there is no one supporting this precision conversion
                 //lets try to convert data first using cpu_convert
-                auto data = static_cast<const uint8_t *>(input.getData());
-                tmpBuff.resize(output->getSize());
-
-                const auto outPrc = DnnlExtensionUtils::DataTypeToElementType(output->getDataType());
-                cpu_convert(data, tmpBuff.data(), DnnlExtensionUtils::DataTypeToElementType(input.getDataType()),
-                            outPrc, input.getSize() / input.getDesc().getPrecision().size());
-
-                auto tmpDesc = input.getDesc().cloneWithNewPrecision(outPrc);
-                Memory tmpMem(engine, std::move(tmpDesc), tmpBuff.data());
-
-                srcMemory = tmpMem.getPrimitive();
+                memoryArgs[ARG_SRC] = std::make_shared<Memory>(context->getEngine(), srcWeightDesc, weightsMem->getData());
+                memoryArgs[ARG_DST] = std::make_shared<Memory>(context->getEngine(), dstWeightDesc);
+                auto aclWeightsConverter = std::make_shared<acl_fc_executor::ACLWeightsConverter>();
+                if (aclWeightsConverter->update(memoryArgs)) {
+                    std::cout << "ACL convert" << std::endl;
+                    aclWeightsConverter->execute(memoryArgs);
+                } else {
+                    std::cout << "ref convert" << std::endl;
+                    auto count_wei_elem = std::accumulate(memoryArgs[ARG_SRC_0]->getStaticDims().begin(),
+                                                        memoryArgs[ARG_SRC_0]->getStaticDims().end(),
+                                                        1,
+                                                        std::multiplies<>());
+                    cpu_convert(memoryArgs[ARG_SRC_0]->getData(),
+                                memoryArgs[ARG_DST]->getData(),
+                                memoryArgs[ARG_SRC_0]->getPrecision(),
+                                memoryArgs[ARG_DST]->getPrecision(),
+                                count_wei_elem);
+                }
                 reorder = getReorderPrim(cache, dstMemory.get_engine(), srcMemory.get_desc(), dstMemory.get_desc());
             }
             if (!reorder) {
