@@ -19,7 +19,8 @@ MODEL_IDS = [
 ]
 DEVICES = [
     "CPU",
-]  # "GPU"
+    "GPU",
+]
 NUMBER_OF_SAMPLES = 15
 METRIC_OF_INTEREST = "similarity"
 
