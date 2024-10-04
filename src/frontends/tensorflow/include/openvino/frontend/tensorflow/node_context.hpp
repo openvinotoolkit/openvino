@@ -8,9 +8,9 @@
 #include "exception.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/frontend/node_context.hpp"
+#include "openvino/frontend/tensorflow/visibility.hpp"
 #include "variable.hpp"
 #include "variables_map.hpp"
-#include "openvino/frontend/tensorflow/visibility.hpp"
 
 namespace ov {
 namespace frontend {
