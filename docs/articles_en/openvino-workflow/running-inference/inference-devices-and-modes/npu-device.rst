@@ -11,6 +11,7 @@ NPU Device
    :hidden:
 
    npu-device/remote-tensor-api-npu-plugin
+   npu-device/batching-on-npu-plugin
 
 
 The Neural Processing Unit is a low-power hardware solution, introduced with the
@@ -248,11 +249,11 @@ or
 
 **ov::intel_npu::max_tiles and ov::intel_npu::tiles**
 
-the ``max_tiles`` property is read-write to enable compiling models off-device. 
+the ``max_tiles`` property is read-write to enable compiling models off-device.
 When on NPU, ``max_tiles`` will return the number of tiles the device has.
 Setting the number of tiles to compile for (via ``intel_npu::tiles``), when on device,
-must be preceded by reading ``intel_npu::max_tiles`` first, to make sure that 
-``ov::intel_npu::tiles`` <= ``ov::intel_npu::max_tiles`` 
+must be preceded by reading ``intel_npu::max_tiles`` first, to make sure that
+``ov::intel_npu::tiles`` <= ``ov::intel_npu::max_tiles``
 to avoid exceptions from the compiler.
 
 .. note::
