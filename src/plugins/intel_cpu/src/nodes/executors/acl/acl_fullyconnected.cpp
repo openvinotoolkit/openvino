@@ -76,24 +76,32 @@ DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr srcDesc
     return DnnlExtensionUtils::makeDescriptor(transposedWeiDesc);
 }
 
-void reorderData(const IMemory &input, const IMemory &output, MultiCachePtr cache) {
-    if (!input.getDesc().isDefined() || !output.getDesc().isDefined())
+MemoryPtr reorderData(DnnlMemoryDescPtr srcWeightDesc,
+                 DnnlMemoryDescPtr dstWeightDesc,
+                 MemoryArgs memoryArgs,
+                 ExecutorContext::CPtr context) {
+    MemoryCPtr weightsMem = memoryArgs[ARG_SRC_0];
+    Memory input{context->getEngine(), srcWeightDesc, weightsMem->getData()};
+    MemoryPtr output = std::make_shared<Memory>(context->getEngine(), dstWeightDesc);
+    auto cache = context->getRuntimeCache();
+
+    if (!input.getDesc().isDefined() || !output->getDesc().isDefined())
         OPENVINO_THROW("Can't reorder data with dynamic shapes");
 
-    if (input.getShape().hasZeroDims() || output.getShape().hasZeroDims()) {
-        return;
+    if (input.getShape().hasZeroDims() || output->getShape().hasZeroDims()) {
+        return output;
     }
 
-    if (input.getDesc().isCompatible(output.getDesc())) {
+    if (input.getDesc().isCompatible(output->getDesc())) {
         if (input.getDesc().getPrecision() == element::string) {
             auto srcPtr = input.getDataAs<StringMemory::OvString>();
-            auto dstPtr = output.getDataAs<StringMemory::OvString>();
-            std::copy(srcPtr, srcPtr + output.getShape().getElementsCount(), dstPtr);
+            auto dstPtr = output->getDataAs<StringMemory::OvString>();
+            std::copy(srcPtr, srcPtr + output->getShape().getElementsCount(), dstPtr);
         } else {
             auto srcPtr = static_cast<uint8_t*>(input.getData());
-            auto dstPtr = static_cast<uint8_t*>(output.getData());
+            auto dstPtr = static_cast<uint8_t*>(output->getData());
 
-            auto copySize = output.getSize();
+            auto copySize = output->getSize();
             cpu_memcpy(dstPtr, srcPtr, copySize);
         }
     } else {
@@ -101,7 +109,7 @@ void reorderData(const IMemory &input, const IMemory &output, MultiCachePtr cach
         std::vector<uint8_t> tmpBuff;
 
         auto srcMemory = input.getPrimitive();
-        auto dstMemory = output.getPrimitive();
+        auto dstMemory = output->getPrimitive();
 
         auto srcMemoryDesc = srcMemory.get_desc();
         auto dstMemoryDesc = dstMemory.get_desc();
@@ -120,16 +128,28 @@ void reorderData(const IMemory &input, const IMemory &output, MultiCachePtr cach
 
         // try directly reorder
         reorder = getReorderPrim(cache, engine, srcMemoryDesc, dstMemoryDesc);
-        if (!reorder) {
+        bool isReorderRef = false;
+        if (!reorder ||
+            (reorder && one_of(parse_impl_name(reorder.get_primitive_desc()->impl()->name()), ref_any, simple_any))) {
+            isReorderRef = true;
+            std::stringstream msg;
+            msg << "REFERENCE REORDER: " << parse_impl_name(reorder.get_primitive_desc()->impl()->name()) << std::endl;
+            std::cout << msg.str();
+        } else {
+            std::stringstream msg;
+            msg << "ONEDNN REORDER" << std::endl;
+            std::cout << msg.str();
+        }
+        if (!reorder || isReorderRef) {
             // try precision conversion then do the reorder
-            if (output.getDataType() != input.getDataType() && node::Convert::isSupportedDesc(input.getDesc()) &&
-                node::Convert::isSupportedDesc(output.getDesc())) {
+            if (output->getDataType() != input.getDataType() && node::Convert::isSupportedDesc(input.getDesc()) &&
+                node::Convert::isSupportedDesc(output->getDesc())) {
                 //we probably could not make the reorder because there is no one supporting this precision conversion
                 //lets try to convert data first using cpu_convert
                 auto data = static_cast<const uint8_t *>(input.getData());
-                tmpBuff.resize(output.getSize());
+                tmpBuff.resize(output->getSize());
 
-                const auto outPrc = DnnlExtensionUtils::DataTypeToElementType(output.getDataType());
+                const auto outPrc = DnnlExtensionUtils::DataTypeToElementType(output->getDataType());
                 cpu_convert(data, tmpBuff.data(), DnnlExtensionUtils::DataTypeToElementType(input.getDataType()),
                             outPrc, input.getSize() / input.getDesc().getPrecision().size());
 
@@ -143,7 +163,7 @@ void reorderData(const IMemory &input, const IMemory &output, MultiCachePtr cach
                 OPENVINO_THROW("No reorder available for the following tensor descriptors: ",
                                input.getDesc().serializeFormat(),
                                " and ",
-                               output.getDesc().serializeFormat());
+                               output->getDesc().serializeFormat());
             }
         }
         if (reorder) {
@@ -153,6 +173,7 @@ void reorderData(const IMemory &input, const IMemory &output, MultiCachePtr cach
             OPENVINO_THROW("Could not make onednn reorder.");
         }
     }
+    return output;
 }
 
 static MemoryPtr prepareWeightMemory(const MemoryArgs &memory,
@@ -168,82 +189,30 @@ static MemoryPtr prepareWeightMemory(const MemoryArgs &memory,
     auto create = [&]() {
         MemoryPtr final_ptr = memory.at(ARG_WEI);
         // Convert weights precision
-        if (aclfcAttrs.isConvertedWeights) {
-            std::chrono::high_resolution_clock::time_point __start = std::chrono::high_resolution_clock::now();
-            MemoryArgs memoryArgs;
-            memoryArgs[ARG_SRC_0] = memory.at(ARG_WEI);
-            memoryArgs[ARG_DST] = std::make_shared<Memory>(context->getEngine(),
-                                                           memoryArgs[ARG_SRC_0]->getDescPtr()->cloneWithNewPrecision(
+        /*if (aclfcAttrs.isConvertedWeights) {
+            MemoryArgs convertMemoryArgs;
+            convertMemoryArgs[ARG_SRC_0] = memory.at(ARG_WEI);
+            convertMemoryArgs[ARG_DST] = std::make_shared<Memory>(context->getEngine(),
+                                                           convertMemoryArgs[ARG_SRC_0]->getDescPtr()->cloneWithNewPrecision(
                                                                    aclfcAttrs.inputPrecision));
             auto aclWeightsConverter = std::make_shared<acl_fc_executor::ACLWeightsConverter>();
-            if (aclWeightsConverter->update(memoryArgs)) {
-                aclWeightsConverter->execute(memoryArgs);
+            if (aclWeightsConverter->update(convertMemoryArgs)) {
+                aclWeightsConverter->execute(convertMemoryArgs);
             } else {
-                auto count_wei_elem = std::accumulate(memoryArgs[ARG_SRC_0]->getStaticDims().begin(),
-                                                      memoryArgs[ARG_SRC_0]->getStaticDims().end(),
+                auto count_wei_elem = std::accumulate(convertMemoryArgs[ARG_SRC_0]->getStaticDims().begin(),
+                                                      convertMemoryArgs[ARG_SRC_0]->getStaticDims().end(),
                                                       1,
                                                       std::multiplies<>());
-                cpu_convert(memoryArgs[ARG_SRC_0]->getData(),
-                            memoryArgs[ARG_DST]->getData(),
-                            memoryArgs[ARG_SRC_0]->getPrecision(),
-                            memoryArgs[ARG_DST]->getPrecision(),
+                cpu_convert(convertMemoryArgs[ARG_SRC_0]->getData(),
+                            convertMemoryArgs[ARG_DST]->getData(),
+                            convertMemoryArgs[ARG_SRC_0]->getPrecision(),
+                            convertMemoryArgs[ARG_DST]->getPrecision(),
                             count_wei_elem);
             }
-            final_ptr = memoryArgs[ARG_DST];
-            std::chrono::high_resolution_clock::time_point __finish = std::chrono::high_resolution_clock::now();
-            //std::stringstream msg;
-            //msg << "convert;" << std::chrono::duration_cast<std::chrono::microseconds>(__finish - __start).count() << std::endl;
-            //std::cout << msg.str();
-        }
-        // Packed weights
-        {
-            std::chrono::high_resolution_clock::time_point __start = std::chrono::high_resolution_clock::now();
-            arm_compute::WeightFormat expectedWeightFormat;
-            /*bool isNeededReorder;
-            {
-                MemoryArgs memoryArgs;
-                memoryArgs[ARG_BIAS]  = memory.at(ARG_BIAS);
-                memoryArgs[ARG_WEI]   = final_ptr;
-                if (memory.at(ARG_SRC_0)->getShape().isDynamic()) {
-                    const auto& inShape = memory.at(ARG_SRC_0)->getShape();
-                    const auto& wShape = final_ptr->getShape();
-                    const auto& inDymmyDims = makeDummyInputDims(inShape, wShape);
-                    const auto& outDymmyDims = makeDummyOutputDims(inDymmyDims, wShape.getStaticDims(), memory.at(ARG_DST)->getShape().getRank());
-                    memoryArgs[ARG_SRC_0] = std::make_shared<Memory>(context->getEngine(),
-                                                                     memory.at(ARG_SRC_0)->getDescPtr()->cloneWithNewDims(inDymmyDims));
-                    memoryArgs[ARG_DST] = std::make_shared<Memory>(context->getEngine(),
-                                                                   memory.at(ARG_DST)->getDescPtr()->cloneWithNewDims(outDymmyDims));
-                } else {
-                    memoryArgs[ARG_SRC_0] = memory.at(ARG_SRC_0);
-                    memoryArgs[ARG_DST]   = memory.at(ARG_DST);
-                }
-                auto aclWeightsRepack = std::make_shared<acl_fc_executor::ACLWeightFormatGenerator>(attrs, postOps, memoryArgs);
-                isNeededReorder = aclWeightsRepack->update(memoryArgs);
-                expectedWeightFormat = aclWeightsRepack->getOptImplWeightFormat();
-            }
-            if (isNeededReorder && expectedWeightFormat == arm_compute::WeightFormat::OHWI) {
-                MemoryArgs memoryArgs;
-                memoryArgs[ARG_SRC_0] = final_ptr;
-                memoryArgs[ARG_DST] = std::make_shared<Memory>(context->getEngine(),
-                                                               memoryArgs[ARG_SRC_0]->getDescPtr()->clone());
-                auto aclWeightsReorder = std::make_shared<acl_fc_executor::ACLWeightsReorder>(
-                        arm_compute::WeightFormat::OHWI, expectedWeightFormat);
-                if (aclWeightsReorder->update(memoryArgs)) {
-                    aclWeightsReorder->execute(memoryArgs);
-                    final_ptr = memoryArgs[ARG_DST];
-                }
-            }*/
-
-            //std::chrono::high_resolution_clock::time_point __finish = std::chrono::high_resolution_clock::now();
-            //std::stringstream msg;
-            //msg << "reorder" << isNeededReorder  << "/" << static_cast<int>(expectedWeightFormat) << ";" <<
-            //std::chrono::duration_cast<std::chrono::microseconds>(__finish - __start).count() << std::endl;
-            //std::cout << msg.str();
-        }
+            final_ptr = convertMemoryArgs[ARG_DST];
+        }*/
         // Transpose weights
-        if (!aclfcAttrs.weightsNonTransposed) {
-            //std::chrono::high_resolution_clock::time_point __start = std::chrono::high_resolution_clock::now();
-
+        //if (!aclfcAttrs.weightsNonTransposed) {
             auto reverse_weights_dims = memory.at(ARG_WEI)->getStaticDims();
             if (reverse_weights_dims.size() == 3) {
                 reverse_weights_dims = VectorDims(
@@ -255,49 +224,12 @@ static MemoryPtr prepareWeightMemory(const MemoryArgs &memory,
             memoryArgs[ARG_DST] = std::make_shared<Memory>(context->getEngine(),
                                                            CpuBlockedMemoryDesc(final_ptr->getPrecision(),
                                                                                 intel_cpu::Shape(reverse_weights_dims)));
-
-            /*auto aclWeightsTranspose = std::make_shared<acl_fc_executor::ACLWeightsTranspose>();
-            if (aclWeightsTranspose->update(memoryArgs)) {
-                aclWeightsTranspose->execute(memoryArgs);
-                final_ptr = memoryArgs[ARG_DST];
-            }*/
 //ONEDNN SECTION START
             //const auto& eng = context->getEngine();
             //auto srcDesc = memory.at(ARG_SRC)->getDescPtr();
             const auto& weiDesc = memoryArgs[ARG_DST]->getDescPtr();//memory.at(ARG_WEI)->getDescPtr();
             //const auto& biasDesc = memory.at(ARG_BIAS)->getDescPtr();
             auto dstDesc = memoryArgs[ARG_SRC_0]->getDescPtr();//memory.at(ARG_DST)->getDescPtr();
-
-            /*if (srcDesc->getShape().isDynamic()) {
-                const auto& inShape = srcDesc->getShape();
-                const auto& wShape = weiDesc->getShape();
-                const auto& inDymmyDims = makeDummyInputDims(inShape, wShape);
-                srcDesc = srcDesc->cloneWithNewDims(inDymmyDims);
-                const auto& outDymmyDims =
-                    makeDummyOutputDims(inDymmyDims, wShape.getStaticDims(), dstDesc->getShape().getRank());
-                dstDesc = dstDesc->cloneWithNewDims(outDymmyDims);
-            }*/
-
-            //const dnnl::memory::desc srcDnnlDesc = MemoryDescUtils::convertToDnnlMemoryDesc(srcDesc)->getDnnlDesc();
-            //const dnnl::memory::desc weiDnnlDesc = MemoryDescUtils::convertToDnnlMemoryDesc(weiDesc)->getDnnlDesc();
-            //const dnnl::memory::desc dstDnnlDesc = MemoryDescUtils::convertToDnnlMemoryDesc(dstDesc)->getDnnlDesc();
-            //const dnnl::memory::desc biaDnnlDesc = MemoryDescUtils::convertToDnnlMemoryDesc(biasDesc)->getDnnlDesc();
-            //const auto postOpData = createPrimitiveAttrs(attrs, postOps, memory, context, false);
-            //const auto useWeightsDecompression = false;
-
-            /*const auto useSparseWeights = attrs.sparseWeights;
-            const auto primDesc = createPrimitiveDesc(srcDnnlDesc,
-                                                    weiDnnlDesc,
-                                                    biaDnnlDesc,
-                                                    dstDnnlDesc,
-                                                    postOpData.attr,
-                                                    context->getEngine(),
-                                                    context->getImplPriorities(),
-                                                    useSparseWeights,
-                                                    useWeightsDecompression);*/
-
-            //const auto weightsDesc = MemoryDescUtils::convertToDnnlMemoryDesc(dstDesc);
-            //DnnlExtensionUtils::makeDescriptor(/*primDesc.weights_desc()*/dstDnnlDesc);
             auto originalWeightsDesc = MemoryDescUtils::convertToDnnlMemoryDesc(weiDesc);//MemoryDescUtils::convertToDnnlMemoryDesc(weiDesc);
 
             /*auto weiDescDims = weiDesc->getShape().getDims();
@@ -310,29 +242,14 @@ static MemoryPtr prepareWeightMemory(const MemoryArgs &memory,
             auto dstDescRevertedDims = weiDesc->cloneWithNewDims(dstDescDims);
             const auto weightsDesc = MemoryDescUtils::convertToDnnlMemoryDesc(dstDescRevertedDims);
 
-            originalWeightsDesc = makeTransposedWeightDescriptor(originalWeightsDesc, weightsDesc, true/*aclfcAttrs.weightsNonTransposed*/);
+            originalWeightsDesc = makeTransposedWeightDescriptor(originalWeightsDesc, weightsDesc, !aclfcAttrs.weightsNonTransposed);
 
-            /*final_ptr = utils::prepareWeightsMemory(originalWeightsDesc,
-                                      weightsDesc,
-                                      memoryArgs[ARG_SRC_0],//memory.at(ARG_WEI),
-                                      context,
-                                      false);*/
+            //DnnlMemoryDescPtr srcWeightDesc = originalWeightsDesc;
+            //DnnlMemoryDescPtr dstWeightDesc = weightsDesc;
+            //MemoryCPtr weightsMem = memoryArgs[ARG_SRC_0];//final_ptr;//memory.at(ARG_WEI);
 
-            DnnlMemoryDescPtr srcWeightDesc = originalWeightsDesc;
-            DnnlMemoryDescPtr dstWeightDesc = weightsDesc;
-            MemoryCPtr weightsMem = memoryArgs[ARG_SRC_0];//final_ptr;//memory.at(ARG_WEI);
-
-            Memory srcMemory{context->getEngine(), srcWeightDesc, weightsMem->getData()};
-            MemoryPtr _ptr = std::make_shared<Memory>(context->getEngine(), dstWeightDesc);
-            auto rtCache = context->getRuntimeCache();
-            /*node::Reorder::*/reorderData(srcMemory, *_ptr, rtCache);
-            final_ptr = _ptr;
-            //ONEDNN SECTION END
-            //std::chrono::high_resolution_clock::time_point __finish = std::chrono::high_resolution_clock::now();
-            //std::stringstream msg;
-            //msg << "transpose;" << std::chrono::duration_cast<std::chrono::microseconds>(__finish - __start).count() << std::endl;
-            //std::cout << msg.str();
-        }
+            final_ptr = reorderData(originalWeightsDesc, weightsDesc, memoryArgs, context);
+        //}
         DEBUG_LOG("ACLFullyConnectedExecutor: cache miss, perform packing");
         return final_ptr;
     };
