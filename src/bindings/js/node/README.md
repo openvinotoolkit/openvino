@@ -1,12 +1,12 @@
 # OpenVINO™ Node.js Bindings
 
-Execute deep learning models in Node.js applications with ease using OpenVINO™.
+Use OpenVINO to deploy deep learning models easily in Node.js applications.
 
 ## Introduction
 
 OpenVINO™ is an open-source toolkit designed for high-performance deep learning inference.
 Node.js API provides bindings to subset APIs from OpenVINO Runtime.
-These Node.js bindings allow JavaScript developers to use the power of OpenVINO™ in their applications.
+The Node.js bindings enable JavaScript developers to use the capabilities of OpenVINO in their applications.
 
 ## Quick Start
 
@@ -20,9 +20,9 @@ Use the **openvino-node** package:
 const { addon: ov } = require('openvino-node');
 ```
 
-Full `addon` API you can find at documentation [page](https://docs.openvino.ai/2024/api/nodejs_api/addon.html).
+Refer to the complete description of the `addon` API in the [documentation](https://docs.openvino.ai/2024/api/nodejs_api/addon.html).
 
-See more samples in [samples section](https://github.com/openvinotoolkit/openvino/blob/master/samples/js/node/README.md).
+See the [samples](https://github.com/openvinotoolkit/openvino/blob/master/samples/js/node/README.md) for more details on how to use it.
 
 ## Usage in Electron applications
 
@@ -33,8 +33,8 @@ To use the package in development of Electron applications on Windows, make sure
 ## Supported Platforms
 
 - Windows x86
-- Linux x86/arm
-- MacOS x86/arm
+- Linux x86/ARM
+- MacOS x86/ARM
 
 ## Documentation & Samples
 
@@ -43,7 +43,7 @@ To use the package in development of Electron applications on Windows, make sure
 
 ## Live Sample
 
-You can run this sample in the browser, no installation is required.
+You can run the following sample in the browser, no installation is required.
 [Codesandbox](https://codesandbox.io/) is a free online service with limited resources. For optimal performance and more control,  it is recommended to run the sample locally.
 
 - [hello-classification-sample](https://codesandbox.io/p/devbox/openvino-node-hello-classification-sample-djl893)
@@ -54,7 +54,7 @@ For more details, refer to the [OpenVINO™ JavaScript API Developer Documentati
 
 ## Contributing
 
-We welcome contributions! Please read our [Contributing Guide](https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/CONTRIBUTING.md) to learn how you can get involved.
+Contributions are always welcome! Read the [Contribution Guide](https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/CONTRIBUTING.md) to learn how you can get involved.
 
 ## See Also
 

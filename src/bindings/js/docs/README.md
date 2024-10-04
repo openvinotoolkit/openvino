@@ -76,7 +76,7 @@
 
 ## Contributing
 
-We welcome contributions! Please read our [Contributing Guide](https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/CONTRIBUTING.md) to learn how you can get involved.
+Your contributions are welcome! Make sure to read the [Contribution Guide](https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/CONTRIBUTING.md) to learn how you can get involved.
 
 ## See Also
 
