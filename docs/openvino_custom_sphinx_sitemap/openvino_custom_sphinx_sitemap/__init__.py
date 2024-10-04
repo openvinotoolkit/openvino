@@ -5,6 +5,7 @@ from sphinx_sitemap import setup as base_setup, get_locales, hreflang_formatter,
 from sphinx.util.logging import getLogger
 
 logger = getLogger(__name__)
+google_priority = '0.4'
 
 def setup(app):
     app.add_config_value(
@@ -39,7 +40,8 @@ def create_sitemap(app, exception):
     urlset = app.builder.config.ov_sitemap_urlset
     meta = app.builder.config.ov_sitemap_meta
 
-    site_url = app.builder.config.site_url or app.builder.config.html_baseurl
+    site_url = app.builder.config.site_url
+
     if site_url:
         site_url.rstrip("/") + "/"
     else:
@@ -72,38 +74,38 @@ def create_sitemap(app, exception):
         version = ""
 
     while True:
-        try:
-            link = app.env.app.sitemap_links.get_nowait()  # type: ignore
-        except queue.Empty:
-            break
-
         url = ET.SubElement(root, "url")
         scheme = app.config.sitemap_url_scheme
-        if app.builder.config.language:
-            lang = app.builder.config.language + "/"
-        else:
-            lang = ""
+        try:
+            # link1 = app.sitemap_links.get_nowait()
+            link = app.sitemap_links.get_nowait() # type: ignore
+            print(app.sitemap_links.get_nowait())
 
-        ET.SubElement(url, "loc").text = site_url + scheme.format(
-            lang=lang, version=version, link=link
-        )
-
-        if meta:
-            for entry in meta:
-                namespace, values = entry
-                namespace_element = ET.SubElement(url, namespace)
-                for tag_name, tag_value in values.items():
-                    ET.SubElement(namespace_element, tag_name).text = tag_value
-
-        for lang in locales:
-            lang = lang + "/"
-            ET.SubElement(
-                url,
-                "{http://www.w3.org/1999/xhtml}link",
-                rel="alternate",
-                hreflang=hreflang_formatter(lang.rstrip("/")),
-                href=site_url + scheme.format(lang=lang, version=version, link=link),
+            if app.builder.config.language:
+                lang = app.builder.config.language + "/"
+            else:
+                lang = ""
+                
+            ET.SubElement(url, "loc").text = site_url + scheme.format(
+                lang=lang, version=version, link=link
             )
+
+            # site priority for google search indexing
+            ET.SubElement(url, "priority").text = google_priority
+
+            process_coveo_meta(meta, url, link)
+
+            for lang in locales:
+                lang = lang + "/"
+                ET.SubElement(
+                    url,
+                    "{http://www.w3.org/1999/xhtml}link",
+                    rel="alternate",
+                    hreflang=hreflang_formatter(lang.rstrip("/")),
+                    href=site_url + scheme.format(lang=lang, version=version, link=link),
+                )
+        except queue.Empty:
+            break
 
     filename = Path(app.outdir) / app.config.sitemap_filename
     ET.ElementTree(root).write(filename,
@@ -112,3 +114,22 @@ def create_sitemap(app, exception):
                                method="xml")
     print("%s was generated for URL %s in %s" % (app.config.sitemap_filename,
           site_url, filename))
+
+def process_coveo_meta(meta, url, link):
+    if not meta:
+        return
+
+    for namespace, values in meta:
+        namespace_element = ET.SubElement(url, namespace)
+
+        for tag_name, tag_value in values.items():
+            if tag_name == 'ovcategory':
+                processed_link = process_link(link)
+                ET.SubElement(namespace_element, tag_name).text = processed_link
+            else:
+                ET.SubElement(namespace_element, tag_name).text = tag_value
+
+def process_link(link):
+    if '/' in link:
+        return link.split('/')[0]
+    return link.split('.html')[0]
