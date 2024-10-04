@@ -85,16 +85,9 @@ bool memory_was_allocated_in_the_same_l0_context(ze_context_handle_t hContext, c
     auto res = intel_npu::zeMemGetAllocProperties(hContext, ptr, &desc, nullptr);
     if (res == ZE_RESULT_SUCCESS) {
         if (desc.id) {
-            switch (desc.type) {
-            case ZE_MEMORY_TYPE_HOST:
-            case ZE_MEMORY_TYPE_DEVICE:
-            case ZE_MEMORY_TYPE_SHARED:
+            if ((desc.type & ZE_MEMORY_TYPE_HOST) || (desc.type & ZE_MEMORY_TYPE_DEVICE) ||
+                (desc.type & ZE_MEMORY_TYPE_SHARED)) {
                 return true;
-                break;
-            case ZE_MEMORY_TYPE_UNKNOWN:
-            case ZE_MEMORY_TYPE_FORCE_UINT32:
-            default:
-                break;
             }
         }
     }
