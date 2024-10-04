@@ -127,8 +127,12 @@ jobs:
       - name: Samples tests
         run: |
           # Install Python benchmark_app by installing openvino-*.whl
-          $ovCoreWheelPath=Get-ChildItem -Path "${{ env.INSTALL_DIR }}\tools" -Filter openvino-*.whl | % { $_.FullName }
-          python3 -m pip install --ignore-installed PyYAML -r ${{ env.INSTALL_TEST_DIR }}/smoke_tests/requirements.txt "$ovCoreWheelPath"
+          # Find and install OV core wheel
+          Push-Location "${{ env.INSTALL_DIR }}\tools"
+            $py_version = python3 -c "import sys; print(f'{sys.version_info.major}{sys.version_info.minor}')"
+            $ov_wheel_name = Get-ChildItem -Name "openvino-*cp$py_version*.whl" -Recurse
+            python3 -m pip install --ignore-installed PyYAML -r ${{ env.INSTALL_TEST_DIR }}/smoke_tests/requirements.txt $ov_wheel_name
+          Pop-Location
           . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           $Env:PYTHONCOERCECLOCALE="warn"
           python3 -bb -W error -X dev -X warn_default_encoding -m pytest ${{ env.INSTALL_TEST_DIR }}/smoke_tests --numprocesses auto
@@ -280,9 +284,12 @@ jobs:
 
       - name: Install OpenVINO Python wheels
         run: |
-          # Find and install the core OV wheel
-          $ovCoreWheelPath=Get-ChildItem -Path "${{ env.INSTALL_DIR }}\tools" -Filter openvino-*.whl | % { $_.FullName }
-          python3 -m pip install "$ovCoreWheelPath"
+          # Find and install OV core wheel
+          Push-Location "${{ env.INSTALL_DIR }}\tools"
+            $py_version = python3 -c "import sys; print(f'{sys.version_info.major}{sys.version_info.minor}')"
+            $ov_wheel_name = Get-ChildItem -Name "openvino-*cp$py_version*.whl" -Recurse
+            python3 -m pip install $ov_wheel_name
+          Pop-Location
 
           # Find and install the dev OV wheel
           $ovDevWheelPath=Get-ChildItem -Path "${{ env.INSTALL_DIR }}\tools" -Filter openvino_dev*.whl | % { $_.FullName }
