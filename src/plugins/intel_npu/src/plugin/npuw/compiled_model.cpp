@@ -288,6 +288,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             m_compiled_submodels[id].closure = subgraph._closure;
             m_compiled_submodels[id].scales = subgraph._scales;
             m_compiled_submodels[id].zerops = subgraph._zerops;
+            m_compiled_submodels[id].forced_to_fcall = subgraph._forced_to_fcall;
             m_compiled_submodels[id].update_required.resize(subgraph._closure.size(), false);
             fill_weights_bank(id);
         }  // if(!funcall)

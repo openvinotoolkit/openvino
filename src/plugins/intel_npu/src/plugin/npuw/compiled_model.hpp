@@ -126,6 +126,8 @@ private:
         std::vector<ov::Tensor> zerops;
         std::vector<bool> update_required;
 
+        bool forced_to_fcall = false;
+
         // FIXME: Take it out of structure
         ov::SoPtr<ov::ICompiledModel> ref_compiled_model;
         bool switched_to_ref = false;

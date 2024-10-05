@@ -64,6 +64,7 @@ private:
     using TensorPtr = ov::SoPtr<ov::ITensor>;
     std::map<LinkFrom, TensorPtr> m_funcall_result;
 
+    bool is_pipelined(std::size_t idx) const;
     bool m_use_function_pipelining = false;
     struct FuncallPipeline {
         // A "brother" subrequest for a "primary" subrequest. Initialized only
