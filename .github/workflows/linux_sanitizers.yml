@@ -102,8 +102,6 @@ jobs:
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
       INSTALL_TEST_DIR: /__w/openvino/openvino/tests_install
       BUILD_DIR: /__w/openvino/openvino/openvino_build
-      LSAN_IGNORE: /__w/openvino/openvino/openvino/tests/sanitizers/lsan/suppressions.txt
-      ASAN_IGNORE: /__w/openvino/openvino/openvino/tests/sanitizers/asan/suppressions.supp
       CMAKE_CXX_COMPILER_LAUNCHER: sccache
       CMAKE_C_COMPILER_LAUNCHER: sccache
       SCCACHE_IGNORE_SERVER_IO_ERROR: 1
@@ -191,9 +189,6 @@ jobs:
       - name: Cmake build - OpenVINO
         run: |
           cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }}
-        env:
-          ASAN_OPTIONS: halt_on_error=0:suppressions=${{ env.ASAN_IGNORE }}
-          LSAN_OPTIONS: suppressions=${{ env.LSAN_IGNORE }}:NEOReadDebugKeys=1:DisableDeepBind=1
           
       - name: Show sccache stats
         run: ${SCCACHE_PATH} --show-stats
@@ -268,12 +263,14 @@ jobs:
           - SANITIZER: 'UndefinedBehavior'
           - SANITIZER: 'Thread'
     env:
-      INSTALL_DIR: ${{ github.workspace }}/install
-      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      OPENVINO_REPO: /__w/openvino/openvino/openvino
+      INSTALL_DIR: /__w/openvino/openvino/openvino_install
+      INSTALL_TEST_DIR: /__w/openvino/openvino/tests_install
+      BUILD_DIR: /__w/openvino/openvino/openvino_build
       TBB_ENABLE_SANITIZERS: 1
-      ASAN_OPTIONS: halt_on_error=0:suppressions=sanitizers/asan/suppressions.supp
-      LSAN_OPTIONS: suppressions=sanitizers/lsan/suppressions.txt:NEOReadDebugKeys=1:DisableDeepBind=1
-      TSAN_OPTIONS: suppressions=sanitizers/tsan/suppressions.txt,report_suppressions=1
+      ASAN_OPTIONS: halt_on_error=0:suppressions=${OPENVINO_REPO}/openvino/tests/sanitizers/asan/suppressions.supp
+      LSAN_OPTIONS: suppressions=${OPENVINO_REPO}/openvino/tests/sanitizers/lsan/suppressions.txt:NEOReadDebugKeys=1:DisableDeepBind=1
+      TSAN_OPTIONS: suppressions=${OPENVINO_REPO}/openvino/tests/sanitizers/tsan/suppressions.txt,report_suppressions=1
       
     steps:
       - name: Download OpenVINO package
@@ -287,16 +284,6 @@ jobs:
         with:
           name: ${{ format('openvino_tests_{0}', matrix.SANITIZER) }}
           path: ${{ env.INSTALL_TEST_DIR }}
-
-      # Needed as ${{ github.workspace }} is not working correctly when using Docker
-      - name: Setup Variables
-        continue-on-error: true
-        run: |
-          echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
-          echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
-
-          echo "ASAN_OPTIONS=halt_on_error=0:suppressions=$GITHUB_WORKSPACE/openvino/tests/sanitizers/asan/suppressions.supp" >> "$GITHUB_ENV"
-          echo "LSAN_OPTIONS=suppressions=$GITHUB_WORKSPACE/openvino/tests/sanitizers/lsan/suppressions.txt:NEOReadDebugKeys=1:DisableDeepBind=1" >> "$GITHUB_ENV"
 
       - name: Extract OpenVINO packages
         run: |
@@ -315,7 +302,7 @@ jobs:
             tests/sanitizers/asan/suppressions.supp
             tests/sanitizers/tsan/suppressions.txt
           sparse-checkout-cone-mode: false
-          path: ${{ env.INSTALL_DIR }}
+          path: ${{ env.OPENVINO_REPO }}
 
       #
       # Tests
@@ -346,7 +333,6 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-
           ${INSTALL_TEST_DIR}/ov_lp_transformations_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-LpTransformations.xml
 
