@@ -271,8 +271,10 @@ jobs:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       TBB_ENABLE_SANITIZERS: 1
-      TSAN_OPTIONS: suppressions=${GITHUB_WORKSPACE}/openvino/tests/sanitizers/tsan/suppressions.txt,report_suppressions=1
-
+      ASAN_OPTIONS: halt_on_error=0:suppressions=sanitizers/asan/suppressions.supp
+      LSAN_OPTIONS: suppressions=sanitizers/lsan/suppressions.txt:NEOReadDebugKeys=1:DisableDeepBind=1
+      TSAN_OPTIONS: suppressions=sanitizers/tsan/suppressions.txt,report_suppressions=1
+      
     steps:
       - name: Download OpenVINO package
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
@@ -313,7 +315,7 @@ jobs:
             tests/sanitizers/asan/suppressions.supp
             tests/sanitizers/tsan/suppressions.txt
           sparse-checkout-cone-mode: false
-          path: 'openvino'
+          path: ${{ env.INSTALL_DIR }}
 
       #
       # Tests
