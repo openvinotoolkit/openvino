@@ -264,8 +264,8 @@ jobs:
           - SANITIZER: 'Thread'
     env:
       OPENVINO_REPO: /__w/openvino/openvino/openvino
-      INSTALL_DIR: /__w/openvino/openvino/openvino_install
-      INSTALL_TEST_DIR: /__w/openvino/openvino/tests_install
+      INSTALL_DIR: /__w/openvino/openvino/install
+      INSTALL_TEST_DIR: /__w/openvino/openvino/install/tests
       BUILD_DIR: /__w/openvino/openvino/openvino_build
       TBB_ENABLE_SANITIZERS: 1
       ASAN_OPTIONS: halt_on_error=0:suppressions=${OPENVINO_REPO}/openvino/tests/sanitizers/asan/suppressions.supp
