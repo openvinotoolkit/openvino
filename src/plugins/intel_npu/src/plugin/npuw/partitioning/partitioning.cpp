@@ -1885,7 +1885,7 @@ void Partitioner::decompressionCutOff(const std::string& func_name) {
             }
 
             // Finally, remove the function body's parameters here
-            ov::npuw::patterns::finalize_remap(f, closure_remap);
+            ov::npuw::patterns::finalize_remap(f, func_group.refs.front(), closure_remap);
         }  // if (CAST_SCALE && have(params_to_scale))
     }
     LOG_DEBUG("Function model inputs after the DCOFF:");
