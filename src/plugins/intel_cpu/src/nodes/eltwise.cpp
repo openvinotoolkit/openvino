@@ -2591,11 +2591,19 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         return;
 #endif
 
-    if (isChannelsFirstApplicable)
-        supportedPrimitiveDescriptors.emplace_back(initDesc(ChannelsFirst));
-    if (isBlockedApplicable)
-        supportedPrimitiveDescriptors.emplace_back(initDesc(Blocked));
-    supportedPrimitiveDescriptors.emplace_back(initDesc(Planar));
+    if (context->getConfig().modelType == Config::ModelType::CNN) {
+        if (isChannelsFirstApplicable)
+            supportedPrimitiveDescriptors.emplace_back(initDesc(ChannelsFirst));
+        if (isBlockedApplicable)
+            supportedPrimitiveDescriptors.emplace_back(initDesc(Blocked));
+        supportedPrimitiveDescriptors.emplace_back(initDesc(Planar));
+    } else {
+        supportedPrimitiveDescriptors.emplace_back(initDesc(Planar));
+        if (isChannelsFirstApplicable)
+            supportedPrimitiveDescriptors.emplace_back(initDesc(ChannelsFirst));
+        if (isBlockedApplicable)
+            supportedPrimitiveDescriptors.emplace_back(initDesc(Blocked));
+    }
 }
 
 void Eltwise::createPrimitive() {

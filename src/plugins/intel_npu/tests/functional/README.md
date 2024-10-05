@@ -19,4 +19,4 @@ The following environment variables can be set up for the run of test binary `ov
 * `IE_NPU_TESTS_IMPORT_REF` - bool type, denotes whether to read reference values from the files matching current test case (instead of calculating them)
 * `IE_NPU_TESTS_RAW_EXPORT` - bool type, denotes whether to use header for exported network file or not
 * `IE_NPU_TESTS_LONG_FILE_NAME` - bool type, denotes whether to allow longer file names for the exported artifacts. By default shorter file names are used for all operating systems
-* `IE_NPU_TESTS_PLATFORM` - string type, enable compiler config option `NPU_PLATFORM` with value from the environment. Sample value - `NPU3700`. Please refer to the documentation for more information about possible values.
+* `IE_NPU_TESTS_PLATFORM` - string type, enable compiler config option `NPU_PLATFORM` with value from the environment. Sample value - `NPU3720`. For more information about possible values, refer to the [NPU plugin README file](./../../../intel_npu/README.md).
