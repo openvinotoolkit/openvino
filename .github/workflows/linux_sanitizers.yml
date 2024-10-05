@@ -311,6 +311,7 @@ jobs:
           sparse-checkout: |
             tests/sanitizers/lsan/suppressions.txt
             tests/sanitizers/asan/suppressions.supp
+            tests/sanitizers/tsan/suppressions.txt
           sparse-checkout-cone-mode: false
           path: 'openvino'
 
