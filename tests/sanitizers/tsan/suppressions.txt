@@ -7,5 +7,4 @@
 # https://github.com/google/sanitizers/wiki/threadsanitizersuppressions
 
 # race conditions from thirdparty libs
-race:libtbb.*
-race:libtbbbind.*
+called_from_lib:libtbb.so
