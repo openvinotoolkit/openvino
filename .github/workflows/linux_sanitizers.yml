@@ -268,9 +268,9 @@ jobs:
       INSTALL_TEST_DIR: /__w/openvino/openvino/install/tests
       BUILD_DIR: /__w/openvino/openvino/openvino_build
       TBB_ENABLE_SANITIZERS: 1
-      ASAN_OPTIONS: halt_on_error=0:suppressions=${OPENVINO_REPO}/openvino/tests/sanitizers/asan/suppressions.supp
-      LSAN_OPTIONS: suppressions=${OPENVINO_REPO}/openvino/tests/sanitizers/lsan/suppressions.txt:NEOReadDebugKeys=1:DisableDeepBind=1
-      TSAN_OPTIONS: suppressions=${OPENVINO_REPO}/openvino/tests/sanitizers/tsan/suppressions.txt,report_suppressions=1
+      ASAN_OPTIONS: halt_on_error=0:suppressions=${OPENVINO_REPO}/tests/sanitizers/asan/suppressions.supp
+      LSAN_OPTIONS: suppressions=${OPENVINO_REPO}/tests/sanitizers/lsan/suppressions.txt:NEOReadDebugKeys=1:DisableDeepBind=1
+      TSAN_OPTIONS: suppressions=${OPENVINO_REPO}/tests/sanitizers/tsan/suppressions.txt,report_suppressions=1
       
     steps:
       - name: Download OpenVINO package
