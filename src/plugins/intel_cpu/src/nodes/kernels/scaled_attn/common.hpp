@@ -253,6 +253,24 @@ static constexpr size_t vec_len_f16_neon = vec_len_neon / sizeof(ov::float16);
     inline float32x4_t __vld1q_f32(const float* a) {
         return vld1q_f32(a);
     }
+    inline float32x4_t __vld1q_f32(const ov::float16* a) {
+        auto _a = reinterpret_cast<const float16_t*>(a);
+        return vcvt_f32_f16(vld1_f16(_a));
+    }
+    inline void __vst1q_f32(float* a, float32x4_t b) {
+        vst1q_f32(a, b);
+    }
+    inline void __vst1q_f32(ov::float16* a, float32x4_t b) {
+        float16x4_t v_f16 = vcvt_f16_f32(b);
+        vst1_f16(reinterpret_cast<float16_t*>(a), v_f16);
+    }
+    inline void __vst1q_f32(ov::bfloat16* a, float32x4_t b) {
+        uint32x4_t v_int32 = vreinterpretq_u32_f32(b);
+        uint16x4_t v_bf16 = vshrn_n_u32(v_int32, 16);
+
+        vst1_u16(reinterpret_cast<uint16_t*>(a), v_bf16);
+    }
+
 #endif
 
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)

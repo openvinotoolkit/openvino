@@ -677,6 +677,43 @@ inline void exp_reduce_sum(float* a, const float max, const size_t size, float& 
     }
 }
 
+#if defined(OPENVINO_ARCH_ARM64)
+inline void exp_reduce_sum_f32(ov::float16* a, const ov::float16 max, const size_t size, ov::float16& sum) {
+    float32x4_t v_a;
+    float32x4_t v_max = vdupq_n_f32(static_cast<float>(max));
+    float32x4_t v_sum = vdupq_n_f32(0.0f);
+    size_t i = 0;
+
+    // Process 4 FP32 elements at a time
+    for (; i + vec_len_f32_neon <= size; i += vec_len_f32_neon) {
+        // Load FP16 and convert to FP32
+        float16x4_t v_a_f16 = vld1_f16(reinterpret_cast<const float16_t*>(a + i));
+        v_a = vcvt_f32_f16(v_a_f16);
+
+        // Compute in FP32
+        v_a = vsubq_f32(v_a, v_max);
+        v_a = exp_ps_neon_f32(v_a);
+        v_sum = vaddq_f32(v_sum, v_a);
+
+        // Convert back to FP16 and store
+        float16x4_t v_result_f16 = vcvt_f16_f32(v_a);
+        vst1_f16(reinterpret_cast<float16_t*>(a + i), v_result_f16);
+    }
+
+    // Reduce sum
+    float total_sum = vaddvq_f32(v_sum);
+
+    // Handle remaining elements
+    for (; i < size; ++i) {
+        float val = exp(static_cast<float>(a[i] - max));
+        a[i] = static_cast<ov::float16>(val);
+        total_sum += val;
+    }
+
+    sum += static_cast<ov::float16>(total_sum);
+}
+#endif
+
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
 inline void exp_reduce_sum(ov::float16* a, const ov::float16 max, const size_t size, ov::float16& sum) {
     const size_t vec_len_f16_neon = 8;
@@ -779,7 +816,28 @@ inline void multiply_scalar(float* a, ov::bfloat16* a_dst, const float val, cons
     }
 #endif
 }
+#if defined(OPENVINO_ARCH_ARM64)
+inline void multiply_scalar(ov::float16* a, float* a_dst, const ov::float16 val, const size_t size) {
+    float16x4_t v_a_f16;
+    float32x4_t v_a, v_res;
+    float32x4_t v_val = vdupq_n_f32(static_cast<float>(val));
+    size_t i = 0;
 
+    for (; i + vec_len_f16_neon <= size; i += vec_len_f16_neon) {
+        v_a_f16 = vld1_f16(reinterpret_cast<const float16_t*>(a + i));
+        v_a = vcvt_f32_f16(v_a_f16);
+
+        v_res = vmulq_f32(v_a, v_val);
+
+        vst1q_f32(reinterpret_cast<float*>(a_dst + i), v_res);
+    }
+
+    for (; i < size; ++i) {
+        float a_f32 = static_cast<float>(a[i]);
+        a_dst[i] = a_f32 * static_cast<float>(val);
+    }
+}
+#endif
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
 inline void multiply_scalar(ov::float16* a, ov::float16* a_dst, const ov::float16 val, const size_t size) {
     const size_t vec_len_f16_neon = 8;
@@ -930,14 +988,21 @@ inline void attn_softmax_kernel<ov::float16>(ov::float16* a,
     }
 
     ov::float16 sum = 0.0f;
-    // exp sum
-    exp_reduce_sum(a, max, len, sum);
-    // divide sum
-    ov::float16 scalar = 1.0f / sum;
-    multiply_scalar(a, static_cast<ov::float16*>(a_dst), scalar, len);
-    // apply causual mask to final result instead of attn_score
-    if (total_size > len)
-        memset(static_cast<ov::float16*>(a_dst) + len, 0, sizeof(ov::float16) * (total_size - len));
+    if (dst_precision == ov::element::f32) {
+        exp_reduce_sum_f32(a, max, len, sum);
+        ov::float16 scalar = 1.0f / sum;
+        multiply_scalar(a, static_cast<float*>(a_dst), scalar, len);
+        // apply causual mask to final result instead of attn_score
+        if (total_size > len)
+            memset(static_cast<float*>(a_dst) + len, 0, sizeof(float) * (total_size - len));
+    } else {
+        exp_reduce_sum(a, max, len, sum);
+        ov::float16 scalar = 1.0f / sum;
+        multiply_scalar(a, static_cast<ov::float16*>(a_dst), scalar, len);
+        // apply causual mask to final result instead of attn_score
+        if (total_size > len)
+            memset(static_cast<ov::float16*>(a_dst) + len, 0, sizeof(ov::float16) * (total_size - len));
+    }
 }
 #endif
 
