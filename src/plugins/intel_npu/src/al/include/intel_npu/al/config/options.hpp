@@ -53,6 +53,14 @@ struct PERFORMANCE_HINT final : OptionBase<PERFORMANCE_HINT, ov::hint::Performan
         return true;
     }
 
+    static ov::PropertyMutability mutability() {
+        return ov::PropertyMutability::RW;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::Both;
+    }
+
     static ov::hint::PerformanceMode parse(std::string_view val) {
         if (val.empty()) {
             return ov::hint::PerformanceMode::LATENCY;
@@ -109,6 +117,14 @@ struct PERFORMANCE_HINT_NUM_REQUESTS final : OptionBase<PERFORMANCE_HINT_NUM_REQ
     static bool isPublic() {
         return true;
     }
+
+    static ov::PropertyMutability mutability() {
+        return ov::PropertyMutability::RW;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::Both;
+    }
 };
 
 //
@@ -128,8 +144,20 @@ struct INFERENCE_PRECISION_HINT final : OptionBase<INFERENCE_PRECISION_HINT, ov:
         return ov::element::f16;
     }
 
+    static compilerVersion compilerSupportVersion() {
+        return {0, 5, 4};
+    }
+
     static bool isPublic() {
         return true;
+    }
+
+    static ov::PropertyMutability mutability() {
+        return ov::PropertyMutability::RW;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::Both;
     }
 
     static ov::element::Type parse(std::string_view val) {
@@ -165,6 +193,14 @@ struct PERF_COUNT final : OptionBase<PERF_COUNT, bool> {
     static bool isPublic() {
         return true;
     }
+
+    static ov::PropertyMutability mutability() {
+        return ov::PropertyMutability::RW;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::Both;
+    }
 };
 
 //
@@ -182,6 +218,10 @@ struct LOG_LEVEL final : OptionBase<LOG_LEVEL, ov::log::Level> {
 
     static std::string_view envVar() {
         return "OV_NPU_LOG_LEVEL";
+    }
+
+    static OptionMode mode() {
+        return OptionMode::Both;
     }
 
     static ov::log::Level defaultValue() {
@@ -215,6 +255,14 @@ struct PLATFORM final : OptionBase<PLATFORM, std::string> {
     static bool isPublic() {
         return false;
     }
+
+    static OptionMode mode() {
+        return OptionMode::Both;
+    }
+
+    static ov::PropertyMutability mutability() {
+        return ov::PropertyMutability::RW;
+    }
 };
 
 //
@@ -232,6 +280,14 @@ struct DEVICE_ID final : OptionBase<DEVICE_ID, std::string> {
 
     static bool isPublic() {
         return true;
+    }
+
+    static ov::PropertyMutability mutability() {
+        return ov::PropertyMutability::RW;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::Both;
     }
 };
 
@@ -251,6 +307,14 @@ struct CACHE_DIR final : OptionBase<CACHE_DIR, std::string> {
     static bool isPublic() {
         return true;
     }
+
+    static ov::PropertyMutability mutability() {
+        return ov::PropertyMutability::RW;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::Both;
+    }
 };
 
 //
@@ -264,6 +328,10 @@ struct LOADED_FROM_CACHE final : OptionBase<LOADED_FROM_CACHE, bool> {
 
     static bool defaultValue() {
         return false;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::Both;
     }
 };
 
@@ -283,6 +351,10 @@ struct CACHING_PROPERTIES final : OptionBase<CACHING_PROPERTIES, std::string> {
     static bool isPublic() {
         return false;
     }
+
+    static OptionMode mode() {
+        return OptionMode::Both;
+    }
 };
 
 //
@@ -300,6 +372,10 @@ struct INTERNAL_SUPPORTED_PROPERTIES final : OptionBase<INTERNAL_SUPPORTED_PROPE
 
     static bool isPublic() {
         return false;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::Both;
     }
 };
 
@@ -319,8 +395,16 @@ struct BATCH_MODE final : OptionBase<BATCH_MODE, ov::intel_npu::BatchMode> {
         return ov::intel_npu::BatchMode::AUTO;
     }
 
+    static compilerVersion compilerSupportVersion() {
+        return {0, 5, 5};
+    }
+
     static bool isPublic() {
         return false;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::Both;
     }
 
     static ov::intel_npu::BatchMode parse(std::string_view val) {
@@ -359,6 +443,10 @@ struct EXCLUSIVE_ASYNC_REQUESTS final : OptionBase<EXCLUSIVE_ASYNC_REQUESTS, boo
 
     static bool isPublic() {
         return false;
+    }
+
+    static ov::PropertyMutability mutability() {
+        return ov::PropertyMutability::RW;
     }
 
     static constexpr std::string_view getTypeName() {
@@ -418,6 +506,10 @@ struct PROFILING_TYPE final : OptionBase<PROFILING_TYPE, ov::intel_npu::Profilin
     static bool isPublic() {
         return false;
     }
+
+    static ov::PropertyMutability mutability() {
+        return ov::PropertyMutability::RW;
+    }
 };
 
 //
@@ -461,6 +553,10 @@ struct MODEL_PRIORITY final : OptionBase<MODEL_PRIORITY, ov::hint::Priority> {
     static bool isPublic() {
         return true;
     }
+
+    static ov::PropertyMutability mutability() {
+        return ov::PropertyMutability::RW;
+    }
 };
 
 //
@@ -484,6 +580,10 @@ struct CREATE_EXECUTOR final : OptionBase<CREATE_EXECUTOR, int64_t> {
 
     static bool isPublic() {
         return false;
+    }
+
+    static ov::PropertyMutability mutability() {
+        return ov::PropertyMutability::RW;
     }
 
     static OptionMode mode() {
@@ -539,6 +639,10 @@ struct NUM_STREAMS final : OptionBase<NUM_STREAMS, ov::streams::Num> {
     static bool isPublic() {
         return true;
     }
+
+    static ov::PropertyMutability mutability() {
+        return ov::PropertyMutability::RO;
+    }
 };
 
 //
@@ -555,6 +659,10 @@ struct ENABLE_CPU_PINNING final : OptionBase<ENABLE_CPU_PINNING, bool> {
 
     static bool isPublic() {
         return true;
+    }
+
+    static ov::PropertyMutability mutability() {
+        return ov::PropertyMutability::RW;
     }
 
     static OptionMode mode() {
@@ -581,6 +689,14 @@ struct WORKLOAD_TYPE final : OptionBase<WORKLOAD_TYPE, ov::WorkloadType> {
 
     static constexpr std::string_view getTypeName() {
         return "ov::WorkloadType";
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+
+    static ov::PropertyMutability mutability() {
+        return ov::PropertyMutability::RW;
     }
 
     static ov::WorkloadType parse(std::string_view val) {
@@ -612,11 +728,15 @@ struct TURBO final : OptionBase<TURBO, bool> {
     }
 
     static bool isPublic() {
-        return true;
+        return false;  // visiblity is decided on plugin level by driver support
     }
 
     static OptionMode mode() {
         return OptionMode::RunTime;
+    }
+
+    static ov::PropertyMutability mutability() {
+        return ov::PropertyMutability::RW;
     }
 };
 
@@ -672,6 +792,10 @@ struct COMPILER_TYPE final : OptionBase<COMPILER_TYPE, ov::intel_npu::CompilerTy
         return OptionMode::CompileTime;
     }
 
+    static ov::PropertyMutability mutability() {
+        return ov::PropertyMutability::RW;
+    }
+
     static bool isPublic() {
         return false;
     }
@@ -703,6 +827,10 @@ struct COMPILATION_MODE final : OptionBase<COMPILATION_MODE, std::string> {
     static bool isPublic() {
         return false;
     }
+
+    static ov::PropertyMutability mutability() {
+        return ov::PropertyMutability::RW;
+    }
 };
 
 //
@@ -722,6 +850,10 @@ struct EXECUTION_MODE_HINT final : OptionBase<EXECUTION_MODE_HINT, ov::hint::Exe
         return ov::hint::ExecutionMode::PERFORMANCE;
     }
 
+    static compilerVersion compilerSupportVersion() {
+        return {0, 5, 6};
+    }
+
     static OptionMode mode() {
         return OptionMode::CompileTime;
     }
@@ -730,8 +862,8 @@ struct EXECUTION_MODE_HINT final : OptionBase<EXECUTION_MODE_HINT, ov::hint::Exe
         return true;
     }
 
-    static compilerVersion compilerSupportVersion() {
-        return {1, 1, 1};
+    static ov::PropertyMutability mutability() {
+        return ov::PropertyMutability::RW;
     }
 };
 
@@ -761,6 +893,10 @@ struct DYNAMIC_SHAPE_TO_STATIC final : OptionBase<DYNAMIC_SHAPE_TO_STATIC, bool>
     static bool isPublic() {
         return false;
     }
+
+    static ov::PropertyMutability mutability() {
+        return ov::PropertyMutability::RW;
+    }
 };
 
 //
@@ -782,6 +918,10 @@ struct COMPILATION_MODE_PARAMS final : OptionBase<COMPILATION_MODE_PARAMS, std::
 
     static bool isPublic() {
         return true;
+    }
+
+    static ov::PropertyMutability mutability() {
+        return ov::PropertyMutability::RW;
     }
 };
 
@@ -808,6 +948,10 @@ struct DPU_GROUPS final : OptionBase<DPU_GROUPS, int64_t> {
 
     static bool isPublic() {
         return false;
+    }
+
+    static ov::PropertyMutability mutability() {
+        return ov::PropertyMutability::RW;
     }
 
 #ifdef NPU_PLUGIN_DEVELOPER_BUILD
@@ -839,7 +983,11 @@ struct TILES final : OptionBase<TILES, int64_t> {
     }
 
     static bool isPublic() {
-        return false;
+        return true;
+    }
+
+    static ov::PropertyMutability mutability() {
+        return ov::PropertyMutability::RW;
     }
 
 #ifdef NPU_PLUGIN_DEVELOPER_BUILD
@@ -866,12 +1014,20 @@ struct STEPPING final : OptionBase<STEPPING, int64_t> {
         return -1;
     }
 
+    static compilerVersion compilerSupportVersion() {
+        return {0, 5, 3};
+    }
+
     static OptionMode mode() {
         return OptionMode::CompileTime;
     }
 
     static bool isPublic() {
         return false;
+    }
+
+    static ov::PropertyMutability mutability() {
+        return ov::PropertyMutability::RW;
     }
 };
 
@@ -888,6 +1044,10 @@ struct MAX_TILES final : OptionBase<MAX_TILES, int64_t> {
         return {};
     }
 
+    static compilerVersion compilerSupportVersion() {
+        return {0, 5, 3};
+    }
+
     static int64_t defaultValue() {
         return -1;
     }
@@ -897,7 +1057,11 @@ struct MAX_TILES final : OptionBase<MAX_TILES, int64_t> {
     }
 
     static bool isPublic() {
-        return false;
+        return true;
+    }
+
+    static ov::PropertyMutability mutability() {
+        return ov::PropertyMutability::RW;
     }
 };
 
@@ -926,6 +1090,10 @@ struct DMA_ENGINES final : OptionBase<DMA_ENGINES, int64_t> {
         return false;
     }
 
+    static ov::PropertyMutability mutability() {
+        return ov::PropertyMutability::RW;
+    }
+
 #ifdef NPU_PLUGIN_DEVELOPER_BUILD
     static std::string_view envVar() {
         return "IE_NPU_DMA_ENGINES";
@@ -950,6 +1118,10 @@ struct USE_ELF_COMPILER_BACKEND final : OptionBase<USE_ELF_COMPILER_BACKEND, ov:
         return false;
     }
 
+    static ov::PropertyMutability mutability() {
+        return ov::PropertyMutability::RW;
+    }
+
 #ifdef NPU_PLUGIN_DEVELOPER_BUILD
     static std::string_view envVar() {
         return "IE_NPU_USE_ELF_COMPILER_BACKEND";
@@ -958,6 +1130,10 @@ struct USE_ELF_COMPILER_BACKEND final : OptionBase<USE_ELF_COMPILER_BACKEND, ov:
 
     static ov::intel_npu::ElfCompilerBackend defaultValue() {
         return ov::intel_npu::ElfCompilerBackend::AUTO;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::CompileTime;
     }
 
     static ov::intel_npu::ElfCompilerBackend parse(std::string_view val) {
@@ -1008,6 +1184,10 @@ struct BACKEND_COMPILATION_PARAMS final : OptionBase<BACKEND_COMPILATION_PARAMS,
     static bool isPublic() {
         return false;
     }
+
+    static ov::PropertyMutability mutability() {
+        return ov::PropertyMutability::RW;
+    }
 };
 
 //
@@ -1033,6 +1213,10 @@ struct COMPILATION_NUM_THREADS final : OptionBase<COMPILATION_NUM_THREADS, int32
         return OptionMode::CompileTime;
     }
 
+    static ov::PropertyMutability mutability() {
+        return ov::PropertyMutability::RW;
+    }
+
     static bool isPublic() {
         return true;
     }
@@ -1050,8 +1234,16 @@ struct BYPASS_UMD_CACHING final : OptionBase<BYPASS_UMD_CACHING, bool> {
         return false;
     }
 
+    static bool isPublic() {
+        return true;
+    }
+
     static OptionMode mode() {
         return OptionMode::RunTime;
+    }
+
+    static ov::PropertyMutability mutability() {
+        return ov::PropertyMutability::RW;
     }
 };
 
