@@ -79,6 +79,7 @@ public:
     virtual ov::device::PCIInfo getPciInfo() const;
     virtual ov::device::Type getDeviceType() const;
     virtual std::map<ov::element::Type, float> getGops() const;
+    virtual compilerVersion getCompilerVersion() const;
 
     virtual std::shared_ptr<SyncInferRequest> createInferRequest(
         const std::shared_ptr<const ICompiledModel>& compiledModel,
