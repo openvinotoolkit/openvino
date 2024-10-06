@@ -10,6 +10,7 @@
 #include "intel_npu/utils/logger/logger.hpp"
 #include "npu.hpp"
 #include "openvino/runtime/so_ptr.hpp"
+#include "properties.hpp"
 
 namespace intel_npu {
 
@@ -82,8 +83,6 @@ public:
     const ov::SoPtr<ICompiler>& get_compiler() const override;
 
 private:
-    void initialize_properties();
-
     void configure_stream_executors();
 
     void create_executor();
@@ -96,9 +95,7 @@ private:
     mutable std::shared_ptr<IExecutor> _executorPtr;
     std::shared_ptr<ov::threading::ITaskExecutor> _resultExecutor;
 
-    // properties map: {name -> [supported, mutable, eval function]}
-    std::map<std::string, std::tuple<bool, ov::PropertyMutability, std::function<ov::Any(const Config&)>>> _properties;
-    std::vector<ov::PropertyName> _supportedProperties;
+    std::unique_ptr<Properties> _properties;
 
     const ov::SoPtr<ICompiler> _compiler;
 };
