@@ -7,7 +7,7 @@
 #include <memory>
 #include <vector>
 
-#include "intel_npu/al/config/common.hpp"
+#include "intel_npu/al/config/options.hpp"
 #include "intel_npu/al/icompiler.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 

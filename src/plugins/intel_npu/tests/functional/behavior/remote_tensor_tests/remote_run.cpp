@@ -6,7 +6,7 @@
 
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
-#include "intel_npu/al/config/common.hpp"
+#include "intel_npu/al/config/options.hpp"
 
 using namespace ov::test::behavior;
 
