@@ -462,7 +462,12 @@ public:
     template <class Opt>
     typename std::string getString() const;
 
+    // Returns a string with all config keys which have set values
     std::string toString() const;
+
+    // Returns a string with all config keys which have set values
+    // and have OptionMode::Compile or OptionMode::Both
+    std::string toStringForCompiler() const;
 
 private:
     std::shared_ptr<const OptionsDesc> _desc;

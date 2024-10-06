@@ -292,6 +292,25 @@ std::string Config::toString() const {
     return resultStream.str();
 }
 
+std::string Config::toStringForCompiler() const {
+    std::stringstream resultStream;
+    for (auto it = _impl.cbegin(); it != _impl.cend(); ++it) {
+        const auto& key = it->first;
+
+        // Only include configs which options have OptionMode::Compile or OptionMode::Both
+        if (_desc->has(key)) {
+            if (_desc->get(key).mode() != OptionMode::RunTime) {
+                resultStream << key << "=\"" << it->second->toString() << "\"";
+                if (std::next(it) != _impl.end()) {
+                    resultStream << " ";
+                }
+            }
+        }
+    }
+
+    return resultStream.str();
+}
+
 //
 // envVarStrToBool
 //

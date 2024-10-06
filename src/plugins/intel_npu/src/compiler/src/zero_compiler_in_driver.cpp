@@ -444,8 +444,7 @@ template <typename TableExtension>
 std::string LevelZeroCompilerInDriver<TableExtension>::serializeConfig(
     const Config& config,
     ze_graph_compiler_version_info_t& compilerVersion) const {
-    std::string content = config.toString();
-    _logger.debug("Original content of config: %s", content.c_str());
+    std::string content = config.toStringForCompiler();
 
     // Remove optimization-level and performance-hint-override for old driver which not support them
     if ((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 7)) {
@@ -514,81 +513,7 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeConfig(
         content = std::regex_replace(content,
                                      getTargetRegex(ov::hint::Priority::HIGH),
                                      getStringReplacement(ov::intel_npu::LegacyPriority::HIGH));
-
-        // Removing cpu_pinning from the command string
-        std::ostringstream pinningstr;
-        pinningstr << ov::hint::enable_cpu_pinning.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
-                   << VALUE_DELIMITER;
-        _logger.warning(
-            "ENABLE_CPU_PINNING property is not suppored by this compiler version. Removing from parameters");
-        content = std::regex_replace(content, std::regex(pinningstr.str()), "");
     }
-
-    /// Stepping and max_tiles are not supported in versions < 5.3 - need to remove it
-    if ((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 3)) {
-        std::ostringstream stepstr;
-        stepstr << ov::intel_npu::stepping.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\d+"
-                << VALUE_DELIMITER;
-        std::ostringstream maxtilestr;
-        maxtilestr << ov::intel_npu::max_tiles.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\d+"
-                   << VALUE_DELIMITER;
-        _logger.warning("NPU_STEPPING property is not suppored by this compiler version. Removing from parameters");
-        content = std::regex_replace(content, std::regex(stepstr.str()), "");
-        _logger.warning("NPU_MAX_TILES property is not suppored by this compiler version. Removing from parameters");
-        content = std::regex_replace(content, std::regex(maxtilestr.str()), "");
-    }
-
-    /// Removing INFERENCE_PRECISION_HINT for older compilers
-    if ((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 4)) {
-        std::ostringstream precstr;
-        precstr << ov::hint::inference_precision.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
-                << VALUE_DELIMITER;
-        _logger.warning(
-            "INFERENCE_PRECISION_HINT property is not suppored by this compiler version. Removing from parameters");
-        content = std::regex_replace(content, std::regex(precstr.str()), "");
-    }
-
-    /// Replacing NPU_TILES (for all versions) with NPU_DPU_GROUPS for backwards compatibility
-    if (std::regex_search(content, std::regex(ov::intel_npu::tiles.name()))) {
-        _logger.warning("NPU_TILES property is not suppored by this compiler version. Swaping it to "
-                        "NPU_DPU_GROUPS (obsolete)");
-        content = std::regex_replace(content, std::regex(ov::intel_npu::tiles.name()), "NPU_DPU_GROUPS");
-    }
-
-    // Batch mode property is not supported in versions < 5.5 - need to remove it
-    if ((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 5)) {
-        std::ostringstream batchstr;
-        batchstr << ov::intel_npu::batch_mode.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
-                 << VALUE_DELIMITER;
-
-        _logger.warning("NPU_BATCH_MODE property is not suppored by this compiler version. Removing from parameters");
-        content = std::regex_replace(content, std::regex(batchstr.str()), "");
-    }
-
-    // EXECUTION_MODE_HINT is not supported in versions < 5.6 - need to remove it
-    if ((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 6)) {
-        std::ostringstream batchstr;
-        batchstr << ov::hint::execution_mode.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
-                 << VALUE_DELIMITER;
-        _logger.warning(
-            "EXECUTION_MODE_HINT property is not suppored by this compiler version. Removing from parameters");
-        content = std::regex_replace(content, std::regex(batchstr.str()), "");
-    }
-
-    // Remove the properties that are not used by the compiler
-    // WorkloadType is used only by compiled model
-    std::ostringstream workloadtypestr;
-    workloadtypestr << ov::workload_type.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+" << VALUE_DELIMITER;
-    content = std::regex_replace(content, std::regex(workloadtypestr.str()), "");
-    // Remove turbo property as it is not used by compiler
-    std::ostringstream turbostring;
-    turbostring << ov::intel_npu::turbo.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+" << VALUE_DELIMITER;
-    content = std::regex_replace(content, std::regex(turbostring.str()), "");
-    // Remove Bypass UMD Caching propery
-    std::ostringstream umdcachestring;
-    umdcachestring << ov::intel_npu::bypass_umd_caching.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
-                   << VALUE_DELIMITER;
-    content = std::regex_replace(content, std::regex(umdcachestring.str()), "");
 
     // FINAL step to convert prefixes of remaining params, to ensure backwards compatibility
     // From 5.0.0, driver compiler start to use NPU_ prefix, the old version uses VPU_ prefix
