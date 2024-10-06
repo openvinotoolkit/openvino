@@ -33,11 +33,15 @@ struct TypePrinter {
     static constexpr const char* name();
 };
 
-#define TYPE_PRINTER(type)                                    \
-    template <>                                               \
-    struct TypePrinter<type> {                                \
-        static constexpr bool hasName() { return true; }      \
-        static constexpr const char* name() { return #type; } \
+#define TYPE_PRINTER(type)                    \
+    template <>                               \
+    struct TypePrinter<type> {                \
+        static constexpr bool hasName() {     \
+            return true;                      \
+        }                                     \
+        static constexpr const char* name() { \
+            return #type;                     \
+        }                                     \
     };
 
 TYPE_PRINTER(bool)
@@ -202,6 +206,16 @@ enum class OptionMode {
 
 std::string_view stringifyEnum(OptionMode val);
 
+///
+/// CompilerVersion
+///
+
+struct compilerVersion {
+    uint32_t compilerVersion;
+    uint32_t vclMajor;
+    uint32_t vclMinor;
+};
+
 //
 // OptionBase
 //
@@ -252,7 +266,17 @@ struct OptionBase {
 
     // Overload this for private options.
     static bool isPublic() {
-        return true;
+        return false;
+    }
+
+    // Overload this for read-only options (metrics)
+    static ov::PropertyMutability mutability() {
+        return ov::PropertyMutability::RW;
+    }
+
+    /// Overload this for options conditioned by compiler version
+    static compilerVersion compilerSupportVersion() {
+        return {0, 0, 0};
     }
 
     static std::string toString(const ValueType& val) {
@@ -317,6 +341,8 @@ struct OptionConcept final {
     std::string_view (*envVar)() = nullptr;
     OptionMode (*mode)() = nullptr;
     bool (*isPublic)() = nullptr;
+    ov::PropertyMutability (*mutability)() = nullptr;
+    compilerVersion (*compilerSupportVersion)() = nullptr;
     std::shared_ptr<OptionValue> (*validateAndParse)(std::string_view val) = nullptr;
 };
 
@@ -335,7 +361,13 @@ std::shared_ptr<OptionValue> validateAndParse(std::string_view val) {
 
 template <class Opt>
 OptionConcept makeOptionModel() {
-    return {&Opt::key, &Opt::envVar, &Opt::mode, &Opt::isPublic, &validateAndParse<Opt>};
+    return {&Opt::key,
+            &Opt::envVar,
+            &Opt::mode,
+            &Opt::isPublic,
+            &Opt::mutability,
+            &Opt::compilerSupportVersion,
+            &validateAndParse<Opt>};
 }
 
 }  // namespace details
@@ -349,9 +381,19 @@ public:
     template <class Opt>
     void add();
 
-    std::vector<std::string> getSupported(bool includePrivate = false) const;
+    template <class Opt>
+    void add(compilerVersion compilerVersionRequirement);
 
-    details::OptionConcept get(std::string_view key, OptionMode mode) const;
+    bool has(std::string_view key) const;
+
+    void remove(std::string_view key);
+
+    void reset();
+
+    std::vector<std::string> getSupported(bool includePrivate = false) const;
+    std::vector<ov::PropertyName> getSupportedOptions(bool includePrivate = false) const;
+
+    details::OptionConcept get(std::string_view key, OptionMode mode = OptionMode::Both) const;
     void walk(std::function<void(const details::OptionConcept&)> cb) const;
 
 private:
@@ -373,6 +415,25 @@ void OptionsDesc::add() {
     }
 }
 
+template <class Opt>
+void OptionsDesc::add(compilerVersion compilerVersionRequirement) {
+    if (compilerVersionRequirement.vclMajor >= Opt::compilerSupportVersion().vclMajor &&
+        compilerVersionRequirement.vclMinor >= Opt::compilerSupportVersion().vclMinor) {
+        OPENVINO_ASSERT(_impl.count(Opt::key().data()) == 0, "Option '", Opt::key().data(), "' was already registered");
+        _impl.insert({Opt::key().data(), details::makeOptionModel<Opt>()});
+
+        for (const auto& deprecatedKey : Opt::deprecatedKeys()) {
+            OPENVINO_ASSERT(_deprecated.count(deprecatedKey.data()) == 0,
+                            "Option '",
+                            deprecatedKey.data(),
+                            "' was already registered");
+            _deprecated.insert({deprecatedKey.data(), Opt::key().data()});
+        }
+    } else {
+        // Option is being skipped > log a warning here
+    }
+}
+
 //
 // Config
 //
@@ -387,6 +448,10 @@ public:
     void update(const ConfigMap& options, OptionMode mode = OptionMode::Both);
 
     void parseEnvVars();
+
+    bool hasOpt(std::string_view key) const;
+    bool isOptPublic(std::string_view key) const;
+    details::OptionConcept getOpt(std::string_view key) const;
 
     template <class Opt>
     bool has() const;

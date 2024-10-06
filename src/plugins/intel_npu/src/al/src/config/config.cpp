@@ -167,6 +167,31 @@ details::OptionConcept OptionsDesc::get(std::string_view key, OptionMode mode) c
     return desc;
 }
 
+void OptionsDesc::remove(std::string_view key) {
+    std::string searchKey{key};
+    auto it = _impl.find(searchKey);
+    if (it != _impl.end()) {
+        _impl.erase(it);
+    }
+}
+
+void OptionsDesc::reset() {
+    _impl.clear();
+}
+
+bool OptionsDesc::has(std::string_view key) const {
+    std::string searchKey{key};
+    const auto itDeprecated = _deprecated.find(std::string(key));
+    if (itDeprecated != _deprecated.end()) {
+        return true;
+    }
+    const auto itMain = _impl.find(searchKey);
+    if (itMain != _impl.end()) {
+        return true;
+    }
+    return false;
+}
+
 std::vector<std::string> OptionsDesc::getSupported(bool includePrivate) const {
     std::vector<std::string> res;
     res.reserve(_impl.size());
@@ -174,6 +199,19 @@ std::vector<std::string> OptionsDesc::getSupported(bool includePrivate) const {
     for (const auto& p : _impl) {
         if (p.second.isPublic() || includePrivate) {
             res.push_back(p.first);
+        }
+    }
+
+    return res;
+}
+
+std::vector<ov::PropertyName> OptionsDesc::getSupportedOptions(bool includePrivate) const {
+    std::vector<ov::PropertyName> res;
+    res.reserve(_impl.size());
+
+    for (const auto& p : _impl) {
+        if (p.second.isPublic() || includePrivate) {
+            res.push_back({p.first, p.second.mutability()});
         }
     }
 
@@ -192,6 +230,24 @@ void OptionsDesc::walk(std::function<void(const details::OptionConcept&)> cb) co
 
 Config::Config(const std::shared_ptr<const OptionsDesc>& desc) : _desc(desc) {
     OPENVINO_ASSERT(_desc != nullptr, "Got NULL OptionsDesc");
+}
+
+bool Config::hasOpt(std::string_view key) const {
+    return _desc->has(key);
+}
+
+details::OptionConcept Config::getOpt(std::string_view key) const {
+    return _desc->get(key);
+}
+
+bool Config::isOptPublic(std::string_view key) const {
+    auto log = Logger::global().clone("Config");
+    if (_desc->has(key)) {
+        return _desc->get(key).isPublic();
+    } else {
+        log.warning("Option '%s' not registered in config", key.data());
+        return true;
+    }
 }
 
 void Config::parseEnvVars() {
