@@ -18,7 +18,7 @@ SearchSorted
 **Attributes**
 
 * *right*
-  * **Description**: *right*  if False, return the first suitable location that is found. If True, return the last such index. If no suitable index found, return 0 for non-numerical value (eg. nan, inf) or the size of innermost dimension within sorted_sequence (one pass the last index of the innermost dimension). In other words, if False, gets the lower bound index for each value in values on the corresponding innermost dimension of the sorted_sequence. If True, gets the upper bound index instead. Default value is False. side does the same and is preferred. It will error if side is set to “left” while this is True.
+  * **Description**: *right*  if False, return the first suitable location that is found. If True, return the last such index. If no suitable index is found, return 0 for non-numerical value (e.g. nan, inf) or the size of innermost dimension within sorted_sequence (one pass the last index of the innermost dimension). In other words, if False, get the lower bound index for each value in values on the corresponding innermost dimension of the sorted_sequence. If True, get the upper bound index instead. Default value is False. Side does the same and is preferred. It will error if side is set to “left” while this is True.
   * **Range of values**: true or false
   * **Type**: boolean
   * **Default value**: false
