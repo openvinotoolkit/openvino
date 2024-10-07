@@ -324,13 +324,25 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     std::map<std::size_t, std::string> forced_sub_devices{};
     const std::string fsd_opt = m_cfg.get<::intel_npu::NPUW_SUBMODEL_DEVICE>();
     forced_sub_devices = ::intel_npu ::OptionParser<std::map<std::size_t, std::string>>::parse(fsd_opt);
+
+    // Exclude optimized out subgraphs from compilation target beforehand - otherwise we might get head and repeated
+    // block in the same chunk
+    std::vector<std::size_t> idx_subgraph_to_compile;
+    for (std::size_t i = 0u; i < orderedSubgraphs.size(); i++) {
+        if (orderedSubgraphs[i]._optimized_out || m_compiled_submodels[i].replaced_by.value_or(i) != i) {
+            continue;  // do nothing here
+        } else {
+            idx_subgraph_to_compile.push_back(i);
+        }
+    }
+
     // Compile submodels. Some of them can be functions: track which model will be
     // used as function(s): function name -> index of the compiled subgraph
-    auto compile = [&](size_t id) {
+    auto compile = [&](size_t i) {
+        const auto& id = idx_subgraph_to_compile[i];
         const auto& subgraph = orderedSubgraphs[id];
-        if (subgraph._optimized_out) {
-            return;
-        }
+
+        NPUW_ASSERT(!subgraph._optimized_out);
 
         const std::size_t real_id = m_compiled_submodels[id].replaced_by.value_or(id);
         if (!orderedSubgraphs[real_id]._avoid_list.empty()) {
@@ -386,10 +398,10 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     // Parallel compilation is unstable so is disabled by default.
     const bool par_opt = m_cfg.get<::intel_npu::NPUW_PARALLEL_COMPILE>();
     if (par_opt) {
-        ov::parallel_for(orderedSubgraphs.size(), compile);
+        ov::parallel_for(idx_subgraph_to_compile.size(), compile);
     } else {
         // TODO: Introduce npuw::serial(i, f) instead where f is a _funcall
-        for (std::size_t i = 0u; i < orderedSubgraphs.size(); i++) {
+        for (std::size_t i = 0u; i < idx_subgraph_to_compile.size(); i++) {
             compile(i);
         }
     }
