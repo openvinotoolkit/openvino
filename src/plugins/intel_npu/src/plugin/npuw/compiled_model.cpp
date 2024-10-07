@@ -417,7 +417,7 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
     for (std::size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
         auto& comp_model_desc = m_compiled_submodels[idx];
 
-        // Skip optimized out
+        // Skip optimized out and non-functions
         if (!comp_model_desc.compiled_model && !comp_model_desc.replaced_by) {
             return;
         }
@@ -426,10 +426,10 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
         auto& func_desc = m_compiled_submodels[real_idx];
 
         for (std::size_t tidx = 0; tidx < comp_model_desc.lazy_closure.size(); ++tidx) {
-            if (m_compiled_submodels[idx].closure[tidx]) {
+            if (comp_model_desc.closure[tidx]) {
                 continue;  // host-side closure
             }
-            m_weights_bank->registerLT(m_compiled_submodels[idx].lazy_closure[tidx], *func_desc.device_it);
+            m_weights_bank->registerLT(comp_model_desc.lazy_closure[tidx], *func_desc.device_it);
         }
     }
 
@@ -440,7 +440,7 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
     for (size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
         auto& comp_model_desc = m_compiled_submodels[idx];
 
-        // Skip optimized out
+        // Skip optimized out and non-functions
         if (!comp_model_desc.compiled_model && !comp_model_desc.replaced_by) {
             continue;
         }
@@ -449,14 +449,15 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
         auto& func_desc = m_compiled_submodels[real_idx];
 
         for (std::size_t tidx = 0; tidx < comp_model_desc.lazy_closure.size(); ++tidx) {
-            if (m_compiled_submodels[idx].closure[tidx]) {
+            if (comp_model_desc.closure[tidx]) {
                 // host-side closure - already set, do nothing
-                m_compiled_submodels[idx].is_remote[tidx] = false;
+                comp_model_desc.is_remote[tidx] = false;
                 continue;
             }
-            const auto& lt = m_compiled_submodels[idx].lazy_closure[tidx];
-            m_compiled_submodels[idx].closure[tidx] = m_weights_bank->get(lt, *func_desc.device_it);
-            m_compiled_submodels[idx].is_remote[tidx] = m_weights_bank->is_remote(lt);
+            const auto& lt = comp_model_desc.lazy_closure[tidx];
+            comp_model_desc.closure[tidx] = m_weights_bank->get(lt, *func_desc.device_it);
+            // FIXME: find a more reliable way to do so
+            comp_model_desc.is_remote[tidx] = m_weights_bank->is_remote(lt);
         }
     }
 }

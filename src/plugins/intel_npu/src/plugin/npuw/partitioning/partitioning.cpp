@@ -1689,7 +1689,7 @@ void Partitioner::optimize(const std::string& func_name) {
                 if (!to_concat.empty()) {
                     funcall._lazy_closure.push_back(LazyTensor(TransformType::CONCAT, std::make_pair(to_concat, axis)));
                     // Some of the tensors might be in closure - preserve it's 1:1 idx mapping with _lazy_closure
-                    funcall._closure.resize(funcall._lazy_closure.size());
+                    funcall._closure.push_back(ov::Tensor());
                 }
             });
         }
@@ -1726,7 +1726,7 @@ void Partitioner::optimize(const std::string& func_name) {
                     LazyTensor(TransformType::UNPACK,
                                std::make_tuple(cw, cz, cs, p.first->get_shape(), p.first->get_element_type())));
                 // Some of the tensors might be in closure - preserve it's 1:1 idx mapping with _lazy_closure
-                funcall._closure.resize(funcall._lazy_closure.size());
+                funcall._closure.push_back(ov::Tensor());
             });
         }
 

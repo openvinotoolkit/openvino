@@ -38,10 +38,6 @@ private:
 ov::Tensor Bank::get(const LazyTensor& tensor, const std::string& device) {
     const std::string& device_for_alloc = m_alloc_device.empty() ? device : m_alloc_device;
 
-    if (device_for_alloc != "CPU" && device_for_alloc != "NPU") {
-        OPENVINO_THROW("Unsupported device in weights bank allocation: ", device_for_alloc);
-    }
-
     std::lock_guard<std::mutex> guard(m_mutex);
 
     auto& device_bank = m_device_bank[device_for_alloc];
@@ -53,26 +49,11 @@ ov::Tensor Bank::get(const LazyTensor& tensor, const std::string& device) {
     }
 
     // Allocation and evaluation needed
-    auto& transformed_tensor = device_bank[tensor];
-    transformed_tensor = tensor.eval();
-    if (device_for_alloc != "CPU") {
-        m_remote_ctx = m_core->get_default_context(device_for_alloc)._ptr;
-        auto remote_tensor =
-            m_remote_ctx->create_host_tensor(transformed_tensor.get_element_type(), transformed_tensor.get_shape());
-        auto allocated_tensor = ov::make_tensor(remote_tensor);
-        transformed_tensor.copy_to(allocated_tensor);
-        transformed_tensor = allocated_tensor;
-    }
-
-    return transformed_tensor;
+    return unsafe_eval_and_alloc(tensor, device_for_alloc);
 }
 
 void Bank::registerLT(const LazyTensor& tensor, const std::string& device) {
     const std::string& device_for_alloc = m_alloc_device.empty() ? device : m_alloc_device;
-
-    if (device_for_alloc != "CPU" && device_for_alloc != "NPU") {
-        OPENVINO_THROW("Unsupported device in weights bank allocation: ", device_for_alloc);
-    }
 
     std::lock_guard<std::mutex> guard(m_mutex);
 
@@ -94,32 +75,43 @@ void Bank::evaluate_and_allocate() {
         }
         ov::parallel_for(vec.size(), [&](std::size_t idx) {
             const auto& lt = vec[idx];
-            auto& transformed_tensor = device_bank[lt];
-            if (!transformed_tensor) {
-                transformed_tensor = lt.eval();
+            auto iter_device = device_bank.find(lt);
+            if (iter_device != device_bank.end() && iter_device->second) {
+                // Already allocated
+                return;
             }
 
-            // Device name is known for each LT - set by registerLT
-            if (device_for_alloc != "CPU") {
-                // Allocate
-                m_remote_ctx = m_core->get_default_context(device_for_alloc)._ptr;
-                auto remote_tensor = m_remote_ctx->create_host_tensor(transformed_tensor.get_element_type(),
-                                                                      transformed_tensor.get_shape());
-                auto allocated_tensor = ov::make_tensor(remote_tensor);
-                transformed_tensor.copy_to(allocated_tensor);
-                transformed_tensor = allocated_tensor;
-            }
+            // Allocation and evaluation needed
+            unsafe_eval_and_alloc(lt, device_for_alloc);
         });
     }
 }
 
+ov::Tensor Bank::unsafe_eval_and_alloc(const LazyTensor& tensor, const std::string& device_for_alloc) {
+    // Note: private method used inside other methods with already locked mutex
+    const auto& transformed_tensor = tensor.eval();
+    if (device_for_alloc == "CPU") {
+        m_device_bank[device_for_alloc][tensor] = transformed_tensor;
+        return transformed_tensor;
+    }
+
+    m_remote_ctx = m_core->get_default_context(device_for_alloc)._ptr;
+    auto remote_tensor =
+        m_remote_ctx->create_host_tensor(transformed_tensor.get_element_type(), transformed_tensor.get_shape());
+    auto allocated_tensor = ov::make_tensor(remote_tensor);
+    transformed_tensor.copy_to(allocated_tensor);
+    m_device_bank[device_for_alloc][tensor] = allocated_tensor;
+    return allocated_tensor;
+}
+
 bool Bank::is_remote(const LazyTensor& tensor) const {
     // FIXME: make generic
-    if (m_device_bank.find("NPU") == m_device_bank.end()) {
-        return false;
+    auto npu_bank = m_device_bank.find("NPU");
+    if (npu_bank != m_device_bank.end() && npu_bank->second.find(tensor) != npu_bank->second.end()) {
+        // Found in NPU bank
+        return true;
     }
-    const auto& cpu_bank = m_device_bank.at("NPU");
-    return cpu_bank.find(tensor) != cpu_bank.end();
+    return false;
 }
 
 std::shared_ptr<Bank> BankManager::getBank(const std::string& bank_name,

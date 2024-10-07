@@ -39,8 +39,8 @@ public:
         std::size_t operator()(const LazyTensor& lt) const;
     };
 
-    explicit LazyTensor() = default;
-    explicit LazyTensor(const TransformType& type, const Transform& transform);
+    LazyTensor() = default;
+    LazyTensor(const TransformType& type, const Transform& transform);
 
     bool operator==(const LazyTensor& other) const;
     bool operator!=(const LazyTensor& other) const;

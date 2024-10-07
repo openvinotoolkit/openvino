@@ -129,26 +129,12 @@ void apply_remap(Subgraph& fcall, const ClosureRemap& m) {
 
         auto scale_iter = m.scale_remap.find(i);
         auto zerop_iter = m.zerop_remap.find(i);
-        // FIXME: assuming no transformations were applied to the tensor - since we are utilizing the original
-        // ov::Tensor below
-        if (scale_iter != m.scale_remap.end()) {
-            NPUW_ASSERT(!fcall._lazy_closure[scale_iter->second].has_transformations());
-            // For DCOFF utilize _closure instead of _lazy_closure
-            fcall._closure[scale_iter->second] = fcall._lazy_closure[scale_iter->second].get_orig_tensor();
-            new_scales.push_back(fcall._closure[scale_iter->second]);
-        } else {
-            new_scales.push_back(ov::Tensor());
-        }
 
+        new_scales.push_back(scale_iter != m.scale_remap.end() ? fcall._lazy_closure[scale_iter->second].eval()
+                                                               : ov::Tensor());
         // Check for asymmetric zero points and add them to new_zerops
-        if (zerop_iter != m.zerop_remap.end()) {
-            NPUW_ASSERT(!fcall._lazy_closure[zerop_iter->second].has_transformations());
-            // For DCOFF utilize _closure instead of _lazy_closure
-            fcall._closure[zerop_iter->second] = fcall._lazy_closure[zerop_iter->second].get_orig_tensor();
-            new_zerops.push_back(fcall._closure[zerop_iter->second]);
-        } else {
-            new_zerops.push_back(m.zero_points[i]);
-        }
+        new_zerops.push_back(zerop_iter != m.zerop_remap.end() ? fcall._lazy_closure[zerop_iter->second].eval()
+                                                               : m.zero_points[i]);
     }
     fcall._scales = std::move(new_scales);
     fcall._zerops = std::move(new_zerops);
