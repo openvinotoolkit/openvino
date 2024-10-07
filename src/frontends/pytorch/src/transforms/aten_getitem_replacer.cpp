@@ -124,7 +124,7 @@ AtenGetItemReplacer::AtenGetItemReplacer() {
                 auto gather = rg.make<v8::Gather>(input_concat, getitem_idx, zero);
                 replace_node(getitem, gather);
             }
-        } else if (auto chunk = cast_fw_node(input_node, "aten::chunk")) {
+        } else if (auto chunk = cast_fw_node(input_node, {"aten::chunk", "aten::unsafe_chunk"})) {
             auto input_tensor = chunk->get_input_source_output(0);
             auto chunks_i32 = chunk->get_input_source_output(1);
             auto dim_i32 = chunk->get_input_source_output(2);
