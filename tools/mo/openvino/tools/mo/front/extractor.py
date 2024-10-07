@@ -1179,37 +1179,9 @@ class FrontExtractorOp(object):
         return class_registration.ClassType.EXTRACTOR
 
 
-class MXNetCustomFrontExtractorOp(object):
-    """
-    A super class for custom mxnet operation extractor.
-    Do additional extraction of custom MXNet operation attributes without modifying the graph topology.
-    Useful for custom layers that maps to a single FW operation to re-use of FW shape inference.
-    In contrast to FrontReplacement* classes, this class doesn't modify graph topology and
-    doesn't completely override node attributes. So it is safe to preserve the original
-    MO inference function (which can use FW fallback mechanism).
-    
-    It is needed to keep the list of extractors for particularly custom layers.
-
-    When actual extraction happens, Model Optimizer first finds the match by type, which is CustomFrontExtractorOp.
-    It in turns looks up the MXNetCustomFrontExtractorOp for the needed layer extractor not by type, but by op_type.
-
-    
-    A sub-class should implement one of extract methods:
-        def extract(self, node):
-            return (<supported or not: Boolean>, { <additional node attributes> })
-    """
-
-    registered_ops = {}
-    registered_cls = []
-
-    @classmethod
-    def class_type(cls):
-        return class_registration.ClassType.EXTRACTOR
-
-
 class CaffePythonFrontExtractorOp:
     """
-    A super class for custom mxnet operation extractor.
+    A super class for custom caffe operation extractor.
     Do additional extraction of Python Caffe operation attributes without modifying the graph topology.
     Useful for Python layers that maps to a single FW operation to re-use of FW shape inference.
     In contrast to FrontReplacement* classes, this class doesn't modify graph topology and

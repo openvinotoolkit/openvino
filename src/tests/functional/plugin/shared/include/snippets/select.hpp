@@ -32,7 +32,7 @@ typedef std::tuple<
 > BroadcastSelectParams;
 
 class Select : public testing::WithParamInterface<ov::test::snippets::SelectParams>,
-               virtual public ov::test::SnippetsTestsCommon {
+               virtual public SnippetsTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::SelectParams> obj);
 
@@ -43,7 +43,7 @@ protected:
 };
 
 class BroadcastSelect : public testing::WithParamInterface<ov::test::snippets::BroadcastSelectParams>,
-                        virtual public ov::test::SnippetsTestsCommon {
+                        virtual public SnippetsTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::BroadcastSelectParams> obj);
 
