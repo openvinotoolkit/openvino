@@ -8,5 +8,6 @@
 
 # race conditions from thirdparty libs
 race:libtbb
+race:libhwloc
 # race conditions from std libs
 race:libstdc++
