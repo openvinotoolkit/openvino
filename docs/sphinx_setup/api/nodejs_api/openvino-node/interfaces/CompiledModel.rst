@@ -243,6 +243,7 @@ Methods
 
 
 .. rubric:: setProperty
+   :name: setProperty
 
 *
 
