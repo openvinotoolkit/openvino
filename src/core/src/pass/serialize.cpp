@@ -1018,7 +1018,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
                     attribute_node.append_attribute("name").set_value(type_info.name);
                     // TODO add deprecation notice with explanation (RuntimeAttribute should not be versioned, 0 remains
                     // as legacy for backword compatibity)
-                    assert(type_info.get_version() == "0");
+                    assert(type_info.get_version().empty());
                     attribute_node.append_attribute("version").set_value("0");
                     rt_info::RTInfoSerializer serializer(attribute_node);
                     if (!rt_attribute.visit_attributes(serializer)) {

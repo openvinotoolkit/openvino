@@ -37,7 +37,7 @@ private:
     void register_factory() {
         m_factory_registry.emplace(T::get_type_info_static(), []() -> Any {
             // TODO add versioning deprecation notice - newer versions are not allowed
-            assert(T::get_type_info_static().get_version() == "0");
+            assert(T::get_type_info_static().get_version().empty());
             return T{};
         });
     }
