@@ -33,8 +33,6 @@ RUN apt-get update && \
         # Compiler \
         gcc-10 \
         g++-10 \
-        clang \
-        lld \
         && \
     rm -rf /var/lib/apt/lists/*
 
