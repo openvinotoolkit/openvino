@@ -44,5 +44,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_RoPETestLlama2,
                          ::testing::Values(ov::test::utils::DEVICE_GPU),
                          RoPETestLlama2Slice::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_RoPETestChatGLM4,
+                         RoPETestChatGLM4StridedSlice,
+                         ::testing::Values(ov::test::utils::DEVICE_GPU),
+                         RoPETestChatGLMStridedSlice::getTestCaseName);
+
+
 }  // namespace test
 }  // namespace ov
