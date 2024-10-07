@@ -121,6 +121,9 @@ private:
         Subgraph::Gather host_gather;
 
         std::size_t param_base = 0;
+        // NB: closure and lazy_closure are of the same size - to preserve proper indexing.
+        //     closure is responsible for host-side tensors (DCOFF, Gather, etc) while
+        //     lazy_closure is used for weights sharing and allocating device memory.
         std::vector<ov::Tensor> closure;
         std::vector<weights::LazyTensor> lazy_closure;
         std::vector<ov::Tensor> scales;
