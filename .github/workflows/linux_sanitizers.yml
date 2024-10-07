@@ -259,7 +259,7 @@ jobs:
       TBB_ENABLE_SANITIZERS: 1
       ASAN_OPTIONS: halt_on_error=0:suppressions=/__w/openvino/openvino/openvino/tests/sanitizers/asan/suppressions.supp
       LSAN_OPTIONS: suppressions=/__w/openvino/openvino/openvino/tests/sanitizers/lsan/suppressions.txt:NEOReadDebugKeys=1:DisableDeepBind=1
-      TSAN_OPTIONS: suppressions=/__w/openvino/openvino/openvino/tests/sanitizers/tsan/suppressions.txt,report_suppressions=1
+      TSAN_OPTIONS: suppressions=/__w/openvino/openvino/openvino/tests/sanitizers/tsan/suppressions.txt
       
     steps:
       - name: Download OpenVINO package
