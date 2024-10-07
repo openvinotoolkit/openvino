@@ -5,8 +5,8 @@ from common.tflite_layer_test_class import TFLiteLayerTest
 from common.utils.tflite_utils import parametrize_tests
 
 test_ops = [
-    {'op_name': 'AVERAGE_POOL_2D', 'op_func': tf.nn.avg_pool2d},
-    {'op_name': 'MAX_POOL_2D', 'op_func': tf.nn.max_pool2d},
+    {'op_name': 'AVERAGE_POOL_2D', 'op_func': 'tf.nn.avg_pool2d'},
+    {'op_name': 'MAX_POOL_2D', 'op_func': 'tf.nn.max_pool2d'},
 ]
 
 test_params = [
@@ -32,7 +32,7 @@ class TestTFLitePoolLayerTest(TFLiteLayerTest):
         with tf.compat.v1.Session() as sess:
             place_holder = tf.compat.v1.placeholder(params.get('dtype', tf.float32), params['shape'],
                                                     name=self.inputs[0])
-            params['op_func'](place_holder, params['ksize'], params['strides'],
+            eval(params['op_func'])(place_holder, params['ksize'], params['strides'],
                               params['padding'], 'NHWC', name=self.outputs[0])
             net = sess.graph_def
         return net

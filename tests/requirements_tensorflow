@@ -1,0 +1,15 @@
+# tensorflow-intel inside tensorflow still requires numpy<2.0.0
+numpy==1.26.4
+pytest==7.0.1
+pytest-xdist[psutil]==3.6.1
+pytest-html==4.1.1
+transformers==4.45.1
+# install exact keras version since tensorflow depends and has no upper bound for it
+keras==3.6.0
+tensorflow==2.17.0; platform_system != "Darwin" or platform_machine != "x86_64"
+tensorflow==2.16.2; platform_system == "Darwin" and platform_machine == "x86_64"
+# tensorflow-text is not available for both Windows and ARM platforms
+tensorflow-text==2.17.0; platform_system == "Linux" and platform_machine == "x86_64"
+tensorflow-hub==0.16.1
+jax==0.4.33
+defusedxml==0.7.1

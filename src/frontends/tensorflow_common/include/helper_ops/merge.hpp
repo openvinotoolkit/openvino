@@ -84,7 +84,7 @@ public:
             cf_marker_exists(this_node),
             "[TensorFlow Frontend] internal error: Switch node has not set conditional flow marker");
         auto cf_marker = get_cf_marker(this_node);
-        for (auto eliminated_marker : cf_marker.merge_eliminated_markers) {
+        for (const auto& eliminated_marker : cf_marker.merge_eliminated_markers) {
             resulted_indices.push_back(eliminated_marker.first);
         }
         return resulted_indices;

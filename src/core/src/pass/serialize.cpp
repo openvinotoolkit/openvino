@@ -1277,10 +1277,16 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
             OPENVINO_ASSERT(xml_file, "Can't open xml file: \"" + m_xmlPath + "\"");
 
             serializeFunc(xml_file, bin_file, model, m_version);
-        } catch (const ov::AssertFailure& e) {
-            // Handle exceptions
-            std::remove(m_xmlPath.c_str());
-            std::remove(m_binPath.c_str());
+
+        } catch (const ov::AssertFailure&) {
+            // optimization decision was made to create .bin file upfront and
+            // write to it directly instead of buffering its content in memory,
+            // hence we need to delete it here in case of failure
+            xml_file.close();
+            bin_file.close();
+            std::ignore = std::remove(m_xmlPath.c_str());
+            std::ignore = std::remove(m_binPath.c_str());
+
             throw;
         }
     }
