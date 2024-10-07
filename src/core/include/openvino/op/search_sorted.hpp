@@ -37,7 +37,7 @@ public:
     }
 
 private:
-    void validate();
+    void validate() const;
     void infer_type();
     bool m_right_mode{};
 };
