@@ -5,7 +5,6 @@ from sphinx_sitemap import setup as base_setup, get_locales, hreflang_formatter,
 from sphinx.util.logging import getLogger
 
 logger = getLogger(__name__)
-google_priority = '0.4'
 
 def setup(app):
     app.add_config_value(
@@ -73,39 +72,38 @@ def create_sitemap(app, exception):
     else:
         version = ""
 
+    url = ET.SubElement(root, "url")
+    scheme = app.config.sitemap_url_scheme
+    unique_links = set()
     while True:
-        url = ET.SubElement(root, "url")
-        scheme = app.config.sitemap_url_scheme
         try:
-            # link1 = app.sitemap_links.get_nowait()
-            link = app.sitemap_links.get_nowait() # type: ignore
-            print(app.sitemap_links.get_nowait())
-
-            if app.builder.config.language:
-                lang = app.builder.config.language + "/"
-            else:
-                lang = ""
-                
-            ET.SubElement(url, "loc").text = site_url + scheme.format(
-                lang=lang, version=version, link=link
-            )
-
-            # site priority for google search indexing
-            ET.SubElement(url, "priority").text = google_priority
-
-            process_coveo_meta(meta, url, link)
-
-            for lang in locales:
-                lang = lang + "/"
-                ET.SubElement(
-                    url,
-                    "{http://www.w3.org/1999/xhtml}link",
-                    rel="alternate",
-                    hreflang=hreflang_formatter(lang.rstrip("/")),
-                    href=site_url + scheme.format(lang=lang, version=version, link=link),
-                )
+            link = app.env.app.sitemap_links.get_nowait()  # type: ignore
+            if link in unique_links:
+                continue
+            unique_links.add(link)
         except queue.Empty:
             break
+
+        if app.builder.config.language:
+            lang = app.builder.config.language + "/"
+        else:
+            lang = ""
+                
+        ET.SubElement(url, "loc").text = site_url + scheme.format(
+            lang=lang, version=version, link=link
+        )
+
+        process_coveo_meta(meta, url, link)
+
+        for lang in locales:
+            lang = lang + "/"
+            ET.SubElement(
+                url,
+                "{http://www.w3.org/1999/xhtml}link",
+                rel="alternate",
+                hreflang=hreflang_formatter(lang.rstrip("/")),
+                href=site_url + scheme.format(lang=lang, version=version, link=link),
+            )
 
     filename = Path(app.outdir) / app.config.sitemap_filename
     ET.ElementTree(root).write(filename,
