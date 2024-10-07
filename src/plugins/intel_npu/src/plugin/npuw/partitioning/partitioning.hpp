@@ -35,8 +35,8 @@ struct Subgraph {
     //
     // FIXME: Replace with variant or some other proper way (maybe
     // even a class hierarchy)
-    std::string _repeated_id; // FIXME: What's the difference
-    std::string _funcall;     // ..between these two?
+    std::string _repeated_id;  // FIXME: What's the difference
+    std::string _funcall;      // ..between these two?
     std::vector<ov::Tensor> _closure;
     std::vector<ov::Tensor> _scales;  // Scale coeffs for manual unpacking
     std::vector<ov::Tensor> _zerops;  // Zero points for manual unpacking
