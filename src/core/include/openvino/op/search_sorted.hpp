@@ -39,7 +39,7 @@ public:
 private:
     void validate();
     void infer_type();
-    bool m_right_mode;
+    bool m_right_mode{};
 };
 }  // namespace v15
 }  // namespace op
