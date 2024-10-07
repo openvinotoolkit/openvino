@@ -126,6 +126,9 @@ private:
             std::size_t range = 0u;
             std::size_t nway  = 0u;
             std::size_t out_dim = 0u;
+
+            std::size_t nway_iters = 0u;
+            std::size_t tail_size = 0u;
         };
         std::optional<Spatial> spatial;
 

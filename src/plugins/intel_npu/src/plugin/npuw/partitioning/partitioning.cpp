@@ -1697,8 +1697,8 @@ void Partitioner::spatial(const std::string& func_name) {
 
     // Final check before transformations
     f._spatial->_slice = cfg.get<::intel_npu::NPUW_SPATIAL_NWAY>();
-    if (f._spatial->_slice == 0u || (f._spatial->_range % f._spatial->_slice)) {
-        LOG_WARN("Can't divide spatial range by NWAY which is " << f._spatial->_slice);
+    if (f._spatial->_slice == 0) {
+        LOG_WARN("NWAY is set to 0, disabling it (but better disable SPATIAL setting itself)");
         f._spatial.reset(); // Erase spatial information to avoid conflicts
         return;
     }

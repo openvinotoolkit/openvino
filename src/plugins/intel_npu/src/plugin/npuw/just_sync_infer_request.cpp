@@ -56,11 +56,28 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
 
             const auto num_outputs = proto_comp_model->outputs().size();
 
-            // Initialize the spatial IO placeholder, if required
+            // Initialize the spatial IO placeholders, if required
             if (proto_comp_model_desc.spatial) {
                 m_spatial_io[real_idx].inputs.resize(proto_comp_model_desc.param_base);
+                m_spatial_io[real_idx].input_tails.resize(proto_comp_model_desc.param_base);
                 m_spatial_io[real_idx].outputs.resize(num_outputs);
-            }
+                m_spatial_io[real_idx].output_tails.resize(num_outputs);
+
+                if (proto_comp_model_desc.spatial->tail_size) {
+                    // Preallocate extra buffers for tail processing
+                    for (auto &&p : proto_comp_model_desc.spatial->params) {
+                        const auto &iport = proto_comp_model_desc.compiled_model->inputs()[p.idx];
+                        m_spatial_io[real_idx].input_tails[p.idx] =
+                            ov::get_tensor_impl(ov::Tensor(iport.get_element_type(), iport.get_shape()));
+                    }
+                    const auto num_outs = proto_comp_model_desc.compiled_model->outputs().size();
+                    for (std::size_t out_idx = 0u; out_idx < num_outs; out_idx++) {
+                        const auto &oport = proto_comp_model_desc.compiled_model->outputs()[out_idx];
+                        m_spatial_io[real_idx].output_tails[out_idx] =
+                            ov::get_tensor_impl(ov::Tensor(oport.get_element_type(), oport.get_shape()));
+                    }
+                }
+            } // if(spatial)
 
             for (size_t out_idx = 0; out_idx < num_outputs; out_idx++) {
                 const auto& port = proto_comp_model->outputs()[out_idx];
@@ -748,7 +765,20 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx) {
             full_in_shapes[param.idx] = m_spatial_io[real_idx].inputs.at(param.idx)->get_shape();
         }
 
-        for (std::size_t offset = 0u; offset < spatial.range; offset += spatial.nway) {
+        // Now handle the range, even if it is not a multiply of nway (slice):
+        //
+        // |<- - - - full range  - - - ->|
+        // +------+------+------+------+-+
+        // | nway | nway | nway | nway | |
+        // +------+------+------+------+-+
+        //                              ^tail
+        // The block is always compiled to produce nway. If we need a smaller tensor
+        // on the last iteration, the sub-nway will be copied from the input range to
+        // a temporary tensor, and then the sub-nwway range will be copied from the
+        // request's output range.
+
+        std::size_t offset = 0u;
+        for (std::size_t i = 0u; i < spatial.nway_iters; i++, offset += spatial.nway) {
             // Collect spatial inputs for this offset
             for (auto &&param : spatial.params) {
                 // Create an ROI description for this submission
@@ -778,11 +808,72 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx) {
                 r->set_tensor(oport, ov::npuw::util::view(m_spatial_io[real_idx].outputs.at(out_idx),
                                                           view_start,
                                                           view_end));
-            }
+            } // for(outputs)
 
             // Now run the part
             r->infer();
-        } // for(offset)
+        } // for(full_nway_times)
+
+        // Now process the tail, if required
+        if (spatial.tail_size) {
+            // Copy the sub-ranges to spatial inputs
+            for (auto &&param : spatial.params) {
+                using View = ov::npuw::util::View;
+                View read_view_start = View(full_in_shapes[param.idx].size(), 0u);
+                View read_view_end = full_in_shapes[param.idx];
+                read_view_start[param.dim] = offset;
+                read_view_end[param.dim] = offset + spatial.tail_size;
+                auto in_view = ov::npuw::util::view(m_spatial_io[real_idx].inputs.at(param.idx),
+                                                    read_view_start,
+                                                    read_view_end);
+
+                const auto &iport = comp_model_desc.compiled_model->inputs()[param.idx];
+                auto spatial_tensor_shape = iport.get_shape();
+                View write_view_start = View(spatial_tensor_shape.size(), 0u);
+                View write_view_end = spatial_tensor_shape;
+                write_view_end[param.dim] = spatial.tail_size;
+                auto out_view = ov::npuw::util::view(m_spatial_io[real_idx].input_tails.at(param.idx),
+                                                     write_view_start,
+                                                     write_view_end);
+
+                in_view->copy_to(out_view._ptr);
+                r->set_tensor(iport, m_spatial_io[real_idx].input_tails.at(param.idx));
+            } // for(params)
+
+            // Now set the tail tensors
+            for (std::size_t out_idx = 0u; out_idx < num_outputs; out_idx++) {
+                const auto &oport = comp_model_desc.compiled_model->outputs()[out_idx];
+                r->set_tensor(oport, m_spatial_io[real_idx].output_tails.at(out_idx));
+            } // for(outputs)
+
+            // Now run the tail infer
+            r->infer();
+
+            // Now copy the views from the output full-nway tensor to the output tensors
+            for (std::size_t out_idx = 0u; out_idx < num_outputs; out_idx++) {
+                const auto &oport = comp_model_desc.compiled_model->outputs()[out_idx];
+                auto spatial_tensor_shape = oport.get_shape();
+
+                using View = ov::npuw::util::View;
+                View read_view_start = View(spatial_tensor_shape.size(), 0u);
+                View read_view_end = spatial_tensor_shape;
+                read_view_start[spatial.out_dim] = 0;
+                read_view_end[spatial.out_dim] = spatial.tail_size;
+                auto in_view = ov::npuw::util::view(m_spatial_io[real_idx].output_tails.at(out_idx),
+                                                    read_view_start,
+                                                    read_view_end);
+
+                ov::Shape full_out_shape = m_spatial_io[real_idx].outputs.at(out_idx)->get_shape();
+                View write_view_start = View(full_out_shape.size(), 0u);
+                View write_view_end = full_out_shape;
+                write_view_start[spatial.out_dim] = offset;
+                write_view_end[spatial.out_dim] = offset + spatial.tail_size;
+                auto out_view = ov::npuw::util::view(m_spatial_io[real_idx].outputs.at(out_idx),
+                                                     write_view_start,
+                                                     write_view_end);
+                in_view->copy_to(out_view._ptr);
+            } // for(outputs)
+        }
     }
 }
 

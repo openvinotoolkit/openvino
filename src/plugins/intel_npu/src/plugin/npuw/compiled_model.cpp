@@ -285,6 +285,8 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                     s.range = fcn_template._spatial->_range;
                     s.nway = fcn_template._spatial->_slice;
                     s.out_dim = fcn_template._spatial->_out_dim;
+                    s.nway_iters = s.range / s.nway;
+                    s.tail_size = s.range % s.nway;
                     for (auto &&input : fcn_template._spatial->_inputs) {
                         std::size_t p_idx = fcn_template._model->get_parameter_index(input.param);
                         s.params.push_back(S::Param{p_idx, input.dim});
