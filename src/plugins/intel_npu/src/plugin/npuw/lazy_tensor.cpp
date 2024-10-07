@@ -216,6 +216,11 @@ ov::Tensor LazyTensorImpl::eval() const {
             const auto& cs = std::get<2>(unpack_meta);
             auto& dst = std::get<3>(unpack_meta);
 
+            // Check if tensor has already been unpacked (e.g. shared between head and tail)
+            if (dst.data()) {
+                return dst;
+            }
+
             // Note: unpacking done in-place since the original tensor is empty at this point
             NPUW_ASSERT(!dst.data());
             NPUW_ASSERT(!cw.has_transformations());

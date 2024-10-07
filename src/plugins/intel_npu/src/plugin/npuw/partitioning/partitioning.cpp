@@ -1511,6 +1511,7 @@ void Partitioner::createFunction(FunctionPipeline& func_ggg) {
             }  // if(Const|Parameter)
         }      // for(inputs)
     }          // for(nodes)
+    funcall._closure.resize(funcall._lazy_closure.size());
     function._num_params_total = new_param_idx;
     function._model->validate_nodes_and_infer_types();
     P.functions.insert({func_name, std::move(function)});
@@ -1688,7 +1689,7 @@ void Partitioner::optimize(const std::string& func_name) {
                 if (!to_concat.empty()) {
                     funcall._lazy_closure.push_back(LazyTensor(TransformType::CONCAT, std::make_pair(to_concat, axis)));
                     // Some of the tensors might be in closure - preserve it's 1:1 idx mapping with _lazy_closure
-                    funcall._closure.resize(funcall._closure.size() + 1);
+                    funcall._closure.resize(funcall._lazy_closure.size());
                 }
             });
         }
@@ -1724,7 +1725,7 @@ void Partitioner::optimize(const std::string& func_name) {
                 funcall._lazy_closure.push_back(
                     LazyTensor(TransformType::UNPACK, std::make_tuple(cw, cz, cs, std::move(dst))));
                 // Some of the tensors might be in closure - preserve it's 1:1 idx mapping with _lazy_closure
-                funcall._closure.resize(funcall._closure.size() + 1);
+                funcall._closure.resize(funcall._lazy_closure.size());
             });
         }
 
