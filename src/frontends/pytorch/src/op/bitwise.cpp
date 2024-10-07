@@ -33,7 +33,7 @@ OutputVector translate_bitwise_and(const NodeContext& context) {
     auto and_x = context.mark_node(std::make_shared<ov::op::v13::BitwiseAnd>(x, y))->output(0);
     if (!context.input_is_none(2)) {
         auto out = context.get_input(2);
-        if (and_x.get_element_type() != out.get_element_type()) {
+        if (out.get_element_type().is_dynamic() || and_x.get_element_type() != out.get_element_type()) {
             and_x = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(and_x, out));
         }
         context.mutate_input(2, and_x);
@@ -49,7 +49,7 @@ OutputVector translate_bitwise_or(const NodeContext& context) {
     auto or_x = context.mark_node(std::make_shared<ov::op::v13::BitwiseOr>(x, y))->output(0);
     if (!context.input_is_none(2)) {
         auto out = context.get_input(2);
-        if (or_x.get_element_type() != out.get_element_type()) {
+        if (out.get_element_type().is_dynamic() || or_x.get_element_type() != out.get_element_type()) {
             or_x = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(or_x, out));
         }
         context.mutate_input(2, or_x);
@@ -65,7 +65,7 @@ OutputVector translate_bitwise_xor(const NodeContext& context) {
     auto xor_x = context.mark_node(std::make_shared<ov::op::v13::BitwiseXor>(x, y))->output(0);
     if (!context.input_is_none(2)) {
         auto out = context.get_input(2);
-        if (xor_x.get_element_type() != out.get_element_type()) {
+        if (out.get_element_type().is_dynamic() || xor_x.get_element_type() != out.get_element_type()) {
             xor_x = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(xor_x, out));
         }
         context.mutate_input(2, xor_x);
