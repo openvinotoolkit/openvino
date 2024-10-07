@@ -4,18 +4,23 @@
 
 #include "openvino/reference/convert.hpp"
 
-#if OV_CORE_USE_XBYAK_JIT
-#    include "jit_generator.hpp"
+#include "openvino/reference/utils/convert_util.hpp"
 
-using namespace ov::runtime;
-#endif  // OV_CORE_USE_XBYAK_JIT
+#ifdef OV_CORE_USE_XBYAK_JIT
+#    include "jit_generator.hpp"
+#endif
+
+#ifdef OV_CORE_USE_INTRINSICS
+#    include "openvino/reference/utils/convert_x86_intrinsics.hpp"
+#endif
 
 namespace ov {
 namespace reference {
-#if OV_CORE_USE_XBYAK_JIT
+
 namespace {
+#ifdef OV_CORE_USE_XBYAK_JIT
 template <typename src_t, typename dst_t, bool clamp = false>
-void jit_convert_vec(jit::Generator&, const Xbyak::RegExp&, const Xbyak::RegExp&);
+void jit_convert_vec(jit::Generator&, const Xbyak::RegExp&, const Xbyak::RegExp&) {}
 
 template <typename src_t, typename dst_t, bool clamp = false>
 void jit_convert_vec_prepare(jit::Generator&) {}
@@ -265,40 +270,6 @@ public:
     }
 };
 
-template <typename TI, typename TO, bool clamp = false>
-void convert_impl(const TI* arg, TO* out, size_t count) {
-    auto converter = jit_convert_array::get<TI, TO, clamp>();
-
-    if (converter) {
-        jit_convert_array::args_t args = {arg, out, count};
-        converter(&args);
-    } else {
-        for (size_t i = 0; i < count; ++i) {
-            out[i] = static_cast<TO>(arg[i]);
-        }
-    }
-}
-
-template <>
-void convert_impl<float, float16, true>(const float* arg, float16* out, size_t count) {
-    auto converter = jit_convert_array::get<float, float16, true>();
-
-    if (converter) {
-        jit_convert_array::args_t args = {arg, out, count};
-        converter(&args);
-    } else {
-        for (size_t i = 0; i < count; ++i) {
-            if (arg[i] > std::numeric_limits<ov::float16>::max()) {
-                out[i] = std::numeric_limits<ov::float16>::max();
-            } else if (arg[i] < std::numeric_limits<ov::float16>::lowest()) {
-                out[i] = std::numeric_limits<ov::float16>::lowest();
-            } else {
-                out[i] = static_cast<ov::float16>(arg[i]);
-            }
-        }
-    }
-}
-
 template <typename data_t, typename range_t>
 void jit_count_out_of_range_vec_prepare(jit::Generator&) {}
 
@@ -504,114 +475,88 @@ public:
     }
 };
 
+#endif  // OV_CORE_USE_XBYAK_JIT
+
+template <class Clamp, typename TI, typename TO>
+void convert_impl(const TI* arg, TO* out, size_t count) {
+#ifdef OV_CORE_USE_XBYAK_JIT
+    if (auto converter = jit_convert_array::get<TI, TO, Clamp::enabled>()) {
+        jit_convert_array::args_t args = {arg, out, count};
+        converter(&args);
+    } else
+#endif
+    {
+        Converter<TI, TO>::template apply<Clamp>(arg, out, count);
+    }
+}
 }  // namespace
 
 template <>
 void convert<uint8_t, float16>(const uint8_t* arg, float16* out, size_t count) {
-    convert_impl(arg, out, count);
+    convert_impl<NoClamp>(arg, out, count);
 }
 
 template <>
 void convert<float16, float>(const float16* arg, float* out, size_t count) {
-    convert_impl(arg, out, count);
+    convert_impl<NoClamp>(arg, out, count);
 }
 
 template <>
 void convert<float, float16>(const float* arg, float16* out, size_t count) {
-    convert_impl(arg, out, count);
+    convert_impl<NoClamp>(arg, out, count);
 }
 
 template <>
 void convert<float, int8_t>(const float* arg, int8_t* out, size_t count) {
-    convert_impl(arg, out, count);
+    convert_impl<NoClamp>(arg, out, count);
 }
 
 template <>
 void convert<float16, int8_t>(const float16* arg, int8_t* out, size_t count) {
-    convert_impl(arg, out, count);
+    convert_impl<NoClamp>(arg, out, count);
 }
 
 template <>
 void convert<bfloat16, float16>(const bfloat16* arg, float16* out, size_t count) {
-    convert_impl(arg, out, count);
+    convert_impl<NoClamp>(arg, out, count);
 }
 
 template <>
 void convert<bfloat16, float>(const bfloat16* arg, float* out, size_t count) {
-    convert_impl(arg, out, count);
+    convert_impl<NoClamp>(arg, out, count);
 }
 
-#endif  // OV_CORE_USE_XBYAK_JIT
-
 void convert_from_f32_to_f16_with_clamp(const float* arg, float16* out, size_t count) {
-#if OV_CORE_USE_XBYAK_JIT
-    convert_impl<float, float16, true>(arg, out, count);
-#else
-    // FIXME CVS-125496: duplicate and stub for ARM, provide optimized solution
-    for (size_t i = 0; i < count; ++i) {
-        if (arg[i] > std::numeric_limits<ov::float16>::max()) {
-            out[i] = std::numeric_limits<ov::float16>::max();
-        } else if (arg[i] < std::numeric_limits<ov::float16>::lowest()) {
-            out[i] = std::numeric_limits<ov::float16>::lowest();
-        } else {
-            out[i] = static_cast<ov::float16>(arg[i]);
-        }
-    }
-#endif  // OV_CORE_USE_XBYAK_JIT
+    convert_impl<Clamp<float, float16>>(arg, out, count);
 }
 
 template <>
 void convert<int32_t, float16>(const int32_t* arg, float16* out, size_t count) {
-    for (size_t i = 0; i < count; ++i) {
-        if (arg[i] > std::numeric_limits<ov::float16>::max()) {
-            out[i] = std::numeric_limits<ov::float16>::max();
-        } else if (arg[i] < std::numeric_limits<ov::float16>::lowest()) {
-            out[i] = std::numeric_limits<ov::float16>::lowest();
-        } else {
-            out[i] = static_cast<ov::float16>(arg[i]);
-        }
-    }
+    Converter<int32_t, float16>::apply<Clamp<int32_t, float16>>(arg, out, count);
 }
 
 void convert_from_bf16_to_f16_with_clamp(const bfloat16* arg, float16* out, size_t count) {
-#if OV_CORE_USE_XBYAK_JIT
-    convert_impl<bfloat16, float16, true>(arg, out, count);
-#else
+    // can re-use Clamp as bf16 is converted to float before clamping
+    using clamp_bf16_f16 = Clamp<float, float16>;
+    convert_impl<clamp_bf16_f16>(arg, out, count);
     // FIXME CVS-125496: duplicate and stub for ARM, provide optimized solution
-    for (size_t i = 0; i < count; ++i) {
-        if (arg[i] > std::numeric_limits<ov::float16>::max()) {
-            out[i] = std::numeric_limits<ov::float16>::max();
-        } else if (arg[i] < std::numeric_limits<ov::float16>::lowest()) {
-            out[i] = std::numeric_limits<ov::float16>::lowest();
-        } else {
-            out[i] = static_cast<ov::float16>(arg[i]);
-        }
-    }
-#endif  // OV_CORE_USE_XBYAK_JIT
 }
 
 size_t count_out_of_f16_range(const float* arg, size_t count) {
-    size_t num_out_of_range = 0;
-
-#if OV_CORE_USE_XBYAK_JIT
-    auto converter = jit_count_out_of_range::get<float, float16>();
-    if (converter) {
+#ifdef OV_CORE_USE_XBYAK_JIT
+    if (auto converter = jit_count_out_of_range::get<float, float16>()) {
+        size_t num_out_of_range = 0;
         jit_count_out_of_range::args_t args = {arg, &num_out_of_range, count};
         converter(&args);
         return num_out_of_range;
     }
 #endif  // OV_CORE_USE_XBYAK_JIT
-    for (size_t i = 0; i < count; ++i) {
-        // if abs value is smaller than the smallest positive fp16, but not zero
-        if (std::abs(arg[i]) < ov::float16::from_bits(0x0001) && arg[i] != 0.0f) {
-            num_out_of_range++;
-        } else if (arg[i] > std::numeric_limits<ov::float16>::max()) {
-            num_out_of_range++;
-        } else if (arg[i] < std::numeric_limits<ov::float16>::lowest()) {
-            num_out_of_range++;
-        }
-    }
-    return num_out_of_range;
+    const auto is_out_of_f16_range = [](const float v) {
+        return (std::abs(v) < float16::from_bits(0x0001) && v != 0.0f) || (v > std::numeric_limits<float16>::max()) ||
+               (v < std::numeric_limits<float16>::lowest());
+    };
+
+    return std::count_if(arg, arg + count, is_out_of_f16_range);
 }
 
 }  // namespace reference
