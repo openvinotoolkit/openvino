@@ -26,7 +26,7 @@ std::vector<TRShape> shape_infer(const SearchSorted* op, const std::vector<TShap
         }
     }
 
-    return {output_shape};
+    return {std::move(output_shape)};
 }
 }  // namespace v15
 }  // namespace op
