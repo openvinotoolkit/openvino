@@ -75,8 +75,6 @@ class TestBitwiseOp(PytorchLayerTest):
     ):
         if ie_device == "GPU" and (lhs_dtype != "bool" or rhs_dtype != "bool"):
             pytest.xfail(reason="bitwise ops are not supported on GPU")
-        if out and version.parse(np.__version__) >= version.parse("2.0.0"):
-            pytest.xfail(reason="CVS-154082: incorrect handling out type")
         self._test(
             *self.create_model(op_type, out),
             ie_device,
