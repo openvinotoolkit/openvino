@@ -611,9 +611,9 @@ bool program_node::is_padded_spatial(size_t idx) const {
     auto& layout = get_output_layout(idx);
     const auto& lower_size = layout.data_padding._lower_size;
     const auto& upper_size = layout.data_padding._upper_size;
-    return std::any_of(std::begin(lower_size) + 2, std::begin(lower_size) + layout.get_spatial_rank() - 1,
+    return std::any_of(std::begin(lower_size) + 2, std::begin(lower_size) + 2 + layout.get_spatial_rank(),
                         [](const tensor::value_type& el) { return el != 0; }) ||
-           std::any_of(std::begin(upper_size) + 2, std::begin(upper_size) + layout.get_spatial_rank() - 1,
+           std::any_of(std::begin(upper_size) + 2, std::begin(upper_size) + 2 + layout.get_spatial_rank(),
                         [](const tensor::value_type& el) { return el != 0; });
 }
 
@@ -647,6 +647,14 @@ void program_node::set_preferred_output_fmt(size_t idx, format::type type) {
         preferred_output_fmts.resize(idx+1, format::any);
 
     preferred_output_fmts.at(idx) = type;
+}
+
+bool program_node::can_use(impl_types impl_type) const {
+    return get_primitive()->type->has_impl_for(*this, impl_type);
+}
+
+void program_node::select_preferred_formats(impl_types impl_type) {
+    std::tie(preferred_input_fmts, preferred_output_fmts) = get_primitive()->type->query_preferred_formats(*this, impl_type);
 }
 
 void program_node::add_dependant_shape_of_node(const program_node* node) {

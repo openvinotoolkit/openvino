@@ -47,9 +47,11 @@
 #include "transformations/tpp/x64/op/reduce.hpp"
 #include "transformations/tpp/x64/op/modifiers.hpp"
 #include "transformations/tpp/x64/op/scalar.hpp"
+#include "transformations/tpp/x64/op/equation.hpp"
 #include "emitters/tpp/x64/jit_eltwise_emitters.hpp"
 #include "emitters/tpp/x64/jit_brgemm_emitter.hpp"
 #include "emitters/tpp/x64/jit_scalar_emitter.hpp"
+#include "emitters/tpp/x64/jit_equation_emitter.hpp"
 #include "emitters/tpp/x64/jit_debug_emitter.hpp"
 // Note: for reference implementations
 #include <cmath>
@@ -237,11 +239,13 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
     jitters[snippets::op::KernelDynamic::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_kernel_dynamic_emitter);
     jitters[snippets::op::LoopBegin::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_loop_begin_emitter);
     jitters[snippets::op::LoopEnd::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_loop_end_emitter);
-    // Note: jit_brgemm_emitter supports runtime recompilation, so its constructor takes additional arguments
+    // Note: jit_brgemm_emitter and jit_brgemm_copy_b_emitter support runtime recompilation, so their constructor takes additional arguments
     jitters[intel_cpu::BrgemmCPU::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_brgemm_emitter,
                                                                                     configurator->get_kernel_executor_table(),
                                                                                     compiled_kernel_cache);
-    jitters[intel_cpu::BrgemmCopyB::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_brgemm_copy_b_emitter);
+    jitters[intel_cpu::BrgemmCopyB::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_brgemm_copy_b_emitter,
+                                                                                      configurator->get_kernel_executor_table(),
+                                                                                      compiled_kernel_cache);
     jitters[snippets::op::ReduceMax::get_type_info_static()] = CREATE_UNDEFINED_EMITTER({{ov::element::f32}});
     jitters[snippets::op::ReduceSum::get_type_info_static()] = CREATE_UNDEFINED_EMITTER({{ov::element::f32}});
 
@@ -276,6 +280,7 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
     jitters[intel_cpu::tpp::op::ReduceMax::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(ReduceTppEmitter);
     jitters[intel_cpu::tpp::op::ReduceSum::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(ReduceTppEmitter);
     jitters[intel_cpu::tpp::op::Scalar::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(ScalarTppEmitter);
+    jitters[intel_cpu::tpp::op::EquationTPP::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(EquationTppEmitter);
 #endif
 }
 

@@ -63,7 +63,7 @@ Now deprecated
 
   * The macOS x86_64 debug bins
   * Python 3.8
-  * dKMB support
+  * Discrete Keem Bay support
 
 * Intel® Streaming SIMD Extensions (Intel® SSE) will be supported in source code form, but not
   enabled in the binary package by default, starting with OpenVINO 2025.0.
@@ -305,21 +305,21 @@ Known Issues
 | ID: n/a
 | Description:
 |   For ARM binaries, the `1.16 ONNX library <https://vcpkg.link/ports/onnx/versions>`__
-    is not yet available, while the current latest has shown two significant vulnerabilities:
+    is not yet available.
+|   The ONNX library for ARM, version 1.15, does not include the latest
+    functional and security updates. OpenVINO, version 2024.5 is targeted to be released in
+    Q4 2024 and will include additional functional and security updates. Users should update to
+    the latest version as it becomes available.
+|   The current vulnerabilities are:
     `CVE-2024-27318 <https://nvd.nist.gov/vuln/detail/CVE-2024-27318>`__ and
     `CVE-2024-27319 <https://nvd.nist.gov/vuln/detail/CVE-2024-27319>`__.
-    The vulnerabilities are less severe in the context of OpenVINO and will be fixed as soon as
-    the most recent version of the library is available for ARM, expected at the 2024.5 release.
 
-
-
-
-
-
-
-
-
-
+| **Component: Kaldi**
+| ID: n/a
+| Description:
+|   There is a known issue with the Kaldi DL framework support on the Python version 3.12 due
+    to the numpy version incompatibilities. As Kaldi support in OpenVINO is currently deprecated
+    and will be discontinued with version 2025.0, the issue will not be addressed.
 
 
 Previous 2024 releases
@@ -1323,7 +1323,12 @@ Deprecated and to be removed in the future
   with OpenVINO 2024.5.
 * Python 3.8 is now considered deprecated, and it will not be available beyond the 2024.4
   OpenVINO version.
-* dKMB support is now considered deprecated and will be fully removed with OpenVINO 2024.5
+
+  * As MxNet doesn't support Python version higher than 3.8, according to the
+    `MxNet PyPI project <https://pypi.org/project/mxnet/>`__,
+    it will no longer be supported in future versions, either.
+
+* Discrete Keem Bay support is now considered deprecated and will be fully removed with OpenVINO 2024.5
 * Intel® Streaming SIMD Extensions (Intel® SSE) will be supported in source code form, but not
   enabled in the binary package by default, starting with OpenVINO 2025.0
 * The openvino-nightly PyPI module will soon be discontinued. End-users should proceed with the
