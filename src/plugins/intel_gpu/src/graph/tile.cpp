@@ -27,7 +27,7 @@ layout tile_inst::calc_output_layout(tile_node const& node, kernel_impl_params c
     std::vector<int64_t> repeats = desc->repeats;
 
     auto out_shape = input_layout.get_dims();
-    for (size_t i = 0; i < std::min(repeats.size(), out_shape.size()); ++i) {
+    for (size_t i = 0; i < repeats.size(); ++i) {
         out_shape[i] *= repeats[i];
     }
     return layout{input_layout.data_type, input_format, tensor(input_format, out_shape)};
