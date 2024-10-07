@@ -98,13 +98,14 @@ def main():
         with open(storage / 'workflow_link.txt', 'w') as file:
             file.write(workflow_link)
 
-    latest_artifacts_for_branch = artifact_utils.get_latest_artifacts_link(storage_dir, args.storage_root,
-                                                                           args.branch_name, args.event_name)
-    # Overwrite path to "latest" built artifacts only if a given commit is the head of a given branch
-    if args.event_name != 'pull_request' and args.commit_sha == os.getenv('GITHUB_SHA'):
-        # TODO: lock to avoid corruption in case of a parallel build (unlikely event for now, but still)
-        with open(latest_artifacts_for_branch, 'w') as file:
-            file.write(str(storage.relative_to(storage_root)))
+    if not error_found:
+        latest_artifacts_for_branch = artifact_utils.get_latest_artifacts_link(storage_dir, args.storage_root,
+                                                                               args.branch_name, args.event_name)
+        # Overwrite path to "latest" built artifacts only if a given commit is the head of a given branch
+        if args.event_name != 'pull_request' and args.commit_sha == os.getenv('GITHUB_SHA'):
+            # TODO: lock to avoid corruption in case of a parallel build (unlikely event for now, but still)
+            with open(latest_artifacts_for_branch, 'w') as file:
+                file.write(str(storage.relative_to(storage_root)))
 
     logger.debug(f"Copying finished")
     (storage / 'copying_finished').touch()
