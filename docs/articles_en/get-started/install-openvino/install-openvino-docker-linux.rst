@@ -1,13 +1,13 @@
-Install Intel® Distribution of OpenVINO™ toolkit from a Docker Image
+Install Intel® Distribution of OpenVINO™ Toolkit From a Docker Image
 =======================================================================
 
 .. meta::
    :description: Learn how to use a prebuilt Docker image or create an image
                  manually to install OpenVINO™ Runtime on Linux and Windows operating systems.
 
-This guide presents information on how to use a pre-built Docker image/create an image manually to install OpenVINO™ Runtime.
-
-Supported host operating systems for the Docker Base image:
+This guide presents information on how to use a pre-built Docker image or create a new image
+manually, to install OpenVINO™ Runtime. The supported host operating systems for the Docker
+base image are:
 
 - Linux
 - Windows (WSL2)

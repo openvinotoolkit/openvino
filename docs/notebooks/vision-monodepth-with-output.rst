@@ -55,6 +55,16 @@ Transactions on Pattern Analysis and Machine Intelligence, doi:
       Video <#do-inference-on-a-video-and-create-monodepth-video>`__
    -  `Display Monodepth Video <#display-monodepth-video>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Preparation
 -----------
 
@@ -98,7 +108,7 @@ Install requirements
 
 .. parsed-literal::
 
-    23215
+    23941
 
 
 
@@ -303,7 +313,7 @@ original image shape.
 
 .. parsed-literal::
 
-    /tmp/ipykernel_189817/2076527990.py:15: MatplotlibDeprecationWarning: The get_cmap function was deprecated in Matplotlib 3.7 and will be removed two minor releases later. Use ``matplotlib.colormaps[name]`` or ``matplotlib.colormaps.get_cmap(obj)`` instead.
+    /tmp/ipykernel_3794362/2076527990.py:15: MatplotlibDeprecationWarning: The get_cmap function was deprecated in Matplotlib 3.7 and will be removed two minor releases later. Use ``matplotlib.colormaps[name]`` or ``matplotlib.colormaps.get_cmap(obj)`` instead.
       cmap = matplotlib.cm.get_cmap(colormap)
 
 
@@ -502,7 +512,7 @@ Do Inference on a Video and Create Monodepth Video
 
 .. parsed-literal::
 
-    Processed 60 frames in 27.04 seconds. Total FPS (including video processing): 2.22.Inference FPS: 44.12
+    Processed 60 frames in 24.62 seconds. Total FPS (including video processing): 2.44.Inference FPS: 45.79
     Monodepth Video saved to 'output/Coco%20Walking%20in%20Berkeley_monodepth.mp4'.
 
 
@@ -529,7 +539,7 @@ Display Monodepth Video
 .. parsed-literal::
 
     Showing monodepth video saved at
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/notebooks/vision-monodepth/output/Coco%20Walking%20in%20Berkeley_monodepth.mp4
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/notebooks/vision-monodepth/output/Coco%20Walking%20in%20Berkeley_monodepth.mp4
     If you cannot see the video in your browser, please click on the following link to download the video
 
 

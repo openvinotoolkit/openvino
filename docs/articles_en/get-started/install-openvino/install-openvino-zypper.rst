@@ -143,7 +143,7 @@ To uninstall OpenVINO Runtime via ZYPPER, run the following command based on you
 
       .. code-block:: sh
 
-         sudo zypper remove *openvino-2024.2.0*
+         sudo zypper remove *openvino-2024.3.0*
 
 
 

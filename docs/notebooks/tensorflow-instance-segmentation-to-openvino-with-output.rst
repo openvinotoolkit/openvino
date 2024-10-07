@@ -51,6 +51,16 @@ and do inference with a sample image.
    -  `Integration preprocessing to
       model <#integration-preprocessing-to-model>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -108,7 +118,7 @@ The notebook uses utility functions. The cell below will download the
 
 .. parsed-literal::
 
-    23215
+    23941
 
 
 
@@ -393,7 +403,7 @@ Read the image, resize and convert it to the input shape of the network:
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f9df57e55b0>
+    <matplotlib.image.AxesImage at 0x7f8239e26e20>
 
 
 

@@ -34,6 +34,16 @@ Additionally, you can also upload a video file.
 
    -  `Run Live Pose Estimation <#run-live-pose-estimation>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 .. code:: ipython3
 
     %pip install -q "openvino>=2023.1.0" opencv-python tqdm

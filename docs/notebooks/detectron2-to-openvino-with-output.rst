@@ -43,6 +43,16 @@ detection and instance segmentation respectively.
    -  `Run Instance Segmentation model
       inference <#run-instance-segmentation-model-inference>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -259,12 +269,6 @@ directory.
     else:
         ov_model = model_xml_path
 
-
-.. parsed-literal::
-
-    ['args']
-
-
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -435,12 +439,6 @@ Convert Instance Segmentation Model to OpenVINO Intermediate Representation
         ov.save_model(ov_model, MODEL_DIR / (model_name.split("/")[-1] + ".xml"))
     else:
         ov_model = model_xml_path
-
-
-.. parsed-literal::
-
-    ['args']
-
 
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~

@@ -37,6 +37,16 @@ Tiny model.
 -  `Use the OpenVINO IR model to run an
    inference <#use-the-openvino-ir-model-to-run-an-inference>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -214,12 +224,6 @@ interface. However, it can also be saved on disk using
         ov.save_model(converted_model, ov_model_xml_path)
     else:
         print(f"IR model {ov_model_xml_path} already exists.")
-
-
-.. parsed-literal::
-
-    ['x']
-
 
 When the ``openvino.save_model`` function is used, an OpenVINO model is
 serialized in the file system as two files with ``.xml`` and ``.bin``

@@ -44,6 +44,16 @@ image, please visit
    -  `Step 3.3: Run Text-to-Image
       generation <#step-3-3-run-text-to-image-generation>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Step 0: Install and import prerequisites
 ----------------------------------------
 
@@ -60,21 +70,6 @@ pipelines <https://huggingface.co/docs/diffusers/api/pipelines/overview>`__.
 .. code:: ipython3
 
     %pip install -q "diffusers>=0.14.0" "openvino>=2023.1.0" "transformers>=4.31" accelerate "torch>=2.1" Pillow opencv-python --extra-index-url https://download.pytorch.org/whl/cpu
-
-
-.. parsed-literal::
-
-    WARNING: Ignoring invalid distribution -orch (/home/ea/work/ov_venv/lib/python3.8/site-packages)
-    WARNING: Ignoring invalid distribution -orch (/home/ea/work/ov_venv/lib/python3.8/site-packages)
-    WARNING: Ignoring invalid distribution -orch (/home/ea/work/ov_venv/lib/python3.8/site-packages)
-    WARNING: Ignoring invalid distribution -orch (/home/ea/work/ov_venv/lib/python3.8/site-packages)
-    WARNING: Ignoring invalid distribution -orch (/home/ea/work/ov_venv/lib/python3.8/site-packages)
-    WARNING: Ignoring invalid distribution -orch (/home/ea/work/ov_venv/lib/python3.8/site-packages)
-
-    [notice] A new release of pip available: 22.3 -> 23.2.1
-    [notice] To update, run: pip install --upgrade pip
-    Note: you may need to restart the kernel to use updated packages.
-
 
 Step 1: Stable Diffusion v2 Fundamental components
 --------------------------------------------------
@@ -121,21 +116,6 @@ using ``stable-diffusion-2-1``.
     conf = pipe.scheduler.config
 
     del pipe
-
-
-.. parsed-literal::
-
-    2023-09-12 11:59:21.971103: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-09-12 11:59:22.005818: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-09-12 11:59:22.607625: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-
-
-
-.. parsed-literal::
-
-    Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]
-
 
 Step 2: Convert the models to OpenVINO
 --------------------------------------

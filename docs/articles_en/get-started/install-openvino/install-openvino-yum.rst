@@ -31,11 +31,11 @@ Install OpenVINO™ Runtime on Linux From YUM Repository
 
          - RHEL 8.2 and higher
          - Amazon Linux 2022 and 2023
-         - Rocky Linux 8.7, 8.8 and 9.2
-         - Alma Linux 8.7, 8.8 and 9.2
-         - Oracle Linux 8.7, 8.8 and 9.2
-         - Fedora 29 and higher up to 40
-         - OpenEuler 20.03 and 22.03
+         - Rocky Linux 8.7, 8.8 and 9.2-9.3
+         - Alma Linux 8.7, 8.8 and 9.2-9.4
+         - Oracle Linux 8.7, 8.8 and 9.2-9.4
+         - Fedora 29 and higher up to 41
+         - OpenEuler 20.03, 22.03, 23.03 and 24.03
          - Anolis OS 8.6 and 8.8
          - CentOS Stream 8 and 9
 
@@ -128,7 +128,7 @@ Install OpenVINO Runtime
       .. code-block:: sh
 
 
-         sudo yum install openvino-2024.2.0
+         sudo yum install openvino-2024.3.0
 
 
 
@@ -199,7 +199,7 @@ To uninstall OpenVINO Runtime via YUM, run the following command based on your n
 
       .. code-block:: sh
 
-         sudo yum autoremove openvino-2024.2.0
+         sudo yum autoremove openvino-2024.3.0
 
 
 

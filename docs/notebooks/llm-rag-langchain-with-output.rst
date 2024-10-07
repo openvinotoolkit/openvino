@@ -75,6 +75,16 @@ with OpenVINO to optimize their inference performance.
 
 -  `Run QA over Document <#run-qa-over-document>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -90,7 +100,7 @@ Install required dependencies
 
     %pip install -Uq pip
     %pip uninstall -q -y optimum optimum-intel
-    %pip install --pre -Uq openvino openvino-tokenizers[transformers] --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
+    %pip install --pre -Uq "openvino>=2024.2.0" openvino-tokenizers[transformers] --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu\
     "git+https://github.com/huggingface/optimum-intel.git"\
     "git+https://github.com/openvinotoolkit/nncf.git"\
@@ -98,19 +108,6 @@ Install required dependencies
     "accelerate"\
     "gradio"\
     "onnx" "einops" "transformers_stream_generator" "tiktoken" "transformers>=4.40" "bitsandbytes" "faiss-cpu" "sentence_transformers" "langchain>=0.2.0" "langchain-community>=0.2.0" "langchainhub" "unstructured" "scikit-learn" "python-docx" "pypdf"
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    WARNING: typer 0.12.3 does not provide the extra 'all'
-    ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    llama-index-postprocessor-openvino-rerank 0.1.3 requires huggingface-hub<0.21.0,>=0.20.3, but you have huggingface-hub 0.23.4 which is incompatible.
-    llama-index-llms-langchain 0.1.4 requires langchain<0.2.0,>=0.1.3, but you have langchain 0.2.6 which is incompatible.
-    Note: you may need to restart the kernel to use updated packages.
-
 
 .. code:: ipython3
 
@@ -202,7 +199,7 @@ bi-encoder) but more time-consuming than embedding model. Therefore, it
 can be used to re-rank the top-k documents returned by embedding model.
 
 You can also find available LLM model options in
-`llm-chatbot <../llm-chatbot/README.md>`__ notebook.
+`llm-chatbot <llm-chatbot-with-output.html>`__ notebook.
 
 .. code:: ipython3
 
@@ -291,7 +288,7 @@ quality.
 
 
 `Optimum Intel <https://huggingface.co/docs/optimum/intel/index>`__ is
-the interface between the 
+the interface between the
 `Transformers <https://huggingface.co/docs/transformers/index>`__ and
 `Diffusers <https://huggingface.co/docs/diffusers/index>`__ libraries
 and OpenVINO to accelerate end-to-end pipelines on Intel architectures.
@@ -1651,7 +1648,10 @@ Next we can create a Gradio UI and run demo.
     # if you have any issue to launch on your platform, you can pass share=True to launch method:
     # demo.launch(share=True)
     # it creates a publicly shareable link for the interface. Read more in the docs: https://gradio.app/docs/
-    demo.launch()
+    try:
+        demo.launch()
+    except Exception:
+        demo.launch(share=True)
 
 .. code:: ipython3
 

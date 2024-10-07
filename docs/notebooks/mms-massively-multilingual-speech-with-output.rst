@@ -65,6 +65,16 @@ interactive demo.
 
 -  `Interactive demo with Gradio <#interactive-demo-with-gradio>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -487,15 +497,6 @@ for these purposes.
 
 
     compiled_asr_model = get_asr_model(asr_model_xml_path_template, language_id)
-
-
-.. parsed-literal::
-
-    Ignored unknown kwarg option normalize
-    Ignored unknown kwarg option normalize
-    Ignored unknown kwarg option normalize
-    Ignored unknown kwarg option normalize
-
 
 Run inference.
 
@@ -995,43 +996,3 @@ data is sampled to 16000 kHz.
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
-
-
-.. parsed-literal::
-
-    Running on local URL:  http://127.0.0.1:7860
-
-    To create a public link, set `share=True` in `launch()`.
-
-
-
-
-
-
-
-
-.. parsed-literal::
-
-    Ignored unknown kwarg option normalize
-    Ignored unknown kwarg option normalize
-    Ignored unknown kwarg option normalize
-    Ignored unknown kwarg option normalize
-    Ignored unknown kwarg option normalize
-    Ignored unknown kwarg option normalize
-    Ignored unknown kwarg option normalize
-    Ignored unknown kwarg option normalize
-    Ignored unknown kwarg option normalize
-    Ignored unknown kwarg option normalize
-    Ignored unknown kwarg option normalize
-    Ignored unknown kwarg option normalize
-    WARNING:nncf:NNCF provides best results with torch==2.0.1, while current torch version is 1.13.1+cu117. If you encounter issues, consider switching to torch==2.0.1
-
-
-.. parsed-literal::
-
-    No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda-11.7'
-    /home/nsavel/venvs/ov_notebooks_tmp/lib/python3.8/site-packages/transformers/models/wav2vec2/modeling_wav2vec2.py:595: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if attn_weights.size() != (bsz * self.num_heads, tgt_len, src_len):
-    /home/nsavel/venvs/ov_notebooks_tmp/lib/python3.8/site-packages/transformers/models/wav2vec2/modeling_wav2vec2.py:634: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if attn_output.size() != (bsz * self.num_heads, tgt_len, self.head_dim):
-

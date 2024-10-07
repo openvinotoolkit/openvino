@@ -25,6 +25,8 @@ notebooks/dynamicrafter-animating-images/dynamicrafter-animating-images.ipynb
 notebooks/efficient-sam/efficient-sam.ipynb
 notebooks/encodec-audio-compression/encodec-audio-compression.ipynb
 notebooks/explainable-ai-1-basic/explainable-ai-1-basic.ipynb
+notebooks/explainable-ai-2-deep-dive/explainable-ai-2-deep-dive.ipynb
+notebooks/explainable-ai-3-map-interpretation/explainable-ai-3-map-interpretation.ipynb
 notebooks/fast-segment-anything/fast-segment-anything.ipynb
 notebooks/film-slowmo/film-slowmo.ipynb
 notebooks/freevc-voice-conversion/freevc-voice-conversion.ipynb
@@ -53,6 +55,7 @@ notebooks/llava-multimodal-chatbot/llava-multimodal-chatbot.ipynb
 notebooks/llava-multimodal-chatbot/videollava-multimodal-chatbot.ipynb
 notebooks/llava-next-multimodal-chatbot/llava-next-multimodal-chatbot.ipynb
 notebooks/llm-agent-functioncall/llm-agent-functioncall-qwen.ipynb
+notebooks/llm-agent-react/llm-agent-rag-llamaindex.ipynb
 notebooks/llm-agent-react/llm-agent-react-langchain.ipynb
 notebooks/llm-chatbot/llm-chatbot-generate-api.ipynb
 notebooks/llm-chatbot/llm-chatbot.ipynb
@@ -82,6 +85,7 @@ notebooks/paint-by-example/paint-by-example.ipynb
 notebooks/parler-tts-text-to-speech/parler-tts-text-to-speech.ipynb
 notebooks/person-counting-webcam/person-counting.ipynb
 notebooks/person-tracking-webcam/person-tracking.ipynb
+notebooks/phi-3-vision/phi-3-vision.ipynb
 notebooks/photo-maker/photo-maker.ipynb
 notebooks/pix2struct-docvqa/pix2struct-docvqa.ipynb
 notebooks/pixart/pixart.ipynb
@@ -107,6 +111,7 @@ notebooks/sparsity-optimization/sparsity-optimization.ipynb
 notebooks/speculative-sampling/speculative-sampling.ipynb
 notebooks/speechbrain-emotion-recognition/speechbrain-emotion-recognition.ipynb
 notebooks/speech-recognition-quantization/speech-recognition-quantization-wav2vec2.ipynb
+notebooks/stable-audio/stable-audio.ipynb
 notebooks/stable-cascade-image-generation/stable-cascade-image-generation.ipynb
 notebooks/stable-diffusion-ip-adapter/stable-diffusion-ip-adapter.ipynb
 notebooks/stable-diffusion-keras-cv/stable-diffusion-keras-cv.ipynb
@@ -120,7 +125,6 @@ notebooks/stable-diffusion-v3/stable-diffusion-v3.ipynb
 notebooks/stable-diffusion-xl/segmind-vegart.ipynb
 notebooks/stable-diffusion-xl/stable-diffusion-xl.ipynb
 notebooks/stable-video-diffusion/stable-video-diffusion.ipynb
-notebooks/stable-zephyr-3b-chatbot/stable-zephyr-3b-chatbot.ipynb
 notebooks/style-transfer-webcam/style-transfer.ipynb
 notebooks/surya-line-level-text-detection/surya-line-level-text-detection.ipynb
 notebooks/table-question-answering/table-question-answering.ipynb

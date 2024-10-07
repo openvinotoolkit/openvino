@@ -40,6 +40,16 @@ requests) rather than wait for the current inference to complete first.
    -  `Test the performance with
       AsyncInferQueue <#test-the-performance-with-asyncinferqueue>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Imports
 -------
 
@@ -266,7 +276,7 @@ immediately processed:
    // display CURRENT result
    }
 
-\``\`
+
 
 .. code:: ipython3
 
@@ -352,7 +362,7 @@ Test performance in Sync Mode
 .. parsed-literal::
 
     Source ended
-    average throuput in sync mode: 58.66 fps
+    average throuput in sync mode: 61.19 fps
 
 
 Async Mode
@@ -491,7 +501,7 @@ Test the performance in Async Mode
 .. parsed-literal::
 
     Source ended
-    average throuput in async mode: 103.49 fps
+    average throuput in async mode: 105.09 fps
 
 
 Compare the performance
@@ -634,5 +644,5 @@ Test the performance with ``AsyncInferQueue``
 
 .. parsed-literal::
 
-    average throughput in async mode with async infer queue: 149.16 fps
+    average throughput in async mode with async infer queue: 145.39 fps
 

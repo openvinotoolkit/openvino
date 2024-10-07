@@ -73,6 +73,16 @@ pipeline.
 
 -  `Interactive demo <#interactive-demo>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -96,7 +106,7 @@ fine-tune of `Stable-Diffusion
 v1-5 <https://huggingface.co/runwayml/stable-diffusion-v1-5>`__ using
 Latent Consistency Distillation (LCD) approach discussed above. This
 model is also integrated into
-`Diffusers <https://huggingface.co/docs/diffusers/index>`__ library. 
+`Diffusers <https://huggingface.co/docs/diffusers/index>`__ library.
 Diffusers is the go-to library for state-of-the-art pretrained diffusion
 models for generating images, audio, and even 3D structures of
 molecules. This allows us to compare running original Stable Diffusion
@@ -291,21 +301,7 @@ hidden states.
         print(f"Text encoder will be loaded from {TEXT_ENCODER_OV_PATH}")
 
     del text_encoder
-    gc.collect()
-
-
-.. parsed-literal::
-
-    Text encoder will be loaded from model/text_encoder.xml
-
-
-
-
-.. parsed-literal::
-
-    9
-
-
+    gc.collect();
 
 U-Net
 ~~~~~
@@ -364,21 +360,7 @@ Model predicts the ``sample`` state for the next step.
     else:
         print(f"Unet will be loaded from {UNET_OV_PATH}")
     del unet
-    gc.collect()
-
-
-.. parsed-literal::
-
-    Unet successfully converted to IR and saved to model/unet.xml
-
-
-
-
-.. parsed-literal::
-
-    0
-
-
+    gc.collect();
 
 VAE
 ~~~
@@ -443,21 +425,7 @@ VAE encoder, can be found in Stable Diffusion notebook.
         print(f"VAE decoder will be loaded from {VAE_DECODER_OV_PATH}")
 
     del vae
-    gc.collect()
-
-
-.. parsed-literal::
-
-    VAE decoder will be loaded from model/vae_decoder.xml
-
-
-
-
-.. parsed-literal::
-
-    0
-
-
+    gc.collect();
 
 Prepare inference pipeline
 --------------------------

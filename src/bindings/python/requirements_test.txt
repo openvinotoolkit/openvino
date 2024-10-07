@@ -34,5 +34,5 @@ py
 radon
 retrying
 tox
-types-pkg_resources
+types-setuptools
 wheel

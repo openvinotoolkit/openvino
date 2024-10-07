@@ -53,6 +53,13 @@ Working with NPU in OpenVINO™
 -  `Limitations <#limitations>`__
 -  `Conclusion <#conclusion>`__
 
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 This tutorial provides a high-level overview of working with the NPU
 device **Intel(R) AI Boost** (introduced with the Intel® Core™ Ultra
 generation of CPUs) in OpenVINO. It explains some of the key properties
@@ -92,12 +99,6 @@ Install required packages
 .. code:: ipython3
 
     %pip install -q "openvino>=2024.1.0" torch torchvision --extra-index-url https://download.pytorch.org/whl/cpu
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-
 
 Checking NPU with Query Device
 ------------------------------

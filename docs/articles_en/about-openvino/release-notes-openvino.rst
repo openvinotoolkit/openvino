@@ -39,6 +39,7 @@ What's new
   * Improved CPU performance when serving LLMs with the inclusion of vLLM and continuous batching
     in the OpenVINO Model Server (OVMS). vLLM is an easy-to-use open-source library that supports
     efficient LLM inferencing and model serving.
+  * Ubuntu 24.04 is now officially supported.
 
 
 
@@ -51,11 +52,8 @@ Common
 * OpenVINO may now be used as a backend for vLLM, offering better CPU performance due to
   fully-connected layer optimization, fusing multiple fully-connected layers (MLP), U8 KV cache,
   and dynamic split fuse.
-
-* OpenVINO is now integrated with vLLM and offers better CPU performance with its serving, due
-  to fully connected layer optimization, fusing multiple fully-connected layers (MLP), U8 KV
-  cache, and dynamic split fuse.
-
+* Ubuntu 24.04 is now officially supported, which means OpenVINO is now validated on this
+  system (preview support).
 * The following have been improved:
 
   * Increasing support for models like YoloV10 or PixArt-XL-2, thanks to enabling Squeeze and
@@ -104,9 +102,9 @@ GPU Device Plugin
 NPU Device Plugin
 -----------------------------
 
-* GenAI API now supports NPU LLMs (preview feature). To support LLMs on NPU (requires the most
-  recent version of the NPU driver), additional relevant features are also part of the NPU plugin
-  now.
+* NPU inference of LLMs is now supported with GenAI API (preview feature). To support LLMs on
+  NPU (requires the most recent version of the NPU driver), additional relevant features are
+  also part of the NPU plugin now.
 * Models bigger than 2GB are now supported on both NPU driver
   (Intel® NPU Driver - Windows* 32.0.100.2540) and NPU plugin side (both Linux and Windows).
 * Memory optimizations have been implemented:
@@ -118,12 +116,11 @@ NPU Device Plugin
 OpenVINO Python API
 -----------------------------
 
-* visit_attributes is now available in custom operation implemented in Python, so you may pass
-  a dictionary of attributes, i.e. {"name1": value1, "name2": value2...}, instead of multiple
-  on_attribute methods (as in C++).
-* ReadValue or NodeFactory can now be used to benefit different use cases, for reduced code
-  complexity.
-* Kwargs overloading is now supported.
+* visit_attributes is now available for custom operation implemented in Python, enabling
+  serialization of operation attributes.
+* Python API is now extended with new methods for Model class, e.g. Model.get_sink_index, new
+  overloads for Model.get_result_index.
+
 
 OpenVINO Node.js API
 -----------------------------
@@ -132,6 +129,12 @@ OpenVINO Node.js API
 * Compatibility with electron.js is now restored for desktop application developers.
 * Async version of Core.import_model and enhancements for Core.read_model methods are now
   available, for more efficient model reading, especially for LLMs.
+
+TensorFlow Framework Support
+----------------------------------
+
+* Models with keras.LSTM operations are now more performant in CPU inference.
+* The tensor list initialized with an undefined element shape value is now supported.
 
 TensorFlow Lite Framework Support
 ----------------------------------
@@ -264,11 +267,22 @@ OpenVINO pre-optimized models are now available on Hugging Face:
 
 
 
+Known Issues
+-----------------------------
 
+| **Component: OpenVINO.GenAI**
+| ID: 148308
+| Description:
+|   The OpenVINO.GenAI archive distribution doesn't include debug libraries for OpenVINO
+    Tokenizers and OpenVINO.GenAI.
 
-
-
-
+| **Component: GPU**
+| ID: 146283
+| Description:
+|   For some LLM models, longer prompts, such as several thousand tokens, may result in
+    decreased accuracy on the GPU plugin.
+| Workaround:
+|   It is recommended to run the model in the FP32 precision to avoid the issue.
 
 
 

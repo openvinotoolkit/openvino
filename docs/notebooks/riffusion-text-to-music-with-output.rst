@@ -88,6 +88,16 @@ audio generation.
 -  `Run Inference pipeline <#run-inference-pipeline>`__
 -  `Interactive demo <#interactive-demo>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -570,25 +580,3 @@ Interactive demo
     # If you are launching remotely, specify server_name and server_port
     # EXAMPLE: `demo.launch(server_name='your server name', server_port='server port in int')`
     # To learn more please refer to the Gradio docs: https://gradio.app/docs/
-
-
-.. parsed-literal::
-
-    /tmp/ipykernel_180612/330468370.py:56: GradioDeprecationWarning: The `style` method is deprecated. Please set these arguments in the constructor instead.
-      spectrogram_output.style(height=256)
-    /tmp/ipykernel_180612/330468370.py:63: GradioDeprecationWarning: The `enable_queue` parameter has been deprecated. Please use the `.queue()` method instead.
-      demo.launch(enable_queue=True, height=800)
-
-
-.. parsed-literal::
-
-    Running on local URL:  http://127.0.0.1:7860
-
-    To create a public link, set `share=True` in `launch()`.
-
-
-
-
-
-
-

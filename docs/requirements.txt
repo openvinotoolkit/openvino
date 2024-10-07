@@ -46,4 +46,4 @@ sphinxcontrib-qthelp==1.0.3
 sphinxcontrib-serializinghtml==1.1.9
 toml==0.10.2
 urllib3==1.26.18
-zipp==3.4.1
+zipp==3.19.1

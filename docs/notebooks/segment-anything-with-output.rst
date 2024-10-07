@@ -40,6 +40,16 @@ Object masks from prompts with SAM and OpenVINO
    -  `Compare Performance of the Original and Quantized
       Models <#compare-performance-of-the-original-and-quantized-models>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Segmentation - identifying which image pixels belong to an object - is a
 core task in computer vision and is used in a broad array of
 applications, from analyzing scientific imagery to editing photos. But
@@ -185,20 +195,6 @@ model type below to a SAM model checkpoint, then load the model using
     model_type = "vit_b"
 
     download_file(model_url)
-
-
-.. parsed-literal::
-
-    'sam_vit_b_01ec64.pth' already exists.
-
-
-
-
-.. parsed-literal::
-
-    PosixPath('/home/ea/work/openvino_notebooks/notebooks/segment-anything/sam_vit_b_01ec64.pth')
-
-
 
 .. code:: ipython3
 
@@ -936,20 +932,6 @@ point.
             demo.launch()
         except Exception:
             demo.launch(share=True)
-
-
-.. parsed-literal::
-
-    Running on local URL:  http://127.0.0.1:7860
-
-    To create a public link, set `share=True` in `launch()`.
-
-
-
-
-
-
-
 
 Run OpenVINO model in automatic mask generation mode
 ----------------------------------------------------

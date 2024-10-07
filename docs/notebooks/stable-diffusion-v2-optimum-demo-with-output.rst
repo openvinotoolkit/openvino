@@ -16,6 +16,16 @@ running multiple times.
 -  `Using full precision model in choice device with
    OVStableDiffusionPipeline <#using-full-precision-model-in-choice-device-with-ovstablediffusionpipeline>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 .. |image0| image:: https://github.com/openvinotoolkit/openvino_notebooks/assets/10940214/1858dae4-72fd-401e-b055-66d503d82446
 
 Optimum Intel is the interface between the Transformers and Diffusers
@@ -153,4 +163,4 @@ Using full precision model in choice device with ``OVStableDiffusionPipeline``
 .. code:: ipython3
 
     del ov_pipe
-    gc.collect()
+    gc.collect();

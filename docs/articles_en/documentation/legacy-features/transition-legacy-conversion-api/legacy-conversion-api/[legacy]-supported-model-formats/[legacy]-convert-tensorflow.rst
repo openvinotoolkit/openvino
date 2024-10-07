@@ -333,7 +333,7 @@ Model conversion API supports passing TensorFlow/TensorFlow2 models directly fro
 Supported TensorFlow and TensorFlow 2 Keras Layers
 ##################################################
 
-For the list of supported standard layers, refer to the :doc:`Supported Operations <../../../../../about-openvino/compatibility-and-support/supported-operations-framework-frontend>` page.
+For the list of supported standard layers, refer to the :doc:`Supported Operations <../../../../../about-openvino/compatibility-and-support/supported-operations>` page.
 
 Frequently Asked Questions (FAQ)
 ################################

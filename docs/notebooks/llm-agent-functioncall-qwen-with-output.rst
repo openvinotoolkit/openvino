@@ -51,6 +51,16 @@ step using OpenVINO and Qwen-Agent.
    -  `Create AI agent demo with Qwen-Agent and Gradio
       UI <#create-ai-agent-demo-with-qwen-agent-and-gradio-ui>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -64,24 +74,15 @@ Prerequisites
 
     %pip install -Uq pip
     %pip uninstall -q -y optimum optimum-intel
-    %pip install --pre -Uq openvino openvino-tokenizers[transformers] --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu\
-    "git+https://github.com/huggingface/optimum-intel.git"\
-    "git+https://github.com/openvinotoolkit/nncf.git"\
-    "torch>=2.1"\
-    "datasets"\
-    "accelerate"\
+    %pip install --pre -Uq "openvino>=2024.2.0" openvino-tokenizers[transformers] --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu \
+    "torch>=2.1" \
+    "datasets" \
+    "accelerate" \
     "qwen-agent>=0.0.6" "transformers>=4.38.1" "gradio==4.21.0", "modelscope-studio>=0.4.0" "langchain>=0.2.3" "langchain-community>=0.2.4" "wikipedia"
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    WARNING: typer 0.12.3 does not provide the extra 'all'
-    Note: you may need to restart the kernel to use updated packages.
-
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu \
+    "git+https://github.com/huggingface/optimum-intel.git" \
+    "git+https://github.com/openvinotoolkit/nncf.git"
 
 .. code:: ipython3
 

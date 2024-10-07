@@ -596,17 +596,23 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     // ... 2 - this request is NOT coming from NPUW,
     // activate the NPUW path
     auto useNpuwKey = ov::intel_npu::use_npuw.name();
-    if (properties.count(useNpuwKey) && properties.at(useNpuwKey).as<bool>()) {
-        // CACHE_DIR isn't supported with NPU_USE_NPUW
-        if (properties.count(ov::cache_dir.name()) || !_globalConfig.get<CACHE_DIR>().empty()) {
-            OPENVINO_THROW("Option 'CACHE_DIR' is not supported with NPU_USE_NPUW");
+    ov::AnyMap localProperties = properties;
+    if (localProperties.count(useNpuwKey)) {
+        if (localProperties.at(useNpuwKey).as<bool>() == true) {
+            // CACHE_DIR isn't supported with NPU_USE_NPUW
+            if (localProperties.count(ov::cache_dir.name()) || !_globalConfig.get<CACHE_DIR>().empty()) {
+                OPENVINO_THROW("Option 'CACHE_DIR' is not supported with NPU_USE_NPUW");
+            }
+            return std::make_shared<ov::npuw::CompiledModel>(model->clone(), shared_from_this(), localProperties);
+        } else {
+            // NPUW is disabled, remove the key from the properties
+            localProperties.erase(useNpuwKey);
         }
-        return std::make_shared<ov::npuw::CompiledModel>(model->clone(), shared_from_this(), properties);
     }
 
-    const std::map<std::string, std::string> propertiesMap = any_copy(properties);
-    update_log_level(propertiesMap);
-    auto localConfig = merge_configs(_globalConfig, propertiesMap);
+    const std::map<std::string, std::string> localPropertiesMap = any_copy(localProperties);
+    update_log_level(localPropertiesMap);
+    auto localConfig = merge_configs(_globalConfig, localPropertiesMap);
 
     const auto set_cache_dir = localConfig.get<CACHE_DIR>();
     if (!set_cache_dir.empty()) {
