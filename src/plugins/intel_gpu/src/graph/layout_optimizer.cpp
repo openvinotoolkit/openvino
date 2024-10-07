@@ -124,7 +124,7 @@ void reorder_factory::get_out_reorder(program& p, cldnn::program_node* prev, cld
             auto params = permute_node.get_kernel_impl_params();
             p.get_kernels_cache().add_kernels_source(*params, impl->get_kernels_source());
         }
-    }    
+    }
 }
 
 void reorder_factory::get_weights_split(primitive_id input_id,

@@ -211,7 +211,6 @@ JitConstants PermuteKernelRef::GetJitConstants(const permute_params& params, con
         for (size_t i = in_idx.size() - 1; i > 1; i--) {
            output_order += "," + permute_out_idx[i];
         }
-        std::cout << output_order << "is output_order " << std::endl;
         jit.AddConstant(MakeJitConstant("OUT_IDX", "OUTPUT_GET_INDEX(" + output_order + ")"));
     }
 

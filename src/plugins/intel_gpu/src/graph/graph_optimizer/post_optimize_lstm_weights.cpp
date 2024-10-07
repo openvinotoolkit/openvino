@@ -53,65 +53,12 @@ void post_optimize_lstm_weights::optimize_lstm_weights(T& node, program& p) {
         if (node.type() != fully_connected::type_id())
             return;
     }
-    // Don't run impl selection to avoid double compilation of reorder kernels
-    // in main program and internal program for constant propagation
-    auto set_implementation = [&p, &impl](program_node& weights_reorder_node) {
-        if (!weights_reorder_node.is_constant()) {
-            auto reorder_kernel_params = impl->get_weights_reorder_kernel_params();
-            weights_reorder_node.set_preferred_impl_type(impl_types::any);
-            auto reorder_impl = weights_reorder_node.type()->create_impl(weights_reorder_node);
-
-            weights_reorder_node.set_selected_impl(reorder_impl->clone());
-            if (auto impl = weights_reorder_node.get_selected_impl()) {
-                auto params = weights_reorder_node.get_kernel_impl_params();
-                p.get_kernels_cache().add_kernels_source(*params, impl->get_kernels_source());
-            }
-        }
-    };
 
     auto output_layout = node.get_output_layout();
     auto weights_reorder_params = impl->get_weights_reorder_params();
     for (auto i = 3; i < 6; i++) {
         program_node& prev_node = node.get_dependency(i);
-
         if (weights_reorder_params != nullptr) {
-            bool can_be_fused = prev_node.is_type<reorder>() &&
-                                prev_node.as<reorder>().is_simple_reorder() &&
-                                prev_node.get_users().size() == 1 &&
-                                prev_node.get_dependencies().size() == 1 &&
-                                (format::is_weights_format(prev_node.get_input_layout().format) ||
-                                 format::is_simple_data_format(prev_node.get_input_layout().format));
-
-            if (can_be_fused) {
-                // Need to update input data_type for correct merging format reorder with precision reorder
-                auto updated_input_layout = weights_reorder_params->get_input_layout();
-                data_types input_dtype = prev_node.get_input_layout().data_type;
-                updated_input_layout.data_type = input_dtype;
-
-                // Need to update input format in case of fusing weights constant with transpose
-                format input_fmt = prev_node.get_input_layout().format;
-                updated_input_layout.format = from_weights_layout(to_weights_layout(input_fmt, false));
-
-                weights_reorder_params->set_input_layout(updated_input_layout);
-#ifdef ENABLE_ONEDNN_FOR_GPU
-                // Need to update WeightsReorderParamsOneDNN of fc onednn imple when input layout data_type/format is different
-                auto onednn_weights_params = std::dynamic_pointer_cast<onednn::WeightsReorderParamsOneDNN>(weights_reorder_params);
-                if (onednn_weights_params &&
-                   (updated_input_layout.format != onednn::find_data_format(onednn_weights_params->_in_desc) ||
-                    onednn::convert_data_type(updated_input_layout.data_type) != onednn_weights_params->_in_desc.get_data_type())) {
-                    onednn_weights_params->_in_desc = onednn::layout_to_memory_desc(updated_input_layout);
-                }
-#endif // ENABLE_ONEDNN_FOR_GPU
-                auto weights_reorder = _rf.get_weights_reorder(prev_node.get_primitive()->input[0].pid,
-                                                               weights_reorder_params);
-                auto& weights_reorder_node = p.get_or_create(weights_reorder.first);
-                p.replace(prev_node, weights_reorder_node);
-                weights_reorder_node.recalc_output_layout(false);
-
-                if (!weights_reorder.second) {
-                    set_implementation(weights_reorder_node);
-                }
-            } else {
                 if (i != 5) {
                     _rf.get_weights_split(prev_node.id(), weights_reorder_params, p, prev_node, node, i);
                 } else {
@@ -122,7 +69,6 @@ void post_optimize_lstm_weights::optimize_lstm_weights(T& node, program& p) {
                 // set weights reorder's node output layout and implementation
                 auto& weights_reorder_node = node.get_dependency(i);
                 weights_reorder_node.get_output_layout(false);
-            }
         }
     }
     // set the old output layout and do not invalidate users as change of weights will not affect output layout
@@ -142,8 +88,14 @@ void post_optimize_lstm_weights::run(program& p) {
         }
         int i = 0;
         for (auto prev_node : node->get_dependencies()) {
-            
             if (prev_node.first->is_type<lstm_seq>()) {
+                auto impl = prev_node.first->get_selected_impl();
+                 if (!impl)
+                    continue;
+                auto weights_reorder_params = impl->get_weights_reorder_params();
+                if (weights_reorder_params == nullptr) {
+                    continue;
+                }
                 prev_node.first->recalc_output_layouts(false);
                 _rf.get_out_reorder(p, prev_node.first, node, i);
                 node->recalc_output_layouts(false);
