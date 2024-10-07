@@ -1,4 +1,4 @@
-name: Linux Sanitizers (Ubuntu 20.04)
+name: Linux Sanitizers (Ubuntu 20.04, Python 3.9)
 on:
   schedule:
     # run daily at 00:00
@@ -18,8 +18,6 @@ permissions: read-all
 
 env:
   TARGET_BRANCH: ${{ github.base_ref || github.event.merge_group.base_ref || github.ref }}
-  PIP_CACHE_PATH: /mount/caches/pip/linux
-  PYTHON_VERSION: '3.11'
 
 jobs:
   Smart_CI:
@@ -128,16 +126,7 @@ jobs:
 
       - name: System info
         uses: ./openvino/.github/actions/system_info
-        
-      - name: Setup Python ${{ env.PYTHON_VERSION }}
-        uses: ./openvino/.github/actions/setup_python
-        with:
-          version: ${{ env.PYTHON_VERSION }}
-          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
-          should-setup-pip-paths: 'true'
-          self-hosted-runner: 'true'
-          show-cache-info: 'true'
-          
+                 
       - name: Install python dependencies
         run: |
           # For Python API: build and wheel packaging
