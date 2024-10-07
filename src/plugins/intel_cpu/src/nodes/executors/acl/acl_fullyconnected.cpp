@@ -127,7 +127,10 @@ MemoryPtr reorderData(DnnlMemoryDescPtr srcWeightDesc,
         }
 
         // try directly reorder
+        std::cout << "getReorderPrim1 src: " << static_cast<int>(srcMemoryDesc.get_data_type()) <<
+        " dst: " << static_cast<int>(dstMemoryDesc.get_data_type()) << std::endl;
         reorder = getReorderPrim(cache, engine, srcMemoryDesc, dstMemoryDesc);
+        MemoryArgs memoryArgs;
         if (!reorder || parse_impl_name(reorder.get_primitive_desc()->impl()->name()) == ref_any) {
             // try precision conversion then do the reorder
             //std::cout << "out: " << static_cast<int>(output->getDataType()) << " in: " << static_cast<int>(input.getDataType()) << std::endl;
@@ -136,13 +139,12 @@ MemoryPtr reorderData(DnnlMemoryDescPtr srcWeightDesc,
                 //std::cout << "CONVERT" << std::endl;
                 //we probably could not make the reorder because there is no one supporting this precision conversion
                 //lets try to convert data first using cpu_convert
-                MemoryArgs memoryArgs;
                 memoryArgs[ARG_SRC] = std::make_shared<Memory>(context->getEngine(), srcWeightDesc, weightsMem->getData());
                 memoryArgs[ARG_DST] = std::make_shared<Memory>(context->getEngine(), dstWeightDesc);
                 auto aclWeightsConverter = std::make_shared<acl_fc_executor::ACLWeightsConverter>();
                 std::chrono::high_resolution_clock::time_point __startConv = std::chrono::high_resolution_clock::now();
                 if (aclWeightsConverter->update(memoryArgs)) {
-                    //std::cout << "ACL convert" << std::endl;
+                    std::cout << "ACL convert: " << static_cast<int>(input.getDataType()) << " " << static_cast<int>(output->getDataType()) << std::endl;
                     aclWeightsConverter->execute(memoryArgs);
                 } else {
                     //std::cout << "ref convert" << std::endl;
@@ -158,7 +160,11 @@ MemoryPtr reorderData(DnnlMemoryDescPtr srcWeightDesc,
                 }
                 std::chrono::high_resolution_clock::time_point __finish = std::chrono::high_resolution_clock::now();
                 msg << "convert;" << std::chrono::duration_cast<std::chrono::microseconds>(__finish - __startConv).count() << std::endl;
-                reorder = getReorderPrim(cache, dstMemory.get_engine(), srcMemory.get_desc(), dstMemory.get_desc());
+                std::cout << "getReorderPrim2 src: " << static_cast<int>(srcMemory.get_desc().get_data_type()) <<
+                " dst: " << static_cast<int>(dstMemory.get_desc().get_data_type()) << std::endl;
+                auto dnnlSrcDesc = MemoryDescUtils::convertToDnnlMemoryDesc(dstWeightDesc)->getDnnlDesc();
+
+                reorder = getReorderPrim(cache, dstMemory.get_engine(), dnnlSrcDesc/*srcMemory.get_desc()*/, dstMemory.get_desc());
             }
             std::chrono::high_resolution_clock::time_point __finish = std::chrono::high_resolution_clock::now();
             msg << "getReorderPrim;" << std::chrono::duration_cast<std::chrono::microseconds>(__finish - __start).count() << std::endl;
@@ -173,6 +179,9 @@ MemoryPtr reorderData(DnnlMemoryDescPtr srcWeightDesc,
         std::chrono::high_resolution_clock::time_point __startReorder = std::chrono::high_resolution_clock::now();
         if (reorder) {
             dnnl::stream loc_stream(engine, dnnl::stream::flags::in_order);
+            auto tmpDesc = input.getDesc().cloneWithNewPrecision(memoryArgs[ARG_DST]->getPrecision());
+            Memory tmpMem(engine, std::move(tmpDesc), memoryArgs[ARG_DST]->getData());
+            auto srcMemory = tmpMem.getPrimitive();
             reorder.execute(loc_stream, {{DNNL_ARG_FROM, srcMemory}, {DNNL_ARG_TO, dstMemory}});
         } else {
             OPENVINO_THROW("Could not make onednn reorder.");
