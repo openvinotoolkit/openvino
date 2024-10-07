@@ -24,18 +24,18 @@ public:
 
         auto& engine = get_test_engine();
         auto input = engine.allocate_memory({ ov::PartialShape{ 2, 2, 2, 2 }, data_types::f32, format::bfyx });
-        auto begin = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i64, format::bfyx });
-        auto end = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i64, format::bfyx });
-        auto strides = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i64, format::bfyx });
+        auto begin = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
+        auto end = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
+        auto strides = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
 
         set_values(input, {
                 -0.2f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
                 9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.8f
         });
 
-        set_values<int64_t>(begin, {0, 0, 0});
-        set_values<int64_t>(end, {2, 2, 2});
-        set_values<int64_t>(strides, {1, 1, 1});
+        set_values<int64_t>(begin, {0, 0, 0, 0});
+        set_values<int64_t>(end, {2, 2, 2, 2});
+        set_values<int64_t>(strides, {1, 1, 1, 1});
 
         topology topology;
         topology.add(input_layout("input", input->get_layout()));
