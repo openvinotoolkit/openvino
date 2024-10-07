@@ -219,6 +219,10 @@ ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const AnyMap& params) 
     return get_default_context(device_id);
 }
 
+bool Plugin::support_mmap_for_caching() const {
+    return true;
+}
+
 void Plugin::set_property(const ov::AnyMap &config) {
     auto update_config = [](ExecutionConfig& config, const ov::AnyMap& user_config) {
         config.set_user_property(user_config);

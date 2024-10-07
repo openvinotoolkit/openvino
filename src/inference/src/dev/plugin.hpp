@@ -74,7 +74,13 @@ public:
     T get_property(const ov::Property<T, M>& property, const AnyMap& arguments) const {
         return get_property(property.name(), arguments).template as<T>();
     }
-    bool supports_model_caching() const;
+
+    enum class CachingMode {
+        legacy,
+        mmap,
+        unsupported
+    };
+    CachingMode supports_model_caching() const;
 };
 
 }  // namespace ov

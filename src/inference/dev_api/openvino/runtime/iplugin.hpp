@@ -212,6 +212,12 @@ public:
      */
     const std::shared_ptr<ov::threading::ExecutorManager>& get_executor_manager() const;
 
+    /**
+     * @brief Check if plugin support mmap for cached model reading. Returns false is the method is not overrided by plugin.
+     * @return true if mmap is supported, false otherwise
+     */
+    virtual bool support_mmap_for_caching() const;
+
     virtual ~IPlugin() = default;
 
 protected:

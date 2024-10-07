@@ -1354,7 +1354,7 @@ bool ov::CoreImpl::device_supports_internal_property(const ov::Plugin& plugin, c
 }
 
 bool ov::CoreImpl::device_supports_model_caching(const ov::Plugin& plugin) const {
-    return plugin.supports_model_caching();
+    return plugin.supports_model_caching() == ov::Plugin::CachingMode::unsupported ? false : true;
 }
 
 bool ov::CoreImpl::device_supports_cache_dir(const ov::Plugin& plugin) const {
@@ -1409,7 +1409,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
     try {
         cacheContent.cacheManager->read_cache_entry(
             cacheContent.blobId,
-            coreConfig.get_enable_mmap(),
+            coreConfig.get_enable_mmap() && plugin.supports_model_caching() == ov::Plugin::CachingMode::mmap,
             [&](std::istream& networkStream) {
                 OV_ITT_SCOPE(FIRST_INFERENCE,
                              ov::itt::domains::LoadTime,
