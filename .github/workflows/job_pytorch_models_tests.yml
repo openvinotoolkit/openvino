@@ -85,7 +85,7 @@ jobs:
           popd
 
       - name: Fetch setup_python action
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
         with:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
@@ -109,24 +109,13 @@ jobs:
       - name: Install OpenVINO Python wheels
         run: |
           # To enable pytest parallel features
-          python3 -m pip install pytest-xdist[psutil]
           python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
           python3 -m pip install ${INSTALL_DIR}/openvino_tokenizers-*
 
       - name: Install PyTorch tests requirements for precommit
         if: ${{ inputs.model_scope == 'precommit' }}
         run: |
-          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/requirements.txt
-        env:
-          CPLUS_INCLUDE_PATH: ${{ env.Python_ROOT_DIR }}/include/python${{ env.PYTHON_VERSION }}
-
-      - name: Install PyTorch tests requirements for nightly
-        if: ${{ inputs.model_scope != 'precommit' }}
-        run: |
-          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/requirements.txt
-          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/requirements_secondary.txt
-          echo "Available storage:"
-          df -h
+          python3 -m pip install -r ${INSTALL_TEST_DIR}/requirements_pytorch
         env:
           CPLUS_INCLUDE_PATH: ${{ env.Python_ROOT_DIR }}/include/python${{ env.PYTHON_VERSION }}
 
@@ -134,7 +123,7 @@ jobs:
         if: ${{ inputs.model_scope == 'precommit' || inputs.model_scope == 'nightly_scope1' }}
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_timm_tv_${{ inputs.model_scope }}_tests.html --self-contained-html -v -n 2 -k "TestTimmConvertModel or TestTorchHubConvertModel"
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_timm_tv_${{ inputs.model_scope }}_tests.html --self-contained-html -v -n 2 -k "TestTimmConvertModel or TestTorchHubConvertModel or TestEdsrConvertModel"
         env:
           TYPE: ${{ inputs.model_scope == 'precommit' && 'precommit' || 'nightly' }}
           TEST_DEVICE: CPU
@@ -144,7 +133,7 @@ jobs:
         if: ${{ inputs.model_scope == 'precommit' || inputs.model_scope == 'nightly_scope2' }}
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_${{ inputs.model_scope }}_tests.html --self-contained-html -v -k "not (TestTimmConvertModel or TestTorchHubConvertModel)"
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_${{ inputs.model_scope }}_tests.html --self-contained-html -v -k "not (TestTimmConvertModel or TestTorchHubConvertModel or TestEdsrConvertModel)"
         env:
           TYPE: ${{ inputs.model_scope == 'precommit' && 'precommit' || 'nightly' }}
           TEST_DEVICE: CPU

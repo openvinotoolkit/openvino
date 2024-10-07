@@ -117,6 +117,26 @@ target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime)
 
 # [cmake:integration_example_cpp]
 
+set(TARGET_NAME_PY "ov_integration_snippet_py")
+# [cmake:integration_example_cpp_py]
+cmake_minimum_required(VERSION 3.10)
+set(CMAKE_CXX_STANDARD 11)
+
+find_package(Python3 REQUIRED)
+    execute_process(
+        COMMAND ${Python3_EXECUTABLE} -c "from openvino.utils import get_cmake_path; print(get_cmake_path(), end='')"
+        OUTPUT_VARIABLE OpenVINO_DIR_PY
+        ERROR_QUIET
+    )
+
+find_package(OpenVINO REQUIRED PATHS "${OpenVINO_DIR_PY}")
+
+add_executable(${TARGET_NAME_PY} src/main.cpp)
+
+target_link_libraries(${TARGET_NAME_PY} PRIVATE openvino::runtime)
+
+# [cmake:integration_example_cpp_py]
+
 set(TARGET_NAME_C "ov_integration_snippet_c")
 # [cmake:integration_example_c]
 cmake_minimum_required(VERSION 3.10)

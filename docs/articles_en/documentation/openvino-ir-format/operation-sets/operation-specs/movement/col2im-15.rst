@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_type_Col2Im_15}
-
 Col2Im
 ===================
 
@@ -11,7 +9,7 @@ Col2Im
 
 **Category**: *Data movement*
 
-**Short description**: *Col2Im* operation constructs an image based on ``input`` tensor containing sliding data blocks (blocks of the image) and desired ``output_size``. 
+**Short description**: *Col2Im* operation constructs an image based on ``input`` tensor containing sliding data blocks (blocks of the image) and desired ``output_size``.
 
 **Detailed description**
 

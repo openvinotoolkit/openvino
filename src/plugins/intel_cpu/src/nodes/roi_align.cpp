@@ -816,10 +816,10 @@ void ROIAlign::initSupportedPrimitiveDescriptors() {
 void ROIAlign::createPrimitive() {
     auto srcMemPtr = getSrcMemoryAtPort(0);
     auto dstMemPtr = getDstMemoryAtPort(0);
-    if (!srcMemPtr || !srcMemPtr->isAllocated())
-        OPENVINO_THROW(errorPrefix, " did not allocate input memory");
-    if (!dstMemPtr || !dstMemPtr->isAllocated())
-        OPENVINO_THROW(errorPrefix, " did not allocate destination memory");
+    if (!srcMemPtr)
+        OPENVINO_THROW(errorPrefix, " has null input memory");
+    if (!dstMemPtr)
+        OPENVINO_THROW(errorPrefix, " has null destination memory");
 
     if (!roi_align_kernel) {
         ROIAlignLayoutType selectedLayout = ROIAlignLayoutType::nspc;
@@ -1088,7 +1088,7 @@ void ROIAlign::executeSpecified() {
                 arg.num_samples = numSamplesROI;
                 float numSamplesInBinInvert = 1.f / numSamplesROI;
                 arg.scale = static_cast<const float*>(&numSamplesInBinInvert);
-                float *threadBuf = static_cast<float*>(&workingBuf[parallel_get_thread_num() * bufSize]);
+                float *threadBuf = static_cast<float*>(&workingBuf[static_cast<size_t>(parallel_get_thread_num()) * static_cast<size_t>(bufSize)]);
                 memset(threadBuf, 0, bufSize * sizeof(float));
                 arg.buffer = threadBuf;
                 size_t dstOffset = n * batchOutputStride + yBinInd * pooledW * lastBlockDim + xBinInd * lastBlockDim;

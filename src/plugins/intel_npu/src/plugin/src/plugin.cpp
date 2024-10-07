@@ -91,13 +91,13 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
 
 /**
  * @brief Setting batching mode
- * @details  In the case of older drivers or discrete platforms, we force batching to compiler mode since it is not
+ * @details  In the case of older drivers, we force batching to compiler mode since it is not
  * supported. Othwersie set it tu AUTO if this wasn't set by the user
  * @param isBatchingSupported  Newer driver versions support batching mode on the plugin.
  * @param config A configuration map.
  */
 void set_batch_config(bool isBatchingSupported, Config& config) {
-    if (!isBatchingSupported || config.get<PLATFORM>() == ov::intel_npu::Platform::NPU3700) {
+    if (!isBatchingSupported) {
         if (config.has<BATCH_MODE>()) {
             if (config.get<BATCH_MODE>() == ov::intel_npu::BatchMode::PLUGIN) {
                 OPENVINO_THROW("Batching on plugin is not supported with this driver version");
