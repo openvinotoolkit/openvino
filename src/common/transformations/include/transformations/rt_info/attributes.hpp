@@ -30,14 +30,12 @@ class TRANSFORMATIONS_API Attributes {
 public:
     Attributes();
 
-    Any create_by_type_info(const ov::DiscreteTypeInfo& type_info_name) const;
+    Any create_by_type_info(const ov::DiscreteTypeInfo& type_info_name);
 
 private:
     template <class T>
     void register_factory() {
         m_factory_registry.emplace(T::get_type_info_static(), []() -> Any {
-            // TODO add versioning deprecation notice - newer versions are not allowed
-            assert(T::get_type_info_static().get_version().empty());
             return T{};
         });
     }
