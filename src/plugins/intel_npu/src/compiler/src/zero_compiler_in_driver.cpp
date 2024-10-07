@@ -271,13 +271,19 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeIOInfo(const std
 
     inputsPrecisionSS << INPUTS_PRECISIONS_KEY << KEY_VALUE_SEPARATOR << VALUE_DELIMITER;
     inputsLayoutSS << INPUTS_LAYOUTS_KEY << KEY_VALUE_SEPARATOR << VALUE_DELIMITER;
+    const auto getRankOrThrow = [](const ov::PartialShape& shape) -> size_t {
+        if (shape.rank().is_dynamic()) {
+            OPENVINO_THROW("Dynamic rank is not supported for NPU plugin");
+        }
+        return shape.rank().get_length();
+    };
 
     if (!parameters.empty()) {
         size_t parameterIndex = 0;
 
         for (const std::shared_ptr<ov::op::v0::Parameter>& parameter : parameters) {
-            const ov::element::Type& precision = parameter->get_element_type();
-            const size_t rank = parameter->get_partial_shape().size();
+            const auto precision = parameter->get_element_type();
+            const auto rank = getRankOrThrow(parameter->get_partial_shape());
 
             if (parameterIndex != 0) {
                 inputsPrecisionSS << VALUES_SEPARATOR;
@@ -310,8 +316,8 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeIOInfo(const std
 
     size_t resultIndex = 0;
     for (const std::shared_ptr<ov::op::v0::Result>& result : results) {
-        const ov::element::Type_t precision = result->get_element_type();
-        const size_t rank = result->get_output_partial_shape(0).size();
+        const auto precision = result->get_element_type();
+        const auto rank = getRankOrThrow(result->get_output_partial_shape(0));
 
         if (resultIndex != 0) {
             outputsPrecisionSS << VALUES_SEPARATOR;
