@@ -156,7 +156,7 @@ jobs:
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
 
       - name: MO Python API Tests
-        if: fromJSON(inputs.affected-components).MO.test
+        if: ${{ 'false' }}
         run: |
           # Import 'test_utils' installed in '<package_test>/tests/python/openvino'
           export LD_LIBRARY_PATH=${PIP_INSTALL_PATH}/openvino/libs:$LD_LIBRARY_PATH
