@@ -80,6 +80,8 @@ MemoryPtr reorderData(DnnlMemoryDescPtr srcWeightDesc,
                  DnnlMemoryDescPtr dstWeightDesc,
                  MemoryCPtr weightsMem,
                  ExecutorContext::CPtr context) {
+    std::chrono::high_resolution_clock::time_point __start = std::chrono::high_resolution_clock::now();
+    std::stringstream msg;
     Memory input{context->getEngine(), srcWeightDesc, weightsMem->getData()};
     MemoryPtr output = std::make_shared<Memory>(context->getEngine(), dstWeightDesc);
     auto cache = context->getRuntimeCache();
@@ -138,6 +140,7 @@ MemoryPtr reorderData(DnnlMemoryDescPtr srcWeightDesc,
                 memoryArgs[ARG_SRC] = std::make_shared<Memory>(context->getEngine(), srcWeightDesc, weightsMem->getData());
                 memoryArgs[ARG_DST] = std::make_shared<Memory>(context->getEngine(), dstWeightDesc);
                 auto aclWeightsConverter = std::make_shared<acl_fc_executor::ACLWeightsConverter>();
+                std::chrono::high_resolution_clock::time_point __startConv = std::chrono::high_resolution_clock::now();
                 if (aclWeightsConverter->update(memoryArgs)) {
                     //std::cout << "ACL convert" << std::endl;
                     aclWeightsConverter->execute(memoryArgs);
@@ -153,8 +156,13 @@ MemoryPtr reorderData(DnnlMemoryDescPtr srcWeightDesc,
                                 memoryArgs[ARG_DST]->getPrecision(),
                                 count_wei_elem);
                 }
+                std::chrono::high_resolution_clock::time_point __finish = std::chrono::high_resolution_clock::now();
+                msg << "convert;" << std::chrono::duration_cast<std::chrono::microseconds>(__finish - __startConv).count() << std::endl;
                 reorder = getReorderPrim(cache, dstMemory.get_engine(), srcMemory.get_desc(), dstMemory.get_desc());
             }
+            std::chrono::high_resolution_clock::time_point __finish = std::chrono::high_resolution_clock::now();
+            msg << "getReorderPrim;" << std::chrono::duration_cast<std::chrono::microseconds>(__finish - __start).count() << std::endl;
+            std::cout << msg.str();
             if (!reorder) {
                 OPENVINO_THROW("No reorder available for the following tensor descriptors: ",
                                input.getDesc().serializeFormat(),
@@ -162,12 +170,16 @@ MemoryPtr reorderData(DnnlMemoryDescPtr srcWeightDesc,
                                output->getDesc().serializeFormat());
             }
         }
+        std::chrono::high_resolution_clock::time_point __startReorder = std::chrono::high_resolution_clock::now();
         if (reorder) {
             dnnl::stream loc_stream(engine, dnnl::stream::flags::in_order);
             reorder.execute(loc_stream, {{DNNL_ARG_FROM, srcMemory}, {DNNL_ARG_TO, dstMemory}});
         } else {
             OPENVINO_THROW("Could not make onednn reorder.");
         }
+        std::chrono::high_resolution_clock::time_point __finish = std::chrono::high_resolution_clock::now();
+        msg << "reorder;" << std::chrono::duration_cast<std::chrono::microseconds>(__finish - __startReorder).count() << std::endl;
+        std::cout << msg.str();
     }
     return output;
 }
@@ -180,6 +192,7 @@ static MemoryPtr prepareWeightMemory(const MemoryArgs &memory,
     DEBUG_LOG("ACLFullyConnectedExecutor: prepack weights");
 
     auto create = [&]() {
+        std::chrono::high_resolution_clock::time_point __start = std::chrono::high_resolution_clock::now();
         auto reverse_weights_dims = memory.at(ARG_WEI)->getStaticDims();
         if (reverse_weights_dims.size() == 3) {
             reverse_weights_dims = VectorDims({reverse_weights_dims[0] * reverse_weights_dims[1], reverse_weights_dims[2]});
@@ -200,6 +213,10 @@ static MemoryPtr prepareWeightMemory(const MemoryArgs &memory,
         auto dnnlSrcDesc = MemoryDescUtils::convertToDnnlMemoryDesc(weiDescRevertedDims);
         const auto dnnlDstDesc = MemoryDescUtils::convertToDnnlMemoryDesc(dstDesc);
         dnnlSrcDesc = makeTransposedWeightDescriptor(dnnlSrcDesc, dnnlDstDesc, !aclfcAttrs.weightsNonTransposed);
+        std::chrono::high_resolution_clock::time_point __finish = std::chrono::high_resolution_clock::now();
+        std::stringstream msg;
+        msg << "prepare;" << std::chrono::duration_cast<std::chrono::microseconds>(__finish - __start).count() << std::endl;
+        std::cout << msg.str();
 
         MemoryPtr final_ptr = reorderData(dnnlSrcDesc, dnnlDstDesc, memoryArgs[ARG_SRC_0], context);
         DEBUG_LOG("ACLFullyConnectedExecutor: cache miss, perform packing");
