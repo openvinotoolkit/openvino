@@ -225,6 +225,10 @@ bool FuseLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
                     const auto parent_expr_output = *input_port.expr_port->get_connected_ports().begin();
                     const auto& parent_expr = parent_expr_output.get_expr();
                     const auto parent = parent_expr->get_node();
+                    // if (ov::is_type<snippets::op::Brgemm>(parent)) {
+                    //     std::cout << "ov::is_type<snippets::op::Brgemm>(parent)" << std::endl;
+                    //     break;
+                    // }
                     if (ov::is_type<ov::op::v0::Constant>(parent) ||
                         ov::is_type<ov::op::v0::Parameter>(parent) ||
                         ov::is_type<op::Buffer>(parent)) {
@@ -246,10 +250,18 @@ bool FuseLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
                         continue;
 
                     const auto upper_loop_id = upper_loop_ids[loop_idx];
-                    OPENVINO_ASSERT(current_loop_id != upper_loop_id,
-                                    "Loops cannot have parents of input ports with the same identifier (", upper_loop_id, ")");
+                    if (current_loop_id == upper_loop_id) {
+                        continue;
+                    }
+                    // OPENVINO_ASSERT(current_loop_id != upper_loop_id,
+                    //                 "Loops cannot have parents of input ports with the same identifier (", upper_loop_id, ")");
                     if (fuse_upper_into_current(linear_ir, loop_manager, input_port.expr_port, current_loop_id, upper_loop_id,
                                                 current_loop_begin_pos, current_loop_end_pos)) {
+                        std::cout << "fuse_upper_into_current ok" << std::endl;
+                        std::cout << "current_loop_id:" << current_loop_id << std::endl;
+                        std::cout << "upper_loop_id:" << upper_loop_id << std::endl;
+                        std::cout << "node:" << node->get_friendly_name() << std::endl;
+                        std::cout << "parent:" << parent->get_friendly_name() << std::endl;
                         was_fusion_up = true;
                         prev_fused_loops.insert(current_loop_id);
                         current_loop_info = loop_manager->get_loop_info(current_loop_id);
@@ -269,8 +281,25 @@ bool FuseLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
                     const auto& output_port = output_ports[out_port];
                     const auto consumer_exprs_inputs = output_port.expr_port->get_connected_ports();
                     for (const auto& consumer_expr_input : consumer_exprs_inputs) {
-                        const auto& consumer_expr = consumer_expr_input.get_expr();
+                        auto consumer_expr = consumer_expr_input.get_expr();
                         const auto consumer = consumer_expr->get_node();
+                        // if parent of consumer is brgemm, not fuse
+                        // if (ov::is_type<snippets::op::Brgemm>(consumer)) {
+                        //     break;
+                        // }
+                        // bool brgemm_node_as_parent = false;
+                        // const auto& parent_num = consumer_expr->get_input_count();
+                        // for (size_t i = 0; i < parent_num; i++) {
+                        //     const auto& parent = consumer_expr->get_input_port_connector(i)->get_source().get_expr();
+                        //     if (ov::is_type<snippets::op::Brgemm>(parent)) {
+                        //         brgemm_node_as_parent = true;
+                        //         break;
+                        //     }
+                        // }
+                        // if (brgemm_node_as_parent) {
+                        //     break;
+                        // }
+
                         if (ov::is_type<ov::op::v0::Result>(consumer) ||
                             ov::is_type<op::Buffer>(consumer)) {
                             continue;
@@ -297,6 +326,11 @@ bool FuseLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
 
                         if (fuse_lower_into_current(linear_ir, loop_manager, output_port.expr_port, current_loop_id, lower_loop_id,
                                                     current_loop_begin_pos, current_loop_end_pos)) {
+                            std::cout << "fuse_lower_into_current ok" << std::endl;
+                            std::cout << "current_loop_id:" << current_loop_id << std::endl;
+                            std::cout << "lower_loop_id:" << lower_loop_id << std::endl;
+                            std::cout << "node:" << node->get_friendly_name() << std::endl;
+                            std::cout << "consumer:" << consumer->get_friendly_name() << std::endl;
                             was_fusion_down = true;
                             prev_fused_loops.insert(current_loop_id);
                             current_loop_info = loop_manager->get_loop_info(current_loop_id);
