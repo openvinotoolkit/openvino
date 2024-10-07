@@ -1687,6 +1687,8 @@ void Partitioner::optimize(const std::string& func_name) {
                 // and the new one added into the vector
                 if (!to_concat.empty()) {
                     funcall._lazy_closure.push_back(LazyTensor(TransformType::CONCAT, std::make_pair(to_concat, axis)));
+                    // Some of the tensors might be in closure - preserve it's 1:1 idx mapping with _lazy_closure
+                    funcall._closure.resize(funcall._closure.size() + 1);
                 }
             });
         }
@@ -1713,21 +1715,16 @@ void Partitioner::optimize(const std::string& func_name) {
                 auto& funcall = func_group.refs[f_idx].get();
                 // FIXME: assuming no transformations were applied to the tensor - since we are utilizing the original
                 // ov::Tensor below
-                ov::Tensor cw = funcall._lazy_closure[w_idx - f._param_offset].get_orig_tensor();
-                ov::Tensor cz =
-                    z_idx != -1 ? funcall._lazy_closure[z_idx - f._param_offset].get_orig_tensor() : ov::Tensor{};
-                ov::Tensor cs = funcall._lazy_closure[s_idx - f._param_offset].get_orig_tensor();
+                LazyTensor cw = funcall._lazy_closure[w_idx - f._param_offset];
+                LazyTensor cz = z_idx != -1 ? funcall._lazy_closure[z_idx - f._param_offset]
+                                            : LazyTensor(TransformType::THIS, ov::Tensor());
+                LazyTensor cs = funcall._lazy_closure[s_idx - f._param_offset];
                 ov::Tensor dst(p.first->get_element_type(), p.first->get_shape());
 
-                const auto& gti = ov::get_tensor_impl;
-                if (cw && cz && cs) {
-                    ov::npuw::util::unpack(gti(cw), gti(cz), gti(cs), gti(dst));
-                } else if (cw && cs) {
-                    ov::npuw::util::unpack(gti(cw), gti(cs), gti(dst));
-                } else {
-                    NPUW_ASSERT(false && "Unsupported combination");
-                }
-                funcall._lazy_closure.push_back(LazyTensor(TransformType::THIS, std::move(dst)));
+                funcall._lazy_closure.push_back(
+                    LazyTensor(TransformType::UNPACK, std::make_tuple(cw, cz, cs, std::move(dst))));
+                // Some of the tensors might be in closure - preserve it's 1:1 idx mapping with _lazy_closure
+                funcall._closure.resize(funcall._closure.size() + 1);
             });
         }
 
@@ -1741,8 +1738,9 @@ void Partitioner::optimize(const std::string& func_name) {
             for (auto&& funcall : func_group.refs) {
                 auto new_elem_type = params_to_gather.pnew->get_element_type();
                 auto new_shape = params_to_gather.pnew->get_shape();
-                funcall.get()._lazy_closure.push_back(
-                    LazyTensor(TransformType::THIS, ov::Tensor(new_elem_type, new_shape)));
+                // Note: no allocation needed for this tensor - set to _closure and dummy in _lazy_closure
+                funcall.get()._closure.push_back(ov::Tensor(new_elem_type, new_shape));
+                funcall.get()._lazy_closure.push_back(LazyTensor(TransformType::THIS, ov::Tensor()));
             }
         }
 
@@ -1753,12 +1751,16 @@ void Partitioner::optimize(const std::string& func_name) {
         for (auto&& fref : func_group.refs) {
             auto& funcall = fref.get();
             std::vector<LazyTensor> new_transforms;
+            // Some of the tensors might be in closure (e.g. host-gather), thus need to preserve the _closure as well
+            std::vector<ov::Tensor> new_closure;
             for (std::size_t tidx = 0; tidx < funcall._lazy_closure.size(); tidx++) {
                 if (to_remove_idx.count(f._param_offset + tidx) == 0) {
                     new_transforms.push_back(funcall._lazy_closure[tidx]);
+                    new_closure.push_back(funcall._closure[tidx]);
                 }
             }
             funcall._lazy_closure = std::move(new_transforms);
+            funcall._closure = std::move(new_closure);
         }
         // Remove parameters that were concatenated
         for (auto&& now_remove : to_remove) {

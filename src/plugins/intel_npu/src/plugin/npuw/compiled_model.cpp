@@ -292,7 +292,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             m_compiled_submodels[id].lazy_closure = subgraph._lazy_closure;
             m_compiled_submodels[id].scales = subgraph._scales;
             m_compiled_submodels[id].zerops = subgraph._zerops;
-            m_compiled_submodels[id].is_remote.resize(subgraph._closure.size(), false);
+            m_compiled_submodels[id].is_remote.resize(subgraph._lazy_closure.size(), false);
         }  // if(!funcall)
 
         if (!m_compiled_submodels[id].model && !m_compiled_submodels[id].replaced_by) {
@@ -413,10 +413,8 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 }
 
 void ov::npuw::CompiledModel::finalize_weights_bank() {
-    // Evaluate lazy tensors which aren't in the bank beforehand
-    std::vector<std::vector<ov::Tensor>> evaluated_tensors(m_compiled_submodels.size());
-    ov::parallel_for(m_compiled_submodels.size(), [&](std::size_t idx) {
-        evaluated_tensors[idx].resize(m_compiled_submodels[idx].lazy_closure.size());
+    // Register lazy tensors
+    for (std::size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
         auto& comp_model_desc = m_compiled_submodels[idx];
 
         // Skip optimized out
@@ -428,13 +426,17 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
         auto& func_desc = m_compiled_submodels[real_idx];
 
         for (std::size_t tidx = 0; tidx < comp_model_desc.lazy_closure.size(); ++tidx) {
-            const auto& lt = m_compiled_submodels[idx].lazy_closure[tidx];
-            if (!m_weights_bank->has(lt, *func_desc.device_it)) {
-                evaluated_tensors[idx][tidx] = lt.eval();
+            if (m_compiled_submodels[idx].closure[tidx]) {
+                continue;  // host-side closure
             }
+            m_weights_bank->registerLT(m_compiled_submodels[idx].lazy_closure[tidx], *func_desc.device_it);
         }
-    });
+    }
 
+    // Evaluate and allocate all LazyTensors inside the bank
+    m_weights_bank->evaluate_and_allocate();
+
+    // Set evaluated and allocated ov::Tensors to closures
     for (size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
         auto& comp_model_desc = m_compiled_submodels[idx];
 
@@ -446,21 +448,15 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
         const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
         auto& func_desc = m_compiled_submodels[real_idx];
 
-        // Due to concat some tensor should be skipped in closure
-        m_compiled_submodels[idx].closure.resize(0);
-        m_compiled_submodels[idx].is_remote.resize(0);
-
         for (std::size_t tidx = 0; tidx < comp_model_desc.lazy_closure.size(); ++tidx) {
+            if (m_compiled_submodels[idx].closure[tidx]) {
+                // host-side closure - already set, do nothing
+                m_compiled_submodels[idx].is_remote[tidx] = false;
+                continue;
+            }
             const auto& lt = m_compiled_submodels[idx].lazy_closure[tidx];
-            const auto& evaled = evaluated_tensors[idx][tidx];
-            m_compiled_submodels[idx].closure.push_back(m_weights_bank->get(lt, *func_desc.device_it, evaled));
-
-            // Sanity check
-            const auto& tensor = m_compiled_submodels[idx].closure.back();
-            NPUW_ASSERT(tensor && tensor.data() && (tensor.get_size() > 0));
-
-            // FIXME: should is_remote be set unconditionally?
-            m_compiled_submodels[idx].is_remote.push_back(true);
+            m_compiled_submodels[idx].closure[tidx] = m_weights_bank->get(lt, *func_desc.device_it);
+            m_compiled_submodels[idx].is_remote[tidx] = m_weights_bank->is_remote(lt);
         }
     }
 }

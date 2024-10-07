@@ -26,9 +26,13 @@ public:
         : m_core(core),
           m_alloc_device(alloc_device) {}
 
-    // Based on previously captured lazy tensor allocate a new tensor (if needed) on a specified device
-    ov::Tensor get(const LazyTensor& tensor, const std::string& device, const ov::Tensor& evaled = ov::Tensor());
-    bool has(const LazyTensor& tensor, const std::string& device);
+    // Allocate a new tensor (if needed) on a specified device. LazyTensor needs to be registered and evaluated first
+    ov::Tensor get(const LazyTensor& tensor, const std::string& device);
+    // Register LazyTensor in a bank if it's not there
+    void registerLT(const LazyTensor& tensor, const std::string& device);
+    // Evaluate and allocate all LazyTensors in the bank
+    void evaluate_and_allocate();
+    bool is_remote(const LazyTensor& tensor) const;
 
 private:
     // Bank for specified device and their allocated memory
