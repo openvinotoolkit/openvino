@@ -29,6 +29,7 @@ bool MarkLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
                ov::is_type<ov::op::v0::Parameter>(node) ||
                ov::is_type<op::RankNormalization>(node) ||
                ov::is_type<op::Reshape>(node) ||
+               ov::is_type<op::Brgemm>(node) ||
                (ov::is_type<op::Buffer>(node) && ov::as_type_ptr<op::Buffer>(node)->get_inplace_from() != nullptr);
     };
 
@@ -42,6 +43,9 @@ bool MarkLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
     for (auto expr_it = begin; expr_it != end; expr_it++) {
         const auto expr = *expr_it;
         const auto& node = expr->get_node();
+        if (ov::is_type<op::Brgemm>(node)) {
+            std::cout << "Brgemm:" << node->get_friendly_name() << std::endl;
+        }
         if (is_loop_outside_op(node))
             continue;
 
@@ -76,6 +80,9 @@ bool MarkLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
                     }
                     is_connected = true;
                 }
+                // if (ov::is_type<snippets::op::Brgemm>(source_port.get_expr()->get_node())) {
+                //     is_conflicted = true;
+                // }
             }
             collapse = is_connected && !is_conflicted;
         } while (collapse);

@@ -214,6 +214,7 @@ void LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
     for (size_t dim_idx = 0; dim_idx < loop_depth; ++dim_idx) {
         OPENVINO_ASSERT(dim_idx < loop_subtensor.size(), "Incorrect indexes of Loop for markup");
         const auto& subtensor_value = *(loop_subtensor.rbegin() + dim_idx);
+        // if (utils::is_full_dim_value(subtensor_value) || (subtensor_value == 1)) {
         if (utils::is_full_dim_value(subtensor_value)) {
             continue;
         }
