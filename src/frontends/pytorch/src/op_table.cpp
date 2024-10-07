@@ -787,6 +787,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.clamp_min.default", op::translate_1to1_match_2_inputs_align_types<opset10::Maximum>},
         {"aten.clamp_min.Tensor", op::translate_1to1_match_2_inputs_align_types<opset10::Maximum>},
         {"aten.clone.default", op::skip_node},  // ignore clone operators that are inserted by PyTorch autograd
+        {"aten.col2im.default", op::translate_col2im},
         {"aten.constant_pad_nd.default", op::translate_constant_pad_nd_fx},
         {"aten.convolution.default", op::translate_convolution},
         {"aten.copy.default", op::translate_copy_fx},

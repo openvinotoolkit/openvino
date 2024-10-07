@@ -40,15 +40,20 @@ def get_pytorch_decoder(model, example_inputs, args):
         except:
             pass
         if not is_good_version:
-            raise RuntimeError(
-                "NNCF models produced by nncf<2.6 are not supported directly. Please upgrade nncf or export to ONNX first.")
+            raise RuntimeError("NNCF models produced by nncf<2.6 are not "
+                               "supported directly. Please upgrade nncf or "
+                               "export to ONNX first.")
     inputs = prepare_torch_inputs(example_inputs)
     if not isinstance(model, (TorchScriptPythonDecoder, TorchFXPythonDecoder)):
         if hasattr(torch, "export") and isinstance(model, (torch.export.ExportedProgram)):
             from packaging import version
             if version.parse(torch.__version__) >= version.parse("2.2"):
-                model = model.run_decompositions()
+                from torch._decomp import get_decompositions
+                from openvino.frontend.pytorch.torchdynamo.decompositions import get_export_decomposition_list
+                decomp = get_decompositions(get_export_decomposition_list())
+                model = model.run_decompositions(decomp_table=decomp)
             gm = model.module()
+            log.debug(gm.code)
             decoder = TorchFXPythonDecoder(gm)
         else:
             decoder = TorchScriptPythonDecoder(

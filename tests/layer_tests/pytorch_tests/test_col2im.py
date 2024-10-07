@@ -40,6 +40,7 @@ class TestCol2Im(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("output_size,kernel_size", [([4, 5], [2, 2])])
     @pytest.mark.parametrize("dilation", [1, 2, [1, 2]])
     @pytest.mark.parametrize("padding", [0, 5, [2, 3]])
