@@ -83,7 +83,6 @@ pip install openvino-dev[extras]
 | :-------------------------------| :------------------------------------------------------------------------------- |
 | caffe                           |   [Caffe*](https://caffe.berkeleyvision.org/)                                    |
 | kaldi                           |   [Kaldi*](https://github.com/kaldi-asr/kaldi)                                   |
-| mxnet                           |   [Apache MXNet*](https://mxnet.apache.org/)                                     |
 | onnx                            |   [ONNX*](https://github.com/microsoft/onnxruntime/)                             |
 | pytorch                         |   [PyTorch*](https://pytorch.org/)                                               |
 | tensorflow                      |   [TensorFlow* 1.x](https://www.tensorflow.org/versions#tensorflow_1)            |
@@ -149,14 +148,14 @@ Users in China might encounter errors while downloading sources via PIP during O
 If you use zsh (Z shell) interpreter, that is the default shell for macOS starting with version 10.15 (Catalina), you may encounter the following error while installing `openvino-dev` package with extras:
 
 ```sh
-pip install openvino-dev[tensorflow2,mxnet,caffe]
-zsh: no matches found: openvino-dev[tensorflow2,mxnet,caffe]
+pip install openvino-dev[tensorflow2,caffe]
+zsh: no matches found: openvino-dev[tensorflow2,caffe]
 ```
 
 By default zsh interprets square brackets as an expression for pattern matching. To resolve this issue, you need to escape the command with quotes:
 
 ```sh
-pip install 'openvino-dev[tensorflow2,mxnet,caffe]'
+pip install 'openvino-dev[tensorflow2,caffe]'
 ```
 
 To avoid such issues you can also disable globbing for PIP commands by defining an alias in `~/.zshrc` file:
