@@ -74,7 +74,15 @@ ov::Any get_opset(const ov::Node::RTMap& rt_info) {
 
 void assign_runtime_info(const ov::Node::RTMap& from, ov::Node::RTMap& to) {
     auto opset = get_opset(to);
+
+    // Some items are designed to exist only in the original Node and disappear when copied to another one.
+    // This is done in case of items which are not applicable if their Node is replaced during the transformation
+    // pipeline.
+    std::vector<std::string> perishable_items = {"bin_offset", "original_size"};
     for (auto& item : from) {
+        if (std::find(perishable_items.begin(), perishable_items.end(), item.first) != perishable_items.end()) {
+            continue;
+        }
         to[item.first] = item.second;
     }
     if (!opset.empty()) {

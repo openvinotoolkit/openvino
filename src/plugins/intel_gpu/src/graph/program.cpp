@@ -1723,33 +1723,6 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
     std::map<cldnn::memory::ptr, std::vector<const cldnn::program_node*>> mutable_datas_ptrs;
     ob << nodes_map.size();
 
-    // Constants used as inputs of strided_slice nodes cannot be loaded from the original weights file
-    // because strided_slice undergoes transformation(s) altering their values.
-    // Setting their bin_offset fields to SIZE_MAX excludes them from weightless caching mechanism.
-    {
-        std::vector<std::string> strided_slice_data_nodes;
-        for (auto& node : nodes_map) {
-            if (node.second->is_type<strided_slice>()) {
-                auto strided_slice_node = node.second->as<strided_slice>().typed_desc();
-                if (strided_slice_node->input.size() == 4) {
-                    strided_slice_data_nodes.push_back(strided_slice_node->input[1].pid);
-                    strided_slice_data_nodes.push_back(strided_slice_node->input[2].pid);
-                    strided_slice_data_nodes.push_back(strided_slice_node->input[3].pid);
-                }
-            }
-        }
-
-        for (auto& node : nodes_map) {
-            if (node.second->is_type<data>()) {
-                auto data_node = node.second->as<data>().typed_desc();
-                if (std::find(strided_slice_data_nodes.begin(), strided_slice_data_nodes.end(), data_node->id) !=
-                    strided_slice_data_nodes.end()) {
-                    data_node->bin_offset = SIZE_MAX;
-                }
-            }
-        }
-    }
-
     for (auto& node : nodes_map) {
         ob.setKernelImplParams(node.second->get_kernel_impl_params().get());
 
