@@ -2266,8 +2266,21 @@ bool JITMVNExecutor::MVNKey::operator==(const MVNKey& rhs) const {
 
 
 void JITMVNExecutor::setPostOps(dnnl::primitive_attr &attr, bool initWeights) {
-//    dnnl::post_ops ops;
-//    postOpsDataPtrs.clear();
+    dnnl::post_ops ops;
+    postOpsDataPtrs.clear();
+    for (auto &postOp : mvnPostOps) {
+        if (const auto activation = std::dynamic_pointer_cast<ActivationPostOp>(postOp)) {
+            std::cout << "std::dynamic_pointer_cast<ActivationPostOp>(postOp)" << std::endl;
+        } else if (const auto scaleShift = std::dynamic_pointer_cast<ScaleShiftPostOp>(postOp)) {
+            std::cout << "std::dynamic_pointer_cast<ScaleShiftPostOp>(postOp)" << std::endl;
+        } else if (const auto fakeQuantize = std::dynamic_pointer_cast<FakeQuantizePostOp>(postOp)) {
+            std::cout << "std::dynamic_pointer_cast<FakeQuantizePostOp>(postOp)" << std::endl;
+        } else {
+            OPENVINO_THROW("Fusing operation to MVN node is not implemented");
+        }
+    }
+    attr.set_post_ops(ops);
+
 //    for (auto &node : jitMVNAttrs.fusedWith) {
 //        auto* fakeQuantizeNode = dynamic_cast<node::FakeQuantize *>(node.get());
 //        if (fakeQuantizeNode) {
@@ -2280,11 +2293,7 @@ void JITMVNExecutor::setPostOps(dnnl::primitive_attr &attr, bool initWeights) {
 //            eltwiseNode->appendPostOps(ops, shape5D, postOpsDataPtrs);
 //            continue;
 //        }
-//        OPENVINO_THROW("Fusing of ",
-//                       NameFromType(node->getType()),
-//                       " operation to MVN node is not implemented");
 //    }
-//    attr.set_post_ops(ops);
 }
 
 }  // namespace intel_cpu

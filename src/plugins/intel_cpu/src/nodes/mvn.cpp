@@ -199,6 +199,7 @@ void MVN::initSupportedPrimitiveDescriptors() {
     mvnAttrs.dst_prc = descs.at(ARG_DST)->getPrecision();
 
     postOps = getPostOps(fusedWith);
+//    mvnAttrs.fusedWith = fusedWith;
     auto executionContext = std::make_shared<ExecutorContext>(context, getImplPriority(), privateWeightCache);
     factory = std::make_shared<ExecutorFactory<MVNAttrs, node::MVN>>(mvnAttrs, postOps, executionContext, descs);
     const auto nodeDescriptors = factory->getProperMemoryDescriptors(descs);
