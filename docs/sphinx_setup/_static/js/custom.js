@@ -108,18 +108,20 @@ $(document).ready(function () {
 
 function handleSidebar() {
     const resizer = document.querySelector("#bd-resizer");
-    const sidebar = document.querySelector("#bd-sidebar");
-    resizer.addEventListener("mousedown", (event) => {
-        document.addEventListener("mousemove", resize, false);
-        document.addEventListener("mouseup", () => {
-            document.removeEventListener("mousemove", resize, false);
-        }, false);
-    });
-
-    function resize(e) {
-        const size = `${e.x}px`;
-        localStorage['resizeSidebarX'] = size;
-        sidebar.style.flexBasis = size;
+    if(resizer){
+        const sidebar = document.querySelector("#bd-sidebar");
+        resizer.addEventListener("mousedown", (event) => {
+            document.addEventListener("mousemove", resize, false);
+            document.addEventListener("mouseup", () => {
+                document.removeEventListener("mousemove", resize, false);
+            }, false);
+        });
+    
+        function resize(e) {
+            const size = `${e.x}px`;
+            localStorage['resizeSidebarX'] = size;
+            sidebar.style.flexBasis = size;
+        }
     }
 }
 
@@ -346,15 +348,14 @@ function addFooter() {
     const footerAnchor = $('.footer');
 
     fetch('/footer.html').then((response) => response.text()).then((text) => {
-        console.log(text)
         const footerContent = $(text);
         footerAnchor.append(footerContent);
     });
 }
 
 function initSplide() {
-    var splider = document.getElementsByClassName('.splide');
-    if(splider.length != 0){
+    var spliderLi = document.getElementById('ov-homepage-slide1');
+    if(spliderLi){
         var splide = new Splide('.splide', {
             type: 'fade',
             autoHeight: true,
@@ -371,30 +372,36 @@ function initSplide() {
 }
 
 // ---------- COVEO SEARCH -----------
-function selectResultViewType(type, gridButton, listButton) {
-    type === "grid" ? gridButton.click() : listButton.click();
-}
 
 function addViewTypeListeners() {
     const resultViewTypeFromLs = window.localStorage.getItem('atomicResultViewType');
     let list = document.getElementById("atomic-result-list");
+    
     var viewSelectorGrid = document.getElementById("view-selector-grid");
-    viewSelectorGrid.addEventListener('click', function () {
-        list.display = "grid";
-        window.localStorage.setItem('atomicResultViewType', "grid");
-        viewSelectorGrid.classList.add('selected');
-        viewSelectorList.classList.remove('selected');
-        selectResultViewType("grid", viewSelectorGrid, viewSelectorList);
-    });
     var viewSelectorList = document.getElementById("view-selector-list");
-    viewSelectorList.addEventListener('click', function () {
-        list.display = "list";
-        window.localStorage.setItem('atomicResultViewType', "list");
-        viewSelectorList.classList.add('selected');
-        viewSelectorGrid.classList.remove('selected');
-        selectResultViewType("list", viewSelectorGrid, viewSelectorList);
-    });
-    selectResultViewType(resultViewTypeFromLs || "grid", viewSelectorGrid, viewSelectorList);
+    
+    if(viewSelectorGrid){
+        viewSelectorGrid.addEventListener('click', function () {
+            list.display = "grid";
+            window.localStorage.setItem('atomicResultViewType', "grid");
+            viewSelectorGrid.classList.add('selected');
+            viewSelectorList.classList.remove('selected');
+            viewSelectorGrid.click();
+        });
+    }
+    
+    if(viewSelectorList){
+        viewSelectorList.addEventListener('click', function () {
+            list.display = "list";
+            window.localStorage.setItem('atomicResultViewType', "list");
+            viewSelectorList.classList.add('selected');
+            viewSelectorGrid.classList.remove('selected');
+            viewSelectorList.click();
+        });
+    }
+    if(viewSelectorList && viewSelectorGrid) {
+        viewSelectorGrid.classList.add('selected');
+    }
 }
 
 document.addEventListener('DOMContentLoaded', function () {
