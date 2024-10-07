@@ -403,8 +403,8 @@ TEST_F(RTInfoDeserialization, node_v11) {
             <data element_type="f32" shape="1,22,22,3"/>
             <rt_info>
                 <attribute name="old_api_map_element_type" version="0" value="f16"/>
-                <attribute name="old_api_map_order" version="0" value="0,2,3,1"/>
-                <attribute name="fused_names" version="0" value="in1"/>
+                <attribute name="old_api_map_order" version="ignored" value="0,2,3,1"/>
+                <attribute name="fused_names" value="in1"/>
             </rt_info>
             <output>
                 <port id="0" precision="FP32" names="input_tensor">
