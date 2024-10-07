@@ -27,7 +27,7 @@ typedef std::tuple<
 > TransposeMulParams;
 
 class Transpose : public testing::WithParamInterface<ov::test::snippets::TransposeParams>,
-            virtual public ov::test::SnippetsTestsCommon {
+                  virtual public SnippetsTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::TransposeParams> obj);
 
@@ -36,7 +36,7 @@ protected:
 };
 
 class TransposeMul : public testing::WithParamInterface<ov::test::snippets::TransposeMulParams>,
-                  virtual public ov::test::SnippetsTestsCommon {
+                     virtual public SnippetsTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::TransposeMulParams> obj);
 
