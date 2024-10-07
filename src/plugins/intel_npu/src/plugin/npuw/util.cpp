@@ -361,7 +361,7 @@ void unpack_i4i8(const ov::SoPtr<ov::ITensor>& from,
     }
     UNPACK_SAVE_TICK();
 #else
-    throw std::runtime_error("AVX2 support is neccessary but it's not enabled!");
+    OPENVINO_THROW("AVX2 support is neccessary but it's not enabled!");
 #endif
 }
 
@@ -501,7 +501,7 @@ void unpack_i4f16(const ov::SoPtr<ov::ITensor>& from,
         }
     }
 #else
-    throw std::runtime_error("AVX2 support is neccessary but it's not enabled!");
+    OPENVINO_THROW("AVX2 support is neccessary but it's not enabled!");
 #endif
 }
 
@@ -658,7 +658,7 @@ void unpack_i4f16(const ov::SoPtr<ov::ITensor>& from,
         }
     }
 #else
-    throw std::runtime_error("AVX2 support is neccessary but it's not enabled!");
+    OPENVINO_THROW("AVX2 support is neccessary but it's not enabled!");
 #endif
 }
 
@@ -831,7 +831,7 @@ void unpack_u4f16(const ov::SoPtr<ov::ITensor>& from,
         pDst += 64;  // note pDst is int16_t
     }
 #else
-    throw std::runtime_error("AVX2 support is neccessary but it's not enabled!");
+    OPENVINO_THROW("AVX2 support is neccessary but it's not enabled!");
 #endif
 }
 
@@ -1012,7 +1012,7 @@ void unpack_u4f16(const ov::SoPtr<ov::ITensor>& from,
         }
     }
 #else
-    throw std::runtime_error("AVX2 support is neccessary but it's not enabled!");
+    OPENVINO_THROW("AVX2 support is neccessary but it's not enabled!");
 #endif
 }
 
@@ -1196,7 +1196,7 @@ void unpack_u4f16_asymm_zp(const ov::SoPtr<ov::ITensor>& from,
         }
     }
 #else
-    throw std::runtime_error("AVX2 support is neccessary but it's not enabled!");
+    OPENVINO_THROW("AVX2 support is neccessary but it's not enabled!");
 #endif
 }
 
@@ -1297,7 +1297,7 @@ void unpack_u4f16_z(const ov::SoPtr<ov::ITensor>& from,
         }
     }
 #else
-    throw std::runtime_error("AVX2 support is neccessary but it's not enabled!");
+    OPENVINO_THROW("AVX2 support is neccessary but it's not enabled!");
 #endif
 }
 
@@ -1345,7 +1345,7 @@ void unpack_i8f16(const ov::SoPtr<ov::ITensor>& from,
         pDst += 8;
     }
 #else
-    throw std::runtime_error("AVX2 support is neccessary but it's not enabled!");
+    OPENVINO_THROW("AVX2 support is neccessary but it's not enabled!");
 #endif
 }
 
@@ -1387,7 +1387,7 @@ void unpack_i8f16(const ov::SoPtr<ov::ITensor>& from,
         pScl += scale_elem_type.size();
     }  // sindex
 #else
-    throw std::runtime_error("AVX2 support is neccessary but it's not enabled!");
+    OPENVINO_THROW("AVX2 support is neccessary but it's not enabled!");
 #endif
 }
 
@@ -1441,7 +1441,7 @@ void unpack_u8f16(const ov::SoPtr<ov::ITensor>& from,
         pZrp++;
     }  // sindex
 #else
-    throw std::runtime_error("AVX2 support is neccessary but it's not enabled!");
+    OPENVINO_THROW("AVX2 support is neccessary but it's not enabled!");
 #endif
 }
 
@@ -1735,7 +1735,7 @@ ov::Tensor ov::npuw::util::to_f16(const ov::Tensor& t) {
 
     return tnew;
 #else
-    throw std::runtime_error("AVX2 support is neccessary but it's not enabled!");
+    OPENVINO_THROW("AVX2 support is neccessary but it's not enabled!");
 #endif
 }
 
