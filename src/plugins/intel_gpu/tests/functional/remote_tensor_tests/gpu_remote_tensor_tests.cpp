@@ -3,6 +3,10 @@
 //
 
 #include "openvino/core/preprocess/pre_post_process.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/remote_tensor.hpp"
@@ -2615,6 +2619,45 @@ ov::RemoteTensor create_tensor(ov::intel_gpu::ocl::ClContext context,
     }
 }
 }  // namespace
+
+TEST(RemoteTensor, smoke_LockableHandling) {
+#if defined(ANDROID)
+    GTEST_SKIP();
+#endif
+
+    auto core = ov::Core();
+    auto remote_context = core.get_default_context(ov::test::utils::DEVICE_GPU);
+    auto gpu_context = remote_context.as<ov::intel_gpu::ocl::ClContext>();
+    auto type = ov::element::f32;
+    ov::Shape shape = {4};
+
+    auto remote_tensor = gpu_context.create_tensor(type, shape);
+
+    auto host_tensor_in = ov::Tensor(type, shape);
+    init_tensor(host_tensor_in);
+    remote_tensor.copy_from(host_tensor_in);
+
+    auto param_node = std::make_shared<ov::op::v0::Parameter>(type, ov::PartialShape{-1});
+    auto const_node = std::make_shared<ov::op::v0::Constant>(host_tensor_in);
+    auto add_node = std::make_shared<ov::op::v1::Add>(param_node, const_node);
+    auto shape_of_node = std::make_shared<ov::op::v3::ShapeOf>(param_node);
+    auto res1 = std::make_shared<ov::op::v0::Result>(add_node);
+    auto res2 = std::make_shared<ov::op::v0::Result>(shape_of_node);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{res1, res2}, ov::ParameterVector{param_node});
+
+    auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f32));
+    auto request = compiled_model.create_infer_request();
+    request.set_input_tensor(remote_tensor);
+
+    request.infer();
+    auto res = request.get_output_tensor(0);
+    auto host_res = ov::Tensor(type, shape);
+    res.copy_to(host_res);
+
+    for (size_t i = 0; i < ov::shape_size(host_tensor_in.get_shape()); i++) {
+        ASSERT_EQ(host_res.data<float>()[i], host_tensor_in.data<float>()[i] * 2);
+    }
+}
 
 TEST_P(RemoteTensor, smoke_CopyFrom) {
 #if defined(ANDROID)

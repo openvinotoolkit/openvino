@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_convolution_DeformableConvolution_1}
-
 DeformableConvolution
 =====================
 
 
 .. meta::
-  :description: Learn about DeformableConvolution-1 - a 2D, deformable, convolution operation, which 
+  :description: Learn about DeformableConvolution-1 - a 2D, deformable, convolution operation, which
                 can be performed on input and kernel tensors in OpenVINO.
 
 **Versioned name**: *DeformableConvolution-1*
@@ -19,7 +17,7 @@ DeformableConvolution
 Output is calculated using the following formula:
 
 .. math::
-    
+
    y(p) = \displaystyle{\sum_{k = 1}^{K}}w_{k}x(p + p_{k} + {\Delta}p_{k})
 
 Where
@@ -65,7 +63,7 @@ Where
 * *auto_pad*
 
   * **Description**: *auto_pad* how the padding is calculated. Possible values:
-  
+
     * *explicit* - use explicit padding values from *pads_begin* and *pads_end*.
     * *same_upper* - the input is padded to match the output size. In case of odd padding value an extra padding is added at the end.
     * *same_lower* - the input is padded to match the output size. In case of odd padding value an extra padding is added at the beginning.
@@ -113,7 +111,7 @@ Where
 
 .. code-block:: xml
    :force:
-   
+
    <layer type="DeformableConvolution" ...>
        <data dilations="1,1" pads_begin="0,0" pads_end="0,0" strides="1,1" auto_pad="explicit"  group="1" deformable_group="1"/>
        <input>
@@ -150,7 +148,7 @@ Where
 
 .. code-block:: xml
    :force:
-   
+
    <layer type="DeformableConvolution" ...>
        <data dilations="1,1" pads_begin="0,0" pads_end="0,0" strides="1,1" auto_pad="explicit"  group="1" deformable_group="4"/>
        <input>

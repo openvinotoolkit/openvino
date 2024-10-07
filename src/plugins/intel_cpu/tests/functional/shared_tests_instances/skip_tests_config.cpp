@@ -562,6 +562,13 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*smoke_Snippets_MHAWOTransposeEnforceBF16.*)");
         retVector.emplace_back(R"(.*smoke_Snippets_MHAEnforceBF16.*)");
     }
+    // [150842] Need to support dynamic K dimension of BF16|INT8 MatMul on AMX systems
+    if (ov::with_cpu_x86_avx512_core_amx()) {
+        retVector.emplace_back(R"(.*smoke_Snippets_MatMul/MatMul.CompareWithRefImpl/.*IS\[0\]=\[2.2.70.\?\].*T\[0\]=(u8|i8|bf16)_T\[1\]=(i8|bf16).*)");
+        retVector.emplace_back(R"(.*smoke_Snippets_MatMul/MatMul.CompareWithRefImpl/.*IS\[0\]=\[\?.\?.\?.\?\].*T\[0\]=(u8|i8|bf16)_T\[1\]=(i8|bf16).*)");
+        retVector.emplace_back(R"(.*smoke_Snippets_MatMulTransposeB.*IS\[0\]=\[\?.\?.\?.\?\].*T\[0\]=(u8|i8|bf16)_T\[1\]=(i8|bf16).*)");
+        retVector.emplace_back(R"(.*smoke_Snippets_MatMulBias.*IS\[0\]=\[\?.\?.\?.\?\].*T\[0\]=(u8|i8|bf16)_T\[1\]=(i8|bf16).*)");
+    }
 #ifdef SNIPPETS_LIBXSMM_TPP
     // GN in TPP requires exposing tmp Buffer results outside the loop (ticket: 151234)
     retVector.emplace_back(R"(.*smoke_Snippets_GroupNormalization.*)");
@@ -578,14 +585,14 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*smoke_Snippets_AddSoftmax.*)");
     retVector.emplace_back(R"(.*smoke_Snippets_TransposeSoftmaxEltwise.*)");
     // Low-precision Matmuls are not supported by TPP yet
-    retVector.emplace_back(R"(.*smoke_Snippets_MatMulFQ.*)");
-    retVector.emplace_back(R"(.*smoke_Snippets_MatMulBiasQuantized.*)");
-    retVector.emplace_back(R"(.*smoke_Snippets_MatMulQuantized.*)");
-    retVector.emplace_back(R"(.*smoke_Snippets_MatMulQuantizedSoftmax.*)");
-    retVector.emplace_back(R"(.*smoke_Snippets_MHAINT8MatMul.*)");
-    retVector.emplace_back(R"(.*smoke_Snippets_MHAQuantMatMul0.*)");
-    retVector.emplace_back(R"(.*smoke_Snippets_MHAFQ.*)");
-    retVector.emplace_back(R"(.*smoke_Snippets_PrecisionPropagation_Convertion.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets.*MatMulFQ.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets.*MatMulBiasQuantized.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets.*MatMulsQuantized.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets.*MatMulsQuantizedSoftmax.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets.*MHAINT8MatMul.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets.*MHAQuantMatMul0.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets.*MHAFQ.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets.*PrecisionPropagation_Convertion.*)");
     retVector.emplace_back(R"(.*smoke_MHAQuant.*)");
 #endif
 

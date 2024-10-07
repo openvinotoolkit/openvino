@@ -183,9 +183,9 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     const bool need_sum_barrier = (ugemm_vs_barrier_count == 0);
 
     /* Locate K/Q/V/A matrices within batch */
-    K += KEY_OFF(b1, (b0 / KV_GROUP_SIZE), 0, 0);
-    Q += QRY_OFF(b1, b0, 0, 0);
-    V += VAL_OFF(b1, (b0 / KV_GROUP_SIZE), 0, 0);
+    K += KEY_OFF(b1, (b0 / KV_GROUP_SIZE), 0, 0) + INPUT1_OFFSET;
+    Q += QRY_OFF(b1, b0, 0, 0) + INPUT0_OFFSET;
+    V += VAL_OFF(b1, (b0 / KV_GROUP_SIZE), 0, 0) + INPUT2_OFFSET;
     A += DST_OFF(b1, b0, 0, 0, 0);
 
     __builtin_assume_aligned(K, K_ALIGN);

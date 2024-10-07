@@ -327,26 +327,10 @@ int get_org_numa_id(int numa_node_id) {
 #    ifndef _WIN32
 int get_number_of_cpu_cores(bool bigCoresOnly) {
     CPU& cpu = cpu_info();
-    unsigned numberOfProcessors = cpu._processors;
     unsigned totalNumberOfCpuCores = cpu._cores;
     OPENVINO_ASSERT(totalNumberOfCpuCores != 0, "Total number of cpu cores can not be 0.");
-    cpu_set_t usedCoreSet, currentCoreSet, currentCpuSet;
-    CPU_ZERO(&currentCpuSet);
-    CPU_ZERO(&usedCoreSet);
-    CPU_ZERO(&currentCoreSet);
 
-    sched_getaffinity(0, sizeof(currentCpuSet), &currentCpuSet);
-
-    for (unsigned processorId = 0u; processorId < numberOfProcessors; processorId++) {
-        if (CPU_ISSET(processorId, &currentCpuSet)) {
-            unsigned coreId = processorId % totalNumberOfCpuCores;
-            if (!CPU_ISSET(coreId, &usedCoreSet)) {
-                CPU_SET(coreId, &usedCoreSet);
-                CPU_SET(processorId, &currentCoreSet);
-            }
-        }
-    }
-    int phys_cores = CPU_COUNT(&currentCoreSet);
+    int phys_cores = totalNumberOfCpuCores;
 #        if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
     auto core_types = custom::info::core_types();
     if (bigCoresOnly && core_types.size() > 1) /*Hybrid CPU*/ {

@@ -1,5 +1,3 @@
-.. {#openvino_docs_install_guides_installing_openvino_conan}
-
 Install OpenVINO™ Runtime from Conan Package Manager
 ======================================================
 

@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_infrastructure_Loop_5}
-
 Loop
 ====
 

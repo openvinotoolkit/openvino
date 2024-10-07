@@ -13,6 +13,7 @@ from pathlib import Path
 
 sys.path.append(str(Path(__file__).parents[1]))
 from common import artifact_utils, action_utils
+from common.constants import PlatformMapping, PlatformKey
 
 
 def parse_args():
@@ -67,7 +68,8 @@ def main():
     args = parse_args()
 
     storage_root = args.storage_root or os.getenv('ARTIFACTS_SHARE')
-    storage = artifact_utils.get_storage_dir(args.storage_dir, args.commit_sha, args.storage_root, args.branch_name,
+    storage_dir = args.storage_dir or PlatformMapping[PlatformKey[args.platform.upper()]].value
+    storage = artifact_utils.get_storage_dir(storage_dir, args.commit_sha, args.storage_root, args.branch_name,
                                              args.event_name)
     action_utils.set_github_output("artifacts_storage_path", str(storage))
 
@@ -96,7 +98,7 @@ def main():
         with open(storage / 'workflow_link.txt', 'w') as file:
             file.write(workflow_link)
 
-    latest_artifacts_for_branch = artifact_utils.get_latest_artifacts_link(args.storage_dir, args.storage_root,
+    latest_artifacts_for_branch = artifact_utils.get_latest_artifacts_link(storage_dir, args.storage_root,
                                                                            args.branch_name, args.event_name)
     # Overwrite path to "latest" built artifacts only if a given commit is the head of a given branch
     if args.event_name != 'pull_request' and args.commit_sha == os.getenv('GITHUB_SHA'):

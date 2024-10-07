@@ -756,6 +756,7 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
 
                 if (new_input.first) {
                     p.add_intermediate(new_input.first, detection_output_node, i, !new_input.second);
+                    detection_output_node.recalc_output_layouts();
                 }
             }
         }
@@ -770,6 +771,7 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
                 layout{ input_layout.get_partial_shape(), input_layout.data_type, new_format });
             if (reorder.first) {
                 p.add_intermediate(reorder.first, deconv_node, 0, !reorder.second);
+                deconv_node.recalc_output_layouts();
             }
         }
 
@@ -893,6 +895,7 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
             auto new_input = rf.get_reorder(input.id(), input_layout, new_layout);
             if (new_input.first) {
                p.add_intermediate(new_input.first, fc_node, 0, !new_input.second);
+               fc_node.recalc_output_layouts();
             }
         }
 
@@ -919,6 +922,7 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
             auto new_input = rf.get_reorder(input->id(), dep.second, input_layout, new_layout);
             if (new_input.first) {
                p.add_intermediate(new_input.first, pooling_node, 0);
+               pooling_node.recalc_output_layouts();
             }
         }
     };
