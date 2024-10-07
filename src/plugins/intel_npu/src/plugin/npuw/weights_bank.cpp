@@ -47,10 +47,24 @@ ov::Tensor Bank::get(const LazyTensor& tensor, const std::string& device) {
     auto& device_bank = m_device_bank[device_for_alloc];
     auto iter_device = device_bank.find(tensor);
 
-    // Should be already allocated at this point
-    NPUW_ASSERT(iter_device != device_bank.end());
+    if (iter_device != device_bank.end() && iter_device->second) {
+        // Already allocated
+        return iter_device->second;
+    }
 
-    return iter_device->second;
+    // Allocation and evaluation needed
+    auto& transformed_tensor = device_bank[tensor];
+    transformed_tensor = tensor.eval();
+    if (device_for_alloc != "CPU") {
+        m_remote_ctx = m_core->get_default_context(device_for_alloc)._ptr;
+        auto remote_tensor =
+            m_remote_ctx->create_host_tensor(transformed_tensor.get_element_type(), transformed_tensor.get_shape());
+        auto allocated_tensor = ov::make_tensor(remote_tensor);
+        transformed_tensor.copy_to(allocated_tensor);
+        transformed_tensor = allocated_tensor;
+    }
+
+    return transformed_tensor;
 }
 
 void Bank::registerLT(const LazyTensor& tensor, const std::string& device) {

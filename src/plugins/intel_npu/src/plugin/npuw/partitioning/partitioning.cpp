@@ -1720,10 +1720,11 @@ void Partitioner::optimize(const std::string& func_name) {
                 LazyTensor cz = z_idx != -1 ? funcall._lazy_closure[z_idx - f._param_offset]
                                             : LazyTensor(TransformType::THIS, ov::Tensor());
                 LazyTensor cs = funcall._lazy_closure[s_idx - f._param_offset];
-                ov::Tensor dst(p.first->get_element_type(), p.first->get_shape());
 
+                // FIXME: currently there is an issue that we don't share such tensor between head and tail
                 funcall._lazy_closure.push_back(
-                    LazyTensor(TransformType::UNPACK, std::make_tuple(cw, cz, cs, std::move(dst))));
+                    LazyTensor(TransformType::UNPACK,
+                               std::make_tuple(cw, cz, cs, p.first->get_shape(), p.first->get_element_type())));
                 // Some of the tensors might be in closure - preserve it's 1:1 idx mapping with _lazy_closure
                 funcall._closure.resize(funcall._lazy_closure.size());
             });

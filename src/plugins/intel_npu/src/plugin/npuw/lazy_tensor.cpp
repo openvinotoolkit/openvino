@@ -76,11 +76,10 @@ std::size_t LazyTensorImpl::get_hash() const {
         seed ^= std::get<0>(unpack_meta).get_hash() + 0x9e3779b9;
         seed ^= std::get<1>(unpack_meta).get_hash() + 0x9e3779b9;
         seed ^= std::get<2>(unpack_meta).get_hash() + 0x9e3779b9;
-        const auto& dst = std::get<3>(unpack_meta);
-        for (const auto& dim : dst.get_shape()) {
+        for (const auto& dim : std::get<3>(unpack_meta)) {
             seed ^= std::hash<std::size_t>()(dim) + 0x9e3779b9;
         }
-        seed ^= dst.get_element_type().hash() + 0x9e3779b9;
+        seed ^= std::get<4>(unpack_meta).hash() + 0x9e3779b9;
     }
 
     return seed;
@@ -124,10 +123,6 @@ bool LazyTensorImpl::operator==(const LazyTensorImpl& other) const {
         return false;
     }
 
-    ConcatMeta c1, c2;
-    UnpackMeta u1, u2;
-    ov::Tensor unpack_dst1, unpack_dst2;
-
     switch (m_transform.first) {
     case TransformType::THIS:
         // everything is already compared above - skip
@@ -142,31 +137,12 @@ bool LazyTensorImpl::operator==(const LazyTensorImpl& other) const {
         }
         break;
     case TransformType::CONCAT:
-        c1 = std::get<ConcatMeta>(m_transform.second);
-        c2 = std::get<ConcatMeta>(other.m_transform.second);
-        if (c1.second != c2.second) {
+        if (std::get<ConcatMeta>(m_transform.second) != std::get<ConcatMeta>(other.m_transform.second)) {
             return false;
-        }
-        if (c1.first.size() != c2.first.size()) {
-            return false;
-        }
-        for (std::size_t mi = 0; mi < c1.first.size(); ++mi) {
-            if (c1.first[mi] != c2.first[mi]) {
-                return false;
-            }
         }
         break;
     case TransformType::UNPACK:
-        u1 = std::get<UnpackMeta>(m_transform.second);
-        u2 = std::get<UnpackMeta>(other.m_transform.second);
-        if (std::get<0>(u1) != std::get<0>(u2) || std::get<1>(u1) != std::get<1>(u2) ||
-            std::get<2>(u1) != std::get<2>(u2)) {
-            return false;
-        }
-        unpack_dst1 = std::get<3>(u1);
-        unpack_dst2 = std::get<3>(u2);
-        if (unpack_dst1.get_shape() != unpack_dst2.get_shape() ||
-            unpack_dst1.get_element_type() != unpack_dst2.get_element_type()) {
+        if (std::get<UnpackMeta>(m_transform.second) != std::get<UnpackMeta>(other.m_transform.second)) {
             return false;
         }
         break;
@@ -214,15 +190,10 @@ ov::Tensor LazyTensorImpl::eval() const {
             const auto& cw = std::get<0>(unpack_meta);
             const auto& cz = std::get<1>(unpack_meta);
             const auto& cs = std::get<2>(unpack_meta);
-            auto& dst = std::get<3>(unpack_meta);
-
-            // Check if tensor has already been unpacked (e.g. shared between head and tail)
-            if (dst.data()) {
-                return dst;
-            }
+            const auto& shape = std::get<3>(unpack_meta);
+            const auto& type = std::get<4>(unpack_meta);
 
             // Note: unpacking done in-place since the original tensor is empty at this point
-            NPUW_ASSERT(!dst.data());
             NPUW_ASSERT(!cw.has_transformations());
             NPUW_ASSERT(!cs.has_transformations());
             // FIXME: Ugly check concat case as well since cz might be not set
@@ -234,15 +205,15 @@ ov::Tensor LazyTensorImpl::eval() const {
             const auto& tw = cw.get_orig_tensor();
             const auto& tz = cz.get_orig_tensor();
             const auto& ts = cs.get_orig_tensor();
+            ov::Tensor dst(type, shape);
             if (tw && tz && ts) {
                 ov::npuw::util::unpack(gti(tw), gti(tz), gti(ts), gti(dst));
-                return dst;
-            } else if (cw.get_orig_tensor() && cs.get_orig_tensor()) {
+            } else if (tw && ts) {
                 ov::npuw::util::unpack(gti(tw), gti(ts), gti(dst));
-                return dst;
             } else {
                 NPUW_ASSERT(false && "Unsupported combination");
             }
+            return dst;
         } else {
             NPUW_ASSERT(false);
         }

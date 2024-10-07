@@ -26,7 +26,7 @@ class LazyTensor;
 struct LazyTensorImpl;
 
 using ConcatMeta = std::pair<std::vector<LazyTensor>, std::size_t>;
-using UnpackMeta = std::tuple<LazyTensor, LazyTensor, LazyTensor, ov::Tensor>;
+using UnpackMeta = std::tuple<LazyTensor, LazyTensor, LazyTensor, ov::Shape, ov::element::Type>;
 using ConstPtr = std::shared_ptr<ov::op::v0::Constant>;
 using OrigData = std::variant<ConstPtr, ov::Tensor>;
 
