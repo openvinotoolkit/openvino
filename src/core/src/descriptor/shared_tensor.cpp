@@ -41,24 +41,22 @@ public:
     }
 
     void set_names(const std::unordered_set<std::string>& names) override {
-        rm_tensor_output_names();
         m_output_names = names;
         m_name_it = std::min_element(m_output_names.begin(), m_output_names.end());
-        m_shared_tensor->add_names(m_output_names);
     }
 
     void add_names(const std::unordered_set<std::string>& names) override {
         m_output_names.insert(names.begin(), names.end());
         m_name_it = std::min_element(m_output_names.begin(), m_output_names.end());
-        m_shared_tensor->add_names(names);
     }
 
     const std::unordered_set<std::string>& get_names() const override {
         return m_output_names.empty() ? m_shared_tensor->get_names() : m_output_names;
     }
 
-    const std::unordered_set<std::string>& get_all_names() const override {
-        return m_shared_tensor->get_names();
+    void copy_names_to(Tensor& dst) const override {
+        dst.set_names(m_output_names);
+        dst.add_names(m_shared_tensor->get_names());
     }
 
     const std::string& get_any_name() const override {
@@ -91,25 +89,14 @@ public:
     void set_tensor(std::shared_ptr<ITensorDescriptor> tensor) {
         if (tensor != m_shared_tensor) {
             OPENVINO_ASSERT(tensor, "Cannot set NULL tensor descriptor");
-            rm_tensor_output_names();
             auto prev_rt_map = rt_map();
 
             m_shared_tensor = std::move(tensor);
-            m_shared_tensor->add_names(m_output_names);
             rt_map().insert(std::make_move_iterator(prev_rt_map.begin()), std::make_move_iterator(prev_rt_map.end()));
         }
     }
 
 private:
-    void rm_tensor_output_names() {
-        auto names = m_shared_tensor->get_names();
-        for (const auto& output_name : m_output_names) {
-            names.erase(output_name);
-        }
-
-        m_shared_tensor->set_names(names);
-    }
-
     std::shared_ptr<ITensorDescriptor> m_shared_tensor;
     std::unordered_set<std::string> m_output_names;
     std::unordered_set<std::string>::const_iterator m_name_it;

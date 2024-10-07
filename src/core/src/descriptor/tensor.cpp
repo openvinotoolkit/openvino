@@ -90,12 +90,12 @@ public:
         m_name_it = find_new_any_name(m_names);
     }
 
-    const std::unordered_set<std::string>& get_names() const override {
-        return m_names;
+    void copy_names_to(Tensor& dst) const override {
+        dst.set_names(get_names());
     }
 
-    const std::unordered_set<std::string>& get_all_names() const override {
-        return get_names();
+    const std::unordered_set<std::string>& get_names() const override {
+        return m_names;
     }
 
     const std::string& get_any_name() const override {
@@ -282,7 +282,7 @@ void set_element_type(Tensor& tensor, const element::Type& element_type) {
 }
 
 void copy_tensor_names(Tensor& dst, const Tensor& src) {
-    dst.set_names(TensorExtension::get_descriptor(src).get_all_names());
+    TensorExtension::get_descriptor(src).copy_names_to(dst);
     OPENVINO_SUPPRESS_DEPRECATED_START
     ov::descriptor::set_ov_tensor_legacy_name(dst, ov::descriptor::get_ov_tensor_legacy_name(src));
     OPENVINO_SUPPRESS_DEPRECATED_END

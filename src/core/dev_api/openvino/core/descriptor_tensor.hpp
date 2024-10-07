@@ -52,8 +52,8 @@ public:
     virtual void set_names(const std::unordered_set<std::string>& names) = 0;
     virtual void add_names(const std::unordered_set<std::string>& names) = 0;
     virtual const std::unordered_set<std::string>& get_names() const = 0;
-    virtual const std::unordered_set<std::string>& get_all_names() const = 0;
     virtual const std::string& get_any_name() const = 0;
+    virtual void copy_names_to(Tensor& dst) const = 0;
 
     virtual RTMap& rt_map() = 0;
     virtual const RTMap& rt_map() const = 0;
