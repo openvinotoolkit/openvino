@@ -558,7 +558,6 @@ void Graph::update_profiling_info() {
     };
 
     std::map<cldnn::primitive_id, cldnn::event::ptr> executedPrimitives = get_network()->get_executed_primitives();
-    auto allPrimitives = get_network()->get_all_primitives();
 
     // Get profiling info for all layers
     for (auto &profiledID : profilingIDs) {
