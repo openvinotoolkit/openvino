@@ -1916,7 +1916,6 @@ TEST(reorder_gpu_opt, non_trivial_remove_redundant)
     net.set_input_data("in", in);
     auto outputs = net.execute();
     auto executed_primitives = net.get_executed_primitives();
-    auto all_primitives = net.get_all_primitives();
 
     if (engine.get_device_info().supports_immad) {
         // Currently, oneDNN only supports in_order_queue

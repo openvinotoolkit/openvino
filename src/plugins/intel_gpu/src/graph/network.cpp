@@ -203,8 +203,6 @@ network::network(program::ptr program, stream::ptr stream, bool is_internal, boo
     calculate_weights_cache_capacity();
     allocate_primitives();
     configure_primitives_second_output();
-    if (!_program->is_loaded_from_cache())
-        check_names();
     build_insts_deps();
     build_exec_order();
     validate_primitives();
@@ -333,11 +331,7 @@ void network::reset_execution(bool wait) {
 
 event::ptr network::set_input_data(const primitive_id& id, memory::ptr data) {
     GPU_DEBUG_TRACE_DETAIL << "Set input " << id << " " << data->get_layout().to_short_string() << std::endl;
-    std::shared_ptr<primitive_inst> primitive_inst;
-
-    primitive_inst = find_primitive(id);
-
-    OPENVINO_ASSERT(primitive_inst != nullptr, "[GPU] topology doesn't contain primitive: ", id);
+    auto primitive_inst = find_primitive(id);
 
     if (primitive_inst->type() != input_layout::type_id()) {
         CLDNN_ERROR_MESSAGE(id, "primitive " + id + " is not an input");
@@ -481,11 +475,8 @@ network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<p
 
 std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memory::ptr mem_new) {
     GPU_DEBUG_TRACE_DETAIL << "Set output " << id << " " << mem_new->get_layout().to_short_string() << std::endl;
-    std::shared_ptr<primitive_inst> p_inst;
     std::vector<event::ptr> ret_ev;
-    p_inst = find_primitive(id);
-
-    OPENVINO_ASSERT(p_inst != nullptr, "[GPU] topology doesn't contain primitive: ", id);
+    std::shared_ptr<primitive_inst> p_inst = find_primitive(id);
 
     auto iter = std::find(_outputs.begin(), _outputs.end(), p_inst);
     if (iter == _outputs.end())
@@ -513,35 +504,10 @@ std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memor
     return ret_ev;
 }
 
-void cldnn::network::check_names() {
-    for (auto const& prim : _primitives) {
-        if (find_in_internal_networks(prim.first) != nullptr)
-            CLDNN_ERROR_MESSAGE("Network", "Found primitive with id: " + prim.first + "in anotother network.");
-    }
-}
-
 std::shared_ptr<primitive_inst> cldnn::network::find_primitive(const primitive_id& id) const {
-    if (_primitives.find(id) != _primitives.end())
-        return _primitives.at(id);
-
-    return find_in_internal_networks(id);
-}
-
-std::shared_ptr<primitive_inst> cldnn::network::find_in_internal_networks(const primitive_id& id) const {
-    std::shared_ptr<primitive_inst> ret;
-
-    for (auto const& prim : _primitives) {
-        if (prim.second->type() == condition::type_id()) {  // currently only condition inst contains mini networks
-            auto cond_inst = std::static_pointer_cast<condition_inst>(prim.second);
-            ret = cond_inst->get_net_true()->find_primitive(id);
-            if (ret != nullptr)
-                return ret;
-            ret = cond_inst->get_net_false()->find_primitive(id);
-            if (ret != nullptr)
-                return ret;
-        }
-    }
-    return nullptr;
+    auto it = _primitives.find(id);
+    OPENVINO_ASSERT(it != _primitives.end(), "[GPU] Network doesn't contain primitive ", id);
+    return it->second;
 }
 
 std::string network::get_primitive_info(const primitive_id& id) const {
@@ -551,9 +517,6 @@ std::string network::get_primitive_info(const primitive_id& id) const {
 
 bool network::does_node_need_lockable_output(const primitive_id& id) const {
     auto prim_inst = find_primitive(id);
-
-    OPENVINO_ASSERT(prim_inst, "[GPU] Can't get implementation type, since topology ",
-                               "doesn't contain primitive with requested id: ", id);
 
     const auto& node = prim_inst->get_node();
     if (node.is_type<input_layout>()) {
@@ -572,15 +535,6 @@ bool network::does_node_need_lockable_output(const primitive_id& id) const {
 
 std::string network::get_implementation_info(const primitive_id& id) const {
     return _program->get_implementation_info(id);
-}
-
-layout network::get_node_output_layout(const primitive_id& output_id) const {
-    auto res = std::find_if(_outputs.begin(), _outputs.end(), [&](const std::shared_ptr<primitive_inst>& v) {
-        return v->id() == output_id;
-    });
-    OPENVINO_ASSERT(res != _outputs.end(), "[GPU] Couldn't get output layout for ", output_id, ". Output with such name is not found in the outputs list");
-
-    return (*res)->get_node_output_layout();
 }
 
 memory::ptr network::get_output_memory(const primitive_id& output_id) {
@@ -729,17 +683,6 @@ void network::add_to_exec_order(const primitive_id& id) {
 }
 
 std::map<primitive_id, network_output> network::execute(const std::vector<event::ptr>& dependencies) {
-    execute_impl(dependencies);
-
-    auto output_ids = get_output_ids();
-    std::map<primitive_id, network_output> result;
-    for (auto& id : output_ids) {
-        result.emplace(id, get_output(id));
-    }
-    return result;
-}
-
-void network::execute_impl(const std::vector<event::ptr>& events) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "NetworkImpl::Execute");
     NETWORK_DEBUG(*this);
 
@@ -779,6 +722,21 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     // in some cases.
     auto surf_lock = surfaces_lock::create(get_engine().type(), in_out_mem, get_stream());
 
+    execute_impl(dependencies);
+
+    std::map<primitive_id, network_output> result;
+    for (auto& inst : _outputs) {
+        event::ptr ev = nullptr;
+        const auto& id = inst->id();
+        if (get_stream().get_queue_type() == QueueTypes::out_of_order || _enable_profiling)
+            ev = _events.at(id);
+
+        result.emplace(id, network_output(ev, inst->output_memory_ptr(0), get_stream_ptr(), inst->get_output_layout(0)));
+    }
+    return result;
+}
+
+void network::execute_impl(const std::vector<event::ptr>& events) {
     set_arguments();
 
     // This extra flush command is needed for dynamic models in both cases of out_of_order / in_order operating mode
@@ -904,10 +862,6 @@ const program::graph_optimizer_info& network::get_optimizer_passes_info() const 
 }
 
 std::map<primitive_id, primitive_id> network::get_ext_id_mapping() const {
-    if (_program == nullptr) {
-        return _ext_id_mapping;
-    }
-
     std::map<primitive_id, primitive_id> result;
     for (auto& prim : _primitives) {
         result.emplace(prim.first, prim.second->get_node().get_primitive()->origin_op_name);
@@ -1007,9 +961,6 @@ void network::allocate_primitive_instance(program_node const& node) {
         _outputs.push_back(inst);
         if (node.is_type<data>())
             _data_outputs.push_back(inst);
-    }
-    if (node.is_type<kv_cache>()) {
-       kv_cache_ids.push_back(node.id());
     }
     if (auto state_prim = std::dynamic_pointer_cast<memory_state::variable>(inst)) {
         auto prim = inst->get_node().get_primitive();
