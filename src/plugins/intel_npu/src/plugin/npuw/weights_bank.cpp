@@ -73,7 +73,8 @@ void Bank::evaluate_and_allocate() {
         for (const auto& el : device_bank) {
             vec.push_back(el.first);
         }
-        ov::parallel_for(vec.size(), [&](std::size_t idx) {
+        // FIXME: this is supposed to be parallel_for, however L0 mutex needs to be aquired for allocation
+        for (std::size_t idx = 0; idx < vec.size(); ++idx) {
             const auto& lt = vec[idx];
             auto iter_device = device_bank.find(lt);
             if (iter_device != device_bank.end() && iter_device->second) {
@@ -83,7 +84,7 @@ void Bank::evaluate_and_allocate() {
 
             // Allocation and evaluation needed
             unsafe_eval_and_alloc(lt, device_for_alloc);
-        });
+        }
     }
 }
 
