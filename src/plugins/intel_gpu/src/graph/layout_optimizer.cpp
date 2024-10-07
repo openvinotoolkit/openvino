@@ -45,6 +45,7 @@
 #include <vector>
 #include <memory>
 #include <utility>
+#include <openvino/op/constant.hpp>
 
 #include "pass_manager.h"
 
@@ -109,11 +110,28 @@ std::pair<std::shared_ptr<primitive>, bool> reorder_factory::get_weights_reorder
     }
 }
 
+void reorder_factory::get_out_reorder(program& p, cldnn::program_node* prev, cldnn::program_node* node, int i) {
+    std::string permute_id = prev->id() + "_o" + std::to_string(i);
+    std::vector<uint16_t> ord{1, 3, 0, 2};
+    auto permute = std::make_shared<cldnn::permute>(permute_id, input_info{prev->id()}, ord);
+    auto& permute_node = p.get_or_create(permute);
+    p.add_intermediate(permute_node, *node, *prev,  true);
+    prev->calc_output_layouts();
+    permute_node.recalc_output_layout(false);
+    if (!permute_node.is_constant()) {
+        permute_node.set_selected_impl(permute_node.type()->create_impl(permute_node));
+        if (auto impl = permute_node.get_selected_impl()) {
+            auto params = permute_node.get_kernel_impl_params();
+            p.get_kernels_cache().add_kernels_source(*params, impl->get_kernels_source());
+        }
+    }    
+}
+
 void reorder_factory::get_weights_split(primitive_id input_id,
                                                                                  std::shared_ptr<WeightsReorderParams> reorder_params, program& p, \
                                                                                  cldnn::program_node& prev, cldnn::program_node& node, int i) {
     OPENVINO_ASSERT(reorder_params != nullptr, "[GPU] WeightsReorderParams is not initialized.");
-    std::string reorder_id = input_id + "_reorder_" + std::to_string(i);
+    std::string reorder_id = input_id + "_reo_" + std::to_string(i);
     auto hiddenSize = reorder_params->get_input_layout().get_shape()[1] / 4;
     int size_third;
     if (i == 3) {
@@ -130,7 +148,7 @@ void reorder_factory::get_weights_split(primitive_id input_id,
     }
     auto reorder = std::make_shared<cldnn::reorder>(reorder_id, input_id, reorder_layout);
     auto& reorder_node = p.get_or_create(reorder);
-    std::string crop_id = input_id + "_crop";
+    std::string crop_id = input_id + "_c";
     auto crop0_id = primitive_id(crop_id + "0");
     auto crop1_id = primitive_id(crop_id + "1");
     auto crop2_id = primitive_id(crop_id + "2");
@@ -144,7 +162,7 @@ void reorder_factory::get_weights_split(primitive_id input_id,
     auto& crop2_node = p.get_or_create(crop2);
     auto& crop3_node = p.get_or_create(crop3);
     std::vector<input_info> con_input{input_info(crop1_id), input_info(crop0_id), input_info(crop2_id), input_info(crop3_id)};
-    cldnn::primitive_id concat_id{input_id + "concat"};
+    cldnn::primitive_id concat_id{input_id + "cont"};
     auto con = std::make_shared<cldnn::concatenation>(concat_id, con_input, 0);
     auto& con_node = p.get_or_create(con);
     p.add_intermediate(con_node, node, prev, true);
@@ -163,7 +181,7 @@ void reorder_factory::get_weights_split(primitive_id input_id,
     crop3_node.get_output_layout(false);
     con_node.get_output_layout(false);
 
-    std::string permute_id = input_id + "_permutex";
+    std::string permute_id = input_id + "_perx";
     std::vector<uint16_t> ord{2, 4, 3, 0, 1};
     //std::vector<uint16_t> ord{0, 1, 2, 3, 4};
     auto permute = std::make_shared<cldnn::permute>(permute_id, input_info{concat_id}, ord);
@@ -266,7 +284,7 @@ void reorder_factory::get_bias_split(primitive_id input_id,
     crop3_node.get_output_layout(false);
     con_node.get_output_layout(false);
 
-    std::string permute_id = input_id + "_permutex";
+    std::string permute_id = input_id + "_pex";
     std::vector<uint16_t> ord{0, 3, 2, 1};
     auto permute = std::make_shared<cldnn::permute>(permute_id, input_info{concat_id}, ord);
     auto& permute_node = p.get_or_create(permute);
@@ -333,7 +351,6 @@ bool layout_optimizer::is_format_supported(program_node& node, format::type fmt)
         node.get_input_layout(0).data_type != data_types::i8 &&
         node.get_input_layout(0).data_type != data_types::u8)
         return false;
-
     if (node.is_type<input_layout>())
         return node.get_output_layout().format == fmt;
 
@@ -1582,10 +1599,10 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         node.set_preferred_input_fmt(0, format::fbyx);
         node.set_preferred_input_fmt(1, format::fbyx);
         node.set_preferred_input_fmt(2, format::fbyx);
-        node.set_preferred_output_fmt(0, format::fbyx);
+        node.set_preferred_output_fmt(0, format::bfyx);
         node.set_preferred_output_fmt(1, format::fbyx);
         node.set_preferred_output_fmt(2, format::fbyx);
-        expected = node.get_preferred_output_fmt();
+        expected = node.get_preferred_input_fmt();
     }
 
     if (allow_new_shape_infer && node.get_preferred_input_fmt() != format::any) {

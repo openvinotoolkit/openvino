@@ -391,7 +391,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         }
 
         manager.register_pass<ov::intel_gpu::ConvertBinaryConvolutionToConvolution>();
-        manager.register_pass<ov::pass::ConvertSequenceToTensorIterator>();
+        manager.register_pass<ov::pass::ConvertRNNSequenceToTensorIterator>();
+        manager.register_pass<ov::pass::ConvertGRUSequenceToTensorIterator>();
         manager.register_pass<ov::pass::ConvertOpSet3ToOpSet2>();
         manager.register_pass<ov::pass::ConvertOpSet2ToOpSet1>();
 
@@ -536,7 +537,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             [isCellPrimitiveSupported](const_node_ptr &node) -> bool {
                 return !isCellPrimitiveSupported(node);
             });
-
         if (unroll_loop) {
             pass_config->set_callback<ov::pass::ConvertRNNSequenceToTensorIterator,
                     ov::pass::ConvertGRUSequenceToTensorIterator,

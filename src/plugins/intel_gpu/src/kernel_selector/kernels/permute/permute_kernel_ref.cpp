@@ -203,6 +203,7 @@ JitConstants PermuteKernelRef::GetJitConstants(const permute_params& params, con
     }
     if (reorder_to_different_dim) {
         auto reordered_order = GetReorderedOutputOrder(params, permute_out_idx, dim_change);
+        std::cout << reordered_order << "is reorder_order " << std::endl;
         jit.AddConstant(MakeJitConstant("OUT_IDX", "OUTPUT_GET_INDEX(" + reordered_order + ")"));
         GetOrderVector(reordered_order, &reordered_out_idx);
     } else {
@@ -210,6 +211,7 @@ JitConstants PermuteKernelRef::GetJitConstants(const permute_params& params, con
         for (size_t i = in_idx.size() - 1; i > 1; i--) {
            output_order += "," + permute_out_idx[i];
         }
+        std::cout << output_order << "is output_order " << std::endl;
         jit.AddConstant(MakeJitConstant("OUT_IDX", "OUTPUT_GET_INDEX(" + output_order + ")"));
     }
 

@@ -5,6 +5,7 @@
 #include "lstm_seq_inst.h"
 #include "intel_gpu/runtime/utils.hpp"
 #include "impls/registry/implementation_manager.hpp"
+#include "transformations/utils/utils.hpp"
 
 #include <memory>
 
@@ -24,10 +25,8 @@ struct LSTMSeqImplementationManager : public ImplementationManager {
             return false;
         assert(node.is_type<lstm_seq>());
         const auto& lstm_node = node.as<lstm_seq>();
-        std::vector<cldnn::activation_func> expected{cldnn::activation_func::logistic, cldnn::activation_func::hyperbolic_tan, \
-        cldnn::activation_func::hyperbolic_tan};
 
-        return lstm_node.activations() == expected && lstm_node.clip() == 0.f;
+        return lstm_node.clip() == 0.f;
     }
 
     in_out_fmts_t query_formats(const program_node& node) const override {

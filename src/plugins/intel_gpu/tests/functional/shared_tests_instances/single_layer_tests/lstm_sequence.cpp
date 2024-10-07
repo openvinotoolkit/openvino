@@ -15,9 +15,9 @@ std::vector<ov::test::utils::SequenceTestsMode> mode{ov::test::utils::SequenceTe
                                                      ov::test::utils::SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_PARAM,
                                                      ov::test::utils::SequenceTestsMode::PURE_SEQ};
 // output values increase rapidly without clip, so use only seq_lengths = 2
-std::vector<size_t> seq_lengths_zero_clip{1};
+std::vector<size_t> seq_lengths_zero_clip{2};
 std::vector<size_t> seq_lengths_clip_non_zero{20};
-std::vector<size_t> batch{1};
+std::vector<size_t> batch{4};
 std::vector<size_t> hidden_size{1};
 std::vector<size_t> hidden_size_smoke{1};
 std::vector<size_t> input_size{1};
