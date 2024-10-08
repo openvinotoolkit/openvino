@@ -51,6 +51,11 @@ JitConstants FullyConnectedKernelBase::GetJitConstants(const fully_connected_par
         }
     }
 
+    if (params.asymmetric_dynamic_quantization)
+        jit.AddConstant(MakeJitConstant("FC_ASYM_DYN_QUAN", 1));
+    else
+        jit.AddConstant(MakeJitConstant("FC_ASYM_DYN_QUAN", 0));
+
     return jit;
 }
 

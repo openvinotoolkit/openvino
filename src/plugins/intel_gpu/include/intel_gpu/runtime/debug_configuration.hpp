@@ -144,6 +144,7 @@ public:
     int disable_fake_alignment;                                 // Disable fake alignment
     std::vector<std::string> dynamic_quantize_layers_without_onednn;  // Specify Fully-connected layers which enable Dynamic quantization
     int dynamic_quantize_group_size;                            // Enable Dynamic quantization for fully connected primitive by specified group size
+    int asym_dynamic_quantize;
     int disable_horizontal_fc_fusion;                           // Disable fc horizontal fusion
     std::set<int64_t> dump_iteration;                           // Dump n-th execution of network.
     std::vector<std::string> load_layers_raw_dump;              // List of layers to load dumped raw binary and filenames
