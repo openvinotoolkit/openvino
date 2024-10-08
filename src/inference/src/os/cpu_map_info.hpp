@@ -54,10 +54,17 @@ public:
     std::mutex _cpu_mutex;
     int _socket_idx = 0;
 
-// private:
-    void update_table_for_proc(const int _processor_id,
-                               std::vector<std::vector<int>>& _proc_type_table,
-                               const std::vector<std::vector<int>>& _cpu_mapping_table) {
+    /**
+     * @brief      Sort proc_type_table by CPU ID on which application is running. The numa node containing this CPU ID
+     * will move to first row.
+     * @param[in]  _processor_id CPU ID on which application is running.
+     * @param[in] _proc_type_table summary table of number of processors per type
+     * @param[in] _cpu_mapping_table CPU mapping table for each processor
+     * @return
+     */
+    void sort_table_by_cpu_id(const int _processor_id,
+                              std::vector<std::vector<int>>& _proc_type_table,
+                              const std::vector<std::vector<int>>& _cpu_mapping_table) {
         int current_numa_node = 0;
         int current_socket = 0;
 
