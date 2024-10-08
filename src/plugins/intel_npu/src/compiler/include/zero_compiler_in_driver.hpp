@@ -132,14 +132,14 @@ private:
     void getNativeBinary(ze_graph_dditable_ext_curr_t& graphDdiTableExt,
                          ze_graph_handle_t graphHandle,
                          std::vector<uint8_t>& blob,
-                         uint8_t*& blobPtr,
+                         const uint8_t*& blobPtr,
                          size_t& blobSize) const;
 
     template <typename T = TableExtension, typename std::enable_if_t<!UseCopyForNativeBinary(T), bool> = true>
     void getNativeBinary(ze_graph_dditable_ext_curr_t& graphDdiTableExt,
                          ze_graph_handle_t graphHandle,
                          std::vector<uint8_t>& /* unusedBlob */,
-                         uint8_t*& blobPtr,
+                         const uint8_t*& blobPtr,
                          size_t& blobSize) const;
 
     template <typename T = TableExtension, typename std::enable_if_t<SupportAPIGraphQueryNetworkV2(T), bool> = true>

@@ -371,7 +371,7 @@ template <typename T, std::enable_if_t<UseCopyForNativeBinary(T), bool>>
 void LevelZeroCompilerInDriver<TableExtension>::getNativeBinary(ze_graph_dditable_ext_curr_t& graphDdiTableExt,
                                                                 ze_graph_handle_t graphHandle,
                                                                 std::vector<uint8_t>& blob,
-                                                                uint8_t*& blobPtr,
+                                                                const uint8_t*& blobPtr,
                                                                 size_t& blobSize) const {
     // Get blob size first
     auto result = _graphDdiTableExt.pfnGetNativeBinary(graphHandle, &blobSize, nullptr);
@@ -408,7 +408,7 @@ template <typename T, std::enable_if_t<!UseCopyForNativeBinary(T), bool>>
 void LevelZeroCompilerInDriver<TableExtension>::getNativeBinary(ze_graph_dditable_ext_curr_t& graphDdiTableExt,
                                                                 ze_graph_handle_t graphHandle,
                                                                 std::vector<uint8_t>& /* unusedBlob */,
-                                                                uint8_t*& blobPtr,
+                                                                const uint8_t*& blobPtr,
                                                                 size_t& blobSize) const {
     // Get blob ptr and size
     auto result = _graphDdiTableExt.pfnGetNativeBinary2(graphHandle, &blobSize, &blobPtr);
@@ -431,7 +431,7 @@ CompiledNetwork LevelZeroCompilerInDriver<TableExtension>::getCompiledNetwork(
         _logger.info("LevelZeroCompilerInDriver getCompiledNetwork get blob from graphHandle");
         ze_graph_handle_t graphHandle = static_cast<ze_graph_handle_t>(networkDescription.metadata.graphHandle);
 
-        uint8_t* blobPtr = nullptr;
+        const uint8_t* blobPtr = nullptr;
         size_t blobSize = -1;
         std::vector<uint8_t> blob;
 
@@ -1243,6 +1243,7 @@ template class LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_4_t>;
 template class LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_5_t>;
 template class LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_6_t>;
 template class LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_7_t>;
+template class LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_8_t>;
 
 }  // namespace driverCompilerAdapter
 }  // namespace intel_npu
