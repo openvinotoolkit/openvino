@@ -216,19 +216,6 @@ static constexpr size_t vec_len_f16_neon = vec_len_neon / sizeof(ov::float16);
         return _mm256_maskstore_ps(addr, mask, v);
     }
 
-    inline void mm256_uni_storeu_tail_ps(ov::bfloat16 *addr, __m256 v, size_t count) {
-        assert("AVX2 version of bfloat16 tail store is just for compilation pass");
-        ov::bfloat16 tmp_values[8];
-        mm256_uni_storeu_ps(tmp_values, v);
-        std::memcpy(addr, tmp_values, count * sizeof(ov::bfloat16));
-    }
-
-    inline void mm256_uni_storeu_tail_ps(ov::float16 *addr, __m256 v, size_t count) {
-        ov::float16 tmp_values[8];
-        mm256_uni_storeu_ps(tmp_values, v);
-        std::memcpy(addr, tmp_values, count * sizeof(ov::float16));
-    }
-
     inline void hsum(__m256& x) {
         __m256 y;                             // x:  0 1 2 3   4 5 6 7
         y = _mm256_permute_ps(x, 0x39);       // y:  1 2 3 0   5 6 7 4

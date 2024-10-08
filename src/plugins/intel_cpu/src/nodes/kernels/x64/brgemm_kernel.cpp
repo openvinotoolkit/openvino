@@ -313,7 +313,7 @@ void BrgemmKernel::init_brgemm_copy_b(
         } else {
             brgCopyKernelConf.isa = dt_in0 == dnnl_data_type_t::dnnl_bf16 ? avx512_core_bf16 : avx512_core_vnni;
         }
-        brgCopyKernelConf.s8s8_compensation_required = dt_in0 == dnnl_data_type_t::dnnl_s8;
+        brgCopyKernelConf.s8s8_compensation_required = false;
     }
 
     brgCopyKernelConf.has_zero_point_a = false;
