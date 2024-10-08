@@ -109,7 +109,7 @@ jobs:
       - name: Install OpenVINO Python wheels
         run: |
           # To enable pytest parallel features
-          python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
+          python3 -m pip install ${INSTALL_DIR}/wheels/openvino-*
           python3 -m pip install ${INSTALL_DIR}/openvino_tokenizers-*
 
       - name: Install PyTorch tests requirements for precommit

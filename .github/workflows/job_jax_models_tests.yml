@@ -90,7 +90,7 @@ jobs:
         run: |
           # To enable pytest parallel features
           python3 -m pip install pytest-xdist[psutil]
-          python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
+          python3 -m pip install ${INSTALL_DIR}/wheels/openvino-*
           python3 -m pip install ${INSTALL_DIR}/openvino_tokenizers-*
 
       - name: Install JAX tests requirements for precommit

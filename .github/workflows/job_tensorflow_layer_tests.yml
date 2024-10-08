@@ -109,7 +109,7 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           # Install the core OV wheel
-          python3 -m pip install ${INSTALL_DIR}/tools/openvino-*.whl
+          python3 -m pip install ${INSTALL_DIR}/wheels/openvino-*.whl
 
           # Install the core OV Tokenizers wheel
           python3 -m pip install ${INSTALL_DIR}/openvino_tokenizers-*.whl
@@ -118,7 +118,7 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           # Find and install the core OV wheel
-          $ovCoreWheelPath=Get-ChildItem -Path ${{ env.INSTALL_DIR }}\tools -Filter openvino-*.whl | % { $_.FullName }
+          $ovCoreWheelPath=Get-ChildItem -Path ${{ env.INSTALL_DIR }}\wheels -Filter openvino-*.whl | % { $_.FullName }
           python3 -m pip install "$ovCoreWheelPath"
 
           # Find and install the core OV Tokenizers wheel
