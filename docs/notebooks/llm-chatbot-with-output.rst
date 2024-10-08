@@ -43,6 +43,7 @@ The tutorial consists of the following steps:
 -  Create a chat inference pipeline
 -  Run chat pipeline
 
+
 **Table of contents:**
 
 
@@ -95,7 +96,7 @@ Install required dependencies
     "datasets" \
     "accelerate" \
     "gradio>=4.19" \
-    "onnx<=1.16.1; sys_platform=='win32'" "einops" "transformers>=4.43" "transformers_stream_generator" "tiktoken" "transformers>=4.40" "bitsandbytes"
+    "onnx<=1.16.1; sys_platform=='win32'" "einops" "transformers>=4.43.1" "transformers_stream_generator" "tiktoken" "bitsandbytes"
 
 .. code:: ipython3
 
@@ -193,7 +194,41 @@ Click here to see available models options
        except OSError:
            notebook_login()
 
--  **phi3-mini-instruct** - The Phi-3-Mini is a 3.8B parameters,
+-  **gemma-2-2b-it** - Gemma2 is the second generation of a Gemma family
+   of lightweight, state-of-the-art open models from Google, built from
+   the same research and technology used to create the Gemini models.
+   They are text-to-text, decoder-only large language models, available
+   in English, with open weights, pre-trained variants, and
+   instruction-tuned variants. Gemma models are well-suited for a
+   variety of text generation tasks, including question answering,
+   summarization, and reasoning. This model is instruction-tuned version
+   of 2B parameters model. More details about model can be found in
+   `model card <https://huggingface.co/google/gemma-2-2b-it>`__.
+   >\ **Note**: run model with demo, you will need to accept license
+   agreement. >You must be a registered user in Hugging Face Hub.
+   Please visit `HuggingFace model
+   card <https://huggingface.co/google/gemma-2-2b-it>`__, carefully read
+   terms of usage and click accept button. You will need to use an
+   access token for the code below to run. For more information on
+   access tokens, refer to `this section of the
+   documentation <https://huggingface.co/docs/hub/security-tokens>`__.
+   >You can login on Hugging Face Hub in notebook environment, using
+   following code:
+
+.. code:: python
+
+       # login to huggingfacehub to get access to pretrained model
+
+
+       from huggingface_hub import notebook_login, whoami
+
+       try:
+           whoami()
+           print('Authorization token already provided')
+       except OSError:
+           notebook_login()
+
+-  **phi-3-mini-instruct** - The Phi-3-Mini is a 3.8B parameters,
    lightweight, state-of-the-art open model trained with the Phi-3
    datasets that includes both synthetic data and the filtered publicly
    available websites data with a focus on high-quality and reasoning
@@ -201,6 +236,20 @@ Click here to see available models options
    card <https://huggingface.co/microsoft/Phi-3-mini-4k-instruct>`__,
    `Microsoft blog <https://aka.ms/phi3blog-april>`__ and `technical
    report <https://aka.ms/phi3-tech-report>`__.
+-  **phi-3.5-mini-instruct** - Phi-3.5-mini is a lightweight,
+   state-of-the-art open model built upon datasets used for Phi-3 -
+   synthetic data and filtered publicly available websites - with a
+   focus on very high-quality, reasoning dense data. The model belongs
+   to the Phi-3 model family and supports 128K token context length. The
+   model underwent a rigorous enhancement process, incorporating both
+   supervised fine-tuning, proximal policy optimization, and direct
+   preference optimization to ensure precise instruction adherence and
+   robust safety measures. More details about model can be found in
+   `model
+   card <https://huggingface.co/microsoft/Phi-3.5-mini-instruct>`__,
+   `Microsoft blog <https://aka.ms/phi3.5-techblog>`__ and `technical
+   report <https://arxiv.org/abs/2404.14219>`__.
+
 -  **red-pajama-3b-chat** - A 2.8B parameter pre-trained language model
    based on GPT-NEOX architecture. It was developed by Together Computer
    and leaders from the open-source AI community. The model is
@@ -230,6 +279,40 @@ Click here to see available models options
 .. code:: python
 
        ## login to huggingfacehub to get access to pretrained model
+
+       from huggingface_hub import notebook_login, whoami
+
+       try:
+           whoami()
+           print('Authorization token already provided')
+       except OSError:
+           notebook_login()
+
+-  **gemma-2-9b-it** - Gemma2 is the second generation of a Gemma family
+   of lightweight, state-of-the-art open models from Google, built from
+   the same research and technology used to create the Gemini models.
+   They are text-to-text, decoder-only large language models, available
+   in English, with open weights, pre-trained variants, and
+   instruction-tuned variants. Gemma models are well-suited for a
+   variety of text generation tasks, including question answering,
+   summarization, and reasoning. This model is instruction-tuned version
+   of 9B parameters model. More details about model can be found in
+   `model card <https://huggingface.co/google/gemma-2-9b-it>`__.
+   >\ **Note**: run model with demo, you will need to accept license
+   agreement. >You must be a registered user in Hugging Face Hub.
+   Please visit `HuggingFace model
+   card <https://huggingface.co/google/gemma-2-9b-it>`__, carefully read
+   terms of usage and click accept button. You will need to use an
+   access token for the code below to run. For more information on
+   access tokens, refer to `this section of the
+   documentation <https://huggingface.co/docs/hub/security-tokens>`__.
+   >You can login on Hugging Face Hub in notebook environment, using
+   following code:
+
+.. code:: python
+
+       # login to huggingfacehub to get access to pretrained model
+
 
        from huggingface_hub import notebook_login, whoami
 
@@ -846,20 +929,16 @@ Select device for inference and model variant
 
 .. code:: ipython3
 
-    import openvino as ov
+    import requests
 
-    core = ov.Core()
-
-    support_devices = core.available_devices
-    if "NPU" in support_devices:
-        support_devices.remove("NPU")
-
-    device = widgets.Dropdown(
-        options=support_devices + ["AUTO"],
-        value="CPU",
-        description="Device:",
-        disabled=False,
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
+    open("notebook_utils.py", "w").write(r.text)
+
+    from notebook_utils import device_widget
+
+    device = device_widget("CPU", exclude=["NPU"])
 
     device
 
@@ -944,6 +1023,11 @@ guide <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html>`__
     from transformers import AutoConfig, AutoTokenizer
     from optimum.intel.openvino import OVModelForCausalLM
 
+    import openvino.properties as props
+    import openvino.properties.hint as hints
+    import openvino.properties.streams as streams
+
+
     if model_to_run.value == "INT4":
         model_dir = int4_model_dir
     elif model_to_run.value == "INT8":
@@ -952,7 +1036,7 @@ guide <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html>`__
         model_dir = fp16_model_dir
     print(f"Loading model from {model_dir}")
 
-    ov_config = {"PERFORMANCE_HINT": "LATENCY", "NUM_STREAMS": "1", "CACHE_DIR": ""}
+    ov_config = {hints.performance_mode(): hints.PerformanceMode.LATENCY, streams.num(): "1", props.cache_dir(): ""}
 
     if "GPU" in device.value and "qwen2-7b-instruct" in model_id.value:
         ov_config["GPU_ENABLE_SDPA_OPTIMIZATION"] = "NO"
@@ -1083,9 +1167,8 @@ answers.https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html
 
     import torch
     from threading import Event, Thread
-    from uuid import uuid4
+
     from typing import List, Tuple
-    import gradio as gr
     from transformers import (
         AutoTokenizer,
         StoppingCriteria,
@@ -1101,38 +1184,6 @@ answers.https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html
     current_message_template = model_configuration.get("current_message_template")
     stop_tokens = model_configuration.get("stop_tokens")
     tokenizer_kwargs = model_configuration.get("tokenizer_kwargs", {})
-
-    chinese_examples = [
-        ["你好!"],
-        ["你是谁?"],
-        ["请介绍一下上海"],
-        ["请介绍一下英特尔公司"],
-        ["晚上睡不着怎么办？"],
-        ["给我讲一个年轻人奋斗创业最终取得成功的故事。"],
-        ["给这个故事起一个标题。"],
-    ]
-
-    english_examples = [
-        ["Hello there! How are you doing?"],
-        ["What is OpenVINO?"],
-        ["Who are you?"],
-        ["Can you explain to me briefly what is Python programming language?"],
-        ["Explain the plot of Cinderella in a sentence."],
-        ["What are some common mistakes to avoid when writing code?"],
-        ["Write a 100-word blog post on “Benefits of Artificial Intelligence and OpenVINO“"],
-    ]
-
-    japanese_examples = [
-        ["こんにちは！調子はどうですか?"],
-        ["OpenVINOとは何ですか?"],
-        ["あなたは誰ですか?"],
-        ["Pythonプログラミング言語とは何か簡単に説明してもらえますか?"],
-        ["シンデレラのあらすじを一文で説明してください。"],
-        ["コードを書くときに避けるべきよくある間違いは何ですか?"],
-        ["人工知能と「OpenVINOの利点」について100語程度のブログ記事を書いてください。"],
-    ]
-
-    examples = chinese_examples if (model_language.value == "Chinese") else japanese_examples if (model_language.value == "Japanese") else english_examples
 
     max_new_tokens = 256
 
@@ -1229,20 +1280,6 @@ answers.https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html
         return input_token
 
 
-    def user(message, history):
-        """
-        callback function for updating user messages in interface on submit button click
-
-        Params:
-          message: current message
-          history: conversation history
-        Returns:
-          None
-        """
-        # Append the user's message to the conversation history
-        return "", history + [[message, ""]]
-
-
     def bot(history, temperature, top_p, top_k, repetition_penalty, conversation_id):
         """
         callback function for running chatbot on submit button click
@@ -1302,154 +1339,23 @@ answers.https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html
     def request_cancel():
         ov_model.request.cancel()
 
+.. code:: ipython3
 
-    def get_uuid():
-        """
-        universal unique identifier for thread
-        """
-        return str(uuid4())
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/llm-chatbot/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
 
+    from gradio_helper import make_demo
 
-    with gr.Blocks(
-        theme=gr.themes.Soft(),
-        css=".disclaimer {font-variant-caps: all-small-caps;}",
-    ) as demo:
-        conversation_id = gr.State(get_uuid)
-        gr.Markdown(f"""<h1><center>OpenVINO {model_id.value} Chatbot</center></h1>""")
-        chatbot = gr.Chatbot(height=500)
-        with gr.Row():
-            with gr.Column():
-                msg = gr.Textbox(
-                    label="Chat Message Box",
-                    placeholder="Chat Message Box",
-                    show_label=False,
-                    container=False,
-                )
-            with gr.Column():
-                with gr.Row():
-                    submit = gr.Button("Submit")
-                    stop = gr.Button("Stop")
-                    clear = gr.Button("Clear")
-        with gr.Row():
-            with gr.Accordion("Advanced Options:", open=False):
-                with gr.Row():
-                    with gr.Column():
-                        with gr.Row():
-                            temperature = gr.Slider(
-                                label="Temperature",
-                                value=0.1,
-                                minimum=0.0,
-                                maximum=1.0,
-                                step=0.1,
-                                interactive=True,
-                                info="Higher values produce more diverse outputs",
-                            )
-                    with gr.Column():
-                        with gr.Row():
-                            top_p = gr.Slider(
-                                label="Top-p (nucleus sampling)",
-                                value=1.0,
-                                minimum=0.0,
-                                maximum=1,
-                                step=0.01,
-                                interactive=True,
-                                info=(
-                                    "Sample from the smallest possible set of tokens whose cumulative probability "
-                                    "exceeds top_p. Set to 1 to disable and sample from all tokens."
-                                ),
-                            )
-                    with gr.Column():
-                        with gr.Row():
-                            top_k = gr.Slider(
-                                label="Top-k",
-                                value=50,
-                                minimum=0.0,
-                                maximum=200,
-                                step=1,
-                                interactive=True,
-                                info="Sample from a shortlist of top-k tokens — 0 to disable and sample from all tokens.",
-                            )
-                    with gr.Column():
-                        with gr.Row():
-                            repetition_penalty = gr.Slider(
-                                label="Repetition Penalty",
-                                value=1.1,
-                                minimum=1.0,
-                                maximum=2.0,
-                                step=0.1,
-                                interactive=True,
-                                info="Penalize repetition — 1.0 to disable.",
-                            )
-        gr.Examples(examples, inputs=msg, label="Click on any example and press the 'Submit' button")
+    demo = make_demo(run_fn=bot, stop_fn=request_cancel, title=f"OpenVINO {model_id.value} Chatbot", language=model_language.value)
 
-        submit_event = msg.submit(
-            fn=user,
-            inputs=[msg, chatbot],
-            outputs=[msg, chatbot],
-            queue=False,
-        ).then(
-            fn=bot,
-            inputs=[
-                chatbot,
-                temperature,
-                top_p,
-                top_k,
-                repetition_penalty,
-                conversation_id,
-            ],
-            outputs=chatbot,
-            queue=True,
-        )
-        submit_click_event = submit.click(
-            fn=user,
-            inputs=[msg, chatbot],
-            outputs=[msg, chatbot],
-            queue=False,
-        ).then(
-            fn=bot,
-            inputs=[
-                chatbot,
-                temperature,
-                top_p,
-                top_k,
-                repetition_penalty,
-                conversation_id,
-            ],
-            outputs=chatbot,
-            queue=True,
-        )
-        stop.click(
-            fn=request_cancel,
-            inputs=None,
-            outputs=None,
-            cancels=[submit_event, submit_click_event],
-            queue=False,
-        )
-        clear.click(lambda: None, None, chatbot, queue=False)
-
-    # if you are launching remotely, specify server_name and server_port
-    #  demo.launch(server_name='your server name', server_port='server port in int')
-    # if you have any issue to launch on your platform, you can pass share=True to launch method:
-    # demo.launch(share=True)
-    # it creates a publicly shareable link for the interface. Read more in the docs: https://gradio.app/docs/
     try:
         demo.launch()
     except Exception:
         demo.launch(share=True)
-
-
-.. parsed-literal::
-
-    Running on local URL:  http://127.0.0.1:7860
-
-    To create a public link, set `share=True` in `launch()`.
-
-
-
-
-
-
-
+    # If you are launching remotely, specify server_name and server_port
+    # EXAMPLE: `demo.launch(server_name='your server name', server_port='server port in int')`
+    # To learn more please refer to the Gradio docs: https://gradio.app/docs/
 
 .. code:: ipython3
 
@@ -1463,4 +1369,4 @@ Besides chatbot, we can use LangChain to augmenting LLM knowledge with
 additional data, which allow you to build AI applications that can
 reason about private data or data introduced after a model’s cutoff
 date. You can find this solution in `Retrieval-augmented generation
-(RAG) example <llm-rag-langchain-with-output.html>`__.
+(RAG) example <-with-output.html>`__.

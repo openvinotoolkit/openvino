@@ -23,8 +23,6 @@ The tutorial consists of the following steps:
 
 **Table of contents:**
 
-
-
 -  `Prerequisites <#prerequisites>`__
 -  `Get PyTorch model <#get-pytorch-model>`__
 -  `Convert PyTorch model to OpenVINO
@@ -101,9 +99,9 @@ Prerequisites
     Cloning into 'yolov9'...
     remote: Enumerating objects: 781, done.[K
     remote: Total 781 (delta 0), reused 0 (delta 0), pack-reused 781 (from 1)[K
-    Receiving objects: 100% (781/781), 3.27 MiB | 15.87 MiB/s, done.
-    Resolving deltas: 100% (330/330), done.
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/yolov9-optimization/yolov9
+    Receiving objects: 100% (781/781), 3.27 MiB | 18.60 MiB/s, done.
+    Resolving deltas: 100% (331/331), done.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/notebooks/yolov9-optimization/yolov9
 
 
 Get PyTorch model
@@ -141,7 +139,7 @@ applicable for other models from YOLO V9 family.
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/yolov9-optimization/yolov9/model/gelan-c.pt')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/notebooks/yolov9-optimization/yolov9/model/gelan-c.pt')
 
 
 
@@ -198,7 +196,7 @@ using ``ov.save_model``.
 
     Fusing layers...
     Model summary: 387 layers, 25288768 parameters, 0 gradients, 102.1 GFLOPs
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/yolov9-optimization/yolov9/models/yolo.py:108: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/notebooks/yolov9-optimization/yolov9/models/yolo.py:108: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       elif self.dynamic or self.shape != shape:
 
 
@@ -579,10 +577,10 @@ asymmetric quantization of activations.
 
 .. parsed-literal::
 
-    2024-08-28 06:44:35.865796: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-08-28 06:44:35.901366: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-09-24 06:15:26.718478: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-09-24 06:15:26.753483: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-08-28 06:44:36.506389: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-09-24 06:15:27.350591: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 
@@ -670,18 +668,18 @@ models.
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.4.0-16508-1d6e97cabaa
+    [ INFO ] Build ................................. 2024.5.0-16765-f0c5d2f4346
     [ INFO ]
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2024.4.0-16508-1d6e97cabaa
+    [ INFO ] Build ................................. 2024.5.0-16765-f0c5d2f4346
     [ INFO ]
     [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 26.00 ms
+    [ INFO ] Read model took 25.59 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     images (node: x) : f32 / [...] / [?,3,?,?]
@@ -693,7 +691,7 @@ models.
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [ INFO ] Reshaping model: 'images': [1,3,640,640]
-    [ INFO ] Reshape model took 8.02 ms
+    [ INFO ] Reshape model took 7.87 ms
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
     [ INFO ]     images (node: x) : u8 / [N,C,H,W] / [1,3,640,640]
@@ -703,7 +701,7 @@ models.
     [ INFO ]     xi.3 (node: __module.model.22/aten::cat/Concat_1) : f32 / [...] / [1,144,40,40]
     [ INFO ]     xi (node: __module.model.22/aten::cat/Concat) : f32 / [...] / [1,144,20,20]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 481.84 ms
+    [ INFO ] Compile model took 494.90 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -740,17 +738,17 @@ models.
     [ INFO ] Fill input 'images' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 181.22 ms
+    [ INFO ] First inference took 179.99 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
     [ INFO ] Count:            228 iterations
-    [ INFO ] Duration:         15520.86 ms
+    [ INFO ] Duration:         15541.29 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        408.36 ms
-    [ INFO ]    Average:       406.09 ms
-    [ INFO ]    Min:           242.75 ms
-    [ INFO ]    Max:           431.23 ms
-    [ INFO ] Throughput:   14.69 FPS
+    [ INFO ]    Median:        406.95 ms
+    [ INFO ]    Average:       405.29 ms
+    [ INFO ]    Min:           208.26 ms
+    [ INFO ]    Max:           427.95 ms
+    [ INFO ] Throughput:   14.67 FPS
 
 
 .. code:: ipython3
@@ -764,18 +762,18 @@ models.
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.4.0-16508-1d6e97cabaa
+    [ INFO ] Build ................................. 2024.5.0-16765-f0c5d2f4346
     [ INFO ]
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2024.4.0-16508-1d6e97cabaa
+    [ INFO ] Build ................................. 2024.5.0-16765-f0c5d2f4346
     [ INFO ]
     [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 41.22 ms
+    [ INFO ] Read model took 41.37 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     images (node: x) : f32 / [...] / [1,3,640,640]
@@ -787,7 +785,7 @@ models.
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [ INFO ] Reshaping model: 'images': [1,3,640,640]
-    [ INFO ] Reshape model took 0.04 ms
+    [ INFO ] Reshape model took 0.05 ms
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
     [ INFO ]     images (node: x) : u8 / [N,C,H,W] / [1,3,640,640]
@@ -797,7 +795,7 @@ models.
     [ INFO ]     xi.3 (node: __module.model.22/aten::cat/Concat_1) : f32 / [...] / [1,144,40,40]
     [ INFO ]     xi (node: __module.model.22/aten::cat/Concat) : f32 / [...] / [1,144,20,20]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 932.12 ms
+    [ INFO ] Compile model took 882.39 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -834,17 +832,17 @@ models.
     [ INFO ] Fill input 'images' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 72.83 ms
+    [ INFO ] First inference took 68.84 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            756 iterations
-    [ INFO ] Duration:         15178.60 ms
+    [ INFO ] Count:            762 iterations
+    [ INFO ] Duration:         15208.40 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        120.29 ms
-    [ INFO ]    Average:       120.03 ms
-    [ INFO ]    Min:           106.70 ms
-    [ INFO ]    Max:           134.62 ms
-    [ INFO ] Throughput:   49.81 FPS
+    [ INFO ]    Median:        119.61 ms
+    [ INFO ]    Average:       119.42 ms
+    [ INFO ]    Min:           74.71 ms
+    [ INFO ]    Max:           133.04 ms
+    [ INFO ] Throughput:   50.10 FPS
 
 
 Run Live Object Detection

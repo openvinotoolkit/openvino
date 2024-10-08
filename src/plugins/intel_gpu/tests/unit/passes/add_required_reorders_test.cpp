@@ -122,7 +122,7 @@ TEST(add_required_reorders, prevent_users_invalidation) {
     const auto& conv_node = prog->get_node("conv");
 
     // Force OneDNN impl type to insert padded_layout -> non_padded_layout reorder
-    prog->get_node("conv").set_preferred_impl_type(impl_types::onednn);
+    prog->get_node("conv").set_forced_impl_type(impl_types::onednn);
 
     program_wrapper::apply_opt_pass<add_required_reorders>(*prog);
 

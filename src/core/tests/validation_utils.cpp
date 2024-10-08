@@ -49,6 +49,11 @@ TEST(get_constant_from_source, extract_static_dim_from_dynamic_shape_check) {
     ASSERT_TRUE(extract_static_dimension->get_output_tensor(0).get_upper_value());
 }
 
+TEST(get_constant_from_source, return_nullptr_for_empty_output) {
+    auto res = ov::util::get_constant_from_source(ov::Output<ov::Node>());
+    ASSERT_EQ(res, nullptr);
+}
+
 TEST(constantfold_subgraph, split) {
     std::vector<float> input{0, 1, 2, 3, 4, 5, 6, 7, 8};
     auto constant = ov::opset8::Constant::create(ov::element::f32, ov::Shape{input.size()}, input);

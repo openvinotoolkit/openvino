@@ -69,6 +69,7 @@ private:
 
     std::map<ov::element::Type, float> device_gops = {{ov::element::f32, 0.f},
                                                       {ov::element::f16, 0.f},
+                                                      {ov::element::bf16, 0.f},
                                                       {ov::element::u8, 0.f},
                                                       {ov::element::i8, 0.f}};
 

@@ -24,6 +24,7 @@ top-performing models, allowing also cheaper and faster inference.
 We will use PyTorch version of Würstchen `model from HuggingFace
 Hub <https://huggingface.co/warp-ai/wuerstchen>`__.
 
+
 **Table of contents:**
 
 
@@ -75,7 +76,7 @@ Prerequisites
     else:
         %pip install -q "matplotlib>=3.4,<3.7"
 
-    %pip install -q  "diffusers>=0.21.0"  "torch>=2.1,<2.4" "torchvision<0.19.0" transformers accelerate "gradio>=4.19" "openvino>=2023.2.0" "peft==0.6.2" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q  "diffusers>=0.24.0"  "torch>=2.1" "torchvision" transformers accelerate "gradio>=4.19" "openvino>=2023.2.0" "peft>=0.6.2" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q datasets "nncf>=2.7.0"
 
 .. code:: ipython3
@@ -228,10 +229,8 @@ parameter to generate a less memory-demanding model.
 
 Text encoder model has 2 inputs:
 
-- ``input_ids``: vector of tokenized
-  input sentence. Default tokenizer vector length is 77.
-- ``attention_mask``: vector of same length as ``input_ids`` describing
-  the attention mask.
+- ``input_ids``: vector of tokenized input sentence. Default tokenizer vector length is 77.
+- ``attention_mask``: vector of same length as ``input_ids`` describing the attention mask.
 
 .. code:: ipython3
 
@@ -387,14 +386,16 @@ Select device from dropdown list for running inference using OpenVINO.
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
+    import requests
 
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
+    open("notebook_utils.py", "w").write(r.text)
+
+    from notebook_utils import device_widget
+
+    device = device_widget()
 
     device
 
@@ -579,11 +580,9 @@ improve model inference speed.
 
 .. code:: ipython3
 
-    to_quantize = widgets.Checkbox(
-        value=True,
-        description="Quantization",
-        disabled=False,
-    )
+    from notebook_utils import quantization_widget
+
+    to_quantize = quantization_widget()
 
     to_quantize
 
@@ -985,6 +984,8 @@ launch the interactive demo.
 
 .. code:: ipython3
 
+    import ipywidgets as widgets
+
     quantized_model_present = int8_pipeline is not None
 
     use_quantized_model = widgets.Checkbox(
@@ -1026,14 +1027,14 @@ launch the interactive demo.
 .. code:: ipython3
 
     demo = gr.Interface(
-        generate,
-        [
+        fn=generate,
+        inputs=[
             gr.Textbox(label="Caption"),
             gr.Textbox(label="Negative prompt"),
             gr.Slider(2, 20, step=1, label="Prior guidance scale"),
             gr.Slider(0, np.iinfo(np.int32).max, label="Seed"),
         ],
-        "image",
+        outputs="image",
         examples=[["Anthropomorphic cat dressed as a firefighter", "", 4, 0]],
         allow_flagging="never",
     )
@@ -1041,6 +1042,11 @@ launch the interactive demo.
         demo.queue().launch(debug=False)
     except Exception:
         demo.queue().launch(debug=False, share=True)
-    # if you are launching remotely, specify server_name and server_port
-    # demo.launch(server_name='your server name', server_port='server port in int')
-    # Read more in the docs: https://gradio.app/docs/
+    # If you are launching remotely, specify server_name and server_port
+    # EXAMPLE: `demo.launch(server_name='your server name', server_port='server port in int')`
+    # To learn more please refer to the Gradio docs: https://gradio.app/docs/
+
+.. code:: ipython3
+
+    # please uncomment and run this cell for stopping gradio interface
+    # demo.close()

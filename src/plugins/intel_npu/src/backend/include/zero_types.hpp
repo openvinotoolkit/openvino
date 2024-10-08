@@ -16,7 +16,7 @@
 /**
  * @brief Last version of Table of Graph Extension functions used within plugin
  */
-using ze_graph_dditable_ext_last_t = ze_graph_dditable_ext_1_6_t;
+using ze_graph_dditable_ext_last_t = ze_graph_dditable_ext_1_7_t;
 /**
  * @brief Last version of the Command Queue functions used within plugin
  */
@@ -154,6 +154,12 @@ public:
                                                         ze_device_graph_properties_2_t* pDeviceGraphProperties) {
         throwWhenUnsupported("pfnDeviceGetGraphProperties2", ZE_GRAPH_EXT_VERSION_1_6);
         return _impl->pfnDeviceGetGraphProperties2(hDevice, pDeviceGraphProperties);
+    }
+
+    // version 1.7
+    ze_result_t ZE_APICALL pfnGetNativeBinary2(ze_graph_handle_t hGraph, size_t* pSize, uint8_t** pGraphNativeBinary) {
+        throwWhenUnsupported("pfnGetNativeBinary2", ZE_GRAPH_EXT_VERSION_1_7);
+        return _impl->pfnGetNativeBinary2(hGraph, pSize, pGraphNativeBinary);
     }
 };
 

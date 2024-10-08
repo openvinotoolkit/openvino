@@ -59,6 +59,7 @@ std::mutex err_print_lock;
 #include "transformations/tpp/x64/pass/scalar_to_scalar_tpp.hpp"
 #include "transformations/tpp/x64/pass/lowered/set_tpp_leading_dim.hpp"
 #include "transformations/tpp/x64/pass/lowered/brgemm_tpp_blocking.hpp"
+#include "transformations/tpp/x64/pass/fuse_tpp_to_equations.hpp"
 #endif
 
 namespace ov {
@@ -508,7 +509,7 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
 }
 
 void Subgraph::selectOptimalPrimitiveDescriptor() {
-    selectPreferPrimitiveDescriptor(getImplPriority(), true);
+    selectPreferPrimitiveDescriptorWithShape(getImplPriority(), true);
 }
 
 ov::element::Type Subgraph::getRuntimePrecision() const {
@@ -656,6 +657,8 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
     SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64(Place::PipelineEnd, ov::intel_cpu::tpp::pass::ScalarToScalarTPP);
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After, ov::intel_cpu::tpp::pass::BrgemmToBrgemmTPP,
                                            ov::intel_cpu::tpp::pass::EltwiseToEltwiseTPP);
+    SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After, ov::intel_cpu::tpp::pass::EltwiseToEltwiseTPP,
+                                           ov::intel_cpu::tpp::pass::FuseTPPToEquations);
 #endif
 
 #undef SNIPPETS_REGISTER_PASS_ABSOLUTE_COMMON

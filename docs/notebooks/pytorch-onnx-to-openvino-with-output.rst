@@ -33,6 +33,7 @@ plant, sheep, sofa, train, tv monitor**
 More information about the model is available in the `torchvision
 documentation <https://pytorch.org/vision/main/models/lraspp.html>`__
 
+
 **Table of contents:**
 
 
@@ -556,18 +557,21 @@ performance.
 
 .. parsed-literal::
 
-    PyTorch model on CPU: 0.039 seconds per image, FPS: 25.82
-    ONNX model in OpenVINO Runtime/AUTO: 0.018 seconds per image, FPS: 55.39
-    OpenVINO IR model in OpenVINO Runtime/AUTO: 0.028 seconds per image, FPS: 35.83
+    PyTorch model on CPU: 0.039 seconds per image, FPS: 25.54
+    ONNX model in OpenVINO Runtime/AUTO: 0.018 seconds per image, FPS: 56.76
+    OpenVINO IR model in OpenVINO Runtime/AUTO: 0.028 seconds per image, FPS: 36.30
 
 
 **Show Device Information**
 
 .. code:: ipython3
 
+    import openvino.properties as props
+    
+    
     devices = core.available_devices
     for device in devices:
-        device_name = core.get_property(device, "FULL_DEVICE_NAME")
+        device_name = core.get_property(device, props.device.full_name)
         print(f"{device}: {device_name}")
 
 

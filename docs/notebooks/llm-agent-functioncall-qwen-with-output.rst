@@ -30,6 +30,7 @@ Custom Assistant.
 This notebook explores how to create a Function calling Agent step by
 step using OpenVINO and Qwen-Agent.
 
+
 **Table of contents:**
 
 
@@ -69,9 +70,9 @@ Prerequisites
 .. code:: ipython3
 
     import os
-    
+
     os.environ["GIT_CLONE_PROTECTION_ACTIVE"] = "false"
-    
+
     %pip install -Uq pip
     %pip uninstall -q -y optimum optimum-intel
     %pip install --pre -Uq "openvino>=2024.2.0" openvino-tokenizers[transformers] --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
@@ -79,21 +80,10 @@ Prerequisites
     "torch>=2.1" \
     "datasets" \
     "accelerate" \
-    "qwen-agent>=0.0.6" "transformers>=4.38.1" "gradio==4.21.0", "modelscope-studio>=0.4.0" "langchain>=0.2.3" "langchain-community>=0.2.4" "wikipedia"
+    "qwen-agent==0.0.7" "transformers>=4.38.1" "gradio==4.21.0", "modelscope-studio>=0.4.0" "langchain>=0.2.3" "langchain-community>=0.2.4" "wikipedia"
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu \
     "git+https://github.com/huggingface/optimum-intel.git" \
     "git+https://github.com/openvinotoolkit/nncf.git"
-
-.. code:: ipython3
-
-    import requests
-    from PIL import Image
-    
-    openvino_logo = "openvino_log.png"
-    url = "https://cdn-avatars.huggingface.co/v1/production/uploads/1671615670447-6346651be2dcb5422bcd13dd.png"
-    
-    image = Image.open(requests.get(url, stream=True).raw)
-    image.save(openvino_logo)
 
 Create a Function calling agent
 -------------------------------
@@ -124,8 +114,8 @@ information of current weather.
 .. code:: ipython3
 
     import json
-    
-    
+
+
     def get_current_weather(location, unit="fahrenheit"):
         """Get the current weather in a given location"""
         if "tokyo" in location.lower():
@@ -189,10 +179,10 @@ folder.
 .. code:: ipython3
 
     from pathlib import Path
-    
+
     model_id = "Qwen/Qwen2-7B-Instruct"
     model_path = "Qwen2-7B-Instruct-ov"
-    
+
     if not Path(model_path).exists():
         !optimum-cli export openvino --model {model_id} --task text-generation-with-past --trust-remote-code --weight-format int4 --ratio 0.72 {model_path}
 
@@ -205,20 +195,20 @@ Select inference device for LLM
 
     import openvino as ov
     import ipywidgets as widgets
-    
+
     core = ov.Core()
-    
+
     support_devices = core.available_devices
     if "NPU" in support_devices:
         support_devices.remove("NPU")
-    
+
     device = widgets.Dropdown(
         options=support_devices + ["AUTO"],
         value="CPU",
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -242,8 +232,13 @@ pipeline.
 .. code:: ipython3
 
     from qwen_agent.llm import get_chat_model
-    
-    ov_config = {"PERFORMANCE_HINT": "LATENCY", "NUM_STREAMS": "1", "CACHE_DIR": ""}
+
+    import openvino.properties as props
+    import openvino.properties.hint as hints
+    import openvino.properties.streams as streams
+
+
+    ov_config = {hints.performance_mode(): hints.PerformanceMode.LATENCY, streams.num(): "1", props.cache_dir(): ""}
     llm_cfg = {
         "ov_model_dir": model_path,
         "model_type": "openvino",
@@ -271,9 +266,9 @@ These options can be enabled with ``ov_config`` as follows:
     ov_config = {
         "KV_CACHE_PRECISION": "u8",
         "DYNAMIC_QUANTIZATION_GROUP_SIZE": "32",
-        "PERFORMANCE_HINT": "LATENCY",
-        "NUM_STREAMS": "1",
-        "CACHE_DIR": "",
+        hints.performance_mode(): hints.PerformanceMode.LATENCY,
+        streams.num(): "",
+        props.cache_dir(): "",
     }
 
 Create Function-calling pipeline
@@ -316,10 +311,10 @@ A typical multi-turn dialogue structure is as follows:
     print("# User question:")
     messages = [{"role": "user", "content": "What's the weather like in San Francisco?"}]
     print(messages)
-    
+
     print("# Assistant Response 1:")
     responses = []
-    
+
     # Step 1: Role `user` sending the request
     responses = llm.chat(
         messages=messages,
@@ -327,9 +322,9 @@ A typical multi-turn dialogue structure is as follows:
         stream=False,
     )
     print(responses)
-    
+
     messages.extend(responses)
-    
+
     # Step 2: check if the model wanted to call a function, and call the function if needed
     last_response = messages[-1]
     if last_response.get("function_call", None):
@@ -344,7 +339,7 @@ A typical multi-turn dialogue structure is as follows:
         )
         print("# Function Response:")
         print(function_response)
-    
+
         # Step 3: Get the observation from `function`'s results
         messages.append(
             {
@@ -353,7 +348,7 @@ A typical multi-turn dialogue structure is as follows:
                 "content": function_response,
             }
         )
-    
+
         print("# Assistant Response 2:")
         # Step 4: Consolidate the observation from function into final response
         responses = llm.chat(
@@ -399,13 +394,14 @@ For example, to register your own image generation tool:
    unique identifier for the tool.
 -  Implement the ``call(...)`` function.
 
-In this notebook, we will create 3 tools as examples: -
-**image_generation**: AI painting (image generation) service, input text
-description, and return the image URL drawn based on text information. -
-**get_current_weather**: Get the current weather in a given city name. -
-**wikipedia**: A wrapper around Wikipedia. Useful for when you need to
-answer general questions about people, places, companies, facts,
-historical events, or other subjects.
+In this notebook, we will create 3 tools as examples:
+
+- **image_generation**: AI painting (image generation) service, input text
+  description, and return the image URL drawn based on text information.
+- **get_current_weather**: Get the current weather in a given city name.
+- **wikipedia**: A wrapper around Wikipedia. Useful for when you need to
+  answer general questions about people, places, companies, facts,
+  historical events, or other subjects.
 
 .. code:: ipython3
 
@@ -413,24 +409,24 @@ historical events, or other subjects.
     import json5
     import requests
     from qwen_agent.tools.base import BaseTool, register_tool
-    
-    
+
+
     @register_tool("image_generation")
     class ImageGeneration(BaseTool):
         description = "AI painting (image generation) service, input text description, and return the image URL drawn based on text information."
         parameters = [{"name": "prompt", "type": "string", "description": "Detailed description of the desired image content, in English", "required": True}]
-    
+
         def call(self, params: str, **kwargs) -> str:
             prompt = json5.loads(params)["prompt"]
             prompt = urllib.parse.quote(prompt)
             return json5.dumps({"image_url": f"https://image.pollinations.ai/prompt/{prompt}"}, ensure_ascii=False)
-    
-    
+
+
     @register_tool("get_current_weather")
     class GetCurrentWeather(BaseTool):
         description = "Get the current weather in a given city name."
         parameters = [{"name": "city_name", "type": "string", "description": "The city and state, e.g. San Francisco, CA", "required": True}]
-    
+
         def call(self, params: str, **kwargs) -> str:
             # `params` are the arguments generated by the LLM agent.
             city_name = json5.loads(params)["city_name"]
@@ -448,18 +444,18 @@ historical events, or other subjects.
             resp = resp.json()
             ret = {k: {_v: resp[k][0][_v] for _v in v} for k, v in key_selection.items()}
             return str(ret)
-    
-    
+
+
     @register_tool("wikipedia")
     class Wikipedia(BaseTool):
         description = "A wrapper around Wikipedia. Useful for when you need to answer general questions about people, places, companies, facts, historical events, or other subjects."
         parameters = [{"name": "query", "type": "string", "description": "Query to look up on wikipedia", "required": True}]
-    
+
         def call(self, params: str, **kwargs) -> str:
             # `params` are the arguments generated by the LLM agent.
             from langchain.tools import WikipediaQueryRun
             from langchain_community.utilities import WikipediaAPIWrapper
-    
+
             query = json5.loads(params)["query"]
             wikipedia = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper(top_k_results=2, doc_content_chars_max=1000))
             resutlt = wikipedia.run(query)
@@ -492,8 +488,7 @@ tasks. Features:
 .. code:: ipython3
 
     from qwen_agent.agents import Assistant
-    from qwen_agent.gui import WebUI
-    
+
     bot = Assistant(llm=llm_cfg, function_list=tools, name="OpenVINO Agent")
 
 
@@ -505,133 +500,23 @@ tasks. Features:
 
 .. code:: ipython3
 
-    from typing import List
-    from qwen_agent.llm.schema import CONTENT, ROLE, USER, Message
-    from qwen_agent.gui.utils import convert_history_to_chatbot
-    from qwen_agent.gui.gradio import gr, mgr
-    
-    
-    class OpenVINOUI(WebUI):
-        def request_cancel(self):
-            self.agent_list[0].llm.ov_model.request.cancel()
-    
-        def clear_history(self):
-            return []
-    
-        def add_text(self, _input, _chatbot, _history):
-            _history.append(
-                {
-                    ROLE: USER,
-                    CONTENT: [{"text": _input}],
-                }
-            )
-            _chatbot.append([_input, None])
-            yield gr.update(interactive=False, value=None), _chatbot, _history
-    
-        def run(
-            self,
-            messages: List[Message] = None,
-            share: bool = False,
-            server_name: str = None,
-            server_port: int = None,
-            **kwargs,
-        ):
-            self.run_kwargs = kwargs
-    
-            with gr.Blocks(
-                theme=gr.themes.Soft(),
-                css=".disclaimer {font-variant-caps: all-small-caps;}",
-            ) as self.demo:
-                gr.Markdown("""<h1><center>OpenVINO Qwen Agent </center></h1>""")
-                history = gr.State([])
-    
-                with gr.Row():
-                    with gr.Column(scale=4):
-                        chatbot = mgr.Chatbot(
-                            value=convert_history_to_chatbot(messages=messages),
-                            avatar_images=[
-                                self.user_config,
-                                self.agent_config_list,
-                            ],
-                            height=900,
-                            avatar_image_width=80,
-                            flushing=False,
-                            show_copy_button=True,
-                        )
-                        with gr.Column():
-                            input = gr.Textbox(
-                                label="Chat Message Box",
-                                placeholder="Chat Message Box",
-                                show_label=False,
-                                container=False,
-                            )
-                        with gr.Column():
-                            with gr.Row():
-                                submit = gr.Button("Submit", variant="primary")
-                                stop = gr.Button("Stop")
-                                clear = gr.Button("Clear")
-                    with gr.Column(scale=1):
-                        agent_interactive = self.agent_list[0]
-                        capabilities = [key for key in agent_interactive.function_map.keys()]
-                        gr.CheckboxGroup(
-                            label="Tools",
-                            value=capabilities,
-                            choices=capabilities,
-                            interactive=False,
-                        )
-                with gr.Row():
-                    gr.Examples(self.prompt_suggestions, inputs=[input], label="Click on any example and press the 'Submit' button")
-    
-                input_promise = submit.click(
-                    fn=self.add_text,
-                    inputs=[input, chatbot, history],
-                    outputs=[input, chatbot, history],
-                    queue=False,
-                )
-                input_promise = input_promise.then(
-                    self.agent_run,
-                    [chatbot, history],
-                    [chatbot, history],
-                )
-                input_promise.then(self.flushed, None, [input])
-                stop.click(
-                    fn=self.request_cancel,
-                    inputs=None,
-                    outputs=None,
-                    cancels=[input_promise],
-                    queue=False,
-                )
-                clear.click(lambda: None, None, chatbot, queue=False).then(self.clear_history, None, history)
-    
-                self.demo.load(None)
-    
-            self.demo.launch(share=share, server_name=server_name, server_port=server_port)
-    
-    
-    chatbot_config = {
-        "prompt.suggestions": [
-            "Based on current weather in London, show me a picture of Big Ben",
-            "What is OpenVINO ?",
-            "Create an image of pink cat",
-            "What is the weather like in New York now ?",
-            "How many people live in Canada ?",
-        ],
-        "agent.avatar": openvino_logo,
-        "input.placeholder": "Please input your request here",
-    }
-    
-    demo = OpenVINOUI(
-        bot,
-        chatbot_config=chatbot_config,
-    )
-    
-    # if you are launching remotely, specify server_name and server_port
-    #  demo.run(server_name='your server name', server_port='server port in int')
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/llm-agent-functioncall/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
+
+    from gradio_helper import make_demo
+
+    demo = make_demo(bot=bot)
+
     try:
         demo.run()
     except Exception:
         demo.run(share=True)
+    # If you are launching remotely, specify server_name and server_port
+    # EXAMPLE: `demo.launch(server_name='your server name', server_port='server port in int')`
+    # To learn more please refer to the Gradio docs: https://gradio.app/docs/
 
 .. code:: ipython3
 
-    # demo.demo.close()
+    # please uncomment and run this cell for stopping gradio interface
+    # demo.close()

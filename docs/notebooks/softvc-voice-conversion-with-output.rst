@@ -18,6 +18,7 @@ audio are preserved.
 
 In this tutorial we will use the base model flow.
 
+
 **Table of contents:**
 
 
@@ -41,14 +42,33 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-
+This model has some problems
+with installation. So, we have to downgrade ``pip`` to version below
+``24.1`` to avoid problems with ``fairseq``. Also, ``fairseq`` has some
+problems on ``Windows`` on ``python>=3.11`` and we use a custom version
+of this library to resolve them.
 
 .. code:: ipython3
 
-    %pip install -qU "pip<24.1"  # to fix fairseq install problem
+    import platform
+    import sys
+    import warnings
+    
+    
+    %pip install -qU "pip<24.1"
+    if platform.system() == "Windows" and sys.version_info >= (3, 11, 0):
+        warnings.warn(
+            "Building the custmom fairseq package may take a long time and may require additional privileges in the system. We recommend using Python versions 3.8, 3.9 or 3.10 for this model."
+        )
+        %pip install git+https://github.com/aleksandr-mokrov/fairseq.git
+    else:
+        %pip install "fairseq==0.12.2"
+
+.. code:: ipython3
+
     %pip install -q "openvino>=2023.2.0"
     !git clone https://github.com/svc-develop-team/so-vits-svc -b 4.1-Stable
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu  tqdm librosa "torch>=2.1.0" "torchaudio>=2.1.0" faiss-cpu "gradio>=4.19" "numpy>=1.23.5" "fairseq==0.12.2" praat-parselmouth
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu  tqdm librosa "torch>=2.1.0" "torchaudio>=2.1.0" faiss-cpu "gradio>=4.19" "numpy>=1.23.5" praat-parselmouth
 
 Download pretrained models and configs. We use a recommended encoder
 `ContentVec <https://arxiv.org/abs/2204.09224>`__ and models from `a
@@ -67,7 +87,7 @@ own <https://github.com/svc-develop-team/so-vits-svc#%EF%B8%8F-training>`__.
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
     
-    open("notebook_utils.py", "w").write(r.text)
+    open("notebook_utils.py", "w", encoding="utf-8").write(r.text)
     from notebook_utils import download_file, device_widget
     
     # ContentVec
@@ -263,16 +283,6 @@ Interactive inference
 
 .. code:: ipython3
 
-    import gradio as gr
-    
-    
-    src_audio = gr.Audio(label="Source Audio", type="filepath")
-    output_audio = gr.Audio(label="Output Audio", type="numpy")
-    
-    title = "SoftVC VITS Singing Voice Conversion with Gradio"
-    description = f'Gradio Demo for SoftVC VITS Singing Voice Conversion and OpenVINO™. Upload a source audio, then click the "Submit" button to inference. Audio sample rate should be {model.target_sample}'
-    
-    
     def infer(src_audio, tran, slice_db, noice_scale):
         kwargs["raw_audio_path"] = src_audio
         kwargs["tran"] = tran
@@ -282,40 +292,26 @@ Interactive inference
         audio = model.slice_inference(**kwargs)
     
         return model.target_sample, audio
+
+.. code:: ipython3
+
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/softvc-voice-conversion/gradio_helper.py")
+        open("gradio_helper.py", "w", encoding="utf-8").write(r.text)
     
+    from gradio_helper import make_demo
     
-    demo = gr.Interface(
-        infer,
-        [
-            src_audio,
-            gr.Slider(-100, 100, value=0, label="Pitch shift", step=1),
-            gr.Slider(
-                -80,
-                -20,
-                value=-30,
-                label="Slice db",
-                step=10,
-                info="The default is -30, noisy audio can be -30, dry sound can be -50 to preserve breathing.",
-            ),
-            gr.Slider(
-                0,
-                1,
-                value=0.4,
-                label="Noise scale",
-                step=0.1,
-                info="Noise level will affect pronunciation and sound quality, which is more metaphysical",
-            ),
-        ],
-        output_audio,
-        title=title,
-        description=description,
-        examples=[["raw/000.wav", 0, -30, 0.4, False]],
-    )
+    demo = make_demo(fn=infer)
     
     try:
         demo.queue().launch(debug=False)
     except Exception:
         demo.queue().launch(share=True, debug=False)
-    # if you are launching remotely, specify server_name and server_port
-    # demo.launch(server_name='your server name', server_port='server port in int')
-    # Read more in the docs: https://gradio.app/docs/
+    # If you are launching remotely, specify server_name and server_port
+    # EXAMPLE: `demo.launch(server_name='your server name', server_port='server port in int')`
+    # To learn more please refer to the Gradio docs: https://gradio.app/docs/
+
+.. code:: ipython3
+
+    # please uncomment and run this cell for stopping gradio interface
+    # demo.close()

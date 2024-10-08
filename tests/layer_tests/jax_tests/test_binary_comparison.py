@@ -30,6 +30,8 @@ class TestBinaryComparison(JaxLayerTest):
             'eq': lax.eq,
             'ge': lax.ge,
             'gt': lax.gt,
+            'lt': lax.lt,
+            'le': lax.le,
             'ne': lax.ne
         }
 
@@ -44,7 +46,7 @@ class TestBinaryComparison(JaxLayerTest):
     @pytest.mark.parametrize('input_shapes', [[[5], [1]], [[1], [5]], [[2, 2, 4], [1, 1, 4]],
                                               [[5, 10], [5, 10]], [[2, 4, 6], [1, 4, 6]],
                                               [[5, 8, 10, 128], [5, 1, 10, 128]]])
-    @pytest.mark.parametrize('binary_op', ['eq', 'ge', 'gt', 'ne'])
+    @pytest.mark.parametrize('binary_op', ['eq', 'ge', 'gt', 'lt', 'le','ne'])
     @pytest.mark.parametrize('input_type', [np.int8, np.uint8, np.int16, np.uint16,
                                             np.int32, np.uint32, np.int64, np.uint64,
                                             np.float16, np.float32, np.float64])

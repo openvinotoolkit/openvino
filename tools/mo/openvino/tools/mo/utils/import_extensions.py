@@ -75,7 +75,7 @@ def load_dir(framework: str, path: str, get_front_classes: callable):
     internal_dirs = get_internal_dirs(framework, get_front_classes)
     prefix = 'openvino.tools.' if ext == 'mo' else ''
 
-    exclude_modules = {'tf', 'onnx', 'kaldi', 'mxnet', 'caffe'}
+    exclude_modules = {'tf', 'onnx', 'kaldi', 'caffe'}
     exclude_modules.remove(framework)
 
     for p in internal_dirs.keys():

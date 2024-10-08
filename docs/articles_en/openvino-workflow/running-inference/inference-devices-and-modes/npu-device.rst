@@ -11,6 +11,7 @@ NPU Device
    :hidden:
 
    npu-device/remote-tensor-api-npu-plugin
+   npu-device/batching-on-npu-plugin
 
 
 The Neural Processing Unit is a low-power hardware solution, introduced with the

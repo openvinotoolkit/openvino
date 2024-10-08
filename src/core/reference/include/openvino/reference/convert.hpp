@@ -14,9 +14,11 @@
 #include "openvino/core/type/nf4.hpp"
 
 #if !defined(OS_CHROMEOS) && (defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64))
-#    define OV_CORE_USE_XBYAK_JIT 1
-#else
-#    define OV_CORE_USE_XBYAK_JIT 0
+#    define OV_CORE_USE_XBYAK_JIT
+#endif
+
+#if defined(OS_CHROMEOS) && defined(OPENVINO_ARCH_X86_64) && defined(HAVE_AVX2)
+#    define OV_CORE_USE_INTRINSICS
 #endif
 
 namespace ov {
@@ -33,12 +35,12 @@ namespace reference {
 namespace detail {
 
 template <typename TI, typename TO>
-typename std::enable_if<!std::is_same<TO, char>::value, TO>::type convert(const TI v) {
+constexpr typename std::enable_if<!std::is_same<TO, char>::value, TO>::type convert(const TI v) {
     return static_cast<TO>(v);
 }
 
 template <typename TI, typename TO>
-typename std::enable_if<std::is_same<TO, char>::value, TO>::type convert(const TI v) {
+constexpr typename std::enable_if<std::is_same<TO, char>::value, TO>::type convert(const TI v) {
     return static_cast<char>(static_cast<bool>(v));
 }
 }  // namespace detail
@@ -62,8 +64,6 @@ void convert(const TI* arg, TO* out, const size_t count) {
     std::transform(arg, arg + count, out, detail::convert<TI, TO>);
 }
 
-#if OV_CORE_USE_XBYAK_JIT
-
 template <>
 void convert<uint8_t, float16>(const uint8_t* arg, float16* out, size_t count);
 template <>
@@ -78,8 +78,6 @@ template <>
 void convert<bfloat16, float16>(const bfloat16* arg, float16* out, size_t count);
 template <>
 void convert<bfloat16, float>(const bfloat16* arg, float* out, size_t count);
-
-#endif  // OV_CORE_USE_XBYAK_JIT
 
 template <>
 void convert<int32_t, float16>(const int32_t* arg, float16* out, size_t count);

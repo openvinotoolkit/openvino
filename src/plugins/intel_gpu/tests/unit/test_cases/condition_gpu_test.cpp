@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/primitives/permute.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "random_generator.hpp"
@@ -577,6 +578,7 @@ public:
             );
             branch_true.inner_program = program::build_program(engine, branch_true_topology, config, false, false, true);
             branch_true.input_map.insert({"input", "branch_input3"});
+            branch_true.input_map.insert({"predicate2", "predicate2"});
             branch_true.output_map.insert({0, "condi_nested"});
         }
 
@@ -598,11 +600,12 @@ public:
         );
 
         topology.add(
-            input_layout("predicate", predicate->get_layout())
+            input_layout("predicate", predicate->get_layout()),
+            input_layout("predicate2", predicate2->get_layout())
         );
 
         topology.add(
-            condition("condi", {input_info("predicate"), input_info("input")}, branch_true, branch_false)
+            condition("condi", {input_info("predicate"), input_info("predicate2"), input_info("input")}, branch_true, branch_false)
         );
 
         std::vector<float> input_data = {
@@ -773,7 +776,7 @@ public:
             pooling(duplicated_id, input_info(cond_id), cldnn::pooling_mode::max, { 2, 1 }, { 2, 1 })
         );
 
-        EXPECT_ANY_THROW(network::ptr net = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test););
+        EXPECT_NO_THROW(network::ptr net = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test););
     }
 
     void test_empty_body(bool is_caching_test) {
@@ -1038,6 +1041,7 @@ TEST(condition_gpu, set_empty_tensor) {
     net.set_input_data(empty_input_id, empty_input_mem);
     net.set_input_data(input_id, input_mem);
 
-    OV_ASSERT_NO_THROW(net.execute());
-    OV_ASSERT_NO_THROW(net.get_output(cond_id).get_memory());
+    std::map<primitive_id, network_output> outputs;
+    OV_ASSERT_NO_THROW(outputs = net.execute());
+    OV_ASSERT_NO_THROW(outputs.at(cond_id).get_memory());
 }

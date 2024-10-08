@@ -19,7 +19,7 @@ typedef std::tuple<
 
 class EnforcePrecisionTest :
     public testing::WithParamInterface<EnforcePrecisionTestParams>,
-    virtual public ov::test::SnippetsTestsCommon {
+    virtual public SnippetsTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<EnforcePrecisionTestParams> obj);
 

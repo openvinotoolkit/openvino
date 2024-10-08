@@ -28,6 +28,7 @@ In this tutorial we consider how to convert and run EfficientSAM using
 OpenVINO. We also demonstrate how to quantize model using
 `NNCF <https://github.com/openvinotoolkit/nncf.git>`__
 
+
 **Table of contents:**
 
 
@@ -82,12 +83,12 @@ Prerequisites
 .. code:: ipython3
 
     import platform
-
+    
     if platform.system() != "Windows":
         %pip install -q "matplotlib>=3.4"
     else:
         %pip install -q "matplotlib>=3.4,<3.7"
-
+    
     %pip install -q "openvino>=2023.3.0" "nncf>=2.7.0" opencv-python "gradio>=4.13" torch torchvision tqdm  --extra-index-url https://download.pytorch.org/whl/cpu
 
 
@@ -100,9 +101,9 @@ Prerequisites
 .. code:: ipython3
 
     from pathlib import Path
-
+    
     repo_dir = Path("EfficientSAM")
-
+    
     if not repo_dir.exists():
         !git clone https://github.com/yformer/EfficientSAM.git
     %cd $repo_dir
@@ -115,21 +116,21 @@ Prerequisites
     remote: Counting objects: 100% (85/85), done.[K
     remote: Compressing objects: 100% (33/33), done.[K
     remote: Total 424 (delta 76), reused 52 (delta 52), pack-reused 339 (from 1)[K
-    Receiving objects: 100% (424/424), 262.14 MiB | 27.55 MiB/s, done.
+    Receiving objects: 100% (424/424), 262.14 MiB | 23.40 MiB/s, done.
     Resolving deltas: 100% (246/246), done.
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM
 
 
 .. code:: ipython3
 
     import requests
-
+    
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
-
+    
     open("notebook_utils.py", "w").write(r.text)
-
+    
     from notebook_utils import download_file, device_widget, quantization_widget  # noqa: F401
 
 Load PyTorch model
@@ -158,12 +159,12 @@ one of them as example.
         build_efficient_sam_vits,
     )
     import zipfile
-
+    
     MODELS_LIST = {
         "efficient-sam-vitt": build_efficient_sam_vitt,
         "efficient-sam-vits": build_efficient_sam_vits,
     }
-
+    
     # Since EfficientSAM-S checkpoint file is >100MB, we store the zip file.
     with zipfile.ZipFile("weights/efficient_sam_vits.pt.zip", "r") as zip_ref:
         zip_ref.extractall("weights")
@@ -173,16 +174,16 @@ Select one from supported models:
 .. code:: ipython3
 
     import ipywidgets as widgets
-
+    
     model_ids = list(MODELS_LIST)
-
+    
     model_id = widgets.Dropdown(
         options=model_ids,
         value=model_ids[0],
         description="Model:",
         disabled=False,
     )
-
+    
     model_id
 
 
@@ -199,7 +200,7 @@ build PyTorch model
 .. code:: ipython3
 
     pt_model = MODELS_LIST[model_id.value]()
-
+    
     pt_model.eval();
 
 Run PyTorch model inference
@@ -214,23 +215,20 @@ Prepare input data
 
 
 First of all, we should prepare input data for model. Model has 3
-inputs:
-
-* image tensor - tensor with normalized input image.
-* input points - tensor with user provided points. It maybe just some specific
+inputs: \* image tensor - tensor with normalized input image. \* input
+points - tensor with user provided points. It maybe just some specific
 points on the image (e.g. provided by user clicks on the screen) or
 bounding box coordinates in format left-top angle point and right-bottom
-angle pint.
-* input labels - tensor with definition of point type for
+angle pint. \* input labels - tensor with definition of point type for
 each provided point, 1 - for regular point, 2 - left-top point of
 bounding box, 3 - right-bottom point of bounding box.
 
 .. code:: ipython3
 
     from PIL import Image
-
+    
     image_path = "figs/examples/dogs.jpg"
-
+    
     image = Image.open(image_path)
     image
 
@@ -257,8 +255,8 @@ points. We also provided some helper function for results visualization.
     import torch
     import matplotlib.pyplot as plt
     import numpy as np
-
-
+    
+    
     def prepare_input(input_image, points, labels, torch_tensor=True):
         img_tensor = np.ascontiguousarray(input_image)[None, ...].astype(np.float32) / 255
         img_tensor = np.transpose(img_tensor, (0, 3, 1, 2))
@@ -269,16 +267,16 @@ points. We also provided some helper function for results visualization.
             pts_sampled = torch.from_numpy(pts_sampled)
             pts_labels = torch.from_numpy(pts_labels)
         return img_tensor, pts_sampled, pts_labels
-
-
+    
+    
     def postprocess_results(predicted_iou, predicted_logits):
         sorted_ids = np.argsort(-predicted_iou, axis=-1)
         predicted_iou = np.take_along_axis(predicted_iou, sorted_ids, axis=2)
         predicted_logits = np.take_along_axis(predicted_logits, sorted_ids[..., None, None], axis=2)
-
+    
         return predicted_logits[0, 0, 0, :, :] >= 0
-
-
+    
+    
     def show_points(coords, labels, ax, marker_size=375):
         pos_points = coords[labels == 1]
         neg_points = coords[labels == 0]
@@ -300,14 +298,14 @@ points. We also provided some helper function for results visualization.
             edgecolor="white",
             linewidth=1.25,
         )
-
-
+    
+    
     def show_box(box, ax):
         x0, y0 = box[0], box[1]
         w, h = box[2] - box[0], box[3] - box[1]
         ax.add_patch(plt.Rectangle((x0, y0), w, h, edgecolor="yellow", facecolor=(0, 0, 0, 0), lw=5))
-
-
+    
+    
     def show_anns(mask, ax):
         ax.set_autoscale_on(False)
         img = np.ones((mask.shape[0], mask.shape[1], 4))
@@ -324,17 +322,17 @@ The complete model inference example demonstrated below
 
     input_points = [[580, 350], [650, 350]]
     input_labels = [1, 1]
-
+    
     example_input = prepare_input(image, input_points, input_labels)
-
+    
     predicted_logits, predicted_iou = pt_model(*example_input)
-
+    
     predicted_mask = postprocess_results(predicted_iou.detach().numpy(), predicted_logits.detach().numpy())
 
 .. code:: ipython3
 
     image = Image.open(image_path)
-
+    
     plt.figure(figsize=(20, 20))
     plt.axis("off")
     plt.imshow(image)
@@ -373,11 +371,11 @@ disk using ``openvino.save_model``.
 .. code:: ipython3
 
     import openvino as ov
-
+    
     core = ov.Core()
-
+    
     ov_model_path = Path(f"{model_id.value}.xml")
-
+    
     if not ov_model_path.exists():
         ov_model = ov.convert_model(pt_model, example_input=example_input)
         ov.save_model(ov_model, ov_model_path)
@@ -387,23 +385,23 @@ disk using ``openvino.save_model``.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam.py:220: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam.py:220: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if (
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:241: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:241: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert (
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:163: TracerWarning: Converting a tensor to a Python float might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:163: TracerWarning: Converting a tensor to a Python float might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       size = int(math.sqrt(xy_num))
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:164: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:164: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert size * size == xy_num
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:166: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:166: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if size != h or size != w:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:251: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:251: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert x.shape[2] == num_patches
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam.py:85: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam.py:85: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if num_pts > self.decoder_max_num_input_points:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam.py:92: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam.py:92: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       elif num_pts < self.decoder_max_num_input_points:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam.py:126: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam.py:126: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if output_w > 0 and output_h > 0:
 
 
@@ -420,7 +418,7 @@ Select inference device from dropdown list
 .. code:: ipython3
 
     device = device_widget()
-
+    
     device
 
 
@@ -452,11 +450,11 @@ Now, we can take a look on OpenVINO model prediction
 
     example_input = prepare_input(image, input_points, input_labels, torch_tensor=False)
     result = compiled_model(example_input)
-
+    
     predicted_logits, predicted_iou = result[0], result[1]
-
+    
     predicted_mask = postprocess_results(predicted_iou, predicted_logits)
-
+    
     plt.figure(figsize=(20, 20))
     plt.axis("off")
     plt.imshow(image)
@@ -506,7 +504,7 @@ quantization.
 .. code:: ipython3
 
     to_quantize = quantization_widget()
-
+    
     to_quantize
 
 
@@ -522,12 +520,12 @@ quantization.
 
     # Fetch `skip_kernel_extension` module
     import requests
-
+    
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
     )
     open("skip_kernel_extension.py", "w").write(r.text)
-
+    
     %load_ext skip_kernel_extension
 
 Prepare calibration datasets
@@ -545,14 +543,14 @@ creates DataLoader for preparing inputs for EfficientSAM model.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     from zipfile import ZipFile
-
+    
     DATA_URL = "https://ultralytics.com/assets/coco128.zip"
     OUT_DIR = Path('.')
-
+    
     download_file(DATA_URL, directory=OUT_DIR, show_progress=True)
-
+    
     if not (OUT_DIR / "coco128/images/train2017").exists():
         with ZipFile('coco128.zip' , "r") as zip_ref:
             zip_ref.extractall(OUT_DIR)
@@ -567,21 +565,21 @@ creates DataLoader for preparing inputs for EfficientSAM model.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     import torch.utils.data as data
-
+    
     class COCOLoader(data.Dataset):
         def __init__(self, images_path):
             self.images = list(Path(images_path).iterdir())
             self.labels_dir = images_path.parents[1] / 'labels' / images_path.name
-
+    
         def get_points(self, image_path, image_width, image_height):
             file_name = image_path.name.replace('.jpg', '.txt')
             label_file =  self.labels_dir / file_name
             if not label_file.exists():
                 x1, x2 = np.random.randint(low=0, high=image_width, size=(2, ))
                 y1, y2 = np.random.randint(low=0, high=image_height, size=(2, ))
-            else:
+            else:    
                 with label_file.open("r") as f:
                     box_line = f.readline()
                 _, x1, y1, x2, y2 = box_line.split()
@@ -590,7 +588,7 @@ creates DataLoader for preparing inputs for EfficientSAM model.
                 x2 = int(float(x2) * image_width)
                 y2 = int(float(y2) * image_height)
             return [[x1, y1], [x2, y2]]
-
+    
         def __getitem__(self, index):
             image_path = self.images[index]
             image = Image.open(image_path)
@@ -600,14 +598,14 @@ creates DataLoader for preparing inputs for EfficientSAM model.
             labels = [1, 1] if index % 2 == 0 else [2, 3]
             batched_images, batched_points, batched_point_labels = prepare_input(image, points, labels, torch_tensor=False)
             return {'batched_images': np.ascontiguousarray(batched_images)[0], 'batched_points': np.ascontiguousarray(batched_points)[0], 'batched_point_labels': np.ascontiguousarray(batched_point_labels)[0]}
-
+        
         def __len__(self):
             return len(self.images)
 
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     coco_dataset = COCOLoader(OUT_DIR / 'coco128/images/train2017')
     calibration_loader = torch.utils.data.DataLoader(coco_dataset)
 
@@ -630,11 +628,11 @@ architecture type, we should specify ``transformer`` in ``model_type``.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     import nncf
-
+    
     calibration_dataset = nncf.Dataset(calibration_loader)
-
+    
     model = core.read_model(ov_model_path)
     quantized_model = nncf.quantize(model,
                                     calibration_dataset,
@@ -650,10 +648,10 @@ architecture type, we should specify ``transformer`` in ``model_type``.
 
 .. parsed-literal::
 
-    2024-08-28 02:07:16.423535: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-08-28 02:07:16.455510: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-09-24 00:41:36.417744: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-09-24 00:41:36.450605: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-08-28 02:07:17.106490: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-09-24 00:41:37.081764: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 
@@ -680,12 +678,6 @@ architecture type, we should specify ``transformer`` in ``model_type``.
 
 
 
-
-
-.. parsed-literal::
-
-    INFO:nncf:57 ignored nodes were found by names in the NNCFGraph
-    INFO:nncf:88 ignored nodes were found by names in the NNCFGraph
 
 
 
@@ -727,15 +719,15 @@ Verify quantized model inference
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     compiled_model = core.compile_model(quantized_model, device.value)
-
+    
     result = compiled_model(example_input)
-
+    
     predicted_logits, predicted_iou = result[0], result[1]
-
+    
     predicted_mask = postprocess_results(predicted_iou, predicted_logits)
-
+    
     plt.figure(figsize=(20, 20))
     plt.axis("off")
     plt.imshow(image)
@@ -764,7 +756,7 @@ Save quantize model on disk
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     quantized_model_path = Path(f"{model_id.value}_int8.xml")
     ov.save_model(quantized_model, quantized_model_path)
 
@@ -776,10 +768,10 @@ Compare quantized model size
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     fp16_weights = ov_model_path.with_suffix('.bin')
     quantized_weights = quantized_model_path.with_suffix('.bin')
-
+    
     print(f"Size of FP16 model is {fp16_weights.stat().st_size / 1024 / 1024:.2f} MB")
     print(f"Size of INT8 quantized model is {quantized_weights.stat().st_size / 1024 / 1024:.2f} MB")
     print(f"Compression rate for INT8 model: {fp16_weights.stat().st_size / quantized_weights.stat().st_size:.3f}")
@@ -815,26 +807,26 @@ models, we use ``bencmark_app``.
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.3.0-16041-1e3b88e4e3f-releases/2024/3
-    [ INFO ]
+    [ INFO ] Build ................................. 2024.4.0-16579-c3152d32c9c-releases/2024/4
+    [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2024.3.0-16041-1e3b88e4e3f-releases/2024/3
-    [ INFO ]
-    [ INFO ]
+    [ INFO ] Build ................................. 2024.4.0-16579-c3152d32c9c-releases/2024/4
+    [ INFO ] 
+    [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 29.42 ms
+    [ INFO ] Read model took 29.72 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     batched_images (node: batched_images) : f32 / [...] / [?,?,?,?]
     [ INFO ]     batched_points (node: batched_points) : i64 / [...] / [?,?,?,?]
     [ INFO ]     batched_point_labels (node: batched_point_labels) : i64 / [...] / [?,?,?]
     [ INFO ] Model outputs:
-    [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_3) : f32 / [...] / [?,?,3,?,?]
-    [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_2) : f32 / [...] / [?,?,3]
+    [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_3) : f32 / [...] / [?,?,?,?,?]
+    [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_2) : f32 / [...] / [?,?,?]
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [Step 6/11] Configuring input of the model
@@ -843,10 +835,10 @@ models, we use ``bencmark_app``.
     [ INFO ]     batched_points (node: batched_points) : i64 / [...] / [?,?,?,?]
     [ INFO ]     batched_point_labels (node: batched_point_labels) : i64 / [...] / [?,?,?]
     [ INFO ] Model outputs:
-    [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_3) : f32 / [...] / [?,?,3,?,?]
-    [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_2) : f32 / [...] / [?,?,3]
+    [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_3) : f32 / [...] / [?,?,?,?,?]
+    [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_2) : f32 / [...] / [?,?,?]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 1345.51 ms
+    [ INFO ] Compile model took 1391.34 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -882,22 +874,22 @@ models, we use ``bencmark_app``.
     [ WARNING ] No input files were given for input 'batched_images'!. This input will be filled with random values!
     [ WARNING ] No input files were given for input 'batched_points'!. This input will be filled with random values!
     [ WARNING ] No input files were given for input 'batched_point_labels'!. This input will be filled with random values!
-    [ INFO ] Fill input 'batched_images' with random values
-    [ INFO ] Fill input 'batched_points' with random values
-    [ INFO ] Fill input 'batched_point_labels' with random values
+    [ INFO ] Fill input 'batched_images' with random values 
+    [ INFO ] Fill input 'batched_points' with random values 
+    [ INFO ] Fill input 'batched_point_labels' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in full mode (inputs filling are included in measurement loop).
-    [ INFO ] First inference took 663.79 ms
+    [ INFO ] First inference took 822.04 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            55 iterations
-    [ INFO ] Duration:         17357.04 ms
+    [ INFO ] Count:            47 iterations
+    [ INFO ] Duration:         16545.03 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        1859.64 ms
-    [ INFO ]    Average:       1845.33 ms
-    [ INFO ]    Min:           626.88 ms
-    [ INFO ]    Max:           1939.59 ms
-    [ INFO ] Throughput:   3.17 FPS
+    [ INFO ]    Median:        2017.02 ms
+    [ INFO ]    Average:       2049.16 ms
+    [ INFO ]    Min:           1110.81 ms
+    [ INFO ]    Max:           2739.11 ms
+    [ INFO ] Throughput:   2.84 FPS
 
 
 .. code:: ipython3
@@ -912,26 +904,26 @@ models, we use ``bencmark_app``.
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.3.0-16041-1e3b88e4e3f-releases/2024/3
-    [ INFO ]
+    [ INFO ] Build ................................. 2024.4.0-16579-c3152d32c9c-releases/2024/4
+    [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2024.3.0-16041-1e3b88e4e3f-releases/2024/3
-    [ INFO ]
-    [ INFO ]
+    [ INFO ] Build ................................. 2024.4.0-16579-c3152d32c9c-releases/2024/4
+    [ INFO ] 
+    [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 43.37 ms
+    [ INFO ] Read model took 43.63 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     batched_images (node: batched_images) : f32 / [...] / [?,?,?,?]
     [ INFO ]     batched_points (node: batched_points) : i64 / [...] / [?,?,?,?]
     [ INFO ]     batched_point_labels (node: batched_point_labels) : i64 / [...] / [?,?,?]
     [ INFO ] Model outputs:
-    [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_3) : f32 / [...] / [?,?,3,?,?]
-    [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_2) : f32 / [...] / [?,?,3]
+    [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_3) : f32 / [...] / [?,?,?,?,?]
+    [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_2) : f32 / [...] / [?,?,?]
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [Step 6/11] Configuring input of the model
@@ -940,10 +932,10 @@ models, we use ``bencmark_app``.
     [ INFO ]     batched_points (node: batched_points) : i64 / [...] / [?,?,?,?]
     [ INFO ]     batched_point_labels (node: batched_point_labels) : i64 / [...] / [?,?,?]
     [ INFO ] Model outputs:
-    [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_3) : f32 / [...] / [?,?,3,?,?]
-    [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_2) : f32 / [...] / [?,?,3]
+    [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_3) : f32 / [...] / [?,?,?,?,?]
+    [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_2) : f32 / [...] / [?,?,?]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 1729.55 ms
+    [ INFO ] Compile model took 1629.94 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -979,22 +971,22 @@ models, we use ``bencmark_app``.
     [ WARNING ] No input files were given for input 'batched_images'!. This input will be filled with random values!
     [ WARNING ] No input files were given for input 'batched_points'!. This input will be filled with random values!
     [ WARNING ] No input files were given for input 'batched_point_labels'!. This input will be filled with random values!
-    [ INFO ] Fill input 'batched_images' with random values
-    [ INFO ] Fill input 'batched_points' with random values
-    [ INFO ] Fill input 'batched_point_labels' with random values
+    [ INFO ] Fill input 'batched_images' with random values 
+    [ INFO ] Fill input 'batched_points' with random values 
+    [ INFO ] Fill input 'batched_point_labels' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in full mode (inputs filling are included in measurement loop).
-    [ INFO ] First inference took 631.14 ms
+    [ INFO ] First inference took 606.10 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
     [ INFO ] Count:            55 iterations
-    [ INFO ] Duration:         16013.22 ms
+    [ INFO ] Duration:         15905.50 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        1725.46 ms
-    [ INFO ]    Average:       1706.20 ms
-    [ INFO ]    Min:           527.65 ms
-    [ INFO ]    Max:           1779.12 ms
-    [ INFO ] Throughput:   3.43 FPS
+    [ INFO ]    Median:        1706.55 ms
+    [ INFO ]    Average:       1699.17 ms
+    [ INFO ]    Min:           613.31 ms
+    [ INFO ]    Max:           1844.61 ms
+    [ INFO ] Throughput:   3.46 FPS
 
 
 Interactive segmentation demo
@@ -1008,18 +1000,18 @@ Interactive segmentation demo
     from PIL import Image
     import cv2
     import matplotlib.pyplot as plt
-
-
+    
+    
     def sigmoid(x):
         return 1 / (1 + np.exp(-x))
-
-
+    
+    
     def format_results(masks, scores, logits, filter=0):
         annotations = []
         n = len(scores)
         for i in range(n):
             annotation = {}
-
+    
             mask = masks[i]
             tmp = np.where(mask != 0)
             if np.sum(mask) < filter:
@@ -1036,8 +1028,8 @@ Interactive segmentation demo
             annotation["area"] = annotation["segmentation"].sum()
             annotations.append(annotation)
         return annotations
-
-
+    
+    
     def point_prompt(masks, points, point_label, target_height, target_width):  # numpy
         h = masks[0]["segmentation"].shape[0]
         w = masks[0]["segmentation"].shape[1]
@@ -1057,8 +1049,8 @@ Interactive segmentation demo
                         onemask -= mask
         onemask = onemask >= 1
         return onemask, 0
-
-
+    
+    
     def show_mask(
         annotation,
         ax,
@@ -1075,7 +1067,7 @@ Interactive segmentation demo
         areas = np.sum(annotation, axis=(1, 2))
         sorted_indices = np.argsort(areas)[::1]
         annotation = annotation[sorted_indices]
-
+    
         index = (annotation != 0).argmax(axis=0)
         if random_color:
             color = np.random.random((mask_sum, 1, 1, 3))
@@ -1084,23 +1076,23 @@ Interactive segmentation demo
         transparency = np.ones((mask_sum, 1, 1, 1)) * 0.6
         visual = np.concatenate([color, transparency], axis=-1)
         mask_image = np.expand_dims(annotation, -1) * visual
-
+    
         mask = np.zeros((height, weight, 4))
-
+    
         h_indices, w_indices = np.meshgrid(np.arange(height), np.arange(weight), indexing="ij")
         indices = (index[h_indices, w_indices], h_indices, w_indices, slice(None))
-
+    
         mask[h_indices, w_indices, :] = mask_image[indices]
         if bbox is not None:
             x1, y1, x2, y2 = bbox
             ax.add_patch(plt.Rectangle((x1, y1), x2 - x1, y2 - y1, fill=False, edgecolor="b", linewidth=1))
-
+    
         if not retinamask:
             mask = cv2.resize(mask, (target_width, target_height), interpolation=cv2.INTER_NEAREST)
-
+    
         return mask
-
-
+    
+    
     def process(
         annotations,
         image,
@@ -1114,7 +1106,7 @@ Interactive segmentation demo
     ):
         if isinstance(annotations[0], dict):
             annotations = [annotation["segmentation"] for annotation in annotations]
-
+    
         original_h = image.height
         original_w = image.width
         if better_quality:
@@ -1133,10 +1125,10 @@ Interactive segmentation demo
             target_height=original_h,
             target_width=original_w,
         )
-
+    
         if isinstance(annotations, torch.Tensor):
             annotations = annotations.cpu().numpy()
-
+    
         if withContours:
             contour_all = []
             temp = np.zeros((original_h, original_w, 1))
@@ -1156,18 +1148,18 @@ Interactive segmentation demo
             cv2.drawContours(temp, contour_all, -1, (255, 255, 255), 2 // scale)
             color = np.array([0 / 255, 0 / 255, 255 / 255, 0.9])
             contour_mask = temp / 255 * color.reshape(1, 1, -1)
-
+    
         image = image.convert("RGBA")
         overlay_inner = Image.fromarray((inner_mask * 255).astype(np.uint8), "RGBA")
         image.paste(overlay_inner, (0, 0), overlay_inner)
-
+    
         if withContours:
             overlay_contour = Image.fromarray((contour_mask * 255).astype(np.uint8), "RGBA")
             image.paste(overlay_contour, (0, 0), overlay_contour)
-
+    
         return image
-
-
+    
+    
     def segment_with_boxs(
         image,
         seg_image,
@@ -1181,48 +1173,48 @@ Interactive segmentation demo
     ):
         if global_points is None or len(global_points) < 2 or global_points[0] is None:
             return image, global_points, global_point_label
-
+    
         input_size = int(input_size)
         w, h = image.size
         scale = input_size / max(w, h)
         new_w = int(w * scale)
         new_h = int(h * scale)
         image = image.resize((new_w, new_h))
-
+    
         scaled_points = np.array([[int(x * scale) for x in point] for point in global_points])
         scaled_points = scaled_points[:2]
         scaled_point_label = np.array(global_point_label)[:2]
-
+    
         if scaled_points.size == 0 and scaled_point_label.size == 0:
             return image, global_points, global_point_label
-
+    
         nd_image = np.array(image)
         img_tensor = nd_image.astype(np.float32) / 255
         img_tensor = np.transpose(img_tensor, (2, 0, 1))
-
+    
         pts_sampled = np.reshape(scaled_points, [1, 1, -1, 2])
         pts_sampled = pts_sampled[:, :, :2, :]
         pts_labels = np.reshape(np.array([2, 3]), [1, 1, 2])
-
+    
         results = compiled_model([img_tensor[None, ...], pts_sampled, pts_labels])
         predicted_logits = results[0]
         predicted_iou = results[1]
         all_masks = sigmoid(predicted_logits[0, 0, :, :, :]) >= 0.5
         predicted_iou = predicted_iou[0, 0, ...]
-
+    
         max_predicted_iou = -1
         selected_mask_using_predicted_iou = None
         selected_predicted_iou = None
-
+    
         for m in range(all_masks.shape[0]):
             curr_predicted_iou = predicted_iou[m]
             if curr_predicted_iou > max_predicted_iou or selected_mask_using_predicted_iou is None:
                 max_predicted_iou = curr_predicted_iou
                 selected_mask_using_predicted_iou = all_masks[m : m + 1]
                 selected_predicted_iou = predicted_iou[m : m + 1]
-
+    
         results = format_results(selected_mask_using_predicted_iou, selected_predicted_iou, predicted_logits, 0)
-
+    
         annotations = results[0]["segmentation"]
         annotations = np.array([annotations])
         fig = process(
@@ -1235,12 +1227,12 @@ Interactive segmentation demo
             bbox=scaled_points.reshape([4]),
             withContours=withContours,
         )
-
+    
         global_points = []
         global_point_label = []
         return fig, global_points, global_point_label
-
-
+    
+    
     def segment_with_points(
         image,
         global_points,
@@ -1257,32 +1249,32 @@ Interactive segmentation demo
         new_w = int(w * scale)
         new_h = int(h * scale)
         image = image.resize((new_w, new_h))
-
+    
         if global_points is None or len(global_points) < 1 or global_points[0] is None:
             return image, global_points, global_point_label
         scaled_points = np.array([[int(x * scale) for x in point] for point in global_points])
         scaled_point_label = np.array(global_point_label)
-
+    
         if scaled_points.size == 0 and scaled_point_label.size == 0:
             return image, global_points, global_point_label
-
+    
         nd_image = np.array(image)
         img_tensor = (nd_image).astype(np.float32) / 255
         img_tensor = np.transpose(img_tensor, (2, 0, 1))
-
+    
         pts_sampled = np.reshape(scaled_points, [1, 1, -1, 2])
         pts_labels = np.reshape(np.array(global_point_label), [1, 1, -1])
-
+    
         results = compiled_model([img_tensor[None, ...], pts_sampled, pts_labels])
         predicted_logits = results[0]
         predicted_iou = results[1]
         all_masks = sigmoid(predicted_logits[0, 0, :, :, :]) >= 0.5
         predicted_iou = predicted_iou[0, 0, ...]
-
+    
         results = format_results(all_masks, predicted_iou, predicted_logits, 0)
         annotations, _ = point_prompt(results, scaled_points, scaled_point_label, new_h, new_w)
         annotations = np.array([annotations])
-
+    
         fig = process(
             annotations=annotations,
             image=image,
@@ -1294,7 +1286,7 @@ Interactive segmentation demo
             use_retina=use_retina,
             withContours=withContours,
         )
-
+    
         global_points = []
         global_point_label = []
         # return fig, None
@@ -1304,15 +1296,15 @@ Interactive segmentation demo
 
     # Go back to the efficient-sam notebook directory
     %cd ..
-
+    
     if not Path("gradio_helper.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/efficient-sam/gradio_helper.py")
         open("gradio_helper.py", "w").write(r.text)
-
+    
     from gradio_helper import make_demo
-
+    
     demo = make_demo(segment_with_point_fn=segment_with_points, segment_with_box_fn=segment_with_boxs)
-
+    
     try:
         demo.queue().launch(debug=False)
     except Exception:
@@ -1324,9 +1316,9 @@ Interactive segmentation demo
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/efficient-sam
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/notebooks/efficient-sam
     Running on local URL:  http://127.0.0.1:7860
-
+    
     To create a public link, set `share=True` in `launch()`.
 
 

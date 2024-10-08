@@ -18,6 +18,7 @@ to apply stateful transformation on LLM part and model optimization
 techniques like weights compression using
 `NNCF <https://github.com/openvinotoolkit/nncf>`__
 
+
 **Table of contents:**
 
 
@@ -57,22 +58,29 @@ Prerequisites
     %pip install -q "torch>=2.1" "torchvision" "timm>=0.9.2" "transformers>=4.40" "Pillow" "gradio>=4.19" "tqdm" "sentencepiece" "peft" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "openvino>=2024.3.0" "nncf>=2.12.0"
 
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+    Note: you may need to restart the kernel to use updated packages.
+
+
 .. code:: ipython3
 
     import requests
     from pathlib import Path
-
+    
     if not Path("minicpm_helper.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/minicpm-v-multimodal-chatbot/minicpm_helper.py")
-        open("ov_phi3_vision.py", "w").write(r.text)
-
-
+        open("minicpm_helper.py", "w").write(r.text)
+    
+    
     if not Path("gradio_helper.py").exists():
         r = requests.get(
             url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks//minicpm-v-multimodal-chatbot//gradio_helper.py"
         )
         open("gradio_helper.py", "w").write(r.text)
-
+    
     if not Path("notebook_utils.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py")
         open("notebook_utils.py", "w").write(r.text)
@@ -99,16 +107,7 @@ details.
 
    <details>
 
-.. raw:: html
-
-   <summary>
-
 Click here for more detailed explanation of conversion steps
-
-.. raw:: html
-
-   </summary>
-
 MiniCPM-V2.6 is autoregressive transformer generative model, it means
 that each next model step depends from model output from previous step.
 The generation approach is based on the assumption that the probability
@@ -199,30 +198,269 @@ Let’s convert each model part.
 .. code:: ipython3
 
     from minicpm_helper import convert_minicpmv26
-
+    
     # uncomment the line to see model conversion code
     # ??convert_minicpmv26
 
 
 .. parsed-literal::
 
-    2024-08-19 11:46:02.978172: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-08-19 11:46:02.979956: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
-    2024-08-19 11:46:03.014920: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-09-24 01:38:17.126512: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-09-24 01:38:17.160546: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-08-19 11:46:03.787842: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-09-24 01:38:17.679348: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. code:: ipython3
 
     model_id = "openbmb/MiniCPM-V-2_6"
-
+    
     model_dir = convert_minicpmv26(model_id)
 
 
 .. parsed-literal::
 
-    ✅ openbmb/MiniCPM-V-2_6 model already converted. You can find results in MiniCPM-V-2_6
+    ⌛ openbmb/MiniCPM-V-2_6 conversion started. Be patient, it may takes some time.
+    ⌛ Load Original model
+
+
+
+.. parsed-literal::
+
+    Fetching 24 files:   0%|          | 0/24 [00:00<?, ?it/s]
+
+
+
+.. parsed-literal::
+
+    config.json:   0%|          | 0.00/1.36k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    image_processing_minicpmv.py:   0%|          | 0.00/16.6k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    .gitattributes:   0%|          | 0.00/1.64k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    generation_config.json:   0%|          | 0.00/121 [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    configuration_minicpm.py:   0%|          | 0.00/3.28k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    added_tokens.json:   0%|          | 0.00/629 [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    README.md:   0%|          | 0.00/15.5k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    radar_final.png:   0%|          | 0.00/1.13M [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    merges.txt:   0%|          | 0.00/1.67M [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    model.safetensors.index.json:   0%|          | 0.00/66.8k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    model-00002-of-00004.safetensors:   0%|          | 0.00/4.93G [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    modeling_minicpmv.py:   0%|          | 0.00/15.7k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    model-00001-of-00004.safetensors:   0%|          | 0.00/4.87G [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    modeling_navit_siglip.py:   0%|          | 0.00/41.8k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    model-00003-of-00004.safetensors:   0%|          | 0.00/4.33G [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    model-00004-of-00004.safetensors:   0%|          | 0.00/2.06G [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    preprocessor_config.json:   0%|          | 0.00/714 [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    processing_minicpmv.py:   0%|          | 0.00/10.0k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    resampler.py:   0%|          | 0.00/34.7k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    special_tokens_map.json:   0%|          | 0.00/3.56k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    tokenization_minicpmv_fast.py:   0%|          | 0.00/1.66k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    tokenizer.json:   0%|          | 0.00/7.03M [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    tokenizer_config.json:   0%|          | 0.00/5.64k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    vocab.json:   0%|          | 0.00/2.78M [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]
+
+
+.. parsed-literal::
+
+    ✅ Original model successfully loaded
+
+
+.. parsed-literal::
+
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/auto/image_processing_auto.py:513: FutureWarning: The image_processor_class argument is deprecated and will be removed in v4.42. Please use `slow_image_processor_class`, or `fast_image_processor_class` instead
+      warnings.warn(
+
+
+.. parsed-literal::
+
+    ⌛ Convert Input embedding model
+    WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
+
+
+.. parsed-literal::
+
+    [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
+
+
+.. parsed-literal::
+
+    ✅ Input embedding model successfully converted
+    ⌛ Convert Language model
+
+
+.. parsed-literal::
+
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4713: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+      warnings.warn(
+    We detected that you are passing `past_key_values` as a tuple and this is deprecated and will be removed in v4.43. Please use an appropriate `Cache` class (https://huggingface.co/docs/transformers/v4.41.3/en/internal/generation_utils#transformers.Cache)
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/qwen2/modeling_qwen2.py:100: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if sequence_length != 1:
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/qwen2/modeling_qwen2.py:165: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if seq_len > self.max_seq_len_cached:
+
+
+.. parsed-literal::
+
+    ✅ Language model successfully converted
+    ⌛ Convert Image embedding model
+
+
+.. parsed-literal::
+
+    /opt/home/k8sworker/.cache/huggingface/modules/transformers_modules/ckpt/modeling_navit_siglip.py:334: TracerWarning: Iterating over a tensor might cause the trace to be incorrect. Passing a tensor of different shape won't change the number of iterations executed (and might lead to errors or silently give incorrect results).
+      for batch_idx, p_attn_mask in enumerate(patch_attention_mask):
+    /opt/home/k8sworker/.cache/huggingface/modules/transformers_modules/ckpt/modeling_navit_siglip.py:909: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if not torch.any(~patch_attention_mask):
+    /opt/home/k8sworker/.cache/huggingface/modules/transformers_modules/ckpt/modeling_navit_siglip.py:401: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if attn_weights.size() != (batch_size, self.num_heads, q_len, k_v_seq_len):
+    /opt/home/k8sworker/.cache/huggingface/modules/transformers_modules/ckpt/modeling_navit_siglip.py:419: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if attn_output.size() != (batch_size, self.num_heads, q_len, self.head_dim):
+
+
+.. parsed-literal::
+
+    ✅ Image embedding model successfully converted
+    ⌛ Convert Resamler model
+
+
+.. parsed-literal::
+
+    /opt/home/k8sworker/.cache/huggingface/modules/transformers_modules/ckpt/resampler.py:421: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      assert embed_dim == embed_dim_to_check, \
+    /opt/home/k8sworker/.cache/huggingface/modules/transformers_modules/ckpt/resampler.py:428: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      assert head_dim * num_heads == embed_dim, f"embed_dim {embed_dim} not divisible by num_heads {num_heads}"
+    /opt/home/k8sworker/.cache/huggingface/modules/transformers_modules/ckpt/resampler.py:434: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      assert key.shape == value.shape, f"key shape {key.shape} does not match value shape {value.shape}"
+    /opt/home/k8sworker/.cache/huggingface/modules/transformers_modules/ckpt/resampler.py:520: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      assert key_padding_mask.shape == (bsz, src_len), \
+    /opt/home/k8sworker/.cache/huggingface/modules/transformers_modules/ckpt/resampler.py:539: TracerWarning: Converting a tensor to a Python float might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      q_scaled = q / math.sqrt(E)
+
+
+.. parsed-literal::
+
+    ✅ Resampler model successfully converted
+    ✅ openbmb/MiniCPM-V-2_6 model sucessfully converted. You can find results in MiniCPM-V-2_6
 
 
 Compress Language Model Weights to 4 bits
@@ -237,21 +475,12 @@ applied using `NNCF <https://github.com/openvinotoolkit/nncf>`__.
 
    <details>
 
-.. raw:: html
-
-   <summary>
-
-Click here for more details about weight compression
-
-.. raw:: html
-
-   </summary>
-
-Weight compression aims to reduce the memory footprint of a model. It
-can also lead to significant performance improvement for large
-memory-bound models, such as Large Language Models (LLMs). LLMs and
-other models, which require extensive memory to store the weights during
-inference, can benefit from weight compression in the following ways:
+Click here for more details about weight compression Weight compression
+aims to reduce the memory footprint of a model. It can also lead to
+significant performance improvement for large memory-bound models, such
+as Large Language Models (LLMs). LLMs and other models, which require
+extensive memory to store the weights during inference, can benefit from
+weight compression in the following ways:
 
 -  enabling the inference of exceptionally large models that cannot be
    accommodated in the memory of the device;
@@ -293,9 +522,9 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 .. code:: ipython3
 
     from minicpm_helper import compression_widget
-
+    
     to_compress_weights = compression_widget()
-
+    
     to_compress_weights
 
 
@@ -312,17 +541,17 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
     import nncf
     import gc
     import openvino as ov
-
+    
     from minicpm_helper import llm_path, copy_llm_files
-
-
+    
+    
     compression_configuration = {
         "mode": nncf.CompressWeightsMode.INT4_SYM,
         "group_size": 64,
         "ratio": 0.6,
     }
-
-
+    
+    
     core = ov.Core()
     llm_int4_path = Path("language_model_int4") / llm_path.name
     if to_compress_weights.value and not (model_dir / llm_int4_path).exists():
@@ -340,12 +569,50 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
     INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
 
 
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+.. parsed-literal::
+
+    INFO:nncf:Statistics of the bitwidth distribution:
+    ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
+    │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
+    ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
+    │              8 │ 45% (126 / 197)             │ 40% (125 / 196)                        │
+    ├────────────────┼─────────────────────────────┼────────────────────────────────────────┤
+    │              4 │ 55% (71 / 197)              │ 60% (71 / 196)                         │
+    ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
 Prepare model inference pipeline
 --------------------------------
 
 
 
-.. image:: https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/2727402e-3697-442e-beca-26b149967c84
+|image0|
 
 As discussed, the model comprises Image Encoder and LLM (with separated
 text embedding part) that generates answer. In ``minicpm_helper.py`` we
@@ -359,13 +626,15 @@ difference that it can accept input embedding. In own turn, general
 multimodal model class ``OvMiniCPMVModel`` handles chatbot functionality
 including image processing and answer generation using LLM.
 
+.. |image0| image:: https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/2727402e-3697-442e-beca-26b149967c84
+
 .. code:: ipython3
 
     from minicpm_helper import OvModelForCausalLMWithEmb, OvMiniCPMV, init_model  # noqa: F401
-
+    
     # uncomment the line to see model inference class
     # ??OVMiniCPMV
-
+    
     # uncomment the line to see language model inference class
     # ??OvModelForCausalLMWithEmb
 
@@ -382,9 +651,9 @@ Select device
 .. code:: ipython3
 
     from notebook_utils import device_widget
-
+    
     device = device_widget(default="AUTO", exclude=["NPU"])
-
+    
     device
 
 
@@ -404,10 +673,10 @@ Select language model variant
 .. code:: ipython3
 
     from minicpm_helper import lm_variant_selector
-
-
+    
+    
     use_int4_lang_model = lm_variant_selector(model_dir / llm_int4_path)
-
+    
     use_int4_lang_model
 
 
@@ -426,7 +695,7 @@ Select language model variant
 
 .. parsed-literal::
 
-    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/transformers/models/auto/image_processing_auto.py:513: FutureWarning: The image_processor_class argument is deprecated and will be removed in v4.42. Please use `slow_image_processor_class`, or `fast_image_processor_class` instead
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/auto/image_processing_auto.py:513: FutureWarning: The image_processor_class argument is deprecated and will be removed in v4.42. Please use `slow_image_processor_class`, or `fast_image_processor_class` instead
       warnings.warn(
 
 
@@ -434,11 +703,11 @@ Select language model variant
 
     import requests
     from PIL import Image
-
+    
     url = "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/d5fbbd1a-d484-415c-88cb-9986625b7b11"
     image = Image.open(requests.get(url, stream=True).raw)
     question = "What is unusual on this image?"
-
+    
     print(f"Question:\n{question}")
     image
 
@@ -458,12 +727,12 @@ Select language model variant
 .. code:: ipython3
 
     tokenizer = ov_model.processor.tokenizer
-
+    
     msgs = [{"role": "user", "content": question}]
-
+    
     print("Answer:")
     res = ov_model.chat(image=image, msgs=msgs, context=None, tokenizer=tokenizer, sampling=True, temperature=0.7, stream=True, max_new_tokens=50)
-
+    
     generated_text = ""
     for new_text in res:
         generated_text += new_text
@@ -473,7 +742,7 @@ Select language model variant
 .. parsed-literal::
 
     Answer:
-    The unusual aspect of this image is the cat's relaxed and vulnerable position. Typically, cats avoid exposing their underbellies as it can be perceived as a sign of submission or weakness in the wild. However, in domestic settings, cats often seek out
+    The unusual aspect of this image is the cat's relaxed and playful posture. Cats are known for their agility and often engage in behaviors that seem to defy their usual demeanor, such as rolling around or lying down in a way that exposes their belly, which
 
 Interactive demo
 ----------------
@@ -483,13 +752,27 @@ Interactive demo
 .. code:: ipython3
 
     from gradio_helper import make_demo
-
+    
     demo = make_demo(ov_model)
-
+    
     try:
-        demo.launch(debug=True, height=600)
+        demo.launch(debug=False, height=600)
     except Exception:
-        demo.launch(debug=True, share=True, height=600)
+        demo.launch(debug=False, share=True, height=600)
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
+
+
+.. parsed-literal::
+
+    Running on local URL:  http://127.0.0.1:7860
+    
+    To create a public link, set `share=True` in `launch()`.
+
+
+
+
+
+
+

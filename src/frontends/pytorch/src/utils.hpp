@@ -99,15 +99,19 @@ void align_eltwise_input_types(const NodeContext& context,
                                const bool& ir_rhs_python_scalar = false);
 void align_output_types(const NodeContext& context, OutputVector& outputs);
 
-std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start);
+std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start, bool unsqueeze_for_concat = false);
 
 void copy_runtime_info_and_name(const std::shared_ptr<Node>& from,
                                 ov::NodeVector to,
                                 const ov::NodeVector& additional_rt_info_src = {});
 
+Output<Node> try_constfold(const Output<Node>& x);
+
 Output<Node> get_input_with_floating_type(const NodeContext& context, size_t idx);
 
 Output<Node> get_input_as_i32(const NodeContext& context, size_t idx);
+
+Output<Node> get_input_concat_if_list(const NodeContext& context, size_t idx);
 
 std::tuple<Output<Node>, Output<Node>> get_inputs_with_promoted_types(const NodeContext& context,
                                                                       size_t lhs_idx,

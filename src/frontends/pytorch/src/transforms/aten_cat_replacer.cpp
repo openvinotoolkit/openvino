@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/loop.hpp"
@@ -46,8 +47,7 @@ AtenCatToConcat::AtenCatToConcat() {
 
         int64_t axis;
         if (cat->get_input_size() > 1) {
-            auto axis_node = cat->get_input_node_shared_ptr(1);
-            auto axis_const = std::dynamic_pointer_cast<v0::Constant>(axis_node);
+            auto axis_const = ov::util::get_constant_from_source(cat->input_value(1));
             if (!axis_const) {
                 add_exception_to_fw_node(cat, "<aten/quantized>::cat unsupported case: axis is not a constant.");
                 return false;

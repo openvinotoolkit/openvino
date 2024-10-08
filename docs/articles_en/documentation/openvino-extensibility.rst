@@ -166,6 +166,15 @@ This CMake script finds OpenVINO, using the ``find_package`` CMake command.
    $ cmake -DOpenVINO_DIR=<OpenVINO_DIR> ../
    $ cmake --build .
 
+The OpenVINO python distribution could be also used. The following code snippet demonstrates how to get the OpenVINO_DIR:
+
+.. code-block:: sh
+
+   $ cd src/core/template_extension/new
+   $ mkdir build
+   $ cd build
+   $ cmake -DOpenVINO_DIR=$(python3 -c "from openvino.utils import get_cmake_path; print(get_cmake_path(), end='')") ../
+   $ cmake --build .
 
 4. After the build, you may use the path to your extension library to load your extensions to OpenVINO Runtime:
 

@@ -34,7 +34,7 @@ from openvino.tools.mo.utils import import_extensions
 from openvino.tools.mo.utils.cli_parser import check_available_transforms, \
     get_advanced_cli_options, get_available_front_ends, get_caffe_cli_options, \
     get_common_cli_options, get_freeze_placeholder_values, get_kaldi_cli_options, get_layout_values, \
-    get_mean_scale_dictionary, get_mxnet_cli_options, get_onnx_cli_options, \
+    get_mean_scale_dictionary, get_onnx_cli_options, \
     get_placeholder_shapes, get_tf_cli_options, parse_transform, parse_tuple_pairs, \
     get_model_name_from_args, depersonalize, get_mo_convert_params, input_to_input_cut_info, \
     input_shape_to_input_cut_info, freeze_placeholder_to_input_cut_info
@@ -67,7 +67,7 @@ except (ModuleNotFoundError, ImportError):
     tf_frontend_with_python_bindings_installed = False
 
 
-def load_extensions(argv: argparse.Namespace, is_tf: bool, is_caffe: bool, is_mxnet: bool, is_kaldi: bool,
+def load_extensions(argv: argparse.Namespace, is_tf: bool, is_caffe: bool, is_kaldi: bool,
                     is_onnx: bool):
     extensions = None
     if hasattr(argv, 'extensions') and argv.extensions and argv.extensions != '':
@@ -78,10 +78,6 @@ def load_extensions(argv: argparse.Namespace, is_tf: bool, is_caffe: bool, is_mx
     elif is_caffe:
         send_framework_info('caffe')
         from openvino.tools.mo.front.caffe.register_custom_ops import get_front_classes
-        import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
-    elif is_mxnet:
-        send_framework_info('mxnet')
-        from openvino.tools.mo.front.mxnet.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
     elif is_kaldi:
         send_framework_info('kaldi')
@@ -100,7 +96,7 @@ def replace_ext(name: str, old: str, new: str):
         return base + new
 
 
-def print_argv(argv: argparse.Namespace, is_caffe: bool, is_tf: bool, is_mxnet: bool, is_kaldi: bool, is_onnx: bool,
+def print_argv(argv: argparse.Namespace, is_caffe: bool, is_tf: bool, is_kaldi: bool, is_onnx: bool,
                model_name: str):
     print('Model Optimizer arguments:')
     props = OrderedDict()
@@ -110,8 +106,6 @@ def print_argv(argv: argparse.Namespace, is_caffe: bool, is_tf: bool, is_mxnet: 
         props['caffe_args'] = get_caffe_cli_options()
     if is_tf:
         props['tf_args'] = get_tf_cli_options()
-    if is_mxnet:
-        props['mxnet_args'] = get_mxnet_cli_options()
     if is_kaldi:
         props['kaldi_args'] = get_kaldi_cli_options()
     if is_onnx:
@@ -122,7 +116,6 @@ def print_argv(argv: argparse.Namespace, is_caffe: bool, is_tf: bool, is_mxnet: 
         'advanced_args': 'Advanced parameters:',
         'caffe_args': 'Caffe specific parameters:',
         'tf_args': 'TensorFlow specific parameters:',
-        'mxnet_args': 'MXNet specific parameters:',
         'kaldi_args': 'Kaldi specific parameters:',
         'onnx_args': 'ONNX specific parameters:',
     }
@@ -161,17 +154,17 @@ def arguments_post_parsing(argv: argparse.Namespace):
                     'Please ensure that your environment contains new frontend for the input model format or '
                     'try to convert the model without specifying --use_new_frontend option.')
 
-    is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx = \
-        deduce_legacy_frontend_by_namespace(argv) if not moc_front_end else [False, False, False, False, False]
+    is_tf, is_caffe, is_kaldi, is_onnx = \
+        deduce_legacy_frontend_by_namespace(argv) if not moc_front_end else [False, False, False, False]
 
-    is_legacy_frontend = any([is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx])
+    is_legacy_frontend = any([is_tf, is_caffe, is_kaldi, is_onnx])
     if not is_legacy_frontend and use_legacy_frontend:
         raise Error('Option --use_legacy_frontend is specified but Model Optimizer does not have legacy frontend '
                     'for the input model format. Please try to convert the model without specifying --use_legacy_frontend option.')
 
     # handle a default case, i.e. use_new_frontend and use_legacy_frontend are not specified, when no frontend is found
     if not is_legacy_frontend and not moc_front_end:
-        legacy_frameworks = ['tf', 'caffe', 'mxnet', 'kaldi', 'onnx']
+        legacy_frameworks = ['tf', 'caffe', 'kaldi', 'onnx']
         frameworks = list(set(legacy_frameworks + available_moc_front_ends))
         if not argv.framework:
             raise Error('Framework name can not be deduced from the given options: {}={}. '
@@ -191,9 +184,6 @@ def arguments_post_parsing(argv: argparse.Namespace):
     if is_tf and not argv.input_model and not argv.saved_model_dir and not argv.input_meta_graph:
         raise Error('Path to input model or saved model dir is required: use --input_model, --saved_model_dir or '
                     '--input_meta_graph')
-    elif is_mxnet and not argv.input_model and not argv.input_symbol and not argv.pretrained_model_name:
-        raise Error('Path to input model or input symbol or pretrained_model_name is required: use --input_model or '
-                    '--input_symbol or --pretrained_model_name')
     elif is_caffe and not argv.input_model and not argv.input_proto:
         raise Error('Path to input model or input proto is required: use --input_model or --input_proto')
     elif (is_kaldi or is_onnx) and not argv.input_model:
@@ -216,7 +206,7 @@ def arguments_post_parsing(argv: argparse.Namespace):
         log.info('Deduced name for prototxt: {}'.format(argv.input_proto))
 
     if not argv.silent:
-        print_argv(argv, is_caffe, is_tf, is_mxnet, is_kaldi, is_onnx, argv.model_name)
+        print_argv(argv, is_caffe, is_tf, is_kaldi, is_onnx, argv.model_name)
 
     VersionChecker().check_runtime_dependencies(argv.silent)
 
@@ -274,7 +264,7 @@ def arguments_post_parsing(argv: argparse.Namespace):
 
     log.debug("Placeholder shapes : {}".format(argv.placeholder_shapes))
 
-    load_extensions(argv, is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx)
+    load_extensions(argv, is_tf, is_caffe, is_kaldi, is_onnx)
 
     return argv
 
@@ -372,7 +362,7 @@ def get_moc_frontends(argv: argparse.Namespace):
 def prepare_ir(argv: argparse.Namespace):
     # TODO: remove this workaround once new TensorFlow frontend supports non-frozen formats: checkpoint, MetaGraph, and SavedModel
     # Now it converts all TensorFlow formats to the frozen .pb format in case new TensorFlow frontend
-    is_tf, _, _, _, _ = deduce_legacy_frontend_by_namespace(argv)
+    is_tf, _, _, _ = deduce_legacy_frontend_by_namespace(argv)
     argv = arguments_post_parsing(argv)
     t = tm.Telemetry()
 
@@ -808,7 +798,7 @@ def framework_is_tf(args, argv):
     if input_model_is_object(args) and check_model_object(args) == "tf":
         return True
     if argv is not None:
-        is_tf, _, _, _, _ = deduce_legacy_frontend_by_namespace(argv)
+        is_tf, _, _, _ = deduce_legacy_frontend_by_namespace(argv)
         return is_tf
     return False
 
@@ -860,7 +850,7 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
         argv.is_python_api_used = python_api_used
 
         argv.feManager = FrontEndManager()
-        frameworks = list(set(['tf', 'caffe', 'mxnet', 'kaldi', 'onnx'] + (get_available_front_ends(argv.feManager)
+        frameworks = list(set(['tf', 'caffe', 'kaldi', 'onnx'] + (get_available_front_ends(argv.feManager)
                                                                            if argv.feManager else [])))
         framework = argv.framework if hasattr(argv, 'framework') and argv.framework is not None else framework
         if framework is not None:
@@ -907,7 +897,7 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
                 print(get_compression_message())
 
             ov_update_message = get_ov_update_message()
-            _, is_caffe, is_mxnet, is_kaldi, _ = deduce_legacy_frontend_by_namespace(argv)
+            _, is_caffe, is_kaldi, _ = deduce_legacy_frontend_by_namespace(argv)
             if ov_update_message is not None:
                 print(ov_update_message)
 

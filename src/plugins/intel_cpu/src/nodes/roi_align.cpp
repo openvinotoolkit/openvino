@@ -1088,7 +1088,7 @@ void ROIAlign::executeSpecified() {
                 arg.num_samples = numSamplesROI;
                 float numSamplesInBinInvert = 1.f / numSamplesROI;
                 arg.scale = static_cast<const float*>(&numSamplesInBinInvert);
-                float *threadBuf = static_cast<float*>(&workingBuf[parallel_get_thread_num() * bufSize]);
+                float *threadBuf = static_cast<float*>(&workingBuf[static_cast<size_t>(parallel_get_thread_num()) * static_cast<size_t>(bufSize)]);
                 memset(threadBuf, 0, bufSize * sizeof(float));
                 arg.buffer = threadBuf;
                 size_t dstOffset = n * batchOutputStride + yBinInd * pooledW * lastBlockDim + xBinInd * lastBlockDim;

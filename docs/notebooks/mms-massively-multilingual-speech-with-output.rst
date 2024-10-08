@@ -29,6 +29,7 @@ it. Additional models quantization step is employed to improve models
 inference speed. In the end of the notebook there’s a Gradio-based
 interactive demo.
 
+
 **Table of contents:**
 
 
@@ -237,12 +238,16 @@ Select device from dropdown list for running inference using OpenVINO
 
     core = ov.Core()
     
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
+    import requests
+    
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
+    open("notebook_utils.py", "w").write(r.text)
+    
+    from notebook_utils import device_widget
+    
+    device = device_widget("CPU", exclude=["NPU"])
     
     device
 
@@ -549,14 +554,12 @@ The optimization process contains the following steps:
 
 .. code:: ipython3
 
+    from notebook_utils import quantization_widget
+    
     compiled_quantized_lid_model = None
     quantized_asr_model_xml_path_template = None
     
-    to_quantize = widgets.Checkbox(
-        value=False,
-        description="Quantization",
-        disabled=False,
-    )
+    to_quantize = quantization_widget()
     
     to_quantize
 
@@ -599,15 +602,15 @@ Select the language to quantize the model for:
     
     display(SAMPLE_LANG)
 
-Load validation split of the same
-`MLS <https://huggingface.co/datasets/multilingual_librispeech>`__
+Load dev split of the same
+`MLS <https://huggingface.co/datasets/facebook/multilingual_librispeech>`__
 dataset for the selected language.
 
 .. code:: ipython3
 
     %%skip not $to_quantize.value
     
-    mls_dataset = iter(load_dataset("facebook/multilingual_librispeech", SAMPLE_LANG.value, split="validation", streaming=True, trust_remote_code=True))
+    mls_dataset = iter(load_dataset("facebook/multilingual_librispeech", SAMPLE_LANG.value, split="dev", streaming=True, trust_remote_code=True))
     example = next(mls_dataset)
 
 Create calibration dataset for quantization.
@@ -892,15 +895,6 @@ data is sampled to 16000 kHz.
     import time
     
     
-    title = "MMS with Gradio"
-    description = (
-        'Gradio Demo for MMS and OpenVINO™. Upload a source audio, then click the "Submit" button to detect a language ID and a transcription. '
-        "Make sure that the audio data is sampled to 16000 kHz. If this language has not been used before, it may take some time to prepare the ASR model."
-        "\n"
-        "> Note: In order to run quantized model to transcribe some language, first the quantized model for that specific language must be prepared."
-    )
-    
-    
     current_state = {
         "fp32": {"model": None, "language": None},
         "int8": {"model": None, "language": None},
@@ -938,56 +932,18 @@ data is sampled to 16000 kHz.
             identification_delta_time,
             transcription_delta_time,
         )
-    
-    
-    with gr.Blocks() as demo:
-        with gr.Row():
-            gr.Markdown(f"# {title}")
-        with gr.Row():
-            gr.Markdown(description)
-    
-        run_button = {True: None, False: None}
-        detected_language = {True: None, False: None}
-        transcription = {True: None, False: None}
-        identification_time = {True: None, False: None}
-        transcription_time = {True: None, False: None}
-        for quantized in [False, True]:
-            if quantized and not to_quantize.value:
-                break
-            with gr.Row():
-                with gr.Column():
-                    if not quantized:
-                        audio = gr.Audio(label="Source Audio", type="filepath")
-                    run_button_name = "Run INT8" if quantized else "Run FP32" if to_quantize.value else "Run"
-                    run_button[quantized] = gr.Button(value=run_button_name)
-                with gr.Column():
-                    detected_language[quantized] = gr.Textbox(label=f"Detected language ID{' (Quantized)' if quantized else ''}")
-                    transcription[quantized] = gr.Textbox(label=f"Transcription{' (Quantized)' if quantized else ''}")
-                    identification_time[quantized] = gr.Textbox(label=f"Identification time{' (Quantized)' if quantized else ''}")
-                    transcription_time[quantized] = gr.Textbox(label=f"Transcription time{' (Quantized)' if quantized else ''}")
-    
-        run_button[False].click(
-            infer,
-            inputs=[audio, gr.Number(0, visible=False)],
-            outputs=[
-                detected_language[False],
-                transcription[False],
-                identification_time[False],
-                transcription_time[False],
-            ],
+
+.. code:: ipython3
+
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/mms-massively-multilingual-speech/gradio_helper.py"
         )
-        if to_quantize.value:
-            run_button[True].click(
-                infer,
-                inputs=[audio, gr.Number(1, visible=False)],
-                outputs=[
-                    detected_language[True],
-                    transcription[True],
-                    identification_time[True],
-                    transcription_time[True],
-                ],
-            )
+        open("gradio_helper.py", "w").write(r.text)
     
+    from gradio_helper import make_demo
+    
+    demo = make_demo(fn=infer, quantized=to_quantize.value)
     
     try:
         demo.queue().launch(debug=False)
@@ -996,3 +952,8 @@ data is sampled to 16000 kHz.
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
+
+.. code:: ipython3
+
+    # please uncomment and run this cell for stopping gradio interface
+    # demo.close()

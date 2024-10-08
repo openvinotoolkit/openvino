@@ -45,7 +45,7 @@ struct multinomial_impl : typed_primitive_impl_ocl<multinomial> {
 namespace detail {
 
 attach_multinomial_impl::attach_multinomial_impl() {
-    auto types = {data_types::f16, data_types::f32};
+    auto types = {data_types::f16, data_types::f32, data_types::i32};
     implementation_map<multinomial>::add(impl_types::ocl, shape_types::static_shape,
                                      typed_primitive_impl_ocl<multinomial>::create<multinomial_impl>,
                                      types,

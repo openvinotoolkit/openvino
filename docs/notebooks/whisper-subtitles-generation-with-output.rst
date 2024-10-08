@@ -29,6 +29,7 @@ with NNCF. 6. Check quantized model result for the demo video. 7.
 Compare model size, performance and accuracy of FP32 and quantized INT8
 models. 8. Launch Interactive demo for video subtitles generation.
 
+
 **Table of contents:**
 
 
@@ -75,7 +76,7 @@ Install dependencies.
 .. code:: ipython3
 
     %pip install -q "openvino>=2024.1.0" "nncf>=2.10.0"
-    %pip install -q "python-ffmpeg<=1.0.16" moviepy transformers onnx "git+https://github.com/huggingface/optimum-intel.git" "peft==0.6.2" "torch>=2.1,<2.4" "torchvision<0.19.0" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "python-ffmpeg<=1.0.16" moviepy "onnx!=1.16.2" "git+https://github.com/huggingface/optimum-intel.git" "torch>=2.1" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "yt_dlp>=2024.8.6" soundfile librosa jiwer
     %pip install -q  "gradio>=4.19"
 
@@ -233,14 +234,16 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
+    import requests
     
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
+    open("notebook_utils.py", "w").write(r.text)
+    
+    from notebook_utils import device_widget
+    
+    device = device_widget()
     
     device
 

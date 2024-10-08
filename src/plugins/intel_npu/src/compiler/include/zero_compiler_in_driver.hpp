@@ -43,6 +43,11 @@ using SerializedIR = std::pair<size_t, std::shared_ptr<uint8_t>>;
     (std::is_same<T, ze_graph_dditable_ext_1_2_t>::value || std::is_same<T, ze_graph_dditable_ext_1_3_t>::value || \
      std::is_same<T, ze_graph_dditable_ext_1_4_t>::value || std::is_same<T, ze_graph_dditable_ext_1_5_t>::value)
 
+#define UseCopyForNativeBinary(T)                                                                                  \
+    (std::is_same<T, ze_graph_dditable_ext_1_2_t>::value || std::is_same<T, ze_graph_dditable_ext_1_3_t>::value || \
+     std::is_same<T, ze_graph_dditable_ext_1_4_t>::value || std::is_same<T, ze_graph_dditable_ext_1_5_t>::value || \
+     std::is_same<T, ze_graph_dditable_ext_1_6_t>::value)
+
 /**
  * Adapter to use CiD through ZeroAPI
  */
@@ -100,7 +105,7 @@ public:
 
     void release(std::shared_ptr<const NetworkDescription> networkDescription) override;
 
-    std::vector<uint8_t> getCompiledNetwork(std::shared_ptr<const NetworkDescription> networkDescription) override;
+    CompiledNetwork getCompiledNetwork(const NetworkDescription& networkDescription) override;
 
 private:
     NetworkMetadata getNetworkMeta(ze_graph_handle_t graphHandle) const;
@@ -122,6 +127,20 @@ private:
                      uint32_t index,
                      std::vector<IODescriptor>& inputs,
                      std::vector<IODescriptor>& outputs) const;
+
+    template <typename T = TableExtension, typename std::enable_if_t<UseCopyForNativeBinary(T), bool> = true>
+    void getNativeBinary(ze_graph_dditable_ext_curr_t& graphDdiTableExt,
+                         ze_graph_handle_t graphHandle,
+                         std::vector<uint8_t>& blob,
+                         uint8_t*& blobPtr,
+                         size_t& blobSize) const;
+
+    template <typename T = TableExtension, typename std::enable_if_t<!UseCopyForNativeBinary(T), bool> = true>
+    void getNativeBinary(ze_graph_dditable_ext_curr_t& graphDdiTableExt,
+                         ze_graph_handle_t graphHandle,
+                         std::vector<uint8_t>& /* unusedBlob */,
+                         uint8_t*& blobPtr,
+                         size_t& blobSize) const;
 
     template <typename T = TableExtension, typename std::enable_if_t<SupportAPIGraphQueryNetworkV2(T), bool> = true>
     ze_result_t seriazlideIRModelAndQueryNetworkCreateV2(const std::shared_ptr<const ov::Model>& model,

@@ -30,6 +30,7 @@ The tutorial consists of the following parts:
 5. Compare original and optimized models
 6. Launch interactive demo
 
+
 **Table of contents:**
 
 
@@ -69,6 +70,8 @@ The tutorial consists of the following parts:
       models <#compare-inference-time-of-the-fp16-and-optimized-models>`__
 
 -  `Interactive demo <#interactive-demo>`__
+
+
 
 This is a self-contained example that relies solely on its own code.
 

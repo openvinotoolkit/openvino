@@ -78,7 +78,7 @@ offering.
 Discontinued:
 #############
 
-.. dropdown:: Apache MXNet, Caffe, and Kaldi model formats
+.. dropdown:: Caffe, and Kaldi model formats
 
    |   *New solution:* conversion to ONNX via external tools
    |   *Old solution:* model support discontinued with OpenVINO 2024.0

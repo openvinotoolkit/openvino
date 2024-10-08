@@ -26,9 +26,9 @@ optimization with `NNCF <https://github.com/openvinotoolkit/nncf/>`__ to
 speed up pipeline. If you want to run previous Stable Diffusion
 versions, please check our other notebooks:
 
--  `Stable Diffusion <stable-diffusion-v2-text-to-image-with-output.html>`__
--  `Stable Diffusion v2 <stable-diffusion-v2-infinite-zoom-with-output.html>`__
--  `Stable Diffusion XL <stable-diffusion-xl-with-output>`__
+-  `Stable Diffusion <stable-diffusion-text-to-image-with-output.html>`__
+-  `Stable Diffusion v2 <stable-diffusion-v2-with-output.html>`__
+-  `Stable Diffusion XL <stable-diffusion-xl-with-output.html>`__
 -  `LCM Stable
    Diffusion <latent-consistency-models-image-generation-with-output.html>`__
 -  `Turbo SDXL <sdxl-turbo-with-output.html>`__
@@ -85,19 +85,19 @@ Prerequisites
 
     import requests
     from pathlib import Path
-
+    
     if not Path("sd3_helper.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/stable-diffusion-v3/sd3_helper.py")
         open("sd3_helper.py", "w").write(r.text)
-
+    
     if not Path("sd3_quantization_helper.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/stable-diffusion-v3/sd3_quantization_helper.py")
         open("sd3_quantization_helper.py", "w").write(r.text)
-
+    
     if not Path("gradio_helper.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/stable-diffusion-v3/gradio_helper.py")
         open("gradio_helper.py", "w").write(r.text)
-
+    
     if not Path("notebook_utils.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py")
         open("notebook_utils.py", "w").write(r.text)
@@ -121,9 +121,9 @@ Build PyTorch pipeline
 .. code:: ipython3
 
     # uncomment these lines to login to huggingfacehub to get access to pretrained model
-
+    
     # from huggingface_hub import notebook_login, whoami
-
+    
     # try:
     #     whoami()
     #     print('Authorization token already provided')
@@ -154,9 +154,9 @@ memory consumption:
 .. code:: ipython3
 
     from sd3_helper import get_pipeline_options
-
+    
     pt_pipeline_options, use_flash_lora, load_t5 = get_pipeline_options()
-
+    
     display(pt_pipeline_options)
 
 
@@ -196,13 +196,13 @@ The pipeline consists of four important parts:
 -  Autoencoder (VAE) for decoding latent space to image.
 
 We will use ``convert_sd3`` helper function defined in
-`sd3_helper.py <./sd3_helper.py>`__ that create original PyTorch model
+`sd3_helper.py <sd3_helper.py-with-output.html>`__ that create original PyTorch model
 and convert each part of pipeline using ``ov.convert_model``.
 
 .. code:: ipython3
 
     from sd3_helper import convert_sd3
-
+    
     # Uncomment the line beolow to see model conversion code
     # ??convert_sd3
 
@@ -224,7 +224,7 @@ Prepare OpenVINO inference pipeline
 .. code:: ipython3
 
     from sd3_helper import OVStableDiffusion3Pipeline, init_pipeline  # noqa: F401
-
+    
     # Uncomment line below to see pipeline code
     # ??OVStableDiffusion3Pipeline
 
@@ -236,9 +236,9 @@ Run OpenVINO model
 .. code:: ipython3
 
     from notebook_utils import device_widget
-
+    
     device = device_widget()
-
+    
     device
 
 
@@ -253,12 +253,12 @@ Run OpenVINO model
 .. code:: ipython3
 
     from sd3_helper import TEXT_ENCODER_PATH, TEXT_ENCODER_2_PATH, TEXT_ENCODER_3_PATH, TRANSFORMER_PATH, VAE_DECODER_PATH
-
+    
     models_dict = {"transformer": TRANSFORMER_PATH, "vae": VAE_DECODER_PATH, "text_encoder": TEXT_ENCODER_PATH, "text_encoder_2": TEXT_ENCODER_2_PATH}
-
+    
     if load_t5.value:
         models_dict["text_encoder_3"] = TEXT_ENCODER_3_PATH
-
+    
     ov_pipe = init_pipeline(models_dict, device.value, use_flash_lora.value)
 
 
@@ -274,7 +274,7 @@ Run OpenVINO model
 .. code:: ipython3
 
     import torch
-
+    
     image = ov_pipe(
         "A raccoon trapped inside a glass jar full of colorful candies, the background is steamy with vivid colors",
         negative_prompt="",
@@ -331,9 +331,9 @@ improve model inference speed.
 
     from notebook_utils import quantization_widget
     from sd3_quantization_helper import TRANSFORMER_INT8_PATH, TEXT_ENCODER_INT4_PATH, TEXT_ENCODER_2_INT4_PATH, TEXT_ENCODER_3_INT4_PATH, VAE_DECODER_INT4_PATH
-
+    
     to_quantize = quantization_widget()
-
+    
     to_quantize
 
 
@@ -365,24 +365,24 @@ Let’s load ``skip magic`` extension to skip quantization if
 
     # Fetch `skip_kernel_extension` module
     import requests
-
+    
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
     )
     open("skip_kernel_extension.py", "w").write(r.text)
-
+    
     optimized_pipe = None
-
+    
     opt_models_dict = {
         "transformer": TRANSFORMER_INT8_PATH,
         "text_encoder": TEXT_ENCODER_INT4_PATH,
         "text_encoder_2": TEXT_ENCODER_2_INT4_PATH,
         "vae": VAE_DECODER_INT4_PATH,
     }
-
+    
     if TEXT_ENCODER_3_PATH.exists():
         opt_models_dict["text_encoder_3"] = TEXT_ENCODER_3_INT4_PATH
-
+    
     %load_ext skip_kernel_extension
 
 Prepare calibration dataset
@@ -403,9 +403,9 @@ To collect intermediate model inputs for calibration we should customize
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     from sd3_quantization_helper import collect_calibration_data, TRANSFORMER_INT8_PATH
-
+    
     # Uncomment the line to see calibration data collection code
     # ??collect_calibration_data
 
@@ -422,14 +422,14 @@ layers in FP16 precision.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     import nncf
     import gc
     import openvino as ov
-
+    
     core = ov.Core()
-
-
+    
+    
     if not TRANSFORMER_INT8_PATH.exists():
         calibration_dataset_size = 200
         print("Calibration data collection started")
@@ -439,11 +439,11 @@ layers in FP16 precision.
                                                          guidance_scale=5 if not use_flash_lora.value else 0
                                                          )
         print("Calibration data collection finished")
-
+        
         del ov_pipe
         gc.collect()
         ov_pipe = None
-
+    
         transformer = core.read_model(TRANSFORMER_PATH)
         quantized_model = nncf.quantize(
             model=transformer,
@@ -452,7 +452,7 @@ layers in FP16 precision.
             model_type=nncf.ModelType.TRANSFORMER,
             ignored_scope=nncf.IgnoredScope(names=["__module.model.base_model.model.pos_embed.proj.base_layer/aten::_convolution/Convolution"]),
         )
-
+    
         ov.save_model(quantized_model, TRANSFORMER_INT8_PATH)
 
 Run Weights Compression
@@ -477,9 +477,9 @@ introduces a minor drop in prediction quality.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     from sd3_quantization_helper import compress_models
-
+    
     compress_models()
 
 
@@ -511,9 +511,9 @@ pipelines.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     from sd3_quantization_helper import visualize_results
-
+    
     opt_image = optimized_pipe(
         "A raccoon trapped inside a glass jar full of colorful candies, the background is steamy with vivid colors",
         negative_prompt="",
@@ -523,7 +523,7 @@ pipelines.
         width=512,
         generator=torch.Generator().manual_seed(141),
     ).images[0]
-
+    
     visualize_results(image, opt_image)
 
 
@@ -546,10 +546,10 @@ Compare model file sizes
 
     %%skip not $to_quantize.value
     from sd3_quantization_helper import compare_models_size
-
+    
     del optimized_pipe
     gc.collect()
-
+    
     compare_models_size()
 
 
@@ -576,9 +576,9 @@ pipelines, we use mean inference time on 5 samples.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     from sd3_quantization_helper import compare_perf
-
+    
     compare_perf(models_dict, opt_models_dict, device.value, use_flash_lora.value, validation_size=5)
 
 
@@ -610,9 +610,9 @@ to launch the interactive demo.
 .. code:: ipython3
 
     from sd3_helper import get_pipeline_selection_option
-
+    
     use_quantized_models = get_pipeline_selection_option(opt_models_dict)
-
+    
     use_quantized_models
 
 
@@ -627,10 +627,10 @@ to launch the interactive demo.
 .. code:: ipython3
 
     from gradio_helper import make_demo
-
+    
     ov_pipe = init_pipeline(models_dict if not use_quantized_models.value else opt_models_dict, device.value, use_flash_lora.value)
     demo = make_demo(ov_pipe, use_flash_lora.value)
-
+    
     # if you are launching remotely, specify server_name and server_port
     #  demo.launch(server_name='your server name', server_port='server port in int')
     # if you have any issue to launch on your platform, you can pass share=True to launch method:

@@ -43,6 +43,10 @@ inputs:
     description: "Comma-separated list of patterns (fnmatch-style). If PR has only matching files changed, 
                   return indicator that CI can be skipped"
     required: false
+  enable_for_org:
+    description: "Enables running workflows for a given organization; triggers from other orgs are skipped"
+    required: false
+    default: "openvinotoolkit"
 
 outputs:
   all_components:
@@ -99,6 +103,7 @@ runs:
           -c "${{ inputs.components_config }}" \
           -m "${{ inputs.components_config_schema }}" \
           -l "${{ inputs.labeler_config }}" \
+          --enable_for_org "${{ inputs.enable_for_org }}" \
           --skip-when-only-listed-labels-set "${{ inputs.skip_when_only_listed_labels_set }}" \
           --skip-when-only-listed-files-changed "${{ inputs.skip_when_only_listed_files_changed }}"
       shell: bash

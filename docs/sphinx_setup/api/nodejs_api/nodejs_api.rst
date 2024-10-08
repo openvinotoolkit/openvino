@@ -43,10 +43,10 @@ API Development
 
 OpenVINO 2024.4 has introduced the following methods:
 
--	Model.clone()
--	Model.getoutputelementtype()
--	CompiledModel getProperty()
--	CompiledModel.setProperty()
+- :ref:`Model.clone() <clone>`
+- :ref:`Model.getOutputElementType() <getOutputElementType>`
+- :ref:`CompiledModel.getProperty() <getProperty>`
+- :ref:`CompiledModel.setProperty() <setProperty>`
 
 
 Additional Resources

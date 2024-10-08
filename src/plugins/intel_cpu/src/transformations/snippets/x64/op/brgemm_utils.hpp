@@ -22,7 +22,7 @@ enum class BRGEMM_TYPE {
 
 dnnl::impl::cpu::x64::cpu_isa_t get_primitive_isa(const ov::element::Type& dt_in0, bool is_with_amx);
 
-BRGEMM_TYPE get_brgemm_type(const element::Type& element_type_a, const Dimension& K_dim, const Dimension& N_dim, bool transpose_b);
+BRGEMM_TYPE get_brgemm_type(const element::Type& element_type_a, const Dimension& K_dim, bool transpose_b);
 
 inline bool stand_alone(BRGEMM_TYPE type) { return type == BRGEMM_TYPE::STAND_ALONE; }
 

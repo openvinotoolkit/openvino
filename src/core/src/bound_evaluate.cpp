@@ -494,14 +494,12 @@ bool ov::interval_bound_evaluator(const Node* node,
             vector_of_output_variants.emplace_back(output.get_element_type(), output.get_shape());
         }
 
-        node->evaluate(vector_of_output_variants, input_variant);
+        if (!node->evaluate(vector_of_output_variants, input_variant)) {
+            return false;
+        };
 
         TensorVector vector_of_unsqueezed_output_variants;
         for (const auto& output : vector_of_output_variants) {
-            if (!output) {
-                return false;
-            }
-
             auto unsqueezed_shape = output.get_shape();
             unsqueezed_shape.insert(unsqueezed_shape.begin(), 1);
 

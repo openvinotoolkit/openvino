@@ -106,9 +106,9 @@ TEST_F(TransformationTestsF, FullyConnectedHorizontalFusion_bias_zp) {
         auto weight3 = std::make_shared<ov::op::v0::Constant>(ov::element::u4, ov::Shape{128, 4096});
         weight3->set_friendly_name("weight1_3");
 
-        auto bias1 = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1024, 1});
-        auto bias2 = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{512, 1});
-        auto bias3 = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{128, 1});
+        auto bias1 = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1, 1024});
+        auto bias2 = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1, 512});
+        auto bias3 = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1, 128});
  
         auto scale1 = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1024, 32});
         auto scale2 = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{512, 32});
@@ -137,11 +137,11 @@ TEST_F(TransformationTestsF, FullyConnectedHorizontalFusion_bias_zp) {
         weight3->set_friendly_name("weight2_3");
         auto weights = ov::OutputVector{weight1, weight2, weight3};
         auto weight_fused = std::make_shared<ov::op::v0::Concat>(weights, 0);
-        auto bias1 = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1024, 1});
-        auto bias2 = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{512, 1});
-        auto bias3 = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{128, 1});
+        auto bias1 = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1, 1024});
+        auto bias2 = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1, 512});
+        auto bias3 = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1, 128});
         auto biases = ov::OutputVector{bias1, bias2, bias3};
-        auto bias_fused = std::make_shared<ov::op::v0::Concat>(biases, 0);
+        auto bias_fused = std::make_shared<ov::op::v0::Concat>(biases, 1);
         auto scale1 = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1024, 32});
         auto scale2 = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{512, 32});
         auto scale3 = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{128, 32});

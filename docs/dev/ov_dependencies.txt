@@ -147,7 +147,6 @@ mccabe
 mistune
 mongo-python-driver
 more-itertools
-mxnet
 mypy
 mypy-extensions
 networkx
