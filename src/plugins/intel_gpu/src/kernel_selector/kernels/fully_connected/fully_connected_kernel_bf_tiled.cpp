@@ -534,6 +534,7 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     size_t tile_k_ofm_packed = tile_k_ofm;
     size_t quantize_grp_size = get_dynamic_quantize_group_size(params);
 
+    bool add_decompress_scale_post_op = false;
     WeightsType weights_dt = params.weights.GetDType();
     if (weights_dt == WeightsType::UINT4 || weights_dt == WeightsType::INT4) {
         tile_k_ofm_packed /= 2;
@@ -542,7 +543,7 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
         const size_t scale_group_size = params.weights.IFM().v / params.decompression_scale.Feature().v;
         // Do not use SCALE_POST_OP for SLM kernel, since it demonstrates worse performance
         if (scale_group_size % simd == 0 && !dispatchData.use_slm)
-            jit.AddConstant(MakeJitConstant("DECOMPRESSION_SCALE_POST_OP", 1));
+            add_decompress_scale_post_op = true;
     }
     if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2) {
         jit.AddConstant(MakeJitConstant("W_IDX", "fi * TILE_K + kii"));
@@ -619,6 +620,8 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
         jit.AddConstant(MakeJitConstant("DQ_TYPE", "char"));
         jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", quantize_grp_size));
     } else {
+        if (add_decompress_scale_post_op)
+            jit.AddConstant(MakeJitConstant("DECOMPRESSION_SCALE_POST_OP", 1));
         jit.AddConstant(MakeJitConstant("DYNAMIC_QUANTIZE", 0));
         jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", min_quantize_grp_size));
     }
@@ -781,8 +784,7 @@ KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &pa
     auto output_f = get_output_aligned_bf_size(fc_params, false).second;
 
     WeightsLayout weights_layout = WeightsLayout::os_iyx_osv16;
-    // TODO: Update may also be required to fc_bf_tiled_kernel_dyn_quan kernel to support os_is_yx_osv64_isv2 format as needed
-    if (!should_dynamic_quantize(fc_params) && fc_params.compressed && fc_params.inputs[0].GetDType() == Datatype::F16
+    if (fc_params.compressed && fc_params.inputs[0].GetDType() == Datatype::F16
         && (fc_params.weights.GetLayout() == WeightsLayout::oiyx || fc_params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2)
         && (fc_params.weights.GetDType() == WeightsType::INT4 || fc_params.weights.GetDType() == WeightsType::UINT4)
         && is_weight_horizontal(fc_params, output_f)) {
