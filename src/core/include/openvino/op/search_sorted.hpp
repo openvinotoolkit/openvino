@@ -36,9 +36,9 @@ public:
         m_right_mode = right_mode;
     }
 
+    bool validate() const;
+
 private:
-    void validate() const;
-    void infer_type();
     bool m_right_mode{};
 };
 }  // namespace v15

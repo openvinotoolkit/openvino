@@ -12,7 +12,8 @@ namespace op {
 namespace v15 {
 template <class TShape, class TRShape = result_shape_t<TShape>>
 std::vector<TRShape> shape_infer(const SearchSorted* op, const std::vector<TShape>& input_shapes) {
-    NODE_VALIDATION_CHECK(op, input_shapes.size() == 2);
+    // [HACK]: By convention, shape_infer should also perform node validation..
+    op->validate();
     const auto& sorted_shape = input_shapes[0];
     const auto& values_shape = input_shapes[1];
     auto output_shape = values_shape;
