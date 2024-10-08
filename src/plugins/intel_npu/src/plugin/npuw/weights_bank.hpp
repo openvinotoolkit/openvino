@@ -39,6 +39,7 @@ private:
     // Bank for specified device and their allocated memory
     std::unordered_map<std::string, std::unordered_map<LazyTensor, ov::Tensor, LazyTensor::Hash>> m_device_bank;
     std::mutex m_mutex;
+    std::mutex m_alloc_mutex;
     std::shared_ptr<const ov::ICore> m_core = nullptr;
     std::shared_ptr<ov::IRemoteContext> m_remote_ctx = nullptr;
     std::string m_alloc_device;

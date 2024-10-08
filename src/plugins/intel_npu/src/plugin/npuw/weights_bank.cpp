@@ -73,8 +73,7 @@ void Bank::evaluate_and_allocate() {
         for (const auto& el : device_bank) {
             vec.push_back(el.first);
         }
-        // FIXME: this is supposed to be parallel_for, however L0 mutex needs to be aquired for allocation
-        for (std::size_t idx = 0; idx < vec.size(); ++idx) {
+        ov::parallel_for(vec.size(), [&](std::size_t idx) {
             const auto& lt = vec[idx];
             auto iter_device = device_bank.find(lt);
             if (iter_device != device_bank.end() && iter_device->second) {
@@ -84,7 +83,7 @@ void Bank::evaluate_and_allocate() {
 
             // Allocation and evaluation needed
             unsafe_eval_and_alloc(lt, device_for_alloc);
-        }
+        });
     }
 }
 
@@ -95,6 +94,9 @@ ov::Tensor Bank::unsafe_eval_and_alloc(const LazyTensor& tensor, const std::stri
         m_device_bank[device_for_alloc][tensor] = transformed_tensor;
         return transformed_tensor;
     }
+
+    // FIXME: L0 allocation may crash when run in parallel
+    std::lock_guard<std::mutex> guard(m_alloc_mutex);
 
     m_remote_ctx = m_core->get_default_context(device_for_alloc)._ptr;
     auto remote_tensor =
