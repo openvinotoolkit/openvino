@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/op/search_sorted.hpp"
-
 #include <gtest/gtest.h>
 
+#include "openvino/op/search_sorted.hpp"
 #include "visitors/visitors.hpp"
 
 using namespace std;
