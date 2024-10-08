@@ -115,9 +115,9 @@ protected:
     void SetUp() override;
 };
 
-class RoPETestChatGLM4StridedSlice : public SubgraphBaseTest, public testing::WithParamInterface<std::string> {
+class RoPETestChatGLM2DRoPEStridedSlice : public SubgraphBaseTest, public testing::WithParamInterface<std::string> {
 private:
-    std::shared_ptr<ov::Model> buildROPE_ChatGLM4(int batch, int head_cnt, int rotary_dims);
+    std::shared_ptr<ov::Model> buildROPE_ChatGLM(int batch, int head_cnt, int rotary_dims);
 protected:
     ov::Tensor create_i32_tensor(const ov::Shape& shape, int start, int step = 1);
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;

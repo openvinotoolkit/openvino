@@ -417,12 +417,16 @@ ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
     this->register_matcher(m, callback);
 }
 
-ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool is_2d_rope) {
+ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool support_2d_rope) {
     MATCHER_SCOPE(RoPEFusionChatGLM);
 
-    auto qkv_linear = makePattern("[?,?,?]");  //  [seq_length, batch_size, 4608]
+    //  [seq_length, batch_size, 4608]
+    //  [batch_size, seq_length, 4608] support_2d_rope
+    auto qkv_linear = makePattern("[?,?,?]");
     auto seq_length = makePattern("i32[1]");
-    auto cos_sin_cache = makePattern("[?,?,?,?]");  // [max_pos_embeddings, batch_size, 32, 2]
+    // [max_pos_embeddings, batch_size, 32, 2]
+    // [batch_size, max_pos_embeddings, 32, 2] support_2d_rope
+    auto cos_sin_cache = makePattern("[?,?,?,?]");
 
     auto ndims = ov::gen_pattern::Symbol("ndims");
     auto head_cnt = ov::gen_pattern::Symbol("head_cnt");
@@ -436,14 +440,17 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool i
     auto qkv_proj = makePattern<opset1::VariadicSplit>({qkv_linear, -1, {total_size_q, total_size_k, total_size_v}});
     qkv_proj->set_output_size(3);
 
-    // get key [L, B, Hkv, S]
     auto cur_key = makePattern<opset1::Reshape>({qkv_proj->output(split_output_id), {0, 0, head_cnt, head_size}},
                                                 {{"special_zero", true}});
 
     std::shared_ptr<ov::Node> input_key = nullptr;
-    if (is_2d_rope) {
+    // Extended the RoPE to a two-dimensional form to accommodate the 2D positional encoding in GLM.
+    // Calculate positional embedding independent of batch and each head
+    if (support_2d_rope) {
+        // Get transposed key [batch, head_cnt, seq_length, head_size]
         input_key = makePattern<opset1::Transpose>({cur_key, {0, 2, 1, 3}});
     } else {
+        // Get key [seq_length, batch, head_cnt, head_size]
         input_key = std::move(cur_key);
     }
 
@@ -454,8 +461,8 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool i
     // rotate half
     std::shared_ptr<ov::Node> ListConstruct_452_Concat = nullptr;
     std::shared_ptr<ov::Node> const_target_shape_1 = nullptr;
-    // Support ChatGLM4
-    if (is_2d_rope) {
+
+    if (support_2d_rope) {
         ListConstruct_452_Concat =
             makePattern<opset1::Concat>({{-1}, {head_cnt}, seq_length, {ndims / 2}, {2}}, {{"axis", 0}});
         const_target_shape_1 = makeConst({batch, head_cnt, seq_len, ndims / 2, 2});
@@ -467,7 +474,7 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool i
 
     std::shared_ptr<ov::Node> ListConstruct_379_Concat = nullptr;
     std::shared_ptr<ov::Node> const_target_shape_2 = nullptr;
-    if (is_2d_rope) {
+    if (support_2d_rope) {
         ListConstruct_379_Concat =
             makePattern<opset1::Concat>({{-1}, {1}, seq_length, {ndims / 2}, {2}}, {{"axis", 0}});
         const_target_shape_2 = makeConst({batch, 1, seq_len, ndims / 2, 2});
@@ -489,15 +496,18 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool i
     var_split_2->set_output_size(2);
 
     std::shared_ptr<ov::Node> view_Reshape_460 = nullptr;
-    if (is_2d_rope) {
+    if (support_2d_rope) {
+        // Slice cos_sin_cache to support 2-dimentional RoPE
         auto ScatterUpdate = makePattern<opset3::ScatterUpdate>({{0, 0}, {1}, seq_length, {0}}, {});
         auto slice_Slice_449 = makePattern<ov::opset8::Slice>({cos_sin_cache, {0,0}, ScatterUpdate, {1,1}, {0}});
         auto slice_StridedSlice_449 = GenStridedSlice(cos_sin_cache, {0,0}, ScatterUpdate, {1,1}, 1);
+        // [batch, 1, seq_length, half_rotary_dims, 2]
         view_Reshape_460 =
             makePattern<opset1::Reshape>({slice_StridedSlice_449 | slice_Slice_449 | var_split_2->output(0),
                                         ListConstruct_379_Concat | const_target_shape_2},
                                         {{"special_zero", false}});
     } else {
+        // [seq_length, 1, batch, half_rotary_dims, 2]
         view_Reshape_460 =
             makePattern<opset1::Reshape>({slice_StridedSlice_449 | slice_Slice_449 | var_split_2->output(0),
                                         ListConstruct_379_Concat | const_target_shape_2},
@@ -526,8 +536,8 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool i
 
     std::shared_ptr<ov::Node> const_target_shape_3 = nullptr;
     std::shared_ptr<ov::Node> flatten_Reshape_501 = nullptr;
-    if (is_2d_rope) {
-        // [length, batch, head_cnt, half_rotary_dims, 2]
+    if (support_2d_rope) {
+        // [batch, head_cnt, length, half_rotary_dims, 2]
         const_target_shape_3 = makeConst({batch, head_cnt, seq_len, ndims});
         flatten_Reshape_501 =
             makePattern<opset1::Reshape>({stack_481, flatten_Concat_500 | const_target_shape_3}, {{"special_zero", true}});
@@ -556,7 +566,7 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool i
         OutputVector new_args;
         config.rotary_ndims = static_cast<size_t>(validator["ndims"]);
         config.is_chatglm = true;
-        config.is_chatglm4 = is_2d_rope;
+        config.support_2d_rope = support_2d_rope;
         config.head_cnt = static_cast<size_t>(validator["head_cnt"]);
         config.head_size = static_cast<size_t>(validator["head_size"]);
 
@@ -591,8 +601,7 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool i
 
 ov::pass::RoPEFusionChatGLM4::RoPEFusionChatGLM4(int split_output_id) {
     MATCHER_SCOPE(RoPEFusionChatGLM4);
-    // Extended the RoPE to a two-dimensional form to accommodate the 2D positional encoding in GLM.
-    // Calculate positional embedding independent of batch and each head
+
 
     auto qkv_linear = makePattern("[?,?,?]");  //  [batch_size, seq_length, 4608]
     auto seq_length = makePattern("i32[1]");
@@ -693,7 +702,7 @@ ov::pass::RoPEFusionChatGLM4::RoPEFusionChatGLM4(int split_output_id) {
         op::internal::RoPE::Config config;
         OutputVector new_args;
         config.rotary_ndims = static_cast<size_t>(validator["ndims"]);
-        config.is_chatglm4 = true;
+        config.support_2d_rope = true;
         config.head_cnt = static_cast<size_t>(validator["head_cnt"]);
         config.head_size = static_cast<size_t>(validator["head_size"]);
 

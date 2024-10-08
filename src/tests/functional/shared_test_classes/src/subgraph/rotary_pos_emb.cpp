@@ -1027,7 +1027,7 @@ std::shared_ptr<ov::Model> RoPETestGPTJSlice::buildROPE_GPTJ(int num_head,
     return std::make_shared<ov::Model>(model_output, ov::ParameterVector{input, sincos});
 }
 
-std::shared_ptr<ov::Model> RoPETestChatGLM4StridedSlice::buildROPE_ChatGLM4(int batch, int head_cnt, int rotary_dims) {
+std::shared_ptr<ov::Model> RoPETestChatGLM2DRoPEStridedSlice::buildROPE_ChatGLM(int batch, int head_cnt, int rotary_dims) {
     auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, PartialShape{batch, -1, 4096 + 256 + 256});
     auto cos_sin_cache = std::make_shared<ov::opset1::Parameter>(ov::element::f32, PartialShape{32768, 32, 2});
     auto position_ids = std::make_shared<ov::opset1::Parameter>(ov::element::i32, PartialShape{-1, -1});
@@ -1103,7 +1103,7 @@ std::shared_ptr<ov::Model> RoPETestChatGLM4StridedSlice::buildROPE_ChatGLM4(int 
                                        ov::ParameterVector{input, cos_sin_cache, position_ids});
 }
 
-ov::Tensor RoPETestChatGLM4StridedSlice::create_i32_tensor(const ov::Shape& shape, int start, int step) {
+ov::Tensor RoPETestChatGLM2DRoPEStridedSlice::create_i32_tensor(const ov::Shape& shape, int start, int step) {
     auto tensor = ov::Tensor(ov::element::i32, shape);
     auto* ptr = static_cast<int32_t*>(tensor.data());
     for (size_t i = 0; i < tensor.get_size(); i++) {
@@ -1113,7 +1113,7 @@ ov::Tensor RoPETestChatGLM4StridedSlice::create_i32_tensor(const ov::Shape& shap
     return tensor;
 }
 
-void RoPETestChatGLM4StridedSlice::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
+void RoPETestChatGLM2DRoPEStridedSlice::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     const auto& funcInputs = function->inputs();
 
     auto& input_shape = targetInputStaticShapes[0];
@@ -1131,7 +1131,7 @@ void RoPETestChatGLM4StridedSlice::generate_inputs(const std::vector<ov::Shape>&
     inputs.insert({funcInputs[2].get_node_shared_ptr(), t_position_ids});
 }
 
-void RoPETestChatGLM4StridedSlice::SetUp() {
+void RoPETestChatGLM2DRoPEStridedSlice::SetUp() {
     targetDevice = this->GetParam();
 
     const int batch = 2;
@@ -1141,10 +1141,10 @@ void RoPETestChatGLM4StridedSlice::SetUp() {
 
     InputShape inpShape = {{batch, -1, 4096 + 256 + 256}, {{batch, seq_length, 4096 + 256 + 256}}};
     init_input_shapes({inpShape});
-    function = buildROPE_ChatGLM4(-1, num_head, rotary_dims);
+    function = buildROPE_ChatGLM(-1, num_head, rotary_dims);
 }
 
-std::string RoPETestChatGLM4StridedSlice::getTestCaseName(const testing::TestParamInfo<std::string>& obj) {
+std::string RoPETestChatGLM2DRoPEStridedSlice::getTestCaseName(const testing::TestParamInfo<std::string>& obj) {
     std::string targetDevice = obj.param;
     std::ostringstream result;
     result << "targetDevice=" << targetDevice;

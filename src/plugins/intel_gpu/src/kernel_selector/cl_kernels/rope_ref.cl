@@ -11,7 +11,7 @@ KERNEL(rope_ref)(
     const __global INPUT1_TYPE* cos_sin,
     __global OUTPUT_TYPE* output)
 {
-#ifdef CHATGLM4
+#ifdef SUPPORT_2D_ROPE
     const uint p = get_global_id(0) / HEAD_COUNT;
     const uint h = get_global_id(0) % HEAD_COUNT;
     const uint b = get_global_id(1);//sequence length

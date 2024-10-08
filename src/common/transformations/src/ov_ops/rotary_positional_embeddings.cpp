@@ -45,7 +45,7 @@ void RoPE::validate_and_infer_types() {
     }
 
     if (m_config.is_chatglm) {
-        if (m_config.is_chatglm4) {
+        if (m_config.support_2d_rope) {
             // chatGLM specific RoPE
             // input  [batch_size, length, (hidden_states_q + hidden_states_k + hidden_states_v)]
             // output [batch_size, head_cnt, length, hidden_states_k]
