@@ -901,10 +901,10 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                     // the memory will be continuous when b==1
                     for (size_t iwork = start; iwork < end; ++iwork) {
                         auto p = past_k_scale_zp.ptr<float>(pk, 0, h_group);
-                        prefetch_bytes(S, _MM_HINT_T0, 4096, p_k);
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
                         if (std::is_same<T3, ov::float16>::value && std::is_same<T, ov::float16>::value && std::is_same<T2, ov::float16>::value) {
                             auto p_k = present_key.ptr<ov::float16>(0, h_group, pk);
+                            prefetch_bytes(S, _MM_HINT_T0, 4096, p_k);
                             auto _qk = dot_product_fp16(query.ptr<ov::float16>(0, h_group), p_k,
                                                         S, p, p + 1, head_sum.ptr<float>(0, h_group));
                             buf_attn_w.ptr<T3>(0, h_group, 0)[pk] = _qk;
@@ -913,6 +913,7 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                         }
 #endif
                         auto p_k = present_key.ptr<T2>(0, h_group, pk);
+                        prefetch_bytes(S, _MM_HINT_T0, 4096, p_k);
                         buf_attn_w.ptr<T3>(0, h_group, 0)[pk] = dot_product(query.ptr<T>(0, h_group), p_k,
                                                                             S, p, p + 1, head_sum.ptr<float>(0, h_group));;
                         parallel_it_step(pk, kv_len, b, B, h_group, h_group_num);
