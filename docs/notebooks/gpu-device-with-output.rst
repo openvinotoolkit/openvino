@@ -1,66 +1,65 @@
 Working with GPUs in OpenVINO™
 ==============================
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-**Table of contents:**
+-  `Introduction <#Introduction>`__
 
-
--  `Introduction <#introduction>`__
-
-   -  `Install required packages <#install-required-packages>`__
+   -  `Install required packages <#Install-required-packages>`__
 
 -  `Checking GPUs with Query
-   Device <#checking-gpus-with-query-device>`__
+   Device <#Checking-GPUs-with-Query-Device>`__
 
    -  `List GPUs with
-      core.available_devices <#list-gpus-with-core-available_devices>`__
+      core.available_devices <#List-GPUs-with-core.available_devices>`__
    -  `Check Properties with
-      core.get_property <#check-properties-with-core-get_property>`__
+      core.get_property <#Check-Properties-with-core.get_property>`__
    -  `Brief Descriptions of Key
-      Properties <#brief-descriptions-of-key-properties>`__
+      Properties <#Brief-Descriptions-of-Key-Properties>`__
 
--  `Compiling a Model on GPU <#compiling-a-model-on-gpu>`__
+-  `Compiling a Model on GPU <#Compiling-a-Model-on-GPU>`__
 
-   -  `Download and Convert a Model <#download-and-convert-a-model>`__
+   -  `Download and Convert a Model <#Download-and-Convert-a-Model>`__
 
       -  `Download and unpack the
-         Model <#download-and-unpack-the-model>`__
+         Model <#Download-and-unpack-the-Model>`__
       -  `Convert the Model to OpenVINO IR
-         format <#convert-the-model-to-openvino-ir-format>`__
+         format <#Convert-the-Model-to-OpenVINO-IR-format>`__
 
    -  `Compile with Default
-      Configuration <#compile-with-default-configuration>`__
+      Configuration <#Compile-with-Default-Configuration>`__
    -  `Reduce Compile Time through Model
-      Caching <#reduce-compile-time-through-model-caching>`__
+      Caching <#Reduce-Compile-Time-through-Model-Caching>`__
    -  `Throughput and Latency Performance
-      Hints <#throughput-and-latency-performance-hints>`__
+      Hints <#Throughput-and-Latency-Performance-Hints>`__
    -  `Using Multiple GPUs with Multi-Device and Cumulative
-      Throughput <#using-multiple-gpus-with-multi-device-and-cumulative-throughput>`__
+      Throughput <#Using-Multiple-GPUs-with-Multi-Device-and-Cumulative-Throughput>`__
 
 -  `Performance Comparison with
-   benchmark_app <#performance-comparison-with-benchmark_app>`__
+   benchmark_app <#Performance-Comparison-with-benchmark_app>`__
 
-   -  `CPU vs GPU with Latency Hint <#cpu-vs-gpu-with-latency-hint>`__
+   -  `CPU vs GPU with Latency Hint <#CPU-vs-GPU-with-Latency-Hint>`__
    -  `CPU vs GPU with Throughput
-      Hint <#cpu-vs-gpu-with-throughput-hint>`__
-   -  `Single GPU vs Multiple GPUs <#single-gpu-vs-multiple-gpus>`__
+      Hint <#CPU-vs-GPU-with-Throughput-Hint>`__
+   -  `Single GPU vs Multiple GPUs <#Single-GPU-vs-Multiple-GPUs>`__
 
--  `Basic Application Using GPUs <#basic-application-using-gpus>`__
+-  `Basic Application Using GPUs <#Basic-Application-Using-GPUs>`__
 
-   -  `Import Necessary Packages <#import-necessary-packages>`__
-   -  `Compile the Model <#compile-the-model>`__
+   -  `Import Necessary Packages <#Import-Necessary-Packages>`__
+   -  `Compile the Model <#Compile-the-Model>`__
    -  `Load and Preprocess Video
-      Frames <#load-and-preprocess-video-frames>`__
-   -  `Define Model Output Classes <#define-model-output-classes>`__
-   -  `Set up Asynchronous Pipeline <#set-up-asynchronous-pipeline>`__
+      Frames <#Load-and-Preprocess-Video-Frames>`__
+   -  `Define Model Output Classes <#Define-Model-Output-Classes>`__
+   -  `Set up Asynchronous Pipeline <#Set-up-Asynchronous-Pipeline>`__
 
-      -  `Callback Definition <#callback-definition>`__
-      -  `Create Async Pipeline <#create-async-pipeline>`__
+      -  `Callback Definition <#Callback-Definition>`__
+      -  `Create Async Pipeline <#Create-Async-Pipeline>`__
 
-   -  `Perform Inference <#perform-inference>`__
-   -  `Process Results <#process-results>`__
+   -  `Perform Inference <#Perform-Inference>`__
+   -  `Process Results <#Process-Results>`__
 
--  `Conclusion <#conclusion>`__
+-  `Conclusion <#Conclusion>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -86,7 +85,7 @@ model on GPU and uses it to run inference.
 Introduction
 ------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Originally, graphic processing units (GPUs) began as specialized chips,
 developed to accelerate the rendering of computer graphics. In contrast
@@ -115,22 +114,19 @@ to accelerate inference with GPUs in OpenVINO!
 Install required packages
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
     %pip install -q "openvino-dev>=2024.0.0" "opencv-python" "tqdm"
     %pip install -q "tensorflow-macos>=2.5; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version > '3.8'" # macOS M1 and M2
-    %pip install -q "tensorflow-macos>=2.5,<=2.12.0; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version <= '3.8'" # macOS M1 and M2
     %pip install -q "tensorflow>=2.5; sys_platform == 'darwin' and platform_machine != 'arm64' and python_version > '3.8'" # macOS x86
-    %pip install -q "tensorflow>=2.5,<=2.12.0; sys_platform == 'darwin' and platform_machine != 'arm64' and python_version <= '3.8'" # macOS x86
     %pip install -q "tensorflow>=2.5; sys_platform != 'darwin' and python_version > '3.8'"
-    %pip install -q "tensorflow>=2.5,<=2.12.0; sys_platform != 'darwin' and python_version <= '3.8'"
 
 Checking GPUs with Query Device
 -------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 In this section, we will see how to list the available GPUs and check
 their properties. Some of the key properties will also be defined.
@@ -138,7 +134,7 @@ their properties. Some of the key properties will also be defined.
 List GPUs with core.available_devices
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 OpenVINO Runtime provides the ``available_devices`` method for checking
 which devices are available for inference. The following code will
@@ -179,7 +175,7 @@ GPUs working with OpenVINO, we can proceed with the next sections.
 Check Properties with core.get_property
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To get information about the GPUs, we can use device properties. In
 OpenVINO, devices have properties that describe their characteristics
@@ -271,7 +267,7 @@ querying for that property.
 Brief Descriptions of Key Properties
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Each device has several properties as seen in the last command. Some of
 the key properties are:
@@ -301,7 +297,7 @@ page.
 Compiling a Model on GPU
 ------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Now, we know how to list the GPUs in the system and check their
 properties. We can easily use one for compiling and running models with
@@ -311,7 +307,7 @@ plugin <https://docs.openvino.ai/2024/openvino-workflow/running-inference/infere
 Download and Convert a Model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 This tutorial uses the ``ssdlite_mobilenet_v2`` model. The
 ``ssdlite_mobilenet_v2`` model is used for object detection. The model
@@ -323,7 +319,7 @@ categories of object. For details, see the
 Download and unpack the Model
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Use the ``download_file`` function from the ``notebook_utils`` to
 download an archive with the model. It automatically creates a directory
@@ -387,7 +383,7 @@ package is already downloaded.
 Convert the Model to OpenVINO IR format
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To convert the model to OpenVINO IR with ``FP16`` precision, use model
 conversion API. The models are saved to the ``model/ir_model/``
@@ -436,7 +432,7 @@ directory. For more details about model conversion, see this
 Compile with Default Configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 When the model is ready, first we need to read it, using the
 ``read_model`` method. Then, we can use the ``compile_model`` method and
@@ -460,7 +456,7 @@ tutorial <auto-device-with-output.html>`__.
 Reduce Compile Time through Model Caching
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Depending on the model used, device-specific optimizations and network
 compilations can cause the compile step to be time-consuming, especially
@@ -531,7 +527,7 @@ docs.
 Throughput and Latency Performance Hints
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To simplify device and pipeline configuration, OpenVINO provides
 high-level performance hints that automatically set the batch size and
@@ -567,7 +563,7 @@ size to fill the available memory.
 Using Multiple GPUs with Multi-Device and Cumulative Throughput
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The latency and throughput hints mentioned above are great and can make
 a difference when used adequately but they usually use just one device,
@@ -615,7 +611,7 @@ hints.PerformanceMode.CUMULATIVE_THROUGHPUT}) \`
 Performance Comparison with benchmark_app
 -----------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Given all the different options available when compiling a model, it may
 be difficult to know which settings work best for a certain application.
@@ -717,7 +713,7 @@ single GPU as long as there is enough work for each of them.
 CPU vs GPU with Latency Hint
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -856,7 +852,7 @@ CPU vs GPU with Latency Hint
 CPU vs GPU with Throughput Hint
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -995,7 +991,7 @@ CPU vs GPU with Throughput Hint
 Single GPU vs Multiple GPUs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -1123,7 +1119,7 @@ Single GPU vs Multiple GPUs
 Basic Application Using GPUs
 ----------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 We will now show an end-to-end object detection example using GPUs in
 OpenVINO. The application compiles a model on GPU with the “THROUGHPUT”
@@ -1137,7 +1133,7 @@ of the application.
 Import Necessary Packages
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -1165,7 +1161,7 @@ Import Necessary Packages
 Compile the Model
 ~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -1191,7 +1187,7 @@ Compile the Model
 Load and Preprocess Video Frames
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -1236,7 +1232,7 @@ Load and Preprocess Video Frames
 Define Model Output Classes
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -1339,12 +1335,12 @@ Define Model Output Classes
 Set up Asynchronous Pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Callback Definition
 ^^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -1363,7 +1359,7 @@ Callback Definition
 Create Async Pipeline
 ^^^^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -1374,7 +1370,7 @@ Create Async Pipeline
 Perform Inference
 ~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -1406,7 +1402,7 @@ Perform Inference
 Process Results
 ~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -1516,7 +1512,7 @@ Process Results
 Conclusion
 ----------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 This tutorial demonstrates how easy it is to use one or more GPUs in
 OpenVINO, check their properties, and even tailor the model performance

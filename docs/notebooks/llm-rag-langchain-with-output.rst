@@ -37,44 +37,43 @@ with OpenVINO to optimize their inference performance.
 
    RAG
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-**Table of contents:**
-
-
--  `Prerequisites <#prerequisites>`__
--  `Select model for inference <#select-model-for-inference>`__
+-  `Prerequisites <#Prerequisites>`__
+-  `Select model for inference <#Select-model-for-inference>`__
 -  `login to huggingfacehub to get access to pretrained
    model <#login-to-huggingfacehub-to-get-access-to-pretrained-model>`__
 -  `Convert model and compress model
    weights <#convert-model-and-compress-model-weights>`__
 
    -  `LLM conversion and Weights Compression using
-      Optimum-CLI <#llm-conversion-and-weights-compression-using-optimum-cli>`__
+      Optimum-CLI <#LLM-conversion-and-Weights-Compression-using-Optimum-CLI>`__
 
-      -  `Weight compression with AWQ <#weight-compression-with-awq>`__
+      -  `Weight compression with AWQ <#Weight-compression-with-AWQ>`__
 
    -  `Convert embedding model using
-      Optimum-CLI <#convert-embedding-model-using-optimum-cli>`__
+      Optimum-CLI <#Convert-embedding-model-using-Optimum-CLI>`__
    -  `Convert rerank model using
-      Optimum-CLI <#convert-rerank-model-using-optimum-cli>`__
+      Optimum-CLI <#Convert-rerank-model-using-Optimum-CLI>`__
 
 -  `Select device for inference and model
-   variant <#select-device-for-inference-and-model-variant>`__
+   variant <#Select-device-for-inference-and-model-variant>`__
 
    -  `Select device for embedding model
-      inference <#select-device-for-embedding-model-inference>`__
+      inference <#Select-device-for-embedding-model-inference>`__
    -  `Select device for rerank model
-      inference <#select-device-for-rerank-model-inference>`__
+      inference <#Select-device-for-rerank-model-inference>`__
    -  `Select device for LLM model
-      inference <#select-device-for-llm-model-inference>`__
+      inference <#Select-device-for-LLM-model-inference>`__
 
--  `Load model <#load-model>`__
+-  `Load model <#Load-model>`__
 
-   -  `Load embedding model <#load-embedding-model>`__
-   -  `Load rerank model <#load-rerank-model>`__
-   -  `Load LLM model <#load-llm-model>`__
+   -  `Load embedding model <#Load-embedding-model>`__
+   -  `Load rerank model <#Load-rerank-model>`__
+   -  `Load LLM model <#Load-LLM-model>`__
 
--  `Run QA over Document <#run-qa-over-document>`__
+-  `Run QA over Document <#Run-QA-over-Document>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -89,7 +88,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Install required dependencies
 
@@ -196,7 +195,7 @@ Install required dependencies
 Select model for inference
 --------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The tutorial supports different models, you can select one from the
 provided options to compare the quality of open source LLM solutions.
@@ -228,7 +227,7 @@ bi-encoder) but more time-consuming than embedding model. Therefore, it
 can be used to re-rank the top-k documents returned by embedding model.
 
 You can also find available LLM model options in
-`llm-chatbot <llm-chatbot-with-output.html>`__ notebook.
+`llm-chatbot <../llm-chatbot/README.md>`__ notebook.
 
 .. code:: ipython3
 
@@ -244,7 +243,7 @@ You can also find available LLM model options in
 Convert model and compress model weights
 ----------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The Weights Compression algorithm is aimed at compressing the weights of
 the models and can be used to optimize the model footprint and
@@ -315,8 +314,8 @@ quality.
     Selected LLM model phi-3-mini-instruct
 
 
-`Optimum Intel <https://huggingface.co/docs/optimum/intel/index>`__ is
-the interface between the 
+🤗 `Optimum Intel <https://huggingface.co/docs/optimum/intel/index>`__ is
+the interface between the 🤗
 `Transformers <https://huggingface.co/docs/transformers/index>`__ and
 `Diffusers <https://huggingface.co/docs/diffusers/index>`__ libraries
 and OpenVINO to accelerate end-to-end pipelines on Intel architectures.
@@ -343,7 +342,7 @@ remote code, ``--trust-remote-code`` flag additionally should be passed.
 LLM conversion and Weights Compression using Optimum-CLI
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 You can also apply fp16, 8-bit or 4-bit weight compression on the
 Linear, Convolutional and Embedding layers when exporting your model
@@ -416,7 +415,7 @@ sacrifice of the model size and inference latency.
 Weight compression with AWQ
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 `Activation-aware Weight
 Quantization <https://arxiv.org/abs/2306.00978>`__ (AWQ) is an algorithm
@@ -547,6 +546,11 @@ with INT4 precision.
                 "group_size": 128,
                 "ratio": 0.5,
             },
+            "qwen2.5-7b-instruct": {"sym": True, "group_size": 128, "ratio": 1.0},
+            "qwen2.5-3b-instruct": {"sym": True, "group_size": 128, "ratio": 1.0},
+            "qwen2.5-14b-instruct": {"sym": True, "group_size": 128, "ratio": 1.0},
+            "qwen2.5-1.5b-instruct": {"sym": True, "group_size": 128, "ratio": 1.0},
+            "qwen2.5-0.5b-instruct": {"sym": True, "group_size": 128, "ratio": 1.0},
             "default": {
                 "sym": False,
                 "group_size": 128,
@@ -605,7 +609,7 @@ Let’s compare model size for different compression types
 Convert embedding model using Optimum-CLI
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Since some embedding models can only support limited languages, we can
 filter them out according the LLM you selected.
@@ -657,7 +661,7 @@ OpenVINO embedding model and tokenizer can be exported by
 Convert rerank model using Optimum-CLI
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -707,7 +711,7 @@ task with ``optimum-cli``.
 Select device for inference and model variant
 ---------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
    **Note**: There may be no speedup for INT4/INT8 compressed models on
    dGPU.
@@ -715,7 +719,7 @@ Select device for inference and model variant
 Select device for embedding model inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -767,7 +771,7 @@ model to NPU device.
 Select device for rerank model inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -802,7 +806,7 @@ Select device for rerank model inference
 Select device for LLM model inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -839,17 +843,17 @@ Select device for LLM model inference
 Load models
 -----------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Load embedding model
 ~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Now a Hugging Face embedding model can be supported by OpenVINO through
-`OpenVINOEmbeddings <https://python.langchain.com/docs/integrations/text_embedding/openvino>`__
+```OpenVINOEmbeddings`` <https://python.langchain.com/docs/integrations/text_embedding/openvino>`__
 and
-`OpenVINOBgeEmbeddings <https://python.langchain.com/docs/integrations/text_embedding/openvino#bge-with-openvino>`__\ classes
+```OpenVINOBgeEmbeddings`` <https://python.langchain.com/docs/integrations/text_embedding/openvino#bge-with-openvino>`__\ classes
 of LangChain.
 
 .. code:: ipython3
@@ -900,10 +904,10 @@ of LangChain.
 Load rerank model
 ~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Now a Hugging Face embedding model can be supported by OpenVINO through
-`OpenVINOReranker <https://python.langchain.com/docs/integrations/document_transformers/openvino_rerank>`__
+```OpenVINOReranker`` <https://python.langchain.com/docs/integrations/document_transformers/openvino_rerank>`__
 class of LangChain.
 
    **Note**: Rerank can be skipped in RAG.
@@ -931,7 +935,7 @@ class of LangChain.
 Load LLM model
 ~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 OpenVINO models can be run locally through the ``HuggingFacePipeline``
 class. To deploy a model with OpenVINO, you can specify the
@@ -1039,7 +1043,7 @@ inference framework.
 Run QA over Document
 --------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Now, when model created, we can setup Chatbot interface using
 `Gradio <https://www.gradio.app/>`__.
@@ -1155,13 +1159,13 @@ The most common full sequence from raw data to answer looks like:
         text_example_path = "text_example_cn.pdf"
 
 We can build a RAG pipeline of LangChain through
-`create_retrieval_chain <https://python.langchain.com/docs/modules/chains/>`__,
+```create_retrieval_chain`` <https://python.langchain.com/docs/modules/chains/>`__,
 which will help to create a chain to connect RAG components including:
 
--  `Vector stores <https://python.langchain.com/docs/modules/data_connection/vectorstores/>`__\ ，
--  `Retrievers <https://python.langchain.com/docs/modules/data_connection/retrievers/>`__
--  `LLM <https://python.langchain.com/docs/integrations/llms/>`__
--  `Embedding <https://python.langchain.com/docs/integrations/text_embedding/>`__
+-  ```Vector stores`` <https://python.langchain.com/docs/modules/data_connection/vectorstores/>`__\ ，
+-  ```Retrievers`` <https://python.langchain.com/docs/modules/data_connection/retrievers/>`__
+-  ```LLM`` <https://python.langchain.com/docs/integrations/llms/>`__
+-  ```Embedding`` <https://python.langchain.com/docs/integrations/text_embedding/>`__
 
 .. code:: ipython3
 
@@ -1335,7 +1339,7 @@ which will help to create a chain to connect RAG components including:
         """
         streamer = TextIteratorStreamer(
             llm.pipeline.tokenizer,
-            timeout=60.0,
+            timeout=3600.0,
             skip_prompt=hide_full_prompt,
             skip_special_tokens=True,
         )

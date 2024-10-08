@@ -24,26 +24,25 @@ and labels. In this tutorial, we will use the
 `SigLIP <https://huggingface.co/docs/transformers/main/en/model_doc/siglip>`__
 model to perform zero-shot image classification.
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-**Table of contents:**
-
-
--  `Instantiate model <#instantiate-model>`__
--  `Run PyTorch model inference <#run-pytorch-model-inference>`__
+-  `Instantiate model <#Instantiate-model>`__
+-  `Run PyTorch model inference <#Run-PyTorch-model-inference>`__
 -  `Convert model to OpenVINO Intermediate Representation (IR)
-   format <#convert-model-to-openvino-intermediate-representation-ir-format>`__
--  `Run OpenVINO model <#run-openvino-model>`__
+   format <#Convert-model-to-OpenVINO-Intermediate-Representation-(IR)-format>`__
+-  `Run OpenVINO model <#Run-OpenVINO-model>`__
 -  `Apply post-training quantization using
-   NNCF <#apply-post-training-quantization-using-nncf>`__
+   NNCF <#Apply-post-training-quantization-using-NNCF>`__
 
-   -  `Prepare dataset <#prepare-dataset>`__
-   -  `Quantize model <#quantize-model>`__
-   -  `Run quantized OpenVINO model <#run-quantized-openvino-model>`__
-   -  `Compare File Size <#compare-file-size>`__
+   -  `Prepare dataset <#Prepare-dataset>`__
+   -  `Quantize model <#Quantize-model>`__
+   -  `Run quantized OpenVINO model <#Run-quantized-OpenVINO-model>`__
+   -  `Compare File Size <#Compare-File-Size>`__
    -  `Compare inference time of the FP16 IR and quantized
-      models <#compare-inference-time-of-the-fp16-ir-and-quantized-models>`__
+      models <#Compare-inference-time-of-the-FP16-IR-and-quantized-models>`__
 
--  `Interactive inference <#interactive-inference>`__
+-  `Interactive inference <#Interactive-inference>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -61,7 +60,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Instantiate model
 -----------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The SigLIP model was proposed in `Sigmoid Loss for Language Image
 Pre-Training <https://arxiv.org/abs/2303.15343>`__. SigLIP proposes to
@@ -126,16 +125,16 @@ tokenizer and preparing the images.
 
 .. parsed-literal::
 
-    2024-09-24 04:17:10.230600: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-09-24 04:17:10.265463: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-10-08 05:48:27.110530: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-10-08 05:48:27.145042: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-09-24 04:17:10.928365: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-10-08 05:48:27.845756: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Run PyTorch model inference
 ---------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To perform classification, define labels and load an image in RGB
 format. To give the model wider text context and improve guidance, we
@@ -239,7 +238,7 @@ similarity score for the final result.
 Convert model to OpenVINO Intermediate Representation (IR) format
 -----------------------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 For best results with OpenVINO, it is recommended to convert the model
 to OpenVINO IR format. OpenVINO supports PyTorch via Model conversion
@@ -265,14 +264,14 @@ object ready to load on the device and start making predictions.
 .. parsed-literal::
 
     [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4769: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4779: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
       warnings.warn(
 
 
 Run OpenVINO model
 ------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The steps for making predictions with the OpenVINO SigLIP model are
 similar to the PyTorch model. Let us check the model result using the
@@ -338,7 +337,7 @@ Great! Looks like we got the same result.
 Apply post-training quantization using NNCF
 -------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding the quantization layers into the
@@ -356,7 +355,7 @@ The optimization process contains the following steps:
 Prepare dataset
 ~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The `Conceptual
 Captions <https://ai.google.com/research/ConceptualCaptions/>`__ dataset
@@ -485,7 +484,7 @@ model.
 Quantize model
 ~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Create a quantized model from the pre-trained ``FP16`` model.
 
@@ -522,22 +521,9 @@ Create a quantized model from the pre-trained ``FP16`` model.
 
 
 
+.. raw:: html
 
-
-
-
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-
-
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
@@ -548,9 +534,9 @@ Create a quantized model from the pre-trained ``FP16`` model.
 
 
 
+.. raw:: html
 
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
@@ -561,9 +547,22 @@ Create a quantized model from the pre-trained ``FP16`` model.
 
 
 
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
+
+.. parsed-literal::
+
+    Output()
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
@@ -575,7 +574,7 @@ in the NNCF repository for more information.
 Run quantized OpenVINO model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The steps for making predictions with the quantized OpenVINO SigLIP
 model are similar to the PyTorch model.
@@ -610,7 +609,7 @@ model are similar to the PyTorch model.
 
 .. parsed-literal::
 
-    [{'dog': 0.99}, {'cat': 0.0}, {'horse': 0.0}, {'wolf': 0.0}, {'tiger': 0.0}]
+    [{'dog': 0.99}, {'horse': 0.0}, {'cat': 0.0}, {'wolf': 0.0}, {'tiger': 0.0}]
 
 
 
@@ -620,7 +619,7 @@ model are similar to the PyTorch model.
 Compare File Size
 ~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -649,7 +648,7 @@ Compare File Size
 Compare inference time of the FP16 IR and quantized models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To measure the inference performance of the ``FP16`` and ``INT8``
 models, we use median inference time on calibration dataset. So we can
@@ -685,13 +684,13 @@ approximately estimate the speed up of the dynamic quantized models.
 
 .. parsed-literal::
 
-    Performance speed up: 2.064
+    Performance speed up: 2.030
 
 
 Interactive inference
 ---------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Now, it is your turn! You can provide your own image and comma-separated
 list of labels for zero-shot classification. Feel free to upload an
@@ -750,7 +749,7 @@ field, using comma as the separator (for example, ``cat,dog,bird``)
 
 
 
+.. raw:: html
 
-
-
+    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="1000" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 

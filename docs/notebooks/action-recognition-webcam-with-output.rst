@@ -35,26 +35,25 @@ Transformer <https://en.wikipedia.org/wiki/Transformer_(machine_learning_model)>
 and
 `ResNet34 <https://pytorch.org/vision/main/models/generated/torchvision.models.resnet34.html>`__.
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-**Table of contents:**
+-  `Imports <#Imports>`__
+-  `The models <#The-models>`__
 
-
--  `Imports <#imports>`__
--  `The models <#the-models>`__
-
-   -  `Download the models <#download-the-models>`__
-   -  `Load your labels <#load-your-labels>`__
-   -  `Load the models <#load-the-models>`__
+   -  `Download the models <#Download-the-models>`__
+   -  `Load your labels <#Load-your-labels>`__
+   -  `Load the models <#Load-the-models>`__
 
       -  `Model Initialization
-         function <#model-initialization-function>`__
+         function <#Model-Initialization-function>`__
       -  `Initialization for Encoder and
-         Decoder <#initialization-for-encoder-and-decoder>`__
+         Decoder <#Initialization-for-Encoder-and-Decoder>`__
 
-   -  `Helper functions <#helper-functions>`__
-   -  `AI Functions <#ai-functions>`__
-   -  `Main Processing Function <#main-processing-function>`__
-   -  `Run Action Recognition <#run-action-recognition>`__
+   -  `Helper functions <#Helper-functions>`__
+   -  `AI Functions <#AI-Functions>`__
+   -  `Main Processing Function <#Main-Processing-Function>`__
+   -  `Run Action Recognition <#Run-Action-Recognition>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -79,7 +78,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Imports
 -------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -108,12 +107,12 @@ Imports
 The models
 ----------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Download the models
 ~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Use the ``download_ir_model``, a function from the ``notebook_utils``
 file. It automatically creates a directory structure and downloads the
@@ -165,7 +164,7 @@ and the system automatically downloads the two models
 Load your labels
 ~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 This tutorial uses `Kinetics-400
 dataset <https://deepmind.com/research/open-source/kinetics>`__, and
@@ -203,7 +202,7 @@ also provides the text file embedded into this notebook.
 Load the models
 ~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Load the two models for this particular architecture, Encoder and
 Decoder. Downloaded models are located in a fixed structure, indicating
@@ -237,7 +236,7 @@ Select device from dropdown list for running inference using OpenVINO
 Model Initialization function
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -271,7 +270,7 @@ Model Initialization function
 Initialization for Encoder and Decoder
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -288,7 +287,7 @@ Initialization for Encoder and Decoder
 Helper functions
 ~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Use the following helper functions for preprocessing and postprocessing
 frames:
@@ -411,7 +410,7 @@ frames:
 AI Functions
 ~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Following the pipeline above, you will use the next functions to:
 
@@ -500,7 +499,7 @@ Following the pipeline above, you will use the next functions to:
 Main Processing Function
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Running action recognition function will run in different operations,
 either a webcam or a video file. See the list of procedures below:
@@ -653,7 +652,7 @@ either a webcam or a video file. See the list of procedures below:
 Run Action Recognition
 ~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Find out how the model works in a video file. `Any format
 supported <https://docs.opencv.org/4.5.1/dd/d43/tutorial_py_video_display.html>`__

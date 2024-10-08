@@ -1,7 +1,7 @@
 OpenVINO™ Explainable AI Toolkit (1/3): Basic
 =============================================
 
-.. warning::
+.. container:: alert alert-block alert-danger
 
    Important note: This notebook requires python >= 3.10. Please make
    sure that your environment fulfill to this requirement before running
@@ -12,11 +12,11 @@ Explainable AI
 (XAI) <https://github.com/openvinotoolkit/openvino_xai/>`__:
 
 1. `OpenVINO™ Explainable AI Toolkit (1/3):
-   Basic <explainable-ai-1-basic-with-output.html>`__
+   Basic <../explainable-ai-1-basic/README.md>`__
 2. `OpenVINO™ Explainable AI Toolkit (2/3): Deep
-   Dive <explainable-ai-2-deep-dive-with-output.html>`__
+   Dive <../explainable-ai-2-deep-dive/README.md>`__
 3. `OpenVINO™ Explainable AI Toolkit (3/3): Saliency map
-   interpretation <explainable-ai-3-map-interpretation-with-output.html>`__
+   interpretation <../explainable-ai-3-map-interpretation/README.md>`__
 
 It covers the basic introduction to
 `XAI <https://github.com/openvinotoolkit/openvino_xai/>`__ toolkit and
@@ -42,20 +42,18 @@ from `Open Model
 Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__ is used in
 this tutorial.
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-**Table of contents:**
-
-
--  `Imports <#imports>`__
+-  `Imports <#Imports>`__
 -  `Download the Model and data
-   samples <#download-the-model-and-data-samples>`__
--  `Load the Model <#load-the-model>`__
--  `Select inference device <#select-inference-device>`__
--  `Load an Image <#load-an-image>`__
--  `Do Inference <#do-inference>`__
--  `Create Explainer <#create-explainer>`__
--  `Do Explanation <#do-explanation>`__  
-
+   samples <#Download-the-Model-and-data-samples>`__
+-  `Load the Model <#Load-the-Model>`__
+-  `Select inference device <#Select-inference-device>`__
+-  `Load an Image <#Load-an-Image>`__
+-  `Do Inference <#Do-Inference>`__
+-  `Create Explainer <#Create-Explainer>`__
+-  `Do Explanation <#Do-Explanation>`__ ### Installation Instructions
 
 This is a self-contained example that relies solely on its own code.
 
@@ -82,7 +80,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Imports
 -------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -108,7 +106,7 @@ Imports
 Download the Model and data samples
 -----------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -137,7 +135,7 @@ Download the Model and data samples
 Select inference device
 -----------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -158,7 +156,7 @@ select device from dropdown list for running inference using OpenVINO
 Load the Model
 --------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -169,7 +167,7 @@ Load the Model
 Load an Image
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -196,13 +194,13 @@ Load an Image
     
 
 
-.. image:: explainable-ai-1-basic-with-output_files/explainable-ai-1-basic-with-output_11_1.png
+.. image:: explainable-ai-1-basic-with-output_files%5Cexplainable-ai-1-basic-with-output_11_1.png
 
 
 Do Inference
 ------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -245,7 +243,7 @@ Do Inference
 Create Explainer
 ----------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -266,7 +264,7 @@ Create Explainer
 Do Explanation
 --------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Explainer generates explanation which contains saliency maps ({target:
 saliency_map}). For classification, targets are indices of the classes.
@@ -291,7 +289,7 @@ saliency_map}). For classification, targets are indices of the classes.
 
 
 
-.. image:: explainable-ai-1-basic-with-output_files/explainable-ai-1-basic-with-output_19_1.png
+.. image:: explainable-ai-1-basic-with-output_files%5Cexplainable-ai-1-basic-with-output_19_1.png
 
 
 Above saliency map can help to answer the question: “Which part of the

@@ -1,7 +1,7 @@
 OpenVINO™ Explainable AI Toolkit (3/3): Saliency map interpretation
 ===================================================================
 
-.. warning::
+.. container:: alert alert-block alert-danger
 
    Important note: This notebook requires python >= 3.10. Please make
    sure that your environment fulfill to this requirement before running
@@ -12,11 +12,11 @@ Explainable AI
 (XAI) <https://github.com/openvinotoolkit/openvino_xai/>`__:
 
 1. `OpenVINO™ Explainable AI Toolkit (1/3):
-   Basic <explainable-ai-1-basic-with-output.html>`__
+   Basic <../explainable-ai-1-basic/README.md>`__
 2. `OpenVINO™ Explainable AI Toolkit (2/3): Deep
-   Dive <explainable-ai-2-deep-dive-with-output.html>`__
+   Dive <../explainable-ai-2-deep-dive/README.md>`__
 3. `OpenVINO™ Explainable AI Toolkit (3/3): Saliency map
-   interpretation <explainable-ai-3-map-interpretation-with-output.html>`__
+   interpretation <../explainable-ai-3-map-interpretation/README.md>`__
 
 `OpenVINO™ Explainable AI
 (XAI) <https://github.com/openvinotoolkit/openvino_xai/>`__ provides a
@@ -42,45 +42,44 @@ Below, we present examples of saliency map analysis for the following
 cases: correct and highly-confident prediction, correct and
 low-confident prediction, and wrong prediction.
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-**Table of contents:**
+-  `Prerequisites <#Prerequisites>`__
 
+   -  `Install requirements <#Install-requirements>`__
+   -  `Imports <#Imports>`__
+   -  `Download dataset <#Download-dataset>`__
+   -  `Download IR model <#Download-IR-model>`__
 
--  `Prerequisites <#prerequisites>`__
+-  `Prepare model to run inference <#Prepare-model-to-run-inference>`__
 
-   -  `Install requirements <#install-requirements>`__
-   -  `Imports <#imports>`__
-   -  `Download dataset <#download-dataset>`__
-   -  `Download IR model <#download-ir-model>`__
-
--  `Prepare model to run inference <#prepare-model-to-run-inference>`__
-
-   -  `Select inference device <#select-inference-device>`__
-   -  `Load the Model <#load-the-model>`__
+   -  `Select inference device <#Select-inference-device>`__
+   -  `Load the Model <#Load-the-Model>`__
    -  `Define preprocess_fn and
-      postprocess_fn <#define-preprocess_fn-and-postprocess_fn>`__
+      postprocess_fn <#Define-preprocess_fn-and-postprocess_fn>`__
 
--  `Explain <#explain>`__
+-  `Explain <#Explain>`__
 
-   -  `Create explainer <#create-explainer>`__
-   -  `Import ImageNet label names <#import-imagenet-label-names>`__
-   -  `Explain using ImageNet labels <#explain-using-imagenet-labels>`__
+   -  `Create explainer <#Create-explainer>`__
+   -  `Import ImageNet label names <#Import-ImageNet-label-names>`__
+   -  `Explain using ImageNet labels <#Explain-using-ImageNet-labels>`__
 
 -  `Notable use cases in ImageWoof
-   dataset <#notable-use-cases-in-imagewoof-dataset>`__
+   dataset <#Notable-use-cases-in-ImageWoof-dataset>`__
 
-   -  `Explain for each use case <#explain-for-each-use-case>`__
+   -  `Explain for each use case <#Explain-for-each-use-case>`__
    -  `Visualize use case saliency
-      maps <#visualize-use-case-saliency-maps>`__
-   -  `Naming logic <#naming-logic>`__
+      maps <#Visualize-use-case-saliency-maps>`__
+   -  `Naming logic <#Naming-logic>`__
 
--  `Results <#results>`__
+-  `Results <#Results>`__
 
-   -  `True Positive High confidence <#true-positive-high-confidence>`__
-   -  `True Positive Low confidence <#true-positive-low-confidence>`__
+   -  `True Positive High confidence <#True-Positive-High-confidence>`__
+   -  `True Positive Low confidence <#True-Positive-Low-confidence>`__
    -  `False Positive High
-      confidence <#false-positive-high-confidence>`__
-   -  `Two mixed predictions <#two-mixed-predictions>`__
+      confidence <#False-Positive-High-confidence>`__
+   -  `Two mixed predictions <#Two-mixed-predictions>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -95,12 +94,12 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Install requirements
 ~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -120,7 +119,7 @@ Install requirements
 Imports
 ~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -149,7 +148,7 @@ Imports
 Download dataset
 ~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To see examples of saliency maps for different use cases, please
 download the `ImageWoof
@@ -212,7 +211,7 @@ classify since they’re all dog breeds.
 Download IR model
 ~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 In this notebook, for demonstration purposes, we’ll use an already
 converted to IR model ``mobilenetv3_large_100.ra_in1k``, from
@@ -245,12 +244,12 @@ scaling and normalization with certain values.
 Prepare model to run inference
 ------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -272,7 +271,7 @@ select device from dropdown list for running inference using OpenVINO
 Load the Model
 ~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -284,7 +283,7 @@ Load the Model
 Define preprocess_fn and postprocess_fn
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To run model inference, you need to define functions to preprocess data
 and postprocess the results based on the model’s implementation. Since
@@ -331,12 +330,12 @@ scaling with certain values.
 Explain
 -------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Create explainer
 ~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The ``explainer`` can internally apply pre-processing during model
 inference, allowing raw images as input.
@@ -371,7 +370,7 @@ If it’s not defined, it is assumed that the input is preprocessed.
 Import ImageNet label names
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 If ``label_names`` are not provided to the explainer call, the saved
 saliency map will have the predicted class index, not the name. For
@@ -413,7 +412,7 @@ label names information to the explanation call.
 Explain using ImageNet labels
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To use ImageNet label names, pass them as the ``label_names`` argument
 to the explainer.
@@ -454,7 +453,7 @@ you can see saved saliency maps:
 Notable use cases in ImageWoof dataset
 --------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Below are a few examples chosen to show cases when: - The correct class
 was predicted with high confidence (``True Positive, high confidence``)
@@ -548,7 +547,7 @@ The cell below contains paths to images with those respective use cases:
 Explain for each use case
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -671,7 +670,7 @@ See the list of use case names:
 Visualize use case saliency maps
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The function below helps to visualize the results by creating a matrix
 of pictures, their names, and the confidence of predictions:
@@ -710,7 +709,7 @@ of pictures, their names, and the confidence of predictions:
 Naming logic
 ~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The name of saved saliency maps in this notebook contains info about the
 ground-truth class, predicted class, and its confidence. For better
@@ -731,12 +730,12 @@ confidence.
 Results
 -------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 True Positive High confidence
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -744,7 +743,7 @@ True Positive High confidence
 
 
 
-.. image:: explainable-ai-3-map-interpretation-with-output_files/explainable-ai-3-map-interpretation-with-output_50_0.png
+.. image:: explainable-ai-3-map-interpretation-with-output_files%5Cexplainable-ai-3-map-interpretation-with-output_50_0.png
 
 
 In the case of ``True positive high confidence``, the model predicts the
@@ -767,7 +766,7 @@ behavior.
 True Positive Low confidence
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -775,7 +774,7 @@ True Positive Low confidence
 
 
 
-.. image:: explainable-ai-3-map-interpretation-with-output_files/explainable-ai-3-map-interpretation-with-output_53_0.png
+.. image:: explainable-ai-3-map-interpretation-with-output_files%5Cexplainable-ai-3-map-interpretation-with-output_53_0.png
 
 
 ``True positive low confidence`` basically means that key features are
@@ -786,7 +785,7 @@ decision mostly based on high-level features.
 False Positive High confidence
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -794,7 +793,7 @@ False Positive High confidence
 
 
 
-.. image:: explainable-ai-3-map-interpretation-with-output_files/explainable-ai-3-map-interpretation-with-output_56_0.png
+.. image:: explainable-ai-3-map-interpretation-with-output_files%5Cexplainable-ai-3-map-interpretation-with-output_56_0.png
 
 
 Here we see a few different reasons why the model can predict one class
@@ -833,7 +832,7 @@ than one class in the picture.
 Two mixed predictions
 ~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -841,7 +840,7 @@ Two mixed predictions
 
 
 
-.. image:: explainable-ai-3-map-interpretation-with-output_files/explainable-ai-3-map-interpretation-with-output_59_0.png
+.. image:: explainable-ai-3-map-interpretation-with-output_files%5Cexplainable-ai-3-map-interpretation-with-output_59_0.png
 
 
 Here are examples where two classes are predicted with relatively high

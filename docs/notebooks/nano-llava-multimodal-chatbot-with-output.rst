@@ -10,30 +10,29 @@ this tutorial, we consider how to convert and run nanoLLaVA model using
 OpenVINO. Additionally, we will optimize model using
 `NNCF <https://github.com/openvinotoolkit/nncf>`__
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-**Table of contents:**
-
-
--  `Prerequisites <#prerequisites>`__
--  `Load PyTorch model <#load-pytorch-model>`__
--  `Run PyTorch Model Inference <#run-pytorch-model-inference>`__
--  `Convert and Optimize model <#convert-and-optimize-model>`__
+-  `Prerequisites <#Prerequisites>`__
+-  `Load PyTorch model <#Load-PyTorch-model>`__
+-  `Run PyTorch Model Inference <#Run-PyTorch-Model-Inference>`__
+-  `Convert and Optimize model <#Convert-and-Optimize-model>`__
 
    -  `Convert model to OpenVINO IR
-      format <#convert-model-to-openvino-ir-format>`__
+      format <#Convert-model-to-OpenVINO-IR-format>`__
    -  `Compress Model weights to 4 and 8 bits using
-      NNCF <#compress-model-weights-to-4-and-8-bits-using-nncf>`__
-   -  `Image Encoder <#image-encoder>`__
-   -  `Text Embeddings <#text-embeddings>`__
-   -  `Language Model <#language-model>`__
+      NNCF <#Compress-Model-weights-to-4-and-8-bits-using-NNCF>`__
+   -  `Image Encoder <#Image-Encoder>`__
+   -  `Text Embeddings <#Text-Embeddings>`__
+   -  `Language Model <#Language-Model>`__
 
 -  `Prepare model inference
-   pipeline <#prepare-model-inference-pipeline>`__
--  `Run OpenVINO Model Inference <#run-openvino-model-inference>`__
+   pipeline <#Prepare-model-inference-pipeline>`__
+-  `Run OpenVINO Model Inference <#Run-OpenVINO-Model-Inference>`__
 
-   -  `Select device <#select-device>`__
+   -  `Select device <#Select-device>`__
 
--  `Interactive demo <#interactive-demo>`__
+-  `Interactive demo <#Interactive-demo>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -48,7 +47,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -104,7 +103,7 @@ Prerequisites
 
 .. parsed-literal::
 
-    added_tokens.json:   0%|          | 0.00/80.0 [00:00<?, ?B/s]
+    merges.txt:   0%|          | 0.00/1.67M [00:00<?, ?B/s]
 
 
 
@@ -122,6 +121,12 @@ Prerequisites
 
 .. parsed-literal::
 
+    .gitattributes:   0%|          | 0.00/1.52k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
     config.json:   0%|          | 0.00/1.28k [00:00<?, ?B/s]
 
 
@@ -134,31 +139,13 @@ Prerequisites
 
 .. parsed-literal::
 
-    .gitattributes:   0%|          | 0.00/1.52k [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    merges.txt:   0%|          | 0.00/1.67M [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
     generation_config.json:   0%|          | 0.00/172 [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    vocab.json:   0%|          | 0.00/2.78M [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    tokenizer_config.json:   0%|          | 0.00/1.32k [00:00<?, ?B/s]
+    added_tokens.json:   0%|          | 0.00/80.0 [00:00<?, ?B/s]
 
 
 
@@ -170,7 +157,19 @@ Prerequisites
 
 .. parsed-literal::
 
+    tokenizer_config.json:   0%|          | 0.00/1.32k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
     special_tokens_map.json:   0%|          | 0.00/510 [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    vocab.json:   0%|          | 0.00/2.78M [00:00<?, ?B/s]
 
 
 
@@ -188,7 +187,7 @@ Prerequisites
 Load PyTorch model
 ------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 For creating PyTorch model we should use ``from_pretrained`` method of
 ``AutoModelForCausalLM`` model class. Model weights are already
@@ -211,16 +210,16 @@ previous step.
 
 .. parsed-literal::
 
-    2024-09-24 01:54:43.372628: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-09-24 01:54:43.407003: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-10-08 03:11:17.270186: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-10-08 03:11:17.304136: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-09-24 01:54:43.926110: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-10-08 03:11:18.027701: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Run PyTorch Model Inference
 ---------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -263,14 +262,14 @@ Run PyTorch Model Inference
 
 .. parsed-literal::
 
-    This image features a cute white llama with large black eyes and pink lips, standing in the middle of a bright, lit-up fire. The llama is adorned with a tiny yellow sticker on its face, and its ears are pink and white. The llama's white fur is slightly burnt, giving it a unique and playful appearance. The llama's right and left front legs are also white, matching the rest of its body. The llama's eyes are a striking shade of pink, and its nose is black, adding to its adorable features.
-    The fire in which the llama stands is bright and orange, with a few small flames flickering, adding
+    The image features a white, fluffy lamb, likely a lama, in the midst of a fire. The lamb's fluffy fur is a mix of white and black, and it has a unique pattern of black spots on its body. The lamb's eyes are a bright shade of blue, and its ears are also white. The lamb's mouth is open, revealing pink lips, adding a playful touch to its overall appearance.
+    The lamb's face is quite detailed, with features such as a small black eye, a small nose, and a black mouth. The lamb's face is also quite expressive, with its mouth open, revealing pink lips
 
 
 Convert and Optimize model
 --------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Our model conversion and optimization consist of following steps: 1.
 Convert model to OpenVINO format and save it on disk. 2. Compress model
@@ -281,7 +280,7 @@ Let’s consider each step more deeply.
 Convert model to OpenVINO IR format
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Convert model to OpenVINO format using conversion helper function
 defined bellow. We will use `OpenVINO Model Conversion
@@ -299,7 +298,7 @@ convert each part separately.
 Compress Model weights to 4 and 8 bits using NNCF
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 For reducing memory consumption, weights compression optimization can be
 applied using `NNCF <https://github.com/openvinotoolkit/nncf>`__. Weight
@@ -465,7 +464,7 @@ compression instead of INT8 weight compression.
 Image Encoder
 ~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Image Encoder is represented in nanoLLaVA by pretrained SigLIP model.
 Image encoder is responsible for encoding input images into embedding
@@ -518,11 +517,11 @@ space.
 
     Applying weight compression to image encoder
     INFO:nncf:Statistics of the bitwidth distribution:
-    ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
-    │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
-    ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
-    │              8 │ 100% (159 / 159)            │ 100% (159 / 159)                       │
-    ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
+    ┍━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
+    │ Weight compression mode   │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
+    ┝━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
+    │ int8_asym                 │ 100% (159 / 159)            │ 100% (159 / 159)                       │
+    ┕━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
 
 
 
@@ -532,9 +531,9 @@ space.
 
 
 
+.. raw:: html
 
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
@@ -546,7 +545,7 @@ space.
 Text Embeddings
 ~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 In LLMs, input embedding is a part of language model, but for LLaVA the
 first step hidden state produced by this model part should be integrated
@@ -574,7 +573,7 @@ will use it separately.
 Language Model
 ~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Language Model is responsible for generation answer in LLaVA. This part
 is very similar to standard LLM for text generation. Our model uses
@@ -653,22 +652,22 @@ token prediction.
 
 
 
+.. raw:: html
 
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 .. parsed-literal::
 
     INFO:nncf:Statistics of the bitwidth distribution:
-    ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
-    │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
-    ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
-    │              8 │ 47% (48 / 169)              │ 20% (47 / 168)                         │
-    ├────────────────┼─────────────────────────────┼────────────────────────────────────────┤
-    │              4 │ 53% (121 / 169)             │ 80% (121 / 168)                        │
-    ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
+    ┍━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
+    │ Weight compression mode   │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
+    ┝━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
+    │ int8_asym                 │ 47% (48 / 169)              │ 20% (47 / 168)                         │
+    ├───────────────────────────┼─────────────────────────────┼────────────────────────────────────────┤
+    │ int4_asym                 │ 53% (121 / 169)             │ 80% (121 / 168)                        │
+    ┕━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
 
 
 
@@ -678,9 +677,9 @@ token prediction.
 
 
 
+.. raw:: html
 
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
@@ -692,7 +691,7 @@ token prediction.
 Prepare model inference pipeline
 --------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 ``OVLlavaQwen2ForCausalLM`` class provides ease-to-use interface for
 using model in generation scenario. It is based on
@@ -1047,12 +1046,12 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
 Run OpenVINO Model Inference
 ----------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Select device
 ~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -1099,7 +1098,7 @@ Select device
 Interactive demo
 ----------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -1224,9 +1223,9 @@ Interactive demo
 
 
 
+.. raw:: html
 
-
-
+    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 
 
 .. code:: ipython3

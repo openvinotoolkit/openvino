@@ -14,30 +14,29 @@ designed to streamline tokenizer conversion for seamless integration
 into your projects. It supports Python and C++ environments and is
 compatible with all major platforms: Linux, Windows, and MacOS.
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-**Table of contents:**
-
-
--  `Tokenization Basics <#tokenization-basics>`__
--  `Acquiring OpenVINO Tokenizers <#acquiring-openvino-tokenizers>`__
+-  `Tokenization Basics <#Tokenization-Basics>`__
+-  `Acquiring OpenVINO Tokenizers <#Acquiring-OpenVINO-Tokenizers>`__
 
    -  `Convert Tokenizer from HuggingFace Hub with CLI
-      Tool <#convert-tokenizer-from_huggingface-hub-with-cli-tool>`__
+      Tool <#Convert-Tokenizer-from_HuggingFace-Hub-with-CLI-Tool>`__
    -  `Convert Tokenizer from HuggingFace Hub with Python
-      API <#convert-tokenizer-from-huggingface-hub-with-python-api>`__
+      API <#Convert-Tokenizer-from-HuggingFace-Hub-with-Python-API>`__
 
 -  `Text Generation Pipeline with OpenVINO
-   Tokenizers <#text-generation-pipeline-with-openvino-tokenizers>`__
+   Tokenizers <#Text-Generation-Pipeline-with-OpenVINO-Tokenizers>`__
 -  `Text Generation Pipeline with OpenVINO GenAI and OpenVINO
    Tokenizers <#text-generation-pipeline-with-openvino-genai-and-openvino-tokenizers>`__
--  `Merge Tokenizer into a Model <#merge-tokenizer-into-a-model>`__
--  `Conclusion <#conclusion>`__
--  `Links <#links>`__
+-  `Merge Tokenizer into a Model <#Merge-Tokenizer-into-a-Model>`__
+-  `Conclusion <#Conclusion>`__
+-  `Links <#Links>`__
 
 Tokenization Basics
 -------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 One does not simply put text into a neural network, only numbers. The
 process of transforming text into a sequence of numbers is called
@@ -84,8 +83,7 @@ Some tasks only need a tokenizer, like text classification, named entity
 recognition, question answering, and feature extraction. On the other
 hand, for tasks such as text generation, chat, translation, and
 abstractive summarization, both a tokenizer and a detokenizer are
-required.  
-
+required. ### Installation Instructions
 
 This is a self-contained example that relies solely on its own code.
 
@@ -97,7 +95,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Acquiring OpenVINO Tokenizers
 -----------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 OpenVINO Tokenizers Python library allows you to convert HuggingFace
 tokenizers into OpenVINO models. To install all required dependencies
@@ -108,25 +106,6 @@ use ``pip install openvino-tokenizers[transformers]``.
     %pip install -Uq pip
     %pip install -q -U "openvino>=2024.3.0" openvino-tokenizers[transformers] openvino-genai
     %pip install "numpy<2.0.0" "torch>=2.1" --extra-index-url https://download.pytorch.org/whl/cpu
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Looking in indexes: https://pypi.org/simple, https://download.pytorch.org/whl/cpu
-    Requirement already satisfied: numpy<2.0.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (1.23.5)
-    Requirement already satisfied: torch>=2.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (2.2.2+cpu)
-    Requirement already satisfied: filelock in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch>=2.1) (3.16.1)
-    Requirement already satisfied: typing-extensions>=4.8.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch>=2.1) (4.12.2)
-    Requirement already satisfied: sympy in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch>=2.1) (1.13.3)
-    Requirement already satisfied: networkx in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch>=2.1) (3.1)
-    Requirement already satisfied: jinja2 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch>=2.1) (3.1.4)
-    Requirement already satisfied: fsspec in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch>=2.1) (2024.6.1)
-    Requirement already satisfied: MarkupSafe>=2.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from jinja2->torch>=2.1) (2.1.5)
-    Requirement already satisfied: mpmath<1.4,>=1.1.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from sympy->torch>=2.1) (1.3.0)
-    Note: you may need to restart the kernel to use updated packages.
-
 
 .. code:: ipython3
 
@@ -139,7 +118,7 @@ use ``pip install openvino-tokenizers[transformers]``.
 Convert Tokenizer from HuggingFace Hub with CLI Tool
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The first way is to use the CLI utility, bundled with OpenVINO
 Tokenizers. Use ``--with-detokenizer`` flag to add the detokenizer model
@@ -160,7 +139,7 @@ constructor.
     Converting Huggingface Tokenizer to OpenVINO...
     Saved OpenVINO Tokenizer: tokenizer/openvino_tokenizer.xml, tokenizer/openvino_tokenizer.bin
     Saved OpenVINO Detokenizer: tokenizer/openvino_detokenizer.xml, tokenizer/openvino_detokenizer.bin
-
+    
 
    ⚠️ If you have any problems with the command above on MacOS, try to
    `install tbb <https://formulae.brew.sh/formula/tbb#default>`__.
@@ -173,7 +152,7 @@ other OpenVINO model.
 Convert Tokenizer from HuggingFace Hub with Python API
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The other method is to pass HuggingFace ``hf_tokenizer`` object to
 ``convert_tokenizer`` function:
@@ -195,7 +174,7 @@ The other method is to pass HuggingFace ``hf_tokenizer`` object to
 
     (<Model: 'tokenizer'
      inputs[
-     <ConstOutput: names[Parameter_1] shape[?] type: string>
+     <ConstOutput: names[string_input] shape[?] type: string>
      ]
      outputs[
      <ConstOutput: names[input_ids] shape[?,?] type: i64>,
@@ -203,7 +182,7 @@ The other method is to pass HuggingFace ``hf_tokenizer`` object to
      ]>,
      <Model: 'detokenizer'
      inputs[
-     <ConstOutput: names[Parameter_121] shape[?,?] type: i64>
+     <ConstOutput: names[Parameter_22] shape[?,?] type: i64>
      ]
      outputs[
      <ConstOutput: names[string_output] shape[?] type: string>
@@ -257,7 +236,7 @@ tasks, but not suitable for text generation.
     Token ids: [[   1 4321]
      [   1 6031]]
     Detokenized text: ['Test' 'strings']
-
+    
 
 We can compare the result of converted (de)tokenizer with the original
 one:
@@ -274,25 +253,13 @@ one:
 .. parsed-literal::
 
     Token ids: [[1, 4321], [1, 6031]]
-
-
-.. parsed-literal::
-
-    2024-09-24 01:58:24.452870: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-09-24 01:58:24.486218: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-09-24 01:58:25.117973: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-
-
-.. parsed-literal::
-
     Detokenized text: ['<s> Test', '<s> strings']
-
+    
 
 Text Generation Pipeline with OpenVINO Tokenizers
 -------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Let’s build a text generation pipeline with OpenVINO Tokenizers and
 minimal dependencies. To obtain an OpenVINO model we will use the
@@ -327,19 +294,6 @@ command is commented.
             filename="openvino_model.bin",
             local_dir=model_dir,
         )
-
-
-
-.. parsed-literal::
-
-    openvino_model.xml:   0%|          | 0.00/2.93M [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    openvino_model.bin:   0%|          | 0.00/1.10G [00:00<?, ?B/s]
-
 
 .. code:: ipython3
 
@@ -425,12 +379,12 @@ distinct and separate state.
     Quick brown fox jumped
     Generated:
     over the fence.
-
+    
 
 Text Generation Pipeline with OpenVINO GenAI and OpenVINO Tokenizers
 --------------------------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 `OpenVINO GenAI <https://github.com/openvinotoolkit/openvino.genai>`__
 is a flavor of OpenVINO, aiming to simplify running inference of
@@ -443,7 +397,7 @@ Firstly we need to create a pipeline with ``LLMPipeline``.
 ``LLMPipeline`` is the main object used for text generation using LLM in
 OpenVINO GenAI API. You can construct it straight away from the folder
 where both converted model and tokenizer are located,
-e.g. \ ``ov_genai.LLMPipeline(model_and_tokenizer_path)``.
+e.g. ``ov_genai.LLMPipeline(model_and_tokenizer_path)``.
 
 As the model and tokenizer are located in different directories, we
 create a ``ov_genai.Tokenizer`` object by providing the path to saved
@@ -484,12 +438,12 @@ We will use the same model and tokenizer downloaded in previous steps.
     Quick brown fox jumped
     Generated:
     over the lazy dog.
-
+    
 
 Merge Tokenizer into a Model
 ----------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Packages like ``tensorflow-text`` offer the convenience of integrating
 text processing directly into the model, streamlining both distribution
@@ -529,38 +483,6 @@ model has only one input for text input prompt.
         %pip install -qU git+https://github.com/huggingface/optimum-intel.git "onnx<1.16.2"
         !optimum-cli export openvino --model $model_id --task text-classification $model_dir
 
-
-.. parsed-literal::
-
-    huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
-    To disable this warning, you can either:
-    	- Avoid using `tokenizers` before the fork if possible
-    	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
-    huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
-    To disable this warning, you can either:
-    	- Avoid using `tokenizers` before the fork if possible
-    	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
-
-
-.. parsed-literal::
-
-    2024-09-24 01:58:49.441847: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    Framework not specified. Using pt to export the model.
-    Using framework PyTorch: 2.2.2+cpu
-    Overriding 1 configuration item(s)
-    	- use_cache -> False
-    Detokenizer is not supported, convert tokenizer only.
-
-
 .. code:: ipython3
 
     from openvino_tokenizers import connect_models
@@ -596,15 +518,15 @@ model has only one input for text input prompt.
     <Output: names[token_type_ids] shape[?,?] type: i64>
     
     Combined OpenVINO model inputs:
-    <Output: names[Parameter_4492] shape[?] type: string>
+    <Output: names[Parameter_4430] shape[?] type: string>
     
-    Logits: [[ 1.2007061 -1.4698029]]
-
+    Logits: [[ 1.2007061 -1.469803 ]]
+    
 
 Conclusion
 ----------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The OpenVINO Tokenizers integrate text processing operations into the
 OpenVINO ecosystem. Enabling the conversion of HuggingFace tokenizers
@@ -616,7 +538,7 @@ helps to streamline model usage and deployment.
 Links
 -----
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 -  `Installation instructions for different
    environments <https://github.com/openvinotoolkit/openvino_tokenizers?tab=readme-ov-file#installation>`__

@@ -28,42 +28,41 @@ In this tutorial we consider how to convert and run EfficientSAM using
 OpenVINO. We also demonstrate how to quantize model using
 `NNCF <https://github.com/openvinotoolkit/nncf.git>`__
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-**Table of contents:**
+-  `Prerequisites <#Prerequisites>`__
+-  `Load PyTorch model <#Load-PyTorch-model>`__
+-  `Run PyTorch model inference <#Run-PyTorch-model-inference>`__
 
-
--  `Prerequisites <#prerequisites>`__
--  `Load PyTorch model <#load-pytorch-model>`__
--  `Run PyTorch model inference <#run-pytorch-model-inference>`__
-
-   -  `Prepare input data <#prepare-input-data>`__
+   -  `Prepare input data <#Prepare-input-data>`__
    -  `Define helpers for input and output
-      processing <#define-helpers-for-input-and-output-processing>`__
+      processing <#Define-helpers-for-input-and-output-processing>`__
 
 -  `Convert model to OpenVINO IR
-   format <#convert-model-to-openvino-ir-format>`__
--  `Run OpenVINO model inference <#run-openvino-model-inference>`__
+   format <#Convert-model-to-OpenVINO-IR-format>`__
+-  `Run OpenVINO model inference <#Run-OpenVINO-model-inference>`__
 
    -  `Select inference device from dropdown
-      list <#select-inference-device-from-dropdown-list>`__
-   -  `Compile OpenVINO model <#compile-openvino-model>`__
+      list <#Select-inference-device-from-dropdown-list>`__
+   -  `Compile OpenVINO model <#Compile-OpenVINO-model>`__
    -  `Inference and visualize
-      result <#inference-and-visualize-result>`__
+      result <#Inference-and-visualize-result>`__
 
--  `Quantization <#quantization>`__
+-  `Quantization <#Quantization>`__
 
-   -  `Prepare calibration datasets <#prepare-calibration-datasets>`__
-   -  `Run Model Quantization <#run-model-quantization>`__
+   -  `Prepare calibration datasets <#Prepare-calibration-datasets>`__
+   -  `Run Model Quantization <#Run-Model-Quantization>`__
 
 -  `Verify quantized model
-   inference <#verify-quantized-model-inference>`__
+   inference <#Verify-quantized-model-inference>`__
 
-   -  `Save quantize model on disk <#save-quantize-model-on-disk>`__
-   -  `Compare quantized model size <#compare-quantized-model-size>`__
+   -  `Save quantize model on disk <#Save-quantize-model-on-disk>`__
+   -  `Compare quantized model size <#Compare-quantized-model-size>`__
    -  `Compare inference time of the FP16 and INT8
-      models <#compare-inference-time-of-the-fp16-and-int8-models>`__
+      models <#Compare-inference-time-of-the-FP16-and-INT8-models>`__
 
--  `Interactive segmentation demo <#interactive-segmentation-demo>`__
+-  `Interactive segmentation demo <#Interactive-segmentation-demo>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -78,7 +77,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -116,9 +115,9 @@ Prerequisites
     remote: Counting objects: 100% (85/85), done.[K
     remote: Compressing objects: 100% (33/33), done.[K
     remote: Total 424 (delta 76), reused 52 (delta 52), pack-reused 339 (from 1)[K
-    Receiving objects: 100% (424/424), 262.14 MiB | 23.40 MiB/s, done.
+    Receiving objects: 100% (424/424), 262.14 MiB | 22.33 MiB/s, done.
     Resolving deltas: 100% (246/246), done.
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM
 
 
 .. code:: ipython3
@@ -136,7 +135,7 @@ Prerequisites
 Load PyTorch model
 ------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 There are several models available in the repository:
 
@@ -206,13 +205,13 @@ build PyTorch model
 Run PyTorch model inference
 ---------------------------
 
-Now, when we selected and
+`back to top ⬆️ <#Table-of-contents:>`__ Now, when we selected and
 loaded PyTorch model, we can check its result
 
 Prepare input data
 ~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 First of all, we should prepare input data for model. Model has 3
 inputs: \* image tensor - tensor with normalized input image. \* input
@@ -242,7 +241,7 @@ bounding box, 3 - right-bottom point of bounding box.
 Define helpers for input and output processing
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The code below defines helpers for preparing model input and postprocess
 inference results. The input format is accepted by the model described
@@ -356,7 +355,7 @@ The complete model inference example demonstrated below
 Convert model to OpenVINO IR format
 -----------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 OpenVINO supports PyTorch models via conversion in Intermediate
 Representation (IR) format using OpenVINO `Model Conversion
@@ -385,35 +384,35 @@ disk using ``openvino.save_model``.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam.py:220: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam.py:220: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if (
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:241: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:241: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert (
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:163: TracerWarning: Converting a tensor to a Python float might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:163: TracerWarning: Converting a tensor to a Python float might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       size = int(math.sqrt(xy_num))
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:164: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:164: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert size * size == xy_num
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:166: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:166: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if size != h or size != w:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:251: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam_encoder.py:251: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert x.shape[2] == num_patches
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam.py:85: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam.py:85: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if num_pts > self.decoder_max_num_input_points:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam.py:92: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam.py:92: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       elif num_pts < self.decoder_max_num_input_points:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam.py:126: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/notebooks/efficient-sam/EfficientSAM/efficient_sam/efficient_sam.py:126: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if output_w > 0 and output_h > 0:
 
 
 Run OpenVINO model inference
 ----------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Select inference device from dropdown list
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -433,7 +432,7 @@ Select inference device from dropdown list
 Compile OpenVINO model
 ~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -442,7 +441,7 @@ Compile OpenVINO model
 Inference and visualize result
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Now, we can take a look on OpenVINO model prediction
 
@@ -478,7 +477,7 @@ Now, we can take a look on OpenVINO model prediction
 Quantization
 ------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding the quantization layers into the
@@ -531,7 +530,7 @@ quantization.
 Prepare calibration datasets
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The first step is to prepare calibration datasets for quantization. We
 will use coco128 dataset for quantization. Usually, this dataset used
@@ -612,7 +611,7 @@ creates DataLoader for preparing inputs for EfficientSAM model.
 Run Model Quantization
 ~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The ``nncf.quantize`` function provides an interface for model
 quantization. It requires an instance of the OpenVINO Model and
@@ -648,10 +647,10 @@ architecture type, we should specify ``transformer`` in ``model_type``.
 
 .. parsed-literal::
 
-    2024-09-24 00:41:36.417744: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-09-24 00:41:36.450605: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-10-08 01:57:55.723142: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-10-08 01:57:55.754489: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-09-24 00:41:37.081764: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-10-08 01:57:56.401127: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 
@@ -661,22 +660,9 @@ architecture type, we should specify ``transformer`` in ``model_type``.
 
 
 
+.. raw:: html
 
-
-
-
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-
-
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
@@ -687,9 +673,9 @@ architecture type, we should specify ``transformer`` in ``model_type``.
 
 
 
+.. raw:: html
 
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
@@ -700,9 +686,22 @@ architecture type, we should specify ``transformer`` in ``model_type``.
 
 
 
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
+
+.. parsed-literal::
+
+    Output()
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
@@ -714,7 +713,7 @@ architecture type, we should specify ``transformer`` in ``model_type``.
 Verify quantized model inference
 --------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -751,7 +750,7 @@ Verify quantized model inference
 Save quantize model on disk
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -763,7 +762,7 @@ Save quantize model on disk
 Compare quantized model size
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -787,7 +786,7 @@ Compare quantized model size
 Compare inference time of the FP16 and INT8 models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To measure the inference performance of the ``FP16`` and ``INT8``
 models, we use ``bencmark_app``.
@@ -818,7 +817,7 @@ models, we use ``bencmark_app``.
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 29.72 ms
+    [ INFO ] Read model took 29.82 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     batched_images (node: batched_images) : f32 / [...] / [?,?,?,?]
@@ -838,7 +837,7 @@ models, we use ``bencmark_app``.
     [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_3) : f32 / [...] / [?,?,?,?,?]
     [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_2) : f32 / [...] / [?,?,?]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 1391.34 ms
+    [ INFO ] Compile model took 1394.30 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -879,17 +878,17 @@ models, we use ``bencmark_app``.
     [ INFO ] Fill input 'batched_point_labels' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in full mode (inputs filling are included in measurement loop).
-    [ INFO ] First inference took 822.04 ms
+    [ INFO ] First inference took 815.67 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            47 iterations
-    [ INFO ] Duration:         16545.03 ms
+    [ INFO ] Count:            54 iterations
+    [ INFO ] Duration:         16885.27 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        2017.02 ms
-    [ INFO ]    Average:       2049.16 ms
-    [ INFO ]    Min:           1110.81 ms
-    [ INFO ]    Max:           2739.11 ms
-    [ INFO ] Throughput:   2.84 FPS
+    [ INFO ]    Median:        1856.65 ms
+    [ INFO ]    Average:       1850.85 ms
+    [ INFO ]    Min:           1459.90 ms
+    [ INFO ]    Max:           2009.04 ms
+    [ INFO ] Throughput:   3.20 FPS
 
 
 .. code:: ipython3
@@ -915,7 +914,7 @@ models, we use ``bencmark_app``.
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 43.63 ms
+    [ INFO ] Read model took 44.15 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     batched_images (node: batched_images) : f32 / [...] / [?,?,?,?]
@@ -935,7 +934,7 @@ models, we use ``bencmark_app``.
     [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_3) : f32 / [...] / [?,?,?,?,?]
     [ INFO ]     ***NO_NAME*** (node: aten::reshape/Reshape_2) : f32 / [...] / [?,?,?]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 1629.94 ms
+    [ INFO ] Compile model took 1618.00 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -976,23 +975,23 @@ models, we use ``bencmark_app``.
     [ INFO ] Fill input 'batched_point_labels' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in full mode (inputs filling are included in measurement loop).
-    [ INFO ] First inference took 606.10 ms
+    [ INFO ] First inference took 587.18 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            55 iterations
-    [ INFO ] Duration:         15905.50 ms
+    [ INFO ] Count:            58 iterations
+    [ INFO ] Duration:         16436.53 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        1706.55 ms
-    [ INFO ]    Average:       1699.17 ms
-    [ INFO ]    Min:           613.31 ms
-    [ INFO ]    Max:           1844.61 ms
-    [ INFO ] Throughput:   3.46 FPS
+    [ INFO ]    Median:        1670.45 ms
+    [ INFO ]    Average:       1680.37 ms
+    [ INFO ]    Min:           1321.28 ms
+    [ INFO ]    Max:           2532.97 ms
+    [ INFO ] Throughput:   3.53 FPS
 
 
 Interactive segmentation demo
 -----------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -1316,14 +1315,14 @@ Interactive segmentation demo
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/notebooks/efficient-sam
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/notebooks/efficient-sam
     Running on local URL:  http://127.0.0.1:7860
     
     To create a public link, set `share=True` in `launch()`.
 
 
 
+.. raw:: html
 
-
-
+    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 

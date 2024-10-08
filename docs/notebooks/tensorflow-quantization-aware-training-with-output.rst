@@ -21,22 +21,21 @@ Imagenette is a subset of 10 easily classified classes from the ImageNet
 dataset. Using the smaller model and dataset will speed up training and
 download time.
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-**Table of contents:**
-
-
--  `Imports and Settings <#imports-and-settings>`__
--  `Dataset Preprocessing <#dataset-preprocessing>`__
--  `Define a Floating-Point Model <#define-a-floating-point-model>`__
+-  `Imports and Settings <#Imports-and-Settings>`__
+-  `Dataset Preprocessing <#Dataset-Preprocessing>`__
+-  `Define a Floating-Point Model <#Define-a-Floating-Point-Model>`__
 -  `Pre-train a Floating-Point
-   Model <#pre-train-a-floating-point-model>`__
+   Model <#Pre-train-a-Floating-Point-Model>`__
 -  `Create and Initialize
-   Quantization <#create-and-initialize-quantization>`__
--  `Fine-tune the Compressed Model <#fine-tune-the-compressed-model>`__
+   Quantization <#Create-and-Initialize-Quantization>`__
+-  `Fine-tune the Compressed Model <#Fine-tune-the-Compressed-Model>`__
 -  `Export Models to OpenVINO Intermediate Representation
-   (IR) <#export-models-to-openvino-intermediate-representation-ir>`__
+   (IR) <#Export-Models-to-OpenVINO-Intermediate-Representation-(IR)>`__
 -  `Benchmark Model Performance by Computing Inference
-   Time <#benchmark-model-performance-by-computing-inference-time>`__
+   Time <#Benchmark-Model-Performance-by-Computing-Inference-Time>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -51,7 +50,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Imports and Settings
 --------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Import NNCF and all auxiliary packages from your Python code. Set a name
 for the model, input image size, used batch size, and the learning rate.
@@ -87,39 +86,39 @@ models will be stored.
 
     from pathlib import Path
     import logging
-
+    
     import tensorflow as tf
     import tensorflow_datasets as tfds
-
+    
     from nncf import NNCFConfig
     from nncf.tensorflow.helpers.model_creation import create_compressed_model
     from nncf.tensorflow.initialization import register_default_init_args
     from nncf.common.logging.logger import set_log_level
     import openvino as ov
-
+    
     set_log_level(logging.ERROR)
-
+    
     MODEL_DIR = Path("model")
     OUTPUT_DIR = Path("output")
     MODEL_DIR.mkdir(exist_ok=True)
     OUTPUT_DIR.mkdir(exist_ok=True)
-
+    
     BASE_MODEL_NAME = "ResNet-18"
-
+    
     fp32_h5_path = Path(MODEL_DIR / (BASE_MODEL_NAME + "_fp32")).with_suffix(".h5")
     fp32_ir_path = Path(OUTPUT_DIR / "saved_model").with_suffix(".xml")
     int8_pb_path = Path(OUTPUT_DIR / (BASE_MODEL_NAME + "_int8")).with_suffix(".pb")
     int8_ir_path = int8_pb_path.with_suffix(".xml")
-
+    
     BATCH_SIZE = 128
     IMG_SIZE = (64, 64)  # Default Imagenet image size
     NUM_CLASSES = 10  # For Imagenette dataset
-
+    
     LR = 1e-5
-
+    
     MEAN_RGB = (0.485 * 255, 0.456 * 255, 0.406 * 255)  # From Imagenet dataset
     STDDEV_RGB = (0.229 * 255, 0.224 * 255, 0.225 * 255)  # From Imagenet dataset
-
+    
     fp32_pth_url = "https://storage.openvinotoolkit.org/repositories/nncf/openvino_notebook_ckpts/305_resnet18_imagenette_fp32_v1.h5"
     _ = tf.keras.utils.get_file(fp32_h5_path.resolve(), fp32_pth_url)
     print(f"Absolute path where the model weights are saved:\n {fp32_h5_path.resolve()}")
@@ -127,10 +126,10 @@ models will be stored.
 
 .. parsed-literal::
 
-    2024-09-24 05:14:48.049727: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-09-24 05:14:48.084650: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-10-08 06:35:11.409798: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-10-08 06:35:11.445325: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-09-24 05:14:48.692174: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-10-08 06:35:12.031179: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. parsed-literal::
@@ -138,20 +137,18 @@ models will be stored.
     INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
     WARNING:nncf:NNCF provides best results with torch==2.15.*, while current torch version is 2.12.0. If you encounter issues, consider switching to torch==2.15.*
     Downloading data from https://storage.openvinotoolkit.org/repositories/nncf/openvino_notebook_ckpts/305_resnet18_imagenette_fp32_v1.h5
-    134604992/134604992 [==============================] - 2s 0us/step
+    134604992/134604992 [==============================] - 1s 0us/step
     Absolute path where the model weights are saved:
-     /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/notebooks/tensorflow-quantization-aware-training/model/ResNet-18_fp32.h5
+     /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/notebooks/tensorflow-quantization-aware-training/model/ResNet-18_fp32.h5
 
 
 Dataset Preprocessing
 ---------------------
 
+`back to top ⬆️ <#Table-of-contents:>`__
 
-
-Download and prepare Imagenette 160px dataset.
-
-- Number of classes: 10
-- Download size: 94.18 MiB
+Download and prepare Imagenette 160px dataset. - Number of classes: 10 -
+Download size: 94.18 MiB
 
 ::
 
@@ -175,13 +172,13 @@ Download and prepare Imagenette 160px dataset.
 
 .. parsed-literal::
 
-    2024-09-24 05:14:53.554016: W tensorflow/core/common_runtime/gpu/gpu_device.cc:1956] Cannot dlopen some GPU libraries. Please make sure the missing libraries mentioned above are installed properly if you would like to use GPU. Follow the guide at https://www.tensorflow.org/install/gpu for how to download and setup the required libraries for your platform.
+    2024-10-08 06:35:17.272397: W tensorflow/core/common_runtime/gpu/gpu_device.cc:1956] Cannot dlopen some GPU libraries. Please make sure the missing libraries mentioned above are installed properly if you would like to use GPU. Follow the guide at https://www.tensorflow.org/install/gpu for how to download and setup the required libraries for your platform.
     Skipping registering GPU devices...
-    2024-09-24 05:14:53.668549: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_1' with dtype string and shape [1]
-    	 [[{{node Placeholder/_1}}]]
-    2024-09-24 05:14:53.668882: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_3' with dtype int64 and shape [1]
-    	 [[{{node Placeholder/_3}}]]
-    2024-09-24 05:14:53.710679: W tensorflow/core/kernels/data/cache_dataset_ops.cc:856] The calling iterator did not fully read the dataset being cached. In order to avoid unexpected truncation of the dataset, the partially cached contents of the dataset  will be discarded. This can happen if you have an input pipeline similar to `dataset.cache().take(k).repeat()`. You should use `dataset.take(k).cache().repeat()` instead.
+    2024-10-08 06:35:17.394397: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_0' with dtype string and shape [1]
+    	 [[{{node Placeholder/_0}}]]
+    2024-10-08 06:35:17.394736: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_0' with dtype string and shape [1]
+    	 [[{{node Placeholder/_0}}]]
+    2024-10-08 06:35:17.449153: W tensorflow/core/kernels/data/cache_dataset_ops.cc:856] The calling iterator did not fully read the dataset being cached. In order to avoid unexpected truncation of the dataset, the partially cached contents of the dataset  will be discarded. This can happen if you have an input pipeline similar to `dataset.cache().take(k).repeat()`. You should use `dataset.take(k).cache().repeat()` instead.
 
 
 
@@ -196,10 +193,10 @@ Download and prepare Imagenette 160px dataset.
         image = image / STDDEV_RGB
         label = tf.one_hot(label, NUM_CLASSES)
         return image, label
-
-
+    
+    
     train_dataset = train_dataset.map(preprocessing, num_parallel_calls=tf.data.experimental.AUTOTUNE).batch(BATCH_SIZE).prefetch(tf.data.experimental.AUTOTUNE)
-
+    
     validation_dataset = (
         validation_dataset.map(preprocessing, num_parallel_calls=tf.data.experimental.AUTOTUNE).batch(BATCH_SIZE).prefetch(tf.data.experimental.AUTOTUNE)
     )
@@ -207,7 +204,7 @@ Download and prepare Imagenette 160px dataset.
 Define a Floating-Point Model
 -----------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -215,7 +212,7 @@ Define a Floating-Point Model
         def layer(input_tensor):
             x = tf.keras.layers.BatchNormalization(epsilon=2e-5)(input_tensor)
             x = tf.keras.layers.Activation("relu")(x)
-
+    
             # Defining shortcut connection.
             if cut == "pre":
                 shortcut = input_tensor
@@ -227,7 +224,7 @@ Define a Floating-Point Model
                     kernel_initializer="he_uniform",
                     use_bias=False,
                 )(x)
-
+    
             # Continue with convolution layers.
             x = tf.keras.layers.ZeroPadding2D(padding=(1, 1))(x)
             x = tf.keras.layers.Conv2D(
@@ -237,23 +234,23 @@ Define a Floating-Point Model
                 kernel_initializer="he_uniform",
                 use_bias=False,
             )(x)
-
+    
             x = tf.keras.layers.BatchNormalization(epsilon=2e-5)(x)
             x = tf.keras.layers.Activation("relu")(x)
             x = tf.keras.layers.ZeroPadding2D(padding=(1, 1))(x)
             x = tf.keras.layers.Conv2D(filters, (3, 3), kernel_initializer="he_uniform", use_bias=False)(x)
-
+    
             # Add residual connection.
             x = tf.keras.layers.Add()([x, shortcut])
             return x
-
+    
         return layer
-
-
+    
+    
     def ResNet18(input_shape=None):
         """Instantiates the ResNet18 architecture."""
         img_input = tf.keras.layers.Input(shape=input_shape, name="data")
-
+    
         # ResNet18 bottom
         x = tf.keras.layers.BatchNormalization(epsilon=2e-5, scale=False)(img_input)
         x = tf.keras.layers.ZeroPadding2D(padding=(3, 3))(x)
@@ -262,7 +259,7 @@ Define a Floating-Point Model
         x = tf.keras.layers.Activation("relu")(x)
         x = tf.keras.layers.ZeroPadding2D(padding=(1, 1))(x)
         x = tf.keras.layers.MaxPooling2D((3, 3), strides=(2, 2), padding="valid")(x)
-
+    
         # ResNet18 body
         repetitions = (2, 2, 2, 2)
         for stage, rep in enumerate(repetitions):
@@ -276,15 +273,15 @@ Define a Floating-Point Model
                     x = residual_conv_block(filters, stage, block, strides=(1, 1), cut="pre")(x)
         x = tf.keras.layers.BatchNormalization(epsilon=2e-5)(x)
         x = tf.keras.layers.Activation("relu")(x)
-
+    
         # ResNet18 top
         x = tf.keras.layers.GlobalAveragePooling2D()(x)
         x = tf.keras.layers.Dense(NUM_CLASSES)(x)
         x = tf.keras.layers.Activation("softmax")(x)
-
+    
         # Create the model.
         model = tf.keras.models.Model(img_input, x)
-
+    
         return model
 
 .. code:: ipython3
@@ -295,7 +292,7 @@ Define a Floating-Point Model
 Pre-train a Floating-Point Model
 --------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Using NNCF for model compression assumes that the user has a pre-trained
 model and a training pipeline.
@@ -308,13 +305,13 @@ model and a training pipeline.
 
     # Load the floating-point weights.
     fp32_model.load_weights(fp32_h5_path)
-
+    
     # Compile the floating-point model.
     fp32_model.compile(
         loss=tf.keras.losses.CategoricalCrossentropy(label_smoothing=0.1),
         metrics=[tf.keras.metrics.CategoricalAccuracy(name="acc@1")],
     )
-
+    
     # Validate the floating-point model.
     test_loss, acc_fp32 = fp32_model.evaluate(
         validation_dataset,
@@ -325,23 +322,23 @@ model and a training pipeline.
 
 .. parsed-literal::
 
-    2024-09-24 05:14:54.822042: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_3' with dtype int64 and shape [1]
+    2024-10-08 06:35:18.581916: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_3' with dtype int64 and shape [1]
     	 [[{{node Placeholder/_3}}]]
-    2024-09-24 05:14:54.822454: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_2' with dtype string and shape [1]
-    	 [[{{node Placeholder/_2}}]]
+    2024-10-08 06:35:18.582679: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_0' with dtype string and shape [1]
+    	 [[{{node Placeholder/_0}}]]
 
 
 .. parsed-literal::
 
     4/4 [==============================] - 1s 261ms/sample - loss: 0.9807 - acc@1: 0.8220
-
+    
     Accuracy of FP32 model: 0.822
 
 
 Create and Initialize Quantization
 ----------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 NNCF enables compression-aware training by integrating into regular
 training pipelines. The framework is designed so that modifications to
@@ -379,13 +376,13 @@ scenario and requires only 3 modifications.
 
 .. parsed-literal::
 
-    2024-09-24 05:14:57.523114: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_0' with dtype string and shape [1]
-    	 [[{{node Placeholder/_0}}]]
-    2024-09-24 05:14:57.523507: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_2' with dtype string and shape [1]
-    	 [[{{node Placeholder/_2}}]]
-    2024-09-24 05:14:58.427745: W tensorflow/core/kernels/data/cache_dataset_ops.cc:856] The calling iterator did not fully read the dataset being cached. In order to avoid unexpected truncation of the dataset, the partially cached contents of the dataset  will be discarded. This can happen if you have an input pipeline similar to `dataset.cache().take(k).repeat()`. You should use `dataset.take(k).cache().repeat()` instead.
-    2024-09-24 05:14:59.032176: W tensorflow/core/kernels/data/cache_dataset_ops.cc:856] The calling iterator did not fully read the dataset being cached. In order to avoid unexpected truncation of the dataset, the partially cached contents of the dataset  will be discarded. This can happen if you have an input pipeline similar to `dataset.cache().take(k).repeat()`. You should use `dataset.take(k).cache().repeat()` instead.
-    2024-09-24 05:15:07.344238: W tensorflow/core/kernels/data/cache_dataset_ops.cc:856] The calling iterator did not fully read the dataset being cached. In order to avoid unexpected truncation of the dataset, the partially cached contents of the dataset  will be discarded. This can happen if you have an input pipeline similar to `dataset.cache().take(k).repeat()`. You should use `dataset.take(k).cache().repeat()` instead.
+    2024-10-08 06:35:21.276034: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_3' with dtype int64 and shape [1]
+    	 [[{{node Placeholder/_3}}]]
+    2024-10-08 06:35:21.276422: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int64 and shape [1]
+    	 [[{{node Placeholder/_4}}]]
+    2024-10-08 06:35:22.212750: W tensorflow/core/kernels/data/cache_dataset_ops.cc:856] The calling iterator did not fully read the dataset being cached. In order to avoid unexpected truncation of the dataset, the partially cached contents of the dataset  will be discarded. This can happen if you have an input pipeline similar to `dataset.cache().take(k).repeat()`. You should use `dataset.take(k).cache().repeat()` instead.
+    2024-10-08 06:35:22.824455: W tensorflow/core/kernels/data/cache_dataset_ops.cc:856] The calling iterator did not fully read the dataset being cached. In order to avoid unexpected truncation of the dataset, the partially cached contents of the dataset  will be discarded. This can happen if you have an input pipeline similar to `dataset.cache().take(k).repeat()`. You should use `dataset.take(k).cache().repeat()` instead.
+    2024-10-08 06:35:30.955057: W tensorflow/core/kernels/data/cache_dataset_ops.cc:856] The calling iterator did not fully read the dataset being cached. In order to avoid unexpected truncation of the dataset, the partially cached contents of the dataset  will be discarded. This can happen if you have an input pipeline similar to `dataset.cache().take(k).repeat()`. You should use `dataset.take(k).cache().repeat()` instead.
 
 
 Evaluate the new model on the validation set after initialization of
@@ -401,7 +398,7 @@ demonstrated here.
         loss=tf.keras.losses.CategoricalCrossentropy(label_smoothing=0.1),
         metrics=[tf.keras.metrics.CategoricalAccuracy(name="acc@1")],
     )
-
+    
     # Validate the INT8 model.
     test_loss, test_acc = int8_model.evaluate(
         validation_dataset,
@@ -411,13 +408,13 @@ demonstrated here.
 
 .. parsed-literal::
 
-    4/4 [==============================] - 1s 313ms/sample - loss: 0.9766 - acc@1: 0.8120
+    4/4 [==============================] - 1s 312ms/sample - loss: 0.9766 - acc@1: 0.8120
 
 
 Fine-tune the Compressed Model
 ------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 At this step, a regular fine-tuning process is applied to further
 improve quantized model accuracy. Normally, several epochs of tuning are
@@ -428,10 +425,10 @@ training pipeline are required. Here is a simple example.
 .. code:: ipython3
 
     print(f"\nAccuracy of INT8 model after initialization: {test_acc:.3f}")
-
+    
     # Train the INT8 model.
     int8_model.fit(train_dataset, epochs=2)
-
+    
     # Validate the INT8 model.
     test_loss, acc_int8 = int8_model.evaluate(
         validation_dataset,
@@ -443,23 +440,23 @@ training pipeline are required. Here is a simple example.
 
 .. parsed-literal::
 
-
+    
     Accuracy of INT8 model after initialization: 0.812
     Epoch 1/2
-    101/101 [==============================] - 49s 415ms/step - loss: 0.7134 - acc@1: 0.9299
+    101/101 [==============================] - 49s 419ms/step - loss: 0.7134 - acc@1: 0.9299
     Epoch 2/2
-    101/101 [==============================] - 42s 414ms/step - loss: 0.6807 - acc@1: 0.9489
-    4/4 [==============================] - 1s 142ms/sample - loss: 0.9760 - acc@1: 0.8160
-
+    101/101 [==============================] - 41s 410ms/step - loss: 0.6807 - acc@1: 0.9489
+    4/4 [==============================] - 1s 140ms/sample - loss: 0.9760 - acc@1: 0.8160
+    
     Accuracy of INT8 model after fine-tuning: 0.816
-
+    
     Accuracy drop of tuned INT8 model over pre-trained FP32 model: 0.006
 
 
 Export Models to OpenVINO Intermediate Representation (IR)
 ----------------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Use model conversion Python API to convert the models to OpenVINO IR.
 
@@ -495,7 +492,7 @@ Executing this command may take a while.
 Benchmark Model Performance by Computing Inference Time
 -------------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Finally, measure the inference performance of the ``FP32`` and ``INT8``
 models, using `Benchmark
@@ -519,16 +516,16 @@ Please select a benchmarking device using the dropdown list:
 .. code:: ipython3
 
     import requests
-
+    
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
     open("notebook_utils.py", "w").write(r.text)
-
+    
     from notebook_utils import device_widget
-
+    
     device = device_widget()
-
+    
     device
 
 
@@ -545,12 +542,12 @@ Please select a benchmarking device using the dropdown list:
     def parse_benchmark_output(benchmark_output):
         parsed_output = [line for line in benchmark_output if "FPS" in line]
         print(*parsed_output, sep="\n")
-
-
+    
+    
     print("Benchmark FP32 model (IR)")
     benchmark_output = ! benchmark_app -m $fp32_ir_path -d $device.value -api async -t 15 -shape [1,64,64,3]
     parse_benchmark_output(benchmark_output)
-
+    
     print("\nBenchmark INT8 model (IR)")
     benchmark_output = ! benchmark_app -m $int8_ir_path -d $device.value -api async -t 15 -shape [1,64,64,3]
     parse_benchmark_output(benchmark_output)
@@ -559,10 +556,10 @@ Please select a benchmarking device using the dropdown list:
 .. parsed-literal::
 
     Benchmark FP32 model (IR)
-    [ INFO ] Throughput:   2825.65 FPS
-
+    [ INFO ] Throughput:   2799.16 FPS
+    
     Benchmark INT8 model (IR)
-    [ INFO ] Throughput:   11366.83 FPS
+    [ INFO ] Throughput:   11260.26 FPS
 
 
 Show Device Information for reference.
@@ -570,8 +567,8 @@ Show Device Information for reference.
 .. code:: ipython3
 
     import openvino.properties as props
-
-
+    
+    
     core = ov.Core()
     core.get_property(device.value, props.device.full_name)
 

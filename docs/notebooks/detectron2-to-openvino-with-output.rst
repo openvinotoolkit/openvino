@@ -1,5 +1,4 @@
-Convert Detectron2 Models to OpenVINO™
-=========================================
+# Convert Detectron2 Models to OpenVINO™
 
 `Detectron2 <https://github.com/facebookresearch/detectron2>`__ is
 Facebook AI Research’s library that provides state-of-the-art detection
@@ -15,34 +14,33 @@ using OpenVINO™. We will use ``Faster R-CNN FPN x1`` model and
 `COCO <https://cocodataset.org/#home>`__ dataset as examples for object
 detection and instance segmentation respectively.
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-**Table of contents:**
-
-
--  `Prerequisites <#prerequisites>`__
+-  `Prerequisites <#Prerequisites>`__
 
    -  `Define helpers for PyTorch model initialization and
-      conversion <#define-helpers-for-pytorch-model-initialization-and-conversion>`__
-   -  `Prepare input data <#prepare-input-data>`__
+      conversion <#Define-helpers-for-PyTorch-model-initialization-and-conversion>`__
+   -  `Prepare input data <#Prepare-input-data>`__
 
--  `Object Detection <#object-detection>`__
+-  `Object Detection <#Object-Detection>`__
 
    -  `Download PyTorch Detection
-      model <#download-pytorch-detection-model>`__
+      model <#Download-PyTorch-Detection-model>`__
    -  `Convert Detection Model to OpenVINO Intermediate
-      Representation <#convert-detection-model-to-openvino-intermediate-representation>`__
-   -  `Select inference device <#select-inference-device>`__
-   -  `Run Detection model inference <#run-detection-model-inference>`__
+      Representation <#Convert-Detection-Model-to-OpenVINO-Intermediate-Representation>`__
+   -  `Select inference device <#Select-inference-device>`__
+   -  `Run Detection model inference <#Run-Detection-model-inference>`__
 
--  `Instance Segmentation <#instance-segmentation>`__
+-  `Instance Segmentation <#Instance-Segmentation>`__
 
    -  `Download Instance Segmentation PyTorch
-      model <#download-instance-segmentation-pytorch-model>`__
+      model <#Download-Instance-Segmentation-PyTorch-model>`__
    -  `Convert Instance Segmentation Model to OpenVINO Intermediate
-      Representation <#convert-instance-segmentation-model-to-openvino-intermediate-representation>`__
-   -  `Select inference device <#select-inference-device>`__
+      Representation <#Convert-Instance-Segmentation-Model-to-OpenVINO-Intermediate-Representation>`__
+   -  `Select inference device <#Select-inference-device>`__
    -  `Run Instance Segmentation model
-      inference <#run-instance-segmentation-model-inference>`__
+      inference <#Run-Instance-Segmentation-model-inference>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -57,7 +55,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Install required packages for running model
 
@@ -93,7 +91,7 @@ Install required packages for running model
 Define helpers for PyTorch model initialization and conversion
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Detectron2 provides universal and configurable API for working with
 models, it means that all steps required for model creation, conversion
@@ -186,7 +184,7 @@ simplify model’s structure making it more export-friendly.
 Prepare input data
 ~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 For running model conversion and inference we need to provide example
 input. The cells below download sample image and apply preprocessing
@@ -251,12 +249,12 @@ can consider how to use them on specific examples.
 Object Detection
 ----------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Download PyTorch Detection model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Download faster_rcnn_R_50_FPN_1x from Detectron Model Zoo.
 
@@ -269,7 +267,7 @@ Download faster_rcnn_R_50_FPN_1x from Detectron Model Zoo.
 Convert Detection Model to OpenVINO Intermediate Representation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Convert model using ``convert_detectron2_model`` function and
 ``sample_input`` prepared above. After conversion, model saved on disk
@@ -288,7 +286,7 @@ directory.
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -314,7 +312,7 @@ select device from dropdown list for running inference using OpenVINO
 Run Detection model inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Load our converted model on selected device and run inference on sample
 input.
@@ -418,7 +416,7 @@ provide helpers for wrapping output in original Detectron2 format.
 Instance Segmentation
 ---------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 As it was discussed above, Detectron2 provides generic approach for
 working with models for different use cases. The steps that required to
@@ -428,7 +426,7 @@ will be very similar to Object Detection.
 Download Instance Segmentation PyTorch model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -439,7 +437,7 @@ Download Instance Segmentation PyTorch model
 Convert Instance Segmentation Model to OpenVINO Intermediate Representation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -454,7 +452,7 @@ Convert Instance Segmentation Model to OpenVINO Intermediate Representation
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -474,7 +472,7 @@ select device from dropdown list for running inference using OpenVINO
 Run Instance Segmentation model inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 In comparison with Object Detection, Instance Segmentation models have
 additional output that represents instance masks for each object. Our

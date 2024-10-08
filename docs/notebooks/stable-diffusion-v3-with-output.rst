@@ -26,40 +26,39 @@ optimization with `NNCF <https://github.com/openvinotoolkit/nncf/>`__ to
 speed up pipeline. If you want to run previous Stable Diffusion
 versions, please check our other notebooks:
 
--  `Stable Diffusion <stable-diffusion-text-to-image-with-output.html>`__
--  `Stable Diffusion v2 <stable-diffusion-v2-with-output.html>`__
--  `Stable Diffusion XL <stable-diffusion-xl-with-output.html>`__
+-  `Stable Diffusion <../stable-diffusion-text-to-image>`__
+-  `Stable Diffusion v2 <../stable-diffusion-v2>`__
+-  `Stable Diffusion XL <../stable-diffusion-xl>`__
 -  `LCM Stable
-   Diffusion <latent-consistency-models-image-generation-with-output.html>`__
--  `Turbo SDXL <sdxl-turbo-with-output.html>`__
--  `Turbo SD <sketch-to-image-pix2pix-turbo-with-output.html>`__
+   Diffusion <../latent-consistency-models-image-generation>`__
+-  `Turbo SDXL <../sdxl-turbo>`__
+-  `Turbo SD <../sketch-to-image-pix2pix-turbo>`__
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-**Table of contents:**
+-  `Prerequisites <#Prerequisites>`__
+-  `Build PyTorch pipeline <#Build-PyTorch-pipeline>`__
+-  `Convert models with OpenVINO <#Convert-models-with-OpenVINO>`__
 
-
--  `Prerequisites <#prerequisites>`__
--  `Build PyTorch pipeline <#build-pytorch-pipeline>`__
--  `Convert models with OpenVINO <#convert-models-with-openvino>`__
-
-   -  `Transformer <#transformer>`__
-   -  `T5 Text Encoder <#t5-text-encoder>`__
-   -  `Clip text encoders <#clip-text-encoders>`__
-   -  `VAE <#vae>`__
+   -  `Transformer <#Transformer>`__
+   -  `T5 Text Encoder <#T5-Text-Encoder>`__
+   -  `Clip text encoders <#Clip-text-encoders>`__
+   -  `VAE <#VAE>`__
 
 -  `Prepare OpenVINO inference
-   pipeline <#prepare-openvino-inference-pipeline>`__
--  `Run OpenVINO model <#run-openvino-model>`__
--  `Quantization <#quantization>`__
+   pipeline <#Prepare-OpenVINO-inference-pipeline>`__
+-  `Run OpenVINO model <#Run-OpenVINO-model>`__
+-  `Quantization <#Quantization>`__
 
-   -  `Prepare calibration dataset <#prepare-calibration-dataset>`__
-   -  `Run Quantization <#run-quantization>`__
-   -  `Run Weights Compression <#run-weights-compression>`__
-   -  `Compare model file sizes <#compare-model-file-sizes>`__
+   -  `Prepare calibration dataset <#Prepare-calibration-dataset>`__
+   -  `Run Quantization <#Run-Quantization>`__
+   -  `Run Weights Compression <#Run-Weights-Compression>`__
+   -  `Compare model file sizes <#Compare-model-file-sizes>`__
    -  `Compare inference time of the FP16 and optimized
-      pipelines <#compare-inference-time-of-the-fp16-and-optimized-pipelines>`__
+      pipelines <#Compare-inference-time-of-the-FP16-and-optimized-pipelines>`__
 
--  `Interactive demo <#interactive-demo>`__
+-  `Interactive demo <#Interactive-demo>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -74,7 +73,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -105,10 +104,10 @@ Prerequisites
 Build PyTorch pipeline
 ----------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
    **Note**: run model with notebook, you will need to accept license
-   agreement. You must be a registered user in Hugging Face Hub.
+   agreement. You must be a registered user in 🤗 Hugging Face Hub.
    Please visit `HuggingFace model
    card <https://huggingface.co/stabilityai/stable-diffusion-3-medium-diffusers>`__,
    carefully read terms of usage and click accept button. You will need
@@ -180,7 +179,7 @@ memory consumption:
 Convert models with OpenVINO
 ----------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Starting from 2023.0 release, OpenVINO supports PyTorch models directly
 via Model Conversion API. ``ov.convert_model`` function accepts instance
@@ -196,7 +195,7 @@ The pipeline consists of four important parts:
 -  Autoencoder (VAE) for decoding latent space to image.
 
 We will use ``convert_sd3`` helper function defined in
-`sd3_helper.py <sd3_helper.py-with-output.html>`__ that create original PyTorch model
+`sd3_helper.py <./sd3_helper.py>`__ that create original PyTorch model
 and convert each part of pipeline using ``ov.convert_model``.
 
 .. code:: ipython3
@@ -219,7 +218,7 @@ and convert each part of pipeline using ``ov.convert_model``.
 Prepare OpenVINO inference pipeline
 -----------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -231,7 +230,7 @@ Prepare OpenVINO inference pipeline
 Run OpenVINO model
 ------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -302,7 +301,7 @@ Run OpenVINO model
 Quantization
 ------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding quantization layers into model
@@ -388,10 +387,10 @@ Let’s load ``skip magic`` extension to skip quantization if
 Prepare calibration dataset
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 We use a portion of
-`google-research-datasets/conceptual_captions <https://huggingface.co/datasets/google-research-datasets/conceptual_captions>`__
+```google-research-datasets/conceptual_captions`` <https://huggingface.co/datasets/google-research-datasets/conceptual_captions>`__
 dataset from Hugging Face as calibration data. We use prompts below to
 guide image generation and to determine what not to include in the
 resulting image.
@@ -413,7 +412,7 @@ To collect intermediate model inputs for calibration we should customize
 Run Quantization
 ~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Quantization of the first ``Convolution`` layer impacts the generation
 results. We recommend using ``IgnoredScope`` to keep accuracy sensitive
@@ -458,7 +457,7 @@ layers in FP16 precision.
 Run Weights Compression
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Quantizing of the ``Text Encoders`` and ``Autoencoder`` does not
 significantly improve inference performance but can lead to a
@@ -540,7 +539,7 @@ pipelines.
 Compare model file sizes
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -564,7 +563,7 @@ Compare model file sizes
 Compare inference time of the FP16 and optimized pipelines
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To measure the inference performance of the ``FP16`` and optimized
 pipelines, we use mean inference time on 5 samples.
@@ -602,7 +601,7 @@ pipelines, we use mean inference time on 5 samples.
 Interactive demo
 ----------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Please select below whether you would like to use the quantized models
 to launch the interactive demo.

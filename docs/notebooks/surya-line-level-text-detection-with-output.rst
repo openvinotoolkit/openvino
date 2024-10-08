@@ -3,12 +3,6 @@ Line-level text detection with Surya
 
 |Colab|
 
-.. warning::
-
-   Important note: This notebook requires python >= 3.9. Please make
-   sure that your environment fulfill to this requirement before running
-   it
-
 In this tutorial we will perform line-level text detection using
 `Surya <https://github.com/VikParuchuri/surya>`__ toolkit and OpenVINO.
 
@@ -27,23 +21,22 @@ not handwriting. \* The model has trained itself to ignore
 advertisements. \* Languages with very different character sets may not
 work well.
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-**Table of contents:**
-
-
--  `Fetch test image <#fetch-test-image>`__
--  `Run PyTorch inference <#run-pytorch-inference>`__
+-  `Fetch test image <#Fetch-test-image>`__
+-  `Run PyTorch inference <#Run-PyTorch-inference>`__
 -  `Convert model to OpenVINO Intermediate Representation (IR)
-   format <#convert-model-to-openvino-intermediate-representation-ir-format>`__
--  `Run OpenVINO model <#run-openvino-model>`__
+   format <#Convert-model-to-OpenVINO-Intermediate-Representation-(IR)-format>`__
+-  `Run OpenVINO model <#Run-OpenVINO-model>`__
 -  `Apply post-training quantization using
-   NNCF <#apply-post-training-quantization-using-nncf>`__
+   NNCF <#Apply-post-training-quantization-using-NNCF>`__
 
-   -  `Prepare dataset <#prepare-dataset>`__
-   -  `Quantize model <#quantize-model>`__
+   -  `Prepare dataset <#Prepare-dataset>`__
+   -  `Quantize model <#Quantize-model>`__
 
--  `Run quantized OpenVINO model <#run-quantized-openvino-model>`__
--  `Interactive inference <#interactive-inference>`__
+-  `Run quantized OpenVINO model <#Run-quantized-OpenVINO-model>`__
+-  `Interactive inference <#Interactive-inference>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -61,7 +54,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Fetch test image
 ----------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 We will use an image from a randomly sampled subset of
 `DocLayNet <https://github.com/DS4SD/DocLayNet>`__ dataset.
@@ -73,7 +66,7 @@ We will use an image from a randomly sampled subset of
     os.environ["GIT_CLONE_PROTECTION_ACTIVE"] = "false"
     
     %pip install -q "openvino>=2024.2.0" "nncf>=2.11.0"
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "transformers<=4.36.2" "surya-ocr==0.4.0" torch datasets "gradio>=4.19" Pillow
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "surya-ocr==0.4.0" torch datasets "gradio>=4.19" Pillow
 
 .. code:: ipython3
 
@@ -91,14 +84,14 @@ We will use an image from a randomly sampled subset of
 
 
 
-.. image:: surya-line-level-text-detection-with-output_files/surya-line-level-text-detection-with-output_3_0.png
+.. image:: surya-line-level-text-detection-with-output_files%5Csurya-line-level-text-detection-with-output_3_0.png
 
 
 
 Run PyTorch inference
 ---------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To perform line-level text detection we will use ``load_model`` and
 ``load_processor`` functions from ``surya`` package. We will also use
@@ -133,28 +126,52 @@ To perform line-level text detection we will use ``load_model`` and
 
 .. parsed-literal::
 
-    /home/maleksandr/test_notebooks/check_nb/openvino_notebooks/notebooks/surya-line-level-text-detection/venv/lib/python3.10/site-packages/huggingface_hub/file_download.py:1132: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+    /home/ea/work/py311/lib/python3.11/site-packages/transformers/utils/generic.py:441: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
+      _torch_pytree._register_pytree_node(
+    /home/ea/work/py311/lib/python3.11/site-packages/transformers/utils/generic.py:309: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
+      _torch_pytree._register_pytree_node(
+    /home/ea/work/py311/lib/python3.11/site-packages/transformers/utils/generic.py:309: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
+      _torch_pytree._register_pytree_node(
+    /home/ea/work/py311/lib/python3.11/site-packages/huggingface_hub/file_download.py:1132: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
       warnings.warn(
     
+
+
+.. parsed-literal::
+
+    config.json:   0%|          | 0.00/1.18k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    model.safetensors:   0%|          | 0.00/120M [00:00<?, ?B/s]
+
 
 .. parsed-literal::
 
     Loading detection model vikp/surya_det2 on device cpu with dtype torch.float32
     
 
+
 .. parsed-literal::
 
-    Detecting bboxes: 100%|███████████████████████████████████████████████████████████████████| 1/1 [00:02<00:00,  2.70s/it]
+    preprocessor_config.json:   0%|          | 0.00/430 [00:00<?, ?B/s]
+
+
+.. parsed-literal::
+
+    Detecting bboxes: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:03<00:00,  3.55s/it]
     
 
 
-.. image:: surya-line-level-text-detection-with-output_files/surya-line-level-text-detection-with-output_6_3.png
+.. image:: surya-line-level-text-detection-with-output_files%5Csurya-line-level-text-detection-with-output_6_6.png
 
 
 Convert model to OpenVINO Intermediate Representation (IR) format
 -----------------------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 For best results with OpenVINO, it is recommended to convert the model
 to OpenVINO IR format. OpenVINO supports PyTorch via Model conversion
@@ -199,7 +216,7 @@ input.
 Run OpenVINO model
 ------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Select device from dropdown list for running inference using OpenVINO
 
@@ -223,7 +240,7 @@ Select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', index=4, options=('CPU', 'GPU.0', 'GPU.1', 'GPU.2', 'AUTO'), value='AUTO')
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
 
 
 
@@ -268,17 +285,17 @@ wrappers for OpenVINO model with interface required by
 
 .. parsed-literal::
 
-    Detecting bboxes: 100%|███████████████████████████████████████████████████████████████████| 1/1 [00:01<00:00,  1.13s/it]
+    Detecting bboxes: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:01<00:00,  1.04s/it]
     
 
 
-.. image:: surya-line-level-text-detection-with-output_files/surya-line-level-text-detection-with-output_13_1.png
+.. image:: surya-line-level-text-detection-with-output_files%5Csurya-line-level-text-detection-with-output_13_1.png
 
 
 Apply post-training quantization using NNCF
 -------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding the quantization layers into the
@@ -343,7 +360,7 @@ Free resources before quantization.
 Prepare dataset
 ~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 We create calibration dataset with randomly sampled set of images from
 `DocLayNet <https://github.com/DS4SD/DocLayNet>`__.
@@ -388,7 +405,7 @@ We create calibration dataset with randomly sampled set of images from
 Quantize model
 ~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Create a quantized model from the ``FP16`` model.
 
@@ -411,7 +428,7 @@ Create a quantized model from the ``FP16`` model.
 
 .. parsed-literal::
 
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, openvino
+    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, onnx, openvino
     
 
 
@@ -421,17 +438,9 @@ Create a quantized model from the ``FP16`` model.
 
 
 
+.. raw:: html
 
-
-
-    
-
-
-
-
-
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
     
 
 
@@ -442,24 +451,16 @@ Create a quantized model from the ``FP16`` model.
 
 
 
+.. raw:: html
 
-
-
-    
-
-
-
-
-
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
     
 
 
 Run quantized OpenVINO model
 ----------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Now we ready to detect lines with ``int8`` OpenVINO model.
 
@@ -479,17 +480,17 @@ Now we ready to detect lines with ``int8`` OpenVINO model.
 
 .. parsed-literal::
 
-    Detecting bboxes: 100%|███████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00,  1.21it/s]
+    Detecting bboxes: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00,  1.10it/s]
     
 
 
-.. image:: surya-line-level-text-detection-with-output_files/surya-line-level-text-detection-with-output_24_1.png
+.. image:: surya-line-level-text-detection-with-output_files%5Csurya-line-level-text-detection-with-output_24_1.png
 
 
 Interactive inference
 ---------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Now, it is your turn! Feel free to upload an image, using the file
 upload window.
@@ -510,6 +511,15 @@ Below you can select which model to run: original or quantized.
     )
     
     use_quantized_model
+
+
+
+
+.. parsed-literal::
+
+    Checkbox(value=True, description='Use quantized model')
+
+
 
 .. code:: ipython3
 
@@ -543,6 +553,20 @@ Below you can select which model to run: original or quantized.
     # If you are launching remotely, specify server_name and server_port
     # EXAMPLE: `demo.launch(server_name='your server name', server_port='server port in int')`
     # To learn more please refer to the Gradio docs: https://gradio.app/docs/
+
+
+.. parsed-literal::
+
+    Running on local URL:  http://127.0.0.1:7860
+    
+    To create a public link, set `share=True` in `launch()`.
+    
+
+
+.. raw:: html
+
+    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="1000" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
 
 .. code:: ipython3
 

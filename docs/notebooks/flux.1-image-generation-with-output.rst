@@ -19,16 +19,15 @@ using OpenVINO.
    **Note**: Some demonstrated models can require at least 32GB RAM for
    conversion and running.
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-**Table of contents:**
-
-
--  `Prerequisites <#prerequisites>`__
--  `Select model <#select-model>`__
--  `Convert model with OpenVINO <#convert-model-with-openvino>`__
--  `Compress model weights <#compress-model-weights>`__
--  `Run OpenVINO model inference <#run-openvino-model-inference>`__
--  `Interactive demo <#interactive-demo>`__
+-  `Prerequisites <#Prerequisites>`__
+-  `Select model <#Select-model>`__
+-  `Convert model with OpenVINO <#Convert-model-with-OpenVINO>`__
+-  `Compress model weights <#Compress-model-weights>`__
+-  `Run OpenVINO model inference <#Run-OpenVINO-model-inference>`__
+-  `Interactive demo <#Interactive-demo>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -43,7 +42,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -79,7 +78,7 @@ Prerequisites
 Select model
 ------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To strike a balance between accessibility and model capabilities, FLUX.1
 comes in three variants: FLUX.1-pro, FLUX.1-dev and FLUX.1-schnell: \*
@@ -116,10 +115,10 @@ FLUX.1-dev version using widget bellow.
 
 .. parsed-literal::
 
-    2024-09-24 00:55:16.941633: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-09-24 00:55:16.976313: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-10-08 02:11:42.908018: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-10-08 02:11:42.941481: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-09-24 00:55:17.640172: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-10-08 02:11:43.614104: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 
@@ -131,7 +130,7 @@ FLUX.1-dev version using widget bellow.
 
 
    **Note**: run Flux.1-dev model with notebook, you will need to accept
-   license agreement. You must be a registered user in Hugging Face
+   license agreement. You must be a registered user in 🤗 Hugging Face
    Hub. Please visit `HuggingFace model
    card <https://huggingface.co/black-forest-labs/FLUX.1-dev>`__,
    carefully read terms of usage and click accept button. You will need
@@ -156,7 +155,7 @@ FLUX.1-dev version using widget bellow.
 Convert model with OpenVINO
 ---------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Starting from 2023.0 release, OpenVINO supports PyTorch models directly
 via Model Conversion API. ``ov.convert_model`` function accepts instance
@@ -172,7 +171,7 @@ The pipeline consists of four important parts:
 -  Autoencoder (VAE) for decoding latent space to image.
 
 We will use ``convert_flux`` helper function defined in
-`flux_helper.py <flux_helper.py-with-output.html>`__ that create original PyTorch model
+`flux_helper.py <./flux_helper.py>`__ that create original PyTorch model
 and convert each part of pipeline using ``ov.convert_model``.
 
 .. code:: ipython3
@@ -193,15 +192,15 @@ and convert each part of pipeline using ``ov.convert_model``.
     Loading pipeline components...:   0%|          | 0/7 [00:00<?, ?it/s]
 
 
-.. parsed-literal::
-
-    You set `add_prefix_space`. The tokenizer needs to be converted from the slow tokenizers
-
-
 
 .. parsed-literal::
 
     Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]
+
+
+.. parsed-literal::
+
+    You set `add_prefix_space`. The tokenizer needs to be converted from the slow tokenizers
 
 
 .. parsed-literal::
@@ -223,11 +222,11 @@ and convert each part of pipeline using ``ov.convert_model``.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4713: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4779: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
       warnings.warn(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:86: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:88: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if input_shape[-1] > 1 or self.sliding_window is not None:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:162: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:164: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if past_key_values_length > 0:
 
 
@@ -241,9 +240,9 @@ and convert each part of pipeline using ``ov.convert_model``.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/upsampling.py:146: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/upsampling.py:146: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert hidden_states.shape[1] == self.channels
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/upsampling.py:162: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/upsampling.py:162: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if hidden_states.shape[0] >= 64:
 
 
@@ -267,7 +266,7 @@ and convert each part of pipeline using ``ov.convert_model``.
 Compress model weights
 ----------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 For reducing model memory consumption we will use weights compression.
 The `Weights
@@ -354,9 +353,9 @@ compression.
 
 
 
+.. raw:: html
 
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
@@ -386,9 +385,9 @@ compression.
 
 
 
+.. raw:: html
 
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
@@ -418,9 +417,9 @@ compression.
 
 
 
+.. raw:: html
 
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
@@ -450,9 +449,9 @@ compression.
 
 
 
+.. raw:: html
 
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
@@ -465,7 +464,7 @@ compression.
 Run OpenVINO model inference
 ----------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 ``OVFluxPipeline`` class defined in ``flux_helper.py`` provides
 convenient way for running model. It accepts directory with converted
@@ -551,7 +550,7 @@ model and inference device as arguments.
 Interactive demo
 ----------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -578,7 +577,7 @@ Interactive demo
 
 
 
+.. raw:: html
 
-
-
+    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 

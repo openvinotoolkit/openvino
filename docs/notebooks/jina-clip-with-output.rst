@@ -21,43 +21,42 @@ In this notebook we will load the model with Hugging Face Transformers,
 convert it to OpenVINO IR format, optimize it with NNCF and show the
 life demo.
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-**Table of contents:**
+-  `Prerequisites <#Prerequisites>`__
+-  `Instantiate model <#Instantiate-model>`__
 
+   -  `Prepare input data <#Prepare-input-data>`__
+   -  `Run PyTorch model inference <#Run-PyTorch-model-inference>`__
 
--  `Prerequisites <#prerequisites>`__
--  `Instantiate model <#instantiate-model>`__
+-  `Run OpenVINO model inference <#Run-OpenVINO-model-inference>`__
 
-   -  `Prepare input data <#prepare-input-data>`__
-   -  `Run PyTorch model inference <#run-pytorch-model-inference>`__
-
--  `Run OpenVINO model inference <#run-openvino-model-inference>`__
-
-   -  `Prepare input data <#prepare-input-data>`__
+   -  `Prepare input data <#Prepare-input-data>`__
    -  `Convert Model to OpenVINO IR
-      format <#convert-model-to-openvino-ir-format>`__
-   -  `Select inference device <#select-inference-device>`__
+      format <#Convert-Model-to-OpenVINO-IR-format>`__
+   -  `Select inference device <#Select-inference-device>`__
    -  `Compile model and run
-      inference <#compile-model-and-run-inference>`__
+      inference <#Compile-model-and-run-inference>`__
 
 -  `Quantize model to INT8 using
-   NNCF <#quantize-model-to-int8-using-nncf>`__
+   NNCF <#Quantize-model-to-INT8-using-NNCF>`__
 
-   -  `Prepare datasets <#prepare-datasets>`__
+   -  `Prepare datasets <#Prepare-datasets>`__
 
-      -  `Dataset with text data <#dataset-with-text-data>`__
-      -  `Dataset with image data <#dataset-with-image-data>`__
+      -  `Dataset with text data <#Dataset-with-text-data>`__
+      -  `Dataset with image data <#Dataset-with-image-data>`__
 
-   -  `Perform quantization <#perform-quantization>`__
+   -  `Perform quantization <#Perform-quantization>`__
 
-      -  `Quantization of text model <#quantization-of-text-model>`__
-      -  `Quantization of image model <#quantization-of-image-model>`__
+      -  `Quantization of text model <#Quantization-of-text-model>`__
+      -  `Quantization of image model <#Quantization-of-image-model>`__
 
-   -  `Compare File Size <#compare-file-size>`__
+   -  `Compare File Size <#Compare-File-Size>`__
    -  `Compare inference time of the FP16 IR and quantized
-      models <#compare-inference-time-of-the-fp16-ir-and-quantized-models>`__
+      models <#Compare-inference-time-of-the-FP16-IR-and-quantized-models>`__
 
--  `Gradio demo <#gradio-demo>`__
+-  `Gradio demo <#Gradio-demo>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -72,7 +71,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -89,7 +88,7 @@ Prerequisites
 Instantiate model
 -----------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Let’s load the
 `jinaai/jina-clip-v1 <https://huggingface.co/jinaai/jina-clip-v1>`__
@@ -104,18 +103,56 @@ weights, using ``from_pretrained`` method.
     model = AutoModel.from_pretrained("jinaai/jina-clip-v1", trust_remote_code=True)
 
 
+
 .. parsed-literal::
 
-    2024-09-24 01:18:13.320635: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-09-24 01:18:13.354964: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    configuration_clip.py:   0%|          | 0.00/11.7k [00:00<?, ?B/s]
+
+
+.. parsed-literal::
+
+    A new version of the following files was downloaded from https://huggingface.co/jinaai/jina-clip-implementation:
+    - configuration_clip.py
+    . Make sure to double-check they do not contain any added malicious code. To avoid downloading new versions of the code file, you can pin a revision.
+
+
+
+.. parsed-literal::
+
+    modeling_clip.py:   0%|          | 0.00/22.2k [00:00<?, ?B/s]
+
+
+.. parsed-literal::
+
+    A new version of the following files was downloaded from https://huggingface.co/jinaai/jina-clip-implementation:
+    - rope_embeddings.py
+    . Make sure to double-check they do not contain any added malicious code. To avoid downloading new versions of the code file, you can pin a revision.
+    A new version of the following files was downloaded from https://huggingface.co/jinaai/jina-clip-implementation:
+    - transform.py
+    . Make sure to double-check they do not contain any added malicious code. To avoid downloading new versions of the code file, you can pin a revision.
+    A new version of the following files was downloaded from https://huggingface.co/jinaai/jina-clip-implementation:
+    - eva_model.py
+    . Make sure to double-check they do not contain any added malicious code. To avoid downloading new versions of the code file, you can pin a revision.
+    A new version of the following files was downloaded from https://huggingface.co/jinaai/jina-clip-implementation:
+    - hf_model.py
+    . Make sure to double-check they do not contain any added malicious code. To avoid downloading new versions of the code file, you can pin a revision.
+    A new version of the following files was downloaded from https://huggingface.co/jinaai/jina-clip-implementation:
+    - modeling_clip.py
+    - rope_embeddings.py
+    - transform.py
+    - eva_model.py
+    - hf_model.py
+    . Make sure to double-check they do not contain any added malicious code. To avoid downloading new versions of the code file, you can pin a revision.
+    2024-10-08 02:34:57.720836: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-10-08 02:34:57.756051: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-09-24 01:18:14.016738: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-10-08 02:34:58.307283: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Prepare input data
 ~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The model can encode meaningful sentences in English as text input.
 Image could be provided to model as local file path, URLs or directly
@@ -239,10 +276,18 @@ and take ``preprocess`` for image data using ``model.get_preprocess()``.
     processor = model.get_preprocess()
     vision_inputs = processor(images=IMAGE_INPUTS, return_tensors="pt")
 
+
+.. parsed-literal::
+
+    A new version of the following files was downloaded from https://huggingface.co/jinaai/jina-clip-implementation:
+    - processing_clip.py
+    . Make sure to double-check they do not contain any added malicious code. To avoid downloading new versions of the code file, you can pin a revision.
+
+
 Run PyTorch model inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -260,12 +305,12 @@ Run PyTorch model inference
 Run OpenVINO model inference
 ----------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Convert Model to OpenVINO IR format
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 OpenVINO supports PyTorch models via conversion to OpenVINO Intermediate
 Representation (IR). OpenVINO model conversion API should be used for
@@ -299,7 +344,7 @@ loading on device using ``core.complie_model``.
 .. parsed-literal::
 
     WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4713: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4713: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
       warnings.warn(
     /opt/home/k8sworker/.cache/huggingface/modules/transformers_modules/jinaai/jina-bert-flash-implementation/b78d1595de294f13ffe7b19d6cd63892a6e4e7a4/mha.py:333: TracerWarning: Converting a tensor to a Python float might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       softmax_scale = self.softmax_scale or 1.0 / math.sqrt(q.shape[-1])
@@ -318,14 +363,14 @@ loading on device using ``core.complie_model``.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/.cache/huggingface/modules/transformers_modules/jinaai/jina-clip-implementation/952897b38094b9f6a47b3d9a1d8239523e374098/eva_model.py:468: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/.cache/huggingface/modules/transformers_modules/jinaai/jina-clip-implementation/96e41b892fe647a3c45bf921352f147184024aef/eva_model.py:468: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert H == self.img_size[0] and W == self.img_size[1], (
 
 
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 For starting work, please select inference device from dropdown list.
 
@@ -346,7 +391,7 @@ For starting work, please select inference device from dropdown list.
 Compile model and run inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -369,7 +414,7 @@ Compile model and run inference
 Quantize model to INT8 using NNCF
 ---------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Lets speed up the model by applying 8-bit post-training quantization
 from `NNCF <https://github.com/openvinotoolkit/nncf/>`__ (Neural Network
@@ -421,7 +466,7 @@ inference faster. The optimization process contains the following steps:
 Prepare datasets
 ~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The `Conceptual
 Captions <https://ai.google.com/research/ConceptualCaptions/>`__ dataset
@@ -431,7 +476,7 @@ model.
 Dataset with text data
 ^^^^^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -526,7 +571,7 @@ Dataset with text data
 Dataset with image data
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -607,7 +652,7 @@ Dataset with image data
 Perform quantization
 ~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Create a quantized model from the pre-trained ``FP16`` model.
 
@@ -617,7 +662,7 @@ Create a quantized model from the pre-trained ``FP16`` model.
 Quantization of text model
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -649,9 +694,9 @@ Quantization of text model
 
 
 
+.. raw:: html
 
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
@@ -662,16 +707,16 @@ Quantization of text model
 
 
 
+.. raw:: html
 
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 Quantization of image model
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -703,9 +748,9 @@ Quantization of image model
 
 
 
+.. raw:: html
 
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
@@ -716,9 +761,9 @@ Quantization of image model
 
 
 
+.. raw:: html
 
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
@@ -743,7 +788,7 @@ Quantization of image model
 Compare File Size
 ~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -774,7 +819,7 @@ Compare File Size
 Compare inference time of the FP16 IR and quantized models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To measure the inference performance of the ``FP16`` and ``INT8``
 models, we use median inference time on calibration dataset. So we can
@@ -818,14 +863,14 @@ approximately estimate the speed up of the dynamic quantized models.
 
 .. parsed-literal::
 
-    Performance speed up for text model: 1.551
-    Performance speed up for vision model: 1.431
+    Performance speed up for text model: 1.539
+    Performance speed up for vision model: 1.933
 
 
 Gradio demo
 -----------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 You can provide your own image and comma-separated list of labels for
 zero-shot classification.
@@ -920,7 +965,7 @@ example, ``cat,dog,bird``)
 
 
 
+.. raw:: html
 
-
-
+    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 

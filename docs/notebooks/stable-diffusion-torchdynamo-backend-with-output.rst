@@ -20,7 +20,7 @@ fantastic world of diffusion models for everyone!
 
 This notebook demonstrates how to run stable diffusion model using
 `Diffusers <https://huggingface.co/docs/diffusers/index>`__ library and
-`OpenVINO TorchDynamo
+`OpenVINO ``TorchDynamo``
 backend <https://docs.openvino.ai/2024/openvino-workflow/torch-compile.html>`__
 for Text-to-Image and Image-to-Image generation tasks.
 
@@ -30,20 +30,19 @@ Notebook contains the following steps:
 2. Add OpenVINO optimization using OpenVINO TorchDynamo backend.
 3. Run Stable Diffusion pipeline with OpenVINO.
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-**Table of contents:**
-
-
--  `Prerequisites <#prerequisites>`__
+-  `Prerequisites <#Prerequisites>`__
 -  `Stable Diffusion with Diffusers
-   library <#stable-diffusion-with-diffusers-library>`__
--  `OpenVINO TorchDynamo backend <#openvino-torchdynamo-backend>`__
+   library <#Stable-Diffusion-with-Diffusers-library>`__
+-  `OpenVINO TorchDynamo backend <#OpenVINO-TorchDynamo-backend>`__
 
-   -  `Run Image generation <#run-image-generation>`__
+   -  `Run Image generation <#Run-Image-generation>`__
 
--  `Interactive demo <#interactive-demo>`__
+-  `Interactive demo <#Interactive-demo>`__
 -  `Support for Automatic1111 Stable Diffusion
-   WebUI <#support-for-automatic1111-stable-diffusion-webui>`__
+   WebUI <#Support-for-Automatic1111-Stable-Diffusion-WebUI>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -58,7 +57,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -68,13 +67,13 @@ Prerequisites
 .. code:: ipython3
 
     import torch
-
+    
     from diffusers import StableDiffusionPipeline
 
 Stable Diffusion with Diffusers library
 ---------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To work with Stable Diffusion v2.1, we will use Hugging Face Diffusers
 library. To experiment with Stable Diffusion models, Diffusers exposes
@@ -90,7 +89,7 @@ The code below demonstrates how to create the
 .. code:: ipython3
 
     model_id = "stabilityai/stable-diffusion-2-1-base"
-
+    
     # Pipeline for text-to-image generation
     pipe = StableDiffusionPipeline.from_pretrained(model_id, torch_dtype=torch.float32)
 
@@ -104,7 +103,7 @@ The code below demonstrates how to create the
 OpenVINO TorchDynamo backend
 ----------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The `OpenVINO TorchDynamo
 backend <https://docs.openvino.ai/2024/openvino-workflow/torch-compile.html>`__
@@ -112,15 +111,14 @@ lets you enable `OpenVINO <https://docs.openvino.ai/2024/home.html>`__
 support for PyTorch models with minimal changes to the original PyTorch
 script. It speeds up PyTorch code by JIT-compiling it into optimized
 kernels. By default, Torch code runs in eager-mode, but with the use of
-torch.compile it goes through the following steps:
-
-1. Graph acquisition - the model is rewritten as blocks of subgraphs that are either:
-
-   - compiled by TorchDynamo and “flattened”,
-   - falling back to the eager-mode, due to unsupported Python constructs (like control-flow code).
-
-2. Graph lowering - all PyTorch operations are decomposed into their constituent kernels specific to the chosen backend.
-3. Graph compilation - the kernels call their corresponding low-level device-specific operations.
+torch.compile it goes through the following steps: 1. Graph acquisition
+- the model is rewritten as blocks of subgraphs that are either: -
+compiled by TorchDynamo and “flattened”, - falling back to the
+eager-mode, due to unsupported Python constructs (like control-flow
+code). 2. Graph lowering - all PyTorch operations are decomposed into
+their constituent kernels specific to the chosen backend. 3. Graph
+compilation - the kernels call their corresponding low-level
+device-specific operations.
 
 Select device for inference and enable or disable saving the optimized
 model files to a hard drive, after the first application run. This makes
@@ -132,16 +130,16 @@ options <https://docs.openvino.ai/2024/openvino-workflow/torch-compile.html#opti
 .. code:: ipython3
 
     import requests
-
+    
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
     open("notebook_utils.py", "w").write(r.text)
-
+    
     from notebook_utils import device_widget
-
+    
     device = device_widget()
-
+    
     device
 
 
@@ -156,14 +154,14 @@ options <https://docs.openvino.ai/2024/openvino-workflow/torch-compile.html#opti
 .. code:: ipython3
 
     import ipywidgets as widgets
-
+    
     model_caching = widgets.Dropdown(
         options=[True, False],
         value=True,
         description="Model caching:",
         disabled=False,
     )
-
+    
     model_caching
 
 
@@ -175,7 +173,7 @@ options <https://docs.openvino.ai/2024/openvino-workflow/torch-compile.html#opti
 
 
 
-To use `torch.compile()
+To use ```torch.compile()``
 method <https://pytorch.org/tutorials/intermediate/torch_compile_tutorial.html>`__,
 you just need to add an import statement and define the OpenVINO
 backend:
@@ -184,7 +182,7 @@ backend:
 
     # this import is required to activate the openvino backend for torchdynamo
     import openvino.torch  # noqa: F401
-
+    
     pipe.unet = torch.compile(
         pipe.unet,
         backend="openvino",
@@ -197,7 +195,7 @@ backend:
 Run Image generation
 ~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -214,14 +212,14 @@ Run Image generation
 
 
 
-.. image:: stable-diffusion-torchdynamo-backend-with-output_files/stable-diffusion-torchdynamo-backend-with-output_14_1.png
+.. image:: stable-diffusion-torchdynamo-backend-with-output_files%5Cstable-diffusion-torchdynamo-backend-with-output_14_1.png
 
 
 
 Interactive demo
 ================
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Now you can start the demo, choose the inference mode, define prompts
 (and input image for Image-to-Image generation) and run inference
@@ -231,30 +229,30 @@ pipeline. Optionally, you can also change some input parameters.
 
     import requests
     from pathlib import Path
-
+    
     if not Path("gradio_helper.py").exists():
         r = requests.get(
             url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/stable-diffusion-torchdynamo-backend/gradio_helper.py"
         )
         open("gradio_helper.py", "w").write(r.text)
-
+    
     from gradio_helper import make_demo
-
+    
     demo = make_demo(model_id)
-
+    
     try:
         demo.queue().launch(debug=True)
     except Exception:
         demo.queue().launch(share=True, debug=True)
-
+    
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
 
-
-
 Support for Automatic1111 Stable Diffusion WebUI
 ------------------------------------------------
+
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Automatic1111 Stable Diffusion WebUI is an open-source repository that
 hosts a browser-based interface for the Stable Diffusion based image

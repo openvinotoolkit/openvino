@@ -4,27 +4,26 @@ OpenVINO™ Model conversion
 This notebook shows how to convert a model from original framework
 format to OpenVINO Intermediate Representation (IR).
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-**Table of contents:**
+-  `OpenVINO IR format <#OpenVINO-IR-format>`__
+-  `Fetching example models <#Fetching-example-models>`__
+-  `Conversion <#Conversion>`__
 
-
--  `OpenVINO IR format <#openvino-ir-format>`__
--  `Fetching example models <#fetching-example-models>`__
--  `Conversion <#conversion>`__
-
-   -  `Setting Input Shapes <#setting-input-shapes>`__
-   -  `Compressing a Model to FP16 <#compressing-a-model-to-fp16>`__
-   -  `Convert Models from memory <#convert-models-from-memory>`__
+   -  `Setting Input Shapes <#Setting-Input-Shapes>`__
+   -  `Compressing a Model to FP16 <#Compressing-a-Model-to-FP16>`__
+   -  `Convert Models from memory <#Convert-Models-from-memory>`__
 
 -  `Migration from Legacy conversion
-   API <#migration-from-legacy-conversion-api>`__
+   API <#Migration-from-Legacy-conversion-API>`__
 
-   -  `Specifying Layout <#specifying-layout>`__
-   -  `Changing Model Layout <#changing-model-layout>`__
+   -  `Specifying Layout <#Specifying-Layout>`__
+   -  `Changing Model Layout <#Changing-Model-Layout>`__
    -  `Specifying Mean and Scale
-      Values <#specifying-mean-and-scale-values>`__
-   -  `Reversing Input Channels <#reversing-input-channels>`__
-   -  `Cutting Off Parts of a Model <#cutting-off-parts-of-a-model>`__
+      Values <#Specifying-Mean-and-Scale-Values>`__
+   -  `Reversing Input Channels <#Reversing-Input-Channels>`__
+   -  `Cutting Off Parts of a Model <#Cutting-Off-Parts-of-a-Model>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -46,7 +45,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 
 .. parsed-literal::
 
-    Requirement already satisfied: pip in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (24.2)
+    Requirement already satisfied: pip in /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (24.2)
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
 
@@ -54,7 +53,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 OpenVINO IR format
 ------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 OpenVINO `Intermediate Representation
 (IR) <https://docs.openvino.ai/2024/documentation/openvino-ir-format.html>`__
@@ -142,7 +141,7 @@ documentation.
 Fetching example models
 -----------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 This notebook uses two models for conversion examples:
 
@@ -192,13 +191,11 @@ NLP model from Hugging Face and export it in ONNX format:
 
 .. parsed-literal::
 
-    2024-09-23 23:53:52.285454: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-09-23 23:53:52.319037: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-10-07 23:35:08.862114: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-10-07 23:35:08.907564: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-09-23 23:53:52.844892: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
-      warnings.warn(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/distilbert/modeling_distilbert.py:215: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
+    2024-10-07 23:35:09.444317: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/distilbert/modeling_distilbert.py:215: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
       mask, torch.tensor(torch.finfo(scores.dtype).min)
 
 
@@ -433,7 +430,7 @@ Convert PyTorch model to ONNX format:
 Conversion
 ----------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To convert a model to OpenVINO IR, use the following API:
 
@@ -478,7 +475,7 @@ To convert a model to OpenVINO IR, use the following API:
 Setting Input Shapes
 ^^^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Model conversion is supported for models with dynamic input shapes that
 contain undefined dimensions. However, if the shape of data is not going
@@ -598,7 +595,7 @@ sequence length dimension:
 Compressing a Model to FP16
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 By default model weights compressed to FP16 format when saving OpenVINO
 model to IR. This saves up to 2x storage space for the model file and in
@@ -634,7 +631,7 @@ disabled by setting ``compress_to_fp16`` flag to ``False``:
 Convert Models from memory
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Model conversion API supports passing original framework Python object
 directly. More details can be found in
@@ -675,14 +672,14 @@ frameworks conversion guides.
 
 .. parsed-literal::
 
-    2024-09-23 23:54:09.260359: W tensorflow/core/common_runtime/gpu/gpu_device.cc:1956] Cannot dlopen some GPU libraries. Please make sure the missing libraries mentioned above are installed properly if you would like to use GPU. Follow the guide at https://www.tensorflow.org/install/gpu for how to download and setup the required libraries for your platform.
+    2024-10-07 23:35:26.468759: W tensorflow/core/common_runtime/gpu/gpu_device.cc:1956] Cannot dlopen some GPU libraries. Please make sure the missing libraries mentioned above are installed properly if you would like to use GPU. Follow the guide at https://www.tensorflow.org/install/gpu for how to download and setup the required libraries for your platform.
     Skipping registering GPU devices...
 
 
 Migration from Legacy conversion API
 ------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 In the 2023.1 OpenVINO release OpenVINO Model Conversion API was
 introduced with the corresponding Python API: ``openvino.convert_model``
@@ -701,7 +698,7 @@ Preprocessing API.
 Specifying Layout
 ^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Layout defines the meaning of dimensions in a shape and can be specified
 for both inputs and outputs. Some preprocessing requires to set input
@@ -752,7 +749,7 @@ Resnet50 model that was exported to the ONNX format:
 Changing Model Layout
 ^^^^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Transposing of matrices/tensors is a typical operation in Deep Learning
 - you may have a BMP image ``640x480``, which is an array of
@@ -798,7 +795,7 @@ and the layout of an original model:
 Specifying Mean and Scale Values
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Using Preprocessing API ``mean`` and ``scale`` values can be set. Using
 these API, model embeds the corresponding preprocessing block for
@@ -844,7 +841,7 @@ more examples.
 Reversing Input Channels
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Sometimes, input images for your application can be of the ``RGB`` (or
 ``BGR``) format, and the model is trained on images of the ``BGR`` (or
@@ -882,7 +879,7 @@ the color channels before inference.
 Cutting Off Parts of a Model
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Cutting model inputs and outputs from a model is no longer available in
 the new conversion API. Instead, we recommend performing the cut in the

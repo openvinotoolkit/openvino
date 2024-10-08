@@ -45,25 +45,24 @@ The tutorial consists of the following steps:
    API <https://github.com/openvinotoolkit/openvino.genai>`__
 -  Launch interactive Gradio demo with structure extraction pipeline
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-**Table of contents:**
-
-
--  `Prerequisites <#prerequisites>`__
--  `Select model for inference <#select-model-for-inference>`__
+-  `Prerequisites <#Prerequisites>`__
+-  `Select model for inference <#Select-model-for-inference>`__
 -  `Download and convert model to OpenVINO IR via Optimum Intel
-   CLI <#download-and-convert-model-to-openvino-ir-via-optimum-intel-cli>`__
--  `Compress model weights <#compress-model-weights>`__
+   CLI <#Download-and-convert-model-to-OpenVINO-IR-via-Optimum-Intel-CLI>`__
+-  `Compress model weights <#Compress-model-weights>`__
 
    -  `Weights Compression using Optimum Intel
       CLI <#weights-compression-using-optimum-intel-cli>`__
 
 -  `Select device for inference and model
-   variant <#select-device-for-inference-and-model-variant>`__
+   variant <#Select-device-for-inference-and-model-variant>`__
 -  `Create a structure extraction inference
-   pipeline <#create-a-structure-extraction-inference-pipeline>`__
+   pipeline <#Create-a-structure-extraction-inference-pipeline>`__
 -  `Run interactive structure extraction demo with
-   Gradio <#run-interactive-structure-extraction-demo-with-gradio>`__
+   Gradio <#Run-interactive-structure-extraction-demo-with-Gradio>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -78,21 +77,13 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
     %pip uninstall -q -y optimum optimum-intel
     %pip install -Uq "openvino>=2024.3.0" "openvino-genai"
     %pip install -q "torch>=2.1" "nncf>=2.12" "transformers>=4.40.0" "accelerate" "gradio>=4.19" "git+https://github.com/huggingface/optimum-intel.git" --extra-index-url https://download.pytorch.org/whl/cpu
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
 
 .. code:: ipython3
 
@@ -129,7 +120,7 @@ Prerequisites
 Select model for inference
 --------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The tutorial supports different models, you can select one from the
 provided options to compare the quality of open source solutions.
@@ -188,12 +179,12 @@ dataset for information extraction.
 .. parsed-literal::
 
     Selected model NuExtract_tiny with INT4 compression
-
+    
 
 Download and convert model to OpenVINO IR via Optimum Intel CLI
 ---------------------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Listed model are available for downloading via the `HuggingFace
 hub <https://huggingface.co/models>`__. We will use optimum-cli
@@ -221,7 +212,7 @@ documentation <https://huggingface.co/docs/optimum/intel/inference#export>`__.
 Compress model weights
 ----------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The Weights Compression algorithm is aimed at compressing the weights of
 the models and can be used to optimize the model footprint and
@@ -233,14 +224,14 @@ performance even more but introduces a minor drop in prediction quality.
 Weights Compression using Optimum Intel CLI
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Optimum Intel supports weight compression via NNCF out of the box. For
 8-bit compression we pass ``--weight-format int8`` to ``optimum-cli``
 command line. For 4 bit compression we provide ``--weight-format int4``
 and some other options containing number of bits and other compression
 parameters. An example of this approach usage you can find in
-`llm-chatbot notebook <llm-chatbot-with-output.html>`__
+`llm-chatbot notebook <../llm-chatbot>`__
 
    **Note**: This tutorial involves conversion model for FP16 and
    INT4/INT8 weights compression scenarios. It may be memory and
@@ -258,7 +249,7 @@ parameters. An example of this approach usage you can find in
 .. parsed-literal::
 
     ⌛ NuExtract_tiny conversion to INT4 started. It may takes some time.
-
+    
 
 
 **Export command:**
@@ -270,26 +261,21 @@ parameters. An example of this approach usage you can find in
 
 .. parsed-literal::
 
-    2024-09-24 01:56:02.315697: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-09-24 01:56:02.348697: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-09-24 01:56:02.867203: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
     Framework not specified. Using pt to export the model.
-    Using framework PyTorch: 2.2.2+cpu
+    Using framework PyTorch: 2.3.1+cpu
     Overriding 1 configuration item(s)
     	- use_cache -> True
     We detected that you are passing `past_key_values` as a tuple and this is deprecated and will be removed in v4.43. Please use an appropriate `Cache` class (https://huggingface.co/docs/transformers/v4.41.3/en/internal/generation_utils#transformers.Cache)
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/optimum/exporters/openvino/model_patcher.py:489: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /home/ytarkan/miniconda3/envs/ov_notebooks_env/lib/python3.9/site-packages/optimum/exporters/openvino/model_patcher.py:489: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if sequence_length != 1:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/qwen2/modeling_qwen2.py:165: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /home/ytarkan/miniconda3/envs/ov_notebooks_env/lib/python3.9/site-packages/transformers/models/qwen2/modeling_qwen2.py:110: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if seq_len > self.max_seq_len_cached:
-    Set tokenizer padding side to left for `text-generation-with-past` task.
-
+    
 
 .. parsed-literal::
 
-    [2KMixed-Precision assignment ━━━━━━━━━━━━━━━━━━━━ 100% 168/168 • 0:00:02 • 0:00:00
-    INFO:nncf:Statistics of the bitwidth distribution:
+    [2KMixed-Precision assignment [90m━━━━━━━━━━━━━━━━━━━━[0m [35m100%[0m [36m168/168[0m • [36m0:00:01[0m • [36m0:00:00[0m• [36m0:00:01[0m
+    [?25hINFO:nncf:Statistics of the bitwidth distribution:
     ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
     │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
     ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
@@ -297,9 +283,19 @@ parameters. An example of this approach usage you can find in
     ├────────────────┼─────────────────────────────┼────────────────────────���───────────────┤
     │              4 │ 53% (122 / 169)             │ 80% (122 / 168)                        │
     ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
-    [2KApplying Weight Compression ━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% • 0:00:08 • 0:00:00
-    ✅ INT4 NuExtract_tiny model converted and can be found in NuExtract_tiny/INT4_compressed_weights
+    [2KApplying Weight Compression [90m━━━━━━━━━━━━━━━━━━━[0m [35m100%[0m [36m169/169[0m • [36m0:00:05[0m • [36m0:00:00[0m• [36m0:00:01[0m
+    [?25h
 
+.. parsed-literal::
+
+    Set tokenizer padding side to left for `text-generation-with-past` task.
+    Replacing `(?!\S)` pattern to `(?:$|[^\S])` in RegexSplit operation
+    
+
+.. parsed-literal::
+
+    ✅ INT4 NuExtract_tiny model converted and can be found in NuExtract_tiny/INT4_compressed_weights
+    
 
 Let’s compare model size for different compression types
 
@@ -313,12 +309,12 @@ Let’s compare model size for different compression types
 .. parsed-literal::
 
     Size of model with INT4 compressed weights is 347.03 MB
-
+    
 
 Select device for inference and model variant
 ---------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
    **Note**: There may be no speedup for INT4/INT8 compressed models on
    dGPU.
@@ -336,14 +332,14 @@ Select device for inference and model variant
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', options=('CPU', 'AUTO'), value='CPU')
+    Dropdown(description='Device:', options=('CPU', 'GPU', 'AUTO'), value='CPU')
 
 
 
 Create a structure extraction inference pipeline
 ------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Firstly we will prepare input prompt for NuExtract model by introducing
 ``prepare_input()`` function. This function combines the main text, a
@@ -456,16 +452,16 @@ schema format:
                 "mathematics",
                 "code generation"
             ],
-            "Licence": "Apache 2.0"
+           "Licence": "Apache 2.0"
         }
     }
     
-
+    
 
 Run interactive structure extraction demo with Gradio
 -----------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -486,20 +482,6 @@ Run interactive structure extraction demo with Gradio
     # If you are launching remotely, specify server_name and server_port
     # EXAMPLE: `demo.launch(server_name='your server name', server_port='server port in int')`
     # To learn more please refer to the Gradio docs: https://gradio.app/docs/
-
-
-.. parsed-literal::
-
-    Running on local URL:  http://127.0.0.1:7860
-    
-    To create a public link, set `share=True` in `launch()`.
-
-
-
-
-
-
-
 
 .. code:: ipython3
 
