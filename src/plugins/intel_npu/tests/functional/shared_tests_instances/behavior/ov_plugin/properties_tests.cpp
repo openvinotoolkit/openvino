@@ -135,7 +135,6 @@ const std::vector<ov::AnyMap> IncorrectMutablePropertiesWrongValueTypes = {
 };
 
 const std::vector<ov::AnyMap> IncorrectInexistingProperties = {
-    {{ov::affinity.name(), ov::Affinity::HYBRID_AWARE}},
     {{ov::intel_cpu::denormals_optimization.name(), true}},
     {{ov::intel_gpu::hint::host_task_priority.name(), ov::hint::Priority::LOW}},
     {{ov::intel_gpu::hint::queue_throttle.name(), ov::intel_gpu::hint::ThrottleLevel::HIGH}}};

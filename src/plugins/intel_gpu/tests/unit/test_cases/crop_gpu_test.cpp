@@ -1569,9 +1569,8 @@ TEST(crop_gpu, optimized_out_crop) {
     for (size_t i = 0; i < out_vec.size(); i++)
         ASSERT_EQ(output_ptr[i], out_vec[i]);
 
-    auto all_primitives = network.get_all_primitives();
-    ASSERT_TRUE(all_primitives["crop1"] == "_optimized_");
-    ASSERT_TRUE(all_primitives["crop2"] == "_optimized_");
+    ASSERT_TRUE(network.get_primitive("crop1")->can_be_optimized());
+    ASSERT_TRUE(network.get_primitive("crop2")->can_be_optimized());
 }
 
 TEST(crop_single_axis, simple_Baxis) {
