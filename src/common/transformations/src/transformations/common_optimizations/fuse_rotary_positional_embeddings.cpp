@@ -544,10 +544,12 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id) {
 
 ov::pass::RoPEFusionChatGLM4::RoPEFusionChatGLM4(int split_output_id) {
     MATCHER_SCOPE(RoPEFusionChatGLM4);
+    // Extended the RoPE to a two-dimensional form to accommodate the 2D positional encoding in GLM.
+    // Calculate positional embedding independent of batch and each head
 
-    auto qkv_linear = makePattern("[?,?,?]");  //  [seq_length, batch_size, 4608]
+    auto qkv_linear = makePattern("[?,?,?]");  //  [batch_size, seq_length, 4608]
     auto seq_length = makePattern("i32[1]");
-    auto cos_sin_cache = makePattern("[?,?,?,?]");  // [max_pos_embeddings, batch_size, 32, 2]
+    auto cos_sin_cache = makePattern("[?,?,?,?]");  // [batch_size, max_pos_embeddings, 32, 2]
 
     auto ndims = ov::gen_pattern::Symbol("ndims");
     auto head_cnt = ov::gen_pattern::Symbol("head_cnt");
@@ -561,10 +563,11 @@ ov::pass::RoPEFusionChatGLM4::RoPEFusionChatGLM4(int split_output_id) {
     auto qkv_proj = makePattern<opset1::VariadicSplit>({qkv_linear, -1, {total_size_q, total_size_k, total_size_v}});
     qkv_proj->set_output_size(3);
 
-    // get key [L, B, Hkv, S]
+    // Get key [batch, seq_length, head_cnt, head_size]
     auto cur_key = makePattern<opset1::Reshape>({qkv_proj->output(split_output_id), {0, 0, head_cnt, head_size}},
                                                 {{"special_zero", true}});
 
+    // Get transposed key [batch, head_cnt, seq_length, head_size]
     auto cur_key_transposed = makePattern<opset1::Transpose>({cur_key, {0, 2, 1, 3}});
 
     auto slice_Slice_437 = GenSlice(cur_key_transposed, 0, ndims, 1, 3);
@@ -585,12 +588,15 @@ ov::pass::RoPEFusionChatGLM4::RoPEFusionChatGLM4(int split_output_id) {
 
     auto x_even = makePattern<opset8::Gather>({reshape_Reshape_453, 0, -1}, {{"batch_dims", 0}});
     auto x_odd = makePattern<opset8::Gather>({reshape_Reshape_453, 1, -1}, {{"batch_dims", 0}});
+
+    // Slice cos_sin_cache to support 2-dimentional RoPE
     auto ScatterUpdate = makePattern<opset3::ScatterUpdate>({{0, 0}, {1}, seq_length, {0}}, {});
-    auto slice_Slice_449 = makePattern<ov::opset8::Slice>({cos_sin_cache, {0,0}, ScatterUpdate, {1,1}, {0}});
-    auto slice_StridedSlice_449 = GenStridedSlice(cos_sin_cache, {0,0}, ScatterUpdate, {1,1}, 1);
+    auto slice_Slice_449 = makePattern<ov::opset8::Slice>({cos_sin_cache, {0, 0}, ScatterUpdate, {1, 1}, {0}});
+    auto slice_StridedSlice_449 = GenStridedSlice(cos_sin_cache, {0, 0}, ScatterUpdate, {1, 1}, 1);
     auto var_split_2 = makePattern<opset1::VariadicSplit>({cos_sin_cache, 0, {0, ov::gen_pattern::Symbol("end")}});
     var_split_2->set_output_size(2);
 
+    // [batch, 1, seq_length, half_rotary_dims, 2]
     auto view_Reshape_460 =
         makePattern<opset1::Reshape>({slice_StridedSlice_449 | slice_Slice_449 | var_split_2->output(0),
                                       ListConstruct_379_Concat | const_target_shape_2},
@@ -610,17 +616,20 @@ ov::pass::RoPEFusionChatGLM4::RoPEFusionChatGLM4(int split_output_id) {
     auto add_Add_476 = makePattern<opset1::Add>({x_odd_cos, x_even_sin}, {{"auto_broadcast", "numpy"}});
     auto y_odd = makePattern<opset1::Unsqueeze>({add_Add_476, -1});
 
+    // [batch, head_cnt, seq_length, half_rotary_dims, 2]
     auto stack_481 = makePattern<opset1::Concat>({y_even, y_odd}, {{"axis", -1}});
 
     auto ShapeOf_135133 = makePattern<opset1::ShapeOf>({stack_481});
     auto flatten_Slice_497 = GenSlice(ShapeOf_135133, 0, 3, 1, 0);
     auto flatten_Concat_500 = makePattern<opset1::Concat>({flatten_Slice_497, {-1}}, {{"axis", 0}});
     auto const_target_shape_3 = makeConst({batch, head_cnt, seq_len, ndims});
-    // [length, batch, head_cnt, half_rotary_dims, 2]
+    // [batch, head_cnt, seq_length, rotary_dims]
     auto flatten_Reshape_501 =
         makePattern<opset1::Reshape>({stack_481, flatten_Concat_500 | const_target_shape_3}, {{"special_zero", true}});
+    // [batch, head_cnt, seq_length, rotary_dims]
     auto slice_Slice_443 = GenSlice(cur_key_transposed, ndims, INT_MAX, 1, 3);
 
+    // [batch, head_cnt, seq_length, head_size(rotary_dims * 2)]
     auto cat_Concat_505 =
         makePattern<opset1::Concat>({flatten_Reshape_501, slice_Slice_443 | var_split_1->output(1)}, {{"axis", -1}});
 
