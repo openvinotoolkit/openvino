@@ -19,7 +19,6 @@ macro(ov_npm_cpack_set_dirs)
     set(OV_CPACK_LICENSESDIR licenses)
     set(OV_CPACK_SAMPLESDIR .)
     set(OV_CPACK_WHEELSDIR .)
-    set(OV_CPACK_TOOLSDIR .)
     set(OV_CPACK_DEVREQDIR .)
     set(OV_CPACK_PYTHONDIR .)
 

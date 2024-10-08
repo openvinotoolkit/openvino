@@ -11,7 +11,6 @@ include(GNUInstallDirs)
 #
 macro(ov_common_libraries_cpack_set_dirs)
     # override default locations for common libraries
-    set(OV_CPACK_TOOLSDIR ${CMAKE_INSTALL_BINDIR}) # only C++ tools are here
     set(OV_CPACK_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR})
     set(OV_CPACK_LIBRARYDIR ${CMAKE_INSTALL_LIBDIR})
     if(WIN32)

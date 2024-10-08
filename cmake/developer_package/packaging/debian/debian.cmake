@@ -11,7 +11,6 @@ include(GNUInstallDirs)
 #
 macro(ov_debian_cpack_set_dirs)
     # override default locations for Debian
-    set(OV_CPACK_TOOLSDIR ${CMAKE_INSTALL_BINDIR}) # only C++ tools are here
     set(OV_CPACK_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR})
     set(OV_CPACK_RUNTIMEDIR ${CMAKE_INSTALL_LIBDIR})
     if(CMAKE_CROSSCOMPILING)

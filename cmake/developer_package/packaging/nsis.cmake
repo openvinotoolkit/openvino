@@ -59,7 +59,6 @@ macro(ov_archive_cpack_set_dirs)
     set(OV_CPACK_LICENSESDIR licenses)
     set(OV_CPACK_SAMPLESDIR samples)
     set(OV_CPACK_WHEELSDIR wheels)
-    set(OV_CPACK_TOOLSDIR tools)
     set(OV_CPACK_DEVREQDIR tools)
     set(OV_CPACK_PYTHONDIR python)
 
