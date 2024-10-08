@@ -93,7 +93,6 @@ jobs:
           install-dir-path: ${{ env.INSTALL_DIR }}
           install-core-wheel: true
           install-dev-wheel: false
-          install-extras: false
           install-tokenizers-wheel: true
 
       - name: Install JAX tests requirements for precommit
