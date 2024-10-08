@@ -45,24 +45,23 @@ void RoPE::validate_and_infer_types() {
     }
 
     if (m_config.is_chatglm) {
-        // chatGLM specific RoPE
-        // input  [length, batch_size, (hidden_states_q + hidden_states_k + hidden_states_v)]
-        // output [length, batch_size, head_cnt, hidden_states_k]
-        set_output_type(
-            0,
-            get_input_element_type(0),
-            {input_pshape[0], input_pshape[1], ov::Dimension(m_config.head_cnt), ov::Dimension(m_config.head_size)});
-        return;
-    }
-
-    if (m_config.is_chatglm4) {
-        // chatGLM specific RoPE
-        // input  [batch_size, length, (hidden_states_q + hidden_states_k + hidden_states_v)]
-        // output [batch_size, head_cnt, length, hidden_states_k]
-        set_output_type(
-            0,
-            get_input_element_type(0),
-            {input_pshape[0], ov::Dimension(m_config.head_cnt), input_pshape[1], ov::Dimension(m_config.head_size)});
+        if (m_config.is_chatglm4) {
+            // chatGLM specific RoPE
+            // input  [batch_size, length, (hidden_states_q + hidden_states_k + hidden_states_v)]
+            // output [batch_size, head_cnt, length, hidden_states_k]
+            set_output_type(
+                0,
+                get_input_element_type(0),
+                {input_pshape[0], ov::Dimension(m_config.head_cnt), input_pshape[1], ov::Dimension(m_config.head_size)});
+        } else {
+            // chatGLM specific RoPE
+            // input  [length, batch_size, (hidden_states_q + hidden_states_k + hidden_states_v)]
+            // output [length, batch_size, head_cnt, hidden_states_k]
+            set_output_type(
+                0,
+                get_input_element_type(0),
+                {input_pshape[0], input_pshape[1], ov::Dimension(m_config.head_cnt), ov::Dimension(m_config.head_size)});
+        }
         return;
     }
 

@@ -30,17 +30,24 @@ std::vector<layout> rope_inst::calc_output_layouts(rope_node const& node, kernel
 
     ShapeType output_shape = input0_shape;
 
-    if (desc->config.is_qwen || desc->config.is_chatglm) {
+    if (desc->config.is_qwen) {
         output_shape = { input0_shape[0],
                          input0_shape[1],
                          ov::Dimension(desc->config.head_cnt),
                          ov::Dimension(desc->config.head_size) };
-    } else if (desc->config.is_chatglm4) {
-        // input0_shape = [batch_size, seq_length]
-        output_shape = { input0_shape[0],
-                         ov::Dimension(desc->config.head_cnt),
-                         input0_shape[1],
-                         ov::Dimension(desc->config.head_size) };
+    } else if (desc->config.is_chatglm) {
+        if (desc->config.is_chatglm4) {
+            // input0_shape = [batch_size, seq_length]
+            output_shape = { input0_shape[0],
+                            ov::Dimension(desc->config.head_cnt),
+                            input0_shape[1],
+                            ov::Dimension(desc->config.head_size) };
+        } else {
+            output_shape = { input0_shape[0],
+                            input0_shape[1],
+                            ov::Dimension(desc->config.head_cnt),
+                            ov::Dimension(desc->config.head_size) };
+        }
     } else {
         auto input_slice_size = desc->config.slice_stop - desc->config.slice_start;
         if (input_slice_size > 0) {
