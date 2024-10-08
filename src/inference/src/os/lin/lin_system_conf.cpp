@@ -15,7 +15,6 @@
 #include "dev/threading/thread_affinity.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/system_conf.hpp"
-#include "os/common_table_op.hpp"
 #include "os/cpu_map_info.hpp"
 
 namespace ov {

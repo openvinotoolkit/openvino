@@ -6,7 +6,6 @@
 
 #include "common_test_utils/test_common.hpp"
 #include "openvino/runtime/system_conf.hpp"
-#include "os/common_table_op.hpp"
 #include "os/cpu_map_info.hpp"
 
 using namespace testing;
@@ -29,9 +28,10 @@ public:
     void SetUp() override {
         const auto& test_data = std::get<0>(GetParam());
 
+        CPU& cpu = cpu_info();
         std::vector<std::vector<int>> test_proc_type_table = test_data._proc_type_table_input;
 
-        ov::update_table_for_proc(test_data.current_processor_id, test_proc_type_table, test_data._cpu_mapping_table);
+        cpu.update_table_for_proc(test_data.current_processor_id, test_proc_type_table, test_data._cpu_mapping_table);
 
         ASSERT_EQ(test_proc_type_table, test_data._proc_type_table_output);
     }
