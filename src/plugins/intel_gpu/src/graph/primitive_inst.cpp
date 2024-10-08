@@ -2124,6 +2124,8 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
         }
     } else if (!_node.can_share_buffer() || _node.is_output()
                 || (((impl_params.can_be_optimized() || (_node.can_be_optimized() != impl_params.can_be_optimized())) && !_node.is_runtime_skippable()))) {
+        // To use a memory pool, skippable should always be true.
+        // Concat and Crop should not use a memory pool if optimized_out changes at runtime because skippable is always false.
         GPU_DEBUG_LOG << "[" << _node.id() << ": output]" << std::endl;
         return ov::intel_gpu::allocate_memory_evenif_zero_bytes(_engine, layout, alloc_type, reset);
     } else {
