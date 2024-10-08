@@ -13,6 +13,63 @@
 
 namespace intel_npu {
 
+typedef struct {
+    const char* major;
+    const char* minor;
+    const char* ovVersion;
+} Metadata;
+
+struct MetadataVersion {
+    uint8_t major;
+    uint8_t minor;
+} typedef MetadataVersion;
+
+struct OpenvinoVersion {
+    const std::string version;
+} typedef OpenvinoVersion;
+
+struct ModelLayout {
+    int something;
+    double somethingElse;
+} typedef ModelLayout;
+
+using metaIterator = std::vector<uint8_t>::iterator;
+
+struct Metadata_v1 {
+    MetadataVersion version;
+    OpenvinoVersion ovVersion;
+
+    static std::pair<Metadata_v1, metaIterator> version_handler(std::vector<uint8_t>& blob, std::istream& stream);
+
+    void read_metadata(std::vector<uint8_t>::iterator metadataIterator);
+
+    void write_metadata(std::ostream& stream);
+} typedef Metadata_v1;
+
+struct Metadata_v2 {
+    Metadata_v1 oldMetadata;
+    ModelLayout layout;
+
+    static std::pair<Metadata_v2, metaIterator> version_handler(std::vector<uint8_t>& blob, std::istream& stream);
+
+    void read_metadata(std::vector<uint8_t>::iterator metadataIterator);
+
+    void write_metadata(std::ostream& stream);
+} typedef Metadata_v2;
+
+struct Metadata_v3 {
+    MetadataVersion version;
+    ModelLayout layout;
+    OpenvinoVersion ovVersion;
+    double extra;
+
+    static std::pair<Metadata_v2, metaIterator> version_handler(std::vector<uint8_t>& blob, std::istream& stream);
+
+    void read_metadata(std::vector<uint8_t>::iterator metadataIterator);
+
+    void write_metadata(std::ostream& stream);
+} typedef Metadata_v3;
+
 class CompiledModel final : public ICompiledModel {
 public:
     /**

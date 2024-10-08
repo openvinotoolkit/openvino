@@ -758,20 +758,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         if (!stream) {
             OPENVINO_THROW("Failed to read data from stream!");
         }
-        _logger.debug("Successfully read %zu bytes into blob.", graphSize);
+        _logger.info("Successfully read %zu bytes into blob.", graphSize);
 
-        const ov::Version& ovVersion = ov::get_openvino_version();
-        std::string ovVersionName {ovVersion.buildNumber};
-        const size_t versionLength = ovVersionName.length();
-
-        stream.seekg(graphSize - versionLength, stream.beg);
-        
-        char* blobVersion = new char[versionLength + 1]();
-        std::copy(blob.begin() + (graphSize - versionLength), blob.end(), blobVersion);
-        _logger.info("Openvino version is: %s ... and blob version is %s\n", ovVersionName.c_str(), blobVersion);
-        if(strncmp(ovVersionName.c_str(), blobVersion, versionLength)) {
-            OPENVINO_THROW("OpenVINO version does not match imported blob version.");
-        }
+        stream.seekg(graphSize - sizeof(size_t), stream.beg);
+        Metadata_v1 meta_v1 = Metadata_v1::version_handler(blob, stream);
 
         auto meta = compiler->parse(blob, localConfig);
         meta.name = "net" + std::to_string(_compiledModelLoadCounter++);

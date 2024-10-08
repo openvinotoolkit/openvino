@@ -138,16 +138,140 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
         "the \"ov::ISyncInferRequest\" class");
 }
 
+std::pair<Metadata_v1, metaIterator> Metadata_v1::version_handler(std::vector<uint8_t>& blob, std::istream& stream) {
+    constexpr std::string_view versionHeader{"OVNPU"}; // maybe put this some place else
+
+    size_t blobDataSize;
+    stream.read(reinterpret_cast<char*>(&blobDataSize), sizeof(size_t));
+    if (blobDataSize == blob.size() - sizeof(blobDataSize)) {
+        OPENVINO_THROW("Imported blob is not versioned");
+    }
+
+    auto metadataIterator {blob.begin() + blobDataSize};
+    char* blobVersionHeader = new char[versionHeader.size() + 1];
+    std::copy(metadataIterator, metadataIterator + versionHeader.size(), blobVersionHeader);
+    std::cout << "header: " << versionHeader << '\n';
+    if (versionHeader.compare(blobVersionHeader)) {
+        std::cout << "expected header: " << versionHeader << "\n actual header: " << blobVersionHeader << '\n';
+        OPENVINO_THROW("Version header mismatch or missing");
+    }
+    metadataIterator += versionHeader.size();
+
+    Metadata_v1 metav1;
+    metav1.read_metadata(metadataIterator); // gotta make a destructor instead of making tons of copies
+    return std::make_pair(metav1, metadataIterator);
+}
+
+// should we check for header here or create a function called version_metadata_handler
+// which checks for header and calls read_metadata
+void Metadata_v1::read_metadata(std::vector<uint8_t>::iterator metadataIterator) {
+    std::copy(metadataIterator, metadataIterator + sizeof(uint8_t), &this->version.major); // check major number
+    metadataIterator += sizeof(uint8_t);
+    std::cout << "major: " << this->version.major;
+
+    std::copy(metadataIterator, metadataIterator + sizeof(uint8_t), &this->version.minor); // check minor number
+    std::cout << "\nminor: " << this->version.minor << '\n';
+    metadataIterator += sizeof(uint8_t);
+
+    /*
+        is there a way needed to assert the version?
+        or do we still want to check for it?
+        after all, we can orchestrate everything using metadata major;minor
+    */
+    ov::Version ourOvVersion = ov::get_openvino_version();
+    size_t ovVersionSize = strlen(ourOvVersion.buildNumber);
+    char* blobOvVersion = new char[ovVersionSize + 1];
+    std::copy(metadataIterator, metadataIterator + ovVersionSize, blobOvVersion);
+    std::cout << "blob ov version: " << blobOvVersion << '\n';
+    metadataIterator += ovVersionSize;
+}
+
+void Metadata_v1::write_metadata(std::ostream& stream) {
+    stream.write(reinterpret_cast<char*>(&this->version.major), sizeof(uint8_t));
+    stream.write(reinterpret_cast<char*>(&this->version.minor), sizeof(uint8_t));
+
+    stream.write(this->ovVersion.version.c_str(), this->ovVersion.version.size());
+}
+
+// std::pair<Metadata_v2, metaIterator> Metadata_v2::version_handler(std::vector<uint8_t>& blob, std::istream& stream) {
+//     auto oldMeta = Metadata_v1::version_handler(blob, stream);
+//     Metadata_v2 metav2;
+//     metav2.oldMetadata = oldMeta.first;
+
+// }
+
+void Metadata_v2::read_metadata(std::vector<uint8_t>::iterator metadataIterator) {
+    std::copy(metadataIterator, metadataIterator + sizeof(int), &this->layout.something);
+    metadataIterator += sizeof(int);
+
+    std::copy(metadataIterator, metadataIterator + sizeof(double), &this->layout.somethingElse);
+    metadataIterator += sizeof(double);
+}
+
+void Metadata_v2::write_metadata(std::ostream& stream) {
+    this->oldMetadata.write_metadata(stream);
+
+    stream.write(reinterpret_cast<char*>(&this->layout.something), sizeof(int));
+    stream.write(reinterpret_cast<char*>(&this->layout.somethingElse), sizeof(double));
+}
+
+void Metadata_v3::read_metadata(std::vector<uint8_t>::iterator metadataIterator) {
+    std::copy(metadataIterator, metadataIterator + sizeof(uint8_t), &this->version.major);
+    metadataIterator += sizeof(uint8_t);
+    std::cout << "major: " << this->version.major;
+    std::copy(metadataIterator, metadataIterator + sizeof(uint8_t), &this->version.minor);
+    std::cout << "\nminor: " << this->version.minor << '\n';
+    metadataIterator += sizeof(uint8_t);
+
+    std::copy(metadataIterator, metadataIterator + sizeof(int), &this->layout.something);
+    metadataIterator += sizeof(int);
+    std::cout << "layout.something: " << this->layout.something;
+    std::copy(metadataIterator, metadataIterator + sizeof(double), &this->layout.somethingElse);
+    metadataIterator += sizeof(double);
+    std::cout << "layout.somethingElse: " << this->layout.somethingElse;
+
+    ov::Version ourOvVersion = ov::get_openvino_version();
+    size_t ovVersionSize = strlen(ourOvVersion.buildNumber);
+    char* blobOvVersion = new char[ovVersionSize + 1];
+    std::copy(metadataIterator, metadataIterator + ovVersionSize, blobOvVersion);
+    std::cout << "blob ov version: " << blobOvVersion << '\n';
+    metadataIterator += ovVersionSize;
+}
+
+void Metadata_v3::write_metadata(std::ostream& stream) {
+    stream.write(reinterpret_cast<char*>(&this->version.major), sizeof(uint8_t));
+    stream.write(reinterpret_cast<char*>(&this->version.minor), sizeof(uint8_t));
+
+    stream.write(reinterpret_cast<char*>(&this->layout.something), sizeof(int));
+    stream.write(reinterpret_cast<char*>(&this->layout.somethingElse), sizeof(double));
+
+    stream.write(this->ovVersion.version.c_str(), this->ovVersion.version.size());
+
+    stream.write(reinterpret_cast<char*>(&this->extra), sizeof(double));
+}
+
 void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
     const auto&& blob = _compiler->getCompiledNetwork(_networkPtr);
     stream.write(reinterpret_cast<const char*>(blob.data()), blob.size());
 
-    const ov::Version& ovVersion = ov::get_openvino_version();
-    std::string ovVersionName {ovVersion.buildNumber};
-    const size_t versionLength = ovVersionName.length();
+    constexpr std::string_view metaHeader {"OVNPU"};
+    stream.write(metaHeader.data(), metaHeader.length());
+    std::cout << "metaHeader size: " << metaHeader.length() << '\n';
 
-    stream.write(ovVersionName.c_str(), versionLength);
+    MetadataVersion metaVersion = {'a', 'g'};
+    std::cout << "meta version sizes: " << metaVersion.major << " " << metaVersion.minor << '\n';
+    OpenvinoVersion ovVersion = {"2024.5.0-16678-090da7b5376-blob_commit"};
+    std::cout << "ovversion size: " << ovVersion.version.size() << '\n';
+    ModelLayout layout = {.something = 2, .somethingElse = 5.3};
+
+    Metadata_v1 metav1 = {metaVersion, ovVersion};
+    Metadata_v2 metav2 = {metav1, layout};
+
+    metav2.write_metadata(stream);
+
+    size_t blobSizeBeforeVersioning = blob.size();
+    stream.write(reinterpret_cast<const char*>(&blobSizeBeforeVersioning), sizeof(size_t));
 
     std::stringstream str;
     str << "Blob size: " << blob.size() << ", hash: " << std::hex << hash(blob);
