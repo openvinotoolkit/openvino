@@ -207,7 +207,7 @@ Download the Model for Text **Detection**
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/notebooks/paddle-o…
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-no…
 
 
 .. parsed-literal::
@@ -253,7 +253,7 @@ Download the Model for Text **Recognition**
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/notebooks/paddle-o…
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-no…
 
 
 .. parsed-literal::

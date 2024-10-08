@@ -23,6 +23,7 @@ the images most related to the query.
 In this tutorial, we consider how to use MobileCLIP to implement a
 visual content search engine for finding relevant frames in video.
 
+
 **Table of contents:**
 
 -  `Prerequisites <#prerequisites>`__
@@ -77,7 +78,7 @@ Prerequisites
     remote: Counting objects: 100% (84/84), done.[K
     remote: Compressing objects: 100% (61/61), done.[K
     remote: Total 84 (delta 29), reused 75 (delta 22), pack-reused 0 (from 0)[K
-    Unpacking objects: 100% (84/84), 467.39 KiB | 4.21 MiB/s, done.
+    Unpacking objects: 100% (84/84), 467.39 KiB | 2.58 MiB/s, done.
 
 
 .. code:: ipython3
@@ -449,7 +450,7 @@ Perform search
 
 .. parsed-literal::
 
-    Image encoding took 0.0994 ms
+    Image encoding took 0.108 ms
     Text encoding took 0.0118 ms
 
 
@@ -528,7 +529,7 @@ be used separately. Let’s convert each part to OpenVINO.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/mobileclip/modules/common/transformer.py:125: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/mobileclip/modules/common/transformer.py:125: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if seq_len != self.num_embeddings:
 
 
@@ -613,8 +614,8 @@ Perform search
 
 .. parsed-literal::
 
-    Image encoding took 0.0294 ms
-    Text encoding took 0.00508 ms
+    Image encoding took 0.0271 ms
+    Text encoding took 0.00495 ms
 
 
 

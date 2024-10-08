@@ -116,11 +116,14 @@ torch.compile it goes through the following steps:
 
 1. Graph acquisition - the model is rewritten as blocks of subgraphs that are either:
 
-   - compiled by TorchDynamo and “flattened”,
-   - falling back to the eager-mode, due to unsupported Python constructs (like control-flow code).
+  - compiled by TorchDynamo and “flattened”,
+  - falling back to the eager-mode, due to unsupported Python constructs (like control-flow
+    code).
 
-2. Graph lowering - all PyTorch operations are decomposed into their constituent kernels specific to the chosen backend.
-3. Graph compilation - the kernels call their corresponding low-level device-specific operations.
+2. Graph lowering - all PyTorch operations are decomposed into
+  their constituent kernels specific to the chosen backend.
+3. Graph compilation - the kernels call their corresponding low-level
+  device-specific operations.
 
 Select device for inference and enable or disable saving the optimized
 model files to a hard drive, after the first application run. This makes
@@ -251,10 +254,10 @@ pipeline. Optionally, you can also change some input parameters.
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
 
-
-
 Support for Automatic1111 Stable Diffusion WebUI
 ------------------------------------------------
+
+
 
 Automatic1111 Stable Diffusion WebUI is an open-source repository that
 hosts a browser-based interface for the Stable Diffusion based image

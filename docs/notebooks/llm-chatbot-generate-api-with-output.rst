@@ -81,9 +81,9 @@ Install required dependencies
 .. code:: ipython3
 
     import os
-    
+
     os.environ["GIT_CLONE_PROTECTION_ACTIVE"] = "false"
-    
+
     %pip install -Uq pip
     %pip uninstall -q -y optimum optimum-intel
     %pip install -q -U "openvino>=2024.3.0" openvino-tokenizers[transformers] openvino-genai
@@ -112,12 +112,12 @@ Install required dependencies
     from pathlib import Path
     import requests
     import shutil
-    
+
     # fetch model configuration
-    
+
     config_shared_path = Path("../../utils/llm_config.py")
     config_dst_path = Path("llm_config.py")
-    
+
     if not config_dst_path.exists():
         if config_shared_path.exists():
             try:
@@ -136,7 +136,7 @@ Install required dependencies
             r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/llm_config.py")
             with open("llm_config.py", "w", encoding="utf-8") as f:
                 f.write(r.text)
-    
+
     if not Path("notebook_utils.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py")
         open("notebook_utils.py", "w").write(r.text)
@@ -218,6 +218,70 @@ Click here to see available models options
    MiniCPM outperforms many popular 7b, 13b and 70b models. More details
    can be found in
    `model_card <https://huggingface.co/openbmb/MiniCPM-2B-dpo-fp16>`__.
+-  **llama-3.2-1B-instruct** - 1B parameters model from LLama3.2
+   collection of instruction-tuned multilingual models. Llama 3.2
+   instruction-tuned text only models are optimized for multilingual
+   dialogue use cases, including agentic retrieval and summarization
+   tasks. They outperform many of the available open source and closed
+   chat models on common industry benchmarks. More details can be found
+   in `model
+   card <https://huggingface.co/meta-llama/Llama-3.2-1B-Instruct>`__
+   >\ **Note**: run model with demo, you will need to accept license
+   agreement. >You must be a registered user in Hugging Face Hub.
+   Please visit `HuggingFace model
+   card <https://huggingface.co/meta-llama/Llama-3.2-1B-Instruct>`__,
+   carefully read terms of usage and click accept button. You will need
+   to use an access token for the code below to run. For more
+   information on access tokens, refer to `this section of the
+   documentation <https://huggingface.co/docs/hub/security-tokens>`__.
+   >You can login on Hugging Face Hub in notebook environment, using
+   following code:
+
+.. code:: python
+
+       # login to huggingfacehub to get access to pretrained model
+
+
+       from huggingface_hub import notebook_login, whoami
+
+       try:
+           whoami()
+           print('Authorization token already provided')
+       except OSError:
+           notebook_login()
+
+-  **llama-3.2-3B-instruct** - 3B parameters model from LLama3.2
+   collection of instruction-tuned multilingual models. Llama 3.2
+   instruction-tuned text only models are optimized for multilingual
+   dialogue use cases, including agentic retrieval and summarization
+   tasks. They outperform many of the available open source and closed
+   chat models on common industry benchmarks. More details can be found
+   in `model
+   card <https://huggingface.co/meta-llama/Llama-3.2-3B-Instruct>`__
+   >\ **Note**: run model with demo, you will need to accept license
+   agreement. >You must be a registered user in Hugging Face Hub.
+   Please visit `HuggingFace model
+   card <https://huggingface.co/meta-llama/Llama-3.2-3B-Instruct>`__,
+   carefully read terms of usage and click accept button. You will need
+   to use an access token for the code below to run. For more
+   information on access tokens, refer to `this section of the
+   documentation <https://huggingface.co/docs/hub/security-tokens>`__.
+   >You can login on Hugging Face Hub in notebook environment, using
+   following code:
+
+.. code:: python
+
+       # login to huggingfacehub to get access to pretrained model
+
+
+       from huggingface_hub import notebook_login, whoami
+
+       try:
+           whoami()
+           print('Authorization token already provided')
+       except OSError:
+           notebook_login()
+
 -  **gemma-2b-it** - Gemma is a family of lightweight, state-of-the-art
    open models from Google, built from the same research and technology
    used to create the Gemini models. They are text-to-text, decoder-only
@@ -240,7 +304,7 @@ Click here to see available models options
 
 .. code:: python
 
-       # login to huggingfacehub to get access to pretrained model 
+       # login to huggingfacehub to get access to pretrained model
 
 
        from huggingface_hub import notebook_login, whoami
@@ -274,7 +338,7 @@ Click here to see available models options
 
 .. code:: python
 
-       # login to huggingfacehub to get access to pretrained model 
+       # login to huggingfacehub to get access to pretrained model
 
 
        from huggingface_hub import notebook_login, whoami
@@ -334,7 +398,7 @@ Click here to see available models options
 
 .. code:: python
 
-       # login to huggingfacehub to get access to pretrained model 
+       # login to huggingfacehub to get access to pretrained model
 
        from huggingface_hub import notebook_login, whoami
 
@@ -367,7 +431,7 @@ Click here to see available models options
 
 .. code:: python
 
-       # login to huggingfacehub to get access to pretrained model 
+       # login to huggingfacehub to get access to pretrained model
 
 
        from huggingface_hub import notebook_login, whoami
@@ -401,7 +465,7 @@ Click here to see available models options
 
 .. code:: python
 
-       # login to huggingfacehub to get access to pretrained model 
+       # login to huggingfacehub to get access to pretrained model
 
        from huggingface_hub import notebook_login, whoami
 
@@ -435,7 +499,7 @@ Click here to see available models options
 
 .. code:: python
 
-       # login to huggingfacehub to get access to pretrained model 
+       # login to huggingfacehub to get access to pretrained model
 
        from huggingface_hub import notebook_login, whoami
 
@@ -466,7 +530,7 @@ Click here to see available models options
 
 .. code:: python
 
-       # login to huggingfacehub to get access to pretrained model 
+       # login to huggingfacehub to get access to pretrained model
 
        from huggingface_hub import notebook_login, whoami
 
@@ -476,27 +540,18 @@ Click here to see available models options
        except OSError:
            notebook_login()
 
--  **qwen2-1.5b-instruct/qwen2-7b-instruct** - Qwen2 is the new series
-   of Qwen large language models.Compared with the state-of-the-art open
-   source language models, including the previous released Qwen1.5,
-   Qwen2 has generally surpassed most open source models and
-   demonstrated competitiveness against proprietary models across a
-   series of benchmarks targeting for language understanding, language
-   generation, multilingual capability, coding, mathematics, reasoning,
-   etc. For more details, please refer to
-   `model_card <https://huggingface.co/Qwen/Qwen2-7B-Instruct>`__,
-   `blog <https://qwenlm.github.io/blog/qwen2/>`__,
-   `GitHub <https://github.com/QwenLM/Qwen2>`__, and
+-  **qwen2.5-0.5b-instruct/qwen2.5-1.5b-instruct/qwen2.5-3b-instruct/qwen2.5-7b-instruct/qwen2.5-14b-instruct**
+   - Qwen2.5 is the latest series of Qwen large language models.
+   Comparing with Qwen2, Qwen2.5 series brings significant improvements
+   in coding, mathematics and general knowledge skills. Additionally, it
+   brings long-context and multiple languages support including Chinese,
+   English, French, Spanish, Portuguese, German, Italian, Russian,
+   Japanese, Korean, Vietnamese, Thai, Arabic, and more. For more
+   details, please refer to
+   `model_card <https://huggingface.co/Qwen/Qwen2.5-7B-Instruct>`__,
+   `blog <https://qwenlm.github.io/blog/qwen2.5/>`__,
+   `GitHub <https://github.com/QwenLM/Qwen2.5>`__, and
    `Documentation <https://qwen.readthedocs.io/en/latest/>`__.
--  **qwen1.5-0.5b-chat/qwen1.5-1.8b-chat/qwen1.5-7b-chat** - Qwen1.5 is
-   the beta version of Qwen2, a transformer-based decoder-only language
-   model pretrained on a large amount of data. Qwen1.5 is a language
-   model series including decoder language models of different model
-   sizes. It is based on the Transformer architecture with SwiGLU
-   activation, attention QKV bias, group query attention, mixture of
-   sliding window attention and full attention. You can find more
-   details about model in the `model
-   repository <https://huggingface.co/Qwen>`__.
 -  **qwen-7b-chat** - Qwen-7B is the 7B-parameter version of the large
    language model series, Qwen (abbr. Tongyi Qianwen), proposed by
    Alibaba Cloud. Qwen-7B is a Transformer-based large language model,
@@ -588,9 +643,9 @@ Click here to see available models options
 .. code:: ipython3
 
     from llm_config import get_llm_selection_widget
-    
+
     form, lang, model_id_widget, compression_variant, use_preconverted = get_llm_selection_widget()
-    
+
     form
 
 
@@ -611,7 +666,7 @@ Click here to see available models options
 
 .. parsed-literal::
 
-    Selected model qwen2-0.5b-instruct with INT4 compression
+    Selected model qwen2.5-0.5b-instruct with INT4 compression
 
 
 Convert model using Optimum-CLI tool
@@ -620,7 +675,7 @@ Convert model using Optimum-CLI tool
 
 
 `Optimum Intel <https://huggingface.co/docs/optimum/intel/index>`__ is
-the interface between the 
+the interface between the
 `Transformers <https://huggingface.co/docs/transformers/index>`__ and
 `Diffusers <https://huggingface.co/docs/diffusers/index>`__ libraries
 and OpenVINO to accelerate end-to-end pipelines on Intel architectures.
@@ -677,12 +732,13 @@ to make it
 `symmetric <https://github.com/openvinotoolkit/nncf/blob/develop/docs/compression_algorithms/Quantization.md#symmetric-quantization>`__
 you can add ``--sym``.
 
-For INT4 quantization you can also specify the following arguments : -
-The ``--group-size`` parameter will define the group size to use for
-quantization, -1 it will results in per-column quantization. - The
-``--ratio`` parameter controls the ratio between 4-bit and 8-bit
-quantization. If set to 0.9, it means that 90% of the layers will be
-quantized to int4 while 10% will be quantized to int8.
+For INT4 quantization you can also specify the following arguments :
+
+- The ``--group-size`` parameter will define the group size to use for
+  quantization, -1 it will results in per-column quantization.
+- The ``--ratio`` parameter controls the ratio between 4-bit and 8-bit
+  quantization. If set to 0.9, it means that 90% of the layers will be
+  quantized to int4 while 10% will be quantized to int8.
 
 Smaller group_size and ratio values usually improve accuracy at the
 sacrifice of the model size and inference latency. You can enable AWQ to
@@ -704,13 +760,13 @@ be additionally applied during model export with INT4 precision using
 .. code:: ipython3
 
     from llm_config import convert_and_compress_model
-    
+
     model_dir = convert_and_compress_model(model_id, model_configuration, compression_variant.value, use_preconverted.value)
 
 
 .. parsed-literal::
 
-    ⌛ qwen2-0.5b-instruct conversion to INT4 started. It may takes some time.
+    ⌛ qwen2.5-0.5b-instruct conversion to INT4 started. It may takes some time.
 
 
 
@@ -718,40 +774,39 @@ be additionally applied during model export with INT4 precision using
 
 
 
-``optimum-cli export openvino --model Qwen/Qwen2-0.5B-Instruct --task text-generation-with-past --weight-format int4 --group-size 128 --ratio 0.8 qwen2/INT4_compressed_weights``
+``optimum-cli export openvino --model Qwen/Qwen2.5-0.5B-Instruct --task text-generation-with-past --weight-format int4 --group-size 128 --ratio 1.0 --sym qwen2.5/INT4_compressed_weights``
 
 
 .. parsed-literal::
 
-    2024-09-24 01:36:43.036338: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-09-24 01:36:43.069837: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-10-08 02:53:02.359208: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-10-08 02:53:02.392956: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-09-24 01:36:43.595089: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-10-08 02:53:02.929372: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
     Framework not specified. Using pt to export the model.
     Using framework PyTorch: 2.2.2+cpu
     Overriding 1 configuration item(s)
     	- use_cache -> True
     We detected that you are passing `past_key_values` as a tuple and this is deprecated and will be removed in v4.43. Please use an appropriate `Cache` class (https://huggingface.co/docs/transformers/v4.41.3/en/internal/generation_utils#transformers.Cache)
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/optimum/exporters/openvino/model_patcher.py:489: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/optimum/exporters/openvino/model_patcher.py:496: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if sequence_length != 1:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/qwen2/modeling_qwen2.py:165: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/qwen2/modeling_qwen2.py:165: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if seq_len > self.max_seq_len_cached:
     Set tokenizer padding side to left for `text-generation-with-past` task.
 
 
 .. parsed-literal::
 
-    [2KMixed-Precision assignment ━━━━━━━━━━━━━━━━━━━━ 100% 168/168 • 0:00:03 • 0:00:00
     INFO:nncf:Statistics of the bitwidth distribution:
-    ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
-    │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
-    ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
-    │              8 │ 43% (81 / 169)              │ 21% (80 / 168)                         │
-    ├────────────────┼─────────────────────────────┼────────────────────────���───────────────┤
-    │              4 │ 57% (88 / 169)              │ 79% (88 / 168)                         │
-    ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
-    [2KApplying Weight Compression ━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% • 0:00:09 • 0:00:00
-    ✅ INT4 qwen2-0.5b-instruct model converted and can be found in qwen2/INT4_compressed_weights
+    ┍━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
+    │ Weight compression mode   │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
+    ┝━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
+    │ int8_asym                 │ 28% (1 / 169)               │ 0% (0 / 168)                           │
+    ├───────────────────────────┼─────────────────────────────┼────────────────────────────────────────┤
+    │ int4_sym                  │ 72% (168 / 169)             │ 100% (168 / 168)                       │
+    ┕━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
+    [2KApplying Weight Compression ━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% • 0:00:14 • 0:00:00
+    ✅ INT4 qwen2.5-0.5b-instruct model converted and can be found in qwen2.5/INT4_compressed_weights
 
 
 Let’s compare model size for different compression types
@@ -759,13 +814,13 @@ Let’s compare model size for different compression types
 .. code:: ipython3
 
     from llm_config import compare_model_size
-    
+
     compare_model_size(model_dir)
 
 
 .. parsed-literal::
 
-    Size of model with INT4 compressed weights is 358.80 MB
+    Size of model with INT4 compressed weights is 322.44 MB
 
 
 Select device for inference
@@ -776,9 +831,9 @@ Select device for inference
 .. code:: ipython3
 
     from notebook_utils import device_widget
-    
+
     device = device_widget(default="CPU", exclude=["NPU"])
-    
+
     device
 
 
@@ -821,14 +876,14 @@ of the available generation parameters more deeply later.
 .. code:: ipython3
 
     from openvino_genai import LLMPipeline
-    
+
     print(f"Loading model from {model_dir}\n")
-    
-    
+
+
     pipe = LLMPipeline(str(model_dir), device.value)
-    
+
     generation_config = pipe.get_generation_config()
-    
+
     input_prompt = "The Sun is yellow bacause"
     print(f"Input text: {input_prompt}")
     print(pipe.generate(input_prompt, max_new_tokens=10))
@@ -836,10 +891,10 @@ of the available generation parameters more deeply later.
 
 .. parsed-literal::
 
-    Loading model from qwen2/INT4_compressed_weights
-    
+    Loading model from qwen2.5/INT4_compressed_weights
+
     Input text: The Sun is yellow bacause
-     it is made of hydrogen and oxygen atoms. The
+     of its coloration. The Sun is blue because
 
 
 Run Chatbot
@@ -975,11 +1030,11 @@ Click here to see detailed description of advanced options
     if not Path("gradio_helper_genai.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/llm-chatbot/gradio_helper_genai.py")
         open("gradio_helper_genai.py", "w").write(r.text)
-    
+
     from gradio_helper_genai import make_demo
-    
+
     demo = make_demo(pipe, model_configuration, model_id, lang.value)
-    
+
     try:
         demo.launch(debug=False)
     except Exception:
@@ -992,7 +1047,7 @@ Click here to see detailed description of advanced options
 .. parsed-literal::
 
     Running on local URL:  http://127.0.0.1:7860
-    
+
     To create a public link, set `share=True` in `launch()`.
 
 

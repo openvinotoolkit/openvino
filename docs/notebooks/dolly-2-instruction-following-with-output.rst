@@ -214,10 +214,10 @@ you can add ``--sym``.
 For INT4 quantization you can also specify the following arguments :
 
 - The ``--group-size`` parameter will define the group size to use for
-  quantization, -1 it will results in per-column quantization.
+quantization, -1 it will results in per-column quantization.
 - The ``--ratio`` parameter controls the ratio between 4-bit and 8-bit
-  quantization. If set to 0.9, it means that 90% of the layers will be
-  quantized to int4 while 10% will be quantized to int8.
+quantization. If set to 0.9, it means that 90% of the layers will be
+quantized to int4 while 10% will be quantized to int8.
 
 Smaller group_size and ratio values usually improve accuracy at the
 sacrifice of the model size and inference latency.

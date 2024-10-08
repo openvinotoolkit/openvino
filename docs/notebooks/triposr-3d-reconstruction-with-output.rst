@@ -1,12 +1,6 @@
 TripoSR feedforward 3D reconstruction from a single image and OpenVINO
 ======================================================================
 
-.. warning::
-
-   Important note: This notebook requires python >= 3.9. Please make
-   sure that your environment fulfill to this requirement before running
-   it
-
 `TripoSR <https://huggingface.co/spaces/stabilityai/TripoSR>`__ is a
 state-of-the-art open-source model for fast feedforward 3D
 reconstruction from a single image, developed in collaboration between

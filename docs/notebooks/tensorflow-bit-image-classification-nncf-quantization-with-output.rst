@@ -49,11 +49,8 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
     import platform
     
     %pip install -q "tensorflow-macos>=2.5; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version > '3.8'" # macOS M1 and M2
-    %pip install -q "tensorflow-macos>=2.5,<=2.12.0; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version <= '3.8'" # macOS M1 and M2
     %pip install -q "tensorflow>=2.5; sys_platform == 'darwin' and platform_machine != 'arm64' and python_version > '3.8'" # macOS x86
-    %pip install -q "tensorflow>=2.5,<=2.12.0; sys_platform == 'darwin' and platform_machine != 'arm64' and python_version <= '3.8'" # macOS x86
     %pip install -q "tensorflow>=2.5; sys_platform != 'darwin' and python_version > '3.8'"
-    %pip install -q "tensorflow>=2.5,<=2.12.0; sys_platform != 'darwin' and python_version <= '3.8'"
     
     %pip install -q "openvino>=2024.0.0" "nncf>=2.7.0" "tensorflow-hub>=0.15.0" tf_keras
     %pip install -q "scikit-learn>=1.3.2"
@@ -62,20 +59,6 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
         %pip install -q "matplotlib>=3.4" "tensorflow_datasets>=4.9.0"
     else:
         %pip install -q "matplotlib>=3.4,<3.7" "tensorflow_datasets>=4.9.0,<4.9.3"
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
 
 .. code:: ipython3
 
@@ -111,20 +94,6 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
     open("notebook_utils.py", "w").write(r.text)
-
-
-.. parsed-literal::
-
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
-
-
-
-
-.. parsed-literal::
-
-    24692
-
-
 
 .. code:: ipython3
 
@@ -234,8 +203,13 @@ Plotting data samples
     plt.show()
 
 
+.. parsed-literal::
 
-.. image:: tensorflow-bit-image-classification-nncf-quantization-with-output_files/tensorflow-bit-image-classification-nncf-quantization-with-output_9_0.png
+    2024-01-26 10:40:54.747316: W tensorflow/core/kernels/data/cache_dataset_ops.cc:854] The calling iterator did not fully read the dataset being cached. In order to avoid unexpected truncation of the dataset, the partially cached contents of the dataset  will be discarded. This can happen if you have an input pipeline similar to `dataset.cache().take(k).repeat()`. You should use `dataset.take(k).cache().repeat()` instead.
+    
+
+
+.. image:: tensorflow-bit-image-classification-nncf-quantization-with-output_files/tensorflow-bit-image-classification-nncf-quantization-with-output_9_1.png
 
 
 .. code:: ipython3
@@ -257,8 +231,13 @@ Plotting data samples
     plt.show()
 
 
+.. parsed-literal::
 
-.. image:: tensorflow-bit-image-classification-nncf-quantization-with-output_files/tensorflow-bit-image-classification-nncf-quantization-with-output_10_0.png
+    2024-01-26 10:40:57.011386: W tensorflow/core/kernels/data/cache_dataset_ops.cc:854] The calling iterator did not fully read the dataset being cached. In order to avoid unexpected truncation of the dataset, the partially cached contents of the dataset  will be discarded. This can happen if you have an input pipeline similar to `dataset.cache().take(k).repeat()`. You should use `dataset.take(k).cache().repeat()` instead.
+    
+
+
+.. image:: tensorflow-bit-image-classification-nncf-quantization-with-output_files/tensorflow-bit-image-classification-nncf-quantization-with-output_10_1.png
 
 
 Model Fine-tuning
@@ -295,13 +274,8 @@ Model Fine-tuning
 
 .. parsed-literal::
 
-    101/101 [==============================] - 960s 9s/step - loss: 0.4825 - accuracy: 0.8779 - val_loss: 0.0626 - val_accuracy: 0.9780
-
-
-.. parsed-literal::
-
-    WARNING:absl:Found untraced functions such as _update_step_xla while saving (showing 1 of 1). These functions will not be directly callable after loading.
-
+    101/101 [==============================] - 472s 4s/step - loss: 0.4904 - accuracy: 0.8806 - val_loss: 0.0810 - val_accuracy: 0.9840
+    
 
 Perform model optimization (IR) step
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -322,7 +296,7 @@ Perform model optimization (IR) step
 .. parsed-literal::
 
     Initiating model optimization..!!!
-
+    
 
 Compute accuracy of the TF model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -355,6 +329,13 @@ Compute accuracy of the TF model
     
     tf_acc_score = accuracy_score(tf_predictions, gt_label)
 
+
+.. parsed-literal::
+
+    2024-01-26 10:51:24.539777: W tensorflow/core/common_runtime/graph_constructor.cc:839] Node 're_lu_48/PartitionedCall' has 1 outputs but the _output_shapes attribute specifies shapes for 2 outputs. Output shapes may be inaccurate.
+    2024-01-26 10:51:24.539856: W tensorflow/core/common_runtime/graph_constructor.cc:839] Node 'global_average_pooling2d/PartitionedCall' has 1 outputs but the _output_shapes attribute specifies shapes for 3 outputs. Output shapes may be inaccurate.
+    
+
 Compute accuracy of the OpenVINO model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -369,15 +350,6 @@ Select device for inference:
     device = device_widget()
     
     device
-
-
-
-
-.. parsed-literal::
-
-    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
-
-
 
 .. code:: ipython3
 
@@ -443,7 +415,15 @@ Model Quantization using NNCF
 
 
 
+    
 
+
+
+
+
+
+
+    
 
 
 
@@ -456,7 +436,15 @@ Model Quantization using NNCF
 
 
 
+    
 
+
+
+
+
+
+
+    
 
 
 Compute accuracy of the quantized model
@@ -503,11 +491,11 @@ Compare FP32 and INT8 accuracy
 
 .. parsed-literal::
 
-    Accuracy of the tensorflow model (fp32):  97.80%
-    Accuracy of the OpenVINO optimized model (fp32):  97.80%
-    Accuracy of the OpenVINO quantized model (int8):  96.80%
-    Accuracy drop between OV FP32 and INT8 model: 1.0% 
-
+    Accuracy of the tensorflow model (fp32):  98.40%
+    Accuracy of the OpenVINO optimized model (fp32):  98.40%
+    Accuracy of the OpenVINO quantized model (int8):  98.00%
+    Accuracy drop between OV FP32 and INT8 model: 0.4% 
+    
 
 Compare inference results on one picture
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -578,7 +566,7 @@ Compare inference results on one picture
     
     Predicted label for the sample picture by qunatized (int8) model: gas pump
     
-
+    
 
 
 .. image:: tensorflow-bit-image-classification-nncf-quantization-with-output_files/tensorflow-bit-image-classification-nncf-quantization-with-output_27_1.png

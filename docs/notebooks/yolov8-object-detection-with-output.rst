@@ -121,7 +121,7 @@ Install necessary packages.
 .. code:: ipython3
 
     %pip install -q "openvino>=2024.0.0" "nncf>=2.9.0"
-    %pip install -q "torch>=2.1" "torchvision>=0.16" "ultralytics==8.2.24" onnx tqdm opencv-python --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "torch>=2.1" "torchvision>=0.16" "ultralytics==8.3.0" onnx tqdm opencv-python --extra-index-url https://download.pytorch.org/whl/cpu
 
 Import required utility functions. The lower cell will download the
 ``notebook_utils`` Python module from GitHub.
@@ -161,7 +161,7 @@ Import required utility functions. The lower cell will download the
 
 .. parsed-literal::
 
-    PosixPath('/home/akash/intel/openvino_notebooks/notebooks/yolov8-optimization/data/coco_bike.jpg')
+    PosixPath('/home/ea/work/openvino_notebooks_new_clone/openvino_notebooks/notebooks/yolov8-optimization/data/coco_bike.jpg')
 
 
 
@@ -194,9 +194,10 @@ Let us consider the examples:
     from PIL import Image
     from ultralytics import YOLO
 
-    DET_MODEL_NAME = "yolov8n"
+    DET_MODEL_NAME = "yolo11n"
 
-    det_model = YOLO(models_dir / f"{DET_MODEL_NAME}.pt")
+    det_model = YOLO(f"{DET_MODEL_NAME}.pt")
+    det_model.to("cpu")
     label_map = det_model.model.names
 
     res = det_model(IMAGE_PATH)
@@ -205,24 +206,14 @@ Let us consider the examples:
 
 .. parsed-literal::
 
-    Downloading https://github.com/ultralytics/assets/releases/download/v8.2.0/yolov8n.pt to 'models/yolov8n.pt'...
 
-
-.. parsed-literal::
-
-    100%|██████████████████████████████████████████████████████████████████████████████████████████████████████| 6.25M/6.25M [00:02<00:00, 2.29MB/s]
-
-
-.. parsed-literal::
-
-
-    image 1/1 /home/akash/intel/openvino_notebooks/notebooks/yolov8-optimization/data/coco_bike.jpg: 480x640 2 bicycles, 2 cars, 1 dog, 82.9ms
-    Speed: 2.4ms preprocess, 82.9ms inference, 475.6ms postprocess per image at shape (1, 3, 480, 640)
+    image 1/1 /home/ea/work/openvino_notebooks_new_clone/openvino_notebooks/notebooks/yolov8-optimization/data/coco_bike.jpg: 480x640 2 bicycles, 2 cars, 2 dogs, 101.6ms
+    Speed: 3.1ms preprocess, 101.6ms inference, 1.4ms postprocess per image at shape (1, 3, 480, 640)
 
 
 
 
-.. image:: yolov8-object-detection-with-output_files/yolov8-object-detection-with-output_9_3.png
+.. image:: yolov8-object-detection-with-output_files/yolov8-object-detection-with-output_9_1.png
 
 
 
@@ -239,26 +230,9 @@ preserve dynamic shapes in the model.
 .. code:: ipython3
 
     # object detection model
-    det_model_path = models_dir / f"{DET_MODEL_NAME}_openvino_model/{DET_MODEL_NAME}.xml"
+    det_model_path = Path(f"{DET_MODEL_NAME}_openvino_model/{DET_MODEL_NAME}.xml")
     if not det_model_path.exists():
         det_model.export(format="openvino", dynamic=True, half=True)
-
-
-.. parsed-literal::
-
-    Ultralytics YOLOv8.2.24 🚀 Python-3.8.10 torch-2.1.0+cu121 CPU (Intel Core(TM) i9-10980XE 3.00GHz)
-
-    PyTorch: starting from 'models/yolov8n.pt' with input shape (1, 3, 640, 640) BCHW and output shape(s) (1, 84, 8400) (6.2 MB)
-
-    OpenVINO: starting export with openvino 2024.3.0-16041-1e3b88e4e3f-releases/2024/3...
-    OpenVINO: export success ✅ 1.7s, saved as 'models/yolov8n_openvino_model/' (6.4 MB)
-
-    Export complete (3.1s)
-    Results saved to /home/akash/intel/openvino_notebooks/notebooks/yolov8-optimization/models
-    Predict:         yolo predict task=detect model=models/yolov8n_openvino_model imgsz=640 half
-    Validate:        yolo val task=detect model=models/yolov8n_openvino_model imgsz=640 data=coco.yaml half
-    Visualize:       https://netron.app
-
 
 Verify model inference
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -323,6 +297,7 @@ ready to check model prediction for object detection.
 
     det_model.predictor.inference = infer
     det_model.predictor.model.pt = False
+    det_model
 
     res = det_model(IMAGE_PATH)
     Image.fromarray(res[0].plot()[:, :, ::-1])
@@ -331,8 +306,8 @@ ready to check model prediction for object detection.
 .. parsed-literal::
 
 
-    image 1/1 /home/akash/intel/openvino_notebooks/notebooks/yolov8-optimization/data/coco_bike.jpg: 640x640 2 bicycles, 2 cars, 1 dog, 16.1ms
-    Speed: 3.4ms preprocess, 16.1ms inference, 1.8ms postprocess per image at shape (1, 3, 640, 640)
+    image 1/1 /home/ea/work/openvino_notebooks_new_clone/openvino_notebooks/notebooks/yolov8-optimization/data/coco_bike.jpg: 640x640 1 bicycle, 2 cars, 1 dog, 16.9ms
+    Speed: 3.7ms preprocess, 16.9ms inference, 1.7ms postprocess per image at shape (1, 3, 640, 640)
 
 
 
@@ -393,245 +368,16 @@ evaluation function.
             zip_ref.extractall(OUT_DIR / "coco/images")
 
 
-
 .. parsed-literal::
 
-    /home/akash/intel/NNCF/nncf/examples/post_training_quantization/openvino/yolov8/datasets/val2017.zip:   0%|   …
-
-
-.. parsed-literal::
-
-    IOPub message rate exceeded.
-    The Jupyter server will temporarily stop sending output
-    to the client in order to avoid crashing it.
-    To change this limit, set the config variable
-    `--ServerApp.iopub_msg_rate_limit`.
-
-    Current values:
-    ServerApp.iopub_msg_rate_limit=1000.0 (msgs/sec)
-    ServerApp.rate_limit_window=3.0 (secs)
-
-    IOPub message rate exceeded.
-    The Jupyter server will temporarily stop sending output
-    to the client in order to avoid crashing it.
-    To change this limit, set the config variable
-    `--ServerApp.iopub_msg_rate_limit`.
-
-    Current values:
-    ServerApp.iopub_msg_rate_limit=1000.0 (msgs/sec)
-    ServerApp.rate_limit_window=3.0 (secs)
-
-    IOPub message rate exceeded.
-    The Jupyter server will temporarily stop sending output
-    to the client in order to avoid crashing it.
-    To change this limit, set the config variable
-    `--ServerApp.iopub_msg_rate_limit`.
-
-    Current values:
-    ServerApp.iopub_msg_rate_limit=1000.0 (msgs/sec)
-    ServerApp.rate_limit_window=3.0 (secs)
-
-    IOPub message rate exceeded.
-    The Jupyter server will temporarily stop sending output
-    to the client in order to avoid crashing it.
-    To change this limit, set the config variable
-    `--ServerApp.iopub_msg_rate_limit`.
-
-    Current values:
-    ServerApp.iopub_msg_rate_limit=1000.0 (msgs/sec)
-    ServerApp.rate_limit_window=3.0 (secs)
-
-    IOPub message rate exceeded.
-    The Jupyter server will temporarily stop sending output
-    to the client in order to avoid crashing it.
-    To change this limit, set the config variable
-    `--ServerApp.iopub_msg_rate_limit`.
-
-    Current values:
-    ServerApp.iopub_msg_rate_limit=1000.0 (msgs/sec)
-    ServerApp.rate_limit_window=3.0 (secs)
-
-    IOPub message rate exceeded.
-    The Jupyter server will temporarily stop sending output
-    to the client in order to avoid crashing it.
-    To change this limit, set the config variable
-    `--ServerApp.iopub_msg_rate_limit`.
-
-    Current values:
-    ServerApp.iopub_msg_rate_limit=1000.0 (msgs/sec)
-    ServerApp.rate_limit_window=3.0 (secs)
-
-    IOPub message rate exceeded.
-    The Jupyter server will temporarily stop sending output
-    to the client in order to avoid crashing it.
-    To change this limit, set the config variable
-    `--ServerApp.iopub_msg_rate_limit`.
-
-    Current values:
-    ServerApp.iopub_msg_rate_limit=1000.0 (msgs/sec)
-    ServerApp.rate_limit_window=3.0 (secs)
-
-    IOPub message rate exceeded.
-    The Jupyter server will temporarily stop sending output
-    to the client in order to avoid crashing it.
-    To change this limit, set the config variable
-    `--ServerApp.iopub_msg_rate_limit`.
-
-    Current values:
-    ServerApp.iopub_msg_rate_limit=1000.0 (msgs/sec)
-    ServerApp.rate_limit_window=3.0 (secs)
-
-    IOPub message rate exceeded.
-    The Jupyter server will temporarily stop sending output
-    to the client in order to avoid crashing it.
-    To change this limit, set the config variable
-    `--ServerApp.iopub_msg_rate_limit`.
-
-    Current values:
-    ServerApp.iopub_msg_rate_limit=1000.0 (msgs/sec)
-    ServerApp.rate_limit_window=3.0 (secs)
-
-    IOPub message rate exceeded.
-    The Jupyter server will temporarily stop sending output
-    to the client in order to avoid crashing it.
-    To change this limit, set the config variable
-    `--ServerApp.iopub_msg_rate_limit`.
-
-    Current values:
-    ServerApp.iopub_msg_rate_limit=1000.0 (msgs/sec)
-    ServerApp.rate_limit_window=3.0 (secs)
-
-    IOPub message rate exceeded.
-    The Jupyter server will temporarily stop sending output
-    to the client in order to avoid crashing it.
-    To change this limit, set the config variable
-    `--ServerApp.iopub_msg_rate_limit`.
-
-    Current values:
-    ServerApp.iopub_msg_rate_limit=1000.0 (msgs/sec)
-    ServerApp.rate_limit_window=3.0 (secs)
-
-    IOPub message rate exceeded.
-    The Jupyter server will temporarily stop sending output
-    to the client in order to avoid crashing it.
-    To change this limit, set the config variable
-    `--ServerApp.iopub_msg_rate_limit`.
-
-    Current values:
-    ServerApp.iopub_msg_rate_limit=1000.0 (msgs/sec)
-    ServerApp.rate_limit_window=3.0 (secs)
-
-    IOPub message rate exceeded.
-    The Jupyter server will temporarily stop sending output
-    to the client in order to avoid crashing it.
-    To change this limit, set the config variable
-    `--ServerApp.iopub_msg_rate_limit`.
-
-    Current values:
-    ServerApp.iopub_msg_rate_limit=1000.0 (msgs/sec)
-    ServerApp.rate_limit_window=3.0 (secs)
-
-    IOPub message rate exceeded.
-    The Jupyter server will temporarily stop sending output
-    to the client in order to avoid crashing it.
-    To change this limit, set the config variable
-    `--ServerApp.iopub_msg_rate_limit`.
-
-    Current values:
-    ServerApp.iopub_msg_rate_limit=1000.0 (msgs/sec)
-    ServerApp.rate_limit_window=3.0 (secs)
-
-    IOPub message rate exceeded.
-    The Jupyter server will temporarily stop sending output
-    to the client in order to avoid crashing it.
-    To change this limit, set the config variable
-    `--ServerApp.iopub_msg_rate_limit`.
-
-    Current values:
-    ServerApp.iopub_msg_rate_limit=1000.0 (msgs/sec)
-    ServerApp.rate_limit_window=3.0 (secs)
-
-    IOPub message rate exceeded.
-    The Jupyter server will temporarily stop sending output
-    to the client in order to avoid crashing it.
-    To change this limit, set the config variable
-    `--ServerApp.iopub_msg_rate_limit`.
-
-    Current values:
-    ServerApp.iopub_msg_rate_limit=1000.0 (msgs/sec)
-    ServerApp.rate_limit_window=3.0 (secs)
-
-    IOPub message rate exceeded.
-    The Jupyter server will temporarily stop sending output
-    to the client in order to avoid crashing it.
-    To change this limit, set the config variable
-    `--ServerApp.iopub_msg_rate_limit`.
-
-    Current values:
-    ServerApp.iopub_msg_rate_limit=1000.0 (msgs/sec)
-    ServerApp.rate_limit_window=3.0 (secs)
-
-    IOPub message rate exceeded.
-    The Jupyter server will temporarily stop sending output
-    to the client in order to avoid crashing it.
-    To change this limit, set the config variable
-    `--ServerApp.iopub_msg_rate_limit`.
-
-    Current values:
-    ServerApp.iopub_msg_rate_limit=1000.0 (msgs/sec)
-    ServerApp.rate_limit_window=3.0 (secs)
-
-    IOPub message rate exceeded.
-    The Jupyter server will temporarily stop sending output
-    to the client in order to avoid crashing it.
-    To change this limit, set the config variable
-    `--ServerApp.iopub_msg_rate_limit`.
-
-    Current values:
-    ServerApp.iopub_msg_rate_limit=1000.0 (msgs/sec)
-    ServerApp.rate_limit_window=3.0 (secs)
-
-    IOPub message rate exceeded.
-    The Jupyter server will temporarily stop sending output
-    to the client in order to avoid crashing it.
-    To change this limit, set the config variable
-    `--ServerApp.iopub_msg_rate_limit`.
-
-    Current values:
-    ServerApp.iopub_msg_rate_limit=1000.0 (msgs/sec)
-    ServerApp.rate_limit_window=3.0 (secs)
-
-    IOPub message rate exceeded.
-    The Jupyter server will temporarily stop sending output
-    to the client in order to avoid crashing it.
-    To change this limit, set the config variable
-    `--ServerApp.iopub_msg_rate_limit`.
-
-    Current values:
-    ServerApp.iopub_msg_rate_limit=1000.0 (msgs/sec)
-    ServerApp.rate_limit_window=3.0 (secs)
-
-    IOPub message rate exceeded.
-    The Jupyter server will temporarily stop sending output
-    to the client in order to avoid crashing it.
-    To change this limit, set the config variable
-    `--ServerApp.iopub_msg_rate_limit`.
-
-    Current values:
-    ServerApp.iopub_msg_rate_limit=1000.0 (msgs/sec)
-    ServerApp.rate_limit_window=3.0 (secs)
+    '/home/ea/work/openvino_notebooks_new_clone/openvino_notebooks/notebooks/yolov8-optimization/datasets/val2017.zip' already exists.
+    '/home/ea/work/openvino_notebooks_new_clone/openvino_notebooks/notebooks/yolov8-optimization/datasets/coco2017labels-segments.zip' already exists.
 
 
 
 .. parsed-literal::
 
-    '/home/akash/intel/NNCF/nncf/examples/post_training_quantization/openvino/yolov8/datasets/coco2017labels-segments.zip' already exists.
-
-
-
-.. parsed-literal::
-
-    /home/akash/intel/NNCF/nncf/examples/post_training_quantization/openvino/yolov8/datasets/coco.yaml:   0%|     …
+    /home/ea/work/openvino_notebooks_new_clone/openvino_notebooks/notebooks/yolov8-optimization/datasets/coco.yaml…
 
 
 Define validation function
@@ -774,7 +520,7 @@ validator class instance.
 
 .. parsed-literal::
 
-    val: Scanning /home/akash/intel/NNCF/nncf/examples/post_training_quantization/openvino/yolov8/datasets/coco/labels/val2017.cache... 4952 images,
+    val: Scanning /home/ea/work/openvino_notebooks_new_clone/openvino_notebooks/notebooks/yolov8-optimization/datasets/coco/labels/val2017.cache... 4952 images, 48 backgrounds, 0 corrupt: 100%|██████████| 5000/5000 [00:00<?, ?it/s]
 
 
 .. code:: ipython3
@@ -784,57 +530,6 @@ validator class instance.
     det_validator.names = det_model.model.names
     det_validator.metrics.names = det_validator.names
     det_validator.nc = det_model.model.model[-1].nc
-
-After definition test function and validator creation, we are ready for
-getting accuracy metrics >\ **Note**: Model evaluation is time consuming
-process and can take several minutes, depending on the hardware. For
-reducing calculation time, we define ``num_samples`` parameter with
-evaluation subset size, but in this case, accuracy can be noncomparable
-with originally reported by the authors of the model, due to validation
-subset difference. *To validate the models on the full dataset set
-``NUM_TEST_SAMPLES = None``.*
-
-.. code:: ipython3
-
-    NUM_TEST_SAMPLES = 300
-
-.. code:: ipython3
-
-    fp_det_stats = test(det_ov_model, core, det_data_loader, det_validator, num_samples=NUM_TEST_SAMPLES)
-
-
-
-.. parsed-literal::
-
-      0%|          | 0/300 [00:00<?, ?it/s]
-
-
-.. code:: ipython3
-
-    print_stats(fp_det_stats, det_validator.seen, det_validator.nt_per_class.sum())
-
-
-.. parsed-literal::
-
-    Boxes:
-        Best mean average:
-                   Class      Images      Labels   Precision      Recall      mAP@.5  mAP@.5:.95
-                     all         300        2145       0.594       0.542       0.579       0.417
-
-
-``print_stats`` reports the following list of accuracy metrics:
-
--  ``Precision`` is the degree of exactness of the model in identifying
-   only relevant objects.
--  ``Recall`` measures the ability of the model to detect all ground
-   truths objects.
--  ``mAP@t`` - mean average precision, represented as area under the
-   Precision-Recall curve aggregated over all classes in the dataset,
-   where ``t`` is the Intersection Over Union (IOU) threshold, degree of
-   overlapping between ground truth and predicted objects. Therefore,
-   ``mAP@.5`` indicates that mean average precision is calculated at 0.5
-   IOU threshold, ``mAP@.5:.95`` - is calculated on range IOU thresholds
-   from 0.5 to 0.95 with step 0.05.
 
 Optimize model using NNCF Post-training Quantization API
 --------------------------------------------------------
@@ -859,7 +554,7 @@ improve model inference speed.
 
 .. code:: ipython3
 
-    int8_model_det_path = models_dir / f"{DET_MODEL_NAME}_openvino_int8_model/{DET_MODEL_NAME}.xml"
+    int8_model_det_path = Path(f"{DET_MODEL_NAME}_openvino_int8_model/{DET_MODEL_NAME}.xml")
     quantized_det_model = None
 
     to_quantize = quantization_widget()
@@ -917,7 +612,7 @@ transformation function for getting only input tensors.
 
 .. parsed-literal::
 
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, onnx, openvino
+    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
 
 
 The ``nncf.quantize`` function provides an interface for model
@@ -941,10 +636,10 @@ point precision, using the ``ignored_scope`` parameter.
 
     ignored_scope = nncf.IgnoredScope( # post-processing
         subgraphs=[
-            nncf.Subgraph(inputs=['__module.model.22/aten::cat/Concat',
-                                  '__module.model.22/aten::cat/Concat_1',
-                                  '__module.model.22/aten::cat/Concat_2'],
-                          outputs=['__module.model.22/aten::cat/Concat_7'])
+            nncf.Subgraph(inputs=['__module.model.23/aten::cat/Concat',
+                                  '__module.model.23/aten::cat/Concat_1',
+                                  '__module.model.23/aten::cat/Concat_2'],
+                          outputs=['__module.model.23/aten::cat/Concat_7'])
         ]
     )
 
@@ -960,30 +655,30 @@ point precision, using the ``ignored_scope`` parameter.
 .. parsed-literal::
 
     INFO:nncf:105 ignored nodes were found by subgraphs in the NNCFGraph
-    INFO:nncf:Not adding activation input quantizer for operation: 126 __module.model.22/aten::cat/Concat
-    INFO:nncf:Not adding activation input quantizer for operation: 133 __module.model.22/aten::view/Reshape_3
-    INFO:nncf:Not adding activation input quantizer for operation: 240 __module.model.22/aten::cat/Concat_1
-    INFO:nncf:Not adding activation input quantizer for operation: 250 __module.model.22/aten::view/Reshape_4
-    INFO:nncf:Not adding activation input quantizer for operation: 297 __module.model.22/aten::cat/Concat_2
-    INFO:nncf:Not adding activation input quantizer for operation: 299 __module.model.22/aten::view/Reshape_5
-    INFO:nncf:Not adding activation input quantizer for operation: 143 __module.model.22/aten::cat/Concat_4
-    INFO:nncf:Not adding activation input quantizer for operation: 154 __module.model.22/prim::ListUnpack
-    INFO:nncf:Not adding activation input quantizer for operation: 166 __module.model.22.dfl/aten::view/Reshape
-    INFO:nncf:Not adding activation input quantizer for operation: 167 __module.model.22/aten::sigmoid/Sigmoid
-    INFO:nncf:Not adding activation input quantizer for operation: 180 __module.model.22.dfl/aten::transpose/Transpose
-    INFO:nncf:Not adding activation input quantizer for operation: 191 __module.model.22.dfl/aten::softmax/Softmax
-    INFO:nncf:Not adding activation input quantizer for operation: 201 __module.model.22.dfl.conv/aten::_convolution/Convolution
-    INFO:nncf:Not adding activation input quantizer for operation: 208 __module.model.22.dfl/aten::view/Reshape_1
-    INFO:nncf:Not adding activation input quantizer for operation: 217 __module.model.22/prim::ListUnpack/VariadicSplit
-    INFO:nncf:Not adding activation input quantizer for operation: 225 __module.model.22/aten::sub/Subtract
-    INFO:nncf:Not adding activation input quantizer for operation: 226 __module.model.22/aten::add/Add_6
-    INFO:nncf:Not adding activation input quantizer for operation: 235 __module.model.22/aten::add/Add_7
-    244 __module.model.22/aten::div/Divide
+    INFO:nncf:Not adding activation input quantizer for operation: 132 __module.model.23/aten::cat/Concat
+    INFO:nncf:Not adding activation input quantizer for operation: 140 __module.model.23/aten::view/Reshape_3
+    INFO:nncf:Not adding activation input quantizer for operation: 270 __module.model.23/aten::cat/Concat_1
+    INFO:nncf:Not adding activation input quantizer for operation: 282 __module.model.23/aten::view/Reshape_4
+    INFO:nncf:Not adding activation input quantizer for operation: 381 __module.model.23/aten::cat/Concat_2
+    INFO:nncf:Not adding activation input quantizer for operation: 384 __module.model.23/aten::view/Reshape_5
+    INFO:nncf:Not adding activation input quantizer for operation: 151 __module.model.23/aten::cat/Concat_4
+    INFO:nncf:Not adding activation input quantizer for operation: 164 __module.model.23/prim::ListUnpack
+    INFO:nncf:Not adding activation input quantizer for operation: 178 __module.model.23.dfl/aten::view/Reshape
+    INFO:nncf:Not adding activation input quantizer for operation: 179 __module.model.23/aten::sigmoid/Sigmoid
+    INFO:nncf:Not adding activation input quantizer for operation: 195 __module.model.23.dfl/aten::transpose/Transpose
+    INFO:nncf:Not adding activation input quantizer for operation: 210 __module.model.23.dfl/aten::softmax/Softmax
+    INFO:nncf:Not adding activation input quantizer for operation: 222 __module.model.23.dfl.conv/aten::_convolution/Convolution
+    INFO:nncf:Not adding activation input quantizer for operation: 232 __module.model.23.dfl/aten::view/Reshape_1
+    INFO:nncf:Not adding activation input quantizer for operation: 243 __module.model.23/prim::ListUnpack/VariadicSplit
+    INFO:nncf:Not adding activation input quantizer for operation: 253 __module.model.23/aten::sub/Subtract
+    INFO:nncf:Not adding activation input quantizer for operation: 254 __module.model.23/aten::add/Add_6
+    INFO:nncf:Not adding activation input quantizer for operation: 264 __module.model.23/aten::add/Add_7
+    275 __module.model.23/aten::div/Divide
 
-    INFO:nncf:Not adding activation input quantizer for operation: 236 __module.model.22/aten::sub/Subtract_1
-    INFO:nncf:Not adding activation input quantizer for operation: 245 __module.model.22/aten::cat/Concat_5
-    INFO:nncf:Not adding activation input quantizer for operation: 214 __module.model.22/aten::mul/Multiply_3
-    INFO:nncf:Not adding activation input quantizer for operation: 181 __module.model.22/aten::cat/Concat_7
+    INFO:nncf:Not adding activation input quantizer for operation: 265 __module.model.23/aten::sub/Subtract_1
+    INFO:nncf:Not adding activation input quantizer for operation: 276 __module.model.23/aten::cat/Concat_5
+    INFO:nncf:Not adding activation input quantizer for operation: 240 __module.model.23/aten::mul/Multiply_3
+    INFO:nncf:Not adding activation input quantizer for operation: 196 __module.model.23/aten::cat/Concat_7
 
 
 
@@ -1038,7 +733,7 @@ point precision, using the ``ignored_scope`` parameter.
 
 .. parsed-literal::
 
-    Quantized detection model will be saved to models/yolov8n_openvino_int8_model/yolov8n.xml
+    Quantized detection model will be saved to yolo11n_openvino_int8_model/yolo11n.xml
 
 
 Validate Quantized model inference
@@ -1084,12 +779,12 @@ on the image.
 .. parsed-literal::
 
 
-    image 1/1 /home/akash/intel/openvino_notebooks/notebooks/yolov8-optimization/data/coco_bike.jpg: 640x640 2 bicycles, 2 cars, 1 dog, 10.9ms
-    Speed: 3.7ms preprocess, 10.9ms inference, 1.9ms postprocess per image at shape (1, 3, 640, 640)
+    image 1/1 /home/ea/work/openvino_notebooks_new_clone/openvino_notebooks/notebooks/yolov8-optimization/data/coco_bike.jpg: 640x640 2 bicycles, 2 cars, 1 dog, 12.0ms
+    Speed: 3.2ms preprocess, 12.0ms inference, 2.1ms postprocess per image at shape (1, 3, 640, 640)
 
 
 
-.. image:: yolov8-object-detection-with-output_files/yolov8-object-detection-with-output_43_1.png
+.. image:: yolov8-object-detection-with-output_files/yolov8-object-detection-with-output_38_1.png
 
 
 Compare the Original and Quantized Models
@@ -1136,34 +831,34 @@ models.
     [Step 2/11] Loading OpenVINO Runtime
     [ WARNING ] Default duration 120 seconds is used for unknown device AUTO
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.3.0-16041-1e3b88e4e3f-releases/2024/3
+    [ INFO ] Build ................................. 2024.5.0-16814-e1c167a841c
     [ INFO ]
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2024.3.0-16041-1e3b88e4e3f-releases/2024/3
+    [ INFO ] Build ................................. 2024.5.0-16814-e1c167a841c
     [ INFO ]
     [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 13.54 ms
+    [ INFO ] Read model took 20.59 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     x (node: x) : f32 / [...] / [?,3,?,?]
     [ INFO ] Model outputs:
-    [ INFO ]     ***NO_NAME*** (node: __module.model.22/aten::cat/Concat_7) : f32 / [...] / [?,84,21..]
+    [ INFO ]     ***NO_NAME*** (node: __module.model.23/aten::cat/Concat_7) : f32 / [...] / [?,84,21..]
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [ INFO ] Reshaping model: 'x': [1,3,640,640]
-    [ INFO ] Reshape model took 7.16 ms
+    [ INFO ] Reshape model took 8.75 ms
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
     [ INFO ]     x (node: x) : u8 / [N,C,H,W] / [1,3,640,640]
     [ INFO ] Model outputs:
-    [ INFO ]     ***NO_NAME*** (node: __module.model.22/aten::cat/Concat_7) : f32 / [...] / [1,84,8400]
+    [ INFO ]     ***NO_NAME*** (node: __module.model.23/aten::cat/Concat_7) : f32 / [...] / [1,84,8400]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 365.94 ms
+    [ INFO ] Compile model took 450.45 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -1200,17 +895,17 @@ models.
     [ INFO ] Fill input 'x' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 120000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 40.11 ms
+    [ INFO ] First inference took 29.38 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            16968 iterations
-    [ INFO ] Duration:         120039.34 ms
+    [ INFO ] Count:            19920 iterations
+    [ INFO ] Duration:         120085.99 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        84.56 ms
-    [ INFO ]    Average:       84.70 ms
-    [ INFO ]    Min:           38.59 ms
-    [ INFO ]    Max:           140.59 ms
-    [ INFO ] Throughput:   141.35 FPS
+    [ INFO ]    Median:        69.30 ms
+    [ INFO ]    Average:       72.14 ms
+    [ INFO ]    Min:           32.38 ms
+    [ INFO ]    Max:           170.69 ms
+    [ INFO ] Throughput:   165.88 FPS
 
 
 .. code:: ipython3
@@ -1226,34 +921,34 @@ models.
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.3.0-16041-1e3b88e4e3f-releases/2024/3
+    [ INFO ] Build ................................. 2024.5.0-16814-e1c167a841c
     [ INFO ]
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2024.3.0-16041-1e3b88e4e3f-releases/2024/3
+    [ INFO ] Build ................................. 2024.5.0-16814-e1c167a841c
     [ INFO ]
     [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 41.77 ms
+    [ INFO ] Read model took 31.28 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
-    [ INFO ]     x (node: x) : f32 / [...] / [1,3,?,?]
+    [ INFO ]     x (node: x) : f32 / [...] / [1,3,640,640]
     [ INFO ] Model outputs:
-    [ INFO ]     ***NO_NAME*** (node: __module.model.22/aten::cat/Concat_7) : f32 / [...] / [1,84,21..]
+    [ INFO ]     ***NO_NAME*** (node: __module.model.23/aten::cat/Concat_7) : f32 / [...] / [1,84,8400]
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [ INFO ] Reshaping model: 'x': [1,3,640,640]
-    [ INFO ] Reshape model took 14.55 ms
+    [ INFO ] Reshape model took 0.04 ms
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
     [ INFO ]     x (node: x) : u8 / [N,C,H,W] / [1,3,640,640]
     [ INFO ] Model outputs:
-    [ INFO ]     ***NO_NAME*** (node: __module.model.22/aten::cat/Concat_7) : f32 / [...] / [1,84,8400]
+    [ INFO ]     ***NO_NAME*** (node: __module.model.23/aten::cat/Concat_7) : f32 / [...] / [1,84,8400]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 535.46 ms
+    [ INFO ] Compile model took 692.23 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -1290,69 +985,18 @@ models.
     [ INFO ] Fill input 'x' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 18 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 31.53 ms
+    [ INFO ] First inference took 26.23 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            5598 iterations
-    [ INFO ] Duration:         15049.79 ms
+    [ INFO ] Count:            6282 iterations
+    [ INFO ] Duration:         15051.09 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        47.83 ms
-    [ INFO ]    Average:       48.18 ms
-    [ INFO ]    Min:           30.12 ms
-    [ INFO ]    Max:           75.38 ms
-    [ INFO ] Throughput:   371.97 FPS
+    [ INFO ]    Median:        41.25 ms
+    [ INFO ]    Average:       42.92 ms
+    [ INFO ]    Min:           28.30 ms
+    [ INFO ]    Max:           99.38 ms
+    [ INFO ] Throughput:   417.38 FPS
 
-
-Validate quantized model accuracy
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-
-
-As we can see, there is no significant difference between ``INT8`` and
-float model result in a single image test. To understand how
-quantization influences model prediction precision, we can compare model
-accuracy on a dataset.
-
-.. code:: ipython3
-
-    %%skip not $to_quantize.value
-
-    int8_det_stats = test(quantized_det_model, core, det_data_loader, det_validator, num_samples=NUM_TEST_SAMPLES)
-
-
-
-.. parsed-literal::
-
-      0%|          | 0/300 [00:00<?, ?it/s]
-
-
-.. code:: ipython3
-
-    %%skip not $to_quantize.value
-
-    print("FP32 model accuracy")
-    print_stats(fp_det_stats, det_validator.seen, det_validator.nt_per_class.sum())
-
-    print("INT8 model accuracy")
-    print_stats(int8_det_stats, det_validator.seen, det_validator.nt_per_class.sum())
-
-
-.. parsed-literal::
-
-    FP32 model accuracy
-    Boxes:
-        Best mean average:
-                   Class      Images      Labels   Precision      Recall      mAP@.5  mAP@.5:.95
-                     all         300        2153       0.594       0.542       0.579       0.417
-    INT8 model accuracy
-    Boxes:
-        Best mean average:
-                   Class      Images      Labels   Precision      Recall      mAP@.5  mAP@.5:.95
-                     all         300        2153       0.626       0.509       0.576       0.423
-
-
-Great! Looks like accuracy was changed, but not significantly and it
-meets passing criteria.
 
 Next steps
 ----------
@@ -1453,7 +1097,7 @@ preprocessing steps:
 
     Input "x":
         User's input tensor: [1,640,640,3], [N,H,W,C], u8
-        Model's expected tensor: [1,3,?,?], [N,C,H,W], f32
+        Model's expected tensor: [1,3,640,640], [N,C,H,W], f32
         Pre-processing steps (3):
           convert type (f32): ([1,640,640,3], [N,H,W,C], u8) -> ([1,640,640,3], [N,H,W,C], f32)
           convert layout [N,C,H,W]: ([1,640,640,3], [N,H,W,C], f32) -> ([1,3,640,640], [N,C,H,W], f32)
@@ -1704,7 +1348,7 @@ Now, we can skip these preprocessing steps in detect function:
 
 
 
-.. image:: yolov8-object-detection-with-output_files/yolov8-object-detection-with-output_70_0.png
+.. image:: yolov8-object-detection-with-output_files/yolov8-object-detection-with-output_61_0.png
 
 
 
@@ -1883,7 +1527,7 @@ Run the object detection:
 
 
 
-.. image:: yolov8-object-detection-with-output_files/yolov8-object-detection-with-output_76_0.png
+.. image:: yolov8-object-detection-with-output_files/yolov8-object-detection-with-output_67_0.png
 
 
 .. parsed-literal::
