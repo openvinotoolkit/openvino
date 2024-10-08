@@ -25,17 +25,18 @@ namespace ocl {
 
 /*
 Base class for all GPU implementation of specified primitive type.
-For example, all gpu convolution implementations should derive from typed_primitive_impl_ocl_new<convolution>.
+For example, all gpu convolution implementations should derive from primitive_impl_ocl<convolution>.
 */
-template <class PType>
-struct typed_primitive_impl_ocl_new : public typed_primitive_impl<PType> {
+struct primitive_impl_ocl : public primitive_impl {
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::primitive_impl_ocl)
+
     std::vector<ov::intel_gpu::ocl::KernelData> _kernel_data;
     std::vector<kernel::ptr> _kernels;
 
-    typed_primitive_impl_ocl_new() = default;
+    primitive_impl_ocl() = default;
 
-    typed_primitive_impl_ocl_new(const typed_primitive_impl_ocl_new<PType>& other)
-    : typed_primitive_impl<PType>(other._weights_reorder_params, other._kernel_name, other._is_dynamic)
+    primitive_impl_ocl(const primitive_impl_ocl& other)
+    : primitive_impl(other._weights_reorder_params, other._kernel_name, other._is_dynamic)
     , _kernel_data(other._kernel_data)
     , _kernels({}) {
         _kernels.reserve(other._kernels.size());
@@ -45,8 +46,8 @@ struct typed_primitive_impl_ocl_new : public typed_primitive_impl<PType> {
         this->m_manager = other.m_manager;
     }
 
-    typed_primitive_impl_ocl_new(const std::vector<ov::intel_gpu::ocl::KernelData>& kd, const std::string& impl_name)
-        : typed_primitive_impl<PType>(nullptr, impl_name),
+    primitive_impl_ocl(const std::vector<ov::intel_gpu::ocl::KernelData>& kd, const std::string& impl_name)
+        : primitive_impl(nullptr, impl_name),
           _kernel_data(kd) {
     }
 
@@ -67,7 +68,7 @@ struct typed_primitive_impl_ocl_new : public typed_primitive_impl<PType> {
     }
 
 protected:
-    virtual kernel_arguments_data get_arguments(const typed_primitive_inst<PType>& instance) const {
+    virtual kernel_arguments_data get_arguments(const primitive_inst& instance) const {
         kernel_arguments_data args;
 
         for (size_t i = 0; i < instance.inputs_memory_count(); i++) {
@@ -121,7 +122,7 @@ protected:
         return _kernels;
     }
 
-    std::vector<layout> get_internal_buffer_layouts_impl() const override {
+    std::vector<layout> get_internal_buffer_layouts() const override {
         // if (_kernel_data.internalBufferSizes.empty())
             return {};
 
@@ -136,7 +137,7 @@ protected:
         // return layouts;
     }
 
-    void set_arguments_impl(typed_primitive_inst<PType>& instance) override {
+    void set_arguments(primitive_inst& instance) override {
         // if (instance.can_be_optimized() || is_cpu()) {
         //     return;
         // }
@@ -163,7 +164,7 @@ protected:
         }
     }
 
-    void set_arguments_impl(typed_primitive_inst<PType>& instance, kernel_arguments_data& args) override {
+    void set_arguments(primitive_inst& instance, kernel_arguments_data& args) override {
         // if (instance.can_be_optimized()) {
         //     return;
         // }
@@ -178,8 +179,12 @@ protected:
         }
     }
 
-    event::ptr execute_impl(const std::vector<event::ptr>& events,
-                            typed_primitive_inst<PType>& instance) override {
+
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<primitive_impl_ocl>(*this);
+    }
+
+    event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
         stream& stream = instance.get_network().get_stream();
         if (instance.can_be_optimized()) {
             return stream.aggregate_events(events, false, instance.is_output());

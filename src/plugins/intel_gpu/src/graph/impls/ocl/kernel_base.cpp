@@ -66,7 +66,7 @@ public:
 
 const primitive_db KernelGeneratorBase::db;
 
-JitConstants KernelGeneratorBase::make_base_jit_constants(const program_node& node, const kernel_impl_params& params) const {
+JitConstants SingleKernelGenerator::make_base_jit_constants(const program_node& node, const kernel_impl_params& params) const {
     JitConstants jit_constants;
 
     auto entry_point = get_entry_point(node, params);
@@ -94,7 +94,7 @@ JitConstants KernelGeneratorBase::make_base_jit_constants(const program_node& no
     return jit_constants;
 }
 
-std::string KernelGeneratorBase::build_code(const std::string& template_name, const JitConstants& jit_constants, const std::string& kernel_id) const {
+std::string SingleKernelGenerator::build_code(const std::string& template_name, const JitConstants& jit_constants, const std::string& kernel_id) const {
     CodeBuilder code;
     std::string undefs;
     code.add_line("\n//====================================================")
@@ -120,6 +120,54 @@ std::string KernelGeneratorBase::build_code(const std::string& template_name, co
     }
 
     return code.str();
+}
+
+KernelData SingleKernelGenerator::get_kernel_data(const program_node& node, const kernel_impl_params& params) const {
+    KernelData kd;
+    auto kernel_str = std::make_shared<KernelString>();
+    auto entry_point = get_entry_point(node, params);
+    kernel_str->entry_point = entry_point;
+    kernel_str->jit = "";
+    kernel_str->undefs = "";
+    kernel_str->options = "";
+    kernel_str->batch_compilation = false;
+    kernel_str->has_microkernels = false;
+    kernel_str->str = build_code(get_name(), get_jit_constants(node, params), entry_point);
+    kd.code.kernelString = kernel_str;
+    kd.params.workGroups = get_dispatch_data(node, params);
+    kd.params.arguments = get_arguments_desc(node, params);
+
+    return kd;
+}
+
+std::string SingleKernelGenerator::get_entry_point(const program_node& node, const kernel_impl_params& params) const {
+    std::string entry_point = get_name();
+
+    entry_point += "_" + std::to_string(params.hash());
+    entry_point += "__sa";
+
+    return entry_point;
+}
+
+JitConstants SingleKernelGenerator::get_jit_constants(const program_node& node, const kernel_impl_params& params) const {
+    return make_base_jit_constants(node, params);
+}
+
+Arguments SingleKernelGenerator::get_arguments_desc(const program_node& node, const kernel_impl_params& params) const {
+    Arguments args;
+
+    if (params.is_dynamic())
+        args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
+
+    for (uint32_t i = 0; i < params.input_layouts.size(); i++) {
+        args.push_back({ArgumentDescriptor::Types::INPUT, i});
+    }
+
+    for (uint32_t i = 0; i < params.output_layouts.size(); i++) {
+        args.push_back({ArgumentDescriptor::Types::OUTPUT, i});
+    }
+
+    return args;
 }
 
 }  // namespace ocl
