@@ -262,7 +262,9 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16_1x1::GetJitConstants(const convolut
         if (params.outputs[0].Feature().v % tuning_data.feature_block_size != 0) {
             jit.AddConstant(MakeJitConstant("OUTPUT_LEFTOVERS", 1));
         }
+        std::cout << "Leftovers case 2" << std::endl;
         if (params.inputs[0].Feature().v % tuning_data.feature_block_size != 0) {
+            std::cout << "Constant 2 created" << std::endl;
             jit.AddConstant(MakeJitConstant("INPUT_LEFTOVERS", 1));
         }
     } else {
@@ -306,9 +308,14 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16_1x1::GetJitConstants(const convolut
         const auto output_leftover = "(" + output_leftover_num + "!= 0)";
         jit.AddConstant(MakeJitConstant("OUTPUT_LEFTOVERS", output_leftover));
 
-        const auto input_leftover_num = "(" + input0_dims.f() + "%" + feature_block_size + ")";
-        const auto input_leftover = "(" + input_leftover_num + "!= 0)";
-        jit.AddConstant(MakeJitConstant("INPUT_LEFTOVERS", input_leftover));
+        //const auto input_leftover_num = "(" + input0_dims.f() + "%" + feature_block_size + ")";
+        //const auto input_leftover = "(" + input_leftover_num + "!= 0)";
+        //jit.AddConstant(MakeJitConstant("INPUT_LEFTOVERS", input_leftover));
+        std::cout << "Leftovers case 3" << std::endl;
+        if (params.inputs[0].Feature().v % tuning_data.feature_block_size != 0) {
+            std::cout << "Constant 3 created" << std::endl;
+            jit.AddConstant(MakeJitConstant("INPUT_LEFTOVERS", 1));
+        }
     }
 
     return jit;

@@ -274,7 +274,10 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16::GetJitConstants(const convolution_
     if (params.outputs[0].Feature().v % tuning_data.feature_block_size != 0) {
         jit.AddConstant(MakeJitConstant("OUTPUT_LEFTOVERS", 1));
     }
+    std::cout << "Leftovers case 1" << std::endl;
     if (inFeaturesPerGroup % tuning_data.feature_block_size != 0 && !multipleGroupsInputPreload) {
+        // test
+        std::cout << "Constant 1 crated" << std::endl;
         jit.AddConstant(MakeJitConstant("INPUT_LEFTOVERS", 1));
     }
 
