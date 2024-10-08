@@ -284,7 +284,7 @@ CPU::CPU() {
 
     if (_proc_type_table.size() > 1) {
         int cur_processor_id = sched_getcpu();
-        update_table_for_proc(cur_processor_id, _proc_type_table, _cpu_mapping_table);
+        sort_table_by_cpu_id(cur_processor_id, _proc_type_table, _cpu_mapping_table);
     }
 
     _org_proc_type_table = _proc_type_table;

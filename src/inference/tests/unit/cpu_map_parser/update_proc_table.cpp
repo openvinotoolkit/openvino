@@ -31,7 +31,7 @@ public:
         CPU& cpu = cpu_info();
         std::vector<std::vector<int>> test_proc_type_table = test_data._proc_type_table_input;
 
-        cpu.update_table_for_proc(test_data.current_processor_id, test_proc_type_table, test_data._cpu_mapping_table);
+        cpu.sort_table_by_cpu_id(test_data.current_processor_id, test_proc_type_table, test_data._cpu_mapping_table);
 
         ASSERT_EQ(test_proc_type_table, test_data._proc_type_table_output);
     }
