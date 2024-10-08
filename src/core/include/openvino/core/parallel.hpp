@@ -206,8 +206,16 @@ void parallel_nt_static(int nthr, const F& func) {
 
 #elif OV_THREAD == OV_THREAD_OMP
 
+    // We expect the number of threads here to be "nthr", so we need to disable dynamic behavior.
+    auto origin_dyn_val = omp_get_dynamic();
+    if (origin_dyn_val != 0) {
+        omp_set_dynamic(0);
+    }
 #    pragma omp parallel num_threads(nthr)
     { func(parallel_get_thread_num(), parallel_get_num_threads()); }
+    if (origin_dyn_val != 0) {
+        omp_set_dynamic(origin_dyn_val);
+    }
 #endif
 }
 
