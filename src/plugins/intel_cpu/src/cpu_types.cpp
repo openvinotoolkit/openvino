@@ -181,6 +181,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"IDFT", Type::DFT},
         {"RDFT", Type::RDFT},
         {"IRDFT", Type::RDFT},
+        {"STFT", Type::STFT},
         {"Abs", Type::Math},
         {"Acos", Type::Math},
         {"Acosh", Type::Math},
@@ -339,6 +340,7 @@ std::string NameFromType(const Type type) {
         CASE(ShuffleChannels);
         CASE(DFT);
         CASE(RDFT);
+        CASE(STFT);
         CASE(Math);
         CASE(CTCLoss);
         CASE(Bucketize);

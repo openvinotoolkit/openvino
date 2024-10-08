@@ -46,7 +46,7 @@ std::vector<TRShape> shape_infer(const STFT* op,
     if (signal_shape.rank().is_dynamic()) {
         return {signal_shape};
     } else if (!frame_size || !frame_step) {
-        return {TRShape{signal_shape[0], -1, -1, 2}};
+        return {TRShape{signal_shape[0], TDim(ov::util::dim::inf_bound), TDim(ov::util::dim::inf_bound), 2}};
     }
 
     const auto& frame_size_val = (*frame_size)[0];
@@ -54,7 +54,9 @@ std::vector<TRShape> shape_infer(const STFT* op,
 
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
-                           0 < frame_size_val && frame_size_val < signal_shape[1].get_interval().get_max_val(),
+                           0 < frame_size_val && (signal_shape[1].is_static()
+                                                      ? frame_size_val < signal_shape[1].get_length()
+                                                      : frame_size_val < signal_shape[1].get_interval().get_max_val()),
                            "Provided frame size is ",
                            frame_size_val,
                            " but must be in range [1, ",
@@ -77,7 +79,7 @@ std::vector<TRShape> shape_infer(const STFT* op,
                            "].");
 
     const auto& batch_dim = signal_shape[0];
-    const TDim frame_size_dim = TDim{frame_size_val};
+    const TDim frame_size_dim = static_cast<TDim>(frame_size_val);
     const TDim signal_frame_size_diff = signal_shape[1] - frame_size_dim;
     TDim fft_samples_dim = (frame_size_val / 2) + 1;
 
