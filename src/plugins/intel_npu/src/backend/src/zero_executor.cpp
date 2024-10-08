@@ -50,10 +50,11 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& i
                              _networkDesc->compiledNetwork.size(),
                              _networkDesc->compiledNetwork.data(),
                              nullptr};
-
-        zeroUtils::throwOnFail(
-            "pfnCreate",
-            _graph_ddi_table_ext.pfnCreate(_initStructs->getContext(), _initStructs->getDevice(), &desc, &_graph));
+        ze_result_t result =
+            _graph_ddi_table_ext.pfnCreate(_initStructs->getContext(), _initStructs->getDevice(), &desc, &_graph);
+        if (ZE_RESULT_SUCCESS != result) {
+            THROW_ON_FAIL("pfnCreate", result, _graph_ddi_table_ext);
+        }
 
     } else {
         _logger.debug("reuse graph handle created from compiler");

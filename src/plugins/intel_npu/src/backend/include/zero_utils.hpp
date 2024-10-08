@@ -16,6 +16,19 @@ namespace intel_npu {
 
 namespace zeroUtils {
 
+#define THROW_ON_FAIL(step, result, graph_ddi_table_ext) \
+    OPENVINO_THROW("L0 ",                                \
+                   step,                                 \
+                   " result: ",                          \
+                   ze_result_to_string(result),          \
+                   ", code 0x",                          \
+                   std::hex,                             \
+                   uint64_t(result),                     \
+                   " - ",                                \
+                   ze_result_to_description(result),     \
+                   " . ",                                \
+                   intel_npu::zeroUtils::getLatestBuildError(graph_ddi_table_ext));
+
 static inline void throwOnFail(const std::string& step, const ze_result_t result) {
     if (ZE_RESULT_SUCCESS != result) {
         OPENVINO_THROW("L0 ",
@@ -213,6 +226,68 @@ static inline uint32_t findGroupOrdinal(
     // if still don't find compute and copy flag, return a warning
     log.warning("Fail to find a command queue group that contains compute and copy flags, it will be set to 0.");
     return 0;
+}
+
+#define NotSupportLogHandle(T) \
+    (std::is_same<T, ze_graph_dditable_ext_1_2_t>::value || std::is_same<T, ze_graph_dditable_ext_1_3_t>::value)
+
+static inline std::string getLatestBuildError(ze_graph_dditable_ext_curr_t& _graph_ddi_table_ext) {
+    Logger _logger("LevelZeroUtils", Logger::global().level());
+    _logger.debug("getLatestBuildError start");
+
+    uint32_t graphDdiExtVersion = _graph_ddi_table_ext.version();
+    bool ifNotSupportLogHandle = true;
+    switch (graphDdiExtVersion) {
+    case ZE_GRAPH_EXT_VERSION_1_3:
+        ifNotSupportLogHandle = NotSupportLogHandle(ze_graph_dditable_ext_1_3_t);
+        break;
+    case ZE_GRAPH_EXT_VERSION_1_4:
+        ifNotSupportLogHandle = NotSupportLogHandle(ze_graph_dditable_ext_1_4_t);
+        break;
+    case ZE_GRAPH_EXT_VERSION_1_5:
+        ifNotSupportLogHandle = NotSupportLogHandle(ze_graph_dditable_ext_1_5_t);
+        break;
+    case ZE_GRAPH_EXT_VERSION_1_6:
+        ifNotSupportLogHandle = NotSupportLogHandle(ze_graph_dditable_ext_1_6_t);
+        break;
+    default:
+        ifNotSupportLogHandle = NotSupportLogHandle(ze_graph_dditable_ext_1_2_t);
+        break;
+    }
+
+    if (ifNotSupportLogHandle) {
+        return "";
+    } else {
+        // Get log size
+        uint32_t size = 0;
+        // Null graph handle to get error log
+        auto result = _graph_ddi_table_ext.pfnBuildLogGetString(nullptr, &size, nullptr);
+        if (ZE_RESULT_SUCCESS != result) {
+            // The failure will not break normal execution, only warning here
+            _logger.warning("getLatestBuildError Failed to get size of latest error log!");
+            return "";
+        }
+
+        if (size <= 0) {
+            // The failure will not break normal execution, only warning here
+            _logger.warning("getLatestBuildError No error log stored in driver when error "
+                            "detected, may not be compiler issue!");
+            return "";
+        }
+
+        // Get log content
+        std::string logContent{};
+        logContent.resize(size);
+        result = _graph_ddi_table_ext.pfnBuildLogGetString(nullptr, &size, const_cast<char*>(logContent.data()));
+        if (ZE_RESULT_SUCCESS != result) {
+            // The failure will not break normal execution, only warning here
+            _logger.warning("getLatestBuildError size of latest error log > 0, failed to get "
+                            "content of latest error log!");
+            return "";
+        }
+        _logger.debug("getLatestBuildError end");
+        return logContent;
+    }
 }
 
 }  // namespace zeroUtils

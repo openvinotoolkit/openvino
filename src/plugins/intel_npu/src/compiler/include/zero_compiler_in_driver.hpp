@@ -13,26 +13,10 @@
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "zero_executor.hpp"
 
-#define PFN_THROW_ON_FAIL(step, result)             \
-    if (ZE_RESULT_SUCCESS != result) {              \
-        OPENVINO_THROW("L0 ",                       \
-                       step,                        \
-                       " result: ",                 \
-                       ze_result_to_string(result), \
-                       ", code 0x",                 \
-                       std::hex,                    \
-                       uint64_t(result),            \
-                       ". ",                        \
-                       getLatestBuildError());      \
-    }
-
 namespace intel_npu {
 namespace driverCompilerAdapter {
 
 using SerializedIR = std::pair<size_t, std::shared_ptr<uint8_t>>;
-
-#define NotSupportLogHandle(T) \
-    (std::is_same<T, ze_graph_dditable_ext_1_2_t>::value || std::is_same<T, ze_graph_dditable_ext_1_3_t>::value)
 
 #define NotSupportQuery(T) (std::is_same<T, ze_graph_dditable_ext_1_2_t>::value)
 
@@ -198,14 +182,6 @@ private:
                             const std::string& buildFlags,
                             const uint32_t& flags,
                             ze_graph_handle_t* graph) const;
-
-    template <typename T = TableExtension, typename std::enable_if_t<!NotSupportLogHandle(T), bool> = true>
-    std::string getLatestBuildError() const;
-
-    template <typename T = TableExtension, typename std::enable_if_t<NotSupportLogHandle(T), bool> = true>
-    std::string getLatestBuildError() const {
-        return "";
-    }
 
 private:
     ze_driver_handle_t _driverHandle = nullptr;
