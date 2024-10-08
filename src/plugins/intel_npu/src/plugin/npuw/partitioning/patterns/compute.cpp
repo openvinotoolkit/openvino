@@ -9,8 +9,8 @@
 #include "../online/snapshot.hpp"  // online::Snapshot
 #include "openvino/op/ops.hpp"
 #include "openvino/pass/pattern/op/label.hpp"  // any_input
-#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/common_util.hpp"
 
 namespace ov {
@@ -265,8 +265,8 @@ VocabMatMul::VocabMatMul(const std::shared_ptr<ov::npuw::online::Snapshot>& snap
         auto a_type = matched_out_a->get_element_type();
         auto w_type = matched_out_w->get_element_type();
 
-        if ((a_type == ov::element::f16 || a_type == ov::element::f32)
-            && (w_type == ov::element::f16 || w_type == ov::element::f32)) {
+        if ((a_type == ov::element::f16 || a_type == ov::element::f32) &&
+            (w_type == ov::element::f16 || w_type == ov::element::f32)) {
             node_to_gptr->at(node_to_output.at(mm).get_node_shared_ptr())->isolate(isol_tag);
 
             auto isol_if = [=, &node_to_gptr, &node_to_output](std::shared_ptr<ov::Node> n) {

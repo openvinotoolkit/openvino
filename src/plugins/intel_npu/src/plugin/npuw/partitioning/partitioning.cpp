@@ -229,7 +229,7 @@ private:
 
     // NB(dm): This method should get a better place, it is here only because
     // it is tied to the Function structure (but, in fact, not so much)
-    void identifySpatialRange(ov::npuw::Function &f);
+    void identifySpatialRange(ov::npuw::Function& f);
 
     template <typename T, typename M>
     void rearrange_to_function_protocol(ov::npuw::Subgraph::Ref func_ref,
@@ -1524,7 +1524,7 @@ void Partitioner::createFunction(FunctionPipeline& func_ggg) {
     LOG_VERB("Done: " << func_name);
 }
 
-void Partitioner::identifySpatialRange(ov::npuw::Function &f) {
+void Partitioner::identifySpatialRange(ov::npuw::Function& f) {
     NPUW_ASSERT(f._tag == "compute");
 
     // NB: The current logic must be changed. Here we assume we only
@@ -1543,45 +1543,45 @@ void Partitioner::identifySpatialRange(ov::npuw::Function &f) {
     // in the future.
 
     // First, check our assumption on the function results
-    const auto &f_results = f._model->get_results();
+    const auto& f_results = f._model->get_results();
     NPUW_ASSERT(f_results.size() > 0);
 
-    const auto &f_result_0 = f_results.front();
-    const auto &f_result_0_shape = f_result_0->get_shape();
+    const auto& f_result_0 = f_results.front();
+    const auto& f_result_0_shape = f_result_0->get_shape();
 
     if (f_result_0_shape.size() != 3) {
-        return; // NB: this is the only case we enable now
+        return;  // NB: this is the only case we enable now
     }
 
     if (f_result_0_shape[1] <= 1) {
-        return; // NB: this is the only spatial dim we enable now
+        return;  // NB: this is the only spatial dim we enable now
     }
 
-    for (auto &&f_result_i : f_results) {
+    for (auto&& f_result_i : f_results) {
         // Yes, it will also compare r[0] vs r[0]
-        const auto &f_result_i_shape = f_result_i->get_shape();
+        const auto& f_result_i_shape = f_result_i->get_shape();
         if (f_result_0_shape.size() != f_result_i_shape.size()) {
-            return; // Do nothing
+            return;  // Do nothing
         }
 
         if (f_result_0_shape[1] != f_result_i_shape[1]) {
-            return; // Do nothing
+            return;  // Do nothing
         }
     }
 
     // Now, find the parameters with the same spatial dim
     // NB: again, this is a very weak feature to look for
-    const auto &f_params = f._model->get_parameters();
+    const auto& f_params = f._model->get_parameters();
     NPUW_ASSERT(f_params.size() > 0);
 
     using S = ov::npuw::Function::Spatial;
     S spatial;
     spatial._range = f_result_0_shape[1];
-    spatial._out_dim = 1; // the only case we're looking into now
+    spatial._out_dim = 1;  // the only case we're looking into now
 
     for (std::size_t i = 0u; i < f._param_offset; i++) {
-        const auto &f_param = f_params[i];
-        const auto &f_param_dims = f_param->get_shape();
+        const auto& f_param = f_params[i];
+        const auto& f_param_dims = f_param->get_shape();
 
         auto spatial_dim_iter = std::find(f_param_dims.begin(), f_param_dims.end(), spatial._range);
         if (spatial_dim_iter != f_param_dims.end()) {
@@ -1680,7 +1680,7 @@ void Partitioner::spatial(const std::string& func_name) {
     // FIXME: Replace this string identification with smt better
     if (!cfg.get<::intel_npu::NPUW_SPATIAL>() || f._tag != "compute") {
         LOG_VERB("No spatial optimizations will be done to  " << func_name << " in model " << model->get_friendly_name()
-                 << "...");
+                                                              << "...");
         return;
     }
 
@@ -1699,14 +1699,14 @@ void Partitioner::spatial(const std::string& func_name) {
     f._spatial->_slice = cfg.get<::intel_npu::NPUW_SPATIAL_NWAY>();
     if (f._spatial->_slice == 0) {
         LOG_WARN("NWAY is set to 0, disabling it (but better disable SPATIAL setting itself)");
-        f._spatial.reset(); // Erase spatial information to avoid conflicts
+        f._spatial.reset();  // Erase spatial information to avoid conflicts
         return;
     }
 
     // Apply transformation to the model. Note: only function body is modified
     // Accumulate the reshape map
     std::map<ov::Output<ov::Node>, ov::PartialShape> new_shapes;
-    for (auto &&p : f._spatial->_inputs) {
+    for (auto&& p : f._spatial->_inputs) {
         ov::Shape shape = p.param->get_shape();
         shape[p.dim] = f._spatial->_slice;
         new_shapes[p.param->output(0)] = shape;

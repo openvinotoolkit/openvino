@@ -58,7 +58,7 @@ struct Function {
     std::size_t _param_offset;
     std::size_t _num_params_total;
 
-    std::string _tag; // derived from the partitioning
+    std::string _tag;  // derived from the partitioning
 
     // Mapping: from a prototype {Layer/input_idx} to {param_idx}
     // NOTE: it seems it is required only for `matchRepeatedSubgraphs()'
@@ -71,9 +71,9 @@ struct Function {
             PPtr param;
             std::size_t dim;
         };
-        std::size_t _range = 0u; // Range over which spatial execution is organized, e.g. 1024
-        std::size_t _slice = 0u; // A submission size for a single execution, e.g. 128
-        std::size_t _out_dim = 0u; // Assume it is the same dim for all Results
+        std::size_t _range = 0u;    // Range over which spatial execution is organized, e.g. 1024
+        std::size_t _slice = 0u;    // A submission size for a single execution, e.g. 128
+        std::size_t _out_dim = 0u;  // Assume it is the same dim for all Results
         std::vector<Param> _inputs;
     };
     using SpatialOpt = std::optional<Spatial>;

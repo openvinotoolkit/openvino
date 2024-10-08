@@ -124,7 +124,7 @@ private:
             };
             std::vector<Param> params;
             std::size_t range = 0u;
-            std::size_t nway  = 0u;
+            std::size_t nway = 0u;
             std::size_t out_dim = 0u;
 
             std::size_t nway_iters = 0u;

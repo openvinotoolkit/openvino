@@ -781,10 +781,10 @@ void mergeParallelMatMuls(const std::shared_ptr<ov::Model>& m, Context& ctx) {
             auto this_orig_wshape = parallel_matmuls[i].w->get_shape();
             auto this_slice_start =
                 std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, S{0, 0, offset});
-            auto this_slice_end =
-                std::make_shared<ov::op::v0::Constant>(ov::element::i32,
-                                                       ov::Shape{3},
-                                                       S{1, orig_act_shape[1], offset + this_orig_wshape[axis_to_concat]});
+            auto this_slice_end = std::make_shared<ov::op::v0::Constant>(
+                ov::element::i32,
+                ov::Shape{3},
+                S{1, orig_act_shape[1], offset + this_orig_wshape[axis_to_concat]});
             auto this_slice_step = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, S{1, 1, 1});
             auto this_slice =
                 std::make_shared<ov::op::v8::Slice>(new_mm, this_slice_start, this_slice_end, this_slice_step);

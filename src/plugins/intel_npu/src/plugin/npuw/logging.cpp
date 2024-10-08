@@ -9,7 +9,7 @@
 #include <iostream>
 #include <mutex>
 
-#include "openvino/runtime/make_tensor.hpp" // get_tensor_impl
+#include "openvino/runtime/make_tensor.hpp"  // get_tensor_impl
 
 namespace {
 #ifdef NPU_PLUGIN_DEVELOPER_BUILD

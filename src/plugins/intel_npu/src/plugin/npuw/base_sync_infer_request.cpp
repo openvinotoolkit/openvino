@@ -241,13 +241,13 @@ void ov::npuw::IBaseInferRequest::dump_input_tensors(std::size_t idx) {
         }
         ov::npuw::dump_input_list(comp_submodel_path, in_base_names);
     } else {
-        const auto &s = comp_submodel_desc.spatial.value();
+        const auto& s = comp_submodel_desc.spatial.value();
 
         std::set<std::size_t> spatial_param_idx;
         std::vector<std::string> in_base_names_nonspat;
 
         // First, dump the non-spatial input tensors just once - and remember its names
-        for (auto &&p : s.params) {
+        for (auto&& p : s.params) {
             spatial_param_idx.insert(p.idx);
         }
         for (std::size_t i = 0u; i < num_inputs; i++) {
@@ -265,26 +265,24 @@ void ov::npuw::IBaseInferRequest::dump_input_tensors(std::size_t idx) {
         // For the spatial case, these tiles should've been taken from the special
         // spatial_io tensors
         for (std::size_t offset = 0u; offset < s.range; offset += s.nway) {
-            const std::size_t this_len = (offset + s.nway <= s.range)
-                ? s.nway // the full tile
-                : (s.range - offset); // the last tile
+            const std::size_t this_len = (offset + s.nway <= s.range) ? s.nway               // the full tile
+                                                                      : (s.range - offset);  // the last tile
             // Copy the base file list to start with it
             std::vector<std::string> tile_ilist(in_base_names_nonspat);
-            for (auto &&p : s.params) {
-                std::string in_base_name = comp_submodel_path +
-                    "_input_" + ov::npuw::util::fmt(p.idx, num_inputs) +
-                    "_d" + ov::npuw::util::fmt(p.dim, 10) +
-                    "_" + ov::npuw::util::fmt(offset, s.range);
+            for (auto&& p : s.params) {
+                std::string in_base_name = comp_submodel_path + "_input_" + ov::npuw::util::fmt(p.idx, num_inputs) +
+                                           "_d" + ov::npuw::util::fmt(p.dim, 10) + "_" +
+                                           ov::npuw::util::fmt(offset, s.range);
 
-                const auto &tnsr = m_spatial_io[real_idx].inputs.at(p.idx);
-                const auto &view = ov::npuw::util::view(tnsr, p.dim, offset, this_len);
+                const auto& tnsr = m_spatial_io[real_idx].inputs.at(p.idx);
+                const auto& view = ov::npuw::util::view(tnsr, p.dim, offset, this_len);
 
                 ov::npuw::dump_tensor(view, in_base_name);
                 tile_ilist.push_back(std::move(in_base_name));
             }
             // Dump ilist per tile
             ov::npuw::dump_input_list(comp_submodel_path, tile_ilist);
-        } // for(offset)
+        }  // for(offset)
     }
 }
 
@@ -320,19 +318,17 @@ void ov::npuw::IBaseInferRequest::dump_output_tensors(std::size_t idx) {
         ov::npuw::dump_output_list(comp_submodel_path, out_base_names);
     } else {
         // All outputs are considered spatial now so it should be easier
-        const auto &s = comp_submodel_desc.spatial.value();
+        const auto& s = comp_submodel_desc.spatial.value();
         for (std::size_t offset = 0u; offset < s.range; offset += s.nway) {
-            const std::size_t this_len = (offset + s.nway <= s.range)
-                ? s.nway // the full tile
-                : (s.range - offset); // the last tile
+            const std::size_t this_len = (offset + s.nway <= s.range) ? s.nway               // the full tile
+                                                                      : (s.range - offset);  // the last tile
             std::vector<std::string> tile_olist;
             for (std::size_t i = 0u; i < num_outputs; i++) {
-                std::string out_base_name = comp_submodel_path +
-                    "_output_" + ov::npuw::util::fmt(i, num_outputs) +
-                    "_d" + ov::npuw::util::fmt(s.out_dim, 10) +
-                    "_" + ov::npuw::util::fmt(offset, s.range);
-                const auto &tnsr = m_spatial_io[real_idx].outputs.at(i);
-                const auto &view = ov::npuw::util::view(tnsr, s.out_dim, offset, this_len);
+                std::string out_base_name = comp_submodel_path + "_output_" + ov::npuw::util::fmt(i, num_outputs) +
+                                            "_d" + ov::npuw::util::fmt(s.out_dim, 10) + "_" +
+                                            ov::npuw::util::fmt(offset, s.range);
+                const auto& tnsr = m_spatial_io[real_idx].outputs.at(i);
+                const auto& view = ov::npuw::util::view(tnsr, s.out_dim, offset, this_len);
 
                 ov::npuw::dump_tensor(view, out_base_name);
                 tile_olist.push_back(std::move(out_base_name));

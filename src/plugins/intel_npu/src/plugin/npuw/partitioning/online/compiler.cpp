@@ -22,14 +22,11 @@ namespace online {
 namespace detail {
 
 namespace {
-static const std::map<std::string, std::string> ISOL_PRESETS = {
-    {"COMPUTE",
-     "P:DQMatMulGQu4/compute,P:DQMatMulCWu4/compute,"
-     "P:DQMatMulGQi4/compute,P:DQMatMulCWi4/compute,"
-     "P:VocabMatMul/compute,"
-     "P:RMSNorm/compute"
-    }
-};
+static const std::map<std::string, std::string> ISOL_PRESETS = {{"COMPUTE",
+                                                                 "P:DQMatMulGQu4/compute,P:DQMatMulCWu4/compute,"
+                                                                 "P:DQMatMulGQi4/compute,P:DQMatMulCWi4/compute,"
+                                                                 "P:VocabMatMul/compute,"
+                                                                 "P:RMSNorm/compute"}};
 }
 
 // For missing declaration warning
@@ -121,7 +118,7 @@ std::vector<Isolate> getIsolates(::intel_npu::Config& cfg) {
     return getIsolates(cfg.getString<::intel_npu::NPUW_ONLINE_ISOLATE>());
 }
 
-std::vector<Isolate> getIsolates(const std::string &isolates_unparsed) {
+std::vector<Isolate> getIsolates(const std::string& isolates_unparsed) {
     if (isolates_unparsed.empty()) {
         return {};
     }

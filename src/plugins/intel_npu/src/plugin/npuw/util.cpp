@@ -17,7 +17,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/op_types.hpp"
-#include "openvino/runtime/make_tensor.hpp" // get_tensor_impl
+#include "openvino/runtime/make_tensor.hpp"  // get_tensor_impl
 
 #ifdef UNPACK_PROFILING
 #    include "tbb/concurrent_unordered_map.h"
@@ -1450,8 +1450,8 @@ void ov::npuw::util::gather(const ov::SoPtr<ov::ITensor>& src,
 }
 
 ov::SoPtr<ov::ITensor> ov::npuw::util::view(const ov::SoPtr<ov::ITensor>& src,
-                                            const ov::npuw::util::View &from,
-                                            const ov::npuw::util::View &to) {
+                                            const ov::npuw::util::View& from,
+                                            const ov::npuw::util::View& to) {
     const auto type = src->get_element_type();
     NPUW_ASSERT(from.size() == to.size());
 
@@ -1465,18 +1465,21 @@ ov::SoPtr<ov::ITensor> ov::npuw::util::view(const ov::SoPtr<ov::ITensor>& src,
     }
 
     const auto strides = src->get_strides();
-    uint8_t *ptr = static_cast<uint8_t*>(src->data());
+    uint8_t* ptr = static_cast<uint8_t*>(src->data());
 
     // Shift PTR according to the strides
     for (auto d = 0u; d < num_dims; d++) {
-        ptr += strides[d]*from[d];
+        ptr += strides[d] * from[d];
     }
 
     ov::Tensor viewt(type, view_shape, ptr, strides);
     return ov::get_tensor_impl(viewt);
 }
 
-ov::SoPtr<ov::ITensor> ov::npuw::util::view(const ov::SoPtr<ov::ITensor>& src, std::size_t dim, std::size_t offset, std::size_t len) {
+ov::SoPtr<ov::ITensor> ov::npuw::util::view(const ov::SoPtr<ov::ITensor>& src,
+                                            std::size_t dim,
+                                            std::size_t offset,
+                                            std::size_t len) {
     const auto shape = src->get_shape();
     View view_start = View(shape.size(), 0u);
     View view_end = shape;
@@ -1484,7 +1487,6 @@ ov::SoPtr<ov::ITensor> ov::npuw::util::view(const ov::SoPtr<ov::ITensor>& src, s
     view_end[dim] = offset + len;
     return ov::npuw::util::view(src, view_start, view_end);
 }
-
 
 template <typename InT>
 void to_f32(const ov::Tensor& in, ov::Tensor& out) {
