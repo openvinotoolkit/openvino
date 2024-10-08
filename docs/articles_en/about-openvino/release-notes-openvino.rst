@@ -305,12 +305,12 @@ Known Issues
 | ID: n/a
 | Description:
 |   For ARM binaries, the `1.16 ONNX library <https://vcpkg.link/ports/onnx/versions>`__
-    is not yet available.
-|   The ONNX library for ARM, version 1.15, does not include the latest
-    functional and security updates. OpenVINO, version 2024.5 is targeted to be released in
-    Q4 2024 and will include additional functional and security updates. Users should update to
-    the latest version as it becomes available.
-|   The current vulnerabilities are:
+    is not yet available. The ONNX library for ARM, version 1.15, does not include the latest
+    functional and security updates. Users should update to the latest version as it becomes
+    available.
+|   Currently, if an unverified AI model is supplied to the ONNX frontend, it could lead to a
+    directory traversal issue. Ensure that the file name and file path that a model contains
+    are verified and correct. To learn more about the vulnerability, see:
     `CVE-2024-27318 <https://nvd.nist.gov/vuln/detail/CVE-2024-27318>`__ and
     `CVE-2024-27319 <https://nvd.nist.gov/vuln/detail/CVE-2024-27319>`__.
 
