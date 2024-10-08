@@ -135,7 +135,6 @@ MemoryPtr reorderData(DnnlMemoryDescPtr srcWeightDesc,
                 //std::cout << "CONVERT" << std::endl;
                 //we probably could not make the reorder because there is no one supporting this precision conversion
                 //lets try to convert data first using cpu_convert
-                MemoryArgs memoryArgs;
                 memoryArgs[ARG_SRC] = std::make_shared<Memory>(context->getEngine(), srcWeightDesc, weightsMem->getData());
                 memoryArgs[ARG_DST] = std::make_shared<Memory>(context->getEngine(), dstWeightDesc);
                 auto aclWeightsConverter = std::make_shared<acl_fc_executor::ACLWeightsConverter>();
@@ -185,6 +184,34 @@ static MemoryPtr prepareWeightMemory(const MemoryArgs &memory,
     DEBUG_LOG("ACLFullyConnectedExecutor: prepack weights");
 
     auto create = [&]() {
+            std::stringstream msg;
+            MemoryPtr final_ptr = memory.at(ARG_WEI);
+            arm_compute::WeightFormat expectedWeightFormat;
+            bool isNeededReorder;
+            {
+                MemoryArgs memoryArgs;
+                memoryArgs[ARG_BIAS]  = memory.at(ARG_BIAS);
+                memoryArgs[ARG_WEI]   = final_ptr;
+                if (memory.at(ARG_SRC_0)->getShape().isDynamic()) {
+                    const auto& inShape = memory.at(ARG_SRC_0)->getShape();
+                    const auto& wShape = final_ptr->getShape();
+                    const auto& inDymmyDims = makeDummyInputDims(inShape, wShape);
+                    const auto& outDymmyDims = makeDummyOutputDims(inDymmyDims, wShape.getStaticDims(), memory.at(ARG_DST)->getShape().getRank());
+                    memoryArgs[ARG_SRC_0] = std::make_shared<Memory>(context->getEngine(),
+                                                                     memory.at(ARG_SRC_0)->getDescPtr()->cloneWithNewDims(inDymmyDims));
+                    memoryArgs[ARG_DST] = std::make_shared<Memory>(context->getEngine(),
+                                                                   memory.at(ARG_DST)->getDescPtr()->cloneWithNewDims(outDymmyDims));
+                } else {
+                    memoryArgs[ARG_SRC_0] = memory.at(ARG_SRC_0);
+                    memoryArgs[ARG_DST]   = memory.at(ARG_DST);
+                }
+                auto aclWeightsRepack = std::make_shared<acl_fc_executor::ACLWeightFormatGenerator>(attrs, postOps, memoryArgs);
+                isNeededReorder = aclWeightsRepack->update(memoryArgs);
+                expectedWeightFormat = aclWeightsRepack->getOptImplWeightFormat();
+            }
+        msg << "isNeededReorder: " << isNeededReorder << " expectedWeightFormat: " << static_cast<int>(expectedWeightFormat) << std::endl;
+        std::cout << msg.str();
+        if (isNeededReorder) {
         auto reverse_weights_dims = memory.at(ARG_WEI)->getStaticDims();
         if (reverse_weights_dims.size() == 3) {
             reverse_weights_dims = VectorDims({reverse_weights_dims[0] * reverse_weights_dims[1], reverse_weights_dims[2]});
@@ -206,8 +233,9 @@ static MemoryPtr prepareWeightMemory(const MemoryArgs &memory,
         const auto dnnlDstDesc = MemoryDescUtils::convertToDnnlMemoryDesc(dstDesc);
         dnnlSrcDesc = makeTransposedWeightDescriptor(dnnlSrcDesc, dnnlDstDesc, !aclfcAttrs.weightsNonTransposed);
 
-        MemoryPtr final_ptr = reorderData(dnnlSrcDesc, dnnlDstDesc, memoryArgs[ARG_SRC_0], context);
+        final_ptr = reorderData(dnnlSrcDesc, dnnlDstDesc, memoryArgs[ARG_SRC_0], context);
         DEBUG_LOG("ACLFullyConnectedExecutor: cache miss, perform packing");
+        }
         return final_ptr;
     };
 
