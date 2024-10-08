@@ -42,7 +42,7 @@ macro(ov_common_libraries_cpack_set_dirs)
     unset(OV_CPACK_SHAREDIR)
 
     # skipped during common libraries packaging
-    set(OV_CPACK_WHEELSDIR "tools")
+    set(OV_CPACK_WHEELSDIR "wheels")
 endmacro()
 
 ov_common_libraries_cpack_set_dirs()
