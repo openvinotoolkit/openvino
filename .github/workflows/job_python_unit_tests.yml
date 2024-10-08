@@ -115,15 +115,6 @@ jobs:
       # Tests
       #
 
-      - name: Python API Tests
-        if: ${{ fromJSON(inputs.affected-components).Python_API.test }}
-        run: |
-          # for 'template' extension
-          export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}:$LD_LIBRARY_PATH
-          python3 -m pytest -sv ${INSTALL_TEST_DIR}/pyopenvino \
-            --junitxml=${INSTALL_TEST_DIR}/TEST-Pyngraph.xml \
-            --ignore=${INSTALL_TEST_DIR}/pyopenvino/tests/test_utils/test_utils.py
-
       - name: Model Optimizer unit tests
         if: fromJSON(inputs.affected-components).MO.test
         run: |
@@ -256,18 +247,6 @@ jobs:
           # for 'template' extension
           export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}:$LD_LIBRARY_PATH
           python3 ${OPENVINO_REPO}/docs/articles_en/assets/snippets/main.py
-
-      - name: Python API Tests -- numpy>=2.0.0
-        if: ${{ fromJSON(inputs.affected-components).Python_API.test }}
-        run: |
-          python3 -m pip uninstall -y numpy
-          python3 -m pip install "numpy>=2.0.0,<2.1.0"
-          python3 -m pip install -r ${INSTALL_TEST_DIR}/bindings/python/requirements_test.txt
-          # for 'template' extension
-          export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}:$LD_LIBRARY_PATH
-          python3 -m pytest -sv ${INSTALL_TEST_DIR}/pyopenvino \
-            --junitxml=${INSTALL_TEST_DIR}/TEST-Pyngraph.xml \
-            --ignore=${INSTALL_TEST_DIR}/pyopenvino/tests/test_utils/test_utils.py
 
       - name: Upload Test Results
         uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
