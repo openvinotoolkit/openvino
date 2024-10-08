@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2023 Intel Corporation
+// Copyright (C) 2020-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,35 +6,35 @@
 
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/core/dimension.hpp"
 #include "snippets/lowered/expression.hpp"
 
 namespace ov {
 namespace intel_cpu {
 namespace brgemm_utils {
 
-enum class BRGEMM_TYPE {
-    STAND_ALONE,            // No extra requirements, used for f32|f32
-    WITH_AMX,               // i8|i8 or bf16|bf16 on AMX system - needs BrgemmCopyB and scratchpad
-    WITH_COMPENSATIONS,     // i8|i8 (non-AMX system) - needs BrgemmCopyB for data repacking and compensations
-    REPACKING_ONLY          // u8|i8 or bf16|bf16 (non-AMX system) - needs BrgemmCopyB on second input for data repacking
+class BrgemmConfig {
+public:
+    BrgemmConfig() = default;
+    BrgemmConfig(const ov::element::Type& src_dt, const ov::element::Type& wei_dt, size_t K, bool transposed_b);
+    BrgemmConfig(const ov::element::Type& src_dt, dnnl::impl::cpu::x64::cpu_isa_t isa,
+                 bool need_copy_a = false, bool need_copy_b = false, bool need_compensations = false, bool need_wsp = false);
+
+    dnnl::impl::cpu::x64::cpu_isa_t isa() const { return m_isa; }
+    bool is_amx() const { return m_isa == dnnl::impl::cpu::x64::cpu_isa_t::avx512_core_amx; }
+    bool need_copy_a() const { return m_need_copy_a; }
+    bool need_copy_b() const { return m_need_copy_b; }
+    bool need_compensations() const { return m_need_compensations; }
+    bool need_wsp() const { return m_need_wsp; }
+
+private:
+    void validate() const;
+
+    dnnl::impl::cpu::x64::cpu_isa_t m_isa = dnnl::impl::cpu::x64::cpu_isa_t::isa_undef;
+    bool m_need_copy_a = false;
+    bool m_need_copy_b = false;
+    bool m_need_compensations = false;
+    bool m_need_wsp = false;
 };
-
-dnnl::impl::cpu::x64::cpu_isa_t get_primitive_isa(const ov::element::Type& dt_in0, bool is_with_amx);
-
-BRGEMM_TYPE get_brgemm_type(const element::Type& element_type_a, const Dimension& K_dim, bool transpose_b);
-
-inline bool stand_alone(BRGEMM_TYPE type) { return type == BRGEMM_TYPE::STAND_ALONE; }
-
-inline bool with_amx(BRGEMM_TYPE type) { return type == BRGEMM_TYPE::WITH_AMX; }
-
-inline bool with_compensations(BRGEMM_TYPE type) { return type == BRGEMM_TYPE::WITH_COMPENSATIONS; }
-
-inline bool repacking_only(BRGEMM_TYPE type) { return type == BRGEMM_TYPE::REPACKING_ONLY; }
-
-inline bool with_repacking(BRGEMM_TYPE type) { return type != BRGEMM_TYPE::STAND_ALONE; }
-
-inline bool with_scratchpad(BRGEMM_TYPE type) { return with_compensations(type) || with_amx(type); }
 
 /// \brief Computes VNNI factor used by OneDNN implementation. Depends on tensor precision
 size_t compute_vnni_factor(const ov::element::Type& precision);
@@ -43,23 +43,34 @@ size_t get_elems_in_vec(const ov::element::Type& precision);
 
 namespace repacking {
 /**
+ * @brief Computes leading dimension (LDA) which must be used in brgemm and brgemm_copy_a emitters
+ * @param k_block K block size shared between BrgemmCPU and BrgemmCopyA node
+ * @param precision tensor precision
+ */
+size_t compute_LDA(const size_t k_block, const ov::element::Type& precision);
+/**
  * @brief Computes leading dimension (LDB) which must be used in brgemm and brgemm_copy_b emitters
  * @param n_block N block size shared between BrgemmCPU and BrgemmCopyB node
  * @param precision tensor precision
  */
-size_t compute_out_leading_dim(const size_t n_block, const ov::element::Type& precision);
+size_t compute_LDB(const size_t n_block, const ov::element::Type& precision);
 /// \brief  Computes inner N block size used by OneDNN implementation. Depends on tensor precision
 size_t compute_inner_n_block(const ov::element::Type& precision);
+/// \brief  Computes inner K block size used by OneDNN implementation. Depends on tensor precision
+size_t compute_inner_k_block(const ov::element::Type& precision);
 }   // namespace repacking
 }   // namespace brgemm_utils
 }   // namespace intel_cpu
+
 template <>
-class AttributeAdapter<intel_cpu::brgemm_utils::BRGEMM_TYPE> :
-        public EnumAttributeAdapterBase<intel_cpu::brgemm_utils::BRGEMM_TYPE> {
+class AttributeAdapter<intel_cpu::brgemm_utils::BrgemmConfig> : public VisitorAdapter {
 public:
-    AttributeAdapter(intel_cpu::brgemm_utils::BRGEMM_TYPE& value) :
-        EnumAttributeAdapterBase<intel_cpu::brgemm_utils::BRGEMM_TYPE>(value) {
-    }
-    OPENVINO_RTTI("AttributeAdapter<ov::intel_cpu::jit_brgemm_utils::BRGEMM_TYPE>");
+    AttributeAdapter(intel_cpu::brgemm_utils::BrgemmConfig& ref) : m_ref(ref) {}
+    bool visit_attributes(AttributeVisitor& visitor) override;
+
+    OPENVINO_RTTI("AttributeAdapter<intel_cpu::brgemm_utils::BrgemmConfig>");
+
+protected:
+    intel_cpu::brgemm_utils::BrgemmConfig& m_ref;
 };
 }   // namespace ov

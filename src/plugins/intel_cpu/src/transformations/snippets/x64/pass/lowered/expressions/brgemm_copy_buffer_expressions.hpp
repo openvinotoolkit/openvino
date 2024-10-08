@@ -9,6 +9,21 @@
 namespace ov {
 namespace intel_cpu {
 
+class RepackedActivationsBufferExpression : public snippets::lowered::BufferExpression {
+    friend class snippets::lowered::ExpressionFactory;
+public:
+    OPENVINO_RTTI("RepackedActivationsBufferExpression", "0", BufferExpression)
+    RepackedActivationsBufferExpression() = default;
+
+    void validate() const override;
+    void init_allocation_size(const std::shared_ptr<snippets::lowered::LoopManager>& loop_manager, size_t allocation_rank) override;
+
+private:
+    RepackedActivationsBufferExpression(const std::shared_ptr<ov::Node>& n, const std::shared_ptr<snippets::IShapeInferSnippetsFactory>& factory);
+
+    snippets::lowered::ExpressionPtr clone() const override;
+};
+
 class RepackedWeightsBufferExpression : public snippets::lowered::BufferExpression {
     friend class snippets::lowered::ExpressionFactory;
 public:

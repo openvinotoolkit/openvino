@@ -4,6 +4,7 @@
 
 #include "shape_inference.hpp"
 #include <snippets/shape_inference/shape_infer_instances.hpp>
+#include "op/brgemm_copy_a.hpp"
 #include "op/brgemm_copy_b.hpp"
 #include "op/brgemm_cpu.hpp"
 #include "transformations/snippets/common/op/fused_mul_add.hpp"
@@ -57,6 +58,7 @@ const CPUShapeInferSnippetsFactory::TRegistry CPUShapeInferSnippetsFactory::spec
         SHAPE_INFER_OP_SPECIFIC_EXTERNAL(ov::intel_cpu::tpp::op::ReduceSum, ReduceShapeInfer),
 #endif
         SHAPE_INFER_OP_SPECIFIC_EXTERNAL(ov::intel_cpu::BrgemmCPU, BrgemmShapeInfer),
+        SHAPE_INFER_OP_SPECIFIC(ov::intel_cpu::BrgemmCopyA),
         SHAPE_INFER_OP_SPECIFIC(ov::intel_cpu::BrgemmCopyB),
 };
 #undef SHAPE_INFER_OP_SPECIFIC

@@ -13,19 +13,19 @@ namespace intel_cpu {
 
 intel_cpu::BrgemmCopyB::BrgemmCopyB(const Output<Node>& x,
                                     const element::Type src_type,
-                                    BRGEMM_TYPE type,
+                                    BrgemmConfig config,
                                     const size_t offset_in,
                                     const size_t offset_out0,
                                     const size_t offset_out1,
                                     std::vector<size_t> layout_input)
-    : snippets::modifier::MemoryAccess(1, with_compensations(type) ? 2 : 1),
+    : snippets::modifier::MemoryAccess(1, config.need_compensations() ? 2 : 1),
       op::Op({x}),
-      m_type(type),
+      m_config(std::move(config)),
       m_src_type(src_type) {
-    set_output_size(with_compensations(m_type) ? 2 : 1);
+    set_output_size(m_config.need_compensations() ? 2 : 1);
     set_input_port_descriptor({0, offset_in}, 0);
     set_output_port_descriptor({0, offset_out0}, 0);
-    if (with_compensations(m_type)) {
+    if (m_config.need_compensations()) {
         set_output_port_descriptor({0, offset_out1}, 1);
     }
     custom_constructor_validate_and_infer_types(std::move(layout_input));
@@ -33,36 +33,34 @@ intel_cpu::BrgemmCopyB::BrgemmCopyB(const Output<Node>& x,
 
 intel_cpu::BrgemmCopyB::BrgemmCopyB(const Output<Node>& x,
                                     const element::Type src_type,
-                                    BRGEMM_TYPE type,
+                                    BrgemmConfig config,
                                     const PortDescriptor& desc_in0,
                                     const PortDescriptor& desc_out0,
                                     const PortDescriptor& desc_out1,
                                     std::vector<size_t> layout_input)
-    : snippets::modifier::MemoryAccess(1, with_compensations(type) ? 2 : 1),
+    : snippets::modifier::MemoryAccess(1, config.need_compensations() ? 2 : 1),
       op::Op({x}),
-      m_type(type),
+      m_config(std::move(config)),
       m_src_type(src_type) {
-    set_output_size(with_compensations(type) ? 2 : 1);
+    set_output_size(m_config.need_compensations() ? 2 : 1);
     set_input_port_descriptor(desc_in0, 0);
     set_output_port_descriptor(desc_out0, 0);
-    if (with_compensations(m_type)) {
+    if (m_config.need_compensations()) {
         set_output_port_descriptor(desc_out1, 1);
     }
     custom_constructor_validate_and_infer_types(std::move(layout_input));
 }
 
 bool BrgemmCopyB::visit_attributes(AttributeVisitor& visitor) {
-    INTERNAL_OP_SCOPE(BrgemmRepack_visit_attributes);
-    MemoryAccess::visit_attributes(visitor);
+    INTERNAL_OP_SCOPE(BrgemmCopyB_visit_attributes);
+    visitor.on_attribute("BrgemmConfig", const_cast<BrgemmConfig&>(m_config));
     visitor.on_attribute("src_type", m_src_type);
-    visitor.on_attribute("type", m_type);
+    MemoryAccess::visit_attributes(visitor);
     return true;
 }
 
 void BrgemmCopyB::custom_constructor_validate_and_infer_types(std::vector<size_t> layout_input) {
-    INTERNAL_OP_SCOPE(BrgemmRepack_ctor_validate_and_infer_types);
-    OPENVINO_ASSERT(m_type == BRGEMM_TYPE::WITH_COMPENSATIONS || m_type == BRGEMM_TYPE::REPACKING_ONLY,
-                    "Unsupported BRGEMM_TYPE value");
+    INTERNAL_OP_SCOPE(BrgemmCopyB_ctor_validate_and_infer_types);
     // During ctor call, BrgemmCopyB doesn't know his port descriptors.
     // So we use port descs from source inputs
     const auto element_type = get_input_element_type(0);
@@ -72,20 +70,20 @@ void BrgemmCopyB::custom_constructor_validate_and_infer_types(std::vector<size_t
     // data repacking output
     set_output_type(0, element_type, planar_pshape);
     // If compensations are needed, they are provided in 2nd output (which is used in BrgemmCPU)
-    if (with_compensations(m_type)) {
+    if (m_config.need_compensations()) {
         set_output_type(1, ov::element::f32, planar_pshape);
     }
 }
 
 void BrgemmCopyB::validate_and_infer_types() {
-    INTERNAL_OP_SCOPE(BrgemmRepack_validate_and_infer_types);
+    INTERNAL_OP_SCOPE(BrgemmCopyB_validate_and_infer_types);
     const auto& element_type = get_input_element_type(0);
     validate_element_type(element_type);
     const auto port = snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0));
     const auto shape = ov::Shape(port->get_shape());
     const auto& planar_pshape = snippets::utils::get_planar_pshape(shape, port->get_layout());
     set_output_type(0, element_type, planar_pshape);
-    if (with_compensations(m_type)) {
+    if (m_config.need_compensations()) {
         set_output_type(1, ov::element::f32, planar_pshape);
     }
 }
@@ -96,17 +94,17 @@ void BrgemmCopyB::validate_element_type(const ov::element::Type& element_type) {
 }
 
 std::shared_ptr<ov::Node> intel_cpu::BrgemmCopyB::clone_with_new_inputs(const OutputVector& new_args) const {
-    INTERNAL_OP_SCOPE(BrgemmRepack_clone_with_new_inputs);
+    INTERNAL_OP_SCOPE(BrgemmCopyB_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return std::make_shared<BrgemmCopyB>(new_args.at(0), m_src_type, m_type,
+    return std::make_shared<BrgemmCopyB>(new_args.at(0), m_src_type, m_config,
                                          get_input_port_descriptor(0),
                                          get_output_port_descriptor(0),
-                                         with_compensations(m_type) ? get_output_port_descriptor(1) : PortDescriptor{},
+                                         m_config.need_compensations() ? get_output_port_descriptor(1) : PortDescriptor{},
                                          snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout());
 }
 
 size_t BrgemmCopyB::get_offset_compensations() const {
-    OPENVINO_ASSERT(with_compensations(m_type) && get_output_size() == 2,
+    OPENVINO_ASSERT(m_config.need_compensations() && get_output_size() == 2,
                     "The offset for compensations must be in BrgemmCopyB only with compensations and 2 outputs!");
     return get_output_offset(1);
 }

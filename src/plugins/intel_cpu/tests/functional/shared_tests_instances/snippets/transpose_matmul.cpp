@@ -35,29 +35,20 @@ static inline std::vector<std::vector<element::Type>> precisions(bool only_fp32 
     return prc;
 }
 namespace transpose_zero_input {
-const auto& transpose_input_shapes = STATIC_SHAPES({{1, 49, 2, 23}, {2, 2, 23, 39}});
+
+std::vector<std::vector<ov::test::InputShape>> transpose_input_shapes {
+    { {{}, {{1, 49, 2, 23}}},   {{}, {{2, 2, 23, 39}}} },
+    {
+        {PartialShape{-1, -1, -1, -1}, {{1, 49, 2, 23}, {1, 70, 2, 32}, {1, 49, 2, 23}}},
+        {PartialShape{-1, -1, -1, -1}, {{2, 2, 23, 39}, {2, 1, 32, 140}, {2, 2, 23, 39}}}
+    },
+};
+
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMult, TransposeMatMul,
                          ::testing::Combine(
                                  ::testing::ValuesIn(transpose_input_shapes),
                                  ::testing::Values(0), // Transpose on 0th Matmul input
                                  ::testing::ValuesIn(precisions(false)),
-                                 ::testing::Values(MatMulType::MatMul),
-                                 ::testing::Values(1), // MatMul
-                                 ::testing::Values(1), // Tokenized MatMul + FusedTranspose
-                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                         TransposeMatMul::getTestCaseName);
-
-std::vector<std::vector<ov::test::InputShape>> transpose_input_shapes_dynamic{
-        {
-                {PartialShape{-1, -1, -1, -1}, {{1, 49, 2, 23}, {1, 70, 2, 32}, {1, 49, 2, 23}}},
-                {PartialShape{-1, -1, -1, -1}, {{2, 2, 23, 39}, {2, 1, 32, 140}, {2, 2, 23, 39}}}
-        },
-};
-INSTANTIATE_TEST_SUITE_P(smoke_Snippets_DynMatMult, TransposeMatMul,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(transpose_input_shapes_dynamic),
-                                 ::testing::Values(0), // Transpose on 0th Matmul input
-                                 ::testing::ValuesIn(precisions(true)),
                                  ::testing::Values(MatMulType::MatMul),
                                  ::testing::Values(1), // MatMul
                                  ::testing::Values(1), // Tokenized MatMul + FusedTranspose
@@ -84,29 +75,20 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_FullyConnected, TransposeMatMul,
 } // namespace transpose_zero_input
 
 namespace transpose_first_input {
-const auto& transpose_input_shapes = STATIC_SHAPES({{2, 1, 49, 13}, {1, 13, 3, 39}});
+
+std::vector<std::vector<ov::test::InputShape>> transpose_input_shapes {
+    { {{}, {{2, 1, 49, 13}}},   {{}, {{1, 13, 3, 39}}} },
+    {
+        {PartialShape{-1, -1, -1, -1}, {{2, 1, 49, 13}, {1, 2, 70, 30}, {2, 1, 49, 13}}},
+        {PartialShape{-1, -1, -1, -1}, {{1, 13, 3, 39}, {1, 30, 1, 80}, {1, 13, 3, 39}}}
+    },
+};
+
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMult, TransposeMatMul,
                          ::testing::Combine(
                                  ::testing::ValuesIn(transpose_input_shapes),
                                  ::testing::Values(1), // Transpose on 1st Matmul input
                                  ::testing::ValuesIn(precisions(false)),
-                                 ::testing::Values(MatMulType::MatMul),
-                                 ::testing::Values(1), // MatMul
-                                 ::testing::Values(1), // Tokenized MatMul + FusedTranspose
-                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                         TransposeMatMul::getTestCaseName);
-
-std::vector<std::vector<ov::test::InputShape>> transpose_input_shapes_dynamic{
-        {
-                {PartialShape{-1, -1, -1, -1}, {{2, 1, 49, 13}, {1, 2, 70, 30}, {2, 1, 49, 13}}},
-                {PartialShape{-1, -1, -1, -1}, {{1, 13, 3, 39}, {1, 30, 1, 80}, {1, 13, 3, 39}}}
-        },
-};
-INSTANTIATE_TEST_SUITE_P(smoke_Snippets_DynMatMult, TransposeMatMul,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(transpose_input_shapes_dynamic),
-                                 ::testing::Values(1), // Transpose on 1st Matmul input
-                                 ::testing::ValuesIn(precisions(true)),
                                  ::testing::Values(MatMulType::MatMul),
                                  ::testing::Values(1), // MatMul
                                  ::testing::Values(1), // Tokenized MatMul + FusedTranspose
@@ -126,30 +108,19 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_TransposeMatMulFQ, TransposeMatMulFQ,
 } // namespace transpose_first_input
 
 namespace transpose_output {
-const auto& transpose_input_shapes = STATIC_SHAPES({{2, 1, 49, 13}, {1, 2, 13, 39}});
+std::vector<std::vector<ov::test::InputShape>> transpose_input_shapes {
+    { {{}, {{2, 1, 49, 13}}},   {{}, {{1, 2, 13, 39}}} },
+    {
+        {PartialShape{-1, -1, -1, -1}, {{2, 1, 49, 13}, {1, 2, 70, 30}, {2, 1, 49, 13}}},
+        {PartialShape{-1, -1, -1, -1}, {{1, 2, 13, 49}, {1, 1, 30, 70}, {1, 2, 13, 49}}}
+    },
+};
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMult, TransposeMatMul,
                          ::testing::Combine(
                                  ::testing::ValuesIn(transpose_input_shapes),
                                  ::testing::Values(2), // Transpose on Matmul output
                                  ::testing::ValuesIn(precisions()),
-                                 ::testing::Values(MatMulType::MatMul),
-                                 ::testing::Values(1), // MatMul
-                                 ::testing::Values(1), // Tokenized MatMul + FusedTranspose
-                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                         TransposeMatMul::getTestCaseName);
-
-std::vector<std::vector<ov::test::InputShape>> transpose_input_shapes_dynamic{
-        {
-                {PartialShape{-1, -1, -1, -1}, {{2, 1, 49, 13}, {1, 2, 70, 30}, {2, 1, 49, 13}}},
-                {PartialShape{-1, -1, -1, -1}, {{1, 2, 13, 49}, {1, 1, 30, 70}, {1, 2, 13, 49}}}
-        },
-};
-INSTANTIATE_TEST_SUITE_P(smoke_Snippets_DynMatMult, TransposeMatMul,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(transpose_input_shapes_dynamic),
-                                 ::testing::Values(2), // Transpose on Matmul output
-                                 ::testing::ValuesIn(precisions(true)),
                                  ::testing::Values(MatMulType::MatMul),
                                  ::testing::Values(1), // MatMul
                                  ::testing::Values(1), // Tokenized MatMul + FusedTranspose

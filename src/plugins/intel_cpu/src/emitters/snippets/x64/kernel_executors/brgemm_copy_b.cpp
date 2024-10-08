@@ -192,7 +192,8 @@ void BrgemmCopyBKernel::generate() {
 }
 
 void BrgemmCopyBKernel::emit_brgemm_copy_b_kernel_call(size_t N, size_t K, size_t offset_in, size_t offset_out, size_t offset_comp) {
-    EmitABIRegSpills spill(this);
+    // no need to spill vector registers since the current doesn't use vmm
+    EmitABIRegSpills spill(this, EmitABIRegSpills::GPRS);
     spill.preamble();
 
     const auto add_offset = [&](Xbyak::Reg64 reg, size_t bytes_offset) {
@@ -291,7 +292,7 @@ void BrgemmCopyBKernelExecutor::update_config(const ov::snippets::lowered::Expre
         } else {
             OPENVINO_ASSERT(loop_idx < loop_ids.size(), "Loop is missed");
             const auto& current_expanded_loop_info = loop_manager->get_loop_info<ov::snippets::lowered::ExpandedLoopInfo>(loop_ids[loop_idx++]);
-            blk = current_expanded_loop_info->get_increment();
+            blk = current_expanded_loop_info->get_work_amount() > 0 ? current_expanded_loop_info->get_increment() : 0;
             input_desc->set_subtensor_dim(idx, blk);
             output_desc->set_subtensor_dim(idx, blk);
             OV_CPU_JIT_EMITTER_ASSERT(blk <= dim, "BrgemmCopyB has incompatible subtensor dimensions");
@@ -305,7 +306,7 @@ void BrgemmCopyBKernelExecutor::update_config(const ov::snippets::lowered::Expre
     init(N_dim, N_blk, 0);
 
     const auto& brg_weight_etype = expr->get_node()->get_input_element_type(0);
-    const auto LDB = brgemm_utils::repacking::compute_out_leading_dim(N_dim, brg_weight_etype);
+    const auto LDB = brgemm_utils::repacking::compute_LDB(N_dim, brg_weight_etype);
     const auto copy_B_wei_stride = ov::snippets::utils::get_dim_stride(expr->get_input_port(0), config.is_transposed_B() ? 0 : 1) * brg_weight_etype.size();
 
     config.update(N_dim, N_blk, K_dim, K_blk, copy_B_wei_stride, LDB);

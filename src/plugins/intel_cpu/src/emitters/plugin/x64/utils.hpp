@@ -12,7 +12,13 @@ namespace intel_cpu {
 // The class emit register spills for the possible call of external binary code
 class EmitABIRegSpills {
 public:
-    EmitABIRegSpills(dnnl::impl::cpu::x64::jit_generator* h);
+    enum Type {
+        GPRS = 1 << 1,      // spill only general-purpose regisers
+        VECS = 1 << 2,      // spill only vector regisers
+        ALL  = GPRS | VECS, // default, spill vector and general-purpose registers
+    };
+
+    EmitABIRegSpills(dnnl::impl::cpu::x64::jit_generator* h, Type type = Type::ALL);
     ~EmitABIRegSpills();
 
     // push (save) all registers on the stack
@@ -35,6 +41,7 @@ private:
 
     dnnl::impl::cpu::x64::jit_generator* h {nullptr};
     const dnnl::impl::cpu::x64::cpu_isa_t isa {dnnl::impl::cpu::x64::cpu_isa_t::isa_undef};
+    const Type type {Type::ALL};
 
     static constexpr int k_mask_size = 8;
     static constexpr int k_mask_num = 8;
