@@ -1550,7 +1550,7 @@ void program_node::create_onednn_primitive_attributes(
                     size_t rank = cldnn::format::dimension(in.format);
                     auto in_pshape = in.get_partial_shape();
                     auto out_pshape = get_output_layout().get_partial_shape();
-                    size_t ones_to_add = std::max(out_pshape.size(), static_cast<size_t>(4)) - in_pshape.size();
+                    size_t ones_to_add = std::max(out_pshape.size(), static_cast<size_t>(rank)) - in_pshape.size();
                     if (ones_to_add > 0) {
                         layout new_layout = in;
                         ov::PartialShape new_input_pshape;
