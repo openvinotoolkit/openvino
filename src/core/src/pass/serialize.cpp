@@ -1071,7 +1071,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
             }
         }
         // <layers/output>
-        if ((node->get_output_size() > 0) && !ov::op::util::is_output(node)) {
+        if ((node->get_output_size() > 0)) {
             pugi::xml_node output = layer.append_child("output");
             for (auto& o : node->outputs()) {
                 pugi::xml_node port = output.append_child("port");
@@ -1107,7 +1107,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
                             .set_value(std::to_string(d.get_length()).c_str());
                     }
                 }
-                if (version >= 11)
+                if (version >= 11 && !ov::op::util::is_output(node))
                     append_runtime_info(port, o.get_rt_info());
             }
             if (node_type_name == "TensorIterator" || node_type_name == "Loop") {

@@ -95,7 +95,7 @@ std::shared_ptr<ov::Model> create_model_if_mixed_inputs() {
     if_op->set_input(Z, nullptr, Ze);
     auto result = if_op->set_output(res0, res1);
     auto res = std::make_shared<op::v0::Result>(result);
-    // res->output(0).get_tensor().set_names({"Res"});
+    res->output(0).get_tensor().set_names({"Res"});
     return std::make_shared<Model>(OutputVector{res}, ParameterVector{X, Y, Z});
 }
 
