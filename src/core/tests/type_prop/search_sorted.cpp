@@ -4,20 +4,16 @@
 
 #include "openvino/op/search_sorted.hpp"
 
+#include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 
 using namespace std;
 using namespace ov;
 
-#define EXPECT_THROW_SUBSTRING(SORTED, VALUES, SUBSTRING)             \
-    try {                                                             \
-        auto op = make_shared<op::v15::SearchSorted>(SORTED, VALUES); \
-        FAIL() << "Exception not thrown";                             \
-    } catch (const NodeValidationFailure& error) {                    \
-        EXPECT_THAT(error.what(), testing::HasSubstr(SUBSTRING));     \
-    } catch (...) {                                                   \
-        FAIL() << "Unexpected exception thrown";                      \
-    }
+#define EXPECT_THROW_SUBSTRING(SORTED, VALUES, SUBSTRING)                                           \
+    OV_EXPECT_THROW_HAS_SUBSTRING(std::ignore = make_shared<op::v15::SearchSorted>(SORTED, VALUES), \
+                                  NodeValidationFailure,                                            \
+                                  SUBSTRING);
 
 static void PerformShapeTest(const PartialShape& sorted_shape,
                              const PartialShape& values_shape,
@@ -45,6 +41,18 @@ TEST(type_prop, search_sorted_shape_infer_different_last_dim) {
     PerformShapeTest({1, 3, 7, 100}, {1, 3, 7, 10}, {1, 3, 7, 10});
 }
 
+TEST(type_prop, search_sorted_shape_infer_sorted_1d) {
+    PerformShapeTest({5}, {2, 3}, {2, 3});
+}
+
+TEST(type_prop, search_sorted_shape_infer_sorted_and_values_1d) {
+    PerformShapeTest({5}, {20}, {20});
+}
+
+TEST(type_prop, search_sorted_shape_infer_sorted_1d_values_dynamic) {
+    PerformShapeTest({8}, {-1, -1, 3}, {-1, -1, 3});
+}
+
 TEST(type_prop, search_sorted_shape_infer_both_dynamic_1) {
     PerformShapeTest({1, -1, 7, -1}, {-1, 3, -1, 10}, {1, 3, 7, 10});
 }
@@ -59,6 +67,10 @@ TEST(type_prop, search_sorted_shape_infer_both_dynamic_3) {
 
 TEST(type_prop, search_sorted_shape_infer_both_dynamic_4) {
     PerformShapeTest({-1, -1, 50}, {-1, -1, 20}, {-1, -1, 20});
+}
+
+TEST(type_prop, search_sorted_shape_infer_both_dynamic_5) {
+    PerformShapeTest({-1}, {-1, -1, 3}, {-1, -1, 3});
 }
 
 TEST(type_prop, search_sorted_shape_infer_different_types) {
