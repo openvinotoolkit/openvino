@@ -83,20 +83,6 @@ private:
     // initialized.
     std::vector<FuncallPipeline> m_funcall_pipeline;
 
-    // Another sparse vector. Represents populated spatial I/O parameters
-    // which can should be read/written by parts in multile submissions.
-    // An ugly structure, cries for refactoring
-    // See function_prologue for details.
-    // Also it contains pre-allocated tensors for tails handling
-    struct SpatialIO {
-        std::vector<ov::SoPtr<ov::ITensor>> inputs;  // # of elements - # of graph-side inputs
-        std::vector<ov::SoPtr<ov::ITensor>> outputs; // # of elements - # of subgraph outputs
-
-        std::vector<ov::SoPtr<ov::ITensor>> input_tails; // temporary buffers for input tails
-        std::vector<ov::SoPtr<ov::ITensor>> output_tails; // temporary buffers for output tails
-    };
-    std::vector<SpatialIO> m_spatial_io;
-
     // This structure tracks how every individual subrequest
     // access the model's top-level (global, public, etc) parameters
     // and results

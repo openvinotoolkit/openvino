@@ -1476,6 +1476,16 @@ ov::SoPtr<ov::ITensor> ov::npuw::util::view(const ov::SoPtr<ov::ITensor>& src,
     return ov::get_tensor_impl(viewt);
 }
 
+ov::SoPtr<ov::ITensor> ov::npuw::util::view(const ov::SoPtr<ov::ITensor>& src, std::size_t dim, std::size_t offset, std::size_t len) {
+    const auto shape = src->get_shape();
+    View view_start = View(shape.size(), 0u);
+    View view_end = shape;
+    view_start[dim] = offset;
+    view_end[dim] = offset + len;
+    return ov::npuw::util::view(src, view_start, view_end);
+}
+
+
 template <typename InT>
 void to_f32(const ov::Tensor& in, ov::Tensor& out) {
     NPUW_ASSERT(in.is_continuous());
