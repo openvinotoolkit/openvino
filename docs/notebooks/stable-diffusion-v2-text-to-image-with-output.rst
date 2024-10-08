@@ -22,7 +22,7 @@ In previous notebooks, we already discussed how to run `Text-to-Image
 generation and Image-to-Image generation using Stable Diffusion
 v1 <stable-diffusion-text-to-image-with-output.html>`__
 and `controlling its generation process using
-ControlNet <./controlnet-stable-diffusion/controlnet-stable-diffusion.ipynb>`__.
+ControlNet <controlnet-stable-diffusion-with-output.html>`__.
 Now is turn of Stable Diffusion v2.
 
 Stable Diffusion v2: What’s new?
@@ -78,31 +78,32 @@ implementation. If you would like to get started and run the notebook
 quickly, check out `stable-diffusion-v2-text-to-image-demo
 notebook <stable-diffusion-v2-with-output.html>`__.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#Prerequisites>`__
+**Table of contents:**
+
+
+-  `Prerequisites <#prerequisites>`__
 -  `Stable Diffusion v2 for Text-to-Image
-   Generation <#Stable-Diffusion-v2-for-Text-to-Image-Generation>`__
+   Generation <#stable-diffusion-v2-for-text-to-image-generation>`__
 
    -  `Stable Diffusion in Diffusers
-      library <#Stable-Diffusion-in-Diffusers-library>`__
+      library <#stable-diffusion-in-diffusers-library>`__
    -  `Convert models to OpenVINO Intermediate representation (IR)
-      format <#Convert-models-to-OpenVINO-Intermediate-representation-(IR)-format>`__
-   -  `Text Encoder <#Text-Encoder>`__
-   -  `U-Net <#U-Net>`__
-   -  `VAE <#VAE>`__
-   -  `Prepare Inference Pipeline <#Prepare-Inference-Pipeline>`__
-   -  `Configure Inference Pipeline <#Configure-Inference-Pipeline>`__
+      format <#convert-models-to-openvino-intermediate-representation-ir-format>`__
+   -  `Text Encoder <#text-encoder>`__
+   -  `U-Net <#u-net>`__
+   -  `VAE <#vae>`__
+   -  `Prepare Inference Pipeline <#prepare-inference-pipeline>`__
+   -  `Configure Inference Pipeline <#configure-inference-pipeline>`__
 
--  `Quantization <#Quantization>`__
+-  `Quantization <#quantization>`__
 
-   -  `Prepare calibration dataset <#Prepare-calibration-dataset>`__
-   -  `Run Hybrid Model Quantization <#Run-Hybrid-Model-Quantization>`__
+   -  `Prepare calibration dataset <#prepare-calibration-dataset>`__
+   -  `Run Hybrid Model Quantization <#run-hybrid-model-quantization>`__
    -  `Compare inference time of the FP16 and INT8
-      pipelines <#Compare-inference-time-of-the-FP16-and-INT8-pipelines>`__
+      pipelines <#compare-inference-time-of-the-fp16-and-int8-pipelines>`__
 
--  `Run Text-to-Image generation <#Run-Text-to-Image-generation>`__
+-  `Run Text-to-Image generation <#run-text-to-image-generation>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -117,7 +118,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 install required packages
 
@@ -129,7 +130,7 @@ install required packages
 Stable Diffusion v2 for Text-to-Image Generation
 ------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To start, let’s look on Text-to-Image process for Stable Diffusion v2.
 We will use `Stable Diffusion
@@ -146,11 +147,11 @@ and original model
 Stable Diffusion in Diffusers library
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__ To work with Stable Diffusion
+To work with Stable Diffusion
 v2, we will use Hugging Face
 `Diffusers <https://github.com/huggingface/diffusers>`__ library. To
 experiment with Stable Diffusion models, Diffusers exposes the
-```StableDiffusionPipeline`` <https://huggingface.co/docs/diffusers/using-diffusers/conditional_image_generation>`__
+`StableDiffusionPipeline <https://huggingface.co/docs/diffusers/using-diffusers/conditional_image_generation>`__
 similar to the `other Diffusers
 pipelines <https://huggingface.co/docs/diffusers/api/pipelines/overview>`__.
 The code below demonstrates how to create ``StableDiffusionPipeline``
@@ -184,7 +185,7 @@ using ``stable-diffusion-2-1``:
 Convert models to OpenVINO Intermediate representation (IR) format
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Starting from 2023.0 release, OpenVINO supports PyTorch models directly
 via Model Conversion API. ``ov.convert_model`` function accepts instance
@@ -204,7 +205,7 @@ Let us convert each part:
 Text Encoder
 ~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The text-encoder is responsible for transforming the input prompt, for
 example, “a photo of an astronaut riding a horse” into an embedding
@@ -290,7 +291,7 @@ hidden states.
 U-Net
 ~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 U-Net model gradually denoises latent image representation guided by
 text encoder hidden state.
@@ -373,7 +374,7 @@ such use cases required to modify number of input channels.
 VAE
 ~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The VAE model has two parts, an encoder and a decoder. The encoder is
 used to convert the image into a low dimensional latent representation,
@@ -495,7 +496,7 @@ RAM (recommended at least 32GB).
 Prepare Inference Pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Putting it all together, let us now take a closer look at how the model
 works in inference by illustrating the logical flow.
@@ -906,7 +907,7 @@ but there is some small difference in details:
 Configure Inference Pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 First, you should create instances of OpenVINO Model.
 
@@ -967,7 +968,7 @@ Let us define them and put all components together.
 Quantization
 ------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding quantization layers into model
@@ -1035,7 +1036,7 @@ improve model inference speed.
 Prepare calibration dataset
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We use a portion of
 `conceptual_captions <https://huggingface.co/datasets/google-research-datasets/conceptual_captions>`__
@@ -1097,7 +1098,7 @@ model inputs for calibration we should customize ``CompiledModel``.
 Run Hybrid Model Quantization
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -1224,7 +1225,7 @@ Compare UNet file size
 Compare inference time of the FP16 and INT8 pipelines
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To measure the inference performance of the ``FP16`` and ``INT8``
 pipelines, we use median inference time on calibration subset.
@@ -1279,7 +1280,7 @@ pipelines, we use median inference time on calibration subset.
 Run Text-to-Image generation
 ----------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now, you can define a text prompts for image generation and run
 inference pipeline. Optionally, you can also change the random generator

@@ -1,7 +1,7 @@
 Stable Fast 3D Mesh Reconstruction and OpenVINO
 ===============================================
 
-.. container:: alert alert-block alert-danger
+.. warning::
 
    Important note: This notebook requires python >= 3.9. Please make
    sure that your environment fulfill to this requirement before running
@@ -47,16 +47,17 @@ The authors compare their results with TripoSR:
    artifacts from marching cubes. Lastly, our material property
    prediction allows us to express a variety of different surface types.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#Prerequisites>`__
--  `Get the original model <#Get-the-original-model>`__
+**Table of contents:**
+
+
+-  `Prerequisites <#prerequisites>`__
+-  `Get the original model <#get-the-original-model>`__
 -  `Convert the model to OpenVINO
-   IR <#Convert-the-model-to-OpenVINO-IR>`__
+   IR <#convert-the-model-to-openvino-ir>`__
 -  `Compiling models and prepare
-   pipeline <#Compiling-models-and-prepare-pipeline>`__
--  `Interactive inference <#Interactive-inference>`__
+   pipeline <#compiling-models-and-prepare-pipeline>`__
+-  `Interactive inference <#interactive-inference>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -71,7 +72,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -141,7 +142,7 @@ Get the original model
 Convert the model to OpenVINO IR
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 SF3D is PyTorch model. OpenVINO supports PyTorch models via conversion
 to OpenVINO Intermediate Representation (IR). `OpenVINO model conversion
@@ -256,7 +257,7 @@ As illustrated in SF3D Overview image, SF3D has 5 main components:
 Compiling models and prepare pipeline
 -------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select device from dropdown list for running inference using OpenVINO.
 
@@ -294,7 +295,7 @@ device and directories with converted models as arguments.
 Interactive inference
 ---------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__ It’s taken from the original
+It’s taken from the original
 ``gradio_app.py``, but the model is replaced with the one defined above.
 
 .. code:: ipython3

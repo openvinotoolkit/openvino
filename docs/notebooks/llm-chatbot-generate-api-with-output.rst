@@ -52,37 +52,38 @@ need a Jupyter server to start. For details, please refer to
 `Installation
 Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#Prerequisites>`__
--  `Select model for inference <#Select-model-for-inference>`__
+**Table of contents:**
+
+
+-  `Prerequisites <#prerequisites>`__
+-  `Select model for inference <#select-model-for-inference>`__
 -  `Convert model using Optimum-CLI
-   tool <#Convert-model-using-Optimum-CLI-tool>`__
+   tool <#convert-model-using-optimum-cli-tool>`__
 
    -  `Weights Compression using
-      Optimum-CLI <#Weights-Compression-using-Optimum-CLI>`__
+      Optimum-CLI <#weights-compression-using-optimum-cli>`__
 
--  `Select device for inference <#Select-device-for-inference>`__
+-  `Select device for inference <#select-device-for-inference>`__
 -  `Instantiate pipeline with OpenVINO Generate
-   API <#Instantiate-pipeline-with-OpenVINO-Generate-API>`__
--  `Run Chatbot <#Run-Chatbot>`__
+   API <#instantiate-pipeline-with-openvino-generate-api>`__
+-  `Run Chatbot <#run-chatbot>`__
 
-   -  `Advanced generation options <#Advanced-generation-options>`__
+   -  `Advanced generation options <#advanced-generation-options>`__
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Install required dependencies
 
 .. code:: ipython3
 
     import os
-    
+
     os.environ["GIT_CLONE_PROTECTION_ACTIVE"] = "false"
-    
+
     %pip install -Uq pip
     %pip uninstall -q -y optimum optimum-intel
     %pip install -q -U "openvino>=2024.3.0" openvino-tokenizers[transformers] openvino-genai
@@ -111,12 +112,12 @@ Install required dependencies
     from pathlib import Path
     import requests
     import shutil
-    
+
     # fetch model configuration
-    
+
     config_shared_path = Path("../../utils/llm_config.py")
     config_dst_path = Path("llm_config.py")
-    
+
     if not config_dst_path.exists():
         if config_shared_path.exists():
             try:
@@ -135,7 +136,7 @@ Install required dependencies
             r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/llm_config.py")
             with open("llm_config.py", "w", encoding="utf-8") as f:
                 f.write(r.text)
-    
+
     if not Path("notebook_utils.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py")
         open("notebook_utils.py", "w").write(r.text)
@@ -143,7 +144,7 @@ Install required dependencies
 Select model for inference
 --------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The tutorial supports different models, you can select one from the
 provided options to compare the quality of open source LLM solutions.
@@ -226,7 +227,7 @@ Click here to see available models options
    in `model
    card <https://huggingface.co/meta-llama/Llama-3.2-1B-Instruct>`__
    >\ **Note**: run model with demo, you will need to accept license
-   agreement. >You must be a registered user in 🤗 Hugging Face Hub.
+   agreement. >You must be a registered user in Hugging Face Hub.
    Please visit `HuggingFace model
    card <https://huggingface.co/meta-llama/Llama-3.2-1B-Instruct>`__,
    carefully read terms of usage and click accept button. You will need
@@ -238,7 +239,7 @@ Click here to see available models options
 
 .. code:: python
 
-       # login to huggingfacehub to get access to pretrained model 
+       # login to huggingfacehub to get access to pretrained model
 
 
        from huggingface_hub import notebook_login, whoami
@@ -258,7 +259,7 @@ Click here to see available models options
    in `model
    card <https://huggingface.co/meta-llama/Llama-3.2-3B-Instruct>`__
    >\ **Note**: run model with demo, you will need to accept license
-   agreement. >You must be a registered user in 🤗 Hugging Face Hub.
+   agreement. >You must be a registered user in Hugging Face Hub.
    Please visit `HuggingFace model
    card <https://huggingface.co/meta-llama/Llama-3.2-3B-Instruct>`__,
    carefully read terms of usage and click accept button. You will need
@@ -270,7 +271,7 @@ Click here to see available models options
 
 .. code:: python
 
-       # login to huggingfacehub to get access to pretrained model 
+       # login to huggingfacehub to get access to pretrained model
 
 
        from huggingface_hub import notebook_login, whoami
@@ -292,7 +293,7 @@ Click here to see available models options
    model can be found in `model
    card <https://huggingface.co/google/gemma-2b-it>`__. >\ **Note**: run
    model with demo, you will need to accept license agreement. >You must
-   be a registered user in 🤗 Hugging Face Hub. Please visit `HuggingFace
+   be a registered user in Hugging Face Hub. Please visit `HuggingFace
    model card <https://huggingface.co/google/gemma-2b-it>`__, carefully
    read terms of usage and click accept button. You will need to use an
    access token for the code below to run. For more information on
@@ -303,7 +304,7 @@ Click here to see available models options
 
 .. code:: python
 
-       # login to huggingfacehub to get access to pretrained model 
+       # login to huggingfacehub to get access to pretrained model
 
 
        from huggingface_hub import notebook_login, whoami
@@ -325,7 +326,7 @@ Click here to see available models options
    of 2B parameters model. More details about model can be found in
    `model card <https://huggingface.co/google/gemma-2-2b-it>`__.
    >\ **Note**: run model with demo, you will need to accept license
-   agreement. >You must be a registered user in 🤗 Hugging Face Hub.
+   agreement. >You must be a registered user in Hugging Face Hub.
    Please visit `HuggingFace model
    card <https://huggingface.co/google/gemma-2-2b-it>`__, carefully read
    terms of usage and click accept button. You will need to use an
@@ -337,7 +338,7 @@ Click here to see available models options
 
 .. code:: python
 
-       # login to huggingfacehub to get access to pretrained model 
+       # login to huggingfacehub to get access to pretrained model
 
 
        from huggingface_hub import notebook_login, whoami
@@ -386,7 +387,7 @@ Click here to see available models options
    model can be found in `model
    card <https://huggingface.co/google/gemma-7b-it>`__. >\ **Note**: run
    model with demo, you will need to accept license agreement. >You must
-   be a registered user in 🤗 Hugging Face Hub. Please visit `HuggingFace
+   be a registered user in Hugging Face Hub. Please visit `HuggingFace
    model card <https://huggingface.co/google/gemma-7b-it>`__, carefully
    read terms of usage and click accept button. You will need to use an
    access token for the code below to run. For more information on
@@ -397,7 +398,7 @@ Click here to see available models options
 
 .. code:: python
 
-       # login to huggingfacehub to get access to pretrained model 
+       # login to huggingfacehub to get access to pretrained model
 
        from huggingface_hub import notebook_login, whoami
 
@@ -418,7 +419,7 @@ Click here to see available models options
    of 9B parameters model. More details about model can be found in
    `model card <https://huggingface.co/google/gemma-2-9b-it>`__.
    >\ **Note**: run model with demo, you will need to accept license
-   agreement. >You must be a registered user in 🤗 Hugging Face Hub.
+   agreement. >You must be a registered user in Hugging Face Hub.
    Please visit `HuggingFace model
    card <https://huggingface.co/google/gemma-2-2b-it>`__, carefully read
    terms of usage and click accept button. You will need to use an
@@ -430,7 +431,7 @@ Click here to see available models options
 
 .. code:: python
 
-       # login to huggingfacehub to get access to pretrained model 
+       # login to huggingfacehub to get access to pretrained model
 
 
        from huggingface_hub import notebook_login, whoami
@@ -452,7 +453,7 @@ Click here to see available models options
    `HuggingFace model
    card <https://huggingface.co/meta-llama/Llama-2-7b-chat-hf>`__.
    >\ **Note**: run model with demo, you will need to accept license
-   agreement. >You must be a registered user in 🤗 Hugging Face Hub.
+   agreement. >You must be a registered user in Hugging Face Hub.
    Please visit `HuggingFace model
    card <https://huggingface.co/meta-llama/Llama-2-7b-chat-hf>`__,
    carefully read terms of usage and click accept button. You will need
@@ -464,7 +465,7 @@ Click here to see available models options
 
 .. code:: python
 
-       # login to huggingfacehub to get access to pretrained model 
+       # login to huggingfacehub to get access to pretrained model
 
        from huggingface_hub import notebook_login, whoami
 
@@ -486,7 +487,7 @@ Click here to see available models options
    website <https://llama.meta.com/llama3>`__ and `model
    card <https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct>`__.
    >\ **Note**: run model with demo, you will need to accept license
-   agreement. >You must be a registered user in 🤗 Hugging Face Hub.
+   agreement. >You must be a registered user in Hugging Face Hub.
    Please visit `HuggingFace model
    card <https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct>`__,
    carefully read terms of usage and click accept button. You will need
@@ -498,7 +499,7 @@ Click here to see available models options
 
 .. code:: python
 
-       # login to huggingfacehub to get access to pretrained model 
+       # login to huggingfacehub to get access to pretrained model
 
        from huggingface_hub import notebook_login, whoami
 
@@ -517,7 +518,7 @@ Click here to see available models options
    website <https://llama.meta.com>`__ and `model
    card <https://huggingface.co/meta-llama/Meta-Llama-3.1-8B-Instruct>`__.
    >\ **Note**: run model with demo, you will need to accept license
-   agreement. >You must be a registered user in 🤗 Hugging Face Hub.
+   agreement. >You must be a registered user in Hugging Face Hub.
    Please visit `HuggingFace model
    card <https://huggingface.co/meta-llama/Meta-Llama-3.1-8B-Instruct>`__,
    carefully read terms of usage and click accept button. You will need
@@ -529,7 +530,7 @@ Click here to see available models options
 
 .. code:: python
 
-       # login to huggingfacehub to get access to pretrained model 
+       # login to huggingfacehub to get access to pretrained model
 
        from huggingface_hub import notebook_login, whoami
 
@@ -642,9 +643,9 @@ Click here to see available models options
 .. code:: ipython3
 
     from llm_config import get_llm_selection_widget
-    
+
     form, lang, model_id_widget, compression_variant, use_preconverted = get_llm_selection_widget()
-    
+
     form
 
 
@@ -671,10 +672,10 @@ Click here to see available models options
 Convert model using Optimum-CLI tool
 ------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
 
-🤗 `Optimum Intel <https://huggingface.co/docs/optimum/intel/index>`__ is
-the interface between the 🤗
+
+`Optimum Intel <https://huggingface.co/docs/optimum/intel/index>`__ is
+the interface between the
 `Transformers <https://huggingface.co/docs/transformers/index>`__ and
 `Diffusers <https://huggingface.co/docs/diffusers/index>`__ libraries
 and OpenVINO to accelerate end-to-end pipelines on Intel architectures.
@@ -711,7 +712,7 @@ remote code, ``--trust-remote-code`` flag additionally should be passed.
 Weights Compression using Optimum-CLI
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 You can also apply fp16, 8-bit or 4-bit weight compression on the
 Linear, Convolutional and Embedding layers when exporting your model
@@ -731,12 +732,13 @@ to make it
 `symmetric <https://github.com/openvinotoolkit/nncf/blob/develop/docs/compression_algorithms/Quantization.md#symmetric-quantization>`__
 you can add ``--sym``.
 
-For INT4 quantization you can also specify the following arguments : -
-The ``--group-size`` parameter will define the group size to use for
-quantization, -1 it will results in per-column quantization. - The
-``--ratio`` parameter controls the ratio between 4-bit and 8-bit
-quantization. If set to 0.9, it means that 90% of the layers will be
-quantized to int4 while 10% will be quantized to int8.
+For INT4 quantization you can also specify the following arguments :
+
+- The ``--group-size`` parameter will define the group size to use for
+  quantization, -1 it will results in per-column quantization.
+- The ``--ratio`` parameter controls the ratio between 4-bit and 8-bit
+  quantization. If set to 0.9, it means that 90% of the layers will be
+  quantized to int4 while 10% will be quantized to int8.
 
 Smaller group_size and ratio values usually improve accuracy at the
 sacrifice of the model size and inference latency. You can enable AWQ to
@@ -758,7 +760,7 @@ be additionally applied during model export with INT4 precision using
 .. code:: ipython3
 
     from llm_config import convert_and_compress_model
-    
+
     model_dir = convert_and_compress_model(model_id, model_configuration, compression_variant.value, use_preconverted.value)
 
 
@@ -812,7 +814,7 @@ Let’s compare model size for different compression types
 .. code:: ipython3
 
     from llm_config import compare_model_size
-    
+
     compare_model_size(model_dir)
 
 
@@ -824,14 +826,14 @@ Let’s compare model size for different compression types
 Select device for inference
 ---------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     from notebook_utils import device_widget
-    
+
     device = device_widget(default="CPU", exclude=["NPU"])
-    
+
     device
 
 
@@ -849,7 +851,7 @@ variant of model weights and inference device
 Instantiate pipeline with OpenVINO Generate API
 -----------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 `OpenVINO Generate
 API <https://github.com/openvinotoolkit/openvino.genai/blob/master/src/README.md>`__
@@ -874,14 +876,14 @@ of the available generation parameters more deeply later.
 .. code:: ipython3
 
     from openvino_genai import LLMPipeline
-    
+
     print(f"Loading model from {model_dir}\n")
-    
-    
+
+
     pipe = LLMPipeline(str(model_dir), device.value)
-    
+
     generation_config = pipe.get_generation_config()
-    
+
     input_prompt = "The Sun is yellow bacause"
     print(f"Input text: {input_prompt}")
     print(pipe.generate(input_prompt, max_new_tokens=10))
@@ -890,7 +892,7 @@ of the available generation parameters more deeply later.
 .. parsed-literal::
 
     Loading model from qwen2.5/INT4_compressed_weights
-    
+
     Input text: The Sun is yellow bacause
      of its coloration. The Sun is blue because
 
@@ -898,7 +900,7 @@ of the available generation parameters more deeply later.
 Run Chatbot
 -----------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now, when model created, we can setup Chatbot interface using
 `Gradio <https://www.gradio.app/>`__.
@@ -955,7 +957,7 @@ Guide <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html>`__
 Advanced generation options
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. raw:: html
 
@@ -1028,11 +1030,11 @@ Click here to see detailed description of advanced options
     if not Path("gradio_helper_genai.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/llm-chatbot/gradio_helper_genai.py")
         open("gradio_helper_genai.py", "w").write(r.text)
-    
+
     from gradio_helper_genai import make_demo
-    
+
     demo = make_demo(pipe, model_configuration, model_id, lang.value)
-    
+
     try:
         demo.launch(debug=False)
     except Exception:
@@ -1045,14 +1047,14 @@ Click here to see detailed description of advanced options
 .. parsed-literal::
 
     Running on local URL:  http://127.0.0.1:7860
-    
+
     To create a public link, set `share=True` in `launch()`.
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 
 
 .. code:: ipython3

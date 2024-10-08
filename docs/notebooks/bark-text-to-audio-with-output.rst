@@ -54,22 +54,23 @@ tokens into audio codec tokens to generate the full waveform. To enable
 the community to use Bark via public code, EnCodec codec from Facebook
 is used to act as an audio representation.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#Prerequisites>`__
--  `Download and Convert models <#Download-and-Convert-models>`__
+**Table of contents:**
 
-   -  `Text Encoder <#Text-Encoder>`__
-   -  `Coarse encoder <#Coarse-encoder>`__
-   -  `Fine encoder <#Fine-encoder>`__
-   -  `Prepare Inference pipeline <#Prepare-Inference-pipeline>`__
 
--  `Run model inference <#Run-model-inference>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Download and Convert models <#download-and-convert-models>`__
 
-   -  `Select Inference device <#Select-Inference-device>`__
+   -  `Text Encoder <#text-encoder>`__
+   -  `Coarse encoder <#coarse-encoder>`__
+   -  `Fine encoder <#fine-encoder>`__
+   -  `Prepare Inference pipeline <#prepare-inference-pipeline>`__
 
--  `Interactive demo <#Interactive-demo>`__
+-  `Run model inference <#run-model-inference>`__
+
+   -  `Select Inference device <#select-inference-device>`__
+
+-  `Interactive demo <#interactive-demo>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -84,7 +85,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -104,7 +105,7 @@ Prerequisites
 Download and Convert models
 ---------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -117,7 +118,7 @@ Download and Convert models
 Text Encoder
 ~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Text encoder is responsible for embedding initial text prompt into
 high-level semantic tokens. it uses tokenizer for conversion input text
@@ -187,7 +188,7 @@ models for that.
 Coarse encoder
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Coarse encoder is a causal autoregressive transformer, that takes as
 input the results of the text encoder model. It aims at predicting the
@@ -350,7 +351,7 @@ provide empty tensor on the first step.
 Fine encoder
 ~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Fine encoder is time a non-causal autoencoder transformer, which
 iteratively predicts the last codebooks based on the sum of the previous
@@ -379,7 +380,7 @@ codebooks embeddings obtained using Coarse encoder.
 Prepare Inference pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For better usability, classes for working with models provided below.
 
@@ -901,7 +902,7 @@ consists from several steps, illustrated on the diagram below:
 Run model inference
 -------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now is time to see model in action. We need only wrap our models to
 classes and run ``generate_audio`` function.
@@ -909,7 +910,7 @@ classes and run ``generate_audio`` function.
 Select Inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -990,7 +991,7 @@ select device from dropdown list for running inference using OpenVINO
 Interactive demo
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 

@@ -13,22 +13,23 @@ repo <https://github.com/speechbrain/speechbrain>`__ and
 This notebook tutorial demonstrates optimization and inference of
 speechbrain emotion recognition model with OpenVINO.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
 
--  `Installations <#Installations>`__
--  `Imports <#Imports>`__
--  `Prepare base model <#Prepare-base-model>`__
--  `Initialize model <#Initialize-model>`__
--  `PyTorch inference <#PyTorch-inference>`__
+**Table of contents:**
+
+
+-  `Installations <#installations>`__
+-  `Imports <#imports>`__
+-  `Prepare base model <#prepare-base-model>`__
+-  `Initialize model <#initialize-model>`__
+-  `PyTorch inference <#pytorch-inference>`__
 -  `SpeechBrain model optimization with Intel
-   OpenVINO <#SpeechBrain-model-optimization-with-Intel-OpenVINO>`__
+   OpenVINO <#speechbrain-model-optimization-with-intel-openvino>`__
 
-   -  `Step 1: Prepare input tensor <#Step-1:-Prepare-input-tensor>`__
+   -  `Step 1: Prepare input tensor <#step-1-prepare-input-tensor>`__
    -  `Step 2: Convert model to OpenVINO
-      IR <#Step-2:-Convert-model-to-OpenVINO-IR>`__
+      IR <#step-2-convert-model-to-openvino-ir>`__
    -  `Step 3: OpenVINO model
-      inference <#Step-3:-OpenVINO-model-inference>`__
+      inference <#step-3-openvino-model-inference>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -43,7 +44,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Installations
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -75,7 +76,7 @@ Installations
 Imports
 ~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -88,7 +89,7 @@ Imports
 Prepare base model
 ~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The foreign_class function in SpeechBrain is a utility that allows you
 to load and use custom PyTorch models within the SpeechBrain ecosystem.
@@ -155,7 +156,7 @@ SpeechBrain codebase.
 Initialize model
 ~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -165,7 +166,7 @@ Initialize model
 PyTorch inference
 ~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Perform emotion recognition on the sample audio file.
 
@@ -193,12 +194,12 @@ Perform emotion recognition on the sample audio file.
 SpeechBrain model optimization with Intel OpenVINO
 --------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Step 1: Prepare input tensor
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -217,7 +218,7 @@ Step 1: Prepare input tensor
 Step 2: Convert model to OpenVINO IR
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -237,7 +238,7 @@ Step 2: Convert model to OpenVINO IR
 Step 3: OpenVINO model inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 

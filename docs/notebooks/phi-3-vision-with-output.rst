@@ -17,19 +17,20 @@ post <https://azure.microsoft.com/en-us/blog/new-models-added-to-the-phi-3-famil
 
 In this tutorial we consider how to launch Phi-3-vision using OpenVINO
 for creation multimodal chatbot. Additionally, we optimize model to low
-precision using `NNCF <https://github.com/openvinotoolkit/nncf>`__ ####
-Table of contents:
+precision using `NNCF <https://github.com/openvinotoolkit/nncf>`__
 
--  `Prerequisites <#Prerequisites>`__
--  `Select Model <#Select-Model>`__
--  `Convert and Optimize model <#Convert-and-Optimize-model>`__
+**Table of contents:**
+
+-  `Prerequisites <#prerequisites>`__
+-  `Select Model <#select-model>`__
+-  `Convert and Optimize model <#convert-and-optimize-model>`__
 
    -  `Compress model weights to
-      4-bit <#Compress-model-weights-to-4-bit>`__
+      4-bit <#compress-model-weights-to-4-bit>`__
 
--  `Select inference device <#Select-inference-device>`__
--  `Run OpenVINO model <#Run-OpenVINO-model>`__
--  `Interactive demo <#Interactive-demo>`__
+-  `Select inference device <#select-inference-device>`__
+-  `Run OpenVINO model <#run-openvino-model>`__
+-  `Interactive demo <#interactive-demo>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -44,7 +45,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 install required packages and setup helper functions.
 
@@ -69,16 +70,16 @@ install required packages and setup helper functions.
 
     import requests
     from pathlib import Path
-    
+
     if not Path("ov_phi3_vision_helper.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/phi-3-vision/ov_phi3_vision_helper.py")
         open("ov_phi3_vision_helper.py", "w").write(r.text)
-    
-    
+
+
     if not Path("gradio_helper.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/phi-3-vision/gradio_helper.py")
         open("gradio_helper.py", "w").write(r.text)
-    
+
     if not Path("notebook_utils.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py")
         open("notebook_utils.py", "w").write(r.text)
@@ -86,7 +87,7 @@ install required packages and setup helper functions.
 Select Model
 ------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The tutorial supports the following models from Phi-3 model family: -
 `Phi-3.5-vision-instruct <https://huggingface.co/microsoft/Phi-3.5-vision-instruct>`__
@@ -98,20 +99,20 @@ You can select one from the provided options below.
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     # Select model
     model_ids = [
         "microsoft/Phi-3.5-vision-instruct",
         "microsoft/Phi-3-vision-128k-instruct",
     ]
-    
+
     model_dropdown = widgets.Dropdown(
         options=model_ids,
         value=model_ids[0],
         description="Model:",
         disabled=False,
     )
-    
+
     model_dropdown
 
 
@@ -126,7 +127,7 @@ You can select one from the provided options below.
 Convert and Optimize model
 --------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Phi-3-vision is PyTorch model. OpenVINO supports PyTorch models via
 conversion to OpenVINO Intermediate Representation (IR). `OpenVINO model
@@ -202,7 +203,7 @@ To sum up above, model consists of 4 parts:
 Compress model weights to 4-bit
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__ For reducing memory
+For reducing memory
 consumption, weights compression optimization can be applied using
 `NNCF <https://github.com/openvinotoolkit/nncf>`__.
 
@@ -252,7 +253,7 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 .. code:: ipython3
 
     from ov_phi3_vision_helper import convert_phi3_model
-    
+
     # uncomment these lines to see model conversion code
     # convert_phi3_model??
 
@@ -274,8 +275,8 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 
     from pathlib import Path
     import nncf
-    
-    
+
+
     model_id = model_dropdown.value
     out_dir = Path("model") / Path(model_id).name / "INT4"
     compression_configuration = {
@@ -357,7 +358,7 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
     /opt/home/k8sworker/.cache/huggingface/modules/transformers_modules/microsoft/Phi-3.5-vision-instruct/4a0d683eba9f1d0cbfb6151705d1ee73c25a80ca/modeling_phi3_v.py:445: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if seq_len > self.original_max_position_embeddings:
     /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/dynamic_graph/wrappers.py:85: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
-      op1 = operator(*args, **kwargs)
+      op1 = operator(\*args, \*\*kwargs)
     /opt/home/k8sworker/.cache/huggingface/modules/transformers_modules/microsoft/Phi-3.5-vision-instruct/4a0d683eba9f1d0cbfb6151705d1ee73c25a80ca/modeling_phi3_v.py:683: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if attn_weights.size() != (bsz, self.num_heads, q_len, kv_seq_len):
     /opt/home/k8sworker/.cache/huggingface/modules/transformers_modules/microsoft/Phi-3.5-vision-instruct/4a0d683eba9f1d0cbfb6151705d1ee73c25a80ca/modeling_phi3_v.py:690: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
@@ -381,9 +382,9 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
 
 
 
@@ -406,9 +407,9 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
 
 
 
@@ -421,14 +422,14 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 Select inference device
 -----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     from notebook_utils import device_widget
-    
+
     device = device_widget(default="AUTO", exclude=["NPU"])
-    
+
     device
 
 
@@ -443,7 +444,7 @@ Select inference device
 Run OpenVINO model
 ------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 ``OvPhi3vison`` class provides convenient way for running model. It
 accepts directory with converted model and inference device as
@@ -452,9 +453,9 @@ arguments. For running model we will use ``generate`` method.
 .. code:: ipython3
 
     from ov_phi3_vision_helper import OvPhi3Vision
-    
+
     # Uncomment below lines to see the model inference class code
-    
+
     # OvPhi3Vision??
 
 .. code:: ipython3
@@ -465,10 +466,10 @@ arguments. For running model we will use ``generate`` method.
 
     import requests
     from PIL import Image
-    
+
     url = "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/d5fbbd1a-d484-415c-88cb-9986625b7b11"
     image = Image.open(requests.get(url, stream=True).raw)
-    
+
     print("Question:\n What is unusual on this picture?")
     image
 
@@ -488,19 +489,19 @@ arguments. For running model we will use ``generate`` method.
 .. code:: ipython3
 
     from transformers import AutoProcessor, TextStreamer
-    
+
     messages = [
         {"role": "user", "content": "<|image_1|>\nWhat is unusual on this picture?"},
     ]
-    
+
     processor = AutoProcessor.from_pretrained(out_dir, trust_remote_code=True)
-    
+
     prompt = processor.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-    
+
     inputs = processor(prompt, [image], return_tensors="pt")
-    
+
     generation_args = {"max_new_tokens": 50, "do_sample": False, "streamer": TextStreamer(processor.tokenizer, skip_prompt=True, skip_special_tokens=True)}
-    
+
     print("Answer:")
     generate_ids = model.generate(**inputs, eos_token_id=processor.tokenizer.eos_token_id, **generation_args)
 
@@ -520,14 +521,14 @@ arguments. For running model we will use ``generate`` method.
 Interactive demo
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     from gradio_helper import make_demo
-    
+
     demo = make_demo(model, processor)
-    
+
     try:
         demo.launch(debug=False, height=600)
     except Exception:
@@ -540,12 +541,12 @@ Interactive demo
 .. parsed-literal::
 
     Running on local URL:  http://127.0.0.1:7860
-    
+
     To create a public link, set `share=True` in `launch()`.
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="600" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 

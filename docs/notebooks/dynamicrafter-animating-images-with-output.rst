@@ -102,35 +102,37 @@ additional part demonstrates how to run optimization with
 
    </table >
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#Prerequisites>`__
--  `Load the original model <#Load-the-original-model>`__
+**Table of contents:**
+
+
+-  `Prerequisites <#prerequisites>`__
+-  `Load the original model <#load-the-original-model>`__
 -  `Convert the model to OpenVINO
-   IR <#Convert-the-model-to-OpenVINO-IR>`__
+   IR <#convert-the-model-to-openvino-ir>`__
 
-   -  `Convert CLIP text encoder <#Convert-CLIP-text-encoder>`__
-   -  `Convert CLIP image encoder <#Convert-CLIP-image-encoder>`__
-   -  `Convert AE encoder <#Convert-AE-encoder>`__
-   -  `Convert Diffusion U-Net model <#Convert-Diffusion-U-Net-model>`__
-   -  `Convert AE decoder <#Convert-AE-decoder>`__
+   -  `Convert CLIP text encoder <#convert-clip-text-encoder>`__
+   -  `Convert CLIP image encoder <#convert-clip-image-encoder>`__
+   -  `Convert AE encoder <#convert-ae-encoder>`__
+   -  `Convert Diffusion U-Net model <#convert-diffusion-u-net-model>`__
+   -  `Convert AE decoder <#convert-ae-decoder>`__
 
--  `Compiling models <#Compiling-models>`__
--  `Building the pipeline <#Building-the-pipeline>`__
+-  `Compiling models <#compiling-models>`__
+-  `Building the pipeline <#building-the-pipeline>`__
 -  `Run OpenVINO pipeline
-   inference <#Run-OpenVINO-pipeline-inference>`__
--  `Quantization <#Quantization>`__
+   inference <#run-openvino-pipeline-inference>`__
+-  `Quantization <#quantization>`__
 
-   -  `Prepare calibration dataset <#Prepare-calibration-dataset>`__
-   -  `Run Quantization <#Run-Quantization>`__
-   -  `Run Weights Compression <#Run-Weights-Compression>`__
-   -  `Compare model file sizes <#Compare-model-file-sizes>`__
+   -  `Prepare calibration dataset <#prepare-calibration-dataset>`__
+   -  `Run Quantization <#run-quantization>`__
+   -  `Run Weights Compression <#run-weights-compression>`__
+   -  `Compare model file sizes <#compare-model-file-sizes>`__
    -  `Compare inference time of the FP32 and INT8
-      pipelines <#Compare-inference-time-of-the-FP32-and-INT8-pipelines>`__
+      pipelines <#compare-inference-time-of-the-fp32-and-int8-pipelines>`__
 
--  `Interactive inference <#Interactive-inference>`__ ### Installation
-   Instructions
+-  `Interactive inference <#interactive-inference>`__ 
+   
+
 
 This is a self-contained example that relies solely on its own code.
 
@@ -142,7 +144,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -204,7 +206,7 @@ Prerequisites
 Load and run the original pipeline
 ----------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We will use model for 256x256 resolution as example. Also, models for
 320x512 and 576x1024 are
@@ -300,7 +302,7 @@ We will use model for 256x256 resolution as example. Also, models for
 Convert the model to OpenVINO IR
 --------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Let’s define the conversion function for PyTorch modules. We use
 ``ov.convert_model`` function to obtain OpenVINO Intermediate
@@ -343,7 +345,7 @@ Let’s convert models from the pipeline one by one.
 Convert CLIP text encoder
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -375,7 +377,7 @@ Convert CLIP text encoder
 Convert CLIP image encoder
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 ``FrozenOpenCLIPImageEmbedderV2`` model accepts images of various
 resolutions.
 
@@ -440,7 +442,7 @@ resolutions.
 Convert AE encoder
 ~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -469,7 +471,7 @@ Convert AE encoder
 Convert Diffusion U-Net model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -521,7 +523,7 @@ Convert Diffusion U-Net model
 Convert AE decoder
 ~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__ ``Decoder`` receives a
+``Decoder`` receives a
 ``bfloat16`` tensor. numpy doesn’t support this type. To avoid problems
 with the conversion lets replace ``decode`` method to convert bfloat16
 to float32.
@@ -560,7 +562,7 @@ to float32.
 Compiling models
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select device from dropdown list for running inference using OpenVINO.
 
@@ -599,7 +601,7 @@ Select device from dropdown list for running inference using OpenVINO.
 Building the pipeline
 ---------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Let’s create callable wrapper classes for compiled models to allow
 interaction with original pipelines. Note that all of wrapper classes
@@ -700,7 +702,7 @@ And insert wrappers instances in the pipeline:
 Run OpenVINO pipeline inference
 -------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -939,7 +941,7 @@ Run OpenVINO pipeline inference
 Quantization
 ------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding quantization layers into model
@@ -1003,10 +1005,10 @@ Let’s load ``skip magic`` extension to skip quantization if
 Prepare calibration dataset
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We use a portion of
-```jovianzm/Pexels-400k`` <https://huggingface.co/datasets/jovianzm/Pexels-400k>`__
+`jovianzm/Pexels-400k <https://huggingface.co/datasets/jovianzm/Pexels-400k>`__
 dataset from Hugging Face as calibration data.
 
 .. code:: ipython3
@@ -1120,7 +1122,7 @@ To collect intermediate model inputs for calibration we should customize
 Run Quantization
 ~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Quantization of the first and last ``Convolution`` layers impacts the
 generation results. We recommend using ``IgnoredScope`` to keep accuracy
@@ -1175,7 +1177,7 @@ quantization time.
 Run Weights Compression
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Quantizing of the remaining components of the pipeline does not
 significantly improve inference performance but can lead to a
@@ -1216,9 +1218,9 @@ applied to footprint reduction.
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
 
 
 
@@ -1239,9 +1241,9 @@ applied to footprint reduction.
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
 
 
 
@@ -1262,9 +1264,9 @@ applied to footprint reduction.
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
 
 
 
@@ -1285,9 +1287,9 @@ applied to footprint reduction.
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
 
 
 
@@ -1375,7 +1377,7 @@ Let’s run the optimized pipeline
 Compare model file sizes
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -1402,7 +1404,7 @@ Compare model file sizes
 Compare inference time of the FP32 and INT8 models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To measure the inference performance of the ``FP32`` and ``INT8``
 models, we use median inference time on calibration subset.
@@ -1459,7 +1461,7 @@ models, we use median inference time on calibration subset.
 Interactive inference
 ---------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Please select below whether you would like to use the quantized models
 to launch the interactive demo.
@@ -1521,7 +1523,7 @@ to launch the interactive demo.
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 

@@ -22,22 +22,23 @@ card <https://huggingface.co/mistralai/Pixtral-12B-2409>`__
 In this tutorial we consider how to convert, optimize and run this model
 using OpenVINO.
 
-.. container:: alert alert-block alert-warning
+.. warning::
 
    Important note: Please take into account that pixtral is large model.
    Its conversion requires at least 50GB disk space available
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#Prerequisites>`__
--  `Convert and Optimize model <#Convert-and-Optimize-model>`__
--  `Run model inference <#Run-model-inference>`__
+**Table of contents:**
 
-   -  `Select inference device <#Select-inference-device>`__
-   -  `Initialize inference pipeline <#Initialize-inference-pipeline>`__
 
--  `Interactive demo <#Interactive-demo>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Convert and Optimize model <#convert-and-optimize-model>`__
+-  `Run model inference <#run-model-inference>`__
+
+   -  `Select inference device <#select-inference-device>`__
+   -  `Initialize inference pipeline <#initialize-inference-pipeline>`__
+
+-  `Interactive demo <#interactive-demo>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -54,7 +55,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -92,12 +93,12 @@ Prerequisites
 Convert and Optimize model
 --------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For convenience, we will use OpenVINO integration with HuggingFace
-Optimum. 🤗 `Optimum
+Optimum. `Optimum
 Intel <https://huggingface.co/docs/optimum/intel/index>`__ is the
-interface between the 🤗 Transformers and Diffusers libraries and the
+interface between the Transformers and Diffusers libraries and the
 different tools and libraries provided by Intel to accelerate end-to-end
 pipelines on Intel architectures.
 
@@ -462,7 +463,7 @@ documentation <https://huggingface.co/docs/optimum/intel/openvino/export#export-
     /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/pixtral/modeling_pixtral.py:492: TracerWarning: Iterating over a tensor might cause the trace to be incorrect. Passing a tensor of different shape won't change the number of iterations executed (and might lead to errors or silently give incorrect results).
       patch_embeds_list = [self.patch_conv(img.unsqueeze(0).to(self.dtype)) for img in pixel_values]
     /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/dynamic_graph/wrappers.py:85: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
-      op1 = operator(*args, **kwargs)
+      op1 = operator(\*args, \*\*kwargs)
     /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/pixtral/modeling_pixtral.py:448: TracerWarning: Iterating over a tensor might cause the trace to be incorrect. Passing a tensor of different shape won't change the number of iterations executed (and might lead to errors or silently give incorrect results).
       for start, end in zip(block_start_idx, block_end_idx):
     Using framework PyTorch: 2.2.2+cpu
@@ -506,12 +507,12 @@ documentation <https://huggingface.co/docs/optimum/intel/openvino/export#export-
 Run model inference
 -------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -533,7 +534,7 @@ Select inference device
 Initialize inference pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 OpenVINO integration with Optimum Intel provides ready-to-use API for
 model inference that can be used for smooth integration with
@@ -616,7 +617,7 @@ Intel can be found in
 Interactive demo
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -641,7 +642,7 @@ Interactive demo
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 

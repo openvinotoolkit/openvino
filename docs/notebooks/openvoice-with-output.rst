@@ -26,23 +26,24 @@ model <https://github.com/myshell-ai/OpenVoice>`__ to OpenVINO IR. In
 this tutorial we will explore how to convert and run OpenVoice using
 OpenVINO.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+
+**Table of contents:**
+
 
 -  `Clone repository and install
-   requirements <#Clone-repository-and-install-requirements>`__
+   requirements <#clone-repository-and-install-requirements>`__
 -  `Download checkpoints and load PyTorch
-   model <#Download-checkpoints-and-load-PyTorch-model>`__
--  `Convert models to OpenVINO IR <#Convert-models-to-OpenVINO-IR>`__
--  `Inference <#Inference>`__
+   model <#download-checkpoints-and-load-pytorch-model>`__
+-  `Convert models to OpenVINO IR <#convert-models-to-openvino-ir>`__
+-  `Inference <#inference>`__
 
-   -  `Select inference device <#Select-inference-device>`__
-   -  `Select reference tone <#Select-reference-tone>`__
-   -  `Run inference <#Run-inference>`__
+   -  `Select inference device <#select-inference-device>`__
+   -  `Select reference tone <#select-reference-tone>`__
+   -  `Run inference <#run-inference>`__
 
 -  `Run OpenVoice Gradio interactive
-   demo <#Run-OpenVoice-Gradio-interactive-demo>`__
--  `Cleanup <#Cleanup>`__
+   demo <#run-openvoice-gradio-interactive-demo>`__
+-  `Cleanup <#cleanup>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -57,7 +58,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Clone repository and install requirements
 -----------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -125,7 +126,7 @@ Clone repository and install requirements
 Download checkpoints and load PyTorch model
 -------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -269,7 +270,7 @@ True
 Convert models to OpenVINO IR
 -----------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 There are 2 models in OpenVoice: first one is responsible for speech
 generation ``BaseSpeakerTTS`` and the second one ``ToneColorConverter``
@@ -465,9 +466,9 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
 
 
 
@@ -508,21 +509,21 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
 
 
 
 Inference
 ---------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -543,7 +544,7 @@ Select inference device
 Select reference tone
 ~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 First of all, select the reference tone of voice to which the generated
 text will be converted: your can select from existing ones, record your
@@ -704,7 +705,7 @@ Load speaker embeddings
 .. parsed-literal::
 
     /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/nn/modules/module.py:1562: UserWarning: A window was not provided. A rectangular window will be applied,which is known to cause spectral leakage. Other windows such as torch.hann_window or torch.hamming_window can are recommended to reduce spectral leakage.To suppress this warning and use a rectangular window, explicitly set `window=torch.ones(n_fft, device=<device>)`. (Triggered internally at ../aten/src/ATen/native/SpectralOps.cpp:836.)
-      return forward_call(*args, **kwargs)
+      return forward_call(\*args, \*\*kwargs)
 
 
 .. parsed-literal::
@@ -759,7 +760,7 @@ most computationally expensive part is done in OpenVINO.
 Run inference
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -898,7 +899,7 @@ And finally, run voice tone conversion with OpenVINO optimized model
 Run OpenVoice Gradio interactive demo
 -------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We can also use `Gradio <https://www.gradio.app/>`__ app to run TTS and
 voice tone conversion online.
@@ -1089,9 +1090,9 @@ voice tone conversion online.
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="1000" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 
 
 .. code:: ipython3
@@ -1102,7 +1103,7 @@ voice tone conversion online.
 Cleanup
 -------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 

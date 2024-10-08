@@ -24,25 +24,26 @@ and labels. In this tutorial, we will use the
 `SigLIP <https://huggingface.co/docs/transformers/main/en/model_doc/siglip>`__
 model to perform zero-shot image classification.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
 
--  `Instantiate model <#Instantiate-model>`__
--  `Run PyTorch model inference <#Run-PyTorch-model-inference>`__
+**Table of contents:**
+
+
+-  `Instantiate model <#instantiate-model>`__
+-  `Run PyTorch model inference <#run-pytorch-model-inference>`__
 -  `Convert model to OpenVINO Intermediate Representation (IR)
-   format <#Convert-model-to-OpenVINO-Intermediate-Representation-(IR)-format>`__
--  `Run OpenVINO model <#Run-OpenVINO-model>`__
+   format <#convert-model-to-openvino-intermediate-representation-ir-format>`__
+-  `Run OpenVINO model <#run-openvino-model>`__
 -  `Apply post-training quantization using
-   NNCF <#Apply-post-training-quantization-using-NNCF>`__
+   NNCF <#apply-post-training-quantization-using-nncf>`__
 
-   -  `Prepare dataset <#Prepare-dataset>`__
-   -  `Quantize model <#Quantize-model>`__
-   -  `Run quantized OpenVINO model <#Run-quantized-OpenVINO-model>`__
-   -  `Compare File Size <#Compare-File-Size>`__
+   -  `Prepare dataset <#prepare-dataset>`__
+   -  `Quantize model <#quantize-model>`__
+   -  `Run quantized OpenVINO model <#run-quantized-openvino-model>`__
+   -  `Compare File Size <#compare-file-size>`__
    -  `Compare inference time of the FP16 IR and quantized
-      models <#Compare-inference-time-of-the-FP16-IR-and-quantized-models>`__
+      models <#compare-inference-time-of-the-fp16-ir-and-quantized-models>`__
 
--  `Interactive inference <#Interactive-inference>`__
+-  `Interactive inference <#interactive-inference>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -60,7 +61,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Instantiate model
 -----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The SigLIP model was proposed in `Sigmoid Loss for Language Image
 Pre-Training <https://arxiv.org/abs/2303.15343>`__. SigLIP proposes to
@@ -134,7 +135,7 @@ tokenizer and preparing the images.
 Run PyTorch model inference
 ---------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To perform classification, define labels and load an image in RGB
 format. To give the model wider text context and improve guidance, we
@@ -238,7 +239,7 @@ similarity score for the final result.
 Convert model to OpenVINO Intermediate Representation (IR) format
 -----------------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For best results with OpenVINO, it is recommended to convert the model
 to OpenVINO IR format. OpenVINO supports PyTorch via Model conversion
@@ -271,7 +272,7 @@ object ready to load on the device and start making predictions.
 Run OpenVINO model
 ------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The steps for making predictions with the OpenVINO SigLIP model are
 similar to the PyTorch model. Let us check the model result using the
@@ -337,7 +338,7 @@ Great! Looks like we got the same result.
 Apply post-training quantization using NNCF
 -------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding the quantization layers into the
@@ -355,7 +356,7 @@ The optimization process contains the following steps:
 Prepare dataset
 ~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The `Conceptual
 Captions <https://ai.google.com/research/ConceptualCaptions/>`__ dataset
@@ -484,7 +485,7 @@ model.
 Quantize model
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Create a quantized model from the pre-trained ``FP16`` model.
 
@@ -521,22 +522,9 @@ Create a quantized model from the pre-trained ``FP16`` model.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
-
-.. parsed-literal::
-
-    Output()
-
-
-
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
@@ -547,9 +535,9 @@ Create a quantized model from the pre-trained ``FP16`` model.
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
 
 
 
@@ -560,9 +548,22 @@ Create a quantized model from the pre-trained ``FP16`` model.
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
+
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
 
 
 
@@ -574,7 +575,7 @@ in the NNCF repository for more information.
 Run quantized OpenVINO model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The steps for making predictions with the quantized OpenVINO SigLIP
 model are similar to the PyTorch model.
@@ -619,7 +620,7 @@ model are similar to the PyTorch model.
 Compare File Size
 ~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -648,7 +649,7 @@ Compare File Size
 Compare inference time of the FP16 IR and quantized models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To measure the inference performance of the ``FP16`` and ``INT8``
 models, we use median inference time on calibration dataset. So we can
@@ -690,7 +691,7 @@ approximately estimate the speed up of the dynamic quantized models.
 Interactive inference
 ---------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now, it is your turn! You can provide your own image and comma-separated
 list of labels for zero-shot classification. Feel free to upload an
@@ -749,7 +750,7 @@ field, using comma as the separator (for example, ``cat,dog,bird``)
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="1000" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 

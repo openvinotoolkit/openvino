@@ -1,7 +1,7 @@
 OpenVINO™ Explainable AI Toolkit (2/3): Deep Dive
 =================================================
 
-.. container:: alert alert-block alert-danger
+.. warning::
 
    Important note: This notebook requires python >= 3.10. Please make
    sure that your environment fulfill to this requirement before running
@@ -12,11 +12,11 @@ Explainable AI
 (XAI) <https://github.com/openvinotoolkit/openvino_xai/>`__:
 
 1. `OpenVINO™ Explainable AI Toolkit (1/3):
-   Basic <../explainable-ai-1-basic/README.md>`__
+   Basic <explainable-ai-1-basic-with-output.html>`__
 2. `OpenVINO™ Explainable AI Toolkit (2/3): Deep
-   Dive <../explainable-ai-2-deep-dive/README.md>`__
+   Dive <explainable-ai-2-deep-dive-with-output.html>`__
 3. `OpenVINO™ Explainable AI Toolkit (3/3): Saliency map
-   interpretation <../explainable-ai-3-map-interpretation/README.md>`__
+   interpretation <explainable-ai-3-map-interpretation-with-output.html>`__
 
 `OpenVINO™ Explainable AI
 (XAI) <https://github.com/openvinotoolkit/openvino_xai/>`__ provides a
@@ -44,43 +44,44 @@ By using the OpenVINO XAI ``Explainer``, we can visualize why the model
 gives such responses, meaning on which areas it focused before
 predicting a particular label.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#Prerequisites>`__
+**Table of contents:**
 
-   -  `Install requirements <#Install-requirements>`__
-   -  `Imports <#Imports>`__
-   -  `Download IR model <#Download-IR-model>`__
-   -  `Load the Image <#Load-the-Image>`__
+
+-  `Prerequisites <#prerequisites>`__
+
+   -  `Install requirements <#install-requirements>`__
+   -  `Imports <#imports>`__
+   -  `Download IR model <#download-ir-model>`__
+   -  `Load the Image <#load-the-image>`__
    -  `Preprocess image for
-      MobileNet <#Preprocess-image-for-MobileNet>`__
+      MobileNet <#preprocess-image-for-mobilenet>`__
 
 -  `Basic usage: Auto mode
-   explainer <#Basic-usage:-Auto-mode-explainer>`__
+   explainer <#basic-usage-auto-mode-explainer>`__
 
-   -  `Create Explainer <#Create-Explainer>`__
-   -  `Do explanation <#Do-explanation>`__
-   -  `Visualize saliency maps <#Visualize-saliency-maps>`__
-   -  `Save saliency maps <#Save-saliency-maps>`__
+   -  `Create Explainer <#create-explainer>`__
+   -  `Do explanation <#do-explanation>`__
+   -  `Visualize saliency maps <#visualize-saliency-maps>`__
+   -  `Save saliency maps <#save-saliency-maps>`__
    -  `Return saliency maps for all
-      classes <#Return-saliency-maps-for-all-classes>`__
+      classes <#return-saliency-maps-for-all-classes>`__
 
 -  `Pre- and post-process
-   functions <#Pre--and-post-process-functions>`__
--  `Visualization Parameters <#Visualization-Parameters>`__
--  `White-box explainer <#White-Box-explainer>`__
+   functions <#pre--and-post-process-functions>`__
+-  `Visualization Parameters <#visualization-parameters>`__
+-  `White-box explainer <#white-box-explainer>`__
 
-   -  `ReciproCAM explain method <#ReciproCAM-explain-method>`__
-   -  `Insert XAI branch <#Insert-XAI-branch>`__
-   -  `Insertion-related parameters <#Insertion-related-parameters>`__
+   -  `ReciproCAM explain method <#reciprocam-explain-method>`__
+   -  `Insert XAI branch <#insert-xai-branch>`__
+   -  `Insertion-related parameters <#insertion-related-parameters>`__
 
--  `Black-box explainer <#Black-Box-explainer>`__
--  `Advanced <#Advanced>`__
+-  `Black-box explainer <#black-box-explainer>`__
+-  `Advanced <#advanced>`__
 
    -  `Import ImageNet label names and add them to saliency
-      maps <#Import-ImageNet-label-names-and-add-them-to-saliency-maps>`__
-   -  `Activation map explain method <#Activation-map-explain-method>`__
+      maps <#import-imagenet-label-names-and-add-them-to-saliency-maps>`__
+   -  `Activation map explain method <#activation-map-explain-method>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -95,12 +96,12 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Install requirements
 ~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -121,7 +122,7 @@ Install requirements
 Imports
 ~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -151,7 +152,7 @@ Imports
 Download IR model
 ~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 In this notebook for demonstration purposes we’ll use an already
 converted to IR model from OpenVINO storage.
@@ -183,7 +184,7 @@ converted to IR model from OpenVINO storage.
 Load the Image
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -204,13 +205,13 @@ Load the Image
     
 
 
-.. image:: explainable-ai-2-deep-dive-with-output_files%5Cexplainable-ai-2-deep-dive-with-output_10_1.png
+.. image:: explainable-ai-2-deep-dive-with-output_files/explainable-ai-2-deep-dive-with-output_10_1.png
 
 
 Preprocess image for MobileNet
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -222,13 +223,13 @@ Preprocess image for MobileNet
 Basic usage: Auto mode explainer
 --------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The easiest way to run the explainer is to do it in Auto mode. Under the
 hood of Auto mode, it will first try to run the ``White-Box`` mode. If
 this fails, it will then run the ``Black-Box`` mode. See more details
-about `White-Box <#White-Box-explainer>`__ and
-`Black-Box <#Black-Box-explainer>`__ modes below.
+about `White-Box <#white-box-explainer>`__ and
+`Black-Box <#black-box-explainer>`__ modes below.
 
 | Generating saliency maps involves model inference. The explainer will
   perform model inference, but to do so, it requires ``preprocess_fn``
@@ -240,13 +241,13 @@ about `White-Box <#White-Box-explainer>`__ and
   model.
 
 To learn more about pre- and post-process functions, refer to the `Pre-
-and post-process functions <#Pre--and-post-process-functions>`__
+and post-process functions <#pre--and-post-process-functions>`__
 section.
 
 Create Explainer
 ~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -271,7 +272,7 @@ Create Explainer
 Do explanation
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The predicted label for this image is ``flat-coated_retriever`` with
 label index ``206``. So here and further we will check saliency maps for
@@ -294,7 +295,7 @@ this index.
 Visualize saliency maps
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -318,13 +319,13 @@ Visualize saliency maps
     
 
 
-.. image:: explainable-ai-2-deep-dive-with-output_files%5Cexplainable-ai-2-deep-dive-with-output_21_1.png
+.. image:: explainable-ai-2-deep-dive-with-output_files/explainable-ai-2-deep-dive-with-output_21_1.png
 
 
 Save saliency maps
 ~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -341,13 +342,13 @@ Save saliency maps
 
 
 
-.. image:: explainable-ai-2-deep-dive-with-output_files%5Cexplainable-ai-2-deep-dive-with-output_24_0.png
+.. image:: explainable-ai-2-deep-dive-with-output_files/explainable-ai-2-deep-dive-with-output_24_0.png
 
 
 Return saliency maps for all classes
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -367,7 +368,7 @@ Return saliency maps for all classes
 Pre- and post-process functions
 -------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The explainer can apply pre-processing internally during model
 inference, allowing you to provide a raw image as input to the
@@ -426,7 +427,7 @@ reference).
 Visualization Parameters
 ------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 -  resize (True by default): If True, resize saliency map to the input
    image size.
@@ -471,7 +472,7 @@ Visualization Parameters
     
 
 
-.. image:: explainable-ai-2-deep-dive-with-output_files%5Cexplainable-ai-2-deep-dive-with-output_32_1.png
+.. image:: explainable-ai-2-deep-dive-with-output_files/explainable-ai-2-deep-dive-with-output_32_1.png
 
 
 .. code:: ipython3
@@ -492,7 +493,7 @@ Visualization Parameters
 
 
 
-.. image:: explainable-ai-2-deep-dive-with-output_files%5Cexplainable-ai-2-deep-dive-with-output_33_0.png
+.. image:: explainable-ai-2-deep-dive-with-output_files/explainable-ai-2-deep-dive-with-output_33_0.png
 
 
 .. code:: ipython3
@@ -514,18 +515,18 @@ Visualization Parameters
 
 
 
-.. image:: explainable-ai-2-deep-dive-with-output_files%5Cexplainable-ai-2-deep-dive-with-output_34_0.png
+.. image:: explainable-ai-2-deep-dive-with-output_files/explainable-ai-2-deep-dive-with-output_34_0.png
 
 
 White-Box explainer
 -------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 ReciproCAM explain method
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The White-Box explainer treats the model as a white box and needs to
 make inner modifications. It adds extra XAI nodes after the backbone to
@@ -563,7 +564,7 @@ It works quickly and precisely, requiring only one model inference.
 Insert XAI branch
 ~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 It’s possible to update the model with an XAI branch using the
 ``insert_xai`` functional API.
@@ -600,7 +601,7 @@ environment.
 Insertion-related parameters
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 If automatic search for correct node fails, you can set up a correct
 node manually with ``target_layer`` argument. For classification it’s
@@ -640,7 +641,7 @@ visualize saliency maps right away without further postprocessing.
 Black-Box explainer
 -------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The Black-Box method treats the model as a black box without altering
 its structure. Therefore, this method will work on any model that can be
@@ -697,7 +698,7 @@ inferences (defaulting to 5000) to generate a high-quality saliency map.
 
 
 
-.. image:: explainable-ai-2-deep-dive-with-output_files%5Cexplainable-ai-2-deep-dive-with-output_45_0.png
+.. image:: explainable-ai-2-deep-dive-with-output_files/explainable-ai-2-deep-dive-with-output_45_0.png
 
 
 For the ``Black-Box explainer``, the number of masks and cells is
@@ -715,12 +716,12 @@ more effective for classes with complex shapes.
 Advanced
 --------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Import ImageNet label names and add them to saliency maps
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 If ``label_names`` are not provided to the explainer call, the saved
 saliency map will have the predicted class index, not the name. For
@@ -818,7 +819,7 @@ saliency maps with label name on it:
 Activation map explain method
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The Activation Map method shows a general attention map without respect
 to specific classes. It can be useful for understanding which areas the
@@ -854,5 +855,5 @@ saliency maps for each class, the activation map is returned as
     
 
 
-.. image:: explainable-ai-2-deep-dive-with-output_files%5Cexplainable-ai-2-deep-dive-with-output_57_1.png
+.. image:: explainable-ai-2-deep-dive-with-output_files/explainable-ai-2-deep-dive-with-output_57_1.png
 

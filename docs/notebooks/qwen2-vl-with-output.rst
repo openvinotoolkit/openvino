@@ -55,23 +55,24 @@ In this tutorial we consider how to convert and optimize Qwen2VL model
 for creating multimodal chatbot. Additionally, we demonstrate how to
 apply stateful transformation on LLM part and model optimization
 techniques like weights compression using
-`NNCF <https://github.com/openvinotoolkit/nncf>`__ #### Table of
-contents:
+`NNCF <https://github.com/openvinotoolkit/nncf>`__
 
--  `Prerequisites <#Prerequisites>`__
--  `Select model <#Select-model>`__
--  `Convert and Optimize model <#Convert-and-Optimize-model>`__
+**Table of contents:**
+
+-  `Prerequisites <#prerequisites>`__
+-  `Select model <#select-model>`__
+-  `Convert and Optimize model <#convert-and-optimize-model>`__
 
    -  `Compress model weights to
-      4-bit <#Compress-model-weights-to-4-bit>`__
+      4-bit <#compress-model-weights-to-4-bit>`__
 
 -  `Prepare model inference
-   pipeline <#Prepare-model-inference-pipeline>`__
+   pipeline <#prepare-model-inference-pipeline>`__
 
-   -  `Select inference device <#Select-inference-device>`__
+   -  `Select inference device <#select-inference-device>`__
 
--  `Run model inference <#Run-model-inference>`__
--  `Interactive Demo <#Interactive-Demo>`__
+-  `Run model inference <#run-model-inference>`__
+-  `Interactive Demo <#interactive-demo>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -86,7 +87,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -104,11 +105,11 @@ Prerequisites
 
     from pathlib import Path
     import requests
-    
+
     if not Path("ov_qwen2_vl.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/qwen2-vl/ov_qwen2_vl.py")
         open("ov_qwen2_vl.py", "w").write(r.text)
-    
+
     if not Path("notebook_utils.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py")
         open("notebook_utils.py", "w").write(r.text)
@@ -116,7 +117,7 @@ Prerequisites
 Select model
 ------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 There are multiple Qwen2VL models available in `models
 collection <https://huggingface.co/collections/OpenGVLab/internvl-20-667d3961ab5eb12c7ed1463e>`__.
@@ -126,9 +127,9 @@ using widget bellow:
 .. code:: ipython3
 
     from ov_qwen2_vl import model_selector
-    
+
     model_id = model_selector()
-    
+
     model_id
 
 
@@ -168,7 +169,7 @@ using widget bellow:
 Convert and Optimize model
 --------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Qwen2VL is PyTorch model. OpenVINO supports PyTorch models via
 conversion to OpenVINO Intermediate Representation (IR). `OpenVINO model
@@ -236,7 +237,7 @@ To sum up above, model consists of 4 parts:
 Compress model weights to 4-bit
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__ For reducing memory
+For reducing memory
 consumption, weights compression optimization can be applied using
 `NNCF <https://github.com/openvinotoolkit/nncf>`__.
 
@@ -286,20 +287,20 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 .. code:: ipython3
 
     from ov_qwen2_vl import convert_qwen2vl_model
-    
+
     # uncomment these lines to see model conversion code
     # convert_qwen2vl_model??
 
 .. code:: ipython3
 
     import nncf
-    
+
     compression_configuration = {
         "mode": nncf.CompressWeightsMode.INT4_ASYM,
         "group_size": 128,
         "ratio": 1.0,
     }
-    
+
     convert_qwen2vl_model(pt_model_id, model_dir, compression_configuration)
 
 
@@ -365,9 +366,9 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
 
 
 
@@ -409,9 +410,9 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
 
 
 
@@ -424,13 +425,13 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 Prepare model inference pipeline
 --------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 As discussed, the model comprises Image Encoder and LLM (with separated
 text embedding part) that generates answer. In ``ov_qwen2_vl.py`` we
 defined inference class ``OVQwen2VLModel`` that will represent
 generation cycle, It is based on `HuggingFace Transformers
-``GenerationMixin`` <https://huggingface.co/docs/transformers/main_classes/text_generation>`__
+GenerationMixin <https://huggingface.co/docs/transformers/main_classes/text_generation>`__
 and looks similar to `Optimum
 Intel <https://huggingface.co/docs/optimum/intel/index>`__
 ``OVModelForCausalLM`` that is used for LLM inference.
@@ -438,21 +439,21 @@ Intel <https://huggingface.co/docs/optimum/intel/index>`__
 .. code:: ipython3
 
     from ov_qwen2_vl import OVQwen2VLModel
-    
+
     # Uncomment below lines to see the model inference class code
     # OVQwen2VLModel??
 
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     from notebook_utils import device_widget
-    
+
     device = device_widget(default="AUTO", exclude=["NPU"])
-    
+
     device
 
 
@@ -471,7 +472,7 @@ Select inference device
 Run model inference
 -------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -479,25 +480,25 @@ Run model inference
     from transformers import AutoProcessor, AutoTokenizer
     from qwen_vl_utils import process_vision_info
     from transformers import TextStreamer
-    
-    
+
+
     min_pixels = 256 * 28 * 28
     max_pixels = 1280 * 28 * 28
     processor = AutoProcessor.from_pretrained(model_dir, min_pixels=min_pixels, max_pixels=max_pixels)
-    
+
     if processor.chat_template is None:
         tok = AutoTokenizer.from_pretrained(model_dir)
         processor.chat_template = tok.chat_template
-    
+
     example_image_url = "https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen-VL/assets/demo.jpeg"
     example_image_path = Path("demo.jpeg")
-    
+
     if not example_image_path.exists():
         Image.open(requests.get(example_image_url, stream=True).raw).save(example_image_path)
-    
+
     image = Image.open(example_image_path)
     question = "Describe this image."
-    
+
     messages = [
         {
             "role": "user",
@@ -510,7 +511,7 @@ Run model inference
             ],
         }
     ]
-    
+
     # Preparation for inference
     text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
     image_inputs, video_inputs = process_vision_info(messages)
@@ -521,12 +522,12 @@ Run model inference
         padding=True,
         return_tensors="pt",
     )
-    
+
     display(image)
     print("Question:")
     print(question)
     print("Answer:")
-    
+
     generated_ids = model.generate(**inputs, max_new_tokens=100, streamer=TextStreamer(processor.tokenizer, skip_prompt=True, skip_special_tokens=True))
 
 
@@ -556,7 +557,7 @@ Run model inference
 Interactive Demo
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now, you can try to chat with model. Upload image or video using
 ``Upload`` button, provide your text message into ``Input`` field and
@@ -565,10 +566,10 @@ click ``Submit`` to start communication.
 .. code:: ipython3
 
     from gradio_helper import make_demo
-    
-    
+
+
     demo = make_demo(model, processor)
-    
+
     try:
         demo.launch(debug=False)
     except Exception:
@@ -581,12 +582,12 @@ click ``Submit`` to start communication.
 .. parsed-literal::
 
     Running on local URL:  http://127.0.0.1:7860
-    
+
     To create a public link, set `share=True` in `launch()`.
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 

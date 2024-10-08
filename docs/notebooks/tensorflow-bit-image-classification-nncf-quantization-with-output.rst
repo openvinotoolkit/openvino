@@ -13,25 +13,26 @@ achieves excellent performance on a wide variety of tasks, even when
 using very few labeled examples from the target dataset. This tutorial
 uses OpenVINO backend for performing model quantization in NNCF.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
 
--  `Prepare Dataset <#Prepare-Dataset>`__
--  `Plotting data samples <#Plotting-data-samples>`__
--  `Model Fine-tuning <#Model-Fine-tuning>`__
+**Table of contents:**
+
+
+-  `Prepare Dataset <#prepare-dataset>`__
+-  `Plotting data samples <#plotting-data-samples>`__
+-  `Model Fine-tuning <#model-fine-tuning>`__
 -  `Perform model optimization (IR)
-   step <#Perform-model-optimization-(IR)-step>`__
+   step <#perform-model-optimization-ir-step>`__
 -  `Compute accuracy of the TF
-   model <#Compute-accuracy-of-the-TF-model>`__
+   model <#compute-accuracy-of-the-tf-model>`__
 -  `Compute accuracy of the OpenVINO
-   model <#Compute-accuracy-of-the-OpenVINO-model>`__
+   model <#compute-accuracy-of-the-openvino-model>`__
 -  `Quantize OpenVINO model using
-   NNCF <#Quantize-OpenVINO-model-using-NNCF>`__
+   NNCF <#quantize-openvino-model-using-nncf>`__
 -  `Compute accuracy of the quantized
-   model <#Compute-accuracy-of-the-quantized-model>`__
--  `Compare FP32 and INT8 accuracy <#Compare-FP32-and-INT8-accuracy>`__
+   model <#compute-accuracy-of-the-quantized-model>`__
+-  `Compare FP32 and INT8 accuracy <#compare-fp32-and-int8-accuracy>`__
 -  `Compare inference results on one
-   picture <#Compare-inference-results-on-one-picture>`__
+   picture <#compare-inference-results-on-one-picture>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -115,7 +116,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prepare Dataset
 ~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -179,7 +180,7 @@ Prepare Dataset
 Plotting data samples
 ~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -208,7 +209,7 @@ Plotting data samples
     
 
 
-.. image:: tensorflow-bit-image-classification-nncf-quantization-with-output_files%5Ctensorflow-bit-image-classification-nncf-quantization-with-output_9_1.png
+.. image:: tensorflow-bit-image-classification-nncf-quantization-with-output_files/tensorflow-bit-image-classification-nncf-quantization-with-output_9_1.png
 
 
 .. code:: ipython3
@@ -236,13 +237,13 @@ Plotting data samples
     
 
 
-.. image:: tensorflow-bit-image-classification-nncf-quantization-with-output_files%5Ctensorflow-bit-image-classification-nncf-quantization-with-output_10_1.png
+.. image:: tensorflow-bit-image-classification-nncf-quantization-with-output_files/tensorflow-bit-image-classification-nncf-quantization-with-output_10_1.png
 
 
 Model Fine-tuning
 ~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -279,7 +280,7 @@ Model Fine-tuning
 Perform model optimization (IR) step
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -300,7 +301,7 @@ Perform model optimization (IR) step
 Compute accuracy of the TF model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -338,7 +339,7 @@ Compute accuracy of the TF model
 Compute accuracy of the OpenVINO model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select device for inference:
 
@@ -375,7 +376,7 @@ Select device for inference:
 Quantize OpenVINO model using NNCF
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Model Quantization using NNCF
 
@@ -411,17 +412,17 @@ Model Quantization using NNCF
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
     
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
     
 
 
@@ -432,24 +433,24 @@ Model Quantization using NNCF
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
     
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
     
 
 
 Compute accuracy of the quantized model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -477,7 +478,7 @@ Compute accuracy of the quantized model
 Compare FP32 and INT8 accuracy
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -499,7 +500,7 @@ Compare FP32 and INT8 accuracy
 Compare inference results on one picture
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -568,5 +569,5 @@ Compare inference results on one picture
     
 
 
-.. image:: tensorflow-bit-image-classification-nncf-quantization-with-output_files%5Ctensorflow-bit-image-classification-nncf-quantization-with-output_27_1.png
+.. image:: tensorflow-bit-image-classification-nncf-quantization-with-output_files/tensorflow-bit-image-classification-nncf-quantization-with-output_27_1.png
 
