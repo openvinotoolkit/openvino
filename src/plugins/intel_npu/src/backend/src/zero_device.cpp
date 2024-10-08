@@ -14,8 +14,8 @@
 
 using namespace intel_npu;
 
-ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs)
-    : _initStructs(initStructs),
+ZeroDevice::ZeroDevice(std::shared_ptr<ZeroInitStructsHolder> initStructs)
+    : _initStructs(std::move(initStructs)),
       _graph_ddi_table_ext(_initStructs->getGraphDdiTable()),
       log("ZeroDevice", Logger::global().level()) {
     log.debug("ZeroDevice::ZeroDevice init");
@@ -85,9 +85,8 @@ ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs
     log.debug("ZeroDevice::ZeroDevice - init completed");
 }
 
-std::shared_ptr<IExecutor> ZeroDevice::createExecutor(
-    const std::shared_ptr<const NetworkDescription>& networkDescription,
-    const Config& config) {
+std::shared_ptr<IExecutor> ZeroDevice::createExecutor(const NetworkDescription& networkDescription,
+                                                      const Config& config) {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Device::createExecutor");
     return std::make_shared<ZeroExecutor>(_initStructs, networkDescription, config, _group_ordinal);
 }
@@ -167,11 +166,9 @@ ov::device::Type ZeroDevice::getDeviceType() const {
     return ov::device::Type::INTEGRATED;
 }
 
-std::shared_ptr<SyncInferRequest> ZeroDevice::createInferRequest(
-    const std::shared_ptr<const ICompiledModel>& compiledModel,
-    const std::shared_ptr<IExecutor>& executor,
-    const Config& config) {
-    return std::make_shared<ZeroInferRequest>(_initStructs, compiledModel, executor, config);
+std::shared_ptr<SyncInferRequest> ZeroDevice::createInferRequest(std::shared_ptr<const ICompiledModel> compiledModel,
+                                                                 const Config& config) {
+    return std::make_shared<ZeroInferRequest>(_initStructs, std::move(compiledModel), config);
 }
 
 ov::SoPtr<ov::IRemoteTensor> ZeroDevice::createRemoteTensor(std::shared_ptr<ov::IRemoteContext> context,
@@ -182,12 +179,12 @@ ov::SoPtr<ov::IRemoteTensor> ZeroDevice::createRemoteTensor(std::shared_ptr<ov::
                                                             ov::intel_npu::MemType mem_type,
                                                             void* mem) {
     return {std::make_shared<
-        ZeroRemoteTensor>(context, _initStructs, element_type, shape, config, tensor_type, mem_type, mem)};
+        ZeroRemoteTensor>(std::move(context), _initStructs, element_type, shape, config, tensor_type, mem_type, mem)};
 };
 
 ov::SoPtr<ov::ITensor> ZeroDevice::createHostTensor(std::shared_ptr<ov::IRemoteContext> context,
                                                     const ov::element::Type& element_type,
                                                     const ov::Shape& shape,
                                                     const Config& config) {
-    return {std::make_shared<ZeroHostTensor>(context, _initStructs, element_type, shape, config)};
+    return {std::make_shared<ZeroHostTensor>(std::move(context), _initStructs, element_type, shape, config)};
 };

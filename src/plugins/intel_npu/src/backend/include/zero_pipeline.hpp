@@ -21,13 +21,14 @@ struct TensorData {
 struct Pipeline {
 public:
     Pipeline(const Config& config,
-             const std::shared_ptr<const IExecutor>& executorPtr,
+             ZeroExecutor& executor,
+             ZeroInitStructsHolder& initStructs,
              zeroProfiling::ProfilingPool& profiling_pool,
              zeroProfiling::ProfilingQuery& profiling_query,
              std::shared_ptr<zeroProfiling::NpuInferProfiling> npu_profiling,
              const std::vector<std::optional<TensorData>>& inputTensorsData,
              const std::vector<std::optional<TensorData>>& outputTensorsData,
-             const size_t numberOfCommandLists);
+             size_t numberOfCommandLists);
 
     Pipeline(const Pipeline&) = delete;
     Pipeline& operator=(const Pipeline&) = delete;
@@ -41,7 +42,6 @@ public:
 
 protected:
     const Config _config;
-    const ZeroExecutor* _executor;
     CommandQueue& _command_queue;
     std::vector<std::unique_ptr<CommandList>> _command_lists;
     std::vector<std::unique_ptr<Fence>> _fences;

@@ -21,14 +21,13 @@
 
 using namespace intel_npu;
 
-ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& initStructs,
-                           const std::shared_ptr<const NetworkDescription>& networkDescription,
+ZeroExecutor::ZeroExecutor(std::shared_ptr<const ZeroInitStructsHolder> initStructs,
+                           const NetworkDescription& networkDescription,
                            const Config& config,
                            const uint32_t& group_ordinal)
     : _config(config),
       _logger("Graph", _config.get<LOG_LEVEL>()),
-      _initStructs(initStructs),
-      _networkDesc(networkDescription),
+      _initStructs(std::move(initStructs)),
       _graph_ddi_table_ext(_initStructs->getGraphDdiTable()),
       _group_ordinal(group_ordinal),
       _command_queues{std::make_shared<CommandQueue>(_initStructs->getDevice(),
@@ -59,13 +58,13 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& i
 
     // _graph is a nullptr for CIP path, a new handle will be obtained from the driver based on the given
     // compiledNetwork _graph gets (reuses) graphHandle from the compiler for CID path
-    if (_networkDesc->metadata.graphHandle == nullptr) {
+    if (networkDescription.metadata.graphHandle == nullptr) {
         _logger.debug("create graph handle on executor");
         ze_graph_desc_t desc{ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
                              nullptr,
                              ZE_GRAPH_FORMAT_NATIVE,
-                             _networkDesc->compiledNetwork.size(),
-                             _networkDesc->compiledNetwork.data(),
+                             networkDescription.compiledNetwork.size(),
+                             networkDescription.compiledNetwork.data(),
                              nullptr};
 
         zeroUtils::throwOnFail(
@@ -74,17 +73,12 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& i
 
     } else {
         _logger.debug("reuse graph handle created from compiler");
-        _graph = static_cast<ze_graph_handle_t>(_networkDesc->metadata.graphHandle);
+        _graph = static_cast<ze_graph_handle_t>(networkDescription.metadata.graphHandle);
     }
 
     OV_ITT_TASK_NEXT(ZERO_EXECUTOR_GRAPH, "pfnGetProperties");
     _logger.debug("performing pfnGetProperties");
     zeroUtils::throwOnFail("pfnGetProperties", _graph_ddi_table_ext.pfnGetProperties(_graph, &_props));
-    auto targetDriverExtVersion = _graph_ddi_table_ext.version();
-    if (targetDriverExtVersion <= ZE_GRAPH_EXT_VERSION_1_1) {
-        OPENVINO_THROW("Incompatibility between the NPU plugin and driver! The driver version is too old, please "
-                       "update the driver version");
-    }
 
     OV_ITT_TASK_NEXT(ZERO_EXECUTOR_GRAPH, "pfnGetArgumentProperties3");
     _logger.debug("performing pfnGetArgumentProperties3");
@@ -118,7 +112,7 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& i
     }
 }
 
-void ZeroExecutor::setWorkloadType(const ov::WorkloadType workloadType) const {
+void ZeroExecutor::setWorkloadType(ov::WorkloadType workloadType) const {
     ze_command_queue_workload_type_t zeWorkloadType;
     switch (workloadType) {
     case ov::WorkloadType::DEFAULT:

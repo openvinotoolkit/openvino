@@ -139,24 +139,21 @@ std::optional<size_t> ZeroInferRequest::getBatchSize(const NetworkMetadata& meta
 }
 
 //------------------------------------------------------------------------------
-ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
-                                   const std::shared_ptr<const ICompiledModel>& compiledModel,
-                                   const std::shared_ptr<const IExecutor>& executor,
+ZeroInferRequest::ZeroInferRequest(std::shared_ptr<ZeroInitStructsHolder> initStructs,
+                                   std::shared_ptr<const ICompiledModel> compiledModel,
                                    const Config& config)
     : SyncInferRequest(compiledModel),
-      _initStructs(initStructs),
-      _executorPtr(executor),
-      _executor(static_cast<const ZeroExecutor*>(_executorPtr.get())),
+      _initStructs(std::move(initStructs)),
+      _compiledModel(std::move(compiledModel)),
+      _executor(static_cast<ZeroExecutor*>(&_compiledModel->get_executor())),
       _config(config),
       _logger("ZeroInferRequest", config.get<LOG_LEVEL>()),
       _levelZeroInputTensors(_metadata.inputs.size(), nullptr),
       _levelZeroOutputTensors(_metadata.outputs.size(), nullptr),
       _inputTensorsData(_metadata.inputs.size(), std::nullopt),
       _outputTensorsData(_metadata.outputs.size(), std::nullopt),
-      _profilingPool(_executor->graph(), zeroProfiling::POOL_SIZE, _executor->getInitStructs()->getProfilingDdiTable()),
-      _profilingQuery(0,
-                      _executor->getInitStructs()->getDevice(),
-                      _executor->getInitStructs()->getProfilingDdiTable()) {
+      _profilingPool(_executor->graph(), zeroProfiling::POOL_SIZE, _initStructs->getProfilingDdiTable()),
+      _profilingQuery(0, _initStructs->getDevice(), _initStructs->getProfilingDdiTable()) {
     _logger.debug("ZeroInferRequest::ZeroInferRequest - SyncInferRequest");
     const std::vector<ZeroExecutor::ArgumentDescriptor>& executorInputDescriptors = _executor->get_input_descriptors();
     const std::vector<ZeroExecutor::ArgumentDescriptor>& executorOutputDescriptors =
@@ -165,14 +162,13 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
     auto proftype = config.get<PROFILING_TYPE>();
     if (proftype == ov::intel_npu::ProfilingType::INFER) {
         _logger.debug("ZeroInferRequest::ZeroInferRequest - profiling type == ov::intel_npu::ProfilingType::INFER");
-        _npuProfiling = std::make_shared<zeroProfiling::NpuInferProfiling>(_executor->getInitStructs()->getContext(),
-                                                                           _executor->getInitStructs()->getDevice(),
+        _npuProfiling = std::make_shared<zeroProfiling::NpuInferProfiling>(_initStructs->getContext(),
+                                                                           _initStructs->getDevice(),
                                                                            _config.get<LOG_LEVEL>());
     }
 
     _properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
-    zeroUtils::throwOnFail("zeDeviceGetProperties",
-                           zeDeviceGetProperties(_executor->getInitStructs()->getDevice(), &_properties));
+    zeroUtils::throwOnFail("zeDeviceGetProperties", zeDeviceGetProperties(_initStructs->getDevice(), &_properties));
 
     _outputAllocator = std::make_shared<const zeroMemory::HostMemAllocator>(_initStructs);
     _inputAllocator =
@@ -259,7 +255,8 @@ void ZeroInferRequest::create_pipeline() {
     // Construct pipeline
 
     _pipeline = std::make_unique<Pipeline>(_config,
-                                           _executorPtr,
+                                           *_executor,
+                                           *_initStructs,
                                            _profilingPool,
                                            _profilingQuery,
                                            _npuProfiling,
@@ -596,10 +593,10 @@ std::vector<ov::ProfilingInfo> ZeroInferRequest::get_profiling_info() const {
         // processing to the compiler
         const auto& networkDesc = compiledModel.get_network_description();
         const auto& compiler = compiledModel.get_compiler();
-        const auto& blob = networkDesc->compiledNetwork;
+        const auto& blob = networkDesc.compiledNetwork;
         auto profData = get_raw_profiling_data();
         _logger.debug("InferRequest::get_profiling_info complete with compiler->process_profiling_output().");
-        return compiler->process_profiling_output(profData, blob, compilerConfig);
+        return compiler.process_profiling_output(profData, blob, compilerConfig);
     } else {
         auto proftype = _config.get<PROFILING_TYPE>();
         if (proftype == ov::intel_npu::ProfilingType::INFER) {

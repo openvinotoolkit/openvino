@@ -41,24 +41,24 @@ namespace intel_npu {
 
 using intel_npu::envVarStrToBool;
 
-CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
-                             const std::shared_ptr<const ov::IPlugin>& plugin,
-                             const std::shared_ptr<IDevice>& device,
-                             const ov::SoPtr<ICompiler>& compiler,
+CompiledModel::CompiledModel(std::shared_ptr<const ov::Model> model,
+                             std::shared_ptr<const ov::IPlugin> plugin,
+                             std::shared_ptr<IDevice> device,
+                             ov::SoPtr<ICompiler> compiler,
                              const bool profiling,
                              const Config& config)
-    : ICompiledModel(model, plugin),
-      _model(model),
+    : ICompiledModel(model, std::move(plugin)),
+      _model(std::move(model)),
       _config(config),
       _logger("CompiledModel", config.get<LOG_LEVEL>()),
-      _device(device),
-      _compiler(compiler) {
+      _device(std::move(device)),
+      _compiler(std::move(compiler)) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::CompiledModel");
     OPENVINO_ASSERT(compiler != nullptr, "NPU CompiledModel: the pointer towards the compiler object is null");
 
     try {
         _logger.debug("performing compile and expecting a network description");
-        _networkPtr = std::make_shared<const NetworkDescription>(_compiler->compile(model, config));
+        _networkPtr = std::make_shared<const NetworkDescription>(_compiler->compile(_model, _config));
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {
@@ -76,19 +76,19 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
     OV_ITT_TASK_SKIP(COMPILED_MODEL);
 }
 
-CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
-                             const std::shared_ptr<const ov::IPlugin>& plugin,
-                             const std::shared_ptr<const NetworkDescription>& networkDescription,
-                             const std::shared_ptr<IDevice>& device,
-                             const ov::SoPtr<ICompiler>& compiler,
+CompiledModel::CompiledModel(std::shared_ptr<const ov::Model> model,
+                             std::shared_ptr<const ov::IPlugin> plugin,
+                             std::shared_ptr<const NetworkDescription> networkDescription,
+                             std::shared_ptr<IDevice> device,
+                             ov::SoPtr<ICompiler> compiler,
                              const Config& config)
-    : ICompiledModel(model, plugin),
-      _networkPtr(networkDescription),
-      _model(model),
+    : ICompiledModel(model, std::move(plugin)),
+      _networkPtr(std::move(networkDescription)),
+      _model(std::move(model)),
       _config(config),
       _logger("CompiledModel", config.get<LOG_LEVEL>()),
-      _device(device),
-      _compiler(compiler) {
+      _device(std::move(device)),
+      _compiler(std::move(compiler)) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::CompiledModel");
     OPENVINO_ASSERT(_networkPtr != nullptr,
                     "NPU CompiledModel: the pointer towards the NetworkDescription object is null");
@@ -108,7 +108,7 @@ CompiledModel::~CompiledModel() {
     // Call compiler to destroy graphHandle only if no executor created
     if (_executorPtr == nullptr) {
         _logger.debug("~CompiledModel() - _executorPtr is a nullptr, compiler release _executorPtr");
-        _compiler->release(_networkPtr);
+        _compiler->release(*_networkPtr);
     }
 }
 
@@ -116,14 +116,14 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::create_infer_request");
 
     if (_executorPtr == nullptr && _device != nullptr) {
-        _executorPtr = _device->createExecutor(_networkPtr, _config);
+        _executorPtr = _device->createExecutor(*_networkPtr, _config);
     }
     if (_executorPtr == nullptr) {
         OPENVINO_THROW(NO_EXECUTOR_FOR_INFERENCE);
     }
 
     const std::shared_ptr<SyncInferRequest>& syncInferRequest =
-        _device->createInferRequest(shared_from_this(), _executorPtr, _config);
+        _device->createInferRequest(shared_from_this(), _config);
     syncInferRequest->initialize_states();
 
     return std::make_shared<AsyncInferRequest>(syncInferRequest,
@@ -190,16 +190,20 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     OPENVINO_THROW("Unsupported property ", name);
 }
 
-const std::shared_ptr<const NetworkDescription>& CompiledModel::get_network_description() const {
-    return _networkPtr;
+const NetworkDescription& CompiledModel::get_network_description() const {
+    return *_networkPtr;
 }
 
 const Config& CompiledModel::get_config() const {
     return _config;
 }
 
-const ov::SoPtr<ICompiler>& CompiledModel::get_compiler() const {
-    return _compiler;
+const ICompiler& CompiledModel::get_compiler() const {
+    return *_compiler._ptr;
+}
+
+IExecutor& CompiledModel::get_executor() const {
+    return *_executorPtr;
 }
 
 void CompiledModel::configure_stream_executors() {
@@ -410,7 +414,7 @@ void CompiledModel::create_executor() {
         // If no device has been defined, the executor shall keep the default value of "nullptr". In this scenario,
         // only export operations will be allowed
         if (_device != nullptr) {
-            _executorPtr = _device->createExecutor(_networkPtr, _config);
+            _executorPtr = _device->createExecutor(*_networkPtr, _config);
         }
     } else {
         _logger.info("Executor will not be created inside the \"CompiledModel\" constructor");

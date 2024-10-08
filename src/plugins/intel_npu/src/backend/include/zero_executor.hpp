@@ -9,6 +9,7 @@
 
 #include <mutex>
 
+#include "executor.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "npu.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -19,8 +20,8 @@ namespace intel_npu {
 
 class ZeroExecutor final : public IExecutor {
 public:
-    ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& initStructs,
-                 const std::shared_ptr<const NetworkDescription>& networkDescription,
+    ZeroExecutor(std::shared_ptr<const ZeroInitStructsHolder> initStructs,
+                 const NetworkDescription& networkDescription,
                  const Config& config,
                  const uint32_t& group_ordinal);
 
@@ -35,17 +36,11 @@ public:
     };
 
     void setArgumentValue(uint32_t argi_, const void* argv_) const;
-    void setWorkloadType(const ov::WorkloadType workloadType) const override;
+    void setWorkloadType(ov::WorkloadType workloadType) const override;
     void mutexLock() const;
     void mutexUnlock() const;
     inline ze_graph_handle_t graph() const {
         return _graph;
-    }
-    inline std::shared_ptr<const ZeroInitStructsHolder> getInitStructs() const {
-        return _initStructs;
-    }
-    inline const std::shared_ptr<const NetworkDescription>& getNetworkDesc() const {
-        return _networkDesc;
     }
     inline const std::shared_ptr<CommandQueue>& getCommandQueue() const {
         return _command_queues;
@@ -65,7 +60,6 @@ private:
     Logger _logger;
 
     const std::shared_ptr<const ZeroInitStructsHolder> _initStructs;
-    std::shared_ptr<const NetworkDescription> _networkDesc;
 
     ze_graph_dditable_ext_curr_t& _graph_ddi_table_ext;
 
