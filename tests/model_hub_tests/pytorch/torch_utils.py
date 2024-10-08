@@ -75,7 +75,10 @@ class TestTorchConvertModel(TestConvertModel):
                 pt_res = model_obj(**self.example)
                 graph = export(model_obj, tuple(), self.example)
                 if version.parse(torch.__version__) >= version.parse("2.2"):
-                    graph = graph.run_decompositions()
+                    from torch._decomp import get_decompositions
+                    from openvino.frontend.pytorch.torchdynamo.decompositions import get_export_decomposition_list
+                    decomp = get_decompositions(get_export_decomposition_list())
+                    graph = graph.run_decompositions(decomp_table=decomp)
 
                 gm = graph.module()
                 print(gm.code)
