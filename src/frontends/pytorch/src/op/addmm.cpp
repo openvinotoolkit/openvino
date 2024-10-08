@@ -79,11 +79,9 @@ OutputVector translate_conv1d_ext(const NodeContext& context) {
     auto x_last_dim = context.mark_node(std::make_shared<v8::Gather>(shape_x, neg_one, zero));
     auto x_new_shape = context.mark_node(std::make_shared<v0::Concat>(OutputVector{neg_one, x_last_dim}, 0));
 
-    auto x_new = context.mark_node(std::make_shared<v1::Reshape>(x, x_new_shape, false));
-    auto mm = context.mark_node(std::make_shared<v0::MatMul>(x_new, weight));
+    auto mm = context.mark_node(std::make_shared<v0::MatMul>(x, weight));
     auto addmm = context.mark_node(std::make_shared<v1::Add>(bias, mm));
-    auto size_out = context.mark_node(std::make_shared<v12::ScatterElementsUpdate>(shape_x, neg_one, neg_one, zero));
-    return {context.mark_node(std::make_shared<v1::Reshape>(addmm, size_out, false))};
+    return {addmm};
 };
 
 }  // namespace op
