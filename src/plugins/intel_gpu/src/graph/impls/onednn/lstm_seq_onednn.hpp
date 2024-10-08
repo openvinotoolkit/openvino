@@ -24,9 +24,12 @@ struct LSTMSeqImplementationManager : public ImplementationManager {
         if (!info.supports_immad)
             return false;
         assert(node.is_type<lstm_seq>());
+        auto seq_len_program_node = node.get_dependencies()[6].first;
+        bool is_seq_len_constant = seq_len_program_node->is_constant();
         const auto& lstm_node = node.as<lstm_seq>();
-
-        return lstm_node.clip() == 0.f;
+        auto activations = lstm_node.activations();
+        std::vector<activation_func> desired_act{ activation_func::logistic, activation_func::hyperbolic_tan, activation_func::hyperbolic_tan};
+        return is_seq_len_constant && activations == desired_act && lstm_node.clip() == 0.f;
     }
 
     in_out_fmts_t query_formats(const program_node& node) const override {
