@@ -22,7 +22,7 @@ namespace intel_npu {
  */
 class SyncInferRequest : public ov::IInferRequest {
 public:
-    explicit SyncInferRequest(const std::shared_ptr<const ICompiledModel>& compiledModel);
+    explicit SyncInferRequest(const std::shared_ptr<const ICompiledModel>& compiledModel, const Config& config);
 
     /**
      * @brief Gets an input/output tensor for inference.
@@ -50,8 +50,8 @@ public:
      * @brief Currently there is no support implemented for batches of tensors, thus this call is a simple redirection
      * to the "set_tensor" one.
      */
-    void set_tensors(const ov::Output<const ov::Node>& port,
-                     const std::vector<ov::SoPtr<ov::ITensor>>& tensors) override;
+    virtual void set_tensors(const ov::Output<const ov::Node>& port,
+                             const std::vector<ov::SoPtr<ov::ITensor>>& tensors) override;
 
     /**
      * @brief Gets inputs for infer request
@@ -127,6 +127,15 @@ protected:
     void check_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) const;
 
     /**
+     * @brief Basic checks for input tensors
+     *
+     * @param port Input port
+     * @param tensors Input tensors
+     */
+    void check_batched_tensors(const ov::Output<const ov::Node>& port,
+                               const std::vector<ov::SoPtr<ov::ITensor>>& tensors) const;
+
+    /**
      * @brief Check that all tensors are valid. Throws an exception if it's not.
      */
     void check_tensors() const override;
@@ -153,14 +162,22 @@ protected:
                                                  const ov::Allocator& allocator = {},
                                                  const std::optional<std::size_t> batchSize = std::nullopt) const;
 
+    bool is_batched_input(size_t idx) const;
+
+    ov::SoPtr<ov::ITensor>& get_user_input(size_t index) const;
+    std::vector<ov::SoPtr<ov::ITensor>>& get_user_inputs(size_t index) const;
+
     // This is intel_npu::ICompiledModel pointer, but need to use OV base class because
     // ov::IInferRequest::get_compiled_model returns a refernce to shared_ptr!
     std::shared_ptr<const ov::ICompiledModel> _compiledModel;
 
     NetworkMetadata _metadata;
 
-    mutable std::vector<std::shared_ptr<ov::ITensor>> _userInputTensors;
-    mutable std::vector<std::shared_ptr<ov::ITensor>> _userOutputTensors;
+    Logger _logger;
+
+    // In case set_tensors is called, we receive a vector with N tensors otherwise only 1 tensor is needed
+    mutable std::vector<std::vector<ov::SoPtr<ov::ITensor>>> _userInputTensors;
+    mutable std::vector<ov::SoPtr<ov::ITensor>> _userOutputTensors;
 
     mutable std::vector<ov::SoPtr<ov::IVariableState>> _variableStates;
 
