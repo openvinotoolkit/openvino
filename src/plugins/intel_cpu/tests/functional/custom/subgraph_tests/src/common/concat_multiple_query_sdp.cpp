@@ -56,6 +56,7 @@ public:
         bool forceKVU8;
         bool hasShapeOf;
         std::tie(qkvType, inputShapeAndOrders, forceKVU8, hasShapeOf) = obj.param;
+        ElementType kvCacheType = forceKVU8 ? ov::element::Type_t::u8 : qkvType;
         std::ostringstream result;
         std::vector<InputShape>& inputShapes = inputShapeAndOrders.first;
         std::vector<size_t>& transposeOrder = inputShapeAndOrders.second;
@@ -73,8 +74,8 @@ public:
             }
             result << ")_";
         }
-        result << "Prc=" << qkvType << "_";
-        result << "ForceKVU8" << forceKVU8 << "_";
+        result << "qDataType=" << qkvType << "_";
+        result << "kvDataType=" << kvCacheType << "_";
         result << "HasShapeOf=" << hasShapeOf << "_";
         result << "TransposeOrder=";
         result << "(";
