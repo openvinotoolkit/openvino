@@ -11,9 +11,9 @@ SearchSorted
 
 **Category**: *Sorting and maximization*
 
-**Short description**: Find the indices from the innermost dimension of sorted_sequence such that, if the corresponding values in values were inserted before the indices, when sorted, the order of the corresponding innermost dimension within sorted_sequence would be preserved.
+**Short description**: Determines the indices in the innermost dimension of a sorted sequence where elements should be inserted to maintain order.
 
-**Detailed description**: `Reference <https://pytorch.org/docs/stable/generated/torch.searchsorted.html>`__.
+**Detailed description**: *SearchSorted* operation determines the indices in the innermost dimension of a sorted sequence where elements should be inserted to maintain order. The operation is based on the binary search algorithm. The operation is performed on two input tensors: the first tensor contains a monotonically increasing sequence on the innermost dimension, and the second tensor contains the search values. The operation returns a tensor with the same shape as the second input tensor, containing the indices.
 
 **Attributes**
 
