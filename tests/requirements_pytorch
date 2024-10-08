@@ -24,7 +24,6 @@ datasets==3.0.1
 easyocr==1.7.2
 facexlib==0.3.0; python_version < "3.12"
 librosa==0.10.2; python_version < "3.12"
-optimum==1.22.0; python_version < "3.12"
 packaging==24.1
 pandas==2.2.3
 protobuf==5.28.2
