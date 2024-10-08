@@ -18,6 +18,7 @@
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
+#include "partitioning/patterns/opt.hpp"
 #include "plugin.hpp"
 #include "util.hpp"
 
@@ -135,6 +136,16 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     // FIXME: Find a better place to call this transformation
     ov::pass::ConvertPrecision(ov::element::bf16, ov::element::f16).run_on_model(model);
 
+    if (m_cfg.get<::intel_npu::NPUW_FOLD>() && m_cfg.get<::intel_npu::NPUW_FUNCALL_FOR_ALL>()) {
+        // If there's folding enabled AND non-repeating graphs are forced to be
+        // functions, do extra lifting for gather (if any)
+        ov::pass::GraphRewrite rewr;
+        rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherAsymCW>();
+        rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherSymCW>();
+        rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherSymGQ>();
+        rewr.run_on_model(model);
+    }
+
     auto partitioning = getPartitioning(model, m_cfg);
     m_total_stat.gflops = partitioning.total_gflops;
     m_total_stat.ops = partitioning.total_ops;
@@ -167,6 +178,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         }
         auto process_params = [&](const ov::ParameterVector& _parameters) {
             for (size_t i = 0; i < _parameters.size(); i++) {
+                NPUW_ASSERT(_parameters[i]);
                 LOG_VERB(_parameters[i]);
                 for (size_t j = 0; j < orig_parameters.size(); j++) {
                     if (_parameters[i] == orig_parameters[j]) {
@@ -271,6 +283,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                 m_compiled_submodels[id].replaced_by = compiled_fcn_iter->second;
                 LOG_INFO("Subgraph[" << id << "] is a function call to [" << compiled_fcn_iter->second << "]");
             }
+            m_compiled_submodels[id].host_gather = subgraph._host_gather;
             m_compiled_submodels[id].param_base = fcn_template._param_offset;
             m_compiled_submodels[id].closure = subgraph._closure;
             m_compiled_submodels[id].scales = subgraph._scales;
@@ -310,13 +323,25 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     std::map<std::size_t, std::string> forced_sub_devices{};
     const std::string fsd_opt = m_cfg.get<::intel_npu::NPUW_SUBMODEL_DEVICE>();
     forced_sub_devices = ::intel_npu ::OptionParser<std::map<std::size_t, std::string>>::parse(fsd_opt);
+
+    // Exclude optimized out subgraphs from compilation target beforehand - otherwise we might get head and repeated
+    // block in the same chunk
+    std::vector<std::size_t> idx_subgraph_to_compile;
+    for (std::size_t i = 0u; i < orderedSubgraphs.size(); i++) {
+        if (orderedSubgraphs[i]._optimized_out || m_compiled_submodels[i].replaced_by.value_or(i) != i) {
+            continue;  // do nothing here
+        } else {
+            idx_subgraph_to_compile.push_back(i);
+        }
+    }
+
     // Compile submodels. Some of them can be functions: track which model will be
     // used as function(s): function name -> index of the compiled subgraph
-    auto compile = [&](size_t id) {
+    auto compile = [&](size_t i) {
+        const auto& id = idx_subgraph_to_compile[i];
         const auto& subgraph = orderedSubgraphs[id];
-        if (subgraph._optimized_out) {
-            return;
-        }
+
+        NPUW_ASSERT(!subgraph._optimized_out);
 
         const std::size_t real_id = m_compiled_submodels[id].replaced_by.value_or(id);
         if (!orderedSubgraphs[real_id]._avoid_list.empty()) {
@@ -372,10 +397,10 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     // Parallel compilation is unstable so is disabled by default.
     const bool par_opt = m_cfg.get<::intel_npu::NPUW_PARALLEL_COMPILE>();
     if (par_opt) {
-        ov::parallel_for(orderedSubgraphs.size(), compile);
+        ov::parallel_for(idx_subgraph_to_compile.size(), compile);
     } else {
         // TODO: Introduce npuw::serial(i, f) instead where f is a _funcall
-        for (std::size_t i = 0u; i < orderedSubgraphs.size(); i++) {
+        for (std::size_t i = 0u; i < idx_subgraph_to_compile.size(); i++) {
             compile(i);
         }
     }
@@ -798,6 +823,8 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::partitioning::fold, NPUW_FOLD),
                           BIND(npuw::partitioning::cwai, NPUW_CWAI),
                           BIND(npuw::partitioning::dyn_quant, NPUW_DQ),
+                          BIND(npuw::partitioning::par_matmul_merge_dims, NPUW_PMM),
+                          BIND(npuw::partitioning::host_gather, NPUW_HOST_GATHER),
                           BIND(npuw::partitioning::funcall_for_all, NPUW_FUNCALL_FOR_ALL),
                           BIND(npuw::partitioning::dcoff_type, NPUW_DCOFF_TYPE),
                           BIND(npuw::partitioning::dcoff_with_scale, NPUW_DCOFF_SCALE),
