@@ -978,9 +978,6 @@ void Transformations::MainSnippets(void) {
             return false;
         if (is_fp32)
             return true;
-        // Only FP32 dynamic MHA is supported
-        if (matmul->is_dynamic())
-            return false;
         // [114487] brgemm kernel in oneDNN requires brgemm_copy_b kernel if MatMul node has transposed_b=True
         // The current solution with ExtractExplicitMatMulTranspose pass is slower for non-f32 cases than using of brgemm_copy_b kernel
         if (matmul->get_transpose_a() || matmul->get_transpose_b())
