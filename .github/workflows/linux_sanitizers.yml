@@ -175,11 +175,11 @@ jobs:
       - name: Pack Artifacts
         run: |
           pushd ${INSTALL_DIR}
-            tar -czvf ${BUILD_DIR}/openvino_package.tar.gz *
+            tar -I pigz -cvf ${BUILD_DIR}/openvino_package.tar.gz *
           popd
 
           pushd ${INSTALL_TEST_DIR}
-            tar -czvf ${BUILD_DIR}/openvino_tests.tar.gz *
+            tar -I pigz -cvf ${BUILD_DIR}/openvino_tests.tar.gz *
           popd
 
       #
@@ -257,10 +257,10 @@ jobs:
       - name: Extract OpenVINO packages
         run: |
           pushd $INSTALL_DIR
-            tar -xzf openvino_package.tar.gz -C $INSTALL_DIR
+            tar -I pigz -xf openvino_package.tar.gz -C $INSTALL_DIR
           popd
           pushd $INSTALL_TEST_DIR
-            tar -xzf openvino_tests.tar.gz -C $INSTALL_DIR
+            tar -I pigz -xf openvino_tests.tar.gz -C $INSTALL_DIR
           popd
 
       - name: Install dependencies (Linux)

@@ -23,6 +23,8 @@ RUN apt-get update && \
         ca-certificates \
         gpg-agent \
         tzdata \
+        # parallel gzip
+        pigz \
         # Pythons
         python3.8-dev \
         python3.8-venv \

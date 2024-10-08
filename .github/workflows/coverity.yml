@@ -103,7 +103,7 @@ jobs:
           rm -rf ${COVERITY_TOOL_DIR} && mkdir -p ${COVERITY_TOOL_DIR}
           pushd ${COVERITY_TOOL_DIR}
             wget https://scan.coverity.com/download/linux64 --progress=bar:force:noscroll --post-data "token=${{ secrets.COVERITY_TOKEN }}&project=openvino" -O coverity_tool.tgz
-            tar xvf coverity_tool.tgz && rm coverity_tool.tgz
+            tar -I pigz -xf coverity_tool.tgz && rm coverity_tool.tgz
           popd
 
       - name: Cmake build - OpenVINO with Coverity
@@ -112,7 +112,7 @@ jobs:
       - name: Pack Artefacts
         run: |
           pushd ${BUILD_DIR}
-            tar -C ${BUILD_DIR} -czvf openvino.tgz cov-int
+            tar -C ${BUILD_DIR} -I pigz -cvf openvino.tgz cov-int
           popd
 
       - name: Submit artefacts

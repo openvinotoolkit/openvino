@@ -200,17 +200,17 @@ jobs:
       - name: Pack Artifacts
         run: |
           pushd ${SELECTIVE_BUILD_STAT_DIR}
-            tar -czvf ${BUILD_DIR}/openvino_selective_build_stat.tar.gz *
+            tar -I pigz -cvf ${BUILD_DIR}/openvino_selective_build_stat.tar.gz *
           popd
 
           pushd ${INSTALL_DIR}
-            tar -czvf ${BUILD_DIR}/openvino_package.tar.gz \
+            tar -I pigz -cvf ${BUILD_DIR}/openvino_package.tar.gz \
               install_dependencies/install_openvino_dependencies.sh
           popd
 
           cp -v ${OPENVINO_REPO}/temp/tbb/lib/lib* ${INSTALL_TEST_DIR}/tests
           pushd ${INSTALL_TEST_DIR}
-            tar -czvf ${BUILD_DIR}/openvino_tests.tar.gz \
+            tar -I pigz -cvf ${BUILD_DIR}/openvino_tests.tar.gz \
               tests/ov_cpu_func_tests \
               tests/libopenvino_template_extension.so \
               tests/libze_loader.so* \
@@ -302,7 +302,7 @@ jobs:
           path: ${{ env.SELECTIVE_BUILD_STAT_DIR }}
 
       - name: Extract selective build statistics package
-        run: tar -xvzf ${SELECTIVE_BUILD_STAT_DIR}/openvino_selective_build_stat.tar.gz -C ${SELECTIVE_BUILD_STAT_DIR}
+        run: tar -I pigz -xvf ${SELECTIVE_BUILD_STAT_DIR}/openvino_selective_build_stat.tar.gz -C ${SELECTIVE_BUILD_STAT_DIR}
 
       #
       # Build

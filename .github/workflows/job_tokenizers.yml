@@ -83,7 +83,7 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           pushd ${INSTALL_DIR}
-            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR}
+            tar -I pigz -xf openvino_package.tar.gz -C ${INSTALL_DIR}
           popd
 
       - name: Extract OpenVINO packages (Windows)

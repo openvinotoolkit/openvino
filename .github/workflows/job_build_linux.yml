@@ -189,15 +189,15 @@ jobs:
           cp -R ${ONNX_RUNTIME_UTILS} ${INSTALL_DIR}
 
           pushd ${INSTALL_DIR}
-            tar -czvf ${BUILD_DIR}/openvino_package.tar.gz *
+            tar -I pigz -cvf ${BUILD_DIR}/openvino_package.tar.gz *
           popd
 
           pushd ${DEVELOPER_PACKAGE_DIR}
-            tar -czvf ${BUILD_DIR}/openvino_developer_package.tar.gz *
+            tar -I pigz -cvf ${BUILD_DIR}/openvino_developer_package.tar.gz *
           popd
 
           pushd ${INSTALL_TEST_DIR}
-            tar -czvf ${BUILD_DIR}/openvino_tests.tar.gz *
+            tar -I pigz -cvf ${BUILD_DIR}/openvino_tests.tar.gz *
           popd
 
       - name: Build Debian packages
