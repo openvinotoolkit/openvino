@@ -29,50 +29,34 @@ private:
 };
 
 /// \brief SharedStreamBuffer class to store pointer to pre-acclocated buffer and provide streambuf interface.
+///  Can return ptr to shared memory and its size
 class SharedStreamBuffer : public std::streambuf {
 public:
-    SharedStreamBuffer(char* data, size_t size) : m_data(data), m_size(size), m_offset(0) {}
+    SharedStreamBuffer(char* data, size_t size);
+
+    // get data ptr and its size
+    char* data();
+    size_t size();
 
 protected:
-    std::streamsize xsgetn(char* s, std::streamsize count) override {
-        auto real_count = std::min<std::streamsize>(m_size - m_offset, count);
-        std::memcpy(s, m_data + m_offset, real_count);
-        m_offset += real_count;
-        return real_count;
-    }
-
-    int_type underflow() override {
-        return (m_size == m_offset) ? traits_type::eof() : traits_type::to_int_type(*(m_data + m_offset));
-    }
-
-    int_type uflow() override {
-        return (m_size == m_offset) ? traits_type::eof() : traits_type::to_int_type(*(m_data + m_offset++));
-    }
-
-    std::streamsize showmanyc() override {
-        return m_size - m_offset;
-    }
+    // override std::streambuf methods
+    std::streamsize xsgetn(char* s, std::streamsize count) override;
+    int_type underflow() override;
+    int_type uflow() override;
+    std::streamsize showmanyc() override;
 
     char* m_data;
     size_t m_size;
     size_t m_offset;
 };
 
-/// \brief OwningSharedStreamBuffer is a SharedStreamBuffer which owns its shared object. Can return AlignedBuffer to
-/// shared memory
+/// \brief OwningSharedStreamBuffer is a SharedStreamBuffer which owns its shared object. 
 class OwningSharedStreamBuffer : public SharedStreamBuffer {
 public:
-    template <typename T>
-    OwningSharedStreamBuffer(char* data, size_t size, const T& shared_object)
-        : SharedStreamBuffer(data, size),
-          m_alligned_buffer(std::make_shared<SharedBuffer<T>>(data, size, shared_object)) {}
-
-    std::shared_ptr<AlignedBuffer> get_aligned_buffer() {
-        return m_alligned_buffer;
-    }
+    OwningSharedStreamBuffer(char* data, size_t size, const std::shared_ptr<void>& shared_obj);
 
 protected:
-    std::shared_ptr<AlignedBuffer> m_alligned_buffer;
+    std::shared_ptr<void> m_shared_obj;
 };
 
 }  // namespace ov

@@ -78,6 +78,7 @@ public:
      * Otherwise, model will not be read from cache and will be loaded as usual
      *
      * @param id Id of cache (hash of the model)
+     * @param enable_mmap use mmap or ifstream to read model file
      * @param reader Lambda function to be called when input stream is created
      */
     virtual void read_cache_entry(const std::string& id, bool enable_mmap, StreamReader reader) = 0;
