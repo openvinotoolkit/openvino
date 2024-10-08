@@ -16,7 +16,7 @@
 #    include "openvino/core/type/float16.hpp"
 
 namespace ov {
-namespace runtime {
+namespace reference {
 namespace jit {
 using namespace Xbyak;
 
@@ -191,7 +191,7 @@ void Generator::copy<bfloat16>(const Xbyak::Reg64& dst, const Xbyak::Reg64& src,
     copy<uint16_t>(dst, src, size);
 }
 }  // namespace jit
-}  // namespace runtime
+}  // namespace reference
 }  // namespace ov
 
 #endif  // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
