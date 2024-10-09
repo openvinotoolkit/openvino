@@ -49,7 +49,7 @@ KERNEL(lrn_within_channel_byxf_opt)(
             zero = input_offset_x >= INPUT0_SIZE_X ? true : zero;
             zero = input_offset_y >= INPUT0_SIZE_Y ? true : zero;
 
-            VECTOR_TYPE val = zero ? INPUT0_VAL_ZERO : vload8(input_offset+FEATURE_BLOCK_NUM*i, input);
+            VECTOR_TYPE val = zero ? INPUT0_VAL_ZERO : vload8((input_offset+FEATURE_BLOCK_NUM*i)%INPUT0_FEATURE_NUM, input);
 
             sum = mad(val,val,sum);
 #ifdef DYNAMIC_KERNEL_DIVIDER
