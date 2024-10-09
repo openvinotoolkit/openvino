@@ -28,6 +28,10 @@ inputs:
       evicted to limit the total cache storage'
     default: 50
     required: false
+  recursive:
+    description: 'Scan the current directory only or all subdirectories'
+    default: false
+    required: false
 
 runs:
   using: 'node20'

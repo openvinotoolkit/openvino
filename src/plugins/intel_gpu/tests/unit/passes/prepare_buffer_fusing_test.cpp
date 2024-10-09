@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/primitives/implementation_desc.hpp"
+#include "intel_gpu/runtime/internal_properties.hpp"
 #include "test_utils.h"
 #include "random_generator.hpp"
 
@@ -59,7 +61,7 @@ TEST(prepare_buffer_fusing, optimize_reshape) {
 
     auto input_memory = engine.allocate_memory(layout{ ov::PartialShape{1, 2, 2, 4}, data_types::f16, format::bfyx });
     auto pattern_memory = engine.allocate_memory(layout{ ov::PartialShape{4}, data_types::i64, format::bfyx });
-    set_values<float>(input_memory, {0.1, 1.1, 2.2, 3.0, 4.0, -5.0, 0.1, 0.7, 4.8, 19.2, -10.1, 8.1, 10.2, 1.3, 1.44, 1.5});
+    set_values<ov::float16>(input_memory, {0.1, 1.1, 2.2, 3.0, 4.0, -5.0, 0.1, 0.7, 4.8, 19.2, -10.1, 8.1, 10.2, 1.3, 1.44, 1.5});
     set_values<int64_t>(pattern_memory, {1, 4, 1, -1});
 
     net.set_input_data("input", input_memory);
@@ -408,6 +410,11 @@ TEST(prepare_buffer_fusing, in_place_concat_dynamic_onednn_batch2) {
     ExecutionConfig config;
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    ov::intel_gpu::ImplForcingMap forcing_map = {
+        {"reorder1", ov::intel_gpu::ImplementationDesc{format::any, "", impl_types::onednn}},
+        {"reorder2", ov::intel_gpu::ImplementationDesc{format::any, "", impl_types::onednn}}
+    };
+    config.set_property(ov::intel_gpu::force_implementations(forcing_map));
     auto prog = program::build_program(engine, topology, config, false, false);
     ASSERT_NE(prog, nullptr);
     auto& concat_node_p = prog->get_node("concat");
@@ -651,7 +658,8 @@ TEST(prepare_buffer_fusing, in_place_crop_static) {
 
     std::vector<float> out1 = { 13.f, 58.f, -51.f, -108.f, -11.f, -62.f, 57.f, 100.f };
     std::vector<float> out2 = { 18.5f, -18.f, 1.f, -4.f, -8.5f, 6.f, 13.f, 8.f };
-    std::vector<float> out3 = { 13.f, 58.f, -51.f, -108.f, 18.5f, -18.f, 1.f, -4.f, -11.f, -62.f, 57.f, 100.f, -8.5f, 6.f, 13.f, 8.f };
+    std::vector<float> out3 = { 13.f, 58.f, -51.f, -108.f,     18.5f, -18.f, 1.f, -4.f,
+                                -11.f, -62.f, 57.f, 100.f,    -8.5f, 6.f, 13.f, 8.f };
 
     topology topology(
         input_layout("input", input_mem->get_layout()),
@@ -683,20 +691,20 @@ TEST(prepare_buffer_fusing, in_place_crop_static) {
     auto output = outputs.at("output1").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
-    for (size_t i = 0; i < out1.size(); i++)
-        ASSERT_EQ(output_ptr[i], out1[i]);
-
     auto output_2 = outputs.at("output2").get_memory();
     cldnn::mem_lock<float> output_ptr_2(output_2, get_test_stream());
-
-    for (size_t i = 0; i < out2.size(); i++)
-        ASSERT_EQ(output_ptr_2[i], out2[i]);
 
     auto output_3 = outputs.at("output3").get_memory();
     cldnn::mem_lock<float> output_ptr_3(output_3, get_test_stream());
 
     for (size_t i = 0; i < out3.size(); i++)
         ASSERT_EQ(output_ptr_3[i], out3[i]);
+
+    for (size_t i = 0; i < out1.size(); i++)
+        ASSERT_EQ(output_ptr[i], out1[i]);
+
+    for (size_t i = 0; i < out2.size(); i++)
+        ASSERT_EQ(output_ptr_2[i], out2[i]);
 }
 
 TEST(prepare_buffer_fusing, in_place_crop_dynamic) {
@@ -1456,3 +1464,33 @@ TEST(prepare_buffer_fusing, in_place_onednn_concat_static) {
     }
 }
 #endif  // ENABLE_ONEDNN_FOR_GPU
+
+TEST(prepare_buffer_fusing, inner_axis_data_offset_with_gemm_user) {
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    auto& engine = get_test_engine();
+
+    auto in_layout = layout{ ov::PartialShape{1, 6, 16, 16}, data_types::f16, format::bfyx };
+    auto crop_layout = layout{ ov::PartialShape{1, 6, 8, 16}, data_types::f16, format::bfyx };
+
+    auto input_memory = engine.allocate_memory(in_layout);
+    auto input_data = rg.generate_random_1d<float>(input_memory->count(), -1, 1);
+    
+    auto offsets1 = tensor{0, 0, 0, 0};
+    auto offsets2 = tensor{0, 0, 8, 0};
+
+    topology topology;
+    topology.add(input_layout("input", in_layout));
+    topology.add(crop("crop1", input_info("input"), crop_layout.get_tensor(), offsets1));
+    topology.add(permute("permute", input_info("crop1"), {0, 1, 3, 2}));
+    topology.add(crop("crop2", input_info("input"), crop_layout.get_tensor(), offsets2));
+    topology.add(gemm("gemm", {input_info("permute"), input_info("crop2")}, data_types::f16, false, false));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    auto prog = program::build_program(engine, topology, config, false, false);
+    ASSERT_NE(prog, nullptr);
+
+    auto& crop_node = prog->get_node("crop2").as<crop>();
+    ASSERT_FALSE(crop_node.can_be_optimized());
+}

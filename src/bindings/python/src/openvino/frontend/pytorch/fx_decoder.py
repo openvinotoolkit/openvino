@@ -4,14 +4,14 @@
 # flake8: noqa
 # mypy: ignore-errors
 
-from openvino.frontend.pytorch.py_pytorch_frontend import _FrontEndPytorchDecoder as Decoder
-from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
-from openvino.runtime import op, PartialShape, Type as OVType, OVAny, Shape
-from openvino.frontend.pytorch.utils import make_constant, fetch_attr, pt_to_ov_type_map, torch_tensor_to_ov_const
-
+import logging
 import torch
 
-import logging
+from openvino.frontend.pytorch.py_pytorch_frontend import _FrontEndPytorchDecoder as Decoder
+from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
+from openvino.runtime import PartialShape, Type as OVType, OVAny, Shape
+from openvino.frontend.pytorch.utils import make_constant, fetch_attr, pt_to_ov_type_map, torch_tensor_to_ov_const
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
 

@@ -95,6 +95,7 @@ TEST(memory_reuse_realloc_reset_test, basic_conv_with_padding) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"conv", {format::any, "", impl_types::ocl}}}));
 
     network network(engine, topology, config);
     network.set_input_data("input", input_mem_1);
@@ -103,7 +104,7 @@ TEST(memory_reuse_realloc_reset_test, basic_conv_with_padding) {
     auto outputs_2 = network.execute();
     auto output_mem_2 = outputs_2.begin()->second.get_memory();
     cldnn::mem_lock<float> output_mem_2_ptr(output_mem_2, get_test_stream());
-    for (size_t i = 0; i < output_mem_2->get_layout().get_buffer_size().count(); ++i) {
+    for (size_t i = 0; i < output_mem_2->get_layout().get_linear_size(); ++i) {
         ASSERT_EQ(output_mem_2_ptr[i], ref_output_2[i]);
     }
     // check padding of second run of reorder
@@ -343,6 +344,7 @@ TEST(memory_reuse_realloc_reset_test, basic_conv_with_padding_reorder) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"conv", {format::any, "", impl_types::ocl}}}));
 
     network network(engine, topology, config);
     network.set_input_data("input", input_mem_2);

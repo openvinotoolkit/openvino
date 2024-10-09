@@ -54,13 +54,13 @@ additional_test_params = [
     ],
     [
         {'activation': None},
-        {'activation': tf.nn.relu},
-        {'activation': tf.nn.relu6},
+        {'activation': 'tf.nn.relu'},
+        {'activation': 'tf.nn.relu6'},
         # skip tanh and signbit since tflite doesn't fuse such activations
         # https://github.com/tensorflow/tensorflow/blob/77d8c333405a080c57850c45531dbbf077b2bd0e/tensorflow/compiler/mlir/lite/transforms/optimize_patterns.td#L86:L89
         # {'activation': tf.math.tanh},
         # {'activation': lambda x, name: tf.identity(tf.experimental.numpy.signbit(x), name=name)},
-        {'activation': lambda x, name: tf.math.minimum(tf.math.maximum(-1., x), 1., name=name)}
+        {'activation': 'lambda x, name: tf.math.minimum(tf.math.maximum(-1., x), 1., name=name)'}
     ]
 ]
 

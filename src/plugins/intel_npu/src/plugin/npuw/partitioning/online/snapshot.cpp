@@ -5,6 +5,7 @@
 #include "snapshot.hpp"
 
 #include "../../logging.hpp"
+#include "../../util.hpp"
 #include "../patterns/avoid.hpp"
 #include "../patterns/compute.hpp"
 #include "group.hpp"
@@ -72,6 +73,8 @@ void Snapshot::buildGraph() {
         ++gid;
     }
 
+    using namespace ov::npuw::util::at;
+
     for (const auto& nh : m_graph->sorted()) {
         auto gptr = m_graph->meta(nh).get<Group::GPtr>();
         auto ov_node = gptr->getInitialNode();
@@ -83,7 +86,7 @@ void Snapshot::buildGraph() {
                 auto ov_node_child = target_output.get_node()->shared_from_this();
 
                 // Insert readers from other layers
-                m_node_to_prod_cons->at(ov_node).second.insert(ov_node_child);
+                _(m_node_to_prod_cons).at(ov_node).second.insert(ov_node_child);
 
                 // Save ports for repeated blocks pipeline
                 m_ports_map.insert({{ov_node, ov_node_child}, {i, target_output.get_index()}});
@@ -91,9 +94,9 @@ void Snapshot::buildGraph() {
                 if (!isOp(ov_node_child)) {
                     continue;
                 }
-
-                if (!m_graph->linked(nh, m_node_to_gr->at(ov_node_child)->getHandle())) {
-                    m_graph->link(nh, m_node_to_gr->at(ov_node_child)->getHandle());
+                Group::GPtr gr_child = _(m_node_to_gr).at(ov_node_child);
+                if (!m_graph->linked(nh, gr_child->getHandle())) {
+                    m_graph->link(nh, gr_child->getHandle());
                 }
             }
         }  // for(outputs)
@@ -103,7 +106,7 @@ void Snapshot::buildGraph() {
             auto ov_node_parent = target_input.get_node()->shared_from_this();
 
             // Insert writers from other layers
-            m_node_to_prod_cons->at(ov_node).first.insert(ov_node_parent);
+            _(m_node_to_prod_cons).at(ov_node).first.insert(ov_node_parent);
 
             // Save ports for repeated blocks pipeline
             m_ports_map.insert({{ov_node_parent, ov_node}, {target_input.get_index(), i}});
@@ -112,8 +115,9 @@ void Snapshot::buildGraph() {
                 continue;
             }
 
-            if (!m_graph->linked(m_node_to_gr->at(ov_node_parent)->getHandle(), nh)) {
-                m_graph->link(m_node_to_gr->at(ov_node_parent)->getHandle(), nh);
+            Group::GPtr gr_parent = _(m_node_to_gr).at(ov_node_parent);
+            if (!m_graph->linked(gr_parent->getHandle(), nh)) {
+                m_graph->link(gr_parent->getHandle(), nh);
             }
         }  // for(inputs)
     }      // for(get_ordered_ops)
@@ -209,11 +213,13 @@ void Snapshot::fuseRemnants() {
         }
         auto consumers = group->dstNodes();
         if (!consumers.empty()) {
-            std::sort(consumers.begin(), consumers.end(), [&](const ade::NodeHandle& nh1, const ade::NodeHandle& nh2) {
-                Group::GPtr g1 = m_graph->meta(nh1).get<Group::GPtr>();
-                Group::GPtr g2 = m_graph->meta(nh2).get<Group::GPtr>();
-                return g1->size() < g2->size();
-            });
+            std::sort(consumers.begin(),
+                      consumers.end(),
+                      [&](const own::ade::NodeHandle& nh1, const own::ade::NodeHandle& nh2) {
+                          Group::GPtr g1 = m_graph->meta(nh1).get<Group::GPtr>();
+                          Group::GPtr g2 = m_graph->meta(nh2).get<Group::GPtr>();
+                          return g1->size() < g2->size();
+                      });
             for (const auto& cons : consumers) {  // FIXME: pick the smallest flops
                 Group::GPtr cons_group = m_graph->meta(cons).get<Group::GPtr>();
                 if (!group->hasCycle(cons_group)) {
@@ -400,14 +406,21 @@ void Snapshot::earlyRegroup() {
             if (isolate.pattern == "RMSNorm") {
                 rewr.add_matcher<ov::npuw::patterns::compute::RMSNorm>(shared_from_this(), isolate.tag);
                 handle_patterns = true;
-            } else if (isolate.pattern == "DQMatMulCW") {
-                rewr.add_matcher<ov::npuw::patterns::compute::DQMatMulCW>(shared_from_this(), isolate.tag);
+            } else if (isolate.pattern == "DQMatMulCWu4") {
+                rewr.add_matcher<ov::npuw::patterns::compute::DQMatMulCWu4>(shared_from_this(), isolate.tag);
                 handle_patterns = true;
-            } else if (isolate.pattern == "DQMatMulGQ") {
-                rewr.add_matcher<ov::npuw::patterns::compute::DQMatMulGQ>(shared_from_this(), isolate.tag);
+            } else if (isolate.pattern == "DQMatMulGQu4") {
+                rewr.add_matcher<ov::npuw::patterns::compute::DQMatMulGQu4>(shared_from_this(), isolate.tag);
+                handle_patterns = true;
+            } else if (isolate.pattern == "DQMatMulCWi4") {
+                rewr.add_matcher<ov::npuw::patterns::compute::DQMatMulCWi4>(shared_from_this(), isolate.tag);
+                handle_patterns = true;
+            } else if (isolate.pattern == "DQMatMulGQi4") {
+                rewr.add_matcher<ov::npuw::patterns::compute::DQMatMulGQi4>(shared_from_this(), isolate.tag);
                 handle_patterns = true;
             } else {
-                LOG_WARN("OPENVINO_NPUW_ISOLATE only supports RMSNorm, DQMatMulCW, DQMatMulGQ "
+                LOG_WARN("OPENVINO_NPUW_ISOLATE only supports RMSNorm, DQMatMulCWu4, DQMatMulGQu4, DQMatMulCWi4, "
+                         "DQMatMulGQi4 "
                          << "as patterns. Isolate pattern " << isolate.pattern << " is skipped!");
             }
         }
@@ -1028,11 +1041,11 @@ GPtrSet Snapshot::getRepGroups(const Group::GPtr& group) const {
 }
 
 const OVNodeSet& Snapshot::getNodeProducers(const OVNodePtr& node) const {
-    return m_node_to_prod_cons->at(node).first;
+    return ov::npuw::util::at::_(m_node_to_prod_cons).at(node).first;
 }
 
 const OVNodeSet& Snapshot::getNodeConsumers(const OVNodePtr& node) const {
-    return m_node_to_prod_cons->at(node).second;
+    return ov::npuw::util::at::_(m_node_to_prod_cons).at(node).second;
 }
 
 // Updated within a group during fusion
@@ -1040,7 +1053,7 @@ const ov::npuw::online::detail::OVNodeToGroupMapPtr& Snapshot::getNodeToGroupMap
     return m_node_to_gr;
 }
 
-std::shared_ptr<ade::Graph> Snapshot::getGraph() const {
+std::shared_ptr<own::ade::Graph> Snapshot::getGraph() const {
     return m_graph;
 }
 

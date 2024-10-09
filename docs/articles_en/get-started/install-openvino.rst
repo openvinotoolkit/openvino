@@ -1,4 +1,4 @@
-Install OpenVINO™ 2024.3
+Install OpenVINO™ 2024.4
 ==========================
 
 
@@ -21,12 +21,12 @@ Install OpenVINO™ 2024.3
 
    <script type="module" crossorigin src="../_static/selector-tool/assets/index-f34d1fad.js"></script>
    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-   <iframe id="selector" src="../_static/selector-tool/selector-9dbd5b1.html" style="width: 100%; border: none" title="Download Intel® Distribution of OpenVINO™ Toolkit"></iframe>
+   <iframe id="selector" src="../_static/selector-tool/selector-8d4cf1d.html" style="width: 100%; border: none" title="Download Intel® Distribution of OpenVINO™ Toolkit"></iframe>
 
-OpenVINO 2024.3, described here, is not a Long-Term-Support version!
+OpenVINO 2024.4, described here, is not a Long-Term-Support version!
 All currently supported versions are:
 
-* 2024.3 (development)
+* 2024.4 (development)
 * 2023.3 (LTS)
 * 2022.3 (LTS)
 
@@ -37,7 +37,7 @@ All currently supported versions are:
    Refer to the :doc:`OpenVINO Release Policy <../../../about-openvino/release-notes-openvino/release-policy>`
    to learn more about the release types.
 
-   .. dropdown:: Distribution Comparison for OpenVINO 2024.3
+   .. dropdown:: Distribution Comparison for OpenVINO 2024.4
 
       ===============  ==========  ======  ===============  ========  ============ ========== ========== ==========
       Device           Archives    PyPI    APT/YUM/ZYPPER    Conda     Homebrew     vcpkg      Conan       npm
