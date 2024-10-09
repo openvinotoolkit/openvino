@@ -13,8 +13,8 @@ from openvino.tools.ovc.cli_parser import single_input_to_input_cut_info, _Input
 from openvino.tools.ovc.error import Error
 
 
-
 def extract_module_extensions(args):
+    from openvino.frontend.pytorch.module_extension import ModuleExtension
     extensions = args.get('extension', []) or []
     if not isinstance(extensions, (list, tuple)):
         extensions = [extensions]
@@ -73,7 +73,7 @@ def get_pytorch_decoder_for_model_on_disk(argv, args):
         from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
         import torch
     except:
-        return
+        return False
 
     example_inputs = None
     if 'example_input' in args and args['example_input'] is not None:
@@ -97,7 +97,7 @@ def get_pytorch_decoder_for_model_on_disk(argv, args):
                 module_extensions=extract_module_extensions(args))
             argv.input_model = decoder
             argv.framework = 'pytorch'
-            return
+            return True
         except:
             pass
     if isinstance(input_model, (str, pathlib.Path)):
@@ -112,8 +112,10 @@ def get_pytorch_decoder_for_model_on_disk(argv, args):
                 decoder = TorchFXPythonDecoder(gm)
                 argv.input_model = decoder
                 argv.framework = 'pytorch'
+                return True
         except:
             pass
+    return False
 
 
 def update_list_or_dict(container, name, idx, value):

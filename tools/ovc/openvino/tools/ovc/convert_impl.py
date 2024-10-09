@@ -492,16 +492,17 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
 
         argv.framework = model_framework
 
-        if argv.framework is None:
+        orig_input_model = argv.input_model
+        pytorch_model_on_disk = False
+        if argv.framework is None and get_pytorch_decoder_for_model_on_disk(argv, args):
             # try to load a model from disk as TorchScript or ExportedProgram
             # TorchScriptPythonDecoder or TorchFXPythonDecoder object will be assigned to argv.input_model
             # saved TorchScript and ExportedModel model can be passed to both ovc tool and Python convert_model
-            orig_input_model = argv.input_model
-            get_pytorch_decoder_for_model_on_disk(argv, args)
+            pytorch_model_on_disk = True
 
         ov_model = driver(argv, {"conversion_parameters": non_default_params})
 
-        if orig_input_model is not None:
+        if pytorch_model_on_disk:
             # release memory allocated for temporal object
             del argv.input_model
             # restore original model name in arguments for tool reporting
