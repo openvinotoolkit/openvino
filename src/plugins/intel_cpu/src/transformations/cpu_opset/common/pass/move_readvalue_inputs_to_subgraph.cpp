@@ -37,10 +37,7 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
         bool final_successor_is_only_root = true;
         std::string root_name = readvalue->get_friendly_name();
 
-        NodeVector subgraph = {};
-        auto add_node_to_subgraph = [&](std::shared_ptr<ov::Node> node) {
-            subgraph.emplace_back(node);
-        };
+        NodeVector subgraph_nodes = {};
         NodeVector inputs = {};
         OutputVector outputs = {};
 
@@ -89,11 +86,11 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
                 check_node(node->get_input_node_shared_ptr(i));
             }
             recursive_deep_check_node--;
-            // Add to subgraph
-            add_node_to_subgraph(node);
+            // Add to subgraph_nodes
+            subgraph_nodes.emplace_back(node);
         };
 
-        // Recursive input of ReadValue, and move all suitable nodes to subgraph.
+        // Recursive input of ReadValue, and move all suitable nodes to subgraph_nodes.
         check_node(readvalue->get_input_node_shared_ptr(0));
 
         // Find ReadValue corresponding Assign node.
@@ -108,14 +105,14 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
             }
         }
 
-        if (inputs.size() == 0 || corresponding_assign == nullptr || subgraph.size() == 0) {
+        if (inputs.size() == 0 || corresponding_assign == nullptr || subgraph_nodes.size() == 0) {
             return false;
         }
 
         auto new_rv = std::make_shared<ov::intel_cpu::ReadValueWithSubgraph>(readvalue->get_variable());
 
-        auto is_in_subgraph = [&subgraph](std::shared_ptr<ov::Node> n) {
-            for (auto& sub : subgraph) {
+        auto is_in_subgraph = [&subgraph_nodes](std::shared_ptr<ov::Node> n) {
+            for (auto& sub : subgraph_nodes) {
                 if (n->get_friendly_name() == sub->get_friendly_name()) {
                     return true;
                 }
@@ -137,7 +134,7 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
         // Subgraph's output
         auto last_node = readvalue->get_input_node_shared_ptr(0);
         auto output = std::make_shared<ov::op::v0::Result>(last_node);
-        auto func = std::make_shared<Model>(ov::ResultVector({output}), params);
+        auto func = std::make_shared<Model>(ov::ResultVector({output}), params, "state_init_submodel");
         new_rv->set_function(func);
 
         for (size_t i = 0; i < inputs.size(); i++) {
@@ -147,7 +144,7 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
 
         // Replace ReadValue with ov::intel_cpu::ReadValueWithSubgraph
         ov::replace_node(readvalue, new_rv);
-        ov::copy_runtime_info(subgraph, new_rv);
+        ov::copy_runtime_info(subgraph_nodes, new_rv);
         new_rv->validate_and_infer_types();
         return true;
     };

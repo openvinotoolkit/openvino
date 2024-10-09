@@ -588,26 +588,41 @@ void MemoryInput::initOptimalPrimitiveDescriptor() {
 }
 
 void MemoryInput::selectOptimalPrimitiveDescriptor() {
+    MemoryInputBase::selectOptimalPrimitiveDescriptor();
     if (haveSubgraph()) {
-        // for the input configution, just always use the parent configuration
         std::vector<Input::InputConfig> graphInputConfig;
+        std::vector<PortConfig> inConfs;
 
         for (size_t i = 0; i < getParentEdges().size(); i++) {
+            // MemoryInputBase::selectOptimalPrimitiveDescriptor() can't deduce corrent primitave.
             auto desc = getParentOutputMemDesc(getParentEdgeAt(i));
+            inConfs.emplace_back(desc);
             graphInputConfig.emplace_back(node::Input::InputConfig{desc, true});
         }
 
         std::vector<Input::OutputConfig> graphOutputConfig;
         for (size_t i = 0; i < getChildEdges().size(); i++) {
-            graphOutputConfig.emplace_back(node::Input::OutputConfig{true, true});
+            // TODO: Upgrade OutputConfig and update OutputConfig's first param like InputConfig
+            graphOutputConfig.emplace_back(node::Input::OutputConfig{false, false});
         }
 
         // configure the inner graph to get the information about output memory descriptors
         subGraph.Init(body, context, graphInputConfig, graphOutputConfig);
 
+        // for the output decriptors, use the configuration of the graph's output nodes
+        auto outputDescriptors = subGraph.getOutputMemoryDescriptors();
+
+        std::vector<PortConfig> outConfs;
+        for (const auto& desc : outputDescriptors) {
+            outConfs.emplace_back(desc);
+        }
+
+        const NodeConfig config(inConfs, outConfs);
+
+        supportedPrimitiveDescriptors.clear();
+        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::undef);
+
         selectPrimitiveDescriptorByIndex(0);
-    } else {
-        MemoryInputBase::selectOptimalPrimitiveDescriptor();
     }
 }
 
@@ -660,30 +675,34 @@ void MemoryInput::runDynamic(dnnl::stream strm) {
     }
 
     const bool processInitGraph = needInitGraphProcessing();
-
-    // Subgraph infer
-    if (haveSubgraph()) {
-        if (processInitGraph) {
+    MemoryPtr src = assignedMem;  // declare src memory
+    if (processInitGraph) {
+        if (haveSubgraph()) {
             subGraph.ResetInferCount();
             subGraph.Infer();
-        }
+            // depending on the memory sharing solution, we can return here if the memory is substituted from the
+            // external graph or override the src pointer with the memory pointer pointing to the subgraph output
+            // memory
+            auto& outputs = subGraph.GetOutputNodesMap();
+            OPENVINO_ASSERT(outputs.size() == 1);
+            auto itr = outputs.begin();
+            src = itr->second->getSrcMemoryAtPort(0);
 
-        DEBUG_LOG("dst memory=", getDstMemoryAtPort(0)->getData(), ", state memory=", assignedMem->getData());
-        if (getDstMemoryAtPort(0)->getData() != assignedMem->getData()) {
-            auto outputMem = getDstMemoryAtPort(0);
-            // Save output data to state
-            assignedMem->load(*outputMem);
+            // Update state MemoryDesc
+            assignedMem->redefineDesc(getBaseMemDescAtOutputPort(0)->cloneWithNewDims(src->getStaticDims()));
+
+            // Save to state mem
+            DEBUG_LOG("dst memory=", getDstMemoryAtPort(0)->getData(), ", state memory=", assignedMem->getData());
+            if (getDstMemoryAtPort(0)->getData() != assignedMem->getData())
+                assignedMem->load(*src);
+        } else {
+            src = getSrcMemoryAtPort(0);
         }
-        return;
     }
 
-    //reshape output
-    const auto& newDims = processInitGraph ? getSrcMemoryAtPort(0)->getStaticDims() : stateDims;
-
+    const auto& newDims = src->getStaticDims();
     redefineOutputMemory({newDims});
 
-    //copy data when necessary
-    auto src = processInitGraph ? getSrcMemoryAtPort(0) : assignedMem;
     auto dst = getDstMemoryAtPort(0);
     if (src->getData() != dst->getData()) {
         dst->load(*src);
@@ -721,24 +740,30 @@ void MemoryInput::runStatic(dnnl::stream strm) {
         memBlock->reset();
     }
 
-    const auto processInitGraph = needInitGraphProcessing();
-
-    // Subgraph infer
-    if (haveSubgraph()) {
-        if (processInitGraph) {
+    const bool processInitGraph = needInitGraphProcessing();
+    MemoryPtr src = assignedMem;  // declare src memory
+    if (processInitGraph) {
+        if (haveSubgraph()) {
+            subGraph.ResetInferCount();
             subGraph.Infer();
+
+            auto& outputs = subGraph.GetOutputNodesMap();
+            OPENVINO_ASSERT(outputs.size() == 1);
+            auto itr = outputs.begin();
+            src = itr->second->getSrcMemoryAtPort(0);
+
+            // Save to state mem
+            DEBUG_LOG("dst memory=", getDstMemoryAtPort(0)->getData(), ", state memory=", assignedMem->getData());
+            if (getDstMemoryAtPort(0)->getData() != assignedMem->getData())
+                assignedMem->load(*src);
+        } else {
+            src = getSrcMemoryAtPort(0);
         }
-        DEBUG_LOG("dst memory=", getDstMemoryAtPort(0)->getData(), ", state memory=", assignedMem->getData());
-        if (getDstMemoryAtPort(0)->getData() != assignedMem->getData()) {
-            auto outputMem = getDstMemoryAtPort(0);
-            // Save output data to state
-            assignedMem->load(*outputMem);
-        }
-        return;
     }
 
-    // copy data when necessary
-    auto src = processInitGraph ? getSrcMemoryAtPort(0) : assignedMem;
+    const auto& newDims = src->getStaticDims();
+    redefineOutputMemory({newDims});
+
     auto dst = getDstMemoryAtPort(0);
     if (src->getData() != dst->getData()) {
         dst->load(*src);

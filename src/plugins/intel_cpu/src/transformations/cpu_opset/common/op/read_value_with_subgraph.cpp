@@ -17,7 +17,7 @@ std::string ov::intel_cpu::ReadValueWithSubgraph::get_variable_id() const {
 }
 
 void ov::intel_cpu::ReadValueWithSubgraph::set_input(const Output<Node>& value,
-                                                         const std::shared_ptr<op::v0::Parameter>& body_parameter) {
+                                                     const std::shared_ptr<op::v0::Parameter>& body_parameter) {
     OPENVINO_ASSERT(body_parameter != nullptr, "Missing parameter! parameter is is nullptr!");
     auto param_index = m_bodies[0]->get_parameter_index(body_parameter);
 
@@ -63,6 +63,13 @@ std::shared_ptr<ov::Node> ov::intel_cpu::ReadValueWithSubgraph::clone_with_new_i
 
 bool ov::intel_cpu::ReadValueWithSubgraph::visit_attributes(AttributeVisitor& visitor) {
     INTERNAL_OP_SCOPE(intel_cpu_ReadValueWithSubgraphNode_visit_attributes);
+    visitor.on_attribute("variable_id", m_variable);
+
+    auto variable_info = m_variable->get_info();
+    visitor.on_attribute("variable_type", variable_info.data_type);
+    visitor.on_attribute("variable_shape", variable_info.data_shape);
+    m_variable->update(variable_info);
+
     visitor.on_attribute("body", m_bodies[0]);
     visitor.on_attribute("inputs", m_input_descriptions[0]);
     visitor.on_attribute("outputs", m_output_descriptions[0]);
@@ -72,16 +79,10 @@ bool ov::intel_cpu::ReadValueWithSubgraph::visit_attributes(AttributeVisitor& vi
 void ov::intel_cpu::ReadValueWithSubgraph::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(intel_cpu_ReadValueWithSubgraphNode_validate_and_infer_types);
 
-    NODE_VALIDATION_CHECK(this, m_bodies.size() == 1, "If contains incorrect number of bodies:", m_bodies.size());
-
     NODE_VALIDATION_CHECK(this,
-                          m_input_descriptions.size() == 1,
-                          "If contains incorrect number of body input descriptions:",
-                          m_input_descriptions.size());
-    NODE_VALIDATION_CHECK(this,
-                          m_output_descriptions.size() == 1,
-                          "If contains incorrect number of body output descriptions:",
-                          m_output_descriptions.size());
+                          m_bodies.size() == 1,
+                          "ReadValueWithSubgraph contains incorrect number of bodies:",
+                          m_bodies.size());
 
     validate_and_infer_type_body(get_function(), m_input_descriptions[0]);
 

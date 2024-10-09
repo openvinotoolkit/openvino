@@ -9,11 +9,6 @@
 using namespace ov::test;
 using namespace CPUTestUtils;
 
-// This test case is for stateful model with an init_state graph,
-// and Assign is straight from ReadValue.
-// What's more, during each iteration (except the first iteration),
-// the state should keep unchanged untill it's resetted.
-
 using InitGraphStatefulModelTestParams = std::vector<InputShape>;
 
 class InitGraphStatefulModelBase : virtual public ov::test::SubgraphBaseTest,
@@ -72,16 +67,12 @@ public:
     void run() override {
         prepare();
 
-        // iterating with state reset
-        for (auto iters = 0; iters < 2; iters++) {
-            // std::cout << "========= iters" << iters << std::endl;
-            for (const auto& targetStaticShapeVec : targetStaticShapes) {
-                // std::cout << "========= targetStaticShapeVec" << targetStaticShapeVec.front() << std::endl;
+        for (const auto& targetStaticShapeVec : targetStaticShapes) {
+            for (auto iters = 0; iters < 2; iters++) {
                 generate_inputs(targetStaticShapeVec);
                 validate();
             }
-
-            // std::cout << "========= reset =============" << std::endl << std::endl;
+            // Different input shape, reset is required.
             reset();
         }
     }
@@ -103,10 +94,10 @@ protected:
         inferRequest = compiledModel.create_infer_request();
         ASSERT_TRUE(inferRequest);
 
-        // Node with friendly name "init_graph/add" should be moved into subgraph.
+        // Node with friendly name "init_graph/add_1" should be moved into subgraph.
         bool found_init_graph_add = false;
         for (auto node : compiledModel.get_runtime_model()->get_ops()) {
-            if (node->get_friendly_name() == "init_graph/add") {
+            if (node->get_friendly_name() == "init_graph/add_1") {
                 found_init_graph_add = true;
                 break;
             }
@@ -131,30 +122,21 @@ protected:
     ov::InferRequest inferRequestRef;
 };
 
+// ReadValue Assign direct pair
 //
-//                      ┌─────────┐
-//                      │ Param0  │
-//                      └────┬────┘
-//                           |
-//                        ┌──┴──┐
-//                        │ Add │
-//                        └──┬──┘
-//                           |
-//      ┌─────────┐    ┌─────┴─────┐
-//      │ Param1  │    | ReadValue │...........
-//      └────┬────┘    └─────┬─────┘          .
-//           |            /     \             .
-//           \           /       \            .
-//            \         /         \           .
-//             \       /           \          .
-//             ┌───┴───┐       ┌────┴───┐     .
-//             │  Add  │       │ Assign │......
-//             └───┬───┘       └────────┘
-//                 |
-//            ┌────┴───┐
-//            │ Result │
-//            └────────┘
-class InitGraphStatefulModelImmediatePair : public InitGraphStatefulModelBase {
+//             Param_1   input_2
+//                |        |
+//              Add_1     /
+//                \      /
+//                 MatMul
+//                   |
+//   Param_0     ReadValue ..........
+//       \      /       \           .
+//         Add_0      Assign ........
+//          |
+//        Result
+
+class InitGraphStatefulModelDirectPair : public InitGraphStatefulModelBase {
 public:
     void SetUp() override {
         targetDevice = utils::DEVICE_CPU;
@@ -165,57 +147,53 @@ public:
             input_params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrc, shape));
         }
 
-        input_params[0]->set_friendly_name("xa");
-        input_params[1]->set_friendly_name("input_ids");
+        input_params[0]->set_friendly_name("input_0");
+        input_params[1]->set_friendly_name("input_1");
+        input_params[2]->set_friendly_name("input_2");
 
         // init_graph
-        auto add_0 =
-            std::make_shared<ov::op::v1::Add>(input_params[0], ov::op::v0::Constant::create(netPrc, {1}, {1.0f}));
-        add_0->set_friendly_name("init_graph/add");
+        auto add_1 =
+            std::make_shared<ov::op::v1::Add>(input_params[1], ov::op::v0::Constant::create(netPrc, {1}, {1.0f}));
+        add_1->set_friendly_name("init_graph/add_1");
+        auto mm_0 = std::make_shared<ov::op::v0::MatMul>(add_1, input_params[2]);
+        mm_0->set_friendly_name("init_graph/mm_0");
 
-        // The ReadValue/Assign operations must be used in pairs in the model.
-        // For each such a pair, its own variable object must be created.
-        const std::string variable_name("variable0");
+        const std::string variable_name("var_direct_pair");
         auto variable = std::make_shared<ov::op::util::Variable>(
-            ov::op::util::VariableInfo{inputDynamicShapes.front(), netPrc, variable_name});
+            ov::op::util::VariableInfo{{inputDynamicShapes[1][0], inputDynamicShapes[2][1]}, netPrc, variable_name});
 
-        // Creating ov::Model
-        auto read = std::make_shared<ov::op::v6::ReadValue>(add_0, variable);
-        auto add_1 = std::make_shared<ov::op::v1::Add>(input_params[1], read);
-        add_1->set_friendly_name("add_1");
+        auto read = std::make_shared<ov::op::v6::ReadValue>(mm_0, variable);
+        auto add_0 = std::make_shared<ov::op::v1::Add>(input_params[0], read);
+        add_0->set_friendly_name("add_0");
         auto assign = std::make_shared<ov::op::v6::Assign>(read, variable);
-        auto res = std::make_shared<ov::op::v0::Result>(add_1);
+        auto res = std::make_shared<ov::op::v0::Result>(add_0);
         function = std::make_shared<ov::Model>(ov::ResultVector({res}), ov::SinkVector({assign}), input_params);
-
-        // ov::pass::Serialize serializer("InitGraphStatefulModelImmediatePair.xml",
-        //                                "InitGraphStatefulModelImmediatePair.bin");
-        // serializer.run_on_model(function);
     }
 };
 
-TEST_P(InitGraphStatefulModelImmediatePair, CompareWithRefs) {
+TEST_P(InitGraphStatefulModelDirectPair, CompareWithRefs) {
     run();
 }
+
 namespace {
 const std::vector<std::vector<InputShape>> inputShapes = {
     {
-        // dynamic shape
-        // param0, to simulate cross-attention kv-cache of Whisper model. State should
-        // keep the same value of the first iteration no matter how param0 changes.
-        {{1, -1},
-         {{1, 3}, {1, 3}, {1, 1}, {1, 1}}},  // (B, L)
-                                             // param1, to simulate input_ids for first-token, second-token, etc.
-        {{1, -1}, {{1, 3}, {1, 3}, {1, 1}, {1, 1}}},  // (B, L)
+        // Dynamic shape.
+        {{1, -1}, {{1, 2}, {1, 2}, {1, 1}}},
+        {{2, -1}, {{2, 3}, {2, 2}, {2, 1}}},
+        {{-1, 2}, {{3, 2}, {2, 2}, {1, 2}}},
     },
     {
-        // static shape
-        {{1, 2}, {{1, 2}}},  // input 0
-        {{1, 2}, {{1, 2}}}   // input 1
-    },
+        // Static shape.
+        {{1, 1}, {{1, 1}}},
+        {{4, 2}, {{4, 2}}},
+        {{2, 1}, {{2, 1}}},
+    }
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_StatefulInitGraph,
-                         InitGraphStatefulModelImmediatePair,
+                         InitGraphStatefulModelDirectPair,
                          ::testing::ValuesIn(inputShapes),
-                         InitGraphStatefulModelImmediatePair::getTestCaseName);
+                         InitGraphStatefulModelDirectPair::getTestCaseName);
+
 }  // namespace
