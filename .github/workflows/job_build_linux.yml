@@ -177,7 +177,6 @@ jobs:
           cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -P ${BUILD_DIR}/cmake_install.cmake
           cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_TEST_DIR} -DCOMPONENT=tests -P ${BUILD_DIR}/cmake_install.cmake
           cmake -DCMAKE_INSTALL_PREFIX=${DEVELOPER_PACKAGE_DIR} -DCOMPONENT=developer_package -P ${BUILD_DIR}/cmake_install.cmake
-          cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -DCOMPONENT=python_wheels -P ${BUILD_DIR}/cmake_install.cmake
 
       - name: Pack Artifacts
         run: |
@@ -187,6 +186,10 @@ jobs:
 
           pushd ${DEVELOPER_PACKAGE_DIR}
             tar -I pigz -cvf ${BUILD_DIR}/openvino_developer_package.tar.gz *
+          popd
+          
+          pushd ${BUILD_DIR}/wheels
+            tar -I pigz -cvf ${BUILD_DIR}/openvino_wheels.tar.gz *
           popd
 
           pushd ${INSTALL_TEST_DIR}
@@ -256,6 +259,14 @@ jobs:
         with:
           name: openvino_package
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
+          if-no-files-found: 'error'
+          
+      - name: Upload openvino wheels
+        if: ${{ always() }}
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        with:
+          name: openvino_wheels
+          path: ${{ env.BUILD_DIR }}/openvino_wheels.tar.gz
           if-no-files-found: 'error'
 
       - name: Upload openvino js package

@@ -28,6 +28,7 @@ jobs:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       OPENVINO_REPO: ${{ github.workspace }}/openvino
       INSTALL_DIR: ${{ github.workspace }}/install
+      INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       ONNX_MODELS_PATH: ${{ github.workspace }}/onnx_test_models
       # instead of using static MODELS_SHARE_PATH
@@ -37,18 +38,13 @@ jobs:
       ONNX_MODEL_ZOO_SHA: "5faef4c33eba0395177850e1e31c4a6a9e634c82"
     if: ${{ github.event_name != 'merge_group' }}
     steps:
-      - name: Download OpenVINO package
+      - name: Download OpenVINO artifacts (package, wheels, tests)
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
-          name: openvino_package
+          pattern: openvino_-*
           path: ${{ env.INSTALL_DIR }}
-
-      - name: Download OpenVINO tests package
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
-        with:
-          name: openvino_tests
-          path: ${{ env.INSTALL_TEST_DIR }}
-
+          merge-multiple: true
+        
       # Needed as ${{ github.workspace }} is not working correctly when using Docker
       - name: Setup Variables
         run: |
@@ -59,15 +55,12 @@ jobs:
           echo $MODELS_SHARE_PATH
           echo "LOGS_FOLDER=$GITHUB_WORKSPACE/onnx_models_tests_logs" >> "$GITHUB_ENV"
 
-      - name: Extract OpenVINO packages
+      - name: Extract OpenVINO packages and tests
         run: |
-          pushd ${INSTALL_DIR}
             tar -I pigz -xf openvino_package.tar.gz -C ${INSTALL_DIR}
-          popd
-
-          pushd ${INSTALL_TEST_DIR}
+            tar -I pigz -xf openvino_wheels.tar.gz -C ${INSTALL_DIR}
             tar -I pigz -xf openvino_tests.tar.gz -C ${INSTALL_DIR}
-          popd
+        working-directory: ${{ env.INSTALL_DIR }}
 
       # Issue 148922
       # Can be a possible root cause for the bug
@@ -87,12 +80,12 @@ jobs:
       - name: Install OpenVINO Python wheels
         run: |
           # Install the core OV wheel
-          python3 -m pip install ${INSTALL_DIR}/wheels/openvino-*.whl
+          python3 -m pip install ${INSTALL_WHEELS_DIR}/openvino-*.whl
 
           extras_to_install="onnx"
 
           # Find and install OV dev wheel
-          pushd ${INSTALL_DIR}/wheels
+          pushd ${INSTALL_WHEELS_DIR}
             ov_dev_wheel_name=$(find . -name 'openvino_dev*.whl')
             python3 -m pip install $ov_dev_wheel_name[$extras_to_install]
           popd
