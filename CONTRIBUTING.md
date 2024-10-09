@@ -52,7 +52,7 @@ product better.
      Since the market of computing devices is constantly evolving, OpenVINO is always open to extending
      its support for new hardware. If you want to run inference on a device that is currently not supported,
      you can see how to develop a new plugin for it in the
-     [Plugin Developer Guide](https://docs.openvino.ai/canonical/openvino_docs_ie_plugin_dg_overview.html).
+     [Plugin Developer Guide](https://docs.openvino.ai/2024/documentation/openvino-extensibility/openvino-plugin-library.html).
 
 
 ### Improve documentation
