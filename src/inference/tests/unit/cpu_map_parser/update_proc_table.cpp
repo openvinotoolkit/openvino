@@ -9,21 +9,20 @@
 #include "os/cpu_map_info.hpp"
 
 using namespace testing;
-using namespace ov;
 
-namespace {
+namespace ov {
 
 #ifdef __linux__
 
-struct LinuxUpdateProcTableTestCase {
+struct LinuxSortProcTableTestCase {
     int current_processor_id;
     std::vector<std::vector<int>> _proc_type_table_input;
     std::vector<std::vector<int>> _cpu_mapping_table;
     std::vector<std::vector<int>> _proc_type_table_output;
 };
 
-class LinuxUpdateProcTableTests : public ov::test::TestsCommon,
-                                  public testing::WithParamInterface<std::tuple<LinuxUpdateProcTableTestCase>> {
+class LinuxSortProcTableTests : public ov::test::TestsCommon,
+                                public testing::WithParamInterface<std::tuple<LinuxSortProcTableTestCase>> {
 public:
     void SetUp() override {
         const auto& test_data = std::get<0>(GetParam());
@@ -37,7 +36,7 @@ public:
     }
 };
 
-LinuxUpdateProcTableTestCase proc_table_2sockets_24cores_hyperthreading_1 = {
+LinuxSortProcTableTestCase proc_table_2sockets_24cores_hyperthreading_1 = {
     2,
     {{48, 24, 0, 24, -1, -1}, {12, 6, 0, 6, 0, 0}, {12, 6, 0, 6, 1, 0}, {12, 6, 0, 6, 2, 1}, {12, 6, 0, 6, 3, 1}},
     {
@@ -68,7 +67,7 @@ LinuxUpdateProcTableTestCase proc_table_2sockets_24cores_hyperthreading_1 = {
     },
     {{48, 24, 0, 24, -1, -1}, {12, 6, 0, 6, 0, 0}, {12, 6, 0, 6, 1, 0}, {12, 6, 0, 6, 2, 1}, {12, 6, 0, 6, 3, 1}},
 };
-LinuxUpdateProcTableTestCase proc_table_2sockets_24cores_hyperthreading_2 = {
+LinuxSortProcTableTestCase proc_table_2sockets_24cores_hyperthreading_2 = {
     16,
     {{48, 24, 0, 24, -1, -1}, {12, 6, 0, 6, 0, 0}, {12, 6, 0, 6, 1, 0}, {12, 6, 0, 6, 2, 1}, {12, 6, 0, 6, 3, 1}},
     {
@@ -99,7 +98,7 @@ LinuxUpdateProcTableTestCase proc_table_2sockets_24cores_hyperthreading_2 = {
     },
     {{48, 24, 0, 24, -1, -1}, {12, 6, 0, 6, 1, 0}, {12, 6, 0, 6, 2, 1}, {12, 6, 0, 6, 3, 1}, {12, 6, 0, 6, 0, 0}},
 };
-LinuxUpdateProcTableTestCase proc_table_2sockets_24cores_hyperthreading_3 = {
+LinuxSortProcTableTestCase proc_table_2sockets_24cores_hyperthreading_3 = {
     7,
     {{48, 24, 0, 24, -1, -1}, {12, 6, 0, 6, 0, 0}, {12, 6, 0, 6, 1, 0}, {12, 6, 0, 6, 2, 1}, {12, 6, 0, 6, 3, 1}},
     {
@@ -130,7 +129,7 @@ LinuxUpdateProcTableTestCase proc_table_2sockets_24cores_hyperthreading_3 = {
     },
     {{48, 24, 0, 24, -1, -1}, {12, 6, 0, 6, 2, 1}, {12, 6, 0, 6, 3, 1}, {12, 6, 0, 6, 0, 0}, {12, 6, 0, 6, 1, 0}},
 };
-LinuxUpdateProcTableTestCase proc_table_2sockets_24cores_hyperthreading_4 = {
+LinuxSortProcTableTestCase proc_table_2sockets_24cores_hyperthreading_4 = {
     21,
     {{48, 24, 0, 24, -1, -1}, {12, 6, 0, 6, 0, 0}, {12, 6, 0, 6, 1, 0}, {12, 6, 0, 6, 2, 1}, {12, 6, 0, 6, 3, 1}},
     {
@@ -162,10 +161,10 @@ LinuxUpdateProcTableTestCase proc_table_2sockets_24cores_hyperthreading_4 = {
     {{48, 24, 0, 24, -1, -1}, {12, 6, 0, 6, 3, 1}, {12, 6, 0, 6, 0, 0}, {12, 6, 0, 6, 1, 0}, {12, 6, 0, 6, 2, 1}},
 };
 
-TEST_P(LinuxUpdateProcTableTests, LinuxProcTable) {}
+TEST_P(LinuxSortProcTableTests, LinuxProcTable) {}
 
 INSTANTIATE_TEST_SUITE_P(CPUMap,
-                         LinuxUpdateProcTableTests,
+                         LinuxSortProcTableTests,
                          testing::Values(proc_table_2sockets_24cores_hyperthreading_1,
                                          proc_table_2sockets_24cores_hyperthreading_2,
                                          proc_table_2sockets_24cores_hyperthreading_3,

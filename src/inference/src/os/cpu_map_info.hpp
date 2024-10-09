@@ -54,6 +54,7 @@ public:
     std::mutex _cpu_mutex;
     int _socket_idx = 0;
 
+private:
     /**
      * @brief      Sort proc_type_table by CPU ID on which application is running. The numa node containing this CPU ID
      * will move to first row.
@@ -83,6 +84,8 @@ public:
             }
         }
     };
+
+    friend class LinuxSortProcTableTests;
 };
 
 CPU& cpu_info();
