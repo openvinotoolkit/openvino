@@ -190,7 +190,7 @@ static MemoryPtr prepareWeightMemory(const MemoryArgs &memory,
             MemoryPtr final_ptr = memory.at(ARG_WEI);
             arm_compute::WeightFormat expectedWeightFormat;
             bool isNeededReorder;
-            {
+            //{
                 MemoryArgs memoryArgs;
                 memoryArgs[ARG_BIAS]  = memory.at(ARG_BIAS);
                 memoryArgs[ARG_WEI]   = final_ptr;
@@ -210,7 +210,7 @@ static MemoryPtr prepareWeightMemory(const MemoryArgs &memory,
                 auto aclWeightsRepack = std::make_shared<acl_fc_executor::ACLWeightFormatGenerator>(attrs, postOps, memoryArgs);
                 isNeededReorder = aclWeightsRepack->update(memoryArgs);
                 expectedWeightFormat = aclWeightsRepack->getOptImplWeightFormat();
-            }
+            //}
         msg << "isNeededReorder: " << isNeededReorder << " expectedWeightFormat: " << static_cast<int>(expectedWeightFormat) << std::endl;
         std::cout << msg.str();
         if (isNeededReorder) {
@@ -256,7 +256,7 @@ static MemoryPtr prepareWeightMemory(const MemoryArgs &memory,
                     remaining_dims = {}; // No other dimensions for 2D
                 //}
                 auto weights_md_ = dnnlDstDesc->getDnnlDesc().get();
-                auto wei_tensor_info = aclMemoryInfos[ACLArgs::ACL_WEI].get();
+                auto wei_tensor_info = aclWeightsRepack->aclMemoryInfos[ACLArgs::ACL_WEI].get();//aclMemoryInfos[ACLArgs::ACL_WEI].get();
                 dnnl::impl::cpu::acl::acl_utils::reorder_to_weight_format(*wei_tensor_info,
                     *weights_md_, expectedWeightFormat, inner_dim, o_dim,
                     remaining_dims, {});
@@ -437,7 +437,10 @@ arm_compute::Status acl_fc_executor::ACLWeightFormatGenerator::validateTensorsIn
     if (aclfcAttrs.isConvertedWeights) {
         aclMemoryInfos[ACLArgs::ACL_WEI]->set_data_type(aclMemoryInfos[ACLArgs::ACL_SRC_0]->data_type());
     }
-    return arm_compute::NEFullyConnectedLayer::has_opt_impl(
+    int ic_total = aclMemoryInfos[ACLArgs::ACL_SRC_0]->dimension(0);
+    std::cout << "ACL ic_total: " << ic_total << std::endl;
+    weightsInfo = arm_compute::WeightsInfo(false, 1, 1, ic_total, false, arm_compute::WeightFormat::ANY);
+    arm_compute::Status s = arm_compute::NEFullyConnectedLayer::has_opt_impl(
             expectedWeightFormat,
             aclMemoryInfos[ACLArgs::ACL_SRC_0].get(),
             aclMemoryInfos[ACLArgs::ACL_WEI].get(),
@@ -445,6 +448,8 @@ arm_compute::Status acl_fc_executor::ACLWeightFormatGenerator::validateTensorsIn
             aclMemoryInfos[ACLArgs::ACL_DST].get(),
             fullyConnectedLayerInfo,
             weightsInfo);
+    std::cout << "ACL expectedWeightFormat: " << static_cast<int>(expectedWeightFormat) << std::endl;
+    return s;
 }
 
 ACLFunction acl_fc_executor::ACLWeightFormatGenerator::configureFunction(const ACLTensors &aclMemoryTensors) {
