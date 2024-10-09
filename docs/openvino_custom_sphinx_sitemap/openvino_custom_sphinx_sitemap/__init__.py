@@ -130,5 +130,5 @@ def process_coveo_meta(meta, url, link):
 
 def process_link(link):
     if '/' in link:
-        return link.split('/')[0]
-    return link.split('.html')[0]
+        return link.split('/')[0].replace("-", " ")
+    return link.split('.html')[0].replace("-", " ")
