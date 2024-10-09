@@ -54,7 +54,6 @@ jobs:
         run: |
           echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
           echo "ONNX_RUNTIME_REPO=$GITHUB_WORKSPACE/onnxruntime" >> "$GITHUB_ENV"
-          echo "ONNX_RUNTIME_UTILS=$GITHUB_WORKSPACE/install/onnxruntime" >> "$GITHUB_ENV"
           echo "ONNX_RUNTIME_BUILD_DIR=$GITHUB_WORKSPACE/onnxruntime/build" >> "$GITHUB_ENV"
 
       - name: Extract OpenVINO package
