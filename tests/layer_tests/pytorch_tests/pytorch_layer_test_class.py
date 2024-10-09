@@ -5,17 +5,18 @@ import itertools
 import warnings
 from copy import deepcopy
 import os
-
+import torch
+import pytest
+import logging
 import numpy as np
+
 from common.constants import test_device, test_precision
 from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
-
 from openvino.frontend import FrontEndManager
 from openvino.runtime import Core, Type, PartialShape
 import openvino.properties.hint as hints
-import torch
-from packaging import version
-import pytest
+
+logging.basicConfig(level=logging.DEBUG)
 
 
 def skip_check(param):
@@ -124,13 +125,9 @@ class PytorchLayerTest:
                 from torch.export import export
 
                 em = export(model, tuple(torch_inputs))
-                if version.parse(torch.__version__) >= version.parse("2.3"):
-                    em = em.run_decompositions()
-                gm = em.module()
-                print(gm.code)
 
                 converted_model = convert_model(
-                    em, example_input=torch_inputs)
+                    em, example_input=torch_inputs, verbose=True)
                 self._resolve_input_shape_dtype(
                     converted_model, ov_inputs, dynamic_shapes)
                 smodel = model
@@ -242,7 +239,7 @@ class PytorchLayerTest:
         if not dynamic_shapes:
             input_shapes = [inp.shape for inp in ov_inputs]
             kwargs["input"] = input_shapes
-        om = convert_model(decoder, **kwargs)
+        om = convert_model(decoder, verbose=True, **kwargs)
         self._resolve_input_shape_dtype(om, ov_inputs, dynamic_shapes)
         return smodel, om
 
