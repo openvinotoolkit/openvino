@@ -130,9 +130,9 @@ void PagedAttention::createPrimitive() {
 #if defined(OPENVINO_ARCH_X86_64)
         auto kvCachePrecision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
         return make_pa_executor(rtPrecision, kvCachePrecision);
-#elif defined(OPENVINO_ARCH_AARCH64)
+#elif defined(OPENVINO_ARCH_ARM64)
         auto kvCachePrecision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
-        return make_aarch64_pa_executor(rtPrecision, kvCachePrecision);
+        return make_pa_executor(rtPrecision, kvCachePrecision);
 #else
         return nullptr;
 #endif
