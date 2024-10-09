@@ -72,7 +72,8 @@ jobs:
           
       - name: Get ONNX runtime version
         run: |
-          echo "ONNX_RUNTIME_VERSION=$(`tr -s '\n ' < ${ONNX_RUNTIME_UTILS}/version`)" >> "$GITHUB_ENV"
+          echo "ONNX_RUNTIME_VERSION=$(`tr -s '\n ' < version`)" >> "$GITHUB_ENV"
+        working-directory: ${{ env.ONNX_RUNTIME_UTILS }}
         
       - name: Clone ONNX Runtime
         uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
