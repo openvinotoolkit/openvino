@@ -582,12 +582,19 @@ ov::SoPtr<ov::ICompiledModel> ov::npuw::CompiledModel::compile_submodel(const st
                                                                         const std::string& device) {
     auto plugin = get_npuw_plugin();
     auto core = plugin->get_core();
+
     // set exclusive_async_requests in case when model is split
     // NOTE(dm): Not sure if it is required for the NPUW plugin, but likely it is
     auto& device_config = m_meta_devices[device];
+
+    const auto& cache_dir = m_cfg.get<::intel_npu::NPUW_CACHE_DIR>();
+    if (!cache_dir.empty()) {
+        LOG_INFO("NPUW will try to utilize CACHE_DIR for " << submodel->get_friendly_name() << " submodel.");
+        device_config.insert(ov::cache_dir(cache_dir));
+    }
+
     if (m_compiled_submodels.size() > 1) {
-        auto supported_internal_properties =
-            plugin->get_core()->get_property(device, ov::internal::supported_properties);
+        auto supported_internal_properties = core->get_property(device, ov::internal::supported_properties);
         if (std::find(supported_internal_properties.begin(),
                       supported_internal_properties.end(),
                       ov::internal::exclusive_async_requests) != supported_internal_properties.end()) {
@@ -831,6 +838,7 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::parallel_compilation, NPUW_PARALLEL_COMPILE),
                           BIND(npuw::funcall_async, NPUW_FUNCALL_ASYNC),
                           BIND(npuw::weights_bank, NPUW_WEIGHTS_BANK),
+                          BIND(npuw::cache_dir, NPUW_CACHE_DIR),
                           BIND(npuw::accuracy::check, NPUW_ACC_CHECK),
                           BIND(npuw::accuracy::threshold, NPUW_ACC_THRESH),
                           BIND(npuw::accuracy::reference_device, NPUW_ACC_DEVICE),

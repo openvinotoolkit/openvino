@@ -45,6 +45,14 @@ static constexpr ov::Property<std::string> submodel_device{"NPUW_SUBMODEL_DEVICE
  */
 static constexpr ov::Property<std::string> weights_bank{"NPUW_WEIGHTS_BANK"};
 
+/**
+ * @brief
+ * Type: std::string.
+ * Specify a directory where to store cached submodels.
+ * Default value: empty.
+ */
+static constexpr ov::Property<std::string> cache_dir{"NPUW_CACHE_DIR"};
+
 namespace partitioning {
 namespace online {
 /**
