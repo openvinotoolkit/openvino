@@ -4,7 +4,6 @@
 
 #include "openvino/frontend/jax/node_context.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/convert.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/topk.hpp"
 #include "utils.hpp"
@@ -24,11 +23,16 @@ OutputVector translate_argmax(const NodeContext& context) {
     auto dtype = convert_dtype(context.const_named_param<int64_t>("index_dtype"));
 
     auto k = std::make_shared<v0::Constant>(element::i64, Shape{}, 1);
-    auto topk = std::make_shared<v11::TopK>(input, k, axis_val, v11::TopK::Mode::MAX, v1::TopK::SortType::NONE);
+    auto topk = std::make_shared<v11::TopK>(input,
+                                            k,
+                                            axis_val,
+                                            v11::TopK::Mode::MAX,
+                                            v1::TopK::SortType::SORT_VALUES,
+                                            dtype,
+                                            true);
     auto indices = topk->output(1);
 
-    auto squeeze = std::make_shared<v0::Squeeze>(indices, axis);
-    auto res = std::make_shared<v0::Convert>(squeeze, dtype);
+    auto res = std::make_shared<v0::Squeeze>(indices, axis);
     return {res};
 };
 
