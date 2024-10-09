@@ -6,6 +6,7 @@
 
 #include "adjust_brgemm_copy_b_loop_ports.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
+#include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/pass/lowered/expressions/brgemm_copy_b_buffer_expressions.hpp"
 
 #include "snippets/lowered/loop_info.hpp"
@@ -45,18 +46,29 @@ bool ov::intel_cpu::pass::AdjustBrgemmCopyBLoopPorts::run(snippets::lowered::Lin
         const auto& loop_mngr = linear_ir.get_loop_manager();
         const auto& loop_info = loop_mngr->get_loop_info<snippets::lowered::UnifiedLoopInfo>(blocked_loop_id);
 
-        auto caller = [target_port](snippets::lowered::LoopPort& loop_port, snippets::lowered::UnifiedLoopInfo::LoopPortDesc& loop_desc) {
+        snippets::lowered::UnifiedLoopInfo::LoopPortDesc* copy_b_loop_desc = nullptr;
+        std::vector<bool> is_incremented;
+        auto caller = [&](snippets::lowered::LoopPort& loop_port, snippets::lowered::UnifiedLoopInfo::LoopPortDesc& loop_desc) {
             const auto& p = *loop_port.expr_port;
-            if (p.get_type() != snippets::lowered::ExpressionPort::Input ||
-                p != target_port)
-                    return;
-            loop_desc.ptr_increment *= 2;
+            // Note: here we consider only the ports directly connected to Brgemm
+            // If other operations are in the blocking loops (online Softmax for example), this logic should be extended
+            if (!ov::is_type<intel_cpu::BrgemmCPU>(p.get_expr()->get_node()))
+                return;
+            if (p.get_type() == snippets::lowered::ExpressionPort::Input &&
+                p == target_port)
+                copy_b_loop_desc = &loop_desc;
+            is_incremented.push_back(loop_port.is_incremented);
         };
         std::cerr << "\n";
         for (auto i : loop_info->get_ptr_increments())
             std::cerr << i << ", ";
         std::cerr << "\n";
         loop_info->iterate_through_infos(caller);
+        // We need to increment stride only in case of N blocking
+        OPENVINO_ASSERT(is_incremented.size() == 3 && copy_b_loop_desc, "Failed to identify copyB loop ports");
+        if (is_incremented[1] && is_incremented[2])
+            copy_b_loop_desc->ptr_increment  *= 2;
+
         std::cerr << "\n";
         for (auto i : loop_info->get_ptr_increments())
             std::cerr << i << ", ";

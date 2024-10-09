@@ -43,7 +43,7 @@ static inline std::vector<std::vector<element::Type>> precisions() {
 
 
 std::vector<std::vector<ov::test::InputShape>> input_shapes{
-    { {{}, {{2, 1, 2, 4}}},   {{}, {{2, 1, 4, 128}}} },
+    { {{}, {{2, 1, 2, 64}}},   {{}, {{2, 1, 64, 128}}} },
     /*
     { {{}, {{2, 1, 3, 5}}},   {{}, {{1, 3, 5, 3}}} },
     { {{}, {{3, 1, 32, 14}}},   {{}, {{1, 3, 14, 37}}} },
