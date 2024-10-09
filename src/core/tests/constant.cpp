@@ -36,11 +36,6 @@ struct TestDType {
     float value;
 };
 
-template <class Container>
-size_t container_byte_size(const Container& c) {
-    return c.size() * sizeof(typename Container::value_type);
-}
-
 using std::string;
 using std::vector;
 
@@ -2630,31 +2625,11 @@ TEST(constant, hold_tensor_custom_strides_revalidate) {
     EXPECT_EQ(const_op->get_tensor_view().get_strides(), strides);
 }
 
-TEST(constant, hold_shared_memory_invalid_shape) {
-    auto storage = std::vector<int32_t>{1, 2, 3, 4, 5, 6, 5, 4, 3, 2, 1};
-
-    OV_EXPECT_THROW(
-        std::ignore = op::v0::Constant(element::i32, Shape{2, 3, 3}, storage.data(), container_byte_size(storage)),
-        AssertFailure,
-        AllOf(HasSubstr("i32[2,3,3]"),
-              HasSubstr("The given precision and shape has size larger than the memory size: 72 > 44")));
-}
-
-TEST(constant, hold_shared_memory_invalid_precision) {
-    auto storage = std::vector<int32_t>{1, 2, 3, 4, 5, 6, 5, 4, 3, 2, 1};
-
-    OV_EXPECT_THROW(
-        std::ignore = op::v0::Constant(element::i64, Shape{2, 3}, storage.data(), container_byte_size(storage)),
-        AssertFailure,
-        AllOf(HasSubstr("i64[2,3]"),
-              HasSubstr("The given precision and shape has size larger than the memory size: 48 > 44")));
-}
-
 TEST(constant, hold_shared_memory_same_size) {
     auto storage =
         std::make_shared<std::vector<int32_t>>(std::initializer_list<int32_t>{1, 2, 3, 4, 5, 6, 5, 4, 3, 2, 1});
     {
-        auto c = op::v0::Constant(element::i32, Shape{11}, storage->data(), container_byte_size(*storage));
+        auto c = op::v0::Constant(element::i32, Shape{storage->size()}, storage->data(), {});
         std::fill_n(storage->begin() + 3, 4, 0);
 
         EXPECT_EQ(storage.use_count(), 1);
@@ -2667,7 +2642,7 @@ TEST(constant, hold_shared_memory_same_size) {
 
 TEST(constant, hold_shared_memory_shape_within_memory_size) {
     auto storage = std::vector<uint8_t>{1, 2, 3, 4, 5, 6, 5, 4, 3, 2, 1};
-    auto c = op::v0::Constant(element::u8, Shape{2, 3}, storage.data(), container_byte_size(storage));
+    auto c = op::v0::Constant(element::u8, Shape{2, 3}, storage.data(), {});
 
     EXPECT_EQ(c.get_data_ptr(), storage.data());
     EXPECT_EQ(c.get_vector<uint8_t>(), std::vector<uint8_t>({1, 2, 3, 4, 5, 6}));
@@ -2676,7 +2651,7 @@ TEST(constant, hold_shared_memory_shape_within_memory_size) {
 
 TEST(constant, hold_shared_memory_different_precision) {
     auto storage = std::vector<uint32_t>{1, 2, 3, 4, 5, 6, 5, 4, 3, 2, 1};
-    auto c = op::v0::Constant(element::u8, Shape{2, 3}, storage.data(), container_byte_size(storage));
+    auto c = op::v0::Constant(element::u8, Shape{2, 3, 1}, storage.data(), {});
 
     EXPECT_EQ(c.get_data_ptr(), storage.data());
     EXPECT_EQ(c.get_vector<uint8_t>(), std::vector<uint8_t>({1, 0, 0, 0, 2, 0}));
@@ -2695,10 +2670,6 @@ TEST(constant, own_shared_memory) {
 
         MOCK_METHOD(void, dtor_impl, ());
 
-        size_t byte_size() const {
-            return container_byte_size(values);
-        }
-
         constexpr ov::element::Type get_element_type() const {
             return ov::element::i16;
         }
@@ -2708,11 +2679,8 @@ TEST(constant, own_shared_memory) {
 
     {
         auto storage = std::make_shared<CustomStorage>(std::initializer_list<int16_t>{1, 2, 3, 4, 5, 6, 5, 4, 3, 2, 1});
-        auto c = std::make_shared<op::v0::Constant>(storage->get_element_type(),
-                                                    Shape{2},
-                                                    storage->values.data(),
-                                                    container_byte_size(storage->values),
-                                                    storage);
+        auto c =
+            std::make_shared<op::v0::Constant>(storage->get_element_type(), Shape{2}, storage->values.data(), storage);
 
         EXPECT_EQ(storage.use_count(), 2);
 
@@ -2731,7 +2699,6 @@ TEST(constant, own_shared_memory) {
             c = std::make_shared<op::v0::Constant>(storage->get_element_type(),
                                                    Shape{2},
                                                    storage->values.data(),
-                                                   container_byte_size(storage->values),
                                                    storage);
         }
 
