@@ -17,6 +17,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "openvino/runtime/make_tensor.hpp"  // get_tensor_impl
 
 #ifdef UNPACK_PROFILING
 #    include "tbb/concurrent_unordered_map.h"
@@ -640,6 +641,115 @@ void unpack_i4f16(const ov::SoPtr<ov::ITensor>& from,
     } else {
         for (std::size_t index = 0; index < numWork; index++) {
             unpack_body(index, stride);
+        }
+    }
+}
+
+void unpack_i4f16_z(const ov::SoPtr<ov::ITensor>& from,
+                    const ov::SoPtr<ov::ITensor>& scale,
+                    const ov::SoPtr<ov::ITensor>& to,
+                    const ov::npuw::util::UnpackOptions& unpack_options) {
+    NPUW_ASSERT(from->is_continuous());
+    NPUW_ASSERT(scale->is_continuous());
+    NPUW_ASSERT(to->is_continuous());
+    NPUW_ASSERT(from->get_size() == to->get_size());
+
+    const auto& from_shape = from->get_shape();
+    NPUW_ASSERT(from_shape.back() % 64 == 0);
+
+    const auto& scale_shape = scale->get_shape();
+    NPUW_ASSERT(scale_shape.size() == 3);
+    NPUW_ASSERT(scale_shape[0] == from_shape[0]);
+    NPUW_ASSERT(scale_shape[2] == from_shape[2]);
+    NPUW_ASSERT(scale_shape[1] == 1);
+
+    const auto scale_elem_type = scale->get_element_type();
+    NPUW_ASSERT(scale_elem_type == ov::element::f32);
+
+    // This conversion combines i4tof32 and f32tof16. Here we
+    // - read    256  bits (= 32  bytes, = 64  u4  elements)
+    // - write   1024 bits (= 128 bytes, = 64  f16 elements)
+    // per every iteration, what translates to (from->size() / 64) iterations
+
+    const size_t C = from_shape[from_shape.size() - 3];
+    const size_t H = from_shape[from_shape.size() - 2];
+    const size_t W = from_shape[from_shape.size() - 1];
+
+    const int8_t* const pSrc = static_cast<int8_t*>(from->data());  // 2 x i4  elements
+    const float* const pScl = static_cast<float*>(scale->data());   // 1 x f32 element
+    int16_t* pDst = static_cast<int16_t*>(to->data());              // 1 x f16 element
+
+    auto unpack_body = [&](size_t job_index, size_t stride) {
+        size_t start_c = job_index * stride;
+        size_t end_c = std::min(C, start_c + stride);
+
+        for (size_t c = start_c; c < end_c; ++c) {
+            for (size_t h = 0; h < H; ++h) {
+                for (size_t w = 0; w < W; w += 64) {
+                    const int8_t* pSrc_iter = pSrc + (w + W * h + W * H * c) / 2;
+                    __m256i vinput = _mm256_lddqu_si256(reinterpret_cast<const __m256i*>(pSrc_iter));
+                    __m256i vout0, vout1;
+                    avx2_i4toi8(vinput, &vout0, &vout1);
+                    int8_t tmp[64];  // FIXME: Avoid it
+                    __m256i* tmpv0 = reinterpret_cast<__m256i*>(tmp);
+                    __m256i* tmpv1 = reinterpret_cast<__m256i*>(tmp + 32);
+                    _mm256_storeu_si256(tmpv0, vout0);
+                    _mm256_storeu_si256(tmpv1, vout1);
+                    __m128i i8vecs[8] = {
+                        _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp)),
+                        _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 8)),
+                        _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 16)),
+                        _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 24)),
+                        _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 32)),
+                        _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 40)),
+                        _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 48)),
+                        _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 56)),
+                    };
+
+                    const float* pScl_iter = pScl + w + W * c;
+                    __m256 svalVec[8];
+                    for (int i = 0; i < 8; ++i) {
+                        svalVec[i] = _mm256_loadu_ps(pScl_iter + i * 8);
+                    }
+
+                    __m128i vresults[8] = {avx2_i8tof16(i8vecs[0], svalVec[0]),
+                                           avx2_i8tof16(i8vecs[1], svalVec[1]),
+                                           avx2_i8tof16(i8vecs[2], svalVec[2]),
+                                           avx2_i8tof16(i8vecs[3], svalVec[3]),
+                                           avx2_i8tof16(i8vecs[4], svalVec[4]),
+                                           avx2_i8tof16(i8vecs[5], svalVec[5]),
+                                           avx2_i8tof16(i8vecs[6], svalVec[6]),
+                                           avx2_i8tof16(i8vecs[7], svalVec[7])};
+
+                    int16_t* pDst_iter = pDst + w + W * h + W * H * c;
+                    for (int i = 0; i < 8; ++i) {
+                        _mm_storeu_si128(reinterpret_cast<__m128i*>(pDst_iter + i * 8), vresults[i]);
+                    }
+                }
+            }
+        }
+    };
+
+    size_t stride = C;
+    size_t num_jobs = 1;
+
+    if (unpack_options.nPartitions) {
+        if (unpack_options.bStrictPartitioning) {
+            stride = (C + unpack_options.nPartitions - 1) / unpack_options.nPartitions;
+            num_jobs = unpack_options.nPartitions;
+        } else {
+            stride = std::max<size_t>(1, C / unpack_options.nPartitions);
+            num_jobs = (C + stride - 1) / stride;
+        }
+    }
+
+    if (unpack_options.bUseOvParallelFor) {
+        ov::parallel_for(num_jobs, [&](size_t job_index) {
+            unpack_body(job_index, stride);
+        });
+    } else {
+        for (size_t job_index = 0; job_index < num_jobs; ++job_index) {
+            unpack_body(job_index, stride);
         }
     }
 }
@@ -1328,22 +1438,27 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
     // This is in fact a weight decompression procedure
     const auto type_from = from->get_element_type();
     const auto type_to = to->get_element_type();
-    namespace ove = ov::element;
-#define CAST(x)    static_cast<int>((x).operator ove::Type_t())
-#define PAIR(f, t) (CAST(f) << 16 | CAST(t))
-#define HNDL(f, t)                                      \
-    case PAIR(ove::f, ove::t):                          \
-        unpack_##f##t(from, scale, to, unpack_options); \
-        break;
-    switch (PAIR(type_from, type_to)) {
-        HNDL(i4, f16);
-        HNDL(i8, f16);
-    default:
-        OPENVINO_THROW("Unknown unpack/scale combination ", type_from, " -> ", type_to);
+    NPUW_ASSERT(type_to == ov::element::f16);
+
+    const auto& from_shape = from->get_shape();
+    const auto& scale_shape = scale->get_shape();
+
+    if (type_from == ov::element::i4) {
+        if (from_shape.size() == 3) {
+            if (scale_shape[2] == from_shape[2]) {
+                unpack_i4f16_z(from, scale, to, unpack_options);
+            } else {
+                unpack_i4f16(from, scale, to, unpack_options);
+            }
+        } else {
+            NPUW_ASSERT(from_shape.size() == 2);
+            unpack_i4f16(from, scale, to, unpack_options);
+        }
+    } else if (type_from == ov::element::i8) {
+        unpack_i8f16(from, scale, to, unpack_options);
+    } else {
+        NPUW_ASSERT(false && "Unsupported combination");
     }
-#undef HNDL
-#undef PAIR
-#undef CAST
 }
 
 void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
@@ -1446,6 +1561,45 @@ void ov::npuw::util::gather(const ov::SoPtr<ov::ITensor>& src,
         std::copy_n(pSrcRow, src_shape[1] * src_type.size(), pDst);
         pDst += dst_shape[2] * dst_type.size();
     }
+}
+
+ov::SoPtr<ov::ITensor> ov::npuw::util::view(const ov::SoPtr<ov::ITensor>& src,
+                                            const ov::npuw::util::View& from,
+                                            const ov::npuw::util::View& to) {
+    const auto type = src->get_element_type();
+    NPUW_ASSERT(from.size() == to.size());
+
+    // Sub-byte views are not supported here
+    NPUW_ASSERT(type != ov::element::u4 && type != ov::element::i4);
+
+    const auto num_dims = from.size();
+    ov::Shape view_shape;
+    for (auto d = 0u; d < num_dims; d++) {
+        view_shape.push_back(to[d] - from[d]);
+    }
+
+    const auto strides = src->get_strides();
+    uint8_t* ptr = static_cast<uint8_t*>(src->data());
+
+    // Shift PTR according to the strides
+    for (auto d = 0u; d < num_dims; d++) {
+        ptr += strides[d] * from[d];
+    }
+
+    ov::Tensor viewt(type, view_shape, ptr, strides);
+    return ov::get_tensor_impl(viewt);
+}
+
+ov::SoPtr<ov::ITensor> ov::npuw::util::view(const ov::SoPtr<ov::ITensor>& src,
+                                            std::size_t dim,
+                                            std::size_t offset,
+                                            std::size_t len) {
+    const auto shape = src->get_shape();
+    View view_start = View(shape.size(), 0u);
+    View view_end = shape;
+    view_start[dim] = offset;
+    view_end[dim] = offset + len;
+    return ov::npuw::util::view(src, view_start, view_end);
 }
 
 template <typename InT>

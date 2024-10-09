@@ -48,7 +48,7 @@ jobs:
         run: |
           # install doxygen
           wget https://www.doxygen.nl/files/doxygen-$DOXY_VER.linux.bin.tar.gz
-          tar -xzf doxygen-$DOXY_VER.linux.bin.tar.gz
+          tar -I pigz -xf doxygen-$DOXY_VER.linux.bin.tar.gz
           echo "$(pwd)/doxygen-$DOXY_VER/bin/" >> $GITHUB_PATH
 
       - name: Validate benchmarks files
