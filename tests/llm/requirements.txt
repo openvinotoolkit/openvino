@@ -1,3 +1,4 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
 optimum-intel
 nncf
 whowhatbench @ git+https://github.com/openvinotoolkit/openvino.genai.git#subdirectory=llm_bench/python/who_what_benchmark
