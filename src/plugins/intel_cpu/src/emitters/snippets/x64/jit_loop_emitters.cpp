@@ -186,11 +186,7 @@ void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in, const std::v
                         OV_CPU_JIT_EMITTER_ASSERT(use_runtime_args, "Loop argument structure cannot be pushed to aux GPR");
                         h->add(Reg64(static_cast<int>(data_ptr_reg_idxs[idx])), h->ptr[reg_increments + idx * sizeof(int64_t)]);
                     } else {
-                        auto incr = increment * scale * data_sizes[idx];
-//                        if (increments.size() == 3 && idx == 1)
-//                            incr *= 2;
-                        h->add(Reg64(static_cast<int>(data_ptr_reg_idxs[idx])), incr);
-//                        h->add(Reg64(static_cast<int>(data_ptr_reg_idxs[idx])), increment * scale * data_sizes[idx]);
+                        h->add(Reg64(static_cast<int>(data_ptr_reg_idxs[idx])), increment * scale * data_sizes[idx]);
                     }
                 }
             }
