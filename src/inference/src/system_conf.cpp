@@ -156,22 +156,22 @@ bool with_cpu_x86_avx512_core_amx() {
     return false;
 }
 bool with_cpu_neon_fp16() {
-#    if !defined(_WIN64) && !defined(BARE_METAL) && !defined(__APPLE__) && !defined(__OpenBSD__) && \
+#if !defined(_WIN64) && !defined(BARE_METAL) && !defined(__APPLE__) && !defined(__OpenBSD__) && \
         !defined(__arm__) && defined(__aarch64__)
     const uint32_t hwcaps = getauxval(AT_HWCAP);
     return hwcaps & (ARM_COMPUTE_CPU_FEATURE_HWCAP_FPHP | ARM_COMPUTE_CPU_FEATURE_HWCAP_ASIMDHP);
-#    elif !defined(_WIN64) && !defined(BARE_METAL) && !defined(__APPLE__) && !defined(__OpenBSD__) && \
+#elif !defined(_WIN64) && !defined(BARE_METAL) && !defined(__APPLE__) && !defined(__OpenBSD__) && \
         !defined(__aarch64__) && defined(__arm__)
     return false;
-#    elif defined(__aarch64__) && defined(__APPLE__)
+#elif defined(__aarch64__) && defined(__APPLE__)
     int64_t result(0);
     size_t size = sizeof(result);
     const std::string& cap = "hw.optional.neon_fp16";
     sysctlbyname(cap.c_str(), &result, &size, NULL, 0);
     return result > 0;
-#    else
+#else
     return false;
-#    endif
+#endif
 }
 #endif  // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
 
