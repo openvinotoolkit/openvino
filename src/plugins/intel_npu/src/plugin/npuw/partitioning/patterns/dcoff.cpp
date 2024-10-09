@@ -125,7 +125,8 @@ void apply_remap(Subgraph& fcall, const ClosureRemap& m) {
     // empty tensors by default.
     for (auto&& i : m.closure_remap) {
         new_lazy_closure.push_back(fcall._lazy_closure[i]);
-        new_closure.push_back(fcall._closure[i]);
+        // _closure is empty at this stage. To fill it for DCOFF, evaluate _lazy_closure
+        new_closure.push_back(fcall._lazy_closure[i].eval());
 
         auto scale_iter = m.scale_remap.find(i);
         auto zerop_iter = m.zerop_remap.find(i);
