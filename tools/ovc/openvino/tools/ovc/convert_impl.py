@@ -34,7 +34,7 @@ from openvino.tools.ovc.logger import init_logger
 from openvino.tools.ovc.telemetry_utils import send_params_info, send_conversion_result, \
     init_mo_telemetry
 from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder, \
-    extract_input_info_from_example, check_pytorch_model
+    extract_input_info_from_example, get_pytorch_decoder_for_model_on_disk
 from openvino.tools.ovc.moc_frontend.paddle_frontend_utils import paddle_frontend_converter
 
 try:
@@ -206,6 +206,18 @@ def check_model_object(argv):
     if 'tensorflow' in sys.modules:
         if tf_frontend_with_python_bindings_installed and extract_model_graph(argv):
             return "tf"
+    if 'torch' in sys.modules:
+        import torch
+        if isinstance(model, (torch.nn.Module, torch.jit.ScriptFunction)) or (hasattr(torch, "export") and isinstance(model, (torch.export.ExportedProgram))):
+            return "pytorch"
+        try:
+            from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+            from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+
+            if isinstance(model, (TorchScriptPythonDecoder, TorchFXPythonDecoder)):
+                return "pytorch"
+        except Exception as e:
+            pass
 
     import io
     # FIXME: Consuming any io.BytesIO object as an ONNX model is too dengerous and
@@ -431,19 +443,19 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
             args['input_model'] = args['input_model'][0]
     try:
         model_framework = None
-
-        if check_pytorch_model(args):
-            example_inputs = None
-            if 'example_input' in args and args['example_input'] is not None:
-                example_inputs = args['example_input']
-            elif 'example_inputs' in args:
-                raise AssertionError(
-                    "'example_inputs' argument is not recognized, maybe you meant to provide 'example_input'?")
-            get_pytorch_decoder(args['input_model'], example_inputs, args)
-
         inp_model_is_object = input_model_is_object(args['input_model']) if python_api_used else False
+
         if inp_model_is_object:
             model_framework = check_model_object(args)
+            if model_framework == "pytorch":
+                example_inputs = None
+                if 'example_input' in args and args['example_input'] is not None:
+                    example_inputs = args['example_input']
+                elif 'example_inputs' in args:
+                    raise AssertionError(
+                        "'example_inputs' argument is not recognized, maybe you meant to provide 'example_input'?")
+
+                get_pytorch_decoder(args['input_model'], example_inputs, args)
             if model_framework == "paddle":
                 example_inputs = None
                 if 'example_input' in args and args['example_input'] is not None:
@@ -466,6 +478,7 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
                     raise Error("JAX Frontend is not available.")
 
         argv = pack_params_to_args_namespace(args, cli_parser, python_api_used)
+
         argv.framework = model_framework
         argv.is_python_object = inp_model_is_object
 
@@ -479,7 +492,20 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
 
         argv.framework = model_framework
 
+        if argv.framework is None:
+            # try to load a model from disk as TorchScript or ExportedProgram
+            # TorchScriptPythonDecoder or TorchFXPythonDecoder object will be assigned to argv.input_model
+            # saved TorchScript and ExportedModel model can be passed to both ovc tool and Python convert_model
+            orig_input_model = argv.input_model
+            get_pytorch_decoder_for_model_on_disk(argv, args)
+
         ov_model = driver(argv, {"conversion_parameters": non_default_params})
+
+        if orig_input_model is not None:
+            # release memory allocated for temporal object
+            del argv.input_model
+            # restore original model name in arguments for tool reporting
+            argv.input_model = orig_input_model
 
         if inp_model_is_object and model_framework == "paddle":
             if paddle_runtime_converter:

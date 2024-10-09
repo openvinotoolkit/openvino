@@ -2,38 +2,23 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
-import numpy as np
 import pathlib
 import sys
+
+import numpy as np
+
 # pylint: disable=no-name-in-module,import-error
 from openvino.runtime import Tensor, PartialShape
 from openvino.tools.ovc.cli_parser import single_input_to_input_cut_info, _InputCutInfo
 from openvino.tools.ovc.error import Error
 
 
-def check_pytorch_model(argv):
-    model = argv['input_model']
-    if 'torch' in sys.modules:
-        import torch
-        if isinstance(model, (torch.nn.Module, torch.jit.ScriptFunction)) or (
-                hasattr(torch, "export") and isinstance(model, (torch.export.ExportedProgram))):
-            return True
-        try:
-            from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
-            from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
 
-            if isinstance(model, (TorchScriptPythonDecoder, TorchFXPythonDecoder)):
-                return True
-        except Exception as e:
-            pass
-        try:
-            if isinstance(model, (str, pathlib.Path)):
-                torch.jit.load(model)
-                return True
-        except Exception as e:
-            pass
-
-    return False
+def extract_module_extensions(args):
+    extensions = args.get('extension', []) or []
+    if not isinstance(extensions, (list, tuple)):
+        extensions = [extensions]
+    return {extension.module: extension for extension in extensions if isinstance(extension, ModuleExtension)}
 
 
 def get_pytorch_decoder(model, example_inputs, args):
@@ -45,12 +30,6 @@ def get_pytorch_decoder(model, example_inputs, args):
     except Exception as e:
         log.error("PyTorch frontend loading failed")
         raise e
-
-    def extract_module_extensions(args):
-        extensions = args.get('extension', []) or []
-        if not isinstance(extensions, (list, tuple)):
-            extensions = [extensions]
-        return {extension.module: extension for extension in extensions if isinstance(extension, ModuleExtension)}
 
     if 'nncf' in sys.modules:
         is_good_version = True
@@ -64,33 +43,15 @@ def get_pytorch_decoder(model, example_inputs, args):
         except:
             pass
         if not is_good_version:
-            raise RuntimeError("NNCF models produced by nncf<2.6 are not "
-                               "supported directly. Please upgrade nncf or "
-                               "export to ONNX first.")
+            raise RuntimeError(
+                "NNCF models produced by nncf<2.6 are not supported directly. Please upgrade nncf or export to ONNX first.")
     inputs = prepare_torch_inputs(example_inputs)
     if not isinstance(model, (TorchScriptPythonDecoder, TorchFXPythonDecoder)):
-        if isinstance(model, (str, pathlib.Path)):
-            # attempt to load scripted model
-            try:
-                model = torch.jit.load(model)
-            except:
-                pass
-        if hasattr(torch, "export") and isinstance(model, (str, pathlib.Path)):
-            # attempt to load exported model
-            try:
-                model = torch.export.load(model)
-            except:
-                pass
-
         if hasattr(torch, "export") and isinstance(model, (torch.export.ExportedProgram)):
             from packaging import version
             if version.parse(torch.__version__) >= version.parse("2.2"):
-                from torch._decomp import get_decompositions
-                from openvino.frontend.pytorch.torchdynamo.decompositions import get_export_decomposition_list
-                decomp = get_decompositions(get_export_decomposition_list())
-                model = model.run_decompositions(decomp_table=decomp)
+                model = model.run_decompositions()
             gm = model.module()
-            log.debug(gm.code)
             decoder = TorchFXPythonDecoder(gm)
         else:
             decoder = TorchScriptPythonDecoder(
@@ -104,6 +65,55 @@ def get_pytorch_decoder(model, example_inputs, args):
     args["example_input"] = inputs
 
     return args
+
+
+def get_pytorch_decoder_for_model_on_disk(argv, args):
+    try:
+        from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+        from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+        import torch
+    except:
+        return
+
+    example_inputs = None
+    if 'example_input' in args and args['example_input'] is not None:
+        example_inputs = args['example_input']
+
+    if isinstance(argv.input_model, (tuple, list)) and len(argv.input_model) == 1:
+        input_model = argv.input_model[0]
+    else:
+        input_model = argv.input_model
+
+    if isinstance(input_model, (str, pathlib.Path)):
+        # attempt to load scripted model
+        try:
+            inputs = prepare_torch_inputs(example_inputs)
+            model = torch.jit.load(input_model)
+            model.eval()
+            decoder = TorchScriptPythonDecoder(
+                model,
+                example_input=inputs,
+                shared_memory=args.get("share_weights", True),
+                module_extensions=extract_module_extensions(args))
+            argv.input_model = decoder
+            argv.framework = 'pytorch'
+            return
+        except:
+            pass
+    if isinstance(input_model, (str, pathlib.Path)):
+        # attempt to load exported model
+        try:
+            model = torch.export.load(input_model)
+            if hasattr(torch, "export") and isinstance(model, (torch.export.ExportedProgram)):
+                from packaging import version
+                if version.parse(torch.__version__) >= version.parse("2.2"):
+                    model = model.run_decompositions()
+                gm = model.module()
+                decoder = TorchFXPythonDecoder(gm)
+                argv.input_model = decoder
+                argv.framework = 'pytorch'
+        except:
+            pass
 
 
 def update_list_or_dict(container, name, idx, value):
