@@ -16,6 +16,8 @@ RUN apt-get update && \
     apt-get install  \
         git \
         libc6-dev \
+        # parallel gzip
+        pigz \
         # Python for running C++ Functional tests via parallelization script  \
         python3 \
         python3-pip \
