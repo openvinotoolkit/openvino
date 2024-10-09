@@ -92,7 +92,7 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, select_reorder_fusion, ::testing::ValuesIn
     select_test_params{ CASE_SELECT_FP16_TO_I8_0, 5, 6},
     select_test_params{ CASE_SELECT_FP16_TO_U8_0, 5, 6},
     select_test_params{ CASE_SELECT_FP16_TO_I8_1, 6, 6}, // reorder should not be fused
-    select_test_params{ CASE_SELECT_FP16_TO_U8_1, 6, 6}, // reorder should not be fused
+    select_test_params{ CASE_SELECT_FP16_TO_U8_1, 6, 6},
 }));
 
 class select_reorder_fusion_dynamic : public SelectFusingTest {};
