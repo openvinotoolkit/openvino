@@ -30,6 +30,7 @@ struct Subgraph {
     bool _optimized_out = false;
 
     std::string _avoid_list;
+    std::string _tag;
 
     // Function calls only (note: all the above fields are not used)
     //
@@ -59,9 +60,26 @@ struct Function {
     std::size_t _param_offset;
     std::size_t _num_params_total;
 
+    std::string _tag;  // derived from the partitioning
+
     // Mapping: from a prototype {Layer/input_idx} to {param_idx}
     // NOTE: it seems it is required only for `matchRepeatedSubgraphs()'
     std::map<std::pair<std::string, std::size_t>, std::size_t> _param_mapping;
+
+    // Spatial information. So far assume spatial execution in 1 dimension only
+    struct Spatial {
+        using PPtr = std::shared_ptr<ov::op::v0::Parameter>;
+        struct Param {
+            PPtr param;
+            std::size_t dim;
+        };
+        std::size_t _range = 0u;    // Range over which spatial execution is organized, e.g. 1024
+        std::size_t _slice = 0u;    // A submission size for a single execution, e.g. 128
+        std::size_t _out_dim = 0u;  // Assume it is the same dim for all Results
+        std::vector<Param> _inputs;
+    };
+    using SpatialOpt = std::optional<Spatial>;
+    SpatialOpt _spatial;
 };
 
 struct Group {
@@ -73,6 +91,7 @@ struct Group {
     float gflops;
 
     std::string avoid_list;
+    std::string tag;
 
     // Set to true if the Group was forcibly turned to functon. Such
     // function has just a single associated funcall and are subjects
