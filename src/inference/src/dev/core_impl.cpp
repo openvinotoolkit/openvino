@@ -24,6 +24,7 @@
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/remote_context.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
@@ -1612,7 +1613,15 @@ std::shared_ptr<ov::Model> ov::CoreImpl::read_model(const std::string& model,
                                                     const ov::Tensor& weights,
                                                     bool frontendMode) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "CoreImpl::read_model from memory");
-    return ov::util::read_model(model, weights, extensions, frontendMode);
+
+    std::shared_ptr<ov::AlignedBuffer> model_buffer =
+        std::make_shared<ov::SharedBuffer<std::string>>(const_cast<char*>(model.data()), model.size(), model);
+    std::shared_ptr<ov::AlignedBuffer> weights_buffer =
+        std::make_shared<ov::SharedBuffer<ov::Tensor>>(reinterpret_cast<char*>(weights.data()),
+                                                       weights.get_byte_size(),
+                                                       weights);
+
+    return ov::util::read_model(model_buffer, weights_buffer, extensions);
 }
 
 std::shared_ptr<ov::Model> ov::CoreImpl::read_model(const std::shared_ptr<AlignedBuffer>& model,

@@ -553,14 +553,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
                                                          const ov::AnyMap& config) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "import_model");
 
-    std::function<std::string(const std::string&)> decrypt;
+    CacheDecrypt decrypt{ codec_xor };
+    bool decript_from_string = false;
     if (config.count(ov::cache_encryption_callbacks.name())) {
         auto encryption_callbacks = config.at(ov::cache_encryption_callbacks.name()).as<EncryptionCallbacks>();
-        decrypt = encryption_callbacks.decrypt;
-    }
-
-    if (!decrypt) {
-        decrypt = codec_xor_str;
+        decrypt.m_decrypt_str = encryption_callbacks.decrypt;
+        decript_from_string = true;
     }
 
     ModelDeserializer deserializer(
@@ -568,7 +566,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
         [this](const std::shared_ptr<ov::AlignedBuffer>& model, const std::shared_ptr<ov::AlignedBuffer>& weights) {
             return get_core()->read_model(model, weights);
         },
-        std::move(decrypt));
+        decrypt, decript_from_string);
 
     std::shared_ptr<ov::Model> model;
     deserializer >> model;
