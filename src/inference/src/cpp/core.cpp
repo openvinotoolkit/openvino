@@ -143,7 +143,7 @@ CompiledModel Core::compile_model(const std::string& model,
     OV_CORE_CALL_STATEMENT({
         const auto device_not_supported = _impl->get_device_unsupported_properties(device_name, config);
         set_property(device_not_supported);
-        auto exec = _impl->compile_model(model, device_name, config);
+        auto exec = _impl->compile_model(model, weights, device_name, config);
         return {exec._ptr, exec._so};
     });
 }
