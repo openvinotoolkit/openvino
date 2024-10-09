@@ -4,6 +4,7 @@
 
 #include "jit_equation_emitter.hpp"
 #include "transformations/tpp/x64/op/equation.hpp"
+#include "emitters/plugin/x64/utils.hpp"
 
 using namespace Xbyak;
 using namespace dnnl::impl;
@@ -90,7 +91,8 @@ void EquationTppEmitter::validate_arguments(const std::vector<size_t> &in, const
 }
 
 void EquationTppEmitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
-    internal_call_preamble();
+    EmitABIRegSpills spill(h);
+    spill.preamble();
 
     // save function address in gpr to pass in call instruction
     h->mov(h->rbp, get_execute_function_ptr());
@@ -115,13 +117,13 @@ void EquationTppEmitter::emit_impl(const std::vector<size_t>& in, const std::vec
     h->mov(abi_param2, num_kernel_args);
     h->mov(abi_param3, h->rsp);
 
-    internal_call_rsp_align();
+    spill.rsp_align();
     h->call(h->rbp);
-    internal_call_rsp_restore();
+    spill.rsp_restore();
 
     // Free allocated memory on the stack
     h->add(h->rsp, num_kernel_args * sizeof(void*));
-    internal_call_postamble();
+    spill.postamble();
 }
 
 void EquationTppEmitter::execute_kernel(libxsmm_meqn_function equation_kernel, int argc, void **argv) {

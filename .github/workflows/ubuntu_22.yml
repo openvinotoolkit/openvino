@@ -176,10 +176,10 @@ jobs:
       - name: Extract OpenVINO packages
         run: |
           pushd ${INSTALL_DIR}
-            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR}
+            tar -I pigz -xf openvino_package.tar.gz -C ${INSTALL_DIR}
           popd
           pushd ${INSTALL_TEST_DIR}
-            tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
+            tar -I pigz -xf openvino_tests.tar.gz -C ${INSTALL_DIR}
           popd
 
       - name: Fetch setup_python action
@@ -222,7 +222,7 @@ jobs:
         if: ${{ always() }}
         run: |
           pushd ${CONFORMANCE_ARTIFACTS_DIR}
-            tar -czvf ${CONFORMANCE_ARTIFACTS_DIR}/conformance_artifacts.tar.gz *
+            tar -I pigz -cvf ${CONFORMANCE_ARTIFACTS_DIR}/conformance_artifacts.tar.gz *
           popd
 
       - name: Upload Conformance Artifacts
@@ -248,7 +248,7 @@ jobs:
         if: ${{ matrix.TEST_TYPE == 'API' }}
         run: |
           pushd ${CONFORMANCE_ARTIFACTS_DIR}
-          tar -czvf ${CONFORMANCE_ARTIFACTS_DIR}/conformance_artifacts.tar.gz *
+          tar -I pigz -cvf ${CONFORMANCE_ARTIFACTS_DIR}/conformance_artifacts.tar.gz *
           popd
 
       - name: Upload Conformance Artifacts
@@ -305,9 +305,19 @@ jobs:
     uses: ./.github/workflows/job_tensorflow_layer_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
-      shell: bash
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      python-version: '3.11'
+
+  Pytorch_Layer_Tests:
+    name: Pytorch Layer Tests
+    needs: [ Docker, Build, Smart_CI ]
+    uses: ./.github/workflows/job_pytorch_layer_tests.yml
+    with:
+      runner: 'aks-linux-4-cores-16gb'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
+      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      python-version: '3.11'
 
   CPU_Functional_Tests:
     name: CPU functional tests
@@ -439,11 +449,11 @@ jobs:
       - name: Extract OpenVINO packages
         run: |
           pushd ${INSTALL_DIR}
-            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR}
+            tar -I pigz -xf openvino_package.tar.gz -C ${INSTALL_DIR}
           popd
 
           pushd ${INSTALL_DIR}
-            tar -xzf openvino_developer_package.tar.gz -C ${INSTALL_DIR}
+            tar -I pigz -xf openvino_developer_package.tar.gz -C ${INSTALL_DIR}
           popd
 
       - name: Clone OpenVINO Contrib
@@ -519,7 +529,7 @@ jobs:
 
   Overall_Status:
     name: ci/gha_overall_status
-    needs: [Smart_CI, Build, Debian_Packages, Samples, Conformance, ONNX_Runtime, CXX_Unit_Tests, Python_Unit_Tests, TensorFlow_Layer_Tests,
+    needs: [Smart_CI, Build, Debian_Packages, Samples, Conformance, ONNX_Runtime, CXX_Unit_Tests, Python_Unit_Tests, TensorFlow_Layer_Tests, Pytorch_Layer_Tests,
             CPU_Functional_Tests, TensorFlow_Models_Tests_Precommit, PyTorch_Models_Tests, JAX_Models_Tests_Precommit, NVIDIA_Plugin, Openvino_tokenizers, iGPU]
     if: ${{ always() }}
     runs-on: ubuntu-latest
