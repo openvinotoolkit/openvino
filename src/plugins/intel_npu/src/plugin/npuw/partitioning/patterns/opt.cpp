@@ -687,8 +687,13 @@ DQParMMGQ::DQParMMGQ(Context::Ref ctx) {
 
         auto qmmi_shape = node_to_output.at(qmm).get_shape();
 
-        if (qmmi_shape.size() != 3 || qmmi_shape[0] != 1 || qmmi_shape[1] != 1) {
-            // Limit token to 1-token shapes only (prefill requires its own tranformation)
+        if (qmmi_shape.size() != 3 || qmmi_shape[0] != 1) {
+            // Not handling such cases
+            return false;
+        }
+
+        if (qmmi_shape[1] != 1 && !ctx.get().is_spatial) {
+            // For non 1-token cases, do transformation if and only if and only if the block is spatial
             return false;
         }
 
@@ -709,8 +714,11 @@ void mergeParallelMatMuls(const std::shared_ptr<ov::Model>& m, Context& ctx) {
             continue;
         }
         ov::Output<ov::Node> orig_multiply;
+
         std::size_t axis_to_concat = -1;
         std::tie(orig_multiply, axis_to_concat) = mul_to_mms.first;
+
+        const ov::Shape orig_act_shape = orig_multiply.get_shape();
 
         if (!util::is_set(axis_to_concat, ctx.pmm_dims)) {
             LOG_VERB("Parallel MatMuls found, but fusion over dim " << axis_to_concat << " is not enabled");
@@ -773,10 +781,10 @@ void mergeParallelMatMuls(const std::shared_ptr<ov::Model>& m, Context& ctx) {
             auto this_orig_wshape = parallel_matmuls[i].w->get_shape();
             auto this_slice_start =
                 std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, S{0, 0, offset});
-            auto this_slice_end =
-                std::make_shared<ov::op::v0::Constant>(ov::element::i32,
-                                                       ov::Shape{3},
-                                                       S{1, 1, offset + this_orig_wshape[axis_to_concat]});
+            auto this_slice_end = std::make_shared<ov::op::v0::Constant>(
+                ov::element::i32,
+                ov::Shape{3},
+                S{1, orig_act_shape[1], offset + this_orig_wshape[axis_to_concat]});
             auto this_slice_step = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, S{1, 1, 1});
             auto this_slice =
                 std::make_shared<ov::op::v8::Slice>(new_mm, this_slice_start, this_slice_end, this_slice_step);

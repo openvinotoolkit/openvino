@@ -9,6 +9,7 @@
 #include "../online/snapshot.hpp"  // online::Snapshot
 #include "openvino/op/ops.hpp"
 #include "openvino/pass/pattern/op/label.hpp"  // any_input
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/common_util.hpp"
 
@@ -106,8 +107,10 @@ DQMatMulCWu4::DQMatMulCWu4(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
         auto matched_qzerop = std::static_pointer_cast<ov::op::v0::Constant>(matched_node_qzerop);
         auto matched_qcoeff = std::static_pointer_cast<ov::op::v0::Constant>(matched_node_qcoeff);
 
-        if (ov::element::u4 == matched_qweight->get_element_type() &&
-            ov::element::u4 == matched_qzerop->get_element_type() &&
+        if ((ov::element::u4 == matched_qweight->get_element_type() ||
+             ov::element::u8 == matched_qweight->get_element_type()) &&
+            (ov::element::u4 == matched_qzerop->get_element_type() ||
+             ov::element::u8 == matched_qzerop->get_element_type()) &&
             ov::element::f16 == matched_qcoeff->get_element_type()) {
             // Partitioning ignores Const->Convert nodes, so qcvtw and qcvtz are not used
             auto matched_qsubz = node_to_output.at(qsubz).get_node_shared_ptr();
@@ -135,7 +138,7 @@ DQMatMulGQi4::DQMatMulGQi4(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
 
     auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qcvtw, qcoeff});
     auto qreshp = opp::wrap_type<ov::op::v1::Reshape>({qmuls, opp::any_input()});
-    auto qcvtr = opp::wrap_type<ov::op::v0::Convert>({qreshp});
+    auto qcvtr = opp::optional<ov::op::v0::Convert>({qreshp->output(0)});
     auto qmm = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), qcvtr});
 
     auto node_to_gptr = snapshot->getNodeToGroupMap();
@@ -155,17 +158,22 @@ DQMatMulGQi4::DQMatMulGQi4(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
 
         if ((ov::element::i4 == matched_qweight->get_element_type() ||
              ov::element::i8 == matched_qweight->get_element_type()) &&
-            ov::element::f16 == matched_qcoeff->get_element_type()) {
+            (ov::element::f16 == matched_qcoeff->get_element_type() ||
+             ov::element::f32 == matched_qcoeff->get_element_type())) {
             // Partitioning ignores Const->Convert nodes, so qcvtw is not used
             auto matched_qmuls = node_to_output.at(qmuls).get_node_shared_ptr();
             auto matched_qreshp = node_to_output.at(qreshp).get_node_shared_ptr();
-            auto matched_qcvtr = node_to_output.at(qcvtr).get_node_shared_ptr();
             auto matched_qmm = node_to_output.at(qmm).get_node_shared_ptr();
 
             node_to_gptr->at(matched_qmuls)->isolate(isol_tag);
             node_to_gptr->at(matched_qreshp)->isolate(isol_tag);
-            node_to_gptr->at(matched_qcvtr)->isolate(isol_tag);
             node_to_gptr->at(matched_qmm)->isolate(isol_tag);
+
+            auto qcvtr_iter = node_to_output.find(qcvtr);
+            if (qcvtr_iter != node_to_output.end()) {
+                auto matched_qcvtr = qcvtr_iter->second.get_node_shared_ptr();
+                node_to_gptr->at(matched_qcvtr)->isolate(isol_tag);
+            }
         }
 
         return false;  // root hasn't changed
@@ -216,6 +224,67 @@ DQMatMulCWi4::DQMatMulCWi4(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
         return false;  // root hasn't changed
     };
     register_matcher(std::make_shared<opp::Matcher>(qmm, "TagDQMatMulCWi4"), std::move(callback));
+}
+
+// This is a case for Raw (f16/f32) MatMul connected directly to the Result.
+//
+// The following combinations are covered:
+//
+// act(f32)    -> MatMul(f32) -> Result
+// weight(f32) ->
+//
+// act(f16)    -> MatMul(f16) -> to_f32 -> Result
+// weight(f16) ->
+//
+// act(f32)    -> to_f16 -> MatMul -> to_f32 -> Result
+// weight(f16) ----------->
+//
+// act(f32)    -----------> MatMul -> Result
+// weight(f16) -- to_f32-->
+
+VocabMatMul::VocabMatMul(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag) {
+    auto act_in = opp::any_input();
+    auto weight = opp::wrap_type<ov::op::v0::Constant>();
+
+    auto ocvta = opp::optional<ov::op::v0::Convert>({act_in->output(0)});
+    auto ocvtw = opp::optional<ov::op::v0::Convert>({weight->output(0)});
+
+    auto mm = opp::wrap_type<ov::op::v0::MatMul>({ocvta, ocvtw});
+    auto ocvtm = opp::optional<ov::op::v0::Convert>({mm->output(0)});
+
+    auto res = opp::wrap_type<ov::op::v0::Result>({ocvtm});
+
+    auto node_to_gptr = snapshot->getNodeToGroupMap();
+
+    // Note: Use [=] to make sure the above objects stay alive in the callback
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+        auto matched_out_a = node_to_output.at(act_in).get_node_shared_ptr();
+        auto matched_out_w = node_to_output.at(weight).get_node_shared_ptr();
+
+        auto a_type = matched_out_a->get_element_type();
+        auto w_type = matched_out_w->get_element_type();
+
+        if ((a_type == ov::element::f16 || a_type == ov::element::f32) &&
+            (w_type == ov::element::f16 || w_type == ov::element::f32)) {
+            node_to_gptr->at(node_to_output.at(mm).get_node_shared_ptr())->isolate(isol_tag);
+
+            auto isol_if = [=, &node_to_gptr, &node_to_output](std::shared_ptr<ov::Node> n) {
+                auto iter = node_to_output.find(n);
+                if (iter != node_to_output.end()) {
+                    auto group_iter = node_to_gptr->find(iter->second.get_node_shared_ptr());
+                    if (group_iter != node_to_gptr->end()) {
+                        group_iter->second->isolate(isol_tag);
+                    }
+                }
+            };
+            isol_if(ocvta);
+            isol_if(ocvtw);
+            isol_if(ocvtm);
+        }
+        return false;
+    };
+    register_matcher(std::make_shared<opp::Matcher>(res, "TagVocabMatMul"), std::move(callback));
 }
 
 // TODO: visualize
