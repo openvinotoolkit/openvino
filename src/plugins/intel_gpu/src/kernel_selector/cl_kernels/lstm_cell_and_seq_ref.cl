@@ -4,7 +4,7 @@
 
 #include "include/batch_headers/fetch_data.cl"
 
-KERNEL(lstm_seq)(
+KERNEL(lstm_cell_and_seq_ref)(
     const __global INPUT0_TYPE* x,
     const __global INPUT1_TYPE* initial_hidden_state,
     const __global INPUT2_TYPE* initial_cell_state,

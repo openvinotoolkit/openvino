@@ -61,6 +61,8 @@ public:
     void get_bias_split(primitive_id input_id, std::shared_ptr<WeightsReorderParams> reorder_params, program& p, cldnn::program_node&, \
                         cldnn::program_node&);
 
+    void select_implementation(program& p, program_node& node);
+
 private:
     void select_impl_recurrent(program_node* node, program* p);
     struct cache_key {

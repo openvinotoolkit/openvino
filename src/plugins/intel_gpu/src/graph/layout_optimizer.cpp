@@ -166,6 +166,14 @@ void reorder_factory::get_out_reorder(program& p, cldnn::program_node* prev, cld
     }
 }
 
+void reorder_factory::select_implementation(program& p, program_node& node) {
+    node.set_selected_impl(node.type()->create_impl(node));
+    if (auto impl = node.get_selected_impl()) {
+        auto params = node.get_kernel_impl_params();
+        p.get_kernels_cache().add_kernels_source(*params, impl->get_kernels_source());
+    }
+}
+
 void reorder_factory::get_weights_split(primitive_id input_id,
                                                                                  std::shared_ptr<WeightsReorderParams> reorder_params, program& p, \
                                                                                  cldnn::program_node& prev, cldnn::program_node& node, int i) {
@@ -227,59 +235,15 @@ void reorder_factory::get_weights_split(primitive_id input_id,
     auto& permute_node = p.get_or_create(permute);
     p.add_intermediate(permute_node, node, con_node,  true);
     permute_node.get_output_layout(false);
-    if (true) {
-        con_node.set_selected_impl(con_node.type()->create_impl(con_node));
-        if (auto impl = con_node.get_selected_impl()) {
-            auto params = con_node.get_kernel_impl_params();
-            p.get_kernels_cache().add_kernels_source(*params, impl->get_kernels_source());
-        }
-    }
-    if (true) {
-        reorder_node.set_selected_impl(reorder_node.type()->create_impl(reorder_node));
-        if (auto impl = reorder_node.get_selected_impl()) {
-            auto params = reorder_node.get_kernel_impl_params();
-            p.get_kernels_cache().add_kernels_source(*params, impl->get_kernels_source());
-        }
-    }
+    select_implementation(p, con_node);
+    select_implementation(p, reorder_node);
 
-    if (true) {
-        crop0_node.set_selected_impl(crop0_node.type()->create_impl(crop0_node));
-        if (auto impl = crop0_node.get_selected_impl()) {
-            auto params = crop0_node.get_kernel_impl_params();
-            p.get_kernels_cache().add_kernels_source(*params, impl->get_kernels_source());
-        }
-    }
+    select_implementation(p, crop0_node);
+    select_implementation(p, crop1_node);
+    select_implementation(p, crop2_node);
+    select_implementation(p, crop3_node);
 
-    if (true) {
-        crop1_node.set_selected_impl(crop1_node.type()->create_impl(crop1_node));
-        if (auto impl = crop1_node.get_selected_impl()) {
-            auto params = crop1_node.get_kernel_impl_params();
-            p.get_kernels_cache().add_kernels_source(*params, impl->get_kernels_source());
-        }
-    }
-    if (true) {
-        crop2_node.set_selected_impl(crop2_node.type()->create_impl(crop2_node));
-        if (auto impl = crop2_node.get_selected_impl()) {
-            auto params = crop2_node.get_kernel_impl_params();
-            p.get_kernels_cache().add_kernels_source(*params, impl->get_kernels_source());
-        }
-    }
-
-    if (true) {
-        crop3_node.set_selected_impl(crop3_node.type()->create_impl(crop3_node));
-        if (auto impl = crop3_node.get_selected_impl()) {
-            auto params = crop3_node.get_kernel_impl_params();
-            p.get_kernels_cache().add_kernels_source(*params, impl->get_kernels_source());
-        }
-    }
-
-    if (true) {
-        permute_node.set_selected_impl(permute_node.type()->create_impl(permute_node));
-        if (auto impl = permute_node.get_selected_impl()) {
-            auto params = permute_node.get_kernel_impl_params();
-            p.get_kernels_cache().add_kernels_source(*params, impl->get_kernels_source());
-        }
-    }
+    select_implementation(p, permute_node);
     p.mark_if_constant(crop0_node);
     p.mark_if_constant(crop1_node);
     p.mark_if_constant(crop2_node);
@@ -339,53 +303,16 @@ void reorder_factory::get_bias_split(primitive_id input_id,
     auto& permute_node = p.get_or_create(permute);
     p.add_intermediate(permute_node, node, con_node,  true);
     permute_node.get_output_layout(false);
+    select_implementation(p, crop0_node);
 
-    if (true) {
-        crop0_node.set_selected_impl(crop0_node.type()->create_impl(crop0_node));
-        if (auto impl = crop0_node.get_selected_impl()) {
-            auto params = crop0_node.get_kernel_impl_params();
-            p.get_kernels_cache().add_kernels_source(*params, impl->get_kernels_source());
-        }
-    }
+    select_implementation(p, crop1_node);
 
-    if (true) {
-        crop1_node.set_selected_impl(crop1_node.type()->create_impl(crop1_node));
-        if (auto impl = crop1_node.get_selected_impl()) {
-            auto params = crop1_node.get_kernel_impl_params();
-            p.get_kernels_cache().add_kernels_source(*params, impl->get_kernels_source());
-        }
-    }
+    select_implementation(p, crop2_node);
+    select_implementation(p, crop3_node);
 
-    if (true) {
-        crop2_node.set_selected_impl(crop2_node.type()->create_impl(crop2_node));
-        if (auto impl = crop2_node.get_selected_impl()) {
-            auto params = crop2_node.get_kernel_impl_params();
-            p.get_kernels_cache().add_kernels_source(*params, impl->get_kernels_source());
-        }
-    }
-    if (true) {
-        crop3_node.set_selected_impl(crop3_node.type()->create_impl(crop3_node));
-        if (auto impl = crop3_node.get_selected_impl()) {
-            auto params = crop3_node.get_kernel_impl_params();
-            p.get_kernels_cache().add_kernels_source(*params, impl->get_kernels_source());
-        }
-    }
+    select_implementation(p, permute_node);
 
-    if (true) {
-        permute_node.set_selected_impl(permute_node.type()->create_impl(permute_node));
-        if (auto impl = permute_node.get_selected_impl()) {
-            auto params = permute_node.get_kernel_impl_params();
-            p.get_kernels_cache().add_kernels_source(*params, impl->get_kernels_source());
-        }
-    }
-
-    if (true) {
-        con_node.set_selected_impl(con_node.type()->create_impl(con_node));
-        if (auto impl = con_node.get_selected_impl()) {
-            auto params = con_node.get_kernel_impl_params();
-            p.get_kernels_cache().add_kernels_source(*params, impl->get_kernels_source());
-        }
-    }
+    select_implementation(p, con_node);
 
     p.mark_if_constant(crop0_node);
     p.mark_if_constant(crop1_node);

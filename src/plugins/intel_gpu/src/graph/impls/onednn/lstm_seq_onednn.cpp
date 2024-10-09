@@ -217,13 +217,10 @@ public:
             initial_cell_md,
             W_md,
             R_md,
-            W_md,
-            W_md,
             B_md,
             output_md,
             output_md,
-            output2_md,
-            *_attrs.get());
+            output2_md);
         _pd = *prim_desc;
 
         std::vector<uint8_t> prim_cache;

@@ -9,7 +9,7 @@
 namespace kernel_selector {
 class LSTMSeqKernelRef : public LSTMKernelBase {
 public:
-    LSTMSeqKernelRef() : LSTMKernelBase("lstm_seq_ref") {}
+    LSTMSeqKernelRef() : LSTMKernelBase("lstm_cell_and_seq_ref") {}
     virtual ~LSTMSeqKernelRef() {}
 
     KernelsData GetKernelsData(const Params& params) const override;
