@@ -21,8 +21,6 @@ struct LSTMSeqImplementationManager : public ImplementationManager {
     bool validate_impl(const program_node& node) const override {
         assert(node.is_type<lstm_seq>());
         const auto& info = node.get_program().get_engine().get_device_info();
-        if (!info.supports_immad)
-            return false;
         assert(node.is_type<lstm_seq>());
         auto seq_len_program_node = node.get_dependencies()[6].first;
         bool is_seq_len_constant = seq_len_program_node->is_constant();
