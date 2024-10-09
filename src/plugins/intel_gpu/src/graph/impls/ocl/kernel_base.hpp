@@ -31,15 +31,23 @@ struct KernelCode {
     std::shared_ptr<KernelString> kernelString;
 };
 
+struct DispatchData {
+    WorkGroupSizes work_groups;
+    Scalars scalars;
+};
+using DispatchDataFunc = std::function<DispatchData(const kernel_impl_params&)>;
+#define DISPATCH_DATA_FUNC(params, ...) [__VA_ARGS__](const kernel_impl_params& params) -> DispatchData
+
 struct KernelData {
     KernelCode code;
     KernelParams params;
     // std::vector<std::shared_ptr<micro::MicroKernelPackage>> micro_kernels;
-    std::function<void(const program_node&, const kernel_impl_params&)> update_dispatch_data_func = nullptr;
+    DispatchDataFunc update_dispatch_data_func = nullptr;
 
-    std::vector<size_t> internal_buffer_sizes;
+    std::vector<layout> internal_buffers;
     WeightsReorderParams weightsReorderParams;
 };
+
 
 using KernelsData = std::vector<KernelData>;
 
@@ -69,35 +77,44 @@ public:
 
     const std::string get_name() const { return m_kernel_name; }
 
+    void add_common_jit_constants(const JitConstants& jit_constants);
 protected:
-    virtual WorkGroupSizes get_dispatch_data(const program_node& node, const kernel_impl_params& params) const = 0;
+    virtual DispatchDataFunc get_dispatch_data_func(const kernel_impl_params& params) const = 0;
 
+    virtual DispatchData get_dispatch_data(const kernel_impl_params& params) const;
     virtual Arguments get_arguments_desc(const program_node& node, const kernel_impl_params& params) const;
     virtual JitConstants get_jit_constants(const program_node& node, const kernel_impl_params& params) const;
     virtual std::string get_entry_point(const program_node& node, const kernel_impl_params& params) const;
+    virtual std::string get_build_options(const program_node& node, const kernel_impl_params& params) const;
+    virtual std::vector<layout> get_interanl_buffers(const program_node& node, const kernel_impl_params& params) const { return {}; }
 
     JitConstants make_base_jit_constants(const program_node& node, const kernel_impl_params& params) const;
     std::string build_code(const std::string& template_name, const JitConstants& jit_constants, const std::string& entry_point) const;
 
     const std::string m_kernel_name;
+    JitConstants m_jit_constants;
 };
 
-class MultiKernelGenerator : public KernelGeneratorBase {
+class MultiStageKernelGenerator : public KernelGeneratorBase {
 public:
     template<typename... Stages>
-    explicit MultiKernelGenerator(Stages... stages) : KernelGeneratorBase() {
+    explicit MultiStageKernelGenerator(Stages... stages) : KernelGeneratorBase() {
         add_stages(std::forward<Stages>(stages)...);
     }
 
-    virtual ~MultiKernelGenerator() = default;
+    virtual ~MultiStageKernelGenerator() = default;
 
     KernelsData get_kernels_data(const program_node& node, const kernel_impl_params& params) const override {
         KernelsData kds;
-        for (auto& k : m_kernels)
+        for (auto& k : m_kernels) {
+            k->add_common_jit_constants(get_jit_constants(node, params));
             kds.push_back(k->get_kernel_data(node, params));
+        }
 
         return kds;
     }
+
+    virtual JitConstants get_jit_constants(const program_node& node, const kernel_impl_params& params) const { return {}; }
 
 protected:
     template<typename CurrentStage, typename... OtherStages>

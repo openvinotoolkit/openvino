@@ -62,9 +62,9 @@ struct primitive_impl_ocl : public primitive_impl {
     }
 
     void update(primitive_inst& inst, const kernel_impl_params& impl_params) override {
-        auto new_impl_params = this->canonicalize_shapes(impl_params);
-        update_dispatch_data(new_impl_params);
-        inst.update_shape_info_tensor(new_impl_params);
+        // auto new_impl_params = this->canonicalize_shapes(impl_params);
+        update_dispatch_data(impl_params);
+        inst.update_shape_info_tensor(impl_params);
     }
 
 protected:
@@ -96,11 +96,6 @@ protected:
         if (!_kernel_data.empty()) {
             auto compiled_kernels = kernels_cache.get_kernels(params);
             _kernels.insert(_kernels.begin(), compiled_kernels.begin(), compiled_kernels.end());
-            // batch program hash and kernel entry point to find corresponding cl source code
-            // kernel_dump_info = std::make_pair(std::to_string(kernels_cache.get_kernel_batch_hash(params)),
-            //                               _kernel_data.kernels[0].code.kernelString->entry_point);
-            // for (size_t i = 1; i < _kernel_data.kernels.size(); ++i)
-            //     kernel_dump_info.second += " " + _kernel_data.kernels[i].code.kernelString->entry_point;
         }
     }
 
@@ -123,18 +118,12 @@ protected:
     }
 
     std::vector<layout> get_internal_buffer_layouts() const override {
-        // if (_kernel_data.internalBufferSizes.empty())
-            return {};
+        std::vector<layout> layouts;
+        for (auto& kd : _kernel_data) {
+            layouts.insert(layouts.end(), kd.internal_buffers.begin(), kd.internal_buffers.end());
+        }
 
-        // std::vector<layout> layouts;
-        // auto dtype = from_data_type(_kernel_data.internalBufferDataType);
-        // const auto bpp = data_type_traits::size_of(dtype);
-        // for (auto size : _kernel_data.internalBufferSizes) {
-        //     layout inbuf_layout = {dtype, format::bfyx, // simple linear format (flattern to x channel)
-        //                             {1, 1, 1, (tensor::value_type)(size / bpp)}};
-        //     layouts.push_back(inbuf_layout);
-        // }
-        // return layouts;
+        return layouts;
     }
 
     void set_arguments(primitive_inst& instance) override {
@@ -218,7 +207,7 @@ protected:
 
             auto ev = stream.enqueue_kernel(*_kernels[kd_idx], params, args, tmp_events, needs_completion_event);
             // if (_kernel_data.needs_sub_kernels_sync) {
-            //     tmp_events = {ev};
+                tmp_events = {ev};
             // }
             all_events.push_back(ev);
         }
@@ -239,9 +228,9 @@ protected:
     }
 
     void reset_kernels_source() override {
-        // for (size_t i = 0; i < _kernel_data.kernels.size(); ++i) {
-        //     _kernel_data.kernels[i].code.kernelString.reset();
-        // }
+        for (size_t i = 0; i < _kernel_data.size(); ++i) {
+            _kernel_data[i].code.kernelString.reset();
+        }
     }
 
     void set_kernels(cldnn::kernels_cache::compiled_kernels kernels) override {
@@ -265,8 +254,9 @@ protected:
     }
 
     virtual void update_dispatch_data(const kernel_impl_params& impl_params) {
-        OPENVINO_ASSERT(this->_is_dynamic, "[GPU] update_dispatch_data() is called for static shape implementation ", this-> _kernel_name);
-        OPENVINO_ASSERT(false, "[GPU] update_dispatch_data() is not implemented for dynamic implemenation ", this->_kernel_name);
+        for (auto& kd : _kernel_data) {
+            kd.params.workGroups = kd.update_dispatch_data_func(impl_params).work_groups;
+        }
     }
 };
 

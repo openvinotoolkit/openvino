@@ -84,7 +84,6 @@ void register_implementations() {
     REGISTER_OCL(unique_count);
     REGISTER_OCL(unique_gather);
     REGISTER_OCL(scaled_dot_product_attention);
-    REGISTER_OCL(rope);
     REGISTER_OCL(search_sorted);
     REGISTER_OCL(STFT);
 }

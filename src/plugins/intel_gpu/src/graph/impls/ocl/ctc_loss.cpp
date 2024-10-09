@@ -23,7 +23,7 @@ public:
 
 protected:
     JitConstants get_jit_constants(const program_node& node, const kernel_impl_params& params) const override {
-        auto jit_constants = make_base_jit_constants(node, params);
+        auto jit_constants = SingleKernelGenerator::get_jit_constants(node, params);
         const auto& desc = node.as<ctc_loss>().get_primitive();
 
         jit_constants.add({
@@ -35,23 +35,26 @@ protected:
         return jit_constants;
     }
 
-    WorkGroupSizes get_dispatch_data(const program_node& node, const kernel_impl_params& params) const override {
-        WorkGroupSizes dispatch_data;
-        const auto& output = params.output_layouts[0];
+    DispatchDataFunc get_dispatch_data_func(const kernel_impl_params& params) const override {
+        static auto f = DISPATCH_DATA_FUNC(params) {
+            WorkGroupSizes dispatch_data;
+            const auto& output = params.output_layouts[0];
 
-        dispatch_data.global = {output.get_shape()[0], 1, 1};
-        dispatch_data.local = {1, 1, 1}; /*GetOptimalLocalWorkGroupSizes(dispatch_data.gws, kernel_params.engineInfo)*/;
-        return dispatch_data;
+            dispatch_data.global = {output.get_shape()[0], 1, 1};
+            dispatch_data.local = {1, 1, 1}; /*GetOptimalLocalWorkGroupSizes(dispatch_data.gws, kernel_params.engineInfo)*/;
+            return { dispatch_data, {} };
+        };
+
+        return f;
     }
 };
 
 }  // namespace
 
 std::unique_ptr<primitive_impl> CTCLoss::create_impl(const program_node& node, const kernel_impl_params& params) const {
-    OPENVINO_ASSERT(node.is_type<ctc_loss>());
+    assert(node.is_type<ctc_loss>());
     CTCLossGenerator gen;
-    auto kds = gen.get_kernels_data(node, params);
-    return cldnn::make_unique<primitive_impl_ocl>(kds, std::string(get_type_info().name) + "::" + gen.get_name());
+    return cldnn::make_unique<primitive_impl_ocl>(gen.get_kernels_data(node, params), std::string(get_type_info().name));
 }
 
 }  // namespace ocl
