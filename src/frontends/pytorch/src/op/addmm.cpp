@@ -74,8 +74,7 @@ OutputVector translate_conv1d_ext(const NodeContext& context) {
     bias = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(bias, x));
 
     auto mm = context.mark_node(std::make_shared<v0::MatMul>(x, weight));
-    auto addmm = context.mark_node(std::make_shared<v1::Add>(bias, mm));
-    return {addmm};
+    return {context.mark_node(std::make_shared<v1::Add>(mm, bias))};
 };
 
 }  // namespace op
