@@ -355,6 +355,7 @@ void Partitioner::identifySubgraphs() {
             group_nodes.insert(it->second);
         }
         group.sg._repeated_id = group.repeated_id;
+        group.sg._forced_to_fcall = group.forced_to_fcall;
         group.sg._gflops = group.gflops;
         group.sg._ops = group.all_layers.size();
         P.total_ops += group.sg._ops;
@@ -1450,6 +1451,7 @@ void Partitioner::createFunction(FunctionPipeline& func_ggg) {
     funcall._gflops = body_sg._gflops;  // preserving this is required for proper stats
     funcall._ops = body_sg._ops;        // preserving this is requried for proper stats
     funcall._avoid_list = body_sg._avoid_list;
+    funcall._forced_to_fcall = body_sg._forced_to_fcall;
 
     // Declare a new function AND record a function call
     ov::npuw::Function function;
@@ -1549,6 +1551,7 @@ void Partitioner::matchRepeatedSubgraphs(const std::string& func_name) {
         funcall._gflops = this_sg._gflops;          // duplicated code again!
         funcall._ops = this_sg._ops;                // duplicated code again!
         funcall._avoid_list = this_sg._avoid_list;  // duplicated code again!
+        funcall._forced_to_fcall = this_sg._forced_to_fcall;
         rearrange_to_function_protocol(this_sg, body_params, funcall._parameters, func_ggg.param_call_to_proto);
         rearrange_to_function_protocol(this_sg, body_results, funcall._results, func_ggg.result_call_to_proto);
 
@@ -1882,7 +1885,7 @@ void Partitioner::decompressionCutOff(const std::string& func_name) {
             }
 
             // Finally, remove the function body's parameters here
-            ov::npuw::patterns::finalize_remap(f, closure_remap);
+            ov::npuw::patterns::finalize_remap(f, func_group.refs.front(), closure_remap);
         }  // if (CAST_SCALE && have(params_to_scale))
     }
     LOG_DEBUG("Function model inputs after the DCOFF:");
@@ -2017,6 +2020,8 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
                 LOG_INFO("Turning block " << gid << " into a function " << this_group.repeated_id << "...");
                 LOG_BLOCK();
                 this_group.repeated_id = std::move(new_id);
+                this_group.forced_to_fcall = true;
+
                 ov::npuw::RepeatedBlock this_block;
                 for (const auto& layer : this_group.all_layers) {
                     // Note: NOT move(layer)! It breaks the code here.

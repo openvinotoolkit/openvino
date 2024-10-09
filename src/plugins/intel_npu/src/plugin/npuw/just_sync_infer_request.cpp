@@ -48,7 +48,8 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         if (comp_model_desc.replaced_by) {
             // Pre-allocate output tesnors for this function call
             const auto real_idx = comp_model_desc.replaced_by.value();
-            auto& proto_comp_model = m_npuw_model->m_compiled_submodels[real_idx].compiled_model;
+            auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
+            auto& proto_comp_model = proto_comp_model_desc.compiled_model;
             for (size_t out_idx = 0; out_idx < proto_comp_model->outputs().size(); out_idx++) {
                 const auto& port = proto_comp_model->outputs()[out_idx];
                 m_funcall_result[LinkFrom{i, out_idx}] =
@@ -63,12 +64,13 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         }  // if(replaced_by)
 
         // Special cases are handled -- so nothing to do here
+        const bool is_piped = is_pipelined(i);
         bool recompiled = false;
-        auto rqs = create_infer_requests(i, m_use_function_pipelining ? 2 : 1, &recompiled);
+        auto rqs = create_infer_requests(i, is_piped ? 2 : 1, &recompiled);
         failover_happened |= recompiled;
         m_subrequests[i] = rqs.at(0);
         m_subrequest_devices[i] = *comp_model_desc.device_it;
-        if (comp_model_desc.replaced_by && m_use_function_pipelining) {
+        if (is_piped) {
             m_funcall_pipeline[i].subrequest = rqs.at(1);
         }
 
@@ -89,6 +91,10 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         for (std::size_t i = 0; i < m_num_submodels; i++) {
             auto& comp_model_desc = m_npuw_model->m_compiled_submodels[i];
             if (comp_model_desc.replaced_by) {  // a function call..
+                if (!is_pipelined(i)) {
+                    LOG_INFO("Skip subgraph[" << i << "] as it is a single-call function");
+                    continue;
+                }
                 // Use real_id to accumulate information about
                 // different functions
                 const auto real_id = comp_model_desc.replaced_by.value();
@@ -331,8 +337,6 @@ void ov::npuw::JustInferRequest::bind_global_parameters(std::size_t idx) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
     const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
 
-    LOG_DEBUG("Real idx is..." << real_idx);
-
     const bool do_copy = needs_copy(idx);
     const auto& iodesc = m_subrequests_gio.at(idx);
 
@@ -341,7 +345,7 @@ void ov::npuw::JustInferRequest::bind_global_parameters(std::size_t idx) {
 
     // pick which subrequest we actually work on here
     auto subr = [&]() {
-        if (now_idx() && real_idx == real(now_idx().value()) && m_use_function_pipelining) {
+        if (now_idx() && real_idx == real(now_idx().value()) && is_pipelined(now_idx().value())) {
             LOG_DEBUG("Accessing the pipeline subrequest");
             // The real index of request we need to prepare IS
             // the same request which executes now AND
@@ -458,7 +462,7 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
     // 2. Unpack the function closure -- right here, if pipelining if not enabled.
     // If it is enabled, the flow is a little bit different - see run_subrequest_for_success()
     // for details.
-    if (!m_use_function_pipelining) {
+    if (!is_pipelined(idx)) {
         LOG_DEBUG("Unpacking closures...");
         LOG_BLOCK();
         unpack_closure(idx, m_subrequests[real_idx]);
@@ -555,7 +559,8 @@ void ov::npuw::JustInferRequest::recreate_subrequests(std::size_t idx) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
     auto real_idx = comp_model_desc.replaced_by.value_or(idx);
 
-    auto new_rqs = create_infer_requests(idx, m_use_function_pipelining ? 2 : 1);
+    const auto is_piped = is_pipelined(idx);
+    auto new_rqs = create_infer_requests(idx, is_piped ? 2 : 1);
 
     // NB: Regardless if this subrequest was a function call
     // or not, always use the real_idx here - for regular
@@ -563,7 +568,7 @@ void ov::npuw::JustInferRequest::recreate_subrequests(std::size_t idx) {
     // is critical here to update the function body, not the
     // function calls (which are left empty now in the vector)
     m_subrequests[real_idx] = new_rqs.at(0);
-    if (comp_model_desc.replaced_by && m_use_function_pipelining) {
+    if (is_piped) {
         m_funcall_pipeline[real_idx].subrequest = new_rqs.at(1);
     }
     // After an infer request is recreated, the internal cross-request
@@ -637,7 +642,7 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, boo
 
     if (job_done) {
         dump_output_tensors(idx);  // FIXME: Called here unconditionally, need to refactor
-        if (m_use_function_pipelining && m_funcall_pipeline[idx].next) {
+        if (is_pipelined(idx) && m_funcall_pipeline[idx].next) {
             // Swap the next (pipelined, semi-prepared) infer request in the chain
             // with the default (to be accessed next) one.
             std::swap(m_subrequests[real_idx], m_funcall_pipeline[real_idx].subrequest);
@@ -666,7 +671,7 @@ void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool
             // The next subgraph is a call to the same function...
             // At this point, THIS infer request is already prepared.
             // Run it, then prepare it again for the next entrace
-            if (m_use_function_pipelining) {
+            if (is_pipelined(real_idx)) {
                 // function pipelining is here! and the next rq is ours.
                 NPUW_ASSERT(m_funcall_pipeline[idx].next.value() == next_idx);
                 during(this_subr, [&]() {
@@ -697,7 +702,7 @@ void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool
                         bind_global_parameters(next_idx);
                         next_prepared = true;
                     }
-                    if (m_use_function_pipelining && m_funcall_pipeline[idx].next) {
+                    if (is_pipelined(idx) && m_funcall_pipeline[idx].next) {
                         const auto my_next_idx = m_funcall_pipeline[idx].next.value();
                         LOG_DEBUG("Unpacking closures for the NEXT subrequest[" << my_next_idx << "]...");
                         LOG_BLOCK();
@@ -744,4 +749,9 @@ bool ov::npuw::JustInferRequest::supports_async_pipeline() const {
 
 void ov::npuw::JustInferRequest::update_subrequest_links(std::size_t) {
     connect_subrequests();
+}
+
+bool ov::npuw::JustInferRequest::is_pipelined(std::size_t idx) const {
+    const auto& desc = m_npuw_model->m_compiled_submodels[real(idx)];
+    return m_use_function_pipelining && desc.replaced_by && !desc.forced_to_fcall;
 }

@@ -136,14 +136,40 @@ void apply_remap(Subgraph& fcall, const ClosureRemap& m) {
     fcall._zerops = std::move(new_zerops);
 }
 
-void finalize_remap(Function& fbody, const ClosureRemap& m) {
+void finalize_remap(Function& fbody, Subgraph& fsg, const ClosureRemap& m) {
     LOG_DEBUG("Removing retired parameters...");
     LOG_BLOCK();
+
+    // Unfortunate truth - this function has to be aware of the
+    // Host Gather existence to properly update indices after
+    // Remap.
+    using PPtr = std::shared_ptr<ov::op::v0::Parameter>;
+    struct GatherParams {
+        PPtr pidx;  // Parameter @ function body - input_ids
+        PPtr psrc;  // Parameter @ function body - vocab tensor
+        PPtr pdst;  // Parameter @ function body - gathered ids
+    };
+    GatherParams gather_params;
+    const auto& params = fbody._model->get_parameters();
+    if (fsg._host_gather.dst_idx != -1) {
+        gather_params = GatherParams{params[fsg._host_gather.idx_idx],
+                                     params[fsg._host_gather.src_idx],
+                                     params[fsg._host_gather.dst_idx]};
+    }
+
     for (auto&& p : m.params_to_remove) {
         LOG_DEBUG("Removing parameter " << p);
         LOG_BLOCK();
         fbody._model->remove_parameter(p);
     }
+
+    // Update indices for gather
+    if (fsg._host_gather.dst_idx != -1) {
+        fsg._host_gather.idx_idx = fbody._model->get_parameter_index(gather_params.pidx);
+        fsg._host_gather.src_idx = fbody._model->get_parameter_index(gather_params.psrc);
+        fsg._host_gather.dst_idx = fbody._model->get_parameter_index(gather_params.pdst);
+    }
+
     fbody._model->validate_nodes_and_infer_types();
     LOG_DEBUG("DONE");
 }

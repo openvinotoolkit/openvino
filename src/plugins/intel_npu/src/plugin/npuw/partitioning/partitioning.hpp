@@ -35,11 +35,13 @@ struct Subgraph {
     //
     // FIXME: Replace with variant or some other proper way (maybe
     // even a class hierarchy)
-    std::string _repeated_id;
-    std::string _funcall;
+    std::string _repeated_id;  // FIXME: What's the difference
+    std::string _funcall;      // ..between these two?
     std::vector<ov::Tensor> _closure;
     std::vector<ov::Tensor> _scales;  // Scale coeffs for manual unpacking
     std::vector<ov::Tensor> _zerops;  // Zero points for manual unpacking
+
+    bool _forced_to_fcall = false;
 
     struct Gather {
         // NB.: int64_t is strange but it is used by OV to refer to parameters
@@ -71,6 +73,11 @@ struct Group {
     float gflops;
 
     std::string avoid_list;
+
+    // Set to true if the Group was forcibly turned to functon. Such
+    // function has just a single associated funcall and are subjects
+    // to some optimizations (simplifications).
+    bool forced_to_fcall = false;
 
     ov::npuw::Subgraph sg;
 };

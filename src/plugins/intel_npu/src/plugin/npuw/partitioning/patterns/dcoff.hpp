@@ -46,7 +46,7 @@ struct ClosureRemap {
 
 ClosureRemap build_remap(const Function& fbody, const DCOFFParams& p);
 void apply_remap(Subgraph& fcall, const ClosureRemap& m);
-void finalize_remap(Function& fbody, const ClosureRemap& m);
+void finalize_remap(Function& fbody, Subgraph& fsg, const ClosureRemap& m);
 
 // Various patterns here
 
