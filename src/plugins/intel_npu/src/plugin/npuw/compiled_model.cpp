@@ -113,8 +113,6 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         LOG_INFO("Accuracy check is enabled.");
     }
 
-    m_cache_dir = m_cfg.get<::intel_npu::NPUW_CACHE_DIR>();
-
     // Initialize weights bank
     const std::string weights_bank_opt = m_cfg.get<::intel_npu::NPUW_WEIGHTS_BANK>();
     m_weights_bank = ov::npuw::weights::bank(weights_bank_opt, plugin->get_core());
@@ -576,14 +574,10 @@ ov::SoPtr<ov::ICompiledModel> ov::npuw::CompiledModel::compile_submodel(const st
     // NOTE(dm): Not sure if it is required for the NPUW plugin, but likely it is
     auto& device_config = m_meta_devices[device];
 
-    if (!m_cache_dir.empty() &&
-        ov::util::contains(core->get_property(device, ov::supported_properties), ov::device::capabilities) &&
-        ov::util::contains(core->get_property(device, ov::device::capabilities),
-                           ov::device::capability::EXPORT_IMPORT) &&
-        ov::util::contains(core->get_property(device, ov::internal::supported_properties),
-                           ov::internal::caching_properties)) {
+    const auto& cache_dir = m_cfg.get<::intel_npu::NPUW_CACHE_DIR>();
+    if (!cache_dir.empty()) {
         LOG_INFO("NPUW will try to utilize CACHE_DIR for " << submodel->get_friendly_name() << " submodel.");
-        device_config.insert(ov::cache_dir(m_cache_dir));
+        device_config.insert(ov::cache_dir(cache_dir));
     }
 
     if (m_compiled_submodels.size() > 1) {
