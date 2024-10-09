@@ -127,6 +127,7 @@ def process_coveo_meta(meta, url, link):
             else:
                 ET.SubElement(namespace_element, tag_name).text = tag_value
 
+
 def process_link(link):
     if '/' in link:
         return link.split('/')[0].replace("-", " ")
