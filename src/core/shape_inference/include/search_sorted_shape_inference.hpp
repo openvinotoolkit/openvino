@@ -10,21 +10,35 @@
 namespace ov {
 namespace op {
 namespace v15 {
-template <class TShape, class TRShape = result_shape_t<TShape>>
+template <class TShape, class TRShape = result_shape_t<TShape>, class TDim = typename TShape::value_type>
 std::vector<TRShape> shape_infer(const SearchSorted* op, const std::vector<TShape>& input_shapes) {
-    // [HACK]: By convention, shape_infer should also perform node validation..
-    op->validate();
     const auto& sorted_shape = input_shapes[0];
     const auto& values_shape = input_shapes[1];
-    auto output_shape = values_shape;
-    TShape::merge_into(output_shape, sorted_shape);
 
-    if (output_shape.rank().is_static()) {
-        auto last_it = output_shape.end() - 1;
-        if (values_shape.rank().is_static()) {
-            *last_it = *(input_shapes[1].end() - 1);
-        } else {
-            *last_it = Dimension::dynamic();
+    if (sorted_shape.rank().is_static() && values_shape.rank().is_static() && sorted_shape.rank() != 1) {
+        NODE_SHAPE_INFER_CHECK(op,
+                               input_shapes,
+                               sorted_shape.rank().compatible(values_shape.rank()),
+                               "The inputs' ranks have to be compatible.");
+        for (size_t i = 0; i < sorted_shape.size() - 1; ++i) {
+            NODE_SHAPE_INFER_CHECK(op,
+                                   input_shapes,
+                                   sorted_shape[i].compatible(values_shape[i]),
+                                   "All dimensions but the last one have to be compatible.");
+        }
+    }
+
+    TRShape output_shape;
+    if (values_shape.rank().is_dynamic() && sorted_shape.rank().is_static()) {
+        output_shape = sorted_shape;
+        output_shape[sorted_shape.size() - 1] = Dimension::dynamic();
+    } else {
+        output_shape = values_shape;
+    }
+
+    if (sorted_shape.rank().is_static() && values_shape.rank().is_static()) {
+        for (size_t i = 0; i < sorted_shape.size() - 1; ++i) {
+            TDim::merge(output_shape[i], values_shape[i], sorted_shape[i]);
         }
     }
 

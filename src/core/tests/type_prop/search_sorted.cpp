@@ -82,13 +82,13 @@ TEST(type_prop, search_sorted_shape_infer_different_types) {
 TEST(type_prop, search_sorted_shape_infer_wrong_rank) {
     auto sorted = make_shared<ov::op::v0::Parameter>(element::i32, Shape{1, 1, 3, 6});
     auto values = make_shared<ov::op::v0::Parameter>(element::i32, Shape{1, 3, 6});
-    EXPECT_THROW_SUBSTRING(sorted, values, std::string("Sorted sequence and values have different ranks"));
+    EXPECT_THROW_SUBSTRING(sorted, values, std::string("The inputs' ranks have to be compatible"));
 }
 
 TEST(type_prop, search_sorted_shape_infer_wrong_dim) {
     auto sorted = make_shared<ov::op::v0::Parameter>(element::i32, Shape{1, 1, 3, 6});
     auto values = make_shared<ov::op::v0::Parameter>(element::i32, Shape{1, 1, 5, 6});
-    EXPECT_THROW_SUBSTRING(sorted, values, std::string(" different 2 dimension."));
+    EXPECT_THROW_SUBSTRING(sorted, values, std::string("All dimensions but the last one have to be compatible"));
 }
 
 #undef EXPECT_THROW_SUBSTRING
