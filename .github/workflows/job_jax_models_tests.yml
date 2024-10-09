@@ -39,7 +39,7 @@ jobs:
       - name: Download OpenVINO artifacts (package, wheels, tests)
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
-          pattern: openvino_-*
+          pattern: openvino_[package|wheels|tests]*
           path: ${{ env.INSTALL_DIR }}
           merge-multiple: true
 
@@ -54,7 +54,7 @@ jobs:
       - name: Extract OpenVINO packages and tests
         run: |
             tar -I pigz -xf openvino_package.tar.gz -C ${INSTALL_DIR}
-            tar -I pigz -xf openvino_wheels.tar.gz -C ${INSTALL_DIR}
+            tar -I pigz -xf openvino_wheels.tar.gz -C ${INSTALL_WHEELS_DIR}
             tar -I pigz -xf openvino_tests.tar.gz -C ${INSTALL_DIR}
         working-directory: ${{ env.INSTALL_DIR }}
 
