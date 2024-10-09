@@ -19,13 +19,16 @@ void search_sorted(const T* sorted,
                    bool right_mode) {
     const CoordinateTransformBasic values_transform{values_shape};
 
-    const std::function<const T*(const T*, const T*, T)> compare_func = right_mode ? 
-    [](const T* begin, const T* end, T value) {
-        return std::lower_bound(begin, end, value, std::less_equal<T>());
-    } : 
-    [](const T* begin, const T* end, T value) {
-        return std::lower_bound(begin, end, value, std::less<T>());
-    };
+    std::function<const T*(const T*, const T*, T)> compare_func = nullptr;
+    if (right_mode) {
+        compare_func = [](const T* begin, const T* end, T value) {
+            return std::lower_bound(begin, end, value, std::less_equal<T>());
+        };
+    } else {
+        compare_func = [](const T* begin, const T* end, T value) {
+            return std::lower_bound(begin, end, value, std::less<T>());
+        };
+    }
 
     for (const Coordinate& values_coord : values_transform) {
         const auto values_index = coordinate_index(values_coord, values_shape);
