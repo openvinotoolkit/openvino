@@ -19,6 +19,7 @@
 #include "openvino/runtime/make_tensor.hpp"
 #include "plugin.hpp"
 #include "util.hpp"
+#include "util_xarch.hpp"
 #include "weights_bank.hpp"
 
 ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model)
@@ -617,18 +618,18 @@ void ov::npuw::JustInferRequest::unpack_closure(std::size_t idx, RqPtr request) 
 
         if (!comp_model_desc.scales.empty() && comp_model_desc.scales[cidx] && comp_model_desc.zerops[cidx]) {
             // Unpacking this weight requires scaling with zero points...
-            ov::npuw::util::unpack(ov::get_tensor_impl(closure),
-                                   ov::get_tensor_impl(comp_model_desc.zerops[cidx]),
-                                   ov::get_tensor_impl(comp_model_desc.scales[cidx]),
-                                   clparam);
+            ov::npuw::util::XARCH::unpack_scale_zp(ov::get_tensor_impl(closure),
+                                    ov::get_tensor_impl(comp_model_desc.zerops[cidx]),
+                                    ov::get_tensor_impl(comp_model_desc.scales[cidx]),
+                                    clparam);
         } else if (!comp_model_desc.scales.empty() && comp_model_desc.scales[cidx]) {
             // Unpacking this weight requires scaling
-            ov::npuw::util::unpack(ov::get_tensor_impl(closure),
+            ov::npuw::util::XARCH::unpack_scale(ov::get_tensor_impl(closure),
                                    ov::get_tensor_impl(comp_model_desc.scales[cidx]),
                                    clparam);
         } else {
             // Unpacking this weight doesn't require scaling
-            ov::npuw::util::unpack(ov::get_tensor_impl(closure), clparam);
+            ov::npuw::util::XARCH::unpack(ov::get_tensor_impl(closure), clparam);
         }
     }
 }
