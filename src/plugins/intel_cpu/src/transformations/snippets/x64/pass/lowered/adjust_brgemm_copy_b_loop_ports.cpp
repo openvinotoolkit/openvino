@@ -33,13 +33,15 @@ bool ov::intel_cpu::pass::AdjustBrgemmCopyBLoopPorts::run(snippets::lowered::Lin
         OPENVINO_ASSERT(grandchild_ports.size() == 1, "BrgemmCopyB is supposed to have one grandchild");
         const auto& target_port = *grandchild_ports.begin();
         const auto& target_loop_ids = target_port.get_expr()->get_loop_ids();
-//        size_t i = 0;
-//        for (; i < loop_ids.size(); i++)
-//            OPENVINO_ASSERT(child_loop_ids[i] == loop_ids[i], "Invalid BrgemmCopyB loop configuration");
         // todo: there could be several mismatched loop ids in case of nested blocked loops
         //  what kind of ptr increments we should set in this case?
+
+        // If loop ids match, it means there is no blocking loop
+        if (target_loop_ids == loop_ids)
+            continue;
+        OPENVINO_ASSERT(target_loop_ids.size() > loop_ids.size() &&
+                        (loop_ids.empty() || target_loop_ids.back() != loop_ids.back()), "Invalid BrgemmCopyB loop configuration");
         const auto blocked_loop_id = target_loop_ids.back();
-        OPENVINO_ASSERT(loop_ids.empty() || blocked_loop_id != loop_ids.back(), "Invalid BrgemmCopyB loop configuration");
         const auto& loop_mngr = linear_ir.get_loop_manager();
         const auto& loop_info = loop_mngr->get_loop_info<snippets::lowered::UnifiedLoopInfo>(blocked_loop_id);
 
