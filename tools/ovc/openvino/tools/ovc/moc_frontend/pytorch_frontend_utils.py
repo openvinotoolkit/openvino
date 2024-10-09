@@ -56,6 +56,7 @@ def get_pytorch_decoder(model, example_inputs, args):
                 decomp = get_decompositions(get_export_decomposition_list())
                 model = model.run_decompositions(decomp_table=decomp)
             gm = model.module()
+            log.debug(gm.code)
             decoder = TorchFXPythonDecoder(gm)
         else:
             decoder = TorchScriptPythonDecoder(
