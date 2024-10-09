@@ -17,7 +17,8 @@ GPU_DEFINE_PRIMITIVE_TYPE_ID(kv_cache)
 kv_cache_inst::typed_primitive_inst(network& network, const kv_cache_node& node) :
     parent{network, node, false},
     memory_state::variable{node.get_primitive()->variable_info.variable_id} {
-    kv_cache_id = network.get_kv_cache_ids().size();
+    thread_local size_t kv_cache_counter = 0;
+    kv_cache_id = kv_cache_counter++;
 }
 
 layout kv_cache_inst::calc_output_layout(const kv_cache_node& node, kernel_impl_params const& impl_param) {
