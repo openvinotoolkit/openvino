@@ -7,6 +7,7 @@
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/op/lstm_cell.hpp"
 #include "openvino/op/loop.hpp"
+#include "openvino/op/util/weightless_caching_attributes.hpp"
 
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
@@ -306,11 +307,11 @@ void ProgramBuilder::add_primitive(const ov::Node& op, std::shared_ptr<cldnn::pr
 
     if (auto data_prim = dynamic_cast<cldnn::data*>(prim.get())) {
         auto rt_info = op.get_rt_info();
-        auto offset = rt_info.find("bin_offset");
-        auto original_size = rt_info.find("original_size");
+        auto offset = rt_info.find(ov::ConstantBinOffset::get_type_info_static());
+        auto original_size = rt_info.find(ov::ConstantOriginalSize::get_type_info_static());
         if (offset != rt_info.end() && original_size != rt_info.end()) {
-            data_prim->bin_offset = offset->second.as<size_t>();
-            data_prim->original_size = original_size->second.as<size_t>();
+            data_prim->bin_offset = offset->second.as<ov::ConstantBinOffset>().bin_offset;
+            data_prim->original_size = original_size->second.as<ov::ConstantOriginalSize>().original_size;
         }
     }
 
