@@ -71,7 +71,7 @@ std::pair<std::shared_ptr<ov::op::v1::Split>, uint64_t> get_split_before_concat(
     std::shared_ptr<ov::op::v1::Split> split;
     for (const auto& input : concat->input_values()) {
         // If 'concat' has some non-Split producer, then the transformation is not applicable.
-        auto split_op = std::dynamic_pointer_cast<ov::op::v1::Split>(input.get_node_shared_ptr());
+        auto split_op = ov::as_type_ptr<ov::op::v1::Split>(input.get_node_shared_ptr());
         if (!split)
             split = split_op;
         if (!split_op || split != split_op)
@@ -152,7 +152,7 @@ ov::pass::SplitConcatPairToInterpolateFusion::SplitConcatPairToInterpolateFusion
     // Detect only concat, because we don't know how many inputs will go into concat.
     auto concat_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Concat>();
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
-        auto concat = std::dynamic_pointer_cast<ov::op::v0::Concat>(m.get_match_root());
+        auto concat = ov::as_type_ptr<ov::op::v0::Concat>(m.get_match_root());
         if (!concat)
             return false;
 
@@ -173,8 +173,7 @@ ov::pass::SplitConcatPairToInterpolateFusion::SplitConcatPairToInterpolateFusion
         if (split_input_rank != 4 && split_input_rank != 5)
             return false;
 
-        auto split_axis_const =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(split->input_value(1).get_node_shared_ptr());
+        auto split_axis_const = ov::as_type_ptr<ov::op::v0::Constant>(split->input_value(1).get_node_shared_ptr());
         if (!split_axis_const)
             return false;
 

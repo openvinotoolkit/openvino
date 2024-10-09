@@ -24,41 +24,57 @@ namespace frontend {
 namespace ir {
 namespace {
 
-inline size_t get_ir_version(pugi::xml_node& root) {
-    return static_cast<size_t>(ov::util::pugixml::get_uint64_attr(root, "version", 0));
+size_t get_ir_version(const pugi::xml_document& doc) {
+    pugi::xml_node root = doc.document_element();
+    std::string root_name = root.name();
+    std::transform(root_name.begin(), root_name.end(), root_name.begin(), [](unsigned char c) {
+        return std::tolower(c);
+    });
+
+    if (root_name == "net")
+        return static_cast<size_t>(ov::util::pugixml::get_uint64_attr(root, "version", 0));
+
+    return 0;
 }
 
 /**
  * @brief Extracts IR version from model stream
- * @param model Models stream
+ * @param model Model's stream
  * @return IR version, 0 if model does represent IR
  */
 size_t get_ir_version(std::istream& model) {
+    // IR version is a value of root tag attribuite thought not need to parse the whole stream.
     std::array<char, 512> header{};
-
     model.seekg(0, model.beg);
     model.read(header.data(), header.size());
     model.clear();
     model.seekg(0, model.beg);
 
     pugi::xml_document doc;
-    auto res =
+
+    // For dominant number of IRs `load_buffer' in this case returns parsing-error as 512 is not enough for the whole
+    // root node. Basing on Pugi manual "If parsing failed because the source data was not a  valid XML, the resulting
+    // tree is not destroyed - despite the fact that load function returns error, you can use the part of the tree that
+    // was successfully parsed." root node is processed because it should be enough to read model version. However if IR
+    // is small enough to fit 512 bytes ok-status is returned. Thus ignoring returned value.
+    std::ignore =
         doc.load_buffer(header.data(), header.size(), pugi::parse_default | pugi::parse_fragment, pugi::encoding_utf8);
 
-    if (res == pugi::status_ok) {
-        pugi::xml_node root = doc.document_element();
+    auto ir_version = get_ir_version(doc);
 
-        std::string node_name = root.name();
-        std::transform(node_name.begin(), node_name.end(), node_name.begin(), ::tolower);
+    // In case attribute name is very long and placed before version attribute of root node or there is long comment
+    // node before root node then version attribute of root node is not accesible within first 512 bytes, so read the
+    // whole stream and try to obtain version value.
+    if (ir_version == 0) {
+        if (doc.load(model))
+            ir_version = get_ir_version(doc);
 
-        if (node_name == "net") {
-            return get_ir_version(root);
-        }
+        model.clear();
+        model.seekg(0, model.beg);
     }
 
-    return 0;
+    return ir_version;
 }
-
 }  // namespace
 
 bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {

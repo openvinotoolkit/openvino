@@ -32,10 +32,10 @@ ov::pass::SoftmaxDecomposition::SoftmaxDecomposition() {
             return false;
         }
 
-        if (auto m_softmax_v1 = std::dynamic_pointer_cast<ov::op::v1::Softmax>(m_softmax)) {
+        if (auto m_softmax_v1 = ov::as_type_ptr<ov::op::v1::Softmax>(m_softmax)) {
             input = m_softmax_v1->input_value(0);
             softmax_axis = static_cast<int64_t>(m_softmax_v1->get_axis());
-        } else if (auto m_softmax_v8 = std::dynamic_pointer_cast<ov::op::v8::Softmax>(m_softmax)) {
+        } else if (auto m_softmax_v8 = ov::as_type_ptr<ov::op::v8::Softmax>(m_softmax)) {
             input = m_softmax_v8->input_value(0);
             softmax_axis = m_softmax_v8->get_axis();
         } else {

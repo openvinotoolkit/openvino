@@ -15,11 +15,12 @@ promising results for selecting a wide range of input text prompts!
 `stable-diffusion-v2-text-to-image <stable-diffusion-v2-with-output.html>`__
 notebook for demo purposes and to get started quickly. This version does
 not have the full implementation of the helper utilities needed to
-convert the models from PyTorch to ONNX to OpenVINO, and the OpenVINO
+convert the models from PyTorch to OpenVINO, and the OpenVINO
 ``OVStableDiffusionPipeline`` within the notebook directly. If you would
 like to see the full implementation of stable diffusion for text to
 image, please visit
 `stable-diffusion-v2-text-to-image <stable-diffusion-v2-with-output.html>`__.
+
 
 **Table of contents:**
 
@@ -158,7 +159,7 @@ pipelines in OpenVINO on our own data!
         convert_vae_encoder,
     )
     
-    # Convert the Text-to-Image models from PyTorch -> Onnx -> OpenVINO
+    # Convert the Text-to-Image models from PyTorch -> OpenVINO
     # 1. Convert the Text Encoder
     txt_encoder_ov_path = txt2img_model_dir / "text_encoder.xml"
     convert_encoder(text_encoder, txt_encoder_ov_path)
@@ -191,17 +192,16 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    import openvino as ov
+    import requests
     
-    core = ov.Core()
-    
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
+    open("notebook_utils.py", "w").write(r.text)
+    
+    from notebook_utils import device_widget
+    
+    device = device_widget()
     
     device
 
@@ -218,6 +218,10 @@ Let’s create instances of our OpenVINO Model for Text to Image.
 
 .. code:: ipython3
 
+    import openvino as ov
+    
+    core = ov.Core()
+    
     text_enc = core.compile_model(txt_encoder_ov_path, device.value)
 
 .. code:: ipython3

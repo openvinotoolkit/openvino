@@ -44,6 +44,7 @@ The tutorial consists of the following steps:
 -  Run optimized model inference on video
 -  Launch interactive Gradio demo
 
+
 **Table of contents:**
 
 
@@ -1089,73 +1090,32 @@ Gradio Interactive Demo
 
 .. code:: ipython3
 
-    import gradio as gr
-    
-    
     def yolov10_inference(image, int8, conf_threshold, iou_threshold):
         model = ov_yolo_model if not int8 else ov_yolo_int8_model
         results = model(source=image, iou=iou_threshold, conf=conf_threshold, verbose=False)[0]
         annotated_image = Image.fromarray(results.plot())
     
         return annotated_image
+
+.. code:: ipython3
+
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/yolov10-optimization/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
     
+    from gradio_helper import make_demo
     
-    with gr.Blocks() as demo:
-        gr.HTML(
-            """
-        <h1 style='text-align: center'>
-        YOLOv10: Real-Time End-to-End Object Detection using OpenVINO
-        </h1>
-        """
-        )
-        with gr.Row():
-            with gr.Column():
-                image = gr.Image(type="numpy", label="Image")
-                conf_threshold = gr.Slider(
-                    label="Confidence Threshold",
-                    minimum=0.1,
-                    maximum=1.0,
-                    step=0.1,
-                    value=0.2,
-                )
-                iou_threshold = gr.Slider(
-                    label="IoU Threshold",
-                    minimum=0.1,
-                    maximum=1.0,
-                    step=0.1,
-                    value=0.45,
-                )
-                use_int8 = gr.Checkbox(
-                    value=ov_yolo_int8_model is not None,
-                    visible=ov_yolo_int8_model is not None,
-                    label="Use INT8 model",
-                )
-                yolov10_infer = gr.Button(value="Detect Objects")
-    
-            with gr.Column():
-                output_image = gr.Image(type="pil", label="Annotated Image")
-    
-            yolov10_infer.click(
-                fn=yolov10_inference,
-                inputs=[
-                    image,
-                    use_int8,
-                    conf_threshold,
-                    iou_threshold,
-                ],
-                outputs=[output_image],
-            )
-        examples = gr.Examples(
-            [
-                "data/coco_bike.jpg",
-            ],
-            inputs=[
-                image,
-            ],
-        )
-    
+    demo = make_demo(fn=yolov10_inference, quantized=ov_yolo_int8_model is not None)
     
     try:
         demo.launch(debug=False)
     except Exception:
         demo.launch(debug=False, share=True)
+    # If you are launching remotely, specify server_name and server_port
+    # EXAMPLE: `demo.launch(server_name='your server name', server_port='server port in int')`
+    # To learn more please refer to the Gradio docs: https://gradio.app/docs/
+
+.. code:: ipython3
+
+    # please uncomment and run this cell for stopping gradio interface
+    # demo.close()

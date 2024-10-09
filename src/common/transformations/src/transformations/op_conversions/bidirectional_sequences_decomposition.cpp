@@ -21,7 +21,7 @@ ov::pass::BidirectionalLSTMSequenceDecomposition::BidirectionalLSTMSequenceDecom
     auto lstm_sequence_ov = ov::pass::pattern::wrap_type<ov::op::v5::LSTMSequence>();
 
     matcher_pass_callback callback = [this](pattern::Matcher& m) {
-        auto lstm_sequence = std::dynamic_pointer_cast<ov::op::v5::LSTMSequence>(m.get_match_root());
+        auto lstm_sequence = ov::as_type_ptr<ov::op::v5::LSTMSequence>(m.get_match_root());
         if (!lstm_sequence || transformation_callback(lstm_sequence)) {
             return false;
         }
@@ -94,7 +94,7 @@ ov::pass::BidirectionalGRUSequenceDecomposition::BidirectionalGRUSequenceDecompo
     auto gru_sequence_ov = ov::pass::pattern::wrap_type<ov::op::v5::GRUSequence>();
 
     matcher_pass_callback callback = [this](pattern::Matcher& m) {
-        auto gru_sequence = std::dynamic_pointer_cast<ov::op::v5::GRUSequence>(m.get_match_root());
+        auto gru_sequence = ov::as_type_ptr<ov::op::v5::GRUSequence>(m.get_match_root());
         if (!gru_sequence || transformation_callback(gru_sequence)) {
             return false;
         }
@@ -161,7 +161,7 @@ ov::pass::BidirectionalRNNSequenceDecomposition::BidirectionalRNNSequenceDecompo
     auto rnn_sequence_ov = ov::pass::pattern::wrap_type<ov::op::v5::RNNSequence>();
 
     matcher_pass_callback callback = [this](pattern::Matcher& m) {
-        auto rnn_sequence = std::dynamic_pointer_cast<ov::op::v5::RNNSequence>(m.get_match_root());
+        auto rnn_sequence = ov::as_type_ptr<ov::op::v5::RNNSequence>(m.get_match_root());
         if (!rnn_sequence || transformation_callback(rnn_sequence)) {
             return false;
         }
