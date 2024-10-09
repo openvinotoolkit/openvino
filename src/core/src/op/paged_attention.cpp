@@ -146,7 +146,23 @@ void PagedAttentionExtension::validate_and_infer_types() {
                           get_input_element_type(12),
                           ".");
 
-    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+    // value head_size may be not same with key
+    auto out_ps = get_input_partial_shape(0);
+    const auto& key_ps = get_input_partial_shape(1);
+    const auto& value_ps = get_input_partial_shape(2);
+    if (out_ps.rank().is_static()) {
+        out_ps[1] = Dimension::dynamic();
+        if (key_ps.rank().is_static() && value_ps.rank().is_static() && out_ps[1].is_static() &&
+            key_ps[1].is_static() && value_ps[1].is_static()) {
+            // query_ps[1] = num_heads * head_size
+            // key_ps[1] = num_kv_heads * head_size
+            // value_ps[1] = num_kv_heads * v_head_size
+            // q * v / k = (num_heads * head_size) * (num_kv_heads * v_head_size) /
+            //             (num_kv_heads * head_size) = num_heads * v_head_size
+            out_ps[1] = out_ps[1].get_length() * value_ps[1].get_length() / key_ps[1].get_length();
+        }
+    }
+    set_output_type(0, get_input_element_type(0), out_ps);
     set_output_type(1, get_input_element_type(0), {Dimension::dynamic()});
 }
 
