@@ -99,6 +99,9 @@ protected:
     std::vector<int64_t> m_ptr_increments = {};
     std::vector<int64_t> m_finalization_offsets = {};
     std::vector<int64_t> m_element_type_sizes = {};
+//    todo: remove later, if not necessary
+//    // For some cases, e.g. BrgemmCopyB on the input, increments are defined by
+//    std::vector<int64_t> m_forced_increments = {};
     size_t m_work_amount = 0;
     size_t m_work_amount_increment = 0;
     size_t m_input_num = 0;
