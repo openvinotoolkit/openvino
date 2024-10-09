@@ -1834,7 +1834,7 @@ TEST(reduce_gpu, reduce_min_max_default_output_element_type_should_be_same_to_in
     auto& engine = get_test_engine();
 
     auto input = engine.allocate_memory({data_types::i8, format::bfyx, {1, 1, 2, 2}});
-    set_values(input, {1, 1, 1, 1});
+    set_values<int8_t>(input, {1, 1, 1, 1});
 
     topology topology1(
         input_layout("input", input->get_layout()),
