@@ -5,6 +5,8 @@
 #include <oneapi/dnnl/dnnl_types.h>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
+#include <cpu/acl/acl_utils.hpp>
+
 #include <common/primitive_desc_iface.hpp>
 #include "dnnl_postops_composer.h"
 
@@ -180,7 +182,7 @@ static MemoryPtr prepareWeightMemory(const MemoryArgs &memory,
                                      const ExecutorContext::CPtr context,
                                      const FCAttrs &attrs,
                                      const ACLFCAttrs& aclfcAttrs,
-                                     const PostOps &postOps) {
+                                     const PostOps &postOps, ACLInfos &aclMemoryInfos) {
     DEBUG_LOG("ACLFullyConnectedExecutor: prepack weights");
 
     auto create = [&]() {
@@ -212,29 +214,55 @@ static MemoryPtr prepareWeightMemory(const MemoryArgs &memory,
         msg << "isNeededReorder: " << isNeededReorder << " expectedWeightFormat: " << static_cast<int>(expectedWeightFormat) << std::endl;
         std::cout << msg.str();
         if (isNeededReorder) {
-        auto reverse_weights_dims = memory.at(ARG_WEI)->getStaticDims();
-        if (reverse_weights_dims.size() == 3) {
-            reverse_weights_dims = VectorDims({reverse_weights_dims[0] * reverse_weights_dims[1], reverse_weights_dims[2]});
-        }
-        std::reverse(reverse_weights_dims.begin(), reverse_weights_dims.end());
-        MemoryArgs memoryArgs;
-        memoryArgs[ARG_SRC_0] = memory.at(ARG_WEI);
-        memoryArgs[ARG_DST] = std::make_shared<Memory>(context->getEngine(),
-                                                       CpuBlockedMemoryDesc(aclfcAttrs.inputPrecision,
-                                                                            intel_cpu::Shape(reverse_weights_dims)));
-        const auto& weiDesc = memoryArgs[ARG_SRC_0]->getDescPtr();
-        auto dstDesc = memoryArgs[ARG_DST]->getDescPtr();
+            auto reverse_weights_dims = memory.at(ARG_WEI)->getStaticDims();
+            if (reverse_weights_dims.size() == 3) {
+                reverse_weights_dims = VectorDims({reverse_weights_dims[0] * reverse_weights_dims[1], reverse_weights_dims[2]});
+            }
+            std::reverse(reverse_weights_dims.begin(), reverse_weights_dims.end());
+            MemoryArgs memoryArgs;
+            memoryArgs[ARG_SRC_0] = memory.at(ARG_WEI);
+            memoryArgs[ARG_DST] = std::make_shared<Memory>(context->getEngine(),
+                                                        CpuBlockedMemoryDesc(aclfcAttrs.inputPrecision,
+                                                                                intel_cpu::Shape(reverse_weights_dims)));
+            const auto& weiDesc = memoryArgs[ARG_SRC_0]->getDescPtr();
+            auto dstDesc = memoryArgs[ARG_DST]->getDescPtr();
 
-        auto weiDescDims = weiDesc->getShape().getDims();
-        std::swap(weiDescDims[0], weiDescDims[1]);
-        auto weiDescRevertedDims = weiDesc->cloneWithNewDims(weiDescDims, true);
+            auto weiDescDims = weiDesc->getShape().getDims();
+            std::swap(weiDescDims[0], weiDescDims[1]);
+            auto weiDescRevertedDims = weiDesc->cloneWithNewDims(weiDescDims, true);
 
-        auto dnnlSrcDesc = MemoryDescUtils::convertToDnnlMemoryDesc(weiDescRevertedDims);
-        const auto dnnlDstDesc = MemoryDescUtils::convertToDnnlMemoryDesc(dstDesc);
-        dnnlSrcDesc = makeTransposedWeightDescriptor(dnnlSrcDesc, dnnlDstDesc, !aclfcAttrs.weightsNonTransposed);
+            auto dnnlSrcDesc = MemoryDescUtils::convertToDnnlMemoryDesc(weiDescRevertedDims);
+            const auto dnnlDstDesc = MemoryDescUtils::convertToDnnlMemoryDesc(dstDesc);
+            dnnlSrcDesc = makeTransposedWeightDescriptor(dnnlSrcDesc, dnnlDstDesc, !aclfcAttrs.weightsNonTransposed);
 
-        final_ptr = reorderData(dnnlSrcDesc, dnnlDstDesc, memoryArgs[ARG_SRC_0], context);
-        DEBUG_LOG("ACLFullyConnectedExecutor: cache miss, perform packing");
+            if (!one_of(expectedWeightFormat, arm_compute::WeightFormat::UNSPECIFIED, arm_compute::WeightFormat::ANY)) {
+                using namespace dnnl::impl;
+                // o_dim is always the first logical dimension (oihw, ohwi, oi)
+                dim_t o_dim = 0;
+                dim_t inner_dim;
+                // Rest of logical dimensions in order of innermost to outermost
+                std::vector<dim_t> remaining_dims = {};
+
+                /*bool isNHWC = memoryArgs[ARG_SRC_0]->getDescPtr()->hasLayoutType(LayoutType::nspc);
+                bool isNCHW = memoryArgs[ARG_SRC_0]->getDescPtr()->hasLayoutType(LayoutType::ncsp);
+                if (isNCHW) {
+                    inner_dim = 3; // w
+                    remaining_dims = {2, 1}; // h, i
+                } else if (isNHWC) {
+                    inner_dim = 1; // i
+                    remaining_dims = {3, 2}; // w, h
+                } else { // Only remaining case is 2D (nc)*/
+                    inner_dim = 1; // i
+                    remaining_dims = {}; // No other dimensions for 2D
+                //}
+                auto weights_md_ = dnnlDstDesc->getDnnlDesc().get();
+                auto wei_tensor_info = aclMemoryInfos[ACLArgs::ACL_WEI].get();
+                dnnl::impl::cpu::acl::acl_utils::reorder_to_weight_format(*wei_tensor_info,
+                    *weights_md_, expectedWeightFormat, inner_dim, o_dim,
+                    remaining_dims, {});
+            }
+            final_ptr = reorderData(dnnlSrcDesc, dnnlDstDesc, memoryArgs[ARG_SRC_0], context);
+            DEBUG_LOG("ACLFullyConnectedExecutor: cache miss, perform packing");
         }
         return final_ptr;
     };
@@ -299,7 +327,7 @@ ACLFullyConnectedExecutor::ACLFullyConnectedExecutor(const FCAttrs &attrs,
                                                      const MemoryArgs &memory,
                                                      const ExecutorContext::CPtr context) {
     initFCAttrs(attrs, aclTensorAttrs, aclfcAttrs, memory, fullyConnectedLayerInfo, postOps);
-    packedWeights = prepareWeightMemory(memory, context, attrs, aclfcAttrs, postOps);
+    packedWeights = prepareWeightMemory(memory, context, attrs, aclfcAttrs, postOps, aclMemoryInfos);
 }
 
 bool ACLFullyConnectedExecutor::supports(const FCConfig &config) {

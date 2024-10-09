@@ -44,7 +44,7 @@ public:
     void execute(const MemoryArgs& memory) override;
     bool update(const MemoryArgs& memory) override;
     ~ACLCommonExecutor();
-
+    ACLInfos aclMemoryInfos;
 protected:
     ACLTensorAttrs aclTensorAttrs;
 private:
