@@ -40,8 +40,6 @@ void register_implementations() {
     REGISTER_OCL(paged_attention);
     REGISTER_OCL(lrn);
     REGISTER_OCL(lstm_elt);
-    REGISTER_OCL(lstm_cell);
-    REGISTER_OCL(lstm_seq);
     REGISTER_OCL(multiclass_nms);
     REGISTER_OCL(multinomial);
     REGISTER_OCL(mutable_data);

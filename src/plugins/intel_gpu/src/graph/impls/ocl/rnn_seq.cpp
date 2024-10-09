@@ -5,9 +5,11 @@
 #include "primitive_base.hpp"
 
 #include "lstm_seq_inst.h"
+#include "rnn_seq.hpp"
 #include "lstm/lstm_seq_kernel_selector.h"
 #include "lstm/lstm_kernel_base.h"
 #include "openvino/op/lstm_sequence.hpp"
+#include "impls/registry/implementation_manager.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -88,18 +90,11 @@ public:
     }
 };
 
-namespace detail {
-
-attach_lstm_seq_impl::attach_lstm_seq_impl() {
-    implementation_map<lstm_seq>::add(impl_types::ocl, typed_primitive_impl_ocl<lstm_seq>::create<rnn_seq_impl>, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::f32, format::fyxb),
-        std::make_tuple(data_types::f16, format::fyxb),
-    });
+std::unique_ptr<primitive_impl> RNNSeqImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const {
+    OPENVINO_ASSERT(node.is_type<lstm_seq>());
+    return typed_primitive_impl_ocl<lstm_seq>::create<rnn_seq_impl>(static_cast<const lstm_seq_node&>(node), params);
 }
 
-}  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
 

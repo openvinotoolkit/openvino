@@ -8,6 +8,7 @@
 #include "lstm/lstm_cell_kernel_selector.h"
 #include "lstm/lstm_kernel_base.h"
 #include "openvino/op/lstm_cell.hpp"
+#include "lstm_cell.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -86,18 +87,11 @@ public:
     }
 };
 
-namespace detail {
-
-attach_lstm_cell_impl::attach_lstm_cell_impl() {
-    implementation_map<lstm_cell>::add(impl_types::ocl, typed_primitive_impl_ocl<lstm_cell>::create<lstm_cell_impl>, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::f32, format::fyxb),
-        std::make_tuple(data_types::f16, format::fyxb),
-    });
+std::unique_ptr<primitive_impl> LSTMCellImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const {
+    OPENVINO_ASSERT(node.is_type<lstm_cell>());
+    return typed_primitive_impl_ocl<lstm_cell>::create<lstm_cell_impl>(static_cast<const lstm_cell_node&>(node), params);
 }
 
-}  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
 
