@@ -73,13 +73,20 @@ JitConstants SingleKernelGenerator::make_base_jit_constants(const program_node& 
     jit_constants.add(make_jit_constant("KERNEL(name)", "__kernel void " + entry_point));
     jit_constants.add(make_jit_constant("KERNEL_ID", entry_point));
 
+    size_t shape_info_idx = 0;
     for (size_t i = 0; i < params.input_layouts.size(); i++) {
-        jit_constants.add(make_jit_constants("INPUT" + to_code_string(i), params.input_layouts[i]));
+        jit_constants.add(make_layout_jit_constants("INPUT" + to_code_string(i), params.input_layouts[i], shape_info_idx));
+        if (params.input_layouts[i].is_dynamic())
+            shape_info_idx++;
     }
 
-    jit_constants.add(make_jit_constants("OUTPUT", params.output_layouts[0]));
+    jit_constants.add(make_layout_jit_constants("OUTPUT", params.output_layouts[0], shape_info_idx++));
+    if (params.input_layouts[0].is_dynamic())
+        shape_info_idx++;
     for (size_t i = 1; i < params.output_layouts.size(); i++) {
-        jit_constants.add(make_jit_constants("OUTPUT" + to_code_string(i), params.output_layouts[i]));
+        jit_constants.add(make_layout_jit_constants("OUTPUT" + to_code_string(i), params.output_layouts[i], shape_info_idx++));
+        if (params.input_layouts[i].is_dynamic())
+            shape_info_idx++;
     }
 
     if (params.is_dynamic()) {
@@ -96,7 +103,6 @@ JitConstants SingleKernelGenerator::make_base_jit_constants(const program_node& 
 
 std::string SingleKernelGenerator::build_code(const std::string& template_name, const JitConstants& jit_constants, const std::string& kernel_id) const {
     CodeBuilder code;
-    std::string undefs;
     code.add_line("\n//====================================================")
         .add_line("// Kernel template: " + template_name + " ")
         .add_line("// Kernel name: " + kernel_id)
@@ -126,16 +132,22 @@ KernelData SingleKernelGenerator::get_kernel_data(const program_node& node, cons
     KernelData kd;
     auto kernel_str = std::make_shared<KernelString>();
     auto entry_point = get_entry_point(node, params);
+    auto jit = get_jit_constants(node, params);
+    auto dispatch_data_f = get_dispatch_data_func(params);
+    jit.add(m_jit_constants);
+
     kernel_str->entry_point = entry_point;
     kernel_str->jit = "";
     kernel_str->undefs = "";
-    kernel_str->options = "";
+    kernel_str->options = get_build_options(node, params);
     kernel_str->batch_compilation = false;
     kernel_str->has_microkernels = false;
-    kernel_str->str = build_code(get_name(), get_jit_constants(node, params), entry_point);
+    kernel_str->str = build_code(get_name(), jit, entry_point);
     kd.code.kernelString = kernel_str;
-    kd.params.workGroups = get_dispatch_data(node, params);
+    kd.params.workGroups = dispatch_data_f(params).work_groups;
     kd.params.arguments = get_arguments_desc(node, params);
+    kd.internal_buffers = get_interanl_buffers(node, params);
+    kd.update_dispatch_data_func = dispatch_data_f;
 
     return kd;
 }
@@ -149,8 +161,30 @@ std::string SingleKernelGenerator::get_entry_point(const program_node& node, con
     return entry_point;
 }
 
+std::string SingleKernelGenerator::get_build_options(const program_node& node, const kernel_impl_params& params) const {
+    std::string options;
+    const auto& device_info = node.get_program().get_engine().get_device_info();
+    if (device_info.vendor_id == cldnn::INTEL_VENDOR_ID) {
+        options = " -cl-mad-enable";
+        if (device_info.supports_local_block_io)
+            options += " -Dcl_intel_subgroup_local_block_io -DLOCAL_BLOCK_IO_SUPPORTED=1";
+    }
+
+#if CL_TARGET_OPENCL_VERSION >= 200
+        options += " -cl-std=CL2.0";
+#endif
+
+    return options;
+}
+
+void SingleKernelGenerator::add_common_jit_constants(const JitConstants& jit_constants) {
+    m_jit_constants.add(jit_constants);
+}
+
 JitConstants SingleKernelGenerator::get_jit_constants(const program_node& node, const kernel_impl_params& params) const {
-    return make_base_jit_constants(node, params);
+    auto jit = make_base_jit_constants(node, params);
+    jit.add(make_activation_jit_constants(activation_func::none, ov::element::undefined, "", false, false));
+    return jit;
 }
 
 Arguments SingleKernelGenerator::get_arguments_desc(const program_node& node, const kernel_impl_params& params) const {
@@ -168,6 +202,12 @@ Arguments SingleKernelGenerator::get_arguments_desc(const program_node& node, co
     }
 
     return args;
+}
+
+DispatchData SingleKernelGenerator::get_dispatch_data(const kernel_impl_params& params) const {
+    auto f = get_dispatch_data_func(params);
+
+    return f(params);
 }
 
 }  // namespace ocl
