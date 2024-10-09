@@ -170,4 +170,4 @@ INSTANTIATE_TEST_SUITE_P(CPUMap,
                                          proc_table_2sockets_24cores_hyperthreading_3,
                                          proc_table_2sockets_24cores_hyperthreading_4));
 #endif
-}  // namespace
+}  // namespace ov
