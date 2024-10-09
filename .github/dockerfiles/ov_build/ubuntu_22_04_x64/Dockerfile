@@ -23,6 +23,8 @@ RUN apt-get update && \
         gpg-agent \
         tzdata \
         libtbb2 \
+        # parallel gzip
+        pigz \
         # Pythons \
         python3.9-dev \
         python3.9-venv \
