@@ -204,6 +204,28 @@ void clean_batch_properties(const std::string& deviceName, ov::AnyMap& config, c
         }
     }
 }
+
+/**
+ * @brief Splits input configuration on two parts: supported and others
+ *
+ * @param config     Configuration with properties to be splitted.
+ * @param supported  List of supported configuration properties.
+ * @return Pair of configs where first is supported properties, second are others.
+ */
+std::pair<ov::AnyMap, ov::AnyMap> split_config(const ov::AnyMap& config, const ov::AnyMap& supported) {
+    auto split_config = std::make_pair(ov::AnyMap{}, config);
+    auto& plugin_config = split_config.first;
+    auto& others_config = split_config.second;
+
+    for (const auto& supported_property : supported) {
+        auto config_property = config.find(supported_property.first);
+        if (config_property != config.end()) {
+            plugin_config.insert(plugin_config.end(), *config_property);
+            others_config.erase(supported_property.first);
+        }
+    }
+    return split_config;
+}
 }  // namespace
 
 bool ov::is_config_applicable(const std::string& user_device_name, const std::string& subprop_device_name) {
@@ -748,12 +770,12 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
         res = load_model_from_cache(cacheContent, plugin, parsed._config, ov::SoPtr<ov::IRemoteContext>{}, [&]() {
             return compile_model_and_cache(plugin,
                                            model,
-                                           parsed._config,
+                                           get_device_properties(device_name, parsed._config),
                                            ov::SoPtr<ov::IRemoteContext>{},
                                            cacheContent);
         });
     } else {
-        res = plugin.compile_model(model, parsed._config);
+        res = plugin.compile_model(model, get_device_properties(device_name, parsed._config));
     }
     return res;
 }
@@ -779,10 +801,14 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
         cacheContent.blobId = ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         res = load_model_from_cache(cacheContent, plugin, parsed._config, context, [&]() {
-            return compile_model_and_cache(plugin, model, parsed._config, context, cacheContent);
+            return compile_model_and_cache(plugin,
+                                           model,
+                                           get_device_properties(deviceName, parsed._config),
+                                           context,
+                                           cacheContent);
         });
     } else {
-        res = plugin.compile_model(model, context, parsed._config);
+        res = plugin.compile_model(model, context, get_device_properties(deviceName, parsed._config));
     }
     return res;
 }
@@ -797,7 +823,6 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
     ov::SoPtr<ov::ICompiledModel> compiled_model;
 
     auto cacheManager = coreConfig.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
-
     if (cacheManager && device_supports_model_caching(plugin) && !is_proxy_device(plugin)) {
         // Skip caching for proxy plugin. HW plugin will load network from the cache
         CacheContent cacheContent{cacheManager, model_path};
@@ -806,10 +831,14 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
         compiled_model =
             load_model_from_cache(cacheContent, plugin, parsed._config, ov::SoPtr<ov::IRemoteContext>{}, [&]() {
                 auto model = read_model(model_path, std::string{});
-                return compile_model_and_cache(plugin, model, parsed._config, {}, cacheContent);
+                return compile_model_and_cache(plugin,
+                                               model,
+                                               get_device_properties(device_name, parsed._config),
+                                               {},
+                                               cacheContent);
             });
     } else {
-        compiled_model = plugin.compile_model(model_path, parsed._config);
+        compiled_model = plugin.compile_model(model_path, get_device_properties(device_name, parsed._config));
     }
     return compiled_model;
 }
@@ -836,13 +865,13 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
                 auto model = read_model(model_str, weights);
                 return compile_model_and_cache(plugin,
                                                model,
-                                               parsed._config,
+                                               get_device_properties(device_name, parsed._config),
                                                ov::SoPtr<ov::IRemoteContext>{},
                                                cacheContent);
             });
     } else {
         auto model = read_model(model_str, weights);
-        compiled_model = plugin.compile_model(model, parsed._config);
+        compiled_model = plugin.compile_model(model, get_device_properties(device_name, parsed._config));
     }
     return compiled_model;
 }
@@ -1654,4 +1683,18 @@ std::map<std::string, ov::Version> ov::CoreImpl::get_versions(const std::string&
     }
 
     return versions;
+}
+
+ov::AnyMap ov::CoreImpl::get_device_properties(const std::string& device_name, const AnyMap& config) const {
+    const auto parsed = parseDeviceNameIntoConfig(device_name, config);
+    return is_virtual_device(parsed._deviceName)
+               ? parsed._config
+               : split_config(parsed._config, get_supported_property(parsed._deviceName, parsed._config, false)).first;
+}
+
+ov::AnyMap ov::CoreImpl::get_device_unsupported_properties(const std::string& device_name, const AnyMap& config) const {
+    const auto parsed = parseDeviceNameIntoConfig(device_name, config);
+    return is_virtual_device(parsed._deviceName)
+               ? AnyMap{}
+               : split_config(parsed._config, get_supported_property(parsed._deviceName, parsed._config, false)).second;
 }
