@@ -619,7 +619,7 @@ DCOFFPassReshape3::DCOFFPassReshape3(DCOffMode dcoff_mode, ov::element::Type dco
     register_matcher(std::make_shared<opp::Matcher>(cvt, "TagDCOFFPassReshape3"), std::move(callback));
 }
 
-// Pattern: i4 Phi-3 4SymW16A
+// Pattern: i4 group-quant
 //
 //
 //   "tensor"       "scale"           >            "tensor"
@@ -627,12 +627,12 @@ DCOFFPassReshape3::DCOFFPassReshape3(DCOffMode dcoff_mode, ov::element::Type dco
 //      i4          f16|f32           >              f16
 //       :           :                >               :
 //       V          :                 >               V
-//     Convert     :                  >              Convert
-//     f16|f32    :                   >                f32
-//        :      :                    >
-//        V      V                    >
-//        Multiply                    >
-//         f16|f32                    >
+//     Convert     :                  >            [ Convert]
+//     f16|f32    :                   >            [   f32  ]
+//        :      :                    >                :
+//        V      V                    >                V
+//        Multiply                    >              Reshape
+//         f16|f32                    >              f16|f32
 //            :                       >
 //            :                       >
 //         Reshape                    >
@@ -657,6 +657,8 @@ DCOFFPassReshape4::DCOFFPassReshape4(DCOffMode dcoff_mode, ov::element::Type dco
         auto matched_paramA = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeA);
         auto matched_paramC = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeC);
 
+        auto matched_out_mulply = node_to_output.at(mulply);
+
         if (ov::element::i4 == matched_paramA->get_element_type() &&
             (ov::element::f16 == matched_paramC->get_element_type() ||
              ov::element::f32 == matched_paramC->get_element_type())) {
@@ -669,31 +671,17 @@ DCOFFPassReshape4::DCOFFPassReshape4(DCOffMode dcoff_mode, ov::element::Type dco
                 LOG_DEBUG("Matched: " << matched_paramC << " - parameter to remove...");
                 LOG_BLOCK();
 
-                // Extra transformation here:
-                // - remove Multiply + Intermediate Convert
-                // - mark paramC for removal.
-                // Convert will be reconnected to paramA directly.
-
                 // Record mapping from the Scale coeff parameter to the Real weight parameter
                 pref.get().scales[matched_paramC] = matched_paramA;
 
-                // Disconnect Multiply and Convert from their outputs
-                auto matched_mulply = node_to_output.at(mulply).get_node_shared_ptr();
-                auto matched_convrt = node_to_output.at(cvtA).get_node_shared_ptr();
-                auto drop_outputs = [](std::shared_ptr<ov::Node> node) {
-                    for (auto&& node_outputs : node->outputs()) {
-                        for (auto&& node_reader_port : node_outputs.get_target_inputs()) {
-                            node_outputs.remove_target_input(node_reader_port);
-                        }
-                    }
-                };
-                LOG_DEBUG("Dropping the connections...");
-                drop_outputs(matched_mulply);
-                drop_outputs(matched_convrt);
+                std::shared_ptr<ov::Node> new_rshp_in = matched_paramA;
+                if (matched_out_mulply.get_element_type() == ov::element::f32) {
+                    new_rshp_in = std::make_shared<ov::op::v0::Convert>(matched_paramA, ov::element::f32);
+                }
 
                 LOG_DEBUG("Reconnecting the Root...");
                 auto matched_reshape = node_to_output.at(reshape).get_node_shared_ptr();
-                matched_reshape->input(0).replace_source_output(matched_paramA);
+                matched_reshape->input(0).replace_source_output(new_rshp_in);
             }
             LOG_DEBUG("Done");
         }
