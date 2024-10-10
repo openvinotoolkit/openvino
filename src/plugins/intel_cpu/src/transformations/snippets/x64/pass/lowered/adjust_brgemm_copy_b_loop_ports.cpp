@@ -44,33 +44,38 @@ bool ov::intel_cpu::pass::AdjustBrgemmCopyBLoopPorts::run(snippets::lowered::Lin
             const auto &loop_info = loop_mngr->get_loop_info<snippets::lowered::UnifiedLoopInfo>(target_loop_ids[i]);
 
             snippets::lowered::UnifiedLoopInfo::LoopPortDesc *copy_b_loop_desc = nullptr;
-            std::vector<bool> is_incremented;
+            bool all_dim_idx_zero = true;
+            bool first_port = true;
+            bool first_port_incremented = false;
             auto caller = [&](snippets::lowered::LoopPort &loop_port,
                               snippets::lowered::UnifiedLoopInfo::LoopPortDesc &loop_desc) {
                 const auto &p = *loop_port.expr_port;
-                // Note: here we consider only the ports directly connected to Brgemm
-                // If other operations are in the blocking loops (online Softmax for example), this logic should be extended
-                if (!ov::is_type<intel_cpu::BrgemmCPU>(p.get_expr()->get_node()))
-                    return;
                 if (p.get_type() == snippets::lowered::ExpressionPort::Input &&
                     p == target_port)
                     copy_b_loop_desc = &loop_desc;
-                is_incremented.push_back(loop_port.is_incremented);
+                if (first_port) {
+                    first_port = false;
+                    first_port_incremented = loop_port.is_incremented;
+                }
+                all_dim_idx_zero &= loop_port.dim_idx == 0;
             };
-            std::cerr << "\n";
-            for (auto j : loop_info->get_ptr_increments())
-                std::cerr << j << ", ";
-            std::cerr << "\n";
+//            std::cerr << "\n";
+//            for (auto j : loop_info->get_ptr_increments())
+//                std::cerr << j << ", ";
+//            std::cerr << "\n";
             loop_info->iterate_through_infos(caller);
-            // We need to increment stride only in case of N blocking
-            OPENVINO_ASSERT(is_incremented.size() == 3 && copy_b_loop_desc, "Failed to identify copyB loop ports");
-            if (is_incremented[1] && is_incremented[2])
-                copy_b_loop_desc->ptr_increment *= 2;
 
-            std::cerr << "\n";
-            for (auto j : loop_info->get_ptr_increments())
-                std::cerr << j << ", ";
-            std::cerr << "\n";
+            // todo: do we really need to check first_port is incremented?
+            // We need to increment stride only in case of N blocking
+            if (!first_port_incremented && all_dim_idx_zero && copy_b_loop_desc) {
+                copy_b_loop_desc->ptr_increment *= 2;
+                copy_b_loop_desc->finalization_offset *= 2;
+            }
+
+//            std::cerr << "\n";
+//            for (auto j : loop_info->get_ptr_increments())
+//                std::cerr << j << ", ";
+//            std::cerr << "\n";
         }
     }
 
