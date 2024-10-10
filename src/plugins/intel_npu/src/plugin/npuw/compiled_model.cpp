@@ -308,6 +308,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             m_compiled_submodels[id].lazy_closure = subgraph._lazy_closure;
             m_compiled_submodels[id].scales = subgraph._scales;
             m_compiled_submodels[id].zerops = subgraph._zerops;
+            m_compiled_submodels[id].forced_to_fcall = subgraph._forced_to_fcall;
             m_compiled_submodels[id].is_remote.resize(subgraph._lazy_closure.size(), false);
         }  // if(!funcall)
 
@@ -784,7 +785,6 @@ void ov::npuw::CompiledModel::implement_properties() {
 
     // 1.
     // OV Public
-    // ===============================================
     m_prop_to_opt = {{ov::supported_properties.name(),
                       {ov::PropertyMutability::RO,
                        [&](const ::intel_npu::Config&) -> std::vector<PropertyName>& {
@@ -821,7 +821,6 @@ void ov::npuw::CompiledModel::implement_properties() {
                            return m_loaded_from_cache;
                        }}},
                      // OV Public Hints
-                     // =====================================================
                      {ov::hint::performance_mode.name(),
                       {ov::PropertyMutability::RO,
                        [&](const ::intel_npu::Config&) {
