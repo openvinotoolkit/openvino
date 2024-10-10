@@ -196,7 +196,7 @@ jobs:
           popd
           
       - name: Build JAX frontend
-        if: ${{ inputs.affected-components.JAX_FRONTEND }}
+        # if: ${{ inputs.affected-components.JAX_FRONTEND }}
         run: |
           cmake -S ${OPENVINO_REPO} -B ${BUILD_DIR} -DENABLE_OV_JAX_FRONTEND=ON
           cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
