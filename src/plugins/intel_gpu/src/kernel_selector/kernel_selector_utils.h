@@ -42,6 +42,7 @@ struct DimensionAccessHelperJit : virtual DimensionAccessHelperBase {
     : DimensionAccessHelperBase(t) {
         size_t dyn_shape_offset = t.get_dynamic_shape_offset();
         size_t dyn_pad_offset = dyn_shape_offset + DataTensor::max_rank();
+        has_dynamic_pad = false;
         for (auto d : dims) {
             dims_sizes.push_back(toCodeString(d, dyn_shape_offset, padded, d.pad.is_dynamic, dyn_pad_offset));
             dyn_shape_offset++;
@@ -49,6 +50,7 @@ struct DimensionAccessHelperJit : virtual DimensionAccessHelperBase {
                 if (d.pad.is_dynamic) {
                     pad_before_after_sizes.push_back("(shape_info[" + std::to_string(dyn_pad_offset++) + "])");
                     pad_before_after_sizes.push_back("(shape_info[" + std::to_string(dyn_pad_offset++) + "])");
+                    has_dynamic_pad = true;
                 } else {
                     pad_before_after_sizes.push_back(toCodeString(d.pad.before));
                     pad_before_after_sizes.push_back(toCodeString(d.pad.after));
@@ -76,6 +78,7 @@ struct DimensionAccessHelperJit : virtual DimensionAccessHelperBase {
 
     std::vector<std::string> dims_sizes;
     std::vector<std::string> pad_before_after_sizes;
+    bool has_dynamic_pad;
 };
 
 std::vector<size_t> GetImageSizes(const kernel_selector::WeightsTensor& dimensions, const WeightsLayout layout);
