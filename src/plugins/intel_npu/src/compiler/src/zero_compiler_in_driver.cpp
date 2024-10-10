@@ -378,14 +378,14 @@ void LevelZeroCompilerInDriver<TableExtension>::getNativeBinary(ze_graph_dditabl
     blob.resize(blobSize);
     if (ZE_RESULT_SUCCESS != result) {
         _logger.warning("Failed to compile network. ");
-        THROW_ON_FAIL_FOR_GRAPH_EXT("pfnGetNativeBinary get blob size", result, _graphDdiTableExt);
+        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetNativeBinary get blob size", result, _graphDdiTableExt);
     }
 
     // Get blob data
     result = _graphDdiTableExt.pfnGetNativeBinary(graphHandle, &blobSize, blob.data());
     if (ZE_RESULT_SUCCESS != result) {
         _logger.warning("Failed to compile network. ");
-        THROW_ON_FAIL_FOR_GRAPH_EXT("pfnGetNativeBinary get blob data", result, _graphDdiTableExt);
+        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetNativeBinary get blob data", result, _graphDdiTableExt);
     }
 
     blobPtr = blob.data();
@@ -402,7 +402,7 @@ void LevelZeroCompilerInDriver<TableExtension>::getNativeBinary(ze_graph_dditabl
     auto result = _graphDdiTableExt.pfnGetNativeBinary2(graphHandle, &blobSize, &blobPtr);
     if (ZE_RESULT_SUCCESS != result) {
         _logger.warning("Failed to compile network. ");
-        THROW_ON_FAIL_FOR_GRAPH_EXT("pfnGetNativeBinary get blob size", result, _graphDdiTableExt);
+        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetNativeBinary get blob size", result, _graphDdiTableExt);
     }
 }
 
@@ -650,7 +650,7 @@ ze_result_t LevelZeroCompilerInDriver<TableExtension>::seriazlideIRModelAndQuery
     // Create querynetwork handle
     ze_result_t result = _graphDdiTableExt.pfnQueryNetworkCreate(_context, _deviceHandle, &desc, &hGraphQueryNetwork);
     if (ZE_RESULT_SUCCESS != result) {
-        THROW_ON_FAIL_FOR_GRAPH_EXT("seriazlideIRModelAndQueryNetworkCreateV1", result, _graphDdiTableExt);
+        THROW_ON_FAIL_FOR_LEVELZERO_EXT("seriazlideIRModelAndQueryNetworkCreateV1", result, _graphDdiTableExt);
     }
     return result;
 }
@@ -666,7 +666,7 @@ std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::query
     ze_device_graph_properties_t deviceGraphProperties{};
     auto result = _graphDdiTableExt.pfnDeviceGetGraphProperties(_deviceHandle, &deviceGraphProperties);
     if (ZE_RESULT_SUCCESS != result) {
-        THROW_ON_FAIL_FOR_GRAPH_EXT("pfnDeviceGetGraphProperties", result, _graphDdiTableExt);
+        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnDeviceGetGraphProperties", result, _graphDdiTableExt);
     }
     ze_graph_query_network_handle_t hGraphQueryNetwork = nullptr;
 
@@ -708,7 +708,7 @@ ze_result_t LevelZeroCompilerInDriver<TableExtension>::seriazlideIRModelAndQuery
     _logger.debug("seriazlideIRModelAndQueryNetworkCreateV2 - performing pfnQueryNetworkCreate2");
     ze_result_t result = _graphDdiTableExt.pfnQueryNetworkCreate2(_context, _deviceHandle, &desc, &hGraphQueryNetwork);
     if (ZE_RESULT_SUCCESS != result) {
-        THROW_ON_FAIL_FOR_GRAPH_EXT("seriazlideIRModelAndQueryNetworkCreateV2", result, _graphDdiTableExt);
+        THROW_ON_FAIL_FOR_LEVELZERO_EXT("seriazlideIRModelAndQueryNetworkCreateV2", result, _graphDdiTableExt);
     }
     return result;
 }
@@ -724,7 +724,7 @@ std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::query
     ze_device_graph_properties_t deviceGraphProperties{};
     auto result = _graphDdiTableExt.pfnDeviceGetGraphProperties(_deviceHandle, &deviceGraphProperties);
     if (ZE_RESULT_SUCCESS != result) {
-        THROW_ON_FAIL_FOR_GRAPH_EXT("pfnDeviceGetGraphProperties", result, _graphDdiTableExt);
+        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnDeviceGetGraphProperties", result, _graphDdiTableExt);
     }
     ze_graph_query_network_handle_t hGraphQueryNetwork = nullptr;
 
@@ -747,9 +747,9 @@ std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::getQu
     result = _graphDdiTableExt.pfnQueryNetworkGetSupportedLayers(hGraphQueryNetwork, &size, nullptr);
     if (ZE_RESULT_SUCCESS != result) {
         _graphDdiTableExt.pfnQueryNetworkDestroy(hGraphQueryNetwork);
-        THROW_ON_FAIL_FOR_GRAPH_EXT("pfnQueryNetworkGetSupportedLayers get size of query result",
-                                    result,
-                                    _graphDdiTableExt);
+        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnQueryNetworkGetSupportedLayers get size of query result",
+                                        result,
+                                        _graphDdiTableExt);
     }
 
     // Get the result data of query
@@ -757,14 +757,14 @@ std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::getQu
     result = _graphDdiTableExt.pfnQueryNetworkGetSupportedLayers(hGraphQueryNetwork, &size, supportedLayers.data());
     if (ZE_RESULT_SUCCESS != result) {
         _graphDdiTableExt.pfnQueryNetworkDestroy(hGraphQueryNetwork);
-        THROW_ON_FAIL_FOR_GRAPH_EXT("pfnQueryNetworkGetSupportedLayers get result data of query",
-                                    result,
-                                    _graphDdiTableExt);
+        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnQueryNetworkGetSupportedLayers get result data of query",
+                                        result,
+                                        _graphDdiTableExt);
     }
 
     result = _graphDdiTableExt.pfnQueryNetworkDestroy(hGraphQueryNetwork);
     if (ZE_RESULT_SUCCESS != result) {
-        THROW_ON_FAIL_FOR_GRAPH_EXT("pfnQueryNetworkDestroy", result, _graphDdiTableExt);
+        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnQueryNetworkDestroy", result, _graphDdiTableExt);
     }
     return parseQueryResult(supportedLayers);
 }
@@ -810,7 +810,7 @@ ze_result_t LevelZeroCompilerInDriver<TableExtension>::createGraph(const ze_grap
     // Create querynetwork handle
     auto result = _graphDdiTableExt.pfnCreate(_context, _deviceHandle, &desc, graph);
     if (ZE_RESULT_SUCCESS != result) {
-        THROW_ON_FAIL_FOR_GRAPH_EXT("pfnCreate", result, _graphDdiTableExt);
+        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCreate", result, _graphDdiTableExt);
     }
     return result;
 }
@@ -835,7 +835,7 @@ ze_result_t LevelZeroCompilerInDriver<TableExtension>::createGraph(const ze_grap
     // Create querynetwork handle
     auto result = _graphDdiTableExt.pfnCreate2(_context, _deviceHandle, &desc, graph);
     if (ZE_RESULT_SUCCESS != result) {
-        THROW_ON_FAIL_FOR_GRAPH_EXT("pfnCreate2", result, _graphDdiTableExt);
+        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCreate2", result, _graphDdiTableExt);
     }
     return result;
 }
@@ -880,9 +880,9 @@ NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compile(const std:
     ze_device_graph_properties_t deviceGraphProperties{};
     auto result = _graphDdiTableExt.pfnDeviceGetGraphProperties(_deviceHandle, &deviceGraphProperties);
     if (ZE_RESULT_SUCCESS != result) {
-        THROW_ON_FAIL_FOR_GRAPH_EXT("pfnDeviceGetGraphProperties, Failed to compile network.",
-                                    result,
-                                    _graphDdiTableExt);
+        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnDeviceGetGraphProperties, Failed to compile network.",
+                                        result,
+                                        _graphDdiTableExt);
     }
     // Graph handle should be used only in scope of compile / parse functions.
     ze_graph_handle_t graphHandle;
@@ -917,7 +917,7 @@ NetworkMetadata LevelZeroCompilerInDriver<TableExtension>::parse(const std::vect
         auto result = _graphDdiTableExt.pfnCreate(_context, _deviceHandle, &desc, &graphHandle);
         OV_ITT_TASK_NEXT(PARSE_BLOB, "_graphDdiTableExt");
         if (ZE_RESULT_SUCCESS != result) {
-            THROW_ON_FAIL_FOR_GRAPH_EXT("pfnCreate", result, _graphDdiTableExt);
+            THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCreate", result, _graphDdiTableExt);
         }
     } else {
         OPENVINO_THROW("Empty blob");
@@ -939,7 +939,7 @@ uint32_t LevelZeroCompilerInDriver<TableExtension>::getSupportedOpsetVersion() c
 
     auto result = _graphDdiTableExt.pfnDeviceGetGraphProperties(_deviceHandle, &graphProperties);
     if (ZE_RESULT_SUCCESS != result) {
-        THROW_ON_FAIL_FOR_GRAPH_EXT("pfnDeviceGetGraphProperties", result, _graphDdiTableExt);
+        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnDeviceGetGraphProperties", result, _graphDdiTableExt);
     }
     const auto maxOpsetVersion = graphProperties.maxOVOpsetVersionSupported;
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
@@ -1012,7 +1012,7 @@ void LevelZeroCompilerInDriver<TableExtension>::getMetadata(ze_graph_dditable_ex
     ze_graph_argument_properties_3_t arg;
     auto result = graphDdiTableExt.pfnGetArgumentProperties3(graphHandle, index, &arg);
     if (ZE_RESULT_SUCCESS != result) {
-        THROW_ON_FAIL_FOR_GRAPH_EXT("pfnGetArgumentProperties3", result, _graphDdiTableExt);
+        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties3", result, _graphDdiTableExt);
     }
     switch (arg.type) {
     case ZE_GRAPH_ARGUMENT_TYPE_INPUT: {
@@ -1037,7 +1037,7 @@ void LevelZeroCompilerInDriver<TableExtension>::getMetadata(ze_graph_dditable_ex
     ze_graph_argument_properties_3_t arg;
     auto result = graphDdiTableExt.pfnGetArgumentProperties3(graphHandle, index, &arg);
     if (ZE_RESULT_SUCCESS != result) {
-        THROW_ON_FAIL_FOR_GRAPH_EXT("pfnGetArgumentProperties3", result, _graphDdiTableExt);
+        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties3", result, _graphDdiTableExt);
     }
     std::optional<ze_graph_argument_metadata_t> optionalMetadata = std::nullopt;
 
@@ -1045,7 +1045,7 @@ void LevelZeroCompilerInDriver<TableExtension>::getMetadata(ze_graph_dditable_ex
         ze_graph_argument_metadata_t metadata;
         result = graphDdiTableExt.pfnGraphGetArgumentMetadata(graphHandle, index, &metadata);
         if (ZE_RESULT_SUCCESS != result) {
-            THROW_ON_FAIL_FOR_GRAPH_EXT("pfnGraphGetArgumentMetadata", result, _graphDdiTableExt);
+            THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGraphGetArgumentMetadata", result, _graphDdiTableExt);
         }
         optionalMetadata = std::optional(metadata);
     }
@@ -1069,7 +1069,7 @@ NetworkMetadata LevelZeroCompilerInDriver<TableExtension>::getNetworkMeta(ze_gra
 
     auto result = _graphDdiTableExt.pfnGetProperties(graphHandle, &graphProperties);
     if (ZE_RESULT_SUCCESS != result) {
-        THROW_ON_FAIL_FOR_GRAPH_EXT("pfnGetProperties", result, _graphDdiTableExt);
+        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetProperties", result, _graphDdiTableExt);
     }
     NetworkMetadata meta;
 
