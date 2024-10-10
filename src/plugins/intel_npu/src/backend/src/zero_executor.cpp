@@ -53,7 +53,7 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& i
         ze_result_t result =
             _graph_ddi_table_ext.pfnCreate(_initStructs->getContext(), _initStructs->getDevice(), &desc, &_graph);
         if (ZE_RESULT_SUCCESS != result) {
-            THROW_ON_FAIL_FOR_GRAPH_EXT("pfnCreate", result, _graph_ddi_table_ext);
+            THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCreate", result, _graph_ddi_table_ext);
         }
 
     } else {
@@ -68,7 +68,7 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& i
 
     ze_result_t result = _graph_ddi_table_ext.pfnGetProperties(_graph, &props);
     if (ZE_RESULT_SUCCESS != result) {
-        THROW_ON_FAIL_FOR_GRAPH_EXT("pfnGetProperties", result, _graph_ddi_table_ext);
+        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetProperties", result, _graph_ddi_table_ext);
     }
     auto targetDriverExtVersion = _graph_ddi_table_ext.version();
     if (targetDriverExtVersion <= ZE_GRAPH_EXT_VERSION_1_1) {
@@ -83,7 +83,7 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& i
         arg3.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_PROPERTIES;
         ze_result_t result = _graph_ddi_table_ext.pfnGetArgumentProperties3(_graph, index, &arg3);
         if (ZE_RESULT_SUCCESS != result) {
-            THROW_ON_FAIL_FOR_GRAPH_EXT("pfnGetArgumentProperties3", result, _graph_ddi_table_ext);
+            THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties3", result, _graph_ddi_table_ext);
         }
 
         if (arg3.type == ZE_GRAPH_ARGUMENT_TYPE_INPUT) {
@@ -171,7 +171,7 @@ void ZeroExecutor::setWorkloadType(const ov::WorkloadType workloadType) const {
 void ZeroExecutor::setArgumentValue(uint32_t argi_, const void* argv_) const {
     ze_result_t result = _graph_ddi_table_ext.pfnSetArgumentValue(_graph, argi_, argv_);
     if (ZE_RESULT_SUCCESS != result) {
-        THROW_ON_FAIL_FOR_GRAPH_EXT("zeGraphSetArgumentValue", result, _graph_ddi_table_ext);
+        THROW_ON_FAIL_FOR_LEVELZERO_EXT("zeGraphSetArgumentValue", result, _graph_ddi_table_ext);
     }
 }
 

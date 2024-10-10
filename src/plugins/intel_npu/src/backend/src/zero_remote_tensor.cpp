@@ -37,8 +37,8 @@ ZeroRemoteTensor::ZeroRemoteTensor(std::shared_ptr<ov::IRemoteContext> context,
       _mem_type(mem_type),
       _mem(mem) {
     _ze_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
-    THROW_ON_FAIL_FOR_BACKEND("zeDeviceGetProperties",
-                              zeDeviceGetProperties(_init_structs->getDevice(), &_ze_properties));
+    THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetProperties",
+                                zeDeviceGetProperties(_init_structs->getDevice(), &_ze_properties));
 
     const auto byte_size = ov::element::get_memory_size(_element_type, shape_size(_shape));
 
@@ -98,8 +98,9 @@ void ZeroRemoteTensor::allocate(const size_t bytes) {
         } else {
             desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC, nullptr, 0};
         }
-        THROW_ON_FAIL_FOR_BACKEND("zeMemAllocHost",
-                                  zeMemAllocHost(_init_structs->getContext(), &desc, size, STANDARD_PAGE_SIZE, &_data));
+        THROW_ON_FAIL_FOR_LEVELZERO(
+            "zeMemAllocHost",
+            zeMemAllocHost(_init_structs->getContext(), &desc, size, STANDARD_PAGE_SIZE, &_data));
         break;
     }
     case MemType::SHARED_BUF: {
@@ -117,13 +118,13 @@ void ZeroRemoteTensor::allocate(const size_t bytes) {
                                                                   _mem,
                                                                   nullptr};
         ze_device_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_DEVICE_MEM_ALLOC_DESC, &memory_import, 0, 0};
-        THROW_ON_FAIL_FOR_BACKEND("zeMemAllocDevice",
-                                  zeMemAllocDevice(_init_structs->getContext(),
-                                                   &desc,
-                                                   bytes,
-                                                   STANDARD_PAGE_SIZE,
-                                                   _init_structs->getDevice(),
-                                                   &_data));
+        THROW_ON_FAIL_FOR_LEVELZERO("zeMemAllocDevice",
+                                    zeMemAllocDevice(_init_structs->getContext(),
+                                                     &desc,
+                                                     bytes,
+                                                     STANDARD_PAGE_SIZE,
+                                                     _init_structs->getDevice(),
+                                                     &_data));
 #else
         // in the case of Linux platforms memory could be changed after allocation - using zeMemAllocHost for importing
         // memory
@@ -132,7 +133,7 @@ void ZeroRemoteTensor::allocate(const size_t bytes) {
                                                         ZE_EXTERNAL_MEMORY_TYPE_FLAG_DMA_BUF,
                                                         static_cast<int>(reinterpret_cast<intptr_t>(_mem))};
         ze_host_mem_alloc_desc_t desc = {.pNext = &memory_import};
-        THROW_ON_FAIL_FOR_BACKEND(
+        THROW_ON_FAIL_FOR_LEVELZERO(
             "zeMemAllocHost",
             zeMemAllocHost(_init_structs->getContext(), &desc, bytes, STANDARD_PAGE_SIZE, &_data));
 #endif
