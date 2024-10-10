@@ -1629,11 +1629,9 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
         lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::bs_fs_yx_bsv16_fsv16_network, 1);
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    bool enable_onednn_for_tests = get_config().get_property(ov::intel_gpu::optimize_data) || is_internal_program();
     auto& engine = get_engine();
     if (engine.get_device_info().vendor_id == INTEL_VENDOR_ID &&
-        get_config().get_property(ov::intel_gpu::queue_type) == QueueTypes::in_order &&
-        enable_onednn_for_tests)
+        get_config().get_property(ov::intel_gpu::queue_type) == QueueTypes::in_order)
         lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, 1);
 #endif
 }
