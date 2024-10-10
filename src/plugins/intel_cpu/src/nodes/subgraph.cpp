@@ -5,6 +5,7 @@
 
 #include "nodes/reorder.h"
 #include "nodes/common/reorder_prim.h"
+#include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "common/primitive_hashing_utils.hpp"
 #include "dnnl_extension_utils.h"
@@ -81,7 +82,8 @@ public:
                            const BufferScratchpadAllocator& allocator)
     : SubgraphExecutor(snippet_attrs, snippet, start_offset_in, start_offset_out, snippet_config, allocator) {}
 
-    void exec(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override  {
+    void exec(dnnl::stream strm, std::vector<MemoryPtr>& inMemPtrs, std::vector<MemoryPtr>& outMemPtrs) override  {
+        repack_inputs(strm, inMemPtrs);
         const auto& callable = m_schedule->get_callable<kernel>();
 
         auto initializer = [&](jit_snippets_call_args& call_args, size_t ithr) {
@@ -129,7 +131,8 @@ public:
         reset_exec_table_state = snippet_config->kernel_executor_table->get_state_reset();
     }
 
-    void exec(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override {
+    void exec(dnnl::stream strm, std::vector<MemoryPtr>& inMemPtrs, std::vector<MemoryPtr>& outMemPtrs) override {
+        repack_inputs(strm, inMemPtrs);
         const auto& callable = m_schedule->get_callable<dynamic_kernel>();
 
         OPENVINO_ASSERT(data_offsets.size() == inMemPtrs.size() + outMemPtrs.size(), "Incorrect data offset count!");
@@ -759,35 +762,15 @@ void Subgraph::optimizeIR() {
 void Subgraph::prepareParams() {
     const auto& cache = context->getParamsCache();
 
-    const auto& input_shape = getSrcMemoryAtPort(0)->getDescPtr()->getShape().getStaticDims();
-    const auto& b_shape = getSrcMemoryAtPort(1)->getDescPtr()->getShape().getStaticDims();
+    const auto& b_dims = getSrcMemoryAtPort(1)->getDescPtr()->getShape().getDims();
+    VectorDims normalized_dims(3, 1);
+    *normalized_dims.rbegin() = *b_dims.rbegin();
+    *++normalized_dims.rbegin() = *++b_dims.rbegin();
+    normalized_dims[0] = std::accumulate(b_dims.begin(), b_dims.end() - 2, static_cast<Dim>(1), std::multiplies<Dim>());
 
-    // Note: this code was tested only on static shapes, in case of dynamic M will most likely fail
-    const auto M = DnnlExtensionUtils::convertToDnnlDim(*++input_shape.rbegin());
-    const auto K = DnnlExtensionUtils::convertToDnnlDim(*input_shape.rbegin());
-    const auto N = DnnlExtensionUtils::convertToDnnlDim(*b_shape.rbegin());
-    const auto B_2 = DnnlExtensionUtils::convertToDnnlDim(*++b_shape.begin());
-
-    auto get_wei_desc = [&]() {
-        const auto inputDesc = dnnl::memory::desc({1, M, K}, dnnl::memory::data_type::bf16, dnnl::memory::format_tag::abc);
-        // Notes:
-        // 1. "Any" layout must be set to enable weights layout selection heuristics
-        // 2. Shape must be in NK order (even if the original shape is in KN order)
-        const auto BDesc = dnnl::memory::desc({B_2, K, N}, dnnl::memory::data_type::bf16, dnnl::memory::format_tag::any);
-        const auto outputDesc = dnnl::memory::desc({B_2, M, N}, dnnl::memory::data_type::bf16, dnnl::memory::format_tag::abc);
-
-        // Hack: we create inner product primitive just to know which weights layout was chosen by OneDNN heuristics
-        // Then, this layout is used in Snippets implementation
-        auto mm_desc = dnnl::matmul::primitive_desc(getEngine(), inputDesc, BDesc, outputDesc);
-        // Note: based on weights layout, it is necessary to set N block sizes inside Snippets.
-        // Example: in case of "AB16b32a" layout, N_block must be 32. K_block can be any
-        std::cout << "[ INFO ] matmul primitive selected the following B layout for BF16: "
-                  << DnnlExtensionUtils::makeDescriptor(mm_desc.weights_desc())->serializeFormat() << std::endl;
-        return DnnlExtensionUtils::makeDescriptor(mm_desc.weights_desc());
-    };
-
-    // auto reorder = ov::intel_cpu::getReorderPrim(context->getParamsCache(), getEngine(), originalMemDesc->getDnnlDesc(), get_wei_desc());
-    requested_desc_b = get_wei_desc();
+    requested_desc_b = std::make_shared<DnnlBlockedMemoryDesc>(Shape(normalized_dims),
+                                                               dnnl::memory::data_type::bf16,
+                                                               dnnl::memory::format_tag::aCB16b64c2b);
 
     auto builder = [this, &cache](const SubgraphKey& key) -> std::shared_ptr<SubgraphExecutor> {
         const auto& snippet = subgraph_attrs->snippet;
@@ -882,7 +865,7 @@ void Subgraph::execute(dnnl::stream strm) {
         if (!std::getenv("REFERENCE"))
             srcMemPtrs[1] = repacked_memory;
     }
-    execPtr->exec(srcMemPtrs, dstMemPtrs);
+    execPtr->exec(strm, srcMemPtrs, dstMemPtrs);
 }
 
 void Subgraph::executeDynamicImpl(dnnl::stream strm) {
@@ -1004,6 +987,19 @@ void Subgraph::SubgraphExecutor::parallel_forNd(const std::function<void(jit_sni
             caller(call_args, indexes.data());
         }
     });
+}
+
+void Subgraph::SubgraphExecutor::repack_inputs(dnnl::stream strm, std::vector<MemoryPtr>& inMemPtrs) {
+    // TODO: remove check on empty
+    OPENVINO_ASSERT(m_requested_descs.empty() || inMemPtrs.size() == m_requested_descs.size());
+    for (size_t i = 0; i < m_requested_descs.size(); ++i) {
+        if (m_requested_descs[i]) {
+            auto repacked_memory = std::make_shared<Memory>(strm.get_engine(), m_requested_descs[i]);
+            repacked_memory->load(*inMemPtrs[i]);
+            if (!std::getenv("REFERENCE"))
+                inMemPtrs[i] = repacked_memory;
+        }
+    }
 }
 
 }   // namespace node

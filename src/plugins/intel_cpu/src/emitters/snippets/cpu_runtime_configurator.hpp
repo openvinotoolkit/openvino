@@ -9,8 +9,19 @@
 #include "snippets/lowered/port_descriptor.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
 
+#include "memory_desc/cpu_memory_desc.h"
+
 namespace ov {
 namespace intel_cpu {
+
+// class RequestedDesc {
+// public:
+//     RequestedDesc() = default;
+//     RequestedDesc(DnnlMemoryDescPtr requested_desc);
+
+// private:
+//     DnnlMemoryDescPtr m_requested_desc = nullptr;
+// };
 
 class CPURuntimeConfig : public ov::snippets::RuntimeConfig {
 public:

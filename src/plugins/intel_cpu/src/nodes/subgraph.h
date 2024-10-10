@@ -106,7 +106,7 @@ private:
 
     std::shared_ptr<SubgraphExecutor> execPtr = nullptr;
 
-    ov::intel_cpu::MemoryDescPtr requested_desc_b;
+    MemoryDescPtr requested_desc_b;
 };
 
 class Subgraph::SubgraphCodeGenerator {
@@ -131,7 +131,7 @@ public:
                      const BufferScratchpadAllocator& allocator);
     virtual ~SubgraphExecutor() = default;
 
-    virtual void exec(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) = 0;
+    virtual void exec(dnnl::stream strm, std::vector<MemoryPtr>& inMemPtrs, std::vector<MemoryPtr>& outMemPtrs) = 0;
 
 protected:
     void parallel_for6d(const std::function<void(jit_snippets_call_args&, size_t)>& initializer,
@@ -143,6 +143,10 @@ protected:
         if (m_buffer_scratchpad_size > 0)
             scratchpad_ptr = m_buffer_scratchpad->getDataAs<uint8_t>() + ithr * m_buffer_scratchpad_size;
     }
+
+    void repack_inputs(dnnl::stream strm, std::vector<MemoryPtr>& inMemPtrs);
+
+    std::vector<MemoryDescPtr> m_requested_descs = {};
 
     std::shared_ptr<snippets::Schedule> m_schedule;
     // Holds index of output used as in execution domain
