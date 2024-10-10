@@ -160,25 +160,17 @@ std::shared_ptr<ov::Model> read_model(const std::string& modelPath,
                    FEs);
 }
 
-std::shared_ptr<ov::Model> read_model(const std::string& model,
-                                      const ov::Tensor& weights,
-                                      const std::vector<ov::Extension::Ptr>& ov_exts,
-                                      bool frontendMode) {
-    std::istringstream modelStringStream(model);
-    std::istream& modelStream = modelStringStream;
-
+std::shared_ptr<ov::Model> read_model(const std::shared_ptr<AlignedBuffer>& model,
+                                      const std::shared_ptr<AlignedBuffer>& weights,
+                                      const std::vector<ov::Extension::Ptr>& ov_exts) {
     // Try to load with FrontEndManager
     ov::frontend::FrontEndManager manager;
     ov::frontend::FrontEnd::Ptr FE;
     ov::frontend::InputModel::Ptr inputModel;
 
-    ov::AnyVector params{&modelStream};
+    ov::AnyVector params{model};
     if (weights) {
-        std::shared_ptr<ov::AlignedBuffer> weights_buffer =
-            std::make_shared<ov::SharedBuffer<ov::Tensor>>(reinterpret_cast<char*>(weights.data()),
-                                                           weights.get_byte_size(),
-                                                           weights);
-        params.emplace_back(weights_buffer);
+        params.emplace_back(weights);
     }
 
     FE = manager.load_by_model(params);
@@ -192,7 +184,8 @@ std::shared_ptr<ov::Model> read_model(const std::string& model,
         return model;
     }
 
-    OPENVINO_THROW("Unable to read the model. Please check if the model format is supported and model is correct.");
+    OPENVINO_THROW(
+        "[ CORE ] Unable to read the model. Please check if the model format is supported and model is correct.");
 }
 
 }  // namespace util
