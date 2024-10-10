@@ -85,7 +85,6 @@ jobs:
       DEVELOPER_PACKAGE_DIR: /__w/openvino/openvino/developer_package_install
       BUILD_DIR: /__w/openvino/openvino/openvino_build
       SCCACHE_AZURE_KEY_PREFIX: ${{ inputs.os }}_${{ inputs.arch }}_Release
-      ONNX_RUNTIME_UTILS: /__w/openvino/openvino/openvino/src/frontends/onnx/tests/ci_utils/onnxruntime
       ARTIFACTS_SHARE: "/mount/build-artifacts"
       MANIFEST_PATH: '/__w/openvino/openvino/manifest.yml'
       PRODUCT_TYPE: public_linux_${{ inputs.os }}_${{ inputs.arch }}_release
@@ -182,12 +181,6 @@ jobs:
 
       - name: Pack Artifacts
         run: |
-
-          # Add the ONNX Runtime version and skip tests list to the archive to use in the ONNX Runtime Job
-          # w/o the need to checkout repository
-
-          cp -R ${ONNX_RUNTIME_UTILS} ${INSTALL_DIR}
-
           pushd ${INSTALL_DIR}
             tar -I pigz -cvf ${BUILD_DIR}/openvino_package.tar.gz *
           popd
