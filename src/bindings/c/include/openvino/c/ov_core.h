@@ -216,6 +216,16 @@ ov_core_compile_model(const ov_core_t* core,
                       ...);
 
 /**
+ * @brief Adds an extension to the core.
+ * @ingroup ov_core_c_api
+ * @param core A pointer to the ov_core_t instance.
+ * @param library_path Path to an extension.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_core_add_extension(const ov_core_t* core, const char* library_path);
+
+/**
  * @brief Reads a model and creates a compiled model from the IR/ONNX/PDPD file.
  * This can be more efficient than using the ov_core_read_model_from_XXX + ov_core_compile_model flow,
  * especially for cases when caching is enabled and a cached model is available.
