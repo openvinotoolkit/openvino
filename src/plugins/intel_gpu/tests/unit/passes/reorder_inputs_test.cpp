@@ -183,7 +183,7 @@ TEST(reorder_inputs, impl_forcing_basic_format) {
                         7.f, 3.f, -2.f, -1.f });
 
     network.set_input_data("input", input);
-    network.execute();
+    auto outputs = network.execute();
 
     const auto& prog = network.get_program();
     auto& pool_node = prog->get_node("pool");
@@ -191,7 +191,7 @@ TEST(reorder_inputs, impl_forcing_basic_format) {
 
     ASSERT_EQ(pool_layout.format.value, format::yxfb);
 
-    auto out_mem = network.get_output("pool").get_memory();
+    auto out_mem = outputs.at("pool").get_memory();
     cldnn::mem_lock<float> out_mem_ptr(out_mem, get_test_stream());
 
     ASSERT_EQ(out_mem_ptr.size(), 4u);
@@ -239,7 +239,7 @@ TEST(reorder_inputs, impl_forcing_basic_format_kernel) {
                         7.f, 3.f, -2.f, -1.f });
 
     network.set_input_data("input", input);
-    network.execute();
+    auto outputs = network.execute();
 
     auto prog = network.get_program();
     auto& node = prog->get_node("actv");
@@ -250,7 +250,7 @@ TEST(reorder_inputs, impl_forcing_basic_format_kernel) {
     ASSERT_EQ(actv_layout.format.value, format::yxfb);
     ASSERT_EQ(kernel_name, actv_impl.kernel_name);
 
-    auto out_mem = network.get_output("actv").get_memory();
+    auto out_mem = outputs.at("actv").get_memory();
     cldnn::mem_lock<float> out_mem_ptr(out_mem, get_test_stream());
 
     ASSERT_EQ(out_mem_ptr.size(), 8u);

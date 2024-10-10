@@ -45,6 +45,14 @@ static constexpr ov::Property<std::string> submodel_device{"NPUW_SUBMODEL_DEVICE
  */
 static constexpr ov::Property<std::string> weights_bank{"NPUW_WEIGHTS_BANK"};
 
+/**
+ * @brief
+ * Type: std::string.
+ * Specify a directory where to store cached submodels.
+ * Default value: empty.
+ */
+static constexpr ov::Property<std::string> cache_dir{"NPUW_CACHE_DIR"};
+
 namespace partitioning {
 namespace online {
 /**
@@ -177,6 +185,22 @@ static constexpr ov::Property<bool> dyn_quant{"NPUW_DQ"};
  * Default value: 2.
  */
 static constexpr ov::Property<std::string> par_matmul_merge_dims{"NPUW_PMM"};
+
+/**
+ * @brief
+ * Type: boolean.
+ * Enable spatial execution for selected subgraphs. Requires COMPUTE isolation.
+ * Default value: false
+ */
+static constexpr ov::Property<bool> spatial{"NPUW_SPATIAL"};
+
+/**
+ * @brief
+ * Type: std::size_t.
+ * Submission size for the spatial execution.
+ * Default value: 64
+ */
+static constexpr ov::Property<std::size_t> spatial_nway{"NPUW_SPATIAL_NWAY"};
 
 /**
  * @brief
