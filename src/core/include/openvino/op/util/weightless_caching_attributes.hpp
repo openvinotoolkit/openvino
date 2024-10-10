@@ -20,7 +20,8 @@ class OPENVINO_API ConstantOriginalSize : public RuntimeAttribute {
 public:
     OPENVINO_RTTI("ConstantOriginalSize");
 
-    ConstantOriginalSize() = delete;
+    ConstantOriginalSize() = default;
+
     ConstantOriginalSize(size_t original_size) : original_size(original_size) {}
 
     bool is_copyable() const override {
@@ -42,7 +43,8 @@ class OPENVINO_API ConstantBinOffset : public RuntimeAttribute {
 public:
     OPENVINO_RTTI("ConstantBinOffset");
 
-    ConstantBinOffset() = delete;
+    ConstantBinOffset() = default;
+
     ConstantBinOffset(size_t bin_offset) : bin_offset(bin_offset) {}
 
     bool is_copyable() const override {
