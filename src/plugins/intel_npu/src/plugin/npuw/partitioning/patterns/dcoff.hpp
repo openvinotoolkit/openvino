@@ -40,6 +40,7 @@ struct ClosureRemap {
     std::map<std::size_t, std::size_t> scale_remap;  // orig closure idx -> orig scale idx
     std::map<std::size_t, std::size_t> zerop_remap;  // orig closure idx -> orig asymm zero point idx
     ov::ParameterVector params_to_remove;
+    std::set<std::size_t> weights_to_unpack;
 
     std::vector<ov::Tensor> zero_points;  // zero points for closures, if needed
 };
