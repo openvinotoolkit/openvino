@@ -40,9 +40,7 @@ KERNEL (mvn_gpu_bfyx_opt)(
         my_sum += (float)input[data_set_offset + workers_per_data_set * items_num + in_data_set_idx];
     }
 
-    my_sum = work_group_reduce_add(my_sum);
-
-    my_sum /= data_set_size;
+    my_sum = work_group_reduce_add(my_sum) / data_set_size;
 
 #if NORMALIZE_VARIANCE == 0
     for (uint i=0; i<items_num; ++i) {
