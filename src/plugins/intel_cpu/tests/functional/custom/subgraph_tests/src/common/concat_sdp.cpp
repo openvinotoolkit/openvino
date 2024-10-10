@@ -16,6 +16,7 @@ namespace test {
 
 using ConcatSDPTestParams = std::tuple<ElementType,
                                        std::vector<InputShape>,
+                                       bool,                        // force kvcache int8
                                        bool                         // has ShapeOf
                                        >;
 // Subgraph:
@@ -41,8 +42,9 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConcatSDPTestParams>& obj) {
         ElementType inType;
         std::vector<InputShape> inputShapes;
-        bool hasShapeof;
-        std::tie(inType, inputShapes, hasShapeof) = obj.param;
+        bool forceKVU8;
+        bool hasShapeOf;
+        std::tie(inType, inputShapes, forceKVU8, hasShapeOf) = obj.param;
         std::ostringstream result;
         result << "IS=";
         for (const auto& shape : inputShapes) {
@@ -59,19 +61,24 @@ public:
             result << ")_";
         }
         result << "Prc=" << inType << "_";
-        result << "HasShapeOf=" << hasShapeof;
+        result << "ForceKVU8=" << forceKVU8 << "_";
+        result << "HasShapeOf=" << hasShapeOf;
         return result.str();
     }
 
     void SetUp() override {
         ElementType inType;
         std::vector<InputShape> inputShapes;
-        std::tie(inType, inputShapes, hasShapeOf) = this->GetParam();
+        std::tie(inType, inputShapes, m_forceKVU8, m_hasShapeOf) = this->GetParam();
         targetDevice = ov::test::utils::DEVICE_CPU;
         rel_threshold = 1e-2f;
-        if (inType == ElementType::bf16) {
-            configuration.insert({"ENFORCE_BF16", "YES"});
+        if (inType == ElementType::bf16 || inType == ElementType::f16) {
+            configuration.insert({"INFERENCE_PRECISION_HINT", ov::element::Type(inType).get_type_name()});
             rel_threshold = 0.01f;
+        }
+
+        if (m_forceKVU8) {
+            configuration["KV_CACHE_PRECISION"] = "u8";
         }
         init_input_shapes(inputShapes);
         ov::ParameterVector inputParams;
@@ -103,7 +110,7 @@ public:
         //              |
         //            ShapeOf...
         // The transformation 'SimplifyGatherShapeOf' will move ShapeOf to be the child of ReadValue
-        if (hasShapeOf) {
+        if (m_hasShapeOf) {
             shapeof_k = std::make_shared<ov::op::v0::ShapeOf>(gatherK);
             shapeof_v = std::make_shared<ov::op::v0::ShapeOf>(gatherV);
         }
@@ -118,7 +125,7 @@ public:
         pastv_assign->set_friendly_name("pastv_w");
 
         ResultVector results{std::make_shared<ov::op::v0::Result>(add)};
-        if (hasShapeOf) {
+        if (m_hasShapeOf) {
             results.push_back(std::make_shared<ov::op::v0::Result>(shapeof_k));
             results.push_back(std::make_shared<ov::op::v0::Result>(shapeof_v));
         }
@@ -162,6 +169,10 @@ public:
             } else if (param->get_element_type() == element::f32) {
                 ov::Tensor t{ov::element::f32, shape};
                 strided_iota(static_cast<float*>(t.data()), t.get_size(), val, 0.1f);
+                inputs.insert({param, t});
+            } else if (param->get_element_type() == element::f16) {
+                ov::Tensor t{ov::element::f16, shape};
+                strided_iota(static_cast<ov::float16*>(t.data()), t.get_size(), val, 0.1f);
                 inputs.insert({param, t});
             } else {
                 ov::Tensor t{ov::element::bf16, shape};
@@ -207,11 +218,23 @@ public:
         return outputs;
     }
 
-    bool hasShapeOf;
+    bool m_forceKVU8;
+    bool m_hasShapeOf;
 };
 
 TEST_P(ConcatSDPTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    ElementType inType;
+    std::vector<InputShape> inputShapes;
+    bool forceKVU8;
+    bool hasShapeOf;
+    std::tie(inType, inputShapes, forceKVU8, hasShapeOf) = this->GetParam();
+
+    if ((inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16()) ||
+        (inType == ElementType::f16 && !ov::with_cpu_x86_avx512_core_fp16())) {
+        GTEST_SKIP();
+    }
+
     auto actualOutputs = run_test(function);
     if (!hasShapeOf) {
         CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 1);
@@ -227,6 +250,14 @@ TEST_P(ConcatSDPTest, CompareWithRefs) {
             }
         }
     }
+
+    // the range of our result will exceed f16 max value and there may be 'inf'. In softmax, there is a step:
+    //   v - max(v), if v is inf, the result of 'v-max(v)' will be nan
+    // use f32 as reference
+    if (inType == ElementType::f16) {
+        configuration["INFERENCE_PRECISION_HINT"] = "f32";
+    }
+
     auto expectedOutputs = run_test(functionRefs);
     CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 0);
     for (size_t i = 0; i < actualOutputs.size(); i++) {
@@ -254,8 +285,9 @@ const std::vector<std::vector<InputShape>> inputShapes = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTest,
                          ConcatSDPTest,
-                         ::testing::Combine(::testing::Values(ElementType::f32),
+                         ::testing::Combine(::testing::Values(ElementType::f32, ElementType::bf16, ElementType::f16),
                                             ::testing::ValuesIn(inputShapes),
+                                            ::testing::Values(true, false),
                                             ::testing::Values(true, false)),
                          ConcatSDPTest::getTestCaseName);
 

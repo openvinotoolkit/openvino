@@ -734,20 +734,20 @@ static void attn_reduce(T* dst, float* temp, size_t M, size_t S, size_t temp_str
 
 template <typename T, typename T2>
 static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
-                             const ov::intel_cpu::PlainTensor& present_key,
-                             const ov::intel_cpu::PlainTensor& present_value,
-                             const ov::intel_cpu::PlainTensor& alibi_mask,
-                             const ov::intel_cpu::PlainTensor& attention_mask,
-                             const ov::intel_cpu::PlainTensor& beams,
-                             ov::intel_cpu::PlainTensor& output_emb,
-                             ov::intel_cpu::PlainTensor& buf_attn_w,
-                             ov::intel_cpu::PlainTensor& buf_attn_score,
-                             bool has_out_transpose,
-                             bool auto_causal,
-                             float d_scale,
-                             const ov::intel_cpu::PlainTensor& past_k_scale_zp,
-                             const ov::intel_cpu::PlainTensor& past_v_scale_zp,
-                             ov::intel_cpu::PlainTensor& head_sum) {
+                                    const ov::intel_cpu::PlainTensor& present_key,
+                                    const ov::intel_cpu::PlainTensor& present_value,
+                                    const ov::intel_cpu::PlainTensor& alibi_mask,
+                                    const ov::intel_cpu::PlainTensor& attention_mask,
+                                    const ov::intel_cpu::PlainTensor& beams,
+                                    ov::intel_cpu::PlainTensor& output_emb,
+                                    ov::intel_cpu::PlainTensor& buf_attn_w,
+                                    ov::intel_cpu::PlainTensor& buf_attn_score,
+                                    bool has_out_transpose,
+                                    bool auto_causal,
+                                    float d_scale,
+                                    const ov::intel_cpu::PlainTensor& past_k_scale_zp,
+                                    const ov::intel_cpu::PlainTensor& past_v_scale_zp,
+                                    ov::intel_cpu::PlainTensor& head_sum) {
     ov::intel_cpu::PlainTensor causal_mask;
     bool select_nfltmax_at_0 = false;
     auto B = query.size(0);
@@ -862,11 +862,11 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                 for (size_t pq = 0; pq < q_len; pq++) {
                     for (size_t h = h_group * h_each_group_len, group_idx = 0; h < (h_group + 1) * h_each_group_len; h++, group_idx++) {
                         attn_acc_value(buf_attn_score.ptr<float>(ithr, pq, group_idx),
-                                        buf_attn_w.ptr<float>(b, h, pq)[pv],
-                                        v,
-                                        S,
-                                        p + 0,
-                                        p + 1);
+                                       buf_attn_w.ptr<float>(b, h, pq)[pv],
+                                       v,
+                                       S,
+                                       p + 0,
+                                       p + 1);
                     }
                 }
             }
@@ -899,11 +899,11 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                     auto* v = present_value.ptr<T2>(b_kv, h_group, pv);
                     auto p = past_v_scale_zp.ptr<float>(pv, b_kv, h_group);
                     attn_acc_value(buf_attn_score.ptr<float>(ithr, b, 0, h_group),
-                                buf_attn_w.ptr<float>(b, h_group, 0, pv)[0],
-                                v,
-                                S,
-                                p + 0,
-                                p + 1);
+                                   buf_attn_w.ptr<float>(b, h_group, 0, pv)[0],
+                                   v,
+                                   S,
+                                   p + 0,
+                                   p + 1);
                     parallel_it_step(pv, kv_len, b, B, h_group, h_group_num);
                 }
             } else {
@@ -914,11 +914,11 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                     for (size_t pq = 0; pq < q_len; pq++) {
                         for (size_t h = h_group * h_each_group_len; h < (h_group + 1) * h_each_group_len; h++) {
                             attn_acc_value(buf_attn_score.ptr<float>(ithr, b, pq, h),
-                                        buf_attn_w.ptr<float>(b, h, pq)[pv],
-                                        v,
-                                        S,
-                                        p + 0,
-                                        p + 1);
+                                           buf_attn_w.ptr<float>(b, h, pq)[pv],
+                                           v,
+                                           S,
+                                           p + 0,
+                                           p + 1);
                         }
                     }
                     parallel_it_step(pv, kv_len, b, B, h_group, h_group_num);
@@ -984,6 +984,40 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                                                                 past_v_scale_zp,
                                                                 head_sum);
         }
+    } else if (query.get_precision() == ov::element::f16) {
+        if (present_key.get_precision() == ov::element::u8) {
+            mha_single_token_kernel<ov::float16, uint8_t>(query,
+                                                          present_key,
+                                                          present_value,
+                                                          alibi_mask,
+                                                          attention_mask,
+                                                          beams,
+                                                          output_emb,
+                                                          buf_attn_w,
+                                                          buf_attn_score,
+                                                          has_out_transpose,
+                                                          auto_causal,
+                                                          d_scale,
+                                                          past_k_scale_zp,
+                                                          past_v_scale_zp,
+                                                          head_sum);
+        } else {
+            mha_single_token_kernel<ov::float16, ov::float16>(query,
+                                                              present_key,
+                                                              present_value,
+                                                              alibi_mask,
+                                                              attention_mask,
+                                                              beams,
+                                                              output_emb,
+                                                              buf_attn_w,
+                                                              buf_attn_score,
+                                                              has_out_transpose,
+                                                              auto_causal,
+                                                              d_scale,
+                                                              past_k_scale_zp,
+                                                              past_v_scale_zp,
+                                                              head_sum);
+        }
     } else if (query.get_precision() == ov::element::f32) {
         if (present_key.get_precision() == ov::element::u8) {
             mha_single_token_kernel<float, uint8_t>(query,
@@ -1019,20 +1053,20 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                                                         head_sum);
         } else {
             mha_single_token_kernel<float, float>(query,
-                                                present_key,
-                                                present_value,
-                                                alibi_mask,
-                                                attention_mask,
-                                                beams,
-                                                output_emb,
-                                                buf_attn_w,
-                                                buf_attn_score,
-                                                has_out_transpose,
-                                                auto_causal,
-                                                d_scale,
-                                                past_k_scale_zp,
-                                                past_v_scale_zp,
-                                                head_sum);
+                                                  present_key,
+                                                  present_value,
+                                                  alibi_mask,
+                                                  attention_mask,
+                                                  beams,
+                                                  output_emb,
+                                                  buf_attn_w,
+                                                  buf_attn_score,
+                                                  has_out_transpose,
+                                                  auto_causal,
+                                                  d_scale,
+                                                  past_k_scale_zp,
+                                                  past_v_scale_zp,
+                                                  head_sum);
         }
     } else {
         OPENVINO_THROW("Unsupported precision: ", query.get_precision());
