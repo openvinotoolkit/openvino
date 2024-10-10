@@ -61,10 +61,7 @@ struct ProposalV1Params {
         attrs.framework = "";
         attrs.infer_probs = false;
 
-        std::vector<IT> inputShapeValues;
-        inputShapeValues.push_back(static_cast<IT>(image_h));
-        inputShapeValues.push_back(static_cast<IT>(image_w));
-        inputShapeValues.push_back(static_cast<IT>(image_z));
+        std::vector<IT> inputShapeValues{static_cast<IT>(image_h), static_cast<IT>(image_w), static_cast<IT>(image_z)};
         imageShapeData = CreateTensor(iType, inputShapeValues);
     }
 
@@ -132,10 +129,7 @@ struct ProposalV4Params {
         attrs.framework = "";
         attrs.infer_probs = true;
 
-        std::vector<IT> inputShapeValues;
-        inputShapeValues.push_back(static_cast<IT>(image_h));
-        inputShapeValues.push_back(static_cast<IT>(image_w));
-        inputShapeValues.push_back(static_cast<IT>(image_z));
+        std::vector<IT> inputShapeValues{static_cast<IT>(image_h), static_cast<IT>(image_w), static_cast<IT>(image_z)};
         imageShapeData = CreateTensor(iType, inputShapeValues);
     }
 
@@ -235,21 +229,21 @@ std::vector<ProposalV1Params> generateProposalV1Params() {
 
     std::vector<ProposalV1Params> proposalV1Params{
         ProposalV1Params(
-            0.7f,
-            16,
-            16,
-            6000,
-            10,  // iou_threshold, min_nnox_size, feature_stride,pre_nms_topn, post_nms_topn
-            3,
-            210,
-            350,
-            1,        // image_shape_num, image_h, image_w, image_z
+            0.7f,     // iou_threshold
+            16,       // min_nnox_size
+            16,       // feature_stride
+            6000,     // pre_nms_topn
+            10,       // post_nms_topn
+            3,        // image_shape_num
+            210,      // image_h
+            350,      // image_w
+            1,        // image_z
             {0.5f},   // ratios
             {32.0f},  // scales
-            1,
-            1,
-            10,
-            10,  // batch_size, anchor_num, feat_map_height, feat_map_width
+            1,        // batch_size
+            1,        // anchor_num
+            10,       // feat_map_height
+            10,       // feat_map_width
             IN_ET,
             std::vector<T>{
                 0.000240f, 0.003802f, 0.111432f, 0.000503f, 0.007887f, 0.144701f, 0.399074f, 0.004680f,  // 0
@@ -352,21 +346,21 @@ std::vector<ProposalV4Params> generateProposalV4Params() {
 
     std::vector<ProposalV4Params> proposalV4Params{
         ProposalV4Params(
-            0.7f,
-            16,
-            16,
-            6000,
-            10,  // iou_threshold, min_nnox_size, feature_stride,pre_nms_topn, post_nms_topn
-            3,
-            210,
-            350,
-            1,        // image_shape_num, image_h, image_w, image_z
+            0.7f,     // iou_threshold
+            16,       // min_bbox_size
+            16,       // feature_stride
+            6000,     // pre_nms_topn
+            10,       // post_nms_topn
+            3,        // image_shape_num
+            210,      // image_h
+            350,      // image_w
+            1,        // image_z
             {0.5f},   // ratios
             {32.0f},  // scales
-            1,
-            1,
-            10,
-            10,  // batch_size, anchor_num, feat_map_height, feat_map_width
+            1,        // batch_size
+            1,        // anchor_num
+            10,       // feat_map_height
+            10,       // feat_map_width
             IN_ET,
             std::vector<T>{
                 0.000240f, 0.003802f, 0.111432f, 0.000503f, 0.007887f, 0.144701f, 0.399074f, 0.004680f,  // 0
@@ -476,30 +470,24 @@ std::vector<ProposalV4Params> generateProposalV4Params() {
 }
 
 std::vector<ProposalV1Params> generateProposalV1CombinedParams() {
-    const std::vector<std::vector<ProposalV1Params>> proposalTypeParams{
-        generateProposalV1Params<element::Type_t::f64>(),
-        generateProposalV1Params<element::Type_t::f32>(),
-        generateProposalV1Params<element::Type_t::f16>(),
-        generateProposalV1Params<element::Type_t::bf16>()};
+    std::vector<std::vector<ProposalV1Params>> proposalTypeParams{generateProposalV1Params<element::Type_t::f64>(),
+                                                                  generateProposalV1Params<element::Type_t::f32>(),
+                                                                  generateProposalV1Params<element::Type_t::f16>(),
+                                                                  generateProposalV1Params<element::Type_t::bf16>()};
     std::vector<ProposalV1Params> combinedParams;
-
-    for (const auto& params : proposalTypeParams) {
-        combinedParams.insert(combinedParams.end(), params.begin(), params.end());
-    }
+    for (auto& params : proposalTypeParams)
+        std::move(params.begin(), params.end(), std::back_inserter(combinedParams));
     return combinedParams;
 }
 
 std::vector<ProposalV4Params> generateProposalV4CombinedParams() {
-    const std::vector<std::vector<ProposalV4Params>> proposalTypeParams{
-        generateProposalV4Params<element::Type_t::f64>(),
-        generateProposalV4Params<element::Type_t::f32>(),
-        generateProposalV4Params<element::Type_t::f16>(),
-        generateProposalV4Params<element::Type_t::bf16>()};
+    std::vector<std::vector<ProposalV4Params>> proposalTypeParams{generateProposalV4Params<element::Type_t::f64>(),
+                                                                  generateProposalV4Params<element::Type_t::f32>(),
+                                                                  generateProposalV4Params<element::Type_t::f16>(),
+                                                                  generateProposalV4Params<element::Type_t::bf16>()};
     std::vector<ProposalV4Params> combinedParams;
-
-    for (const auto& params : proposalTypeParams) {
-        combinedParams.insert(combinedParams.end(), params.begin(), params.end());
-    }
+    for (auto& params : proposalTypeParams)
+        std::move(params.begin(), params.end(), std::back_inserter(combinedParams));
     return combinedParams;
 }
 
