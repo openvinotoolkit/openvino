@@ -11,9 +11,9 @@
 
 namespace kernel_selector {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// lstm_elt_params
+// lstm_cell_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct lstm_elt_params : public base_params {
+struct lstm_params : public base_params {
     enum order_type : int32_t {
         offset_iofz,  // ONNX default
         offset_ifoz,  // caffe
@@ -21,15 +21,11 @@ struct lstm_elt_params : public base_params {
         offset_fizo   // OV default
     };
 
-    lstm_elt_params() : base_params(KernelType::LSTM_ELT) {}
-
-    DataTensor cell;
-    bool has_cell = false;
+    lstm_params() : base_params(KernelType::LSTM_SEQ_CELL) {}
     order_type gate_order = offset_iofz;
     float clip = 0;
     bool input_forget = false;
     uint32_t direction = 0;
-    uint32_t cell_direction = 0;
 
     size_t GetOffsetIndex(order_type type, size_t idx) const {
         static const std::map<order_type, std::vector<size_t>> offset_map{{offset_iofz, {0, 1, 2, 3}},
@@ -46,40 +42,68 @@ struct lstm_elt_params : public base_params {
 
     void SetOffsetOrder(int32_t t) { gate_order = static_cast<order_type>(t); }
 
-    void SetCell(const DataTensor& v) {
-        cell = v;
-        has_cell = true;
-    }
-
     ParamsKey GetParamsKey() const override {
         ParamsKey k = base_params::GetParamsKey();
-        if (has_cell) {
-            k.EnableLSTMEltCell();
-        }
         return k;
     }
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// LSTMEltKernelBase
+// LSTMSeqKernelBase
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-class LSTMEltKernelBase : public KernelBaseOpenCL {
+class LSTMKernelBase : public KernelBaseOpenCL {
 public:
     using KernelBaseOpenCL::KernelBaseOpenCL;
-    virtual ~LSTMEltKernelBase() {}
+    virtual ~LSTMKernelBase() {}
 
     struct DispatchData : public CommonDispatchData {};
 
 protected:
-    virtual JitConstants GetJitConstants(const lstm_elt_params& params) const;
-    KernelsData GetCommonKernelsData(const Params& params) const;
+    virtual JitConstants GetJitConstants(const lstm_params& params, bool, size_t) const;
+    KernelsData GetCommonKernelsData(const Params& params, bool, bool) const;
 
     bool Validate(const Params& p) const override {
-        if (p.GetType() != KernelType::LSTM_ELT) {
+        if (p.GetType() != KernelType::LSTM_SEQ_CELL) {
             return false;
         }
 
         return true;
+    }
+
+    static int vec_size_selector(int hidden_size) {
+        if (hidden_size%4 == 0) {
+            return 4;
+        } else if (hidden_size%2 == 0) {
+            return 2;
+        } else {
+            return 1;
+        }
+    }
+
+    static size_t gcd(size_t a, size_t b) {
+        while (a != b) {
+            if (a > b) {
+                a -= b;
+            } else {
+                b -= a;
+            }
+        }
+        return a;
+    }
+
+    static size_t get_num_hidden_kernels(size_t hidden_size, size_t max_work_group_size) {
+        if (max_work_group_size >= hidden_size) {
+            return static_cast<size_t>(hidden_size);
+        } else {
+            size_t gcd_result = gcd(max_work_group_size, hidden_size);
+            size_t minimal_number_when_gcd_low = 16;
+            if (gcd_result < minimal_number_when_gcd_low) {
+                if (minimal_number_when_gcd_low < max_work_group_size && minimal_number_when_gcd_low < hidden_size) {
+                    return minimal_number_when_gcd_low;
+                }
+            }
+            return gcd_result;
+        }
     }
 };
 }  // namespace kernel_selector

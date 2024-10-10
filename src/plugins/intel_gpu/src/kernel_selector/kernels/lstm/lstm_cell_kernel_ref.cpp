@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "lstm_elt_kernel_ref.h"
+#include "lstm_cell_kernel_ref.h"
 #include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 
-ParamsKey LSTMEltKernelRef::GetSupportedKey() const {
+ParamsKey LSTMCellKernelRef::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
@@ -19,15 +19,15 @@ ParamsKey LSTMEltKernelRef::GetSupportedKey() const {
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
-    k.EnableLSTMEltCell();
+    k.EnableDynamicShapesSupport();
     return k;
 }
 
-KernelsData LSTMEltKernelRef::GetKernelsData(const Params& params) const {
-    return GetCommonKernelsData(params);
+KernelsData LSTMCellKernelRef::GetKernelsData(const Params& params) const {
+    return GetCommonKernelsData(params, false, false);
 }
 
-KernelsPriority LSTMEltKernelRef::GetKernelsPriority(const Params& /*params*/) const {
-    return FORCE_PRIORITY_1;
+KernelsPriority LSTMCellKernelRef::GetKernelsPriority(const Params& /*params*/) const {
+    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector
