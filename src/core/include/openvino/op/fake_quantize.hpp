@@ -72,6 +72,9 @@ public:
     bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values) override {
         return false;
     }
+    bool can_constant_fold(const OutputVector& inputs_values) override {
+        return false;
+    }
 
 private:
     std::size_t m_levels;

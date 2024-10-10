@@ -43,6 +43,7 @@ public:
 
     /// \return Turns off constant folding for RandomUniform operation.
     bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values) override;
+    bool can_constant_fold(const OutputVector& inputs_values) override;
 
     /// \return The output tensor type.
     const ov::element::Type& get_out_type() const;
