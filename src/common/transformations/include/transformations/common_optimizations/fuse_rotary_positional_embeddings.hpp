@@ -38,7 +38,7 @@ public:
 class ov::pass::RoPEFusionChatGLM : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("RoPEFusionChatGLM", "0");
-    RoPEFusionChatGLM(int split_output_id, const bool support_2d_rope=false);
+    RoPEFusionChatGLM(int split_output_id, const bool support_2d_rope = false);
 };
 
 class ov::pass::RoPEFusionQwen : public ov::pass::MatcherPass {
