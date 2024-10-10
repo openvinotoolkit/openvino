@@ -234,9 +234,6 @@ void BrgemmCopyBKernel::emit_brgemm_copy_b_kernel_call(size_t N, size_t K, size_
     spill.postamble();
 }
 
-uintptr_t base_addr_src = 0;
-uintptr_t base_addr_dst = 0;
-
 void BrgemmCopyBKernel::execute(matmul::jit_brgemm_matmul_copy_b_t* kernel, const void* src, const void* dst, const void* comp, size_t N, size_t K) {
     auto ctx = matmul::jit_brgemm_matmul_copy_b_t::ctx_t();
     ctx.current_N_blk = N;
@@ -248,36 +245,14 @@ void BrgemmCopyBKernel::execute(matmul::jit_brgemm_matmul_copy_b_t* kernel, cons
     ctx.current_K_start = 0;
     ctx.current_K_iters = K;
 
-    if (base_addr_src == 0)
-        base_addr_src = reinterpret_cast<uintptr_t>(src);
-    else
-        std::cout << "Stride from base_addr_src = " << reinterpret_cast<uintptr_t>(src) - base_addr_src << std::endl;
-    if (base_addr_dst == 0)
-        base_addr_dst = reinterpret_cast<uintptr_t>(dst);
-    else
-        std::cout << "Stride from base_addr_dst = " << reinterpret_cast<uintptr_t>(dst) - base_addr_dst << std::endl;
-
     OV_CPU_JIT_EMITTER_ASSERT(kernel, "Kernel hasn't been created");
     if (std::getenv("REFERENCE")) {
         (*kernel)(&ctx);
-        std::cout << "Ref Repacked, KN = " << K * N << std::endl;
-        const auto* data = reinterpret_cast<const bfloat16*>(dst);
-        for (size_t i = 0; i < K * N; ++i) {
-            std::cout << static_cast<float>(data[i]) << "\t";
-        }
-        std::cout << "\n";
     } else {
         auto srcPtr = static_cast<const uint8_t*>(src);
         auto dstPtr = const_cast<uint8_t*>(static_cast<const uint8_t*>(dst));
-
         auto copySize = K * N * sizeof(bfloat16);
         cpu_memcpy(dstPtr, srcPtr, copySize);
-        std::cout << "Just copy, KN = " << K * N << std::endl;
-        const auto* data = reinterpret_cast<const bfloat16*>(dst);
-        for (size_t i = 0; i < K * N; ++i) {
-            std::cout << static_cast<float>(data[i]) << "\t";
-        }
-        std::cout << "\n";
     }
 }
 
@@ -348,11 +323,7 @@ void BrgemmCopyBKernelExecutor::execute(const BrgemmCopyBKernelExecutor* executo
     auto kernel = executor->get_kernel();
     OV_CPU_JIT_EMITTER_ASSERT(kernel, "has nullptr kernel");
     OV_CPU_JIT_EMITTER_ASSERT(args, "has nullptr call args");
-    auto s = args->src;
-    auto d = args->tr_src;
-    std::cerr << s << " : " << d << "\n";
     (*kernel)(args);
-    std::cerr << "\n";
 }
 
 }   // namespace intel_cpu

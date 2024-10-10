@@ -881,23 +881,6 @@ void Subgraph::execute(dnnl::stream strm) {
         repacked_memory->load(*srcMemPtrs[1]);
         if (!std::getenv("REFERENCE"))
             srcMemPtrs[1] = repacked_memory;
-
-        // TODO: remove
-        const auto& input_shape = getSrcMemoryAtPort(0)->getDescPtr()->getShape().getStaticDims();
-        const auto& b_shape = getSrcMemoryAtPort(1)->getDescPtr()->getShape().getStaticDims();
-        const auto K = DnnlExtensionUtils::convertToDnnlDim(*input_shape.rbegin());
-        const auto N = DnnlExtensionUtils::convertToDnnlDim(*b_shape.rbegin());
-        auto* data = repacked_memory->getDataAs<const bfloat16>();
-        std::cout << "Repacked, KN = " << K * N << std::endl;
-        auto upper_bound = repacked_memory->getSize();
-        for (decltype(upper_bound) i = 0; i < upper_bound; ++i) {
-            std::cout << static_cast<float>(data[i]) << "\t";
-            if (static_cast<float>(data[i]) == 5.21875f) {
-                // std::cout << "Stride is found: " << i << std::endl;
-                upper_bound = i + K * N;
-            }
-        }
-        std::cout << "\n";
     }
     execPtr->exec(srcMemPtrs, dstMemPtrs);
 }
