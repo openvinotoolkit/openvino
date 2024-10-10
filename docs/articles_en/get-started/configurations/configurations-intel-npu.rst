@@ -40,4 +40,4 @@ Make sure you use the most recent supported driver for your hardware setup.
       If a driver has already been installed you should be able to find
       'Intel(R) NPU Accelerator' in Windows Device Manager. If you
       cannot find such a device, the NPU is most likely listed in "Other devices"
-      as "Multimedia Video Controller."
+      as "Multimedia Video Controlle" or "PCI device"
