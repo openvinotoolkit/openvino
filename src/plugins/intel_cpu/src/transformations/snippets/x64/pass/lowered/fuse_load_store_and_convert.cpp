@@ -8,8 +8,8 @@
 #include "snippets/snippets_isa.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 
-#include "transformations/snippets/common/op/load_convert.hpp"
-#include "transformations/snippets/common/op/store_convert.hpp"
+#include "transformations/snippets/x64/op/load_convert.hpp"
+#include "transformations/snippets/x64/op/store_convert.hpp"
 
 
 bool ov::intel_cpu::pass::FuseLoadStoreConvert::fuse_load_convert(snippets::lowered::LinearIR& linear_ir,

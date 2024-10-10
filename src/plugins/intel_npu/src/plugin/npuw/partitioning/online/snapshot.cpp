@@ -418,10 +418,11 @@ void Snapshot::earlyRegroup() {
             } else if (isolate.pattern == "DQMatMulGQi4") {
                 rewr.add_matcher<ov::npuw::patterns::compute::DQMatMulGQi4>(shared_from_this(), isolate.tag);
                 handle_patterns = true;
+            } else if (isolate.pattern == "VocabMatMul") {
+                rewr.add_matcher<ov::npuw::patterns::compute::VocabMatMul>(shared_from_this(), isolate.tag);
+                handle_patterns = true;
             } else {
-                LOG_WARN("OPENVINO_NPUW_ISOLATE only supports RMSNorm, DQMatMulCWu4, DQMatMulGQu4, DQMatMulCWi4, "
-                         "DQMatMulGQi4 "
-                         << "as patterns. Isolate pattern " << isolate.pattern << " is skipped!");
+                LOG_WARN("OPENVINO_NPUW_ISOLATE: unsupported pattern " << isolate.pattern << " is skipped!");
             }
         }
         }

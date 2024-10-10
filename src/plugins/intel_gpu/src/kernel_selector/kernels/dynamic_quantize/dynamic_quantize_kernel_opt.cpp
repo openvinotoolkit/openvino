@@ -19,6 +19,12 @@ static std::pair<size_t, size_t> get_input_bf_size(const dynamic_quantize_params
         input_batch = params.inputs[0].Batch().v * params.inputs[0].Feature().v;
     }
 
+    // In Some model, input_f could be dynamic in input0. It refers to IFM value of weight.
+    if (params.inputs[0].is_dynamic() && input_f == 0) {
+        OPENVINO_ASSERT(params.fc_ifm_size != 0, "[GPU] Invalid fc_ifm_size value");
+        input_f = params.fc_ifm_size;
+    }
+
     return {input_batch, input_f};
 }
 

@@ -145,7 +145,7 @@ runs:
 
     - name: Upload commit OpenVINO archives
       if: steps.openvino_commit_download.outcome == 'success' && !inputs.install_dir
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
       with:
         name: ${{ steps.openvino_commit_output.outputs.ov_artifact_name }}
         path: ${{ steps.openvino_commit_output.outputs.ov_package_path }}
@@ -188,7 +188,7 @@ runs:
 
     - name: Upload OpenVINO archives
       if: steps.openvino_s3_download.outcome == 'success' && !inputs.install_dir
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
       with:
         name: ${{ steps.openvino_s3_download.outputs.ov_artifact_name }}
         path: ${{ steps.openvino_s3_download.outputs.ov_package_path }}
