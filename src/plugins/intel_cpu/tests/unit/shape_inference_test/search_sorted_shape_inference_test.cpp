@@ -46,6 +46,10 @@ INSTANTIATE_TEST_SUITE_P(
             Shape{1, 3, 6},             // values shape
             Shape{1, 3, 6}),            // expected shape
         std::make_tuple(
+            Shape{3},                   // sorted shape
+            Shape{},                    // values shape
+            Shape{}),                   // expected shape
+        std::make_tuple(
             Shape{1, 3, 7, 100},        // sorted shape
             Shape{1, 3, 7, 10},         // values shape
             Shape{1, 3, 7, 10}),        // expected shape
@@ -86,4 +90,24 @@ TEST(StaticShapeInferenceTest, SearchSorted_input_shapes_compatibility) {
     OV_EXPECT_THROW(std::ignore = std::make_shared<op::v15::SearchSorted>(sorted, values),
                     NodeValidationFailure,
                     testing::HasSubstr("All dimensions but the last one have to be compatible"));
+}
+
+TEST(StaticShapeInferenceTest, SearchSorted_scalar_sorted_sequence) {
+    const auto sorted_shape = ov::Shape{};
+    const auto values_shape = ov::Shape{1, 6, 6};
+    const auto sorted = std::make_shared<Parameter>(element::i32, sorted_shape);
+    const auto values = std::make_shared<Parameter>(element::i32, values_shape);
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::v15::SearchSorted>(sorted, values),
+                    NodeValidationFailure,
+                    testing::HasSubstr("The sorted sequence input cannot be a scalar"));
+}
+
+TEST(StaticShapeInferenceTest, SearchSorted_scalar_values_and_ND_sequence) {
+    const auto sorted_shape = ov::Shape{2, 3};
+    const auto values_shape = ov::Shape{};
+    const auto sorted = std::make_shared<Parameter>(element::i32, sorted_shape);
+    const auto values = std::make_shared<Parameter>(element::i32, values_shape);
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::v15::SearchSorted>(sorted, values),
+                    NodeValidationFailure,
+                    testing::HasSubstr("the sorted sequence must be a 1D tensor"));
 }

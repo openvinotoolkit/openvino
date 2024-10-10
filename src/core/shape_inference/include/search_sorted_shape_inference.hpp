@@ -15,17 +15,11 @@ std::vector<TRShape> shape_infer(const SearchSorted* op, const std::vector<TShap
     const auto& sorted_shape = input_shapes[0];
     const auto& values_shape = input_shapes[1];
 
-    if (sorted_shape.rank().is_static() && values_shape.rank().is_static() && sorted_shape.rank() != 1) {
+    if (sorted_shape.rank().is_static()) {
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
-                               sorted_shape.rank().compatible(values_shape.rank()),
-                               "The inputs' ranks have to be compatible.");
-        for (size_t i = 0; i < sorted_shape.size() - 1; ++i) {
-            NODE_SHAPE_INFER_CHECK(op,
-                                   input_shapes,
-                                   sorted_shape[i].compatible(values_shape[i]),
-                                   "All dimensions but the last one have to be compatible.");
-        }
+                               sorted_shape.rank().get_length() > 0,
+                               "The sorted sequence input cannot be a scalar.");
     }
 
     TRShape output_shape;
@@ -36,9 +30,23 @@ std::vector<TRShape> shape_infer(const SearchSorted* op, const std::vector<TShap
         output_shape = values_shape;
     }
 
-    if (sorted_shape.rank().is_static() && values_shape.rank().is_static()) {
+    if (values_shape.rank().is_static() && values_shape.rank() == 0) {
+        NODE_SHAPE_INFER_CHECK(op,
+                               input_shapes,
+                               sorted_shape.rank() == 1,
+                               "If values input is a scalar the sorted sequence must be a 1D tensor.");
+    }
+
+    if (sorted_shape.rank().is_static() && values_shape.rank().is_static() && sorted_shape.rank().get_length() > 1) {
+        NODE_SHAPE_INFER_CHECK(op,
+                               input_shapes,
+                               sorted_shape.rank().compatible(values_shape.rank()),
+                               "The inputs' ranks have to be compatible.");
         for (size_t i = 0; i < sorted_shape.size() - 1; ++i) {
-            TDim::merge(output_shape[i], values_shape[i], sorted_shape[i]);
+            NODE_SHAPE_INFER_CHECK(op,
+                                   input_shapes,
+                                   TDim::merge(output_shape[i], sorted_shape[i], values_shape[i]),
+                                   "All dimensions but the last one have to be compatible.");
         }
     }
 
