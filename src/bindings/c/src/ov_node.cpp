@@ -66,7 +66,7 @@ ov_status_e ov_port_get_partial_shape(const ov_output_const_port_t* port, ov_par
             if (static_cast<size_t>(size) != pshape.size()) {
                 return ov_status_e::PARAMETER_MISMATCH;
             }
-            std::unique_ptr<ov_dimension_t> _dimensions(new ov_dimension_t[size]);
+            std::unique_ptr<ov_dimension_t[]> _dimensions(new ov_dimension_t[size]);
             partial_shape->dims = _dimensions.release();
             auto iter = pshape.begin();
             for (auto i = 0; iter != pshape.end(); iter++, i++) {
