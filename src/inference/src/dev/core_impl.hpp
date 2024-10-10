@@ -317,6 +317,24 @@ public:
     }
 
     Any get_property(const std::string& device_name, const std::string& name, const AnyMap& arguments) const override;
+
+    /**
+     * @brief Get the device supported properties from configuration.
+     *
+     * @param device_name  Device name.
+     * @param config       Input configuration.
+     * @return Properties map supported by device.
+     */
+    AnyMap get_device_properties(const std::string& device_name, const AnyMap& config) const;
+
+    /**
+     * @brief Get not suported properties by device from configuration.
+     *
+     * @param device_name  Device name.
+     * @param config       Input configuration.
+     * @return Properties map not supported by device.
+     */
+    AnyMap get_device_unsupported_properties(const std::string& device_name, const AnyMap& config) const;
 };
 
 }  // namespace ov
