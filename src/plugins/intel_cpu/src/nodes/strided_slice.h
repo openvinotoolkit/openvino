@@ -19,12 +19,16 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
+    void resolveInPlaceEdges(Edge::LOOK look) override;
     void createPrimitive() override;
     void execute(dnnl::stream strm) override;
     bool created() const override;
-    bool canBeInPlace() const override {
+
+    bool canBeInplace() const {
         return false;
     }
+
+    bool canBeOptimizedInplace() const;
 
     bool isExecutable() const override;
     bool needShapeInfer() const override;
@@ -132,6 +136,8 @@ private:
     std::vector<MemoryCPtr> dstMemory;
 
     std::string errorPrefix;
+
+    bool isOptimizedOut = false;
 };
 
 }   // namespace node
