@@ -82,17 +82,19 @@ jobs:
         with:
           pattern: openvino_[package|tests]*
           path: ${{ env.INSTALL_DIR }}
+          merge-multiple: true
 
       - name: Download OpenVINO artifacts (wheels)
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           pattern: openvino_[wheels]*
           path: ${{ env.INSTALL_WHEELS_DIR }}
+          merge-multiple: true
 
       - name: Extract OpenVINO packages
         run: |
-            Expand-Archive openvino_package.zip -DestinationPath "${{ env.INSTALL_DIR }}"
-            Expand-Archive openvino_tests.zip -DestinationPath "${{ env.INSTALL_DIR }}"
+            Expand-Archive openvino_package.zip -DestinationPath .
+            Expand-Archive openvino_tests.zip -DestinationPath .
         working-directory: ${{ env.INSTALL_DIR }}
 
       - name: Fetch setup_python action
@@ -255,7 +257,7 @@ jobs:
 
       - name: Extract OpenVINO packages
         run: |
-            Expand-Archive openvino_tests.zip -DestinationPath ."
+            Expand-Archive openvino_tests.zip -DestinationPath .
         working-directory: ${{ env.INSTALL_DIR }}
 
       - name: Fetch setup_python action
