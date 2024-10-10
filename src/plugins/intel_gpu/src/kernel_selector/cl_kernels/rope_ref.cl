@@ -40,14 +40,14 @@ KERNEL(rope_ref)(
     uint cos_sin_b = b < INPUT1_FEATURE_NUM ? b : 0;
     uint cos_sin_idx = INPUT1_GET_INDEX(cos_sin_p, cos_sin_b, 0, 0);
 
-    INPUT1_TYPE cosv = cos_sin[cos_sin_idx + r];
-    INPUT1_TYPE sinv = cos_sin[cos_sin_idx + r + 1];
+    float cosv = convert_float(cos_sin[cos_sin_idx + r]);
+    float sinv = convert_float(cos_sin[cos_sin_idx + r + 1]);
 
-    INPUT0_TYPE in1 = input[input_idx + r];
-    INPUT0_TYPE in2 = input[input_idx + r + 1];
+    float in1 = convert_float(input[input_idx + r]);
+    float in2 = convert_float(input[input_idx + r + 1]);
 
-    output[output_idx + r] = cosv * in1 - sinv * in2;
-    output[output_idx + r + 1] = sinv * in1 + cosv * in2;
+    output[output_idx + r] = TO_OUTPUT_TYPE(cosv * in1 - sinv * in2);
+    output[output_idx + r + 1] = TO_OUTPUT_TYPE(sinv * in1 + cosv * in2);
 
 #ifdef ENABLE_IO_COPY
     output[output_idx + ROTARY_NDIMS + f] = input[input_idx + ROTARY_NDIMS + f];
