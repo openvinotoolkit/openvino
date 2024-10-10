@@ -3,6 +3,9 @@
 //
 #include "subgraph.h"
 
+#include "nodes/reorder.h"
+#include "nodes/common/reorder_prim.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
 #include "common/primitive_hashing_utils.hpp"
 #include "dnnl_extension_utils.h"
 #include "onednn/dnnl.h"
@@ -756,6 +759,36 @@ void Subgraph::optimizeIR() {
 void Subgraph::prepareParams() {
     const auto& cache = context->getParamsCache();
 
+    const auto& input_shape = getSrcMemoryAtPort(0)->getDescPtr()->getShape().getStaticDims();
+    const auto& b_shape = getSrcMemoryAtPort(1)->getDescPtr()->getShape().getStaticDims();
+
+    // Note: this code was tested only on static shapes, in case of dynamic M will most likely fail
+    const auto M = DnnlExtensionUtils::convertToDnnlDim(*++input_shape.rbegin());
+    const auto K = DnnlExtensionUtils::convertToDnnlDim(*input_shape.rbegin());
+    const auto N = DnnlExtensionUtils::convertToDnnlDim(*b_shape.rbegin());
+    const auto B_2 = DnnlExtensionUtils::convertToDnnlDim(*++b_shape.begin());
+
+    auto get_wei_desc = [&]() {
+        const auto inputDesc = dnnl::memory::desc({1, M, K}, dnnl::memory::data_type::bf16, dnnl::memory::format_tag::abc);
+        // Notes:
+        // 1. "Any" layout must be set to enable weights layout selection heuristics
+        // 2. Shape must be in NK order (even if the original shape is in KN order)
+        const auto BDesc = dnnl::memory::desc({B_2, K, N}, dnnl::memory::data_type::bf16, dnnl::memory::format_tag::any);
+        const auto outputDesc = dnnl::memory::desc({B_2, M, N}, dnnl::memory::data_type::bf16, dnnl::memory::format_tag::abc);
+
+        // Hack: we create inner product primitive just to know which weights layout was chosen by OneDNN heuristics
+        // Then, this layout is used in Snippets implementation
+        auto mm_desc = dnnl::matmul::primitive_desc(getEngine(), inputDesc, BDesc, outputDesc);
+        // Note: based on weights layout, it is necessary to set N block sizes inside Snippets.
+        // Example: in case of "AB16b32a" layout, N_block must be 32. K_block can be any
+        std::cout << "[ INFO ] matmul primitive selected the following B layout for BF16: "
+                  << DnnlExtensionUtils::makeDescriptor(mm_desc.weights_desc())->serializeFormat() << std::endl;
+        return DnnlExtensionUtils::makeDescriptor(mm_desc.weights_desc());
+    };
+
+    // auto reorder = ov::intel_cpu::getReorderPrim(context->getParamsCache(), getEngine(), originalMemDesc->getDnnlDesc(), get_wei_desc());
+    requested_desc_b = get_wei_desc();
+
     auto builder = [this, &cache](const SubgraphKey& key) -> std::shared_ptr<SubgraphExecutor> {
         const auto& snippet = subgraph_attrs->snippet;
 
@@ -843,6 +876,29 @@ bool Subgraph::created() const {
 
 void Subgraph::execute(dnnl::stream strm) {
     OPENVINO_ASSERT(execPtr, "Can't execute Subgraph node. Primitive didn't created");
+    if (requested_desc_b) {
+        auto repacked_memory = std::make_shared<Memory>(getEngine(), requested_desc_b);
+        repacked_memory->load(*srcMemPtrs[1]);
+        if (!std::getenv("REFERENCE"))
+            srcMemPtrs[1] = repacked_memory;
+
+        // TODO: remove
+        const auto& input_shape = getSrcMemoryAtPort(0)->getDescPtr()->getShape().getStaticDims();
+        const auto& b_shape = getSrcMemoryAtPort(1)->getDescPtr()->getShape().getStaticDims();
+        const auto K = DnnlExtensionUtils::convertToDnnlDim(*input_shape.rbegin());
+        const auto N = DnnlExtensionUtils::convertToDnnlDim(*b_shape.rbegin());
+        auto* data = repacked_memory->getDataAs<const bfloat16>();
+        std::cout << "Repacked, KN = " << K * N << std::endl;
+        auto upper_bound = repacked_memory->getSize();
+        for (decltype(upper_bound) i = 0; i < upper_bound; ++i) {
+            std::cout << static_cast<float>(data[i]) << "\t";
+            if (static_cast<float>(data[i]) == 5.21875f) {
+                // std::cout << "Stride is found: " << i << std::endl;
+                upper_bound = i + K * N;
+            }
+        }
+        std::cout << "\n";
+    }
     execPtr->exec(srcMemPtrs, dstMemPtrs);
 }
 

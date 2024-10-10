@@ -105,6 +105,8 @@ private:
     mutable std::vector<VectorDims> in_shapes;
 
     std::shared_ptr<SubgraphExecutor> execPtr = nullptr;
+
+    ov::intel_cpu::MemoryDescPtr requested_desc_b;
 };
 
 class Subgraph::SubgraphCodeGenerator {
