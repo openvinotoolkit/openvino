@@ -137,7 +137,6 @@ void reorder_factory::get_out_reorder(program& p, cldnn::program_node* prev, cld
         }
     }
     node->recalc_output_layouts(false);
-    std::cout << "next node is " << node->id() << std::endl;
     node->set_forced_impl_type(impl_types::ocl);
     auto new_node_impl = node->type()->create_impl(*node);
     if (new_node_impl) {
@@ -145,23 +144,6 @@ void reorder_factory::get_out_reorder(program& p, cldnn::program_node* prev, cld
         if (auto impl = node->get_selected_impl()) {
             auto params = node->get_kernel_impl_params();
             p.get_kernels_cache().add_kernels_source(*params, impl->get_kernels_source());
-        }
-    }
-    std::cout << "done" << std::endl;
-    for (auto child : node->get_users()) {
-        child->set_selected_impl(child->type()->create_impl(*child));
-        if (auto impl = child->get_selected_impl()) {
-            auto params = child->get_kernel_impl_params();
-            p.get_kernels_cache().add_kernels_source(*params, impl->get_kernels_source());
-        }
-        child->recalc_output_layouts(false);
-        for (auto grandchild : child->get_users()) {
-            grandchild->set_selected_impl(grandchild->type()->create_impl(*grandchild));
-            if (auto impl = grandchild->get_selected_impl()) {
-                auto params = grandchild->get_kernel_impl_params();
-                p.get_kernels_cache().add_kernels_source(*params, impl->get_kernels_source());
-            }
-            grandchild->recalc_output_layouts(false);
         }
     }
 }
