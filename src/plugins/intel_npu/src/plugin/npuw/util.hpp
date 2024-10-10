@@ -53,6 +53,11 @@ void unpack(const ov::SoPtr<ov::ITensor>& from,
 
 void gather(const ov::SoPtr<ov::ITensor>& src, const ov::SoPtr<ov::ITensor>& idx, const ov::SoPtr<ov::ITensor>& dst);
 
+using View = std::vector<std::size_t>;
+ov::SoPtr<ov::ITensor> view(const ov::SoPtr<ov::ITensor>& src, const View& from, const View& to);
+
+ov::SoPtr<ov::ITensor> view(const ov::SoPtr<ov::ITensor>& src, std::size_t dim, std::size_t offset, std::size_t len);
+
 void to_f32(const ov::Tensor& in, ov::Tensor& out);
 ov::Tensor to_f16(const ov::Tensor& t);
 ov::Tensor transpose(const ov::Tensor& t);

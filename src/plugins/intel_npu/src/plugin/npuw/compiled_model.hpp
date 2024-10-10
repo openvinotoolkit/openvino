@@ -116,10 +116,24 @@ private:
 
         std::optional<std::size_t> replaced_by;
 
+        Subgraph::Gather host_gather;
+        struct Spatial {
+            struct Param {
+                std::size_t idx;
+                std::size_t dim;
+            };
+            std::vector<Param> params;
+            std::size_t range = 0u;
+            std::size_t nway = 0u;
+            std::size_t out_dim = 0u;
+
+            std::size_t nway_iters = 0u;
+            std::size_t tail_size = 0u;
+        };
+        std::optional<Spatial> spatial;
+
         // FIXME: This is a 1:1 copy of the ov::npuw::Subgraph structure
         // w.r.t. function calls
-        Subgraph::Gather host_gather;
-
         std::size_t param_base = 0;
         // NB: closure and lazy_closure are of the same size - to preserve proper indexing.
         //     closure is responsible for host-side tensors (DCOFF, Gather, etc) while

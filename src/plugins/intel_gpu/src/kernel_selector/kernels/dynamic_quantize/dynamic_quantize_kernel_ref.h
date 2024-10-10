@@ -12,6 +12,7 @@ namespace kernel_selector {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct dynamic_quantize_params : public base_params {
     dynamic_quantize_params() : base_params(KernelType::DYNAMIC_QUANTIZE) {}
+    size_t fc_ifm_size = 0;
 };
 
 class DynamicQuantizeKernelRef : public KernelBaseOpenCL {
