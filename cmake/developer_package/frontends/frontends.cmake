@@ -104,13 +104,14 @@ endmacro()
 #                 FILEDESCRIPTION <description> # used on Windows to describe DLL file
 #                 [LINKABLE_FRONTEND] # whether we can use FE API directly or via FEM only
 #                 [SKIP_INSTALL] # private frontend, not for end users
+#                 [DISABLE_CPP_INSTALL] # excludes frontend from all cmake rules
 #                 [PROTOBUF_REQUIRED] # options to denote that protobuf is used
 #                 [PROTOBUF_LITE] # requires only libprotobuf-lite
 #                 [SKIP_NCC_STYLE] # use custom NCC rules
 #                 [LINK_LIBRARIES <lib1 lib2 ...>])
 #
 macro(ov_add_frontend)
-    set(options LINKABLE_FRONTEND PROTOBUF_REQUIRED PROTOBUF_LITE SKIP_NCC_STYLE SKIP_INSTALL)
+    set(options LINKABLE_FRONTEND PROTOBUF_REQUIRED PROTOBUF_LITE SKIP_NCC_STYLE SKIP_INSTALL DISABLE_CPP_INSTALL)
     set(oneValueArgs NAME FILEDESCRIPTION)
     set(multiValueArgs LINK_LIBRARIES PROTO_FILES)
     cmake_parse_arguments(OV_FRONTEND "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
@@ -306,6 +307,11 @@ macro(ov_add_frontend)
     # installation
 
     if(NOT OV_FRONTEND_SKIP_INSTALL)
+        # convert option (OFF / ON) to actual value
+        if(OV_FRONTEND_DISABLE_CPP_INSTALL)
+            set(frontend_exclude_from_all EXCLUDE_FROM_ALL)
+        endif()
+
         if(BUILD_SHARED_LIBS)
             # Note:
             # we use 'framework' as component for deployment scenario, i.e. for libraries itself
@@ -313,10 +319,9 @@ macro(ov_add_frontend)
             set(lib_component "${OV_FRONTEND_NAME}")
             set(dev_component "${OV_CPACK_COMP_CORE_DEV}")
 
-            # TODO: whether we need to do it configuralbe on Windows installer?
             ov_cpack_add_component(${lib_component} HIDDEN)
 
-            if(OV_FRONTEND_LINKABLE_FRONTEND)
+            if(OV_FRONTEND_LINKABLE_FRONTEND AND NOT OV_FRONTEND_DISABLE_CPP_INSTALL)
                 set(export_set EXPORT OpenVINOTargets)
                 set(archive_dest ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${dev_component} ${OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL})
                 set(namelink NAMELINK_COMPONENT ${OV_CPACK_COMP_LINKS} ${OV_CPACK_COMP_LINKS_EXCLUDE_ALL})
@@ -324,12 +329,13 @@ macro(ov_add_frontend)
                 set(namelink NAMELINK_SKIP)
             endif()
             install(TARGETS ${TARGET_NAME} ${export_set}
-                    RUNTIME DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT ${lib_component}
+                    RUNTIME DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT ${lib_component} ${frontend_exclude_from_all}
                     ${archive_dest}
-                    LIBRARY DESTINATION ${OV_CPACK_LIBRARYDIR} COMPONENT ${lib_component}
+                    LIBRARY DESTINATION ${OV_CPACK_LIBRARYDIR} COMPONENT ${lib_component} ${frontend_exclude_from_all}
                     ${namelink})
 
             # export to build tree
+            # Note: we keep this even with passed DISABLE_CPP_INSTALL to ensure that Python API can be built
             if(OV_FRONTEND_LINKABLE_FRONTEND)
                 export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
                        APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
@@ -338,7 +344,7 @@ macro(ov_add_frontend)
             ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
         endif()
 
-        if(OV_FRONTEND_LINKABLE_FRONTEND)
+        if(OV_FRONTEND_LINKABLE_FRONTEND AND NOT OV_FRONTEND_DISABLE_CPP_INSTALL)
             # install library development files
             install(DIRECTORY ${${TARGET_NAME}_INCLUDE_DIR}/openvino
                     DESTINATION ${FRONTEND_INSTALL_INCLUDE}
