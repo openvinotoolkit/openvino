@@ -81,6 +81,7 @@ jobs:
       OPENVINO_CONTRIB_REPO: /__w/openvino/openvino/openvino_contrib
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
       INSTALL_DIR_JS: /__w/openvino/openvino/openvino_install/js
+      INSTALL_DIR_JAX: /__w/openvino/openvino/openvino_jax_install
       INSTALL_TEST_DIR: /__w/openvino/openvino/tests_install
       DEVELOPER_PACKAGE_DIR: /__w/openvino/openvino/developer_package_install
       BUILD_DIR: /__w/openvino/openvino/openvino_build
@@ -160,6 +161,7 @@ jobs:
         run: |
           cmake \
             ${{ inputs.cmake-options }} \
+            -DENABLE_OV_JAX_FRONTEND=OFF \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
 
@@ -192,6 +194,13 @@ jobs:
           pushd ${INSTALL_TEST_DIR}
             tar -I pigz -cvf ${BUILD_DIR}/openvino_tests.tar.gz *
           popd
+          
+      - name: Build JAX frontend
+        if: ${{ inputs.affected-components.JAX_FRONTEND }}
+        run: |
+          cmake -S ${OPENVINO_REPO} -B ${BUILD_DIR} -DENABLE_OV_JAX_FRONTEND=ON
+          cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
+          cmake --install ${BUILD_DIR} --prefix ${INSTALL_DIR_JAX} --component jax
 
       - name: Build Debian packages
         if: ${{ inputs.build-debian-packages }}
@@ -288,6 +297,14 @@ jobs:
         with:
           name: openvino_debian_packages
           path: ${{ env.BUILD_DIR }}/*.deb
+          if-no-files-found: 'error'
+          
+      - name: Upload openvino debian packages
+        if: ${{ inputs.build-debian-packages }}
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        with:
+          name: openvino_jax_package
+          path: ${{ env.INSTALL_DIR_JAX }}
           if-no-files-found: 'error'
 
       - name: Upload openvino tests package
