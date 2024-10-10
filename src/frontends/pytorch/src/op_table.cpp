@@ -675,6 +675,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::var_mean", op::translate_var_mean},
         {"aten::view", op::quantizable_op<op::translate_reshape>},
         {"aten::view_as", op::translate_reshape_as},
+        {"aten::wait", op::skip_node},
         {"aten::where", op::translate_where},
         {"aten::zero", op::translate_zeros_like},
         {"aten::zeros", op::translate_zeros},
@@ -685,6 +686,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"prim::Constant", op::translate_constant},
         {"prim::device", op::translate_constant},
         // prim::DictConstruct - Supported in limited set of patterns
+        {"prim::fork", op::translate_pythonop},
         {"prim::GetAttr", op::translate_get_attr},
         {"prim::If", op::translate_if},
         {"prim::is_cuda", op::return_false_scalar},
@@ -787,6 +789,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.clamp_min.default", op::translate_1to1_match_2_inputs_align_types<opset10::Maximum>},
         {"aten.clamp_min.Tensor", op::translate_1to1_match_2_inputs_align_types<opset10::Maximum>},
         {"aten.clone.default", op::skip_node},  // ignore clone operators that are inserted by PyTorch autograd
+        {"aten.col2im.default", op::translate_col2im},
         {"aten.constant_pad_nd.default", op::translate_constant_pad_nd_fx},
         {"aten.convolution.default", op::translate_convolution},
         {"aten.copy.default", op::translate_copy_fx},
