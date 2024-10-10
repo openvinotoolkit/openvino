@@ -68,6 +68,7 @@ notebooks/llm-rag-llamaindex/llm-rag-llamaindex.ipynb
 notebooks/magika-content-type-recognition/magika-content-type-recognition.ipynb
 notebooks/meter-reader/meter-reader.ipynb
 notebooks/minicpm-v-multimodal-chatbot/minicpm-v-multimodal-chatbot.ipynb
+notebooks/mllama-3.2/mllama-3.2.ipynb
 notebooks/mms-massively-multilingual-speech/mms-massively-multilingual-speech.ipynb
 notebooks/mobileclip-video-search/mobileclip-video-search.ipynb
 notebooks/mobilevlm-language-assistant/mobilevlm-language-assistant.ipynb
@@ -93,6 +94,7 @@ notebooks/phi-3-vision/phi-3-vision.ipynb
 notebooks/photo-maker/photo-maker.ipynb
 notebooks/pix2struct-docvqa/pix2struct-docvqa.ipynb
 notebooks/pixart/pixart.ipynb
+notebooks/pixtral/pixtral.ipynb
 notebooks/pose-estimation-webcam/pose-estimation.ipynb
 notebooks/pytorch-post-training-quantization-nncf/pytorch-post-training-quantization-nncf.ipynb
 notebooks/pytorch-quantization-aware-training/pytorch-quantization-aware-training.ipynb
@@ -107,6 +109,8 @@ notebooks/qwen2-vl/qwen2-vl.ipynb
 notebooks/riffusion-text-to-music/riffusion-text-to-music.ipynb
 notebooks/rmbg-background-removal/rmbg-background-removal.ipynb
 notebooks/s3d-mil-nce-text-to-video-retrieval/s3d-mil-nce-text-to-video-retrieval.ipynb
+notebooks/sam2-image-segmentation/segment-anything-2-image.ipynb
+notebooks/sam2-video-segmentation/segment-anything-2-video.ipynb
 notebooks/sdxl-turbo/sdxl-turbo.ipynb
 notebooks/segment-anything/segment-anything.ipynb
 notebooks/siglip-zero-shot-image-classification/siglip-zero-shot-image-classification.ipynb
@@ -149,9 +153,14 @@ notebooks/typo-detector/typo-detector.ipynb
 notebooks/vehicle-detection-and-recognition/vehicle-detection-and-recognition.ipynb
 notebooks/vision-background-removal/vision-background-removal.ipynb
 notebooks/vision-monodepth/vision-monodepth.ipynb
+notebooks/wav2lip/wav2lip.ipynb
+notebooks/whisper-asr-genai/whisper-asr-genai.ipynb
 notebooks/whisper-subtitles-generation/whisper-subtitles-generation.ipynb
 notebooks/wuerstchen-image-generation/wuerstchen-image-generation.ipynb
 notebooks/yolov10-optimization/yolov10-optimization.ipynb
+notebooks/yolov11-optimization/yolov11-instance-segmentation.ipynb
+notebooks/yolov11-optimization/yolov11-keypoint-detection.ipynb
+notebooks/yolov11-optimization/yolov11-object-detection.ipynb
 notebooks/yolov8-optimization/yolov8-instance-segmentation.ipynb
 notebooks/yolov8-optimization/yolov8-keypoint-detection.ipynb
 notebooks/yolov8-optimization/yolov8-obb.ipynb

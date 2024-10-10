@@ -60,3 +60,4 @@ runs:
         EVENT_PARAM: "-e ${{ inputs.event_name }}"
         STORAGE_PARAM: "--storage_dir ${{ inputs.storage_dir }}"
         PLATFORM_PARAM: "--platform ${{ inputs.platform }}"
+        MERGE_QUEUE_BASE_REF: ""

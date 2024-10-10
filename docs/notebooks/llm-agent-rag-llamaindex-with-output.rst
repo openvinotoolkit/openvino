@@ -105,13 +105,17 @@ Install required dependencies
         "llama-index",
         "llama-index-llms-huggingface==0.3.3",  # pin to keep compatibility due to https://github.com/run-llama/llama_index/commit/f037de8d0471b37f9c4069ebef5dfb329633d2c6
         "llama-index-readers-file",
-        "llama-index-llms-openvino>=0.3.1",
-        "llama-index-embeddings-openvino>=0.2.0",
+        "llama-index-core",
+        "llama-index-llms-huggingface",
+        "llama-index-embeddings-huggingface",
         "transformers>=4.43.1",
+        "llama-index-llms-huggingface>=0.3.0,<0.3.4",
+        "llama-index-embeddings-huggingface>=0.3.0",
     )
     pip_install("-q", "git+https://github.com/huggingface/optimum-intel.git", "git+https://github.com/openvinotoolkit/nncf.git", "datasets", "accelerate")
     pip_install("--pre", "-Uq", "openvino>=2024.2.0", "--extra-index-url", "https://storage.openvinotoolkit.org/simple/wheels/nightly")
     pip_install("--pre", "-Uq", "openvino-tokenizers[transformers]", "--extra-index-url", "https://storage.openvinotoolkit.org/simple/wheels/nightly")
+    pip_install("-q", "--no-deps", "llama-index-llms-openvino", "llama-index-embeddings-openvino")
 
 .. code:: ipython3
 

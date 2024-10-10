@@ -128,11 +128,12 @@ using tokenizer.
     model_ids = {
         "Distil-Whisper": [
             "distil-whisper/distil-large-v2",
+            "distil-whisper/distil-large-v3",
             "distil-whisper/distil-medium.en",
             "distil-whisper/distil-small.en",
         ],
         "Whisper": [
-            "openai/whisper-large-v3",
+            "openai/whisper-large-v3-turbo" "openai/whisper-large-v3",
             "openai/whisper-large-v2",
             "openai/whisper-large",
             "openai/whisper-medium",

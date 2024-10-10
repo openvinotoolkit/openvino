@@ -73,7 +73,6 @@ class TorchScriptPythonDecoder(Decoder):
                     "https://pytorch.org/tutorials/beginner/Intro_to_TorchScript_tutorial.html."
                 ) from e
             self.graph_element = pt_module.inlined_graph
-            log.debug("Inlined graph:\n%s", pt_module.inlined_graph)
             self.alias_db = self.graph_element.alias_db()
         else:
             self.graph_element = graph_element
@@ -96,6 +95,7 @@ class TorchScriptPythonDecoder(Decoder):
             self._transform_tensor_list_constants_to_listconstruct(
                 self.graph_element)
             self._transform_optional_constants(self.graph_element)
+            log.debug("Inlined graph:\n%s", self.graph_element)
 
     @staticmethod
     def _get_preserved_attributes(model) -> list:
@@ -293,11 +293,13 @@ class TorchScriptPythonDecoder(Decoder):
         return "ts"
 
     def get_subgraphs(self) -> list:
-        if self.graph_element.kind() == "prim::PythonOp":
+        if self.graph_element.kind() in ["prim::PythonOp", "prim::fork"]:
             if "Subgraph" in self.graph_element.attributeNames():
                 assert isinstance(
                     self.graph_element, torch.Node), "Graph element must be of type torch.Node."
-                return [getattr(self.graph_element, self.graph_element.kindOf("Subgraph"))("Subgraph")]
+                subgraph = getattr(self.graph_element, self.graph_element.kindOf("Subgraph"))("Subgraph")
+                torch._C._jit_pass_inline(subgraph)
+                return [subgraph]
             else:
                 # Attribute "Subgraph" is only available if Graph was created using tracing.
                 # TODO Find way to extract subgraph for scripted Graph.
@@ -305,10 +307,17 @@ class TorchScriptPythonDecoder(Decoder):
         return list(self.graph_element.blocks())
 
     def get_subgraph_decoder(self, index: int):
-        decoder = TorchScriptPythonDecoder(
-            self.pt_module, self.get_subgraphs(
-            )[index], alias_db=self.alias_db, shared_memory=self._shared_memory, module_extensions=self.module_extensions
-        )
+        module = self.pt_module
+        if self.graph_element.kind() == "prim::fork":
+            in0 = self.raw_inputs[0]
+            if in0.node().kind() == "prim::GetAttr":
+                module, _ = get_value_from_getattr(in0.node(), self.pt_module)
+        decoder = TorchScriptPythonDecoder(module,
+                                           self.get_subgraphs()[index],
+                                           alias_db=self.alias_db,
+                                           shared_memory=self._shared_memory,
+                                           module_extensions=self.module_extensions
+                                           )
         self.m_decoders.append(decoder)
         return decoder
 
@@ -456,8 +465,8 @@ class TorchScriptPythonDecoder(Decoder):
 
     @staticmethod
     def _as_constant_list(pt_value: torch.Value):
-        # For now it is treat a list as a 1D tensor; it is required by converters to avoid need to massively
-        # rewrite them in that part where constant attributes are queried
+        # For now we treat a list as a 1D tensor; it is required by converters to avoid
+        # need to massively rewrite them in that part where constant attributes are queried
         pt_element_type = str(pt_value.type().getElementType())
         ivalue = pt_value.toIValue()
         is_known_type = pt_element_type in pt_to_ov_type_map
@@ -467,6 +476,7 @@ class TorchScriptPythonDecoder(Decoder):
             ovshape = PartialShape([len(ivalue)])
             ov_const = op.Constant(ovtype, ovshape.get_shape(), ivalue)
             return ov_const.outputs()
+        return []
 
     def _get_device_string(self) -> str:
         assert self.graph_element.kind(

@@ -109,25 +109,6 @@ use ``pip install openvino-tokenizers[transformers]``.
     %pip install -q -U "openvino>=2024.3.0" openvino-tokenizers[transformers] openvino-genai
     %pip install "numpy<2.0.0" "torch>=2.1" --extra-index-url https://download.pytorch.org/whl/cpu
 
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Looking in indexes: https://pypi.org/simple, https://download.pytorch.org/whl/cpu
-    Requirement already satisfied: numpy<2.0.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (1.23.5)
-    Requirement already satisfied: torch>=2.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (2.2.2+cpu)
-    Requirement already satisfied: filelock in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch>=2.1) (3.16.1)
-    Requirement already satisfied: typing-extensions>=4.8.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch>=2.1) (4.12.2)
-    Requirement already satisfied: sympy in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch>=2.1) (1.13.3)
-    Requirement already satisfied: networkx in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch>=2.1) (3.1)
-    Requirement already satisfied: jinja2 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch>=2.1) (3.1.4)
-    Requirement already satisfied: fsspec in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch>=2.1) (2024.6.1)
-    Requirement already satisfied: MarkupSafe>=2.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from jinja2->torch>=2.1) (2.1.5)
-    Requirement already satisfied: mpmath<1.4,>=1.1.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from sympy->torch>=2.1) (1.3.0)
-    Note: you may need to restart the kernel to use updated packages.
-
-
 .. code:: ipython3
 
     from pathlib import Path
@@ -160,7 +141,7 @@ constructor.
     Converting Huggingface Tokenizer to OpenVINO...
     Saved OpenVINO Tokenizer: tokenizer/openvino_tokenizer.xml, tokenizer/openvino_tokenizer.bin
     Saved OpenVINO Detokenizer: tokenizer/openvino_detokenizer.xml, tokenizer/openvino_detokenizer.bin
-
+    
 
    ⚠️ If you have any problems with the command above on MacOS, try to
    `install tbb <https://formulae.brew.sh/formula/tbb#default>`__.
@@ -195,7 +176,7 @@ The other method is to pass HuggingFace ``hf_tokenizer`` object to
 
     (<Model: 'tokenizer'
      inputs[
-     <ConstOutput: names[Parameter_1] shape[?] type: string>
+     <ConstOutput: names[string_input] shape[?] type: string>
      ]
      outputs[
      <ConstOutput: names[input_ids] shape[?,?] type: i64>,
@@ -203,7 +184,7 @@ The other method is to pass HuggingFace ``hf_tokenizer`` object to
      ]>,
      <Model: 'detokenizer'
      inputs[
-     <ConstOutput: names[Parameter_121] shape[?,?] type: i64>
+     <ConstOutput: names[Parameter_22] shape[?,?] type: i64>
      ]
      outputs[
      <ConstOutput: names[string_output] shape[?] type: string>
@@ -257,7 +238,7 @@ tasks, but not suitable for text generation.
     Token ids: [[   1 4321]
      [   1 6031]]
     Detokenized text: ['Test' 'strings']
-
+    
 
 We can compare the result of converted (de)tokenizer with the original
 one:
@@ -274,20 +255,8 @@ one:
 .. parsed-literal::
 
     Token ids: [[1, 4321], [1, 6031]]
-
-
-.. parsed-literal::
-
-    2024-09-24 01:58:24.452870: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-09-24 01:58:24.486218: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-09-24 01:58:25.117973: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-
-
-.. parsed-literal::
-
     Detokenized text: ['<s> Test', '<s> strings']
-
+    
 
 Text Generation Pipeline with OpenVINO Tokenizers
 -------------------------------------------------
@@ -327,19 +296,6 @@ command is commented.
             filename="openvino_model.bin",
             local_dir=model_dir,
         )
-
-
-
-.. parsed-literal::
-
-    openvino_model.xml:   0%|          | 0.00/2.93M [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    openvino_model.bin:   0%|          | 0.00/1.10G [00:00<?, ?B/s]
-
 
 .. code:: ipython3
 
@@ -425,7 +381,7 @@ distinct and separate state.
     Quick brown fox jumped
     Generated:
     over the fence.
-
+    
 
 Text Generation Pipeline with OpenVINO GenAI and OpenVINO Tokenizers
 --------------------------------------------------------------------
@@ -443,7 +399,7 @@ Firstly we need to create a pipeline with ``LLMPipeline``.
 ``LLMPipeline`` is the main object used for text generation using LLM in
 OpenVINO GenAI API. You can construct it straight away from the folder
 where both converted model and tokenizer are located,
-e.g. \ ``ov_genai.LLMPipeline(model_and_tokenizer_path)``.
+e.g. ``ov_genai.LLMPipeline(model_and_tokenizer_path)``.
 
 As the model and tokenizer are located in different directories, we
 create a ``ov_genai.Tokenizer`` object by providing the path to saved
@@ -484,7 +440,7 @@ We will use the same model and tokenizer downloaded in previous steps.
     Quick brown fox jumped
     Generated:
     over the lazy dog.
-
+    
 
 Merge Tokenizer into a Model
 ----------------------------
@@ -529,38 +485,6 @@ model has only one input for text input prompt.
         %pip install -qU git+https://github.com/huggingface/optimum-intel.git "onnx<1.16.2"
         !optimum-cli export openvino --model $model_id --task text-classification $model_dir
 
-
-.. parsed-literal::
-
-    huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
-    To disable this warning, you can either:
-    	- Avoid using `tokenizers` before the fork if possible
-    	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
-    huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
-    To disable this warning, you can either:
-    	- Avoid using `tokenizers` before the fork if possible
-    	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
-
-
-.. parsed-literal::
-
-    2024-09-24 01:58:49.441847: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    Framework not specified. Using pt to export the model.
-    Using framework PyTorch: 2.2.2+cpu
-    Overriding 1 configuration item(s)
-    	- use_cache -> False
-    Detokenizer is not supported, convert tokenizer only.
-
-
 .. code:: ipython3
 
     from openvino_tokenizers import connect_models
@@ -596,10 +520,10 @@ model has only one input for text input prompt.
     <Output: names[token_type_ids] shape[?,?] type: i64>
     
     Combined OpenVINO model inputs:
-    <Output: names[Parameter_4492] shape[?] type: string>
+    <Output: names[Parameter_4430] shape[?] type: string>
     
-    Logits: [[ 1.2007061 -1.4698029]]
-
+    Logits: [[ 1.2007061 -1.469803 ]]
+    
 
 Conclusion
 ----------

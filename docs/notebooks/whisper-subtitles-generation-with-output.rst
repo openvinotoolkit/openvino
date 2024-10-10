@@ -111,6 +111,7 @@ Whisper family.
     import ipywidgets as widgets
     
     MODELS = [
+        "openai/whisper-large-v3-turbo",
         "openai/whisper-large-v3",
         "openai/whisper-large-v2",
         "openai/whisper-large",

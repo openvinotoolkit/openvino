@@ -27,6 +27,8 @@ public:
 
     ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override;
     void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override;
+    void set_tensors(const ov::Output<const ov::Node>& port,
+                     const std::vector<ov::SoPtr<ov::ITensor>>& tensors) override;
 
     void infer() override;
     void infer_async() override;
@@ -54,7 +56,7 @@ private:
      * @returns The batch size deduced by the algorithm or the default value of 1 if batching cannot be performed inside
      * the plugin.
      */
-    std::optional<size_t> getBatchSize(const NetworkMetadata& metadata);
+    std::optional<size_t> get_batch_size(const NetworkMetadata& metadata);
 
     /**
      * @brief Check the received tensor and set the Level Zero tensor accordingly
@@ -75,6 +77,12 @@ private:
     void check_network_precision(const ov::element::Type_t precision) const override;
     void create_pipeline();
 
+    std::shared_ptr<ov::ITensor>& get_level_zero_input(size_t index, size_t tensorNo = 0) const;
+    std::vector<std::shared_ptr<ov::ITensor>>& get_level_zero_inputs(size_t index) const;
+
+    std::optional<TensorData>& get_input_tensor_data(size_t index, size_t tensorNo = 0) const;
+    std::vector<std::optional<TensorData>>& get_input_tensors_data(size_t index) const;
+
     const std::shared_ptr<ZeroInitStructsHolder> _initStructs;
     const std::shared_ptr<const IExecutor> _executorPtr;
     const ZeroExecutor* _executor;
@@ -83,10 +91,10 @@ private:
 
     // A copy of each tensor is needed to maintain the original L0 memory allocation in case the user provides another
     // memory area for the tensor.
-    mutable std::vector<std::shared_ptr<ov::ITensor>> _levelZeroInputTensors;
+    mutable std::vector<std::vector<std::shared_ptr<ov::ITensor>>> _levelZeroInputTensors;
     mutable std::vector<std::shared_ptr<ov::ITensor>> _levelZeroOutputTensors;
 
-    mutable std::vector<std::optional<TensorData>> _inputTensorsData;
+    mutable std::vector<std::vector<std::optional<TensorData>>> _inputTensorsData;
     mutable std::vector<std::optional<TensorData>> _outputTensorsData;
 
     ze_device_properties_t _properties = {};

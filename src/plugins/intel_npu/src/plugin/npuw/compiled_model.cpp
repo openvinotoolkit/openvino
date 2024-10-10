@@ -277,6 +277,22 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                 compiledFunctions.insert({subgraph._funcall, id});
                 m_compiled_submodels[id].model = fcn_template._model;
                 m_compiled_submodels[id].replaced_by = id;  // FIXME: UGLY
+
+                // Fill in the spatial information, if it is present
+                if (fcn_template._spatial) {
+                    using S = CompiledModelDesc::Spatial;
+                    S s;
+                    s.range = fcn_template._spatial->_range;
+                    s.nway = fcn_template._spatial->_slice;
+                    s.out_dim = fcn_template._spatial->_out_dim;
+                    s.nway_iters = s.range / s.nway;
+                    s.tail_size = s.range % s.nway;
+                    for (auto&& input : fcn_template._spatial->_inputs) {
+                        std::size_t p_idx = fcn_template._model->get_parameter_index(input.param);
+                        s.params.push_back(S::Param{p_idx, input.dim});
+                    }
+                    m_compiled_submodels[id].spatial = std::move(s);
+                }
                 LOG_INFO("Subgraph[" << id << "] is a function body for " << subgraph._funcall);
             } else {
                 // ...and refer to it in other calls
@@ -582,12 +598,19 @@ ov::SoPtr<ov::ICompiledModel> ov::npuw::CompiledModel::compile_submodel(const st
                                                                         const std::string& device) {
     auto plugin = get_npuw_plugin();
     auto core = plugin->get_core();
+
     // set exclusive_async_requests in case when model is split
     // NOTE(dm): Not sure if it is required for the NPUW plugin, but likely it is
     auto& device_config = m_meta_devices[device];
+
+    const auto& cache_dir = m_cfg.get<::intel_npu::NPUW_CACHE_DIR>();
+    if (!cache_dir.empty()) {
+        LOG_INFO("NPUW will try to utilize CACHE_DIR for " << submodel->get_friendly_name() << " submodel.");
+        device_config.insert(ov::cache_dir(cache_dir));
+    }
+
     if (m_compiled_submodels.size() > 1) {
-        auto supported_internal_properties =
-            plugin->get_core()->get_property(device, ov::internal::supported_properties);
+        auto supported_internal_properties = core->get_property(device, ov::internal::supported_properties);
         if (std::find(supported_internal_properties.begin(),
                       supported_internal_properties.end(),
                       ov::internal::exclusive_async_requests) != supported_internal_properties.end()) {
@@ -824,6 +847,8 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::partitioning::cwai, NPUW_CWAI),
                           BIND(npuw::partitioning::dyn_quant, NPUW_DQ),
                           BIND(npuw::partitioning::par_matmul_merge_dims, NPUW_PMM),
+                          BIND(npuw::partitioning::spatial, NPUW_SPATIAL),
+                          BIND(npuw::partitioning::spatial, NPUW_SPATIAL_NWAY),
                           BIND(npuw::partitioning::host_gather, NPUW_HOST_GATHER),
                           BIND(npuw::partitioning::funcall_for_all, NPUW_FUNCALL_FOR_ALL),
                           BIND(npuw::partitioning::dcoff_type, NPUW_DCOFF_TYPE),
@@ -831,6 +856,7 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::parallel_compilation, NPUW_PARALLEL_COMPILE),
                           BIND(npuw::funcall_async, NPUW_FUNCALL_ASYNC),
                           BIND(npuw::weights_bank, NPUW_WEIGHTS_BANK),
+                          BIND(npuw::cache_dir, NPUW_CACHE_DIR),
                           BIND(npuw::accuracy::check, NPUW_ACC_CHECK),
                           BIND(npuw::accuracy::threshold, NPUW_ACC_THRESH),
                           BIND(npuw::accuracy::reference_device, NPUW_ACC_DEVICE),

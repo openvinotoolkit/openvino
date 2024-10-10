@@ -30,6 +30,8 @@ RUN apt-get update && \
         ca-certificates \
         gpg-agent \
         tzdata \
+        # parallel gzip
+        pigz \
         # Python \
         python3-dev \
         python3-pip \

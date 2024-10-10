@@ -114,7 +114,7 @@ Download TFLite model
 
 .. parsed-literal::
 
-    Warning: Looks like you're using an outdated `kagglehub` version, please consider updating (latest version: 0.3.0)
+    Warning: Looks like you're using an outdated `kagglehub` version, please consider updating (latest version: 0.3.1)
 
 
 Convert a Model to OpenVINO IR Format
@@ -263,18 +263,18 @@ GPU.
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.5.0-16765-f0c5d2f4346
+    [ INFO ] Build ................................. 2024.5.0-16913-890f2e12c98
     [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2024.5.0-16765-f0c5d2f4346
+    [ INFO ] Build ................................. 2024.5.0-16913-890f2e12c98
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 9.57 ms
+    [ INFO ] Read model took 9.72 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     images (node: images) : f32 / [...] / [1,224,224,3]
@@ -288,7 +288,7 @@ GPU.
     [ INFO ] Model outputs:
     [ INFO ]     Softmax (node: 61) : f32 / [...] / [1,1000]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 152.18 ms
+    [ INFO ] Compile model took 187.95 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: TensorFlow_Lite_Frontend_IR
@@ -325,15 +325,15 @@ GPU.
     [ INFO ] Fill input 'images' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 7.17 ms
+    [ INFO ] First inference took 7.26 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            17532 iterations
-    [ INFO ] Duration:         15005.44 ms
+    [ INFO ] Count:            17520 iterations
+    [ INFO ] Duration:         15007.35 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        4.99 ms
+    [ INFO ]    Median:        5.01 ms
     [ INFO ]    Average:       5.00 ms
-    [ INFO ]    Min:           3.56 ms
-    [ INFO ]    Max:           14.37 ms
-    [ INFO ] Throughput:   1168.38 FPS
+    [ INFO ]    Min:           3.72 ms
+    [ INFO ]    Max:           12.51 ms
+    [ INFO ] Throughput:   1167.43 FPS
 

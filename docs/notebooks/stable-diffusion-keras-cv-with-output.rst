@@ -1,12 +1,6 @@
 Stable Diffusion with KerasCV and OpenVINO
 ==========================================
 
-.. warning::
-
-   Important note: This notebook requires python >= 3.9. Please make
-   sure that your environment fulfill to this requirement before running
-   it
-
 Stable Diffusion is a powerful, open-source text-to-image generation
 model. There are multiple implementations of this pipeline in different
 frameworks. Previously, we already considered how to convert and

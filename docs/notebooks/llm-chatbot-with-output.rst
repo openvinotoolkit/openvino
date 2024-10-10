@@ -83,9 +83,9 @@ Install required dependencies
 .. code:: ipython3
 
     import os
-
+    
     os.environ["GIT_CLONE_PROTECTION_ACTIVE"] = "false"
-
+    
     %pip install -Uq pip
     %pip uninstall -q -y optimum optimum-intel
     %pip install --pre -Uq "openvino>=2024.2.0" openvino-tokenizers[transformers] --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
@@ -104,12 +104,12 @@ Install required dependencies
     from pathlib import Path
     import requests
     import shutil
-
+    
     # fetch model configuration
-
+    
     config_shared_path = Path("../../utils/llm_config.py")
     config_dst_path = Path("llm_config.py")
-
+    
     if not config_dst_path.exists():
         if config_shared_path.exists():
             try:
@@ -184,7 +184,7 @@ Click here to see available models options
 
 .. code:: python
 
-       ## login to huggingfacehub to get access to pretrained model
+       ## login to huggingfacehub to get access to pretrained model 
 
        from huggingface_hub import notebook_login, whoami
 
@@ -217,7 +217,7 @@ Click here to see available models options
 
 .. code:: python
 
-       # login to huggingfacehub to get access to pretrained model
+       # login to huggingfacehub to get access to pretrained model 
 
 
        from huggingface_hub import notebook_login, whoami
@@ -278,7 +278,7 @@ Click here to see available models options
 
 .. code:: python
 
-       ## login to huggingfacehub to get access to pretrained model
+       ## login to huggingfacehub to get access to pretrained model 
 
        from huggingface_hub import notebook_login, whoami
 
@@ -311,7 +311,7 @@ Click here to see available models options
 
 .. code:: python
 
-       # login to huggingfacehub to get access to pretrained model
+       # login to huggingfacehub to get access to pretrained model 
 
 
        from huggingface_hub import notebook_login, whoami
@@ -345,7 +345,7 @@ Click here to see available models options
 
 .. code:: python
 
-       ## login to huggingfacehub to get access to pretrained model
+       ## login to huggingfacehub to get access to pretrained model 
 
        from huggingface_hub import notebook_login, whoami
 
@@ -379,7 +379,7 @@ Click here to see available models options
 
 .. code:: python
 
-       ## login to huggingfacehub to get access to pretrained model
+       ## login to huggingfacehub to get access to pretrained model 
 
        from huggingface_hub import notebook_login, whoami
 
@@ -410,7 +410,7 @@ Click here to see available models options
 
 .. code:: python
 
-       ## login to huggingfacehub to get access to pretrained model
+       ## login to huggingfacehub to get access to pretrained model 
 
        from huggingface_hub import notebook_login, whoami
 
@@ -420,27 +420,18 @@ Click here to see available models options
        except OSError:
            notebook_login()
 
--  **qwen2-1.5b-instruct/qwen2-7b-instruct** - Qwen2 is the new series
-   of Qwen large language models.Compared with the state-of-the-art open
-   source language models, including the previous released Qwen1.5,
-   Qwen2 has generally surpassed most open source models and
-   demonstrated competitiveness against proprietary models across a
-   series of benchmarks targeting for language understanding, language
-   generation, multilingual capability, coding, mathematics, reasoning,
-   etc. For more details, please refer to
-   `model_card <https://huggingface.co/Qwen/Qwen2-7B-Instruct>`__,
-   `blog <https://qwenlm.github.io/blog/qwen2/>`__,
-   `GitHub <https://github.com/QwenLM/Qwen2>`__, and
+-  **qwen2.5-0.5b-instruct/qwen2.5-1.5b-instruct/qwen2.5-3b-instruct/qwen2.5-7b-instruct/qwen2.5-14b-instruct**
+   - Qwen2.5 is the latest series of Qwen large language models.
+   Comparing with Qwen2, Qwen2.5 series brings significant improvements
+   in coding, mathematics and general knowledge skills. Additionally, it
+   brings long-context and multiple languages support including Chinese,
+   English, French, Spanish, Portuguese, German, Italian, Russian,
+   Japanese, Korean, Vietnamese, Thai, Arabic, and more. For more
+   details, please refer to
+   `model_card <https://huggingface.co/Qwen/Qwen2.5-7B-Instruct>`__,
+   `blog <https://qwenlm.github.io/blog/qwen2.5/>`__,
+   `GitHub <https://github.com/QwenLM/Qwen2.5>`__, and
    `Documentation <https://qwen.readthedocs.io/en/latest/>`__.
--  **qwen1.5-0.5b-chat/qwen1.5-1.8b-chat/qwen1.5-7b-chat** - Qwen1.5 is
-   the beta version of Qwen2, a transformer-based decoder-only language
-   model pretrained on a large amount of data. Qwen1.5 is a language
-   model series including decoder language models of different model
-   sizes. It is based on the Transformer architecture with SwiGLU
-   activation, attention QKV bias, group query attention, mixture of
-   sliding window attention and full attention. You can find more
-   details about model in the `model
-   repository <https://huggingface.co/Qwen>`__.
 -  **qwen-7b-chat** - Qwen-7B is the 7B-parameter version of the large
    language model series, Qwen (abbr. Tongyi Qianwen), proposed by
    Alibaba Cloud. Qwen-7B is a Transformer-based large language model,
@@ -554,14 +545,14 @@ Click here to see available models options
 .. code:: ipython3
 
     model_languages = list(SUPPORTED_LLM_MODELS)
-
+    
     model_language = widgets.Dropdown(
         options=model_languages,
         value=model_languages[0],
         description="Model Language:",
         disabled=False,
     )
-
+    
     model_language
 
 
@@ -576,14 +567,14 @@ Click here to see available models options
 .. code:: ipython3
 
     model_ids = list(SUPPORTED_LLM_MODELS[model_language.value])
-
+    
     model_id = widgets.Dropdown(
         options=model_ids,
         value=model_ids[0],
         description="Model:",
         disabled=False,
     )
-
+    
     model_id
 
 
@@ -612,7 +603,7 @@ Convert model using Optimum-CLI tool
 
 
 `Optimum Intel <https://huggingface.co/docs/optimum/intel/index>`__ is
-the interface between the
+the interface between the 
 `Transformers <https://huggingface.co/docs/transformers/index>`__ and
 `Diffusers <https://huggingface.co/docs/diffusers/index>`__ libraries
 and OpenVINO to accelerate end-to-end pipelines on Intel architectures.
@@ -664,13 +655,12 @@ to make it
 `symmetric <https://github.com/openvinotoolkit/nncf/blob/develop/docs/compression_algorithms/Quantization.md#symmetric-quantization>`__
 you can add ``--sym``.
 
-For INT4 quantization you can also specify the following arguments :
-
-- The ``--group-size`` parameter will define the group size to use for
-  quantization, -1 it will results in per-column quantization.
-- The ``--ratio`` parameter controls the ratio between 4-bit and 8-bit
-  quantization. If set to 0.9, it means that 90% of the layers will be
-  quantized to int4 while 10% will be quantized to int8.
+For INT4 quantization you can also specify the following arguments : -
+The ``--group-size`` parameter will define the group size to use for
+quantization, -1 it will results in per-column quantization. - The
+``--ratio`` parameter controls the ratio between 4-bit and 8-bit
+quantization. If set to 0.9, it means that 90% of the layers will be
+quantized to int4 while 10% will be quantized to int8.
 
 Smaller group_size and ratio values usually improve accuracy at the
 sacrifice of the model size and inference latency.
@@ -681,7 +671,7 @@ sacrifice of the model size and inference latency.
 .. code:: ipython3
 
     from IPython.display import Markdown, display
-
+    
     prepare_int4_model = widgets.Checkbox(
         value=True,
         description="Prepare INT4 model",
@@ -697,7 +687,7 @@ sacrifice of the model size and inference latency.
         description="Prepare FP16 model",
         disabled=False,
     )
-
+    
     display(prepare_int4_model)
     display(prepare_int8_model)
     display(prepare_fp16_model)
@@ -766,14 +756,14 @@ We can now save floating point and compressed model variants
 .. code:: ipython3
 
     from pathlib import Path
-
+    
     pt_model_id = model_configuration["model_id"]
     pt_model_name = model_id.value.split("-")[0]
     fp16_model_dir = Path(model_id.value) / "FP16"
     int8_model_dir = Path(model_id.value) / "INT8_compressed_weights"
     int4_model_dir = Path(model_id.value) / "INT4_compressed_weights"
-
-
+    
+    
     def convert_to_fp16():
         if (fp16_model_dir / "openvino_model.xml").exists():
             return
@@ -785,8 +775,8 @@ We can now save floating point and compressed model variants
         display(Markdown("**Export command:**"))
         display(Markdown(f"`{export_command}`"))
         ! $export_command
-
-
+    
+    
     def convert_to_int8():
         if (int8_model_dir / "openvino_model.xml").exists():
             return
@@ -799,8 +789,8 @@ We can now save floating point and compressed model variants
         display(Markdown("**Export command:**"))
         display(Markdown(f"`{export_command}`"))
         ! $export_command
-
-
+    
+    
     def convert_to_int4():
         compression_configs = {
             "zephyr-7b-beta": {
@@ -864,13 +854,18 @@ We can now save floating point and compressed model variants
                 "group_size": 128,
                 "ratio": 0.5,
             },
+            "qwen2.5-7b-instruct": {"sym": True, "group_size": 128, "ratio": 1.0},
+            "qwen2.5-3b-instruct": {"sym": True, "group_size": 128, "ratio": 1.0},
+            "qwen2.5-14b-instruct": {"sym": True, "group_size": 128, "ratio": 1.0},
+            "qwen2.5-1.5b-instruct": {"sym": True, "group_size": 128, "ratio": 1.0},
+            "qwen2.5-0.5b-instruct": {"sym": True, "group_size": 128, "ratio": 1.0},
             "default": {
                 "sym": False,
                 "group_size": 128,
                 "ratio": 0.8,
             },
         }
-
+    
         model_compression_params = compression_configs.get(model_id.value, compression_configs["default"])
         if (int4_model_dir / "openvino_model.xml").exists():
             return
@@ -888,8 +883,8 @@ We can now save floating point and compressed model variants
         display(Markdown("**Export command:**"))
         display(Markdown(f"`{export_command}`"))
         ! $export_command
-
-
+    
+    
     if prepare_fp16_model.value:
         convert_to_fp16()
     if prepare_int8_model.value:
@@ -904,7 +899,7 @@ Let’s compare model size for different compression types
     fp16_weights = fp16_model_dir / "openvino_model.bin"
     int8_weights = int8_model_dir / "openvino_model.bin"
     int4_weights = int4_model_dir / "openvino_model.bin"
-
+    
     if fp16_weights.exists():
         print(f"Size of FP16 model is {fp16_weights.stat().st_size / 1024 / 1024:.2f} MB")
     for precision, compressed_weights in zip([8, 4], [int8_weights, int4_weights]):
@@ -930,16 +925,16 @@ Select device for inference and model variant
 .. code:: ipython3
 
     import requests
-
+    
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
     open("notebook_utils.py", "w").write(r.text)
-
+    
     from notebook_utils import device_widget
-
+    
     device = device_widget("CPU", exclude=["NPU"])
-
+    
     device
 
 
@@ -963,14 +958,14 @@ variant of model weights and inference device
         available_models.append("INT8")
     if fp16_model_dir.exists():
         available_models.append("FP16")
-
+    
     model_to_run = widgets.Dropdown(
         options=available_models,
         value=available_models[0],
         description="Model to run:",
         disabled=False,
     )
-
+    
     model_to_run
 
 
@@ -1022,12 +1017,13 @@ guide <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html>`__
 
     from transformers import AutoConfig, AutoTokenizer
     from optimum.intel.openvino import OVModelForCausalLM
-
+    
+    import openvino as ov
     import openvino.properties as props
     import openvino.properties.hint as hints
     import openvino.properties.streams as streams
-
-
+    
+    
     if model_to_run.value == "INT4":
         model_dir = int4_model_dir
     elif model_to_run.value == "INT8":
@@ -1035,20 +1031,22 @@ guide <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html>`__
     else:
         model_dir = fp16_model_dir
     print(f"Loading model from {model_dir}")
-
+    
     ov_config = {hints.performance_mode(): hints.PerformanceMode.LATENCY, streams.num(): "1", props.cache_dir(): ""}
-
+    
     if "GPU" in device.value and "qwen2-7b-instruct" in model_id.value:
         ov_config["GPU_ENABLE_SDPA_OPTIMIZATION"] = "NO"
-
+    
     # On a GPU device a model is executed in FP16 precision. For red-pajama-3b-chat model there known accuracy
     # issues caused by this, which we avoid by setting precision hint to "f32".
+    core = ov.Core()
+    
     if model_id.value == "red-pajama-3b-chat" and "GPU" in core.available_devices and device.value in ["GPU", "AUTO"]:
         ov_config["INFERENCE_PRECISION_HINT"] = "f32"
-
+    
     model_name = model_configuration["model_id"]
     tok = AutoTokenizer.from_pretrained(model_dir, trust_remote_code=True)
-
+    
     ov_model = OVModelForCausalLM.from_pretrained(
         model_dir,
         device=device.value,
@@ -1122,14 +1120,14 @@ answers.https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html
 
 ::
 
-   playing: 0.5
-   sleeping: 0.25
-   eating: 0.15
-   driving: 0.05
-   flying: 0.05
+   playing: 0.5  
+   sleeping: 0.25  
+   eating: 0.15  
+   driving: 0.05  
+   flying: 0.05  
 
-   - **Low temperature** (e.g., 0.2): The AI model becomes more focused and deterministic, choosing tokens with the highest probability, such as "playing."
-   - **Medium temperature** (e.g., 1.0): The AI model maintains a balance between creativity and focus, selecting tokens based on their probabilities without significant bias, such as "playing," "sleeping," or "eating."
+   - **Low temperature** (e.g., 0.2): The AI model becomes more focused and deterministic, choosing tokens with the highest probability, such as "playing."  
+   - **Medium temperature** (e.g., 1.0): The AI model maintains a balance between creativity and focus, selecting tokens based on their probabilities without significant bias, such as "playing," "sleeping," or "eating."  
    - **High temperature** (e.g., 2.0): The AI model becomes more adventurous, increasing the chances of selecting less likely tokens, such as "driving" and "flying."
 
 -  ``Top-p``, also known as nucleus sampling, is a parameter used to
@@ -1167,7 +1165,7 @@ answers.https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html
 
     import torch
     from threading import Event, Thread
-
+    
     from typing import List, Tuple
     from transformers import (
         AutoTokenizer,
@@ -1175,8 +1173,8 @@ answers.https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html
         StoppingCriteriaList,
         TextIteratorStreamer,
     )
-
-
+    
+    
     model_name = model_configuration["model_id"]
     start_message = model_configuration["start_message"]
     history_template = model_configuration.get("history_template")
@@ -1184,46 +1182,46 @@ answers.https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html
     current_message_template = model_configuration.get("current_message_template")
     stop_tokens = model_configuration.get("stop_tokens")
     tokenizer_kwargs = model_configuration.get("tokenizer_kwargs", {})
-
+    
     max_new_tokens = 256
-
-
+    
+    
     class StopOnTokens(StoppingCriteria):
         def __init__(self, token_ids):
             self.token_ids = token_ids
-
+    
         def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor, **kwargs) -> bool:
             for stop_id in self.token_ids:
                 if input_ids[0][-1] == stop_id:
                     return True
             return False
-
-
+    
+    
     if stop_tokens is not None:
         if isinstance(stop_tokens[0], str):
             stop_tokens = tok.convert_tokens_to_ids(stop_tokens)
-
+    
         stop_tokens = [StopOnTokens(stop_tokens)]
-
-
+    
+    
     def default_partial_text_processor(partial_text: str, new_text: str):
         """
         helper for updating partially generated answer, used by default
-
+    
         Params:
           partial_text: text buffer for storing previosly generated text
           new_text: text update for the current step
         Returns:
           updated text string
-
+    
         """
         partial_text += new_text
         return partial_text
-
-
+    
+    
     text_processor = model_configuration.get("partial_text_processor", default_partial_text_processor)
-
-
+    
+    
     def convert_history_to_token(history: List[Tuple[str, str]]):
         """
         function for conversion history stored as list pairs of user and assistant messages to tokens according to model expected conversation template
@@ -1257,7 +1255,7 @@ answers.https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html
                     messages.append({"role": "user", "content": user_msg})
                 if model_msg:
                     messages.append({"role": "assistant", "content": model_msg})
-
+    
             input_token = tok.apply_chat_template(messages, add_generation_prompt=True, tokenize=True, return_tensors="pt")
         else:
             text = start_message + "".join(
@@ -1278,12 +1276,12 @@ answers.https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html
             )
             input_token = tok(text, return_tensors="pt", **tokenizer_kwargs).input_ids
         return input_token
-
-
+    
+    
     def bot(history, temperature, top_p, top_k, repetition_penalty, conversation_id):
         """
         callback function for running chatbot on submit button click
-
+    
         Params:
           history: conversation history
           temperature:  parameter for control the level of creativity in AI-generated text.
@@ -1292,16 +1290,16 @@ answers.https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html
           top_k: parameter for control the range of tokens considered by the AI model based on their cumulative probability, selecting number of tokens with highest probability.
           repetition_penalty: parameter for penalizing tokens based on how frequently they occur in the text.
           conversation_id: unique conversation identifier.
-
+    
         """
-
+    
         # Construct the input message string for the model by concatenating the current system message and conversation history
         # Tokenize the messages string
         input_ids = convert_history_to_token(history)
         if input_ids.shape[1] > 2000:
             history = [history[-1]]
             input_ids = convert_history_to_token(history)
-        streamer = TextIteratorStreamer(tok, timeout=30.0, skip_prompt=True, skip_special_tokens=True)
+        streamer = TextIteratorStreamer(tok, timeout=3600.0, skip_prompt=True, skip_special_tokens=True)
         generate_kwargs = dict(
             input_ids=input_ids,
             max_new_tokens=max_new_tokens,
@@ -1314,9 +1312,9 @@ answers.https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html
         )
         if stop_tokens is not None:
             generate_kwargs["stopping_criteria"] = StoppingCriteriaList(stop_tokens)
-
+    
         stream_complete = Event()
-
+    
         def generate_and_signal_complete():
             """
             genration function for single thread
@@ -1324,18 +1322,18 @@ answers.https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html
             global start_time
             ov_model.generate(**generate_kwargs)
             stream_complete.set()
-
+    
         t1 = Thread(target=generate_and_signal_complete)
         t1.start()
-
+    
         # Initialize an empty string to store the generated text
         partial_text = ""
         for new_text in streamer:
             partial_text = text_processor(partial_text, new_text)
             history[-1][1] = partial_text
             yield history
-
-
+    
+    
     def request_cancel():
         ov_model.request.cancel()
 
@@ -1344,11 +1342,11 @@ answers.https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html
     if not Path("gradio_helper.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/llm-chatbot/gradio_helper.py")
         open("gradio_helper.py", "w").write(r.text)
-
+    
     from gradio_helper import make_demo
-
+    
     demo = make_demo(run_fn=bot, stop_fn=request_cancel, title=f"OpenVINO {model_id.value} Chatbot", language=model_language.value)
-
+    
     try:
         demo.launch()
     except Exception:

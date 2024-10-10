@@ -227,44 +227,9 @@ bool tokenize_node(const std::shared_ptr<ov::Node>& node, const SnippetsTokeniza
 
             // this is there stitching happens, get result of a copy of a body of currently processed input and put it to the new inputs
             // internal output index == external output index
-            auto& input_body = clones[input_node];
-            size_t source_output_index = input_value.get_index();
-            auto source_result = input_body->get_results()[source_output_index];
-
-            // We cannot add new node, that is not Convert, after Convert (that is start node) to avoid arithmetic problems with conversion
-            // We can add any new node in Subgraph after Convert (bacause after Input)
-            //              Parameter
-            //                  |
-            //               Convert
-            //
-            // We cannot add new node, that isn't Convert, in Subgraph after existing Convert
-            //              Parameter
-            //                Relu
-            //               Convert
-            //
-            // But we can add new Convert in Subgraph after existing Convert
-            //              Parameter
-            //                Relu
-            //               Convert
-            //               Convert
-            //
-            // Thus, We can grow subgraph only if Convert is the first node of subgraph and have to abort it's the last one and we want to add not Convert
-            // We have this limitation because at the moment we support only one execution precision inside body, so
-            // if there is Convert with input and output data types that aren't equal to supported exec type,
-            // we can get conversion math errors
-            const auto output_of_subgraph = source_result->get_input_node_shared_ptr(0);
-            if (!ov::is_type<ov::op::v0::Convert>(node) && ov::is_type<ov::op::v0::Convert>(output_of_subgraph)) {
-                // Also we can add new node after < Parameter -> Convert -> Convert -> Convert >
-                auto grandparent = output_of_subgraph->get_input_node_ptr(0);
-                while (ov::is_type<ov::op::v0::Convert>(grandparent)) {
-                    grandparent = grandparent->get_input_node_ptr(0);
-                }
-
-                if (!ov::is_type<ov::op::v0::Parameter>(grandparent)) {
-                    return abort("Convert supports only as Input and as Result of subgraph. Aborting");
-                }
-            }
-            // Result op has a single input
+            const auto& input_body = clones[input_node];
+            const size_t source_output_index = input_value.get_index();
+            const auto& source_result = input_body->get_results()[source_output_index];
             internal_inputs.push_back(source_result->input_value(0));
         } else {
             // We need some non-scalar constants inside Subgraph in the following cases:

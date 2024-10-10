@@ -22,6 +22,8 @@ RUN apt-get update && \
         git \
         gpg-agent \
         tzdata \
+        # parallel gzip
+        pigz \
         # Python
         python3.9-dev \
         python3.9-venv \
