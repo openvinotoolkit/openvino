@@ -81,17 +81,6 @@ jobs:
           path: ${{ env.INSTALL_WHEELS_DIR }}
           merge-multiple: true
           
-      - name: Extract OpenVINO artifact (Linux and macOS)
-        if: runner.os != 'Windows'
-        run: tar -I pigz -xf openvino_wheels.tar.gz -C ${INSTALL_DIR}
-        working-directory: ${{ env.INSTALL_DIR }}
-
-      - name: Extract OpenVINO artifact (Windows)
-        if: runner.os == 'Windows'
-        run: |
-            Expand-Archive openvino_wheels.zip -DestinationPath "${{ env.INSTALL_DIR }}"
-        working-directory: ${{ env.INSTALL_DIR }}
-
       #
       # Dependencies
       #
