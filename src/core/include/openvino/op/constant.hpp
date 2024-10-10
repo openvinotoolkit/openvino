@@ -186,6 +186,17 @@ public:
     /// \param data A void* to constant data.
     Constant(const element::Type& type, const Shape& shape, const void* data);
 
+    /// \brief Construct a tensor constant from shared memory.
+    ///
+    /// The Constant can take ownership of shared memory if provided shared object is not null and manges memory
+    /// lifetime.
+    ///
+    /// \param type   The element type of the tensor constant.
+    /// \param shape  The shape of the tensor constant.
+    /// \param data   The pointer to shared memory.
+    /// \param so     The shared object to take it ownership.
+    Constant(const element::Type& type, const Shape& shape, const void* data, std::shared_ptr<void> so);
+
     Constant(const element::Type& type, const Shape& shape, const std::shared_ptr<ov::AlignedBuffer>& data);
 
     Constant(const Constant& other);
