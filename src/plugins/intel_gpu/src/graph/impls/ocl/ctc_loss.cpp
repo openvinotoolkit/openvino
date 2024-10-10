@@ -1,60 +1,63 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "primitive_base.hpp"
+#include "intel_gpu/graph/kernel_impl_params.hpp"
+#include "intel_gpu/runtime/utils.hpp"
+#include "primitive_ocl_base.hpp"
 
+#include "ctc_loss.hpp"
 #include "ctc_loss_inst.hpp"
-#include "ctc_loss/ctc_loss_kernel_ref.hpp"
-#include "ctc_loss/ctc_loss_kernel_selector.hpp"
+#include "kernel_base.hpp"
 
 namespace cldnn {
 namespace ocl {
 
-struct ctc_loss_impl : typed_primitive_impl_ocl<ctc_loss> {
-    using parent = typed_primitive_impl_ocl<ctc_loss>;
-    using parent::parent;
-    using kernel_selector_t = kernel_selector::ctc_loss_kernel_selector;
-    using kernel_params_t = kernel_selector::ctc_loss_params;
+namespace {
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::ctc_loss_impl)
+using namespace ov::intel_gpu::ocl;
 
-    std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<ctc_loss_impl>(*this);
+class CTCLossGenerator : public ov::intel_gpu::ocl::SingleKernelGenerator {
+public:
+    CTCLossGenerator() : SingleKernelGenerator("ctc_loss_ref") {}
+
+protected:
+    JitConstants get_jit_constants(const program_node& node, const kernel_impl_params& params) const override {
+        auto jit_constants = SingleKernelGenerator::get_jit_constants(node, params);
+        const auto& desc = node.as<ctc_loss>().get_primitive();
+
+        jit_constants.add({
+            make_jit_constant("PREPROCESS_COLLAPSE_REPEATED", desc->preprocess_collapse_repeated),
+            make_jit_constant("CTC_MERGE_REPEATED", desc->ctc_merge_repeated),
+            make_jit_constant("UNIQUE", desc->unique),
+        });
+
+        return jit_constants;
     }
 
-    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
-        const auto& primitive = impl_param.typed_desc<ctc_loss>();
-        auto params = get_default_params<kernel_selector::ctc_loss_params>(impl_param);
+    DispatchDataFunc get_dispatch_data_func(const kernel_impl_params& params) const override {
+        static auto f = DISPATCH_DATA_FUNC(params) {
+            WorkGroupSizes dispatch_data;
+            const auto& output = params.output_layouts[0];
 
-        params.preprocess_collapse_repeated = primitive->preprocess_collapse_repeated;
-        params.ctc_merge_repeated = primitive->ctc_merge_repeated;
-        params.unique = primitive->unique;
-        for (size_t i = 1; i < impl_param.input_layouts.size(); ++i) {
-            params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
-        }
-        return params;
+            dispatch_data.global = {output.get_shape()[0], 1, 1};
+            dispatch_data.local = {1, 1, 1}; /*GetOptimalLocalWorkGroupSizes(dispatch_data.gws, kernel_params.engineInfo)*/;
+            return { dispatch_data, {} };
+        };
+
+        return f;
     }
 };
 
-namespace detail {
+}  // namespace
 
-attach_ctc_loss_impl::attach_ctc_loss_impl() {
-    auto types = {data_types::f16, data_types::f32};
-
-    auto formats = {format::bfyx,
-                    format::b_fs_yx_fsv16,
-                    format::b_fs_yx_fsv32,
-                    format::bs_fs_yx_bsv16_fsv16,
-                    format::bs_fs_yx_bsv32_fsv32,
-                    format::bs_fs_yx_bsv32_fsv16};
-
-    implementation_map<ctc_loss>::add(impl_types::ocl, typed_primitive_impl_ocl<ctc_loss>::create<ctc_loss_impl>, types, formats);
+std::unique_ptr<primitive_impl> CTCLoss::create_impl(const program_node& node, const kernel_impl_params& params) const {
+    assert(node.is_type<ctc_loss>());
+    CTCLossGenerator gen;
+    return cldnn::make_unique<primitive_impl_ocl>(gen.get_kernels_data(node, params), std::string(get_type_info().name));
 }
 
-}  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::ctc_loss_impl)
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ctc_loss)

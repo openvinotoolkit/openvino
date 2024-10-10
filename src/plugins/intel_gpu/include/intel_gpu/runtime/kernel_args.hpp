@@ -14,6 +14,8 @@ namespace cldnn {
 struct work_group_sizes {
     std::vector<size_t> global;
     std::vector<size_t> local;
+
+    work_group_sizes() : global({1, 1, 1}), local({1, 1, 1}) {}
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
