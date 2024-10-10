@@ -20,12 +20,12 @@
 #    endif
 #endif
 
-#if !defined(HAS_FILESYSTEM) && !defined(HAS_EXP_FILESYSTEM)
+#if !definedOPENVINO_(HAS_FILESYSTEM) && !defined(OPENVINO_HAS_EXP_FILESYSTEM)
 #    error "Neither #include <filesystem> nor #include <experimental/filesystem> is available."
-#elif defined(HAS_FILESYSTEM)
+#elif defined(OPENVINO_HAS_FILESYSTEM)
 #    include <filesystem>
 namespace std_fs = std::filesystem;
-#elif defined(HAS_EXP_FILESYSTEM)
+#elif defined(OPENVINO_HAS_EXP_FILESYSTEM)
 #    include <experimental/filesystem>
 namespace std_fs = std::experimental::filesystem;
 #endif
