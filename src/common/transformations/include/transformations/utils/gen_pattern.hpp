@@ -137,11 +137,11 @@ struct values_info {
             return true;
         auto index = value.get_index();
         if (index >= all_type_pshape.size()) {
-            _VERBOSE_LOG("* mismatched vtype value from output port ",
-                        index,
-                        " but only ",
-                        all_type_pshape.size(),
-                        " ports are expected!");
+            _VERBOSE_LOG("* mismatched vtype : value from output port ",
+                         index,
+                         ", but only ",
+                         all_type_pshape.size(),
+                         " ports are expected!");
             return false;
         }
         auto& item = all_type_pshape[index];
