@@ -191,16 +191,9 @@ void jit_convert_emitter::jit_convert_process(const TReg &src, const TReg &dst, 
 }
 
 jit_convert_emitter::jit_convert_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node, ov::element::Type exec_prc)
-: jit_convert_emitter(host, host_isa, node->get_input_element_type(0), node->get_output_element_type(0), exec_prc) {
-}
-
-jit_convert_emitter::jit_convert_emitter(jit_generator *host, cpu_isa_t host_isa,
-                                         ov::element::Type input_prc,
-                                         ov::element::Type output_prc,
-                                         ov::element::Type exec_prc)
 : jit_emitter(host, host_isa, exec_prc) {
-    input_type = input_prc;
-    output_type = output_prc;
+    input_type = node->get_input_element_type(0);
+    output_type = node->get_output_element_type(0);
 }
 
 void jit_convert_emitter::validate_types() const {
@@ -219,13 +212,6 @@ void jit_convert_emitter::emit_data() const {
 jit_convert_truncation_emitter::jit_convert_truncation_emitter(jit_generator *host, cpu_isa_t host_isa,
                                                                const std::shared_ptr<ov::Node>& node, ov::element::Type exec_prc)
         : jit_convert_emitter(host, host_isa, node, exec_prc) {
-}
-
-jit_convert_truncation_emitter::jit_convert_truncation_emitter(jit_generator *host, cpu_isa_t host_isa,
-                                                               ov::element::Type input_prc,
-                                                               ov::element::Type output_prc,
-                                                               ov::element::Type exec_prc)
-        : jit_convert_emitter(host, host_isa, input_prc, output_prc, exec_prc) {
 }
 
 void jit_convert_truncation_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const {
@@ -248,13 +234,6 @@ void jit_convert_truncation_emitter::emit_isa(const std::vector<size_t> &in_idxs
 jit_convert_saturation_emitter::jit_convert_saturation_emitter(jit_generator *host, cpu_isa_t host_isa,
                                                                const std::shared_ptr<ov::Node>& node, ov::element::Type exec_prc)
     : jit_convert_emitter(host, host_isa, node, exec_prc) {
-}
-
-jit_convert_saturation_emitter::jit_convert_saturation_emitter(jit_generator *host, cpu_isa_t host_isa,
-                                                               ov::element::Type input_prc,
-                                                               ov::element::Type output_prc,
-                                                               ov::element::Type exec_prc)
-        : jit_convert_emitter(host, host_isa, input_prc, output_prc, exec_prc) {
 }
 
 void jit_convert_saturation_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const {

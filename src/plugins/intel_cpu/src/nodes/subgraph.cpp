@@ -25,7 +25,6 @@
 #include "transformations/defs.hpp"
 #include "transformations/cpu_opset/common/pass/convert_to_swish_cpu.hpp"
 #include "transformations/snippets/common/pass/mul_add_to_fma.hpp"
-#include "transformations/snippets/common/pass/lowered/fuse_load_store_and_convert.hpp"
 
 #if defined(OPENVINO_ARCH_ARM64)
 #include "emitters/snippets/aarch64/cpu_generator.hpp"
@@ -33,6 +32,7 @@
 #else
 #include "emitters/snippets/x64/cpu_generator.hpp"
 #include "transformations/snippets/x64/pass/lowered/brgemm_cpu_blocking.hpp"
+#include "transformations/snippets/x64/pass/lowered/fuse_load_store_and_convert.hpp"
 #include "transformations/snippets/x64/pass/lowered/insert_brgemm_copy_b_buffers.hpp"
 #include "transformations/snippets/x64/pass/remove_converts.hpp"
 #include "transformations/snippets/x64/pass/brgemm_to_brgemm_cpu.hpp"
@@ -672,23 +672,21 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
 Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() const {
     ControlFlowPasses backend_passes;
 
+#if defined(OPENVINO_ARCH_X86_64)
     using PassPosition = ov::snippets::pass::PassPosition;
     using Place = PassPosition::Place;
 #   define SNIPPETS_REGISTER_PASS_RELATIVE(PASS_PLACE, TARGET_PASS, PASS, ...) \
             backend_passes.emplace_back(PassPosition(PASS_PLACE, TARGET_PASS::get_type_info_static()), std::make_shared<PASS>(__VA_ARGS__))
+#else
+#    define SNIPPETS_REGISTER_PASS_RELATIVE(PASS_PLACE, TARGET_PASS, PASS, ...)
+#endif  // OPENVINO_ARCH_X86_64
 
-#if defined(OPENVINO_ARCH_X86_64)
     SNIPPETS_REGISTER_PASS_RELATIVE(Place::After, ov::snippets::lowered::pass::MarkLoops,
                                     ov::intel_cpu::pass::BrgemmCPUBlocking);
-#endif
-
     SNIPPETS_REGISTER_PASS_RELATIVE(Place::After, ov::snippets::lowered::pass::InsertLoops,
                                     ov::intel_cpu::pass::FuseLoadStoreConvert);
-
-#if defined(OPENVINO_ARCH_X86_64)
     SNIPPETS_REGISTER_PASS_RELATIVE(Place::Before, ov::snippets::lowered::pass::InsertBuffers,
                                     ov::intel_cpu::pass::InsertBrgemmCopyBBuffers);
-#endif
 
 #ifdef SNIPPETS_LIBXSMM_TPP
     SNIPPETS_REGISTER_PASS_RELATIVE(Place::Before, ov::intel_cpu::pass::BrgemmCPUBlocking,

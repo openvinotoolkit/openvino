@@ -7,8 +7,8 @@
 #include "op/brgemm_copy_b.hpp"
 #include "op/brgemm_cpu.hpp"
 #include "transformations/snippets/common/op/fused_mul_add.hpp"
-#include "transformations/snippets/common/op/load_convert.hpp"
-#include "transformations/snippets/common/op/store_convert.hpp"
+#include "op/load_convert.hpp"
+#include "op/store_convert.hpp"
 #include "op/perf_count_rdtsc.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #ifdef SNIPPETS_LIBXSMM_TPP
