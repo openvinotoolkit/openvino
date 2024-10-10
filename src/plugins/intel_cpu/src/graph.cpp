@@ -193,9 +193,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &model,
         auto parentNode = op2node[unusedOutput.get_node_shared_ptr()];
         const auto port = unusedOutput.get_index();
         const auto nodeName = std::string("stub_") + std::to_string(unusedOutput.get_index()) + "_" + parentNode->getName();
-        // WA: avoid PagedAttention's second output reorder.
-        auto nodePrec = parentNode->getType() == Type::PagedAttention && port == 1 ?
-                            ov::element::f32 : parentNode->getOriginalOutputPrecisionAtPort(port);
+        auto nodePrec = parentNode->getOriginalOutputPrecisionAtPort(port);
         const NodePtr outNode = std::make_shared<node::Input>(parentNode->outputShapes[port],
                                                               nodePrec,
                                                               nodeName, "Result", m_context);
