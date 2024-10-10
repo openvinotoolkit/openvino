@@ -153,7 +153,7 @@ public:
     const ov::element::Type& get_output_element_type(size_t i) const;
 
     /// Return the shape of element i
-    const Shape& get_output_shape(size_t i) const;
+    Shape get_output_shape(size_t i) const;
 
     /// Return the partial shape of element i
     const PartialShape& get_output_partial_shape(size_t i) const;
