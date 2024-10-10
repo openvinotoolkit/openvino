@@ -45,7 +45,7 @@ TEST(devices_test, sort_order_single_vendor) {
     devices_list.push_back(std::make_shared<dummy_device>(INTEL_VENDOR_ID, device_type::discrete_gpu, device_id++));
     devices_list.push_back(std::make_shared<dummy_device>(INTEL_VENDOR_ID, device_type::discrete_gpu, device_id++));
 
-    auto sorted_list = ocl::ocl_device_detector::sort_devices(devices_list);
+    auto sorted_list = sort_devices(devices_list);
 
     std::vector<size_t> expected_devices_order = {2, 0, 1, 3, 4};
 
@@ -66,7 +66,7 @@ TEST(devices_test, sort_order_two_vendors) {
     devices_list.push_back(std::make_shared<dummy_device>(INTEL_VENDOR_ID, device_type::discrete_gpu, device_id++));
     devices_list.push_back(std::make_shared<dummy_device>(INTEL_VENDOR_ID, device_type::integrated_gpu, device_id++));
 
-    auto sorted_list = ocl::ocl_device_detector::sort_devices(devices_list);
+    auto sorted_list = sort_devices(devices_list);
 
     std::vector<size_t> expected_devices_order = {3, 2, 0, 1};
 
@@ -90,7 +90,7 @@ TEST(devices_test, sort_order_three_vendors) {
     devices_list.push_back(std::make_shared<dummy_device>(OTHER_VENDOR_ID2, device_type::discrete_gpu, device_id++));
     devices_list.push_back(std::make_shared<dummy_device>(OTHER_VENDOR_ID2, device_type::discrete_gpu, device_id++));
 
-    auto sorted_list = ocl::ocl_device_detector::sort_devices(devices_list);
+    auto sorted_list = sort_devices(devices_list);
 
     std::vector<size_t> expected_devices_order = {2, 3, 0, 1, 4, 5};
 

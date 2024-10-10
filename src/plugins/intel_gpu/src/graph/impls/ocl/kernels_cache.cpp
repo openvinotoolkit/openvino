@@ -452,11 +452,11 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
     }
 }
 
-kernel::ptr kernels_cache::get_kernel_from_cached_kernels(std::string id) const {
+kernel::ptr kernels_cache::get_kernel_from_cached_kernels(std::string id, const engine& e) const {
     auto res = _cached_kernels.find(id);
     OPENVINO_ASSERT(_cached_kernels.end() != res, "[GPU] Kernel " + id + " not found in the cached kernel cache!");
 
-    return res->second->clone(_reuse_kernels);
+    return e.prepare_kernel(res->second->clone(_reuse_kernels));
 }
 
 std::vector<kernel::ptr> kernels_cache::get_kernels(const kernel_impl_params& params) const {
@@ -599,15 +599,12 @@ void kernels_cache::add_kernels_source(const kernel_impl_params& params,
 }
 
 std::string kernels_cache::get_cached_kernel_id(kernel::ptr kernel) const {
-    auto ocl_kernel = std::static_pointer_cast<cldnn::ocl::ocl_kernel>(kernel);
-    const auto& entry_point = ocl_kernel->get_handle().getInfo<CL_KERNEL_FUNCTION_NAME>();
-    auto program = ocl_kernel->get_handle().getInfo<CL_KERNEL_PROGRAM>();
-    cl::vector<unsigned char> program_binaries = getProgramBinaries(program);
+    auto program_binaries = kernel->get_binary();
 
     auto iter = _cached_binaries.find(program_binaries);
     OPENVINO_ASSERT(iter != _cached_binaries.end(), "[GPU] Not found cached kernel binaries");
 
-    return entry_point + "@" + std::to_string(iter->second);
+    return kernel->get_id() + "@" + std::to_string(iter->second);
 }
 
 std::vector<std::string> kernels_cache::get_cached_kernel_ids(const std::vector<kernel::ptr>& kernels) const {
@@ -625,9 +622,7 @@ void kernels_cache::add_to_cached_kernels(const std::vector<kernel::ptr>& kernel
     static std::atomic<uint32_t> id_gen{0};
 
     for (auto& kernel : kernels) {
-        auto ocl_kernel = std::static_pointer_cast<cldnn::ocl::ocl_kernel>(kernel);
-        auto program = ocl_kernel->get_handle().getInfo<CL_KERNEL_PROGRAM>();
-        cl::vector<unsigned char> program_binaries = getProgramBinaries(program);
+        auto program_binaries = kernel->get_binary();
 
         std::lock_guard<std::mutex> lock(_mutex);
         auto iter = _cached_binaries.find(program_binaries);

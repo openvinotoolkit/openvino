@@ -1926,7 +1926,7 @@ void program::load(cldnn::BinaryInputBuffer& ib) {
 
             std::vector<std::string> cached_kernel_ids;
             ib >> cached_kernel_ids;
-            p_node.selected_impl->init_by_cached_kernels(get_kernels_cache(), cached_kernel_ids);
+            p_node.selected_impl->init_by_cached_kernels(get_kernels_cache(), cached_kernel_ids, _engine);
         }
     }
 

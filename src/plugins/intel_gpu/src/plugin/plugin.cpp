@@ -144,12 +144,8 @@ Plugin::Plugin() {
     set_device_name("GPU");
     register_primitives();
 
-    // Set OCL runtime which should be always available
-#ifdef OV_GPU_WITH_SYCL
-    cldnn::device_query device_query(cldnn::engine_types::sycl, cldnn::runtime_types::ocl);
-#else
-    cldnn::device_query device_query(cldnn::engine_types::ocl, cldnn::runtime_types::ocl);
-#endif
+    auto rt_params = get_device_query_params();
+    cldnn::device_query device_query(rt_params.first, rt_params.second);
     m_device_map = device_query.get_available_devices();
 
     // Set default configs for each device
