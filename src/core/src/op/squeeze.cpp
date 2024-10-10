@@ -121,6 +121,48 @@ bool Squeeze::constant_fold(OutputVector& output_values, const OutputVector& inp
 bool Squeeze::is_dynamic() const {
     return get_output_partial_shape(0).is_dynamic();
 }
+
 }  // namespace v0
+
+namespace v15 {
+Squeeze::Squeeze(const Output<Node>& data, const Output<Node>& axes, const bool axis_skip_mode)
+    : v0::Squeeze({data, axes}),
+      m_allow_axis_skip{axis_skip_mode} {
+    constructor_validate_and_infer_types();
+}
+
+std::shared_ptr<Node> Squeeze::clone_with_new_inputs(const OutputVector& new_args) const {
+    OV_OP_SCOPE(v15_Squeeze_clone_with_new_inputs);
+    check_new_args_count(this, new_args);
+
+    switch (new_args.size()) {
+    case 1:
+        return std::make_shared<Squeeze>(new_args[0]);
+    case 2:
+        return std::make_shared<Squeeze>(new_args[0], new_args[1], m_allow_axis_skip);
+    default:
+        OPENVINO_THROW("Incorrect number of new arguments");
+    }
+}
+
+bool Squeeze::visit_attributes(AttributeVisitor& visitor) {
+    OV_OP_SCOPE(v0_Squeeze_visit_attributes);
+    visitor.on_attribute("allow_axis_skip", m_allow_axis_skip);
+    return true;
+}
+
+bool Squeeze::get_allow_axis_skip() const {
+    return m_allow_axis_skip;
+}
+
+std::pair<bool, std::reference_wrapper<const ov::PartialShape>> Squeeze::get_deduced_output_shape() const {
+    return {is_deduced_output_shape, std::cref(deduced_output_shape)};
+}
+
+void Squeeze::set_deduced_output_shape(const ov::PartialShape& output_shapes) {
+    deduced_output_shape = output_shapes;
+    is_deduced_output_shape = true;
+}
+}  // namespace v15
 }  // namespace op
 }  // namespace ov
