@@ -390,8 +390,10 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         precisions_map fp_convert_precision_map = {{ov::element::f32, ov::element::f16}};
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
         type_to_fuse_map fuse_map = {{ov::opset1::FakeQuantize::get_type_info_static(), fuse_type_to_fq}};
+        constexpr bool cvt_input_output_precision = false;
 #else
         type_to_fuse_map fuse_map = {};
+        constexpr bool cvt_input_output_precision = true;
 #endif
         const bool keep_precision_sensitive_in_fp32 = true;
         CPU_REGISTER_PASS_COMMON(manager,
@@ -399,7 +401,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
                                  fp_convert_precision_map,
                                  fuse_map,
                                  keep_precision_sensitive_in_fp32,
-                                 false);
+                                 cvt_input_output_precision);
     }
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstAndDecompression);
     CPU_SET_CALLBACK_COMMON(manager,
