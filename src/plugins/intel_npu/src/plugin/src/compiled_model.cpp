@@ -138,7 +138,9 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
         "the \"ov::ISyncInferRequest\" class");
 }
 
-std::pair<Metadata_v1, metaIterator> Metadata_v1::version_handler(std::vector<uint8_t>& blob, std::istream& stream) {
+
+// actually what should it return?
+void Metadata_v1::version_checker(std::vector<uint8_t>& blob, std::istream& stream) {
     constexpr std::string_view versionHeader{"OVNPU"}; // maybe put this some place else
 
     size_t blobDataSize;
@@ -151,28 +153,48 @@ std::pair<Metadata_v1, metaIterator> Metadata_v1::version_handler(std::vector<ui
     char* blobVersionHeader = new char[versionHeader.size() + 1];
     std::copy(metadataIterator, metadataIterator + versionHeader.size(), blobVersionHeader);
     std::cout << "header: " << versionHeader << '\n';
+
+    // should we consider the header name changes?
+    // if so, we will need multiple headers OR encapsulate them inside the struct metadata
     if (versionHeader.compare(blobVersionHeader)) {
         std::cout << "expected header: " << versionHeader << "\n actual header: " << blobVersionHeader << '\n';
         OPENVINO_THROW("Version header mismatch or missing");
     }
     metadataIterator += versionHeader.size();
 
-    Metadata_v1 metav1;
-    metav1.read_metadata(metadataIterator); // gotta make a destructor instead of making tons of copies
-    return std::make_pair(metav1, metadataIterator);
+    uint8_t major, minor;
+    std::copy(metadataIterator, metadataIterator + sizeof(uint8_t), &major);
+    metadataIterator += sizeof(uint8_t);
+    std::cout << "major: " << major;
+
+    std::copy(metadataIterator, metadataIterator + sizeof(uint8_t), &minor);
+    std::cout << "\nminor: " << minor << '\n';
+    metadataIterator += sizeof(uint8_t);
+
+    // move this to another function?
+    if (major == '0') {
+        if (minor > '1' && minor < '6') {
+            // read metadata_v1
+        }
+        else if (minor > '6') {
+            //read medata_v2
+        }
+    }
+    else if (major == '1') {
+        if(minor > '0') {
+            // read metadata_v3
+        }
+    }
+
+}
+
+std::pair<Metadata_v1, metaIterator> version_handler(std::vector<uint8_t>& blob, std::istream& stream) {
+
 }
 
 // should we check for header here or create a function called version_metadata_handler
 // which checks for header and calls read_metadata
 void Metadata_v1::read_metadata(std::vector<uint8_t>::iterator metadataIterator) {
-    std::copy(metadataIterator, metadataIterator + sizeof(uint8_t), &this->version.major); // check major number
-    metadataIterator += sizeof(uint8_t);
-    std::cout << "major: " << this->version.major;
-
-    std::copy(metadataIterator, metadataIterator + sizeof(uint8_t), &this->version.minor); // check minor number
-    std::cout << "\nminor: " << this->version.minor << '\n';
-    metadataIterator += sizeof(uint8_t);
-
     /*
         is there a way needed to assert the version?
         or do we still want to check for it?
@@ -193,14 +215,15 @@ void Metadata_v1::write_metadata(std::ostream& stream) {
     stream.write(this->ovVersion.version.c_str(), this->ovVersion.version.size());
 }
 
-// std::pair<Metadata_v2, metaIterator> Metadata_v2::version_handler(std::vector<uint8_t>& blob, std::istream& stream) {
-//     auto oldMeta = Metadata_v1::version_handler(blob, stream);
+// std::pair<Metadata_v2, metaIterator> Metadata_v2::version_checker(std::vector<uint8_t>& blob, std::istream& stream) {
+//     auto oldMeta = Metadata_v1::version_checker(blob, stream);
 //     Metadata_v2 metav2;
 //     metav2.oldMetadata = oldMeta.first;
 
 // }
 
 void Metadata_v2::read_metadata(std::vector<uint8_t>::iterator metadataIterator) {
+    // reminder: readd v1::read
     std::copy(metadataIterator, metadataIterator + sizeof(int), &this->layout.something);
     metadataIterator += sizeof(int);
 

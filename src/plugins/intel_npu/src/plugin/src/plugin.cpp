@@ -761,7 +761,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         _logger.info("Successfully read %zu bytes into blob.", graphSize);
 
         stream.seekg(graphSize - sizeof(size_t), stream.beg);
-        Metadata_v1 meta_v1 = Metadata_v1::version_handler(blob, stream);
+        Metadata_v1::version_checker(blob, stream);
 
         auto meta = compiler->parse(blob, localConfig);
         meta.name = "net" + std::to_string(_compiledModelLoadCounter++);

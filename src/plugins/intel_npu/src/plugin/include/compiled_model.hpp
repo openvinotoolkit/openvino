@@ -39,7 +39,11 @@ struct Metadata_v1 {
     MetadataVersion version;
     OpenvinoVersion ovVersion;
 
-    static std::pair<Metadata_v1, metaIterator> version_handler(std::vector<uint8_t>& blob, std::istream& stream);
+    std::vector<uint8_t> data();
+
+    static void version_checker(std::vector<uint8_t>& blob, std::istream& stream);
+
+    std::pair<Metadata_v1, metaIterator> version_handler(std::vector<uint8_t>& blob, std::istream& stream);
 
     void read_metadata(std::vector<uint8_t>::iterator metadataIterator);
 
@@ -50,7 +54,7 @@ struct Metadata_v2 {
     Metadata_v1 oldMetadata;
     ModelLayout layout;
 
-    static std::pair<Metadata_v2, metaIterator> version_handler(std::vector<uint8_t>& blob, std::istream& stream);
+    static std::pair<Metadata_v2, metaIterator> version_checker(std::vector<uint8_t>& blob, std::istream& stream);
 
     void read_metadata(std::vector<uint8_t>::iterator metadataIterator);
 
@@ -63,7 +67,7 @@ struct Metadata_v3 {
     OpenvinoVersion ovVersion;
     double extra;
 
-    static std::pair<Metadata_v2, metaIterator> version_handler(std::vector<uint8_t>& blob, std::istream& stream);
+    static std::pair<Metadata_v2, metaIterator> version_checker(std::vector<uint8_t>& blob, std::istream& stream);
 
     void read_metadata(std::vector<uint8_t>::iterator metadataIterator);
 
