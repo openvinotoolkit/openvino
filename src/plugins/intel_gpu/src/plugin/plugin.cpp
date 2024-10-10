@@ -219,10 +219,6 @@ ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const AnyMap& params) 
     return get_default_context(device_id);
 }
 
-bool Plugin::support_mmap_for_caching() const {
-    return true;
-}
-
 void Plugin::set_property(const ov::AnyMap &config) {
     auto update_config = [](ExecutionConfig& config, const ov::AnyMap& user_config) {
         config.set_user_property(user_config);
@@ -335,6 +331,8 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
         return decltype(ov::available_devices)::value_type {available_devices};
     } else if (name == ov::internal::caching_properties) {
         return decltype(ov::internal::caching_properties)::value_type(get_caching_properties());
+    } else if (name == ov::internal::cache_reading_via_mmap) {
+        return decltype(ov::internal::cache_reading_via_mmap)::value_type(true);
     }
 
     ov::AnyMap actual_runtime_info;

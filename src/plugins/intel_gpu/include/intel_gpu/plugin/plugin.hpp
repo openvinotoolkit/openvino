@@ -64,7 +64,6 @@ public:
                                     const ov::AnyMap& properties) const override;
     ov::SoPtr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override;
     ov::SoPtr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const override;
-    bool support_mmap_for_caching() const override;
 };
 
 }  // namespace intel_gpu

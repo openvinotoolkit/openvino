@@ -67,10 +67,6 @@ std::shared_ptr<ov::ICore> ov::IPlugin::get_core() const {
     return m_core.lock();
 }
 
-bool ov::IPlugin::support_mmap_for_caching() const {
-    return false;
-}
-
 const std::shared_ptr<ov::threading::ExecutorManager>& ov::IPlugin::get_executor_manager() const {
     return m_executor_manager;
 }

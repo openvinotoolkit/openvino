@@ -75,13 +75,7 @@ public:
         return get_property(property.name(), arguments).template as<T>();
     }
 
-    enum class CachingMode {
-        legacy,
-        mmap,
-        unsupported
-    };
-    CachingMode supports_model_caching() const;
+    bool supports_model_caching() const;
 };
-
 }  // namespace ov
 

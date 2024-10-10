@@ -101,14 +101,10 @@ ov::Any ov::Plugin::get_property(const std::string& name, const AnyMap& argument
     return {m_ptr->get_property(name, arguments), {m_so}};
 }
 
-ov::Plugin::CachingMode ov::Plugin::supports_model_caching() const {
-    ov::Plugin::CachingMode supported = ov::Plugin::CachingMode::unsupported;
-    if (util::contains(get_property(ov::supported_properties), ov::device::capabilities) &&
-        util::contains(get_property(ov::device::capabilities), ov::device::capability::EXPORT_IMPORT) &&
-        util::contains(get_property(ov::internal::supported_properties), ov::internal::caching_properties)) {
-        bool support_mmap = false;
-        OV_PLUGIN_CALL_STATEMENT(support_mmap = m_ptr->support_mmap_for_caching(););
-        supported = support_mmap ? ov::Plugin::CachingMode::mmap : ov::Plugin::CachingMode::legacy;
-    }
+bool ov::Plugin::supports_model_caching() const {
+    bool supported(false);
+    supported = util::contains(get_property(ov::supported_properties), ov::device::capabilities) &&
+                util::contains(get_property(ov::device::capabilities), ov::device::capability::EXPORT_IMPORT) &&
+                util::contains(get_property(ov::internal::supported_properties), ov::internal::caching_properties);
     return supported;
 }

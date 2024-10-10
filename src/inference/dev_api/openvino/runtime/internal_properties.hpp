@@ -76,5 +76,11 @@ static constexpr Property<bool, PropertyMutability::RO> compiled_model_runtime_p
  */
 static constexpr Property<float, PropertyMutability::RW> query_model_ratio{"QUERY_MODEL_RATIO"};
 
+/**
+ * @brief Read-only property to specify if plugin supports reading cached model via mmap
+ * @ingroup ov_dev_api_plugin_api
+ */
+static constexpr Property<float, PropertyMutability::RO> cache_reading_via_mmap{"CACHE_READING_VIA_MMAP"};
+
 }  // namespace internal
 }  // namespace ov

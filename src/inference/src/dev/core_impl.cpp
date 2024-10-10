@@ -1354,7 +1354,7 @@ bool ov::CoreImpl::device_supports_internal_property(const ov::Plugin& plugin, c
 }
 
 bool ov::CoreImpl::device_supports_model_caching(const ov::Plugin& plugin) const {
-    return plugin.supports_model_caching() == ov::Plugin::CachingMode::unsupported ? false : true;
+    return plugin.supports_model_caching();
 }
 
 bool ov::CoreImpl::device_supports_cache_dir(const ov::Plugin& plugin) const {
@@ -1404,12 +1404,18 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
     std::function<ov::SoPtr<ov::ICompiledModel>()> compile_model_lambda) const {
     ov::SoPtr<ov::ICompiledModel> compiled_model;
     struct HeaderException {};
+    bool enable_mmap_for_plugin = false;
+    try {
+        enable_mmap_for_plugin = plugin.get_property(ov::internal::cache_reading_via_mmap);
+    } catch (ov::Exception&) {
+        enable_mmap_for_plugin = false;
+    }
 
     OPENVINO_ASSERT(cacheContent.cacheManager != nullptr);
     try {
         cacheContent.cacheManager->read_cache_entry(
             cacheContent.blobId,
-            coreConfig.get_enable_mmap() && plugin.supports_model_caching() == ov::Plugin::CachingMode::mmap,
+            coreConfig.get_enable_mmap() && enable_mmap_for_plugin,
             [&](std::istream& networkStream) {
                 OV_ITT_SCOPE(FIRST_INFERENCE,
                              ov::itt::domains::LoadTime,
