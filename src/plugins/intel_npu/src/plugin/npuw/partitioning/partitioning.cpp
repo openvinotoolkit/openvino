@@ -235,7 +235,8 @@ private:
     void rearrange_to_function_protocol(ov::npuw::Subgraph::Ref func_ref,
                                         const std::vector<T>& protocol,
                                         std::vector<T>& call,
-                                        const M& call_to_proto) {
+                                        const M& call_to_proto,
+                                        bool required = false) {
         LOG_DEBUG("Rearranging...");
         LOG_BLOCK();
         LOG_DEBUG("Protocol: " << protocol.size());
@@ -261,6 +262,8 @@ private:
                 std::size_t j = std::distance(to_proto.begin(), iter);
                 LOG_DEBUG("Put " << j << " element to " << i << " as in the protocol");
                 call[i] = call_tmp[j];
+            } else if (required) {
+                OPENVINO_THROW("NPUW: Parameter from protocol is not found in the call!");
             }
         }
     }
@@ -1638,7 +1641,7 @@ void Partitioner::matchRepeatedSubgraphs(const std::string& func_name) {
         funcall._gflops = this_sg._gflops;          // duplicated code again!
         funcall._ops = this_sg._ops;                // duplicated code again!
         funcall._avoid_list = this_sg._avoid_list;  // duplicated code again!
-        rearrange_to_function_protocol(this_sg, body_params, funcall._parameters, func_ggg.param_call_to_proto);
+        rearrange_to_function_protocol(this_sg, body_params, funcall._parameters, func_ggg.param_call_to_proto, true);
         rearrange_to_function_protocol(this_sg, body_results, funcall._results, func_ggg.result_call_to_proto);
 
         auto func_iter = P.functions.find(func_name);
