@@ -81,3 +81,45 @@ bool ov::intel_cpu::ScaledDotProductAttentionWithKVCache::visit_attributes(ov::A
     visitor.finish_structure();
     return true;
 }
+
+ov::intel_cpu::SDPAWithTransposeReshape::SDPAWithTransposeReshape(const OutputVector& args, const Config& cfg)
+    : Op(args),
+      m_config(cfg) {}
+
+std::shared_ptr<ov::Node> ov::intel_cpu::SDPAWithTransposeReshape::clone_with_new_inputs(
+    const ov::OutputVector& new_args) const {
+    INTERNAL_OP_SCOPE(SDPAWithTransposeReshape_with_new_inputs);
+    check_new_args_count(this, new_args);
+    return std::make_shared<ov::intel_cpu::SDPAWithTransposeReshape>(new_args, m_config);
+}
+
+void ov::intel_cpu::SDPAWithTransposeReshape::validate_and_infer_types() {
+    INTERNAL_OP_SCOPE(SDPAWithTransposeReshape_validate_and_infer_types);
+    // [B,L,H*S]
+    auto q_ps = get_input_partial_shape(0);
+    auto output_ps = q_ps;
+    NODE_VALIDATION_CHECK(this, m_config.output_BLHxS == true);
+    NODE_VALIDATION_CHECK(this, m_config.input_BLHxS == true);
+    NODE_VALIDATION_CHECK(this, q_ps.size() == 3u);
+
+    // permute_axes should be [B, H, L, S]
+    const auto& permute_axes = this->m_config.permute_axes;
+    NODE_VALIDATION_CHECK(this, permute_axes.size() == 4u);
+
+    // order_HS should be [H,S]
+    const auto& order_HS = this->m_config.order_HS;
+    NODE_VALIDATION_CHECK(this, order_HS.size() == 2u);
+
+    set_output_type(0, get_input_element_type(0), output_ps);
+}
+
+bool ov::intel_cpu::SDPAWithTransposeReshape::visit_attributes(ov::AttributeVisitor& visitor) {
+    INTERNAL_OP_SCOPE(SDPAWithTransposeReshape_visit_attributes);
+    visitor.start_structure("config");
+    visitor.on_attribute("input_BLHxS", m_config.input_BLHxS);
+    visitor.on_attribute("output_BLHxS", m_config.output_BLHxS);
+    visitor.on_attribute("permute_axes", m_config.permute_axes);
+    visitor.on_attribute("order_HS", m_config.order_HS);
+    visitor.finish_structure();
+    return true;
+}
