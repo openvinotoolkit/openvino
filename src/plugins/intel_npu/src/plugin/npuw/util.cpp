@@ -22,7 +22,7 @@
 #    include "tbb/concurrent_unordered_map.h"
 #endif
 
-bool ov::npuw::util::is_set(const std::size_t sub_idx, const std::string& opt) {
+bool ov::npuw::util::is_set(const std::size_t sub_idx, const std::string& opt, const std::size_t last_idx) {
     if (opt.empty() || opt == "NO") {
         return false;
     }
@@ -30,12 +30,20 @@ bool ov::npuw::util::is_set(const std::size_t sub_idx, const std::string& opt) {
         return true;
     }
 
+    std::string str(opt);
+    std::size_t last_pos = str.find("last");
+    if (last_pos != std::string::npos) {
+        str.erase(last_pos, 4);
+        if (last_idx != SIZE_MAX && sub_idx == last_idx) {
+            return true;
+        }
+    }
+
     std::vector<std::size_t> sub_inds{};
-    sub_inds = ::intel_npu ::OptionParser<std::vector<std::size_t>>::parse(opt);
+    sub_inds = ::intel_npu ::OptionParser<std::vector<std::size_t>>::parse(str);
     if (std::find(sub_inds.begin(), sub_inds.end(), sub_idx) != sub_inds.end()) {
         return true;
     }
-
     return false;
 }
 
