@@ -31,7 +31,7 @@ class TRANSFORMATIONS_API FusedNames : public ov::RuntimeAttribute {
     std::set<std::string> fused_names;
 
 public:
-    OPENVINO_RTTI("fused_names", "0");
+    OPENVINO_RTTI("fused_names", "");
 
     /**
      * A default constructor
