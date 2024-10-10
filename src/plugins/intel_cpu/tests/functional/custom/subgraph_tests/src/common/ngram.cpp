@@ -213,7 +213,7 @@ protected:
 
 TEST_P(NgramCPUTest, CompareWithRefs) {
     run();
-    CheckNumberOfNodesWithType(compiledModel, "Ngram", 1);
+    utils::CheckNumberOfNodesWithType(compiledModel, "Ngram", 1);
 }
 
 namespace {

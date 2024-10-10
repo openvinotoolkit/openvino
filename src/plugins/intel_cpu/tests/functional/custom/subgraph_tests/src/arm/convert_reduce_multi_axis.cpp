@@ -68,7 +68,7 @@ private:
 
 TEST_P(reduceTransformationCPUTest, CompareWithRefs) {
     run();
-    CheckNumberOfNodesWithType(compiledModel, "Reduce", numberOfExpectedReduce);
+    utils::CheckNumberOfNodesWithType(compiledModel, "Reduce", numberOfExpectedReduce);
 }
 
 namespace {

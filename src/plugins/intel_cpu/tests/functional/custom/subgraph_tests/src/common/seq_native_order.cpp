@@ -275,8 +275,8 @@ private:
 
 TEST_P(SequenceCPUTest, CompareWithRefs) {
     run();
-    CheckNumberOfNodesWithType(compiledModel, "RNNSeq", 1);
-    CheckNumberOfNodesWithType(compiledModel, "Transpose", 0);
+    utils::CheckNumberOfNodesWithType(compiledModel, "RNNSeq", 1);
+    utils::CheckNumberOfNodesWithType(compiledModel, "Transpose", 0);
 }
 
 const std::vector<size_t> hiddenSizes = {

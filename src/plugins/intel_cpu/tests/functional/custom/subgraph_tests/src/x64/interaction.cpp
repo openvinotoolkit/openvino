@@ -168,7 +168,7 @@ protected:
 
 TEST_P(IntertactionCPUTest, CompareWithRefs) {
     run();
-    CheckNumberOfNodesWithType(compiledModel, "Interaction", 1);
+    utils::CheckNumberOfNodesWithType(compiledModel, "Interaction", 1);
 }
 
 using IntertactionCPUTest_FP16 = IntertactionCPUTest;
@@ -179,7 +179,7 @@ TEST_P(IntertactionCPUTest_FP16, CompareWithRefs) {
     configuration.insert({ov::hint::inference_precision.name(), ov::element::f16});
 
     run();
-    CheckNumberOfNodesWithType(compiledModel, "Interaction", 1);
+    utils::CheckNumberOfNodesWithType(compiledModel, "Interaction", 1);
 }
 
 namespace {

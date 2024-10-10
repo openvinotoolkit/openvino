@@ -80,7 +80,7 @@ protected:
 
 TEST_P(Conv1dConvertTransformationCPUTest, CompareWithRefs) {
     run();
-    CheckNumberOfNodesWithType(compiledModel, "Reshape", 2);
+    utils::CheckNumberOfNodesWithType(compiledModel, "Reshape", 2);
 }
 
 namespace {
