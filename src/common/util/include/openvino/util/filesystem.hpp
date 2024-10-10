@@ -6,14 +6,14 @@
 
 #include "openvino/core/visibility.hpp"
 
-#if defined(_MSC_VER) && defined(CPP_VER_11)
+#if defined(_MSC_VER) && defined(OPENVINO_CPP_VER_11)
 #    define OPENVINO_HAS_EXP_FILESYSTEM
 #    define _SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING
 #    define _LIBCPP_NO_EXPERIMENTAL_DEPRECATION_WARNING_FILESYSTEM
 #elif defined(__has_include)
-#    if defined(CPP_VER_17) && (__has_include(<filesystem>)) && (!__has_include(<experimental/filesystem>))
+#    if defined(OPENVINO_CPP_VER_17) && (__has_include(<filesystem>)) && (!__has_include(<experimental/filesystem>))
 #        define OPENVINO_HAS_FILESYSTEM
-#    elif defined(CPP_VER_11) && (__has_include(<experimental/filesystem>))
+#    elif defined(OPENVINO_CPP_VER_11) && (__has_include(<experimental/filesystem>))
 #        define OPENVINO_HAS_EXP_FILESYSTEM
 #        define _SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING
 #        define _LIBCPP_NO_EXPERIMENTAL_DEPRECATION_WARNING_FILESYSTEM
