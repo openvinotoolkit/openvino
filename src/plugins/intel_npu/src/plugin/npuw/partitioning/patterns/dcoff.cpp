@@ -94,6 +94,7 @@ ClosureRemap build_remap(const Function& fbody, const DCOFFParams& params_to) {
         } else if (ban_list.find(param) == ban_list.end()) {
             // If it's not in the ban list, it's an OK parameter and should be kept
             LOG_DEBUG("This is an OK parameter, will be kept");
+            m.weights_to_unpack.insert(i - fbody._param_offset);
             m.closure_remap.push_back(i - fbody._param_offset);
         }
 
@@ -125,8 +126,11 @@ void apply_remap(Subgraph& fcall, const ClosureRemap& m) {
     // empty tensors by default.
     for (auto&& i : m.closure_remap) {
         new_lazy_closure.push_back(fcall._lazy_closure[i]);
-        // _closure is empty at this stage. To fill it for DCOFF, evaluate _lazy_closure
-        new_closure.push_back(fcall._lazy_closure[i].eval());
+        if (fcall._closure[i]) {
+            new_closure.push_back(fcall._closure[i]);
+        } else {
+            new_closure.push_back(m.weights_to_unpack.count(i) ? fcall._lazy_closure[i].eval() : fcall._closure[i]);
+        }
 
         auto scale_iter = m.scale_remap.find(i);
         auto zerop_iter = m.zerop_remap.find(i);
