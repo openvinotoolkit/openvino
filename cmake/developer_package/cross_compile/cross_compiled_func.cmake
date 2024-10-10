@@ -3,25 +3,28 @@
 #
 
 ## list of available instruction sets
-set(_ARCH_LIST ANY SSE42 AVX AVX2 AVX512F)
+set(_ARCH_LIST ANY SSE42 AVX AVX2 AVX512F NEON_FP16)
 
 set(_ACCEPTED_ARCHS_ANY     "^(ANY)$")
 set(_ACCEPTED_ARCHS_SSE42   "^(ANY|SSE42)$")
 set(_ACCEPTED_ARCHS_AVX     "^(ANY|SSE42|AVX)$")
 set(_ACCEPTED_ARCHS_AVX2    "^(ANY|SSE42|AVX|AVX2)$")
 set(_ACCEPTED_ARCHS_AVX512F "^(ANY|SSE42|AVX|AVX2|AVX512F)$")
+set(_ACCEPTED_ARCHS_NEON_FP16 "^(ANY|NEON_FP16)$")
 
 ## Arch specific definitions
-set(_DEFINE_ANY      "")
-set(_DEFINE_SSE42    "HAVE_SSE42"   ${_DEFINE_ANY})
-set(_DEFINE_AVX      "HAVE_AVX"     ${_DEFINE_SSE42})
-set(_DEFINE_AVX2     "HAVE_AVX2"    ${_DEFINE_AVX})
-set(_DEFINE_AVX512F  "HAVE_AVX512F" ${_DEFINE_AVX2})
+set(_DEFINE_ANY       "")
+set(_DEFINE_SSE42     "HAVE_SSE42"    ${_DEFINE_ANY})
+set(_DEFINE_AVX       "HAVE_AVX"      ${_DEFINE_SSE42})
+set(_DEFINE_AVX2      "HAVE_AVX2"     ${_DEFINE_AVX})
+set(_DEFINE_AVX512F   "HAVE_AVX512F"  ${_DEFINE_AVX2})
+set(_DEFINE_NEON_FP16 "HAVE_NEON_FP16" ${_DEFINE_ANY})
 
 ## Arch specific compile options
 ov_avx512_optimization_flags(_FLAGS_AVX512F)
 ov_avx2_optimization_flags  (_FLAGS_AVX2)
 ov_sse42_optimization_flags (_FLAGS_SSE42)
+ov_arm_neon_fp16_optimization_flags(_FLAGS_NEON_FP16)
 set(_FLAGS_AVX "")  ## TBD is not defined for OV project yet
 set(_FLAGS_ANY "")  ##
 
@@ -180,7 +183,9 @@ endfunction()
 #  Return currently requested ARCH id
 #
 function(_currently_requested_top_arch VAR)
-    if(ENABLE_AVX512F)
+    if(ENABLE_NEON_FP16)
+        set(RES NEON_FP16)
+    elseif(ENABLE_AVX512F)
         set(RES AVX512F)
     elseif(ENABLE_AVX2)
         set(RES AVX2)
