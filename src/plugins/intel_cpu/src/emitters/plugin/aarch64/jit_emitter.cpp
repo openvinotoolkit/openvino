@@ -54,8 +54,23 @@ void jit_emitter::emit_data() const {
     for (auto it = entry_map_.begin(); it != entry_map_.end(); it++) {
         const auto &te = (*it).second; // get map entry for a given key
         const auto len = te.bcast ? get_vec_length() : sizeof(table_entry_val_t);
-        for (size_t d = 0; d < len; d += sizeof(table_entry_val_t))
-            h->dd(te.val);
+
+        if (te.type == ov::element::f16) {
+            for (size_t d = 0; d < len; d += sizeof(uint32_t)) {
+                uint32_t value;
+                auto *t_ptr = reinterpret_cast<uint8_t *>(&value);
+                const auto *u_ptr = reinterpret_cast<const uint8_t *>(&te.val);
+                t_ptr[0] = u_ptr[0];
+                t_ptr[1] = u_ptr[1];
+                t_ptr[2] = u_ptr[0];
+                t_ptr[3] = u_ptr[1];
+                h->dd(value);
+            }
+        } else {
+            for (size_t d = 0; d < len; d += sizeof(table_entry_val_t)) {
+                h->dd(te.val);
+            }
+        }
     }
 }
 

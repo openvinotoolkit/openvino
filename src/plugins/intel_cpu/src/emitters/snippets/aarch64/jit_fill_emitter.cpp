@@ -26,7 +26,7 @@ jit_fill_emitter::jit_fill_emitter(jit_generator* h, cpu_isa_t isa, const Expres
     offset = fill->get_offset();
     fill_value = fill->get_fill_value();
     if (!is_optimized())
-        push_arg_entry_of("value", fill_value, true);
+        push_arg_entry_of("value", fill_value, true, exec_prc_);
     prepare_table();
 }
 

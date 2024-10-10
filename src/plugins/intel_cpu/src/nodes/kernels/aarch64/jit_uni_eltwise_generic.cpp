@@ -34,7 +34,25 @@ template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
 void jit_uni_eltwise_generic<isa>::generate() {
     preamble();
 
-    auto const exec_prc = eltwise_precision_helper::get_precision(jep_.inputs_number, jep_.src_prc, eltwise_data_);
+    const auto any_of = [](
+            const ov::element::Type src_prc[MAX_ELTWISE_INPUTS],
+            const ov::element::Type& type) {
+        for (auto i = 0; i < MAX_ELTWISE_INPUTS; ++i) {
+            if (src_prc[i] == ov::element::undefined) {
+                break;
+            }
+
+            if (src_prc[i] == type) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    // if any precision is fp32 then we don't need fp16 (no performance gain)
+    auto const exec_prc = (jep_.dst_prc == element::f32) || any_of(jep_.src_prc, element::f32) ?
+            element::f32 :
+            eltwise_precision_helper::get_precision(jep_.inputs_number, jep_.src_prc, eltwise_data_);
 
     eltwise_emitter = create_eltwise_emitter(eltwise_data_.front(), exec_prc);
     for (size_t i = 1; i < eltwise_data_.size(); ++i) {
@@ -305,6 +323,11 @@ void jit_uni_eltwise_generic<isa>::load_vector(const TReg& data,
                                                const ov::element::Type& dst_prc,
                                                const bool broadcast,
                                                const int32_t ptr_offset) {
+    if ((src_prc == dst_prc) && (!broadcast)) {
+        jit_generator::uni_ldr(data, ptr_reg, ptr_offset);
+        return;
+    }
+
     switch (src_prc) {
         case ov::element::f16: {
             utils::load_vector(data.h, data.h4, ptr_reg, ptr_offset, broadcast, this);
@@ -320,15 +343,29 @@ void jit_uni_eltwise_generic<isa>::load_vector(const TReg& data,
             break;
         }
         case ov::element::i8: {
-            utils::load_vector(data.b, data.s, ptr_reg, ptr_offset, broadcast, this);
-            sshll(data.h8, data.b8, 0);
-            sshll(data.s4, data.h4, 0);
+            if (broadcast) {
+                utils::load_vector(data.b, data.s, ptr_reg, ptr_offset, broadcast, this);
+            } else {
+                if (ptr_offset == 0) {
+                    ld1(Xbyak_aarch64::VRegSElem(data.getIdx(), 0, 0), ptr(ptr_reg));
+                } else {
+                    add_imm(X_DEFAULT_ADDR, ptr_reg, ptr_offset, X_TMP_0);
+                    ld1(Xbyak_aarch64::VRegSElem(data.getIdx(), 0, 0), ptr(X_DEFAULT_ADDR));
+                }
+            }
             break;
         }
         case ov::element::u8: {
-            utils::load_vector(data.b, data.s, ptr_reg, ptr_offset, broadcast, this);
-            ushll(data.h8, data.b8, 0);
-            ushll(data.s4, data.h4, 0);
+            if (broadcast) {
+                utils::load_vector(data.b, data.s, ptr_reg, ptr_offset, broadcast, this);
+            } else {
+                if (ptr_offset == 0) {
+                    ld1(Xbyak_aarch64::VRegSElem(data.getIdx(), 0, 0), ptr(ptr_reg));
+                } else {
+                    add_imm(X_DEFAULT_ADDR, ptr_reg, ptr_offset, X_TMP_0);
+                    ld1(Xbyak_aarch64::VRegSElem(data.getIdx(), 0, 0), ptr(X_DEFAULT_ADDR));
+                }
+            }
             break;
         }
         default: {
@@ -349,11 +386,31 @@ void jit_uni_eltwise_generic<isa>::load_vector(const TReg& data,
                         break;
                     }
                     case ov::element::i8: {
+                        sshll(data.h8, data.b8, 0);
+                        sshll(data.s4, data.h4, 0);
                         scvtf(data.s, data.s);
                         break;
                     }
                     case ov::element::u8: {
+                        ushll(data.h8, data.b8, 0);
+                        ushll(data.s4, data.h4, 0);
                         ucvtf(data.s, data.s);
+                        break;
+                    }
+                    default:
+                        OPENVINO_THROW("src_prc " + src_prc.to_string() + " is not supported, dst_prc is " + dst_prc.to_string());
+                }
+                break;
+            case ov::element::f16:
+                switch (src_prc) {
+                    case ov::element::i8: {
+                        sshll(data.h8, data.b8, 0);
+                        scvtf(data.h, data.h);
+                        break;
+                    }
+                    case ov::element::u8: {
+                        ushll(data.h8, data.b8, 0);
+                        ucvtf(data.h, data.h);
                         break;
                     }
                     default:
@@ -384,20 +441,10 @@ void jit_uni_eltwise_generic<isa>::load_scalar(const SReg& data,
         }
         case ov::element::i8: {
             ldr(Xbyak_aarch64::BReg(data.getIdx()), Xbyak_aarch64::ptr(ptr, ptr_offset));
-
-            // scalar is loaded, operates with vector
-            TReg vec(data.getIdx());
-            sshll(vec.h8, vec.b8, 0);
-            sshll(vec.s4, vec.h4, 0);
             break;
         }
         case ov::element::u8: {
             ldr(Xbyak_aarch64::BReg(data.getIdx()), Xbyak_aarch64::ptr(ptr, ptr_offset));
-
-            // scalar is loaded, operates with vector
-            TReg vec(data.getIdx());
-            ushll(vec.h8, vec.b8, 0);
-            ushll(vec.s4, vec.h4, 0);
             break;
         }
         default: {
@@ -407,7 +454,7 @@ void jit_uni_eltwise_generic<isa>::load_scalar(const SReg& data,
 
     if (dst_prc != src_prc) {
         switch (dst_prc) {
-            case ov::element::f32:
+            case ov::element::f32: {
                 switch (src_prc) {
                     case ov::element::f16: {
                         fcvt(Xbyak_aarch64::SReg(data.getIdx()), Xbyak_aarch64::HReg(data.getIdx()));
@@ -426,6 +473,21 @@ void jit_uni_eltwise_generic<isa>::load_scalar(const SReg& data,
                         OPENVINO_THROW("src_prc " + src_prc.to_string() + " is not supported, dst_prc is " + dst_prc.to_string());
                 }
                 break;
+            }
+            case ov::element::f16:
+                switch (src_prc) {
+                    case ov::element::i8: {
+                        scvtf(Xbyak_aarch64::HReg(data.getIdx()), Xbyak_aarch64::HReg(data.getIdx()));
+                        break;
+                    }
+                    case ov::element::u8: {
+                        ucvtf(Xbyak_aarch64::HReg(data.getIdx()), Xbyak_aarch64::HReg(data.getIdx()));
+                        break;
+                    }
+                    default:
+                        OPENVINO_THROW("src_prc " + src_prc.to_string() + " is not supported, dst_prc is " + dst_prc.to_string());
+                }
+                break;
             default:
                 OPENVINO_THROW("dst_prc " + dst_prc.to_string() + " is not supported, src_prc is " + src_prc.to_string());
         }
@@ -438,59 +500,66 @@ void jit_uni_eltwise_generic<isa>::store_vector(const XReg& ptr,
                                                 const ov::element::Type& src_prc,
                                                 const ov::element::Type& dst_prc,
                                                 const int32_t ptr_offset) {
-    if (src_prc != dst_prc) {
-        switch (src_prc) {
-            case ov::element::f32: {
-                switch (dst_prc) {
-                    case ov::element::f16: {
-                        fcvtn(data.h4, data.s4);
-                        break;
-                    }
-                    case ov::element::i32: {
-                        fcvtns(data.s, data.s);
-                        break;
-                    }
-                    case ov::element::i8: {
-                        fcvtms(data.s, data.s);
-                        xtn(data.h4, data.s4);
-                        xtn(data.b8, data.h8);
-                        break;
-                    }
-                    case ov::element::u8: {
-                        fcvtmu(data.s, data.s);
-                        xtn(data.h4, data.s4);
-                        xtn(data.b8, data.h8);
-                        break;
-                    }
-                    default: {
-                        OPENVINO_THROW("dst_prc " + dst_prc.to_string() + " is not supported, src_prc is " + src_prc.to_string());
-                    }
-                }
-                break;
-            }
-            default: {
-                OPENVINO_THROW("src_prc " + src_prc.to_string() + " is not supported, dst_prc is " + dst_prc.to_string());
-            }
-        }
+    if (src_prc == dst_prc) {
+        str(Xbyak_aarch64::QReg(data.getIdx()), Xbyak_aarch64::ptr(ptr, ptr_offset));
+        return;
     }
 
-    switch (dst_prc) {
+    switch (src_prc) {
+        case ov::element::f32: {
+            switch (dst_prc) {
+                case ov::element::f16: {
+                    fcvtn(data.h4, data.s4);
+                    str(Xbyak_aarch64::DReg(data.getIdx()), Xbyak_aarch64::ptr(ptr, ptr_offset));
+                    break;
+                }
+                case ov::element::i32: {
+                    fcvtns(data.s, data.s);
+                    str(Xbyak_aarch64::QReg(data.getIdx()), Xbyak_aarch64::ptr(ptr, ptr_offset));
+                    break;
+                }
+                case ov::element::i8: {
+                    fcvtms(data.s, data.s);
+                    xtn(data.h4, data.s4);
+                    xtn(data.b8, data.h8);
+                    str(Xbyak_aarch64::SReg(data.getIdx()), Xbyak_aarch64::ptr(ptr, ptr_offset));
+                    break;
+                }
+                case ov::element::u8: {
+                    fcvtmu(data.s, data.s);
+                    xtn(data.h4, data.s4);
+                    xtn(data.b8, data.h8);
+                    str(Xbyak_aarch64::SReg(data.getIdx()), Xbyak_aarch64::ptr(ptr, ptr_offset));
+                    break;
+                }
+                default: {
+                    OPENVINO_THROW("dst_prc " + dst_prc.to_string() + " is not supported, src_prc is " + src_prc.to_string());
+                }
+            }
+            break;
+        }
         case ov::element::f16: {
-            str(Xbyak_aarch64::DReg(data.getIdx()), Xbyak_aarch64::ptr(ptr, ptr_offset));
-            break;
-        }
-        case ov::element::f32:
-        case ov::element::i32: {
-            str(Xbyak_aarch64::QReg(data.getIdx()), Xbyak_aarch64::ptr(ptr, ptr_offset));
-            break;
-        }
-        case ov::element::i8:
-        case ov::element::u8: {
-            str(Xbyak_aarch64::SReg(data.getIdx()), Xbyak_aarch64::ptr(ptr, ptr_offset));
+            switch (dst_prc) {
+                case ov::element::i8: {
+                    fcvtms(data.h, data.h);
+                    xtn(data.b8, data.h8);
+                    str(Xbyak_aarch64::DReg(data.getIdx()), Xbyak_aarch64::ptr(ptr, ptr_offset));
+                    break;
+                }
+                case ov::element::u8: {
+                    fcvtmu(data.h, data.h);
+                    xtn(data.b8, data.h8);
+                    str(Xbyak_aarch64::DReg(data.getIdx()), Xbyak_aarch64::ptr(ptr, ptr_offset));
+                    break;
+                }
+                default: {
+                    OPENVINO_THROW("dst_prc " + dst_prc.to_string() + " is not supported, src_prc is " + src_prc.to_string());
+                }
+            }
             break;
         }
         default: {
-            OPENVINO_THROW("dst_prc " + dst_prc.to_string() + " is not supported, src_ptr is " + src_prc.to_string());
+            OPENVINO_THROW("src_prc " + src_prc.to_string() + " is not supported, dst_prc is " + dst_prc.to_string());
         }
     }
 }
@@ -524,6 +593,26 @@ void jit_uni_eltwise_generic<isa>::store_scalar(const XReg& ptr,
                         TReg vec_data(data.getIdx());
                         fcvtmu(vec_data.s, vec_data.s);
                         xtn(vec_data.h4, vec_data.s4);
+                        xtn(vec_data.b8, vec_data.h8);
+                        break;
+                    }
+                    default: {
+                        OPENVINO_THROW("dst_prc " + dst_prc.to_string() + " is not supported, src_prc is " + src_prc.to_string());
+                    }
+                }
+                break;
+            }
+            case ov::element::f16: {
+                switch (dst_prc) {
+                    case ov::element::i8: {
+                        TReg vec_data(data.getIdx());
+                        fcvtms(vec_data.h, vec_data.h);
+                        xtn(vec_data.b8, vec_data.h8);
+                        break;
+                    }
+                    case ov::element::u8: {
+                        TReg vec_data(data.getIdx());
+                        fcvtmu(vec_data.h, vec_data.h);
                         xtn(vec_data.b8, vec_data.h8);
                         break;
                     }
