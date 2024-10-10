@@ -138,8 +138,7 @@ void ShlFCExecutor::execute(const MemoryArgs& memory) {
         bias.setData(memory.at(ARG_BIAS)->getData());
     }
 
-    const auto nthreads = std::min(static_cast<int>(dim_M), parallel_get_max_threads());
-    parallel_nt(nthreads, [&](const int ithr, const int nthr) {
+    parallel_nt(0, [&](const int ithr, const int nthr) {
         size_t dim_M0 = 0, dim_M1 = 0;
         splitter(dim_M, nthr, ithr, dim_M0, dim_M1);
 
