@@ -45,10 +45,8 @@ void FakeConvertLayerTest::SetUp() {
     std::shared_ptr<ov::op::v13::FakeConvert> fc;
     if (inputDynamicShapes.size() == 2) {
         fc = std::make_shared<ov::op::v13::FakeConvert>(params[0], params[1], destination_type);
-        // fc = ov::test::utils::make_fake_convert(params[0], params[1], destination_type);
     } else {
         fc = std::make_shared<ov::op::v13::FakeConvert>(params[0], params[1], params[2], destination_type);
-        // fc = ov::test::utils::make_fake_convert(params[0], params[1], params[2], destination_type);
     }
     auto result = std::make_shared<ov::op::v0::Result>(fc);
     function = std::make_shared<ov::Model>(result, params, "fakeConvert");

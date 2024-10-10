@@ -12,22 +12,17 @@ namespace ov {
 namespace test {
 namespace utils {
 std::shared_ptr<ov::Node> make_fake_convert(const ov::Output<ov::Node>& in,
-                                             const ov::Output<ov::Node>& scale,
-                                             const ov::Output<ov::Node>& shift,
-                                             ov::element::Type destination_type) {
-    auto fc = std::make_shared<ov::op::v13::FakeConvert>(in,
-                                                         scale,
-                                                         shift,
-                                                         destination_type);
+                                            const ov::Output<ov::Node>& scale,
+                                            const ov::Output<ov::Node>& shift,
+                                            ov::element::Type destination_type) {
+    auto fc = std::make_shared<ov::op::v13::FakeConvert>(in, scale, shift, destination_type);
     return fc;
 }
 
 std::shared_ptr<ov::Node> make_fake_convert(const ov::Output<ov::Node>& in,
-                                             const ov::Output<ov::Node>& scale,
-                                             ov::element::Type destination_type) {
-    auto fc = std::make_shared<ov::op::v13::FakeConvert>(in,
-                                                         scale,
-                                                         destination_type);
+                                            const ov::Output<ov::Node>& scale,
+                                            ov::element::Type destination_type) {
+    auto fc = std::make_shared<ov::op::v13::FakeConvert>(in, scale, destination_type);
     return fc;
 }
 }  // namespace utils
