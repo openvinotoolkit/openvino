@@ -4,7 +4,9 @@
 
 #include "util.hpp"
 
-#include <immintrin.h>
+#if defined(HAVE_AVX2)
+#    include <immintrin.h>
+#endif
 
 #include <intel_npu/al/config/config.hpp>
 #include <iomanip>
@@ -63,7 +65,7 @@ std::string ov::npuw::util::fmt(std::size_t number, std::size_t total) {
 }
 
 namespace {
-
+#if defined(HAVE_AVX2)
 inline int8_t hi4(int8_t x) {
     return ((x & (1 << 7)) >> 4) | ((x & (1 << 6)) >> 4) | ((x & (1 << 5)) >> 4) | ((x & (1 << 4)) >> 4);
 }
@@ -71,6 +73,7 @@ inline int8_t hi4(int8_t x) {
 inline int8_t lo4(int8_t x) {
     return (x & (1 << 3)) | (x & (1 << 2)) | (x & (1 << 1)) | (x & (1 << 0));
 }
+#endif
 
 inline uint8_t hi4(uint8_t x) {
     return x >> 4;
@@ -80,35 +83,36 @@ inline uint8_t lo4(uint8_t x) {
     return x & 0xF;
 }
 
+#if defined(HAVE_AVX2)
 inline int8_t upc(int8_t h) {
     return h | (-((h & (1 << 3)) >> 3) & (-8));
 }
 
 // NOTE: This routine implements the NEW ORDER
-#define avx2_i4toi8(vinput, vout0, vout1)                                         \
-    {                                                                             \
-        __m256i himask = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, 0xF0));    \
-        __m256i lomask = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, 0x0F));    \
-        __m256i vsgmask = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, 1 << 3)); \
-        __m256i vzero = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, 0));        \
-        __m256i vextend = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, (-8)));   \
-                                                                                  \
-        __m256i vht = _mm256_and_si256(vinput, himask);                           \
-        __m256i vhi = _mm256_srli_epi16(vht, 4);                                  \
-        __m256i vlo = _mm256_and_si256(vinput, lomask);                           \
-                                                                                  \
-        __m256i vsghi = _mm256_srli_epi16(_mm256_and_si256(vhi, vsgmask), 3);     \
-        __m256i vsglo = _mm256_srli_epi16(_mm256_and_si256(vlo, vsgmask), 3);     \
-        __m256i vsubhi = _mm256_sub_epi8(vzero, vsghi);                           \
-        __m256i vsublo = _mm256_sub_epi8(vzero, vsglo);                           \
-        __m256i vhires = _mm256_or_si256(vhi, _mm256_and_si256(vsubhi, vextend)); \
-        __m256i vlores = _mm256_or_si256(vlo, _mm256_and_si256(vsublo, vextend)); \
-                                                                                  \
-        __m256i vunlo = _mm256_unpacklo_epi8(vlores, vhires);                     \
-        __m256i vunhi = _mm256_unpackhi_epi8(vlores, vhires);                     \
-        *vout0 = _mm256_permute2x128_si256(vunlo, vunhi, 0x20);                   \
-        *vout1 = _mm256_permute2x128_si256(vunlo, vunhi, 0x31);                   \
-    }
+#    define avx2_i4toi8(vinput, vout0, vout1)                                         \
+        {                                                                             \
+            __m256i himask = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, 0xF0));    \
+            __m256i lomask = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, 0x0F));    \
+            __m256i vsgmask = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, 1 << 3)); \
+            __m256i vzero = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, 0));        \
+            __m256i vextend = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, (-8)));   \
+                                                                                      \
+            __m256i vht = _mm256_and_si256(vinput, himask);                           \
+            __m256i vhi = _mm256_srli_epi16(vht, 4);                                  \
+            __m256i vlo = _mm256_and_si256(vinput, lomask);                           \
+                                                                                      \
+            __m256i vsghi = _mm256_srli_epi16(_mm256_and_si256(vhi, vsgmask), 3);     \
+            __m256i vsglo = _mm256_srli_epi16(_mm256_and_si256(vlo, vsgmask), 3);     \
+            __m256i vsubhi = _mm256_sub_epi8(vzero, vsghi);                           \
+            __m256i vsublo = _mm256_sub_epi8(vzero, vsglo);                           \
+            __m256i vhires = _mm256_or_si256(vhi, _mm256_and_si256(vsubhi, vextend)); \
+            __m256i vlores = _mm256_or_si256(vlo, _mm256_and_si256(vsublo, vextend)); \
+                                                                                      \
+            __m256i vunlo = _mm256_unpacklo_epi8(vlores, vhires);                     \
+            __m256i vunhi = _mm256_unpackhi_epi8(vlores, vhires);                     \
+            *vout0 = _mm256_permute2x128_si256(vunlo, vunhi, 0x20);                   \
+            *vout1 = _mm256_permute2x128_si256(vunlo, vunhi, 0x31);                   \
+        }
 
 inline __m128i avx2_i8tof16(__m128i vi8) {
     __m256i i32vec = _mm256_cvtepi8_epi32(vi8);                 // extend:  8 x i8  -> 8 x i32 [256b of 256b]
@@ -243,6 +247,7 @@ inline float avx2_load_f32(const int8_t* data, ov::element::Type type) {
         return val;
     }
 }
+#endif
 
 #ifdef UNPACK_PROFILING
 class UnpackStat {
@@ -280,6 +285,7 @@ void unpack_i4i8(const ov::SoPtr<ov::ITensor>& from,
     NPUW_ASSERT(to->is_continuous());
     NPUW_ASSERT(from->get_size() == to->get_size());
 
+#if defined(HAVE_AVX2)
     // with vectorization above, we:
     // - read  256 bits (= 32 bytes, = 64  i4 elements)
     // - write 512 bits (= 64 bytes, = 64  i8 elements)
@@ -310,6 +316,7 @@ void unpack_i4i8(const ov::SoPtr<ov::ITensor>& from,
             pDstLocal += 64;
         }
     };
+
     // ov work index / 64
     if (unpack_options.nPartitions) {
         std::size_t minPartitions;
@@ -354,6 +361,9 @@ void unpack_i4i8(const ov::SoPtr<ov::ITensor>& from,
         pSrc++;
     }
     UNPACK_SAVE_TICK();
+#else
+    throw std::runtime_error("AVX2 support is neccessary but it's not enabled!");
+#endif
 }
 
 void unpack_u4i8(const ov::SoPtr<ov::ITensor>& from,
@@ -382,6 +392,7 @@ void unpack_i4f16(const ov::SoPtr<ov::ITensor>& from,
     NPUW_ASSERT(to->is_continuous());
     NPUW_ASSERT(from->get_size() == to->get_size());
 
+#if defined(HAVE_AVX2)
     // This conversion combines i4toi8 (above) and i8tof16 (below). Here we
     // - read    256  bits (= 32  bytes, = 64  i4  elements)
     // - write   1024 bits (= 128 bytes, = 64  f16 elements)
@@ -490,6 +501,9 @@ void unpack_i4f16(const ov::SoPtr<ov::ITensor>& from,
             pDst[i] = tmp[i];
         }
     }
+#else
+    throw std::runtime_error("AVX2 support is neccessary but it's not enabled!");
+#endif
 }
 
 void unpack_i4f16(const ov::SoPtr<ov::ITensor>& from,
@@ -522,6 +536,7 @@ void unpack_i4f16(const ov::SoPtr<ov::ITensor>& from,
     const auto scale_elem_type = scale->get_element_type();
     NPUW_ASSERT(scale_elem_type == ov::element::f32 || scale_elem_type == ov::element::f16);
 
+#if defined(HAVE_AVX2)
     // This conversion combines i4toi8 (above) and i8tof16 (below). Here we
     // - read    256  bits (= 32  bytes, = 64  i4  elements)
     // - write   1024 bits (= 128 bytes, = 64  f16 elements)
@@ -643,6 +658,9 @@ void unpack_i4f16(const ov::SoPtr<ov::ITensor>& from,
             unpack_body(index, stride);
         }
     }
+#else
+    throw std::runtime_error("AVX2 support is neccessary but it's not enabled!");
+#endif
 }
 
 void unpack_i4f16_z(const ov::SoPtr<ov::ITensor>& from,
@@ -762,6 +780,7 @@ void unpack_u4f16(const ov::SoPtr<ov::ITensor>& from,
     NPUW_ASSERT(from->get_size() == to->get_size());
     NPUW_ASSERT(from->get_size() % 64 == 0);
 
+#if defined(HAVE_AVX2)
     // This conversion combines u4i8 and i8tof16 unpacks. Here we
     // - read    256  bits (= 32  bytes, = 64  i4  elements)
     // - write   1024 bits (= 128 bytes, = 64  f16 elements)
@@ -812,6 +831,9 @@ void unpack_u4f16(const ov::SoPtr<ov::ITensor>& from,
         pSrc += 32;  // shift pSrc only by 32 since it is 64 x i4
         pDst += 64;  // note pDst is int16_t
     }
+#else
+    throw std::runtime_error("AVX2 support is neccessary but it's not enabled!");
+#endif
 }
 
 void unpack_u4f16(const ov::SoPtr<ov::ITensor>& from,
@@ -851,6 +873,7 @@ void unpack_u4f16(const ov::SoPtr<ov::ITensor>& from,
     NPUW_ASSERT(zerop_elem_type == ov::element::u4);
     NPUW_ASSERT(scale_elem_type == ov::element::f16);
 
+#if defined(HAVE_AVX2)
     // This conversion combines u4tof32 and f32tof16. Here we
     // - read    256  bits (= 32  bytes, = 64  u4  elements)
     // - write   1024 bits (= 128 bytes, = 64  f16 elements)
@@ -989,6 +1012,9 @@ void unpack_u4f16(const ov::SoPtr<ov::ITensor>& from,
             unpack_body(index, stride);
         }
     }
+#else
+    throw std::runtime_error("AVX2 support is neccessary but it's not enabled!");
+#endif
 }
 
 void unpack_u4f16_asymm_zp(const ov::SoPtr<ov::ITensor>& from,
@@ -1029,6 +1055,7 @@ void unpack_u4f16_asymm_zp(const ov::SoPtr<ov::ITensor>& from,
     NPUW_ASSERT(zerop_elem_type == ov::element::u4);
     NPUW_ASSERT(scale_elem_type == ov::element::f16);
 
+#if defined(HAVE_AVX2)
     // This conversion combines u4tof32 and f32tof16. Here we
     // - read    256  bits (= 32  bytes, = 64  u4  elements)
     // - write   1024 bits (= 128 bytes, = 64  f16 elements)
@@ -1169,6 +1196,9 @@ void unpack_u4f16_asymm_zp(const ov::SoPtr<ov::ITensor>& from,
             unpack_body(index, stride);
         }
     }
+#else
+    throw std::runtime_error("AVX2 support is neccessary but it's not enabled!");
+#endif
 }
 
 void unpack_u4f16_z(const ov::SoPtr<ov::ITensor>& from,
@@ -1199,6 +1229,7 @@ void unpack_u4f16_z(const ov::SoPtr<ov::ITensor>& from,
     NPUW_ASSERT(zerop_elem_type == ov::element::f32);
     NPUW_ASSERT(scale_elem_type == ov::element::f32);
 
+#if defined(HAVE_AVX2)
     // This conversion combines u4tof32 and f32tof16. Here we
     // - read    256  bits (= 32  bytes, = 64  u4  elements)
     // - write   1024 bits (= 128 bytes, = 64  f16 elements)
@@ -1266,6 +1297,9 @@ void unpack_u4f16_z(const ov::SoPtr<ov::ITensor>& from,
             unpack_body(job_index, stride);
         }
     }
+#else
+    throw std::runtime_error("AVX2 support is neccessary but it's not enabled!");
+#endif
 }
 
 void unpack_u4f32(const ov::SoPtr<ov::ITensor>& from,
@@ -1295,6 +1329,7 @@ void unpack_i8f16(const ov::SoPtr<ov::ITensor>& from,
     NPUW_ASSERT(from->get_size() == to->get_size());
     NPUW_ASSERT(from->get_size() % 8 == 0);
 
+#if defined(HAVE_AVX2)
     constexpr std::size_t VECSIZE = 8;
 
     const std::size_t total = from->get_size();
@@ -1310,6 +1345,9 @@ void unpack_i8f16(const ov::SoPtr<ov::ITensor>& from,
         pSrc += 8;
         pDst += 8;
     }
+#else
+    throw std::runtime_error("AVX2 support is neccessary but it's not enabled!");
+#endif
 }
 
 void unpack_i8f16(const ov::SoPtr<ov::ITensor>& from,
@@ -1327,6 +1365,7 @@ void unpack_i8f16(const ov::SoPtr<ov::ITensor>& from,
     const auto scale_elem_type = scale->get_element_type();
     NPUW_ASSERT(scale_elem_type == ov::element::f32 || scale_elem_type == ov::element::f16);
 
+#if defined(HAVE_AVX2)
     constexpr std::size_t VECSIZE = 8;
 
     const std::size_t total = from->get_size();
@@ -1348,6 +1387,9 @@ void unpack_i8f16(const ov::SoPtr<ov::ITensor>& from,
         }  // index
         pScl += scale_elem_type.size();
     }  // sindex
+#else
+    throw std::runtime_error("AVX2 support is neccessary but it's not enabled!");
+#endif
 }
 
 void unpack_u8f16(const ov::SoPtr<ov::ITensor>& from,
@@ -1372,6 +1414,7 @@ void unpack_u8f16(const ov::SoPtr<ov::ITensor>& from,
     const auto zerop_elem_type = zerop->get_element_type();
     NPUW_ASSERT(zerop_elem_type == ov::element::u8);
 
+#if defined(HAVE_AVX2)
     constexpr std::size_t VECSIZE = 8;
 
     const std::size_t total = from->get_size();
@@ -1398,6 +1441,9 @@ void unpack_u8f16(const ov::SoPtr<ov::ITensor>& from,
         pScl += scale_elem_type.size();
         pZrp++;
     }  // sindex
+#else
+    throw std::runtime_error("AVX2 support is neccessary but it's not enabled!");
+#endif
 }
 
 }  // namespace
@@ -1673,6 +1719,7 @@ void ov::npuw::util::to_f16(ov::Tensor& t) {
     NPUW_ASSERT(t.get_size() % 8 == 0);
     NPUW_ASSERT(t.is_continuous());
 
+#if defined(HAVE_AVX2)
     ov::Tensor tnew(ov::element::f16, shape);
 
     const float* psrc = t.data<float>();
@@ -1688,6 +1735,9 @@ void ov::npuw::util::to_f16(ov::Tensor& t) {
     }
 
     t = std::move(tnew);
+#else
+    throw std::runtime_error("AVX2 support is neccessary but it's not enabled!");
+#endif
 }
 
 inline uint8_t tread_4b(const ov::Tensor& t, std::size_t r, std::size_t c, std::size_t COLS) {
