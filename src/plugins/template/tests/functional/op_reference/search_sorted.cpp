@@ -50,7 +50,7 @@ SearchSortedParams PrepareTestCaseParams(const PartialShape& sortedShape,
 class ReferenceSearchSortedTest : public testing::TestWithParam<SearchSortedParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
-        auto params = GetParam();
+        const auto& params = GetParam();
         function = CreateFunction(params);
         inputData = {params.sorted.data, params.values.data};
         refOutData = {params.expectedOutput.data};
