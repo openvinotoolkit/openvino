@@ -149,11 +149,13 @@ void GridSample::createPrimitive() {
     }
     jitKernel->create_ker();
 
-    nthr = parallel_get_max_threads();
-    execParamsPerThread.resize(nthr);
+    m_nthr = parallel_get_max_threads();
+std::cout << "[CPU] GridSample::createPrimitive m_nthr: " << m_nthr << std::endl;
+    execParamsPerThread.resize(m_nthr);
     if (!x64::mayiuse(x64::avx512_core)) {
         const auto dataElPerVec = jitKernel->getDataElPerVec();
-        parallel_nt(nthr, [&](const int ithr, const int nthr) {
+        parallel_nt(m_nthr, [&](const int ithr, const int nthr) {
+printf("[CPU] GridSample::createPrimitive parallel_nt nthr: %d\n", nthr);
             auto& p = execParamsPerThread[ithr];
 
             p.srcHeightF.resize(dataElPerVec);
@@ -197,9 +199,10 @@ void GridSample::prepareParams() {
     const auto& srcDataShape = dataMemPtr->getStaticDims();
     const auto& dstShape     = dstMemPtr->getStaticDims();
     const uint64_t totalWork = dstShape[2] * dstShape[3];
-    const uint64_t wpt = ((totalWork / dataElPerVec) / nthr + 1) * dataElPerVec;
+    const uint64_t wpt = ((totalWork / dataElPerVec) / m_nthr + 1) * dataElPerVec;
 
-    parallel_nt(nthr, [&](const int ithr, const int nthr) {
+    parallel_nt(m_nthr, [&](const int ithr, const int nthr) {
+printf("[CPU] GridSample::prepareParams parallel_nt nthr: %d\n", nthr);
         const uint64_t dstStart = std::min(wpt * ithr, totalWork);
         const uint64_t dstEnd = std::min(wpt * (ithr + 1), totalWork);
 
@@ -269,6 +272,7 @@ void GridSample::execute(dnnl::stream strm) {
     uint8_t*       dstData = getDstDataAtPortAs<uint8_t>(0);
 
     auto threadBody = [&](const int ithr, const int nthr) {
+printf("[CPU] GridSample::execute parallel_nt nthr: %d\n", nthr);
         const auto& p = execParamsPerThread[ithr];
         auto arg = kernel::GridSamplesKernelExecArgs();
         if (p.workAmount == 0lu) {
@@ -303,7 +307,7 @@ void GridSample::execute(dnnl::stream strm) {
         (*jitKernel)(&arg);
     };
 
-    parallel_nt(nthr, threadBody);
+    parallel_nt(m_nthr, threadBody);
 }
 
 void GridSample::executeDynamicImpl(dnnl::stream strm) {
