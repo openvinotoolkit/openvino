@@ -59,6 +59,12 @@ ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs
         device_gops[ov::element::f16] = 0.5f * gops;
     }
 
+    /// Query graph extension properties
+    _graph_ext_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_GRAPH_PROPERTIES;
+    zeroUtils::throwOnFail(
+        "pfnDeviceGetGraphProperties",
+        _graph_ddi_table_ext.pfnDeviceGetGraphProperties(_initStructs->getDevice(), &_graph_ext_properties));
+
     std::vector<ze_command_queue_group_properties_t> command_group_properties;
     uint32_t command_queue_group_count = 0;
     // Discover all command queue groups
@@ -165,6 +171,10 @@ std::map<ov::element::Type, float> ZeroDevice::getGops() const {
 
 ov::device::Type ZeroDevice::getDeviceType() const {
     return ov::device::Type::INTEGRATED;
+}
+
+compilerVersion ZeroDevice::getCompilerVersion() const {
+    return {0, _graph_ext_properties.compilerVersion.major, _graph_ext_properties.compilerVersion.minor};
 }
 
 std::shared_ptr<SyncInferRequest> ZeroDevice::createInferRequest(
