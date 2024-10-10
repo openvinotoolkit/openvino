@@ -7,6 +7,7 @@
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/op/lstm_cell.hpp"
 #include "openvino/op/loop.hpp"
+#include "openvino/op/util/weightless_caching_attributes.hpp"
 
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
@@ -303,6 +304,16 @@ void ProgramBuilder::add_primitive(const ov::Node& op, std::shared_ptr<cldnn::pr
 
     prim->origin_op_name = op.get_friendly_name();
     prim->origin_op_type_name = op.get_type_name();
+
+    if (auto data_prim = dynamic_cast<cldnn::data*>(prim.get())) {
+        auto rt_info = op.get_rt_info();
+        auto offset = rt_info.find(ov::ConstantBinOffset::get_type_info_static());
+        auto original_size = rt_info.find(ov::ConstantOriginalSize::get_type_info_static());
+        if (offset != rt_info.end() && original_size != rt_info.end()) {
+            data_prim->bin_offset = offset->second.as<ov::ConstantBinOffset>().bin_offset;
+            data_prim->original_size = original_size->second.as<ov::ConstantOriginalSize>().original_size;
+        }
+    }
 
     bool should_profile = prim->type != cldnn::mutable_data::type_id() &&
                           prim->type != cldnn::data::type_id();

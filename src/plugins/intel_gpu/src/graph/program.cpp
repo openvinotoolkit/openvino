@@ -1718,8 +1718,11 @@ void program::cancel_compilation_context() {
 }
 
 void program::save(cldnn::BinaryOutputBuffer& ob) const {
+    std::string weights_path = _config.get_property(ov::intel_gpu::weights_path);
+
     std::map<cldnn::memory::ptr, std::vector<const cldnn::program_node*>> mutable_datas_ptrs;
     ob << nodes_map.size();
+
     for (auto& node : nodes_map) {
         ob.setKernelImplParams(node.second->get_kernel_impl_params().get());
 
@@ -1732,6 +1735,11 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
                 node.second->as<data>().typed_desc()->mem = data_node.get_attached_memory_ptr();
             }
         }
+
+        if (node.second->is_type<data>()) {
+            node.second->as<data>().typed_desc()->weights_path = weights_path;
+        }
+
         ob << true;
 
         ob << node.second->desc;
@@ -1834,6 +1842,12 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
 void program::load(cldnn::BinaryInputBuffer& ib) {
     init_program();
 
+    std::shared_ptr<ov::MappedMemory> mapped_memory = nullptr;
+    std::string weights_path = _config.get_property(ov::intel_gpu::weights_path);
+    if (!weights_path.empty()) {
+        mapped_memory = ov::load_mmap_object(weights_path);
+    }
+
     size_t num_nodes;
     ib >> num_nodes;
     bool is_valid_data_node;
@@ -1844,6 +1858,9 @@ void program::load(cldnn::BinaryInputBuffer& ib) {
 
         std::shared_ptr<cldnn::primitive> prim;
         ib >> prim;
+        if (auto data_prim = dynamic_cast<cldnn::data*>(prim.get())) {
+            data_prim->load_weights(ib, mapped_memory);
+        }
         get_or_create(prim);
     }
 
