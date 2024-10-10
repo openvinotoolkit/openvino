@@ -16,7 +16,7 @@ namespace intel_npu {
 
 namespace zeroUtils {
 
-#define THROW_ON_FAIL(step, result, graph_ddi_table_ext) \
+#define THROW_ON_FAIL_FOR_GRAPH_EXT(step, result, graph_ddi_table_ext) \
     OPENVINO_THROW("L0 ",                                \
                    step,                                 \
                    " result: ",                          \
@@ -29,18 +29,17 @@ namespace zeroUtils {
                    " . ",                                \
                    intel_npu::zeroUtils::getLatestBuildError(graph_ddi_table_ext));
 
-static inline void throwOnFail(const std::string& step, const ze_result_t result) {
-    if (ZE_RESULT_SUCCESS != result) {
-        OPENVINO_THROW("L0 ",
-                       step,
-                       " result: ",
-                       ze_result_to_string(result),
-                       ", code 0x",
-                       std::hex,
-                       uint64_t(result),
-                       " - ",
-                       ze_result_to_description(result));
-    }
+#define THROW_ON_FAIL_FOR_BACKEND(step, result) \
+if (ZE_RESULT_SUCCESS != result) { \
+        OPENVINO_THROW("L0 ", \
+                       step, \
+                       " result: ", \
+                       ze_result_to_string(result), \
+                       ", code 0x", \
+                       std::hex, \
+                       uint64_t(result), \
+                       " - ", \
+                       ze_result_to_description(result)); \
 }
 
 static inline void throwOnFail(const std::string& step, const ze_result_t result, const std::string& hintOnError) {
@@ -228,31 +227,14 @@ static inline uint32_t findGroupOrdinal(
     return 0;
 }
 
-#define NotSupportLogHandle(T) \
-    (std::is_same<T, ze_graph_dditable_ext_1_2_t>::value || std::is_same<T, ze_graph_dditable_ext_1_3_t>::value)
-
 static inline std::string getLatestBuildError(ze_graph_dditable_ext_curr_t& _graph_ddi_table_ext) {
     Logger _logger("LevelZeroUtils", Logger::global().level());
     _logger.debug("getLatestBuildError start");
 
     uint32_t graphDdiExtVersion = _graph_ddi_table_ext.version();
     bool ifNotSupportLogHandle = true;
-    switch (graphDdiExtVersion) {
-    case ZE_GRAPH_EXT_VERSION_1_3:
-        ifNotSupportLogHandle = NotSupportLogHandle(ze_graph_dditable_ext_1_3_t);
-        break;
-    case ZE_GRAPH_EXT_VERSION_1_4:
-        ifNotSupportLogHandle = NotSupportLogHandle(ze_graph_dditable_ext_1_4_t);
-        break;
-    case ZE_GRAPH_EXT_VERSION_1_5:
-        ifNotSupportLogHandle = NotSupportLogHandle(ze_graph_dditable_ext_1_5_t);
-        break;
-    case ZE_GRAPH_EXT_VERSION_1_6:
-        ifNotSupportLogHandle = NotSupportLogHandle(ze_graph_dditable_ext_1_6_t);
-        break;
-    default:
-        ifNotSupportLogHandle = NotSupportLogHandle(ze_graph_dditable_ext_1_2_t);
-        break;
+    if (graphDdiExtVersion >= ZE_GRAPH_EXT_VERSION_1_4) {
+        ifNotSupportLogHandle = false;
     }
 
     if (ifNotSupportLogHandle) {
