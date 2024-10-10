@@ -100,7 +100,7 @@ if command -v lsb_release >/dev/null 2>&1; then
 fi
 
 PYTHON_VERSION_MAJOR="3"
-MIN_REQUIRED_PYTHON_VERSION_MINOR="8"
+MIN_REQUIRED_PYTHON_VERSION_MINOR="9"
 MAX_SUPPORTED_PYTHON_VERSION_MINOR="12"
 
 check_python_version () {
