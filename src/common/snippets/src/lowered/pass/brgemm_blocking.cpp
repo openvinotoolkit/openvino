@@ -98,7 +98,9 @@ size_t BrgemmBlockingBase::get_default_n_blk(size_t n) const {
     return 64;
 }
 size_t BrgemmBlockingBase::get_default_k_blk(size_t k) const {
-    return !utils::is_dynamic_value(k) && k > 1024 ? 1024 : 512;
+    // todo: revert before merge
+    return 32;
+    //return !utils::is_dynamic_value(k) && k > 1024 ? 1024 : 512;
 }
 
 std::tuple<size_t, size_t, size_t> BrgemmBlockingBase::get_blocking_params(const ov::snippets::lowered::ExpressionPtr& brgemm_expr) const {

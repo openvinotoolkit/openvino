@@ -315,7 +315,11 @@ void BrgemmCopyBKernelExecutor::execute(const BrgemmCopyBKernelExecutor* executo
     auto kernel = executor->get_kernel();
     OV_CPU_JIT_EMITTER_ASSERT(kernel, "has nullptr kernel");
     OV_CPU_JIT_EMITTER_ASSERT(args, "has nullptr call args");
+    auto s = args->src;
+    auto d = args->tr_src;
+    std::cerr << s << " : " << d << "\n";
     (*kernel)(args);
+    std::cerr << "\n";
 }
 
 }   // namespace intel_cpu
