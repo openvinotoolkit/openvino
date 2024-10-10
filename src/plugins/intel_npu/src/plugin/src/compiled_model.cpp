@@ -376,12 +376,6 @@ void CompiledModel::initialize_properties() {
           [](const Config& config) {
               return config.getString<DYNAMIC_SHAPE_TO_STATIC>();
           }}},
-        {ov::intel_npu::use_elf_compiler_backend.name(),
-         {false,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.getString<USE_ELF_COMPILER_BACKEND>();
-          }}},
         {ov::intel_npu::create_executor.name(),
          {false,
           ov::PropertyMutability::RO,
