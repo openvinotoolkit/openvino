@@ -77,3 +77,46 @@
 #else
 #    define OV_NO_DANGLING
 #endif
+
+
+#if !(defined(_MSC_VER) && __cplusplus == 199711L)
+#    if __cplusplus >= 201103L
+#        define OPENVINO_CPP_VER_11
+#        if __cplusplus >= 201402L
+#            define OPENVINO_CPP_VER_14
+#            if __cplusplus >= 201703L
+#                define OPENVINO_CPP_VER_17
+#                if __cplusplus >= 202002L
+#                    define OPENVINO_CPP_VER_20
+#                endif
+#            endif
+#        endif
+#    endif
+#elif defined(_MSC_VER) && __cplusplus == 199711L
+#    if _MSVC_LANG >= 201103L
+#        define OPENVINO_CPP_VER_11
+#        if _MSVC_LANG >= 201402L
+#            define OPENVINO_CPP_VER_14
+#            if _MSVC_LANG >= 201703L
+#                define OPENVINO_CPP_VER_17
+#                if _MSVC_LANG >= 202002L
+#                    define OPENVINO_CPP_VER_20
+#                endif
+#            endif
+#        endif
+#    endif
+#endif
+
+#if defined(_MSC_VER) && defined(CPP_VER_11)
+#    define OPENVINO_HAS_EXP_FILESYSTEM 1
+#    define _SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING
+#    define _LIBCPP_NO_EXPERIMENTAL_DEPRECATION_WARNING_FILESYSTEM
+#elif defined(__has_include)
+#    if defined(CPP_VER_17) && (__has_include(<filesystem>)) && (!__has_include(<experimental/filesystem>))
+#        define OPENVINO_HAS_FILESYSTEM 1
+#    elif defined(CPP_VER_11) && (__has_include(<experimental/filesystem>))
+#        define OPENVINO_HAS_EXP_FILESYSTEM 1
+#        define _SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING
+#        define _LIBCPP_NO_EXPERIMENTAL_DEPRECATION_WARNING_FILESYSTEM
+#    endif
+#endif
