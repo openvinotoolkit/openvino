@@ -4,7 +4,6 @@
 
 #include "common_test_utils/all_close_f.hpp"
 
-#include <mutex>
 #include "common_test_utils/float_util.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 #include "precomp.hpp"
@@ -154,9 +153,7 @@ bool close_f(double a, double b, int tolerance_bits, double min_signal) {
 
 std::vector<uint32_t> float_distances(const float* const a, const float* const b, size_t size, float min_signal) {
     std::vector<uint32_t> distances(size);
-    std::mutex mtx; 
     for (size_t i = 0; i < size; ++i) {
-        std::lock_guard<std::mutex> lock(mtx);
         distances[i] = float_distance(a[i], b[i], min_signal);
     }
 
@@ -165,9 +162,7 @@ std::vector<uint32_t> float_distances(const float* const a, const float* const b
 
 std::vector<uint64_t> float_distances(const double* const a, const double* const b, size_t size, double min_signal) {
     std::vector<uint64_t> distances(size);
-    std::mutex mtx; 
     for (size_t i = 0; i < size; ++i) {
-        std::lock_guard<std::mutex> lock(mtx);
         distances[i] = float_distance(a[i], b[i], min_signal);
     }
 
