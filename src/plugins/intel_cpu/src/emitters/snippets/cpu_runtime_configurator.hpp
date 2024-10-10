@@ -14,15 +14,6 @@
 namespace ov {
 namespace intel_cpu {
 
-// class RequestedDesc {
-// public:
-//     RequestedDesc() = default;
-//     RequestedDesc(DnnlMemoryDescPtr requested_desc);
-
-// private:
-//     DnnlMemoryDescPtr m_requested_desc = nullptr;
-// };
-
 class CPURuntimeConfig : public ov::snippets::RuntimeConfig {
 public:
     OPENVINO_RTTI("CPURuntimeConfig", "0", ov::snippets::RuntimeConfig)
@@ -33,6 +24,7 @@ public:
 #endif
 
     std::vector<jit_snippets_call_args::loop_args_t> loop_args = {};
+    std::vector<MemoryDescPtr> m_in_requested_descs = {};
 };
 
 class CPURuntimeConfigurator : public ov::snippets::RuntimeConfigurator {

@@ -105,8 +105,6 @@ private:
     mutable std::vector<VectorDims> in_shapes;
 
     std::shared_ptr<SubgraphExecutor> execPtr = nullptr;
-
-    MemoryDescPtr requested_desc_b;
 };
 
 class Subgraph::SubgraphCodeGenerator {
@@ -146,7 +144,7 @@ protected:
 
     void repack_inputs(dnnl::stream strm, std::vector<MemoryPtr>& inMemPtrs);
 
-    std::vector<MemoryDescPtr> m_requested_descs = {};
+    std::vector<MemoryDescPtr> m_in_requested_descs = {};
 
     std::shared_ptr<snippets::Schedule> m_schedule;
     // Holds index of output used as in execution domain

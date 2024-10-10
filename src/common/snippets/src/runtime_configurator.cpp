@@ -291,9 +291,6 @@ void RuntimeConfigurator::update_data_offsets(const std::vector<VectorDims>& sha
             dim_step *= shape[i + 1];
             offsets[i + idx_stride] = shape[i] != 1 ? dim_step : 0;
         }
-        // TODO: remove this hardcode
-        if (!std::getenv("REFERENCE") && i == 1)
-            offsets[3] = 2048 * 2;
         std::cout << "offsets[" << i << "] = " << ov::PartialShape(offsets) << std::endl;
         if (!layout.empty()) {
             std::vector<size_t> reordered_offsets(offsets.size());

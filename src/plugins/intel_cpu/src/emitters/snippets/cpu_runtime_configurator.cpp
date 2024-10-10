@@ -4,6 +4,7 @@
 
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
 
+#include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/utils/utils.hpp"
 
@@ -37,9 +38,37 @@ CPURuntimeConfigurator::CPURuntimeConfigurator() : ov::snippets::RuntimeConfigur
 }
 
 void CPURuntimeConfigurator::update(const ov::snippets::lowered::LinearIRCPtr& linear_ir) {
+    const auto& cpu_config = ov::as_type_ptr<CPURuntimeConfig>(m_config);
+    auto& optimal_descs = cpu_config->m_in_requested_descs;
+    optimal_descs.resize(m_in_num);
+    const auto& params = linear_ir->get_parameters();
+    OPENVINO_ASSERT(params.size() == m_in_num);
+    for (size_t i = 0; i < m_in_num; ++i) {
+        // TODO: remove
+        if (i != 1) continue;
+        const auto& param = params[i];
+        const auto& shape = param->get_output_port_descriptor(0)->get_shape();
+        VectorDims normalized_dims(3, 1);
+        *normalized_dims.rbegin() = *shape.rbegin();
+        *++normalized_dims.rbegin() = *++shape.rbegin();
+        normalized_dims[0] = std::accumulate(shape.begin(), shape.end() - 2, static_cast<Dim>(1), std::multiplies<Dim>());
+        optimal_descs[i] = std::make_shared<DnnlBlockedMemoryDesc>(Shape(normalized_dims),
+                                                                   dnnl::memory::data_type::bf16,
+                                                                   dnnl::memory::format_tag::aCB16b64c2b);
+    }
+
     RuntimeConfigurator::update(linear_ir);
     if (linear_ir->is_dynamic())
         update_loop_args(linear_ir);
+
+    for (size_t i = 0; i < m_in_num; ++i) {
+        if (optimal_descs[i]) {
+            auto& offsets = m_config->io_data_offsets[i];
+            // TODO: remove this hardcode
+            if (!std::getenv("REFERENCE") && i == 1)
+                offsets[3] = 2048 * 2;
+        }
+    }
 }
 
 void CPURuntimeConfigurator::update_tensor_rank(const ov::snippets::VectorDims& master_shape) {

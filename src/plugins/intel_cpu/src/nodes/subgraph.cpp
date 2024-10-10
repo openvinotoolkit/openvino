@@ -762,16 +762,6 @@ void Subgraph::optimizeIR() {
 void Subgraph::prepareParams() {
     const auto& cache = context->getParamsCache();
 
-    const auto& b_dims = getSrcMemoryAtPort(1)->getDescPtr()->getShape().getDims();
-    VectorDims normalized_dims(3, 1);
-    *normalized_dims.rbegin() = *b_dims.rbegin();
-    *++normalized_dims.rbegin() = *++b_dims.rbegin();
-    normalized_dims[0] = std::accumulate(b_dims.begin(), b_dims.end() - 2, static_cast<Dim>(1), std::multiplies<Dim>());
-
-    requested_desc_b = std::make_shared<DnnlBlockedMemoryDesc>(Shape(normalized_dims),
-                                                               dnnl::memory::data_type::bf16,
-                                                               dnnl::memory::format_tag::aCB16b64c2b);
-
     auto builder = [this, &cache](const SubgraphKey& key) -> std::shared_ptr<SubgraphExecutor> {
         const auto& snippet = subgraph_attrs->snippet;
 
@@ -859,12 +849,6 @@ bool Subgraph::created() const {
 
 void Subgraph::execute(dnnl::stream strm) {
     OPENVINO_ASSERT(execPtr, "Can't execute Subgraph node. Primitive didn't created");
-    if (requested_desc_b) {
-        auto repacked_memory = std::make_shared<Memory>(getEngine(), requested_desc_b);
-        repacked_memory->load(*srcMemPtrs[1]);
-        if (!std::getenv("REFERENCE"))
-            srcMemPtrs[1] = repacked_memory;
-    }
     execPtr->exec(strm, srcMemPtrs, dstMemPtrs);
 }
 
@@ -913,6 +897,8 @@ Subgraph::SubgraphExecutor::SubgraphExecutor(const std::shared_ptr<Subgraph::Sub
     m_buffer_scratchpad_size = snippet_config->buffer_scratchpad_size;
     OPENVINO_ASSERT(!ov::snippets::utils::is_dynamic_value(m_buffer_scratchpad_size), "Undefined buffer scratchpad size!");
     m_buffer_scratchpad = allocator(static_cast<size_t>(m_nthreads) * m_buffer_scratchpad_size);
+
+    m_in_requested_descs = snippet_config->m_in_requested_descs;
 
 #if defined(__linux__) && defined(OPENVINO_ARCH_X86_64) && defined(SNIPPETS_DEBUG_CAPS)
     const auto target = std::dynamic_pointer_cast<const CPUTargetMachine>(snippet_attrs->snippet->get_generator()->get_target_machine());
@@ -990,11 +976,10 @@ void Subgraph::SubgraphExecutor::parallel_forNd(const std::function<void(jit_sni
 }
 
 void Subgraph::SubgraphExecutor::repack_inputs(dnnl::stream strm, std::vector<MemoryPtr>& inMemPtrs) {
-    // TODO: remove check on empty
-    OPENVINO_ASSERT(m_requested_descs.empty() || inMemPtrs.size() == m_requested_descs.size());
-    for (size_t i = 0; i < m_requested_descs.size(); ++i) {
-        if (m_requested_descs[i]) {
-            auto repacked_memory = std::make_shared<Memory>(strm.get_engine(), m_requested_descs[i]);
+    OPENVINO_ASSERT(inMemPtrs.size() == m_in_requested_descs.size());
+    for (size_t i = 0; i < m_in_requested_descs.size(); ++i) {
+        if (m_in_requested_descs[i]) {
+            auto repacked_memory = std::make_shared<Memory>(strm.get_engine(), m_in_requested_descs[i]);
             repacked_memory->load(*inMemPtrs[i]);
             if (!std::getenv("REFERENCE"))
                 inMemPtrs[i] = repacked_memory;
