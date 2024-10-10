@@ -39,12 +39,12 @@ std::string find_plugins_xml(const std::string& xml_file) {
     // register plugins from default openvino-<openvino version>/plugins.xml config
     auto xmlConfigFileDefault = ov::util::path_join({ov_library_path, sub_folder, xml_file_name});
     if (ov::util::file_exists(xmlConfigFileDefault))
-        return xmlConfigFileDefault;
+        return xmlConfigFileDefault.string();
 
     // 2. in folder with libopenvino.so
     xmlConfigFileDefault = ov::util::path_join({std::move(ov_library_path), std::move(xml_file_name)});
     if (ov::util::file_exists(xmlConfigFileDefault))
-        return xmlConfigFileDefault;
+        return xmlConfigFileDefault.string();
 
     return xml_file;
 }

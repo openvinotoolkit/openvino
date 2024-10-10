@@ -6,7 +6,6 @@
 
 #include "checkpoint_utils.hpp"
 #include "openvino/frontend/exception.hpp"
-#include "openvino/util/file_util.hpp"
 #include "ov_tensorflow/saved_tensor_slice.pb.h"
 #include "tf_utils.hpp"
 
@@ -17,13 +16,12 @@
 using namespace ov::frontend::tensorflow;
 
 namespace {
-std::vector<std::string> list_files_in_dir(const std::string& directory_path) {
-    std::vector<std::string> res;
+std::vector<ov::util::Path> list_files_in_dir(const ov::util::Path& directory_path) {
+    std::vector<ov::util::Path> res;
     try {
         ov::util::iterate_files(
             directory_path,
-            [&res](const std::string& file_path, bool is_dir) {
-                auto file = ov::util::get_file_name(file_path);
+            [&res](const ov::util::Path& file_path, bool is_dir) {
                 if (!is_dir) {
                     res.push_back(file_path);
                 }
@@ -41,7 +39,7 @@ CheckpointV1Reader::CheckpointV1Reader(const std::string& checkpoints) : m_check
 
 void CheckpointV1Reader::initialize() {
     // figure out if the input is a file or a directory of checkpoints
-    std::vector<std::string> checkpoints_paths;
+    std::vector<ov::util::Path> checkpoints_paths;
     if (ov::util::directory_exists(m_checkpoints)) {
         checkpoints_paths = list_files_in_dir(m_checkpoints);
     } else if (ov::util::file_exists(m_checkpoints)) {
@@ -58,12 +56,12 @@ void CheckpointV1Reader::initialize() {
             std::make_shared<std::ifstream>(checkpoint_path, std::ifstream::in | std::ifstream::binary);
         FRONT_END_GENERAL_CHECK(
             shard_stream && shard_stream->is_open(),
-            "[TensorFlow Frontend] incorrect model: checkpoint file " + checkpoint_path + "does not exist");
+            "[TensorFlow Frontend] incorrect model: checkpoint file " + checkpoint_path.string() + "does not exist");
         const int32_t shard_ind = static_cast<int32_t>(m_shards.size());
         m_shards.push_back(shard_stream);
-        m_shard_names.push_back(checkpoint_path);
+        m_shard_names.push_back(checkpoint_path.string());
         std::string value;
-        find_entry(shard_stream, checkpoint_path, SAVED_TENSOR_SLICES_KEY, value);
+        find_entry(shard_stream, checkpoint_path.string(), SAVED_TENSOR_SLICES_KEY, value);
 
         // parse empty index block
         // This is only present at the first item of each checkpoint file and serves
