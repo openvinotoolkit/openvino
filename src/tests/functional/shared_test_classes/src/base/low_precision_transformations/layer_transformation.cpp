@@ -7,6 +7,7 @@
 #include <vector>
 #include <string>
 
+#include "openvino/util/common_util.hpp"
 
 namespace LayerTestsUtils {
 ov::pass::low_precision::LayerTransformation::Params LayerTransformationParamsNGraphFactory::createParamsU8I8AndI8() {
@@ -60,14 +61,14 @@ std::string LayerTransformation::get_test_case_name_by_params(
 
 namespace {
 template <typename IsNodeF>
-std::string find_node_by_runtime_precision(const ov::CompiledModel& execNet, IsNodeF is_node_f) {
+std::string find_node_by_runtime_precision(const ov::CompiledModel& execNet, IsNodeF is_node_f, const std::string& propertyName = "runtimePrecision") {
     const std::shared_ptr<const ov::Model>& execFunction = execNet.get_runtime_model();
 
     for (const auto& op : execFunction->get_ops()) {
         if (!is_node_f(op))
             continue;
         const ov::RTMap& rtInfo = op->get_rt_info();
-        const auto& it = rtInfo.find("runtimePrecision");
+        const auto& it = rtInfo.find(propertyName);
         OPENVINO_ASSERT(it != rtInfo.end(), "Runtime precision is not found for node: ", op->get_friendly_name());
         return it->second.as<std::string>();
     }
@@ -92,6 +93,17 @@ std::string LayerTransformation::get_runtime_precision_by_type(const std::string
         return typeIt->second.as<std::string>() == layerType;
     };
     return find_node_by_runtime_precision(compiledModel, is_node_f);
+}
+
+std::string LayerTransformation::get_property_by_type(const std::string& layerTypeName, const std::string& propertyName) {
+    auto is_node_f = [&layerTypeName](const std::shared_ptr<ov::Node>& op) {
+        const auto& rtInfo = op->get_rt_info();
+        const auto& typeIt = rtInfo.find("layerType");
+
+        OPENVINO_ASSERT(typeIt != rtInfo.end(), "Layer is not found for type: ", layerTypeName);
+        return typeIt->second.as<std::string>() == layerTypeName;
+    };
+    return ov::util::to_lower(find_node_by_runtime_precision(compiledModel, is_node_f, propertyName));
 }
 
 namespace {
