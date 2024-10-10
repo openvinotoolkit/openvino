@@ -83,8 +83,7 @@ protected:
             if (prim->activation_scale.is_valid()) {
                 auto activation_scale_idx = idx++;
                 auto act_scale_mem = instance.dep_memory_ptr(activation_scale_idx);
-                // TODO: handle group_size here
-                dnnl::memory::desc desc = onednn::layout_to_memory_desc(act_scale_mem->get_layout(), dnnl::memory::format_tag::a, true);
+                dnnl::memory::desc desc = onednn::layout_to_memory_desc(act_scale_mem->get_layout(), dnnl::memory::format_tag::ab, true);
                 args.insert({DNNL_ARG_ATTR_SCALES | DNNL_ARG_SRC_0, act_scale_mem->get_onednn_memory(desc)});
             }
         }
@@ -387,13 +386,15 @@ public:
             }
 
             if (prim->dynamic_quantized_activation) {
-                // Note: it supports per-token activation scale only
                 ++idx;
-                auto partial_shape = impl_params.input_layouts[0].get_partial_shape();
+                auto& partial_shape = impl_params.input_layouts[0].get_partial_shape();
                 auto innermost_len = partial_shape[partial_shape.size() - 1].get_length();
+                auto& src_scale_shape = impl_params.input_layouts[idx].get_partial_shape();
+                int src_scale_ngroups = src_scale_shape[src_scale_shape.size() - 1].get_length();
+                int src_group_size = innermost_len / src_scale_ngroups;
 
                 auto act_scale_data_type = convert_data_type(impl_params.input_layouts[idx].data_type);
-                attr->set_scales(DNNL_ARG_SRC, GROUPED, dnnl::memory::dims{1, innermost_len}, act_scale_data_type);
+                attr->set_scales(DNNL_ARG_SRC, GROUPED, dnnl::memory::dims{1, src_group_size}, act_scale_data_type);
             }
 
             auto prim_desc = get_matmul_primitive_descriptor(impl_params, impl_params.prog->get_engine(),

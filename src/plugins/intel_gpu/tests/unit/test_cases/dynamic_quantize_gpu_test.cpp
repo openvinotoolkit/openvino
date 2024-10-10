@@ -26,17 +26,15 @@ using namespace ::tests;
 class dynamic_quantization_gpu_tests: public ::testing::Test {
 public:
 
-    void test_dynamic_quantization(bool is_caching_test, bool is_dynamic, int batch = 1, int ifm = 1024) {
+    void test_dynamic_quantization(bool is_caching_test, bool is_dynamic, int batch = 1, int ifm = 1024, uint64_t group_size = 1024) {
         tests::random_generator rg(GET_SUITE_NAME);
         auto& engine = get_test_engine();
 
         long int batch_num = batch;
         long int ifm_num = ifm;
 
-        bool is_4d = true;
-
-        auto input_ps = is_4d ?  ov::PartialShape{ batch_num, 1, 1, ifm_num } : ov::PartialShape{ batch_num, ifm_num};
-        auto dyn_input_ps = is_4d ?  ov::PartialShape{ -1, 1, 1, ifm_num } : ov::PartialShape{ -1, ifm_num};
+        auto input_ps = ov::PartialShape{ batch_num, 1, ifm_num };
+        auto dyn_input_ps = ov::PartialShape{ -1, 1, ifm_num };
         auto input_mem = engine.allocate_memory({ input_ps, data_types::f32, format::bfyx });
 
         auto input_data = rg.generate_random_1d<float>(batch_num * ifm_num, -16.0f, 16.0f);
@@ -49,7 +47,7 @@ public:
                                     : layout{ input_ps, data_types::f16, format::bfyx };
 
         auto reorder_1 = reorder("reorder_1", input_info("input"), layout{ input_ps, data_types::f16, format::bfyx });
-        auto dyn_quan_prim = dynamic_quantize("dyn_quan_prim", input_info("reorder_1"), 32, {data_types::f16, data_types::i8});
+        auto dyn_quan_prim = dynamic_quantize("dyn_quan_prim", input_info("reorder_1"), group_size, {data_types::f16, data_types::i8});
         auto reorder_2 = reorder("reorder_2", input_info("dyn_quan_prim"), layout{ input_ps, data_types::f16, format::bfyx });
 
         // Implemented dynamic quantize kernel
@@ -111,44 +109,46 @@ public:
                 max_diff = abs_diff;
             avg += abs_diff;
             count++;
+            if (abs_diff > 1 && i < 10)
+                std::cout << "idx " << i << " ref " << (int)output_ptr_ref[i] << " - " << (int)output_ptr[i] << std::endl;
             OPENVINO_ASSERT(abs_diff < 1);
         }
         GPU_DEBUG_LOG << "---> count: " << count << ", max_diff:" << max_diff << ", avg_diff: " << (avg/count) << std::endl;
     }
 };
 
-TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_large_size) {
-    this->test_dynamic_quantization(false, false, 2048, 4096);
+TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_per_token_large_size) {
+    this->test_dynamic_quantization(false, false, 2048, 4096, 4096);
 }
 
-TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_large_size_dynamic) {
-    this->test_dynamic_quantization(false, true, 2048, 4096);
+TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_per_token_large_size_dynamic) {
+    this->test_dynamic_quantization(false, true, 2048, 4096, 4096);
 }
 
-TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_small_size) {
-    this->test_dynamic_quantization(false, false, 64, 4096);
+TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_group_32) {
+    this->test_dynamic_quantization(false, false, 2048, 4096, 32);
 }
 
-TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_single_batch) {
-    this->test_dynamic_quantization(false, false, 1, 4096);
+TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_group_128) {
+    this->test_dynamic_quantization(false, false, 2048, 4096, 128);
+}
+
+TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_per_token_small_size) {
+    this->test_dynamic_quantization(false, false, 64, 4096, 4096);
+}
+
+TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_per_token_single_batch) {
+    this->test_dynamic_quantization(false, false, 1, 4096, 4096);
 }
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_ref_only) {
-    this->test_dynamic_quantization(false, false, 16, 33);
+    this->test_dynamic_quantization(false, false, 16, 33, 33);
 }
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_ref_only_dynamic) {
-    this->test_dynamic_quantization(false, true, 16, 33);
+    this->test_dynamic_quantization(false, true, 16, 33, 33);
 }
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_invalid) {
-    this->test_dynamic_quantization(false, false, 16, 7);
-}
-
-TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_unaligned) {
-    this->test_dynamic_quantization(false, false, 16, 32);
-}
-
-TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_unaligned_dynamic) {
-    this->test_dynamic_quantization(false, true, 16, 32);
+    this->test_dynamic_quantization(false, false, 16, 7, 7);
 }

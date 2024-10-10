@@ -25,7 +25,10 @@ JitConstants DynamicQuantizeKernelRef::GetJitConstants(const dynamic_quantize_pa
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
     jit.Merge(GetTensorFriendlyWorkGroupsJit(params.outputs[0]));
-
+    if (params.group_size == UINT64_MAX)
+        jit.AddConstant(MakeJitConstant("GROUP_SIZE", "INPUT0_SIZE_Y"));
+    else
+        jit.AddConstant(MakeJitConstant("GROUP_SIZE", params.group_size));
     return jit;
 }
 
@@ -34,7 +37,12 @@ CommonDispatchData DynamicQuantizeKernelRef::SetDefault(const dynamic_quantize_p
     CommonDispatchData dispatchData;
 
     OPENVINO_ASSERT(params.outputs[0].GetLayout() == DataLayout::bfyx, "It supports only 4d tensor");
-    dispatchData.gws = {params.outputs[0].Batch().v * params.outputs[0].Feature().v, 1, 1};
+    OPENVINO_ASSERT(params.group_size == UINT64_MAX || params.outputs[0].Y().v % params.group_size == 0,
+        "Tensor size should be divisible by group size: ", params.outputs[0].Y().v);
+    uint32_t ngroups;
+    ngroups = params.group_size == UINT64_MAX ? 1 : params.outputs[0].Y().v / params.group_size;
+
+    dispatchData.gws = {params.outputs[0].Batch().v * params.outputs[0].Feature().v, ngroups, 1};
     dispatchData.lws = {1, 1, 1};
 
     return dispatchData;
