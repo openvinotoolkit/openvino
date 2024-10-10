@@ -51,8 +51,8 @@ public:
     ///
     /// \param data Input tensor with data
     /// \param axis The axis along which to squeeze the input tensor.
-    /// \param axis_skip_mode Shape inference result dynamic rank if selected axis has 1 in range of its dynamic
-    Squeeze(const Output<Node>& data, const Output<Node>& axes, const bool axis_skip_mode = false);
+    /// \param allow_axis_skip Shape inference result dynamic rank if selected axis has 1 in range of its dynamic
+    Squeeze(const Output<Node>& data, const Output<Node>& axes, const bool allow_axis_skip = false);
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 

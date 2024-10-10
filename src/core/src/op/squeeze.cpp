@@ -125,9 +125,9 @@ bool Squeeze::is_dynamic() const {
 }  // namespace v0
 
 namespace v15 {
-Squeeze::Squeeze(const Output<Node>& data, const Output<Node>& axes, const bool axis_skip_mode)
+Squeeze::Squeeze(const Output<Node>& data, const Output<Node>& axes, const bool allow_axis_skip)
     : v0::Squeeze({data, axes}),
-      m_allow_axis_skip{axis_skip_mode} {
+      m_allow_axis_skip{allow_axis_skip} {
     constructor_validate_and_infer_types();
 }
 
