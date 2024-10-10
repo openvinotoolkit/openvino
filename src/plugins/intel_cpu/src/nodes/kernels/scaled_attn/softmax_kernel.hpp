@@ -837,20 +837,33 @@ inline void multiply_scalar(ov::float16* a, float* a_dst, const ov::float16 val,
         a_dst[i] = a_f32 * static_cast<float>(val);
     }
 }
+inline void multiply_scalar_f32(ov::float16* a, ov::float16* a_dst, const ov::float16 val, const size_t size) {
+    float32x4_t v_a, v_res;
+    float32x4_t v_val = vdupq_n_f32(val);
+    size_t i = 0;
+    for (; i + vec_len_f32_neon <= size; i += vec_len_f32_neon) {
+        v_a = __vld1q_f32((a + i));
+        v_res = vmulq_f32(v_a, v_val);
+        __vst1q_f32(a_dst + i, v_res);
+    }
+    auto val_f32 = static_cast<float>(val);
+    for (; i < size; ++i) {
+        auto _a_f32 = static_cast<float>(a_dst[i]);
+        auto _a_dst_f32 = val_f32 * _a_f32;
+        a_dst[i] = static_cast<ov::float16>(_a_dst_f32);
+    }
+}
 #endif
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
 inline void multiply_scalar(ov::float16* a, ov::float16* a_dst, const ov::float16 val, const size_t size) {
-    const size_t vec_len_f16_neon = 8;
     float16x8_t v_a, v_res;
     float16x8_t v_val = vdupq_n_f16(val);
     size_t i = 0;
-    // Process vectorized portion
     for (; i + vec_len_f16_neon <= size; i += vec_len_f16_neon) {
         v_a = vld1q_f16(reinterpret_cast<const float16_t*>(a + i));
         v_res = vmulq_f16(v_a, v_val);
         vst1q_f16(reinterpret_cast<float16_t*>(a_dst + i), v_res);
     }
-    // Process the remaining elements
     for (; i < size; ++i) {
         a_dst[i] = a[i] * val;
     }
@@ -996,9 +1009,9 @@ inline void attn_softmax_kernel<ov::float16>(ov::float16* a,
         if (total_size > len)
             memset(static_cast<float*>(a_dst) + len, 0, sizeof(float) * (total_size - len));
     } else {
-        exp_reduce_sum(a, max, len, sum);
+        exp_reduce_sum_f32(a, max, len, sum);
         ov::float16 scalar = 1.0f / sum;
-        multiply_scalar(a, static_cast<ov::float16*>(a_dst), scalar, len);
+        multiply_scalar_f32(a, static_cast<ov::float16*>(a_dst), scalar, len);
         // apply causual mask to final result instead of attn_score
         if (total_size > len)
             memset(static_cast<ov::float16*>(a_dst) + len, 0, sizeof(ov::float16) * (total_size - len));
