@@ -99,7 +99,7 @@ bool AclDeconvExecutor::init(const DeconvAttrs& deconvAttrs,
 
     deconv = std::make_unique<arm_compute::NEDeconvolutionLayer>();
     configureThreadSafe([&] {
-        deconv->configure(&srcTensor, &weiTensor, deconvAttrs.withBiasesParam ? &biasTensor : nullptr, &dstTensor, deconv_info);
+        deconv->configure(&srcTensor, &weiTensor, deconvAttrs.withBiasesParam ? &biasTensor : nullptr, &dstTensor, deconv_info, true);
     });
     return true;
 }
@@ -271,7 +271,8 @@ bool AclDeconvExecutorBuilder::customIsSupported(const DeconvAttrs &deconvAttrs,
                                                                                  &weiTensorInfo,
                                                                                  deconvAttrs.withBiasesParam ? &biasTensorInfo : nullptr,
                                                                                  &dstTensorInfo,
-                                                                                 deconv_info);
+                                                                                 deconv_info,
+                                                                                 true);
         if (!status) {
             DEBUG_LOG("NEDeconvolutionLayer validation failed: ", status.error_description());
             return false;
