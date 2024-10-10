@@ -64,18 +64,18 @@ format::type get_preferred_format(fully_connected_node const& node, const kernel
     }
 
     if (input_layout.data_type == data_types::f32 &&
-        input_layout.format == format::bfyx &&
+        (input_layout.format == format::bfyx || input_layout.format == format::bfzyx) &&
         no_spatial_padding &&
         input_layout.batch() != 8)
-        return format::bfyx;
+        return input_layout.format;
 
     auto input_pitches = input_layout.get_pitches();
     if (input_layout.data_type == data_types::f16 &&
-        input_layout.format == format::bfyx &&
+        (input_layout.format == format::bfyx || input_layout.format == format::bfzyx) &&
         no_spatial_padding &&
         input_pitches[0] % 2 == 0 &&
         input_layout.batch() != 16)
-        return format::bfyx;
+        return input_layout.format;
 
     // this condition tests whether our input is batch>1 in bfyx format, if yes there will be
     // extra reorder between input and this fc from bfyx to yxfb format (so
@@ -105,6 +105,8 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
         output_type = impl_param.get_output_element_type();
     }
 
+    const auto supports_immad = node.get_program().get_engine().get_device_info().supports_immad;
+
     auto reshape_to_2d = [](const ov::PartialShape& shape, int64_t feature) {
         auto staticShape = shape.to_shape();
         size_t total = std::accumulate(staticShape.begin(), staticShape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
@@ -113,23 +115,43 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
     };
 
     int64_t feature = input_pshape[std::min(desc->input_size, static_cast<size_t>(4)) - 1].get_length();
+
     if (desc->input_size == 3) {
         feature = std::max({input_layout.spatial(0), input_layout.spatial(1), input_layout.spatial(2)});
     }
 
-    if (desc->input_size > 4) {
-       input_layout.set_partial_shape(reshape_to_2d(input_pshape, feature));
-    }
     if (weights_pshape.size() != 2) {
         weights_layout.set_partial_shape(reshape_to_2d(weights_pshape, feature));
     }
 
-    auto output_size = tensor(input_layout.batch(), weights_layout.batch(), 1, 1);
-    if (desc->input_size == 3) {
-        output_size = tensor(input_layout.batch(), input_layout.feature(), 1, weights_layout.batch());
-    } else if (desc->input_size == 4) {
-        output_size = tensor(input_layout.batch(), input_layout.feature(), weights_layout.batch(), input_layout.spatial(1));
+    auto output_size = tensor();
+
+    // If immad is supported, spatial dimensions are reshaped to 2d in order to select oneDnn impl,
+    // because oneDnn doesn't support spatial dimensions for output.
+    if (supports_immad) {
+        if (desc->input_size > 3) {
+            input_layout.set_partial_shape(reshape_to_2d(input_pshape, feature));
+        }
+
+        output_size = tensor(input_layout.batch(), weights_layout.batch(), 1, 1);
+        if (desc->input_size == 3) {
+            output_size = tensor(input_layout.batch(), input_layout.feature(), 1, weights_layout.batch());
+        }
+    } else {
+        if (desc->input_size > 5) {
+            input_layout.set_partial_shape(reshape_to_2d(input_pshape, feature));
+        }
+
+        output_size = tensor(input_layout.batch(), weights_layout.batch(), 1, 1);
+        if (desc->input_size == 3) {
+            output_size = tensor(input_layout.batch(), input_layout.feature(), 1, weights_layout.batch());
+        } else if (desc->input_size == 4) {
+            output_size = tensor(input_layout.batch(), input_layout.feature(), weights_layout.batch(), input_layout.spatial(1));
+        } else if (desc->input_size == 5) {
+            output_size = tensor(input_layout.batch(), input_layout.feature(), weights_layout.batch(), input_layout.spatial(1), input_layout.spatial(2));
+        }
     }
+
     format output_format = get_preferred_format(node, impl_param);
 
     return layout(output_type, output_format, output_size);
