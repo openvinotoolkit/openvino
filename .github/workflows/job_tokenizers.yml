@@ -112,6 +112,7 @@ jobs:
         run: |
           # use OpenVINO wheel package only to build the extension
           python -m pip wheel -v --no-deps --wheel-dir ${EXTENSION_BUILD_DIR} --find-links ${INSTALL_WHEELS_DIR} .
+        env:
           CMAKE_BUILD_PARALLEL_LEVEL: '4'
 
       - name: Build tokenizers wheel (Windows)
