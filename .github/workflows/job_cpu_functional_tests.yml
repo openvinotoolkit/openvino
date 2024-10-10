@@ -22,6 +22,7 @@ jobs:
     runs-on: ${{ inputs.runner }}
     container:
       image: ${{ inputs.image }}
+      options: --cap-drop=all --cap-add=CAP_CHOWN --cap-add=CAP_SETGID --cap-add=CAP_SETUID --cap-add=CAP_KILL --cap-add=CAP_FOWNER --cap-add=CAP_FSETID --cap-add=CAP_DAC_OVERRIDE
     defaults:
       run:
         shell: bash
