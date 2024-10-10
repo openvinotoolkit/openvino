@@ -946,8 +946,10 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
             rtInfo["alt_width"] = aw_data.value();
         }
         if (auto constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(ovNode)) {
-            rtInfo[ov::ConstantBinOffset::get_type_info_static()] = ov::ConstantBinOffset(static_cast<size_t>(pugixml::get_uint64_attr(dn, "offset")));
-            rtInfo[ov::ConstantOriginalSize::get_type_info_static()] = ov::ConstantOriginalSize(static_cast<size_t>(pugixml::get_uint64_attr(dn, "size")));
+            rtInfo[ov::ConstantBinOffset::get_type_info_static()] =
+                ov::ConstantBinOffset(static_cast<size_t>(pugixml::get_uint64_attr(dn, "offset")));
+            rtInfo[ov::ConstantOriginalSize::get_type_info_static()] =
+                ov::ConstantOriginalSize(static_cast<size_t>(pugixml::get_uint64_attr(dn, "size")));
         }
     }
 
