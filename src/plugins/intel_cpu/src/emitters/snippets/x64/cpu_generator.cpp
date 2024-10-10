@@ -20,14 +20,14 @@
 #include "emitters/plugin/x64/jit_dnnl_ext_emitters.hpp"
 #include "emitters/plugin/x64/jit_conversion_emitters.hpp"
 
-#include "transformations/snippets/common/op/load_convert.hpp"
-#include "transformations/snippets/common/op/store_convert.hpp"
+#include "transformations/snippets/x64/op/load_convert.hpp"
+#include "transformations/snippets/x64/op/store_convert.hpp"
 #include "transformations/snippets/common/op/fused_mul_add.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/perf_count_rdtsc.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
-#include "transformations/snippets/common/pass/lowered/fuse_load_store_and_convert.hpp"
+#include "transformations/snippets/x64/pass/lowered/fuse_load_store_and_convert.hpp"
 
 #include <openvino/opsets/opset5.hpp>
 #include "emitters/snippets/cpu_kernel_executor_table.hpp"
