@@ -154,11 +154,14 @@ void PagedAttentionExtension::validate_and_infer_types() {
         out_ps[1] = Dimension::dynamic();
         if (key_ps.rank().is_static() && value_ps.rank().is_static() && out_ps[1].is_static() &&
             key_ps[1].is_static() && value_ps[1].is_static()) {
-            // query_ps[1] = num_heads * head_size
-            // key_ps[1] = num_kv_heads * head_size
-            // value_ps[1] = num_kv_heads * v_head_size
-            // q * v / k = (num_heads * head_size) * (num_kv_heads * v_head_size) /
-            //             (num_kv_heads * head_size) = num_heads * v_head_size
+            // The dim of out_ps[1] should be `num_heads * v_head_size`, it can be got from:
+            // because:
+            //   q: query_ps[1] = num_heads * head_size
+            //   k: key_ps[1] = num_kv_heads * head_size
+            //   v: value_ps[1] = num_kv_heads * v_head_size
+            // therefore:
+            //   q * v / k = (num_heads * head_size) * (num_kv_heads * v_head_size) /
+            //               (num_kv_heads * head_size) = num_heads * v_head_size
             out_ps[1] = out_ps[1].get_length() * value_ps[1].get_length() / key_ps[1].get_length();
         }
     }

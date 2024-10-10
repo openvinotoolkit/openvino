@@ -157,8 +157,14 @@ void PagedAttention::execute(dnnl::stream strm) {
     const auto& valueDims = inputs[2]->getStaticDims();
     // value head_size may be not same with key
     if (keyDims[1] != valueDims[1]) {
-        // query_ps[1] = num_heads * head_size, key_ps[1] = num_kv_heads * head_size, value_ps[1] = num_kv_heads * v_head_size,
-        // q * v / k = (num_heads * head_size) * (num_kv_heads * v_head_size) / (num_kv_heads * head_size) = num_heads * v_head_size
+        // The outDims[1] should be `num_heads * v_head_size`, it can be got from:
+        // because:
+        //   q: query_ps[1] = num_heads * head_size
+        //   v: key_ps[1] = num_kv_heads * head_size
+        //   k: value_ps[1] = num_kv_heads * v_head_size
+        // therefore:
+        //   q * v / k = (num_heads * head_size) * (num_kv_heads * v_head_size) /
+        //               (num_kv_heads * head_size) = num_heads * v_head_size
         outDims[1] = outDims[1] * valueDims[1] / keyDims[1];
     }
     if (m_hasScore) {
