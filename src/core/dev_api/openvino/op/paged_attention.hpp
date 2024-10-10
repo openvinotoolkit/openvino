@@ -21,7 +21,7 @@ public:
     void set_out_type(int index, const ov::element::Type& output_type);
 
 protected:
-    std::array<ov::element::Type, 2> m_output_type = {ov::element::undefined, ov::element::undefined};
+    std::vector<ov::element::Type> m_output_type = {ov::element::undefined, ov::element::undefined};
 };
 
 }  // namespace op
