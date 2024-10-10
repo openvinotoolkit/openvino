@@ -25,6 +25,39 @@ public:
 
 void regclass_RemoteTensor(py::module m);
 
+class ClBufferTensorWrapper : public RemoteTensorWrapper {
+public:
+    ClBufferTensorWrapper() {}
+
+    ClBufferTensorWrapper(ov::RemoteTensor& _tensor): RemoteTensorWrapper{_tensor} {}
+
+    ClBufferTensorWrapper(ov::RemoteTensor&& _tensor): RemoteTensorWrapper{std::move(_tensor)} {}
+};
+
+void regclass_ClBufferTensor(py::module m);
+
+class ClImage2DTensorWrapper : public RemoteTensorWrapper {
+public:
+    ClImage2DTensorWrapper() {}
+
+    ClImage2DTensorWrapper(ov::RemoteTensor& _tensor): RemoteTensorWrapper{_tensor} {}
+
+    ClImage2DTensorWrapper(ov::RemoteTensor&& _tensor): RemoteTensorWrapper{std::move(_tensor)} {}
+};
+
+void regclass_ClImage2DTensor(py::module m);
+
+class USMTensorWrapper : public RemoteTensorWrapper {
+public:
+    USMTensorWrapper() {}
+
+    USMTensorWrapper(ov::RemoteTensor& _tensor): RemoteTensorWrapper{_tensor} {}
+
+    USMTensorWrapper(ov::RemoteTensor&& _tensor): RemoteTensorWrapper{std::move(_tensor)} {}
+};
+
+void regclass_USMTensor(py::module m);
+
 class VASurfaceTensorWrapper : public RemoteTensorWrapper {
 public:
     VASurfaceTensorWrapper(ov::RemoteTensor& _tensor): RemoteTensorWrapper{_tensor} {}

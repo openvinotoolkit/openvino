@@ -179,6 +179,36 @@ void regclass_RemoteTensor(py::module m) {
     });
 }
 
+void regclass_ClBufferTensor(py::module m) {
+    py::class_<ClBufferTensorWrapper, RemoteTensorWrapper, std::shared_ptr<ClBufferTensorWrapper>> cls(
+        m,
+        "ClBufferTensor");
+
+    cls.def("get", [](const ClBufferTensorWrapper& self) {
+        return self.tensor.get_params().at(ov::intel_gpu::mem_handle.name()).as<void*>();
+    });
+}
+
+void regclass_ClImage2DTensor(py::module m) {
+    py::class_<ClImage2DTensorWrapper, RemoteTensorWrapper, std::shared_ptr<ClImage2DTensorWrapper>> cls(
+        m,
+        "ClImage2DTensor");
+
+    cls.def("get", [](const ClImage2DTensorWrapper& self) {
+        return self.tensor.get_params().at(ov::intel_gpu::mem_handle.name()).as<void*>();
+    });
+}
+
+void regclass_USMTensor(py::module m) {
+    py::class_<USMTensorWrapper, RemoteTensorWrapper, std::shared_ptr<USMTensorWrapper>> cls(
+        m,
+        "USMTensor");
+
+    cls.def("get", [](const USMTensorWrapper& self) {
+        return self.tensor.get_params().at(ov::intel_gpu::mem_handle.name()).as<void*>();
+    });
+}
+
 void regclass_VASurfaceTensor(py::module m) {
     py::class_<VASurfaceTensorWrapper, RemoteTensorWrapper, std::shared_ptr<VASurfaceTensorWrapper>> cls(
         m,
