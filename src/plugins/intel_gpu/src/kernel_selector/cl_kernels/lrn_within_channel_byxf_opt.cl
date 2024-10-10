@@ -33,7 +33,7 @@ KERNEL(lrn_within_channel_byxf_opt)(
 
     const int x_start = ((int)x - PADDING);
     const int y_start = ((int)y - PADDING);
-    int input_offset = (GET_DATA_INDEX(INPUT0, b, f, y_start, x_start))/8;
+    int input_offset = input_index/8;
 
     VECTOR_TYPE feature_block;
 
@@ -49,7 +49,7 @@ KERNEL(lrn_within_channel_byxf_opt)(
             zero = input_offset_x >= INPUT0_SIZE_X ? true : zero;
             zero = input_offset_y >= INPUT0_SIZE_Y ? true : zero;
 
-            VECTOR_TYPE val = zero ? INPUT0_VAL_ZERO : vload8((input_offset+FEATURE_BLOCK_NUM*i)%INPUT0_FEATURE_NUM, input);
+            VECTOR_TYPE val = zero ? INPUT0_VAL_ZERO : vload8(input_offset+FEATURE_BLOCK_NUM*i, input);
 
             sum = mad(val,val,sum);
 #ifdef DYNAMIC_KERNEL_DIVIDER
