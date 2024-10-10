@@ -78,7 +78,6 @@
 #    define OV_NO_DANGLING
 #endif
 
-
 #if !(defined(_MSC_VER) && __cplusplus == 199711L)
 #    if __cplusplus >= 201103L
 #        define OPENVINO_CPP_VER_11
