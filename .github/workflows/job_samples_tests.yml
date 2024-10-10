@@ -120,9 +120,14 @@ jobs:
           export IE_APP_PATH=$INSTALL_DIR/samples_bin
           export IE_APP_PYTHON_PATH=$INSTALL_DIR/samples/python
           export SHARE=$INSTALL_TEST_DIR/smoke_tests/samples_smoke_tests_data
-
+          
           # Install Python benchmark_app by installing openvino-*.whl
-          python3 -m pip install --ignore-installed PyYAML -r $INSTALL_TEST_DIR/smoke_tests/requirements.txt $INSTALL_DIR/tools/openvino-*.whl
+          pushd ${INSTALL_DIR}/tools
+            py_version=$(python3 -c "import sys; print(f'{sys.version_info.major}{sys.version_info.minor}')")
+            ov_wheel_name=$(find . -name "openvino-*cp$py_version*.whl")
+            python3 -m pip install --ignore-installed PyYAML -r $INSTALL_TEST_DIR/smoke_tests/requirements.txt $ov_wheel_name
+          popd
+          
           export LD_LIBRARY_PATH=${IE_APP_PATH}:$LD_LIBRARY_PATH
 
           source ${INSTALL_DIR}/setupvars.sh
