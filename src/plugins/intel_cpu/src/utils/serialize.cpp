@@ -173,7 +173,11 @@ void ModelDeserializer::process_stream(std::shared_ptr<ov::Model>& model) {
     xml_string->resize(hdr.model_size);
     m_istream.read(const_cast<char*>(xml_string->data()), hdr.model_size);
     if (m_cache_decrypt) {
-        *xml_string = m_cache_decrypt.m_decrypt_str(*xml_string);
+        if (m_decript_from_string) {
+            *xml_string = m_cache_decrypt.m_decrypt_str(*xml_string);
+        } else {
+            m_cache_decrypt.m_decrypt_char(const_cast<char*>(xml_string->data()), xml_string->data(), xml_string->size());
+        }
     }
 
     auto model_buf = std::make_shared<ov::SharedBuffer<std::shared_ptr<std::string>>>(const_cast<char*>(xml_string->data()),

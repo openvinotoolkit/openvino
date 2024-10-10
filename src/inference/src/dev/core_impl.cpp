@@ -1619,8 +1619,8 @@ std::shared_ptr<ov::Model> ov::CoreImpl::read_model(const std::string& model,
     std::shared_ptr<ov::AlignedBuffer> weights_buffer = nullptr;
     if (weights) {
         weights_buffer = std::make_shared<ov::SharedBuffer<ov::Tensor>>(reinterpret_cast<char*>(weights.data()),
-                                                       weights.get_byte_size(),
-                                                       weights);
+                                                                        weights.get_byte_size(),
+                                                                        weights);
     }
 
     return ov::util::read_model(model_buffer, weights_buffer, extensions);
