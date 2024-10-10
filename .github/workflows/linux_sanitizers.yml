@@ -221,7 +221,7 @@ jobs:
         uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         with:
           name: openvino_package_${{ matrix.SANITIZER }}
-          path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
+          path: ${{ env.INSTALL_DIR }}
           if-no-files-found: 'error'
 
       - name: Upload openvino tests package
@@ -229,7 +229,7 @@ jobs:
         uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         with:
           name: openvino_tests_${{ matrix.SANITIZER }}
-          path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
+          path: ${{ env.INSTALL_TEST_DIR }}
           if-no-files-found: 'error'
 
   CXX_Unit_Tests:
