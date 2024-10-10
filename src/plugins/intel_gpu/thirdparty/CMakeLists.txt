@@ -13,7 +13,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
         set(ONEDNN_INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_install" CACHE PATH "Installation path for oneDNN GPU library")
         set(ONEDNN_PREFIX_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_root")
         set(ONEDNN_ENABLED_PRIMITIVES "CONCAT;CONVOLUTION;DECONVOLUTION;INNER_PRODUCT;MATMUL;REORDER;POOLING;REDUCTION;SDPA")
-        set(ONEDNN_ENABLED_ISA "XEHPG;XEHPC;XE2")
+        set(ONEDNN_ENABLED_ISA "XEHPG;XEHPC;XE2;XE3")
         set(DNNL_GPU_LIBRARY_NAME "openvino_onednn_gpu" CACHE STRING "Name of oneDNN library for Intel GPU Plugin")
 
         if(X86_64)
@@ -121,6 +121,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
                 "-DDNNL_BUILD_EXAMPLES=OFF"
                 "-DDNNL_BLAS_VENDOR=NONE"
                 "-DDNNL_LIBRARY_TYPE=STATIC"
+                "-DDNNL_WITH_XE3=TRUE"
                 "-DDNNL_EXPERIMENTAL_PROFILING=ON"
                 "-DONEDNN_BUILD_GRAPH=OFF"
                 # specifically for Conan, because it overrides CMAKE_PREFIX_PATH and oneDNN's FindOpenCL.cmake is ignored
