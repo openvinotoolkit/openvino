@@ -656,7 +656,7 @@ event::ptr primitive_inst::realloc_if_needed() {
     }
 
     // Clear out memory if if was previously reused, but now primitive can't be optimized
-    if (_node->is_runtime_skippable() || _node->is_type<crop>()) {
+    if (!_node->is_type<concatenation>() && (_node->is_runtime_skippable() || _node->is_type<crop>())) {
         if (can_be_optimized()) {
             _max_output_layout_count = _deps[0].first->_max_output_layout_count;
             GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("can_be_optimized");
@@ -1351,7 +1351,8 @@ void primitive_inst::do_runtime_in_place_concat() {
     if (get_users().size() != 1) return;
 
     auto concat_inst = get_user_insts().front();
-    if (!concat_inst->get_node().is_type<concatenation>() || !concat_inst->get_node().can_be_optimized())
+
+    if (!concat_inst->get_node().is_type<concatenation>() || !(concat_inst->get_node().can_be_optimized() && concat_inst->get_node().is_runtime_skippable()))
         return;
 
     if (has_subgraph_dependency(concat_inst->dependencies())) {
@@ -2122,10 +2123,7 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
             GPU_DEBUG_LOG << "[" << _node.id() << ": constant]" << std::endl;
             return ov::intel_gpu::allocate_memory_evenif_zero_bytes(_engine, layout, alloc_type, reset);
         }
-    } else if (!_node.can_share_buffer() || _node.is_output()
-                || (((impl_params.can_be_optimized() || (_node.can_be_optimized() != impl_params.can_be_optimized())) && !_node.is_runtime_skippable()))) {
-        // To use a memory pool, skippable should always be true.
-        // Concat and Crop should not use a memory pool if optimized_out changes at runtime because skippable is always false.
+    } else if (!_node.can_share_buffer() || impl_params.can_be_optimized() || _node.is_output()) {
         GPU_DEBUG_LOG << "[" << _node.id() << ": output]" << std::endl;
         return ov::intel_gpu::allocate_memory_evenif_zero_bytes(_engine, layout, alloc_type, reset);
     } else {
