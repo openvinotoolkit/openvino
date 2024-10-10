@@ -178,7 +178,6 @@ jobs:
           cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_TEST_DIR} -DCOMPONENT=tests -P ${BUILD_DIR}/cmake_install.cmake
           cmake -DCMAKE_INSTALL_PREFIX=${DEVELOPER_PACKAGE_DIR} -DCOMPONENT=developer_package -P ${BUILD_DIR}/cmake_install.cmake
           
-          
       - name: Pack openvino_package
         run: tar -I pigz -cvf ${BUILD_DIR}/openvino_package.tar.gz *
         working-directory: ${{ env.INSTALL_DIR }}
@@ -203,6 +202,7 @@ jobs:
                 -UTBB* \
                 -DENABLE_SYSTEM_TBB=ON \
                 -DENABLE_PYTHON_PACKAGING=ON \
+                -DENABLE_WHEEL=OFF \
                 -DENABLE_TESTS=OFF \
                 -DPython3_EXECUTABLE=$python_exec \
                 -DCPACK_GENERATOR=DEB \
