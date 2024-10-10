@@ -46,8 +46,9 @@ ProfilingPool::~ProfilingPool() {
 }
 
 void ProfilingQuery::create(const ze_graph_profiling_pool_handle_t& profiling_pool) {
-    zeroUtils::throwOnFail("pfnProfilingQueryCreate",
-                           _graph_profiling_ddi_table_ext.pfnProfilingQueryCreate(profiling_pool, _index, &_handle));
+    THROW_ON_FAIL_FOR_LEVELZERO(
+        "pfnProfilingQueryCreate",
+        _graph_profiling_ddi_table_ext.pfnProfilingQueryCreate(profiling_pool, _index, &_handle));
 }
 
 LayerStatistics ProfilingQuery::getLayerStatistics() const {
@@ -66,7 +67,7 @@ void ProfilingQuery::queryGetData(const ze_graph_profiling_type_t profilingType,
                                   uint32_t* pSize,
                                   uint8_t* pData) const {
     if (_handle && pSize) {
-        zeroUtils::throwOnFail(
+        THROW_ON_FAIL_FOR_LEVELZERO(
             "pfnProfilingQueryGetData",
             _graph_profiling_ddi_table_ext.pfnProfilingQueryGetData(_handle, profilingType, pSize, pData));
     }
@@ -92,7 +93,7 @@ template std::vector<uint8_t> ProfilingQuery::getData<uint8_t>() const;
 
 void ProfilingQuery::getProfilingProperties(ze_device_profiling_data_properties_t* properties) const {
     if (_handle && properties) {
-        zeroUtils::throwOnFail(
+        THROW_ON_FAIL_FOR_LEVELZERO(
             "getProfilingProperties",
             _graph_profiling_ddi_table_ext.pfnDeviceGetProfilingDataProperties(_device_handle, properties));
     }
@@ -187,23 +188,25 @@ NpuInferProfiling::NpuInferProfiling(ze_context_handle_t context,
       _logger("InferProfiling", loglevel) {
     /// Fetch and store the device timer resolution
     _dev_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES_1_2;
-    zeroUtils::throwOnFail("zeDeviceGetProperties", zeDeviceGetProperties(_device_handle, &_dev_properties));
+    THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetProperties", zeDeviceGetProperties(_device_handle, &_dev_properties));
     /// Request mem allocations
     ze_host_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC,
                                      nullptr,
                                      ZE_HOST_MEM_ALLOC_FLAG_BIAS_CACHED};
-    zeroUtils::throwOnFail("zeMemAllocHost",
-                           zeMemAllocHost(_context,
-                                          &desc,
-                                          sizeof(uint64_t),
-                                          64,
-                                          &npu_ts_infer_start));  // align to 64 bytes to match npu l2 cache line size
-    zeroUtils::throwOnFail("zeMemAllocHost",
-                           zeMemAllocHost(_context,
-                                          &desc,
-                                          sizeof(uint64_t),
-                                          64,
-                                          &npu_ts_infer_end));  // alight to 64 bytes to match npu l2 cache line size
+    THROW_ON_FAIL_FOR_LEVELZERO(
+        "zeMemAllocHost",
+        zeMemAllocHost(_context,
+                       &desc,
+                       sizeof(uint64_t),
+                       64,
+                       &npu_ts_infer_start));  // align to 64 bytes to match npu l2 cache line size
+    THROW_ON_FAIL_FOR_LEVELZERO(
+        "zeMemAllocHost",
+        zeMemAllocHost(_context,
+                       &desc,
+                       sizeof(uint64_t),
+                       64,
+                       &npu_ts_infer_end));  // alight to 64 bytes to match npu l2 cache line size
 }
 
 void NpuInferProfiling::sampleNpuTimestamps() {
