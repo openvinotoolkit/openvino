@@ -20,7 +20,7 @@
 #    endif
 #endif
 
-#if !definedOPENVINO_(HAS_FILESYSTEM) && !defined(OPENVINO_HAS_EXP_FILESYSTEM)
+#if !defined(OPENVINO_HAS_FILESYSTEM) && !defined(OPENVINO_HAS_EXP_FILESYSTEM)
 #    error "Neither #include <filesystem> nor #include <experimental/filesystem> is available."
 #elif defined(OPENVINO_HAS_FILESYSTEM)
 #    include <filesystem>
