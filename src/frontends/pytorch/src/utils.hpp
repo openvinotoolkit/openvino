@@ -80,6 +80,8 @@ OutputVector make_framework_node_ignore_bodies(const NodeContext& context, const
 OutputVector make_framework_node(const NodeContext& context, const std::string& exception);
 
 std::shared_ptr<op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> node, const std::string& type);
+std::shared_ptr<op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> node,
+                                                      std::initializer_list<std::string> types);
 
 std::shared_ptr<Node> make_list_construct(const ov::OutputVector& inputs);
 

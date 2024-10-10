@@ -52,7 +52,7 @@ IndexLoopGetitemReplacer::IndexLoopGetitemReplacer() {
         size_t chunk_idx = 0;
         auto loop_inputs = loop_op->input_values();
         for (size_t i = 1; i < loop_inputs.size(); i++) {
-            if (cast_fw_node(loop_inputs.at(i).get_node_shared_ptr(), "aten::chunk")) {
+            if (cast_fw_node(loop_inputs.at(i).get_node_shared_ptr(), {"aten::chunk", "aten::unsafe_chunk"})) {
                 chunk_op = loop_inputs.at(i).get_node_shared_ptr();
                 chunk_idx = i;
                 break;
