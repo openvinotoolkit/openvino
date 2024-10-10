@@ -179,7 +179,7 @@ jobs:
           cmake -DCMAKE_INSTALL_PREFIX=${DEVELOPER_PACKAGE_DIR} -DCOMPONENT=developer_package -P ${BUILD_DIR}/cmake_install.cmake
           
       - name: Pack openvino_package
-        run: tar -I pigz -cvf ${BUILD_DIR}/openvino_package.tar.gz *
+        run: tar -I pigz -cvf ${BUILD_DIR}/openvino_package.tar.gz --exclude='wheels' *
         working-directory: ${{ env.INSTALL_DIR }}
         
       - name: Pack openvino_developer_package
@@ -261,7 +261,7 @@ jobs:
         uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         with:
           name: openvino_wheels
-          path: ${{ env.BUILD_DIR }}/wheels/*.whl
+          path: ${{ env.INSTALL_DIR }}/wheels/*.whl
           if-no-files-found: 'error'
         
       - name: Upload openvino js package
