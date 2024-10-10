@@ -619,11 +619,15 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
         jit.AddConstant(MakeJitConstant("DECOMPRESSION_SCALE_POST_OP", 1));
         jit.AddConstant(MakeJitConstant("DQ_TYPE", "char"));
         jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", quantize_grp_size));
+        if (params.asymmetric_dynamic_quantization)
+            jit.AddConstant(MakeJitConstant("FC_ASYM_DYN_QUAN", 1));
     } else {
         if (add_decompress_scale_post_op)
             jit.AddConstant(MakeJitConstant("DECOMPRESSION_SCALE_POST_OP", 1));
         jit.AddConstant(MakeJitConstant("DYNAMIC_QUANTIZE", 0));
         jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", min_quantize_grp_size));
+        if (params.asymmetric_dynamic_quantization)
+            jit.AddConstant(MakeJitConstant("FC_ASYM_DYN_QUAN", 0));
     }
 
     jit.AddConstant(MakeJitConstant("IFM_SIZE", get_input_bf_size(params).second));
@@ -716,6 +720,7 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
 
             size_t quantize_grp_size = get_dynamic_quantize_group_size(prim_params);
             size_t output_batch = get_output_aligned_bf_size(prim_params, false).first;
+            const bool enable_asym_dyn_quan = prim_params.asymmetric_dynamic_quantization;
 
             // Get index of the added shape-agnostic kernel
             int kernel_offset = 0;
@@ -736,7 +741,9 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
             kd.kernels[skip_kernel_idx].skip_execution = true;
 
             GPU_DEBUG_TRACE_DETAIL << "FC bf tiled: " << (execute_type == KernelType::SLM ? "SLM" : "Default") << " shape-agnostic kernel version "
-                                    << "will be used for batch size = " << output_batch << "\n";
+                                    << "will be used for batch size = " << output_batch
+                                    << ", asym dyn quan = " << enable_asym_dyn_quan
+                                    << "\n";
 
             auto dispatchData = SetDefault(prim_params, -1, static_cast<int>(execute_type));
             kd.kernels[execute_kernel_idx].params.workGroups.global = dispatchData.gws;
@@ -762,6 +769,8 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
                         kd.internalBufferSizes.clear();
                         kd.internalBufferSizes.push_back(input_size);                           // quantized input is char type
                         kd.internalBufferSizes.push_back(input_size / quantize_grp_size * 2);   // de_quan_scale is half type
+                        if (enable_asym_dyn_quan)
+                            kd.internalBufferSizes.push_back(input_size / quantize_grp_size * 2); // de_quan_zp is half type
                     }
 
                     kd.kernels[0].params.workGroups.global = {std::max((input_size / quantize_grp_size), (size_t)1), 1, 1};
@@ -929,6 +938,7 @@ KernelsData FullyConnected_bf_tiled::GetMultiKernelsData(const Params &params,
     // Generate dispatch data for KernelType::DEFAULT
     int kernel_number = 0;
     const DispatchData dispatchData = SetDefault(new_params, autoTuneIndex, kernel_number);
+    const bool enable_asym_dyn_quan = fc_params.asymmetric_dynamic_quantization;
 
     // Dynamic-quantize kernel
     {
@@ -967,6 +977,10 @@ KernelsData FullyConnected_bf_tiled::GetMultiKernelsData(const Params &params,
         quan_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
         kd.internalBufferSizes.push_back(input_size);
         kd.internalBufferSizes.push_back(input_size / quantize_grp_size * 2);
+        if (enable_asym_dyn_quan) {
+            quan_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
+            kd.internalBufferSizes.push_back(input_size / quantize_grp_size * 2);
+        }
         kernel_number++;
     }
     kd.internalBufferDataType = Datatype::F16;
@@ -998,6 +1012,9 @@ KernelsData FullyConnected_bf_tiled::GetMultiKernelsData(const Params &params,
 
         fc_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         fc_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        if (enable_asym_dyn_quan) {
+            fc_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
+        }
         kernel_number++;
     }
 
@@ -1033,6 +1050,9 @@ KernelsData FullyConnected_bf_tiled::GetMultiKernelsData(const Params &params,
 
         sa_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         sa_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        if (enable_asym_dyn_quan) {
+            sa_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
+        }
     }
 
     kd.autoTuneIndex = autoTuneIndex;

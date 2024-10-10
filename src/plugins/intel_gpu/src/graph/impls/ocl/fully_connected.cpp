@@ -196,7 +196,10 @@ public:
         }
 
         params.dynamic_quantization_group_size = impl_param.get_program().get_config().get_property(ov::hint::dynamic_quantization_group_size);
-
+        GPU_DEBUG_GET_INSTANCE(debug_config);
+        GPU_DEBUG_IF(debug_config->asym_dynamic_quantize == 1) {
+            params.asymmetric_dynamic_quantization = true;
+        }
         return params;
     }
 
