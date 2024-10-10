@@ -8,7 +8,7 @@
 
 namespace ov {
 
-/// \brief SharedBuffer class to store pointer to pre-acclocated buffer.
+/// \brief SharedBuffer class to store pointer to pre-acclocated buffer. Own the shared object.
 template <typename T>
 class SharedBuffer : public ov::AlignedBuffer {
 public:
@@ -26,6 +26,58 @@ public:
 
 private:
     T _shared_object;
+};
+
+/// \brief SharedStreamBuffer class to store pointer to pre-acclocated buffer and provide streambuf interface.
+///  Can return ptr to shared memory and its size
+class SharedStreamBuffer : public std::streambuf {
+public:
+    SharedStreamBuffer(char* data, size_t size) : m_data(data), m_size(size), m_offset(0) {}
+
+    // get data ptr and its size
+    char* data() {
+        return m_data;
+    }
+
+    size_t size() {
+        return m_size;
+    }
+
+protected:
+    // override std::streambuf methods
+    std::streamsize xsgetn(char* s, std::streamsize count) override {
+        auto real_count = std::min<std::streamsize>(m_size - m_offset, count);
+        std::memcpy(s, m_data + m_offset, real_count);
+        m_offset += real_count;
+        return real_count;
+    }
+
+    int_type underflow() override {
+        return (m_size == m_offset) ? traits_type::eof() : traits_type::to_int_type(*(m_data + m_offset));
+    }
+
+    int_type uflow() override {
+        return (m_size == m_offset) ? traits_type::eof() : traits_type::to_int_type(*(m_data + m_offset++));
+    }
+
+    std::streamsize showmanyc() override {
+        return m_size - m_offset;
+    }
+
+    char* m_data;
+    size_t m_size;
+    size_t m_offset;
+};
+
+/// \brief OwningSharedStreamBuffer is a SharedStreamBuffer which owns its shared object.
+class OwningSharedStreamBuffer : public SharedStreamBuffer {
+public:
+    OwningSharedStreamBuffer(char* data, size_t size, const std::shared_ptr<void>& shared_obj)
+        : SharedStreamBuffer(data, size),
+          m_shared_obj(shared_obj) {}
+
+protected:
+    std::shared_ptr<void> m_shared_obj;
 };
 
 }  // namespace ov

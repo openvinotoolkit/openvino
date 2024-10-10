@@ -331,6 +331,8 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
         return decltype(ov::available_devices)::value_type {available_devices};
     } else if (name == ov::internal::caching_properties) {
         return decltype(ov::internal::caching_properties)::value_type(get_caching_properties());
+    } else if (name == ov::internal::cache_reading_via_mmap) {
+        return decltype(ov::internal::cache_reading_via_mmap)::value_type(true);
     }
 
     ov::AnyMap actual_runtime_info;
