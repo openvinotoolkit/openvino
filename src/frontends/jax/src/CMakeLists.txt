@@ -7,7 +7,6 @@ if((CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG) AND CMAKE_CXX_STANDARD GRE
 endif()
 
 ov_add_frontend(NAME jax
-                EXCLUDE_FROM_ALL
                 LINKABLE_FRONTEND
                 FILEDESCRIPTION "FrontEnd to load and convert JAX/Flax models"
                 LINK_LIBRARIES openvino::util openvino::core::dev)
