@@ -104,13 +104,14 @@ endmacro()
 #                 FILEDESCRIPTION <description> # used on Windows to describe DLL file
 #                 [LINKABLE_FRONTEND] # whether we can use FE API directly or via FEM only
 #                 [SKIP_INSTALL] # private frontend, not for end users
+#                 [EXCLUDE_FROM_ALL] # exclude from all target
 #                 [PROTOBUF_REQUIRED] # options to denote that protobuf is used
 #                 [PROTOBUF_LITE] # requires only libprotobuf-lite
 #                 [SKIP_NCC_STYLE] # use custom NCC rules
 #                 [LINK_LIBRARIES <lib1 lib2 ...>])
 #
 macro(ov_add_frontend)
-    set(options LINKABLE_FRONTEND PROTOBUF_REQUIRED PROTOBUF_LITE SKIP_NCC_STYLE SKIP_INSTALL)
+    set(options LINKABLE_FRONTEND PROTOBUF_REQUIRED PROTOBUF_LITE SKIP_NCC_STYLE SKIP_INSTALL EXCLUDE_FROM_ALL)
     set(oneValueArgs NAME FILEDESCRIPTION)
     set(multiValueArgs LINK_LIBRARIES PROTO_FILES)
     cmake_parse_arguments(OV_FRONTEND "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
@@ -306,6 +307,13 @@ macro(ov_add_frontend)
     # installation
 
     if(NOT OV_FRONTEND_SKIP_INSTALL)
+        if(OV_FRONTEND_EXCLUDE_FROM_ALL)
+            set(OV_FRONTEND_EXCLUDE_FROM_ALL EXCLUDE_FROM_ALL)
+            set(OV_FRONTEND_LINKS_EXCLUDE_FROM_ALL EXCLUDE_FROM_ALL)
+        else()
+            set(OV_FRONTEND_EXCLUDE_FROM_ALL ${OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL})    
+            set(OV_FRONTEND_LINKS_EXCLUDE_FROM_ALL ${OV_CPACK_COMP_LINKS_EXCLUDE_ALL}) 
+        endif()
         if(BUILD_SHARED_LIBS)
             # Note:
             # we use 'framework' as component for deployment scenario, i.e. for libraries itself
@@ -318,8 +326,8 @@ macro(ov_add_frontend)
 
             if(OV_FRONTEND_LINKABLE_FRONTEND)
                 set(export_set EXPORT OpenVINOTargets)
-                set(archive_dest ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${dev_component} ${OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL})
-                set(namelink NAMELINK_COMPONENT ${OV_CPACK_COMP_LINKS} ${OV_CPACK_COMP_LINKS_EXCLUDE_ALL})
+                set(archive_dest ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${dev_component} ${OV_FRONTEND_EXCLUDE_FROM_ALL})
+                set(namelink NAMELINK_COMPONENT ${OV_CPACK_COMP_LINKS} ${OV_FRONTEND_LINKS_EXCLUDE_FROM_ALL})
             else()
                 set(namelink NAMELINK_SKIP)
             endif()
@@ -343,7 +351,7 @@ macro(ov_add_frontend)
             install(DIRECTORY ${${TARGET_NAME}_INCLUDE_DIR}/openvino
                     DESTINATION ${FRONTEND_INSTALL_INCLUDE}
                     COMPONENT ${dev_component}
-                    ${OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL}
+                    ${OV_FRONTEND_EXCLUDE_FROM_ALL}
                     FILES_MATCHING PATTERN "*.hpp")
 
             # public target name
