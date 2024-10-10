@@ -1,8 +1,10 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2023-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "partitioning.hpp"
+
+#include <memory>
 
 #include "../logging.hpp"
 #include "../util.hpp"
@@ -19,6 +21,26 @@
 #include "openvino/util/xml_parse_utils.hpp"
 #include "patterns/dcoff.hpp"
 #include "patterns/opt.hpp"
+
+namespace ov {
+namespace npuw {
+inline bool operator==(const std::reference_wrapper<Subgraph>& lhs, const std::reference_wrapper<Subgraph>& rhs) {
+    ov::npuw::Subgraph& llink = lhs.get();
+    ov::npuw::Subgraph& rlink = rhs.get();
+    return &llink == &rlink;
+}
+}  // namespace npuw
+}  // namespace ov
+
+template <typename T2>
+struct std::hash<std::pair<ov::npuw::Subgraph::Ref, T2>> {
+    std::size_t operator()(std::pair<ov::npuw::Subgraph::Ref, T2> const& p) const noexcept {
+        ov::npuw::Subgraph& sg = p.first.get();
+        std::size_t h1 = std::hash<void*>{}(&sg);
+        std::size_t h2 = std::hash<T2>{}(p.second);
+        return h1 ^ (h2 << 1);
+    }
+};
 
 namespace {
 
@@ -118,6 +140,7 @@ ov::npuw::Ensemble load_groups(const std::shared_ptr<ov::Model>& model, const st
         this_group.gflops = get_float_attr(group, "gflops");
         this_group.repeated_id = get_str_attr(group, "repeated", "");
         this_group.avoid_list = get_str_attr(group, "avoid", "");
+        this_group.tag = get_str_attr(group, "tag", "");
         FOREACH_CHILD(input, group, "input") {
             this_group.input_layers.push_back(get_str_attr(input, "name"));
         }
@@ -161,6 +184,8 @@ private:
 
     using PPtr = std::shared_ptr<ov::op::v0::Parameter>;
     using RPtr = std::shared_ptr<ov::op::v0::Result>;
+    using SubgParam = std::pair<ov::npuw::Subgraph::Ref, PPtr>;
+    using SubgResult = std::pair<ov::npuw::Subgraph::Ref, RPtr>;
     using LinkPtrTo = std::pair<size_t /*submodel_idx*/
                                 ,
                                 PPtr /*param ptr*/
@@ -182,8 +207,8 @@ private:
 
         // Map every function call instance' Parameter and result
         // back to its prototype Parameter and Result
-        std::unordered_map<PPtr, PPtr> param_call_to_proto;
-        std::unordered_map<RPtr, RPtr> result_call_to_proto;
+        std::unordered_map<SubgParam, PPtr> param_call_to_proto;
+        std::unordered_map<SubgResult, RPtr> result_call_to_proto;
     };
     std::map<std::string, FunctionPipeline> all_functions;
 
@@ -202,8 +227,16 @@ private:
 
     void createFunction(FunctionPipeline& func_ggg);
 
+    // NB(dm): This method should get a better place, it is here only because
+    // it is tied to the Function structure (but, in fact, not so much)
+    void identifySpatialRange(ov::npuw::Function& f);
+
     template <typename T, typename M>
-    void rearrange_to_function_protocol(const std::vector<T>& protocol, std::vector<T>& call, const M& call_to_proto) {
+    void rearrange_to_function_protocol(ov::npuw::Subgraph::Ref func_ref,
+                                        const std::vector<T>& protocol,
+                                        std::vector<T>& call,
+                                        const M& call_to_proto,
+                                        bool required = false) {
         LOG_DEBUG("Rearranging...");
         LOG_BLOCK();
         LOG_DEBUG("Protocol: " << protocol.size());
@@ -215,7 +248,7 @@ private:
         LOG_DEBUG("Call: " << call.size());
         for (auto&& c : call) {
             LOG_BLOCK();
-            auto p_c = call_to_proto.at(c);
+            auto p_c = call_to_proto.at(typename M::key_type(func_ref, c));
             to_proto.push_back(p_c);
             LOG_DEBUG(c << " (which is " << p_c << ")");
         }
@@ -229,6 +262,8 @@ private:
                 std::size_t j = std::distance(to_proto.begin(), iter);
                 LOG_DEBUG("Put " << j << " element to " << i << " as in the protocol");
                 call[i] = call_tmp[j];
+            } else if (required) {
+                OPENVINO_THROW("NPUW: Parameter from protocol is not found in the call!");
             }
         }
     }
@@ -281,6 +316,7 @@ public:
     void matchResults(const std::string& func_name);
     void createFunction(const std::string& func_name);
     void matchRepeatedSubgraphs(const std::string& func_name);
+    void spatial(const std::string& func_name);
     void optimize(const std::string& func_name);
     void decompressionCutOff(const std::string& func_name);
 
@@ -333,6 +369,7 @@ void Partitioner::identifySubgraphs() {
         P.total_ops += group.sg._ops;
 
         group.sg._avoid_list = group.avoid_list;
+        group.sg._tag = group.tag;
         // Note inputs and outputs are included in the above set, so if
         // we are here, those nodes should be present in the model.
 
@@ -460,12 +497,23 @@ void Partitioner::identifySubgraphs() {
         LOG_VERB("Populating _parameters...");
         group.sg._parameters.clear();
 
+        // Stabilize input order - sort layers based on names
+        using PairNodePtr = std::pair<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>>;
+        std::vector<PairNodePtr> input_mapping_sorted(input_mapping.begin(), input_mapping.end());
+        std::sort(input_mapping_sorted.begin(),
+                  input_mapping_sorted.end(),
+                  [](const PairNodePtr& p1, const PairNodePtr& p2) {
+                      // Sanity check
+                      NPUW_ASSERT(p1.first->get_friendly_name() != p2.first->get_friendly_name());
+                      return p1.first->get_friendly_name() < p2.first->get_friendly_name();
+                  });
+
         // Now (after unknown slices/converts were introduced) params may be referred to
         // from multiple places in the model - so may be added multiple times to the
         // input mapping. This is a w/a, better they're added only once (TODO).
         // This set handles it.
         std::set<std::shared_ptr<ov::Node>> unique_params;
-        for (auto&& im : input_mapping) {
+        for (auto&& im : input_mapping_sorted) {
             LOG_BLOCK();
             auto& src_node = im.first;
             auto& maybe_param = im.second;
@@ -486,7 +534,7 @@ void Partitioner::identifySubgraphs() {
             } else {
                 // assert is_constant(), there's no other way
             }
-        }  // for(input_mapping)
+        }  // for(input_mapping_sorted)
 
         // The same logic for group's final layers: replace their direct
         // connections with Result stubs (but remember where these outputs
@@ -536,7 +584,7 @@ void Partitioner::identifySubgraphs() {
             LOG_VERB("Processing group's output layer " << output_layer_name);
             LOG_BLOCK();
             auto output_layer_ptr = node_id_cache.at(output_layer_name);
-            if (output_layer_ptr->inputs().empty()) {
+            if (output_layer_ptr->outputs().empty()) {
                 OPENVINO_THROW("The group's output layer ",
                                output_layer_name,
                                " has NO OUTPUTS!! - Graph contracts are broken??");
@@ -1327,9 +1375,12 @@ void Partitioner::matchParameters(const std::string& func_name) {
 
     // Now walk other submodels and match parameters with the same key
     // (yes, including the first one)
-    for (auto&& call : model_group) {
+    for (std::size_t call_id = 0; call_id < model_group.size(); ++call_id) {
         LOG_DEBUG("Handle function call...");
         LOG_BLOCK();
+        auto call = model_group[call_id];
+        auto subg_ref = func.refs[call_id];
+
         std::unordered_set<ov::Node*> this_model_nodes;
         for (auto&& node_ptr : call->get_ordered_ops()) {
             this_model_nodes.insert(node_ptr.get());
@@ -1348,7 +1399,7 @@ void Partitioner::matchParameters(const std::string& func_name) {
                 LOG_DEBUG("Find orig parameter for " << node);
                 auto& orig_param = proto_parameters.at(pkey);
                 auto this_param = std::dynamic_pointer_cast<PPtr::element_type>(node);
-                func.param_call_to_proto[this_param] = orig_param;
+                func.param_call_to_proto[SubgParam(subg_ref, this_param)] = orig_param;
             }
         }
     }
@@ -1386,14 +1437,16 @@ void Partitioner::matchResults(const std::string& func_name) {
 
     // Now walk all submodels and match parameters with the same key
     // (yes, including the first one)
-    for (auto&& call : model_group) {
+    for (std::size_t call_idx = 0; call_idx < model_group.size(); ++call_idx) {
+        auto call = model_group[call_idx];
+        auto subg_ref = func.refs[call_idx];
         for (auto&& node : call->get_ordered_ops()) {
             if (ov::op::util::is_output(node)) {
                 auto&& port = node->input(0).get_source_output();
                 RKey rkey = {layer_to_prototype.at(port.get_node()->get_friendly_name()), port.get_index()};
                 auto& orig_result = proto_results.at(rkey);
                 auto this_result = std::dynamic_pointer_cast<RPtr::element_type>(node);
-                func.result_call_to_proto[this_result] = orig_result;
+                func.result_call_to_proto[SubgResult(subg_ref, this_result)] = orig_result;
             }
         }
     }
@@ -1423,6 +1476,7 @@ void Partitioner::createFunction(FunctionPipeline& func_ggg) {
     ov::npuw::Function function;
     function._model = func_ggg.mdls.front();
     function._param_offset = body_sg._parameters.size();
+    function._tag = body_sg._tag;
     std::size_t new_param_idx = function._param_offset;
 
     for (auto&& node_ptr : function._model->get_ordered_ops()) {
@@ -1484,6 +1538,76 @@ void Partitioner::createFunction(FunctionPipeline& func_ggg) {
     LOG_VERB("Done: " << func_name);
 }
 
+void Partitioner::identifySpatialRange(ov::npuw::Function& f) {
+    NPUW_ASSERT(f._tag == "compute");
+
+    // NB: The current logic must be changed. Here we assume we only
+    // apply this change to "compute" subgraphs which we identify
+    // based on well-known patterns. This won't work in the generic case.
+
+    // The current logic is the following:
+    // - Assume the function results are ALL SPATIAL (and this alone
+    //   is a very strong assumption)
+    // - Identify their SPATIAL dimension (which is dim[1] because
+    //   we know how COMPUTE subgraphs are organized)
+    // - Walk over the parameters (up to _param_offset), find
+    //   spatial Parameters based on the dim we're looking at
+    // - Report the findings.
+    // Hence, the logic is not robust enough and should be generalized
+    // in the future.
+
+    // First, check our assumption on the function results
+    const auto& f_results = f._model->get_results();
+    NPUW_ASSERT(f_results.size() > 0);
+
+    const auto& f_result_0 = f_results.front();
+    const auto& f_result_0_shape = f_result_0->get_shape();
+
+    if (f_result_0_shape.size() != 3) {
+        return;  // NB: this is the only case we enable now
+    }
+
+    if (f_result_0_shape[1] <= 1) {
+        return;  // NB: this is the only spatial dim we enable now
+    }
+
+    for (auto&& f_result_i : f_results) {
+        // Yes, it will also compare r[0] vs r[0]
+        const auto& f_result_i_shape = f_result_i->get_shape();
+        if (f_result_0_shape.size() != f_result_i_shape.size()) {
+            return;  // Do nothing
+        }
+
+        if (f_result_0_shape[1] != f_result_i_shape[1]) {
+            return;  // Do nothing
+        }
+    }
+
+    // Now, find the parameters with the same spatial dim
+    // NB: again, this is a very weak feature to look for
+    const auto& f_params = f._model->get_parameters();
+    NPUW_ASSERT(f_params.size() > 0);
+
+    using S = ov::npuw::Function::Spatial;
+    S spatial;
+    spatial._range = f_result_0_shape[1];
+    spatial._out_dim = 1;  // the only case we're looking into now
+
+    for (std::size_t i = 0u; i < f._param_offset; i++) {
+        const auto& f_param = f_params[i];
+        const auto& f_param_dims = f_param->get_shape();
+
+        auto spatial_dim_iter = std::find(f_param_dims.begin(), f_param_dims.end(), spatial._range);
+        if (spatial_dim_iter != f_param_dims.end()) {
+            std::size_t spatial_dim_idx = std::distance(f_param_dims.begin(), spatial_dim_iter);
+            spatial._inputs.push_back(S::Param{f_param, spatial_dim_idx});
+        }
+    }
+
+    // Apply the spatial change
+    f._spatial = std::move(spatial);
+}
+
 void Partitioner::createFunction(const std::string& func_name) {
     createFunction(all_functions.at(func_name));
 }
@@ -1517,8 +1641,8 @@ void Partitioner::matchRepeatedSubgraphs(const std::string& func_name) {
         funcall._gflops = this_sg._gflops;          // duplicated code again!
         funcall._ops = this_sg._ops;                // duplicated code again!
         funcall._avoid_list = this_sg._avoid_list;  // duplicated code again!
-        rearrange_to_function_protocol(body_params, funcall._parameters, func_ggg.param_call_to_proto);
-        rearrange_to_function_protocol(body_results, funcall._results, func_ggg.result_call_to_proto);
+        rearrange_to_function_protocol(this_sg, body_params, funcall._parameters, func_ggg.param_call_to_proto, true);
+        rearrange_to_function_protocol(this_sg, body_results, funcall._results, func_ggg.result_call_to_proto);
 
         auto func_iter = P.functions.find(func_name);
         NPUW_ASSERT(func_iter != P.functions.end());
@@ -1562,6 +1686,50 @@ void Partitioner::matchRepeatedSubgraphs(const std::string& func_name) {
     LOG_VERB("Done");
 }
 
+void Partitioner::spatial(const std::string& func_name) {
+    ov::npuw::Function& f = P.functions.at(func_name);
+
+    // Identify the spatial dimension for this function
+    // Works only for Compute case.
+    // FIXME: Replace this string identification with smt better
+    if (!cfg.get<::intel_npu::NPUW_SPATIAL>() || f._tag != "compute") {
+        LOG_VERB("No spatial optimizations will be done to  " << func_name << " in model " << model->get_friendly_name()
+                                                              << "...");
+        return;
+    }
+
+    LOG_VERB("Turn " << func_name << " into spatial execution in model " << model->get_friendly_name() << "...");
+    LOG_BLOCK();
+
+    identifySpatialRange(f);
+    if (!f._spatial) {
+        LOG_WARN("No spatial ranges identified in the COMPUTE block, expect a higher compile time");
+        return;
+    }
+
+    LOG_VERB("Spatial range: " << f._spatial->_range);
+
+    // Final check before transformations
+    f._spatial->_slice = cfg.get<::intel_npu::NPUW_SPATIAL_NWAY>();
+    if (f._spatial->_slice == 0) {
+        LOG_WARN("NWAY is set to 0, disabling it (but better disable SPATIAL setting itself)");
+        f._spatial.reset();  // Erase spatial information to avoid conflicts
+        return;
+    }
+
+    // Apply transformation to the model. Note: only function body is modified
+    // Accumulate the reshape map
+    std::map<ov::Output<ov::Node>, ov::PartialShape> new_shapes;
+    for (auto&& p : f._spatial->_inputs) {
+        ov::Shape shape = p.param->get_shape();
+        shape[p.dim] = f._spatial->_slice;
+        new_shapes[p.param->output(0)] = shape;
+    }
+    f._model->reshape(new_shapes);
+
+    LOG_VERB("Done");
+}
+
 void Partitioner::optimize(const std::string& func_name) {
     ov::npuw::Function& f = P.functions.at(func_name);
     auto& func_group = all_functions.at(func_name);
@@ -1590,6 +1758,7 @@ void Partitioner::optimize(const std::string& func_name) {
     // Regardless of DQ setting, run this first
     {
         ov::npuw::patterns::opt::Context ctx;
+        ctx.is_spatial = f._spatial.has_value();
         ctx.pmm_dims = cfg.get<::intel_npu::NPUW_PMM>();
 
         // Run Head/Tail passes
@@ -1687,7 +1856,7 @@ void Partitioner::optimize(const std::string& func_name) {
             new_params.push_back(params_to_gather.pnew);
             for (auto&& funcall : func_group.refs) {
                 auto new_elem_type = params_to_gather.pnew->get_element_type();
-                auto new_shape = params_to_gather.pnew->get_shape();
+                const auto& new_shape = params_to_gather.pnew->get_shape();
                 funcall.get()._closure.push_back(ov::Tensor(new_elem_type, new_shape));
             }
         }
@@ -1736,6 +1905,8 @@ void Partitioner::optimize(const std::string& func_name) {
 
     // Run "dynamic quantization"
     ov::npuw::patterns::opt::Context ctx;
+    ctx.is_spatial = f._spatial.has_value();
+
     ov::pass::GraphRewrite rewr;
     rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulCWi>();
     rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulGQi>(std::ref(ctx));
@@ -1883,7 +2054,7 @@ void Partitioner::finalizeLinks() {
             auto& params = P.functions.at(sg_desc._funcall)._model->get_parameters();
             auto& proto = func_pipeline_type == FunctionPipelineType::CWAI
                               ? ptr  // no protos in the CWAI case..
-                              : all_functions.at(sg_desc._funcall).param_call_to_proto.at(ptr);
+                              : all_functions.at(sg_desc._funcall).param_call_to_proto.at(SubgParam(sg_desc, ptr));
             auto param_iter = std::find(params.begin(), params.end(), proto);
             NPUW_ASSERT(param_iter != params.end());
             return std::distance(params.begin(), param_iter);
@@ -1904,7 +2075,7 @@ void Partitioner::finalizeLinks() {
             auto& results = P.functions.at(sg_desc._funcall)._model->get_results();
             auto& proto = func_pipeline_type == FunctionPipelineType::CWAI
                               ? ptr  // no protos in the CWAI case...
-                              : all_functions.at(sg_desc._funcall).result_call_to_proto.at(ptr);
+                              : all_functions.at(sg_desc._funcall).result_call_to_proto.at(SubgResult(sg_desc, ptr));
             auto result_iter = std::find(results.begin(), results.end(), proto);
             NPUW_ASSERT(result_iter != results.end());
             return std::distance(results.begin(), result_iter);
@@ -2020,6 +2191,7 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
                 p.matchParameters(func_group);
                 p.matchResults(func_group);
                 p.matchRepeatedSubgraphs(func_group);
+                p.spatial(func_group);
                 p.optimize(func_group);
                 p.decompressionCutOff(func_group);
             }
@@ -2036,7 +2208,6 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
                 p.saveTinyConstants(func_group);
                 p.saveScaleFactors(func_group);
                 p.createFunction(func_group);
-                p.optimize(func_group);
                 p.decompressionCutOff(func_group);
             }
         } else {

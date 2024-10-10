@@ -7,10 +7,6 @@ on:
         description: 'Machine on which the tests would run'
         type: string
         required: true
-      shell:
-        description: "shell to override the default shell settings in the runner's operating system."
-        type: string
-        required: true
       container:
         description: 'JSON to be converted to the value of the "container" configuration for the job'
         type: string
@@ -20,12 +16,15 @@ on:
         description: 'Components that are affected by changes in the commit defined by the Smart CI Action'
         type: string
         required: true
+      python-version:
+        description: 'Python version to setup. E.g., "3.11"'
+        type: string
+        required: true
 
 permissions: read-all
 
 env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
-  PYTHON_VERSION: '3.11'
 
 jobs:
   PyTorch_Layer_Tests:
@@ -35,7 +34,7 @@ jobs:
     container: ${{ fromJSON(inputs.container) }}
     defaults:
       run:
-        shell: ${{ inputs.shell }}
+        shell: ${{ contains(inputs.runner, 'win') && 'pwsh' || 'bash' }}
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       OPENVINO_REPO: ${{ github.workspace }}/openvino
@@ -55,12 +54,6 @@ jobs:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
 
-      - name: Download OpenVINO tokenizers extension
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
-        with:
-          name: openvino_tokenizers_wheel
-          path: ${{ env.INSTALL_DIR }}
-
       # Needed as ${{ github.workspace }} is not working correctly when using Docker
       - name: Setup Variables
         if: runner.os != 'Windows'
@@ -74,10 +67,10 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           pushd $INSTALL_DIR
-            tar -xzf openvino_package.tar.gz -C $INSTALL_DIR
+            tar -I pigz -xf openvino_package.tar.gz -C $INSTALL_DIR
           popd
           pushd $INSTALL_TEST_DIR
-            tar -xzf openvino_tests.tar.gz -C $INSTALL_DIR
+            tar -I pigz -xf openvino_tests.tar.gz -C $INSTALL_DIR
           popd
 
       - name: Extract OpenVINO packages (Windows)
@@ -98,10 +91,10 @@ jobs:
           sparse-checkout-cone-mode: false
           path: 'openvino'
 
-      - name: Setup Python ${{ env.PYTHON_VERSION }}
+      - name: Setup Python ${{ inputs.python-version }}
         uses: ./openvino/.github/actions/setup_python
         with:
-          version: ${{ env.PYTHON_VERSION }}
+          version: ${{ inputs.python-version }}
           pip-cache-path: ${{ runner.os == 'Linux' && env.PIP_CACHE_PATH || '' }}
           should-setup-pip-paths: ${{ runner.os == 'Linux' }}
           self-hosted-runner: ${{ runner.os == 'Linux' }}
@@ -112,18 +105,11 @@ jobs:
           # Install the core OV wheel
           python3 -m pip install ${INSTALL_DIR}/tools/openvino-*.whl
 
-          # Install the core OV Tokenizers wheel
-          python3 -m pip install ${INSTALL_DIR}/openvino_tokenizers-*.whl
-
       - name: Install OpenVINO Python wheels (Windows)
         if: runner.os == 'Windows'
         run: |
           # Find and install the core OV wheel
           $ovCoreWheelPath=Get-ChildItem -Path ${{ env.INSTALL_DIR }}\tools -Filter openvino-*.whl | % { $_.FullName }
-          python3 -m pip install "$ovCoreWheelPath"
-
-          # Find and install the core OV Tokenizers wheel
-          $ovCoreWheelPath=Get-ChildItem -Path ${{ env.INSTALL_DIR }} -Filter openvino_tokenizers-*.whl | % { $_.FullName }
           python3 -m pip install "$ovCoreWheelPath"
 
       - name: Install Pytorch Layer tests dependencies
@@ -133,22 +119,25 @@ jobs:
 
       - name: PyTorch Layer Tests
         if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.arch != 'ARM64' }} # Ticket: 126287, 142196
-        run: python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/pytorch_tests -n logical -m precommit --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-pytorch.xml
+        # due to CVS-152795, parallel run is not possible on Windows
+        run: python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/pytorch_tests ${PARALLEL} -m precommit --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-pytorch.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP32
+          PARALLEL: ${{ runner.os == 'Windows' && ' ' || '-n logical'}}
 
       - name: PyTorch torch.export Layer Tests
-        if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.arch != 'ARM64' }} # Ticket: 126287
+        if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.arch != 'ARM64' && runner.os != 'Windows' }} # Ticket: 126287
         run: |
-          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/pytorch_tests -n logical -m precommit_torch_export --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-pytorch.xml
+          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/pytorch_tests ${PARALLEL} -m precommit_torch_export --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-pytorch.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP32
           PYTORCH_TRACING_MODE: EXPORT
+          PARALLEL: ${{ runner.os == 'Windows' && ' ' || '-n logical'}}
 
       - name: PyTorch torch.compile TORCHFX Layer Tests
-        if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.os != 'macOS' && runner.arch != 'ARM64' }} # Ticket: 126287
+        if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.os != 'macOS' && runner.arch != 'ARM64' && runner.os != 'Windows' }} # Ticket: 126287
         run: |
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/pytorch_tests -m precommit_fx_backend --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-pytorch.xml
         env:

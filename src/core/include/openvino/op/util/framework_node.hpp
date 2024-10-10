@@ -75,7 +75,7 @@ private:
 
 class OPENVINO_API FrameworkNode : public MultiSubGraphOp {
 public:
-    OPENVINO_OP("FrameworkNode", "util");
+    OPENVINO_OP("FrameworkNode", "util", MultiSubGraphOp);
 
     FrameworkNode() = default;
 
