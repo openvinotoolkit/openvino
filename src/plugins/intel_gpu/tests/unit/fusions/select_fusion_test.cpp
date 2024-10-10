@@ -63,9 +63,12 @@ public:
 }  // namespace
 
 #define CASE_SELECT_FP32_TO_I8_0  {2, 16, 4, 4}, {2, 16, 4, 4},  data_types::f32, data_types::i8,  format::bfyx, format::bfyx
+#define CASE_SELECT_FP32_TO_U8_0  {2, 16, 4, 4}, {2, 16, 4, 4},  data_types::f32, data_types::u8,  format::bfyx, format::bfyx
 #define CASE_SELECT_FP32_TO_F16_0 {2, 16, 17, 4}, {2, 16, 1, 4}, data_types::f32, data_types::f16, format::bfyx, format::bfyx
 #define CASE_SELECT_FP16_TO_I8_0  {2, 16, 4, 4}, {2, 16, 4, 4},  data_types::f16, data_types::i8,  format::bfyx, format::bfyx
+#define CASE_SELECT_FP16_TO_U8_0  {2, 16, 4, 4}, {2, 16, 4, 4},  data_types::f16, data_types::u8,  format::bfyx, format::bfyx
 #define CASE_SELECT_FP16_TO_I8_1  {2, 16, 4, 4}, {2, 16, 4, 4},  data_types::f16, data_types::i8,  format::bfyx, format::bfzyx
+#define CASE_SELECT_FP16_TO_U8_1  {2, 16, 4, 4}, {2, 16, 4, 4},  data_types::f16, data_types::u8,  format::bfyx, format::bfzyx
 
 class select_reorder_fusion : public SelectFusingTest {};
 TEST_P(select_reorder_fusion, basic) {
@@ -85,8 +88,11 @@ TEST_P(select_reorder_fusion, basic) {
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, select_reorder_fusion, ::testing::ValuesIn(std::vector<select_test_params>{
     select_test_params{ CASE_SELECT_FP32_TO_F16_0, 5, 6},
     select_test_params{ CASE_SELECT_FP32_TO_I8_0, 5, 6},
+    select_test_params{ CASE_SELECT_FP32_TO_U8_0, 5, 6},
     select_test_params{ CASE_SELECT_FP16_TO_I8_0, 5, 6},
+    select_test_params{ CASE_SELECT_FP16_TO_U8_0, 5, 6},
     select_test_params{ CASE_SELECT_FP16_TO_I8_1, 6, 6}, // reorder should not be fused
+    select_test_params{ CASE_SELECT_FP16_TO_U8_1, 6, 6},
 }));
 
 class select_reorder_fusion_dynamic : public SelectFusingTest {};
