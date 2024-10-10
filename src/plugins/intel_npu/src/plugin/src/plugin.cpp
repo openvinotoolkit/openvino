@@ -2,6 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#if defined(__GNUC__) || defined(__clang__)
+#    pragma GCC target("no-avx")
+#elif defined(_MSC_VER)
+#    pragma optimize("t", off)
+#endif
+
 #include "plugin.hpp"
 
 #include <fstream>
@@ -828,3 +834,7 @@ static const ov::Version version = {CI_BUILD_NUMBER, NPU_PLUGIN_LIB_NAME};
 OV_DEFINE_PLUGIN_CREATE_FUNCTION(Plugin, version)
 
 }  // namespace intel_npu
+
+#if defined(_MSC_VER)
+#    pragma optimize("t", on)
+#endif
