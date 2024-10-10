@@ -43,11 +43,18 @@ jobs:
       INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
       LAYER_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/layer_tests
     steps:
-      - name: Download OpenVINO artifacts (wheels, tests)
+      - name: Download OpenVINO artifacts (tarballs)
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
-          pattern: openvino_[wheels|tests]*
+          pattern: openvino_[tests]*
           path: ${{ env.INSTALL_DIR }}
+          merge-multiple: true
+          
+      - name: Download OpenVINO artifacts (wheels)
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          pattern: openvino_[wheels]*
+          path: ${{ env.INSTALL_WHEELS_DIR }}
           merge-multiple: true
 
       # Needed as ${{ github.workspace }} is not working correctly when using Docker
@@ -62,14 +69,12 @@ jobs:
       - name: Extract OpenVINO artifacts (Linux, macOS)
         if: runner.os != 'Windows'
         run: |
-            tar -I pigz -xf openvino_wheels.tar.gz -C ${INSTALL_WHEELS_DIR}
             tar -I pigz -xf openvino_tests.tar.gz -C ${INSTALL_DIR}
         working-directory: ${{ env.INSTALL_DIR }}
 
       - name: Extract OpenVINO artifacts (Windows)
         if: runner.os == 'Windows'
         run: |
-            Expand-Archive openvino_wheels.zip -DestinationPath ${{ env.INSTALL_WHEELS_DIR }}
             Expand-Archive openvino_tests.zip -DestinationPath ${{ env.INSTALL_DIR }}
         working-directory: ${{ env.INSTALL_DIR }}
 
@@ -93,14 +98,16 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           # Install the core OV wheel
-          python3 -m pip install ${INSTALL_WHEELS_DIR}/openvino-*.whl
+          python3 -m pip install ./openvino-*.whl
+        working-directory: ${{ env.INSTALL_WHEELS_DIR }}
 
       - name: Install OpenVINO Python wheels (Windows)
         if: runner.os == 'Windows'
         run: |
           # Find and install the core OV wheel
-          $ovCoreWheelPath=Get-ChildItem -Path ${{ env.INSTALL_WHEELS_DIR }} -Filter openvino-*.whl | % { $_.FullName }
+          $ovCoreWheelPath=Get-ChildItem -Path . -Filter openvino-*.whl | % { $_.FullName }
           python3 -m pip install "$ovCoreWheelPath"
+        working-directory: ${{ env.INSTALL_WHEELS_DIR }}
 
       - name: Install Pytorch Layer tests dependencies
         run: |

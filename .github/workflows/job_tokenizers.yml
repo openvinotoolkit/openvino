@@ -74,12 +74,13 @@ jobs:
           path: ${{ env.OPENVINO_TOKENIZERS_REPO }}
           ref: ${{ env.TARGET_BRANCH }}
 
-      - name: Download OpenVINO package
+      - name: Download OpenVINO artifacts (wheels)
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
-          name: openvino_wheels
+          name: openvino_[wheels]*
           path: ${{ env.INSTALL_WHEELS_DIR }}
-
+          merge-multiple: true
+          
       - name: Extract OpenVINO artifact (Linux and macOS)
         if: runner.os != 'Windows'
         run: tar -I pigz -xf openvino_wheels.tar.gz -C ${INSTALL_DIR}
@@ -108,8 +109,9 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           # Find and install wheel
-          $ovCoreWheelPath=Get-ChildItem -Path "${{ env.INSTALL_WHEELS_DIR }}" -Filter openvino-*.whl | % { $_.FullName }
+          $ovCoreWheelPath=Get-ChildItem -Path . -Filter openvino-*.whl | % { $_.FullName }
           python3 -m pip install "$ovCoreWheelPath"
+        working-directory: ${{ env.INSTALL_WHEELS_DIR }}
 
       #
       # Build
@@ -117,16 +119,17 @@ jobs:
 
       - name: Build tokenizers wheel (Linux and macOS)
         if: runner.os != 'Windows'
+        working-directory: ${{ env.OPENVINO_TOKENIZERS_REPO }}
         run: |
           # use OpenVINO wheel package only to build the extension
-          python -m pip wheel -v --no-deps --wheel-dir ${EXTENSION_BUILD_DIR} --find-links ${INSTALL_WHEELS_DIR} ${OPENVINO_TOKENIZERS_REPO}
-        env:
+          python -m pip wheel -v --no-deps --wheel-dir ${EXTENSION_BUILD_DIR} --find-links ${INSTALL_WHEELS_DIR} .
           CMAKE_BUILD_PARALLEL_LEVEL: '4'
 
       - name: Build tokenizers wheel (Windows)
         if: runner.os == 'Windows'
+        working-directory: ${{ env.OPENVINO_TOKENIZERS_REPO }}
         run: |
-          python3 -m pip wheel -v --no-deps --wheel-dir ${env:EXTENSION_BUILD_DIR} --find-links ${env:INSTALL_WHEELS_DIR} ${env:OPENVINO_TOKENIZERS_REPO}
+          python3 -m pip wheel -v --no-deps --wheel-dir ${env:EXTENSION_BUILD_DIR} --find-links ${env:INSTALL_WHEELS_DIR} .
         env:
           CMAKE_BUILD_PARALLEL_LEVEL: '4'
 
