@@ -1009,7 +1009,9 @@ void loop_inst::set_memory_in_body_network(cldnn::network::ptr body_network,
                         "impl_params layout size(", impl_layout.to_short_string(),
                         ") should not exceed memory size(", updated_mem->get_layout().to_short_string(), ")");
         if (impl_layout.bytes_count() < updated_mem->get_layout().bytes_count()) {
-            updated_mem = body_network->get_engine().reinterpret_buffer(*updated_mem, impl_layout);
+            inst->set_output_layout(updated_mem->get_layout(), 0);
+            inst->set_output_memory(updated_mem, false, 0);
+            inst->update_shape();
         }
         body_network->set_input_data(inst->id(), updated_mem);
     } else if (inst->is_output()) {
