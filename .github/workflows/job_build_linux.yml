@@ -177,22 +177,19 @@ jobs:
           cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -P ${BUILD_DIR}/cmake_install.cmake
           cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_TEST_DIR} -DCOMPONENT=tests -P ${BUILD_DIR}/cmake_install.cmake
           cmake -DCMAKE_INSTALL_PREFIX=${DEVELOPER_PACKAGE_DIR} -DCOMPONENT=developer_package -P ${BUILD_DIR}/cmake_install.cmake
-          cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -DCOMPONENT=python_wheels -P ${BUILD_DIR}/cmake_install.cmake
-
-      - name: Pack Artifacts
-        run: |
-          pushd ${INSTALL_DIR}
-            tar -I pigz -cvf ${BUILD_DIR}/openvino_package.tar.gz *
-          popd
-
-          pushd ${DEVELOPER_PACKAGE_DIR}
-            tar -I pigz -cvf ${BUILD_DIR}/openvino_developer_package.tar.gz *
-          popd
-
-          pushd ${INSTALL_TEST_DIR}
-            tar -I pigz -cvf ${BUILD_DIR}/openvino_tests.tar.gz *
-          popd
-
+          
+      - name: Pack openvino_package
+        run: tar -I pigz -cvf ${BUILD_DIR}/openvino_package.tar.gz --exclude='wheels' *
+        working-directory: ${{ env.INSTALL_DIR }}
+        
+      - name: Pack openvino_developer_package
+        run: tar -I pigz -cvf ${BUILD_DIR}/openvino_developer_package.tar.gz *
+        working-directory: ${{ env.DEVELOPER_PACKAGE_DIR }}
+        
+      - name: Pack openvino_tests
+        run: tar -I pigz -cvf ${BUILD_DIR}/openvino_tests.tar.gz *
+        working-directory: ${{ env.INSTALL_TEST_DIR }}
+      
       - name: Build Debian packages
         if: ${{ inputs.build-debian-packages }}
         run: |
@@ -205,6 +202,7 @@ jobs:
                 -UTBB* \
                 -DENABLE_SYSTEM_TBB=ON \
                 -DENABLE_PYTHON_PACKAGING=ON \
+                -DENABLE_WHEEL=OFF \
                 -DENABLE_TESTS=OFF \
                 -DPython3_EXECUTABLE=$python_exec \
                 -DCPACK_GENERATOR=DEB \
@@ -257,7 +255,15 @@ jobs:
           name: openvino_package
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
           if-no-files-found: 'error'
-
+          
+      - name: Upload openvino wheels
+        if: ${{ inputs.os != 'debian_10' && inputs.arch != 'arm' }}
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        with:
+          name: openvino_wheels
+          path: ${{ env.INSTALL_DIR }}/wheels/*.whl
+          if-no-files-found: 'error'
+        
       - name: Upload openvino js package
         if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js }}
         uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
