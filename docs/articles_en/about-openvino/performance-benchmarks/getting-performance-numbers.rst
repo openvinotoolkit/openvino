@@ -1,25 +1,161 @@
 Getting Performance Numbers
 ===========================
 
+1. `Benchmarking methodology for OpenVINO <#benchmarking-methodology-for-openvino>`__
+
+   a. `OpenVINO benchmarking (general) <openvino-benchmarking--general->`
+   b. `OpenVINO Model Server benchmarking (general) <openvino-model-server-benchmarking--general->`
+   c. `OpenVINO Model Server benchmarking (LLM) <openvino-model-server-benchmarking--llm->`
+
+2. `How to obtain benchmark results <#how-to-obtain-benchmark-results>`__
+
+   a.
+   b.
+   c.
 
 
-This guide explains how to use the benchmark_app to get performance numbers. It also explains how the performance
-numbers are reflected through internal inference performance counters and execution graphs. It also includes
-information on using ITT and Intel® VTune™ Profiler to get performance insights.
+Benchmarking methodology for OpenVINO
+###############################################################################################
+
+OpenVINO benchmarking (general)
++++++++++++++++++++++++++++++++++++++
+
+The OpenVINO benchmark setup includes a single system with OpenVINO™, as well as the benchmark
+application installed. It measures the time spent on actual inference (excluding any pre or post
+processing) and then reports on the inferences per second (or Frames Per Second).
 
 
-.. raw:: html
+OpenVINO Model Server benchmarking (general)
+++++++++++++++++++++++++++++++++++++++++++++
 
-   <h2>Test performance with the benchmark_app</h2>
+OpenVINO™ Model Server (OVMS) employs the Intel® Distribution of OpenVINO™ toolkit runtime
+libraries and exposes a set of models via a convenient inference API over gRPC or HTTP/REST.
+Its benchmark results are measured with the configuration of multiple-clients-single-server,
+using two hardware platforms connected by ethernet. Network bandwidth depends on both platforms
+and models used. It is set not to be a bottleneck for workload intensity. The connection is
+dedicated only to measuring performance.
+
+.. dropdown:: See more details about OVMS benchmark setup
+
+   The benchmark setup for OVMS consists of four main parts:
+
+   .. image:: ../assets/images/performance_benchmarks_ovms_02.png
+      :alt: OVMS Benchmark Setup Diagram
+
+   * **OpenVINO™ Model Server** is launched as a docker container on the server platform and it
+     listens to (and answers) requests from clients. OpenVINO™ Model Server is run on the same
+     system as the OpenVINO™ toolkit benchmark application in corresponding benchmarking. Models
+     served by OpenVINO™ Model Server are located in a local file system mounted into the docker
+     container. The OpenVINO™ Model Server instance communicates with other components via ports
+     over a dedicated docker network.
+
+   * **Clients** are run in separated physical machine referred to as client platform. Clients
+     are implemented in Python3 programming language based on TensorFlow* API and they work as
+     parallel processes. Each client waits for a response from OpenVINO™ Model Server before it
+     will send a new next request. The role played by the clients is also verification of
+     responses.
+
+   * **Load balancer** works on the client platform in a docker container. HAProxy is used for
+     this purpose. Its main role is counting of requests forwarded from clients to OpenVINO™
+     Model Server, estimating its latency, and sharing this information by Prometheus service.
+     The reason of locating the load balancer on the client site is to simulate real life
+     scenario that includes impact of physical network on reported metrics.
+
+   * **Execution Controller** is launched on the client platform. It is responsible for
+     synchronization of the whole measurement process, downloading metrics from the load
+     balancer, and presenting the final report of the execution.
+
+
+OpenVINO Model Server benchmarking (LLM)
+++++++++++++++++++++++++++++++++++++++++
+
+Large Language Models require a different benchmarking approach to static models.
 
 
 
-You can run OpenVINO benchmarks in both C++ and Python APIs, yet the experience differs in each case.
-The Python one is part of OpenVINO Runtime installation, while C++ is available as a code sample.
-For a detailed description, see: :doc:`benchmark_app <../../learn-openvino/openvino-samples/benchmark-tool>`.
 
-Make sure to install the latest release package with support for frameworks of the models you want to test.
-For the most reliable performance benchmarks, :doc:`prepare the model for use with OpenVINO <../../openvino-workflow/model-preparation>`.
+
+
+How to obtain benchmark results
+###############################################################################################
+
+General guidance
++++++++++++++++++
+
+.. dropdown:: Select a proper set of operations to measure
+
+   When evaluating performance of a model with OpenVINO Runtime, it is required to measure a
+   proper set of operations.
+
+   * Avoid including one-time costs such as model loading.
+   * Track operations that occur outside OpenVINO Runtime, such as video decoding, separately.
+
+   .. note::
+
+      Some image pre-processing can be baked into OpenVINO IR and accelerated accordingly.
+      For more information, refer to
+      :doc:`Embedding Pre-processing <../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api/[legacy]-embedding-preprocessing-computation>`
+      and
+      :doc:`General Runtime Optimizations <../../openvino-workflow/running-inference/optimize-inference/general-optimizations>`.
+
+.. dropdown:: Maximize the chance to obtain credible data
+
+   Performance conclusions should be build on reproducible data. As for the performance
+   measurements, they should be done with a large number of invocations of the same routine.
+   Since the first iteration is almost always significantly slower than the subsequent ones,
+   an aggregated value can be used for the execution time for final projections:
+
+   * If the warm-up run does not help or execution times still vary, you can try running a
+     large number of iterations and then use the mean value of the results.
+   * If time values differ too much, consider using a geomean.
+   * Be aware of potential power-related irregularities, such as throttling. A device may assume
+     one of several different power states, so it is advisable to fix its frequency when
+     optimizing, for better performance data reproducibility.
+   * Note that end-to-end application benchmarking should also be performed under real
+     operational conditions.
+
+.. dropdown:: Compare performance with native/framework code
+
+   When comparing OpenVINO Runtime performance with the framework or reference code,
+   make sure that both versions are as similar as possible:
+
+   * Wrap the exact inference execution (for examples, see :doc:`Benchmark app <../../learn-openvino/openvino-samples/benchmark-tool>`).
+   * Do not include model loading time.
+   * Ensure that the inputs are identical for OpenVINO Runtime and the framework. For example, watch out for random values that can be used to populate the inputs.
+   * In situations when any user-side pre-processing should be tracked separately, consider :doc:`image pre-processing and conversion <../../openvino-workflow/running-inference/optimize-inference/optimize-preprocessing>`.
+   * When applicable, leverage the :doc:`Dynamic Shapes support <../../openvino-workflow/running-inference/dynamic-shapes>`.
+   * If possible, demand the same accuracy. For example, TensorFlow allows ``FP16`` execution, so when comparing to that, make sure to test the OpenVINO Runtime with the ``FP16`` as well.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+OpenVINO benchmarking (general)
++++++++++++++++++++++++++++++++
+
+The default way of measuring OpenVINO performance is running a piece of code, referred to as
+:doc:`the benchmark tool <../../learn-openvino/openvino-samples/benchmark-tool>`.
+For Python, it is part of OpenVINO Runtime installation, while for C++, it is available as a
+code sample.
+
+
+Make sure to install the latest release package with support for frameworks of the models you
+want to test. For the most reliable performance benchmarks,
+:doc:`prepare the model for use with OpenVINO <../../openvino-workflow/model-preparation>`.
+
+
+
+
 
 
 
@@ -50,60 +186,20 @@ it is recommended to always start performance evaluation with the :doc:`OpenVINO
 
 
 
+
+
+
+
+
+
+
+
+
+
 .. raw:: html
 
    <h2>Additional benchmarking considerations</h2>
 
-
-
-.. raw:: html
-
-   <h3>1 - Select a Proper Set of Operations to Measure</h3>
-
-
-When evaluating performance of a model with OpenVINO Runtime, it is required to measure a proper set of operations.
-
-- Avoid including one-time costs such as model loading.
-- Track operations that occur outside OpenVINO Runtime (such as video decoding) separately.
-
-
-.. note::
-
-   Some image pre-processing can be baked into OpenVINO IR and accelerated accordingly. For more information,
-   refer to :doc:`Embedding Pre-processing <../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api/[legacy]-embedding-preprocessing-computation>` and
-   :doc:`General Runtime Optimizations <../../openvino-workflow/running-inference/optimize-inference/general-optimizations>`.
-
-
-
-.. raw:: html
-
-   <h3>2 - Try to Get Credible Data</h3>
-
-Performance conclusions should be build upon reproducible data. As for the performance measurements, they should
-be done with a large number of invocations of the same routine. Since the first iteration is almost always significantly
-slower than the subsequent ones, an aggregated value can be used for the execution time for final projections:
-
-- If the warm-up run does not help or execution time still varies, you can try running a large number of iterations
-  and then average or find a mean of the results.
-- If the time values range too much, consider geomean.
-- Be aware of the throttling and other power oddities. A device can exist in one of several different power states.
-  When optimizing your model, consider fixing the device frequency for better performance data reproducibility.
-  However, the end-to-end (application) benchmarking should also be performed under real operational conditions.
-
-
-
-.. raw:: html
-
-   <h3>3 - Compare Performance with Native/Framework Code</h3>
-
-When comparing the OpenVINO Runtime performance with the framework or another reference code, make sure that both versions are as similar as possible:
-
--	Wrap the exact inference execution (for examples, see :doc:`Benchmark app <../../learn-openvino/openvino-samples/benchmark-tool>`).
--	Do not include model loading time.
--	Ensure that the inputs are identical for OpenVINO Runtime and the framework. For example, watch out for random values that can be used to populate the inputs.
--	In situations when any user-side pre-processing should be tracked separately, consider :doc:`image pre-processing and conversion <../../openvino-workflow/running-inference/optimize-inference/optimize-preprocessing>`.
--  When applicable, leverage the :doc:`Dynamic Shapes support <../../openvino-workflow/running-inference/dynamic-shapes>`.
--	If possible, demand the same accuracy. For example, TensorFlow allows ``FP16`` execution, so when comparing to that, make sure to test the OpenVINO Runtime with the ``FP16`` as well.
 
 
 .. raw:: html
@@ -169,6 +265,16 @@ In general, OpenVINO and its individual plugins are heavily instrumented with In
 Therefore, you can also compile OpenVINO from the source code with ITT enabled and use tools like
 `Intel® VTune™ Profiler <https://software.intel.com/en-us/vtune>`__ to get detailed inference performance breakdown and additional
 insights in the application-level performance on the timeline view.
+
+
+
+
+
+
+
+
+
+
 
 
 
