@@ -211,8 +211,6 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
     }
     // }}}
 
-    // Sort out how to handle weights bank and unpack
-    auto& wbank = m_npuw_model->m_weights_bank;
     for (size_t i = 0; i < m_num_submodels; i++) {
         LOG_VERB("Trying to preemptively set tensors for Subgraph[" << i << "]...");
         LOG_BLOCK();
@@ -234,8 +232,10 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
             const auto& iport = func_desc.compiled_model->inputs()[closure_param_id];
 
             // No update required to this tensor in runtime - so it can be set only once
-            if (!comp_model_desc.update_required[cidx]) {
-                request->set_tensor(iport, ov::get_tensor_impl(wbank->get(closure, *func_desc.device_it)));
+            // Will be utilized when there is no FOLDing
+            if (!m_npuw_model->m_update_required) {
+                // At this point closure already contains allocated and transformed tensor ready to be used
+                request->set_tensor(iport, ov::get_tensor_impl(closure));
             }
         }  // for(closure)
         LOG_VERB("DONE");
@@ -580,8 +580,8 @@ void ov::npuw::JustInferRequest::unpack_closure(std::size_t idx, RqPtr request) 
         if (closure.get_element_type() != clparam->get_element_type()) {
             // Remember where the unpack is required
             closure_unpack_required.push_back(cidx);
-        } else if (comp_model_desc.update_required[cidx]) {
-            if (needs_copy(idx)) {
+        } else if (m_npuw_model->m_update_required) {
+            if (needs_copy(idx, cidx)) {
                 // Remember where copy is requried
                 closure_copy_required.push_back(cidx);
             } else {
