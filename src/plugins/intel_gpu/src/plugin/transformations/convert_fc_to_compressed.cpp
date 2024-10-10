@@ -24,7 +24,7 @@
 namespace ov {
 namespace intel_gpu {
 
-ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyConnectedCompressed(bool convert_zp_to_u8) {
+ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyConnectedCompressed() {
     using namespace ov::pass::pattern;
 
     auto compressed_constant = [](const ov::Output<ov::Node>& output) {
@@ -97,9 +97,9 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
             return std::make_shared<ov::op::v0::Constant>(*constant, new_shape);
         };
 
-        auto convert_u4const_to_u8 = [convert_zp_to_u8](std::shared_ptr<ov::Node> node) {
+        auto convert_u4const_to_u8 = [](std::shared_ptr<ov::Node> node) {
             auto constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
-            if (constant->get_element_type() == ov::element::u8 || !convert_zp_to_u8)
+            if (constant->get_element_type() == ov::element::u8)
                 return std::dynamic_pointer_cast<ov::Node>(constant);
             return std::dynamic_pointer_cast<ov::Node>(std::make_shared<ov::op::v0::Convert>(node, ov::element::u8));
         };
