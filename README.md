@@ -1,6 +1,14 @@
 <div align="center">
 <img src="docs/dev/assets/openvino-logo-purple-black.svg" width="400px">
 
+<h3 align="center">
+Open-source software toolkit for optimizing and deploying deep learning models.
+</h3>
+
+<p align="center">
+ <a href="https://docs.openvino.ai/2024/index.html"><b>Documentation</b></a> • <a href="https://blog.openvino.ai"><b>Blog</b></a> • <a href="https://docs.openvino.ai/2024/about-openvino/key-features.html"><b>Key Features</b></a> • <a href="https://docs.openvino.ai/2024/learn-openvino.html"><b>Tutorials</b></a> • <a href="https://docs.openvino.ai/2024/documentation/openvino-ecosystem.html"><b>Integrations</b></a> • <a href="https://docs.openvino.ai/2024/about-openvino/performance-benchmarks.html"><b>Benchmarks</b></a> • <a href="https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html"><b>Generative AI</b></a>
+</p>
+
 [![PyPI Status](https://badge.fury.io/py/openvino.svg)](https://badge.fury.io/py/openvino)
 [![Anaconda Status](https://anaconda.org/conda-forge/openvino/badges/version.svg)](https://anaconda.org/conda-forge/openvino)
 [![brew Status](https://img.shields.io/homebrew/v/openvino)](https://formulae.brew.sh/formula/openvino)
@@ -10,14 +18,14 @@
 [![brew Downloads](https://img.shields.io/homebrew/installs/dy/openvino)](https://formulae.brew.sh/formula/openvino)
  </div>
 
-Welcome to OpenVINO™, an open-source software toolkit for optimizing and deploying deep learning models.
 
 - **Inference Optimization**: Boost deep learning performance in computer vision, automatic speech recognition, generative AI, natural language processing with large and small language models, and many other common tasks.
 - **Flexible Model Support**: Use models trained with popular frameworks such as TensorFlow, PyTorch, ONNX, Keras, and PaddlePaddle. Convert and deploy models without original frameworks.
 - **Broad Platform Compatibility**: Reduce resource demands and efficiently deploy on a range of platforms from edge to cloud. OpenVINO™ supports inference on CPU (x86, ARM), GPU (OpenCL capable, integrated and discrete) and AI accelerators (Intel NPU).
 - **Community and Ecosystem**: Join an active community contributing to the enhancement of deep learning performance across various domains.
 
-Check out the [OpenVINO Cheat Sheet](https://docs.openvino.ai/2024/_static/download/OpenVINO_Quick_Start_Guide.pdf) for a quick reference.
+Check out the [OpenVINO Cheat Sheet](https://docs.openvino.ai/2024/_static/download/OpenVINO_Quick_Start_Guide.pdf) and [Key Features](https://docs.openvino.ai/2024/about-openvino/key-features.html) for a quick reference.
+
 
 ## Installation
 
@@ -37,6 +45,8 @@ Learn how to optimize and deploy popular models with the [OpenVINO Notebooks](ht
 - [Create an LLM-powered Chatbot using OpenVINO](https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/llm-chatbot/llm-chatbot.ipynb)
 - [YOLOv8 Optimization](https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/quantizing-model-with-accuracy-control/yolov8-quantization-with-accuracy-control.ipynb)
 - [Text-to-Image Generation](https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/controlnet-stable-diffusion/controlnet-stable-diffusion.ipynb)
+
+Check out [OpenVINO GenAI Samples](https://github.com/openvinotoolkit/openvino.genai/tree/master/samples) to learn how to run LLMs and Generative AI.
 
 Here are easy-to-follow code examples demonstrating how to run PyTorch and TensorFlow model inference using OpenVINO:
 
@@ -88,21 +98,36 @@ OpenVINO also supports CPU, GPU, and NPU devices and works with models in Tensor
 With OpenVINO you can do automatic performance enhancements at runtime customized to your hardware (preserving model accuracy), including:
 asynchronous execution, batch processing, tensor fusion, load balancing, dynamic inference parallelism, automatic BF16 conversion, and more.
 
+## Documentation
+
+[User documentation](https://docs.openvino.ai/) contains detailed information about OpenVINO and guides you from installation through optimizing and deploying models for your AI applications.
+
+[Developer documentation](./docs/dev/index.md) focuses on the OpenVINO architecture and describes [building](./docs/dev/build.md)  and [contributing](./CONTRIBUTING.md) processes.
+
 ## OpenVINO Ecosystem
 
--   [🤗Optimum Intel](https://github.com/huggingface/optimum-intel) -  a simple interface to optimize Transformers and Diffusers models.
+### OpenVINO Tools
+
 -   [Neural Network Compression Framework (NNCF)](https://github.com/openvinotoolkit/nncf) - advanced model optimization techniques including quantization, filter pruning, binarization, and sparsity.
 -   [GenAI Repository](https://github.com/openvinotoolkit/openvino.genai) and [OpenVINO Tokenizers](https://github.com/openvinotoolkit/openvino_tokenizers) - resources and tools for developing and optimizing Generative AI applications.
 -   [OpenVINO™ Model Server (OVMS)](https://github.com/openvinotoolkit/model_server) - a scalable, high-performance solution for serving models optimized for Intel architectures.
 -   [Intel® Geti™](https://geti.intel.com/) - an interactive video and image annotation tool for computer vision use cases.
 
+### Integrations
+
+-   [🤗Optimum Intel](https://github.com/huggingface/optimum-intel) - grab and use models leveraging OpenVINO within the Hugging Face API.
+-   [Torch.compile with OpenVINO](https://docs.openvino.ai/2024/openvino-workflow/torch-compile.html) - use OpenVINO for Python-native applications by JIT-compiling code into optimized kernels.
+-   [OpenVINO LLMs with LlamaIndex](https://docs.llamaindex.ai/en/stable/examples/llm/openvino/) - build context-augmented GenAI applications with the LlamaIndex framework and enhance runtime performance with OpenVINO.
+-   [OpenVINO Execution Provider for ONNX Runtime]() - use OpenVINO as a backend with your existing ONNX Runtime code.
+
+
 Check out the [Awesome OpenVINO](https://github.com/openvinotoolkit/awesome-openvino) repository to discover a collection of community-made AI projects based on OpenVINO!
 
-## Documentation
+## Performance
 
-[User documentation](https://docs.openvino.ai/) contains detailed information about OpenVINO and guides you from installation through optimizing and deploying models for your AI applications.
+Explore [OpenVINO Performance Benchmarks](https://docs.openvino.ai/2024/about-openvino/performance-benchmarks.html) to discover the optimal hardware configurations and plan your AI deployment based on verified data.
 
-[Developer documentation](./docs/dev/index.md) focuses on how OpenVINO [components](./docs/dev/index.md#openvino-components) work and describes [building](./docs/dev/build.md)  and [contributing](./CONTRIBUTING.md) processes.
+gif tba
 
 ## Contribution and Support
 
@@ -118,7 +143,6 @@ You can ask questions and get support on:
 
 ## Additional Resources
 
-* [Product Page](https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit.html)
 * [Release Notes](https://docs.openvino.ai/2024/about-openvino/release-notes-openvino.html)
 * [OpenVINO Blog](https://blog.openvino.ai/)
 * [OpenVINO™ toolkit on Medium](https://medium.com/@openvino)
