@@ -20,8 +20,8 @@ typedef struct {
 } Metadata;
 
 struct MetadataVersion {
-    uint8_t major;
-    uint8_t minor;
+    uint32_t major;
+    uint32_t minor;
 } typedef MetadataVersion;
 
 struct OpenvinoVersion {
@@ -39,11 +39,9 @@ struct Metadata_v1 {
     MetadataVersion version;
     OpenvinoVersion ovVersion;
 
+    static void version_check(std::vector<uint8_t>& blob, std::istream& stream);
+
     std::vector<uint8_t> data();
-
-    static void version_checker(std::vector<uint8_t>& blob, std::istream& stream);
-
-    std::pair<Metadata_v1, metaIterator> version_handler(std::vector<uint8_t>& blob, std::istream& stream);
 
     void read_metadata(std::vector<uint8_t>::iterator metadataIterator);
 

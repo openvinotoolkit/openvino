@@ -138,9 +138,22 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
         "the \"ov::ISyncInferRequest\" class");
 }
 
+std::vector<uint8_t> Metadata_v1::data() {
+    std::vector<uint8_t> metadata;
+
+    metadata.insert(metadata.end(), reinterpret_cast<uint8_t*>(&this->version.major),
+    reinterpret_cast<uint8_t*>(&this->version.major) + sizeof(this->version.major));
+
+    metadata.insert(metadata.end(), reinterpret_cast<uint8_t*>(&this->version.minor),
+    reinterpret_cast<uint8_t*>(&this->version.minor) + sizeof(this->version.minor));
+
+    metadata.insert(metadata.end(), this->ovVersion.version.begin(), this->ovVersion.version.end());
+
+    return metadata;
+}
 
 // actually what should it return?
-void Metadata_v1::version_checker(std::vector<uint8_t>& blob, std::istream& stream) {
+void Metadata_v1::version_check(std::vector<uint8_t>& blob, std::istream& stream) {
     constexpr std::string_view versionHeader{"OVNPU"}; // maybe put this some place else
 
     size_t blobDataSize;
@@ -152,44 +165,38 @@ void Metadata_v1::version_checker(std::vector<uint8_t>& blob, std::istream& stre
     auto metadataIterator {blob.begin() + blobDataSize};
     char* blobVersionHeader = new char[versionHeader.size() + 1];
     std::copy(metadataIterator, metadataIterator + versionHeader.size(), blobVersionHeader);
-    std::cout << "header: " << versionHeader << '\n';
+    std::cout << "header: " << blobVersionHeader << '\n';
 
     // should we consider the header name changes?
-    // if so, we will need multiple headers OR encapsulate them inside the struct metadata
+    // if so, we will need multiple header #defines OR encapsulate them inside the struct metadata
     if (versionHeader.compare(blobVersionHeader)) {
         std::cout << "expected header: " << versionHeader << "\n actual header: " << blobVersionHeader << '\n';
         OPENVINO_THROW("Version header mismatch or missing");
     }
     metadataIterator += versionHeader.size();
 
-    uint8_t major, minor;
-    std::copy(metadataIterator, metadataIterator + sizeof(uint8_t), &major);
-    metadataIterator += sizeof(uint8_t);
-    std::cout << "major: " << major;
+    MetadataVersion metaVersion;
+    std::copy(metadataIterator, metadataIterator + sizeof(uint32_t), &metaVersion.major);
+    metadataIterator += sizeof(uint32_t);
+    std::cout << "major: " << metaVersion.major;
 
-    std::copy(metadataIterator, metadataIterator + sizeof(uint8_t), &minor);
-    std::cout << "\nminor: " << minor << '\n';
-    metadataIterator += sizeof(uint8_t);
+    std::copy(metadataIterator, metadataIterator + sizeof(uint32_t), &metaVersion.minor);
+    std::cout << "\nminor: " << metaVersion.minor << '\n';
+    metadataIterator += sizeof(uint32_t);
 
     // move this to another function?
-    if (major == '0') {
-        if (minor > '1' && minor < '6') {
-            // read metadata_v1
-        }
-        else if (minor > '6') {
+    if (metaVersion.major == 2) {
+        if (metaVersion.minor > 1 && metaVersion.minor < 5) {
+            Metadata_v1 metav1;
+            metav1.read_metadata(metadataIterator);
+        } else if (metaVersion.minor > '6') {
             //read medata_v2
         }
-    }
-    else if (major == '1') {
-        if(minor > '0') {
+    } else if (metaVersion.major == '1') {
+        if (metaVersion.minor > '0') {
             // read metadata_v3
         }
     }
-
-}
-
-std::pair<Metadata_v1, metaIterator> version_handler(std::vector<uint8_t>& blob, std::istream& stream) {
-
 }
 
 // should we check for header here or create a function called version_metadata_handler
@@ -282,7 +289,7 @@ void CompiledModel::export_model(std::ostream& stream) const {
     stream.write(metaHeader.data(), metaHeader.length());
     std::cout << "metaHeader size: " << metaHeader.length() << '\n';
 
-    MetadataVersion metaVersion = {'a', 'g'};
+    MetadataVersion metaVersion = {2, 2};
     std::cout << "meta version sizes: " << metaVersion.major << " " << metaVersion.minor << '\n';
     OpenvinoVersion ovVersion = {"2024.5.0-16678-090da7b5376-blob_commit"};
     std::cout << "ovversion size: " << ovVersion.version.size() << '\n';
@@ -291,7 +298,10 @@ void CompiledModel::export_model(std::ostream& stream) const {
     Metadata_v1 metav1 = {metaVersion, ovVersion};
     Metadata_v2 metav2 = {metav1, layout};
 
-    metav2.write_metadata(stream);
+    const auto metav1_data = metav1.data();
+    const char* p_metav1_data = reinterpret_cast<const char*>(metav1_data.data());
+
+    stream.write(p_metav1_data, metav1_data.size());
 
     size_t blobSizeBeforeVersioning = blob.size();
     stream.write(reinterpret_cast<const char*>(&blobSizeBeforeVersioning), sizeof(size_t));
