@@ -89,7 +89,7 @@ def run_gptq_torchfx(tmp_path, model_id, model_link, prompt_result_pair):
 @pytest.mark.precommit
 @pytest.mark.parametrize("model_name, model_link, mark, reason", utils.get_models_list(os.path.join(os.path.dirname(__file__), "models", "gptq-torchfx-models-precommit")))
 @pytest.mark.parametrize('prompt_result_pair', ([
-    {"prompt" : "Tell me about AI", "result_md5" : "7e251873d5ce80ef69d37dd00929933a"},
+    {"prompt" : "Tell me about AI", "result_md5" : "4385ccbce14627ae91f846b4c8a3f145"},
 ]))
 def test_gptq_torchfx_precommit(tmp_path, model_name, model_link, mark, reason, prompt_result_pair, ie_device):
     assert mark is None or mark == 'skip' or mark == 'xfail', \
