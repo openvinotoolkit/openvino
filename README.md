@@ -6,7 +6,7 @@ Open-source software toolkit for optimizing and deploying deep learning models.
 </h3>
 
 <p align="center">
- <a href="https://docs.openvino.ai/2024/index.html"><b>Documentation</b></a> • <a href="https://blog.openvino.ai"><b>Blog</b></a> • <a href="https://docs.openvino.ai/2024/about-openvino/key-features.html"><b>Key Features</b></a> • <a href="https://docs.openvino.ai/2024/learn-openvino.html"><b>Tutorials</b></a> • <a href="https://docs.openvino.ai/2024/documentation/openvino-ecosystem.html"><b>Integrations</b></a> • <a href="https://docs.openvino.ai/2024/about-openvino/performance-benchmarks.html"><b>Benchmarks</b></a> • <a href="https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html"><b>Generative AI</b></a>
+ <a href="https://docs.openvino.ai/2024/index.html"><b>Documentation</b></a> • <a href="https://blog.openvino.ai"><b>Blog</b></a> • <a href="https://docs.openvino.ai/2024/about-openvino/key-features.html"><b>Key Features</b></a> • <a href="https://docs.openvino.ai/2024/learn-openvino.html"><b>Tutorials</b></a> • <a href="https://docs.openvino.ai/2024/documentation/openvino-ecosystem.html"><b>Integrations</b></a> • <a href="https://docs.openvino.ai/2024/about-openvino/performance-benchmarks.html"><b>Benchmarks</b></a> • <a href="https://github.com/openvinotoolkit/openvino.genai"><b>Generative AI</b></a>
 </p>
 
 [![PyPI Status](https://badge.fury.io/py/openvino.svg)](https://badge.fury.io/py/openvino)
@@ -48,7 +48,7 @@ Learn how to optimize and deploy popular models with the [OpenVINO Notebooks](ht
 
 Check out [OpenVINO GenAI Samples](https://github.com/openvinotoolkit/openvino.genai/tree/master/samples) to learn how to run LLMs and Generative AI.
 
-Here are easy-to-follow code examples demonstrating how to run PyTorch model inference using OpenVINO:
+Here are easy-to-follow code examples demonstrating how to run PyTorch and TensorFlow model inference using OpenVINO:
 
 **PyTorch Model**
 
@@ -72,6 +72,29 @@ compiled_model = core.compile_model(ov_model, 'CPU')
 output = compiled_model({0: example.numpy()})
 ```
 
+<details>
+<summary>TensorFlow Model</summary>
+
+```python
+    import numpy as np
+    import openvino as ov
+    import tensorflow as tf
+
+    # load TensorFlow model into memory
+    model = tf.keras.applications.MobileNetV2(weights='imagenet')
+
+    # convert the model into OpenVINO model
+    ov_model = ov.convert_model(model)
+
+    # compile the model for CPU device
+    core = ov.Core()
+    compiled_model = core.compile_model(ov_model, 'CPU')
+
+    # infer the model on random data
+    data = np.random.rand(1, 224, 224, 3)
+    output = compiled_model({0: data})
+```
+</details>
 
 ## Documentation
 
@@ -101,8 +124,6 @@ Check out the [Awesome OpenVINO](https://github.com/openvinotoolkit/awesome-open
 ## Performance
 
 Explore [OpenVINO Performance Benchmarks](https://docs.openvino.ai/2024/about-openvino/performance-benchmarks.html) to discover the optimal hardware configurations and plan your AI deployment based on verified data.
-
-gif tba
 
 ## Contribution and Support
 
