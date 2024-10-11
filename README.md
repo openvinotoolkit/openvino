@@ -48,7 +48,7 @@ Learn how to optimize and deploy popular models with the [OpenVINO Notebooks](ht
 
 Check out [OpenVINO GenAI Samples](https://github.com/openvinotoolkit/openvino.genai/tree/master/samples) to learn how to run LLMs and Generative AI.
 
-Here are easy-to-follow code examples demonstrating how to run PyTorch and TensorFlow model inference using OpenVINO:
+Here are easy-to-follow code examples demonstrating how to run PyTorch model inference using OpenVINO:
 
 **PyTorch Model**
 
