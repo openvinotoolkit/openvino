@@ -18,12 +18,13 @@ namespace intel_cpu {
         if (!one_of(inType, ov::element::f32, ov::element::f16, ov::element::bf16))
             THROW_ERROR("brgemm kernel only supports bf16, f16 and f32");
 
-        if (inType == ov::element::f32)
+        if (inType == ov::element::f32) {
             format = arm_compute::Format::F32;
-        else if (inType == ov::element::f16)
+        } else if (inType == ov::element::f16) {
             format = arm_compute::Format::F16;
-        else if (inType == ov::element::bf16)
+        } else if (inType == ov::element::bf16) {
             format = arm_compute::Format::BFLOAT16;
+        }
 
 
         aclGemmKernel = std::make_unique<arm_compute::NEGEMM>();
