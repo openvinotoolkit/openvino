@@ -24,8 +24,8 @@ OutputVector translate_search_sorted(const NodeContext& context) {
     const bool right_mode = context.const_input<bool>(3);
     PYTORCH_OP_CONVERSION_CHECK(context.input_is_none(4), "aten::searchsorted(side) unsupported");
     PYTORCH_OP_CONVERSION_CHECK(context.input_is_none(5), "aten::searchsorted(sorter) unsupported");
-    auto sign = context.mark_node(std::make_shared<ov::op::v15::SearchSorted>(sorted, values, right_mode));
-    return {sign};
+    auto op = context.mark_node(std::make_shared<ov::op::v15::SearchSorted>(sorted, values, right_mode));
+    return {op};
 };
 }  // namespace op
 }  // namespace pytorch
