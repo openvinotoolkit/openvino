@@ -182,7 +182,7 @@ jobs:
     needs: [ Build, Docker, Smart_CI ]
     uses: ./.github/workflows/job_pytorch_layer_tests.yml
     with:
-      runner: 'aks-linux-16-cores-arm'
+      runner: 'aks-linux-16-cores-arm-staging'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_arm64 }}", "volumes": ["/mount:/mount"]}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.11'
