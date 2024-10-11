@@ -8,13 +8,11 @@
 #include <type_traits>
 #include <utility>
 
-#include "intel_npu/al/icompiler.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "zero_executor.hpp"
 
 namespace intel_npu {
-namespace driverCompilerAdapter {
 
 using SerializedIR = std::pair<size_t, std::shared_ptr<uint8_t>>;
 
@@ -48,44 +46,58 @@ using SerializedIR = std::pair<size_t, std::shared_ptr<uint8_t>>;
      std::is_same<T, ze_graph_dditable_ext_1_4_t>::value || std::is_same<T, ze_graph_dditable_ext_1_5_t>::value || \
      std::is_same<T, ze_graph_dditable_ext_1_6_t>::value)
 
+class ILevelZeroCompilerInDriver {
+public:
+    virtual ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const = 0;
+    virtual ze_graph_handle_t compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const = 0;
+    virtual ze_graph_handle_t parse(const std::vector<uint8_t>& network, const Config& config) const = 0;
+
+    virtual NetworkMetadata getNetworkMeta(ze_graph_handle_t graphHandle) const = 0;
+
+    virtual _ze_result_t release(ze_graph_handle_t graphHandle) = 0;
+
+    virtual CompiledNetwork getCompiledNetwork(ze_graph_handle_t graphHandle) = 0;
+
+    virtual void setArgumentValue(ze_graph_handle_t graphHandle, uint32_t argi_, const void* argv) const = 0;
+
+    virtual void graphInitialie(ze_graph_handle_t graphHandle, const Config& config) const = 0;
+};
+
 /**
  * Adapter to use CiD through ZeroAPI
  */
 template <typename TableExtension>
-class LevelZeroCompilerInDriver final : public ICompiler {
+class LevelZeroCompilerInDriver final : public ILevelZeroCompilerInDriver {
 public:
     LevelZeroCompilerInDriver(ze_driver_handle_t driverHandle,
                               ze_device_handle_t deviceHandle,
                               ze_context_handle_t zeContext,
-                              ze_graph_dditable_ext_curr_t& graph_ddi_table_ext);
+                              ze_graph_dditable_ext_curr_t& graph_ddi_table_ext,
+                              ze_command_queue_npu_dditable_ext_curr_t& _commandQueueDdiTable,
+                              uint32_t group_ordinal);
     LevelZeroCompilerInDriver(const LevelZeroCompilerInDriver&) = delete;
     LevelZeroCompilerInDriver& operator=(const LevelZeroCompilerInDriver&) = delete;
-    ~LevelZeroCompilerInDriver() override;
+    ~LevelZeroCompilerInDriver();
 
-    uint32_t getSupportedOpsetVersion() const override final;
+    uint32_t getSupportedOpsetVersion() const;
 
     ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
 
-    NetworkDescription compile(const std::shared_ptr<const ov::Model>& model,
-                               const Config& config) const override final;
+    ze_graph_handle_t compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
 
     ze_result_t seriazlideIRModelAndCreateGraph(const std::shared_ptr<const ov::Model>& model,
                                                 const Config& config,
                                                 ze_device_graph_properties_t deviceGraphProperties,
                                                 ze_graph_handle_t& graphHandle) const;
 
-    NetworkMetadata parse(const std::vector<uint8_t>& network, const Config& config) const override final;
-
-    std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
-                                                            const std::vector<uint8_t>& network,
-                                                            const Config& config) const override final {
-        OPENVINO_THROW("Profiling post-processing is not implemented.");
-    }
+    ze_graph_handle_t parse(const std::vector<uint8_t>& network, const Config& config) const override;
 
     template <typename T = TableExtension, std::enable_if_t<!NotSupportQuery(T), bool> = true>
     std::unordered_set<std::string> getQueryResultFromSupportedLayers(
         ze_result_t result,
         ze_graph_query_network_handle_t& hGraphQueryNetwork) const;
+
+    NetworkMetadata getNetworkMeta(ze_graph_handle_t graphHandle) const override;
 
     /**
      * @brief Serialize input / output information to string format.
@@ -103,13 +115,15 @@ public:
      */
     static std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const bool useIndices);
 
-    void release(std::shared_ptr<const NetworkDescription> networkDescription) override;
+    _ze_result_t release(ze_graph_handle_t graphHandle) override;
 
-    CompiledNetwork getCompiledNetwork(const NetworkDescription& networkDescription) override;
+    CompiledNetwork getCompiledNetwork(ze_graph_handle_t graphHandle) override;
+
+    void setArgumentValue(ze_graph_handle_t graphHandle, uint32_t argi_, const void* argv) const override;
+
+    void graphInitialie(ze_graph_handle_t graphHandle, const Config& config) const override;
 
 private:
-    NetworkMetadata getNetworkMeta(ze_graph_handle_t graphHandle) const;
-
     SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
                              ze_graph_compiler_version_info_t compilerVersion) const;
     std::string serializeConfig(const Config& config, ze_graph_compiler_version_info_t& compilerVersion) const;
@@ -194,14 +208,18 @@ private:
         return "";
     }
 
-private:
+    void initialize_graph_through_command_list(ze_graph_handle_t graphHandle, const Config& config) const;
+
     ze_driver_handle_t _driverHandle = nullptr;
     ze_device_handle_t _deviceHandle = nullptr;
     ze_context_handle_t _context = nullptr;
 
     ze_graph_dditable_ext_curr_t& _graphDdiTableExt;
+    ze_command_queue_npu_dditable_ext_curr_t& _commandQueueDdiTable;
+
+    const uint32_t _group_ordinal;
+
     Logger _logger;
 };
 
-}  // namespace driverCompilerAdapter
 }  // namespace intel_npu

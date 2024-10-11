@@ -6,9 +6,11 @@
 
 #include <fstream>
 
+#include "cid_compiler_adapter.hpp"
 #include "compiled_model.hpp"
 #include "compiler.hpp"
 #include "device_helpers.hpp"
+#include "igraph.hpp"
 #include "intel_npu/al/config/common.hpp"
 #include "intel_npu/al/config/compiler.hpp"
 #include "intel_npu/al/config/npuw.hpp"
@@ -682,17 +684,15 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         }
     }
 
+    auto original_model = model->clone();
+    auto compiler = getCompiler(localConfig);
+
     OV_ITT_TASK_NEXT(PLUGIN_COMPILE_MODEL, "compile");
+    auto graph = compiler->compile(model, localConfig);
 
     std::shared_ptr<ov::ICompiledModel> compiledModel;
     try {
-        bool profiling = localConfig.get<PERF_COUNT>();
-        compiledModel = std::make_shared<CompiledModel>(model,
-                                                        shared_from_this(),
-                                                        device,
-                                                        getCompiler(localConfig),
-                                                        profiling,
-                                                        localConfig);
+        compiledModel = std::make_shared<CompiledModel>(original_model, shared_from_this(), device, graph, localConfig);
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {
@@ -759,19 +759,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         }
         _logger.debug("Successfully read %zu bytes into blob.", graphSize);
 
-        auto meta = compiler->parse(blob, localConfig);
-        meta.name = "net" + std::to_string(_compiledModelLoadCounter++);
+        auto graph = compiler->parse(blob, localConfig);
+        graph->get_metadata().name = "net" + std::to_string(_compiledModelLoadCounter++);
 
-        const std::shared_ptr<ov::Model> modelDummy = create_dummy_model(meta.inputs, meta.outputs);
+        const std::shared_ptr<ov::Model> modelDummy =
+            create_dummy_model(graph->get_metadata().inputs, graph->get_metadata().outputs);
 
-        auto networkDescription = std::make_shared<const NetworkDescription>(std::move(blob), std::move(meta));
-
-        compiledModel = std::make_shared<CompiledModel>(modelDummy,
-                                                        shared_from_this(),
-                                                        networkDescription,
-                                                        device,
-                                                        compiler,
-                                                        localConfig);
+        compiledModel = std::make_shared<CompiledModel>(modelDummy, shared_from_this(), device, graph, localConfig);
     } catch (const std::exception& ex) {
         OPENVINO_THROW("Can't import network: ", ex.what());
     } catch (...) {
@@ -816,10 +810,21 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     return supportedOpsMap;
 }
 
-ov::SoPtr<ICompiler> Plugin::getCompiler(const Config& config) const {
+std::unique_ptr<ICompilerAdapter> Plugin::getCompiler(const Config& config) const {
     auto compilerType = config.get<COMPILER_TYPE>();
     _logger.debug("performing createCompiler");
-    return createCompiler(_backends, compilerType);
+
+    switch (compilerType) {
+    case ov::intel_npu::CompilerType::MLIR:
+        OPENVINO_THROW("MLIR not supported");
+    case ov::intel_npu::CompilerType::DRIVER:
+        if (_backends->getBackendName() != "LEVEL0") {
+            OPENVINO_THROW("NPU Compiler Adapter must be used with LEVEL0 backend");
+        }
+        return std::make_unique<CidCompilerAdapter>(_backends->getIEngineBackend()._ptr);
+    default:
+        OPENVINO_THROW("Invalid NPU_COMPILER_TYPE");
+    }
 }
 
 std::atomic<int> Plugin::_compiledModelLoadCounter{1};

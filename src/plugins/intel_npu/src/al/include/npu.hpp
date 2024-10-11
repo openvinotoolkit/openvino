@@ -6,6 +6,7 @@
 
 #include <cstdint>
 
+#include "IGraph.hpp"
 #include "intel_npu/al/config/config.hpp"
 #include "intel_npu/al/icompiled_model.hpp"
 #include "intel_npu/al/icompiler.hpp"
@@ -65,9 +66,7 @@ class IDevice : public std::enable_shared_from_this<IDevice> {
 public:
     using Uuid = ov::device::UUID;
 
-    virtual std::shared_ptr<IExecutor> createExecutor(
-        const std::shared_ptr<const NetworkDescription>& networkDescription,
-        const Config& config) = 0;
+    virtual std::shared_ptr<IExecutor> createExecutor(const std::shared_ptr<IGraph>& graph, const Config& config) = 0;
 
     virtual std::string getName() const = 0;
     virtual std::string getFullDeviceName() const = 0;
@@ -82,6 +81,7 @@ public:
 
     virtual std::shared_ptr<SyncInferRequest> createInferRequest(
         const std::shared_ptr<const ICompiledModel>& compiledModel,
+        const std::shared_ptr<IGraph>& graph,
         const std::shared_ptr<IExecutor>& executor,
         const Config& config) = 0;
 
