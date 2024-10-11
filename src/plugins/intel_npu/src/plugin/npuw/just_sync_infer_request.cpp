@@ -927,7 +927,8 @@ ov::Tensor ov::npuw::JustInferRequest::allocTensor(const ov::element::Type type,
         return ov::Tensor(type, shape);
     }
     if (std::any_of(shape.begin(), shape.end(), [&](std::size_t dim) {
-        return dim == 0; })) {
+            return dim == 0;
+        })) {
         return ov::Tensor(type, shape);
     }
 
