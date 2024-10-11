@@ -40,6 +40,7 @@
 #include "transformations/snippets/x64/pass/lowered/insert_brgemm_copy_b_buffers.hpp"
 #include "transformations/snippets/x64/pass/remove_converts.hpp"
 #include "transformations/snippets/x64/pass/brgemm_to_brgemm_cpu.hpp"
+#include "transformations/snippets/x64/pass/move_brgemm_repacking_out.hpp"
 #include "transformations/snippets/x64/pass/enforce_precision.hpp"
 #include "transformations/snippets/x64/shape_inference.hpp"
 #endif
@@ -651,6 +652,9 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
     }
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before, ov::snippets::pass::PropagatePrecision,
                                            ov::intel_cpu::pass::BrgemmToBrgemmCPU);
+    if (!std::getenv("REFERENCE"))
+        SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After, ov::intel_cpu::pass::BrgemmToBrgemmCPU,
+                                            ov::intel_cpu::pass::MoveBrgemmRepackingOut);
     SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64(Place::PipelineEnd, ov::intel_cpu::pass::RemoveConverts);
     SNIPPETS_REGISTER_PASS_ABSOLUTE_COMMON(Place::PipelineEnd, ov::intel_cpu::pass::MulAddToFMA);
 
@@ -984,8 +988,7 @@ void Subgraph::SubgraphExecutor::repack_inputs(dnnl::stream strm, std::vector<Me
         if (m_in_requested_descs[i]) {
             auto repacked_memory = std::make_shared<Memory>(strm.get_engine(), m_in_requested_descs[i]);
             repacked_memory->load(*inMemPtrs[i]);
-            if (!std::getenv("REFERENCE"))
-                inMemPtrs[i] = repacked_memory;
+            inMemPtrs[i] = repacked_memory;
         }
     }
 }

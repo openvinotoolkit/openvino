@@ -246,14 +246,7 @@ void BrgemmCopyBKernel::execute(matmul::jit_brgemm_matmul_copy_b_t* kernel, cons
     ctx.current_K_iters = K;
 
     OV_CPU_JIT_EMITTER_ASSERT(kernel, "Kernel hasn't been created");
-    if (std::getenv("REFERENCE")) {
-        (*kernel)(&ctx);
-    } else {
-        auto srcPtr = static_cast<const uint8_t*>(src);
-        auto dstPtr = const_cast<uint8_t*>(static_cast<const uint8_t*>(dst));
-        auto copySize = K * N * sizeof(bfloat16);
-        cpu_memcpy(dstPtr, srcPtr, copySize);
-    }
+    (*kernel)(&ctx);
 }
 
 BrgemmCopyBKernelExecutor::BrgemmCopyBKernelExecutor(ov::intel_cpu::MultiCacheWeakPtr kernel_cache, BrgemmCopyBKernelConfig config)

@@ -6,6 +6,7 @@
 
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "snippets/lowered/loop_manager.hpp"
+#include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "snippets/utils/utils.hpp"
 
 namespace ov {
@@ -47,16 +48,22 @@ void CPURuntimeConfigurator::update(const ov::snippets::lowered::LinearIRCPtr& l
         // TODO: remove
         if (i != 1) continue;
         const auto& param = params[i];
-        const auto& shape = param->get_output_port_descriptor(0)->get_shape();
-        VectorDims normalized_dims(3, 1);
-        *normalized_dims.rbegin() = *shape.rbegin();
-        *++normalized_dims.rbegin() = *++shape.rbegin();
-        normalized_dims[0] = std::accumulate(shape.begin(), shape.end() - 2, static_cast<Dim>(1), std::multiplies<Dim>());
+        const auto consumers = param->get_output_port_connector(0)->get_consumers();
+        OPENVINO_ASSERT(consumers.size() == 1);
+        const auto& consumer = consumers.begin()->get_expr();
+        // TODO: this logic should be more flexible
+        if (ov::is_type<ov::intel_cpu::BrgemmCPU>(consumer->get_node())) {
+            const auto& shape = param->get_output_port_descriptor(0)->get_shape();
+            VectorDims normalized_dims(3, 1);
+            *normalized_dims.rbegin() = *shape.rbegin();
+            *++normalized_dims.rbegin() = *++shape.rbegin();
+            normalized_dims[0] = std::accumulate(shape.begin(), shape.end() - 2, static_cast<Dim>(1), std::multiplies<Dim>());
 
-        const auto data_type = DnnlExtensionUtils::ElementTypeToDataType(param->get_node()->get_output_element_type(0));
-        // TODO: tag must be selected based on Brgemm params (inner block + vnni factor?)
-        const auto tag = dnnl::memory::format_tag::aCB16b64c2b;
-        optimal_descs[i] = std::make_shared<DnnlBlockedMemoryDesc>(Shape(normalized_dims), data_type, tag);
+            const auto data_type = DnnlExtensionUtils::ElementTypeToDataType(param->get_node()->get_output_element_type(0));
+            // TODO: tag must be selected based on Brgemm params (inner block + vnni factor?)
+            const auto tag = dnnl::memory::format_tag::aCB16b64c2b;
+            optimal_descs[i] = std::make_shared<DnnlBlockedMemoryDesc>(Shape(normalized_dims), data_type, tag);
+        }
     }
 
     RuntimeConfigurator::update(linear_ir);
@@ -67,7 +74,7 @@ void CPURuntimeConfigurator::update(const ov::snippets::lowered::LinearIRCPtr& l
         if (optimal_descs[i]) {
             auto& offsets = m_config->io_data_offsets[i];
             // TODO: how exactly should offsets be corrected using info from blocking descriptor?
-            if (!std::getenv("REFERENCE") && i == 1)
+            if (i == 1)
                 offsets[3] = 2048 * 2;
         }
     }
