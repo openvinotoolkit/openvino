@@ -48,12 +48,9 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
     auto index_op = ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>();
 
     ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
-        auto index_op = cast_fw_node(m.get_match_root(), "aten::index_put_");
+        auto index_op = cast_fw_node(m.get_match_root(), {"aten::index_put_", "aten.index_put.default"});
         if (!index_op) {
-            index_op = cast_fw_node(m.get_match_root(), "aten.index_put.default");
-            if (!index_op) {
-                return false;
-            }
+            return false;
         }
         NodeVector rt_copy_from;
         ov::pass::NodeRegistry rg;
