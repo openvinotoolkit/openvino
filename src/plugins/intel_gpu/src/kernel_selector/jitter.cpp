@@ -2197,7 +2197,7 @@ std::string FusedOpsCodeGenerator::GetJitLoad(const FusedOpsConfiguration& conf,
 
             if (vec_size > 1) {
                 return block_read;
-            } else if (input_tensor.LogicalSize() > 1) {
+            } else if (input_tensor.LogicalSize() > 1 || input_tensor.is_dynamic()) {
                 // Currently we assume that in such scenario we can safely load sub_group_size elements from the pointer
                 return Broadcast(block_read, input_dt, vec_size);
             } else {
