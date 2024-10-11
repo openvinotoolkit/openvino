@@ -92,7 +92,7 @@ def patched_forward_sym(self, *args, **kwargs):
 
 
 # All the following AutoGPTQ's quant types are supposed to have the same weights packing schema
-supported_quant_types = ['triton', 'exllama', 'cuda', 'exllamav2', 'cuda-old']
+supported_quant_types = ['triton', 'exllama', 'exllamav2', 'cuda-old']
 
 
 def patch_model(model):
@@ -116,11 +116,12 @@ def patch_model(model):
         m.float()  # enables tracing on CPU, applied for all modules
         if hasattr(m, 'QUANT_TYPE'):
             if m.QUANT_TYPE not in supported_quant_types:
-                raise ValueError(
-                    f'Unsupported QUANT_TYPE == {m.QUANT_TYPE} is discovered for AutoGPTQ model, only the following types are supported: {supported_quant_types}')
+                raise ValueError(f'Unsupported QUANT_TYPE == {m.QUANT_TYPE} is discovered for '
+                                 'AutoGPTQ model, only the following types are supported: '
+                                 f'{supported_quant_types}')
             if m.bits != 4:
-                raise ValueError(
-                    f'Unsupported bits == {m.bits} is discovered in module {name} in AutoGPTQ model, only bits == 4 is supported.')
+                raise ValueError(f'Unsupported bits == {m.bits} is discovered in module {name} '
+                                 'in AutoGPTQ model, only bits == 4 is supported.')
 
             int4_in_int32 = 8
             groups = m.qzeros.shape[0]
