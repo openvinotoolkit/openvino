@@ -118,6 +118,8 @@ inline int get_max_nested_levels() {
     return omp_get_max_active_levels();
 #    endif  // defined(_MSC_VER) && !defined(__INTEL_COMPILER)
 }
+// Controls the number of nested parallel blocks.
+// This flag has higher priority than pragma num_threads.
 inline void set_max_nested_levels(int levels) {
 #    if defined(_MSC_VER) && !defined(__INTEL_COMPILER)
     return omp_set_nested(levels);

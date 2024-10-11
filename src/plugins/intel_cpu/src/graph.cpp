@@ -1279,6 +1279,8 @@ public:
         auto startCounter = m_prepareCounter.load();
 
         // Allow nested parallel execution.
+        // Some nodes use parallelism inside function updateDynParams, but OMP has one nested level here,
+        // so nested routines can only be executed in single thread.
         auto origin_nested_levels = get_max_nested_levels();
         if (origin_nested_levels < 2) {
             set_max_nested_levels(2);
