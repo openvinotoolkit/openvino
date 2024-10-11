@@ -150,7 +150,6 @@ jobs:
           USE_SYSTEM_CACHE: False
 
       - name: TorchFX GPTQ Pattern Test
-        timeout-minutes: 400
         if: ${{ inputs.model_scope == 'precommit' }}
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
