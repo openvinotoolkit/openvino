@@ -71,7 +71,7 @@ jobs:
           path: ${{ env.OPENVINO_REPO }}
 
       - name: Setup gcc-10 on ARM
-        if: runner.arch == 'ARM64' # the default gcc-9 on ARM does not support BFLOAT16 and the onnxruntime build fails
+        if: runner.arch == 'ARM64' # the default gcc-9 on Ubuntu 20 ARM does not support BFLOAT16 and the onnxruntime build fails
         run: |
           apt update && apt install gcc-10 g++-10
           update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 30
