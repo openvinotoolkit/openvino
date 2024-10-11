@@ -134,7 +134,7 @@ GPTQDecompressionReplacer::GPTQDecompressionReplacer() {
                 shift_offset *= rs_in0_shape[i];
             }
             if (dim == rs_in0_shape[i]) {
-                shift_dim = i;
+                shift_dim = static_cast<int>(i);
             }
         }
         if (shift_dim == -1)
