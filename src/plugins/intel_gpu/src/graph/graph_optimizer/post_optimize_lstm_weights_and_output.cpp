@@ -18,16 +18,16 @@
 
 namespace cldnn {
 
-post_optimize_lstm_weights::post_optimize_lstm_weights(reorder_factory& rf_ref)
-    : base_pass("post_optimize_lstm_weights"), _rf(rf_ref) {}
+post_optimize_lstm_weights_and_output::post_optimize_lstm_weights_and_output(reorder_factory& rf_ref)
+    : base_pass("post_optimize_lstm_weights_and_output"), _rf(rf_ref) {}
 
-template<typename T> post_optimize_lstm_weights::weights_bias_offset post_optimize_lstm_weights::get_weights_bias_offset(const T& node) {
+template<typename T> post_optimize_lstm_weights_and_output::weights_bias_offset post_optimize_lstm_weights_and_output::get_weights_bias_offset(const T& node) {
     return weights_bias_offset(3, 6);
 }
 
 // function which prepares given primitive for weights optimization
 template<typename T>
-void post_optimize_lstm_weights::optimize_lstm_weights(T& node, program& p) {
+void post_optimize_lstm_weights_and_output::optimize_lstm_weights(T& node, program& p) {
     //auto offsets = get_weights_bias_offset(node);
     auto impl = node.get_selected_impl();
 
@@ -75,7 +75,7 @@ void post_optimize_lstm_weights::optimize_lstm_weights(T& node, program& p) {
     node.set_output_layout(output_layout, false);
 }
 
-void post_optimize_lstm_weights::run(program& p) {
+void post_optimize_lstm_weights_and_output::run(program& p) {
     for (auto& node : p.get_processing_order()) {
         if (node->is_type<lstm_seq>()) {
             optimize_lstm_weights(node->as<lstm_seq>(), p);

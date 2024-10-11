@@ -64,7 +64,6 @@ public:
     void select_implementation(program& p, program_node& node);
 
 private:
-    void select_impl_recurrent(program_node* node, program* p);
     struct cache_key {
         primitive_id data_source;
         layout expected_layout;

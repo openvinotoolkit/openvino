@@ -110,17 +110,6 @@ std::pair<std::shared_ptr<primitive>, bool> reorder_factory::get_weights_reorder
     }
 }
 
-void reorder_factory::select_impl_recurrent(program_node* node, program* p) {
-    node->set_selected_impl(node->type()->create_impl(*node));
-    if (auto impl = node->get_selected_impl()) {
-        auto params = node->get_kernel_impl_params();
-        p->get_kernels_cache().add_kernels_source(*params, impl->get_kernels_source());
-    }
-    for (auto child : node->get_users()) {
-        select_impl_recurrent(child, p);
-    }
-}
-
 void reorder_factory::get_out_reorder(program& p, cldnn::program_node* prev, cldnn::program_node* node, int i) {
     std::string permute_id = prev->id() + "_outreor_" + std::to_string(i);
     std::vector<uint16_t> ord{1, 3, 0, 2};

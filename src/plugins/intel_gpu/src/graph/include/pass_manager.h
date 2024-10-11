@@ -199,9 +199,9 @@ private:
     reorder_factory& _rf;
 };
 
-class post_optimize_lstm_weights : public base_pass {
+class post_optimize_lstm_weights_and_output : public base_pass {
 public:
-    explicit post_optimize_lstm_weights(reorder_factory& rf_ref);
+    explicit post_optimize_lstm_weights_and_output(reorder_factory& rf_ref);
 
 private:
     struct weights_bias_offset {
