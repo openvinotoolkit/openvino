@@ -12,14 +12,13 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/pad.hpp"
 #include "openvino/op/range.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
-#include "openvino/op/subtract.hpp"
 #include "openvino/op/slice.hpp"
-#include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/squeeze.hpp"
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/add.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "utils.hpp"
 
@@ -49,7 +48,8 @@ OutputVector translate_max_pool_base(const NodeContext& context, int dims) {
         auto rank = context.mark_node(std::make_shared<v0::ShapeOf>(unsqueeze_shape));
         auto end_index = context.mark_node(std::make_shared<v1::Add>(rank, const_1));
         auto start_index = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-dims - 2}));
-        auto reshape_pattern = context.mark_node(std::make_shared<v8::Slice>(unsqueeze_shape, start_index, end_index, const_1, const_0));
+        auto reshape_pattern =
+            context.mark_node(std::make_shared<v8::Slice>(unsqueeze_shape, start_index, end_index, const_1, const_0));
         input = context.mark_node(std::make_shared<v1::Reshape>(input, reshape_pattern, true));
     }
 
@@ -109,19 +109,22 @@ OutputVector translate_max_pool_base(const NodeContext& context, int dims) {
             } else {
                 return {res};
             }
-        } 
+        }
 
     } else {
         auto pooled_output_shape = context.mark_node(std::make_shared<v3::ShapeOf>(res));
 
         auto start_index_input = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-dims}));
-        auto slice_input_shape = context.mark_node(std::make_shared<v8::Slice>(input_shape, const_0, start_index_input, const_1, const_0));
+        auto slice_input_shape =
+            context.mark_node(std::make_shared<v8::Slice>(input_shape, const_0, start_index_input, const_1, const_0));
 
         auto start_index_pooled = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-dims}));
         auto end_index_pooled = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {2 + dims}));
-        auto slice_pooled_output_shape = context.mark_node(std::make_shared<v8::Slice>(pooled_output_shape, start_index_pooled, end_index_pooled, const_1, const_0));
+        auto slice_pooled_output_shape = context.mark_node(
+            std::make_shared<v8::Slice>(pooled_output_shape, start_index_pooled, end_index_pooled, const_1, const_0));
 
-        auto concat_shape = context.mark_node(std::make_shared<v0::Concat>(OutputVector{slice_input_shape, slice_pooled_output_shape}, 0));
+        auto concat_shape = context.mark_node(
+            std::make_shared<v0::Concat>(OutputVector{slice_input_shape, slice_pooled_output_shape}, 0));
         if (context.get_output_size() == 2) {
             auto out1 = res->output(0);
             auto out2 = res->output(1);
@@ -133,8 +136,6 @@ OutputVector translate_max_pool_base(const NodeContext& context, int dims) {
             return {res};
         }
     }
-
-    
 };
 
 OutputVector translate_max_pool1d(const NodeContext& context) {
