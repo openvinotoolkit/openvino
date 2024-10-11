@@ -5,6 +5,7 @@
 #pragma once
 
 #include "snippets/lowered/pass/pass.hpp"
+#include "snippets/lowered/loop_info.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -24,6 +25,7 @@ public:
     bool run(snippets::lowered::LinearIR& linear_ir,
              snippets::lowered::LinearIR::constExprIt begin,
              snippets::lowered::LinearIR::constExprIt end) override;
+    static void update_loop_info(const std::shared_ptr<snippets::lowered::UnifiedLoopInfo>& uni_loop_info);
 };
 
 }  // namespace pass
