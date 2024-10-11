@@ -321,7 +321,7 @@ jobs:
           popd
 
       - name: Store artifacts to a shared drive
-        id: store_artifacts
+        id: store_artifacts_common
         if: ${{ always() }}
         uses: ./openvino/.github/actions/store_artifacts
         with:
@@ -334,3 +334,14 @@ jobs:
             ${{ env.MANIFEST_PATH }}
           storage_dir: ${{ env.PRODUCT_TYPE }}
           storage_root: ${{ env.ARTIFACTS_SHARE }}
+          
+      - name: Store artifacts to a shared drive (wheels)
+        id: store_artifacts_wheels
+        if: ${{ inputs.os != 'debian_10' && inputs.arch != 'arm' }}
+        uses: ./openvino/.github/actions/store_artifacts
+        with:
+          artifacts: |
+            ${{ env.BUILD_DIR }}/wheels
+          storage_dir: ${{ env.PRODUCT_TYPE }}
+          storage_root: ${{ env.ARTIFACTS_SHARE }}
+
