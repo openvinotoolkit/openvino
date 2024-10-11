@@ -93,8 +93,9 @@ compiled_model = core.compile_model(ov_model, 'CPU')
 # infer the model on random data
 data = np.random.rand(1, 224, 224, 3)
 output = compiled_model({0: data})
-
+```
 </details>
+
 
 ## Documentation
 
