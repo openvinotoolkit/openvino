@@ -44,6 +44,7 @@ jobs:
       INSTALL_DIR: "${{ github.workspace }}\\openvino_install"
       INSTALL_DIR_JS: "${{ github.workspace }}\\openvino_install\\js"
       INSTALL_TEST_DIR: "${{ github.workspace }}\\tests_install"
+      INSTALL_WHEELS_DIR: "${{ github.workspace }}\\install\\wheels"
       BUILD_DIR: "${{ github.workspace }}\\openvino_build"
       ARTIFACTS_SHARE: "C:\\mount\\build-artifacts"
       MANIFEST_PATH: "${{ github.workspace }}\\manifest.yml"
@@ -179,8 +180,9 @@ jobs:
 
       - name: Cmake install - OpenVINO
         run: |
-          cmake --install . --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${INSTALL_DIR}
-          cmake --install . --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${INSTALL_TEST_DIR} --component tests
+          cmake --install . --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }}
+          cmake --install . --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_WHEELS_DIR }} --component python_wheels
+          cmake --install . --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_TEST_DIR }} --component tests
         working-directory: ${{ env.BUILD_DIR }}
 
       - name: Pack Artifacts
@@ -209,7 +211,7 @@ jobs:
                 -DENABLE_SYSTEM_TBB=OFF \
                 -DENABLE_WHEEL=OFF
           cmake --build ${{ env.BUILD_DIR }} --parallel
-          cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${INSTALL_DIR_JS}
+          cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR_JS }}
 
       #
       # Upload build artifacts and logs
@@ -252,7 +254,7 @@ jobs:
           artifacts: |
             ${{ env.BUILD_DIR }}/openvino_package.zip
             ${{ env.BUILD_DIR }}/openvino_tests.zip
-            ${{ env.BUILD_DIR }}/wheels
+            ${{ env.INSTALL_WHEELS_DIR }}/wheels
             ${{ env.MANIFEST_PATH }}
           storage_dir: ${{ env.PRODUCT_TYPE }}
           storage_root: ${{ env.ARTIFACTS_SHARE }}
