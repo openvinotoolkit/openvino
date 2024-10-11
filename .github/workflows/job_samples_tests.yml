@@ -54,16 +54,16 @@ jobs:
           echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
           echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
           echo "BUILD_DIR=$GITHUB_WORKSPACE/build" >> "$GITHUB_ENV"
+      
+      - name: Install OpenVINO dependencies (mac)
+        if: runner.os == 'macOS'
+        run: brew install coreutils pigz
 
       - name: Extract OpenVINO packages, wheels and tests
         run: |
             pigz -dc openvino_package.tar.gz | tar -xf - -C ${INSTALL_DIR}
             pigz -dc openvino_tests.tar.gz | tar -xf - -C ${INSTALL_DIR}
         working-directory: ${{ env.INSTALL_DIR }}
-
-      - name: Install OpenVINO dependencies (mac)
-        if: runner.os == 'macOS'
-        run: brew install coreutils
 
       - name: Fetch setup_python action
         # Python is already installed on Ubuntu within Dockerfile

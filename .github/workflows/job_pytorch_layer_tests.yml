@@ -65,8 +65,12 @@ jobs:
           echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
           echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
           echo "LAYER_TESTS_INSTALL_DIR=$GITHUB_WORKSPACE/install/tests/layer_tests" >> "$GITHUB_ENV"
-         
-      - name: Extract OpenVINO artifacts (Linux, macOS)
+  
+      - name: Install OpenVINO dependencies (mac)
+        if: runner.os == 'macOS'
+        run: brew install pigz
+          
+      - name: Extract OpenVINO packages (Linux, macOS)
         if: runner.os != 'Windows'
         run: |
             pigz -dc openvino_tests.tar.gz | tar -xf - -C ${INSTALL_DIR}
