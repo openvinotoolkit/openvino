@@ -1613,17 +1613,7 @@ std::shared_ptr<ov::Model> ov::CoreImpl::read_model(const std::string& model,
                                                     const ov::Tensor& weights,
                                                     bool frontendMode) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "CoreImpl::read_model from memory");
-
-    std::shared_ptr<ov::AlignedBuffer> model_buffer =
-        std::make_shared<ov::SharedBuffer<std::string>>(const_cast<char*>(model.data()), model.size(), model);
-    std::shared_ptr<ov::AlignedBuffer> weights_buffer = nullptr;
-    if (weights) {
-        weights_buffer = std::make_shared<ov::SharedBuffer<ov::Tensor>>(reinterpret_cast<char*>(weights.data()),
-                                                                        weights.get_byte_size(),
-                                                                        weights);
-    }
-
-    return ov::util::read_model(model_buffer, weights_buffer, extensions);
+    return ov::util::read_model(model, weights, extensions, frontendMode);
 }
 
 std::shared_ptr<ov::Model> ov::CoreImpl::read_model(const std::shared_ptr<AlignedBuffer>& model,

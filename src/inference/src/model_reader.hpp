@@ -40,5 +40,18 @@ std::shared_ptr<ov::Model> read_model(const std::shared_ptr<ov::AlignedBuffer>& 
                                       const std::shared_ptr<ov::AlignedBuffer>& weights,
                                       const std::vector<ov::Extension::Ptr>& extensions);
 
+/**
+ * @brief Reads model
+ * @param model Serialized model representation
+ * @param weights constant Tensor with weights
+ * @param extensions vector with OpenVINO extensions
+ * @param frontendMode read network without post-processing or other transformations
+ * @return Shared pointer to ov::Model
+ */
+std::shared_ptr<ov::Model> read_model(const std::string& model,
+                                      const ov::Tensor& weights,
+                                      const std::vector<ov::Extension::Ptr>& extensions,
+                                      bool frontendMode = false);
+
 }  // namespace util
 }  // namespace ov
