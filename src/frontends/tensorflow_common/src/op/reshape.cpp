@@ -45,20 +45,27 @@ OutputVector translate_reshape_op(const NodeContext& node) {
             if(output_shape.is_static()) {
                 shape = make_shared<v0::Constant>(shape.get_element_type(), shape.get_shape() , output_shape.to_shape());
             } else if (output_shape.rank().is_static()) {
-                // if(!ov::PartialShape::merge_into(output_shape, tensor.get_partial_shape())) {
                 if(!output_shape.compatible(tensor.get_partial_shape())) {
                     std::vector<size_t> shape_dimensions;
                     const auto& input_shape = tensor.get_partial_shape();
                     const auto& axis_shape = shape.get_shape();
-                    for (size_t i=0; i < axis_shape[0]; i++) {
-                        if (output_shape[i].is_static())
+                    // std::cout << "### " << node.get_name()
+                    // << ", output_shape_str=" << output_shape_str
+                    // << ", output_shape=" << output_shape
+                    // << ", input_shape=" << input_shape
+                    // << ", axis_shape=" << axis_shape
+                    // << std::endl;
+                    bool replace_with_const = true;
+                    for (size_t i=0; i < axis_shape[0] && replace_with_const; i++) {
+                        if (output_shape[i].is_static()) 
                             shape_dimensions.push_back(output_shape[i].get_length());
                         else if (input_shape[i].is_static())
                             shape_dimensions.push_back(input_shape[i].get_length());
                         else
-                            shape_dimensions.push_back(-1);
+                            replace_with_const = false;
                     }
-                    shape = make_shared<v0::Constant>(shape.get_element_type(), axis_shape , shape_dimensions);
+                    if (replace_with_const)
+                        shape = make_shared<v0::Constant>(shape.get_element_type(), axis_shape , shape_dimensions);
                 }
             }
         } 
