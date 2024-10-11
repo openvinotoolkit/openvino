@@ -23,7 +23,8 @@ class InlinedInput:
 
 class TorchFXPythonDecoder (Decoder):
 
-    def __init__(self, pt_module, fx_gm=None, nodes=None, mark_node_callback=None, input_shapes=[], input_types=[]):
+    def __init__(self, pt_module, fx_gm=None, nodes=None,
+                 mark_node_callback=None, input_shapes=[], input_types=[], dynamic_shapes=False):
         Decoder.__init__(self)
         self.mark_node_callback = mark_node_callback
         # We store every decoder created by this decoder so that all them are not deleted until the first decoder is deleted
@@ -66,7 +67,7 @@ class TorchFXPythonDecoder (Decoder):
                 if shape is not None:
                     new_shape = []
                     for dim in range(0, len(shape)):
-                        if (type(shape[dim]).__name__ == "SymInt"):
+                        if (dynamic_shapes or type(shape[dim]).__name__ == "SymInt"):
                             new_shape.append(-1)
                         else:
                             new_shape.append(shape[dim])
