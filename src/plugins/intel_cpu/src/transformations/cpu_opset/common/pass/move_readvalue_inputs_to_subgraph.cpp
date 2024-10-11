@@ -37,7 +37,8 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
         bool final_successor_is_only_root = true;
         std::string root_name = readvalue->get_friendly_name();
 
-        NodeVector subgraph_nodes = {};
+        NodeVector subgraph_nodes;
+        std::unordered_set<std::string> subgraph_node_names;
         NodeVector inputs = {};
         OutputVector outputs = {};
 
@@ -86,8 +87,9 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
                 check_node(node->get_input_node_shared_ptr(i));
             }
             recursive_deep_check_node--;
-            // Add to subgraph_nodes
+            // Cache to subgraph_nodes
             subgraph_nodes.emplace_back(node);
+            subgraph_node_names.insert(node->get_friendly_name());
         };
 
         // Recursive input of ReadValue, and move all suitable nodes to subgraph_nodes.
@@ -111,21 +113,14 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
 
         auto new_rv = std::make_shared<ov::intel_cpu::ReadValueWithSubgraph>(readvalue->get_variable());
 
-        auto is_in_subgraph = [&subgraph_nodes](std::shared_ptr<ov::Node> n) {
-            for (auto& sub : subgraph_nodes) {
-                if (n->get_friendly_name() == sub->get_friendly_name()) {
-                    return true;
-                }
-            }
-            return false;
-        };
         // Subgraph's input
         auto params = ParameterVector{};
         for (auto inp : inputs) {
             auto param = std::make_shared<ov::op::v0::Parameter>(inp->get_element_type(), inp->get_output_partial_shape(0));
             params.push_back(param);
             for (const auto& child : inp->get_output_target_inputs(0)) {
-                if (is_in_subgraph(child.get_node()->shared_from_this())) {
+                if (subgraph_node_names.find(child.get_node()->shared_from_this()->get_friendly_name()) !=
+                    subgraph_node_names.end()) {
                     child.replace_source_output(param);
                 }
             }
@@ -149,6 +144,6 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(readvalue_pattern, "MarkReadValueInputsAndAssign");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(readvalue_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
