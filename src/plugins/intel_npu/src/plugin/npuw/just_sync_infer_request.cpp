@@ -926,8 +926,13 @@ ov::Tensor ov::npuw::JustInferRequest::allocTensor(const ov::element::Type type,
     if (!m_alloc_required || device == "CPU") {
         return ov::Tensor(type, shape);
     }
+    if (std::any_of(shape.begin(), shape.end(), [&](std::size_t dim) {
+        return dim == 0; })) {
+        return ov::Tensor(type, shape);
+    }
+
     m_remote_ctx = m_npuw_model->get_plugin()->get_core()->get_default_context(device)._ptr;
-    ov::SoPtr<ov::ITensor> remote_tensor;
+    ov::SoPtr<ov::ITensor> remote_tensor = nullptr;
     {
         std::lock_guard<std::mutex> guard(m_alloc_mutex);
         remote_tensor = m_remote_ctx->create_host_tensor(type, shape);
