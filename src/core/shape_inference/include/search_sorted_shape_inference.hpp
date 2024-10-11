@@ -19,9 +19,6 @@ std::vector<TRShape> shape_infer(const SearchSorted* op, const std::vector<TShap
 
     auto output_shape = values_shape;
 
-    // NOTE: The output shape is the same as the values shape - always.
-    // The code below only tries to infer dynamic dims from sorted_shape - if possible.
-
     // 1. If we know that the sorted sequence is 1D, than output shape can be anything.
     if (sorted_shape.rank().is_static() && sorted_shape.rank().get_length() == 1) {
         return {std::move(output_shape)};
