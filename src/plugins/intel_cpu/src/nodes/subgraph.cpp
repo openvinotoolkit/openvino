@@ -82,8 +82,7 @@ public:
                            const BufferScratchpadAllocator& allocator)
     : SubgraphExecutor(snippet_attrs, snippet, start_offset_in, start_offset_out, snippet_config, allocator) {}
 
-    void exec(dnnl::stream strm, std::vector<MemoryPtr>& inMemPtrs, std::vector<MemoryPtr>& outMemPtrs) override  {
-        repack_inputs(strm, inMemPtrs);
+    void exec_impl(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override  {
         const auto& callable = m_schedule->get_callable<kernel>();
 
         auto initializer = [&](jit_snippets_call_args& call_args, size_t ithr) {
@@ -131,8 +130,7 @@ public:
         reset_exec_table_state = snippet_config->kernel_executor_table->get_state_reset();
     }
 
-    void exec(dnnl::stream strm, std::vector<MemoryPtr>& inMemPtrs, std::vector<MemoryPtr>& outMemPtrs) override {
-        repack_inputs(strm, inMemPtrs);
+    void exec_impl(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override {
         const auto& callable = m_schedule->get_callable<dynamic_kernel>();
 
         OPENVINO_ASSERT(data_offsets.size() == inMemPtrs.size() + outMemPtrs.size(), "Incorrect data offset count!");
@@ -849,7 +847,7 @@ bool Subgraph::created() const {
 
 void Subgraph::execute(dnnl::stream strm) {
     OPENVINO_ASSERT(execPtr, "Can't execute Subgraph node. Primitive didn't created");
-    execPtr->exec(strm, srcMemPtrs, dstMemPtrs);
+    execPtr->execute(strm, srcMemPtrs, dstMemPtrs);
 }
 
 void Subgraph::executeDynamicImpl(dnnl::stream strm) {
@@ -973,6 +971,11 @@ void Subgraph::SubgraphExecutor::parallel_forNd(const std::function<void(jit_sni
             caller(call_args, indexes.data());
         }
     });
+}
+
+void Subgraph::SubgraphExecutor::execute(dnnl::stream strm, std::vector<MemoryPtr>& inMemPtrs, std::vector<MemoryPtr>& outMemPtrs) {
+    repack_inputs(strm, inMemPtrs);
+    exec_impl(inMemPtrs, outMemPtrs);
 }
 
 void Subgraph::SubgraphExecutor::repack_inputs(dnnl::stream strm, std::vector<MemoryPtr>& inMemPtrs) {

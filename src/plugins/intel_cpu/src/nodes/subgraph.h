@@ -129,9 +129,11 @@ public:
                      const BufferScratchpadAllocator& allocator);
     virtual ~SubgraphExecutor() = default;
 
-    virtual void exec(dnnl::stream strm, std::vector<MemoryPtr>& inMemPtrs, std::vector<MemoryPtr>& outMemPtrs) = 0;
+    void execute(dnnl::stream strm, std::vector<MemoryPtr>& inMemPtrs, std::vector<MemoryPtr>& outMemPtrs);
 
 protected:
+    virtual void exec_impl(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) = 0;
+
     void parallel_for6d(const std::function<void(jit_snippets_call_args&, size_t)>& initializer,
                         const std::function<void(jit_snippets_call_args&, const size_t*)>& caller);
     void parallel_forNd(const std::function<void(jit_snippets_call_args&, size_t)>& initializer,
@@ -141,10 +143,6 @@ protected:
         if (m_buffer_scratchpad_size > 0)
             scratchpad_ptr = m_buffer_scratchpad->getDataAs<uint8_t>() + ithr * m_buffer_scratchpad_size;
     }
-
-    void repack_inputs(dnnl::stream strm, std::vector<MemoryPtr>& inMemPtrs);
-
-    std::vector<MemoryDescPtr> m_in_requested_descs = {};
 
     std::shared_ptr<snippets::Schedule> m_schedule;
     // Holds index of output used as in execution domain
@@ -168,6 +166,11 @@ protected:
     bool enabled_segfault_detector = false;
     inline void segfault_detector();
 #endif
+
+private:
+    void repack_inputs(dnnl::stream strm, std::vector<MemoryPtr>& inMemPtrs);
+
+    std::vector<MemoryDescPtr> m_in_requested_descs = {};
 };
 
 }   // namespace node

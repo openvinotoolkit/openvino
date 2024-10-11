@@ -52,9 +52,11 @@ void CPURuntimeConfigurator::update(const ov::snippets::lowered::LinearIRCPtr& l
         *normalized_dims.rbegin() = *shape.rbegin();
         *++normalized_dims.rbegin() = *++shape.rbegin();
         normalized_dims[0] = std::accumulate(shape.begin(), shape.end() - 2, static_cast<Dim>(1), std::multiplies<Dim>());
-        optimal_descs[i] = std::make_shared<DnnlBlockedMemoryDesc>(Shape(normalized_dims),
-                                                                   dnnl::memory::data_type::bf16,
-                                                                   dnnl::memory::format_tag::aCB16b64c2b);
+
+        const auto data_type = DnnlExtensionUtils::ElementTypeToDataType(param->get_node()->get_output_element_type(0));
+        // TODO: tag must be selected based on Brgemm params (inner block + vnni factor?)
+        const auto tag = dnnl::memory::format_tag::aCB16b64c2b;
+        optimal_descs[i] = std::make_shared<DnnlBlockedMemoryDesc>(Shape(normalized_dims), data_type, tag);
     }
 
     RuntimeConfigurator::update(linear_ir);
@@ -64,7 +66,7 @@ void CPURuntimeConfigurator::update(const ov::snippets::lowered::LinearIRCPtr& l
     for (size_t i = 0; i < m_in_num; ++i) {
         if (optimal_descs[i]) {
             auto& offsets = m_config->io_data_offsets[i];
-            // TODO: remove this hardcode
+            // TODO: how exactly should offsets be corrected using info from blocking descriptor?
             if (!std::getenv("REFERENCE") && i == 1)
                 offsets[3] = 2048 * 2;
         }
