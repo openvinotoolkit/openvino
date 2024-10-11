@@ -46,7 +46,7 @@ Learn how to optimize and deploy popular models with the [OpenVINO Notebooks](ht
 - [YOLOv8 Optimization](https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/quantizing-model-with-accuracy-control/yolov8-quantization-with-accuracy-control.ipynb)
 - [Text-to-Image Generation](https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/controlnet-stable-diffusion/controlnet-stable-diffusion.ipynb)
 
-Check out [OpenVINO GenAI Samples](https://github.com/openvinotoolkit/openvino.genai/tree/master/samples) to learn how to run LLMs and Generative AI and [OpenVINO Samples](https://docs.openvino.ai/2024/learn-openvino/openvino-samples.html) for more C++ examples.
+Check out [OpenVINO GenAI Samples](https://github.com/openvinotoolkit/openvino.genai/tree/master/samples) to learn how to run LLMs and Generative AI and [OpenVINO Samples](https://docs.openvino.ai/2024/learn-openvino/openvino-samples.html) for more examples.
 
 Here are easy-to-follow code examples demonstrating how to run PyTorch and TensorFlow model inference using OpenVINO:
 
