@@ -172,11 +172,11 @@ jobs:
       - name: Pack Artifacts
         run: |
           pushd ${{ env.INSTALL_DIR }}
-            tar -czvf ${{ env.BUILD_DIR }}/openvino_package.tar.gz *
+            tar -I pigz -cvf ${{ env.BUILD_DIR }}/openvino_package.tar.gz *
           popd
 
           pushd ${{ env.INSTALL_TEST_DIR }}
-            tar -czvf ${{ env.BUILD_DIR }}/openvino_tests.tar.gz *
+            tar -I pigz -cvf ${{ env.BUILD_DIR }}/openvino_tests.tar.gz *
           popd
 
       - name: Cmake & Build - OpenVINO Contrib
@@ -259,6 +259,7 @@ jobs:
     with:
       runner: 'macos-13-xlarge'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      os: 'mac_13'
 
   Python_Unit_Tests:
     name: Python unit tests
@@ -294,3 +295,4 @@ jobs:
     uses: ./.github/workflows/job_cpu_functional_tests.yml
     with:
       runner: 'macos-13-xlarge'
+      python-version: '3.11'
