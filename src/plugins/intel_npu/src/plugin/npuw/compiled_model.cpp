@@ -431,6 +431,9 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     // Set allocator if there is at least 1 NPU submodel
     for (std::size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
         auto& comp_model_desc = m_compiled_submodels[idx];
+        if (!comp_model_desc.compiled_model) {
+            continue;
+        }
         if (*comp_model_desc.device_it == "NPU") {
             m_alloc_required = true;
             break;
@@ -457,7 +460,7 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
 
         // Skip optimized out and non-functions
         if (!comp_model_desc.compiled_model && !comp_model_desc.replaced_by) {
-            return;
+            continue;
         }
 
         const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
