@@ -14,8 +14,10 @@ macro(ov_cpack_settings)
         string(TOUPPER ${item} UPPER_COMP)
         # filter out some components, which are not needed to be wrapped to npm package
         if(NOT OV_CPACK_COMP_${UPPER_COMP}_EXCLUDE_ALL AND
-            # python is not required for npm package
-            NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE}_python.*")
+           # python is not required for npm package
+           NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE}_python.*" AND
+           # It was decided not to distribute JAX as C++ component
+           NOT item STREQUAL "jax")
              list(APPEND CPACK_COMPONENTS_ALL ${item})
         endif()
     endforeach()
