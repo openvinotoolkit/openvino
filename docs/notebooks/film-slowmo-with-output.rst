@@ -38,6 +38,7 @@ a model source.
    video encoder. Ubuntu has it preinstalled, but for Windows, you
    should install it manually.
 
+
 **Table of contents:**
 
 
@@ -61,6 +62,16 @@ a model source.
 
 -  `Interactive inference <#interactive-inference>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -70,34 +81,21 @@ Prerequisites
 
     import platform
     import os
-
+    
     %pip install -q "tensorflow-macos>=2.5; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version > '3.8'" # macOS M1 and M2
     %pip install -q "tensorflow-macos>=2.5,<=2.12.0; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version <= '3.8'" # macOS M1 and M2
     %pip install -q "tensorflow>=2.5; sys_platform == 'darwin' and platform_machine != 'arm64' and python_version > '3.8'" # macOS x86
     %pip install -q "tensorflow>=2.5,<=2.12.0; sys_platform == 'darwin' and platform_machine != 'arm64' and python_version <= '3.8'" # macOS x86
     %pip install -q "tensorflow>=2.5; sys_platform != 'darwin' and python_version > '3.8'"
     %pip install -q "tensorflow>=2.5,<=2.12.0; sys_platform != 'darwin' and python_version <= '3.8'"
-
-
+    
+    
     %pip install -q tensorflow_hub tf_keras numpy "opencv-python" tqdm "gradio>=4.19" Pillow "openvino>=2023.2.0"
-
+    
     if platform.system() != "Windows":
         %pip install -q "matplotlib>=3.4"
     else:
         %pip install -q "matplotlib>=3.4,<3.7"
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
 
 .. code:: ipython3
 
@@ -106,11 +104,11 @@ Prerequisites
     from typing import Optional, Generator
     from datetime import datetime
     import gc
-
+    
     os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
     os.environ["TF_USE_LEGACY_KERAS"] = "1"
     os.environ["TFHUB_CACHE_DIR"] = str(Path("./tfhub_modules").resolve())
-
+    
     import tensorflow_hub as hub
     import tensorflow as tf
     import openvino as ov
@@ -121,6 +119,14 @@ Prerequisites
     import gradio as gr
     import PIL
     import IPython
+    
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+    )
+    
+    open("notebook_utils.py", "w").write(r.text)
+    
+    from notebook_utils import device_widget
 
 .. code:: ipython3
 
@@ -134,7 +140,7 @@ Prerequisites
     OV_OUTPUT_VIDEO_PATH = DATA_PATH / "ov_output.webm"
     TIMES_TO_INTERPOLATE = 5
     DATA_PATH.mkdir(parents=True, exist_ok=True)
-
+    
     PIL.ImageFile.LOAD_TRUNCATED_IMAGES = True  # allows Gradio to read PNG images with large metadata
 
 Prepare images
@@ -151,8 +157,8 @@ inputs.
         result = frame.astype(np.float32) / 255  # normalize to [0, 1]
         result = result[np.newaxis, ...]  # add batch dim
         return result
-
-
+    
+    
     def prepare_input(img_url: str):
         if not IMAGES[img_url].exists():
             r = requests.get(img_url)
@@ -163,12 +169,12 @@ inputs.
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img = np.array(img)
         img = preprocess_np_frame(img)
-
+    
         return img
-
-
+    
+    
     input_images = [prepare_input(url) for url in IMAGES]
-
+    
     input = {
         "x0": input_images[0],
         "x1": input_images[1],
@@ -269,7 +275,7 @@ generating :math:`2^t-1` images.
     class Interpolator:
         def __init__(self, model):
             self._model = model
-
+    
         def _recursive_generator(
             self,
             frame1: np.ndarray,
@@ -278,12 +284,12 @@ generating :math:`2^t-1` images.
             bar: Optional[tqdm] = None,
         ) -> Generator[np.ndarray, None, None]:
             """Splits halfway to repeatedly generate more frames.
-
+    
             Args:
               frame1: Input image 1.
               frame2: Input image 2.
               num_recursions: How many times to interpolate the consecutive image pairs.
-
+    
             Yields:
               The interpolated frames, including the first frame (frame1), but excluding
               the final frame2.
@@ -297,16 +303,16 @@ generating :math:`2^t-1` images.
                     bar.update(1)
                 yield from self._recursive_generator(frame1, mid_frame, num_recursions - 1, bar)
                 yield from self._recursive_generator(mid_frame, frame2, num_recursions - 1, bar)
-
+    
         def interpolate_recursively(self, frame1: np.ndarray, frame2: np.ndarray, times_to_interpolate: int) -> Generator[np.ndarray, None, None]:
             """Generates interpolated frames by repeatedly interpolating the midpoint.
-
+    
             Args:
               frame1: Input image 1.
               frame2: Input image 2.
               times_to_interpolate: Number of times to do recursive midpoint
                 interpolation.
-
+    
             Yields:
               The interpolated frames (including the inputs).
             """
@@ -381,16 +387,7 @@ object to disk using the ``openvino.save_model()`` function.
         ov.save_model(converted_model, MODEL_PATH)
         del converted_model
     del film_model
-    gc.collect()
-
-
-
-
-.. parsed-literal::
-
-    1356
-
-
+    gc.collect();
 
 Inference
 ---------
@@ -406,15 +403,8 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-
     core = ov.Core()
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
     device
 
 
@@ -512,26 +502,16 @@ Interactive inference
         filename = DATA_PATH / f"output_{datetime.now().isoformat()}.webm"
         save_as_video(frames, width, height, filename)
         return filename
-
-
-    demo = gr.Interface(
-        generate,
-        [
-            gr.Image(label="First image"),
-            gr.Image(label="Last image"),
-            gr.Slider(
-                1,
-                8,
-                step=1,
-                label="Times to interpolate",
-                info="""Controls the number of times the frame interpolator is invoked.
-            The output will be the interpolation video with (2^value + 1) frames, fps of 30.""",
-            ),
-        ],
-        gr.Video(),
-        examples=[[*IMAGES.values(), 5]],
-        allow_flagging="never",
-    )
+    
+    
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/film-slowmo/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
+    
+    from gradio_helper import make_demo
+    
+    demo = make_demo(fn=generate)
+    
     try:
         demo.queue().launch(debug=False)
     except Exception:

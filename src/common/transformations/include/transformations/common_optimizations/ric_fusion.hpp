@@ -5,8 +5,7 @@
 #pragma once
 
 #include "openvino/core/model.hpp"
-#include "openvino/pass/graph_rewrite.hpp"
-#include "openvino/pass/pass.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {

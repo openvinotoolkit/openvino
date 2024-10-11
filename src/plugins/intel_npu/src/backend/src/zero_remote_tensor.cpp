@@ -7,6 +7,7 @@
 #include <ze_api.h>
 
 #include "intel_npu/al/config/common.hpp"
+#include "intel_npu/utils/zero/zero_api.hpp"
 #include "openvino/core/type/element_iterator.hpp"
 #include "zero_utils.hpp"
 
@@ -28,10 +29,10 @@ ZeroRemoteTensor::ZeroRemoteTensor(std::shared_ptr<ov::IRemoteContext> context,
                                    TensorType tensor_type,
                                    MemType mem_type,
                                    void* mem)
-    : RemoteTensor(context, element_type, shape),
+    : RemoteTensor(std::move(context), element_type, shape),
       _config(config),
       _logger("ZeroRemoteContext", _config.get<LOG_LEVEL>()),
-      _init_structs(init_structs),
+      _init_structs(std::move(init_structs)),
       _tensor_type(tensor_type),
       _mem_type(mem_type),
       _mem(mem) {
@@ -43,9 +44,16 @@ ZeroRemoteTensor::ZeroRemoteTensor(std::shared_ptr<ov::IRemoteContext> context,
     ze_device_external_memory_properties_t desc = {};
     desc.stype = ZE_STRUCTURE_TYPE_DEVICE_EXTERNAL_MEMORY_PROPERTIES;
     auto res = zeDeviceGetExternalMemoryProperties(_init_structs->getDevice(), &desc);
-    if (res != ZE_RESULT_SUCCESS || (desc.memoryAllocationImportTypes != ZE_EXTERNAL_MEMORY_TYPE_FLAG_DMA_BUF &&
-                                     desc.memoryAllocationImportTypes != ZE_EXTERNAL_MEMORY_TYPE_FLAG_OPAQUE_WIN32)) {
-        _external_memory_support = false;
+    if (res == ZE_RESULT_SUCCESS) {
+#ifdef _WIN32
+        if (desc.memoryAllocationImportTypes & ZE_EXTERNAL_MEMORY_TYPE_FLAG_OPAQUE_WIN32) {
+            _external_memory_support = true;
+        }
+#else
+        if (desc.memoryAllocationImportTypes & ZE_EXTERNAL_MEMORY_TYPE_FLAG_DMA_BUF) {
+            _external_memory_support = true;
+        }
+#endif
     }
 
     allocate(byte_size);

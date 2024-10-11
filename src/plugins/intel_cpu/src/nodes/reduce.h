@@ -22,6 +22,7 @@ struct jit_reduce_config_params {
     Algorithm reduce_mode;
     bool fuse_low_precision;
     bool fuse_broadcast;    // if post ops fusion needs broadcast
+    bool round_to_zero;
     dnnl::memory::data_type src_dt;
     dnnl::memory::data_type dst_dt;
     int src_data_size;
@@ -138,6 +139,7 @@ private:
     bool jit_beyond_5D = false;
     bool jit_mode = true;
     bool keep_dims = true;
+    bool round_to_zero = false;
     bool is_hybrid_layout = false;
     bool compile_post_kernel = true;
     bool apply_post_kernel = true;

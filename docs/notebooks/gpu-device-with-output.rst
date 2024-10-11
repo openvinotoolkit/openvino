@@ -1,6 +1,7 @@
 Working with GPUs in OpenVINO™
 ==============================
 
+
 **Table of contents:**
 
 
@@ -61,6 +62,16 @@ Working with GPUs in OpenVINO™
 
 -  `Conclusion <#conclusion>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 This tutorial provides a high-level overview of working with Intel GPUs
 in OpenVINO. It shows how to use Query Device to list system GPUs and
 check their properties, and it explains some of the key properties. It
@@ -110,11 +121,8 @@ Install required packages
 
     %pip install -q "openvino-dev>=2024.0.0" "opencv-python" "tqdm"
     %pip install -q "tensorflow-macos>=2.5; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version > '3.8'" # macOS M1 and M2
-    %pip install -q "tensorflow-macos>=2.5,<=2.12.0; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version <= '3.8'" # macOS M1 and M2
     %pip install -q "tensorflow>=2.5; sys_platform == 'darwin' and platform_machine != 'arm64' and python_version > '3.8'" # macOS x86
-    %pip install -q "tensorflow>=2.5,<=2.12.0; sys_platform == 'darwin' and platform_machine != 'arm64' and python_version <= '3.8'" # macOS x86
     %pip install -q "tensorflow>=2.5; sys_platform != 'darwin' and python_version > '3.8'"
-    %pip install -q "tensorflow>=2.5,<=2.12.0; sys_platform != 'darwin' and python_version <= '3.8'"
 
 Checking GPUs with Query Device
 -------------------------------
@@ -137,7 +145,7 @@ appear.
 .. code:: ipython3
 
     import openvino as ov
-
+    
     core = ov.Core()
     core.available_devices
 
@@ -180,9 +188,12 @@ To get the value of a property, such as the device name, we can use the
 
 .. code:: ipython3
 
+    import openvino.properties as props
+    
+    
     device = "GPU"
-
-    core.get_property(device, "FULL_DEVICE_NAME")
+    
+    core.get_property(device, props.device.full_name)
 
 
 
@@ -197,15 +208,15 @@ Each device also has a specific property called
 ``SUPPORTED_PROPERTIES``, that enables viewing all the available
 properties in the device. We can check the value for each property by
 simply looping through the dictionary returned by
-``core.get_property("GPU", "SUPPORTED_PROPERTIES")`` and then querying
-for that property.
+``core.get_property("GPU", props.supported_properties)`` and then
+querying for that property.
 
 .. code:: ipython3
 
     print(f"{device} SUPPORTED_PROPERTIES:\n")
-    supported_properties = core.get_property(device, "SUPPORTED_PROPERTIES")
+    supported_properties = core.get_property(device, props.supported_properties)
     indent = len(max(supported_properties, key=len))
-
+    
     for property_key in supported_properties:
         if property_key not in (
             "SUPPORTED_METRICS",
@@ -222,7 +233,7 @@ for that property.
 .. parsed-literal::
 
     GPU SUPPORTED_PROPERTIES:
-
+    
     AVAILABLE_DEVICES             : ['0']
     RANGE_FOR_ASYNC_INFER_REQUESTS: (1, 2, 1)
     RANGE_FOR_STREAMS             : (1, 2)
@@ -245,7 +256,7 @@ for that property.
     GPU_QUEUE_PRIORITY            : Priority.MEDIUM
     GPU_QUEUE_THROTTLE            : Priority.MEDIUM
     GPU_ENABLE_LOOP_UNROLLING     : True
-    CACHE_DIR                     :
+    CACHE_DIR                     : 
     PERFORMANCE_HINT              : PerformanceMode.UNDEFINED
     COMPILATION_NUM_THREADS       : 20
     NUM_STREAMS                   : 1
@@ -320,29 +331,29 @@ package is already downloaded.
 
     import tarfile
     from pathlib import Path
-
+    
     # Fetch `notebook_utils` module
     import requests
-
+    
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
-
+    
     open("notebook_utils.py", "w").write(r.text)
     from notebook_utils import download_file
-
+    
     # A directory where the model will be downloaded.
     base_model_dir = Path("./model").expanduser()
-
+    
     model_name = "ssdlite_mobilenet_v2"
     archive_name = Path(f"{model_name}_coco_2018_05_09.tar.gz")
-
+    
     # Download the archive
     downloaded_model_path = base_model_dir / archive_name
     if not downloaded_model_path.exists():
         model_url = f"http://download.tensorflow.org/models/object_detection/{archive_name}"
         download_file(model_url, downloaded_model_path.name, downloaded_model_path.parent)
-
+    
     # Unpack the model
     tf_model_path = base_model_dir / archive_name.with_suffix("").stem / "frozen_inference_graph.pb"
     if not tf_model_path.exists():
@@ -363,11 +374,11 @@ package is already downloaded.
     to the client in order to avoid crashing it.
     To change this limit, set the config variable
     `--NotebookApp.iopub_msg_rate_limit`.
-
+    
     Current values:
     NotebookApp.iopub_msg_rate_limit=1000.0 (msgs/sec)
     NotebookApp.rate_limit_window=3.0 (secs)
-
+    
 
 
 Convert the Model to OpenVINO IR format
@@ -383,15 +394,15 @@ directory. For more details about model conversion, see this
 .. code:: ipython3
 
     from openvino.tools.mo.front import tf as ov_tf_front
-
+    
     precision = "FP16"
-
+    
     # The output path for the conversion.
     model_path = base_model_dir / "ir_model" / f"{model_name}_{precision.lower()}.xml"
-
+    
     trans_config_path = Path(ov_tf_front.__file__).parent / "ssd_v2_support.json"
     pipeline_config = base_model_dir / archive_name.with_suffix("").stem / "pipeline.config"
-
+    
     model = None
     if not model_path.exists():
         model = ov.tools.mo.convert_model(
@@ -461,17 +472,17 @@ following:
 
     import time
     from pathlib import Path
-
+    
     # Create cache folder
     cache_folder = Path("cache")
     cache_folder.mkdir(exist_ok=True)
-
+    
     start = time.time()
     core = ov.Core()
-
+    
     # Set cache folder
-    core.set_property({"CACHE_DIR": cache_folder})
-
+    core.set_property({props.cache_dir(): cache_folder})
+    
     # Compile the model as before
     model = core.read_model(model=model_path)
     compiled_model = core.compile_model(model, device)
@@ -490,11 +501,11 @@ compile times with caching enabled and disabled as follows:
 
     start = time.time()
     core = ov.Core()
-    core.set_property({"CACHE_DIR": "cache"})
+    core.set_property({props.cache_dir(): "cache"})
     model = core.read_model(model=model_path)
     compiled_model = core.compile_model(model, device)
     print(f"Cache enabled  - compile time: {time.time() - start}s")
-
+    
     start = time.time()
     core = ov.Core()
     model = core.read_model(model=model_path)
@@ -527,24 +538,28 @@ performance hint optimizes for fast inference times while the
 FPS.
 
 To use the “LATENCY” performance hint, add
-``{"PERFORMANCE_HINT": "LATENCY"}`` when compiling the model as shown
-below. For GPUs, this automatically minimizes the batch size and number
-of parallel streams such that all of the compute resources can focus on
-completing a single inference as fast as possible.
+``{hints.performance_mode(): hints.PerformanceMode.LATENCY}`` when
+compiling the model as shown below. For GPUs, this automatically
+minimizes the batch size and number of parallel streams such that all of
+the compute resources can focus on completing a single inference as fast
+as possible.
 
 .. code:: ipython3
 
-    compiled_model = core.compile_model(model, device, {"PERFORMANCE_HINT": "LATENCY"})
+    import openvino.properties.hint as hints
+    
+    
+    compiled_model = core.compile_model(model, device, {hints.performance_mode(): hints.PerformanceMode.LATENCY})
 
 To use the “THROUGHPUT” performance hint, add
-``{"PERFORMANCE_HINT": "THROUGHPUT"}`` when compiling the model. For
-GPUs, this creates multiple processing streams to efficiently utilize
-all the execution cores and optimizes the batch size to fill the
-available memory.
+``{hints.performance_mode(): hints.PerformanceMode.THROUGHPUT}`` when
+compiling the model. For GPUs, this creates multiple processing streams
+to efficiently utilize all the execution cores and optimizes the batch
+size to fill the available memory.
 
 .. code:: ipython3
 
-    compiled_model = core.compile_model(model, device, {"PERFORMANCE_HINT": "THROUGHPUT"})
+    compiled_model = core.compile_model(model, device, {hints.performance_mode(): hints.PerformanceMode.THROUGHPUT})
 
 Using Multiple GPUs with Multi-Device and Cumulative Throughput
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -578,7 +593,11 @@ devices automatically selected by AUTO. This way, we do not need to
 manually specify devices to use. Below is an example showing how to use
 “CUMULATIVE_THROUGHPUT”, equivalent to the MULTI one:
 
-``compiled_model = core.compile_model(model=model, device_name="AUTO", config={"PERFORMANCE_HINT": "CUMULATIVE_THROUGHPUT"})``
+\`
+
+compiled_model = core.compile_model(model=model, device_name=“AUTO”,
+config={hints.performance_mode():
+hints.PerformanceMode.CUMULATIVE_THROUGHPUT}) \`
 
    **Important**: **The “THROUGHPUT”, “MULTI”, and
    “CUMULATIVE_THROUGHPUT” modes are only applicable to asynchronous
@@ -628,12 +647,12 @@ with a latency focus:
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
-    [ INFO ]
+    [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] GPU
     [ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
-    [ INFO ]
-    [ INFO ]
+    [ INFO ] 
+    [ INFO ] 
     [Step 3/11] Setting device configuration
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
@@ -662,7 +681,7 @@ with a latency focus:
     [ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
     [ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
     [ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
-    [ INFO ]   CACHE_DIR:
+    [ INFO ]   CACHE_DIR: 
     [ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
     [ INFO ]   COMPILATION_NUM_THREADS: 20
     [ INFO ]   NUM_STREAMS: 1
@@ -671,7 +690,7 @@ with a latency focus:
     [ INFO ]   DEVICE_ID: 0
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'image_tensor'!. This input will be filled with random values!
-    [ INFO ] Fill input 'image_tensor' with random values
+    [ INFO ] Fill input 'image_tensor' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
     [ INFO ] First inference took 6.17 ms
@@ -709,12 +728,12 @@ CPU vs GPU with Latency Hint
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
-    [ INFO ]
+    [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] CPU
     [ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
-    [ INFO ]
-    [ INFO ]
+    [ INFO ] 
+    [ INFO ] 
     [Step 3/11] Setting device configuration
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
@@ -746,7 +765,7 @@ CPU vs GPU with Latency Hint
     [ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'image_tensor'!. This input will be filled with random values!
-    [ INFO ] Fill input 'image_tensor' with random values
+    [ INFO ] Fill input 'image_tensor' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
     [ INFO ] First inference took 4.42 ms
@@ -773,12 +792,12 @@ CPU vs GPU with Latency Hint
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
-    [ INFO ]
+    [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] GPU
     [ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
-    [ INFO ]
-    [ INFO ]
+    [ INFO ] 
+    [ INFO ] 
     [Step 3/11] Setting device configuration
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
@@ -807,7 +826,7 @@ CPU vs GPU with Latency Hint
     [ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
     [ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
     [ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
-    [ INFO ]   CACHE_DIR:
+    [ INFO ]   CACHE_DIR: 
     [ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
     [ INFO ]   COMPILATION_NUM_THREADS: 20
     [ INFO ]   NUM_STREAMS: 1
@@ -816,7 +835,7 @@ CPU vs GPU with Latency Hint
     [ INFO ]   DEVICE_ID: 0
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'image_tensor'!. This input will be filled with random values!
-    [ INFO ] Fill input 'image_tensor' with random values
+    [ INFO ] Fill input 'image_tensor' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
     [ INFO ] First inference took 8.79 ms
@@ -848,12 +867,12 @@ CPU vs GPU with Throughput Hint
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
-    [ INFO ]
+    [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] CPU
     [ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
-    [ INFO ]
-    [ INFO ]
+    [ INFO ] 
+    [ INFO ] 
     [Step 3/11] Setting device configuration
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
@@ -885,7 +904,7 @@ CPU vs GPU with Throughput Hint
     [ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'image_tensor'!. This input will be filled with random values!
-    [ INFO ] Fill input 'image_tensor' with random values
+    [ INFO ] Fill input 'image_tensor' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 5 inference requests, limits: 60000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
     [ INFO ] First inference took 8.15 ms
@@ -912,12 +931,12 @@ CPU vs GPU with Throughput Hint
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
-    [ INFO ]
+    [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] GPU
     [ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
-    [ INFO ]
-    [ INFO ]
+    [ INFO ] 
+    [ INFO ] 
     [Step 3/11] Setting device configuration
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
@@ -946,7 +965,7 @@ CPU vs GPU with Throughput Hint
     [ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
     [ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
     [ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
-    [ INFO ]   CACHE_DIR:
+    [ INFO ]   CACHE_DIR: 
     [ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
     [ INFO ]   COMPILATION_NUM_THREADS: 20
     [ INFO ]   NUM_STREAMS: 2
@@ -955,7 +974,7 @@ CPU vs GPU with Throughput Hint
     [ INFO ]   DEVICE_ID: 0
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'image_tensor'!. This input will be filled with random values!
-    [ INFO ] Fill input 'image_tensor' with random values
+    [ INFO ] Fill input 'image_tensor' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
     [ INFO ] First inference took 9.17 ms
@@ -987,12 +1006,12 @@ Single GPU vs Multiple GPUs
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
-    [ INFO ]
+    [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] GPU
     [ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
-    [ INFO ]
-    [ INFO ]
+    [ INFO ] 
+    [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Device GPU.1 does not support performance hint property(-hint).
     [ ERROR ] Config for device with 1 ID is not registered in GPU plugin
@@ -1016,14 +1035,14 @@ Single GPU vs Multiple GPUs
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
-    [ INFO ]
+    [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] AUTO
     [ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
     [ INFO ] GPU
     [ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
-    [ INFO ]
-    [ INFO ]
+    [ INFO ] 
+    [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Device GPU.1 does not support performance hint property(-hint).
     [Step 4/11] Reading model files
@@ -1063,14 +1082,14 @@ Single GPU vs Multiple GPUs
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
-    [ INFO ]
+    [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] GPU
     [ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
     [ INFO ] MULTI
     [ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
-    [ INFO ]
-    [ INFO ]
+    [ INFO ] 
+    [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Device GPU.1 does not support performance hint property(-hint).
     [Step 4/11] Reading model files
@@ -1121,12 +1140,12 @@ Import Necessary Packages
 
     import time
     from pathlib import Path
-
+    
     import cv2
     import numpy as np
     from IPython.display import Video
     import openvino as ov
-
+    
     # Instantiate OpenVINO Runtime
     core = ov.Core()
     core.available_devices
@@ -1150,12 +1169,12 @@ Compile the Model
     # Read model and compile it on GPU in THROUGHPUT mode
     model = core.read_model(model=model_path)
     device_name = "GPU"
-    compiled_model = core.compile_model(model=model, device_name=device_name, config={"PERFORMANCE_HINT": "THROUGHPUT"})
-
+    compiled_model = core.compile_model(model=model, device_name=device_name, config={hints.performance_mode(): hints.PerformanceMode.THROUGHPUT})
+    
     # Get the input and output nodes
     input_layer = compiled_model.input(0)
     output_layer = compiled_model.output(0)
-
+    
     # Get the input size
     num, height, width, channels = input_layer.shape
     print("Model input shape:", num, height, width, channels)
@@ -1177,7 +1196,7 @@ Load and Preprocess Video Frames
     video_file = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/Coco%20Walking%20in%20Berkeley.mp4"
     video = cv2.VideoCapture(video_file)
     framebuf = []
-
+    
     # Go through every frame of video and resize it
     print("Loading video...")
     while video.isOpened():
@@ -1186,18 +1205,18 @@ Load and Preprocess Video Frames
             print("Video loaded!")
             video.release()
             break
-
+    
         # Preprocess frames - convert them to shape expected by model
         input_frame = cv2.resize(src=frame, dsize=(width, height), interpolation=cv2.INTER_AREA)
         input_frame = np.expand_dims(input_frame, axis=0)
-
+    
         # Append frame to framebuffer
         framebuf.append(input_frame)
-
-
+    
+    
     print("Frame shape: ", framebuf[0].shape)
     print("Number of frames: ", len(framebuf))
-
+    
     # Show original video file
     # If the video does not display correctly inside the notebook, please open it with your favorite media player
     Video(video_file)
@@ -1331,10 +1350,10 @@ Callback Definition
         global frame_number
         stop_time = time.time()
         frame_number += 1
-
+    
         predictions = next(iter(infer_request.results.values()))
         results[frame_id] = predictions[:10]  # Grab first 10 predictions for this frame
-
+    
         total_time = stop_time - start_time
         frame_fps[frame_id] = frame_number / total_time
 
@@ -1363,10 +1382,10 @@ Perform Inference
     start_time = time.time()
     for i, input_frame in enumerate(framebuf):
         infer_queue.start_async({0: input_frame}, i)
-
+    
     infer_queue.wait_all()  # Wait until all inference requests in the AsyncInferQueue are completed
     stop_time = time.time()
-
+    
     # Calculate total inference time and FPS
     total_time = stop_time - start_time
     fps = len(framebuf) / total_time
@@ -1390,20 +1409,20 @@ Process Results
 
     # Set minimum detection threshold
     min_thresh = 0.6
-
+    
     # Load video
     video = cv2.VideoCapture(video_file)
-
+    
     # Get video parameters
     frame_width = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
     frame_height = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
     fps = int(video.get(cv2.CAP_PROP_FPS))
     fourcc = int(video.get(cv2.CAP_PROP_FOURCC))
-
+    
     # Create folder and VideoWriter to save output video
     Path("./output").mkdir(exist_ok=True)
     output = cv2.VideoWriter("output/output.mp4", fourcc, fps, (frame_width, frame_height))
-
+    
     # Draw detection results on every frame of video and save as a new video file
     while video.isOpened():
         current_frame = int(video.get(cv2.CAP_PROP_POS_FRAMES))
@@ -1413,7 +1432,7 @@ Process Results
             output.release()
             video.release()
             break
-
+    
         # Draw info at the top left such as current fps, the devices and the performance hint being used
         cv2.putText(
             frame,
@@ -1437,7 +1456,7 @@ Process Results
         )
         cv2.putText(
             frame,
-            f"hint {compiled_model.get_property('PERFORMANCE_HINT')}",
+            f"hint {compiled_model.get_property(hints.performance_mode)}",
             (5, 60),
             cv2.FONT_ITALIC,
             0.6,
@@ -1445,7 +1464,7 @@ Process Results
             1,
             cv2.LINE_AA,
         )
-
+    
         # prediction contains [image_id, label, conf, x_min, y_min, x_max, y_max] according to model
         for prediction in np.squeeze(results[current_frame]):
             if prediction[2] > min_thresh:
@@ -1454,7 +1473,7 @@ Process Results
                 x_max = int(prediction[5] * frame_width)
                 y_max = int(prediction[6] * frame_height)
                 label = classes[int(prediction[1])]
-
+    
                 # Draw a bounding box with its label above it
                 cv2.rectangle(frame, (x_min, y_min), (x_max, y_max), (0, 255, 0), 1, cv2.LINE_AA)
                 cv2.putText(
@@ -1467,9 +1486,9 @@ Process Results
                     1,
                     cv2.LINE_AA,
                 )
-
+    
         output.write(frame)
-
+    
     # Show output video file
     # If the video does not display correctly inside the notebook, please open it with your favorite media player
     Video("output/output.mp4", width=800, embed=True)

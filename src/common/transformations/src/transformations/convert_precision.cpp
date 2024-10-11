@@ -243,8 +243,8 @@ bool convert_function_precision(const std::shared_ptr<Model>& f,
     auto register_constants = [&const_to_internal_output](const std::vector<std::shared_ptr<Node>>& ops) {
         for (auto& node : ops) {
             for (auto& input : node->inputs()) {
-                if (auto const_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(
-                        input.get_source_output().get_node_shared_ptr())) {
+                if (auto const_node =
+                        ov::as_type_ptr<ov::op::v0::Constant>(input.get_source_output().get_node_shared_ptr())) {
                     const_to_internal_output[const_node.get()].emplace_back(input);
                 }
             }
@@ -302,7 +302,7 @@ bool convert_function_precision(const std::shared_ptr<Model>& f,
         // TODO: we need to split NopElimination pass to separate MatcherPasses and call
         // Convert elimination here
         for (auto& node : ops) {
-            if (auto convert = std::dynamic_pointer_cast<ov::op::v0::Convert>(node)) {
+            if (auto convert = ov::as_type_ptr<ov::op::v0::Convert>(node)) {
                 if (pass::constant_folding_is_disabled(node))
                     continue;
                 // WA for topK, dont remove fake convert
@@ -413,7 +413,7 @@ bool ov::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ov::Model>& 
     bool has_fp16_compression = m_precisions.count(element::f32) > 0 && m_precisions[element::f32] == element::f16;
 
     if (m_keep_precision_sensitive_in_fp32 && has_fp16_compression) {
-        pass::Manager manager(get_pass_config());
+        pass::Manager manager(get_pass_config(), "KeepPrecisionSensitiveInFP32");
         // Mark subgraphs with disable_fp16_compression to keep them in FP32
         manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
         manager.register_pass<pass::AlignMixedFP32FP16Types>();
@@ -494,7 +494,7 @@ bool ov::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ov::Model>& 
 
     // to remove extra converts
     if (m_keep_precision_sensitive_in_fp32) {
-        pass::Manager manager(get_pass_config());
+        pass::Manager manager(get_pass_config(), "KeepPrecisionSensitiveInFP32:RemoveConverts");
         manager.register_pass<pass::EnableDecompressionConvertConstantFolding>();
         manager.register_pass<pass::ConstantFolding>();
         manager.run_passes(f);
@@ -560,7 +560,7 @@ bool fuse_type_to_range_v4(const std::shared_ptr<ov::Node>& node, const precisio
         return false;
     const auto& to = it->second;
     if (auto range = ov::as_type_ptr<ov::op::v4::Range>(node)) {
-        if (to.is_integral_number() || to.is_real()) {
+        if (!fp16_compression_is_disabled(node) && (to.is_integral_number() || to.is_real())) {
             range->set_output_type(to);
             return true;
         }
@@ -982,7 +982,7 @@ bool fuse_type_to_shapeof_v0(const std::shared_ptr<ov::Node>& node, const precis
     if (auto type_relaxed = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(node)) {
         type_relaxed->set_overridden_output_type(to);
         return true;
-    } else if (auto casted = std::dynamic_pointer_cast<ov::op::v0::ShapeOf>(node)) {
+    } else if (auto casted = ov::as_type_ptr<ov::op::v0::ShapeOf>(node)) {
         auto relaxed_op = std::make_shared<ov::op::TypeRelaxed<ov::op::v0::ShapeOf>>(*casted,
                                                                                      ov::element::TypeVector{},
                                                                                      ov::element::TypeVector{to});
@@ -996,7 +996,7 @@ bool extend_select_type(const std::shared_ptr<ov::Node>& node, const precisions_
     if (auto type_relaxed = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(node)) {
         type_relaxed->set_origin_input_type(ov::element::boolean, 0);
         return true;
-    } else if (auto casted = std::dynamic_pointer_cast<ov::op::v1::Select>(node)) {
+    } else if (auto casted = ov::as_type_ptr<ov::op::v1::Select>(node)) {
         auto relaxed_op =
             std::make_shared<op::TypeRelaxed<ov::op::v1::Select>>(*casted,
                                                                   ov::element::TypeVector{ov::element::boolean},

@@ -2,17 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "impls/onednn/utils.hpp"
+#include "reorder_onednn.hpp"
 #include "reorder_inst.h"
+#include "impls/onednn/utils.hpp"
 #include "primitive_onednn_base.h"
-#include "implementation_map.hpp"
-
-#include "kernel_selector_common.h"
+#include "impls/registry/implementation_manager.hpp"
 
 #include <oneapi/dnnl/dnnl.hpp>
 
-#include <algorithm>
 #include <memory>
+
 namespace cldnn {
 namespace onednn {
 
@@ -149,14 +148,19 @@ public:
     }
 };
 
-namespace detail {
-
-attach_reorder_onednn::attach_reorder_onednn() {
-    implementation_map<reorder>::add(impl_types::onednn, reorder_onednn::create, {});
-    WeightsReordersFactory::add(cldnn::impl_types::onednn, shape_types::static_shape, reorder_onednn::create_reorder_weights);
+std::unique_ptr<primitive_impl> ReorderImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const {
+    assert(node.is_type<reorder>());
+    return onednn::reorder_onednn::create(static_cast<const reorder_node&>(node), params);
 }
 
-}  // namespace detail
+std::unique_ptr<primitive_impl> ReorderImplementationManager::create_impl(const kernel_impl_params& params) const {
+    bool is_reorder_weights = format::is_weights_format(params.get_input_layout().format) ||
+                              format::is_weights_format(params.get_output_layout().format);
+    OPENVINO_ASSERT(is_reorder_weights);
+
+    return onednn::reorder_onednn::create_reorder_weights(params);
+}
+
 }  // namespace onednn
 }  // namespace cldnn
 

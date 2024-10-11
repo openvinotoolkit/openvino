@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_activation_GELU_7}
-
 GELU
 ====
 
 
 .. meta::
-  :description: Learn about Gelu-7 - an element-wise, activation operation, which 
+  :description: Learn about Gelu-7 - an element-wise, activation operation, which
                 can be performed on a single tensor in OpenVINO.
 
 **Versioned name**: *Gelu-7*
@@ -19,7 +17,7 @@ GELU
 *Gelu* operation is introduced in this `article <https://arxiv.org/abs/1606.08415>`__.
 It performs element-wise activation function on a given input tensor, based on the following mathematical formula:
 
-.. math:: 
+.. math::
 
    Gelu(x) = x\cdot\Phi(x)
 
@@ -29,14 +27,14 @@ The *Gelu* function may be approximated in two different ways based on *approxim
 
 For ``erf`` approximation mode, *Gelu* function is represented as:
 
-.. math:: 
+.. math::
 
    Gelu(x) = x\cdot\Phi(x) = x\cdot\frac{1}{2}\cdot\left[1 + erf\frac{x}{\sqrt{2}}\right]
 
 
 For ``tanh`` approximation mode, *Gelu* function is represented as:
 
-.. math:: 
+.. math::
 
    Gelu(x) \approx x\cdot\frac{1}{2}\cdot \left(1 + \tanh\left[\sqrt{\frac{2}{\pi}} \cdot (x + 0.044715 \cdot x^3)\right]\right)
 

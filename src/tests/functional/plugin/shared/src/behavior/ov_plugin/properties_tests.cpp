@@ -479,9 +479,6 @@ TEST_P(OVCheckGetSupportedROMetricsPropsTests, ChangeCorrectProperties) {
 }
 
 TEST_P(OVCheckChangePropComplieModleGetPropTests_DEVICE_ID, ChangeCorrectDeviceProperties) {
-    if (sw_plugin_in_target_device(target_device)) {
-        return;
-    }
     std::vector<ov::PropertyName> supported_properties;
     OV_ASSERT_NO_THROW(supported_properties = core->get_property(target_device, ov::supported_properties));
     auto supported = util::contains(supported_properties, ov::device::id);

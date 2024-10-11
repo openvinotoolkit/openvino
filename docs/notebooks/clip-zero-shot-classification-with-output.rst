@@ -36,6 +36,7 @@ The notebook contains the following steps:
 8. Compare performance of converted and quantized models.
 9. Launch interactive demo
 
+
 **Table of contents:**
 
 
@@ -58,6 +59,16 @@ The notebook contains the following steps:
       models <#compare-inference-time-of-the-fp16-ir-and-quantized-models>`__
 
 -  `Interactive demo <#interactive-demo>`__
+
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
 Instantiate model
 -----------------
@@ -110,11 +121,12 @@ tokenizer and preparing the images.
     else:
         %pip install -q "matplotlib>=3.4,<3.7"
 
+    import requests
 
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+    )
+    open("notebook_utils.py", "w").write(r.text)
 
 .. code:: ipython3
 
@@ -124,16 +136,6 @@ tokenizer and preparing the images.
     model = CLIPModel.from_pretrained("openai/clip-vit-base-patch16")
     # load preprocessor for model input
     processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch16")
-
-
-.. parsed-literal::
-
-    2024-02-26 12:23:32.559340: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-02-26 12:23:32.561128: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
-    2024-02-26 12:23:32.599733: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-02-26 12:23:33.401048: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-
 
 .. code:: ipython3
 
@@ -276,14 +278,9 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
+    from notebook_utils import device_widget
 
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
 
     device
 
@@ -318,6 +315,7 @@ Quantize model to INT8 using NNCF
 ---------------------------------
 
 
+
 The goal of this part of tutorial is to demonstrate how to speed up the
 model by applying 8-bit post-training quantization from
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ (Neural Network
@@ -342,11 +340,9 @@ inference faster. The optimization process contains the following steps:
 
 .. code:: ipython3
 
-    to_quantize = widgets.Checkbox(
-        value=True,
-        description="Quantization",
-        disabled=False,
-    )
+    from notebook_utils import quantization_widget
+
+    to_quantize = quantization_widget()
 
     to_quantize
 
@@ -740,7 +736,6 @@ up of the dynamic quantized models.
 Interactive demo
 ----------------
 
-
 Now, it is your turn! You can provide your own image and comma-separated
 list of labels for zero-shot classification.
 
@@ -749,8 +744,6 @@ label names into the text field, using comma as the separator (for
 example, ``cat,dog,bird``)
 
 .. code:: ipython3
-
-    import gradio as gr
 
     model_path = Path("clip-vit-base-patch16-int8.xml")
     if not model_path.exists():
@@ -774,16 +767,18 @@ example, ``cat,dog,bird``)
 
         return {label: float(prob) for label, prob in zip(labels, probs)}
 
+.. code:: ipython3
 
-    demo = gr.Interface(
-        classify,
-        [
-            gr.Image(label="Image", type="pil"),
-            gr.Textbox(label="Labels", info="Comma-separated list of class labels"),
-        ],
-        gr.Label(label="Result"),
-        examples=[[sample_path, "cat,dog,bird"]],
-    )
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/clip-zero-shot-image-classification/gradio_helper.py"
+        )
+        open("gradio_helper.py", "w").write(r.text)
+
+    from gradio_helper import make_demo
+
+    demo = make_demo(classify)
+
     try:
         demo.launch(debug=False)
     except Exception:

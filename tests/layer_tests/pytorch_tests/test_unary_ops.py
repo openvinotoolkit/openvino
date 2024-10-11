@@ -159,6 +159,8 @@ class TestUnaryOp(PytorchLayerTest):
                              ])
     def test_unary_op(self, op_type, dtype, ie_device, precision, ir_version):
         self.dtype = dtype
+        if self.use_torch_export() and op_type == "aten::atanh" and dtype in [torch.int8, torch.int32, torch.int64]:
+            pytest.xfail(reason="torch.export after 2.4.0 doesn't support unsigned int types for atanh in some configurations")
         self._test(unary_op_net(OPS[op_type], dtype), None, op_type,
                    ie_device, precision, ir_version)
 

@@ -4,9 +4,7 @@
 
 #include "register.hpp"
 #include "shape_of_inst.h"
-#include "implementation_map.hpp"
-
-#include "intel_gpu/runtime/error_handler.hpp"
+#include "impls/registry/implementation_map.hpp"
 
 #include "openvino/op/shape_of.hpp"
 
@@ -73,7 +71,7 @@ struct shape_of_impl : public typed_primitive_impl<shape_of> {
 
     void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
 
-    void update_dispatch_data(const kernel_impl_params& impl_param) override {}
+    void update(primitive_inst& inst, const kernel_impl_params& impl_param) override {}
 
 public:
     static std::unique_ptr<primitive_impl> create(const shape_of_node& arg, const kernel_impl_params& impl_param) {
@@ -109,3 +107,4 @@ attach_shape_of_impl::attach_shape_of_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::cpu::shape_of_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::shape_of)

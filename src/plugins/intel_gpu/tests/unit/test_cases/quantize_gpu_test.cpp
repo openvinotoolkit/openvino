@@ -572,7 +572,7 @@ TEST(quantize_gpu, eltwise_quantize_fs_b_yx_fsv32) {
     auto output_low = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
     auto output_high = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
 
-    set_values(input, { -1.0f, 2.0f, 3.0f, 4.0f,
+    set_values<ov::float16>(input, {-1.0f, 2.0f, 3.0f, 4.0f,
                          5.0f, 2.0f, 2.0f, 3.0f,
                          4.0f, 6.0f, 3.0f, 3.0f,
                          3.0f, 5.0f, 1.0f, 1.0f,
@@ -603,12 +603,12 @@ TEST(quantize_gpu, eltwise_quantize_fs_b_yx_fsv32) {
     set_values(output_low,  { -1.0f });
     set_values(output_high, {  1.0f });
 
-    std::vector<float> ref_data = { -1, 1, -1, 1,   -1, -1, -1, -1,     -1, -1, -1, -1,
-                                    -1, 1, -1, 1,   -1, 1, -1, 1,       -1, -1, -1, -1,
-                                    -1, -1, -1, 1,  -1, 1, -1, 1,       -1, 1, -1, 1,
-                                    -1, -1, -1, -1, -1, -1, -1, 1,      -1, 1, -1, 1,
-                                    -1, 1, -1, 1,   -1, -1, -1, -1,     -1, -1, -1, -1,
-                                    -1, 1, -1, 1 };
+    std::vector<float> ref_data = { 1, 1, 1, 1,     1, -1, -1, 1,    1, 1, 1, 1,
+                                    1, 1, -1, 1,    1, -1, -1, -1,   1, 1, 1, 1,
+                                    1, 1, -1, -1,  -1, -1, -1, 1,    1, 1, 1, 1,
+                                    1, -1, -1, 1,   1, 1, 1, 1,      1, 1, -1, 1,
+                                    1, -1, -1, -1,  1, 1, 1, 1,      1, 1, -1, -1,
+                                    -1, -1, -1, 1 };
 
     topology.add(
         input_layout("input1", in_layout),
@@ -736,6 +736,109 @@ TEST(quantize_gpu, dynamic) {
     auto outputs = network.execute();
 
     auto output = outputs.at("quantize").get_memory();
+    cldnn::mem_lock<uint8_t> output_ptr(output, get_test_stream());
+
+    // Check that layout and memory contains logical size of tensor
+    ASSERT_EQ(output->count(), (size_t)64);
+    ASSERT_EQ(output->get_layout().count(), (size_t)64);
+
+    ASSERT_EQ(output->size(), ref_data.size() * sizeof(uint8_t));
+
+    for (size_t i = 0; i < ref_data.size(); ++i) {
+        ASSERT_NEAR(output_ptr[i], ref_data[i], 1) << " index = " << i;
+    }
+}
+
+TEST(quantize_gpu, dynamic_fsv16) {
+    auto& engine = get_test_engine();
+
+    auto input       = engine.allocate_memory({ { 1, 16, 2, 2 }, data_types::f32, format::bfyx });
+    auto input_low   = engine.allocate_memory({ { 1, 16, 1, 1 }, data_types::f32, format::bfyx });
+    auto input_high  = engine.allocate_memory({ { 1, 16, 1, 1 }, data_types::f32, format::bfyx });
+    auto output_low  = engine.allocate_memory({ { 1, 1,  1, 1 }, data_types::f32, format::bfyx });
+    auto output_high = engine.allocate_memory({ { 1, 1,  1, 1 }, data_types::f32, format::bfyx });
+
+    layout in_dyn_layout { ov::PartialShape::dynamic(4), data_types::f32, format::bfyx };
+
+    set_values(input, { -1.0f, 2.1f, 3.0f, 4.0f,
+                         5.0f, 2.0f, 2.0f, 3.0f,
+                         4.0f, 6.0f, 3.0f, 3.0f,
+                         3.0f, 5.0f, 1.0f, 1.0f,
+
+                         1.0f, 1.0f, 1.0f, 1.0f,
+                         4.0f, 6.0f, 3.0f, 3.0f,
+                         3.0f, 5.0f, 1.0f, 1.0f,
+                         1.0f, 1.0f, 1.0f, 1.0f,
+
+                         1.0f, 2.0f, 3.0f, 4.0f,
+                         5.0f, 2.0f, 2.0f, 3.0f,
+                         4.0f, 6.0f, 3.0f, 3.0f,
+                         3.0f, 5.0f, 1.0f, 1.0f,
+
+                         1.0f, 1.0f, 1.0f, 1.0f,
+                         4.0f, 6.0f, 3.0f, 3.0f,
+                         3.0f, 5.0f, 1.0f, 1.0f,
+                         1.0f, 1.0f, 1.0f, 1.0f });
+
+    set_values(input_low,  { 0.0f, 1.0f, 2.0f, 3.0f,
+                             4.0f, 5.0f, 6.0f, 7.0f,
+                             7.0f, 6.0f, 5.0f, 4.0f,
+                             3.0f, 2.0f, 1.0f, 0.0f });
+    set_values(input_high, { 10.0f, 21.0f, 32.0f, 43.0f,
+                             54.0f, 65.0f, 76.0f, 87.0f,
+                             87.0f, 76.0f, 65.0f, 54.0f,
+                             43.0f, 32.0f, 21.0f, 10.0f });
+
+    set_values(output_low,  { 0.0f });
+    set_values(output_high, { 255.0f });
+
+    std::vector<uint8_t> ref_data = {
+            0, 54, 77, 102,
+            51, 13, 13, 26,
+            17, 34, 8, 8,
+            0, 13, 0, 0,
+
+            0, 0, 0, 0,
+            0, 4, 0, 0,
+            0, 0, 0, 0,
+            0, 0, 0, 0,
+
+            0, 0, 0, 0,
+            0, 0, 0, 0,
+            0, 4, 0, 0,
+            0, 5, 0, 0,
+
+            0, 0, 0, 0,
+            17, 34, 8, 8,
+            26, 51, 0, 0,
+            26, 26, 26, 26
+    };
+
+    topology topology;
+    topology.add(
+        input_layout("input", in_dyn_layout),
+        data("input_low", input_low),
+        data("input_high", input_high),
+        data("output_low", output_low),
+        data("output_high", output_high),
+        reorder("reorder", input_info("input"), format::b_fs_yx_fsv16, data_types::f32),
+        quantize("quantize", input_info("reorder"), input_info("input_low"), input_info("input_high"), input_info("output_low"), input_info("output_high"), 255, data_types::u8),
+        reorder("output_reorder", input_info("quantize"), format::bfyx, data_types::u8)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto inst = network.get_primitive("quantize");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("output_reorder").get_memory();
     cldnn::mem_lock<uint8_t> output_ptr(output, get_test_stream());
 
     // Check that layout and memory contains logical size of tensor

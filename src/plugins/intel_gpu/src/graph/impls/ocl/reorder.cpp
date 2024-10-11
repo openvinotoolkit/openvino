@@ -4,6 +4,7 @@
 
 #include "primitive_base.hpp"
 
+#include "reorder.hpp"
 #include "reorder_inst.h"
 #include "reorder/reorder_kernel_selector.h"
 #include "reorder/reorder_kernel_base.h"
@@ -163,31 +164,19 @@ public:
     }
 };
 
-namespace detail {
-
-attach_reorder_impl::attach_reorder_impl() {
-    implementation_map<reorder>::add(impl_types::ocl, shape_types::static_shape, reorder_impl::create, {});
-
-    auto types = {
-        data_types::f32,
-        data_types::f16,
-        data_types::u8,
-        data_types::i8,
-        data_types::i32,
-        data_types::i64,
-    };
-
-    auto formats = {
-        format::bfyx,
-        format::bfzyx,
-        format::bfwzyx,
-    };
-    implementation_map<reorder>::add(impl_types::ocl, shape_types::dynamic_shape, reorder_impl::create, types, formats);
-
-    WeightsReordersFactory::add(cldnn::impl_types::ocl, shape_types::static_shape, reorder_impl::create_reorder_weights);
+std::unique_ptr<primitive_impl> ReorderImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const {
+    assert(node.is_type<reorder>());
+    return ocl::reorder_impl::create(static_cast<const reorder_node&>(node), params);
 }
 
-}  // namespace detail
+std::unique_ptr<primitive_impl> ReorderImplementationManager::create_impl(const kernel_impl_params& params) const {
+    bool is_reorder_weights = format::is_weights_format(params.get_input_layout().format) ||
+                              format::is_weights_format(params.get_output_layout().format);
+    OPENVINO_ASSERT(is_reorder_weights);
+
+    return ocl::reorder_impl::create_reorder_weights(params);
+}
+
 }  // namespace ocl
 }  // namespace cldnn
 

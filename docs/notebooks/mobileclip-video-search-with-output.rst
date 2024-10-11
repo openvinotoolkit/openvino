@@ -21,8 +21,10 @@ combined. Using CLIP, you can provide a text query and CLIP will return
 the images most related to the query.
 
 In this tutorial, we consider how to use MobileCLIP to implement a
-visual content search engine for finding relevant frames in video. ####
-Table of contents:
+visual content search engine for finding relevant frames in video.
+
+
+**Table of contents:**
 
 -  `Prerequisites <#prerequisites>`__
 -  `Select model <#select-model>`__
@@ -44,8 +46,19 @@ Table of contents:
 
 -  `Interactive Demo <#interactive-demo>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
+
 
 
 .. code:: ipython3
@@ -61,11 +74,11 @@ Prerequisites
 .. parsed-literal::
 
     Cloning into 'ml-mobileclip'...
-    remote: Enumerating objects: 68, done.[K
-    remote: Counting objects: 100% (68/68), done.[K
-    remote: Compressing objects: 100% (51/51), done.[K
-    remote: Total 68 (delta 19), reused 65 (delta 16), pack-reused 0[K
-    Unpacking objects: 100% (68/68), 447.59 KiB | 4.03 MiB/s, done.
+    remote: Enumerating objects: 84, done.[K
+    remote: Counting objects: 100% (84/84), done.[K
+    remote: Compressing objects: 100% (61/61), done.[K
+    remote: Total 84 (delta 29), reused 75 (delta 22), pack-reused 0 (from 0)[K
+    Unpacking objects: 100% (84/84), 467.39 KiB | 2.58 MiB/s, done.
 
 
 .. code:: ipython3
@@ -81,8 +94,8 @@ Prerequisites
 
     Note: you may need to restart the kernel to use updated packages.
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    mobileclip 0.1.0 requires torch==1.13.1, but you have torch 2.3.1+cpu which is incompatible.
-    mobileclip 0.1.0 requires torchvision==0.14.1, but you have torchvision 0.18.1+cpu which is incompatible.
+    mobileclip 0.1.0 requires torch==1.13.1, but you have torch 2.2.2+cpu which is incompatible.
+    mobileclip 0.1.0 requires torchvision==0.14.1, but you have torchvision 0.17.2+cpu which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
 
@@ -247,7 +260,7 @@ comparison purposes, you can select different models among:
 
     open("notebook_utils.py", "w").write(r.text)
 
-    from notebook_utils import download_file
+    from notebook_utils import download_file, device_widget
 
     model_config = available_models[model_checkpoint.value]
 
@@ -437,8 +450,8 @@ Perform search
 
 .. parsed-literal::
 
-    Image encoding took 0.123 ms
-    Text encoding took 0.0159 ms
+    Image encoding took 0.108 ms
+    Text encoding took 0.0118 ms
 
 
 
@@ -516,18 +529,8 @@ be used separately. Let’s convert each part to OpenVINO.
 
 .. parsed-literal::
 
-    ['image']
-
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/mobileclip/modules/common/transformer.py:125: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/mobileclip/modules/common/transformer.py:125: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if seq_len != self.num_embeddings:
-
-
-.. parsed-literal::
-
-    ['text']
 
 
 Run OpenVINO model inference
@@ -544,14 +547,7 @@ Select device for image encoder
 
     core = ov.Core()
 
-    import ipywidgets as widgets
-
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
 
     device
 
@@ -618,8 +614,8 @@ Perform search
 
 .. parsed-literal::
 
-    Image encoding took 0.0321 ms
-    Text encoding took 0.00763 ms
+    Image encoding took 0.0271 ms
+    Text encoding took 0.00495 ms
 
 
 
@@ -641,7 +637,6 @@ models can require different optimal threshold for search.
 
     import altair as alt
     import cv2
-    import gradio as gr
     import pandas as pd
     import torch
     from PIL import Image
@@ -655,6 +650,7 @@ models can require different optimal threshold for search.
         ToTensor,
     )
     from open_clip.transform import image_transform
+    from typing import Optional
 
 
     current_device = device.value
@@ -664,7 +660,7 @@ models can require different optimal threshold for search.
     available_devices = list(core.available_devices) + ["AUTO"]
 
     download_file(
-        "https://github.com/intel-iot-devkit/sample-videos/raw/master/car-detection.mp4",
+        "https://storage.openvinotoolkit.org/data/test_data/videos/car-detection.mp4",
         directory=sample_path,
     )
     download_file(
@@ -701,7 +697,7 @@ models can require different optimal threshold for search.
     def run(
         path: str,
         text_search: str,
-        image_search: Image.Image,
+        image_search: Optional[Image.Image],
         model_name: str,
         device: str,
         thresh: float,
@@ -821,79 +817,6 @@ models can require different optimal threshold for search.
             return self.total_frames
 
 
-    desc_text = """
-    Search the content's of a video with a text description.
-    __Note__: Long videos (over a few minutes) may cause UI performance issues.
-        """
-    text_app = gr.Interface(
-        description=desc_text,
-        fn=run,
-        inputs=[
-            gr.Video(label="Video"),
-            gr.Textbox(label="Text Search Query"),
-            gr.Image(label="Image Search Query", visible=False),
-            gr.Dropdown(
-                label="Model",
-                choices=available_converted_models,
-                value=model_checkpoint.value,
-            ),
-            gr.Dropdown(label="Device", choices=available_devices, value=device.value),
-            gr.Slider(label="Threshold", maximum=1.0, value=0.2),
-            gr.Slider(label="Frame-rate Stride", value=4, step=1),
-            gr.Slider(label="Batch Size", value=4, step=1),
-        ],
-        outputs=[
-            gr.Plot(label="Similarity Plot"),
-            gr.Gallery(label="Matched Frames", columns=2, object_fit="contain", height="auto"),
-        ],
-        examples=[[sample_path / "car-detection.mp4", "white car"]],
-        allow_flagging="never",
-    )
-
-    desc_image = """
-    Search the content's of a video with an image query.
-    __Note__: Long videos (over a few minutes) may cause UI performance issues.
-        """
-    image_app = gr.Interface(
-        description=desc_image,
-        fn=run,
-        inputs=[
-            gr.Video(label="Video"),
-            gr.Textbox(label="Text Search Query", visible=False),
-            gr.Image(label="Image Search Query", type="pil"),
-            gr.Dropdown(
-                label="Model",
-                choices=available_converted_models,
-                value=model_checkpoint.value,
-            ),
-            gr.Dropdown(label="Device", choices=available_devices, value=device.value),
-            gr.Slider(label="Threshold", maximum=1.0, value=0.2),
-            gr.Slider(label="Frame-rate Stride", value=4, step=1),
-            gr.Slider(label="Batch Size", value=4, step=1),
-        ],
-        outputs=[
-            gr.Plot(label="Similarity Plot"),
-            gr.Gallery(label="Matched Frames", columns=2, object_fit="contain", height="auto"),
-        ],
-        allow_flagging="never",
-        examples=[[sample_path / "coco.mp4", None, sample_path / "dog.png"]],
-    )
-    demo = gr.TabbedInterface(
-        interface_list=[text_app, image_app],
-        tab_names=["Text Query Search", "Image Query Search"],
-        title="CLIP Video Content Search",
-    )
-
-
-    try:
-        demo.launch(debug=False)
-    except Exception:
-        demo.launch(share=True, debug=False)
-    # if you are launching remotely, specify server_name and server_port
-    # demo.launch(server_name='your server name', server_port='server port in int')
-    # Read more in the docs: https://gradio.app/docs/
-
-
 
 .. parsed-literal::
 
@@ -904,6 +827,29 @@ models can require different optimal threshold for search.
 .. parsed-literal::
 
     data/coco.mp4:   0%|          | 0.00/877k [00:00<?, ?B/s]
+
+
+.. code:: ipython3
+
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/mobileclip-video-search/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
+
+    from gradio_helper import make_demo, Option
+
+    demo = make_demo(
+        run=run,
+        model_option=Option(choices=available_converted_models, value=model_checkpoint.value),
+        device_option=Option(choices=available_devices, value=device.value),
+    )
+
+    try:
+        demo.launch(debug=False)
+    except Exception:
+        demo.launch(share=True, debug=False)
+    # if you are launching remotely, specify server_name and server_port
+    # demo.launch(server_name='your server name', server_port='server port in int')
+    # Read more in the docs: https://gradio.app/docs/
 
 
 .. parsed-literal::

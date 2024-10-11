@@ -12,8 +12,10 @@
 
 ov::snippets::pass::SoftmaxReshapeElimination::SoftmaxReshapeElimination() {
     MATCHER_SCOPE(SoftmaxReshapeElimination);
-    const auto m_reshape0 = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>(ov::pass::pattern::has_static_shape());
-    const auto m_softmax = ov::pass::pattern::wrap_type<ov::op::v1::Softmax, ov::op::v8::Softmax>({m_reshape0});
+    const auto m_reshape0 = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({ov::pass::pattern::any_input(),
+                                                                               ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
+                                                                               ov::pass::pattern::consumers_count(1));
+    const auto m_softmax = ov::pass::pattern::wrap_type<ov::op::v1::Softmax, ov::op::v8::Softmax>({m_reshape0}, ov::pass::pattern::consumers_count(1));
     const auto m_reshape1 = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({m_softmax, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()});
 
     register_matcher(std::make_shared<ov::pass::pattern::Matcher>(m_reshape1, matcher_name),
@@ -26,13 +28,14 @@ ov::snippets::pass::SoftmaxReshapeElimination::SoftmaxReshapeElimination() {
 
             const auto input_shape = reshape0->get_input_partial_shape(0);
             const auto output_shape = reshape1->get_output_partial_shape(0);
-            if (input_shape.is_dynamic() || output_shape.is_dynamic() || input_shape.get_shape() != output_shape.get_shape())
+            const auto softmax_shape = softmax->get_input_partial_shape(0);
+            if (input_shape != output_shape || input_shape.rank() != output_shape.rank())
                 return false;
 
-            const auto softmax_rank = softmax->get_input_partial_shape(0).rank();
+            const auto softmax_rank = softmax_shape.rank();
             int64_t axis = 0;
             if (const auto softmax_v8 = ov::as_type_ptr<const ov::op::v8::Softmax>(softmax)) {
-                axis = ov::util::normalize_axis(softmax->get_friendly_name(), softmax_v8->get_axis(), softmax_rank);
+                axis = ov::util::try_normalize_axis(softmax_v8->get_axis(), softmax_rank, *softmax);
             } else if (const auto softmax_v1 = ov::as_type_ptr<const ov::op::v1::Softmax>(softmax)) {
                 axis = softmax_v1->get_axis();
             } else {
@@ -44,7 +47,11 @@ ov::snippets::pass::SoftmaxReshapeElimination::SoftmaxReshapeElimination() {
                 return false;
 
             // Dimensions by reduction axis should be equal
-            if (input_shape.get_shape().back() != softmax->get_input_shape(0).back())
+            const auto in_last_dim = *input_shape.crbegin();
+            const auto out_last_dim = *output_shape.crbegin();
+            const auto softmax_last_dim = *softmax_shape.crbegin();
+            if (in_last_dim.is_dynamic() || out_last_dim.is_dynamic() || softmax_last_dim.is_dynamic() ||
+                in_last_dim != out_last_dim || in_last_dim != softmax_last_dim)
                 return false;
 
             // Eliminate Reshape before Softmax

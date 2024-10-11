@@ -32,6 +32,61 @@ elseif(CMAKE_COMPILER_IS_GNUCXX)
     if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11)
         ov_add_compiler_flags(-Wno-array-bounds)
     endif()
+elseif (OV_COMPILER_IS_INTEL_LLVM AND WIN32)
+    ov_add_compiler_flags("/Wno-microsoft-include")
+endif()
+if(NOT BUILD_SHARED_LIBS)
+    # Symbols are located in both src and include folders
+    file(GLOB_RECURSE onednn_files
+        "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/include/*.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/include/*.hpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/include/*.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/include/*.hpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/src/*.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/src/*.hpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/src/*.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/src/*.hpp")
+
+    # parse API symbols
+    foreach(onednn_file IN LISTS onednn_files)
+        # symbols in form:
+        # dnnl_status_t DNNL_API dnnl_engine_get_kind
+        file(STRINGS "${onednn_file}" onednn_symbols_defined_on_single_line
+             REGEX "DNNL_API[ \*]*dnnl[a-zA-Z0-9_]*")
+        # symbols in form (cmake has issue with symbols defined on multiple lines and we have to use new pattern):
+        # dnnl_status_t DNNL_API
+        # dnnl_engine_get_kind
+        file(STRINGS "${onednn_file}" onednn_symbols_defined_on_multiple_lines
+             REGEX "^dnnl[a-zA-Z0-9_]*\\(")
+        # symbols in form:
+        # typedef struct dnnl_graph_graph *dnnl_graph_graph_t;
+        file(STRINGS "${onednn_file}" onednn_symbols_typedef
+             REGEX "^typedef struct dnnl_.*")
+
+        if(onednn_symbols_defined_on_single_line OR
+           onednn_symbols_defined_on_multiple_lines OR
+           onednn_symbols_typedef)
+            # parse concrete symbols from read line
+            string(REGEX MATCHALL "dnnl[a-zA-Z0-9_]+" onednn_parsed_symbols
+                ${onednn_symbols_defined_on_single_line}
+                ${onednn_symbols_defined_on_multiple_lines}
+                ${onednn_symbols_typedef})
+            list(APPEND onednn_symbols ${onednn_parsed_symbols})
+        endif()
+    endforeach()
+
+    # remove all duplicates
+    list(REMOVE_DUPLICATES onednn_symbols)
+
+    # also override namespaces
+    list(APPEND onednn_symbols dnnl oneapi)
+
+    # redefine all collected symbols
+    foreach(onednn_symbol IN LISTS onednn_symbols)
+        if(NOT onednn_symbol MATCHES "^#.+")
+            add_compile_definitions(${onednn_symbol}=ov_cpu_${onednn_symbol})
+        endif()
+    endforeach()
 endif()
 
 if (AARCH64 AND NOT APPLE AND CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 10.2)
@@ -76,8 +131,9 @@ set(OV_CPU_ARM_TARGET_ARCH ${OV_CPU_ARM_TARGET_ARCH_DEFAULT} CACHE STRING "Archi
 set_property(CACHE OV_CPU_ARM_TARGET_ARCH PROPERTY STRINGS ${OV_CPU_ARM_TARGET_ARCHS})
 
 if(X86 OR X86_64 OR AARCH64)
-    # disable mlas with webassembly
-    if(EMSCRIPTEN OR (WIN32 AND AARCH64) OR MINGW OR (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7))
+    # disable mlas with webassembly and intel compiler on windows
+    if(EMSCRIPTEN OR (WIN32 AND AARCH64) OR MINGW OR
+       (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7) OR (OV_COMPILER_IS_INTEL_LLVM AND WIN32))
         set(ENABLE_MLAS_FOR_CPU_DEFAULT OFF)
     else()
         set(ENABLE_MLAS_FOR_CPU_DEFAULT ON)

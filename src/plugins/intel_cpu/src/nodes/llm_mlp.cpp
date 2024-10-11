@@ -24,40 +24,40 @@ namespace node {
 
 #if defined(OPENVINO_ARCH_X86_64)
 
-class Linear {
+class LinearKsplit2 {
 public:
     std::vector<Work> works;
 
     int used_nthr = 0;
-    bool do_splitK = false;
 
-    Linear() {}
+    WeightBuffer wbuffer;
 
+    LinearKsplit2() {}
+
+    ReduceAdd2bh * p_jit_reduce2bh;
     // weight [N, K]
     // Gate & Up are interleaved in N dimension: 16-gate / 16-up
     // and post-ops will compute  silu(gate)*up in unit of 16 elements
     // and store out as bfloat16.
     template <typename T>
-    void setup(T* p_weight, int stride, int N, int K, bool _do_splitK = false) {
-        const int blk_K_size = 256;
-        // prepare weights, split N among threads
-        // in unit of 32
-        OPENVINO_ASSERT((N % 32) == 0);
-        OPENVINO_ASSERT((K % blk_K_size) == 0);
+    void setup(T* p_weight, int stride, int N, int K) {
+        static ReduceAdd2bh jit_reduce2bh_2(true);
+
+        OPENVINO_ASSERT((N % REG_BLK_N_SIZE) == 0);
+        OPENVINO_ASSERT((K % REG_BLK_K_SIZE) == 0);
         auto nthr = parallel_get_max_threads();
-        auto num_blk_N = N / 32;
-        auto num_blk_K = K / blk_K_size;
+        auto num_blk_N = N / REG_BLK_N_SIZE;
         works.resize(nthr);
 
-        do_splitK = _do_splitK;
-        auto K_splits = do_splitK ? 2 : 1;
+        p_jit_reduce2bh = &jit_reduce2bh_2;
+
+        auto K_splits = 2;
         // split task on more cores is better on TBB
-        auto valid_nthr = nthr / K_splits;
+        auto valid_nthr = nthr / 2;
         auto blkN_per_thread = (num_blk_N) / valid_nthr;
         auto blkN_leftover = num_blk_N - (blkN_per_thread * valid_nthr);
         auto start_blkN = 0;
         used_nthr = 0;
-        auto blkK_per_thread = (num_blk_K + K_splits - 1) / K_splits;
 
         for (int ithr = 0; ithr < nthr; ithr += K_splits) {
             auto blkN = std::min(num_blk_N - start_blkN, blkN_per_thread);
@@ -67,20 +67,24 @@ public:
             }
             if (blkN) {
                 auto shared_atomic = std::make_shared<std::atomic_int>(0);
+
+                // split K dimension in unit of 32 evenly among 2 worker-threads
                 auto start_blkK = 0;
+                auto num_blk_K = K / REG_BLK_K_SIZE;
+                auto blkK_per_thread = (num_blk_K + 1) / 2;
                 for (int ik = 0; ik < K_splits; ik++) {
                     auto blk_K = std::min(num_blk_K - start_blkK, blkK_per_thread);
 
                     auto& work = works[ithr + ik];
 
                     work.sync_flag = shared_atomic;
-                    work.blk_K_size = blk_K_size;
+                    work.blk_K_size = CACHE_BLK_K_SIZE;
 
-                    work.n0 = (start_blkN)*32;
-                    work.n1 = (start_blkN + blkN) * 32;
-                    work.BN = blkN * 32;
-                    work.k0 = start_blkK * blk_K_size;
-                    work.k1 = (start_blkK + blk_K) * blk_K_size;
+                    work.n0 = (start_blkN) * REG_BLK_N_SIZE;
+                    work.n1 = (start_blkN + blkN) * REG_BLK_N_SIZE;
+                    work.BN = blkN * REG_BLK_N_SIZE;
+                    work.k0 = start_blkK * REG_BLK_K_SIZE;
+                    work.k1 = (start_blkK + blk_K) * REG_BLK_K_SIZE;
 
                     start_blkK += blk_K;
                     used_nthr++;
@@ -90,56 +94,62 @@ public:
             start_blkN += blkN;
         }
 
-        DEBUG_LOG("Linear N,K=", N, ",", K, " used_nthr=", used_nthr, "  do_splitK=", do_splitK);
+        DEBUG_LOG("Linear N,K=", N, ",", K, " used_nthr=", used_nthr);
+
+        wbuffer.alloc(works);
 
         ov::parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
             auto& work = works[ithr];
             if (work) {
-                work.setup(p_weight, stride);
+                work.setup(wbuffer.get(ithr), p_weight, stride);
             }
         });
         DEBUG_LOG("   setup is done. weight @ ", static_cast<void*>(p_weight));
     }
 
-    void run(uint8_t* pA, int strideA, int M, ov::bfloat16* dstC, int strideC, std::vector<PlainTensor>& m_tempC) {
-        static ReduceAdd2bh jit_reduce2bh_1(false);
-        static ReduceAdd2bh jit_reduce2bh_2(true);
-
+    void run(uint8_t* pA, int strideA, int M, ov::bfloat16* dstC, int strideC) {
         ov::parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
             auto& work = works[ithr];
-            auto& workC = m_tempC[ithr];
+            auto& workC = work.m_C;
             if (work) {
-                work.run(M, pA, strideA, workC);
+                work.run(M, pA, strideA);
 
-                if (do_splitK) {
-                    auto sync_id = work.sync_flag->fetch_add(1);
-                    // (0,1) (2,3)
-                    if (sync_id & 1) {
-                        auto peer_ithr = (ithr & 1) ? (ithr - 1) : (ithr + 1);
-                        auto& peerC = m_tempC[peer_ithr];
-                        // the other one has finished, we can do the reduce sum
-                        jit_reduce2bh_2.call(workC.ptr<float>(), peerC.ptr<float>(), workC.stride(0),
-                                             dstC + work.n0, strideC / sizeof(*dstC),
-                                             M, work.BN);
-                    }
-                } else {
-                    jit_reduce2bh_2.call(workC.ptr<float>(), workC.stride(0),
-                                         dstC + work.n0, strideC / sizeof(*dstC),
-                                         M, work.BN);
+                auto sync_id = work.sync_flag->fetch_add(1);
+                // (0,1) (2,3)
+                if (sync_id & 1) {
+                    auto peer_ithr = (ithr & 1) ? (ithr - 1) : (ithr + 1);
+                    auto& peerC = works[peer_ithr].m_C;
+                    // the other one has finished, we can do the reduce sum
+                    p_jit_reduce2bh->call(workC.ptr<float>(), peerC.ptr<float>(), workC.stride(0),
+                                            dstC + work.n0, strideC / sizeof(*dstC),
+                                            M, work.BN);
                 }
             }
         });
     }
+};
 
-    // gate & up are interleaved: 16 gates + 16 up
-    void runGateUp(uint8_t* pA, int strideA, int M,
-                   ov::bfloat16* dstC, int strideC,
-                   const LLMMLPNode::Config& config,
-                   std::vector<PlainTensor>& m_tempC) {
+class LinearGateUp {
+public:
+    std::vector<Work> works;
+
+    int used_nthr = 0;
+
+    LinearGateUp() {}
+
+    WeightBuffer wbuffer;
+
+    GateUpCombine* jit_gateup;
+
+    // weight [N, K]
+    // Gate & Up are interleaved in N dimension: 16-gate / 16-up
+    // and post-ops will compute  silu(gate)*up in unit of 16 elements
+    // and store out as bfloat16.
+    template <typename T>
+    void setup(T* p_weight_gate, T* p_weight_up, int stride, int N, int K, const LLMMLPNode::Config& config) {
         static GateUpCombine jit_gateup_silu(dnnl_eltwise_swish);
         static GateUpCombine jit_gateup_gelu(dnnl_eltwise_gelu_tanh);
 
-        GateUpCombine* jit_gateup;
         if (config.act == LLMMLPNode::ACT_FN::GELU)
             jit_gateup = &jit_gateup_gelu;
         else if (config.act == LLMMLPNode::ACT_FN::SILU)
@@ -147,14 +157,66 @@ public:
         else
             OPENVINO_THROW("unsupported act in GateUpCombine");
 
+        // prepare weights, split N among threads
+        // in unit of 32
+        OPENVINO_ASSERT((N % REG_BLK_N_SIZE) == 0);
+        OPENVINO_ASSERT((K % REG_BLK_K_SIZE) == 0);
+        auto nthr = parallel_get_max_threads();
+        auto num_blk_N = N / REG_BLK_N_SIZE;
+        works.resize(nthr);
+
+        // split task on more cores is better on TBB
+        auto valid_nthr = nthr;
+        auto blkN_per_thread = (num_blk_N) / valid_nthr;
+        auto blkN_leftover = num_blk_N - (blkN_per_thread * valid_nthr);
+        auto start_blkN = 0;
+        used_nthr = 0;
+
+        for (int ithr = 0; ithr < nthr; ithr ++) {
+            auto blkN = std::min(num_blk_N - start_blkN, blkN_per_thread);
+            if (blkN_leftover > 0) {
+                blkN_leftover--;
+                blkN++;
+            }
+            if (blkN) {
+                auto shared_atomic = std::make_shared<std::atomic_int>(0);
+                auto& work = works[ithr];
+                work.sync_flag = shared_atomic;
+                work.blk_K_size = CACHE_BLK_K_SIZE;
+
+                work.n0 = (start_blkN) * REG_BLK_N_SIZE;
+                work.n1 = (start_blkN + blkN) * REG_BLK_N_SIZE;
+                work.BN = blkN * REG_BLK_N_SIZE;
+                work.k0 = 0;
+                work.k1 = K;
+                used_nthr++;
+            }
+
+            start_blkN += blkN;
+        }
+        wbuffer.alloc(works);
+
+        DEBUG_LOG("Linear N,K=", N, ",", K, " used_nthr=", used_nthr);
         ov::parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
             auto& work = works[ithr];
-            auto& workC = m_tempC[ithr];
-            if (work.BN > 0) {
-                work.run(M, pA, strideA, workC);
+            if (work) {
+                work.setup(wbuffer.get(ithr), p_weight_gate, p_weight_up, stride);
+            }
+        });
+        DEBUG_LOG("   setup is done. weight @ ", static_cast<void*>(p_weight_gate));
+    }
+
+    // gate & up are interleaved: 16 gates + 16 up
+    void runGateUp(uint8_t* pA, int strideA, int M,
+                   ov::bfloat16* dstC, int strideC,
+                   const LLMMLPNode::Config& config) {
+        ov::parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
+            auto& work = works[ithr];
+            if (work) {
+                work.run(M, pA, strideA);
                 // K reduce is done, results of [M, BN] sub-block is ready in L2.
                 // combine Gate & Up
-                jit_gateup->call(workC.ptr<float>(), workC.stride(0),
+                jit_gateup->call(work.m_C.ptr<float>(), work.m_C.stride(0),
                                  dstC + (work.n0 / 2), strideC / sizeof(*dstC),
                                  M, work.BN);
             }
@@ -166,15 +228,15 @@ struct LLMMLP::Impl {
     const LLMMLPNode::Config m_config;
     DnnlScratchPadPtr m_scrachPad;
     MemoryPtr m_scratchMem;
+    uint8_t* m_scratch_base = nullptr;
 
-    Linear gate_up;
-    Linear down;
+    LinearGateUp gate_up;
+    LinearKsplit2 down;
     int m_N;
     int m_M = 0;
 
     // MLP is not supposed to run in parallel
     PlainTensor m_actUp;
-    std::vector<PlainTensor> m_tempC;
 
     // [M, K] x [N, K] => [M, N] x [K, N] => [M, K]
     // w_gate/w_up : [N, K]
@@ -184,41 +246,40 @@ struct LLMMLP::Impl {
         // [N, K] [N, K] interleave (16-16-...) into [2*N, K]
         auto K = w_gate.size(1);
         auto N = w_gate.size(0);
-        static PlainTensor w_gate_up;
-        w_gate_up.resize<ov::bfloat16>({static_cast<size_t>(2 * N), static_cast<size_t>(K)});
-        for (size_t n = 0; n < N; n += 16) {
-            for (size_t i = 0; i < 16; i++)
-                memcpy(w_gate_up.ptr_v(2 * n + i, 0), w_gate.ptr_v(n + i, 0), K * sizeof(ov::bfloat16));
-            for (size_t i = 0; i < 16; i++)
-                memcpy(w_gate_up.ptr_v(2 * n + 16 + i, 0), w_up.ptr_v(n + i, 0), K * sizeof(ov::bfloat16));
-        }
-        gate_up.setup(w_gate_up.ptr<ov::bfloat16>(), w_gate_up.stride_bytes(0), N * 2, K);
-        down.setup(w_down.ptr<ov::bfloat16>(), w_down.stride_bytes(0), K, N, true);
+        OPENVINO_ASSERT(w_gate.stride_bytes(0) == w_up.stride_bytes(0));
+        gate_up.setup(w_gate.ptr<ov::float16>(), w_up.ptr<ov::float16>(), w_up.stride_bytes(0), N * 2, K, config);
+        down.setup(w_down.ptr<ov::float16>(), w_down.stride_bytes(0), K, N);
 
-        m_tempC.resize(parallel_get_max_threads());
         m_N = N;
     }
 
     void setM(int M) {
-        if (m_M < M) {
+        uint8_t* cur_scratch_base = nullptr;
+        if (m_scratchMem)
+            cur_scratch_base = m_scratchMem->getDataAs<uint8_t>();
+        // new M larger than previous or the scratch pointer is changed after the following allocation
+        if (m_M < M || cur_scratch_base != m_scratch_base) {
             size_t total_scratch_size = M * m_N * sizeof(ov::bfloat16);
             std::vector<size_t> scratch_offsets;
-            std::vector<size_t> scratch_C_sizes;
-            for (size_t ithr = 0; ithr < m_tempC.size(); ithr++) {
+            auto nthr = parallel_get_max_threads();
+            for (int ithr = 0; ithr < nthr; ithr++) {
                 scratch_offsets.push_back(total_scratch_size);
-                auto max_C_size = std::max(gate_up.works[ithr].get_C_size(M), down.works[ithr].get_C_size(M));
-                scratch_C_sizes.push_back(max_C_size);
-                total_scratch_size += max_C_size * sizeof(float);
+                auto C1_size = gate_up.works[ithr].set_C(M, reinterpret_cast<float*>(cur_scratch_base));
+                auto C2_size = down.works[ithr].set_C(M, reinterpret_cast<float*>(cur_scratch_base));
+                auto max_C_size = std::max(C1_size, C2_size);
+                total_scratch_size += max_C_size;
             }
 
             auto newMemDesc = std::make_shared<CpuBlockedMemoryDesc>(ov::element::u8, Shape{total_scratch_size});
             m_scratchMem = m_scrachPad->createScratchPadMem(newMemDesc);
 
-            auto* scratch_base = m_scratchMem->getDataAs<uint8_t>();
-            m_actUp.resize<ov::bfloat16>({static_cast<size_t>(M), static_cast<size_t>(m_N)}, reinterpret_cast<ov::bfloat16*>(scratch_base));
+            m_scratch_base = m_scratchMem->getDataAs<uint8_t>();
+            m_actUp.resize<ov::bfloat16>({static_cast<size_t>(M), static_cast<size_t>(m_N)}, reinterpret_cast<ov::bfloat16*>(m_scratch_base));
 
-            for (size_t ithr = 0; ithr < m_tempC.size(); ithr++) {
-                m_tempC[ithr].resize<float>({1, scratch_C_sizes[ithr]}, reinterpret_cast<float*>(scratch_base + scratch_offsets[ithr]));
+            for (int ithr = 0; ithr < nthr; ithr++) {
+                auto C_base = reinterpret_cast<float*>(m_scratch_base + scratch_offsets[ithr]);
+                gate_up.works[ithr].set_C(M, C_base);
+                down.works[ithr].set_C(M, C_base);
             }
             m_M = M;
         }
@@ -239,11 +300,10 @@ struct LLMMLP::Impl {
         int strideC = dstStrides[dstStrides.size() - 2] * sizeof(ov::bfloat16);
 
         for (int m = 0; m < M;) {
-            int BM = std::min(M - m, 512);
+            int BM = std::min(M - m, CACHE_BLK_M_SIZE);
             setM(BM);
-
-            gate_up.runGateUp(pA, strideA, BM, m_actUp.ptr<ov::bfloat16>(), m_actUp.stride_bytes(0), m_config, m_tempC);
-            down.run(reinterpret_cast<uint8_t*>(m_actUp.ptr<ov::bfloat16>()), m_actUp.stride_bytes(0), BM, dstC, strideC, m_tempC);
+            gate_up.runGateUp(pA, strideA, BM, m_actUp.ptr<ov::bfloat16>(), m_actUp.stride_bytes(0), m_config);
+            down.run(reinterpret_cast<uint8_t*>(m_actUp.ptr<ov::bfloat16>()), m_actUp.stride_bytes(0), BM, dstC, strideC);
 
             m += BM;
             pA += BM * strideA;
@@ -273,7 +333,7 @@ void LLMMLP::initSupportedPrimitiveDescriptors() {
         return;
 
     auto rtPrecision = ov::element::bf16;
-    auto weightPrecision = ov::element::bf16;
+    auto weightPrecision = ov::element::f16;
 
     // initialize input ports
     std::vector<PortConfigurator> inPortConfigs;
@@ -305,6 +365,7 @@ void LLMMLP::execute(dnnl::stream strm) {
 }
 
 bool LLMMLP::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
+#if defined(OPENVINO_ARCH_X86_64)
     try {
         const auto node_mlp = std::dynamic_pointer_cast<const LLMMLPNode>(op);
         if (node_mlp) {
@@ -316,12 +377,12 @@ bool LLMMLP::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
             }
             auto down_size = down_proj_w_pshape[0].get_length();
             auto up_size = down_proj_w_pshape[1].get_length();
-            if ((down_size % 256) != 0) {
-                errorMessage = "LLMMLPNode down_proj size is not multiple of 256";
+            if (down_size % REG_BLK_K_SIZE) {
+                errorMessage = "LLMMLPNode down_proj size is not multiple of register blocking size";
                 return false;
             }
-            if (up_size % 256) {
-                errorMessage = "LLMMLPNode up_proj size is not multiple of 256";
+            if (up_size % REG_BLK_N_SIZE) {
+                errorMessage = "LLMMLPNode up_proj size is not multiple of register blocking size";
                 return false;
             }
         } else {
@@ -332,6 +393,9 @@ bool LLMMLP::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
         return false;
     }
     return true;
+#else
+    return false;
+#endif
 }
 
 }  // namespace node

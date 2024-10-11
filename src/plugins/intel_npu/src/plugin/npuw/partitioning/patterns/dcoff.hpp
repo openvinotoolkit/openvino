@@ -28,8 +28,9 @@ namespace patterns {
 struct DCOFFParams {
     using PPtr = std::shared_ptr<ov::op::v0::Parameter>;
     using CPtr = std::shared_ptr<ov::op::v0::Constant>;
-    std::unordered_map<PPtr, PPtr> scales;  // Closures: a scaling factor -> orig tensor
-    std::unordered_map<PPtr, CPtr> zerops;  // Closures: orig tensor -> a zero point (yes, a reverse...)
+    std::unordered_map<PPtr, PPtr> scales;        // Closures: a scaling factor -> orig tensor
+    std::unordered_map<PPtr, CPtr> zerops;        // Closures: orig tensor -> a zero point (yes, a reverse...)
+    std::unordered_map<PPtr, PPtr> zerops_asymm;  // Closures: orig tensor -> an asymmetric zerop parameter
 };
 
 using DCOFFParamRef = std::reference_wrapper<DCOFFParams>;
@@ -37,14 +38,16 @@ using DCOFFParamRef = std::reference_wrapper<DCOFFParams>;
 struct ClosureRemap {
     std::vector<std::size_t> closure_remap;          // [new closure index] -> orig closure idx
     std::map<std::size_t, std::size_t> scale_remap;  // orig closure idx -> orig scale idx
+    std::map<std::size_t, std::size_t> zerop_remap;  // orig closure idx -> orig asymm zero point idx
     ov::ParameterVector params_to_remove;
+    std::set<std::size_t> weights_to_unpack;
 
     std::vector<ov::Tensor> zero_points;  // zero points for closures, if needed
 };
 
 ClosureRemap build_remap(const Function& fbody, const DCOFFParams& p);
 void apply_remap(Subgraph& fcall, const ClosureRemap& m);
-void finalize_remap(Function& fbody, const ClosureRemap& m);
+void finalize_remap(Function& fbody, Subgraph& fsg, const ClosureRemap& m);
 
 // Various patterns here
 
@@ -129,6 +132,16 @@ public:
     DCOFFPassReshape2(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref);
 };
 
+class DCOFFPassReshape3 : public ov::pass::MatcherPass {
+public:
+    DCOFFPassReshape3(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref);
+};
+
+class DCOFFPassReshape4 : public ov::pass::MatcherPass {
+public:
+    DCOFFPassReshape4(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref);
+};
+
 class CWAI1 : public ov::pass::MatcherPass {
 public:
     using CPtr = std::shared_ptr<ov::op::v0::Constant>;
@@ -154,6 +167,14 @@ public:
 };
 
 }  // namespace SymmZP
+
+namespace AsymmZP {
+class DCOFFPassReshape : public ov::pass::MatcherPass {
+public:
+    DCOFFPassReshape(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref);
+};
+
+}  // namespace AsymmZP
 
 }  // namespace patterns
 }  // namespace npuw

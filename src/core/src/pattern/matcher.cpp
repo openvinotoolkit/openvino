@@ -44,7 +44,7 @@ MatcherState::~MatcherState() {
                                             m_matcher->m_matched_list.end());
         }
 
-        if (!m_pattern_value_maps.empty()) {
+        if (!m_matcher->m_pattern_value_maps.empty()) {
             m_matcher->m_pattern_value_maps.erase(m_pattern_value_maps.begin() + m_capture_size,
                                                   m_pattern_value_maps.end());
         }

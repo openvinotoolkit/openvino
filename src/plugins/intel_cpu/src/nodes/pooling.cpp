@@ -394,10 +394,10 @@ void Pooling::prepareParams() {
     if (useACL) {
         auto dstMemPtr = getDstMemoryAtPort(0);
         auto srcMemPtr = getSrcMemoryAtPort(0);
-        if (!dstMemPtr || !dstMemPtr->isAllocated())
-            OPENVINO_THROW("Destination memory didn't allocate.");
-        if (!srcMemPtr || !srcMemPtr->isAllocated())
-            OPENVINO_THROW("Input memory didn't allocate.");
+        if (!dstMemPtr || !dstMemPtr->isDefined())
+            OPENVINO_THROW("Destination memory is undefined.");
+        if (!srcMemPtr || !srcMemPtr->isDefined())
+            OPENVINO_THROW("Input memory is undefined.");
 
         std::vector<MemoryDescPtr> srcMemoryDescs;
         for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
@@ -647,10 +647,21 @@ void Pooling::initSupportedPrimitiveDescriptors() {
 
         supportedPrimitiveDescriptors.emplace_back(config, impl_type);
     };
-
+#ifdef CPU_DEBUG_CAPS
+    {
+       if (!customImplPriorities.empty()) {
+            DEBUG_LOG("#", getName(), " customImplPriorities [", 0 , "/", customImplPriorities.size(),
+                        "]: ", impl_type_to_string(customImplPriorities[0]));
+       }
+    }
+#endif
     for (auto& desc : descs) {
         auto first_desc = dnnl::primitive_desc(DnnlExtensionUtils::clone_primitive_desc(desc.get()));
         const bool first_match = customImplPriorities.empty();
+        DEBUG_LOG("#", getName(),
+            ", itpd.impl_info_str(): ", desc.impl_info_str(),
+            ", parsed imp_type: ", impl_type_to_string(parse_impl_name(desc.impl_info_str())),
+            ", first_match: ", first_match ? "true" : "false");
         DnnlExtensionUtils::for_each_implementation(desc,
                                                     first_match,
                                                     [&](impl_desc_type implType) {

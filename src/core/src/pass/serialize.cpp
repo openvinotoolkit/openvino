@@ -16,6 +16,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/meta_data.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/core/parallel.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/opsets/opset1.hpp"
@@ -915,11 +916,23 @@ void serialize_rt_info(pugi::xml_node& root, const std::string& name, const ov::
         child.append_attribute("name").set_value(name.c_str());
     }
     if (data.is<std::shared_ptr<ov::Meta>>()) {
-        std::shared_ptr<ov::Meta> meta = data.as<std::shared_ptr<ov::Meta>>();
-        ov::AnyMap& map = *meta;
-        for (const auto& it : map) {
-            serialize_rt_info(child, it.first, it.second);
-        }
+        auto meta = data.as<std::shared_ptr<ov::Meta>>();
+        do {
+            if (auto meta_with_pugixml_node = std::dynamic_pointer_cast<ov::MetaDataWithPugixml>(meta)) {
+                if (auto pugi_node = meta_with_pugixml_node->get_pugi_node()) {
+                    root.remove_child(child);
+                    auto added_node = root.append_copy(pugi_node);
+                    OPENVINO_ASSERT(added_node, "Cannot add pugixml node with name: ", name);
+                    added_node.set_name(name.c_str());
+                    break;
+                }
+            }
+            // Meta in ov::Meta cannot be accessed by MetaDataWithPugixml::get_pugi_node. Read it as ov::AnyMap
+            ov::AnyMap& map = *meta;
+            for (const auto& it : map) {
+                serialize_rt_info(child, it.first, it.second);
+            }
+        } while (false);
     } else if (data.is<ov::AnyMap>()) {
         const ov::AnyMap& any_map = data.as<ov::AnyMap>();
         for (const auto& it : any_map) {
@@ -1223,6 +1236,8 @@ namespace ov {
 bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_FUNCTION_SCOPE(Serialize);
 
+    model->validate_nodes_and_infer_types();
+
     // TODO xxx-105807: if rt_info is set in python api as a string ['precise_0'] = '',
     //  we need to convert value to a class in order to have rt_info in the IR. The code below will convert
     // ['precise_0'] = '' into => rt_info['precise_0'] = DisableFP16Compression{}
@@ -1263,8 +1278,8 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
             // hence we need to delete it here in case of failure
             xml_file.close();
             bin_file.close();
-            std::remove(m_xmlPath.c_str());
-            std::remove(m_binPath.c_str());
+            std::ignore = std::remove(m_xmlPath.c_str());
+            std::ignore = std::remove(m_binPath.c_str());
             throw;
         }
     }
@@ -1385,7 +1400,7 @@ static uint64_t hash_combine(uint64_t seed, const T& a) {
 }
 
 class OstreamHashWrapper final : public std::streambuf {
-    uint64_t m_res = 0;
+    uint64_t m_res = 0lu;
 
 public:
     uint64_t getResult() const {
@@ -1393,18 +1408,19 @@ public:
     }
 
     std::streamsize xsputn(const char* s, std::streamsize n) override {
-        auto* intS = (const std::streamsize*)s;
-        std::streamsize n64 = n / static_cast<std::streamsize>(sizeof(std::streamsize));
-        std::streamsize i = 0;
-        // Using 64-bit values executes much faster than char
-        while (i++ < n64) {
-            m_res += *(intS++);
-        }
+        // Reinterpret data as uint32_t and accumulate in uint64_t to avoid overflow fluctuations in parallel_sum.
+        auto* int_sum = reinterpret_cast<const uint32_t*>(s);
+        const uint64_t n32 = n / sizeof(uint32_t);
 
-        std::streamsize rest = n % static_cast<std::streamsize>(sizeof(std::streamsize));
-        for (i = 0; i < rest; i++) {
+        m_res += parallel_sum(n32, uint64_t(0lu), [&](size_t k) -> uint32_t {
+            return int_sum[k];
+        });
+
+        const uint64_t rest = n % sizeof(uint32_t);
+        for (uint64_t i = 0lu; i < rest; i++) {
             m_res += s[n - rest + i];
         }
+
         return n;
     }
 };

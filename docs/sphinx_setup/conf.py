@@ -55,7 +55,9 @@ source_suffix = {
     '.md': 'markdown',
 }
 
-html_baseurl = 'https://docs.openvino.ai/canonical/'
+
+# html_baseurl = 'https://docs.openvino.ai/2024/'
+
 
 # -- Sitemap configuration ---------------------------------------------------
 
@@ -72,9 +74,9 @@ ov_sitemap_urlset = [
 ov_sitemap_meta = [
     ('coveo:metadata', {
         'ovversion': version_name,
+        'ovcategory': 'null'
     })
 ]
-
 
 # ----------------------------------------------------
 
@@ -113,17 +115,16 @@ html_theme_options = {
     "show_prev_next": False,
 }
 
-snippet_root = os.getenv("SNIPPET_ROOT", "")
-
 html_sidebars = {
     "**": ["search-field.html", "sidebar-nav-bs.html", "sidebar-ethical-ads.html"]
 }
 
 html_context = {
     'current_language': 'English',
-    'languages': (('English', '/latest'), ('Chinese', '/cn/latest')),
+    #'languages': (('English', '/latest'), ('Chinese', '/cn/latest')),
     'doxygen_mapping_file': '@DOXYGEN_MAPPING_FILE@',
-    'doxygen_snippet_root': snippet_root,
+    # go back fours 3 steps down in directory to reach openvino dir
+    'doxygen_snippet_root': os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../')),
     'default_mode': 'light'
 }
 

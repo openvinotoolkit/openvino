@@ -33,6 +33,7 @@ plant, sheep, sofa, train, tv monitor**
 More information about the model is available in the `torchvision
 documentation <https://pytorch.org/vision/main/models/lraspp.html>`__
 
+
 **Table of contents:**
 
 
@@ -66,6 +67,16 @@ documentation <https://pytorch.org/vision/main/models/lraspp.html>`__
 -  `Performance Comparison <#performance-comparison>`__
 -  `References <#references>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 .. code:: ipython3
 
     # Install openvino package
@@ -92,7 +103,7 @@ Imports
     import time
     import warnings
     from pathlib import Path
-
+    
     import cv2
     import numpy as np
     import openvino as ov
@@ -101,23 +112,17 @@ Imports
         lraspp_mobilenet_v3_large,
         LRASPP_MobileNet_V3_Large_Weights,
     )
-
+    
     # Fetch `notebook_utils` module
     import requests
-
+    
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
-
+    
     open("notebook_utils.py", "w").write(r.text)
-
-    from notebook_utils import (
-        segmentation_map_to_image,
-        viz_result_image,
-        SegmentationMap,
-        Label,
-        download_file,
-    )
+    
+    from notebook_utils import segmentation_map_to_image, viz_result_image, SegmentationMap, Label, download_file, device_widget
 
 Settings
 ~~~~~~~~
@@ -136,7 +141,7 @@ transforms function, the model is pre-trained on images with a height of
     DIRECTORY_NAME = "model"
     BASE_MODEL_NAME = DIRECTORY_NAME + "/lraspp_mobilenet_v3_large"
     weights_path = Path(BASE_MODEL_NAME + ".pt")
-
+    
     # Paths where ONNX and OpenVINO IR models will be stored.
     onnx_path = weights_path.with_suffix(".onnx")
     if not onnx_path.parent.exists():
@@ -309,12 +314,12 @@ Images need to be normalized before propagating through the network.
         "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco.jpg",
         directory="data",
     )
-
+    
     image = cv2.cvtColor(cv2.imread(str(image_filename)), cv2.COLOR_BGR2RGB)
-
+    
     resized_image = cv2.resize(image, (IMAGE_WIDTH, IMAGE_HEIGHT))
     normalized_image = normalize(resized_image)
-
+    
     # Convert the resized images to network input shape.
     input_image = np.expand_dims(np.transpose(resized_image, (2, 0, 1)), 0)
     normalized_input_image = np.expand_dims(np.transpose(normalized_image, (2, 0, 1)), 0)
@@ -346,7 +351,7 @@ on an image.
 
     # Instantiate OpenVINO Core
     core = ov.Core()
-
+    
     # Read model to OpenVINO Runtime
     model_onnx = core.read_model(model=onnx_path)
 
@@ -359,15 +364,8 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
-
+    device = device_widget()
+    
     device
 
 
@@ -383,7 +381,7 @@ select device from dropdown list for running inference using OpenVINO
 
     # Load model on device
     compiled_model_onnx = core.compile_model(model=model_onnx, device_name=device.value)
-
+    
     # Run inference on the input image
     res_onnx = compiled_model_onnx([normalized_input_image])[0]
 
@@ -418,7 +416,7 @@ be applied to each label for more convenient visualization.
         Label(index=20, color=(0, 64, 128), name="tv monitor"),
     ]
     VOCLabels = SegmentationMap(voc_labels)
-
+    
     # Convert the network result to a segmentation map and display the result.
     result_mask_onnx = np.squeeze(np.argmax(res_onnx, axis=1)).astype(np.uint8)
     viz_result_image(
@@ -465,10 +463,10 @@ select device from dropdown list for running inference using OpenVINO
     core = ov.Core()
     model_ir = core.read_model(model=ir_path)
     compiled_model_ir = core.compile_model(model=model_ir, device_name=device.value)
-
+    
     # Get input and output layers.
     output_layer_ir = compiled_model_ir.output(0)
-
+    
     # Run inference on the input image.
     res_ir = compiled_model_ir([normalized_input_image])[output_layer_ir]
 
@@ -501,7 +499,7 @@ looks the same as the output on the ONNX/OpenVINO IR models.
     model.eval()
     with torch.no_grad():
         result_torch = model(torch.as_tensor(normalized_input_image).float())
-
+    
     result_mask_torch = torch.argmax(result_torch["out"], dim=1).squeeze(0).numpy().astype(np.uint8)
     viz_result_image(
         image,
@@ -531,7 +529,7 @@ performance.
 .. code:: ipython3
 
     num_images = 100
-
+    
     with torch.no_grad():
         start = time.perf_counter()
         for _ in range(num_images):
@@ -539,7 +537,7 @@ performance.
         end = time.perf_counter()
         time_torch = end - start
     print(f"PyTorch model on CPU: {time_torch/num_images:.3f} seconds per image, " f"FPS: {num_images/time_torch:.2f}")
-
+    
     compiled_model_onnx = core.compile_model(model=model_onnx, device_name=device.value)
     start = time.perf_counter()
     for _ in range(num_images):
@@ -547,7 +545,7 @@ performance.
     end = time.perf_counter()
     time_onnx = end - start
     print(f"ONNX model in OpenVINO Runtime/{device.value}: {time_onnx/num_images:.3f} " f"seconds per image, FPS: {num_images/time_onnx:.2f}")
-
+    
     compiled_model_ir = core.compile_model(model=model_ir, device_name=device.value)
     start = time.perf_counter()
     for _ in range(num_images):
@@ -559,18 +557,21 @@ performance.
 
 .. parsed-literal::
 
-    PyTorch model on CPU: 0.039 seconds per image, FPS: 25.91
-    ONNX model in OpenVINO Runtime/AUTO: 0.018 seconds per image, FPS: 54.55
-    OpenVINO IR model in OpenVINO Runtime/AUTO: 0.028 seconds per image, FPS: 35.81
+    PyTorch model on CPU: 0.039 seconds per image, FPS: 25.34
+    ONNX model in OpenVINO Runtime/AUTO: 0.018 seconds per image, FPS: 56.97
+    OpenVINO IR model in OpenVINO Runtime/AUTO: 0.018 seconds per image, FPS: 55.62
 
 
 **Show Device Information**
 
 .. code:: ipython3
 
+    import openvino.properties as props
+    
+    
     devices = core.available_devices
     for device in devices:
-        device_name = core.get_property(device, "FULL_DEVICE_NAME")
+        device_name = core.get_property(device, props.device.full_name)
         print(f"{device}: {device_name}")
 
 

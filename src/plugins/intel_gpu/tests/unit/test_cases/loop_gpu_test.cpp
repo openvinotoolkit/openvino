@@ -182,14 +182,14 @@ void test_loop_gpu_basic_concat(bool is_caching_test)
     std::vector<T> eltwise_operand {
         1.f, -2.f, 3.f, -4.f
     };
-    size_t trip_count = input_data.size()/eltwise_operand.size();
+    int64_t trip_count = input_data.size()/eltwise_operand.size();
     int initial_condition = 1;
 
     // initialize input buffers
     set_values(input_mem, input_data);
     set_values(operand_mem, eltwise_operand);
-    set_values(trip_count_mem, {trip_count});
-    set_values(initial_condition_mem, {initial_condition});
+    set_values<int64_t>(trip_count_mem, {trip_count});
+    set_values<int64_t>(initial_condition_mem, {initial_condition});
 
     topology body(
         input_layout("input", operand_mem->get_layout()),
@@ -1220,7 +1220,7 @@ void test_loop_gpu_zero_bytes_layout(bool is_caching_test)
     auto& engine = get_test_engine();
 
     // shape for zero bytes layout
-    auto trip_count_mem = ov::intel_gpu::allocate_memory_evenif_zero_bytes(engine, { cldnn::layout{ ov::PartialShape({0}), data_types::i32, format::bfyx } });
+    auto trip_count_mem = engine.allocate_memory({data_types::i32, format::bfyx, {1, 1, 1, 1}});
 
     auto input_mem = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 4, 5 } });
     auto operand_mem = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 4, 5 } });

@@ -4,7 +4,7 @@
 
 #include "pass_manager.h"
 #include "program_helpers.h"
-#include "implementation_map.hpp"
+#include "impls/registry/registry.hpp"
 
 #include "convolution_inst.h"
 #include "deconvolution_inst.h"
@@ -55,12 +55,10 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
     auto set_implementation = [&p, &impl](program_node& weights_reorder_node) {
         if (!weights_reorder_node.is_constant()) {
             auto reorder_kernel_params = impl->get_weights_reorder_kernel_params();
-            auto impl_type = (reorder_kernel_params->get_output_layout(0).format == format::custom) ? impl_types::onednn : impl_types::ocl;
-            auto factory = WeightsReordersFactory::get(impl_type, shape_types::static_shape);
-            reorder_kernel_params->prog = &p;
-            auto reorder_impl = factory(*reorder_kernel_params);
+            weights_reorder_node.set_preferred_impl_type(impl_types::any);
+            auto reorder_impl = weights_reorder_node.type()->create_impl(weights_reorder_node);
 
-            weights_reorder_node.set_selected_impl(reorder_impl->clone());
+            weights_reorder_node.set_selected_impl(std::move(reorder_impl));
             if (auto impl = weights_reorder_node.get_selected_impl()) {
                 auto params = weights_reorder_node.get_kernel_impl_params();
                 p.get_kernels_cache().add_kernels_source(*params, impl->get_kernels_source());

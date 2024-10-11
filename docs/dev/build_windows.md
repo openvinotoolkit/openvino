@@ -1,6 +1,6 @@
 # Build OpenVINO™ Runtime for Windows systems
 
-OpenVINO can be compiled for different architectures on Windows: X64 or ARM64. In order to build for ARM64 architecture, the machine with Windows on ARM is required as only native compilation is supported (see [similar documents](https://www.linaro.org/blog/how-to-set-up-windows-on-arm-for-llvm-development/#:~:text=Install%20the%20Latest%20LLVM%20for,PATH%20yourself%2C%20as%20described%20above.) for details).
+OpenVINO can be compiled for different architectures on Windows: X64 or ARM64. In order to build for ARM64 architecture, the machine with Windows on ARM is required as only native compilation is supported. Refer to [the page](https://learn.arm.com/install-guides/llvm-woa/) for details.
 
 Supported configurations:
 - Windows 10 x86 64-bit or higher with Visual Studio 2019 or higher build for X64 architecture.
@@ -11,7 +11,7 @@ Supported configurations:
 - [CMake](https://cmake.org/download/) 3.13 or higher
 - Microsoft Visual Studio 2019 or higher, version 16.3 or later
   > **NOTE**: Native Microsoft Visual Studio for WoA has been available since version 3.11.
-- Python 3.8 - 3.11 for OpenVINO Runtime Python API
+- Python 3.9 - 3.12 for OpenVINO Runtime Python API
   > **NOTE**: Python for ARM64 is available since [3.11](https://www.python.org/downloads/windows/) version.
 - [Git for Windows*]
 - (Windows on ARM only) [LLVM for Windows on ARM (WoA)](https://github.com/llvm/llvm-project/releases/download/llvmorg-15.0.6/LLVM-15.0.6-woa64.exe)
@@ -61,8 +61,9 @@ Supported configurations:
      ```
   3. After the build process finishes, export the newly built Python libraries to the user environment variables:
      ```
-     set PYTHONPATH=<openvino_repo>/bin/<arch>/Release/python;%PYTHONPATH%
+     set PYTHONPATH=<openvino_repo>/bin/<arch>/Release/python;<openvino_repo>/tools/ovc;%PYTHONPATH%
      set OPENVINO_LIB_PATHS=<openvino_repo>/bin/<arch>/Release;<openvino_repo>/temp/tbb/bin
+     set PATH=<openvino_repo>/tools/ovc/openvino/tools/ovc:%PATH%
      ```
      or install the wheel with pip:
      ```

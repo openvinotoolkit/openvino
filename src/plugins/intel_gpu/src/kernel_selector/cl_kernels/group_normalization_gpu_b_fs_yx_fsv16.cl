@@ -39,12 +39,12 @@ KERNEL(calc_mean_per_feature)(
 
     mean_per_feature[in_data_set_idx] = mean;
     const uint num_local_workers = LWS0;
-    const uint worker_block_idx = in_data_set_idx / 16;
+    const uint worker_block_idx = in_data_set_idx / FSV;
     uint reduce_add_level = 1;
-    while ((SLM_SIZE / SIMD) > reduce_add_level) {
+    while ((SLM_SIZE / FSV) > reduce_add_level) {
         barrier(CLK_LOCAL_MEM_FENCE);
-        if (worker_block_idx % (reduce_add_level * 2) == 0 && (in_data_set_idx + SIMD * reduce_add_level) < num_local_workers) {
-            mean_per_feature[in_data_set_idx] += mean_per_feature[in_data_set_idx + SIMD * reduce_add_level];
+        if (worker_block_idx % (reduce_add_level * 2) == 0 && (in_data_set_idx + FSV * reduce_add_level) < num_local_workers) {
+            mean_per_feature[in_data_set_idx] += mean_per_feature[in_data_set_idx + FSV * reduce_add_level];
         }
         reduce_add_level *= 2;
     }
@@ -119,12 +119,12 @@ KERNEL(calc_var_per_feature)(
 
     var_per_feature[in_data_set_idx] = variance;
     const uint num_local_workers = LWS0;
-    const uint worker_block_idx = in_data_set_idx / 16;
+    const uint worker_block_idx = in_data_set_idx / FSV;
     uint reduce_add_level = 1;
-    while ((SLM_SIZE / SIMD) > reduce_add_level) {
+    while ((SLM_SIZE / FSV) > reduce_add_level) {
         barrier(CLK_LOCAL_MEM_FENCE);
-        if (worker_block_idx % (reduce_add_level * 2) == 0 && (in_data_set_idx + SIMD * reduce_add_level) < num_local_workers) {
-            var_per_feature[in_data_set_idx] += var_per_feature[in_data_set_idx + SIMD * reduce_add_level];
+        if (worker_block_idx % (reduce_add_level * 2) == 0 && (in_data_set_idx + FSV * reduce_add_level) < num_local_workers) {
+            var_per_feature[in_data_set_idx] += var_per_feature[in_data_set_idx + FSV * reduce_add_level];
         }
         reduce_add_level *= 2;
     }
@@ -171,9 +171,8 @@ KERNEL(group_normalization_b_fs_yx_fsv16)(
     const __global ACCUMULATOR_TYPE* internal_mean,
     const __global ACCUMULATOR_TYPE* internal_variance
 ) {
-    const uint bf = get_global_id(1) * FSV + get_sub_group_local_id();
-    const uint b = bf / OUTPUT_FEATURE_NUM;
-    const uint f = bf % OUTPUT_FEATURE_NUM;
+    const uint b = get_global_id(1) % OUTPUT_BATCH_NUM;
+    const uint f = get_global_id(1) / OUTPUT_BATCH_NUM * FSV + get_sub_group_local_id();
     const uint yx = get_global_id(0) / FSV;
     const uint y = yx / OUTPUT_SIZE_X;
     const uint x = yx % OUTPUT_SIZE_X;
@@ -181,6 +180,7 @@ KERNEL(group_normalization_b_fs_yx_fsv16)(
     const uint output_index = OUTPUT_GET_INDEX(b, f, y, x);
 
     if (f < OUTPUT_FEATURE_NUM) {
+        const uint bf = b * OUTPUT_FEATURE_NUM + f;
         ACTIVATION_TYPE mean = TO_ACTIVATION_TYPE(internal_mean[bf]);
         ACTIVATION_TYPE variance = TO_ACTIVATION_TYPE(internal_variance[bf]);
         ACTIVATION_TYPE normalized = (TO_ACTIVATION_TYPE(input[input_index]) - mean) * variance;

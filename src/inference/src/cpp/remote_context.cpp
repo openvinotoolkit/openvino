@@ -67,6 +67,8 @@ std::string RemoteContext::get_device_name() const {
 RemoteTensor RemoteContext::create_tensor(const element::Type& type, const Shape& shape, const AnyMap& params) {
     OV_REMOTE_CONTEXT_STATEMENT({
         auto tensor = _impl->create_tensor(type, shape, params);
+        if (!tensor._so)
+            tensor._so = _so;
         return make_tensor(tensor).as<ov::RemoteTensor>();
     });
 }
@@ -74,6 +76,8 @@ RemoteTensor RemoteContext::create_tensor(const element::Type& type, const Shape
 Tensor RemoteContext::create_host_tensor(const element::Type element_type, const Shape& shape) {
     OV_REMOTE_CONTEXT_STATEMENT({
         auto tensor = _impl->create_host_tensor(element_type, shape);
+        if (!tensor._so)
+            tensor._so = _so;
         return make_tensor(tensor);
     });
 }

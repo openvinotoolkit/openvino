@@ -28,6 +28,7 @@
 #include "openvino/op/is_inf.hpp"
 #include "openvino/op/is_nan.hpp"
 #include "openvino/op/log.hpp"
+#include "openvino/op/logical_not.hpp"
 #include "openvino/op/mish.hpp"
 #include "openvino/op/negative.hpp"
 #include "openvino/op/parameter.hpp"
@@ -153,6 +154,8 @@ std::shared_ptr<ov::Node> make_activation(const ov::Output<Node>& in,
         return std::make_shared<ov::op::v10::IsInf>(in);
     case ov::test::utils::ActivationTypes::IsNaN:
         return std::make_shared<ov::op::v10::IsNaN>(in);
+    case ov::test::utils::ActivationTypes::LogicalNot:
+        return std::make_shared<ov::op::v1::LogicalNot>(in);
     default:
         OPENVINO_THROW("Can't create layer for this activation type");
     }

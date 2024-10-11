@@ -97,16 +97,9 @@ std::string init_info_jit_brgemm_emitter(const jit_brgemm_emitter *emitter) {
 std::string init_info_jit_brgemm_copy_b_emitter(const jit_brgemm_copy_b_emitter *emitter) {
     std::stringstream ss;
     ss << "Emitter_type_name:jit_brgemm_copy_b_emitter"
-       << " m_brg_weight_etype:" << emitter->m_brg_weight_etype
-       << " m_N_blk:" << emitter->m_N_blk
-       << " m_inner_N_block:" << emitter->m_inner_N_block
-       << " m_inner_N_tail:" << emitter->m_inner_N_tail
-       << " m_K_blk:" << emitter->m_K_blk
-       << " m_brgemmVNNIFactor:" << emitter->m_brgemmVNNIFactor
-       << " m_in_offset:" << emitter->m_in_offset
-       << " m_out_offset:" << emitter->m_out_offset
-       << " m_comp_offset:" << emitter->m_comp_offset
-       << " m_with_comp:" << emitter->m_with_comp;
+       <<  emitter->m_kernel_executor->to_string()
+       << " m_memory_offset:" << vector_to_string(emitter->m_memory_offsets)
+       << " m_buffer_ids:" << vector_to_string(emitter->m_buffer_ids);
 
     return ss.str();
 }

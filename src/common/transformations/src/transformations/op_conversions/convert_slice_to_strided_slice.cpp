@@ -66,7 +66,7 @@ ov::pass::SliceToStridedSlice::SliceToStridedSlice(bool use_shapes) {
     MATCHER_SCOPE(SliceToStridedSlice);
     auto slice = pattern::wrap_type<ov::op::v8::Slice>();
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto slice_node = std::dynamic_pointer_cast<ov::op::v8::Slice>(m.get_match_root());
+        auto slice_node = ov::as_type_ptr<ov::op::v8::Slice>(m.get_match_root());
         if (!slice_node)
             return false;
 
@@ -84,12 +84,9 @@ ov::pass::SliceToStridedSlice::SliceToStridedSlice(bool use_shapes) {
             stop_const = ov::util::get_constant_from_source(slice_node->input_value(2));
             step_const = ov::util::get_constant_from_source(slice_node->input_value(3));
         } else {
-            start_const =
-                std::dynamic_pointer_cast<ov::op::v0::Constant>(slice_node->input_value(1).get_node_shared_ptr());
-            stop_const =
-                std::dynamic_pointer_cast<ov::op::v0::Constant>(slice_node->input_value(2).get_node_shared_ptr());
-            step_const =
-                std::dynamic_pointer_cast<ov::op::v0::Constant>(slice_node->input_value(3).get_node_shared_ptr());
+            start_const = ov::as_type_ptr<ov::op::v0::Constant>(slice_node->input_value(1).get_node_shared_ptr());
+            stop_const = ov::as_type_ptr<ov::op::v0::Constant>(slice_node->input_value(2).get_node_shared_ptr());
+            step_const = ov::as_type_ptr<ov::op::v0::Constant>(slice_node->input_value(3).get_node_shared_ptr());
         }
 
         auto start_input = start_const ? start_const : slice_node->input_value(1);
@@ -98,10 +95,9 @@ ov::pass::SliceToStridedSlice::SliceToStridedSlice(bool use_shapes) {
 
         std::shared_ptr<ov::op::v0::Constant> axes_const;
         if (slice_node->get_input_size() > 4) {
-            axes_const =
-                use_shapes
-                    ? ov::util::get_constant_from_source(slice_node->input_value(4))
-                    : std::dynamic_pointer_cast<ov::op::v0::Constant>(slice_node->input_value(4).get_node_shared_ptr());
+            axes_const = use_shapes
+                             ? ov::util::get_constant_from_source(slice_node->input_value(4))
+                             : ov::as_type_ptr<ov::op::v0::Constant>(slice_node->input_value(4).get_node_shared_ptr());
         } else {
             axes_const = slice_node->get_default_const_axes(start_input);
         }
@@ -111,9 +107,7 @@ ov::pass::SliceToStridedSlice::SliceToStridedSlice(bool use_shapes) {
         const auto& data_shape = slice_node->get_input_partial_shape(0);
         auto axes_vec = axes_const->cast_vector<int64_t>();
         if (data_shape.rank().is_static()) {
-            const auto norm_axes_vec =
-                ov::util::normalize_axes(slice_node->get_friendly_name(), axes_vec, data_shape.rank());
-            axes_vec = std::vector<int64_t>(norm_axes_vec.begin(), norm_axes_vec.end());
+            ov::util::try_normalize_axes(axes_vec, data_shape.rank(), *slice_node);
         } else {
             const bool need_normalization = std::any_of(axes_vec.begin(), axes_vec.end(), [](int64_t axis) {
                 return axis < 0;

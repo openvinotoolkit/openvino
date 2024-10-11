@@ -2,17 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "concatenation_onednn.hpp"
 #include "concatenation_inst.h"
-#include "eltwise_inst.h"
-#include "quantize_inst.h"
 #include "primitive_onednn_base.h"
-#include "implementation_map.hpp"
-
-#include "kernel_selector_common.h"
+#include "impls/registry/implementation_manager.hpp"
 
 #include <oneapi/dnnl/dnnl.hpp>
 
-#include <algorithm>
 #include <memory>
 namespace cldnn {
 namespace onednn {
@@ -130,37 +126,11 @@ public:
     }
 };
 
-namespace detail {
-
-attach_concatenation_onednn::attach_concatenation_onednn() {
-    std::vector<data_types> dt = {
-        data_types::f32,
-        data_types::f16,
-        data_types::u8,
-        data_types::i8,
-    };
-    std::vector<format::type> fmt = {
-        format::bfyx,
-        format::byxf,
-        format::b_fs_yx_fsv16,
-        format::b_fs_yx_fsv32,
-        format::bs_fs_yx_bsv16_fsv16,
-        format::bs_fs_yx_bsv16_fsv32,
-        format::bs_fs_yx_bsv32_fsv16,
-        format::bs_fs_yx_bsv32_fsv32,
-        format::b_fs_zyx_fsv16,
-        format::b_fs_zyx_fsv32,
-        format::bs_fs_zyx_bsv16_fsv16,
-        format::bs_fs_zyx_bsv16_fsv32,
-        format::bs_fs_zyx_bsv32_fsv16,
-        format::bs_fs_zyx_bsv32_fsv32,
-        format::bs_fs_yx_bsv4_fsv4,
-        format::bs_fs_yx_bsv8_fsv4,
-    };
-    implementation_map<concatenation>::add(impl_types::onednn, concatenation_onednn::create, dt, fmt);
+std::unique_ptr<primitive_impl> ConcatenationImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const {
+    assert(node.is_type<concatenation>());
+    return onednn::concatenation_onednn::create(static_cast<const concatenation_node&>(node), params);
 }
 
-}  // namespace detail
 }  // namespace onednn
 }  // namespace cldnn
 

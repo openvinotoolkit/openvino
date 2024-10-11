@@ -13,6 +13,7 @@
 #include "openvino/op/range.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/topk.hpp"
 #include "utils.hpp"
@@ -40,16 +41,32 @@ OutputVector translate_unsorted_segment_sum_op(const NodeContext& node) {
     auto const_zero_i64 = make_shared<v0::Constant>(element::i64, Shape{}, 0);
     auto const_one_i64 = make_shared<v0::Constant>(element::i64, Shape{1}, 1);
     auto const_one_i64_scalar = make_shared<v0::Constant>(element::i64, Shape{}, 1);
+    auto const_minus_one_i64 = make_shared<v0::Constant>(element::i64, Shape{1}, -1);
     auto data_const_zero = create_same_type_const_scalar<float>(data, 0.0f);
+
+    Output<Node> data_shape = make_shared<v3::ShapeOf>(data, element::i64);
+
+    // adjust data and segment_ids inputs for ND indices
+    // to make indices 1D tensor
+    // for example, data shape = [2, 3, 4] and segment_ids shape - [2, 3]
+    // so they need adjustment to new data shape [6, 4] and segment_ids shape [6]
+    auto segment_ids_rank = compute_subgraph_scalar_rank(segment_ids, element::i64, false);
+    // 1. segment_ids needs to be flatten
+    segment_ids = make_shared<v1::Reshape>(segment_ids, const_minus_one_i64, false);
+    // 2. flatten first (segment_ids_rank - 1) dimensions into one dimension
+    auto stop_const = make_shared<v0::Constant>(element::i64, Shape{1}, numeric_limits<int64_t>::max());
+    auto step_const = make_shared<v0::Constant>(element::i64, Shape{1}, 1);
+    Output<Node> slice_shape = make_shared<v8::Slice>(data_shape, segment_ids_rank, stop_const, step_const);
+    auto new_data_shape = make_shared<v0::Concat>(OutputVector{const_minus_one_i64, slice_shape}, 0);
+    data = make_shared<v1::Reshape>(data, new_data_shape, false);
 
     // segment ids can be negative for which the resulted data will be zeroed
     // so it needs to introduce default slice of zeros in the data
     // 1. create default slice that will be used for negative segment ids
-    auto data_shape = make_shared<v3::ShapeOf>(data, element::i64);
-    auto slice_shape = get_data_slice(data_shape, 1, numeric_limits<int>::max(), 1);
     slice_shape = make_shared<v0::Concat>(OutputVector{const_one_i64, slice_shape}, 0);
     auto default_slice = make_shared<v3::Broadcast>(data_const_zero, slice_shape);
     // 2. update data with the default slice
+    data_shape = make_shared<v3::ShapeOf>(data, element::i64);
     data = make_shared<v0::Concat>(OutputVector{data, default_slice}, 0);
 
     // compute default index

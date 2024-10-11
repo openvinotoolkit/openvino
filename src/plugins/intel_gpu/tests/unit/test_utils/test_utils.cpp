@@ -150,20 +150,20 @@ void generic_test::compare_buffers(const memory::ptr out, const memory::ptr ref)
 }
 
 static size_t calc_offfset(const layout & layout, const pitches& p) {
-    auto lower_padding = layout.data_padding.lower_size();
+    const auto& lower_padding = layout.data_padding._lower_size;
     if (layout.format == format::bfzyx) {
         return
-            p.b * lower_padding.batch[0] +
-            p.f * lower_padding.feature[0] +
-            p.z * lower_padding.spatial[2] +
-            p.y * lower_padding.spatial[1] +
-            p.x * lower_padding.spatial[0];
+            p.b * lower_padding[0] +
+            p.f * lower_padding[1] +
+            p.z * lower_padding[2 + 2] +
+            p.y * lower_padding[2 + 1] +
+            p.x * lower_padding[2 + 0];
     } else {
         return
-            p.b * lower_padding.batch[0] +
-            p.f * lower_padding.feature[0] +
-            p.y * lower_padding.spatial[1] +
-            p.x * lower_padding.spatial[0];
+            p.b * lower_padding[0] +
+            p.f * lower_padding[1] +
+            p.y * lower_padding[2 + 1] +
+            p.x * lower_padding[2 + 0];
     }
 }
 
@@ -173,38 +173,38 @@ memory_desc generic_test::get_linear_memory_desc(const layout & layout) {
     switch (layout.format) {
         case format::bfyx: {
             p.x = 1;
-            p.y = layout.get_buffer_size().sizes(format::bfyx)[3] * p.x;
-            p.f = layout.get_buffer_size().sizes(format::bfyx)[2] * p.y;
-            p.b = layout.get_buffer_size().sizes(format::bfyx)[1] * p.f;
+            p.y = tensor(layout.get_padded_dims()).sizes(format::bfyx)[3] * p.x;
+            p.f = tensor(layout.get_padded_dims()).sizes(format::bfyx)[2] * p.y;
+            p.b = tensor(layout.get_padded_dims()).sizes(format::bfyx)[1] * p.f;
             break;
         }
         case format::yxfb: {
             p.b = 1;
-            p.f = layout.get_buffer_size().sizes(format::yxfb)[3] * p.b;
-            p.x = layout.get_buffer_size().sizes(format::yxfb)[2] * p.f;
-            p.y = layout.get_buffer_size().sizes(format::yxfb)[1] * p.x;
+            p.f = tensor(layout.get_padded_dims()).sizes(format::yxfb)[3] * p.b;
+            p.x = tensor(layout.get_padded_dims()).sizes(format::yxfb)[2] * p.f;
+            p.y = tensor(layout.get_padded_dims()).sizes(format::yxfb)[1] * p.x;
             break;
         }
         case format::fyxb: {
             p.b = 1;
-            p.x = layout.get_buffer_size().sizes(format::fyxb)[3] * p.b;
-            p.y = layout.get_buffer_size().sizes(format::fyxb)[2] * p.x;
-            p.f = layout.get_buffer_size().sizes(format::fyxb)[1] * p.y;
+            p.x = tensor(layout.get_padded_dims()).sizes(format::fyxb)[3] * p.b;
+            p.y = tensor(layout.get_padded_dims()).sizes(format::fyxb)[2] * p.x;
+            p.f = tensor(layout.get_padded_dims()).sizes(format::fyxb)[1] * p.y;
             break;
         }
         case format::byxf: {
             p.f = 1;
-            p.x = layout.get_buffer_size().sizes(format::byxf)[3] * p.f;
-            p.y = layout.get_buffer_size().sizes(format::byxf)[2] * p.x;
-            p.b = layout.get_buffer_size().sizes(format::byxf)[1] * p.y;
+            p.x = tensor(layout.get_padded_dims()).sizes(format::byxf)[3] * p.f;
+            p.y = tensor(layout.get_padded_dims()).sizes(format::byxf)[2] * p.x;
+            p.b = tensor(layout.get_padded_dims()).sizes(format::byxf)[1] * p.y;
             break;
         }
         case format::bfzyx: {
             p.x = 1;
-            p.y = layout.get_buffer_size().sizes(format::bfzyx)[4] * p.x;
-            p.z = layout.get_buffer_size().sizes(format::bfzyx)[3] * p.y;
-            p.f = layout.get_buffer_size().sizes(format::bfzyx)[2] * p.z;
-            p.b = layout.get_buffer_size().sizes(format::bfzyx)[1] * p.f;
+            p.y = tensor(layout.get_padded_dims()).sizes(format::bfzyx)[4] * p.x;
+            p.z = tensor(layout.get_padded_dims()).sizes(format::bfzyx)[3] * p.y;
+            p.f = tensor(layout.get_padded_dims()).sizes(format::bfzyx)[2] * p.z;
+            p.b = tensor(layout.get_padded_dims()).sizes(format::bfzyx)[1] * p.f;
             break;
         }
         default: {

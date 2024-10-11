@@ -5,7 +5,6 @@
 
 #include "snippets/lowered/pass/allocate_buffers.hpp"
 
-#include "snippets/lowered/pass/enumerate_expressions.hpp"
 #include "snippets/lowered/pass/compute_buffer_allocation_size.hpp"
 #include "snippets/lowered/pass/solve_buffer_memory.hpp"
 #include "snippets/lowered/pass/init_buffers_default.hpp"
@@ -29,9 +28,8 @@ bool AllocateBuffers::run(lowered::LinearIR& linear_ir, lowered::LinearIR::const
     size_t buffer_scratchpad_size = 0;
 
     PassPipeline pipeline;
-    pipeline.register_pass<ComputeBufferAllocationSize>(linear_ir.get_config().m_loop_depth);
+    pipeline.register_pass<ComputeBufferAllocationSize>();
     if (m_is_optimized_mode) {
-        pipeline.register_pass<EnumerateExpressions>();
         pipeline.register_pass<SetBufferRegGroup>();
         pipeline.register_pass<DefineBufferClusters>();
         pipeline.register_pass<SolveBufferMemory>(buffer_scratchpad_size);

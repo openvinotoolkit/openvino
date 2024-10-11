@@ -30,6 +30,7 @@ Custom Assistant.
 This notebook explores how to create a Function calling Agent step by
 step using OpenVINO and Qwen-Agent.
 
+
 **Table of contents:**
 
 
@@ -51,6 +52,16 @@ step using OpenVINO and Qwen-Agent.
    -  `Create AI agent demo with Qwen-Agent and Gradio
       UI <#create-ai-agent-demo-with-qwen-agent-and-gradio-ui>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -64,35 +75,15 @@ Prerequisites
 
     %pip install -Uq pip
     %pip uninstall -q -y optimum optimum-intel
-    %pip install --pre -Uq openvino openvino-tokenizers[transformers] --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu\
-    "git+https://github.com/huggingface/optimum-intel.git"\
-    "git+https://github.com/openvinotoolkit/nncf.git"\
-    "torch>=2.1"\
-    "datasets"\
-    "accelerate"\
-    "qwen-agent>=0.0.6" "transformers>=4.38.1" "gradio==4.21.0", "modelscope-studio>=0.4.0" "langchain>=0.2.3" "langchain-community>=0.2.4" "wikipedia"
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    WARNING: typer 0.12.3 does not provide the extra 'all'
-    Note: you may need to restart the kernel to use updated packages.
-
-
-.. code:: ipython3
-
-    import requests
-    from PIL import Image
-
-    openvino_logo = "openvino_log.png"
-    url = "https://cdn-avatars.huggingface.co/v1/production/uploads/1671615670447-6346651be2dcb5422bcd13dd.png"
-
-    image = Image.open(requests.get(url, stream=True).raw)
-    image.save(openvino_logo)
+    %pip install --pre -Uq "openvino>=2024.2.0" openvino-tokenizers[transformers] --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu \
+    "torch>=2.1" \
+    "datasets" \
+    "accelerate" \
+    "qwen-agent==0.0.7" "transformers>=4.38.1" "gradio==4.21.0", "modelscope-studio>=0.4.0" "langchain>=0.2.3" "langchain-community>=0.2.4" "wikipedia"
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu \
+    "git+https://github.com/huggingface/optimum-intel.git" \
+    "git+https://github.com/openvinotoolkit/nncf.git"
 
 Create a Function calling agent
 -------------------------------
@@ -242,7 +233,12 @@ pipeline.
 
     from qwen_agent.llm import get_chat_model
 
-    ov_config = {"PERFORMANCE_HINT": "LATENCY", "NUM_STREAMS": "1", "CACHE_DIR": ""}
+    import openvino.properties as props
+    import openvino.properties.hint as hints
+    import openvino.properties.streams as streams
+
+
+    ov_config = {hints.performance_mode(): hints.PerformanceMode.LATENCY, streams.num(): "1", props.cache_dir(): ""}
     llm_cfg = {
         "ov_model_dir": model_path,
         "model_type": "openvino",
@@ -270,9 +266,9 @@ These options can be enabled with ``ov_config`` as follows:
     ov_config = {
         "KV_CACHE_PRECISION": "u8",
         "DYNAMIC_QUANTIZATION_GROUP_SIZE": "32",
-        "PERFORMANCE_HINT": "LATENCY",
-        "NUM_STREAMS": "1",
-        "CACHE_DIR": "",
+        hints.performance_mode(): hints.PerformanceMode.LATENCY,
+        streams.num(): "",
+        props.cache_dir(): "",
     }
 
 Create Function-calling pipeline
@@ -492,7 +488,6 @@ tasks. Features:
 .. code:: ipython3
 
     from qwen_agent.agents import Assistant
-    from qwen_agent.gui import WebUI
 
     bot = Assistant(llm=llm_cfg, function_list=tools, name="OpenVINO Agent")
 
@@ -505,133 +500,23 @@ tasks. Features:
 
 .. code:: ipython3
 
-    from typing import List
-    from qwen_agent.llm.schema import CONTENT, ROLE, USER, Message
-    from qwen_agent.gui.utils import convert_history_to_chatbot
-    from qwen_agent.gui.gradio import gr, mgr
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/llm-agent-functioncall/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
 
+    from gradio_helper import make_demo
 
-    class OpenVINOUI(WebUI):
-        def request_cancel(self):
-            self.agent_list[0].llm.ov_model.request.cancel()
+    demo = make_demo(bot=bot)
 
-        def clear_history(self):
-            return []
-
-        def add_text(self, _input, _chatbot, _history):
-            _history.append(
-                {
-                    ROLE: USER,
-                    CONTENT: [{"text": _input}],
-                }
-            )
-            _chatbot.append([_input, None])
-            yield gr.update(interactive=False, value=None), _chatbot, _history
-
-        def run(
-            self,
-            messages: List[Message] = None,
-            share: bool = False,
-            server_name: str = None,
-            server_port: int = None,
-            **kwargs,
-        ):
-            self.run_kwargs = kwargs
-
-            with gr.Blocks(
-                theme=gr.themes.Soft(),
-                css=".disclaimer {font-variant-caps: all-small-caps;}",
-            ) as self.demo:
-                gr.Markdown("""<h1><center>OpenVINO Qwen Agent </center></h1>""")
-                history = gr.State([])
-
-                with gr.Row():
-                    with gr.Column(scale=4):
-                        chatbot = mgr.Chatbot(
-                            value=convert_history_to_chatbot(messages=messages),
-                            avatar_images=[
-                                self.user_config,
-                                self.agent_config_list,
-                            ],
-                            height=900,
-                            avatar_image_width=80,
-                            flushing=False,
-                            show_copy_button=True,
-                        )
-                        with gr.Column():
-                            input = gr.Textbox(
-                                label="Chat Message Box",
-                                placeholder="Chat Message Box",
-                                show_label=False,
-                                container=False,
-                            )
-                        with gr.Column():
-                            with gr.Row():
-                                submit = gr.Button("Submit", variant="primary")
-                                stop = gr.Button("Stop")
-                                clear = gr.Button("Clear")
-                    with gr.Column(scale=1):
-                        agent_interactive = self.agent_list[0]
-                        capabilities = [key for key in agent_interactive.function_map.keys()]
-                        gr.CheckboxGroup(
-                            label="Tools",
-                            value=capabilities,
-                            choices=capabilities,
-                            interactive=False,
-                        )
-                with gr.Row():
-                    gr.Examples(self.prompt_suggestions, inputs=[input], label="Click on any example and press the 'Submit' button")
-
-                input_promise = submit.click(
-                    fn=self.add_text,
-                    inputs=[input, chatbot, history],
-                    outputs=[input, chatbot, history],
-                    queue=False,
-                )
-                input_promise = input_promise.then(
-                    self.agent_run,
-                    [chatbot, history],
-                    [chatbot, history],
-                )
-                input_promise.then(self.flushed, None, [input])
-                stop.click(
-                    fn=self.request_cancel,
-                    inputs=None,
-                    outputs=None,
-                    cancels=[input_promise],
-                    queue=False,
-                )
-                clear.click(lambda: None, None, chatbot, queue=False).then(self.clear_history, None, history)
-
-                self.demo.load(None)
-
-            self.demo.launch(share=share, server_name=server_name, server_port=server_port)
-
-
-    chatbot_config = {
-        "prompt.suggestions": [
-            "Based on current weather in London, show me a picture of Big Ben",
-            "What is OpenVINO ?",
-            "Create an image of pink cat",
-            "What is the weather like in New York now ?",
-            "How many people live in Canada ?",
-        ],
-        "agent.avatar": openvino_logo,
-        "input.placeholder": "Please input your request here",
-    }
-
-    demo = OpenVINOUI(
-        bot,
-        chatbot_config=chatbot_config,
-    )
-
-    # if you are launching remotely, specify server_name and server_port
-    #  demo.run(server_name='your server name', server_port='server port in int')
     try:
         demo.run()
     except Exception:
         demo.run(share=True)
+    # If you are launching remotely, specify server_name and server_port
+    # EXAMPLE: `demo.launch(server_name='your server name', server_port='server port in int')`
+    # To learn more please refer to the Gradio docs: https://gradio.app/docs/
 
 .. code:: ipython3
 
-    # demo.demo.close()
+    # please uncomment and run this cell for stopping gradio interface
+    # demo.close()

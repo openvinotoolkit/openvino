@@ -1,5 +1,3 @@
-.. {#openvino_docs_OV_UG_Integrate_OV_with_your_application}
-
 Integrate OpenVINO™ with Your Application
 ===========================================
 
@@ -417,7 +415,13 @@ For details on additional CMake build options, refer to the `CMake page <https:/
        .. doxygensnippet:: docs/snippets/CMakeLists.txt
           :language: cpp
           :fragment: [cmake:integration_example_c]
-
+          
+    .. tab-item:: C++ (PyPI)
+      :sync: cpp 
+      
+      .. doxygensnippet:: docs/snippets/CMakeLists.txt
+         :language: cpp
+         :fragment: [cmake:integration_example_cpp_py]
 
 Build Project
 ++++++++++++++++++++
@@ -439,5 +443,5 @@ Additional Resources
 * Models in the OpenVINO IR format on `Hugging Face <https://huggingface.co/models>`__.
 * :doc:`OpenVINO™ Runtime Preprocessing <optimize-inference/optimize-preprocessing>`
 * :doc:`String Tensors <string-tensors>`
-* :doc:`Using Encrypted Models with OpenVINO <../../documentation/openvino-security/openvino-encrypted-models>`
+* :ref:`Using Encrypted Models with OpenVINO <encrypted-models>`
 

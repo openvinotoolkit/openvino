@@ -72,5 +72,44 @@ void AclMVNExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<
     dstTensor.allocator()->free();
 }
 
+bool AclMVNExecutorBuilder::isSupported(const MVNAttrs& mvnAttrs,
+                                        const std::vector<MemoryDescPtr>& srcDescs,
+                                        const std::vector<MemoryDescPtr>& dstDescs) const {
+        if ((srcDescs[0]->getPrecision() != ov::element::f32 &&
+             srcDescs[0]->getPrecision() != ov::element::f16) ||
+             srcDescs[0]->getPrecision() != dstDescs[0]->getPrecision()) {
+            DEBUG_LOG("NEMeanStdDevNormalizationLayer does not support precisions:",
+                      " src[0]=", srcDescs[0]->getPrecision(),
+                      " dst[0]=", dstDescs[0]->getPrecision());
+            return false;
+        }
+
+        if (!(srcDescs[0]->hasLayoutType(LayoutType::ncsp) &&
+              dstDescs[0]->hasLayoutType(LayoutType::ncsp)) &&
+            !(srcDescs[0]->hasLayoutType(LayoutType::nspc) &&
+              dstDescs[0]->hasLayoutType(LayoutType::nspc))) {
+            DEBUG_LOG("NEMeanStdDevNormalizationLayer does not support layout:",
+                      " src: ", srcDescs[0]->serializeFormat(),
+                      " dst: ", dstDescs[0]->serializeFormat());
+            return false;
+        }
+
+        if (mvnAttrs.epsMode_ == MVNEpsMode::OUTSIDE_SQRT) {
+            DEBUG_LOG("NEMeanStdDevNormalizationLayer does not support OUTSIDE_SQRT mode");
+            return false;
+        }
+        if (!mvnAttrs.normalizeVariance_) {
+            DEBUG_LOG("NEMeanStdDevNormalizationLayer supports normalize_variance=true only");
+            return false;
+        }
+        if (!mvnAttrs.initAcrossChannels_ &&
+            srcDescs[0]->hasLayoutType(LayoutType::nspc)) {
+            DEBUG_LOG("initAcrossChannels = false is not supported by ACL for NHWC layout");
+            return false;
+        }
+
+        return true;
+    }
+
 }   // namespace intel_cpu
 }   // namespace ov

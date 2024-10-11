@@ -33,6 +33,7 @@ http://arxiv.org/abs/2211.17192
 Our blog article describing this implementation with OpenVino is
 available at openvino.ai
 
+
 **Table of contents:**
 
 
@@ -52,6 +53,13 @@ available at openvino.ai
 -  `Main generation function <#main-generation-function>`__
 
    -  `Download and Convert Model <#download-and-convert-model>`__
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
 Prerequisites
 -------------
@@ -73,8 +81,8 @@ useful modules.
 
     %pip install -Uq pip
     %pip uninstall -q -y optimum optimum-intel
-    %pip install --pre -Uq openvino openvino-tokenizers[transformers] --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
-    %pip install -q --upgrade transformers "torch>=2.1" "gradio>=4.19" accelerate onnx ipywidgets "peft==0.6.2" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install --pre -Uq "openvino>=2024.2.0" openvino-tokenizers[transformers] --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
+    %pip install -q --upgrade transformers "torch>=2.1" "torchvision" "gradio>=4.19" accelerate "onnx<1.16.2" ipywidgets --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "git+https://github.com/huggingface/optimum-intel.git"
 
 Select inference device
@@ -87,17 +95,16 @@ OpenVINO.
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    import openvino as ov
+    import requests
 
-    core = ov.Core()
-
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="CPU",
-        description="Device:",
-        disabled=False,
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
+    open("notebook_utils.py", "w").write(r.text)
+
+    from notebook_utils import device_widget
+
+    device = device_widget()
 
     device
 
@@ -130,7 +137,7 @@ Setup imports
 
     import time
     import numpy as np
-    import gradio as gr
+    import openvino as ov
 
 Prepare autoregressive sampling
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -299,9 +306,9 @@ access tokens, refer to this section of the documentation.
 .. code:: ipython3
 
     if not main_model_path.exists():
-        !optimum-cli export openvino --model $main_model_id --weight-format fp16 $main_model_path
+        !optimum-cli export openvino --model $main_model_id --weight-format fp16 {main_model_path}
     if not draft_model_path.exists():
-        !optimum-cli export openvino --model $draft_model_id --weight-format fp16 $draft_model_path
+        !optimum-cli export openvino --model $draft_model_id --weight-format fp16 {draft_model_path}
 
 Infer directly using OpenVINO Inference Pipeline
 
@@ -309,10 +316,10 @@ Infer directly using OpenVINO Inference Pipeline
 
     core = ov.Core()
     draft_ov_model = core.read_model(draft_model_path / "openvino_model.xml")
-    draft_model = core.compile_model(draft_ov_model, device_name="CPU")
+    draft_model = core.compile_model(draft_ov_model, device_name=device.value)
 
     main_ov_model = core.read_model(main_model_path / "openvino_model.xml")
-    main_model = core.compile_model(main_ov_model, device_name="CPU")
+    main_model = core.compile_model(main_ov_model, device_name=device.value)
 
 .. code:: ipython3
 
@@ -402,24 +409,23 @@ Infer directly using OpenVINO Inference Pipeline
 
 .. code:: ipython3
 
-    with gr.Blocks() as demo:
-        gr.Markdown(
-            f"""
-            # Speculative Sampling Demo
-            ## The output will show a comparison of Autoregressive Sampling vs Speculative Sampling
-            - Main Model: {main_model_id}
-            - Draft Model: {draft_model_id}
-            - K = 5
-            """
-        )
-        with gr.Row():
-            inp = gr.Textbox(
-                "Alan Turing was a",
-                placeholder="THIS CANNOT BE EMPTY",
-                label="Input Prompt",
-            )
-            out = gr.Textbox(label="Output")
-        btn = gr.Button("Run")
-        btn.click(fn=main, inputs=inp, outputs=out)
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/speculative-sampling/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
 
-    demo.launch()
+    from gradio_helper import make_demo
+
+    demo = make_demo(fn=main)
+
+    try:
+        demo.launch(debug=False)
+    except Exception:
+        demo.launch(share=True, debug=False)
+    # If you are launching remotely, specify server_name and server_port
+    # EXAMPLE: `demo.launch(server_name='your server name', server_port='server port in int')`
+    # To learn more please refer to the Gradio docs: https://gradio.app/docs/
+
+.. code:: ipython3
+
+    # please uncomment and run this cell for stopping gradio interface
+    # demo.close()

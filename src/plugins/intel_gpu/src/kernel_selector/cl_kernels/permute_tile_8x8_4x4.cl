@@ -158,7 +158,9 @@ KERNEL (permute_tile_8x8_4x4)(
         for (int lh = 0; lh < TILE_SIZE; ++lh) {
             // read
             unsigned int input_idx = INPUT0_GET_TILED_INDEX(INPUT0_TILED_ORDER);
-            INPUTVTYPE read_data = AS_INPUTVTYPE(VLOAD(0, input + input_idx));
+            INPUTVTYPE read_data;
+            unroll_for (int i = 0; i < x_remainder_size; ++i)
+                read_data[i] = input[input_idx + i];
             // transpose
             for (int i = 0; i < x_remainder_size; ++i) {
 #if HAS_FUSED_OPS
@@ -183,7 +185,9 @@ KERNEL (permute_tile_8x8_4x4)(
         for (int lh = 0; lh < TILE_SIZE; ++lh) {
             // read
             unsigned int input_idx = INPUT0_GET_TILED_INDEX(INPUT0_TILED_ORDER);
-            INPUTVTYPE read_data = AS_INPUTVTYPE(VLOAD(0, input + input_idx));
+            INPUTVTYPE read_data;
+            unroll_for (int i = 0; i < X_REMAINDER_SIZE; ++i)
+                read_data[i] = input[input_idx + i];
             // transpose
             unroll_for (int i = 0; i < X_REMAINDER_SIZE; ++i) {
 #if HAS_FUSED_OPS
@@ -209,7 +213,9 @@ KERNEL (permute_tile_8x8_4x4)(
         for (int lh = 0; lh < f_remainder_size; ++lh) {
             // read
             unsigned int input_idx = INPUT0_GET_TILED_INDEX(INPUT0_TILED_ORDER);
-            INPUTVTYPE read_data = AS_INPUTVTYPE(VLOAD(0, input + input_idx));
+            INPUTVTYPE read_data;
+            unroll_for (int i = 0; i < x_remainder_size; ++i)
+                read_data[i] = input[input_idx + i];
             // transpose
             for (int i = 0; i < x_remainder_size; ++i) {
                 unsigned int dst = local_buf_offset + i;
@@ -237,7 +243,9 @@ KERNEL (permute_tile_8x8_4x4)(
         for (int lh = 0; lh < F_REMAINDER_SIZE; ++lh) {
             // read
             unsigned int input_idx = INPUT0_GET_TILED_INDEX(INPUT0_TILED_ORDER);
-            INPUTVTYPE read_data = AS_INPUTVTYPE(VLOAD(0, input + input_idx));
+            INPUTVTYPE read_data;
+            unroll_for (int i = 0; i < X_REMAINDER_SIZE; ++i)
+                read_data[i] = input[input_idx + i];
             // transpose
             for (int i = 0; i < X_REMAINDER_SIZE; ++i) {
                 unsigned int dst = local_buf_offset + i;

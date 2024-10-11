@@ -55,17 +55,28 @@ in low precision.
 
 -  `Interactive demo <#interactive-demo>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 .. |image0| image:: https://raw.githubusercontent.com/Tencent/HunyuanDiT/main/asset/framework.png
 
 Prerequisites
 -------------
 
 
+
 .. code:: ipython3
 
     %pip install -q "torch>=2.1" torchvision einops timm peft accelerate transformers diffusers huggingface-hub tokenizers sentencepiece protobuf loguru --extra-index-url https://download.pytorch.org/whl/cpu
-    %pip install -q "nncf>=2.11" "gradio>=4.19" "pillow" "opencv-python"
-    %pip install -pre -Uq openvino --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
+    %pip install -q "nncf>=2.12" "gradio>=4.19" "pillow" "opencv-python"
+    %pip install -Uq "openvino>=2024.3.0"
 
 .. code:: ipython3
 
@@ -742,17 +753,16 @@ Please select inference device using dropdown widget:
 
 .. code:: ipython3
 
-    import openvino as ov
-    import ipywidgets as widgets
+    import requests
 
-    core = ov.Core()
-
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
+    open("notebook_utils.py", "w").write(r.text)
+
+    from notebook_utils import device_widget
+
+    device = device_widget()
 
     device
 
@@ -768,6 +778,7 @@ Please select inference device using dropdown widget:
 .. code:: ipython3
 
     import gc
+    import openvino as ov
 
     core = ov.Core()
     ov_dit = core.read_model(OV_DIT_MODEL)
@@ -789,14 +800,6 @@ Please select inference device using dropdown widget:
 
     tokenizer = AutoTokenizer.from_pretrained("./ckpts/t2i/tokenizer/")
     embedder_tokenizer = AutoTokenizer.from_pretrained("./ckpts/t2i/mt5")
-
-
-.. parsed-literal::
-
-    You are using the default legacy behaviour of the <class 'transformers.models.t5.tokenization_t5.T5Tokenizer'>. This is expected, and simply means that the `legacy` (previous) behavior will be used so nothing changes for you. If you want to use the new behaviour, set `legacy=False`. This should only be set if you understand what it means, and thoroughly read the reason why this was added as explained in https://github.com/huggingface/transformers/pull/24565
-    /home/ea/work/notebooks_env/lib/python3.8/site-packages/transformers/convert_slow_tokenizer.py:562: UserWarning: The sentencepiece tokenizer that you are converting to a fast tokenizer uses the byte fallback option which is not implemented in the fast tokenizers. In practice this means that the fast version of the tokenizer can produce unknown tokens whereas the sentencepiece version would have converted these unknown tokens into a sequence of byte tokens matching the original piece of text.
-      warnings.warn(
-
 
 .. code:: ipython3
 
@@ -890,6 +893,7 @@ Interactive demo
 .. code:: ipython3
 
     import gradio as gr
+    import requests
 
 
     def inference(input_prompt, negative_prompt, seed, num_steps, height, width, progress=gr.Progress(track_tqdm=True)):
@@ -916,97 +920,13 @@ Interactive demo
         return images[0][0]
 
 
-    with gr.Blocks() as demo:
-        with gr.Row():
-            with gr.Column():
-                prompt = gr.Textbox(label="Input prompt", lines=3)
-                with gr.Row():
-                    infer_steps = gr.Slider(
-                        label="Number Inference steps",
-                        minimum=1,
-                        maximum=200,
-                        value=15,
-                        step=1,
-                    )
-                    seed = gr.Number(
-                        label="Seed",
-                        minimum=-1,
-                        maximum=1_000_000_000,
-                        value=42,
-                        step=1,
-                        precision=0,
-                    )
-                with gr.Accordion("Advanced settings", open=False):
-                    with gr.Row():
-                        negative_prompt = gr.Textbox(
-                            label="Negative prompt",
-                            value=NEGATIVE_PROMPT,
-                            lines=2,
-                        )
-                    with gr.Row():
-                        oriW = gr.Number(
-                            label="Width",
-                            minimum=768,
-                            maximum=1024,
-                            value=880,
-                            step=16,
-                            precision=0,
-                            min_width=80,
-                        )
-                        oriH = gr.Number(
-                            label="Height",
-                            minimum=768,
-                            maximum=1024,
-                            value=880,
-                            step=16,
-                            precision=0,
-                            min_width=80,
-                        )
-                        cfg_scale = gr.Slider(label="Guidance scale", minimum=1.0, maximum=16.0, value=7.5, step=0.5)
-                with gr.Row():
-                    advanced_button = gr.Button()
-            with gr.Column():
-                output_img = gr.Image(
-                    label="Generated image",
-                    interactive=False,
-                )
-            advanced_button.click(
-                fn=inference,
-                inputs=[
-                    prompt,
-                    negative_prompt,
-                    seed,
-                    infer_steps,
-                    oriH,
-                    oriW,
-                ],
-                outputs=output_img,
-            )
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/hunyuan-dit-image-generation/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
 
-        with gr.Row():
-            gr.Examples(
-                [
-                    ["一只小猫"],
-                    ["a kitten"],
-                    ["一只聪明的狐狸走在阔叶树林里, 旁边是一条小溪, 细节真实, 摄影"],
-                    ["A clever fox walks in a broadleaf forest next to a stream, realistic details, photography"],
-                    ["请将“杞人忧天”的样子画出来"],
-                    ['Please draw a picture of "unfounded worries"'],
-                    ["枯藤老树昏鸦，小桥流水人家"],
-                    ["Withered vines, old trees and dim crows, small bridges and flowing water, people's houses"],
-                    ["湖水清澈，天空湛蓝，阳光灿烂。一只优雅的白天鹅在湖边游泳。它周围有几只小鸭子，看起来非常可爱，整个画面给人一种宁静祥和的感觉。"],
-                    [
-                        "The lake is clear, the sky is blue, and the sun is bright. An elegant white swan swims by the lake. There are several little ducks around it, which look very cute, and the whole picture gives people a sense of peace and tranquility."
-                    ],
-                    ["一朵鲜艳的红色玫瑰花，花瓣撒有一些水珠，晶莹剔透，特写镜头"],
-                    ["A bright red rose flower with petals sprinkled with some water drops, crystal clear, close-up"],
-                    ["风格是写实，画面主要描述一个亚洲戏曲艺术家正在表演，她穿着华丽的戏服，脸上戴着精致的面具，身姿优雅，背景是古色古香的舞台，镜头是近景"],
-                    [
-                        "The style is realistic. The picture mainly depicts an Asian opera artist performing. She is wearing a gorgeous costume and a delicate mask on her face. Her posture is elegant. The background is an antique stage and the camera is a close-up."
-                    ],
-                ],
-                [prompt],
-            )
+    from gradio_helper import make_demo
+
+    demo = make_demo(fn=inference)
 
     try:
         demo.launch(debug=False)
@@ -1016,21 +936,7 @@ Interactive demo
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
 
+.. code:: ipython3
 
-.. parsed-literal::
-
-    Running on local URL:  http://127.0.0.1:7860
-
-    To create a public link, set `share=True` in `launch()`.
-
-
-
-
-
-
-
-
-.. parsed-literal::
-
-    Keyboard interruption in main thread... closing server.
-
+    # please uncomment and run this cell for stopping gradio interface
+    # demo.close()

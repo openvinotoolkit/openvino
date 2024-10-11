@@ -65,6 +65,16 @@ if(X86_64 OR X86 OR UNIVERSAL2)
 endif()
 
 #
+# LevelZero
+#
+
+if(ENABLE_INTEL_NPU)
+    add_subdirectory(thirdparty/level_zero EXCLUDE_FROM_ALL)
+
+    add_library(LevelZero::LevelZero ALIAS ze_loader)
+endif()
+
+#
 # OpenCL
 #
 
@@ -274,7 +284,7 @@ endif()
 # Gflags
 #
 
-if(ENABLE_SAMPLES OR ENABLE_TESTS)
+if(ENABLE_SAMPLES OR ENABLE_TESTS OR ENABLE_INTEL_NPU_INTERNAL)
     add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
     ov_developer_package_export_targets(TARGET gflags)
 endif()
@@ -358,7 +368,7 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
         if(ENABLE_SYSTEM_PROTOBUF)
             set(link_type INTERFACE)
         endif()
-        if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR OV_COMPILER_IS_INTEL_LLVM)
+        if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
             get_target_property(original_name ${target_name} ALIASED_TARGET)
             if(TARGET ${original_name})
                 # during build protobuf's cmake creates aliased targets
@@ -452,11 +462,13 @@ if(ENABLE_SNAPPY_COMPRESSION)
                 ov_add_compiler_flags(/wd4245)
                 # 'var' : conversion from 'size_t' to 'type', possible loss of data
                 ov_add_compiler_flags(/wd4267)
-            elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR OV_COMPILER_IS_INTEL_LLVM)
+            elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
                 # we need to pass -Wextra first, then -Wno-sign-compare
                 # otherwise, snappy's CMakeLists.txt will do it for us
                 ov_add_compiler_flags(-Wextra)
                 ov_add_compiler_flags(-Wno-sign-compare)
+            elseif(OV_COMPILER_IS_INTEL_LLVM AND WIN32)
+                ov_add_compiler_flags(/WX-)
             endif()
 
             add_subdirectory(thirdparty/snappy EXCLUDE_FROM_ALL)
@@ -539,23 +551,14 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags
         PATTERN src/gflags_completions.sh EXCLUDE
         PATTERN WORKSPACE EXCLUDE)
 
-file(GLOB zlib_sources ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zlib/zlib/*.c
-                        ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zlib/zlib/*.h)
-install(FILES ${zlib_sources}
-        DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty/zlib/zlib
-        COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
-        ${OV_CPACK_COMP_CPP_SAMPLES_EXCLUDE_ALL})
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zlib/CMakeLists.txt
-        DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty/zlib
-        COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
-        ${OV_CPACK_COMP_CPP_SAMPLES_EXCLUDE_ALL})
-
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/json/nlohmann_json
         DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
         COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
         ${OV_CPACK_COMP_CPP_SAMPLES_EXCLUDE_ALL}
+        PATTERN BUILD.bazel EXCLUDE
         PATTERN ChangeLog.md EXCLUDE
         PATTERN CITATION.cff EXCLUDE
+        PATTERN .cirrus.yml EXCLUDE
         PATTERN .clang-format EXCLUDE
         PATTERN .clang-tidy EXCLUDE
         PATTERN docs EXCLUDE
@@ -565,16 +568,13 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/json/nlohmann_json
         PATTERN .lgtm.yml EXCLUDE
         PATTERN Makefile EXCLUDE
         PATTERN meson.build EXCLUDE
+        PATTERN Package.swift EXCLUDE
         PATTERN README.md EXCLUDE
         PATTERN .reuse EXCLUDE
         PATTERN tests EXCLUDE
         PATTERN tools EXCLUDE
+        PATTERN WORKSPACE.bazel EXCLUDE
         PATTERN wsjcpp.yml EXCLUDE)
-
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/cnpy
-        DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
-        COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
-        ${OV_CPACK_COMP_CPP_SAMPLES_EXCLUDE_ALL})
 
 # restore state
 

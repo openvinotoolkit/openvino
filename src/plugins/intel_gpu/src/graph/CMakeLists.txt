@@ -4,6 +4,7 @@
 
 set(TARGET_NAME "openvino_intel_gpu_graph")
 
+file(GLOB_RECURSE SYCL_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/impls/sycl/*")
 file(GLOB_RECURSE LIBRARY_SRC
     "${INCLUDE_DIR}/*.h"
     "${INCLUDE_DIR}/*.hpp"
@@ -22,6 +23,10 @@ if (NOT ENABLE_ONEDNN_FOR_GPU)
     endforeach(SOURCE_FILE)
 endif()
 
+if(NOT OV_COMPILER_IS_INTEL_LLVM)
+    list(REMOVE_ITEM LIBRARY_SRC ${SYCL_SOURCES})
+endif()
+
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC})
 
 target_include_directories(${TARGET_NAME} PUBLIC
@@ -32,6 +37,11 @@ target_include_directories(${TARGET_NAME} PUBLIC
 
 target_compile_options(${TARGET_NAME} PRIVATE
   $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os>>)
+
+if(OV_COMPILER_IS_INTEL_LLVM)
+    add_sycl_to_target(TARGET ${TARGET_NAME} SOURCES ${SYCL_SOURCES})
+    target_compile_definitions(${TARGET_NAME} PUBLIC OV_GPU_WITH_SYCL)
+endif()
 
 target_link_libraries(${TARGET_NAME} PUBLIC OpenCL::OpenCL openvino::shape_inference)
 target_link_libraries(${TARGET_NAME} PRIVATE openvino_intel_gpu_kernels

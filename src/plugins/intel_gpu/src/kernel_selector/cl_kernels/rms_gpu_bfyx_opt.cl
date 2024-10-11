@@ -6,10 +6,6 @@
 #include "include/batch_headers/sub_group_block_read.cl"
 #include "include/batch_headers/sub_group_block_write.cl"
 
-#if IS_DYNAMIC
-#define CALC_POWER(n) ({uint pos = 0; uint i = n; do { i >>= 1; ++pos; } while (i); --pos;})
-#endif
-
 // Check alignment restrictions for using block writes on output.
 #define USE_BLOCK_WRITE ((OUTPUT_TYPE_SIZE * OUTPUT_FEATURE_PITCH) & 0xF == 0)
 
@@ -36,14 +32,9 @@ KERNEL(rms_gpu_bfyx_opt)(
     const uint in_data_idx = get_global_id(0);
     const uint workers_per_data = LWS;
     const uint data_size = DATA_SIZE;
-#if !IS_DYNAMIC
-    const uint items_num = ITEMS_NUM; 
-    const uint leftovers = LEFTOVERS;
-#else
-    const uint power = CALC_POWER(workers_per_data);
-    const uint items_num = data_size >> power;
-    const uint leftovers = data_size - (items_num << power);
-#endif
+    const uint items_num = data_size / workers_per_data;
+    const uint leftovers = data_size % workers_per_data;
+
     const uint data_offset = data_idx * data_size;
     const uint subgroup_offset = get_sub_group_id() * get_sub_group_size() * items_num;
 
@@ -92,12 +83,15 @@ KERNEL(rms_gpu_bfyx_opt)(
         slm_buf[get_sub_group_id()] = rms;
 
     barrier(CLK_LOCAL_MEM_FENCE);
-    if (in_data_idx == 0) {
-        for (uint i = 1; i < get_num_sub_groups(); ++i)
-        {
-            rms += slm_buf[i];
+    for (uint offset = get_num_sub_groups() / 2; offset > 0; offset /= 2) {
+        if (in_data_idx < offset) {
+            slm_buf[in_data_idx] += slm_buf[in_data_idx + offset];
         }
-        rms = rms / data_size;
+        barrier(CLK_LOCAL_MEM_FENCE);
+    }
+
+    if (in_data_idx == 0) {
+        rms = slm_buf[0] / data_size;
         slm_buf[0] = native_powr(sqrt(rms + TO_ACCUMULATOR_TYPE(EPSILON)), -1);
     }
     barrier(CLK_LOCAL_MEM_FENCE);
@@ -133,9 +127,6 @@ KERNEL(rms_gpu_bfyx_opt)(
         output[data_offset + workers_per_data * items_num + in_data_idx] = TO_OUTPUT_TYPE(rms * TO_ACCUMULATOR_TYPE(data[items_num]) * TO_ACCUMULATOR_TYPE(temp));
     }
 }
-#ifdef CALC_POWER
-#undef CALC_POWER
-#endif
 #undef USE_BLOCK_WRITE
 #undef BLOCK_READ
 #undef BLOCK_WRITE

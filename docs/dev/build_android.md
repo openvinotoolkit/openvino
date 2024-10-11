@@ -37,6 +37,7 @@ _For Windows and Mac operating systems, the downloading and unpacking steps are 
 
 ### Set the environment variables for building
   ```sh
+  # If you have no android devices please set CURRENT_ANDROID_ABI according to your preferences e.g. export CURRENT_ANDROID_ABI=arm64-v8a
   export CURRENT_ANDROID_ABI=`$ANDROID_TOOLS_PATH/adb shell getprop ro.product.cpu.abi`
   export CURRENT_ANDROID_PLATFORM=30
   export CURRENT_ANDROID_STL=c++_shared

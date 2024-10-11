@@ -11,6 +11,7 @@
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/subtract.hpp"
+#include "utils/common.hpp"
 #include "utils/reshape.hpp"
 using namespace ov::op;
 using ov::Shape;
@@ -167,7 +168,9 @@ ov::OutputVector quantize_linear(ov::Output<ov::Node> x,
 
     const auto& x_shape = x.get_partial_shape();
 
-    axis = ov::util::normalize_axis(node.get_description(), axis, x_shape.rank());
+    if (x_shape.rank().is_static()) {
+        axis = common::normalize_axis(node.get_description(), axis, x_shape.rank());
+    }
 
     const auto& y_scale_shape = y_scale.get_partial_shape();
     const auto& y_zero_point_shape = y_zero_point.get_partial_shape();

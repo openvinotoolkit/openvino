@@ -27,6 +27,7 @@ The tutorial consists from following steps:
 -  Prepare OpenVINO-based inference pipeline
 -  Run OpenVINO model
 
+
 **Table of contents:**
 
 
@@ -57,6 +58,16 @@ The tutorial consists from following steps:
 
 -  `Interactive demo <#interactive-demo>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 About model
 -----------
 
@@ -83,30 +94,49 @@ Install required dependencies
 
 .. code:: ipython3
 
-    %pip install -q torch "torchvision<0.17.0" "transformers>=4.31.0,<4.35.0" "pytorchvideo" "einops" "peft==0.6.2" --extra-index-url https://download.pytorch.org/whl/cpu
-    %pip install -q opencv_python decord sentencepiece protobuf "openvino>=2023.2.0" "nncf>=2.7.0" "gradio>=4.19"
+    %pip install -q torch "torchvision<0.17.0" "transformers>=4.31.0,<4.35.0" "pytorchvideo" "einops" "peft==0.6.2"  "huggingface-hub>=0.23.0" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q opencv_python sentencepiece protobuf "openvino>=2024.2.0" "nncf>=2.11.0" "gradio>=4.19"
 
 .. code:: ipython3
 
     from pathlib import Path
     import sys
-
+    
     repo_dir = Path("Video-LLaVA")
-
+    
     if not repo_dir.exists():
         !git clone https://github.com/PKU-YuanGroup/Video-LLaVA.git
-
+        # decord lib is not supported on macos, for overcome this limitation, we will use opencv for video processing
+        video_cfg_path = repo_dir / "videollava/model/multimodal_encoder/languagebind/video/configuration_video.py"
+        orig_video_cfg_path = video_cfg_path.parent / ("orig_" + video_cfg_path.name)
+        video_processor_path = repo_dir / "videollava/model/multimodal_encoder/languagebind/video/processing_video.py"
+        orig_video_processor_path = video_processor_path.parent / ("orig_" + video_processor_path.name)
+    
+        if not orig_video_cfg_path.exists():
+            video_cfg_path.rename(orig_video_cfg_path)
+    
+            with orig_video_cfg_path.open("r") as f:
+                data = f.read()
+                data = data.replace("decord", "opencv")
+                with video_cfg_path.open("w") as out_f:
+                    out_f.write(data)
+    
+            if not orig_video_processor_path.exists():
+                video_processor_path.rename(orig_video_processor_path)
+    
+            with orig_video_processor_path.open("r") as f:
+                data = f.read()
+                data = data.replace("import decord", "")
+                data = data.replace("from decord import VideoReader, cpu", "")
+                data = data.replace("decord.bridge.set_bridge('torch')", "")
+                with video_processor_path.open("w") as out_f:
+                    out_f.write(data)
     sys.path.insert(0, str(repo_dir.resolve()))
-
-.. container:: alert alert-block alert-warning
-
-   Warning: this tutorial requires the ffmpeg package. To install it for
-   your system, visit the official FFmpeg download page.
 
 .. code:: ipython3
 
     import gc
-
+    
     import transformers
     from videollava.model import LlavaLlamaForCausalLM
     from videollava.constants import (
@@ -118,73 +148,35 @@ Install required dependencies
         DEFAULT_VID_END_TOKEN,
         DEFAULT_IMAGE_TOKEN,
     )
-
+    from videollava.model.multimodal_encoder.languagebind import config_dict
+    from videollava.model.multimodal_encoder.languagebind import transform_dict
+    
     transformers.logging.set_verbosity_error()
-
+    
     model_id = "LanguageBind/Video-LLaVA-7B"
-
+    
     config = transformers.AutoConfig.from_pretrained(model_id)
-
+    
+    image_cfg = config_dict["image"].from_pretrained("LanguageBind/LanguageBind_Image", "./cache_dir")
+    image_processor = transform_dict["image"](image_cfg)
+    
+    video_cfg = config_dict["video"].from_pretrained("LanguageBind/LanguageBind_Video_merge", "./cache_dir")
+    video_processor = transform_dict["video"](video_cfg)
+    
     tokenizer = transformers.AutoTokenizer.from_pretrained(model_id)
-    model = LlavaLlamaForCausalLM.from_pretrained(model_id)
-    image_tower = model.get_image_tower()
-    video_tower = model.get_video_tower()
-    image_tower.load_model()
-    video_tower.load_model()
-    image_processor = image_tower.image_processor
-    video_processor = video_tower.video_processor
     mm_use_im_start_end = getattr(config, "mm_use_im_start_end", False)
     mm_use_im_patch_token = getattr(config, "mm_use_im_patch_token", True)
+    
+    if hasattr(config, "max_sequence_length"):
+        context_len = config.max_sequence_length
+    else:
+        context_len = 2048
     if mm_use_im_patch_token:
         tokenizer.add_tokens([DEFAULT_IMAGE_PATCH_TOKEN], special_tokens=True)
         tokenizer.add_tokens([DEFAULT_VIDEO_PATCH_TOKEN], special_tokens=True)
     if mm_use_im_start_end:
         tokenizer.add_tokens([DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN], special_tokens=True)
         tokenizer.add_tokens([DEFAULT_VID_START_TOKEN, DEFAULT_VID_END_TOKEN], special_tokens=True)
-    preprocess_fn = model.prepare_inputs_labels_for_multimodal
-
-    del model
-    gc.collect()
-
-
-.. parsed-literal::
-
-    /home/itrushkin/.virtualenvs/videollava/lib/python3.10/site-packages/torch/cuda/__init__.py:611: UserWarning: Can't initialize NVML
-      warnings.warn("Can't initialize NVML")
-    /home/itrushkin/.virtualenvs/videollava/lib/python3.10/site-packages/torch/cuda/__init__.py:740: UserWarning: CUDA initialization: Unexpected error from cudaGetDeviceCount(). Did you run some cuda functions before calling NumCudaDevices() that might have already set an error? Error 804: forward compatibility was attempted on non supported HW (Triggered internally at ../c10/cuda/CUDAFunctions.cpp:108.)
-      return torch._C._cuda_getDeviceCount() if nvml_count < 0 else nvml_count
-    /home/itrushkin/.virtualenvs/videollava/lib/python3.10/site-packages/bitsandbytes/cextension.py:34: UserWarning: The installed version of bitsandbytes was compiled without GPU support. 8-bit optimizers, 8-bit multiplication, and GPU quantization are unavailable.
-      warn("The installed version of bitsandbytes was compiled without GPU support. "
-
-
-.. parsed-literal::
-
-    /home/itrushkin/.virtualenvs/videollava/lib/python3.10/site-packages/bitsandbytes/libbitsandbytes_cpu.so: undefined symbol: cadam32bit_grad_fp32
-
-
-.. parsed-literal::
-
-    /home/itrushkin/.virtualenvs/videollava/lib/python3.10/site-packages/torchvision/io/image.py:13: UserWarning: Failed to load image Python extension: /home/itrushkin/.virtualenvs/videollava/lib/python3.10/site-packages/torchvision/image.so: undefined symbol: _ZN3c104cuda20CUDACachingAllocator12recordStreamERKNS_7DataPtrENS0_10CUDAStreamE
-      warn(f"Failed to load image Python extension: {e}")
-    /home/itrushkin/.virtualenvs/videollava/lib/python3.10/site-packages/torchvision/transforms/_functional_video.py:6: UserWarning: The 'torchvision.transforms._functional_video' module is deprecated since 0.12 and will be removed in 0.14. Please use the 'torchvision.transforms.functional' module instead.
-      warnings.warn(
-    /home/itrushkin/.virtualenvs/videollava/lib/python3.10/site-packages/torchvision/transforms/_transforms_video.py:25: UserWarning: The 'torchvision.transforms._transforms_video' module is deprecated since 0.12 and will be removed in 0.14. Please use the 'torchvision.transforms' module instead.
-      warnings.warn(
-
-
-
-.. parsed-literal::
-
-    Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]
-
-
-
-
-.. parsed-literal::
-
-    29
-
-
 
 Build model and convert it to OpenVINO IR format
 ------------------------------------------------
@@ -247,13 +239,13 @@ on disk using ``ov.save_model``.
     import openvino as ov
     import nncf
     from typing import Optional, Tuple, List
-
-
+    
+    
     class ModelWrapper(torch.nn.Module):
         def __init__(self, model):
             super().__init__()
             self.model = model
-
+    
         def forward(
             self,
             input_ids: torch.LongTensor = None,
@@ -272,13 +264,13 @@ on disk using ``ov.save_model``.
                 output_hidden_states=False,
                 return_dict=True,
             )
-
+    
             hidden_states = outputs[0]
             logits = self.model.lm_head(hidden_states)
-
+    
             return (logits, outputs.past_key_values)
-
-
+    
+    
     def set_node_names(ov_model, input_names=None, output_names=None):
         if input_names is not None:
             for inp, name in zip(ov_model.inputs, input_names):
@@ -286,10 +278,10 @@ on disk using ``ov.save_model``.
         if output_names is not None:
             for out, name in zip(ov_model.outputs, output_names):
                 out.get_tensor().set_names({name})
-
+    
         ov_model.validate_nodes_and_infer_types()
-
-
+    
+    
     def cleanup_torchscript_cache():
         """
         Helper for removing cached model representation
@@ -297,31 +289,26 @@ on disk using ``ov.save_model``.
         torch._C._jit_clear_class_registry()
         torch.jit._recursive.concrete_type_store = torch.jit._recursive.ConcreteTypeStore()
         torch.jit._state._clear_class_state()
-
-
+    
+    
     def convert_videollava(
         pt_model: torch.nn.Module,
-        model_path: Path,
         videollava_wc_parameters: Optional[dict] = None,
     ):
         """
         Video-LLaVA model conversion function
-
+    
         Params:
           pt_model: PyTorch model
           model_path: path for saving model
         Returns:
           None
         """
-        ov_out_path = Path(model_path)
-        pt_model.config.save_pretrained(ov_out_path)
         pt_model.config.use_cache = True
         pt_model.config.torchscript = True
         wrapped = ModelWrapper(pt_model)
-        first_stage_model_path = ov_out_path / "videollava_input_embed.xml"
-        second_stage_model_path = ov_out_path / "videollava_with_past.xml"
-
-        if first_stage_model_path.exists() and second_stage_model_path.exists():
+    
+        if input_embed_model_path.exists() and image_encoder.exists() and video_encoder.exists() and model_path.exists():
             print("Video-LLaVA model successfully converted")
             del pt_model
             return
@@ -330,39 +317,52 @@ on disk using ``ov.save_model``.
             "attention_mask": torch.ones((1, 307), dtype=torch.long),
         }
         outs = wrapped(**example_input_first_stage)
-        input_names = ["input_ids", "attention_mask"]
+        input_names = ["attention_mask"]
         output_names = ["logits"]
         for idx in range(len(outs[1])):
             input_names.extend([f"past_key_values.{idx}.key", f"past_key_values.{idx}.value"])
             output_names.extend([f"present.{idx}.key", f"present.{idx}.value"])
-
-        if not first_stage_model_path.exists():
-            ov_model = ov.convert_model(wrapped, example_input=example_input_first_stage)
-            set_node_names(ov_model, output_names=output_names)
-            if videollava_wc_parameters is not None:
-                print("Applying weight compression to first stage Video-LLaVA model")
-                ov_model = nncf.compress_weights(ov_model, **videollava_wc_parameters)
-            ov.save_model(ov_model, first_stage_model_path)
+        input_names.append("inputs_embeds")
+    
+        if not input_embed_model_path.exists():
+            ov_model = ov.convert_model(wrapped.model.model.embed_tokens, example_input=torch.ones([1, 10], dtype=torch.int64))
+            ov.save_model(ov_model, input_embed_model_path)
             cleanup_torchscript_cache()
             del ov_model
             gc.collect()
-
-        if not second_stage_model_path.exists():
+    
+        if not model_path.exists():
             example_input_second_stage = {
-                "input_ids": torch.ones((1, 1), dtype=torch.long),
-                "attention_mask": torch.ones((1, outs[1][-1][-1].shape[-2] + 1), dtype=torch.long),
+                "inputs_embeds": torch.ones((1, 2, 4096)),
+                "attention_mask": torch.ones((1, outs[1][-1][-1].shape[-2] + 2), dtype=torch.long),
                 "past_key_values": outs[1],
             }
             ov_model = ov.convert_model(wrapped, example_input=example_input_second_stage)
             set_node_names(ov_model, input_names, output_names)
-
+    
             if videollava_wc_parameters is not None:
                 print("Applying weight compression to second stage Video-LLaVA model")
                 ov_model = nncf.compress_weights(ov_model, **videollava_wc_parameters)
-            ov.save_model(ov_model, second_stage_model_path)
+            ov.save_model(ov_model, model_path)
             cleanup_torchscript_cache()
             del ov_model
             gc.collect()
+        if not image_encoder_path.exists():
+            pt_model.forward = pt_model.encode_images
+            ov_model = ov.convert_model(
+                pt_model,
+                example_input=torch.zeros((1, 3, 224, 224)),
+                input=[(-1, 3, 224, 224)],
+            )
+            ov.save_model(ov_model, image_encoder_path)
+        if not video_encoder_path.exists():
+            pt_model.forward = pt_model.encode_videos
+            ov_model = ov.convert_model(
+                pt_model,
+                example_input=torch.zeros((1, 3, 16, 224, 224)),
+                input=[(-1, 3, -1, 224, 224)],
+            )
+            ov.save_model(ov_model, video_encoder_path)
         print("Video-LLaVA model successfully converted")
         del wrapped
         del pt_model
@@ -370,7 +370,7 @@ on disk using ``ov.save_model``.
 
 .. parsed-literal::
 
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, openvino
+    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
 
 
 Convert and Optimize Model
@@ -452,14 +452,14 @@ compression instead of INT8 weight compression.
 .. code:: ipython3
 
     import ipywidgets as widgets
-
+    
     compression_mode = widgets.Dropdown(
         options=["INT4", "INT8"],
         value="INT4",
         description="Compression mode:",
         disabled=False,
     )
-
+    
     compression_mode
 
 
@@ -479,28 +479,28 @@ compression instead of INT8 weight compression.
     else:
         compressed_model_dir = Path("videollava/INT8_compressed_weights")
         videollava_wc_parameters = dict(mode=nncf.CompressWeightsMode.INT8)
-
-    if not compressed_model_dir.exists():
-        compressed_model_dir.mkdir(exist_ok=True, parents=True)
+    
+    input_embed_model_path = compressed_model_dir / "input_embed.xml"
+    video_encoder_path = compressed_model_dir / "video_encoder.xml"
+    image_encoder_path = compressed_model_dir / "image_encoder.xml"
+    model_path = compressed_model_dir / "videollava.xml"
+    compressed_model_dir.mkdir(exist_ok=True, parents=True)
+    
+    if not all([input_embed_model_path.exists(), video_encoder_path.exists(), image_encoder_path.exists(), model_path.exists()]):
         model = LlavaLlamaForCausalLM.from_pretrained(model_id)
         model.resize_token_embeddings(len(tokenizer))
-
-        if hasattr(config, "max_sequence_length"):
-            context_len = config.max_sequence_length
-        else:
-            context_len = 2048
+        model.config.save_pretrained(compressed_model_dir)
         image_tower = model.get_image_tower()
         if not image_tower.is_loaded:
             image_tower.load_model()
         video_tower = model.get_video_tower()
         if not video_tower.is_loaded:
             video_tower.load_model()
-
+    
         model.eval()
         with torch.no_grad():
             convert_videollava(
                 model,
-                compressed_model_dir,
                 videollava_wc_parameters=videollava_wc_parameters,
             )
         del model
@@ -515,62 +515,42 @@ compression instead of INT8 weight compression.
 
 .. parsed-literal::
 
-    WARNING:nncf:NNCF provides best results with torch==2.1.0, while current torch version is 2.1.2+cu121. If you encounter issues, consider switching to torch==2.1.0
-    Applying weight compression to first stage Video-LLaVA model
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/transformers/generation/configuration_utils.py:362: UserWarning: `do_sample` is set to `False`. However, `temperature` is set to `0.9` -- this flag is only used in sample-based generation modes. You should set `do_sample=True` or unset `temperature`. This was detected when initializing the generation config instance, which means the corresponding file may hold incorrect parameterization and should be fixed.
+      warnings.warn(
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/transformers/generation/configuration_utils.py:367: UserWarning: `do_sample` is set to `False`. However, `top_p` is set to `0.6` -- this flag is only used in sample-based generation modes. You should set `do_sample=True` or unset `top_p`. This was detected when initializing the generation config instance, which means the corresponding file may hold incorrect parameterization and should be fixed.
+      warnings.warn(
 
 
 .. parsed-literal::
 
-    INFO:nncf:Statistics of the bitwidth distribution:
-    +--------------+-----------------+--------------------+
-    | Num bits (N) |  % all weight   | % internal weights |
-    +==============+=================+====================+
-    | 8            | 22% (58 / 225)  | 20% (56 / 223)     |
-    +--------------+-----------------+--------------------+
-    | 4            | 78% (167 / 225) | 80% (167 / 223)    |
-    +--------------+-----------------+--------------------+
-
+    WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
 
 
 .. parsed-literal::
 
-    Output()
+    [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
 
 
+.. parsed-literal::
+
+    WARNING:nncf:NNCF provides best results with torch==2.3.*, while current torch version is 2.1.2+cpu. If you encounter issues, consider switching to torch==2.3.*
 
 
+.. parsed-literal::
 
-
-
-
-
-
-
-
-
-
-
+    No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/transformers/models/llama/modeling_llama.py:595: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if input_shape[-1] > 1:
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/transformers/models/llama/modeling_llama.py:55: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if past_key_values_length > 0:
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/transformers/models/llama/modeling_llama.py:119: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if seq_len > self.max_seq_len_cached:
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/transformers/models/llama/modeling_llama.py:348: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if attn_weights.size() != (bsz, self.num_heads, q_len, kv_seq_len):
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/transformers/models/llama/modeling_llama.py:355: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if attention_mask.size() != (bsz, 1, q_len, kv_seq_len):
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/transformers/models/llama/modeling_llama.py:365: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if attn_output.size() != (bsz, self.num_heads, q_len, self.head_dim):
 
 
 .. parsed-literal::
@@ -602,13 +582,13 @@ compression instead of INT8 weight compression.
 .. parsed-literal::
 
     INFO:nncf:Statistics of the bitwidth distribution:
-    +--------------+-----------------+--------------------+
-    | Num bits (N) |  % all weight   | % internal weights |
-    +==============+=================+====================+
-    | 8            | 23% (58 / 226)  | 20% (56 / 224)     |
-    +--------------+-----------------+--------------------+
-    | 4            | 77% (168 / 226) | 80% (168 / 224)    |
-    +--------------+-----------------+--------------------+
+    ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
+    │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
+    ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
+    │              8 │ 22% (57 / 225)              │ 20% (56 / 224)                         │
+    ├────────────────┼─────────────────────────────┼────────────────────────────────────────┤
+    │              4 │ 78% (168 / 225)             │ 80% (168 / 224)                        │
+    ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
 
 
 
@@ -630,6 +610,14 @@ compression instead of INT8 weight compression.
 
 
 
+
+
+.. parsed-literal::
+
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:287: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if attn_weights.size() != (bsz * self.num_heads, tgt_len, src_len):
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:327: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if attn_output.size() != (bsz * self.num_heads, tgt_len, self.head_dim):
 
 
 .. parsed-literal::
@@ -656,12 +644,15 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
     from transformers.modeling_outputs import CausalLMOutputWithPast
     import numpy as np
     import torch
-
-
+    from videollava.constants import IMAGE_TOKEN_INDEX
+    
+    
     class OVLlavaLlamaForCausalLM(GenerationMixin):
         def __init__(self, core, model_dir, device):
-            self.model = core.read_model(model_dir / "videollava_with_past.xml")
-            self.model_input_embed = core.compile_model(model_dir / "videollava_input_embed.xml", device)
+            self.model = core.read_model(model_dir / "videollava.xml")
+            self.model_input_embed = core.compile_model(model_dir / "input_embed.xml", device)
+            self.image_encoder_model = core.compile_model(model_dir / "image_encoder.xml", device)
+            self.video_encoder_model = core.compile_model(model_dir / "video_encoder.xml", device)
             self.input_names = {key.get_any_name(): idx for idx, key in enumerate(self.model.inputs)}
             self.output_names = {key.get_any_name(): idx for idx, key in enumerate(self.model.outputs)}
             self.key_value_input_names = [key for key in self.input_names if "key_values" in key]
@@ -674,11 +665,23 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
             self.device = torch.device("cpu")
             self.num_pkv = 2
             self._supports_cache_class = False
-
+    
         def can_generate(self):
             """Returns True to validate the check that the model using `GenerationMixin.generate()` can indeed generate."""
             return True
-
+    
+        def embed_tokens(self, input_ids):
+            res = self.model_input_embed(input_ids)[0]
+            return torch.from_numpy(res)
+    
+        def encode_images(self, images):
+            res = self.image_encoder_model(images)[0]
+            return torch.from_numpy(res)
+    
+        def encode_videos(self, videos):
+            res = self.video_encoder_model(videos)[0]
+            return torch.from_numpy(res)
+    
         def __call__(
             self,
             input_ids: torch.LongTensor,
@@ -689,64 +692,164 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
             **kwargs,
         ) -> CausalLMOutputWithPast:
             return self.forward(input_ids, images, attention_mask, prefix_mask, past_key_values)
-
+    
         def forward(
             self,
             input_ids: torch.LongTensor,
-            images: torch.Tensor,
+            images: Optional[torch.Tensor] = None,
             attention_mask: Optional[torch.LongTensor] = None,
             prefix_mask: Optional[torch.LongTensor] = None,
             past_key_values: Optional[Tuple[Tuple[torch.FloatTensor]]] = None,
             **kwargs,
         ) -> CausalLMOutputWithPast:
             """General inference method"""
-            inputs = {}
-            if past_key_values is not None:
-                # Flatten the past_key_values
-                attention_mask = torch.ones(
-                    (input_ids.shape[0], past_key_values[-1][-1].shape[-2] + 1),
-                    dtype=input_ids.dtype,
-                )
-                past_key_values = (past_key_value for pkv_per_layer in past_key_values for past_key_value in pkv_per_layer)
-                # Add the past_key_values to the decoder inputs
-                inputs = dict(zip(self.key_value_input_names, past_key_values))
-
-            else:
-                return self.forward_with_image(input_ids, images, attention_mask)
-            inputs["input_ids"] = np.array(input_ids)
-
-            if "attention_mask" in self.input_names:
-                inputs["attention_mask"] = np.array(attention_mask)
-
+    
+            inputs = self.prepare_inputs_for_multimodal(input_ids, images, attention_mask, past_key_values)
             # Run inference
             self.request.start_async(inputs, share_inputs=True)
             self.request.wait()
-
+    
             logits = torch.from_numpy(self.request.get_tensor("logits").data)
-
+    
             # Tuple of length equal to : number of layer * number of past_key_value per decoder layer (2 corresponds to the self-attention layer)
             past_key_values = tuple(self.request.get_tensor(key).data for key in self.key_value_output_names)
             # Tuple of tuple of length `n_layers`, with each tuple of length equal to 2 (k/v of self-attention)
-
+    
             past_key_values = tuple(past_key_values[i : i + self.num_pkv] for i in range(0, len(past_key_values), self.num_pkv))
             return CausalLMOutputWithPast(logits=logits, past_key_values=past_key_values)
-
-        def forward_with_image(self, input_ids, images, attention_mask):
-            """First step inference method, that resolves multimodal data"""
-            _, _, attention_mask, _, input_embeds, _ = preprocess_fn(
-                input_ids=input_ids,
-                position_ids=None,
-                attention_mask=attention_mask,
-                past_key_values=None,
-                labels=None,
-                images=images,
-            )
-            outs = self.model_input_embed({"inputs_embeds": input_embeds, "attention_mask": attention_mask})
-            logits = outs[0]
-            pkv = list(outs.values())[1:]
-            pkv = tuple(pkv[i : i + self.num_pkv] for i in range(0, len(pkv), self.num_pkv))
-            return CausalLMOutputWithPast(logits=torch.from_numpy(logits), past_key_values=pkv)
-
+    
+        def prepare_inputs_for_multimodal(self, input_ids, images, attention_mask, past_key_values):
+            if images is None or input_ids.shape[1] == 1:
+                if past_key_values is not None and images is not None and input_ids.shape[1] == 1:
+                    target_shape = past_key_values[-1][-1].shape[-2] + 1
+                    attention_mask = torch.cat(
+                        (
+                            attention_mask,
+                            torch.ones((attention_mask.shape[0], target_shape - attention_mask.shape[1]), dtype=attention_mask.dtype, device=attention_mask.device),
+                        ),
+                        dim=1,
+                    )
+    
+                past_key_values = (past_key_value for pkv_per_layer in past_key_values for past_key_value in pkv_per_layer)
+                inputs = dict(zip(self.key_value_input_names, past_key_values))
+                inputs_embeds = self.embed_tokens(input_ids)
+                inputs["inputs_embeds"] = inputs_embeds
+                inputs["attention_mask"] = attention_mask
+    
+                return inputs
+    
+            image_idx = [idx for idx, img in enumerate(images) if img.ndim == 3]
+            video_idx = [idx for idx, vid in enumerate(images) if vid.ndim == 4]
+            images_minibatch = torch.stack([images[idx] for idx in image_idx]) if len(image_idx) > 0 else []  # mini_b c h w
+            videos_minibatch = torch.stack([images[idx] for idx in video_idx]) if len(video_idx) > 0 else []  # mini_b c t h w
+    
+            tmp_image_features = [None] * (len(image_idx) + len(video_idx))
+            if getattr(images_minibatch, "ndim", 0) == 4:  # batch consists of images, [mini_b, c, h, w]
+                image_features_minibatch = self.encode_images(images_minibatch)  # [mini_b, l, c]
+                for i, pos in enumerate(image_idx):
+                    tmp_image_features[pos] = image_features_minibatch[i]
+    
+            if getattr(videos_minibatch, "ndim", 0) == 5:  # batch consists of videos, [mini_b, c, t, h, w]
+                video_features_minibatch = self.encode_videos(videos_minibatch)  # fake list [mini_b, t, l, c]
+                for i, pos in enumerate(video_idx):
+                    t = video_features_minibatch[i].shape[0]
+                    tmp_image_features[pos] = [video_features_minibatch[i][j] for j in range(t)]
+    
+            new_tmp = []
+            for image in tmp_image_features:
+                # print(len(new_tmp), len(image))
+                if isinstance(image, list):
+                    t = len(image)
+                    for i in range(t):
+                        new_tmp.append(image[i])
+                    # print('add video')
+                else:
+                    new_tmp.append(image)
+            image_features = new_tmp
+    
+            if attention_mask is None:
+                attention_mask = torch.ones_like(input_ids, dtype=torch.bool)
+            else:
+                attention_mask = attention_mask.bool()
+    
+            # remove the padding using attention_mask -- TODO: double check
+            input_ids = [cur_input_ids[cur_attention_mask] for cur_input_ids, cur_attention_mask in zip(input_ids, attention_mask)]
+    
+            new_input_embeds = []
+            cur_image_idx = 0
+            for batch_idx, cur_input_ids in enumerate(input_ids):
+                num_images = (cur_input_ids == IMAGE_TOKEN_INDEX).sum()
+                # print(num_images, cur_input_ids)
+                if num_images == 0:
+                    cur_image_features = image_features[cur_image_idx]
+                    cur_input_embeds_1 = self.embed_tokens(cur_input_ids.unsqueeze(0))[0]
+                    cur_input_embeds = torch.cat([cur_input_embeds_1, cur_image_features[0:0]], dim=0)
+                    new_input_embeds.append(cur_input_embeds)
+                    cur_image_idx += 1
+                    continue
+    
+                image_token_indices = [-1] + torch.where(cur_input_ids == IMAGE_TOKEN_INDEX)[0].tolist() + [cur_input_ids.shape[0]]
+                cur_input_ids_noim = []
+                for i in range(len(image_token_indices) - 1):
+                    cur_input_ids_noim.append(cur_input_ids[image_token_indices[i] + 1 : image_token_indices[i + 1]])
+                split_sizes = [x.shape[0] for x in cur_input_ids_noim]
+                cur_input_embeds = self.embed_tokens(torch.cat(cur_input_ids_noim).unsqueeze(0))[0]
+                cur_input_embeds_no_im = torch.split(cur_input_embeds, split_sizes, dim=0)
+                cur_new_input_embeds = []
+    
+                for i in range(num_images + 1):
+                    cur_new_input_embeds.append(cur_input_embeds_no_im[i])
+                    if i < num_images:
+                        cur_image_features = image_features[cur_image_idx]
+                        cur_image_idx += 1
+                        cur_new_input_embeds.append(cur_image_features)
+    
+                cur_new_input_embeds = torch.cat(cur_new_input_embeds)
+    
+                new_input_embeds.append(cur_new_input_embeds)
+            # Truncate sequences to max length as image embeddings can make the sequence longer
+            tokenizer_model_max_length = getattr(self.config, "tokenizer_model_max_length", None)
+            if tokenizer_model_max_length is not None:
+                new_input_embeds = [x[:tokenizer_model_max_length] for x in new_input_embeds]
+    
+            # Combine them
+            max_len = max(x.shape[0] for x in new_input_embeds)
+            batch_size = len(new_input_embeds)
+    
+            new_input_embeds_padded = []
+            attention_mask = torch.zeros((batch_size, max_len), dtype=attention_mask.dtype, device=attention_mask.device)
+            for i, cur_new_embed in enumerate(new_input_embeds):
+                cur_len = cur_new_embed.shape[0]
+                if getattr(self.config, "tokenizer_padding_side", "right") == "left":
+                    new_input_embeds_padded.append(
+                        torch.cat(
+                            (torch.zeros((max_len - cur_len, cur_new_embed.shape[1]), dtype=cur_new_embed.dtype, device=cur_new_embed.device), cur_new_embed), dim=0
+                        )
+                    )
+                    if cur_len > 0:
+                        attention_mask[i, -cur_len:] = True
+                else:
+                    new_input_embeds_padded.append(
+                        torch.cat(
+                            (cur_new_embed, torch.zeros((max_len - cur_len, cur_new_embed.shape[1]), dtype=cur_new_embed.dtype, device=cur_new_embed.device)), dim=0
+                        )
+                    )
+                    if cur_len > 0:
+                        attention_mask[i, :cur_len] = True
+    
+            new_input_embeds = torch.stack(new_input_embeds_padded, dim=0)
+            inputs = {}
+            inputs["inputs_embeds"] = new_input_embeds
+            inputs["attention_mask"] = attention_mask
+            if past_key_values is None:
+                for name in self.key_value_input_names:
+                    inputs[name] = np.zeros([attention_mask.shape[0], 32, 0, 128])
+            else:
+                past_key_values = (past_key_value for pkv_per_layer in past_key_values for past_key_value in pkv_per_layer)
+                inputs.update(dict(zip(self.key_value_input_names, past_key_values)))
+    
+            return inputs
+    
         def prepare_inputs_for_generation(self, input_ids, past_key_values=None, **kwargs):
             """
             This function is used during running GenerationMixin.generate for preparing model specific inputs for
@@ -771,14 +874,14 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
                 "past_key_values": past_key_values,
                 "images": kwargs.get("images", None),
             }
-
+    
         def _reorder_cache(self, past_key_values: Tuple[Tuple[torch.Tensor]], beam_idx: torch.Tensor) -> Tuple[Tuple[torch.Tensor]]:
             """
             This function is used to re-order the `past_key_values` cache if [`~PreTrainedModel.beam_search`] or
             [`~PreTrainedModel.beam_sample`] is called.
             This is required to match `past_key_values` with the correct beam_idx at every generation step.
             """
-
+    
             # from transformers.models.gpt2.modeling_gpt2.GPT2LMHeadModel._reorder_cache
             return tuple(tuple(np.take(past_state, beam_idx, 0) for past_state in layer_past) for layer_past in past_key_values)
 
@@ -801,17 +904,19 @@ Select device from dropdown list for running inference using OpenVINO.
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-
     core = ov.Core()
-
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
+    
+    import requests
+    
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
-
+    open("notebook_utils.py", "w").write(r.text)
+    
+    from notebook_utils import device_widget
+    
+    device = device_widget(exclude=["NPU"])
+    
     device
 
 
@@ -819,7 +924,7 @@ Select device from dropdown list for running inference using OpenVINO.
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+    Dropdown(description='Device:', index=3, options=('CPU', 'GPU.0', 'GPU.1', 'AUTO'), value='AUTO')
 
 
 
@@ -844,17 +949,17 @@ PyTorch implementation we will use PyTorch tensors as input.
 .. code:: ipython3
 
     from IPython.display import display, Video, Image
-
-
+    
+    
     examples_dir = Path("Video-LLaVA/videollava/serve/examples")
     video_file = examples_dir / "sample_demo_22.mp4"
     image_file = examples_dir / "sample_img_22.png"
-
-
+    
+    
     video_tensor = video_processor.preprocess(str(video_file), return_tensors="pt")["pixel_values"][0]
     image_tensor = image_processor.preprocess(str(image_file), return_tensors="pt")["pixel_values"][0]
     images_tensor = [video_tensor, image_tensor]
-
+    
     text_message = "Are the instruments in the pictures used in the video?"
     print(f"Question: {text_message}")
     display(Video(video_file, embed=True))
@@ -864,6 +969,12 @@ PyTorch implementation we will use PyTorch tensors as input.
 .. parsed-literal::
 
     Question: Are the instruments in the pictures used in the video?
+
+
+.. parsed-literal::
+
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/torchvision/transforms/functional.py:1603: UserWarning: The default value of the antialias parameter of all the resizing transforms (Resize(), RandomResizedCrop(), etc.) will change from None to True in v0.17, in order to be consistent across the PIL and Tensor backends. To suppress this warning, directly pass antialias=True (recommended, future default), antialias=None (current default, which means False for Tensors and True for PIL), or antialias=False (only works on Tensors - PIL will still use antialiasing). This also applies if you are using the inference transforms from the models weights: update the call to weights.transforms(antialias=True).
+      warnings.warn(
 
 
 
@@ -877,7 +988,7 @@ PyTorch implementation we will use PyTorch tensors as input.
 
 
 
-.. image:: videollava-multimodal-chatbot-with-output_files/videollava-multimodal-chatbot-with-output_19_2.png
+.. image:: videollava-multimodal-chatbot-with-output_files/videollava-multimodal-chatbot-with-output_18_3.png
 
 
 
@@ -904,34 +1015,33 @@ accumulating history of provided messages and images.
 .. code:: ipython3
 
     from videollava.mm_utils import tokenizer_image_token, KeywordsStoppingCriteria
-    from videollava.constants import IMAGE_TOKEN_INDEX
     from transformers import TextStreamer
     from videollava.conversation import conv_templates, SeparatorStyle
-
+    
     # Prepare
     streamer = TextStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
     conv_mode = "llava_v1"
-
+    
     conv = conv_templates[conv_mode].copy()
     roles = ("user", "assistant")
-
+    
     if mm_use_im_start_end:
         inp = DEFAULT_VIDEO_START_TOKEN + DEFAULT_IMAGE_TOKEN * 8 + DEFAULT_VIDEO_END_TOKEN + "\n" + text_message
     else:
         inp = DEFAULT_IMAGE_TOKEN * 8 + "\n" + text_message
     conv.append_message(conv.roles[0], inp)
     conv.append_message(conv.roles[1], None)
-
+    
     prompt = conv.get_prompt()
     input_ids = tokenizer_image_token(prompt, tokenizer, IMAGE_TOKEN_INDEX, return_tensors="pt").unsqueeze(0)
-
-
+    
+    
     stop_str = conv.sep if conv.sep_style != SeparatorStyle.TWO else conv.sep2
     keywords = [stop_str]
     stopping_criteria = KeywordsStoppingCriteria(keywords, tokenizer, input_ids)
     streamer = TextStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
     print("Answer:")
-
+    
     output_ids = ov_model.generate(
         input_ids,
         images=images_tensor,
@@ -943,14 +1053,6 @@ accumulating history of provided messages and images.
         stopping_criteria=[stopping_criteria],
     )
 
-
-.. parsed-literal::
-
-    Answer:
-    ['video', 'image']
-    Yes, the instruments in the pictures are used in the video. The man is playing a drum set, which includes a bass drum, snare drum, and cymbals. The cymbals are used to produce different sounds, such as crashes and hi-hats. The man is also seen playing a guitar, which is another instrument used in the video.
-
-
 Interactive demo
 ----------------
 
@@ -958,13 +1060,9 @@ Interactive demo
 
 .. code:: ipython3
 
-    import torch
-    import gradio as gr
-
-    from videollava.constants import DEFAULT_IMAGE_TOKEN, IMAGE_TOKEN_INDEX
     from videollava.conversation import conv_templates, SeparatorStyle
-
-
+    
+    
     def generate(image, video, textbox_in):
         if video is not None:
             textbox_in = DEFAULT_IMAGE_TOKEN * 8 + "\n" + textbox_in
@@ -972,7 +1070,7 @@ Interactive demo
                 textbox_in += "\n" + DEFAULT_IMAGE_TOKEN
         elif image is not None:
             textbox_in = DEFAULT_IMAGE_TOKEN + "\n" + textbox_in
-
+    
         conv_mode = "llava_v1"
         conv = conv_templates[conv_mode].copy()
         conv.append_message(conv.roles[0], textbox_in)
@@ -984,11 +1082,11 @@ Interactive demo
         if video is not None:
             images_tensor.append(video_processor(video, return_tensors="pt")["pixel_values"][0])
         input_ids = tokenizer_image_token(prompt, tokenizer, IMAGE_TOKEN_INDEX, return_tensors="pt").unsqueeze(0)
-
+    
         stop_str = conv.sep if conv.sep_style != SeparatorStyle.TWO else conv.sep2
         keywords = [stop_str]
         stopping_criteria = KeywordsStoppingCriteria(keywords, tokenizer, input_ids)
-
+    
         generate_kwargs = dict(
             input_ids=input_ids,
             images=images_tensor,
@@ -998,82 +1096,30 @@ Interactive demo
             use_cache=True,
             stopping_criteria=[stopping_criteria],
         )
-
+    
         output_ids = ov_model.generate(**generate_kwargs)
-
+    
         input_token_len = input_ids.shape[1]
         outputs = tokenizer.batch_decode(output_ids[:, input_token_len:], skip_special_tokens=True)[0]
         outputs = outputs.strip()
         if outputs.endswith(stop_str):
             outputs = outputs[: -len(stop_str)]
         outputs = outputs.strip()
-
+    
         return outputs
 
+.. code:: ipython3
 
-    demo = gr.Interface(
-        generate,
-        [
-            gr.Image(label="Input Image", type="filepath"),
-            gr.Video(label="Input Video"),
-            gr.Textbox(label="Question"),
-        ],
-        gr.Textbox(lines=10),
-        examples=[
-            [
-                f"{examples_dir}/extreme_ironing.jpg",
-                None,
-                "What is unusual about this image?",
-            ],
-            [
-                f"{examples_dir}/waterview.jpg",
-                None,
-                "What are the things I should be cautious about when I visit here?",
-            ],
-            [
-                f"{examples_dir}/desert.jpg",
-                None,
-                "If there are factual errors in the questions, point it out; if not, proceed answering the question. What’s happening in the desert?",
-            ],
-            [
-                None,
-                f"{examples_dir}/sample_demo_1.mp4",
-                "Why is this video funny?",
-            ],
-            [
-                None,
-                f"{examples_dir}/sample_demo_3.mp4",
-                "Can you identify any safety hazards in this video?",
-            ],
-            [
-                None,
-                f"{examples_dir}/sample_demo_9.mp4",
-                "Describe the video.",
-            ],
-            [
-                None,
-                f"{examples_dir}/sample_demo_22.mp4",
-                "Describe the activity in the video.",
-            ],
-            [
-                f"{examples_dir}/sample_img_22.png",
-                f"{examples_dir}/sample_demo_22.mp4",
-                "Are the instruments in the pictures used in the video?",
-            ],
-            [
-                f"{examples_dir}/sample_img_13.png",
-                f"{examples_dir}/sample_demo_13.mp4",
-                "Does the flag in the image appear in the video?",
-            ],
-            [
-                f"{examples_dir}/sample_img_8.png",
-                f"{examples_dir}/sample_demo_8.mp4",
-                "Are the image and the video depicting the same place?",
-            ],
-        ],
-        title="Video-LLaVA🚀",
-        allow_flagging="never",
-    )
+    import requests
+    
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/llava-multimodal-chatbot/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
+    
+    from gradio_helper import make_demo_videollava
+    
+    demo = make_demo_videollava(fn=generate)
+    
     try:
         demo.queue().launch(debug=False)
     except Exception:
@@ -1081,3 +1127,8 @@ Interactive demo
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
+
+.. code:: ipython3
+
+    # please uncomment and run this cell for stopping gradio interface
+    # demo.close()

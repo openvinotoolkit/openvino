@@ -181,13 +181,12 @@ bool GroupNormalizationKernel_b_fs_yx_fsv16::Validate(const Params& params) cons
         return true;
 
     // no support for spatial paddings
-    if (prim_params.inputs[0].X().pad.Total() > 0 || prim_params.inputs[0].Y().pad.Total() > 0 ||
-        prim_params.outputs[0].X().pad.Total() > 0 || prim_params.outputs[0].Y().pad.Total() > 0) {
+    if (prim_params.inputs[0].X().pad.Total() > 0 || prim_params.inputs[0].Y().pad.Total() > 0) {
         return false;
     }
 
     // feature paddings should be multiples of fsv.
-    if (prim_params.inputs[0].Feature().pad.before % fsv != 0 || prim_params.outputs[0].Feature().pad.before % fsv != 0) {
+    if (prim_params.inputs[0].Feature().pad.before % fsv != 0) {
         return false;
     }
 

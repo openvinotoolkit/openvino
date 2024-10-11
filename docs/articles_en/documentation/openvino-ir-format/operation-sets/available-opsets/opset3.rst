@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_opset3}
-
 opset3
 ======
 

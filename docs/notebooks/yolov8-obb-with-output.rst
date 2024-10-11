@@ -13,6 +13,7 @@ labels and confidence scores for each box. Object detection is a good
 choice when you need to identify objects of interest in a scene, but
 don’t need to know exactly where the object is or its exact shape.
 
+
 **Table of contents:**
 
 
@@ -33,6 +34,15 @@ don’t need to know exactly where the object is or its exact shape.
 -  `Compare inference time and model
    sizes. <#compare-inference-time-and-model-sizes>`__
 
+
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 ~~~~~~~~~~~~~
 
@@ -41,13 +51,6 @@ Prerequisites
 .. code:: ipython3
 
     %pip install -q "ultralytics==8.2.24" "openvino>=2024.0.0" "nncf>=2.9.0" tqdm
-
-
-.. parsed-literal::
-
-    DEPRECATION: torchsde 0.2.5 has a non-standard dependency specifier numpy>=1.19.*; python_version >= "3.7". pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of torchsde or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    Note: you may need to restart the kernel to use updated packages.
-
 
 Import required utility functions. The lower cell will download the
 notebook_utils Python module from GitHub.
@@ -65,7 +68,7 @@ notebook_utils Python module from GitHub.
 
     open("notebook_utils.py", "w").write(r.text)
 
-    from notebook_utils import download_file
+    from notebook_utils import download_file, device_widget
 
 Get PyTorch model
 ~~~~~~~~~~~~~~~~~
@@ -169,9 +172,8 @@ instance.
     val: New cache created: /home/ea/work/openvino_notebooks/notebooks/fast-segment-anything/datasets/dota8/labels/train.cache
 
 
-.. parsed-literal::
 
-   Run inference
+Run inference
 ~~~~~~~~~~~~~
 
 
@@ -248,17 +250,7 @@ Select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    import openvino as ov
-
-    core = ov.Core()
-
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
 
     device
 
@@ -277,6 +269,10 @@ Compile model
 
 
 .. code:: ipython3
+
+    import openvino as ov
+
+    core = ov.Core()
 
     ov_model = core.read_model(OV_MODEL_PATH)
 

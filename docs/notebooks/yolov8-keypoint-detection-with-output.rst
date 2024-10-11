@@ -19,6 +19,7 @@ model. - Prepare and run optimization pipeline. - Compare performance of
 the FP32 and quantized models. - Compare accuracy of the FP32 and
 quantized models. - Live demo
 
+
 **Table of contents:**
 
 
@@ -62,6 +63,16 @@ quantized models. - Live demo
    -  `Run Keypoint Detection on
       video <#run-keypoint-detection-on-video>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Get PyTorch model
 -----------------
 
@@ -101,16 +112,16 @@ Import required utility functions. The lower cell will download the
 .. code:: ipython3
 
     from pathlib import Path
-
+    
     # Fetch `notebook_utils` module
     import requests
-
+    
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
-
+    
     open("notebook_utils.py", "w").write(r.text)
-    from notebook_utils import download_file, VideoPlayer
+    from notebook_utils import download_file, VideoPlayer, device_widget
 
 .. code:: ipython3
 
@@ -133,7 +144,7 @@ Import required utility functions. The lower cell will download the
 
 .. parsed-literal::
 
-    PosixPath('/home/maleksandr/test_notebooks/update_ultralytics/openvino_notebooks/notebooks/yolov8-optimization/data/intel_rnb.jpg')
+    PosixPath('/home/akash/intel/openvino_notebooks/notebooks/yolov8-optimization/data/intel_rnb.jpg')
 
 
 
@@ -162,31 +173,31 @@ Let us consider the examples:
 
     from PIL import Image
     from ultralytics import YOLO
-
+    
     POSE_MODEL_NAME = "yolov8n-pose"
-
+    
     pose_model = YOLO(models_dir / f"{POSE_MODEL_NAME}.pt")
     label_map = pose_model.model.names
-
+    
     res = pose_model(IMAGE_PATH)
     Image.fromarray(res[0].plot()[:, :, ::-1])
 
 
 .. parsed-literal::
 
-    Downloading https://github.com/ultralytics/assets/releases/download/v8.1.0/yolov8n-pose.pt to 'models/yolov8n-pose.pt'...
+    Downloading https://github.com/ultralytics/assets/releases/download/v8.2.0/yolov8n-pose.pt to 'models/yolov8n-pose.pt'...
 
 
 .. parsed-literal::
 
-    100%|██████████████████████████████████████████████████████████████████████████████| 6.51M/6.51M [00:01<00:00, 3.93MB/s]
+    100%|██████████████████████████████████████████████████████████████████████████████████████████████████████| 6.52M/6.52M [00:02<00:00, 3.06MB/s]
 
 
 .. parsed-literal::
 
-
-    image 1/1 /home/maleksandr/test_notebooks/update_ultralytics/openvino_notebooks/notebooks/yolov8-optimization/data/intel_rnb.jpg: 480x640 1 person, 45.3ms
-    Speed: 1.5ms preprocess, 45.3ms inference, 1.0ms postprocess per image at shape (1, 3, 480, 640)
+    
+    image 1/1 /home/akash/intel/openvino_notebooks/notebooks/yolov8-optimization/data/intel_rnb.jpg: 480x640 1 person, 88.5ms
+    Speed: 2.4ms preprocess, 88.5ms inference, 480.4ms postprocess per image at shape (1, 3, 480, 640)
 
 
 
@@ -215,17 +226,17 @@ preserve dynamic shapes in the model.
 
 .. parsed-literal::
 
-    Ultralytics YOLOv8.1.42 🚀 Python-3.10.12 torch-2.2.2+cpu CPU (Intel Core(TM) i9-10980XE 3.00GHz)
-
+    Ultralytics YOLOv8.2.24 🚀 Python-3.8.10 torch-2.1.0+cu121 CPU (Intel Core(TM) i9-10980XE 3.00GHz)
+    
     PyTorch: starting from 'models/yolov8n-pose.pt' with input shape (1, 3, 640, 640) BCHW and output shape(s) (1, 56, 8400) (6.5 MB)
-
-    OpenVINO: starting export with openvino 2024.0.0-14509-34caeefd078-releases/2024/0...
-    OpenVINO: export success ✅ 1.7s, saved as 'models/yolov8n-pose_openvino_model/' (6.7 MB)
-
-    Export complete (3.0s)
-    Results saved to /home/maleksandr/test_notebooks/update_ultralytics/openvino_notebooks/notebooks/yolov8-optimization/models
-    Predict:         yolo predict task=pose model=models/yolov8n-pose_openvino_model imgsz=640 half
-    Validate:        yolo val task=pose model=models/yolov8n-pose_openvino_model imgsz=640 data=/usr/src/app/ultralytics/datasets/coco-pose.yaml half
+    
+    OpenVINO: starting export with openvino 2024.3.0-16041-1e3b88e4e3f-releases/2024/3...
+    OpenVINO: export success ✅ 1.9s, saved as 'models/yolov8n-pose_openvino_model/' (6.7 MB)
+    
+    Export complete (3.4s)
+    Results saved to /home/akash/intel/openvino_notebooks/notebooks/yolov8-optimization/models
+    Predict:         yolo predict task=pose model=models/yolov8n-pose_openvino_model imgsz=640 half 
+    Validate:        yolo val task=pose model=models/yolov8n-pose_openvino_model imgsz=640 data=/usr/src/app/ultralytics/datasets/coco-pose.yaml half 
     Visualize:       https://netron.app
 
 
@@ -247,18 +258,8 @@ Select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    import openvino as ov
-
-    core = ov.Core()
-
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
-
+    device = device_widget()
+    
     device
 
 
@@ -281,35 +282,36 @@ ready to check model prediction.
 .. code:: ipython3
 
     import torch
-
+    import openvino as ov
+    
     core = ov.Core()
     pose_ov_model = core.read_model(pose_model_path)
-
+    
     ov_config = {}
     if device.value != "CPU":
         pose_ov_model.reshape({0: [1, 3, 640, 640]})
     if "GPU" in device.value or ("AUTO" in device.value and "GPU" in core.available_devices):
         ov_config = {"GPU_DISABLE_WINOGRAD_CONVOLUTION": "YES"}
     pose_compiled_model = core.compile_model(pose_ov_model, device.value, ov_config)
-
-
+    
+    
     def infer(*args):
         result = pose_compiled_model(args)
         return torch.from_numpy(result[0])
-
-
+    
+    
     pose_model.predictor.inference = infer
     pose_model.predictor.model.pt = False
-
+    
     res = pose_model(IMAGE_PATH)
     Image.fromarray(res[0].plot()[:, :, ::-1])
 
 
 .. parsed-literal::
 
-
-    image 1/1 /home/maleksandr/test_notebooks/update_ultralytics/openvino_notebooks/notebooks/yolov8-optimization/data/intel_rnb.jpg: 640x640 2 persons, 23.7ms
-    Speed: 5.0ms preprocess, 23.7ms inference, 2.2ms postprocess per image at shape (1, 3, 640, 640)
+    
+    image 1/1 /home/akash/intel/openvino_notebooks/notebooks/yolov8-optimization/data/intel_rnb.jpg: 640x640 2 persons, 16.7ms
+    Speed: 4.9ms preprocess, 16.7ms inference, 1.2ms postprocess per image at shape (1, 3, 640, 640)
 
 
 
@@ -347,21 +349,21 @@ evaluation function.
 .. code:: ipython3
 
     from zipfile import ZipFile
-
+    
     from ultralytics.data.utils import DATASETS_DIR
-
-
+    
+    
     DATA_URL = "https://ultralytics.com/assets/coco8-pose.zip"
     CFG_URL = "https://raw.githubusercontent.com/ultralytics/ultralytics/v8.1.0/ultralytics/cfg/datasets/coco8-pose.yaml"
-
+    
     OUT_DIR = DATASETS_DIR
-
+    
     DATA_PATH = OUT_DIR / "val2017.zip"
     CFG_PATH = OUT_DIR / "coco8-pose.yaml"
-
+    
     download_file(DATA_URL, DATA_PATH.name, DATA_PATH.parent)
     download_file(CFG_URL, CFG_PATH.name, CFG_PATH.parent)
-
+    
     if not (OUT_DIR / "coco8-pose/labels").exists():
         with ZipFile(DATA_PATH, "r") as zip_ref:
             zip_ref.extractall(OUT_DIR)
@@ -370,13 +372,13 @@ evaluation function.
 
 .. parsed-literal::
 
-    /home/maleksandr/test_notebooks/ultrali/datasets/val2017.zip:   0%|          | 0.00/334k [00:00<?, ?B/s]
+    /home/akash/intel/NNCF/nncf/examples/post_training_quantization/openvino/yolov8/datasets/val2017.zip:   0%|   …
 
 
 
 .. parsed-literal::
 
-    /home/maleksandr/test_notebooks/ultrali/datasets/coco8-pose.yaml:   0%|          | 0.00/552 [00:00<?, ?B/s]
+    /home/akash/intel/NNCF/nncf/examples/post_training_quantization/openvino/yolov8/datasets/coco8-pose.yaml:   0%…
 
 
 Define validation function
@@ -389,8 +391,8 @@ Define validation function
     import numpy as np
     from tqdm.notebook import tqdm
     from ultralytics.utils.metrics import ConfusionMatrix
-
-
+    
+    
     def test(
         model: ov.Model,
         core: ov.Core,
@@ -425,8 +427,8 @@ Define validation function
             validator.update_metrics(preds, batch)
         stats = validator.get_stats()
         return stats
-
-
+    
+    
     def print_stats(stats: np.ndarray, total_images: int, total_objects: int):
         """
         Helper function for printing accuracy statistic
@@ -500,7 +502,7 @@ validator class instance.
     from ultralytics.utils import DEFAULT_CFG
     from ultralytics.cfg import get_cfg
     from ultralytics.data.utils import check_det_dataset
-
+    
     args = get_cfg(cfg=DEFAULT_CFG)
     args.data = "coco8-pose.yaml"
     args.model = "yolov8n-pose.pt"
@@ -508,7 +510,7 @@ validator class instance.
 .. code:: ipython3
 
     from ultralytics.models.yolo.pose import PoseValidator
-
+    
     pose_validator = PoseValidator(args=args)
 
 .. code:: ipython3
@@ -520,13 +522,13 @@ validator class instance.
 
 .. parsed-literal::
 
-    val: Scanning /home/maleksandr/test_notebooks/ultrali/datasets/coco8-pose/labels/train.cache... 8 images, 0 backgrounds,
+    val: Scanning /home/akash/intel/NNCF/nncf/examples/post_training_quantization/openvino/yolov8/datasets/coco8-pose/labels/train.cache... 8 images
 
 
 .. code:: ipython3
 
     from ultralytics.utils.metrics import OKS_SIGMA
-
+    
     pose_validator.is_coco = True
     pose_validator.names = pose_model.model.names
     pose_validator.metrics.names = pose_validator.names
@@ -608,15 +610,15 @@ improve model inference speed.
 .. code:: ipython3
 
     import ipywidgets as widgets
-
+    
     int8_model_pose_path = models_dir / f"{POSE_MODEL_NAME}_openvino_int8_model/{POSE_MODEL_NAME}.xml"
-
+    
     to_quantize = widgets.Checkbox(
         value=True,
         description="Quantization",
         disabled=False,
     )
-
+    
     to_quantize
 
 
@@ -638,7 +640,7 @@ Let’s load ``skip magic`` extension to skip quantization if
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
     )
     open("skip_kernel_extension.py", "w").write(r.text)
-
+    
     %load_ext skip_kernel_extension
 
 Reuse validation dataloader in accuracy testing for quantization. For
@@ -648,11 +650,11 @@ transformation function for getting only input tensors.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     import nncf
     from typing import Dict
-
-
+    
+    
     def transform_fn(data_item:Dict):
         """
         Quantization transform function. Extracts and preprocess input data from dataloader item for quantization.
@@ -663,8 +665,8 @@ transformation function for getting only input tensors.
         """
         input_tensor = pose_validator.preprocess(data_item)['img'].numpy()
         return input_tensor
-
-
+    
+    
     quantization_dataset = nncf.Dataset(pose_data_loader, transform_fn)
 
 
@@ -691,35 +693,17 @@ point precision, using the ``ignored_scope`` parameter.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
-    ignored_scope = nncf.IgnoredScope(
-        names=[
-            "__module.model.22.cv3.0.0.conv/aten::_convolution/Convolution",  # in the post-processing subgraph
-        	"__module.model.22.cv4.0.0.conv/aten::_convolution/Convolution",
-        	"__module.model.16.conv/aten::_convolution/Convolution",
-        	"__module.model.22.cv2.0.0.conv/aten::_convolution/Convolution",
-        	"__module.model.6.cv1.conv/aten::_convolution/Convolution",
-        	"__module.model.22.cv3.1.1.conv/aten::_convolution/Convolution",
-        	"__module.model.21.cv2.conv/aten::_convolution/Convolution",
-        	"__module.model.21.m.0.cv1.conv/aten::_convolution/Convolution",
-        	"__module.model.22/aten::add/Add_6",
-        	"__module.model.22/aten::sub/Subtract",
-        	"__module.model.7.conv/aten::_convolution/Convolution",
-        	"__module.model.12.cv1.conv/aten::_convolution/Convolution",
-        	"__module.model.4.cv1.conv/aten::_convolution/Convolution",
-        	"__module.model.22.cv2.2.1.conv/aten::_convolution/Convolution",
-        	"__module.model.22.cv2.0.1.conv/aten::_convolution/Convolution",
-        	"__module.model.22.cv4.2.1.conv/aten::_convolution/Convolution",
-        	"__module.model.22.dfl.conv/aten::_convolution/Convolution",
-        	"__module.model.22.cv3.2.2/aten::_convolution/Convolution",
-        	"__module.model.22.cv3.0.2/aten::_convolution/Convolution",
-        	"__module.model.15.cv1.conv/aten::_convolution/Convolution",
-        	"__module.model.5.conv/aten::_convolution/Convolution",
-        	"__module.model.0.conv/aten::_convolution/Convolution"
+    
+    ignored_scope = nncf.IgnoredScope(  # post-processing
+        subgraphs=[
+            nncf.Subgraph(inputs=['__module.model.22/aten::cat/Concat',
+                                  '__module.model.22/aten::cat/Concat_1',
+                                  '__module.model.22/aten::cat/Concat_2',
+                                 '__module.model.22/aten::cat/Concat_7'],
+                          outputs=['__module.model.22/aten::cat/Concat_9'])
         ]
     )
-
-
+    
     # Detection model
     quantized_pose_model = nncf.quantize(
         pose_ov_model,
@@ -731,84 +715,42 @@ point precision, using the ``ignored_scope`` parameter.
 
 .. parsed-literal::
 
-    INFO:nncf:22 ignored nodes were found by name in the NNCFGraph
-    INFO:nncf:Not adding activation input quantizer for operation: 1 __module.model.0.conv/aten::_convolution/Convolution
-    2 __module.model.0.conv/aten::_convolution/Add
-    3 __module.model.22.cv4.2.1.act/aten::silu_/Swish
-
-    INFO:nncf:Not adding activation input quantizer for operation: 25 __module.model.4.cv1.conv/aten::_convolution/Convolution
-    26 __module.model.4.cv1.conv/aten::_convolution/Add
-    27 __module.model.22.cv4.2.1.act/aten::silu_/Swish_7
-
-    INFO:nncf:Not adding activation input quantizer for operation: 43 __module.model.5.conv/aten::_convolution/Convolution
-    47 __module.model.5.conv/aten::_convolution/Add
-    51 __module.model.22.cv4.2.1.act/aten::silu_/Swish_13
-
-    INFO:nncf:Not adding activation input quantizer for operation: 54 __module.model.6.cv1.conv/aten::_convolution/Convolution
-    56 __module.model.6.cv1.conv/aten::_convolution/Add
-    59 __module.model.22.cv4.2.1.act/aten::silu_/Swish_14
-
-    INFO:nncf:Not adding activation input quantizer for operation: 99 __module.model.7.conv/aten::_convolution/Convolution
-    112 __module.model.7.conv/aten::_convolution/Add
-    123 __module.model.22.cv4.2.1.act/aten::silu_/Swish_20
-
-    INFO:nncf:Not adding activation input quantizer for operation: 111 __module.model.12.cv1.conv/aten::_convolution/Convolution
-    122 __module.model.12.cv1.conv/aten::_convolution/Add
-    131 __module.model.22.cv4.2.1.act/aten::silu_/Swish_27
-
-    INFO:nncf:Not adding activation input quantizer for operation: 46 __module.model.15.cv1.conv/aten::_convolution/Convolution
-    50 __module.model.15.cv1.conv/aten::_convolution/Add
-    53 __module.model.22.cv4.2.1.act/aten::silu_/Swish_31
-
-    INFO:nncf:Not adding activation input quantizer for operation: 74 __module.model.16.conv/aten::_convolution/Convolution
-    83 __module.model.16.conv/aten::_convolution/Add
-    92 __module.model.22.cv4.2.1.act/aten::silu_/Swish_39
-
-    INFO:nncf:Not adding activation input quantizer for operation: 75 __module.model.22.cv2.0.0.conv/aten::_convolution/Convolution
-    84 __module.model.22.cv2.0.0.conv/aten::_convolution/Add
-    93 __module.model.22.cv4.2.1.act/aten::silu_/Swish_35
-
-    INFO:nncf:Not adding activation input quantizer for operation: 103 __module.model.22.cv2.0.1.conv/aten::_convolution/Convolution
-    116 __module.model.22.cv2.0.1.conv/aten::_convolution/Add
-    126 __module.model.22.cv4.2.1.act/aten::silu_/Swish_36
-
-    INFO:nncf:Not adding activation input quantizer for operation: 76 __module.model.22.cv3.0.0.conv/aten::_convolution/Convolution
-    85 __module.model.22.cv3.0.0.conv/aten::_convolution/Add
-    94 __module.model.22.cv4.2.1.act/aten::silu_/Swish_37
-
-    INFO:nncf:Not adding activation input quantizer for operation: 135 __module.model.22.cv3.0.2/aten::_convolution/Convolution
-    143 __module.model.22.cv3.0.2/aten::_convolution/Add
-
-    INFO:nncf:Not adding activation input quantizer for operation: 77 __module.model.22.cv4.0.0.conv/aten::_convolution/Convolution
-    86 __module.model.22.cv4.0.0.conv/aten::_convolution/Add
-    95 __module.model.22.cv4.2.1.act/aten::silu_/Swish_57
-
-    INFO:nncf:Not adding activation input quantizer for operation: 234 __module.model.22.cv3.1.1.conv/aten::_convolution/Convolution
-    247 __module.model.22.cv3.1.1.conv/aten::_convolution/Add
-    258 __module.model.22.cv4.2.1.act/aten::silu_/Swish_47
-
-    INFO:nncf:Not adding activation input quantizer for operation: 289 __module.model.21.m.0.cv1.conv/aten::_convolution/Convolution
-    296 __module.model.21.m.0.cv1.conv/aten::_convolution/Add
-    302 __module.model.22.cv4.2.1.act/aten::silu_/Swish_50
-
-    INFO:nncf:Not adding activation input quantizer for operation: 295 __module.model.21.cv2.conv/aten::_convolution/Convolution
-    301 __module.model.21.cv2.conv/aten::_convolution/Add
-    305 __module.model.22.cv4.2.1.act/aten::silu_/Swish_52
-
-    INFO:nncf:Not adding activation input quantizer for operation: 332 __module.model.22.cv2.2.1.conv/aten::_convolution/Convolution
-    340 __module.model.22.cv2.2.1.conv/aten::_convolution/Add
-    345 __module.model.22.cv4.2.1.act/aten::silu_/Swish_54
-
-    INFO:nncf:Not adding activation input quantizer for operation: 334 __module.model.22.cv4.2.1.conv/aten::_convolution/Convolution
-    342 __module.model.22.cv4.2.1.conv/aten::_convolution/Add
-    347 __module.model.22.cv4.2.1.act/aten::silu_/Swish_62
-
-    INFO:nncf:Not adding activation input quantizer for operation: 350 __module.model.22.cv3.2.2/aten::_convolution/Convolution
-    354 __module.model.22.cv3.2.2/aten::_convolution/Add
-
-    INFO:nncf:Not adding activation input quantizer for operation: 243 __module.model.22.dfl.conv/aten::_convolution/Convolution
-    INFO:nncf:Not adding activation input quantizer for operation: 263 __module.model.22/aten::sub/Subtract
-    INFO:nncf:Not adding activation input quantizer for operation: 264 __module.model.22/aten::add/Add_6
+    INFO:nncf:116 ignored nodes were found by subgraphs in the NNCFGraph
+    INFO:nncf:Not adding activation input quantizer for operation: 134 __module.model.22/aten::cat/Concat
+    INFO:nncf:Not adding activation input quantizer for operation: 142 __module.model.22/aten::view/Reshape_3
+    INFO:nncf:Not adding activation input quantizer for operation: 267 __module.model.22/aten::cat/Concat_1
+    INFO:nncf:Not adding activation input quantizer for operation: 279 __module.model.22/aten::view/Reshape_4
+    INFO:nncf:Not adding activation input quantizer for operation: 334 __module.model.22/aten::cat/Concat_2
+    INFO:nncf:Not adding activation input quantizer for operation: 337 __module.model.22/aten::view/Reshape_5
+    INFO:nncf:Not adding activation input quantizer for operation: 143 __module.model.22/aten::cat/Concat_7
+    INFO:nncf:Not adding activation input quantizer for operation: 154 __module.model.22/aten::view/Reshape_9
+    INFO:nncf:Not adding activation input quantizer for operation: 166 __module.model.22/aten::slice/Slice_2
+    INFO:nncf:Not adding activation input quantizer for operation: 167 __module.model.22/aten::slice/Slice_5
+    INFO:nncf:Not adding activation input quantizer for operation: 182 __module.model.22/aten::mul/Multiply_4
+    199 __module.model.22/aten::add/Add_8
+    
+    INFO:nncf:Not adding activation input quantizer for operation: 183 __module.model.22/aten::sigmoid/Sigmoid_1
+    INFO:nncf:Not adding activation input quantizer for operation: 213 __module.model.22/aten::mul/Multiply_5
+    INFO:nncf:Not adding activation input quantizer for operation: 200 __module.model.22/aten::cat/Concat_8
+    INFO:nncf:Not adding activation input quantizer for operation: 214 __module.model.22/aten::view/Reshape_10
+    INFO:nncf:Not adding activation input quantizer for operation: 153 __module.model.22/aten::cat/Concat_4
+    INFO:nncf:Not adding activation input quantizer for operation: 165 __module.model.22/prim::ListUnpack
+    INFO:nncf:Not adding activation input quantizer for operation: 180 __module.model.22.dfl/aten::view/Reshape
+    INFO:nncf:Not adding activation input quantizer for operation: 181 __module.model.22/aten::sigmoid/Sigmoid
+    INFO:nncf:Not adding activation input quantizer for operation: 197 __module.model.22.dfl/aten::transpose/Transpose
+    INFO:nncf:Not adding activation input quantizer for operation: 211 __module.model.22.dfl/aten::softmax/Softmax
+    INFO:nncf:Not adding activation input quantizer for operation: 224 __module.model.22.dfl.conv/aten::_convolution/Convolution
+    INFO:nncf:Not adding activation input quantizer for operation: 232 __module.model.22.dfl/aten::view/Reshape_1
+    INFO:nncf:Not adding activation input quantizer for operation: 242 __module.model.22/prim::ListUnpack/VariadicSplit
+    INFO:nncf:Not adding activation input quantizer for operation: 251 __module.model.22/aten::sub/Subtract
+    INFO:nncf:Not adding activation input quantizer for operation: 252 __module.model.22/aten::add/Add_6
+    INFO:nncf:Not adding activation input quantizer for operation: 262 __module.model.22/aten::add/Add_7
+    273 __module.model.22/aten::div/Divide
+    
+    INFO:nncf:Not adding activation input quantizer for operation: 263 __module.model.22/aten::sub/Subtract_1
+    INFO:nncf:Not adding activation input quantizer for operation: 274 __module.model.22/aten::cat/Concat_5
+    INFO:nncf:Not adding activation input quantizer for operation: 239 __module.model.22/aten::mul/Multiply_3
+    INFO:nncf:Not adding activation input quantizer for operation: 198 __module.model.22/aten::cat/Concat_9
 
 
 
@@ -830,12 +772,6 @@ point precision, using the ``ignored_scope`` parameter.
 
 
 
-
-
-.. parsed-literal::
-
-    /home/maleksandr/test_notebooks/update_ultralytics/openvino_notebooks/notebooks/yolov8-optimization/venv/lib/python3.10/site-packages/nncf/experimental/tensor/tensor.py:84: RuntimeWarning: invalid value encountered in multiply
-      return Tensor(self.data * unwrap_tensor_data(other))
 
 
 
@@ -862,7 +798,7 @@ point precision, using the ``ignored_scope`` parameter.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     print(f"Quantized keypoint detection model will be saved to {int8_model_pose_path}")
     ov.save_model(quantized_pose_model, str(int8_model_pose_path))
 
@@ -887,35 +823,35 @@ on the image.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     device
 
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     ov_config = {}
     if device.value != "CPU":
         quantized_pose_model.reshape({0: [1, 3, 640, 640]})
     if "GPU" in device.value or ("AUTO" in device.value and "GPU" in core.available_devices):
         ov_config = {"GPU_DISABLE_WINOGRAD_CONVOLUTION": "YES"}
     quantized_pose_compiled_model = core.compile_model(quantized_pose_model, device.value, ov_config)
-
+    
     def infer(*args):
         result = quantized_pose_compiled_model(args)
         return torch.from_numpy(result[0])
-
+    
     pose_model.predictor.inference = infer
-
+    
     res = pose_model(IMAGE_PATH)
     display(Image.fromarray(res[0].plot()[:, :, ::-1]))
 
 
 .. parsed-literal::
 
-
-    image 1/1 /home/maleksandr/test_notebooks/update_ultralytics/openvino_notebooks/notebooks/yolov8-optimization/data/intel_rnb.jpg: 640x640 2 persons, 20.0ms
-    Speed: 3.5ms preprocess, 20.0ms inference, 1.1ms postprocess per image at shape (1, 3, 640, 640)
+    
+    image 1/1 /home/akash/intel/openvino_notebooks/notebooks/yolov8-optimization/data/intel_rnb.jpg: 640x640 2 persons, 11.1ms
+    Speed: 3.8ms preprocess, 11.1ms inference, 1.4ms postprocess per image at shape (1, 3, 640, 640)
 
 
 
@@ -948,7 +884,7 @@ models.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     device
 
 .. code:: ipython3
@@ -965,34 +901,34 @@ models.
     [Step 2/11] Loading OpenVINO Runtime
     [ WARNING ] Default duration 120 seconds is used for unknown device AUTO
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.0.0-14509-34caeefd078-releases/2024/0
-    [ INFO ]
+    [ INFO ] Build ................................. 2024.3.0-16041-1e3b88e4e3f-releases/2024/3
+    [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2024.0.0-14509-34caeefd078-releases/2024/0
-    [ INFO ]
-    [ INFO ]
+    [ INFO ] Build ................................. 2024.3.0-16041-1e3b88e4e3f-releases/2024/3
+    [ INFO ] 
+    [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 16.24 ms
+    [ INFO ] Read model took 30.04 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     x (node: x) : f32 / [...] / [?,3,?,?]
     [ INFO ] Model outputs:
-    [ INFO ]     ***NO_NAME*** (node: __module.model.22/aten::cat/Concat_9) : f32 / [...] / [?,56,16..]
+    [ INFO ]     ***NO_NAME*** (node: __module.model.22/aten::cat/Concat_9) : f32 / [...] / [?,56,21..]
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [ INFO ] Reshaping model: 'x': [1,3,640,640]
-    [ INFO ] Reshape model took 9.32 ms
+    [ INFO ] Reshape model took 8.90 ms
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
     [ INFO ]     x (node: x) : u8 / [N,C,H,W] / [1,3,640,640]
     [ INFO ] Model outputs:
     [ INFO ]     ***NO_NAME*** (node: __module.model.22/aten::cat/Concat_9) : f32 / [...] / [1,56,8400]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 313.69 ms
+    [ INFO ] Compile model took 366.94 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -1004,7 +940,7 @@ models.
     [ INFO ]     AFFINITY: Affinity.CORE
     [ INFO ]     CPU_DENORMALS_OPTIMIZATION: False
     [ INFO ]     CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE: 1.0
-    [ INFO ]     DYNAMIC_QUANTIZATION_GROUP_SIZE: 0
+    [ INFO ]     DYNAMIC_QUANTIZATION_GROUP_SIZE: 32
     [ INFO ]     ENABLE_CPU_PINNING: True
     [ INFO ]     ENABLE_HYPER_THREADING: True
     [ INFO ]     EXECUTION_DEVICES: ['CPU']
@@ -1013,6 +949,7 @@ models.
     [ INFO ]     INFERENCE_PRECISION_HINT: <Type: 'float32'>
     [ INFO ]     KV_CACHE_PRECISION: <Type: 'float16'>
     [ INFO ]     LOG_LEVEL: Level.NO
+    [ INFO ]     MODEL_DISTRIBUTION_POLICY: set()
     [ INFO ]     NETWORK_NAME: Model0
     [ INFO ]     NUM_STREAMS: 12
     [ INFO ]     OPTIMAL_NUMBER_OF_INFER_REQUESTS: 12
@@ -1022,22 +959,23 @@ models.
     [ INFO ]     SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
     [ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
     [ INFO ]   LOADED_FROM_CACHE: False
+    [ INFO ]   PERF_COUNT: False
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'x'!. This input will be filled with random values!
-    [ INFO ] Fill input 'x' with random values
+    [ INFO ] Fill input 'x' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 120000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 42.40 ms
+    [ INFO ] First inference took 41.78 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            21612 iterations
-    [ INFO ] Duration:         120076.97 ms
+    [ INFO ] Count:            16740 iterations
+    [ INFO ] Duration:         120117.71 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        66.18 ms
-    [ INFO ]    Average:       66.51 ms
-    [ INFO ]    Min:           32.58 ms
-    [ INFO ]    Max:           123.83 ms
-    [ INFO ] Throughput:   179.98 FPS
+    [ INFO ]    Median:        85.71 ms
+    [ INFO ]    Average:       85.92 ms
+    [ INFO ]    Min:           64.95 ms
+    [ INFO ]    Max:           115.78 ms
+    [ INFO ] Throughput:   139.36 FPS
 
 
 .. code:: ipython3
@@ -1053,18 +991,18 @@ models.
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.0.0-14509-34caeefd078-releases/2024/0
-    [ INFO ]
+    [ INFO ] Build ................................. 2024.3.0-16041-1e3b88e4e3f-releases/2024/3
+    [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2024.0.0-14509-34caeefd078-releases/2024/0
-    [ INFO ]
-    [ INFO ]
+    [ INFO ] Build ................................. 2024.3.0-16041-1e3b88e4e3f-releases/2024/3
+    [ INFO ] 
+    [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 23.83 ms
+    [ INFO ] Read model took 20.82 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     x (node: x) : f32 / [...] / [1,3,?,?]
@@ -1073,26 +1011,26 @@ models.
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [ INFO ] Reshaping model: 'x': [1,3,640,640]
-    [ INFO ] Reshape model took 13.45 ms
+    [ INFO ] Reshape model took 11.11 ms
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
     [ INFO ]     x (node: x) : u8 / [N,C,H,W] / [1,3,640,640]
     [ INFO ] Model outputs:
     [ INFO ]     ***NO_NAME*** (node: __module.model.22/aten::cat/Concat_9) : f32 / [...] / [1,56,8400]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 540.15 ms
+    [ INFO ] Compile model took 567.45 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
     [ INFO ]   EXECUTION_DEVICES: ['CPU']
     [ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
-    [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 12
+    [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 18
     [ INFO ]   MULTI_DEVICE_PRIORITIES: CPU
     [ INFO ]   CPU:
     [ INFO ]     AFFINITY: Affinity.CORE
     [ INFO ]     CPU_DENORMALS_OPTIMIZATION: False
     [ INFO ]     CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE: 1.0
-    [ INFO ]     DYNAMIC_QUANTIZATION_GROUP_SIZE: 0
+    [ INFO ]     DYNAMIC_QUANTIZATION_GROUP_SIZE: 32
     [ INFO ]     ENABLE_CPU_PINNING: True
     [ INFO ]     ENABLE_HYPER_THREADING: True
     [ INFO ]     EXECUTION_DEVICES: ['CPU']
@@ -1101,31 +1039,33 @@ models.
     [ INFO ]     INFERENCE_PRECISION_HINT: <Type: 'float32'>
     [ INFO ]     KV_CACHE_PRECISION: <Type: 'float16'>
     [ INFO ]     LOG_LEVEL: Level.NO
+    [ INFO ]     MODEL_DISTRIBUTION_POLICY: set()
     [ INFO ]     NETWORK_NAME: Model0
-    [ INFO ]     NUM_STREAMS: 12
-    [ INFO ]     OPTIMAL_NUMBER_OF_INFER_REQUESTS: 12
+    [ INFO ]     NUM_STREAMS: 18
+    [ INFO ]     OPTIMAL_NUMBER_OF_INFER_REQUESTS: 18
     [ INFO ]     PERFORMANCE_HINT: THROUGHPUT
     [ INFO ]     PERFORMANCE_HINT_NUM_REQUESTS: 0
     [ INFO ]     PERF_COUNT: NO
     [ INFO ]     SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
     [ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
     [ INFO ]   LOADED_FROM_CACHE: False
+    [ INFO ]   PERF_COUNT: False
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'x'!. This input will be filled with random values!
-    [ INFO ] Fill input 'x' with random values
-    [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 15000 ms duration)
+    [ INFO ] Fill input 'x' with random values 
+    [Step 10/11] Measuring performance (Start inference asynchronously, 18 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 34.70 ms
+    [ INFO ] First inference took 30.80 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            4248 iterations
-    [ INFO ] Duration:         15064.81 ms
+    [ INFO ] Count:            5688 iterations
+    [ INFO ] Duration:         15086.99 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        42.11 ms
-    [ INFO ]    Average:       42.37 ms
-    [ INFO ]    Min:           24.13 ms
-    [ INFO ]    Max:           69.95 ms
-    [ INFO ] Throughput:   281.98 FPS
+    [ INFO ]    Median:        46.98 ms
+    [ INFO ]    Average:       47.54 ms
+    [ INFO ]    Min:           33.22 ms
+    [ INFO ]    Max:           66.20 ms
+    [ INFO ] Throughput:   377.01 FPS
 
 
 Compare accuracy of the Original and Quantized Models
@@ -1141,7 +1081,7 @@ accuracy on a dataset.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     int8_pose_stats = test(quantized_pose_model, core, pose_data_loader, pose_validator, num_samples=NUM_TEST_SAMPLES)
 
 
@@ -1154,10 +1094,10 @@ accuracy on a dataset.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     print("FP32 model accuracy")
     print_stats(fp_pose_stats, pose_validator.seen, pose_validator.nt_per_class.sum())
-
+    
     print("INT8 model accuracy")
     print_stats(int8_pose_stats, pose_validator.seen, pose_validator.nt_per_class.sum())
 
@@ -1173,7 +1113,7 @@ accuracy on a dataset.
     Boxes:
         Best mean average:
                    Class      Images      Labels   Precision      Recall      mAP@.5  mAP@.5:.95
-                     all           8          21       0.952       0.938       0.953       0.638
+                     all           8          21       0.886       0.952        0.98       0.723
 
 
 Great! Looks like accuracy was changed, but not significantly and it
@@ -1206,7 +1146,7 @@ utilization. For more information, refer to the overview of
 tutorial <optimize-preprocessing-with-output.html>`__. To
 see, how it could be used with YOLOV8 object detection model , please,
 see `Convert and Optimize YOLOv8 real-time object detection with
-OpenVINO tutorial <./yolov8-object-detection.ipynb>`__
+OpenVINO tutorial <yolov8-object-detection-with-output.html>`__
 
 Live demo
 ---------
@@ -1221,8 +1161,8 @@ The following code runs model inference on a video:
     import time
     from IPython import display
     import cv2
-
-
+    
+    
     def run_keypoint_detection(
         source=0,
         flip=False,
@@ -1232,20 +1172,20 @@ The following code runs model inference on a video:
         device=device.value,
     ):
         player = None
-
+    
         ov_config = {}
         if device != "CPU":
             model.reshape({0: [1, 3, 640, 640]})
         if "GPU" in device or ("AUTO" in device and "GPU" in core.available_devices):
             ov_config = {"GPU_DISABLE_WINOGRAD_CONVOLUTION": "YES"}
         compiled_model = core.compile_model(model, device, ov_config)
-
+    
         def infer(*args):
             result = compiled_model(args)
             return torch.from_numpy(result[0])
-
+    
         pose_model.predictor.inference = infer
-
+    
         try:
             # Create a video player to play with target fps.
             player = VideoPlayer(source=source, flip=flip, fps=30, skip_first_frames=skip_first_frames)
@@ -1254,7 +1194,7 @@ The following code runs model inference on a video:
             if use_popup:
                 title = "Press ESC to Exit"
                 cv2.namedWindow(winname=title, flags=cv2.WINDOW_GUI_NORMAL | cv2.WINDOW_AUTOSIZE)
-
+    
             processing_times = collections.deque()
             while True:
                 # Grab the frame.
@@ -1274,18 +1214,18 @@ The following code runs model inference on a video:
                     )
                 # Get the results
                 input_image = np.array(frame)
-
+    
                 start_time = time.time()
-
+    
                 detections = pose_model(input_image)
                 stop_time = time.time()
                 frame = detections[0].plot()
-
+    
                 processing_times.append(stop_time - start_time)
                 # Use processing times from last 200 frames.
                 if len(processing_times) > 200:
                     processing_times.popleft()
-
+    
                 _, f_width = frame.shape[:2]
                 # Mean processing time [ms].
                 processing_time = np.mean(processing_times) * 1000

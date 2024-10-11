@@ -24,6 +24,19 @@ class OPENVINO_RUNTIME_API RemoteTensor : public Tensor {
     using Tensor::Tensor;
 
 public:
+    /// @brief Default constructor
+    RemoteTensor() = default;
+
+    /**
+     * @brief Constructs region of interest (ROI) tensor from another remote tensor.
+     * @note Does not perform memory allocation internally
+     * @param other original tensor
+     * @param begin start coordinate of ROI object inside of the original object.
+     * @param end end coordinate of ROI object inside of the original object.
+     * @note A Number of dimensions in `begin` and `end` must match number of dimensions in `other.get_shape()`
+     */
+    RemoteTensor(const RemoteTensor& other, const Coordinate& begin, const Coordinate& end);
+
     /**
      * @brief Checks OpenVINO remote type.
      * @param tensor Tensor which type is checked.
@@ -43,7 +56,17 @@ public:
     template <typename T>
     T* data() = delete;
 
-    void copy_to(ov::Tensor& dst) const = delete;
+    /**
+     * @brief Copies data from this RemoteTensor to the specified destination tensor.
+     * @param dst The destination tensor to which data will be copied.
+     */
+    void copy_to(ov::Tensor& dst) const;
+
+    /**
+     * @brief Copies data from the specified source tensor to this RemoteTensor.
+     * @param src The source tensor from which data will be copied.
+     */
+    void copy_from(const ov::Tensor& src);
 
     /**
      * @brief Returns a map of device-specific parameters required for low-level

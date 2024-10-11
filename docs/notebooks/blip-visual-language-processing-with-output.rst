@@ -30,6 +30,7 @@ The tutorial consists of the following parts:
 5. Compare original and optimized models
 6. Launch interactive demo
 
+
 **Table of contents:**
 
 
@@ -69,6 +70,15 @@ The tutorial consists of the following parts:
       models <#compare-inference-time-of-the-fp16-and-optimized-models>`__
 
 -  `Interactive demo <#interactive-demo>`__
+
+
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
 Background
 ----------
@@ -289,7 +299,7 @@ text and vision modalities and postprocessing of generation results.
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
     open("notebook_utils.py", "w").write(r.text)
-    from notebook_utils import download_file
+    from notebook_utils import download_file, device_widget, quantization_widget
 
     # get model and processor
     processor = BlipProcessor.from_pretrained("Salesforce/blip-vqa-base")
@@ -594,14 +604,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
 
     device
 
@@ -725,11 +728,7 @@ The optimization process contains the following steps:
 
 .. code:: ipython3
 
-    to_quantize = widgets.Checkbox(
-        value=True,
-        description="Quantization",
-        disabled=False,
-    )
+    to_quantize = quantization_widget()
 
     to_quantize
 
@@ -1332,6 +1331,8 @@ launch the interactive demo.
 
 .. code:: ipython3
 
+    import ipywidgets as widgets
+
     use_quantized_model = widgets.Checkbox(
         description="Use quantized model",
         value=int8_model is not None,
@@ -1367,20 +1368,18 @@ launch the interactive demo.
         html = f"<p>Processing time: {elapsed:.4f}</p>"
         return answer, html
 
+.. code:: ipython3
 
-    demo = gr.Interface(
-        generate_answer,
-        [
-            gr.Image(label="Image"),
-            gr.Textbox(
-                label="Question",
-                info="If this field is empty, an image caption will be generated",
-            ),
-        ],
-        [gr.Text(label="Answer"), gr.HTML()],
-        examples=[["demo.jpg", ""], ["demo.jpg", question]],
-        allow_flagging="never",
-    )
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/blip-visual-language-processing/gradio_helper.py"
+        )
+        open("gradio_helper.py", "w").write(r.text)
+
+    from gradio_helper import make_demo
+
+    demo = make_demo(fn=generate_answer)
+
     try:
         demo.launch(debug=False)
     except Exception:

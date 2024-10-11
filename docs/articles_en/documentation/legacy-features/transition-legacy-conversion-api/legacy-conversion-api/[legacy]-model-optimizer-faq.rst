@@ -1,5 +1,3 @@
-.. {#openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ}
-
 [LEGACY] Model Optimizer Frequently Asked Questions
 ===========================================================
 
@@ -81,7 +79,7 @@ Q3. What does the message "[ ERROR ]: Unable to create ports for node with id" m
 
 **A:** Most likely, Model Optimizer does not know how to infer output shapes of some layers in the given topology.
 To lessen the scope, compile the list of layers that are custom for Model Optimizer: present in the topology,
-absent in the :doc:`list of supported operations <../../../../about-openvino/compatibility-and-support/supported-operations-framework-frontend>` for the target framework.
+absent in the :doc:`list of supported operations <../../../../about-openvino/compatibility-and-support/supported-operations>` for the target framework.
 Then, refer to available options in the corresponding section in the  :doc:`[Legacy] Custom Layers in Model Optimizer <../legacy-model-optimizer-extensibility>` page.
 
 .. _question-7:
@@ -236,7 +234,7 @@ Q14. What does the message "Cannot infer shape for node {} because there is no C
 Q15. What does the message "Framework name can not be deduced from the given options. Use --framework to choose one of Caffe, TensorFlow, MXNet" mean?
 ######################################################################################################################################################
 
-**A:** You have run Model Optimizer without a flag ``--framework caffe|tf|mxnet``. Model Optimizer tries to deduce the framework by the extension of input model file (``.pb`` for TensorFlow, ``.caffemodel`` for Caffe, ``.params`` for Apache MXNet). Your input model might have a different extension and you need to explicitly set the source framework. For example, use ``--framework caffe``.
+**A:** You have run Model Optimizer without a flag ``--framework caffe|tf``. Model Optimizer tries to deduce the framework by the extension of input model file (``.pb`` for TensorFlow, ``.caffemodel`` for Caffe, ``.params`` for Apache MXNet). Your input model might have a different extension and you need to explicitly set the source framework. For example, use ``--framework caffe``.
 
 .. _question-16:
 

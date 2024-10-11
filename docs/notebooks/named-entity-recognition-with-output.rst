@@ -25,6 +25,7 @@ To simplify the user experience, the `Hugging Face
 Optimum <https://huggingface.co/docs/optimum>`__ library is used to
 convert the model to OpenVINO™ IR format and quantize it.
 
+
 **Table of contents:**
 
 
@@ -41,6 +42,16 @@ convert the model to OpenVINO™ IR format and quantize it.
 -  `Prepare demo for Named Entity Recognition OpenVINO
    Runtime <#prepare-demo-for-named-entity-recognition-openvino-runtime>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -48,15 +59,8 @@ Prerequisites
 
 .. code:: ipython3
 
-    %pip install -q "diffusers>=0.17.1" "openvino>=2023.1.0" "nncf>=2.5.0" "gradio>=4.19" "onnx>=1.11.0" "transformers>=4.33.0" "torch>=2.1" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "diffusers>=0.17.1" "openvino>=2023.1.0" "nncf>=2.5.0" "gradio>=4.19" "onnx>=1.11.0,<1.16.2" "transformers>=4.33.0" "torch>=2.1" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "git+https://github.com/huggingface/optimum-intel.git"
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
 
 Download the NER model
 ----------------------
@@ -83,49 +87,18 @@ pre-converted model for next usage, and speedup deployment process.
     from pathlib import Path
     from transformers import AutoTokenizer
     from optimum.intel import OVModelForTokenClassification
-
+    
     original_ner_model_dir = Path("original_ner_model")
-
+    
     model_id = "elastic/distilbert-base-cased-finetuned-conll03-english"
     if not original_ner_model_dir.exists():
         model = OVModelForTokenClassification.from_pretrained(model_id, export=True)
-
+    
         model.save_pretrained(original_ner_model_dir)
     else:
         model = OVModelForTokenClassification.from_pretrained(model_id, export=True)
-
+    
     tokenizer = AutoTokenizer.from_pretrained(model_id)
-
-
-.. parsed-literal::
-
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
-
-
-.. parsed-literal::
-
-    No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
-    2024-04-05 18:35:04.594311: I tensorflow/core/util/port.cc:111] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-04-05 18:35:04.596755: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
-    2024-04-05 18:35:04.628293: E tensorflow/compiler/xla/stream_executor/cuda/cuda_dnn.cc:9342] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
-    2024-04-05 18:35:04.628326: E tensorflow/compiler/xla/stream_executor/cuda/cuda_fft.cc:609] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
-    2024-04-05 18:35:04.628349: E tensorflow/compiler/xla/stream_executor/cuda/cuda_blas.cc:1518] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
-    2024-04-05 18:35:04.634704: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
-    2024-04-05 18:35:04.635314: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-04-05 18:35:05.607762: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    /home/ea/miniconda3/lib/python3.11/site-packages/transformers/utils/import_utils.py:519: FutureWarning: `is_torch_tpu_available` is deprecated and will be removed in 4.41.0. Please use the `is_torch_xla_available` instead.
-      warnings.warn(
-    Framework not specified. Using pt to export the model.
-    Using the export variant default. Available variants are:
-        - default: The default ONNX variant.
-    Using framework PyTorch: 2.1.2+cpu
-    /home/ea/miniconda3/lib/python3.11/site-packages/transformers/modeling_utils.py:4225: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
-      warnings.warn(
-    /home/ea/miniconda3/lib/python3.11/site-packages/nncf/torch/dynamic_graph/wrappers.py:80: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
-      op1 = operator(\*args, \*\*kwargs)
-    Compiling the model to CPU ...
-
 
 Quantize the model, using Hugging Face Optimum API
 --------------------------------------------------
@@ -156,18 +129,18 @@ corresponding ``OVModelForXxx`` class. So we use
 
     from functools import partial
     from optimum.intel import OVQuantizer, OVConfig, OVQuantizationConfig
-
+    
     from optimum.intel import OVModelForTokenClassification
-
-
+    
+    
     def preprocess_fn(data, tokenizer):
         examples = []
         for data_chunk in data["tokens"]:
             examples.append(" ".join(data_chunk))
-
+    
         return tokenizer(examples, padding=True, truncation=True, max_length=128)
-
-
+    
+    
     quantizer = OVQuantizer.from_pretrained(model)
     calibration_dataset = quantizer.get_calibration_dataset(
         "conll2003",
@@ -177,10 +150,10 @@ corresponding ``OVModelForXxx`` class. So we use
         preprocess_batch=True,
         trust_remote_code=True,
     )
-
+    
     # The directory where the quantized model will be saved
     quantized_ner_model_dir = "quantized_ner_model"
-
+    
     # Apply static quantization and save the resulting model in the OpenVINO IR format
     ov_config = OVConfig(quantization_config=OVQuantizationConfig(num_samples=len(calibration_dataset)))
     quantizer.quantize(
@@ -289,17 +262,17 @@ corresponding ``OVModelForXxx`` class. So we use
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    import openvino as ov
-
-    core = ov.Core()
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
+    import requests
+    
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
-
+    open("notebook_utils.py", "w").write(r.text)
+    
+    from notebook_utils import device_widget
+    
+    device = device_widget()
+    
     device
 
 
@@ -345,39 +318,39 @@ inference.
 .. code:: ipython3
 
     from transformers import pipeline
-
+    
     ner_pipeline_optimized = pipeline("token-classification", model=optimized_model, tokenizer=tokenizer)
-
+    
     ner_pipeline_original = pipeline("token-classification", model=model, tokenizer=tokenizer)
 
 .. code:: ipython3
 
     import time
     import numpy as np
-
-
+    
+    
     def calc_perf(ner_pipeline):
         inference_times = []
-
+    
         for data in calibration_dataset:
             text = " ".join(data["tokens"])
             start = time.perf_counter()
             ner_pipeline(text)
             end = time.perf_counter()
             inference_times.append(end - start)
-
+    
         return np.median(inference_times)
-
-
+    
+    
     print(f"Median inference time of quantized model: {calc_perf(ner_pipeline_optimized)} ")
-
+    
     print(f"Median inference time of original model: {calc_perf(ner_pipeline_original)} ")
 
 
 .. parsed-literal::
 
-    Median inference time of quantized model: 0.0063508255407214165
-    Median inference time of original model: 0.007429798366501927
+    Median inference time of quantized model: 0.0063508255407214165 
+    Median inference time of original model: 0.007429798366501927 
 
 
 Compare size of the models
@@ -388,7 +361,7 @@ Compare size of the models
 .. code:: ipython3
 
     from pathlib import Path
-
+    
     fp_model_file = Path(original_ner_model_dir) / "openvino_model.bin"
     print(f"Size of original model in Bytes is {fp_model_file.stat().st_size}")
     print(f'Size of quantized model in Bytes is {Path(quantized_ner_model_dir, "openvino_model.bin").stat().st_size}')
@@ -412,30 +385,32 @@ text.
 .. code:: ipython3
 
     import gradio as gr
-
-    examples = [
-        "My name is Wolfgang and I live in Berlin.",
-    ]
-
-
+    
+    
     def run_ner(text):
         output = ner_pipeline_optimized(text)
         return {"text": text, "entities": output}
-
-
+    
+    
     demo = gr.Interface(
-        run_ner,
-        gr.Textbox(placeholder="Enter sentence here...", label="Input Text"),
-        gr.HighlightedText(label="Output Text"),
-        examples=examples,
+        fn=run_ner,
+        inputs=gr.Textbox(placeholder="Enter sentence here...", label="Input Text"),
+        outputs=gr.HighlightedText(label="Output Text"),
+        examples=[
+            "My name is Wolfgang and I live in Berlin.",
+        ],
         allow_flagging="never",
     )
-
-    if __name__ == "__main__":
-        try:
-            demo.launch(debug=False)
-        except Exception:
-            demo.launch(share=True, debug=False)
+    
+    try:
+        demo.launch(debug=False)
+    except Exception:
+        demo.launch(share=True, debug=False)
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
+
+.. code:: ipython3
+
+    # please uncomment and run this cell for stopping gradio interface
+    # demo.close()

@@ -5,12 +5,10 @@
 
 #include "pass_manager.h"
 #include "program_node.h"
-#include "mutable_data_inst.h"
 #include "convert_color_inst.h"
 #include "fully_connected_inst.h"
 #include "assign_inst.h"
 #include "mvn_inst.h"
-#include "tensor_type.h"
 
 #include <algorithm>
 #include <memory>
@@ -18,6 +16,84 @@
 #include <stdexcept>
 
 using namespace cldnn;
+
+namespace {
+void eliminate_pad_for_onednn_impl(program& p, program_node& node) {
+    // Padded offsets aren't supported by onednn kernels
+    bool has_paddings = false;
+    bool use_onednn = false;
+    for (size_t idx = 0; idx < node.get_dependencies().size(); idx++) {
+        const auto& input = node.get_dependency(idx);
+        if (!input.is_in_data_flow() || input.is_constant())
+            continue;
+        if (input.get_output_layout().data_padding) {
+            has_paddings = true;
+            break;
+        }
+    }
+
+    if (has_paddings) {
+        // oneDNN doesn't support padded memory, so we check that onednn impl can be used with dropped paddings
+        use_onednn = test_no_input_pad<bool>(node, [](const program_node& node) {
+            return node.type()->has_impl_for(node, impl_types::onednn);
+        });
+    }
+
+    if (use_onednn) {
+        for (size_t idx = 0; idx < node.get_dependencies().size(); idx++) {
+            auto node_and_port = node.get_dependency_with_port(idx);
+            auto& input = *node_and_port.first;
+            auto port = node_and_port.second;
+            if (!input.is_in_data_flow() || input.is_constant())
+                continue;
+
+            auto& in_layout = input.get_output_layout(false, port);
+            auto& in_padding = in_layout.data_padding;
+            if (static_cast<bool>(in_padding)) {
+                bool spatial_padding = false;
+                for (size_t i = 0; i < in_layout.get_spatial_rank(); ++i) {
+                    spatial_padding |= (in_padding._lower_size[2 + i] != 0);
+                }
+                for (size_t i = 0; i < in_layout.get_spatial_rank(); ++i) {
+                    spatial_padding |= (in_padding._upper_size[2 + i] != 0);
+                }
+
+                bool feature_padding = false;
+                feature_padding |= (in_padding._lower_size[1] != 0);
+                feature_padding |= (in_padding._upper_size[1] != 0);
+
+                bool batch_padding = false;
+                batch_padding |= (in_padding._lower_size[0] != 0);
+                batch_padding |= (in_padding._upper_size[0] != 0);
+
+                if (batch_padding && !feature_padding && !spatial_padding) {
+                    batch_padding = false;
+                }
+
+                if (spatial_padding || batch_padding) {
+                    cldnn::layout layout_wo_padding = in_layout;
+                    layout_wo_padding.data_padding = cldnn::padding{};
+                    layout_wo_padding.data_padding._lower_size[1] = in_layout.data_padding._lower_size[1];
+                    layout_wo_padding.data_padding._upper_size[1] = in_layout.data_padding._upper_size[1];
+                    if (input.is_type<reorder>()) {
+                        input.set_output_padding(padding());
+                        input.set_output_layout(layout_wo_padding, false, port);
+                    } else {
+                        auto new_reorder = std::make_shared<reorder>(input.id() + "_padding_reorder_" + node.id(), input.id(), layout_wo_padding);
+                        auto& new_reorder_node = p.get_or_create(new_reorder);
+                        p.add_intermediate(new_reorder_node, node, idx);
+                        new_reorder_node.recalc_output_layouts(false);
+                    }
+                } else {
+                    return;
+                }
+            }
+        }
+
+        return;
+    }
+}
+} // namespace
 
 /*
 This pass checks if data formats (layouts) of output/input in hidden layers match.
@@ -52,6 +128,36 @@ void add_required_reorders::add_reorder(program& p, program_node* node, program_
         throw std::runtime_error("Internal Error: container index out of range exception.");
     }
     p.add_intermediate(new_reorder_node, *usr, idx);
+    new_reorder_node.recalc_output_layouts(false);
+}
+
+bool add_required_reorders::test_format(cldnn::program_node& node, format requested_format) {
+    for (size_t i = 0; i < node.get_outputs_count(); i++) {
+        auto out_layout = node.get_output_layout(false, i);
+        out_layout.format = requested_format;
+        node.set_output_layout(out_layout, false, i);
+    }
+
+    for (size_t i = 0; i < node.get_dependencies().size(); i++) {
+        const auto& dep_with_port = node.get_dependency_with_port(i);
+        auto& dep = dep_with_port.first;
+
+        auto current_format = dep->get_output_layout(false, dep_with_port.second).format;
+
+        if (format::is_weights_format(current_format))
+            continue;
+
+        if (dep->is_type<reorder>()) {
+            auto& port = dep_with_port.second;
+            auto new_layout = dep->get_output_layout(false, port);
+            new_layout.format = requested_format;
+            dep->set_output_layout(new_layout, false, port);
+        } else if (current_format != requested_format) {
+            add_reorder(node.get_program(), dep_with_port.first, &node, true);
+        }
+    }
+
+    return node.type()->has_impl_for(node, impl_types::any, shape_types::any);
 }
 
 void add_required_reorders::run(program& p) {
@@ -64,6 +170,10 @@ void add_required_reorders::run(program& p) {
         if (usr->is_type<data>())
             continue;
 
+        if (!usr->is_all_valid_output_layouts()) {
+            usr->recalc_output_layouts(false);
+        }
+
         // If usr is assign and input and output data types are different
         // add reorder with usr's output data type between dep and usr
         if (usr->is_type<assign>()) {
@@ -75,7 +185,7 @@ void add_required_reorders::run(program& p) {
                 auto new_reorder = std::make_shared<reorder>(dep.id() + "_reorder_" + usr->id(), dep.id(), out_layout.format, out_layout.data_type);
                 auto& new_reorder_node = p.get_or_create(new_reorder);
                 p.add_intermediate(new_reorder_node, *usr, dep);
-                new_reorder_node.recalc_output_layout(false);
+                new_reorder_node.recalc_output_layouts(false);
             }
         }
 
@@ -92,7 +202,7 @@ void add_required_reorders::run(program& p) {
                     auto new_reorder = std::make_shared<reorder>(dep.id() + "_reorder_" + usr->id(), dep.id(), out_layout.format, out_layout.data_type);
                     auto& new_reorder_node = p.get_or_create(new_reorder);
                     p.add_intermediate(new_reorder_node, *usr, dep);
-                    new_reorder_node.recalc_output_layout(false);
+                    new_reorder_node.recalc_output_layouts(false);
                 }
             }
         }
@@ -151,64 +261,10 @@ void add_required_reorders::run(program& p) {
             }
         }
 
-        if (usr->type()->does_an_implementation_exist(*usr)) {
-            if (usr->get_preferred_impl_type() != impl_types::onednn) {
-                continue;
-            } else {
-                // oneDNN doesn't support padded memory, so add reorder directly if needed
-                for (size_t idx = 0; idx < usr->get_dependencies().size(); idx++) {
-                    auto& input = usr->get_dependency(idx);
-                    if (!input.is_in_data_flow() || input.is_constant())
-                        continue;
+        eliminate_pad_for_onednn_impl(p, *usr);
 
-                    auto in_padding = input.get_output_layout().data_padding;
-                    if (static_cast<bool>(in_padding)) {
-                        bool spatial_padding = false;
-                        for (size_t i = 0; i < in_padding.lower_size().spatial.size(); ++i) {
-                            spatial_padding |= (in_padding.lower_size().spatial[i] != 0);
-                        }
-                        for (size_t i = 0; i < in_padding.upper_size().spatial.size(); ++i) {
-                            spatial_padding |= (in_padding.upper_size().spatial[i] != 0);
-                        }
-
-                        bool feature_padding = false;
-                        for (size_t i = 0; i < in_padding.lower_size().feature.size(); ++i) {
-                            feature_padding |= (in_padding.lower_size().feature[i] != 0);
-                        }
-                        for (size_t i = 0; i < in_padding.upper_size().feature.size(); ++i) {
-                            feature_padding |= (in_padding.upper_size().feature[i] != 0);
-                        }
-
-                        bool batch_padding = false;
-                        for (size_t i = 0; i < in_padding.lower_size().batch.size(); ++i) {
-                            batch_padding |= (in_padding.lower_size().batch[i] != 0);
-                        }
-                        for (size_t i = 0; i < in_padding.upper_size().batch.size(); ++i) {
-                            batch_padding |= (in_padding.upper_size().batch[i] != 0);
-                        }
-
-                        if (batch_padding && !feature_padding && !spatial_padding) {
-                            batch_padding = false;
-                        }
-
-                        if (spatial_padding || batch_padding) {
-                            cldnn::layout layout_padding = input.get_output_layout();
-                            cldnn::layout layout_wo_padding = input.get_output_layout();
-                            layout_wo_padding.data_padding = cldnn::padding{};
-                            layout_wo_padding.data_padding.lower_size().feature = layout_padding.data_padding.lower_size().feature;
-                            layout_wo_padding.data_padding.upper_size().feature = layout_padding.data_padding.upper_size().feature;
-                            auto new_reorder = std::make_shared<reorder>(input.id() + "_padding_reorder_" + usr->id(), input.id(), layout_wo_padding);
-                            auto& new_reorder_node = p.get_or_create(new_reorder);
-                            p.add_intermediate(new_reorder_node, *usr, idx);
-                            new_reorder_node.recalc_output_layout(false);
-                        } else {
-                            continue;
-                        }
-                    }
-                }
-                continue;
-            }
-        }
+        if (usr->type()->has_impl_for(*usr))
+            continue;
 
         bool correct_layout_selected = false;
         bool weights_data = (usr->is_type<convolution>() || usr->is_type<deconvolution>() || usr->is_type<fully_connected>());
@@ -226,55 +282,11 @@ void add_required_reorders::run(program& p) {
                                           original_layout.data_type,
                                           node.first->get_output_layout().format);
                     usr->set_output_layout(current_layout, false);
-                    if (usr->type()->does_possible_implementation_exist(*usr)) {
+                    if (usr->type()->has_impl_for(*usr)) {
                         correct_layout_selected = true;
                         break;
-                    } else if (original_layout.data_type == data_types::i64) {
-                        // goal of this section is to use int32 implementation
-                        // if int64 is not available for usr primitive
-                        current_layout = original_layout;
-                        current_layout.data_type = data_types::i32;
-                        usr->set_output_layout(current_layout, false);
-                        if (usr->type()->does_possible_implementation_exist(*usr)) {
-                            correct_layout_selected = true;
-                        } else {
-                            current_layout = original_layout;
-                            current_layout.data_type = data_types::i32;
-                            current_layout.format = node.first->get_output_layout().format;
-                            usr->set_output_layout(current_layout, false);
-                            if (usr->type()->does_possible_implementation_exist(*usr)) {
-                                correct_layout_selected = true;
-                            }
-                        }
-
-                        if (correct_layout_selected) {
-                            // change output_data_type field in usr to i32
-                            if ((static_cast<bool>(usr->get_primitive()->output_data_types[0]) == true) &&
-                                (*(usr->get_primitive()->output_data_types[0]) == data_types::i64)) {
-                                std::const_pointer_cast<primitive>(usr->get_primitive())->output_data_types[0] = data_types::i32;
-                            }
-                            // add reorders between usr int32 output and inputs of its users
-                            auto next_usr_itr = usr->get_users().begin();
-                            while (next_usr_itr != usr->get_users().end()) {
-                                auto next_usr = *next_usr_itr++;
-                                if (!next_usr->is_type<reorder>()) {
-                                    if ((next_usr->get_output_layout() != usr->get_output_layout())) {
-                                        add_reorder(p, usr, next_usr);
-                                    }
-                                }
-                            }
-                            break;
-                        }
                     }
                 }
-
-                OPENVINO_ASSERT(correct_layout_selected,
-                                "[GPU] No layout format available for ", usr->id(),  ", impl_type: ", usr->get_preferred_impl_type(),
-                                " (format: ", original_layout.format.to_string(),
-                                ", data_type: ", ov::element::Type(original_layout.data_type), ") ",
-                                "compatible with ", node.first->id(),
-                                " (format: ", node.first->get_output_layout().format.to_string(),
-                                ", data_type: ", ov::element::Type(node.first->get_output_layout().data_type), ")");
             }
         }
 
@@ -295,101 +307,23 @@ void add_required_reorders::run(program& p) {
                 preferred_layout_formats.push_back(cldnn::format::byxf);
             }
 
-            if (original_layout.is_dynamic() && usr->type()->does_dynamic_implementation_exist(*usr)) {
+            if (original_layout.is_dynamic() && usr->type()->has_impl_for(*usr, shape_types::dynamic_shape)) {
                 correct_layout_selected = true;
-            }
-
-            if (usr->get_preferred_impl_type() == impl_types::onednn) {
-                usr->set_preferred_impl_type(impl_types::ocl);
-                usr->set_output_layout(original_layout, false);
-                if (usr->type()->does_possible_implementation_exist(*usr)) {
-                    correct_layout_selected = true;
-                }
             }
 
             if (!correct_layout_selected) {
                 for (auto new_layout_format : preferred_layout_formats) {
-                    layout current_layout(original_layout.get_partial_shape(), original_layout.data_type, new_layout_format);
-                    usr->set_output_layout(current_layout, false);
-                    if (usr->type()->does_possible_implementation_exist(*usr)) {
+                    if (test_format(*usr, new_layout_format)) {
                         correct_layout_selected = true;
                         break;
                     }
                 }
             }
-
-            if (!correct_layout_selected) {
-                // goal of this section is to use int32 implementation
-                // if int64 is not available for usr primitive
-                if (original_layout.data_type == data_types::i64) {
-                    layout original_layout_i32(original_layout.get_partial_shape(),
-                                               data_types::i32,
-                                               original_layout.format);
-                    usr->set_output_layout(original_layout_i32, false);
-                    if (usr->type()->does_possible_implementation_exist(*usr)) {
-                        correct_layout_selected = true;
-                    }
-
-                    if (!correct_layout_selected) {
-                        for (auto new_layout_format : preferred_layout_formats) {
-                            layout current_layout_i32(original_layout_i32.get_partial_shape(),
-                                                      original_layout_i32.data_type,
-                                                      new_layout_format);
-                            usr->set_output_layout(current_layout_i32, false);
-                            if (usr->type()->does_possible_implementation_exist(*usr)) {
-                                correct_layout_selected = true;
-                                break;
-                            }
-                        }
-                    }
-                    if (!correct_layout_selected) {
-                        throw std::runtime_error("Internal Error: no implementation for " + usr->id() +
-                            " kernel which satisfies output format dependecies.");
-                    }
-
-                    // change output_data_type field in usr to i32
-                    if ((static_cast<bool>(usr->get_primitive()->output_data_types[0]) == true) &&
-                        (*(usr->get_primitive()->output_data_types[0]) == data_types::i64)) {
-                        std::const_pointer_cast<primitive>(usr->get_primitive())->output_data_types[0] = data_types::i32;
-                    }
-
-                    // add reorders between usr int32 output and inputs of its users
-                    auto next_usr_itr = usr->get_users().begin();
-                    while (next_usr_itr != usr->get_users().end()) {
-                        auto next_usr = *next_usr_itr++;
-                        if (!next_usr->is_type<reorder>()) {
-                            if ((next_usr->get_output_layout() != usr->get_output_layout())) {
-                                add_reorder(p, usr, next_usr);
-                            }
-                        }
-                    }
-                }
-            }
         }
 
-        // layout is selected now add required reorders
-        auto dep_itr = usr->get_dependencies().begin();
-        while (dep_itr != usr->get_dependencies().end()) {
-            auto node = *dep_itr++;
-            // do not add a reorder if usr or node are reorders or does not belong to data_flow
-            if (!usr->is_type<reorder>() && node.first->is_in_data_flow()) {
-                if (usr->is_type<convert_color>()) {
-                    auto reorder_prim = node.first->as<reorder>().get_primitive();
-                    if (reorder_prim->has_surface_input())
-                        continue;
-                }
-
-                if (usr->get_output_layout() != node.first->get_output_layout()) {
-                    // Preserve original data type to prevent Convolution input data type from changing
-                    // in the following sequence: Node(U8, unsupported format) -> Conv(FP16, bfyx).
-                    // Without this condition, inserted reorder will change Conv's input to FP16, instead of
-                    // expected U8 format.
-                    bool keep_original_dt = false;
-                    if (usr->is_type<convolution>())
-                        keep_original_dt = true;
-                    add_reorder(p, node.first, usr, keep_original_dt);
-                }
-            }
-        }
+        OPENVINO_ASSERT(correct_layout_selected,
+                        "[GPU] No layout format available for ", usr->id(),  ", impl_type: ", usr->get_preferred_impl_type(),
+                        " (format: ", original_layout.format.to_string(),
+                        ", data_type: ", ov::element::Type(original_layout.data_type), ") ");
     }
 }

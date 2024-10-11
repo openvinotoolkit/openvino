@@ -297,7 +297,7 @@ Any unpack_tensor_proto(const ::tensorflow::TensorProto& tensor_proto,
             break;
         case u16:
             val_size = tensor_proto.int_val_size();
-            extract_compressed_tensor_content<uint16_t, int32_t>(tensor_proto, val_size, &res);
+            extract_compressed_tensor_content<uint16_t, uint16_t>(tensor_proto, val_size, &res);
             break;
         case u64:
             val_size = tensor_proto.uint64_val_size();

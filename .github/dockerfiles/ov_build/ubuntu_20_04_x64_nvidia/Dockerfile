@@ -1,4 +1,5 @@
-FROM openvinogithubactions.azurecr.io/dockerhub/nvidia/cuda:11.8.0-runtime-ubuntu20.04
+ARG REGISTRY="docker.io"
+FROM ${REGISTRY}/nvidia/cuda:11.8.0-runtime-ubuntu20.04
 
 USER root
 
@@ -23,6 +24,8 @@ RUN apt-get update && \
         ca-certificates \
         gpg-agent \
         tzdata \
+        # parallel gzip
+        pigz \
         # Pythons
         python3.8-dev \
         python3.8-venv \

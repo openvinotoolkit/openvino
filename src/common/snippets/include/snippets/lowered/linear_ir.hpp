@@ -7,6 +7,8 @@
 #include <list>
 
 #include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/expression_factory.hpp"
+#include "snippets/lowered/expressions/buffer_expression.hpp"
 #include "snippets/target_machine.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
 #ifdef SNIPPETS_DEBUG_CAPS
@@ -51,7 +53,6 @@ using LoopManagerPtr = std::shared_ptr<LoopManager>;
  */
 class LinearIR {
     friend class LinearIRBuilder;
-    class ExpressionFactory;
 public:
     using container = std::list<ExpressionPtr>;
     using exprIt = container::iterator;
@@ -62,12 +63,12 @@ public:
     LinearIR(Config config = {}, const std::shared_ptr<IShapeInferSnippetsFactory>& factory = {});
     LinearIR(const std::shared_ptr<ov::Model>& m, const std::shared_ptr<IShapeInferSnippetsFactory>& factory, Config config = {});
 
-    ExpressionPtr create_expression(const std::shared_ptr<Node>& n, const std::vector<PortConnectorPtr>& inputs) const;
+    const ExpressionFactoryPtr& get_expr_factory() const;
 
     const container& get_ops() const { return m_expressions; }
-    const container& get_buffers() const { return m_buffer_expressions; }
-    const container& get_parameters() const { return m_parameter_expressions; }
-    const container& get_results() const { return m_result_expressions; }
+    const std::vector<ExpressionPtr>& get_parameters() const { return m_parameter_expressions; }
+    const std::vector<ExpressionPtr>& get_results() const { return m_result_expressions; }
+    const std::vector<BufferExpressionPtr>& get_buffers() const { return m_buffer_expressions; }
     const Config& get_config() const { return m_config; }
     size_t get_static_buffer_scratchpad_size() const { return m_static_buffer_scratchpad_size; }
 
@@ -130,6 +131,8 @@ public:
 
     bool is_dynamic() const;
 
+    void enumerate_expressions() const;
+
     /* ------ Helpers for work with LinearIR ----- */
     /**
      * @brief Creates new Expression from `new_node` with inputs `inputs`,
@@ -183,6 +186,20 @@ public:
             expr_it->get()->updateShapes();
         return std::make_pair(expr_it, node);
     }
+
+    /**
+     * @brief Insert new Expression to LinearIR, sets `loops_ids` as loop identifiers and inserts the expression on the `place` in LinearIR.
+     *        Also connects output ports to `consumers`
+     * @param new_expr the target expr which were created by ExpressionFactory
+     * @param loop_ids vector of loops ids that will be set for the expression
+     * @param update_loop_ports true - the helpers updates the corresponding loop ports after insertion otherwise - skip
+     * @param place before this place expression will be inserted
+     * @param consumers vector of expression port sets. These expression ports will be consumers of the expression.
+     *        The vector may be empty or size of vector must be equal to output port count
+     * @return new expression iterator in LinearIR
+     */
+    exprIt insert_expr(const ExpressionPtr& new_expr, const std::vector<size_t>& loop_ids,
+                       bool update_loop_ports, const constExprIt& place, const std::vector<std::set<ExpressionPort>>& consumers);
 
     /**
      * @brief Replace the several existing expressions with the one new expression that contains `new_node`.
@@ -246,39 +263,47 @@ public:
 private:
     class LIRShapeInfer : public ShapeInferSnippetsNode {
     public:
-        explicit LIRShapeInfer(const container& body_exprs, const container& param_exprs, const container& result_exprs);
+        explicit LIRShapeInfer(const container& body_exprs, const std::vector<ExpressionPtr>& param_exprs, const std::vector<ExpressionPtr>& result_exprs);
         Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
 
     private:
         const container& m_exprs;
-        const container& m_input_exprs;
-        const container& m_output_exprs;
+        const std::vector<ExpressionPtr>& m_input_exprs;
+        const std::vector<ExpressionPtr>& m_output_exprs;
     };
 
     static ov::NodeVector get_ordered_ops(const std::shared_ptr<ov::Model>& model);
-    // Default way: expr port connectors are constructed basing on ov::Node connection
-    ExpressionPtr create_expression(const std::shared_ptr<Node>& n);
     ExpressionPtr create_expression(const std::shared_ptr<Node>& n, const std::vector<PortConnectorPtr>& new_inputs,
                                     const std::vector<size_t>& loop_ids, bool update_loop_ports, const std::vector<std::set<ExpressionPort>>& consumers = {});
 
-    void register_expression(const ExpressionPtr& expr, bool io_allowed);
+     // Creates inputs for expression using parent output port connectors
+    std::vector<PortConnectorPtr> get_expression_inputs_by_node(const std::shared_ptr<Node>& n) const;
+
+    void register_expression(const ExpressionPtr& expr, bool io_allowed, double exec_num);
     void unregister_expression(const ExpressionPtr& expr);
+
+    // return execution number for new expression which will be inserted before `insert_pos`
+    double get_inserted_expr_exec_num(constExprIt insertion_pos) const;
 
     container m_expressions{};
     std::unordered_map<std::shared_ptr<Node>, std::shared_ptr<Expression>> m_node2expression_map;
-    container m_parameter_expressions{};
-    container m_result_expressions{};
-    container m_buffer_expressions{};
+    // Note: Parameters and Results are stored in the order of Subgraph inputs/outputs
+    std::vector<ExpressionPtr> m_parameter_expressions{};
+    std::vector<ExpressionPtr> m_result_expressions{};
+    // Note: BufferExpressions are not stored in the order of execution numbers
+    std::vector<BufferExpressionPtr> m_buffer_expressions{};
     Config m_config{};
     LoopManagerPtr m_loop_manager;
-    std::shared_ptr<IShapeInferSnippetsFactory> m_shape_infer_factory;
+    std::shared_ptr<IShapeInferSnippetsFactory> m_shape_infer_factory = nullptr;
     std::shared_ptr<ShapeInferSnippetsNode> m_shape_infer = nullptr;
+    std::shared_ptr<ExpressionFactory> m_expression_factory = nullptr;
     bool m_is_dynamic = false;
 
     // Size of static Buffer Scratchpad (Buffers with defined allocation size)
     size_t m_static_buffer_scratchpad_size = 0;
 };
 using LinearIRPtr = std::shared_ptr<LinearIR>;
+using LinearIRCPtr = std::shared_ptr<const LinearIR>;
 
 template<typename iterator>
 iterator LinearIR::find(iterator begin, iterator end, const ExpressionPtr& target) const {

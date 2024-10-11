@@ -24,6 +24,7 @@ top-performing models, allowing also cheaper and faster inference.
 We will use PyTorch version of Würstchen `model from HuggingFace
 Hub <https://huggingface.co/warp-ai/wuerstchen>`__.
 
+
 **Table of contents:**
 
 
@@ -51,6 +52,16 @@ Hub <https://huggingface.co/warp-ai/wuerstchen>`__.
 
 -  `Interactive inference <#interactive-inference>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -65,14 +76,8 @@ Prerequisites
     else:
         %pip install -q "matplotlib>=3.4,<3.7"
 
-    %pip install -q  "diffusers>=0.21.0" "torch>=2.1" transformers accelerate "gradio>=4.19" "openvino>=2023.2.0" "peft==0.6.2" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q  "diffusers>=0.24.0"  "torch>=2.1" "torchvision" transformers accelerate "gradio>=4.19" "openvino>=2023.2.0" "peft>=0.6.2" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q datasets "nncf>=2.7.0"
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-
 
 .. code:: ipython3
 
@@ -114,7 +119,7 @@ We use ``from_pretrained`` method of
 
 .. code:: ipython3
 
-    pipeline = diffusers.AutoPipelineForText2Image.from_pretrained("warp-diffusion/wuerstchen")
+    pipeline = diffusers.AutoPipelineForText2Image.from_pretrained("warp-ai/wuerstchen")
 
 Loaded model has ``WuerstchenCombinedPipeline`` type and consists of 2
 parts: prior and decoder.
@@ -139,6 +144,19 @@ Infer the original model
         output_type="pil",
         generator=generator,
     ).images
+
+
+
+.. parsed-literal::
+
+      0%|          | 0/60 [00:00<?, ?it/s]
+
+
+
+.. parsed-literal::
+
+      0%|          | 0/12 [00:00<?, ?it/s]
+
 
 .. code:: ipython3
 
@@ -211,10 +229,8 @@ parameter to generate a less memory-demanding model.
 
 Text encoder model has 2 inputs:
 
-- ``input_ids``: vector of tokenized input sentence. Default tokenizer
-  vector length is 77.
-- ``attention_mask``: vector of same length as ``input_ids`` describing
-  the attention mask.
+- ``input_ids``: vector of tokenized input sentence. Default tokenizer vector length is 77.
+- ``attention_mask``: vector of same length as ``input_ids`` describing the attention mask.
 
 .. code:: ipython3
 
@@ -230,15 +246,6 @@ Text encoder model has 2 inputs:
     del pipeline.prior_text_encoder
     del pipeline.prior_pipe.text_encoder
     gc.collect()
-
-
-
-
-.. parsed-literal::
-
-    2058
-
-
 
 Prior model is the canonical unCLIP prior to approximate the image
 embedding from the text embedding. Like UNet, it has 3 inputs: sample,
@@ -364,16 +371,7 @@ decoder takes as input 4x256x256 latent image.
         input=(1, 4, 256, 256),
     )
     del pipeline.decoder_pipe.vqgan
-    gc.collect()
-
-
-
-
-.. parsed-literal::
-
-    0
-
-
+    gc.collect();
 
 Compiling models
 ----------------
@@ -388,14 +386,16 @@ Select device from dropdown list for running inference using OpenVINO.
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
+    import requests
 
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
+    open("notebook_utils.py", "w").write(r.text)
+
+    from notebook_utils import device_widget
+
+    device = device_widget()
 
     device
 
@@ -404,7 +404,7 @@ Select device from dropdown list for running inference using OpenVINO.
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', index=4, options=('CPU', 'GPU.0', 'GPU.1', 'GPU.2', 'AUTO'), value='AUTO')
+    Dropdown(description='Device:', index=3, options=('CPU', 'GPU.0', 'GPU.1', 'AUTO'), value='AUTO')
 
 
 
@@ -522,6 +522,19 @@ Inference
         generator=generator,
     ).images
 
+
+
+.. parsed-literal::
+
+      0%|          | 0/60 [00:00<?, ?it/s]
+
+
+
+.. parsed-literal::
+
+      0%|          | 0/12 [00:00<?, ?it/s]
+
+
 .. code:: ipython3
 
     plt.figure(figsize=(8 * len(output), 8), dpi=128)
@@ -567,13 +580,20 @@ improve model inference speed.
 
 .. code:: ipython3
 
-    to_quantize = widgets.Checkbox(
-        value=True,
-        description="Quantization",
-        disabled=False,
-    )
+    from notebook_utils import quantization_widget
+
+    to_quantize = quantization_widget()
 
     to_quantize
+
+
+
+
+.. parsed-literal::
+
+    Checkbox(value=True, description='Quantization')
+
+
 
 Let’s load ``skip magic`` extension to skip quantization if
 ``to_quantize`` is not selected
@@ -673,6 +693,13 @@ model inputs for calibration we should customize ``CompiledModel``.
     if not (PRIOR_PRIOR_INT8_PATH.exists() and DECODER_INT8_PATH.exists()):
         subset_size = 300
         prior_calibration_dataset, decoder_calibration_dataset = collect_calibration_data(pipeline, subset_size=subset_size)
+
+
+
+.. parsed-literal::
+
+      0%|          | 0/300 [00:00<?, ?it/s]
+
 
 Run quantization
 ~~~~~~~~~~~~~~~~
@@ -783,7 +810,7 @@ pipelines.
     caption = "Anthropomorphic cat dressed as a fire fighter"
     negative_prompt = ""
 
-    int8_pipeline = diffusers.AutoPipelineForText2Image.from_pretrained("warp-diffusion/wuerstchen")
+    int8_pipeline = diffusers.AutoPipelineForText2Image.from_pretrained("warp-ai/wuerstchen")
 
     int8_prior_prior = core.compile_model(PRIOR_PRIOR_INT8_PATH)
     int8_pipeline.prior_pipe.prior = PriorPriorWrapper(int8_prior_prior)
@@ -794,6 +821,19 @@ pipelines.
     int8_pipeline.prior_pipe.text_encoder = TextEncoderWrapper(ov_prior_text_encoder)
     int8_pipeline.decoder_pipe.text_encoder = TextEncoderWrapper(ov_text_encoder)
     int8_pipeline.decoder_pipe.vqgan = VqganWrapper(ov_vqgan)
+
+
+
+.. parsed-literal::
+
+    Loading pipeline components...:   0%|          | 0/5 [00:00<?, ?it/s]
+
+
+
+.. parsed-literal::
+
+    Loading pipeline components...:   0%|          | 0/4 [00:00<?, ?it/s]
+
 
 .. code:: ipython3
 
@@ -810,6 +850,19 @@ pipelines.
         output_type="pil",
         generator=generator,
     ).images
+
+
+
+.. parsed-literal::
+
+      0%|          | 0/60 [00:00<?, ?it/s]
+
+
+
+.. parsed-literal::
+
+      0%|          | 0/12 [00:00<?, ?it/s]
+
 
 .. code:: ipython3
 
@@ -842,8 +895,8 @@ Compare model file sizes
 .. parsed-literal::
 
     FP16 Prior size: 3790.42 MB
-    INT8 Prior size: 951.03 MB
-    Prior compression rate: 3.986
+    INT8 Prior size: 955.13 MB
+    Prior compression rate: 3.969
 
 
 .. code:: ipython3
@@ -861,8 +914,8 @@ Compare model file sizes
 .. parsed-literal::
 
     FP16 Decoder size: 4025.90 MB
-    INT8 Decoder size: 1010.20 MB
-    Decoder compression rate: 3.985
+    INT8 Decoder size: 1014.59 MB
+    Decoder compression rate: 3.968
 
 
 Compare inference time of the FP16 and INT8 pipelines
@@ -916,9 +969,9 @@ pipelines, we use mean inference time on 3 samples.
 
 .. parsed-literal::
 
-    FP16 pipeline: 199.484 seconds
-    INT8 pipeline: 78.734 seconds
-    Performance speed up: 2.534
+    FP16 pipeline: 131.737 seconds
+    INT8 pipeline: 69.469 seconds
+    Performance speed up: 1.896
 
 
 Interactive inference
@@ -931,6 +984,8 @@ launch the interactive demo.
 
 .. code:: ipython3
 
+    import ipywidgets as widgets
+
     quantized_model_present = int8_pipeline is not None
 
     use_quantized_model = widgets.Checkbox(
@@ -940,6 +995,15 @@ launch the interactive demo.
     )
 
     use_quantized_model
+
+
+
+
+.. parsed-literal::
+
+    Checkbox(value=True, description='Use quantized model')
+
+
 
 .. code:: ipython3
 
@@ -963,14 +1027,14 @@ launch the interactive demo.
 .. code:: ipython3
 
     demo = gr.Interface(
-        generate,
-        [
+        fn=generate,
+        inputs=[
             gr.Textbox(label="Caption"),
             gr.Textbox(label="Negative prompt"),
             gr.Slider(2, 20, step=1, label="Prior guidance scale"),
             gr.Slider(0, np.iinfo(np.int32).max, label="Seed"),
         ],
-        "image",
+        outputs="image",
         examples=[["Anthropomorphic cat dressed as a firefighter", "", 4, 0]],
         allow_flagging="never",
     )
@@ -978,6 +1042,11 @@ launch the interactive demo.
         demo.queue().launch(debug=False)
     except Exception:
         demo.queue().launch(debug=False, share=True)
-    # if you are launching remotely, specify server_name and server_port
-    # demo.launch(server_name='your server name', server_port='server port in int')
-    # Read more in the docs: https://gradio.app/docs/
+    # If you are launching remotely, specify server_name and server_port
+    # EXAMPLE: `demo.launch(server_name='your server name', server_port='server port in int')`
+    # To learn more please refer to the Gradio docs: https://gradio.app/docs/
+
+.. code:: ipython3
+
+    # please uncomment and run this cell for stopping gradio interface
+    # demo.close()

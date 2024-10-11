@@ -13,7 +13,7 @@ small_bert/bert_en_uncased_L-4_H-256_A-4,https://www.kaggle.com/models/tensorflo
 movinet/a5/base/kinetics-600/classification,https://www.kaggle.com/models/google/movinet/frameworks/tensorFlow2/variations/a5-base-kinetics-600-classification/versions/3
 object_detection/mobile_object_localizer_v1,https://www.kaggle.com/models/google/mobile-object-localizer-v1/frameworks/tensorFlow1/variations/object-detection-mobile-object-localizer-v1/versions/1,xfail,128695 - inference results mismatch
 # models with TensorListConcatV2 op
-efficientdet/lite0/detection,https://www.kaggle.com/models/tensorflow/efficientdet/frameworks/tensorFlow2/variations/lite0-detection/versions/1,skip,105671 - extend support for TensorList* ops when element_shape has undefined dimension
+efficientdet/lite0/detection,https://www.kaggle.com/models/tensorflow/efficientdet/frameworks/tensorFlow2/variations/lite0-detection/versions/1
 # model with complex tensors and FFT ops
 yamnet,https://www.kaggle.com/models/google/yamnet/frameworks/tensorFlow2/variations/yamnet/versions/1
 # secure notebook models

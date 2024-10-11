@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "gemm_onednn.hpp"
 #include "gemm_inst.h"
+#include "intel_gpu/runtime/utils.hpp"
 #include "primitive_onednn_base.h"
-#include "implementation_map.hpp"
-
-#include "kernel_selector_common.h"
 
 #include <oneapi/dnnl/dnnl.hpp>
 
@@ -113,7 +112,7 @@ protected:
         out_fmt = onednn::convert_gemm_data_format(out_dims, out_l.format);
 
         if (in0_l.data_padding) {
-            dnnl::memory::dims in0_padded_dims = onednn::convert_gemm_tensor(in0_l.get_buffer_size(), rank, batched_dims_can_be_removed);
+            dnnl::memory::dims in0_padded_dims = onednn::convert_gemm_dims(in0_l.get_padded_dims(), rank, batched_dims_can_be_removed);
             in0_strides = onednn::get_strides(in0_padded_dims);
             if (prim->transpose_input0) {
                 std::swap(in0_strides[in0_strides.size() - 1], in0_strides[in0_strides.size() - 2]);
@@ -121,7 +120,7 @@ protected:
         }
 
         if (in1_l.data_padding) {
-            dnnl::memory::dims in1_padded_dims = onednn::convert_gemm_tensor(in1_l.get_buffer_size(), rank, batched_dims_can_be_removed);
+            dnnl::memory::dims in1_padded_dims = onednn::convert_gemm_dims(in1_l.get_padded_dims(), rank, batched_dims_can_be_removed);
             in1_strides = onednn::get_strides(in1_padded_dims);
             if (prim->transpose_input1)
                 std::swap(in1_strides[in1_strides.size() - 1], in1_strides[in1_strides.size() - 2]);
@@ -437,32 +436,11 @@ public:
     }
 };
 
-namespace detail {
-
-attach_gemm_onednn::attach_gemm_onednn() {
-    std::vector<data_types> dt = {
-        data_types::f32,
-        data_types::f16,
-        data_types::u8,
-        data_types::i8,
-    };
-    std::vector<format::type> fmt = {
-        format::bfyx,
-        format::bfxy,
-        format::byxf,
-        format::byfx,
-        format::bxfy,
-        format::fybx,  //format used for gemm fusion
-        format::fyxb,  //format used for gemm fusion
-        format::xbfy, // format used for gemm fusion
-        format::ybfx, // format used for gemm fusion
-        format::bfzyx,
-        format::bfwzyx,
-    };
-    implementation_map<gemm>::add(impl_types::onednn, gemm_onednn::create, dt, fmt);
+std::unique_ptr<primitive_impl> GemmImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const  {
+    assert(node.is_type<gemm>());
+    return onednn::gemm_onednn::create(static_cast<const gemm_node&>(node), params);
 }
 
-}  // namespace detail
 }  // namespace onednn
 }  // namespace cldnn
 

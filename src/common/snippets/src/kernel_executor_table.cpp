@@ -7,21 +7,13 @@
 namespace ov {
 namespace snippets {
 
-void KernelExecutorTable::replace_key_expression(const snippets::lowered::ExpressionPtr& from, const snippets::lowered::ExpressionPtr& to) {
-    const auto& found = m_table.find(from);
-    if (found != m_table.end()) {
-        OPENVINO_ASSERT(m_table.count(to) == 0, "Attempt to replace a value that is already in the KernelExecutorTable");
-        m_table.insert({to, found->second});
-        m_table.erase(found);
-    }
-}
-
 void KernelExecutorTable::reset_state(const ExecTableState& state) {
     OPENVINO_ASSERT(state.size() == m_table.size(), "Invalid state in restore_state: size mismatch");
     auto state_it = state.begin();
     for (const auto& table_record : m_table) {
         const auto& state_record = *state_it++;
-        OPENVINO_ASSERT(table_record.first == state_record.first, "Invalid state in restore_state: expressions mismatch");
+        OPENVINO_ASSERT(table_record.first == state_record.first,
+                        "Invalid state in restore_state: expression execution numbers mismatched");
         table_record.second->update_by_config(*state_record.second);
     }
 }

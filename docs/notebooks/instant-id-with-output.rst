@@ -50,46 +50,47 @@ additional part demonstrates how to run optimization with
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ to speed up
 pipeline.
 
-
 **Table of contents:**
 
 - `Prerequisites <#prerequisites>`__
-- `Convert and prepare Face IdentityNet <#convert-and-prepare-face-identitynet>`__
-
-  - `Select Inference Device for Face Recognition <#select-inference-device-for-face-recognition>`__
-  - `Perform Face Identity extraction <#perform-face-identity-extraction>`__
-
+- `Convert and prepare Face
+  IdentityNet <#convert-and-prepare-face-identitynet>`__
+- `Select Inference Device for Face
+  Recognition <#select-inference-device-for-face-recognition>`__
+- `Perform Face Identity extraction <#perform-face-identity-extraction>`__
 - `Prepare InstantID pipeline <#prepare-instantid-pipeline>`__
-- `Convert InstantID pipeline components to OpenVINO Intermediate Representation format <#convert-instantid-pipeline-components-to-openvino-intermediate-representation-format>`__
-
-  - `ControlNet <#controlnet>`__
-  - `Unet <#unet>`__
-  - `VAE Decoder <#vae-decoder>`__
-  - `Text Encoders <#text-encoders>`__
-  - `Image Projection Model <#image-projection-model>`__
-
+- `Convert InstantID pipeline components to OpenVINO Intermediate
+  Representation format <#convert-instantid-pipeline-components-to-openvino-intermediate-representation-format>`__
+- `ControlNet <#controlnet>`__
+- `Unet <#unet>`__
+- `VAE Decoder <#vae-decoder>`__
+- `Text Encoders <#text-encoders>`__
+- `Image Projection Model <#image-projection-model>`__
 - `Prepare OpenVINO InstantID Pipeline <#prepare-openvino-instantid-pipeline>`__
 - `Run OpenVINO pipeline inference <#run-openvino-pipeline-inference>`__
-
-  - `Select inference device for InstantID <#select-inference-device-for-instantid>`__
-  - `Create pipeline <#create-pipeline>`__
-  - `Run inference <#run-inference>`__
-
+- `Select inference device for InstantID <#select-inference-device-for-instantid>`__
+- `Create pipeline <#create-pipeline>`__
+- `Run inference <#run-inference>`__
 - `Quantization <#quantization>`__
-
-  - `Prepare calibration datasets <#prepare-calibration-datasets>`__
-  - `Run quantization <#run-quantization>`__
-
-    - `Run ControlNet Quantization <#run-controlnet-quantization>`__
-    - `Run UNet Hybrid Quantization <#run-unet-hybrid-quantization>`__
-    - `Run Weights Compression <#run-weights-compression>`__
-
-  - `Compare model file sizes <#compare-model-file-sizes>`__
-  - `Compare inference time of the FP16 and INT8 pipelines <#compare-inference-time-of-the-fp16-and-int8-pipelines>`__
-
+- `Prepare calibration datasets <#prepare-calibration-datasets>`__
+- `Run quantization <#run-quantization>`__
+- `Run ControlNet Quantization <#run-controlnet-quantization>`__
+- `Run UNet Hybrid Quantization <#run-unet-hybrid-quantization>`__
+- `Run Weights Compression <#run-weights-compression>`__
+- `Compare model file sizes <#compare-model-file-sizes>`__
+- `Compare inference time of the FP16 and INT8
+  pipelines <#compare-inference-time-of-the-fp16-and-int8-pipelines>`__
 - `Interactive demo <#interactive-demo>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
 .. |applications.png| image:: https://github.com/InstantID/InstantID/blob/main/assets/applications.png?raw=true
 
@@ -108,11 +109,11 @@ Prerequisites
     if not repo_dir.exists():
         !git clone https://github.com/InstantID/InstantID.git
 
-    sys.path.append(str(repo_dir))
+    sys.path.insert(0, str(repo_dir))
 
 .. code:: ipython3
 
-    %pip install -q "openvino>=2023.3.0" opencv-python transformers diffusers accelerate gdown "scikit-image>=0.19.2" "gradio>=4.19" "nncf>=2.9.0" "datasets>=2.14.6" "peft==0.6.2"
+    %pip install -q "openvino>=2023.3.0" opencv-python transformers "diffusers>=0.24.0" accelerate gdown "scikit-image>=0.19.2" "gradio>=4.19" "nncf>=2.9.0" "datasets>=2.14.6" "peft>=0.6.2"
 
 Convert and prepare Face IdentityNet
 ------------------------------------
@@ -241,8 +242,6 @@ recognition results.
             outputs = self.ov_model.outputs
             self.input_mean = 127.5
             self.input_std = 128.0
-            # print(self.output_names)
-            # assert len(outputs)==10 or len(outputs)==15
             self.use_kps = False
             self._anchor_ratio = 1.0
             self._num_anchors = 1
@@ -505,16 +504,16 @@ Select Inference Device for Face Recognition
 .. code:: ipython3
 
     import openvino as ov
-    import ipywidgets as widgets
+    import requests
 
-    core = ov.Core()
-
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
+    open("notebook_utils.py", "w").write(r.text)
+
+    from notebook_utils import device_widget
+
+    device = device_widget()
 
     device
 
@@ -829,7 +828,8 @@ XL remains without changes.
         gc.collect()
 
     if not ov_unet_path.exists():
-        down_block_res_samples, mid_block_res_sample = controlnet(**controlnet_example_input)
+        out = controlnet(**controlnet_example_input)
+        down_block_res_samples, mid_block_res_sample = out[0], out[1]
     else:
         down_block_res_samples, mid_block_res_sample = None, None
 
@@ -978,6 +978,8 @@ sequence of latent text embeddings.
 
 .. code:: ipython3
 
+    import types
+
     inputs = {"input_ids": torch.ones((1, 77), dtype=torch.long)}
 
     if not ov_text_encoder_path.exists():
@@ -994,10 +996,17 @@ sequence of latent text embeddings.
     del text_encoder
     gc.collect()
 
+
+    def text_encoder_fwd_wrapper(self, input_ids):
+        res = self._orig_forward(input_ids, return_dict=True, output_hidden_states=True)
+        return tuple([v for v in res.values() if v is not None])
+
+
     if not ov_text_encoder_2_path.exists():
         text_encoder_2.eval()
-        text_encoder_2.config.output_hidden_states = True
-        text_encoder_2.config.return_dict = False
+        text_encoder_2._orig_forward = text_encoder_2.forward
+        text_encoder_2.forward = types.MethodType(text_encoder_fwd_wrapper, text_encoder_2)
+
         with torch.no_grad():
             ov_text_encoder = ov.convert_model(text_encoder_2, example_input=inputs)
         ov.save_model(ov_text_encoder, ov_text_encoder_2_path)
@@ -1037,7 +1046,6 @@ Prepare OpenVINO InstantID Pipeline
     from diffusers.pipelines.stable_diffusion_xl import StableDiffusionXLPipelineOutput
     from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
-    import numpy as np
     import torch
 
     from diffusers.image_processor import PipelineImageInput, VaeImageProcessor
@@ -1773,8 +1781,10 @@ improve model inference speed.
 
 .. code:: ipython3
 
+    from notebook_utils import quantization_widget
+
     skip_for_device = "GPU" in device.value
-    to_quantize = widgets.Checkbox(value=not skip_for_device, description="Quantization", disabled=skip_for_device)
+    to_quantize = quantization_widget(skip_for_device)
     to_quantize
 
 
@@ -1922,6 +1932,13 @@ To collect intermediate model inputs for calibration we should customize
     if not (ov_int8_unet_path.exists() and ov_int8_controlnet_path.exists()):
         unet_calibration_data = collect_calibration_data(ov_pipe, face_info, subset_size=subset_size)
 
+
+
+.. parsed-literal::
+
+      0%|          | 0/200 [00:00<?, ?it/s]
+
+
 .. code:: ipython3
 
     %%skip not $to_quantize.value
@@ -1986,6 +2003,104 @@ layers in FP16 precision.
             model_type=nncf.ModelType.TRANSFORMER,
         )
         ov.save_model(quantized_controlnet, ov_int8_controlnet_path)
+
+
+.. parsed-literal::
+
+    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, onnx, openvino
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+.. parsed-literal::
+
+    INFO:nncf:1 ignored nodes were found by names in the NNCFGraph
+    INFO:nncf:Not adding activation input quantizer for operation: 8 __module.model.conv_in/aten::_convolution/Convolution
+    27 __module.model.conv_in/aten::_convolution/Add
+
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 Run UNet Hybrid Quantization
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -2075,6 +2190,1623 @@ layers and (2) activations of other layers. The steps are the following:
         )
         ov.save_model(quantized_unet, ov_int8_unet_path)
 
+
+.. parsed-literal::
+
+    INFO:nncf:51 ignored nodes were found by types in the NNCFGraph
+    INFO:nncf:Statistics of the bitwidth distribution:
+    ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
+    │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
+    ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
+    │              8 │ 100% (883 / 883)            │ 100% (883 / 883)                       │
+    ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+.. parsed-literal::
+
+    /home/ea/work/py3.11/lib/python3.11/site-packages/nncf/quantization/algorithms/post_training/pipeline.py:87: FutureWarning: `AdvancedQuantizationParameters(smooth_quant_alpha=..)` is deprecated.Please, use `AdvancedQuantizationParameters(smooth_quant_alphas)` option with AdvancedSmoothQuantParameters(convolution=.., matmul=..) as value instead.
+      warning_deprecated(
+
+
+.. parsed-literal::
+
+    INFO:nncf:883 ignored nodes were found by names in the NNCFGraph
+    INFO:nncf:Not adding activation input quantizer for operation: 100 __module.unet.mid_block.attentions.0.transformer_blocks.6.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 101 __module.unet.mid_block.attentions.0.transformer_blocks.7.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 102 __module.unet.mid_block.attentions.0.transformer_blocks.7.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 103 __module.unet.mid_block.attentions.0.transformer_blocks.8.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 104 __module.unet.mid_block.attentions.0.transformer_blocks.8.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 105 __module.unet.mid_block.attentions.0.transformer_blocks.9.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 106 __module.unet.mid_block.attentions.0.transformer_blocks.9.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 107 __module.unet.up_blocks.0.attentions.0.transformer_blocks.0.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 108 __module.unet.up_blocks.0.attentions.0.transformer_blocks.0.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 109 __module.unet.up_blocks.0.attentions.0.transformer_blocks.1.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 110 __module.unet.up_blocks.0.attentions.0.transformer_blocks.1.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 111 __module.unet.up_blocks.0.attentions.0.transformer_blocks.2.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 112 __module.unet.up_blocks.0.attentions.0.transformer_blocks.2.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 113 __module.unet.up_blocks.0.attentions.0.transformer_blocks.3.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 114 __module.unet.up_blocks.0.attentions.0.transformer_blocks.3.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 115 __module.unet.up_blocks.0.attentions.0.transformer_blocks.4.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 116 __module.unet.up_blocks.0.attentions.0.transformer_blocks.4.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 117 __module.unet.up_blocks.0.attentions.0.transformer_blocks.5.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 118 __module.unet.up_blocks.0.attentions.0.transformer_blocks.5.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 119 __module.unet.up_blocks.0.attentions.0.transformer_blocks.6.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 120 __module.unet.up_blocks.0.attentions.0.transformer_blocks.6.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 121 __module.unet.up_blocks.0.attentions.0.transformer_blocks.7.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 122 __module.unet.up_blocks.0.attentions.0.transformer_blocks.7.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 123 __module.unet.up_blocks.0.attentions.0.transformer_blocks.8.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 124 __module.unet.up_blocks.0.attentions.0.transformer_blocks.8.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 125 __module.unet.up_blocks.0.attentions.0.transformer_blocks.9.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 126 __module.unet.up_blocks.0.attentions.0.transformer_blocks.9.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 127 __module.unet.up_blocks.0.attentions.1.transformer_blocks.0.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 128 __module.unet.up_blocks.0.attentions.1.transformer_blocks.0.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 129 __module.unet.up_blocks.0.attentions.1.transformer_blocks.1.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 130 __module.unet.up_blocks.0.attentions.1.transformer_blocks.1.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 131 __module.unet.up_blocks.0.attentions.1.transformer_blocks.2.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 132 __module.unet.up_blocks.0.attentions.1.transformer_blocks.2.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 133 __module.unet.up_blocks.0.attentions.1.transformer_blocks.3.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 134 __module.unet.up_blocks.0.attentions.1.transformer_blocks.3.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 135 __module.unet.up_blocks.0.attentions.1.transformer_blocks.4.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 136 __module.unet.up_blocks.0.attentions.1.transformer_blocks.4.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 137 __module.unet.up_blocks.0.attentions.1.transformer_blocks.5.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 138 __module.unet.up_blocks.0.attentions.1.transformer_blocks.5.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 139 __module.unet.up_blocks.0.attentions.1.transformer_blocks.6.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 140 __module.unet.up_blocks.0.attentions.1.transformer_blocks.6.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 141 __module.unet.up_blocks.0.attentions.1.transformer_blocks.7.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 142 __module.unet.up_blocks.0.attentions.1.transformer_blocks.7.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 143 __module.unet.up_blocks.0.attentions.1.transformer_blocks.8.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 144 __module.unet.up_blocks.0.attentions.1.transformer_blocks.8.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 145 __module.unet.up_blocks.0.attentions.1.transformer_blocks.9.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 146 __module.unet.up_blocks.0.attentions.1.transformer_blocks.9.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 147 __module.unet.up_blocks.0.attentions.2.transformer_blocks.0.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 148 __module.unet.up_blocks.0.attentions.2.transformer_blocks.0.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 149 __module.unet.up_blocks.0.attentions.2.transformer_blocks.1.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 150 __module.unet.up_blocks.0.attentions.2.transformer_blocks.1.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 151 __module.unet.up_blocks.0.attentions.2.transformer_blocks.2.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 152 __module.unet.up_blocks.0.attentions.2.transformer_blocks.2.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 153 __module.unet.up_blocks.0.attentions.2.transformer_blocks.3.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 154 __module.unet.up_blocks.0.attentions.2.transformer_blocks.3.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 155 __module.unet.up_blocks.0.attentions.2.transformer_blocks.4.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 156 __module.unet.up_blocks.0.attentions.2.transformer_blocks.4.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 157 __module.unet.up_blocks.0.attentions.2.transformer_blocks.5.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 158 __module.unet.up_blocks.0.attentions.2.transformer_blocks.5.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 159 __module.unet.up_blocks.0.attentions.2.transformer_blocks.6.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 160 __module.unet.up_blocks.0.attentions.2.transformer_blocks.6.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 161 __module.unet.up_blocks.0.attentions.2.transformer_blocks.7.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 162 __module.unet.up_blocks.0.attentions.2.transformer_blocks.7.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 163 __module.unet.up_blocks.0.attentions.2.transformer_blocks.8.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 164 __module.unet.up_blocks.0.attentions.2.transformer_blocks.8.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 165 __module.unet.up_blocks.0.attentions.2.transformer_blocks.9.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 166 __module.unet.up_blocks.0.attentions.2.transformer_blocks.9.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 167 __module.unet.up_blocks.1.attentions.0.transformer_blocks.0.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 168 __module.unet.up_blocks.1.attentions.0.transformer_blocks.0.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 169 __module.unet.up_blocks.1.attentions.0.transformer_blocks.1.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 170 __module.unet.up_blocks.1.attentions.0.transformer_blocks.1.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 171 __module.unet.up_blocks.1.attentions.1.transformer_blocks.0.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 172 __module.unet.up_blocks.1.attentions.1.transformer_blocks.0.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 173 __module.unet.up_blocks.1.attentions.1.transformer_blocks.1.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 174 __module.unet.up_blocks.1.attentions.1.transformer_blocks.1.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 175 __module.unet.up_blocks.1.attentions.2.transformer_blocks.0.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 176 __module.unet.up_blocks.1.attentions.2.transformer_blocks.0.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 177 __module.unet.up_blocks.1.attentions.2.transformer_blocks.1.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 178 __module.unet.up_blocks.1.attentions.2.transformer_blocks.1.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 179 __module.unet.down_blocks.1.attentions.0.transformer_blocks.0.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 180 __module.unet.down_blocks.1.attentions.0.transformer_blocks.0.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 181 __module.unet.down_blocks.1.attentions.0.transformer_blocks.1.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 182 __module.unet.down_blocks.1.attentions.0.transformer_blocks.1.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 183 __module.unet.down_blocks.1.attentions.1.transformer_blocks.0.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 184 __module.unet.down_blocks.1.attentions.1.transformer_blocks.0.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 185 __module.unet.down_blocks.1.attentions.1.transformer_blocks.1.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 186 __module.unet.down_blocks.1.attentions.1.transformer_blocks.1.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 187 __module.unet.down_blocks.2.attentions.0.transformer_blocks.0.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 188 __module.unet.down_blocks.2.attentions.0.transformer_blocks.0.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 189 __module.unet.down_blocks.2.attentions.0.transformer_blocks.1.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 190 __module.unet.down_blocks.2.attentions.0.transformer_blocks.1.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 191 __module.unet.down_blocks.2.attentions.0.transformer_blocks.2.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 192 __module.unet.down_blocks.2.attentions.0.transformer_blocks.2.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 193 __module.unet.down_blocks.2.attentions.0.transformer_blocks.3.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 194 __module.unet.down_blocks.2.attentions.0.transformer_blocks.3.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 195 __module.unet.down_blocks.2.attentions.0.transformer_blocks.4.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 196 __module.unet.down_blocks.2.attentions.0.transformer_blocks.4.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 197 __module.unet.down_blocks.2.attentions.0.transformer_blocks.5.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 198 __module.unet.down_blocks.2.attentions.0.transformer_blocks.5.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 199 __module.unet.down_blocks.2.attentions.0.transformer_blocks.6.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 200 __module.unet.down_blocks.2.attentions.0.transformer_blocks.6.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 201 __module.unet.down_blocks.2.attentions.0.transformer_blocks.7.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 202 __module.unet.down_blocks.2.attentions.0.transformer_blocks.7.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 203 __module.unet.down_blocks.2.attentions.0.transformer_blocks.8.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 204 __module.unet.down_blocks.2.attentions.0.transformer_blocks.8.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 205 __module.unet.down_blocks.2.attentions.0.transformer_blocks.9.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 206 __module.unet.down_blocks.2.attentions.0.transformer_blocks.9.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 207 __module.unet.down_blocks.2.attentions.1.transformer_blocks.0.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 208 __module.unet.down_blocks.2.attentions.1.transformer_blocks.0.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 209 __module.unet.down_blocks.2.attentions.1.transformer_blocks.1.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 210 __module.unet.down_blocks.2.attentions.1.transformer_blocks.1.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 211 __module.unet.down_blocks.2.attentions.1.transformer_blocks.2.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 212 __module.unet.down_blocks.2.attentions.1.transformer_blocks.2.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 213 __module.unet.down_blocks.2.attentions.1.transformer_blocks.3.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 214 __module.unet.down_blocks.2.attentions.1.transformer_blocks.3.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 215 __module.unet.down_blocks.2.attentions.1.transformer_blocks.4.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 216 __module.unet.down_blocks.2.attentions.1.transformer_blocks.4.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 217 __module.unet.down_blocks.2.attentions.1.transformer_blocks.5.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 218 __module.unet.down_blocks.2.attentions.1.transformer_blocks.5.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 219 __module.unet.down_blocks.2.attentions.1.transformer_blocks.6.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 220 __module.unet.down_blocks.2.attentions.1.transformer_blocks.6.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 221 __module.unet.down_blocks.2.attentions.1.transformer_blocks.7.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 222 __module.unet.down_blocks.2.attentions.1.transformer_blocks.7.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 223 __module.unet.down_blocks.2.attentions.1.transformer_blocks.8.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 224 __module.unet.down_blocks.2.attentions.1.transformer_blocks.8.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 225 __module.unet.down_blocks.2.attentions.1.transformer_blocks.9.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 226 __module.unet.down_blocks.2.attentions.1.transformer_blocks.9.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 227 __module.unet.mid_block.attentions.0.transformer_blocks.0.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 228 __module.unet.mid_block.attentions.0.transformer_blocks.0.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 229 __module.unet.mid_block.attentions.0.transformer_blocks.1.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 230 __module.unet.mid_block.attentions.0.transformer_blocks.1.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 231 __module.unet.mid_block.attentions.0.transformer_blocks.2.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 232 __module.unet.mid_block.attentions.0.transformer_blocks.2.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 233 __module.unet.mid_block.attentions.0.transformer_blocks.3.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 234 __module.unet.mid_block.attentions.0.transformer_blocks.3.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 235 __module.unet.mid_block.attentions.0.transformer_blocks.4.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 236 __module.unet.mid_block.attentions.0.transformer_blocks.4.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 237 __module.unet.mid_block.attentions.0.transformer_blocks.5.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 238 __module.unet.mid_block.attentions.0.transformer_blocks.5.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 239 __module.unet.mid_block.attentions.0.transformer_blocks.6.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 240 __module.unet.mid_block.attentions.0.transformer_blocks.6.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 241 __module.unet.mid_block.attentions.0.transformer_blocks.7.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 242 __module.unet.mid_block.attentions.0.transformer_blocks.7.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 243 __module.unet.mid_block.attentions.0.transformer_blocks.8.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 244 __module.unet.mid_block.attentions.0.transformer_blocks.8.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 245 __module.unet.mid_block.attentions.0.transformer_blocks.9.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 246 __module.unet.mid_block.attentions.0.transformer_blocks.9.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 247 __module.unet.up_blocks.0.attentions.0.transformer_blocks.0.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 248 __module.unet.up_blocks.0.attentions.0.transformer_blocks.0.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 249 __module.unet.up_blocks.0.attentions.0.transformer_blocks.1.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 250 __module.unet.up_blocks.0.attentions.0.transformer_blocks.1.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 251 __module.unet.up_blocks.0.attentions.0.transformer_blocks.2.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 252 __module.unet.up_blocks.0.attentions.0.transformer_blocks.2.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 253 __module.unet.up_blocks.0.attentions.0.transformer_blocks.3.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 254 __module.unet.up_blocks.0.attentions.0.transformer_blocks.3.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 255 __module.unet.up_blocks.0.attentions.0.transformer_blocks.4.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 256 __module.unet.up_blocks.0.attentions.0.transformer_blocks.4.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 257 __module.unet.up_blocks.0.attentions.0.transformer_blocks.5.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 258 __module.unet.up_blocks.0.attentions.0.transformer_blocks.5.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 259 __module.unet.up_blocks.0.attentions.0.transformer_blocks.6.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 260 __module.unet.up_blocks.0.attentions.0.transformer_blocks.6.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 261 __module.unet.up_blocks.0.attentions.0.transformer_blocks.7.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 262 __module.unet.up_blocks.0.attentions.0.transformer_blocks.7.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 263 __module.unet.up_blocks.0.attentions.0.transformer_blocks.8.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 264 __module.unet.up_blocks.0.attentions.0.transformer_blocks.8.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 265 __module.unet.up_blocks.0.attentions.0.transformer_blocks.9.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 266 __module.unet.up_blocks.0.attentions.0.transformer_blocks.9.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 267 __module.unet.up_blocks.0.attentions.1.transformer_blocks.0.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 268 __module.unet.up_blocks.0.attentions.1.transformer_blocks.0.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 269 __module.unet.up_blocks.0.attentions.1.transformer_blocks.1.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 270 __module.unet.up_blocks.0.attentions.1.transformer_blocks.1.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 271 __module.unet.up_blocks.0.attentions.1.transformer_blocks.2.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 272 __module.unet.up_blocks.0.attentions.1.transformer_blocks.2.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 273 __module.unet.up_blocks.0.attentions.1.transformer_blocks.3.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 274 __module.unet.up_blocks.0.attentions.1.transformer_blocks.3.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 275 __module.unet.up_blocks.0.attentions.1.transformer_blocks.4.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 276 __module.unet.up_blocks.0.attentions.1.transformer_blocks.4.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 277 __module.unet.up_blocks.0.attentions.1.transformer_blocks.5.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 278 __module.unet.up_blocks.0.attentions.1.transformer_blocks.5.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 279 __module.unet.up_blocks.0.attentions.1.transformer_blocks.6.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 280 __module.unet.up_blocks.0.attentions.1.transformer_blocks.6.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 281 __module.unet.up_blocks.0.attentions.1.transformer_blocks.7.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 282 __module.unet.up_blocks.0.attentions.1.transformer_blocks.7.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 283 __module.unet.up_blocks.0.attentions.1.transformer_blocks.8.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 284 __module.unet.up_blocks.0.attentions.1.transformer_blocks.8.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 285 __module.unet.up_blocks.0.attentions.1.transformer_blocks.9.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 286 __module.unet.up_blocks.0.attentions.1.transformer_blocks.9.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 287 __module.unet.up_blocks.0.attentions.2.transformer_blocks.0.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 288 __module.unet.up_blocks.0.attentions.2.transformer_blocks.0.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 289 __module.unet.up_blocks.0.attentions.2.transformer_blocks.1.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 290 __module.unet.up_blocks.0.attentions.2.transformer_blocks.1.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 291 __module.unet.up_blocks.0.attentions.2.transformer_blocks.2.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 292 __module.unet.up_blocks.0.attentions.2.transformer_blocks.2.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 293 __module.unet.up_blocks.0.attentions.2.transformer_blocks.3.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 294 __module.unet.up_blocks.0.attentions.2.transformer_blocks.3.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 295 __module.unet.up_blocks.0.attentions.2.transformer_blocks.4.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 296 __module.unet.up_blocks.0.attentions.2.transformer_blocks.4.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 297 __module.unet.up_blocks.0.attentions.2.transformer_blocks.5.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 298 __module.unet.up_blocks.0.attentions.2.transformer_blocks.5.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 299 __module.unet.up_blocks.0.attentions.2.transformer_blocks.6.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 300 __module.unet.up_blocks.0.attentions.2.transformer_blocks.6.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 301 __module.unet.up_blocks.0.attentions.2.transformer_blocks.7.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 302 __module.unet.up_blocks.0.attentions.2.transformer_blocks.7.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 303 __module.unet.up_blocks.0.attentions.2.transformer_blocks.8.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 304 __module.unet.up_blocks.0.attentions.2.transformer_blocks.8.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 305 __module.unet.up_blocks.0.attentions.2.transformer_blocks.9.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 306 __module.unet.up_blocks.0.attentions.2.transformer_blocks.9.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 307 __module.unet.up_blocks.1.attentions.0.transformer_blocks.0.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 308 __module.unet.up_blocks.1.attentions.0.transformer_blocks.0.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 309 __module.unet.up_blocks.1.attentions.0.transformer_blocks.1.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 310 __module.unet.up_blocks.1.attentions.0.transformer_blocks.1.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 311 __module.unet.up_blocks.1.attentions.1.transformer_blocks.0.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 312 __module.unet.up_blocks.1.attentions.1.transformer_blocks.0.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 313 __module.unet.up_blocks.1.attentions.1.transformer_blocks.1.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 314 __module.unet.up_blocks.1.attentions.1.transformer_blocks.1.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 315 __module.unet.up_blocks.1.attentions.2.transformer_blocks.0.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 316 __module.unet.up_blocks.1.attentions.2.transformer_blocks.0.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 317 __module.unet.up_blocks.1.attentions.2.transformer_blocks.1.attn2.processor.to_k_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 318 __module.unet.up_blocks.1.attentions.2.transformer_blocks.1.attn2.processor.to_v_ip/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 39 __module.unet.down_blocks.1.attentions.0.transformer_blocks.0.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 40 __module.unet.down_blocks.1.attentions.0.transformer_blocks.0.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 41 __module.unet.down_blocks.1.attentions.0.transformer_blocks.1.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 42 __module.unet.down_blocks.1.attentions.0.transformer_blocks.1.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 43 __module.unet.down_blocks.1.attentions.1.transformer_blocks.0.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 44 __module.unet.down_blocks.1.attentions.1.transformer_blocks.0.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 45 __module.unet.down_blocks.1.attentions.1.transformer_blocks.1.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 46 __module.unet.down_blocks.1.attentions.1.transformer_blocks.1.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 47 __module.unet.down_blocks.2.attentions.0.transformer_blocks.0.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 48 __module.unet.down_blocks.2.attentions.0.transformer_blocks.0.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 49 __module.unet.down_blocks.2.attentions.0.transformer_blocks.1.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 50 __module.unet.down_blocks.2.attentions.0.transformer_blocks.1.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 51 __module.unet.down_blocks.2.attentions.0.transformer_blocks.2.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 52 __module.unet.down_blocks.2.attentions.0.transformer_blocks.2.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 53 __module.unet.down_blocks.2.attentions.0.transformer_blocks.3.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 54 __module.unet.down_blocks.2.attentions.0.transformer_blocks.3.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 55 __module.unet.down_blocks.2.attentions.0.transformer_blocks.4.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 56 __module.unet.down_blocks.2.attentions.0.transformer_blocks.4.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 57 __module.unet.down_blocks.2.attentions.0.transformer_blocks.5.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 58 __module.unet.down_blocks.2.attentions.0.transformer_blocks.5.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 59 __module.unet.down_blocks.2.attentions.0.transformer_blocks.6.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 60 __module.unet.down_blocks.2.attentions.0.transformer_blocks.6.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 61 __module.unet.down_blocks.2.attentions.0.transformer_blocks.7.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 62 __module.unet.down_blocks.2.attentions.0.transformer_blocks.7.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 63 __module.unet.down_blocks.2.attentions.0.transformer_blocks.8.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 64 __module.unet.down_blocks.2.attentions.0.transformer_blocks.8.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 65 __module.unet.down_blocks.2.attentions.0.transformer_blocks.9.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 66 __module.unet.down_blocks.2.attentions.0.transformer_blocks.9.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 67 __module.unet.down_blocks.2.attentions.1.transformer_blocks.0.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 68 __module.unet.down_blocks.2.attentions.1.transformer_blocks.0.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 69 __module.unet.down_blocks.2.attentions.1.transformer_blocks.1.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 70 __module.unet.down_blocks.2.attentions.1.transformer_blocks.1.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 71 __module.unet.down_blocks.2.attentions.1.transformer_blocks.2.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 72 __module.unet.down_blocks.2.attentions.1.transformer_blocks.2.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 73 __module.unet.down_blocks.2.attentions.1.transformer_blocks.3.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 74 __module.unet.down_blocks.2.attentions.1.transformer_blocks.3.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 75 __module.unet.down_blocks.2.attentions.1.transformer_blocks.4.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 76 __module.unet.down_blocks.2.attentions.1.transformer_blocks.4.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 77 __module.unet.down_blocks.2.attentions.1.transformer_blocks.5.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 78 __module.unet.down_blocks.2.attentions.1.transformer_blocks.5.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 79 __module.unet.down_blocks.2.attentions.1.transformer_blocks.6.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 80 __module.unet.down_blocks.2.attentions.1.transformer_blocks.6.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 81 __module.unet.down_blocks.2.attentions.1.transformer_blocks.7.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 82 __module.unet.down_blocks.2.attentions.1.transformer_blocks.7.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 83 __module.unet.down_blocks.2.attentions.1.transformer_blocks.8.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 84 __module.unet.down_blocks.2.attentions.1.transformer_blocks.8.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 85 __module.unet.down_blocks.2.attentions.1.transformer_blocks.9.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 86 __module.unet.down_blocks.2.attentions.1.transformer_blocks.9.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 87 __module.unet.mid_block.attentions.0.transformer_blocks.0.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 88 __module.unet.mid_block.attentions.0.transformer_blocks.0.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 89 __module.unet.mid_block.attentions.0.transformer_blocks.1.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 90 __module.unet.mid_block.attentions.0.transformer_blocks.1.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 91 __module.unet.mid_block.attentions.0.transformer_blocks.2.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 92 __module.unet.mid_block.attentions.0.transformer_blocks.2.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 93 __module.unet.mid_block.attentions.0.transformer_blocks.3.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 94 __module.unet.mid_block.attentions.0.transformer_blocks.3.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 95 __module.unet.mid_block.attentions.0.transformer_blocks.4.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 96 __module.unet.mid_block.attentions.0.transformer_blocks.4.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 97 __module.unet.mid_block.attentions.0.transformer_blocks.5.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 98 __module.unet.mid_block.attentions.0.transformer_blocks.5.attn2.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 99 __module.unet.mid_block.attentions.0.transformer_blocks.6.attn2.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1809 __module.unet.time_embedding.linear_1/aten::linear/MatMul
+    1928 __module.unet.time_embedding.linear_1/aten::linear/Add
+    2048 __module.unet.conv_act/aten::silu/Swish_1
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2174 __module.unet.time_embedding.linear_2/aten::linear/MatMul
+    2368 __module.unet.time_embedding.linear_2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 329 __module.unet.add_embedding.linear_1/aten::linear/MatMul
+    646 __module.unet.add_embedding.linear_1/aten::linear/Add
+    1032 __module.unet.conv_act/aten::silu/Swish_2
+
+    INFO:nncf:Not adding activation input quantizer for operation: 1268 __module.unet.add_embedding.linear_2/aten::linear/MatMul
+    1450 __module.unet.add_embedding.linear_2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 1904 __module.unet.down_blocks.0.resnets.0.time_emb_proj/aten::linear/MatMul
+    2021 __module.unet.down_blocks.0.resnets.0.time_emb_proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 1905 __module.unet.down_blocks.0.resnets.1.time_emb_proj/aten::linear/MatMul
+    2022 __module.unet.down_blocks.0.resnets.1.time_emb_proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 1906 __module.unet.down_blocks.1.resnets.0.time_emb_proj/aten::linear/MatMul
+    2023 __module.unet.down_blocks.1.resnets.0.time_emb_proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 1907 __module.unet.down_blocks.1.resnets.1.time_emb_proj/aten::linear/MatMul
+    2024 __module.unet.down_blocks.1.resnets.1.time_emb_proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 1908 __module.unet.down_blocks.2.resnets.0.time_emb_proj/aten::linear/MatMul
+    2025 __module.unet.down_blocks.2.resnets.0.time_emb_proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 1909 __module.unet.down_blocks.2.resnets.1.time_emb_proj/aten::linear/MatMul
+    2026 __module.unet.down_blocks.2.resnets.1.time_emb_proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 1910 __module.unet.mid_block.resnets.0.time_emb_proj/aten::linear/MatMul
+    2027 __module.unet.mid_block.resnets.0.time_emb_proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 1911 __module.unet.mid_block.resnets.1.time_emb_proj/aten::linear/MatMul
+    2028 __module.unet.mid_block.resnets.1.time_emb_proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 1912 __module.unet.up_blocks.0.resnets.0.time_emb_proj/aten::linear/MatMul
+    2029 __module.unet.up_blocks.0.resnets.0.time_emb_proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 1913 __module.unet.up_blocks.0.resnets.1.time_emb_proj/aten::linear/MatMul
+    2030 __module.unet.up_blocks.0.resnets.1.time_emb_proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 1914 __module.unet.up_blocks.0.resnets.2.time_emb_proj/aten::linear/MatMul
+    2031 __module.unet.up_blocks.0.resnets.2.time_emb_proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 1915 __module.unet.up_blocks.1.resnets.0.time_emb_proj/aten::linear/MatMul
+    2032 __module.unet.up_blocks.1.resnets.0.time_emb_proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 1916 __module.unet.up_blocks.1.resnets.1.time_emb_proj/aten::linear/MatMul
+    2033 __module.unet.up_blocks.1.resnets.1.time_emb_proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 1917 __module.unet.up_blocks.1.resnets.2.time_emb_proj/aten::linear/MatMul
+    2034 __module.unet.up_blocks.1.resnets.2.time_emb_proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 1918 __module.unet.up_blocks.2.resnets.0.time_emb_proj/aten::linear/MatMul
+    2035 __module.unet.up_blocks.2.resnets.0.time_emb_proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 1919 __module.unet.up_blocks.2.resnets.1.time_emb_proj/aten::linear/MatMul
+    2036 __module.unet.up_blocks.2.resnets.1.time_emb_proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 1920 __module.unet.up_blocks.2.resnets.2.time_emb_proj/aten::linear/MatMul
+    2037 __module.unet.up_blocks.2.resnets.2.time_emb_proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3065 __module.unet.down_blocks.1.attentions.0.proj_in/aten::linear/MatMul
+    3410 __module.unet.down_blocks.1.attentions.0.proj_in/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4876 __module.unet.down_blocks.1.attentions.0.transformer_blocks.0.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 4877 __module.unet.down_blocks.1.attentions.0.transformer_blocks.0.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 4878 __module.unet.down_blocks.1.attentions.0.transformer_blocks.0.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5281 __module.unet.down_blocks.1.attentions.0.transformer_blocks.0.attn1.to_out.0/aten::linear/MatMul
+    5289 __module.unet.down_blocks.1.attentions.0.transformer_blocks.0.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 5099 __module.unet.down_blocks.1.attentions.0.transformer_blocks.0.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1810 __module.unet.down_blocks.1.attentions.0.transformer_blocks.0.attn2.to_out.0/aten::linear/MatMul
+    1929 __module.unet.down_blocks.1.attentions.0.transformer_blocks.0.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2839 __module.unet.down_blocks.1.attentions.0.transformer_blocks.0.ff.net.0.proj/aten::linear/MatMul
+    3072 __module.unet.down_blocks.1.attentions.0.transformer_blocks.0.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4276 __module.unet.down_blocks.1.attentions.0.transformer_blocks.0.ff.net.2/aten::linear/MatMul
+    4588 __module.unet.down_blocks.1.attentions.0.transformer_blocks.0.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3073 __module.unet.down_blocks.1.attentions.0.transformer_blocks.1.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3074 __module.unet.down_blocks.1.attentions.0.transformer_blocks.1.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3075 __module.unet.down_blocks.1.attentions.0.transformer_blocks.1.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5103 __module.unet.down_blocks.1.attentions.0.transformer_blocks.1.attn1.to_out.0/aten::linear/MatMul
+    5181 __module.unet.down_blocks.1.attentions.0.transformer_blocks.1.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3420 __module.unet.down_blocks.1.attentions.0.transformer_blocks.1.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1811 __module.unet.down_blocks.1.attentions.0.transformer_blocks.1.attn2.to_out.0/aten::linear/MatMul
+    1930 __module.unet.down_blocks.1.attentions.0.transformer_blocks.1.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2842 __module.unet.down_blocks.1.attentions.0.transformer_blocks.1.ff.net.0.proj/aten::linear/MatMul
+    3077 __module.unet.down_blocks.1.attentions.0.transformer_blocks.1.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4280 __module.unet.down_blocks.1.attentions.0.transformer_blocks.1.ff.net.2/aten::linear/MatMul
+    4592 __module.unet.down_blocks.1.attentions.0.transformer_blocks.1.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2373 __module.unet.down_blocks.1.attentions.0.proj_out/aten::linear/MatMul
+    2602 __module.unet.down_blocks.1.attentions.0.proj_out/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3836 __module.unet.down_blocks.1.attentions.1.proj_in/aten::linear/MatMul
+    4269 __module.unet.down_blocks.1.attentions.1.proj_in/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 5176 __module.unet.down_blocks.1.attentions.1.transformer_blocks.0.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5177 __module.unet.down_blocks.1.attentions.1.transformer_blocks.0.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5178 __module.unet.down_blocks.1.attentions.1.transformer_blocks.0.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5297 __module.unet.down_blocks.1.attentions.1.transformer_blocks.0.attn1.to_out.0/aten::linear/MatMul
+    5306 __module.unet.down_blocks.1.attentions.1.transformer_blocks.0.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 5255 __module.unet.down_blocks.1.attentions.1.transformer_blocks.0.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1812 __module.unet.down_blocks.1.attentions.1.transformer_blocks.0.attn2.to_out.0/aten::linear/MatMul
+    1931 __module.unet.down_blocks.1.attentions.1.transformer_blocks.0.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2843 __module.unet.down_blocks.1.attentions.1.transformer_blocks.0.ff.net.0.proj/aten::linear/MatMul
+    3078 __module.unet.down_blocks.1.attentions.1.transformer_blocks.0.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4283 __module.unet.down_blocks.1.attentions.1.transformer_blocks.0.ff.net.2/aten::linear/MatMul
+    4595 __module.unet.down_blocks.1.attentions.1.transformer_blocks.0.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3079 __module.unet.down_blocks.1.attentions.1.transformer_blocks.1.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3080 __module.unet.down_blocks.1.attentions.1.transformer_blocks.1.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3081 __module.unet.down_blocks.1.attentions.1.transformer_blocks.1.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5104 __module.unet.down_blocks.1.attentions.1.transformer_blocks.1.attn1.to_out.0/aten::linear/MatMul
+    5182 __module.unet.down_blocks.1.attentions.1.transformer_blocks.1.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3428 __module.unet.down_blocks.1.attentions.1.transformer_blocks.1.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1813 __module.unet.down_blocks.1.attentions.1.transformer_blocks.1.attn2.to_out.0/aten::linear/MatMul
+    1932 __module.unet.down_blocks.1.attentions.1.transformer_blocks.1.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2846 __module.unet.down_blocks.1.attentions.1.transformer_blocks.1.ff.net.0.proj/aten::linear/MatMul
+    3083 __module.unet.down_blocks.1.attentions.1.transformer_blocks.1.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4287 __module.unet.down_blocks.1.attentions.1.transformer_blocks.1.ff.net.2/aten::linear/MatMul
+    4599 __module.unet.down_blocks.1.attentions.1.transformer_blocks.1.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2378 __module.unet.down_blocks.1.attentions.1.proj_out/aten::linear/MatMul
+    2607 __module.unet.down_blocks.1.attentions.1.proj_out/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 5256 __module.unet.down_blocks.2.attentions.0.proj_in/aten::linear/MatMul
+    5272 __module.unet.down_blocks.2.attentions.0.proj_in/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 5298 __module.unet.down_blocks.2.attentions.0.transformer_blocks.0.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5299 __module.unet.down_blocks.2.attentions.0.transformer_blocks.0.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5300 __module.unet.down_blocks.2.attentions.0.transformer_blocks.0.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5343 __module.unet.down_blocks.2.attentions.0.transformer_blocks.0.attn1.to_out.0/aten::linear/MatMul
+    5346 __module.unet.down_blocks.2.attentions.0.transformer_blocks.0.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 5310 __module.unet.down_blocks.2.attentions.0.transformer_blocks.0.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1814 __module.unet.down_blocks.2.attentions.0.transformer_blocks.0.attn2.to_out.0/aten::linear/MatMul
+    1933 __module.unet.down_blocks.2.attentions.0.transformer_blocks.0.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2847 __module.unet.down_blocks.2.attentions.0.transformer_blocks.0.ff.net.0.proj/aten::linear/MatMul
+    3084 __module.unet.down_blocks.2.attentions.0.transformer_blocks.0.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4290 __module.unet.down_blocks.2.attentions.0.transformer_blocks.0.ff.net.2/aten::linear/MatMul
+    4602 __module.unet.down_blocks.2.attentions.0.transformer_blocks.0.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3085 __module.unet.down_blocks.2.attentions.0.transformer_blocks.1.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3086 __module.unet.down_blocks.2.attentions.0.transformer_blocks.1.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3087 __module.unet.down_blocks.2.attentions.0.transformer_blocks.1.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5105 __module.unet.down_blocks.2.attentions.0.transformer_blocks.1.attn1.to_out.0/aten::linear/MatMul
+    5183 __module.unet.down_blocks.2.attentions.0.transformer_blocks.1.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3436 __module.unet.down_blocks.2.attentions.0.transformer_blocks.1.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1815 __module.unet.down_blocks.2.attentions.0.transformer_blocks.1.attn2.to_out.0/aten::linear/MatMul
+    1934 __module.unet.down_blocks.2.attentions.0.transformer_blocks.1.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2850 __module.unet.down_blocks.2.attentions.0.transformer_blocks.1.ff.net.0.proj/aten::linear/MatMul
+    3089 __module.unet.down_blocks.2.attentions.0.transformer_blocks.1.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4294 __module.unet.down_blocks.2.attentions.0.transformer_blocks.1.ff.net.2/aten::linear/MatMul
+    4606 __module.unet.down_blocks.2.attentions.0.transformer_blocks.1.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3090 __module.unet.down_blocks.2.attentions.0.transformer_blocks.2.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3091 __module.unet.down_blocks.2.attentions.0.transformer_blocks.2.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3092 __module.unet.down_blocks.2.attentions.0.transformer_blocks.2.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5106 __module.unet.down_blocks.2.attentions.0.transformer_blocks.2.attn1.to_out.0/aten::linear/MatMul
+    5184 __module.unet.down_blocks.2.attentions.0.transformer_blocks.2.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3442 __module.unet.down_blocks.2.attentions.0.transformer_blocks.2.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1816 __module.unet.down_blocks.2.attentions.0.transformer_blocks.2.attn2.to_out.0/aten::linear/MatMul
+    1935 __module.unet.down_blocks.2.attentions.0.transformer_blocks.2.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2853 __module.unet.down_blocks.2.attentions.0.transformer_blocks.2.ff.net.0.proj/aten::linear/MatMul
+    3094 __module.unet.down_blocks.2.attentions.0.transformer_blocks.2.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4298 __module.unet.down_blocks.2.attentions.0.transformer_blocks.2.ff.net.2/aten::linear/MatMul
+    4610 __module.unet.down_blocks.2.attentions.0.transformer_blocks.2.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3095 __module.unet.down_blocks.2.attentions.0.transformer_blocks.3.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3096 __module.unet.down_blocks.2.attentions.0.transformer_blocks.3.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3097 __module.unet.down_blocks.2.attentions.0.transformer_blocks.3.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5107 __module.unet.down_blocks.2.attentions.0.transformer_blocks.3.attn1.to_out.0/aten::linear/MatMul
+    5185 __module.unet.down_blocks.2.attentions.0.transformer_blocks.3.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3448 __module.unet.down_blocks.2.attentions.0.transformer_blocks.3.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1817 __module.unet.down_blocks.2.attentions.0.transformer_blocks.3.attn2.to_out.0/aten::linear/MatMul
+    1936 __module.unet.down_blocks.2.attentions.0.transformer_blocks.3.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2856 __module.unet.down_blocks.2.attentions.0.transformer_blocks.3.ff.net.0.proj/aten::linear/MatMul
+    3099 __module.unet.down_blocks.2.attentions.0.transformer_blocks.3.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4302 __module.unet.down_blocks.2.attentions.0.transformer_blocks.3.ff.net.2/aten::linear/MatMul
+    4614 __module.unet.down_blocks.2.attentions.0.transformer_blocks.3.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3100 __module.unet.down_blocks.2.attentions.0.transformer_blocks.4.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3101 __module.unet.down_blocks.2.attentions.0.transformer_blocks.4.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3102 __module.unet.down_blocks.2.attentions.0.transformer_blocks.4.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5108 __module.unet.down_blocks.2.attentions.0.transformer_blocks.4.attn1.to_out.0/aten::linear/MatMul
+    5186 __module.unet.down_blocks.2.attentions.0.transformer_blocks.4.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3454 __module.unet.down_blocks.2.attentions.0.transformer_blocks.4.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1818 __module.unet.down_blocks.2.attentions.0.transformer_blocks.4.attn2.to_out.0/aten::linear/MatMul
+    1937 __module.unet.down_blocks.2.attentions.0.transformer_blocks.4.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2859 __module.unet.down_blocks.2.attentions.0.transformer_blocks.4.ff.net.0.proj/aten::linear/MatMul
+    3104 __module.unet.down_blocks.2.attentions.0.transformer_blocks.4.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4306 __module.unet.down_blocks.2.attentions.0.transformer_blocks.4.ff.net.2/aten::linear/MatMul
+    4618 __module.unet.down_blocks.2.attentions.0.transformer_blocks.4.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3105 __module.unet.down_blocks.2.attentions.0.transformer_blocks.5.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3106 __module.unet.down_blocks.2.attentions.0.transformer_blocks.5.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3107 __module.unet.down_blocks.2.attentions.0.transformer_blocks.5.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5109 __module.unet.down_blocks.2.attentions.0.transformer_blocks.5.attn1.to_out.0/aten::linear/MatMul
+    5187 __module.unet.down_blocks.2.attentions.0.transformer_blocks.5.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3460 __module.unet.down_blocks.2.attentions.0.transformer_blocks.5.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1819 __module.unet.down_blocks.2.attentions.0.transformer_blocks.5.attn2.to_out.0/aten::linear/MatMul
+    1938 __module.unet.down_blocks.2.attentions.0.transformer_blocks.5.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2862 __module.unet.down_blocks.2.attentions.0.transformer_blocks.5.ff.net.0.proj/aten::linear/MatMul
+    3109 __module.unet.down_blocks.2.attentions.0.transformer_blocks.5.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4310 __module.unet.down_blocks.2.attentions.0.transformer_blocks.5.ff.net.2/aten::linear/MatMul
+    4622 __module.unet.down_blocks.2.attentions.0.transformer_blocks.5.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3110 __module.unet.down_blocks.2.attentions.0.transformer_blocks.6.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3111 __module.unet.down_blocks.2.attentions.0.transformer_blocks.6.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3112 __module.unet.down_blocks.2.attentions.0.transformer_blocks.6.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5110 __module.unet.down_blocks.2.attentions.0.transformer_blocks.6.attn1.to_out.0/aten::linear/MatMul
+    5188 __module.unet.down_blocks.2.attentions.0.transformer_blocks.6.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3466 __module.unet.down_blocks.2.attentions.0.transformer_blocks.6.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1820 __module.unet.down_blocks.2.attentions.0.transformer_blocks.6.attn2.to_out.0/aten::linear/MatMul
+    1939 __module.unet.down_blocks.2.attentions.0.transformer_blocks.6.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2865 __module.unet.down_blocks.2.attentions.0.transformer_blocks.6.ff.net.0.proj/aten::linear/MatMul
+    3114 __module.unet.down_blocks.2.attentions.0.transformer_blocks.6.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4314 __module.unet.down_blocks.2.attentions.0.transformer_blocks.6.ff.net.2/aten::linear/MatMul
+    4626 __module.unet.down_blocks.2.attentions.0.transformer_blocks.6.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3115 __module.unet.down_blocks.2.attentions.0.transformer_blocks.7.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3116 __module.unet.down_blocks.2.attentions.0.transformer_blocks.7.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3117 __module.unet.down_blocks.2.attentions.0.transformer_blocks.7.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5111 __module.unet.down_blocks.2.attentions.0.transformer_blocks.7.attn1.to_out.0/aten::linear/MatMul
+    5189 __module.unet.down_blocks.2.attentions.0.transformer_blocks.7.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3472 __module.unet.down_blocks.2.attentions.0.transformer_blocks.7.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1821 __module.unet.down_blocks.2.attentions.0.transformer_blocks.7.attn2.to_out.0/aten::linear/MatMul
+    1940 __module.unet.down_blocks.2.attentions.0.transformer_blocks.7.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2868 __module.unet.down_blocks.2.attentions.0.transformer_blocks.7.ff.net.0.proj/aten::linear/MatMul
+    3119 __module.unet.down_blocks.2.attentions.0.transformer_blocks.7.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4318 __module.unet.down_blocks.2.attentions.0.transformer_blocks.7.ff.net.2/aten::linear/MatMul
+    4630 __module.unet.down_blocks.2.attentions.0.transformer_blocks.7.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3120 __module.unet.down_blocks.2.attentions.0.transformer_blocks.8.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3121 __module.unet.down_blocks.2.attentions.0.transformer_blocks.8.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3122 __module.unet.down_blocks.2.attentions.0.transformer_blocks.8.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5112 __module.unet.down_blocks.2.attentions.0.transformer_blocks.8.attn1.to_out.0/aten::linear/MatMul
+    5190 __module.unet.down_blocks.2.attentions.0.transformer_blocks.8.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3478 __module.unet.down_blocks.2.attentions.0.transformer_blocks.8.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1822 __module.unet.down_blocks.2.attentions.0.transformer_blocks.8.attn2.to_out.0/aten::linear/MatMul
+    1941 __module.unet.down_blocks.2.attentions.0.transformer_blocks.8.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2871 __module.unet.down_blocks.2.attentions.0.transformer_blocks.8.ff.net.0.proj/aten::linear/MatMul
+    3124 __module.unet.down_blocks.2.attentions.0.transformer_blocks.8.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4322 __module.unet.down_blocks.2.attentions.0.transformer_blocks.8.ff.net.2/aten::linear/MatMul
+    4634 __module.unet.down_blocks.2.attentions.0.transformer_blocks.8.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3125 __module.unet.down_blocks.2.attentions.0.transformer_blocks.9.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3126 __module.unet.down_blocks.2.attentions.0.transformer_blocks.9.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3127 __module.unet.down_blocks.2.attentions.0.transformer_blocks.9.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5113 __module.unet.down_blocks.2.attentions.0.transformer_blocks.9.attn1.to_out.0/aten::linear/MatMul
+    5191 __module.unet.down_blocks.2.attentions.0.transformer_blocks.9.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3484 __module.unet.down_blocks.2.attentions.0.transformer_blocks.9.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1823 __module.unet.down_blocks.2.attentions.0.transformer_blocks.9.attn2.to_out.0/aten::linear/MatMul
+    1942 __module.unet.down_blocks.2.attentions.0.transformer_blocks.9.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2874 __module.unet.down_blocks.2.attentions.0.transformer_blocks.9.ff.net.0.proj/aten::linear/MatMul
+    3129 __module.unet.down_blocks.2.attentions.0.transformer_blocks.9.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4326 __module.unet.down_blocks.2.attentions.0.transformer_blocks.9.ff.net.2/aten::linear/MatMul
+    4638 __module.unet.down_blocks.2.attentions.0.transformer_blocks.9.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2407 __module.unet.down_blocks.2.attentions.0.proj_out/aten::linear/MatMul
+    2636 __module.unet.down_blocks.2.attentions.0.proj_out/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 5273 __module.unet.down_blocks.2.attentions.1.proj_in/aten::linear/MatMul
+    5279 __module.unet.down_blocks.2.attentions.1.proj_in/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 5311 __module.unet.down_blocks.2.attentions.1.transformer_blocks.0.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5312 __module.unet.down_blocks.2.attentions.1.transformer_blocks.0.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5313 __module.unet.down_blocks.2.attentions.1.transformer_blocks.0.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5347 __module.unet.down_blocks.2.attentions.1.transformer_blocks.0.attn1.to_out.0/aten::linear/MatMul
+    5349 __module.unet.down_blocks.2.attentions.1.transformer_blocks.0.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 5325 __module.unet.down_blocks.2.attentions.1.transformer_blocks.0.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1824 __module.unet.down_blocks.2.attentions.1.transformer_blocks.0.attn2.to_out.0/aten::linear/MatMul
+    1943 __module.unet.down_blocks.2.attentions.1.transformer_blocks.0.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2876 __module.unet.down_blocks.2.attentions.1.transformer_blocks.0.ff.net.0.proj/aten::linear/MatMul
+    3131 __module.unet.down_blocks.2.attentions.1.transformer_blocks.0.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4334 __module.unet.down_blocks.2.attentions.1.transformer_blocks.0.ff.net.2/aten::linear/MatMul
+    4645 __module.unet.down_blocks.2.attentions.1.transformer_blocks.0.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3132 __module.unet.down_blocks.2.attentions.1.transformer_blocks.1.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3133 __module.unet.down_blocks.2.attentions.1.transformer_blocks.1.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3134 __module.unet.down_blocks.2.attentions.1.transformer_blocks.1.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5116 __module.unet.down_blocks.2.attentions.1.transformer_blocks.1.attn1.to_out.0/aten::linear/MatMul
+    5194 __module.unet.down_blocks.2.attentions.1.transformer_blocks.1.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3493 __module.unet.down_blocks.2.attentions.1.transformer_blocks.1.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1825 __module.unet.down_blocks.2.attentions.1.transformer_blocks.1.attn2.to_out.0/aten::linear/MatMul
+    1944 __module.unet.down_blocks.2.attentions.1.transformer_blocks.1.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2879 __module.unet.down_blocks.2.attentions.1.transformer_blocks.1.ff.net.0.proj/aten::linear/MatMul
+    3136 __module.unet.down_blocks.2.attentions.1.transformer_blocks.1.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4338 __module.unet.down_blocks.2.attentions.1.transformer_blocks.1.ff.net.2/aten::linear/MatMul
+    4649 __module.unet.down_blocks.2.attentions.1.transformer_blocks.1.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3137 __module.unet.down_blocks.2.attentions.1.transformer_blocks.2.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3138 __module.unet.down_blocks.2.attentions.1.transformer_blocks.2.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3139 __module.unet.down_blocks.2.attentions.1.transformer_blocks.2.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5117 __module.unet.down_blocks.2.attentions.1.transformer_blocks.2.attn1.to_out.0/aten::linear/MatMul
+    5195 __module.unet.down_blocks.2.attentions.1.transformer_blocks.2.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3499 __module.unet.down_blocks.2.attentions.1.transformer_blocks.2.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1826 __module.unet.down_blocks.2.attentions.1.transformer_blocks.2.attn2.to_out.0/aten::linear/MatMul
+    1945 __module.unet.down_blocks.2.attentions.1.transformer_blocks.2.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2882 __module.unet.down_blocks.2.attentions.1.transformer_blocks.2.ff.net.0.proj/aten::linear/MatMul
+    3141 __module.unet.down_blocks.2.attentions.1.transformer_blocks.2.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4342 __module.unet.down_blocks.2.attentions.1.transformer_blocks.2.ff.net.2/aten::linear/MatMul
+    4653 __module.unet.down_blocks.2.attentions.1.transformer_blocks.2.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3142 __module.unet.down_blocks.2.attentions.1.transformer_blocks.3.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3143 __module.unet.down_blocks.2.attentions.1.transformer_blocks.3.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3144 __module.unet.down_blocks.2.attentions.1.transformer_blocks.3.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5118 __module.unet.down_blocks.2.attentions.1.transformer_blocks.3.attn1.to_out.0/aten::linear/MatMul
+    5196 __module.unet.down_blocks.2.attentions.1.transformer_blocks.3.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3505 __module.unet.down_blocks.2.attentions.1.transformer_blocks.3.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1827 __module.unet.down_blocks.2.attentions.1.transformer_blocks.3.attn2.to_out.0/aten::linear/MatMul
+    1946 __module.unet.down_blocks.2.attentions.1.transformer_blocks.3.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2885 __module.unet.down_blocks.2.attentions.1.transformer_blocks.3.ff.net.0.proj/aten::linear/MatMul
+    3146 __module.unet.down_blocks.2.attentions.1.transformer_blocks.3.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4346 __module.unet.down_blocks.2.attentions.1.transformer_blocks.3.ff.net.2/aten::linear/MatMul
+    4657 __module.unet.down_blocks.2.attentions.1.transformer_blocks.3.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3147 __module.unet.down_blocks.2.attentions.1.transformer_blocks.4.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3148 __module.unet.down_blocks.2.attentions.1.transformer_blocks.4.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3149 __module.unet.down_blocks.2.attentions.1.transformer_blocks.4.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5119 __module.unet.down_blocks.2.attentions.1.transformer_blocks.4.attn1.to_out.0/aten::linear/MatMul
+    5197 __module.unet.down_blocks.2.attentions.1.transformer_blocks.4.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3511 __module.unet.down_blocks.2.attentions.1.transformer_blocks.4.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1828 __module.unet.down_blocks.2.attentions.1.transformer_blocks.4.attn2.to_out.0/aten::linear/MatMul
+    1947 __module.unet.down_blocks.2.attentions.1.transformer_blocks.4.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2888 __module.unet.down_blocks.2.attentions.1.transformer_blocks.4.ff.net.0.proj/aten::linear/MatMul
+    3151 __module.unet.down_blocks.2.attentions.1.transformer_blocks.4.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4350 __module.unet.down_blocks.2.attentions.1.transformer_blocks.4.ff.net.2/aten::linear/MatMul
+    4661 __module.unet.down_blocks.2.attentions.1.transformer_blocks.4.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3152 __module.unet.down_blocks.2.attentions.1.transformer_blocks.5.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3153 __module.unet.down_blocks.2.attentions.1.transformer_blocks.5.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3154 __module.unet.down_blocks.2.attentions.1.transformer_blocks.5.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5120 __module.unet.down_blocks.2.attentions.1.transformer_blocks.5.attn1.to_out.0/aten::linear/MatMul
+    5198 __module.unet.down_blocks.2.attentions.1.transformer_blocks.5.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3517 __module.unet.down_blocks.2.attentions.1.transformer_blocks.5.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1829 __module.unet.down_blocks.2.attentions.1.transformer_blocks.5.attn2.to_out.0/aten::linear/MatMul
+    1948 __module.unet.down_blocks.2.attentions.1.transformer_blocks.5.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2891 __module.unet.down_blocks.2.attentions.1.transformer_blocks.5.ff.net.0.proj/aten::linear/MatMul
+    3156 __module.unet.down_blocks.2.attentions.1.transformer_blocks.5.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4354 __module.unet.down_blocks.2.attentions.1.transformer_blocks.5.ff.net.2/aten::linear/MatMul
+    4665 __module.unet.down_blocks.2.attentions.1.transformer_blocks.5.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3157 __module.unet.down_blocks.2.attentions.1.transformer_blocks.6.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3158 __module.unet.down_blocks.2.attentions.1.transformer_blocks.6.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3159 __module.unet.down_blocks.2.attentions.1.transformer_blocks.6.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5121 __module.unet.down_blocks.2.attentions.1.transformer_blocks.6.attn1.to_out.0/aten::linear/MatMul
+    5199 __module.unet.down_blocks.2.attentions.1.transformer_blocks.6.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3523 __module.unet.down_blocks.2.attentions.1.transformer_blocks.6.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1830 __module.unet.down_blocks.2.attentions.1.transformer_blocks.6.attn2.to_out.0/aten::linear/MatMul
+    1949 __module.unet.down_blocks.2.attentions.1.transformer_blocks.6.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2894 __module.unet.down_blocks.2.attentions.1.transformer_blocks.6.ff.net.0.proj/aten::linear/MatMul
+    3161 __module.unet.down_blocks.2.attentions.1.transformer_blocks.6.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4358 __module.unet.down_blocks.2.attentions.1.transformer_blocks.6.ff.net.2/aten::linear/MatMul
+    4669 __module.unet.down_blocks.2.attentions.1.transformer_blocks.6.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3162 __module.unet.down_blocks.2.attentions.1.transformer_blocks.7.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3163 __module.unet.down_blocks.2.attentions.1.transformer_blocks.7.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3164 __module.unet.down_blocks.2.attentions.1.transformer_blocks.7.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5122 __module.unet.down_blocks.2.attentions.1.transformer_blocks.7.attn1.to_out.0/aten::linear/MatMul
+    5200 __module.unet.down_blocks.2.attentions.1.transformer_blocks.7.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3529 __module.unet.down_blocks.2.attentions.1.transformer_blocks.7.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1831 __module.unet.down_blocks.2.attentions.1.transformer_blocks.7.attn2.to_out.0/aten::linear/MatMul
+    1950 __module.unet.down_blocks.2.attentions.1.transformer_blocks.7.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2897 __module.unet.down_blocks.2.attentions.1.transformer_blocks.7.ff.net.0.proj/aten::linear/MatMul
+    3166 __module.unet.down_blocks.2.attentions.1.transformer_blocks.7.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4362 __module.unet.down_blocks.2.attentions.1.transformer_blocks.7.ff.net.2/aten::linear/MatMul
+    4673 __module.unet.down_blocks.2.attentions.1.transformer_blocks.7.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3167 __module.unet.down_blocks.2.attentions.1.transformer_blocks.8.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3168 __module.unet.down_blocks.2.attentions.1.transformer_blocks.8.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3169 __module.unet.down_blocks.2.attentions.1.transformer_blocks.8.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5123 __module.unet.down_blocks.2.attentions.1.transformer_blocks.8.attn1.to_out.0/aten::linear/MatMul
+    5201 __module.unet.down_blocks.2.attentions.1.transformer_blocks.8.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3535 __module.unet.down_blocks.2.attentions.1.transformer_blocks.8.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1832 __module.unet.down_blocks.2.attentions.1.transformer_blocks.8.attn2.to_out.0/aten::linear/MatMul
+    1951 __module.unet.down_blocks.2.attentions.1.transformer_blocks.8.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2900 __module.unet.down_blocks.2.attentions.1.transformer_blocks.8.ff.net.0.proj/aten::linear/MatMul
+    3171 __module.unet.down_blocks.2.attentions.1.transformer_blocks.8.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4366 __module.unet.down_blocks.2.attentions.1.transformer_blocks.8.ff.net.2/aten::linear/MatMul
+    4677 __module.unet.down_blocks.2.attentions.1.transformer_blocks.8.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3172 __module.unet.down_blocks.2.attentions.1.transformer_blocks.9.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3173 __module.unet.down_blocks.2.attentions.1.transformer_blocks.9.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3174 __module.unet.down_blocks.2.attentions.1.transformer_blocks.9.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5124 __module.unet.down_blocks.2.attentions.1.transformer_blocks.9.attn1.to_out.0/aten::linear/MatMul
+    5202 __module.unet.down_blocks.2.attentions.1.transformer_blocks.9.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3541 __module.unet.down_blocks.2.attentions.1.transformer_blocks.9.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1833 __module.unet.down_blocks.2.attentions.1.transformer_blocks.9.attn2.to_out.0/aten::linear/MatMul
+    1952 __module.unet.down_blocks.2.attentions.1.transformer_blocks.9.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2903 __module.unet.down_blocks.2.attentions.1.transformer_blocks.9.ff.net.0.proj/aten::linear/MatMul
+    3176 __module.unet.down_blocks.2.attentions.1.transformer_blocks.9.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4370 __module.unet.down_blocks.2.attentions.1.transformer_blocks.9.ff.net.2/aten::linear/MatMul
+    4681 __module.unet.down_blocks.2.attentions.1.transformer_blocks.9.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2436 __module.unet.down_blocks.2.attentions.1.proj_out/aten::linear/MatMul
+    2665 __module.unet.down_blocks.2.attentions.1.proj_out/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 5274 __module.unet.mid_block.attentions.0.proj_in/aten::linear/MatMul
+    5280 __module.unet.mid_block.attentions.0.proj_in/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 5315 __module.unet.mid_block.attentions.0.transformer_blocks.0.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5316 __module.unet.mid_block.attentions.0.transformer_blocks.0.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5317 __module.unet.mid_block.attentions.0.transformer_blocks.0.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5348 __module.unet.mid_block.attentions.0.transformer_blocks.0.attn1.to_out.0/aten::linear/MatMul
+    5350 __module.unet.mid_block.attentions.0.transformer_blocks.0.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 5329 __module.unet.mid_block.attentions.0.transformer_blocks.0.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1834 __module.unet.mid_block.attentions.0.transformer_blocks.0.attn2.to_out.0/aten::linear/MatMul
+    1953 __module.unet.mid_block.attentions.0.transformer_blocks.0.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2905 __module.unet.mid_block.attentions.0.transformer_blocks.0.ff.net.0.proj/aten::linear/MatMul
+    3178 __module.unet.mid_block.attentions.0.transformer_blocks.0.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4378 __module.unet.mid_block.attentions.0.transformer_blocks.0.ff.net.2/aten::linear/MatMul
+    4688 __module.unet.mid_block.attentions.0.transformer_blocks.0.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3179 __module.unet.mid_block.attentions.0.transformer_blocks.1.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3180 __module.unet.mid_block.attentions.0.transformer_blocks.1.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3181 __module.unet.mid_block.attentions.0.transformer_blocks.1.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5127 __module.unet.mid_block.attentions.0.transformer_blocks.1.attn1.to_out.0/aten::linear/MatMul
+    5205 __module.unet.mid_block.attentions.0.transformer_blocks.1.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3550 __module.unet.mid_block.attentions.0.transformer_blocks.1.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1835 __module.unet.mid_block.attentions.0.transformer_blocks.1.attn2.to_out.0/aten::linear/MatMul
+    1954 __module.unet.mid_block.attentions.0.transformer_blocks.1.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2908 __module.unet.mid_block.attentions.0.transformer_blocks.1.ff.net.0.proj/aten::linear/MatMul
+    3183 __module.unet.mid_block.attentions.0.transformer_blocks.1.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4382 __module.unet.mid_block.attentions.0.transformer_blocks.1.ff.net.2/aten::linear/MatMul
+    4692 __module.unet.mid_block.attentions.0.transformer_blocks.1.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3184 __module.unet.mid_block.attentions.0.transformer_blocks.2.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3185 __module.unet.mid_block.attentions.0.transformer_blocks.2.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3186 __module.unet.mid_block.attentions.0.transformer_blocks.2.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5128 __module.unet.mid_block.attentions.0.transformer_blocks.2.attn1.to_out.0/aten::linear/MatMul
+    5206 __module.unet.mid_block.attentions.0.transformer_blocks.2.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3556 __module.unet.mid_block.attentions.0.transformer_blocks.2.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1836 __module.unet.mid_block.attentions.0.transformer_blocks.2.attn2.to_out.0/aten::linear/MatMul
+    1955 __module.unet.mid_block.attentions.0.transformer_blocks.2.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2911 __module.unet.mid_block.attentions.0.transformer_blocks.2.ff.net.0.proj/aten::linear/MatMul
+    3188 __module.unet.mid_block.attentions.0.transformer_blocks.2.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4386 __module.unet.mid_block.attentions.0.transformer_blocks.2.ff.net.2/aten::linear/MatMul
+    4696 __module.unet.mid_block.attentions.0.transformer_blocks.2.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3189 __module.unet.mid_block.attentions.0.transformer_blocks.3.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3190 __module.unet.mid_block.attentions.0.transformer_blocks.3.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3191 __module.unet.mid_block.attentions.0.transformer_blocks.3.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5129 __module.unet.mid_block.attentions.0.transformer_blocks.3.attn1.to_out.0/aten::linear/MatMul
+    5207 __module.unet.mid_block.attentions.0.transformer_blocks.3.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3562 __module.unet.mid_block.attentions.0.transformer_blocks.3.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1837 __module.unet.mid_block.attentions.0.transformer_blocks.3.attn2.to_out.0/aten::linear/MatMul
+    1956 __module.unet.mid_block.attentions.0.transformer_blocks.3.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2914 __module.unet.mid_block.attentions.0.transformer_blocks.3.ff.net.0.proj/aten::linear/MatMul
+    3193 __module.unet.mid_block.attentions.0.transformer_blocks.3.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4390 __module.unet.mid_block.attentions.0.transformer_blocks.3.ff.net.2/aten::linear/MatMul
+    4700 __module.unet.mid_block.attentions.0.transformer_blocks.3.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3194 __module.unet.mid_block.attentions.0.transformer_blocks.4.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3195 __module.unet.mid_block.attentions.0.transformer_blocks.4.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3196 __module.unet.mid_block.attentions.0.transformer_blocks.4.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5130 __module.unet.mid_block.attentions.0.transformer_blocks.4.attn1.to_out.0/aten::linear/MatMul
+    5208 __module.unet.mid_block.attentions.0.transformer_blocks.4.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3568 __module.unet.mid_block.attentions.0.transformer_blocks.4.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1838 __module.unet.mid_block.attentions.0.transformer_blocks.4.attn2.to_out.0/aten::linear/MatMul
+    1957 __module.unet.mid_block.attentions.0.transformer_blocks.4.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2917 __module.unet.mid_block.attentions.0.transformer_blocks.4.ff.net.0.proj/aten::linear/MatMul
+    3198 __module.unet.mid_block.attentions.0.transformer_blocks.4.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4394 __module.unet.mid_block.attentions.0.transformer_blocks.4.ff.net.2/aten::linear/MatMul
+    4704 __module.unet.mid_block.attentions.0.transformer_blocks.4.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3199 __module.unet.mid_block.attentions.0.transformer_blocks.5.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3200 __module.unet.mid_block.attentions.0.transformer_blocks.5.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3201 __module.unet.mid_block.attentions.0.transformer_blocks.5.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5131 __module.unet.mid_block.attentions.0.transformer_blocks.5.attn1.to_out.0/aten::linear/MatMul
+    5209 __module.unet.mid_block.attentions.0.transformer_blocks.5.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3574 __module.unet.mid_block.attentions.0.transformer_blocks.5.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1839 __module.unet.mid_block.attentions.0.transformer_blocks.5.attn2.to_out.0/aten::linear/MatMul
+    1958 __module.unet.mid_block.attentions.0.transformer_blocks.5.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2920 __module.unet.mid_block.attentions.0.transformer_blocks.5.ff.net.0.proj/aten::linear/MatMul
+    3203 __module.unet.mid_block.attentions.0.transformer_blocks.5.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4398 __module.unet.mid_block.attentions.0.transformer_blocks.5.ff.net.2/aten::linear/MatMul
+    4708 __module.unet.mid_block.attentions.0.transformer_blocks.5.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3204 __module.unet.mid_block.attentions.0.transformer_blocks.6.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3205 __module.unet.mid_block.attentions.0.transformer_blocks.6.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3206 __module.unet.mid_block.attentions.0.transformer_blocks.6.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5132 __module.unet.mid_block.attentions.0.transformer_blocks.6.attn1.to_out.0/aten::linear/MatMul
+    5210 __module.unet.mid_block.attentions.0.transformer_blocks.6.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3580 __module.unet.mid_block.attentions.0.transformer_blocks.6.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1840 __module.unet.mid_block.attentions.0.transformer_blocks.6.attn2.to_out.0/aten::linear/MatMul
+    1959 __module.unet.mid_block.attentions.0.transformer_blocks.6.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2923 __module.unet.mid_block.attentions.0.transformer_blocks.6.ff.net.0.proj/aten::linear/MatMul
+    3208 __module.unet.mid_block.attentions.0.transformer_blocks.6.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4402 __module.unet.mid_block.attentions.0.transformer_blocks.6.ff.net.2/aten::linear/MatMul
+    4712 __module.unet.mid_block.attentions.0.transformer_blocks.6.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3209 __module.unet.mid_block.attentions.0.transformer_blocks.7.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3210 __module.unet.mid_block.attentions.0.transformer_blocks.7.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3211 __module.unet.mid_block.attentions.0.transformer_blocks.7.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5133 __module.unet.mid_block.attentions.0.transformer_blocks.7.attn1.to_out.0/aten::linear/MatMul
+    5211 __module.unet.mid_block.attentions.0.transformer_blocks.7.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3586 __module.unet.mid_block.attentions.0.transformer_blocks.7.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1841 __module.unet.mid_block.attentions.0.transformer_blocks.7.attn2.to_out.0/aten::linear/MatMul
+    1960 __module.unet.mid_block.attentions.0.transformer_blocks.7.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2926 __module.unet.mid_block.attentions.0.transformer_blocks.7.ff.net.0.proj/aten::linear/MatMul
+    3213 __module.unet.mid_block.attentions.0.transformer_blocks.7.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4406 __module.unet.mid_block.attentions.0.transformer_blocks.7.ff.net.2/aten::linear/MatMul
+    4716 __module.unet.mid_block.attentions.0.transformer_blocks.7.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3214 __module.unet.mid_block.attentions.0.transformer_blocks.8.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3215 __module.unet.mid_block.attentions.0.transformer_blocks.8.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3216 __module.unet.mid_block.attentions.0.transformer_blocks.8.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5134 __module.unet.mid_block.attentions.0.transformer_blocks.8.attn1.to_out.0/aten::linear/MatMul
+    5212 __module.unet.mid_block.attentions.0.transformer_blocks.8.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3592 __module.unet.mid_block.attentions.0.transformer_blocks.8.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1842 __module.unet.mid_block.attentions.0.transformer_blocks.8.attn2.to_out.0/aten::linear/MatMul
+    1961 __module.unet.mid_block.attentions.0.transformer_blocks.8.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2929 __module.unet.mid_block.attentions.0.transformer_blocks.8.ff.net.0.proj/aten::linear/MatMul
+    3218 __module.unet.mid_block.attentions.0.transformer_blocks.8.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4410 __module.unet.mid_block.attentions.0.transformer_blocks.8.ff.net.2/aten::linear/MatMul
+    4720 __module.unet.mid_block.attentions.0.transformer_blocks.8.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3219 __module.unet.mid_block.attentions.0.transformer_blocks.9.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3220 __module.unet.mid_block.attentions.0.transformer_blocks.9.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3221 __module.unet.mid_block.attentions.0.transformer_blocks.9.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5135 __module.unet.mid_block.attentions.0.transformer_blocks.9.attn1.to_out.0/aten::linear/MatMul
+    5213 __module.unet.mid_block.attentions.0.transformer_blocks.9.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3598 __module.unet.mid_block.attentions.0.transformer_blocks.9.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1843 __module.unet.mid_block.attentions.0.transformer_blocks.9.attn2.to_out.0/aten::linear/MatMul
+    1962 __module.unet.mid_block.attentions.0.transformer_blocks.9.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2932 __module.unet.mid_block.attentions.0.transformer_blocks.9.ff.net.0.proj/aten::linear/MatMul
+    3223 __module.unet.mid_block.attentions.0.transformer_blocks.9.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4414 __module.unet.mid_block.attentions.0.transformer_blocks.9.ff.net.2/aten::linear/MatMul
+    4724 __module.unet.mid_block.attentions.0.transformer_blocks.9.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2465 __module.unet.mid_block.attentions.0.proj_out/aten::linear/MatMul
+    2694 __module.unet.mid_block.attentions.0.proj_out/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2337 __module.unet.up_blocks.0.attentions.0.proj_in/aten::linear/MatMul
+    2582 __module.unet.up_blocks.0.attentions.0.proj_in/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3822 __module.unet.up_blocks.0.attentions.0.transformer_blocks.0.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3823 __module.unet.up_blocks.0.attentions.0.transformer_blocks.0.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3824 __module.unet.up_blocks.0.attentions.0.transformer_blocks.0.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5250 __module.unet.up_blocks.0.attentions.0.transformer_blocks.0.attn1.to_out.0/aten::linear/MatMul
+    5267 __module.unet.up_blocks.0.attentions.0.transformer_blocks.0.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4260 __module.unet.up_blocks.0.attentions.0.transformer_blocks.0.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1844 __module.unet.up_blocks.0.attentions.0.transformer_blocks.0.attn2.to_out.0/aten::linear/MatMul
+    1963 __module.unet.up_blocks.0.attentions.0.transformer_blocks.0.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2934 __module.unet.up_blocks.0.attentions.0.transformer_blocks.0.ff.net.0.proj/aten::linear/MatMul
+    3225 __module.unet.up_blocks.0.attentions.0.transformer_blocks.0.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4419 __module.unet.up_blocks.0.attentions.0.transformer_blocks.0.ff.net.2/aten::linear/MatMul
+    4728 __module.unet.up_blocks.0.attentions.0.transformer_blocks.0.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3226 __module.unet.up_blocks.0.attentions.0.transformer_blocks.1.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3227 __module.unet.up_blocks.0.attentions.0.transformer_blocks.1.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3228 __module.unet.up_blocks.0.attentions.0.transformer_blocks.1.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5137 __module.unet.up_blocks.0.attentions.0.transformer_blocks.1.attn1.to_out.0/aten::linear/MatMul
+    5215 __module.unet.up_blocks.0.attentions.0.transformer_blocks.1.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3607 __module.unet.up_blocks.0.attentions.0.transformer_blocks.1.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1845 __module.unet.up_blocks.0.attentions.0.transformer_blocks.1.attn2.to_out.0/aten::linear/MatMul
+    1964 __module.unet.up_blocks.0.attentions.0.transformer_blocks.1.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2937 __module.unet.up_blocks.0.attentions.0.transformer_blocks.1.ff.net.0.proj/aten::linear/MatMul
+    3230 __module.unet.up_blocks.0.attentions.0.transformer_blocks.1.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4423 __module.unet.up_blocks.0.attentions.0.transformer_blocks.1.ff.net.2/aten::linear/MatMul
+    4732 __module.unet.up_blocks.0.attentions.0.transformer_blocks.1.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3231 __module.unet.up_blocks.0.attentions.0.transformer_blocks.2.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3232 __module.unet.up_blocks.0.attentions.0.transformer_blocks.2.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3233 __module.unet.up_blocks.0.attentions.0.transformer_blocks.2.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5138 __module.unet.up_blocks.0.attentions.0.transformer_blocks.2.attn1.to_out.0/aten::linear/MatMul
+    5216 __module.unet.up_blocks.0.attentions.0.transformer_blocks.2.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3613 __module.unet.up_blocks.0.attentions.0.transformer_blocks.2.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1846 __module.unet.up_blocks.0.attentions.0.transformer_blocks.2.attn2.to_out.0/aten::linear/MatMul
+    1965 __module.unet.up_blocks.0.attentions.0.transformer_blocks.2.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2940 __module.unet.up_blocks.0.attentions.0.transformer_blocks.2.ff.net.0.proj/aten::linear/MatMul
+    3235 __module.unet.up_blocks.0.attentions.0.transformer_blocks.2.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4427 __module.unet.up_blocks.0.attentions.0.transformer_blocks.2.ff.net.2/aten::linear/MatMul
+    4736 __module.unet.up_blocks.0.attentions.0.transformer_blocks.2.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3236 __module.unet.up_blocks.0.attentions.0.transformer_blocks.3.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3237 __module.unet.up_blocks.0.attentions.0.transformer_blocks.3.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3238 __module.unet.up_blocks.0.attentions.0.transformer_blocks.3.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5139 __module.unet.up_blocks.0.attentions.0.transformer_blocks.3.attn1.to_out.0/aten::linear/MatMul
+    5217 __module.unet.up_blocks.0.attentions.0.transformer_blocks.3.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3619 __module.unet.up_blocks.0.attentions.0.transformer_blocks.3.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1847 __module.unet.up_blocks.0.attentions.0.transformer_blocks.3.attn2.to_out.0/aten::linear/MatMul
+    1966 __module.unet.up_blocks.0.attentions.0.transformer_blocks.3.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2943 __module.unet.up_blocks.0.attentions.0.transformer_blocks.3.ff.net.0.proj/aten::linear/MatMul
+    3240 __module.unet.up_blocks.0.attentions.0.transformer_blocks.3.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4431 __module.unet.up_blocks.0.attentions.0.transformer_blocks.3.ff.net.2/aten::linear/MatMul
+    4740 __module.unet.up_blocks.0.attentions.0.transformer_blocks.3.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3241 __module.unet.up_blocks.0.attentions.0.transformer_blocks.4.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3242 __module.unet.up_blocks.0.attentions.0.transformer_blocks.4.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3243 __module.unet.up_blocks.0.attentions.0.transformer_blocks.4.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5140 __module.unet.up_blocks.0.attentions.0.transformer_blocks.4.attn1.to_out.0/aten::linear/MatMul
+    5218 __module.unet.up_blocks.0.attentions.0.transformer_blocks.4.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3625 __module.unet.up_blocks.0.attentions.0.transformer_blocks.4.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1848 __module.unet.up_blocks.0.attentions.0.transformer_blocks.4.attn2.to_out.0/aten::linear/MatMul
+    1967 __module.unet.up_blocks.0.attentions.0.transformer_blocks.4.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2946 __module.unet.up_blocks.0.attentions.0.transformer_blocks.4.ff.net.0.proj/aten::linear/MatMul
+    3245 __module.unet.up_blocks.0.attentions.0.transformer_blocks.4.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4435 __module.unet.up_blocks.0.attentions.0.transformer_blocks.4.ff.net.2/aten::linear/MatMul
+    4744 __module.unet.up_blocks.0.attentions.0.transformer_blocks.4.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3246 __module.unet.up_blocks.0.attentions.0.transformer_blocks.5.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3247 __module.unet.up_blocks.0.attentions.0.transformer_blocks.5.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3248 __module.unet.up_blocks.0.attentions.0.transformer_blocks.5.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5141 __module.unet.up_blocks.0.attentions.0.transformer_blocks.5.attn1.to_out.0/aten::linear/MatMul
+    5219 __module.unet.up_blocks.0.attentions.0.transformer_blocks.5.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3631 __module.unet.up_blocks.0.attentions.0.transformer_blocks.5.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1849 __module.unet.up_blocks.0.attentions.0.transformer_blocks.5.attn2.to_out.0/aten::linear/MatMul
+    1968 __module.unet.up_blocks.0.attentions.0.transformer_blocks.5.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2949 __module.unet.up_blocks.0.attentions.0.transformer_blocks.5.ff.net.0.proj/aten::linear/MatMul
+    3250 __module.unet.up_blocks.0.attentions.0.transformer_blocks.5.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4439 __module.unet.up_blocks.0.attentions.0.transformer_blocks.5.ff.net.2/aten::linear/MatMul
+    4748 __module.unet.up_blocks.0.attentions.0.transformer_blocks.5.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3251 __module.unet.up_blocks.0.attentions.0.transformer_blocks.6.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3252 __module.unet.up_blocks.0.attentions.0.transformer_blocks.6.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3253 __module.unet.up_blocks.0.attentions.0.transformer_blocks.6.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5142 __module.unet.up_blocks.0.attentions.0.transformer_blocks.6.attn1.to_out.0/aten::linear/MatMul
+    5220 __module.unet.up_blocks.0.attentions.0.transformer_blocks.6.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3637 __module.unet.up_blocks.0.attentions.0.transformer_blocks.6.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1850 __module.unet.up_blocks.0.attentions.0.transformer_blocks.6.attn2.to_out.0/aten::linear/MatMul
+    1969 __module.unet.up_blocks.0.attentions.0.transformer_blocks.6.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2952 __module.unet.up_blocks.0.attentions.0.transformer_blocks.6.ff.net.0.proj/aten::linear/MatMul
+    3255 __module.unet.up_blocks.0.attentions.0.transformer_blocks.6.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4443 __module.unet.up_blocks.0.attentions.0.transformer_blocks.6.ff.net.2/aten::linear/MatMul
+    4752 __module.unet.up_blocks.0.attentions.0.transformer_blocks.6.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3256 __module.unet.up_blocks.0.attentions.0.transformer_blocks.7.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3257 __module.unet.up_blocks.0.attentions.0.transformer_blocks.7.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3258 __module.unet.up_blocks.0.attentions.0.transformer_blocks.7.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5143 __module.unet.up_blocks.0.attentions.0.transformer_blocks.7.attn1.to_out.0/aten::linear/MatMul
+    5221 __module.unet.up_blocks.0.attentions.0.transformer_blocks.7.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3643 __module.unet.up_blocks.0.attentions.0.transformer_blocks.7.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1851 __module.unet.up_blocks.0.attentions.0.transformer_blocks.7.attn2.to_out.0/aten::linear/MatMul
+    1970 __module.unet.up_blocks.0.attentions.0.transformer_blocks.7.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2955 __module.unet.up_blocks.0.attentions.0.transformer_blocks.7.ff.net.0.proj/aten::linear/MatMul
+    3260 __module.unet.up_blocks.0.attentions.0.transformer_blocks.7.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4447 __module.unet.up_blocks.0.attentions.0.transformer_blocks.7.ff.net.2/aten::linear/MatMul
+    4756 __module.unet.up_blocks.0.attentions.0.transformer_blocks.7.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3261 __module.unet.up_blocks.0.attentions.0.transformer_blocks.8.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3262 __module.unet.up_blocks.0.attentions.0.transformer_blocks.8.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3263 __module.unet.up_blocks.0.attentions.0.transformer_blocks.8.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5144 __module.unet.up_blocks.0.attentions.0.transformer_blocks.8.attn1.to_out.0/aten::linear/MatMul
+    5222 __module.unet.up_blocks.0.attentions.0.transformer_blocks.8.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3649 __module.unet.up_blocks.0.attentions.0.transformer_blocks.8.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1852 __module.unet.up_blocks.0.attentions.0.transformer_blocks.8.attn2.to_out.0/aten::linear/MatMul
+    1971 __module.unet.up_blocks.0.attentions.0.transformer_blocks.8.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2958 __module.unet.up_blocks.0.attentions.0.transformer_blocks.8.ff.net.0.proj/aten::linear/MatMul
+    3265 __module.unet.up_blocks.0.attentions.0.transformer_blocks.8.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4451 __module.unet.up_blocks.0.attentions.0.transformer_blocks.8.ff.net.2/aten::linear/MatMul
+    4760 __module.unet.up_blocks.0.attentions.0.transformer_blocks.8.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3266 __module.unet.up_blocks.0.attentions.0.transformer_blocks.9.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3267 __module.unet.up_blocks.0.attentions.0.transformer_blocks.9.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3268 __module.unet.up_blocks.0.attentions.0.transformer_blocks.9.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5145 __module.unet.up_blocks.0.attentions.0.transformer_blocks.9.attn1.to_out.0/aten::linear/MatMul
+    5223 __module.unet.up_blocks.0.attentions.0.transformer_blocks.9.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3655 __module.unet.up_blocks.0.attentions.0.transformer_blocks.9.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1853 __module.unet.up_blocks.0.attentions.0.transformer_blocks.9.attn2.to_out.0/aten::linear/MatMul
+    1972 __module.unet.up_blocks.0.attentions.0.transformer_blocks.9.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2961 __module.unet.up_blocks.0.attentions.0.transformer_blocks.9.ff.net.0.proj/aten::linear/MatMul
+    3270 __module.unet.up_blocks.0.attentions.0.transformer_blocks.9.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4455 __module.unet.up_blocks.0.attentions.0.transformer_blocks.9.ff.net.2/aten::linear/MatMul
+    4764 __module.unet.up_blocks.0.attentions.0.transformer_blocks.9.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2494 __module.unet.up_blocks.0.attentions.0.proj_out/aten::linear/MatMul
+    2723 __module.unet.up_blocks.0.attentions.0.proj_out/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2334 __module.unet.up_blocks.0.attentions.1.proj_in/aten::linear/MatMul
+    2580 __module.unet.up_blocks.0.attentions.1.proj_in/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3817 __module.unet.up_blocks.0.attentions.1.transformer_blocks.0.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3818 __module.unet.up_blocks.0.attentions.1.transformer_blocks.0.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3819 __module.unet.up_blocks.0.attentions.1.transformer_blocks.0.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5249 __module.unet.up_blocks.0.attentions.1.transformer_blocks.0.attn1.to_out.0/aten::linear/MatMul
+    5266 __module.unet.up_blocks.0.attentions.1.transformer_blocks.0.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4256 __module.unet.up_blocks.0.attentions.1.transformer_blocks.0.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1854 __module.unet.up_blocks.0.attentions.1.transformer_blocks.0.attn2.to_out.0/aten::linear/MatMul
+    1973 __module.unet.up_blocks.0.attentions.1.transformer_blocks.0.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2962 __module.unet.up_blocks.0.attentions.1.transformer_blocks.0.ff.net.0.proj/aten::linear/MatMul
+    3271 __module.unet.up_blocks.0.attentions.1.transformer_blocks.0.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4458 __module.unet.up_blocks.0.attentions.1.transformer_blocks.0.ff.net.2/aten::linear/MatMul
+    4767 __module.unet.up_blocks.0.attentions.1.transformer_blocks.0.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3272 __module.unet.up_blocks.0.attentions.1.transformer_blocks.1.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3273 __module.unet.up_blocks.0.attentions.1.transformer_blocks.1.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3274 __module.unet.up_blocks.0.attentions.1.transformer_blocks.1.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5146 __module.unet.up_blocks.0.attentions.1.transformer_blocks.1.attn1.to_out.0/aten::linear/MatMul
+    5224 __module.unet.up_blocks.0.attentions.1.transformer_blocks.1.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3663 __module.unet.up_blocks.0.attentions.1.transformer_blocks.1.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1855 __module.unet.up_blocks.0.attentions.1.transformer_blocks.1.attn2.to_out.0/aten::linear/MatMul
+    1974 __module.unet.up_blocks.0.attentions.1.transformer_blocks.1.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2965 __module.unet.up_blocks.0.attentions.1.transformer_blocks.1.ff.net.0.proj/aten::linear/MatMul
+    3276 __module.unet.up_blocks.0.attentions.1.transformer_blocks.1.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4462 __module.unet.up_blocks.0.attentions.1.transformer_blocks.1.ff.net.2/aten::linear/MatMul
+    4771 __module.unet.up_blocks.0.attentions.1.transformer_blocks.1.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3277 __module.unet.up_blocks.0.attentions.1.transformer_blocks.2.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3278 __module.unet.up_blocks.0.attentions.1.transformer_blocks.2.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3279 __module.unet.up_blocks.0.attentions.1.transformer_blocks.2.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5147 __module.unet.up_blocks.0.attentions.1.transformer_blocks.2.attn1.to_out.0/aten::linear/MatMul
+    5225 __module.unet.up_blocks.0.attentions.1.transformer_blocks.2.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3669 __module.unet.up_blocks.0.attentions.1.transformer_blocks.2.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1856 __module.unet.up_blocks.0.attentions.1.transformer_blocks.2.attn2.to_out.0/aten::linear/MatMul
+    1975 __module.unet.up_blocks.0.attentions.1.transformer_blocks.2.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2968 __module.unet.up_blocks.0.attentions.1.transformer_blocks.2.ff.net.0.proj/aten::linear/MatMul
+    3281 __module.unet.up_blocks.0.attentions.1.transformer_blocks.2.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4466 __module.unet.up_blocks.0.attentions.1.transformer_blocks.2.ff.net.2/aten::linear/MatMul
+    4775 __module.unet.up_blocks.0.attentions.1.transformer_blocks.2.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3282 __module.unet.up_blocks.0.attentions.1.transformer_blocks.3.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3283 __module.unet.up_blocks.0.attentions.1.transformer_blocks.3.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3284 __module.unet.up_blocks.0.attentions.1.transformer_blocks.3.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5148 __module.unet.up_blocks.0.attentions.1.transformer_blocks.3.attn1.to_out.0/aten::linear/MatMul
+    5226 __module.unet.up_blocks.0.attentions.1.transformer_blocks.3.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3675 __module.unet.up_blocks.0.attentions.1.transformer_blocks.3.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1857 __module.unet.up_blocks.0.attentions.1.transformer_blocks.3.attn2.to_out.0/aten::linear/MatMul
+    1976 __module.unet.up_blocks.0.attentions.1.transformer_blocks.3.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2971 __module.unet.up_blocks.0.attentions.1.transformer_blocks.3.ff.net.0.proj/aten::linear/MatMul
+    3286 __module.unet.up_blocks.0.attentions.1.transformer_blocks.3.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4470 __module.unet.up_blocks.0.attentions.1.transformer_blocks.3.ff.net.2/aten::linear/MatMul
+    4779 __module.unet.up_blocks.0.attentions.1.transformer_blocks.3.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3287 __module.unet.up_blocks.0.attentions.1.transformer_blocks.4.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3288 __module.unet.up_blocks.0.attentions.1.transformer_blocks.4.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3289 __module.unet.up_blocks.0.attentions.1.transformer_blocks.4.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5149 __module.unet.up_blocks.0.attentions.1.transformer_blocks.4.attn1.to_out.0/aten::linear/MatMul
+    5227 __module.unet.up_blocks.0.attentions.1.transformer_blocks.4.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3681 __module.unet.up_blocks.0.attentions.1.transformer_blocks.4.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1858 __module.unet.up_blocks.0.attentions.1.transformer_blocks.4.attn2.to_out.0/aten::linear/MatMul
+    1977 __module.unet.up_blocks.0.attentions.1.transformer_blocks.4.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2974 __module.unet.up_blocks.0.attentions.1.transformer_blocks.4.ff.net.0.proj/aten::linear/MatMul
+    3291 __module.unet.up_blocks.0.attentions.1.transformer_blocks.4.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4474 __module.unet.up_blocks.0.attentions.1.transformer_blocks.4.ff.net.2/aten::linear/MatMul
+    4783 __module.unet.up_blocks.0.attentions.1.transformer_blocks.4.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3292 __module.unet.up_blocks.0.attentions.1.transformer_blocks.5.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3293 __module.unet.up_blocks.0.attentions.1.transformer_blocks.5.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3294 __module.unet.up_blocks.0.attentions.1.transformer_blocks.5.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5150 __module.unet.up_blocks.0.attentions.1.transformer_blocks.5.attn1.to_out.0/aten::linear/MatMul
+    5228 __module.unet.up_blocks.0.attentions.1.transformer_blocks.5.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3687 __module.unet.up_blocks.0.attentions.1.transformer_blocks.5.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1859 __module.unet.up_blocks.0.attentions.1.transformer_blocks.5.attn2.to_out.0/aten::linear/MatMul
+    1978 __module.unet.up_blocks.0.attentions.1.transformer_blocks.5.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2977 __module.unet.up_blocks.0.attentions.1.transformer_blocks.5.ff.net.0.proj/aten::linear/MatMul
+    3296 __module.unet.up_blocks.0.attentions.1.transformer_blocks.5.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4478 __module.unet.up_blocks.0.attentions.1.transformer_blocks.5.ff.net.2/aten::linear/MatMul
+    4787 __module.unet.up_blocks.0.attentions.1.transformer_blocks.5.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3297 __module.unet.up_blocks.0.attentions.1.transformer_blocks.6.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3298 __module.unet.up_blocks.0.attentions.1.transformer_blocks.6.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3299 __module.unet.up_blocks.0.attentions.1.transformer_blocks.6.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5151 __module.unet.up_blocks.0.attentions.1.transformer_blocks.6.attn1.to_out.0/aten::linear/MatMul
+    5229 __module.unet.up_blocks.0.attentions.1.transformer_blocks.6.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3693 __module.unet.up_blocks.0.attentions.1.transformer_blocks.6.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1860 __module.unet.up_blocks.0.attentions.1.transformer_blocks.6.attn2.to_out.0/aten::linear/MatMul
+    1979 __module.unet.up_blocks.0.attentions.1.transformer_blocks.6.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2980 __module.unet.up_blocks.0.attentions.1.transformer_blocks.6.ff.net.0.proj/aten::linear/MatMul
+    3301 __module.unet.up_blocks.0.attentions.1.transformer_blocks.6.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4482 __module.unet.up_blocks.0.attentions.1.transformer_blocks.6.ff.net.2/aten::linear/MatMul
+    4791 __module.unet.up_blocks.0.attentions.1.transformer_blocks.6.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3302 __module.unet.up_blocks.0.attentions.1.transformer_blocks.7.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3303 __module.unet.up_blocks.0.attentions.1.transformer_blocks.7.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3304 __module.unet.up_blocks.0.attentions.1.transformer_blocks.7.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5152 __module.unet.up_blocks.0.attentions.1.transformer_blocks.7.attn1.to_out.0/aten::linear/MatMul
+    5230 __module.unet.up_blocks.0.attentions.1.transformer_blocks.7.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3699 __module.unet.up_blocks.0.attentions.1.transformer_blocks.7.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1861 __module.unet.up_blocks.0.attentions.1.transformer_blocks.7.attn2.to_out.0/aten::linear/MatMul
+    1980 __module.unet.up_blocks.0.attentions.1.transformer_blocks.7.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2983 __module.unet.up_blocks.0.attentions.1.transformer_blocks.7.ff.net.0.proj/aten::linear/MatMul
+    3306 __module.unet.up_blocks.0.attentions.1.transformer_blocks.7.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4486 __module.unet.up_blocks.0.attentions.1.transformer_blocks.7.ff.net.2/aten::linear/MatMul
+    4795 __module.unet.up_blocks.0.attentions.1.transformer_blocks.7.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3307 __module.unet.up_blocks.0.attentions.1.transformer_blocks.8.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3308 __module.unet.up_blocks.0.attentions.1.transformer_blocks.8.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3309 __module.unet.up_blocks.0.attentions.1.transformer_blocks.8.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5153 __module.unet.up_blocks.0.attentions.1.transformer_blocks.8.attn1.to_out.0/aten::linear/MatMul
+    5231 __module.unet.up_blocks.0.attentions.1.transformer_blocks.8.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3705 __module.unet.up_blocks.0.attentions.1.transformer_blocks.8.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1862 __module.unet.up_blocks.0.attentions.1.transformer_blocks.8.attn2.to_out.0/aten::linear/MatMul
+    1981 __module.unet.up_blocks.0.attentions.1.transformer_blocks.8.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2986 __module.unet.up_blocks.0.attentions.1.transformer_blocks.8.ff.net.0.proj/aten::linear/MatMul
+    3311 __module.unet.up_blocks.0.attentions.1.transformer_blocks.8.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4490 __module.unet.up_blocks.0.attentions.1.transformer_blocks.8.ff.net.2/aten::linear/MatMul
+    4799 __module.unet.up_blocks.0.attentions.1.transformer_blocks.8.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3312 __module.unet.up_blocks.0.attentions.1.transformer_blocks.9.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3313 __module.unet.up_blocks.0.attentions.1.transformer_blocks.9.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3314 __module.unet.up_blocks.0.attentions.1.transformer_blocks.9.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5154 __module.unet.up_blocks.0.attentions.1.transformer_blocks.9.attn1.to_out.0/aten::linear/MatMul
+    5232 __module.unet.up_blocks.0.attentions.1.transformer_blocks.9.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3711 __module.unet.up_blocks.0.attentions.1.transformer_blocks.9.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1863 __module.unet.up_blocks.0.attentions.1.transformer_blocks.9.attn2.to_out.0/aten::linear/MatMul
+    1982 __module.unet.up_blocks.0.attentions.1.transformer_blocks.9.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2989 __module.unet.up_blocks.0.attentions.1.transformer_blocks.9.ff.net.0.proj/aten::linear/MatMul
+    3316 __module.unet.up_blocks.0.attentions.1.transformer_blocks.9.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4494 __module.unet.up_blocks.0.attentions.1.transformer_blocks.9.ff.net.2/aten::linear/MatMul
+    4803 __module.unet.up_blocks.0.attentions.1.transformer_blocks.9.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2523 __module.unet.up_blocks.0.attentions.1.proj_out/aten::linear/MatMul
+    2752 __module.unet.up_blocks.0.attentions.1.proj_out/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2331 __module.unet.up_blocks.0.attentions.2.proj_in/aten::linear/MatMul
+    2578 __module.unet.up_blocks.0.attentions.2.proj_in/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3812 __module.unet.up_blocks.0.attentions.2.transformer_blocks.0.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3813 __module.unet.up_blocks.0.attentions.2.transformer_blocks.0.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3814 __module.unet.up_blocks.0.attentions.2.transformer_blocks.0.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5248 __module.unet.up_blocks.0.attentions.2.transformer_blocks.0.attn1.to_out.0/aten::linear/MatMul
+    5265 __module.unet.up_blocks.0.attentions.2.transformer_blocks.0.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4252 __module.unet.up_blocks.0.attentions.2.transformer_blocks.0.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1864 __module.unet.up_blocks.0.attentions.2.transformer_blocks.0.attn2.to_out.0/aten::linear/MatMul
+    1983 __module.unet.up_blocks.0.attentions.2.transformer_blocks.0.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2990 __module.unet.up_blocks.0.attentions.2.transformer_blocks.0.ff.net.0.proj/aten::linear/MatMul
+    3317 __module.unet.up_blocks.0.attentions.2.transformer_blocks.0.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4497 __module.unet.up_blocks.0.attentions.2.transformer_blocks.0.ff.net.2/aten::linear/MatMul
+    4806 __module.unet.up_blocks.0.attentions.2.transformer_blocks.0.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3318 __module.unet.up_blocks.0.attentions.2.transformer_blocks.1.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3319 __module.unet.up_blocks.0.attentions.2.transformer_blocks.1.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3320 __module.unet.up_blocks.0.attentions.2.transformer_blocks.1.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5155 __module.unet.up_blocks.0.attentions.2.transformer_blocks.1.attn1.to_out.0/aten::linear/MatMul
+    5233 __module.unet.up_blocks.0.attentions.2.transformer_blocks.1.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3719 __module.unet.up_blocks.0.attentions.2.transformer_blocks.1.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1865 __module.unet.up_blocks.0.attentions.2.transformer_blocks.1.attn2.to_out.0/aten::linear/MatMul
+    1984 __module.unet.up_blocks.0.attentions.2.transformer_blocks.1.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2993 __module.unet.up_blocks.0.attentions.2.transformer_blocks.1.ff.net.0.proj/aten::linear/MatMul
+    3322 __module.unet.up_blocks.0.attentions.2.transformer_blocks.1.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4501 __module.unet.up_blocks.0.attentions.2.transformer_blocks.1.ff.net.2/aten::linear/MatMul
+    4810 __module.unet.up_blocks.0.attentions.2.transformer_blocks.1.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3323 __module.unet.up_blocks.0.attentions.2.transformer_blocks.2.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3324 __module.unet.up_blocks.0.attentions.2.transformer_blocks.2.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3325 __module.unet.up_blocks.0.attentions.2.transformer_blocks.2.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5156 __module.unet.up_blocks.0.attentions.2.transformer_blocks.2.attn1.to_out.0/aten::linear/MatMul
+    5234 __module.unet.up_blocks.0.attentions.2.transformer_blocks.2.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3725 __module.unet.up_blocks.0.attentions.2.transformer_blocks.2.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1866 __module.unet.up_blocks.0.attentions.2.transformer_blocks.2.attn2.to_out.0/aten::linear/MatMul
+    1985 __module.unet.up_blocks.0.attentions.2.transformer_blocks.2.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2996 __module.unet.up_blocks.0.attentions.2.transformer_blocks.2.ff.net.0.proj/aten::linear/MatMul
+    3327 __module.unet.up_blocks.0.attentions.2.transformer_blocks.2.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4505 __module.unet.up_blocks.0.attentions.2.transformer_blocks.2.ff.net.2/aten::linear/MatMul
+    4814 __module.unet.up_blocks.0.attentions.2.transformer_blocks.2.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3328 __module.unet.up_blocks.0.attentions.2.transformer_blocks.3.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3329 __module.unet.up_blocks.0.attentions.2.transformer_blocks.3.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3330 __module.unet.up_blocks.0.attentions.2.transformer_blocks.3.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5157 __module.unet.up_blocks.0.attentions.2.transformer_blocks.3.attn1.to_out.0/aten::linear/MatMul
+    5235 __module.unet.up_blocks.0.attentions.2.transformer_blocks.3.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3731 __module.unet.up_blocks.0.attentions.2.transformer_blocks.3.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1867 __module.unet.up_blocks.0.attentions.2.transformer_blocks.3.attn2.to_out.0/aten::linear/MatMul
+    1986 __module.unet.up_blocks.0.attentions.2.transformer_blocks.3.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2999 __module.unet.up_blocks.0.attentions.2.transformer_blocks.3.ff.net.0.proj/aten::linear/MatMul
+    3332 __module.unet.up_blocks.0.attentions.2.transformer_blocks.3.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4509 __module.unet.up_blocks.0.attentions.2.transformer_blocks.3.ff.net.2/aten::linear/MatMul
+    4818 __module.unet.up_blocks.0.attentions.2.transformer_blocks.3.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3333 __module.unet.up_blocks.0.attentions.2.transformer_blocks.4.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3334 __module.unet.up_blocks.0.attentions.2.transformer_blocks.4.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3335 __module.unet.up_blocks.0.attentions.2.transformer_blocks.4.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5158 __module.unet.up_blocks.0.attentions.2.transformer_blocks.4.attn1.to_out.0/aten::linear/MatMul
+    5236 __module.unet.up_blocks.0.attentions.2.transformer_blocks.4.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3737 __module.unet.up_blocks.0.attentions.2.transformer_blocks.4.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1868 __module.unet.up_blocks.0.attentions.2.transformer_blocks.4.attn2.to_out.0/aten::linear/MatMul
+    1987 __module.unet.up_blocks.0.attentions.2.transformer_blocks.4.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3002 __module.unet.up_blocks.0.attentions.2.transformer_blocks.4.ff.net.0.proj/aten::linear/MatMul
+    3337 __module.unet.up_blocks.0.attentions.2.transformer_blocks.4.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4513 __module.unet.up_blocks.0.attentions.2.transformer_blocks.4.ff.net.2/aten::linear/MatMul
+    4822 __module.unet.up_blocks.0.attentions.2.transformer_blocks.4.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3338 __module.unet.up_blocks.0.attentions.2.transformer_blocks.5.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3339 __module.unet.up_blocks.0.attentions.2.transformer_blocks.5.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3340 __module.unet.up_blocks.0.attentions.2.transformer_blocks.5.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5159 __module.unet.up_blocks.0.attentions.2.transformer_blocks.5.attn1.to_out.0/aten::linear/MatMul
+    5237 __module.unet.up_blocks.0.attentions.2.transformer_blocks.5.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3743 __module.unet.up_blocks.0.attentions.2.transformer_blocks.5.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1869 __module.unet.up_blocks.0.attentions.2.transformer_blocks.5.attn2.to_out.0/aten::linear/MatMul
+    1988 __module.unet.up_blocks.0.attentions.2.transformer_blocks.5.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3005 __module.unet.up_blocks.0.attentions.2.transformer_blocks.5.ff.net.0.proj/aten::linear/MatMul
+    3342 __module.unet.up_blocks.0.attentions.2.transformer_blocks.5.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4517 __module.unet.up_blocks.0.attentions.2.transformer_blocks.5.ff.net.2/aten::linear/MatMul
+    4826 __module.unet.up_blocks.0.attentions.2.transformer_blocks.5.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3343 __module.unet.up_blocks.0.attentions.2.transformer_blocks.6.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3344 __module.unet.up_blocks.0.attentions.2.transformer_blocks.6.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3345 __module.unet.up_blocks.0.attentions.2.transformer_blocks.6.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5160 __module.unet.up_blocks.0.attentions.2.transformer_blocks.6.attn1.to_out.0/aten::linear/MatMul
+    5238 __module.unet.up_blocks.0.attentions.2.transformer_blocks.6.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3749 __module.unet.up_blocks.0.attentions.2.transformer_blocks.6.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1870 __module.unet.up_blocks.0.attentions.2.transformer_blocks.6.attn2.to_out.0/aten::linear/MatMul
+    1989 __module.unet.up_blocks.0.attentions.2.transformer_blocks.6.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3008 __module.unet.up_blocks.0.attentions.2.transformer_blocks.6.ff.net.0.proj/aten::linear/MatMul
+    3347 __module.unet.up_blocks.0.attentions.2.transformer_blocks.6.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4521 __module.unet.up_blocks.0.attentions.2.transformer_blocks.6.ff.net.2/aten::linear/MatMul
+    4830 __module.unet.up_blocks.0.attentions.2.transformer_blocks.6.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3348 __module.unet.up_blocks.0.attentions.2.transformer_blocks.7.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3349 __module.unet.up_blocks.0.attentions.2.transformer_blocks.7.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3350 __module.unet.up_blocks.0.attentions.2.transformer_blocks.7.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5161 __module.unet.up_blocks.0.attentions.2.transformer_blocks.7.attn1.to_out.0/aten::linear/MatMul
+    5239 __module.unet.up_blocks.0.attentions.2.transformer_blocks.7.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3755 __module.unet.up_blocks.0.attentions.2.transformer_blocks.7.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1871 __module.unet.up_blocks.0.attentions.2.transformer_blocks.7.attn2.to_out.0/aten::linear/MatMul
+    1990 __module.unet.up_blocks.0.attentions.2.transformer_blocks.7.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3011 __module.unet.up_blocks.0.attentions.2.transformer_blocks.7.ff.net.0.proj/aten::linear/MatMul
+    3352 __module.unet.up_blocks.0.attentions.2.transformer_blocks.7.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4525 __module.unet.up_blocks.0.attentions.2.transformer_blocks.7.ff.net.2/aten::linear/MatMul
+    4834 __module.unet.up_blocks.0.attentions.2.transformer_blocks.7.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3353 __module.unet.up_blocks.0.attentions.2.transformer_blocks.8.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3354 __module.unet.up_blocks.0.attentions.2.transformer_blocks.8.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3355 __module.unet.up_blocks.0.attentions.2.transformer_blocks.8.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5162 __module.unet.up_blocks.0.attentions.2.transformer_blocks.8.attn1.to_out.0/aten::linear/MatMul
+    5240 __module.unet.up_blocks.0.attentions.2.transformer_blocks.8.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3761 __module.unet.up_blocks.0.attentions.2.transformer_blocks.8.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1872 __module.unet.up_blocks.0.attentions.2.transformer_blocks.8.attn2.to_out.0/aten::linear/MatMul
+    1991 __module.unet.up_blocks.0.attentions.2.transformer_blocks.8.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3014 __module.unet.up_blocks.0.attentions.2.transformer_blocks.8.ff.net.0.proj/aten::linear/MatMul
+    3357 __module.unet.up_blocks.0.attentions.2.transformer_blocks.8.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4529 __module.unet.up_blocks.0.attentions.2.transformer_blocks.8.ff.net.2/aten::linear/MatMul
+    4838 __module.unet.up_blocks.0.attentions.2.transformer_blocks.8.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3358 __module.unet.up_blocks.0.attentions.2.transformer_blocks.9.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3359 __module.unet.up_blocks.0.attentions.2.transformer_blocks.9.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3360 __module.unet.up_blocks.0.attentions.2.transformer_blocks.9.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5163 __module.unet.up_blocks.0.attentions.2.transformer_blocks.9.attn1.to_out.0/aten::linear/MatMul
+    5241 __module.unet.up_blocks.0.attentions.2.transformer_blocks.9.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3767 __module.unet.up_blocks.0.attentions.2.transformer_blocks.9.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1873 __module.unet.up_blocks.0.attentions.2.transformer_blocks.9.attn2.to_out.0/aten::linear/MatMul
+    1992 __module.unet.up_blocks.0.attentions.2.transformer_blocks.9.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3017 __module.unet.up_blocks.0.attentions.2.transformer_blocks.9.ff.net.0.proj/aten::linear/MatMul
+    3362 __module.unet.up_blocks.0.attentions.2.transformer_blocks.9.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4533 __module.unet.up_blocks.0.attentions.2.transformer_blocks.9.ff.net.2/aten::linear/MatMul
+    4842 __module.unet.up_blocks.0.attentions.2.transformer_blocks.9.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2552 __module.unet.up_blocks.0.attentions.2.proj_out/aten::linear/MatMul
+    2781 __module.unet.up_blocks.0.attentions.2.proj_out/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2328 __module.unet.up_blocks.1.attentions.0.proj_in/aten::linear/MatMul
+    2576 __module.unet.up_blocks.1.attentions.0.proj_in/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3807 __module.unet.up_blocks.1.attentions.0.transformer_blocks.0.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3808 __module.unet.up_blocks.1.attentions.0.transformer_blocks.0.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3809 __module.unet.up_blocks.1.attentions.0.transformer_blocks.0.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5247 __module.unet.up_blocks.1.attentions.0.transformer_blocks.0.attn1.to_out.0/aten::linear/MatMul
+    5264 __module.unet.up_blocks.1.attentions.0.transformer_blocks.0.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4248 __module.unet.up_blocks.1.attentions.0.transformer_blocks.0.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1874 __module.unet.up_blocks.1.attentions.0.transformer_blocks.0.attn2.to_out.0/aten::linear/MatMul
+    1993 __module.unet.up_blocks.1.attentions.0.transformer_blocks.0.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3018 __module.unet.up_blocks.1.attentions.0.transformer_blocks.0.ff.net.0.proj/aten::linear/MatMul
+    3363 __module.unet.up_blocks.1.attentions.0.transformer_blocks.0.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4536 __module.unet.up_blocks.1.attentions.0.transformer_blocks.0.ff.net.2/aten::linear/MatMul
+    4845 __module.unet.up_blocks.1.attentions.0.transformer_blocks.0.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3364 __module.unet.up_blocks.1.attentions.0.transformer_blocks.1.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3365 __module.unet.up_blocks.1.attentions.0.transformer_blocks.1.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3366 __module.unet.up_blocks.1.attentions.0.transformer_blocks.1.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5164 __module.unet.up_blocks.1.attentions.0.transformer_blocks.1.attn1.to_out.0/aten::linear/MatMul
+    5242 __module.unet.up_blocks.1.attentions.0.transformer_blocks.1.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3775 __module.unet.up_blocks.1.attentions.0.transformer_blocks.1.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1875 __module.unet.up_blocks.1.attentions.0.transformer_blocks.1.attn2.to_out.0/aten::linear/MatMul
+    1994 __module.unet.up_blocks.1.attentions.0.transformer_blocks.1.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3021 __module.unet.up_blocks.1.attentions.0.transformer_blocks.1.ff.net.0.proj/aten::linear/MatMul
+    3368 __module.unet.up_blocks.1.attentions.0.transformer_blocks.1.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4540 __module.unet.up_blocks.1.attentions.0.transformer_blocks.1.ff.net.2/aten::linear/MatMul
+    4849 __module.unet.up_blocks.1.attentions.0.transformer_blocks.1.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2557 __module.unet.up_blocks.1.attentions.0.proj_out/aten::linear/MatMul
+    2786 __module.unet.up_blocks.1.attentions.0.proj_out/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2325 __module.unet.up_blocks.1.attentions.1.proj_in/aten::linear/MatMul
+    2574 __module.unet.up_blocks.1.attentions.1.proj_in/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3802 __module.unet.up_blocks.1.attentions.1.transformer_blocks.0.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3803 __module.unet.up_blocks.1.attentions.1.transformer_blocks.0.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3804 __module.unet.up_blocks.1.attentions.1.transformer_blocks.0.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5246 __module.unet.up_blocks.1.attentions.1.transformer_blocks.0.attn1.to_out.0/aten::linear/MatMul
+    5263 __module.unet.up_blocks.1.attentions.1.transformer_blocks.0.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4244 __module.unet.up_blocks.1.attentions.1.transformer_blocks.0.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1876 __module.unet.up_blocks.1.attentions.1.transformer_blocks.0.attn2.to_out.0/aten::linear/MatMul
+    1995 __module.unet.up_blocks.1.attentions.1.transformer_blocks.0.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3022 __module.unet.up_blocks.1.attentions.1.transformer_blocks.0.ff.net.0.proj/aten::linear/MatMul
+    3369 __module.unet.up_blocks.1.attentions.1.transformer_blocks.0.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4543 __module.unet.up_blocks.1.attentions.1.transformer_blocks.0.ff.net.2/aten::linear/MatMul
+    4852 __module.unet.up_blocks.1.attentions.1.transformer_blocks.0.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3370 __module.unet.up_blocks.1.attentions.1.transformer_blocks.1.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3371 __module.unet.up_blocks.1.attentions.1.transformer_blocks.1.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3372 __module.unet.up_blocks.1.attentions.1.transformer_blocks.1.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5165 __module.unet.up_blocks.1.attentions.1.transformer_blocks.1.attn1.to_out.0/aten::linear/MatMul
+    5243 __module.unet.up_blocks.1.attentions.1.transformer_blocks.1.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3783 __module.unet.up_blocks.1.attentions.1.transformer_blocks.1.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1877 __module.unet.up_blocks.1.attentions.1.transformer_blocks.1.attn2.to_out.0/aten::linear/MatMul
+    1996 __module.unet.up_blocks.1.attentions.1.transformer_blocks.1.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3025 __module.unet.up_blocks.1.attentions.1.transformer_blocks.1.ff.net.0.proj/aten::linear/MatMul
+    3374 __module.unet.up_blocks.1.attentions.1.transformer_blocks.1.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4547 __module.unet.up_blocks.1.attentions.1.transformer_blocks.1.ff.net.2/aten::linear/MatMul
+    4856 __module.unet.up_blocks.1.attentions.1.transformer_blocks.1.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2562 __module.unet.up_blocks.1.attentions.1.proj_out/aten::linear/MatMul
+    2791 __module.unet.up_blocks.1.attentions.1.proj_out/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2322 __module.unet.up_blocks.1.attentions.2.proj_in/aten::linear/MatMul
+    2572 __module.unet.up_blocks.1.attentions.2.proj_in/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3797 __module.unet.up_blocks.1.attentions.2.transformer_blocks.0.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3798 __module.unet.up_blocks.1.attentions.2.transformer_blocks.0.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3799 __module.unet.up_blocks.1.attentions.2.transformer_blocks.0.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5245 __module.unet.up_blocks.1.attentions.2.transformer_blocks.0.attn1.to_out.0/aten::linear/MatMul
+    5262 __module.unet.up_blocks.1.attentions.2.transformer_blocks.0.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4240 __module.unet.up_blocks.1.attentions.2.transformer_blocks.0.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1878 __module.unet.up_blocks.1.attentions.2.transformer_blocks.0.attn2.to_out.0/aten::linear/MatMul
+    1997 __module.unet.up_blocks.1.attentions.2.transformer_blocks.0.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3026 __module.unet.up_blocks.1.attentions.2.transformer_blocks.0.ff.net.0.proj/aten::linear/MatMul
+    3375 __module.unet.up_blocks.1.attentions.2.transformer_blocks.0.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4550 __module.unet.up_blocks.1.attentions.2.transformer_blocks.0.ff.net.2/aten::linear/MatMul
+    4859 __module.unet.up_blocks.1.attentions.2.transformer_blocks.0.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3376 __module.unet.up_blocks.1.attentions.2.transformer_blocks.1.attn1.to_k/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3377 __module.unet.up_blocks.1.attentions.2.transformer_blocks.1.attn1.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 3378 __module.unet.up_blocks.1.attentions.2.transformer_blocks.1.attn1.to_v/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 5166 __module.unet.up_blocks.1.attentions.2.transformer_blocks.1.attn1.to_out.0/aten::linear/MatMul
+    5244 __module.unet.up_blocks.1.attentions.2.transformer_blocks.1.attn1.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3791 __module.unet.up_blocks.1.attentions.2.transformer_blocks.1.attn2.to_q/aten::linear/MatMul
+    INFO:nncf:Not adding activation input quantizer for operation: 1879 __module.unet.up_blocks.1.attentions.2.transformer_blocks.1.attn2.to_out.0/aten::linear/MatMul
+    1998 __module.unet.up_blocks.1.attentions.2.transformer_blocks.1.attn2.to_out.0/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 3029 __module.unet.up_blocks.1.attentions.2.transformer_blocks.1.ff.net.0.proj/aten::linear/MatMul
+    3380 __module.unet.up_blocks.1.attentions.2.transformer_blocks.1.ff.net.0.proj/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 4554 __module.unet.up_blocks.1.attentions.2.transformer_blocks.1.ff.net.2/aten::linear/MatMul
+    4863 __module.unet.up_blocks.1.attentions.2.transformer_blocks.1.ff.net.2/aten::linear/Add
+
+    INFO:nncf:Not adding activation input quantizer for operation: 2567 __module.unet.up_blocks.1.attentions.2.proj_out/aten::linear/MatMul
+    2796 __module.unet.up_blocks.1.attentions.2.proj_out/aten::linear/Add
+
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 Run Weights Compression
 ^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -2107,6 +3839,100 @@ applied to footprint reduction.
         vae_decoder = core.read_model(ov_vae_decoder_path)
         compressed_vae_decoder = nncf.compress_weights(vae_decoder)
         ov.save_model(compressed_vae_decoder, ov_int8_vae_decoder_path)
+
+
+.. parsed-literal::
+
+    INFO:nncf:Statistics of the bitwidth distribution:
+    ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
+    │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
+    ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
+    │              8 │ 100% (74 / 74)              │ 100% (74 / 74)                         │
+    ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+.. parsed-literal::
+
+    INFO:nncf:Statistics of the bitwidth distribution:
+    ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
+    │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
+    ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
+    │              8 │ 100% (195 / 195)            │ 100% (195 / 195)                       │
+    ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+.. parsed-literal::
+
+    INFO:nncf:Statistics of the bitwidth distribution:
+    ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
+    │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
+    ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
+    │              8 │ 100% (40 / 40)              │ 100% (40 / 40)                         │
+    ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 Let’s compare the images generated by the original and optimized
 pipelines.
@@ -2222,8 +4048,8 @@ Compare model file sizes
 
 .. parsed-literal::
 
-    unet compression rate: 1.996
-    controlnet compression rate: 1.995
+    unet compression rate: 1.995
+    controlnet compression rate: 1.992
     text_encoder compression rate: 1.992
     text_encoder_2 compression rate: 1.995
     vae_decoder compression rate: 1.997
@@ -2283,9 +4109,9 @@ pipelines, we use mean inference time on 5 samples.
 
 .. parsed-literal::
 
-    FP16 pipeline: 17.595 seconds
-    INT8 pipeline: 15.258 seconds
-    Performance speed-up: 1.153
+    FP16 pipeline: 20.018 seconds
+    INT8 pipeline: 20.372 seconds
+    Performance speed-up: 0.983
 
 
 Interactive demo
@@ -2298,6 +4124,8 @@ to launch the interactive demo.
 
 .. code:: ipython3
 
+    import ipywidgets as widgets
+
     quantized_models_present = int8_pipe is not None
 
     use_quantized_models = widgets.Checkbox(
@@ -2308,55 +4136,34 @@ to launch the interactive demo.
 
     use_quantized_models
 
+
+
+
+.. parsed-literal::
+
+    Checkbox(value=True, description='Use quantized models')
+
+
+
 .. code:: ipython3
 
     import gradio as gr
     from typing import Tuple
-    import random
-    import PIL
-    import sys
 
-    sys.path.append("./InstantID/gradio_demo")
+    import PIL
+    import shutil
+
+    orig_style_template_path = Path("InstantID/gradio_demo/style_template.py")
+    style_template_path = Path(orig_style_template_path.name)
+    if not style_template_path.exists():
+        shutil.copy(orig_style_template_path, style_template_path)
 
     from style_template import styles
 
-    # global variable
-    MAX_SEED = np.iinfo(np.int32).max
-    STYLE_NAMES = list(styles.keys())
+    # global variables
     DEFAULT_STYLE_NAME = "Watercolor"
 
-
-    example_image_urls = [
-        "https://huggingface.co/datasets/EnD-Diffusers/AI_Faces/resolve/main/00002-3104853212.png",
-        "https://huggingface.co/datasets/EnD-Diffusers/AI_Faces/resolve/main/images%207/00171-2728008415.png",
-        "https://huggingface.co/datasets/EnD-Diffusers/AI_Faces/resolve/main/00003-3962843561.png",
-        "https://huggingface.co/datasets/EnD-Diffusers/AI_Faces/resolve/main/00005-3104853215.png",
-        "https://huggingface.co/datasets/YiYiXu/testing-images/resolve/main/ai_face2.png",
-    ]
-
-    examples_dir = Path("examples")
-
-    examples = [
-        [examples_dir / "face_0.png", "A woman in red dress", "Film Noir", ""],
-        [examples_dir / "face_1.png", "photo of a business lady", "Vibrant Color", ""],
-        [examples_dir / "face_2.png", "famous rock star poster", "(No style)", ""],
-        [examples_dir / "face_3.png", "a person", "Neon", ""],
-        [examples_dir / "face_4.png", "a girl", "Snow", ""],
-    ]
-
     pipeline = int8_pipe if use_quantized_models.value else ov_pipe
-
-
-    if not examples_dir.exists():
-        examples_dir.mkdir()
-        for img_id, img_url in enumerate(example_image_urls):
-            load_image(img_url).save(examples_dir / f"face_{img_id}.png")
-
-
-    def randomize_seed_fn(seed: int, randomize_seed: bool) -> int:
-        if randomize_seed:
-            seed = random.randint(0, MAX_SEED)
-        return seed
 
 
     def convert_from_cv2_to_image(img: np.ndarray) -> PIL.Image:
@@ -2474,117 +4281,25 @@ to launch the interactive demo.
 
         return images[0]
 
-
-    ### Description
-    title = r"""
-    <h1 align="center">InstantID: Zero-shot Identity-Preserving Generation</h1>
-    """
-
-    description = r"""
-
-        How to use:<br>
-        1. Upload an image with a face. For images with multiple faces, we will only detect the largest face. Ensure the face is not too small and is clearly visible without significant obstructions or blurring.
-        2. (Optional) You can upload another image as a reference for the face pose. If you don't, we will use the first detected face image to extract facial landmarks. If you use a cropped face at step 1, it is recommended to upload it to define a new face pose.
-        3. Enter a text prompt, as done in normal text-to-image models.
-        4. Click the <b>Submit</b> button to begin customization.
-        5. Share your customized photo with your friends and enjoy! 😊
-        """
-
-
-    css = """
-        .gradio-container {width: 85% !important}
-        """
-    with gr.Blocks(css=css) as demo:
-        # description
-        gr.Markdown(title)
-        gr.Markdown(description)
-
-        with gr.Row():
-            with gr.Column():
-                # upload face image
-                face_file = gr.Image(label="Upload a photo of your face", type="pil")
-
-                # optional: upload a reference pose image
-                pose_file = gr.Image(label="Upload a reference pose image (optional)", type="pil")
-
-                # prompt
-                prompt = gr.Textbox(
-                    label="Prompt",
-                    info="Give simple prompt is enough to achieve good face fidelity",
-                    placeholder="A photo of a person",
-                    value="",
-                )
-
-                submit = gr.Button("Submit", variant="primary")
-                style = gr.Dropdown(label="Style template", choices=STYLE_NAMES, value=DEFAULT_STYLE_NAME)
-
-                # strength
-                identitynet_strength_ratio = gr.Slider(
-                    label="IdentityNet strength (for fidelity)",
-                    minimum=0,
-                    maximum=1.5,
-                    step=0.05,
-                    value=0.80,
-                )
-
-                with gr.Accordion(open=False, label="Advanced Options"):
-                    negative_prompt = gr.Textbox(
-                        label="Negative Prompt",
-                        placeholder="low quality",
-                        value="(lowres, low quality, worst quality:1.2), (text:1.2), watermark, (frame:1.2), deformed, ugly, deformed eyes, blur, out of focus, blurry, deformed cat, deformed, photo, anthropomorphic cat, monochrome, pet collar, gun, weapon, blue, 3d, drones, drone, buildings in background, green",
-                    )
-                    num_steps = gr.Slider(
-                        label="Number of sample steps",
-                        minimum=1,
-                        maximum=10,
-                        step=1,
-                        value=4,
-                    )
-                    guidance_scale = gr.Slider(label="Guidance scale", minimum=0.1, maximum=10.0, step=0.1, value=0)
-                    seed = gr.Slider(
-                        label="Seed",
-                        minimum=0,
-                        maximum=MAX_SEED,
-                        step=1,
-                        value=42,
-                    )
-                    randomize_seed = gr.Checkbox(label="Randomize seed", value=True)
-                gr.Examples(
-                    examples=examples,
-                    inputs=[face_file, prompt, style, negative_prompt],
-                )
-
-            with gr.Column():
-                gallery = gr.Image(label="Generated Image")
-
-        submit.click(
-            fn=randomize_seed_fn,
-            inputs=[seed, randomize_seed],
-            outputs=seed,
-            api_name=False,
-        ).then(
-            fn=generate_image,
-            inputs=[
-                face_file,
-                pose_file,
-                prompt,
-                negative_prompt,
-                style,
-                num_steps,
-                identitynet_strength_ratio,
-                guidance_scale,
-                seed,
-            ],
-            outputs=[gallery],
-        )
-
 .. code:: ipython3
 
-    if __name__ == "__main__":
-        try:
-            demo.launch(debug=False)
-        except Exception:
-            demo.launch(share=True, debug=False)
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/instant-id/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
+
+    from gradio_helper import make_demo
+
+    demo = make_demo(fn=generate_image)
+
+    try:
+        demo.launch(debug=False)
+    except Exception:
+        demo.launch(share=True, debug=False)
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
+
+.. code:: ipython3
+
+    # please uncomment and run this cell for stopping gradio interface
+    # demo.close()

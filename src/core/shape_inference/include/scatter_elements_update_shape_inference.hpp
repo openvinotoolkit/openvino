@@ -49,7 +49,7 @@ std::vector<TRShape> shape_infer(const util::ScatterElementsUpdateBase* op,
 
     if (data_shape.rank().is_static()) {
         if (const auto axis_input = get_input_const_data_as<TShape, int64_t>(op, 3, ta)) {
-            ov::util::normalize_axis(op, (*axis_input)[0], data_rank);
+            ov::util::validate_axis((*axis_input)[0], data_rank, *op);
         }
     }
     return {data_shape};

@@ -37,6 +37,7 @@ Prerequisites
 -  ``seaborn`` - for alignment matrix visualization
 -  ``ipywidgets`` - for displaying HTML and JS output in the notebook
 
+
 **Table of contents:**
 
 
@@ -53,6 +54,16 @@ Prerequisites
 -  `Visualize Sentence Alignment <#visualize-sentence-alignment>`__
 -  `Speed up Embeddings
    Computation <#speed-up-embeddings-computation>`__
+
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
 .. |image0| image:: https://user-images.githubusercontent.com/51917466/254582697-18f3ab38-e264-4b2c-a088-8e54b855c1b2.png
 
@@ -90,6 +101,11 @@ To get the texts, we will pass the IDs to the
 .. code:: ipython3
 
     import requests
+
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+    )
+    open("notebook_utils.py", "w").write(r.text)
 
 
     def get_book_by_id(book_id: int, gutendex_url: str = "https://gutendex.com/") -> str:
@@ -484,15 +500,10 @@ For starting work, we should select device for inference first:
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
+    from notebook_utils import device_widget
 
     core = ov.Core()
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
 
     device
 
@@ -836,11 +847,10 @@ Save the OpenVINO model to disk for future use:
 
 .. code:: ipython3
 
-    from openvino.runtime import serialize
+    from pathlib import Path
 
-
-    ov_model_path = "ov_model/model.xml"
-    serialize(ov_model, ov_model_path)
+    ov_model_path = Path("ov_model/model.xml")
+    ov.save_model(ov_model, ov_model_path)
 
 To read the model from disk, use the ``read_model`` method of the
 ``Core`` object:
@@ -882,11 +892,13 @@ parameters for execution on the available hardware.
 
     from typing import Any
 
+    import openvino.properties.hint as hints
+
 
     compiled_throughput_hint = core.compile_model(
         ov_model,
         device_name=device.value,
-        config={"PERFORMANCE_HINT": "THROUGHPUT"},
+        config={hints.performance_mode(): hints.PerformanceMode.THROUGHPUT},
     )
 
 To further optimize hardware utilization, let’s change the inference
@@ -1020,7 +1032,10 @@ Let’s compare the models and plot the results.
 
 .. code:: ipython3
 
-    cpu_name = core.get_property("CPU", "FULL_DEVICE_NAME")
+    import openvino.properties as props
+
+
+    cpu_name = core.get_property("CPU", props.device.full_name)
 
     plot = sns.barplot(benchmark_dataframe, errorbar="sd")
     plot.set(ylabel="Sentences Per Second", title=f"Sentence Embeddings Benchmark\n{cpu_name}")

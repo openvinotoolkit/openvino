@@ -1,6 +1,7 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include "utils/general_utils.h"
 #ifdef CPU_DEBUG_CAPS
 
 #include "verbose.h"
@@ -25,11 +26,15 @@ bool Verbose::shouldBePrinted() const {
     if (lvl < 1)
         return false;
 
-    if (node->isConstant() ||
-        node->getType() == Type::Input || node->getType() == Type::Output)
+    if (lvl < 2 && one_of(node->getType(), Type::Input, Type::Output))
         return false;
+
+    if (lvl < 3 && node->isConstant())
+        return false;
+
     return true;
 }
+
 /**
  * Print node verbose execution information to cout.
  * Similiar to DNNL_VERBOSE output
@@ -37,10 +42,6 @@ bool Verbose::shouldBePrinted() const {
  * Can be rewritten in pure C++ if necessary
  */
 void Verbose::printInfo() {
-    /* 1,  2,  3,  etc -> no color
-     * 11, 22, 33, etc -> colorize */
-    bool colorUp = lvl / 10 > 0 ? true : false;
-
     enum Color {
         RED,
         GREEN,

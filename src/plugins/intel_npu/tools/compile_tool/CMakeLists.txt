@@ -30,10 +30,6 @@ set_target_properties(${TARGET_NAME} PROPERTIES
                           FOLDER ${CMAKE_CURRENT_SOURCE_DIR}
                           CXX_STANDARD 17)
 
-if (CMAKE_COMPILER_IS_GNUCXX)
-    target_compile_options(${TARGET_NAME} PRIVATE -Wall)
-endif()
-
 # TODO: fix warnings and remove this exception
 if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
     ov_add_compiler_flags(-Wno-missing-declarations)

@@ -17,7 +17,8 @@ GPU_DEFINE_PRIMITIVE_TYPE_ID(kv_cache)
 kv_cache_inst::typed_primitive_inst(network& network, const kv_cache_node& node) :
     parent{network, node, false},
     memory_state::variable{node.get_primitive()->variable_info.variable_id} {
-    kv_cache_id = network.get_kv_cache_ids().size();
+    thread_local size_t kv_cache_counter = 0;
+    kv_cache_id = kv_cache_counter++;
 }
 
 layout kv_cache_inst::calc_output_layout(const kv_cache_node& node, kernel_impl_params const& impl_param) {
@@ -40,12 +41,12 @@ std::vector<layout> kv_cache_inst::calc_output_layouts(kv_cache_node const& /*no
 
     std::vector<ShapeType> output_shapes = shape_infer(&op, input_shapes);
 
-    const std::map<size_t, size_t> ports_map = {{0, 0}, {1, 2}};
+    static const std::map<size_t, size_t> ports_map = {{0, 0}, {1, 2}};
 
     std::vector<layout> out_layouts;
     for (size_t i = 0; i < desc->num_outputs; i++) {
         auto out_type = desc->output_data_types[i].value_or(impl_param.get_input_layout(ports_map.at(i)).data_type);
-        out_layouts.push_back(layout(output_shapes[i], out_type, impl_param.get_output_layout(i).format));
+        out_layouts.emplace_back(output_shapes[i], out_type, impl_param.get_output_layout(i).format);
     }
 
     return out_layouts;
@@ -83,6 +84,9 @@ int32_t kv_cache_inst::get_prealloc_iter_num() {
 }
 
 void kv_cache_inst::update_shape_info_tensor(const kernel_impl_params& params) {
+    if (!_shape_info_memory) {
+        allocate_shape_info_memory();
+    }
     mem_lock<int32_t> lock(_shape_info_memory, _network.get_stream());
     auto shape_info_ptr = lock.data();
     size_t offset = 0;

@@ -34,7 +34,7 @@ namespace level_zero {
  * @brief This class represents an abstraction for NPU plugin remote tensor
  * which can be shared with user-supplied LevelZero buffer.
  * The plugin object derived from this class can be obtained with ZeroContext::create_tensor() call.
- * @note User can obtain LevelZero buffer handle from this class.
+ * @note User can obtain Level Zero buffer handle from this class.
  * @ingroup ov_runtime_level_zero_npu_cpp_api
  */
 class ZeroBufferTensor : public RemoteTensor {
@@ -100,7 +100,7 @@ public:
     }
 
     /**
-     * @brief This function is used to obtain remote tensor object from user-supplied Direct3D 12 Core object
+     * @brief This function is used to obtain remote tensor object from user-supplied NT handle object
      * @param type Tensor element type
      * @param shape Tensor shape
      * @param buffer A void* object that should be wrapped by a remote tensor

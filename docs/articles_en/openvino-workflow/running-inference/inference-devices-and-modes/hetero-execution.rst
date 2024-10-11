@@ -1,6 +1,4 @@
-.. {#openvino_docs_OV_UG_Hetero_execution}
-
-Heterogeneous execution
+Heterogeneous Execution
 =======================
 
 
@@ -9,24 +7,28 @@ Heterogeneous execution
                  the inference of one model on several computing devices.
 
 
-Heterogeneous execution enables executing inference of one model on several devices. Its purpose is to:
+Heterogeneous execution enables executing inference of one model on several devices.
+Its purpose is to:
 
-* Utilize the power of accelerators to process the heaviest parts of the model and to execute unsupported operations on fallback devices, like the CPU.
+* Utilize the power of accelerators to process the heaviest parts of the model and to execute
+  unsupported operations on fallback devices, like the CPU.
 * Utilize all available hardware more efficiently during one inference.
 
 Execution via the heterogeneous mode can be divided into two independent steps:
 
 1. Setting hardware affinity to operations (`ov::Core::query_model <https://docs.openvino.ai/2024/api/c_cpp_api/classov_1_1_core.html#doxid-classov-1-1-core-1acdf8e64824fe4cf147c3b52ab32c1aab>`__ is used internally by the Hetero device).
 2. Compiling a model to the Heterogeneous device assumes splitting the model to parts, compiling them on the specified devices (via `ov::device::priorities <https://docs.openvino.ai/2024/api/c_cpp_api/structov_1_1device_1_1_priorities.html>`__), and executing them in the Heterogeneous mode. The model is split to subgraphs in accordance with the affinities, where a set of connected operations with the same affinity is to be a dedicated subgraph. Each subgraph is compiled on a dedicated device and multiple `ov::CompiledModel <https://docs.openvino.ai/2024/api/c_cpp_api/classov_1_1_compiled_model.html#doxid-classov-1-1-compiled-model>`__ objects are made, which are connected via automatically allocated intermediate tensors.
-   
+
    If you set pipeline parallelism (via ``ov::hint::model_distribution_policy``), the model is split into multiple stages, and each stage is assigned to a different device. The output of one stage is fed as input to the next stage.
 
 These two steps are not interconnected and affinities can be set in one of two ways, used separately or in combination (as described below): in the ``manual`` or the ``automatic`` mode.
 
-Defining and Configuring the Hetero Device
+Defining and configuring the Hetero device
 ##########################################
 
-Following the OpenVINO™ naming convention, the Hetero execution plugin is assigned the label of ``"HETERO".`` It may be defined with no additional parameters, resulting in defaults being used, or configured further with the following setup options:
+Following the OpenVINO™ naming convention, the Hetero execution plugin is assigned the label of
+ ``"HETERO".`` It may be defined with no additional parameters, resulting in defaults being used,
+ or configured further with the following setup options:
 
 
 +--------------------------------------------+-------------------------------------------------------------+-----------------------------------------------------------+

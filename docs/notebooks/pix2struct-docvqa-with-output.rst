@@ -42,6 +42,7 @@ library. To simplify the user experience, the `Hugging Face
 Optimum <https://huggingface.co/docs/optimum>`__ library is used to
 convert the model to OpenVINO™ IR format.
 
+
 **Table of contents:**
 
 
@@ -51,6 +52,16 @@ convert the model to OpenVINO™ IR format.
 -  `Select inference device <#select-inference-device>`__
 -  `Test model inference <#test-model-inference>`__
 -  `Interactive demo <#interactive-demo>`__
+
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
 About Pix2Struct
 ----------------
@@ -100,7 +111,7 @@ documentation <https://huggingface.co/docs/optimum/intel/inference>`__.
 .. code:: ipython3
 
     %pip install -q "torch>=2.1" torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
-    %pip install -q "git+https://github.com/huggingface/optimum-intel.git" "openvino>=2023.1.0" "transformers>=4.33.0" "peft==0.6.2" onnx "gradio>=4.19" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "git+https://github.com/huggingface/optimum-intel.git" "openvino>=2023.1.0" "onnx<1.16.2" "gradio>=4.19" --extra-index-url https://download.pytorch.org/whl/cpu
 
 Download and Convert Model
 --------------------------
@@ -136,33 +147,16 @@ applicable for other models from pix2struct family.
     import gc
     from pathlib import Path
     from optimum.intel.openvino import OVModelForPix2Struct
-
+    
     model_id = "google/pix2struct-docvqa-base"
     model_dir = Path(model_id.split("/")[-1])
-
+    
     if not model_dir.exists():
         ov_model = OVModelForPix2Struct.from_pretrained(model_id, export=True, compile=False)
         ov_model.half()
         ov_model.save_pretrained(model_dir)
         del ov_model
         gc.collect();
-
-
-.. parsed-literal::
-
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
-
-
-.. parsed-literal::
-
-    No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
-    2023-10-20 13:49:09.525682: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-10-20 13:49:09.565139: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-10-20 13:49:10.397504: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    /home/ea/work/ov_venv/lib/python3.8/site-packages/transformers/deepspeed.py:23: FutureWarning: transformers.deepspeed module is deprecated and will be removed in a future version. Please import deepspeed modules directly from transformers.integrations
-      warnings.warn(
-
 
 Select inference device
 -----------------------
@@ -173,18 +167,17 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    import openvino as ov
-
-    core = ov.Core()
-
-    device = widgets.Dropdown(
-        options=[d for d in core.available_devices if "GPU" not in d] + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
+    import requests
+    
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
-
+    open("notebook_utils.py", "w").write(r.text)
+    
+    from notebook_utils import device_widget
+    
+    device = device_widget()
+    
     device
 
 
@@ -217,7 +210,7 @@ by ``Pix2StructProcessor.decode``
 .. code:: ipython3
 
     from transformers import Pix2StructProcessor
-
+    
     processor = Pix2StructProcessor.from_pretrained(model_id)
     ov_model = OVModelForPix2Struct.from_pretrained(model_dir, device=device.value)
 
@@ -238,19 +231,19 @@ documentation <https://docs.openvino.ai/2024/get-started.html#openvino-advanced-
     import requests
     from PIL import Image
     from io import BytesIO
-
-
+    
+    
     def load_image(image_file):
         response = requests.get(image_file)
         image = Image.open(BytesIO(response.content)).convert("RGB")
         return image
-
-
+    
+    
     test_image_url = "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/aa46ef0c-c14d-4bab-8bb7-3b22fe73f6bc"
-
+    
     image = load_image(test_image_url)
     text = "What performance hints do?"
-
+    
     inputs = processor(images=image, text=text, return_tensors="pt")
     display(image)
 
@@ -290,44 +283,20 @@ Interactive demo
 
 .. code:: ipython3
 
-    import gradio as gr
-
-    example_images_urls = [
-        "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/94ef687c-aebb-452b-93fe-c7f29ce19503",
-        "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/70b2271c-9295-493b-8a5c-2f2027dcb653",
-        "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/1e2be134-0d45-4878-8e6c-08cfc9c8ea3d",
-    ]
-
-    file_names = ["eiffel_tower.png", "exsibition.jpeg", "population_table.jpeg"]
-
-    for img_url, image_file in zip(example_images_urls, file_names):
-        load_image(img_url).save(image_file)
-
-    questions = [
-        "What is Eiffel tower tall?",
-        "When is the coffee break?",
-        "What the population of Stoddard?",
-    ]
-
-    examples = [list(pair) for pair in zip(file_names, questions)]
-
-
     def generate(img, question):
         inputs = processor(images=img, text=question, return_tensors="pt")
         predictions = ov_model.generate(**inputs, max_new_tokens=256)
         return processor.decode(predictions[0], skip_special_tokens=True)
-
-
-    demo = gr.Interface(
-        fn=generate,
-        inputs=["image", "text"],
-        outputs="text",
-        title="Pix2Struct for DocVQA",
-        examples=examples,
-        cache_examples=False,
-        allow_flagging="never",
-    )
-
+    
+    
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/pix2struct-docvqa/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
+    
+    from gradio_helper import make_demo
+    
+    demo = make_demo(fn=generate)
+    
     try:
         demo.queue().launch(debug=False)
     except Exception:
@@ -335,3 +304,8 @@ Interactive demo
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
+
+.. code:: ipython3
+
+    # please uncomment and run this cell for stopping gradio interface
+    # demo.close()

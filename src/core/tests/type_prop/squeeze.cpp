@@ -47,7 +47,7 @@ TEST(type_prop, squeeze_incorrect_negative_axes) {
 
     OV_EXPECT_THROW(auto s = make_shared<op::v0::Squeeze>(param, axes_node),
                     ov::Exception,
-                    HasSubstr("Parameter axis -10 out of the tensor rank range"));
+                    HasSubstr("Axis -10 out of the tensor rank range"));
 }
 
 TEST(type_prop, squeeze_data_static_param_axes_1D_single_elem_static_shape_no_squeezable_dims) {
@@ -391,7 +391,7 @@ INSTANTIATE_TEST_SUITE_P(
            std::make_tuple(PartialShape{Dimension(-1)}, PartialShape{Dimension(-1)}),
            std::make_tuple(PartialShape{Dimension::dynamic(), 8}, PartialShape{Dimension::dynamic()}),
            std::make_tuple(PartialShape{Dimension(4, 8), Dimension::dynamic()}, PartialShape{Dimension(4, 8)}),
-           std::make_tuple(PartialShape{Dimension(20, -1), Dimension::dynamic()}, PartialShape::dynamic(1)),
+           std::make_tuple(PartialShape{Dimension(20, -1), Dimension::dynamic()}, PartialShape{{20, -1}}),
            std::make_tuple(PartialShape{Dimension(-1, 5), Dimension::dynamic()}, PartialShape{Dimension(-1, 5)}),
            std::make_tuple(PartialShape{15}, PartialShape{15}),
            std::make_tuple(PartialShape{2, 6}, PartialShape{2})),

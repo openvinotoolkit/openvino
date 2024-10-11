@@ -124,11 +124,8 @@ const std::vector<cldnn::format> f_blocked_4d_formats {
     format::b_fs_yx_fsv16,
 };
 
-const std::vector<cldnn::format> f_blocked_5d_formats {
-    format::b_fs_zyx_fsv2,
-    format::b_fs_zyx_fsv4,
-    format::b_fs_zyx_fsv16,
-    format::b_fs_zyx_fsv32,
+const std::vector<cldnn::format> f_planar_5d_formats {
+    format::bfzyx,
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -150,12 +147,12 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn({padding(), padding({0, 16, 0, 0})})));
 
 INSTANTIATE_TEST_SUITE_P(
-    GroupNormalizationGPUTest_blocked_layouts_support_5d, GroupNormalizationGPUTest,
+    GroupNormalizationGPUTest_planar_layouts_support_5d, GroupNormalizationGPUTest,
     ::testing::Combine(
-        ::testing::Values(std::vector<int32_t>{3, 64, 28, 32, 12}),
-        ::testing::Values(4),
+        ::testing::ValuesIn({std::vector<int32_t>{3, 64, 28, 32, 12}, std::vector<int32_t>{3, 124, 10, 97, 61}, std::vector<int32_t>{1, 1536, 9, 151, 1}, std::vector<int32_t>{1, 12, 8, 2175, 1}}),
+        ::testing::ValuesIn(std::vector<size_t>{1, 4}),
         ::testing::Values(0.0025),
-        ::testing::ValuesIn(f_blocked_5d_formats),
-        ::testing::Values(padding())));
+        ::testing::ValuesIn(f_planar_5d_formats),
+        ::testing::ValuesIn({padding(), padding({0, 0, 1, 1})})));
 
 } // anonymous namespace

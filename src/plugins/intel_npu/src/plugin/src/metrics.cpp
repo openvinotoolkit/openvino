@@ -65,7 +65,7 @@ const std::vector<std::string>& Metrics::GetSupportedConfigKeys() const {
 }
 
 // TODO each backend may support different optimization capabilities
-const std::vector<std::string>& Metrics::GetOptimizationCapabilities() const {
+const std::vector<std::string> Metrics::GetOptimizationCapabilities() const {
     return _optimizationCapabilities;
 }
 
@@ -115,12 +115,12 @@ uint32_t Metrics::GetDriverVersion() const {
     return _backends->getDriverVersion();
 }
 
-uint32_t Metrics::GetDriverExtVersion() const {
+uint32_t Metrics::GetGraphExtVersion() const {
     if (_backends == nullptr) {
         OPENVINO_THROW("No available backends");
     }
 
-    return _backends->getDriverExtVersion();
+    return _backends->getGraphExtVersion();
 }
 
 uint32_t Metrics::GetSteppingNumber(const std::string& specifiedDeviceName) const {

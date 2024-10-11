@@ -10,6 +10,8 @@ depth-anything-v2
 detectron2-to-openvino
 distilbert-sequence-classification
 explainable-ai-1-basic
+explainable-ai-2-deep-dive
+explainable-ai-3-map-interpretation
 fast-segment-anything
 grounded-segment-anything
 handwritten-ocr
@@ -25,6 +27,7 @@ mobileclip-video-search
 music-generation
 named-entity-recognition
 nano-llava-multimodal-chatbot
+nuextract-structure-extraction
 object-detection
 openvino-api
 openvino-tokenizers
@@ -57,6 +60,9 @@ tiny-sd-image-generation
 vision-background-removal
 vision-monodepth
 whisper-subtitles-generation
+yolov11-instance-segmentation
+yolov11-keypoint-detection
+yolov11-object-detection
 yolov8-instance-segmentation
 yolov8-keypoint-detection
 yolov8-obb

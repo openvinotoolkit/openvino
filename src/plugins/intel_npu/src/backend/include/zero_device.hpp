@@ -37,6 +37,9 @@ public:
     std::shared_ptr<SyncInferRequest> createInferRequest(const std::shared_ptr<const ICompiledModel>& compiledModel,
                                                          const std::shared_ptr<IExecutor>& executor,
                                                          const Config& config) override;
+    void updateInfo(const Config& config) override {
+        log.setLevel(config.get<LOG_LEVEL>());
+    }
 
     ov::SoPtr<ov::IRemoteTensor> createRemoteTensor(
         std::shared_ptr<ov::IRemoteContext> context,
@@ -58,7 +61,7 @@ public:
 private:
     const std::shared_ptr<ZeroInitStructsHolder> _initStructs;
 
-    ze_graph_dditable_ext_curr_t* _graph_ddi_table_ext = nullptr;
+    ze_graph_dditable_ext_curr_t& _graph_ddi_table_ext;
 
     ze_device_properties_t device_properties = {};
 
@@ -66,6 +69,7 @@ private:
 
     std::map<ov::element::Type, float> device_gops = {{ov::element::f32, 0.f},
                                                       {ov::element::f16, 0.f},
+                                                      {ov::element::bf16, 0.f},
                                                       {ov::element::u8, 0.f},
                                                       {ov::element::i8, 0.f}};
 

@@ -21,7 +21,6 @@ In this tutorial you will learn how to turn sketches to images using
 `Pix2Pix-Turbo <https://github.com/GaParmar/img2img-turbo>`__ and
 OpenVINO.
 
-
 **Table of contents:**
 
 -  `Prerequisites <#prerequisites>`__
@@ -32,6 +31,16 @@ OpenVINO.
 -  `Compile model <#compile-model>`__
 -  `Run model inference <#run-model-inference>`__
 -  `Interactive demo <#interactive-demo>`__
+
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
 .. |image0| image:: https://github.com/GaParmar/img2img-turbo/raw/main/assets/gen_variations.jpg
 
@@ -45,11 +54,13 @@ and install required packages.
 
 .. code:: ipython3
 
-    %pip install -q "openvino>=2024.1.0" "torch>=2.1" torchvision "diffusers==0.25.1" "peft==0.6.2" transformers tqdm pillow opencv-python "gradio==3.43.1" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "openvino>=2024.1.0" "torch>=2.1" torchvision "diffusers==0.25.1" "peft>=0.6.2" transformers tqdm pillow opencv-python "gradio==3.43.1" --extra-index-url https://download.pytorch.org/whl/cpu
 
 
 .. parsed-literal::
 
+    ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+    modelscope-studio 0.5.0 requires gradio<5.0,>=4.0, but you have gradio 3.43.1 which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -90,13 +101,13 @@ and install required packages.
 .. parsed-literal::
 
     Cloning into 'img2img-turbo'...
-    remote: Enumerating objects: 205, done.[K
-    remote: Counting objects: 100% (70/70), done.[K
-    remote: Compressing objects: 100% (26/26), done.[K
-    remote: Total 205 (delta 53), reused 46 (delta 44), pack-reused 135[K
-    Receiving objects: 100% (205/205), 31.89 MiB | 19.13 MiB/s, done.
-    Resolving deltas: 100% (96/96), done.
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/notebooks/sketch-to-image-pix2pix-turbo/img2img-turbo
+    remote: Enumerating objects: 233, done.[K
+    remote: Counting objects: 100% (103/103), done.[K
+    remote: Compressing objects: 100% (45/45), done.[K
+    remote: Total 233 (delta 75), reused 64 (delta 58), pack-reused 130 (from 1)[K
+    Receiving objects: 100% (233/233), 31.90 MiB | 22.01 MiB/s, done.
+    Resolving deltas: 100% (112/112), done.
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/notebooks/sketch-to-image-pix2pix-turbo/img2img-turbo
 
 
 Load PyTorch model
@@ -217,10 +228,10 @@ diagram indicate trainable layers. Semi-transparent layers are frozen.
     class Pix2PixTurbo(torch.nn.Module):
         def __init__(self, pretrained_name=None, pretrained_path=None, ckpt_folder="checkpoints", lora_rank_unet=8, lora_rank_vae=4):
             super().__init__()
-            self.text_encoder = CLIPTextModel.from_pretrained("stabilityai/sd-turbo", subfolder="text_encoder").cpu()
+            self.text_encoder = CLIPTextModel.from_pretrained("stabilityai/sd-turbo", subfolder="text_encoder", variant="fp16").cpu()
             self.sched = make_1step_sched()
 
-            vae = AutoencoderKL.from_pretrained("stabilityai/sd-turbo", subfolder="vae")
+            vae = AutoencoderKL.from_pretrained("stabilityai/sd-turbo", subfolder="vae", variant="fp16")
             vae.encoder.forward = types.MethodType(_vae_encoder_fwd, vae.encoder)
             vae.decoder.forward = types.MethodType(_vae_decoder_fwd, vae.decoder)
             vae.encode = types.MethodType(vae_encode, vae)
@@ -232,7 +243,7 @@ diagram indicate trainable layers. Semi-transparent layers are frozen.
             vae.decoder.skip_conv_3 = torch.nn.Conv2d(128, 512, kernel_size=(1, 1), stride=(1, 1), bias=False).cpu()
             vae.decoder.skip_conv_4 = torch.nn.Conv2d(128, 256, kernel_size=(1, 1), stride=(1, 1), bias=False).cpu()
             vae.decoder.ignore_skip = False
-            unet = UNet2DConditionModel.from_pretrained("stabilityai/sd-turbo", subfolder="unet")
+            unet = UNet2DConditionModel.from_pretrained("stabilityai/sd-turbo", subfolder="unet", variant="fp16")
             ckpt_folder = Path(ckpt_folder)
 
             if pretrained_name == "edge_to_image":
@@ -357,11 +368,8 @@ diagram indicate trainable layers. Semi-transparent layers are frozen.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
       torch.utils._pytree._register_pytree_node(
-    The installed version of bitsandbytes was compiled without GPU support. 8-bit optimizers, 8-bit multiplication, and GPU quantization are unavailable.
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/huggingface_hub/file_download.py:1132: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
-      warnings.warn(
 
 
 .. code:: ipython3
@@ -378,9 +386,11 @@ diagram indicate trainable layers. Semi-transparent layers are frozen.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/huggingface_hub/file_download.py:1142: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+      warnings.warn(
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
       torch.utils._pytree._register_pytree_node(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/huggingface_hub/file_download.py:1132: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/huggingface_hub/file_download.py:1142: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
       warnings.warn(
 
 
@@ -391,12 +401,19 @@ diagram indicate trainable layers. Semi-transparent layers are frozen.
 
 .. parsed-literal::
 
-    100%|██████████| 525M/525M [33:51<00:00, 258kiB/s]
+    100%|██████████| 525M/525M [10:33<00:00, 828kiB/s]
+    /tmp/ipykernel_146017/851614037.py:173: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+      sd = torch.load(p_ckpt, map_location="cpu")
 
 
 .. parsed-literal::
 
     Downloaded successfully to checkpoints/sketch_to_image_stochastic_lora.pkl
+
+
+.. parsed-literal::
+
+    The installed version of bitsandbytes was compiled without GPU support. 8-bit optimizers, 8-bit multiplication, and GPU quantization are unavailable.
 
 
 Convert PyTorch model to Openvino Intermediate Representation format
@@ -432,56 +449,41 @@ on disk using ``ov.save_model`` in compressed to FP16 format.
     del pt_model
     gc.collect();
 
+    # uncomment these lines if you want cleenup download pytorch model checkpoints
+
+    # import shutil
+
+    # checkpoints_dir = Path("checkpoints")
+    # for file in checkpoints_dir.glob("*"):
+    #     shutil.rmtree(file, ignore_errors=True)
+
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4371: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4779: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
       warnings.warn(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:86: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:88: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if input_shape[-1] > 1 or self.sliding_window is not None:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:162: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:164: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if past_key_values_length > 0:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:279: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if attn_weights.size() != (bsz * self.num_heads, tgt_len, src_len):
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:287: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if causal_attention_mask.size() != (bsz, 1, tgt_len, src_len):
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:319: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if attn_output.size() != (bsz * self.num_heads, tgt_len, self.head_dim):
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/downsampling.py:135: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/downsampling.py:135: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert hidden_states.shape[1] == self.channels
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/downsampling.py:144: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/downsampling.py:144: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert hidden_states.shape[1] == self.channels
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/unet_2d_condition.py:915: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/unet_2d_condition.py:915: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if dim % default_overall_up_factor != 0:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/upsampling.py:149: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/upsampling.py:149: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert hidden_states.shape[1] == self.channels
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/upsampling.py:165: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/upsampling.py:165: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if hidden_states.shape[0] >= 64:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/schedulers/scheduling_ddpm.py:433: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/schedulers/scheduling_ddpm.py:433: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if model_output.shape[1] == sample.shape[1] * 2 and self.variance_type in ["learned", "learned_range"]:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/schedulers/scheduling_ddpm.py:440: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/schedulers/scheduling_ddpm.py:440: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       alpha_prod_t_prev = self.alphas_cumprod[prev_t] if prev_t >= 0 else self.one
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/schedulers/scheduling_ddpm.py:479: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/schedulers/scheduling_ddpm.py:479: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if t > 0:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/schedulers/scheduling_ddpm.py:330: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/schedulers/scheduling_ddpm.py:330: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       alpha_prod_t_prev = self.alphas_cumprod[prev_t] if prev_t >= 0 else self.one
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/jit/_trace.py:1116: TracerWarning: Trace had nondeterministic nodes. Did you forget call .eval() on your model? Nodes:
-    	%20785 : Float(1, 4, 64, 64, strides=[16384, 4096, 64, 1], requires_grad=0, device=cpu) = aten::randn(%20779, %20780, %20781, %20782, %20783, %20784) # /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/utils/torch_utils.py:80:0
-    	%35917 : Float(1, 4, 64, 64, strides=[16384, 4096, 64, 1], requires_grad=0, device=cpu) = aten::randn(%35911, %35912, %35913, %35914, %35915, %35916) # /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/utils/torch_utils.py:80:0
-    This may cause errors in trace checking. To disable trace checking, pass check_trace=False to torch.jit.trace()
-      _check_trace(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/jit/_trace.py:1116: TracerWarning: Output nr 1. of the traced function does not match the corresponding output of the Python function. Detailed error:
-    Tensor-likes are not close!
-
-    Mismatched elements: 35 / 786432 (0.0%)
-    Greatest absolute difference: 1.6555190086364746e-05 at index (0, 2, 421, 41) (up to 1e-05 allowed)
-    Greatest relative difference: 7.15815554884626e-05 at index (0, 2, 421, 41) (up to 1e-05 allowed)
-      _check_trace(
-
-
-.. parsed-literal::
-
-    ['c_t', 'prompt_tokens', 'noise_map']
 
 
 Select inference device
@@ -491,15 +493,14 @@ Select inference device
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-
-    core = ov.Core()
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
+    open("notebook_utils.py", "w").write(r.text)
+
+    from notebook_utils import device_widget
+
+    device = device_widget()
 
     device
 
@@ -519,6 +520,9 @@ Compile model
 
 .. code:: ipython3
 
+    import openvino as ov
+
+    core = ov.Core()
     compiled_model = core.compile_model(ov_model_path, device.value)
 
 Run model inference
@@ -593,54 +597,9 @@ Download results using download button
 
 .. code:: ipython3
 
-    import random
     import base64
     from io import BytesIO
     import gradio as gr
-
-    style_list = [
-        {
-            "name": "Cinematic",
-            "prompt": "cinematic still {prompt} . emotional, harmonious, vignette, highly detailed, high budget, bokeh, cinemascope, moody, epic, gorgeous, film grain, grainy",
-        },
-        {
-            "name": "3D Model",
-            "prompt": "professional 3d model {prompt} . octane render, highly detailed, volumetric, dramatic lighting",
-        },
-        {
-            "name": "Anime",
-            "prompt": "anime artwork {prompt} . anime style, key visual, vibrant, studio anime,  highly detailed",
-        },
-        {
-            "name": "Digital Art",
-            "prompt": "concept art {prompt} . digital artwork, illustrative, painterly, matte painting, highly detailed",
-        },
-        {
-            "name": "Photographic",
-            "prompt": "cinematic photo {prompt} . 35mm photograph, film, bokeh, professional, 4k, highly detailed",
-        },
-        {
-            "name": "Pixel art",
-            "prompt": "pixel-art {prompt} . low-res, blocky, pixel art style, 8-bit graphics",
-        },
-        {
-            "name": "Fantasy art",
-            "prompt": "ethereal fantasy concept art of  {prompt} . magnificent, celestial, ethereal, painterly, epic, majestic, magical, fantasy art, cover art, dreamy",
-        },
-        {
-            "name": "Neonpunk",
-            "prompt": "neonpunk style {prompt} . cyberpunk, vaporwave, neon, vibes, vibrant, stunningly beautiful, crisp, detailed, sleek, ultramodern, magenta highlights, dark purple shadows, high contrast, cinematic, ultra detailed, intricate, professional",
-        },
-        {
-            "name": "Manga",
-            "prompt": "manga style {prompt} . vibrant, high-energy, detailed, iconic, Japanese comic style",
-        },
-    ]
-
-    styles = {k["name"]: k["prompt"] for k in style_list}
-    STYLE_NAMES = list(styles.keys())
-    DEFAULT_STYLE_NAME = "Fantasy art"
-    MAX_SEED = np.iinfo(np.int32).max
 
 
     def pil_image_to_data_uri(img, format="PNG"):
@@ -677,263 +636,41 @@ Download results using download button
             gr.update(link=output_image_uri),
         )
 
+.. code:: ipython3
 
-    def update_canvas(use_line, use_eraser):
-        if use_eraser:
-            _color = "#ffffff"
-            brush_size = 20
-        if use_line:
-            _color = "#000000"
-            brush_size = 4
-        return gr.update(brush_radius=brush_size, brush_color=_color, interactive=True)
+    # Go back to the sketch-to-image-pix2pix-turbo notebook directory
+    %cd ..
 
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/sketch-to-image-pix2pix-turbo/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
 
-    def upload_sketch(file):
-        _img = Image.open(file.name)
-        _img = _img.convert("L")
-        return gr.update(value=_img, source="upload", interactive=True)
+    from gradio_helper import make_demo
 
-
-    scripts = """
-    async () => {
-        globalThis.theSketchDownloadFunction = () => {
-            console.log("test")
-            var link = document.createElement("a");
-            dataUri = document.getElementById('download_sketch').href
-            link.setAttribute("href", dataUri)
-            link.setAttribute("download", "sketch.png")
-            document.body.appendChild(link); // Required for Firefox
-            link.click();
-            document.body.removeChild(link); // Clean up
-
-            // also call the output download function
-            theOutputDownloadFunction();
-          return false
-        }
-
-        globalThis.theOutputDownloadFunction = () => {
-            console.log("test output download function")
-            var link = document.createElement("a");
-            dataUri = document.getElementById('download_output').href
-            link.setAttribute("href", dataUri);
-            link.setAttribute("download", "output.png");
-            document.body.appendChild(link); // Required for Firefox
-            link.click();
-            document.body.removeChild(link); // Clean up
-          return false
-        }
-
-        globalThis.UNDO_SKETCH_FUNCTION = () => {
-            console.log("undo sketch function")
-            var button_undo = document.querySelector('#input_image > div.image-container.svelte-p3y7hu > div.svelte-s6ybro > button:nth-child(1)');
-            // Create a new 'click' event
-            var event = new MouseEvent('click', {
-                'view': window,
-                'bubbles': true,
-                'cancelable': true
-            });
-            button_undo.dispatchEvent(event);
-        }
-
-        globalThis.DELETE_SKETCH_FUNCTION = () => {
-            console.log("delete sketch function")
-            var button_del = document.querySelector('#input_image > div.image-container.svelte-p3y7hu > div.svelte-s6ybro > button:nth-child(2)');
-            // Create a new 'click' event
-            var event = new MouseEvent('click', {
-                'view': window,
-                'bubbles': true,
-                'cancelable': true
-            });
-            button_del.dispatchEvent(event);
-        }
-
-        globalThis.togglePencil = () => {
-            el_pencil = document.getElementById('my-toggle-pencil');
-            el_pencil.classList.toggle('clicked');
-            // simulate a click on the gradio button
-            btn_gradio = document.querySelector("#cb-line > label > input");
-            var event = new MouseEvent('click', {
-                'view': window,
-                'bubbles': true,
-                'cancelable': true
-            });
-            btn_gradio.dispatchEvent(event);
-            if (el_pencil.classList.contains('clicked')) {
-                document.getElementById('my-toggle-eraser').classList.remove('clicked');
-                document.getElementById('my-div-pencil').style.backgroundColor = "gray";
-                document.getElementById('my-div-eraser').style.backgroundColor = "white";
-            }
-            else {
-                document.getElementById('my-toggle-eraser').classList.add('clicked');
-                document.getElementById('my-div-pencil').style.backgroundColor = "white";
-                document.getElementById('my-div-eraser').style.backgroundColor = "gray";
-            }
-        }
-
-        globalThis.toggleEraser = () => {
-            element = document.getElementById('my-toggle-eraser');
-            element.classList.toggle('clicked');
-            // simulate a click on the gradio button
-            btn_gradio = document.querySelector("#cb-eraser > label > input");
-            var event = new MouseEvent('click', {
-                'view': window,
-                'bubbles': true,
-                'cancelable': true
-            });
-            btn_gradio.dispatchEvent(event);
-            if (element.classList.contains('clicked')) {
-                document.getElementById('my-toggle-pencil').classList.remove('clicked');
-                document.getElementById('my-div-pencil').style.backgroundColor = "white";
-                document.getElementById('my-div-eraser').style.backgroundColor = "gray";
-            }
-            else {
-                document.getElementById('my-toggle-pencil').classList.add('clicked');
-                document.getElementById('my-div-pencil').style.backgroundColor = "gray";
-                document.getElementById('my-div-eraser').style.backgroundColor = "white";
-            }
-        }
-    }
-    """
-
-    with gr.Blocks(css="style.css") as demo:
-        # these are hidden buttons that are used to trigger the canvas changes
-        line = gr.Checkbox(label="line", value=False, elem_id="cb-line")
-        eraser = gr.Checkbox(label="eraser", value=False, elem_id="cb-eraser")
-        with gr.Row(elem_id="main_row"):
-            with gr.Column(elem_id="column_input"):
-                gr.Markdown("## INPUT", elem_id="input_header")
-                image = gr.Image(
-                    source="canvas",
-                    tool="color-sketch",
-                    type="pil",
-                    image_mode="L",
-                    invert_colors=True,
-                    shape=(512, 512),
-                    brush_radius=4,
-                    height=440,
-                    width=440,
-                    brush_color="#000000",
-                    interactive=True,
-                    show_download_button=True,
-                    elem_id="input_image",
-                    show_label=False,
-                )
-                download_sketch = gr.Button("Download sketch", scale=1, elem_id="download_sketch")
-
-                gr.HTML(
-                    """
-                <div class="button-row">
-                    <div id="my-div-pencil" class="pad2"> <button id="my-toggle-pencil" onclick="return togglePencil(this)"></button> </div>
-                    <div id="my-div-eraser" class="pad2"> <button id="my-toggle-eraser" onclick="return toggleEraser(this)"></button> </div>
-                    <div class="pad2"> <button id="my-button-undo" onclick="return UNDO_SKETCH_FUNCTION(this)"></button> </div>
-                    <div class="pad2"> <button id="my-button-clear" onclick="return DELETE_SKETCH_FUNCTION(this)"></button> </div>
-                    <div class="pad2"> <button href="TODO" download="image" id="my-button-down" onclick='return theSketchDownloadFunction()'></button> </div>
-                </div>
-                """
-                )
-                # gr.Markdown("## Prompt", elem_id="tools_header")
-                prompt = gr.Textbox(label="Prompt", value="", show_label=True)
-                with gr.Row():
-                    style = gr.Dropdown(
-                        label="Style",
-                        choices=STYLE_NAMES,
-                        value=DEFAULT_STYLE_NAME,
-                        scale=1,
-                    )
-                    prompt_temp = gr.Textbox(
-                        label="Prompt Style Template",
-                        value=styles[DEFAULT_STYLE_NAME],
-                        scale=2,
-                        max_lines=1,
-                    )
-
-                with gr.Row():
-                    seed = gr.Textbox(label="Seed", value=42, scale=1, min_width=50)
-                    randomize_seed = gr.Button("Random", scale=1, min_width=50)
-
-            with gr.Column(elem_id="column_process", min_width=50, scale=0.4):
-                gr.Markdown("## pix2pix-turbo", elem_id="description")
-                run_button = gr.Button("Run", min_width=50)
-
-            with gr.Column(elem_id="column_output"):
-                gr.Markdown("## OUTPUT", elem_id="output_header")
-                result = gr.Image(
-                    label="Result",
-                    height=440,
-                    width=440,
-                    elem_id="output_image",
-                    show_label=False,
-                    show_download_button=True,
-                )
-                download_output = gr.Button("Download output", elem_id="download_output")
-                gr.Markdown("### Instructions")
-                gr.Markdown("**1**. Enter a text prompt (e.g. cat)")
-                gr.Markdown("**2**. Start sketching")
-                gr.Markdown("**3**. Change the image style using a style template")
-                gr.Markdown("**4**. Try different seeds to generate different results")
-
-        eraser.change(
-            fn=lambda x: gr.update(value=not x),
-            inputs=[eraser],
-            outputs=[line],
-            queue=False,
-            api_name=False,
-        ).then(update_canvas, [line, eraser], [image])
-        line.change(
-            fn=lambda x: gr.update(value=not x),
-            inputs=[line],
-            outputs=[eraser],
-            queue=False,
-            api_name=False,
-        ).then(update_canvas, [line, eraser], [image])
-
-        demo.load(None, None, None, _js=scripts)
-        randomize_seed.click(
-            lambda x: random.randint(0, MAX_SEED),
-            inputs=[],
-            outputs=seed,
-            queue=False,
-            api_name=False,
-        )
-        inputs = [image, prompt, prompt_temp, style, seed]
-        outputs = [result, download_sketch, download_output]
-        prompt.submit(fn=run, inputs=inputs, outputs=outputs, api_name=False)
-        style.change(
-            lambda x: styles[x],
-            inputs=[style],
-            outputs=[prompt_temp],
-            queue=False,
-            api_name=False,
-        ).then(
-            fn=run,
-            inputs=inputs,
-            outputs=outputs,
-            api_name=False,
-        )
-        run_button.click(fn=run, inputs=inputs, outputs=outputs, api_name=False)
-        image.change(run, inputs=inputs, outputs=outputs, queue=False, api_name=False)
+    demo = make_demo(fn=run)
 
     try:
         demo.queue().launch(debug=False)
     except Exception:
         demo.queue().launch(debug=False, share=True)
-    # if you are launching remotely, specify server_name and server_port
-    # demo.launch(server_name='your server name', server_port='server port in int')
-    # Read more in the docs: https://gradio.app/docs/
+    # If you are launching remotely, specify server_name and server_port
+    # EXAMPLE: `demo.launch(server_name='your server name', server_port='server port in int')`
+    # To learn more please refer to the Gradio docs: https://gradio.app/docs/
 
 
 .. parsed-literal::
 
-    /tmp/ipykernel_173952/1555011934.py:259: GradioDeprecationWarning: 'scale' value should be an integer. Using 0.4 will cause issues.
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/notebooks/sketch-to-image-pix2pix-turbo/gradio_helper.py:225: GradioDeprecationWarning: 'scale' value should be an integer. Using 0.4 will cause issues.
       with gr.Column(elem_id="column_process", min_width=50, scale=0.4):
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/gradio/utils.py:776: UserWarning: Expected 1 arguments for function <function <lambda> at 0x7fda5d68fca0>, received 0.
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/gradio/utils.py:776: UserWarning: Expected 1 arguments for function <function make_demo.<locals>.<lambda> at 0x7f3300040ee0>, received 0.
       warnings.warn(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/gradio/utils.py:780: UserWarning: Expected at least 1 arguments for function <function <lambda> at 0x7fda5d68fca0>, received 0.
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/gradio/utils.py:780: UserWarning: Expected at least 1 arguments for function <function make_demo.<locals>.<lambda> at 0x7f3300040ee0>, received 0.
       warnings.warn(
 
 
 .. parsed-literal::
 
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/notebooks/sketch-to-image-pix2pix-turbo
     Running on local URL:  http://127.0.0.1:7860
 
     To create a public link, set `share=True` in `launch()`.
@@ -944,3 +681,8 @@ Download results using download button
 
 
 
+
+.. code:: ipython3
+
+    # please uncomment and run this cell for stopping gradio interface
+    # demo.close()

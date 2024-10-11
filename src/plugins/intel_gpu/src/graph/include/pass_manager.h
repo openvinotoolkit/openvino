@@ -9,14 +9,12 @@
 #include "quantize_inst.h"
 #include "eltwise_inst.h"
 #include "convolution_inst.h"
-#include "permute_inst.h"
 #include <string>
 #include <vector>
 #include <memory>
 #include <list>
 #include <utility>
 #include <set>
-#include <functional>
 
 #include <fstream>
 
@@ -55,14 +53,7 @@ public:
 private:
     void run(program& p) override;
     void add_reorder(program& p, program_node* node, program_node* usr, bool keep_original_dt = false);
-};
-
-class add_reshape_to_primitives : public base_pass {
-public:
-    add_reshape_to_primitives() : base_pass("add_reshape_to_primitives_pass") {}
-
-private:
-    void run(program& p) override;
+    bool test_format(cldnn::program_node& node, format requested_format);
 };
 
 class compile_graph : public base_pass {
@@ -104,20 +95,14 @@ class mark_shape_of_subgraphs : public base_pass {
     // - Node type is shape_of OR
     // - All node's dependencies are marked as members of shape_of subgraphs OR
     // - Node is a shape infer dependency of any user
-    // Also, there is some additional requirement:
-    // - Primitive must have CPU implementation (this requirement is ignored for reshape
-    //   primitives, since currently ocl optimized_out implementation is used for reshape execution in such subgraphs)
 public:
-    mark_shape_of_subgraphs(bool update_impls = false) :
-        base_pass("mark_shape_of_subgraphs"), _update_impls(update_impls) {}
+    mark_shape_of_subgraphs() : base_pass("mark_shape_of_subgraphs") {}
 
 private:
     void run(program& p) override;
     void look_for_shape_of_subgraph(program_node& node);
     bool can_mark_node(const program_node& node);
     void mark_node(program_node& node);
-
-    bool _update_impls;
 };
 
 class prepare_buffer_fusing : public base_pass {
@@ -141,28 +126,6 @@ private:
     bool optimize_quantize(program &p, quantize_node& quantize_node);
 };
 
-class prepare_conv_eltw_fusing : public base_pass {
-public:
-    explicit prepare_conv_eltw_fusing(layout_optimizer& lo_ref, bool b_fs_yx_fsv16_opt = false) :
-        base_pass("prepare_conv_eltw_fusing"), _lo(lo_ref), b_fs_yx_fsv16_opt(b_fs_yx_fsv16_opt) {}
-
-private:
-    void run(program& p) override;
-    void fuse_conv_eltwise(program& p, program_node* node);
-    void fuse_conv_depth_to_space(program& p, program_node* node);
-    layout_optimizer& _lo;
-    bool b_fs_yx_fsv16_opt;
-};
-
-class prepare_conv_eltw_read_write_opt : public base_pass {
-public:
-    prepare_conv_eltw_read_write_opt() : base_pass("prepare_conv_eltw_read_write_opt") {}
-
-private:
-    void run(program& p) override;
-    void conv_eltwise_read_write_opt(program& p, program_node* node);
-};
-
 // TODO: Remove this pass once no unexpected reshapes/reorders are added during ov::Model -> cldnn::topology conversion
 class prepare_primitive_fusing_through : public base_pass {
 public:
@@ -172,8 +135,7 @@ public:
 
 class prepare_primitive_fusing : public base_pass {
 public:
-    explicit prepare_primitive_fusing(layout_optimizer& lo_ref) :
-        base_pass("prepare_primitive_fusing"), _lo(lo_ref) {}
+    explicit prepare_primitive_fusing() : base_pass("prepare_primitive_fusing") {}
 
 private:
     void run(program& p) override;
@@ -183,17 +145,15 @@ private:
     void fuse_constant_transposes(program &p);
     void optimize_fused_ops(program &p);
     void remove_redundant_reshape(program &p);
-    layout_optimizer& _lo;
 };
 
 class pre_replace_deconv : public base_pass {
 public:
-    explicit pre_replace_deconv(layout_optimizer& lo_ref) :
-        base_pass("pre_replace_deconv"), _lo(lo_ref) {}
+    explicit pre_replace_deconv() :
+        base_pass("pre_replace_deconv") {}
 
 private:
     void run(program& p) override;
-    layout_optimizer& _lo;
 };
 
 class prepare_padding : public base_pass {
@@ -261,12 +221,11 @@ private:
 
 class remove_redundant_reorders : public base_pass {
 public:
-    explicit remove_redundant_reorders(layout_optimizer& lo_ref, bool enable_reorder_fusing = false, bool update_implementations = false,
+    explicit remove_redundant_reorders(bool enable_reorder_fusing = false, bool update_implementations = false,
         bool remove_output_reorders = false);
     void run(program& p) override;
 
 private:
-    layout_optimizer& lo;
     bool enable_reorder_fusing;
     bool update_implementations;
     bool remove_output_reorders;
@@ -274,23 +233,20 @@ private:
 
 class reorder_inputs : public base_pass {
 public:
-    reorder_inputs(layout_optimizer& lo_ref, reorder_factory& rf_ref);
+    reorder_inputs(reorder_factory& rf_ref);
 
 private:
     void run(program& p) override;
-    virtual void run(program& p, layout_optimizer& lo, reorder_factory& rf);
-    layout_optimizer& _lo;
+    virtual void run(program& p, reorder_factory& rf);
     reorder_factory& _rf;
 };
 
 class select_preferred_formats : public base_pass {
 public:
-    explicit select_preferred_formats(layout_optimizer& lo_ref) :
-        base_pass("select_preferred_formats"), _lo(lo_ref) {}
+    explicit select_preferred_formats() : base_pass("select_preferred_formats") {}
 
 private:
     void run(program& p) override;
-    layout_optimizer& _lo;
 };
 
 class trim_to_outputs : public base_pass {
@@ -326,13 +282,35 @@ public:
 class memory_dependency_pass : public base_pass {
 public:
     explicit memory_dependency_pass(const std::string& pass_name) : base_pass(pass_name) {}
+
+    // Program node with can_be_optimized true could also allocate from memory pool during runtime, if it cannot be
+    // optimized out (with inst_impl.can_be_optimized false).
+    // If it is optimized out, alternatively, it could reuse the memory from its parent (e.g. reshape) or chilren (e.g. concat).
+    // The memory dependency pass need consider both situations, by iteratively referencing to all nodes that can_be_optimized until
+    // it meets the first node with can_be_optimize==false along the searching path.
+    // For example, in such a subgraph like -
+    // Node1 (can_be_optimized false) -> Node2 (can_be_optimized false) -> Reshape (skippable true) -> Permute (skippable true)
+    // -> Node3 (can_be_optimized false).
+    // Since Reshape MAY or MAY NOT be optimized out in runtime, Permute should be memory-dependent to all of its two predecessors. Otherwise
+    // Permute may allocate from the same block of Node2 and override its input; Similarly, since Reshape and Permute MAY or MAY NOT be optimized
+    // out in runtime, Node3 should be memory-dependent to all of its three predecessors, to avoid memory conflicting.
     void add_memory_dependency(program_node* node, program_node* dep) {
-        if (node->can_be_optimized() || !dep->can_be_optimized()) {
+        if (node->get_unique_id() == dep->get_unique_id()) {
+            return;
+        }
+
+        if ((node->can_be_optimized() && !node->is_runtime_skippable()) || !dep->can_be_optimized()) {
             node->add_memory_dependency(static_cast<int32_t>(dep->get_unique_id()));
         } else {
-            if (node->id() == dep->id()) {
+            if (node->is_runtime_skippable() || dep->is_runtime_skippable()) {
+                node->add_memory_dependency(static_cast<int32_t>(dep->get_unique_id()));
+                for (const auto& subdep : dep->get_dependencies()) {
+                    add_memory_dependency(node, subdep.first);
+                    add_memory_dependency(subdep.first, node);
+                }
                 return;
             }
+
             for (const auto& subdep : dep->get_dependencies()) {
                 add_memory_dependency(node, subdep.first);
                 add_memory_dependency(subdep.first, node);
@@ -397,12 +375,10 @@ private:
 
 class fuse_primitives_with_layout : public base_pass {
 public:
-    explicit fuse_primitives_with_layout(layout_optimizer& lo_ref) :
-        base_pass("fuse_primitives_with_layout"), _lo(lo_ref) {}
+    explicit fuse_primitives_with_layout() : base_pass("fuse_primitives_with_layout") {}
 
 private:
     void run(program& p) override;
-    layout_optimizer& _lo;
 };
 
 }  // namespace cldnn

@@ -44,6 +44,7 @@ The tutorial consists of the following steps:
 -  Run optimized model inference on video
 -  Launch interactive Gradio demo
 
+
 **Table of contents:**
 
 
@@ -80,6 +81,16 @@ The tutorial consists of the following steps:
 
    -  `Gradio Interactive Demo <#gradio-interactive-demo>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -88,11 +99,11 @@ Prerequisites
 .. code:: ipython3
 
     import os
-
+    
     os.environ["GIT_CLONE_PROTECTION_ACTIVE"] = "false"
-
+    
     %pip install -q "nncf>=2.11.0"
-    %pip install --pre -Uq openvino --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
+    %pip install -Uq "openvino>=2024.3.0"
     %pip install -q "git+https://github.com/THU-MIG/yolov10.git" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "torch>=2.1" "torchvision>=0.16" tqdm opencv-python "gradio>=4.19" --extra-index-url https://download.pytorch.org/whl/cpu
 
@@ -110,17 +121,17 @@ Prerequisites
 .. code:: ipython3
 
     from pathlib import Path
-
+    
     # Fetch `notebook_utils` module
     import requests
-
+    
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
-
+    
     open("notebook_utils.py", "w").write(r.text)
-
-    from notebook_utils import download_file, VideoPlayer
+    
+    from notebook_utils import download_file, VideoPlayer, device_widget
 
 Download PyTorch model
 ----------------------
@@ -144,7 +155,7 @@ the same steps are also applicable to other models in YOLO V10 series.
     model_weights_url = "https://github.com/jameslahm/yolov10/releases/download/v1.0/yolov10n.pt"
     file_name = model_weights_url.split("/")[-1]
     model_name = file_name.replace(".pt", "")
-
+    
     download_file(model_weights_url, directory=models_dir)
 
 
@@ -186,7 +197,7 @@ perform quantization using
     from ultralytics.utils import ops, yaml_load, yaml_save
     from ultralytics import YOLOv10
     import torch
-
+    
     detection_labels = {
         0: "person",
         1: "bicycle",
@@ -269,13 +280,13 @@ perform quantization using
         78: "hair drier",
         79: "toothbrush",
     }
-
-
+    
+    
     def v10_det_head_forward(self, x):
         one2one = self.forward_feat([xi.detach() for xi in x], self.one2one_cv2, self.one2one_cv3)
         if not self.export:
             one2many = super().forward(x)
-
+    
         if not self.training:
             one2one = self.inference(one2one)
             if not self.export:
@@ -289,8 +300,8 @@ perform quantization using
                 )
         else:
             return {"one2many": one2many, "one2one": one2one}
-
-
+    
+    
     ov_model_path = models_dir / f"{model_name}_openvino_model/{model_name}.xml"
     if not ov_model_path.exists():
         model = YOLOv10(models_dir / file_name)
@@ -321,7 +332,7 @@ will be used for launching model.
 .. code:: ipython3
 
     from PIL import Image
-
+    
     IMAGE_PATH = Path("./data/coco_bike.jpg")
     download_file(
         url="https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco_bike.jpg",
@@ -355,7 +366,7 @@ will be used for launching model.
     requirements: Ultralytics requirement ['openvino>=2024.0.0'] not found, attempting AutoUpdate...
     requirements: ❌ AutoUpdate skipped (offline)
     Using OpenVINO LATENCY mode for batch=1 inference...
-
+    
     image 1/1 /home/ea/work/openvino_notebooks_new_clone/openvino_notebooks/notebooks/yolov10-optimization/data/coco_bike.jpg: 640x640 1 bicycle, 2 cars, 1 motorcycle, 1 dog, 72.0ms
     Speed: 25.6ms preprocess, 72.0ms inference, 0.6ms postprocess per image at shape (1, 3, 640, 640)
 
@@ -376,19 +387,8 @@ model inference to compare results with AUTO.
 
 .. code:: ipython3
 
-    import openvino as ov
-
-    import ipywidgets as widgets
-
-    core = ov.Core()
-
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="CPU",
-        description="Device:",
-        disabled=False,
-    )
-
+    device = device_widget("CPU")
+    
     device
 
 
@@ -402,8 +402,12 @@ model inference to compare results with AUTO.
 
 .. code:: ipython3
 
+    import openvino as ov
+    
+    core = ov.Core()
+    
     ov_model = core.read_model(ov_model_path)
-
+    
     # load model on selected device
     if "GPU" in device.value or "NPU" in device.value:
         ov_model.reshape({0: [1, 3, 640, 640]})
@@ -423,7 +427,7 @@ model inference to compare results with AUTO.
 
 .. parsed-literal::
 
-
+    
     image 1/1 /home/ea/work/openvino_notebooks_new_clone/openvino_notebooks/notebooks/yolov10-optimization/data/coco_bike.jpg: 640x640 1 bicycle, 2 cars, 1 motorcycle, 1 dog, 29.1ms
     Speed: 3.2ms preprocess, 29.1ms inference, 0.3ms postprocess per image at shape (1, 3, 640, 640)
 
@@ -463,16 +467,16 @@ step using checkbox bellow:
 .. code:: ipython3
 
     import ipywidgets as widgets
-
+    
     int8_model_det_path = models_dir / "int8" / f"{model_name}_openvino_model/{model_name}.xml"
     ov_yolo_int8_model = None
-
+    
     to_quantize = widgets.Checkbox(
         value=True,
         description="Quantization",
         disabled=False,
     )
-
+    
     to_quantize
 
 
@@ -491,7 +495,7 @@ step using checkbox bellow:
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
     )
     open("skip_kernel_extension.py", "w").write(r.text)
-
+    
     %load_ext skip_kernel_extension
 
 Prepare Quantization Dataset
@@ -507,27 +511,27 @@ preparing input data.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     from zipfile import ZipFile
-
+    
     from ultralytics.data.utils import DATASETS_DIR
-
+    
     if not int8_model_det_path.exists():
-
+    
         DATA_URL = "http://images.cocodataset.org/zips/val2017.zip"
         LABELS_URL = "https://github.com/ultralytics/yolov5/releases/download/v1.0/coco2017labels-segments.zip"
         CFG_URL = "https://raw.githubusercontent.com/ultralytics/ultralytics/v8.1.0/ultralytics/cfg/datasets/coco.yaml"
-
+        
         OUT_DIR = DATASETS_DIR
-
+        
         DATA_PATH = OUT_DIR / "val2017.zip"
         LABELS_PATH = OUT_DIR / "coco2017labels-segments.zip"
         CFG_PATH = OUT_DIR / "coco.yaml"
-
+        
         download_file(DATA_URL, DATA_PATH.name, DATA_PATH.parent)
         download_file(LABELS_URL, LABELS_PATH.name, LABELS_PATH.parent)
         download_file(CFG_URL, CFG_PATH.name, CFG_PATH.parent)
-
+        
         if not (OUT_DIR / "coco/labels").exists():
             with ZipFile(LABELS_PATH, "r") as zip_ref:
                 zip_ref.extractall(OUT_DIR)
@@ -537,17 +541,17 @@ preparing input data.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     from ultralytics.utils import DEFAULT_CFG
     from ultralytics.cfg import get_cfg
     from ultralytics.data.converter import coco80_to_coco91_class
     from ultralytics.data.utils import check_det_dataset
-
+    
     if not int8_model_det_path.exists():
         args = get_cfg(cfg=DEFAULT_CFG)
         args.data = str(CFG_PATH)
         det_validator = ov_yolo_model.task_map[ov_yolo_model.task]["validator"](args=args)
-
+        
         det_validator.data = check_det_dataset(args.data)
         det_validator.stride = 32
         det_data_loader = det_validator.get_dataloader(OUT_DIR / "coco", 1)
@@ -560,11 +564,11 @@ expected format.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     import nncf
     from typing import Dict
-
-
+    
+    
     def transform_fn(data_item:Dict):
         """
         Quantization transform function. Extracts and preprocess input data from dataloader item for quantization.
@@ -575,7 +579,7 @@ expected format.
         """
         input_tensor = det_validator.preprocess(data_item)['img'].numpy()
         return input_tensor
-
+    
     if not int8_model_det_path.exists():
         quantization_dataset = nncf.Dataset(det_data_loader, transform_fn)
 
@@ -606,16 +610,16 @@ asymmetric quantization of activations.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     import shutil
-
+    
     if not int8_model_det_path.exists():
         quantized_det_model = nncf.quantize(
             ov_model,
             quantization_dataset,
             preset=nncf.QuantizationPreset.MIXED,
         )
-
+    
         ov.save_model(quantized_det_model,  int8_model_det_path)
         shutil.copy(ov_model_path.parent / "metadata.yaml", int8_model_det_path.parent / "metadata.yaml")
 
@@ -650,7 +654,7 @@ Run Optimized Model on AUTO device
     requirements: Ultralytics requirement ['openvino>=2024.0.0'] not found, attempting AutoUpdate...
     requirements: ❌ AutoUpdate skipped (offline)
     Using OpenVINO LATENCY mode for batch=1 inference...
-
+    
     image 1/1 /home/ea/work/openvino_notebooks_new_clone/openvino_notebooks/notebooks/yolov10-optimization/data/coco_bike.jpg: 640x640 1 bicycle, 3 cars, 2 motorcycles, 1 dog, 92.3ms
     Speed: 3.7ms preprocess, 92.3ms inference, 0.4ms postprocess per image at shape (1, 3, 640, 640)
 
@@ -674,31 +678,31 @@ Run Optimized Model Inference on selected device
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     device
 
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     ov_config = {}
     if "GPU" in device.value or "NPU" in device.value:
         ov_model.reshape({0: [1, 3, 640, 640]})
     ov_config = {}
     if "GPU" in device.value:
         ov_config = {"GPU_DISABLE_WINOGRAD_CONVOLUTION": "YES"}
-
+    
     quantized_det_model = core.read_model(int8_model_det_path)
     quantized_det_compiled_model = core.compile_model(quantized_det_model, device.value, ov_config)
-
+    
     ov_yolo_int8_model.predictor.model.ov_compiled_model = quantized_det_compiled_model
-
+    
     res = ov_yolo_int8_model(IMAGE_PATH,  iou=0.45, conf=0.2)
 
 
 .. parsed-literal::
 
-
+    
     image 1/1 /home/ea/work/openvino_notebooks_new_clone/openvino_notebooks/notebooks/yolov10-optimization/data/coco_bike.jpg: 640x640 1 bicycle, 3 cars, 2 motorcycles, 1 dog, 26.5ms
     Speed: 7.4ms preprocess, 26.5ms inference, 0.3ms postprocess per image at shape (1, 3, 640, 640)
 
@@ -763,12 +767,12 @@ FP16 model performance
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2024.2.0-15496-17f8e86e5f2-releases/2024/2
-    [ INFO ]
+    [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] CPU
     [ INFO ] Build ................................. 2024.2.0-15496-17f8e86e5f2-releases/2024/2
-    [ INFO ]
-    [ INFO ]
+    [ INFO ] 
+    [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
@@ -814,7 +818,7 @@ FP16 model performance
     [ INFO ]   AFFINITY: Affinity.CORE
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'x'!. This input will be filled with random values!
-    [ INFO ] Fill input 'x' with random values
+    [ INFO ] Fill input 'x' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
     [ INFO ] First inference took 30.60 ms
@@ -848,12 +852,12 @@ Int8 model performance
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2024.2.0-15496-17f8e86e5f2-releases/2024/2
-    [ INFO ]
+    [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] CPU
     [ INFO ] Build ................................. 2024.2.0-15496-17f8e86e5f2-releases/2024/2
-    [ INFO ]
-    [ INFO ]
+    [ INFO ] 
+    [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
@@ -899,7 +903,7 @@ Int8 model performance
     [ INFO ]   AFFINITY: Affinity.CORE
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'x'!. This input will be filled with random values!
-    [ INFO ] Fill input 'x' with random values
+    [ INFO ] Fill input 'x' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 18 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
     [ INFO ] First inference took 28.26 ms
@@ -929,8 +933,8 @@ The following code runs model inference on a video:
     from IPython import display
     import cv2
     import numpy as np
-
-
+    
+    
     # Main processing function to run object detection.
     def run_object_detection(
         source=0,
@@ -949,7 +953,7 @@ The following code runs model inference on a video:
             if use_popup:
                 title = "Press ESC to Exit"
                 cv2.namedWindow(winname=title, flags=cv2.WINDOW_GUI_NORMAL | cv2.WINDOW_AUTOSIZE)
-
+    
             processing_times = collections.deque()
             while True:
                 # Grab the frame.
@@ -969,17 +973,17 @@ The following code runs model inference on a video:
                     )
                 # Get the results.
                 input_image = np.array(frame)
-
+    
                 start_time = time.time()
                 detections = det_model(input_image, iou=0.45, conf=0.2, verbose=False)
                 stop_time = time.time()
                 frame = detections[0].plot()
-
+    
                 processing_times.append(stop_time - start_time)
                 # Use processing times from last 200 frames.
                 if len(processing_times) > 200:
                     processing_times.popleft()
-
+    
                 _, f_width = frame.shape[:2]
                 # Mean processing time [ms].
                 processing_time = np.mean(processing_times) * 1000
@@ -1029,7 +1033,7 @@ The following code runs model inference on a video:
         description="Use int8 model",
         disabled=ov_yolo_int8_model is None,
     )
-
+    
     use_int8
 
 
@@ -1044,7 +1048,7 @@ The following code runs model inference on a video:
 .. code:: ipython3
 
     WEBCAM_INFERENCE = False
-
+    
     if WEBCAM_INFERENCE:
         VIDEO_SOURCE = 0  # Webcam
     else:
@@ -1086,73 +1090,32 @@ Gradio Interactive Demo
 
 .. code:: ipython3
 
-    import gradio as gr
-
-
     def yolov10_inference(image, int8, conf_threshold, iou_threshold):
         model = ov_yolo_model if not int8 else ov_yolo_int8_model
         results = model(source=image, iou=iou_threshold, conf=conf_threshold, verbose=False)[0]
         annotated_image = Image.fromarray(results.plot())
-
+    
         return annotated_image
 
+.. code:: ipython3
 
-    with gr.Blocks() as demo:
-        gr.HTML(
-            """
-        <h1 style='text-align: center'>
-        YOLOv10: Real-Time End-to-End Object Detection using OpenVINO
-        </h1>
-        """
-        )
-        with gr.Row():
-            with gr.Column():
-                image = gr.Image(type="numpy", label="Image")
-                conf_threshold = gr.Slider(
-                    label="Confidence Threshold",
-                    minimum=0.1,
-                    maximum=1.0,
-                    step=0.1,
-                    value=0.2,
-                )
-                iou_threshold = gr.Slider(
-                    label="IoU Threshold",
-                    minimum=0.1,
-                    maximum=1.0,
-                    step=0.1,
-                    value=0.45,
-                )
-                use_int8 = gr.Checkbox(
-                    value=ov_yolo_int8_model is not None,
-                    visible=ov_yolo_int8_model is not None,
-                    label="Use INT8 model",
-                )
-                yolov10_infer = gr.Button(value="Detect Objects")
-
-            with gr.Column():
-                output_image = gr.Image(type="pil", label="Annotated Image")
-
-            yolov10_infer.click(
-                fn=yolov10_inference,
-                inputs=[
-                    image,
-                    use_int8,
-                    conf_threshold,
-                    iou_threshold,
-                ],
-                outputs=[output_image],
-            )
-        examples = gr.Examples(
-            [
-                "data/coco_bike.jpg",
-            ],
-            inputs=[
-                image,
-            ],
-        )
-
-
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/yolov10-optimization/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
+    
+    from gradio_helper import make_demo
+    
+    demo = make_demo(fn=yolov10_inference, quantized=ov_yolo_int8_model is not None)
+    
     try:
         demo.launch(debug=False)
     except Exception:
         demo.launch(debug=False, share=True)
+    # If you are launching remotely, specify server_name and server_port
+    # EXAMPLE: `demo.launch(server_name='your server name', server_port='server port in int')`
+    # To learn more please refer to the Gradio docs: https://gradio.app/docs/
+
+.. code:: ipython3
+
+    # please uncomment and run this cell for stopping gradio interface
+    # demo.close()

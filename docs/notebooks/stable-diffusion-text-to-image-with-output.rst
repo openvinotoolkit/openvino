@@ -32,6 +32,7 @@ text-guided image-to-image generation using Stable Diffusion.
 This notebook demonstrates how to convert and run stable diffusion model
 using OpenVINO.
 
+
 **Table of contents:**
 
 
@@ -53,6 +54,16 @@ using OpenVINO.
    -  `Interactive image-to-image
       demo <#interactive-image-to-image-demo>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -66,15 +77,18 @@ Prerequisites
     %pip install -q "gradio>=4.19"
     %pip install -q transformers Pillow opencv-python tqdm
 
+.. code:: ipython3
 
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
+    # Fetch `notebook_utils` module
+    import requests
+    
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+    )
+    
+    open("notebook_utils.py", "w").write(r.text)
+    
+    from notebook_utils import download_file, device_widget
 
 Prepare Inference Pipelines
 ---------------------------
@@ -181,18 +195,7 @@ Select device from dropdown list for running inference using OpenVINO.
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    import openvino as ov
-
-    core = ov.Core()
-
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
-
+    device = device_widget()
     device
 
 
@@ -208,18 +211,18 @@ Select device from dropdown list for running inference using OpenVINO.
 
     from optimum.intel.openvino import OVStableDiffusionPipeline
     from pathlib import Path
-
+    
     DEVICE = device.value
-
+    
     MODEL_ID = "prompthero/openjourney"
     MODEL_DIR = Path("diffusion_pipeline")
-
+    
     if not MODEL_DIR.exists():
         ov_pipe = OVStableDiffusionPipeline.from_pretrained(MODEL_ID, export=True, device=DEVICE, compile=False)
         ov_pipe.save_pretrained(MODEL_DIR)
     else:
         ov_pipe = OVStableDiffusionPipeline.from_pretrained(MODEL_DIR, device=DEVICE, compile=False)
-
+    
     ov_pipe.compile()
 
 
@@ -244,6 +247,8 @@ pipeline.
 
 .. code:: ipython3
 
+    import ipywidgets as widgets
+    
     sample_text = (
         "cyberpunk cityscape like Tokyo New York  with tall buildings at dusk golden hour cinematic lighting, epic composition. "
         "A golden daylight, hyper-realistic environment. "
@@ -290,11 +295,11 @@ image. To get more than one result, you can set the
 .. code:: ipython3
 
     import numpy as np
-
+    
     np.random.seed(seed.value)
-
+    
     result = ov_pipe(text_prompt.value, num_inference_steps=num_steps.value)
-
+    
     final_image = result["images"][0]
     final_image.save("result.png")
 
@@ -327,7 +332,7 @@ Now is show time!
 
 
 
-.. image:: stable-diffusion-text-to-image-with-output_files/stable-diffusion-text-to-image-with-output_16_1.png
+.. image:: stable-diffusion-text-to-image-with-output_files/stable-diffusion-text-to-image-with-output_17_1.png
 
 
 Nice. As you can see, the picture has quite a high definition 🔥.
@@ -340,14 +345,14 @@ Interactive text-to-image demo
 .. code:: ipython3
 
     import gradio as gr
-
-
+    
+    
     def generate_from_text(text, seed, num_steps, _=gr.Progress(track_tqdm=True)):
         np.random.seed(seed)
         result = ov_pipe(text, num_inference_steps=num_steps)
         return result["images"][0]
-
-
+    
+    
     with gr.Blocks() as demo:
         with gr.Tab("Text-to-Image generation"):
             with gr.Row():
@@ -392,15 +397,17 @@ so we can just load it.
 
 .. code:: ipython3
 
-    core = ov.Core()
-
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
+    import requests
+    
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
-
+    open("notebook_utils.py", "w").write(r.text)
+    
+    from notebook_utils import device_widget
+    
+    device = device_widget()
+    
     device
 
 
@@ -416,9 +423,9 @@ so we can just load it.
 
     from optimum.intel.openvino import OVStableDiffusionImg2ImgPipeline
     from pathlib import Path
-
+    
     DEVICE = device.value
-
+    
     ov_pipe_i2i = OVStableDiffusionImg2ImgPipeline.from_pretrained(MODEL_DIR, device=DEVICE, compile=False)
     ov_pipe_i2i.compile()
 
@@ -467,27 +474,14 @@ semantically consistent with the input.
 
 .. code:: ipython3
 
-    # Fetch `notebook_utils` module
-    import requests
-
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-
-    open("notebook_utils.py", "w").write(r.text)
-
-    from notebook_utils import download_file
-
-.. code:: ipython3
-
     import io
     import PIL
-
+    
     default_image_path = download_file(
         "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco.jpg",
         filename="coco.jpg",
     )
-
+    
     # read uploaded image
     image = PIL.Image.open(io.BytesIO(image_widget.value[-1]["content"]) if image_widget.value else str(default_image_path))
     print("Pipeline settings")
@@ -518,13 +512,13 @@ semantically consistent with the input.
 
     import PIL
     import numpy as np
-
-
+    
+    
     def scale_fit_to_window(dst_width: int, dst_height: int, image_width: int, image_height: int):
         """
         Preprocessing helper function for calculating image size for resize with peserving original aspect ratio
         and fitting image to specific window size
-
+    
         Parameters:
           dst_width (int): destination window width
           dst_height (int): destination window height
@@ -536,15 +530,15 @@ semantically consistent with the input.
         """
         im_scale = min(dst_height / image_height, dst_width / image_width)
         return int(im_scale * image_width), int(im_scale * image_height)
-
-
+    
+    
     def preprocess(image: PIL.Image.Image):
         """
         Image preprocessing function. Takes image in PIL.Image format, resizes it to keep aspect ration and fits to model input window 512x512,
         then converts it to np.ndarray and adds padding with zeros on right or bottom side of image (depends from aspect ratio), after that
         converts data to float32 data type and change range of values from [0, 255] to [-1, 1].
         The function returns preprocessed input tensor and padding size, which can be used in postprocessing.
-
+    
         Parameters:
           image (PIL.Image.Image): input image
         Returns:
@@ -561,12 +555,12 @@ semantically consistent with the input.
         image = image.astype(np.float32) / 255.0
         image = 2.0 * image - 1.0
         return image, {"padding": pad, "src_width": src_width, "src_height": src_height}
-
-
+    
+    
     def postprocess(image: PIL.Image.Image, orig_width: int, orig_height: int):
         """
         Image postprocessing function. Takes image in PIL.Image format and metrics of original image. Image is cropped and resized to restore initial size.
-
+    
         Parameters:
           image (PIL.Image.Image): input image
           orig_width (int): original image width
@@ -583,9 +577,9 @@ semantically consistent with the input.
 .. code:: ipython3
 
     preprocessed_image, meta_data = preprocess(image)
-
+    
     np.random.seed(seed_i2i.value)
-
+    
     processed_image = ov_pipe_i2i(text_prompt_i2i.value, preprocessed_image, num_inference_steps=num_steps_i2i.value, strength=strength.value)
 
 
@@ -625,51 +619,13 @@ Interactive image-to-image demo
 
 .. code:: ipython3
 
-    import gradio as gr
-
-
-    def generate_from_image(img, text, seed, num_steps, strength, _=gr.Progress(track_tqdm=True)):
-        preprocessed_img, meta_data = preprocess(img)
-        np.random.seed(seed)
-        result = ov_pipe_i2i(text, preprocessed_img, num_inference_steps=num_steps, strength=strength)
-        result_img = postprocess(result["images"][0], meta_data["src_width"], meta_data["src_height"])
-        return result_img
-
-
-    with gr.Blocks() as demo:
-        with gr.Tab("Image-to-Image generation"):
-            with gr.Row():
-                with gr.Column():
-                    i2i_input = gr.Image(label="Image", type="pil")
-                    i2i_text_input = gr.Textbox(lines=3, label="Text")
-                    i2i_seed_input = gr.Slider(0, 1024, value=42, step=1, label="Seed")
-                    i2i_steps_input = gr.Slider(1, 50, value=10, step=1, label="Steps")
-                    strength_input = gr.Slider(0, 1, value=0.5, label="Strength")
-                i2i_out = gr.Image(label="Result")
-            i2i_btn = gr.Button()
-            sample_i2i_text = "amazing watercolor painting"
-            i2i_btn.click(
-                generate_from_image,
-                [
-                    i2i_input,
-                    i2i_text_input,
-                    i2i_seed_input,
-                    i2i_steps_input,
-                    strength_input,
-                ],
-                i2i_out,
-            )
-            gr.Examples(
-                [[str(default_image_path), sample_i2i_text, 42, 10, 0.5]],
-                [
-                    i2i_input,
-                    i2i_text_input,
-                    i2i_seed_input,
-                    i2i_steps_input,
-                    strength_input,
-                ],
-            )
-
+    if not Path("gradio_helper.py").exists():
+        download_file(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/stable-diffusion-text-to-image/gradio_helper.py")
+    
+    from gradio_helper import make_demo
+    
+    demo = make_demo(ov_pipe_i2i, preprocess, postprocess, default_image_path)
+    
     try:
         demo.queue().launch()
     except Exception:

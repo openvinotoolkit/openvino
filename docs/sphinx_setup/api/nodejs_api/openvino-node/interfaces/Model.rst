@@ -4,12 +4,14 @@ Interface Model
 .. code-block:: ts
 
    interface Model {
+       clone(): Model;
        inputs: Output[];
        outputs: Output[];
        getFriendlyName(): string;
        getName(): string;
        getOutputShape(index): number[];
        getOutputSize(): number;
+       getOutputElementType(index): string;
        input(): Output;
        input(name): Output;
        input(index): Output;
@@ -56,6 +58,22 @@ Properties
 
 Methods
 #####################
+
+.. rubric:: clone
+   :name: clone
+
+*
+
+   .. code-block:: ts
+
+      clone(): Model;
+
+   It returns a cloned model.
+
+   * **Returns:** :doc:`Model <Model>`
+
+   * **Defined in:**
+     `addon.ts:220 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L220>`__
 
 
 .. rubric:: getFriendlyName
@@ -125,6 +143,32 @@ Methods
 
    * **Defined in:**
      `addon.ts:198 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L198>`__
+
+.. rubric:: getOutputElementType
+   :name: getOutputElementType
+
+*
+
+   .. code-block:: ts
+
+      getOutputElementType(index): string;
+
+   It gets the element type of a specific output of the model.
+
+   * **Parameters:**
+
+     -
+
+       .. code-block:: ts
+
+          index: number
+
+       The index of the output.
+
+   * **Returns:** string
+
+   * **Defined in:**
+     `addon.ts:245 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L245>`__
 
 
 .. rubric:: input

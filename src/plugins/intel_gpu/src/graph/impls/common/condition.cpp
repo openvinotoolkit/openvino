@@ -4,7 +4,7 @@
 
 #include "condition_inst.h"
 #include "data_inst.h"
-#include "implementation_map.hpp"
+#include "impls/registry/implementation_map.hpp"
 #include "register.hpp"
 
 #include <algorithm>
@@ -172,7 +172,7 @@ attach_condition_common::attach_condition_common() {
     implementation_map<condition>::add(impl_types::common,
                                     shape_types::dynamic_shape,
                                     condition_impl::create,
-                                    {},
+                                    std::vector<data_types>{},
                                     {});
     implementation_map<condition>::add(impl_types::common, condition_impl::create, {});
 }

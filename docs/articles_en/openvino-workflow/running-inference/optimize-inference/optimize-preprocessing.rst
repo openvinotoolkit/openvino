@@ -1,5 +1,3 @@
-.. {#openvino_docs_OV_UG_Preprocessing_Overview}
-
 Optimize Preprocessing
 ======================
 
@@ -10,7 +8,6 @@ Optimize Preprocessing
 
    optimize-preprocessing/preprocessing-api-details
    optimize-preprocessing/layout-api-overview
-   optimize-preprocessing/integrate-save-preprocessing-use-case
    Torchvision preprocessing converter <optimize-preprocessing/torchvision-preprocessing-converter>
 
 .. meta::

@@ -6,9 +6,28 @@
 
 #include "op_table.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/pytorch/decoder.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/convert_promote_types.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/gather_nd.hpp"
+#include "openvino/op/mod.hpp"
+#include "openvino/op/non_zero.hpp"
+#include "openvino/op/range.hpp"
+#include "openvino/op/reduce_prod.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/select.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/util/log.hpp"
 #include "pt_framework_node.hpp"
 #include "translate_session.hpp"
@@ -16,6 +35,8 @@
 namespace ov {
 namespace frontend {
 namespace pytorch {
+
+using namespace ov::op;
 
 void num_inputs_check(const NodeContext& context, size_t min_inputs, size_t max_inputs) {
     auto num_inputs = context.get_input_size();
@@ -38,12 +59,12 @@ Output<Node> make_optional_bias(const Output<Node>& base_op,
     if (!context.input_is_none(bias_input_idx)) {
         auto bias = context.get_input(bias_input_idx);
         if (!unsqueeze_dims.empty()) {
-            auto indices = opset10::Constant::create(element::i32, {unsqueeze_dims.size()}, unsqueeze_dims);
+            auto indices = v0::Constant::create(element::i32, {unsqueeze_dims.size()}, unsqueeze_dims);
             context.mark_node(indices);
-            bias = make_shared<opset10::Unsqueeze>(bias, indices);
+            bias = make_shared<v0::Unsqueeze>(bias, indices);
             context.mark_output(bias);
         }
-        return make_shared<opset10::Add>(context.mark_output(base_op), bias);
+        return make_shared<v1::Add>(context.mark_output(base_op), bias);
     } else {
         return base_op;
     }
@@ -52,28 +73,28 @@ Output<Node> make_optional_bias(const Output<Node>& base_op,
 Output<Node> reshape_channelwise(const NodeContext& context,
                                  const Output<Node>& data,
                                  const Output<Node>& shape_source) {
-    auto input_shape = context.mark_node(std::make_shared<opset10::ShapeOf>(shape_source, element::i32));
-    auto input_rank = context.mark_node(std::make_shared<opset10::ShapeOf>(input_shape, element::i32));
-    auto one_const = context.mark_node(opset10::Constant::create(element::i32, Shape{1}, {1}));
-    auto two_const = context.mark_node(opset10::Constant::create(element::i32, Shape{1}, {2}));
-    auto tail_shape_rank = context.mark_node(std::make_shared<opset10::Subtract>(input_rank, two_const));
-    auto tail_shape = context.mark_node(std::make_shared<opset10::Broadcast>(one_const, tail_shape_rank));
-    auto channels_dim = context.mark_node(std::make_shared<opset10::ShapeOf>(data, element::i32));
+    auto input_shape = context.mark_node(std::make_shared<v3::ShapeOf>(shape_source, element::i32));
+    auto input_rank = context.mark_node(std::make_shared<v3::ShapeOf>(input_shape, element::i32));
+    auto one_const = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {1}));
+    auto two_const = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {2}));
+    auto tail_shape_rank = context.mark_node(std::make_shared<v1::Subtract>(input_rank, two_const));
+    auto tail_shape = context.mark_node(std::make_shared<v3::Broadcast>(one_const, tail_shape_rank));
+    auto channels_dim = context.mark_node(std::make_shared<v3::ShapeOf>(data, element::i32));
     auto new_shape =
-        context.mark_node(std::make_shared<opset10::Concat>(OutputVector{one_const, channels_dim, tail_shape}, 0));
+        context.mark_node(std::make_shared<v0::Concat>(OutputVector{one_const, channels_dim, tail_shape}, 0));
 
-    return context.mark_node(std::make_shared<opset10::Reshape>(data, new_shape, false));
+    return context.mark_node(std::make_shared<v1::Reshape>(data, new_shape, false));
 }
 
 std::tuple<Output<Node>, Output<Node>> get_shape_rank(const NodeContext& context,
                                                       const Output<Node>& x,
                                                       bool as_scalar,
                                                       element::Type output_type) {
-    auto shape = context.mark_node(std::make_shared<opset10::ShapeOf>(x, output_type));
-    Output<Node> rank = context.mark_node(std::make_shared<opset10::ShapeOf>(shape, output_type));
+    auto shape = context.mark_node(std::make_shared<v3::ShapeOf>(x, output_type));
+    Output<Node> rank = context.mark_node(std::make_shared<v3::ShapeOf>(shape, output_type));
     if (as_scalar) {
-        auto axis_0 = context.mark_node(opset10::Constant::create(output_type, Shape{}, {0}));
-        rank = context.mark_node(std::make_shared<opset10::Squeeze>(rank, axis_0));
+        auto axis_0 = context.mark_node(v0::Constant::create(output_type, Shape{}, {0}));
+        rank = context.mark_node(std::make_shared<v0::Squeeze>(rank, axis_0));
     }
     return std::make_tuple(shape, rank);
 }
@@ -81,24 +102,24 @@ std::tuple<Output<Node>, Output<Node>> get_shape_rank(const NodeContext& context
 Output<Node> reshape_kernel_for_group(const NodeContext& context, const Output<Node>& kernel, int64_t groups) {
     using std::make_shared;
 
-    auto axis_0 = opset10::Constant::create(element::i32, Shape{}, {0});
-    auto groups_const = opset10::Constant::create(element::i32, Shape{1}, {groups});
-    auto neg_1_const = opset10::Constant::create(element::i32, Shape{1}, {-1});
+    auto axis_0 = v0::Constant::create(element::i32, Shape{}, {0});
+    auto groups_const = v0::Constant::create(element::i32, Shape{1}, {groups});
+    auto neg_1_const = v0::Constant::create(element::i32, Shape{1}, {-1});
 
-    auto kernel_shape = std::make_shared<opset10::ShapeOf>(kernel, element::i32);
-    auto c_out_idx = opset10::Constant::create(element::i32, Shape{}, {0});
-    auto kernel_shape_0 = make_shared<opset10::Gather>(kernel_shape, c_out_idx, axis_0);
-    auto kernel_shape_0_uns = make_shared<opset10::Unsqueeze>(kernel_shape_0, axis_0);
-    auto c_out_value = make_shared<opset10::Divide>(kernel_shape_0_uns, groups_const);
+    auto kernel_shape = std::make_shared<v3::ShapeOf>(kernel, element::i32);
+    auto c_out_idx = v0::Constant::create(element::i32, Shape{}, {0});
+    auto kernel_shape_0 = make_shared<v8::Gather>(kernel_shape, c_out_idx, axis_0);
+    auto kernel_shape_0_uns = make_shared<v0::Unsqueeze>(kernel_shape_0, axis_0);
+    auto c_out_value = make_shared<v1::Divide>(kernel_shape_0_uns, groups_const);
 
-    auto start = opset10::Constant::create(element::i32, Shape{1}, {2});
-    auto stop = opset10::Constant::create(element::i32, Shape{1}, {std::numeric_limits<int32_t>::max()});
-    auto step = opset10::Constant::create(element::i32, Shape{1}, {1});
-    auto remaining_shape = make_shared<opset10::Slice>(kernel_shape, start, stop, step);
+    auto start = v0::Constant::create(element::i32, Shape{1}, {2});
+    auto stop = v0::Constant::create(element::i32, Shape{1}, {std::numeric_limits<int32_t>::max()});
+    auto step = v0::Constant::create(element::i32, Shape{1}, {1});
+    auto remaining_shape = make_shared<v8::Slice>(kernel_shape, start, stop, step);
 
     auto new_kernel_shape =
-        make_shared<opset10::Concat>(OutputVector{groups_const, c_out_value, neg_1_const, remaining_shape}, 0);
-    auto res = make_shared<opset10::Reshape>(kernel, new_kernel_shape, false);
+        make_shared<v0::Concat>(OutputVector{groups_const, c_out_value, neg_1_const, remaining_shape}, 0);
+    auto res = make_shared<v1::Reshape>(kernel, new_kernel_shape, false);
     context.mark_nodes({axis_0,
                         groups_const,
                         kernel_shape,
@@ -121,24 +142,29 @@ std::shared_ptr<Node> get_axes_range(const NodeContext& context, int input_id) {
 };
 
 std::shared_ptr<Node> get_node_axes_range(const NodeContext& context, const Output<Node>& x) {
-    auto start = std::make_shared<opset10::Constant>(element::i32, Shape{}, 0);
-    auto step = std::make_shared<opset10::Constant>(element::i32, Shape{}, 1);
+    auto start = std::make_shared<v0::Constant>(element::i32, Shape{}, 0);
+    auto step = std::make_shared<v0::Constant>(element::i32, Shape{}, 1);
     Output<Node> reduced_rank;
     std::tie(std::ignore, reduced_rank) = get_shape_rank(context, x, true);
-    return context.mark_node(std::make_shared<opset10::Range>(start, reduced_rank, step, element::i32));
+    return context.mark_node(std::make_shared<v4::Range>(start, reduced_rank, step, element::i32));
 };
 
 Output<Node> normalize_axis(const NodeContext& context, const Output<Node>& axis, const Output<Node>& rank) {
-    auto axis_rank = context.mark_node(std::make_shared<opset10::Add>(axis, rank));
-    auto is_less = context.mark_node(std::make_shared<opset10::Less>(axis_rank, rank));
-    auto new_axis = context.mark_node(std::make_shared<opset10::Select>(is_less, axis_rank, axis));
-    return new_axis;
+    auto axis_rank = std::make_shared<v1::Add>(axis, rank);
+    auto new_axis = std::make_shared<v1::Mod>(axis_rank, rank);
+
+    if (const auto axis_const = ov::util::get_constant_from_source(new_axis)) {
+        return context.mark_node(axis_const);
+    } else {
+        context.mark_nodes({axis_rank, new_axis});
+        return new_axis;
+    }
 }
 
 std::shared_ptr<Node> numel(const NodeContext& context, const Output<Node>& x, element::Type output_type) {
-    auto input_shape = context.mark_node(std::make_shared<opset10::ShapeOf>(x, output_type));
-    auto axes = context.mark_node(opset10::Constant::create(output_type, Shape({1}), {0}));
-    return context.mark_node(std::make_shared<opset10::ReduceProd>(input_shape, axes, false));
+    auto input_shape = context.mark_node(std::make_shared<v3::ShapeOf>(x, output_type));
+    auto axes = context.mark_node(v0::Constant::create(output_type, Shape({1}), {0}));
+    return context.mark_node(std::make_shared<v1::ReduceProd>(input_shape, axes, false));
 };
 
 namespace {
@@ -158,8 +184,8 @@ const std::unordered_map<int64_t, element::Type> TORCH_TO_OV_TYPE{
     {15, element::bf16},
 };
 
-const std::unordered_map<std::string, ov::op::PadType> TORCH_AUTO_PAD_TO_OV{{"valid", ov::op::PadType::VALID},
-                                                                            {"same", ov::op::PadType::SAME_UPPER}};
+const std::unordered_map<std::string, PadType> TORCH_AUTO_PAD_TO_OV{{"valid", PadType::VALID},
+                                                                    {"same", PadType::SAME_UPPER}};
 }  // namespace
 
 element::Type convert_dtype(int64_t pt_type) {
@@ -168,21 +194,21 @@ element::Type convert_dtype(int64_t pt_type) {
 };
 
 Output<Node> apply_dtype(const NodeContext& context, size_t dtype_port, const Output<Node>& input_tensor) {
-    if (std::dynamic_pointer_cast<opset10::Constant>(
+    if (std::dynamic_pointer_cast<v0::Constant>(
             context.get_input_from_visible_context(dtype_port).get_node_shared_ptr())) {
         auto dtype = convert_dtype(context.const_input<int64_t>(dtype_port));
-        return context.mark_node(std::make_shared<opset10::Convert>(input_tensor, dtype));
+        return context.mark_node(std::make_shared<v0::Convert>(input_tensor, dtype));
     } else if (const auto& fw_node =
                    cast_fw_node(context.get_input(static_cast<int>(dtype_port)).get_node_shared_ptr(), "prim::dtype")) {
         auto out_tensor = fw_node->input_value(0);
-        return context.mark_node(std::make_shared<opset10::ConvertLike>(input_tensor, out_tensor));
+        return context.mark_node(std::make_shared<v1::ConvertLike>(input_tensor, out_tensor));
     } else {
         FRONT_END_OP_CONVERSION_CHECK(false, "Couldn't get dtype input");
     }
     return input_tensor;
 };
 
-ov::op::PadType convert_pad(const std::string& pt_pad) {
+PadType convert_pad(const std::string& pt_pad) {
     FRONT_END_OP_CONVERSION_CHECK(TORCH_AUTO_PAD_TO_OV.count(pt_pad), "Unknown pad: ", pt_pad);
     return TORCH_AUTO_PAD_TO_OV.at(pt_pad);
 };
@@ -191,13 +217,13 @@ Output<Node> concat_list_construct(const Output<Node>& input) {
     if (auto list_construct = cast_fw_node(input.get_node_shared_ptr(), "prim::ListConstruct")) {
         auto list_inputs = list_construct->input_values();
         OutputVector node_vector;
-        auto zero = opset10::Constant::create(element::i32, Shape{}, {0});
+        auto zero = v0::Constant::create(element::i32, Shape{}, {0});
         for (size_t i = 0; i < list_inputs.size(); i++) {
             auto node = concat_list_construct(list_inputs[i]);
-            auto unsqueezed_node = std::make_shared<opset10::Unsqueeze>(node, zero);
+            auto unsqueezed_node = std::make_shared<v0::Unsqueeze>(node, zero);
             node_vector.push_back(unsqueezed_node);
         }
-        return std::make_shared<opset10::Concat>(node_vector, 0);
+        return std::make_shared<v0::Concat>(node_vector, 0);
     }
     return input;
 }
@@ -217,14 +243,13 @@ std::shared_ptr<PtFrameworkNode> create_fw_node_with_exception(const NodeContext
                                                                bool skip_subgraphs = false) {
     auto fw_node = std::make_shared<PtFrameworkNode>(context.get_decoder(), inputs, num_outputs, false, skip_subgraphs);
     context.mark_node(fw_node);
-    auto attrs = fw_node->get_attrs();
-    std::string message(exception_message);
-    if (!message.empty()) {
-        message = "Exception happened during conversion of operation " + fw_node->get_friendly_name() +
-                  " with schema " + context.get_schema() + '\n' + message;
+    if (!exception_message.empty()) {
+        auto attrs = fw_node->get_attrs();
+        std::string message = "Exception happened during conversion of operation " + fw_node->get_friendly_name() +
+                              " with schema " + context.get_schema() + '\n' + exception_message;
+        attrs[PtFrameworkNode::failed_conversion_key] = std::move(message);
+        fw_node->set_attrs(attrs);
     }
-    attrs[PtFrameworkNode::failed_conversion_key] = message;
-    fw_node->set_attrs(attrs);
     return fw_node;
 }
 }  // namespace
@@ -354,7 +379,7 @@ std::shared_ptr<ov::op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> 
 }
 
 std::shared_ptr<ov::Node> make_list_construct(const ov::OutputVector& inputs) {
-    auto list_construct = std::make_shared<::ov::op::util::FrameworkNode>(inputs, inputs.size());
+    auto list_construct = std::make_shared<ov::op::util::FrameworkNode>(inputs, inputs.size());
     ov::op::util::FrameworkNodeAttrs attrs;
     attrs.set_type_name("PTFrameworkNode");
     attrs[PtFrameworkNode::op_type_key] = "prim::ListConstruct";
@@ -403,8 +428,8 @@ void align_eltwise_input_types(const NodeContext& context,
                                const bool& is_rhs_python_scalar) {
     const auto& lhs_type = lhs.get_element_type();
     const auto& rhs_type = rhs.get_element_type();
-    auto const_0 = ov::op::v0::Constant::create(element::i32, Shape{}, {1});
-    auto const_1 = ov::op::v0::Constant::create(element::i32, Shape{1}, {1});
+    auto const_0 = v0::Constant::create(element::i32, Shape{}, {1});
+    auto const_1 = v0::Constant::create(element::i32, Shape{1}, {1});
     // Create temporary copy of lhs and rhs for ConvertPromoteTypes to not modify original nodes.
     ov::Output<ov::Node> tmp_lhs = lhs;
     ov::Output<ov::Node> tmp_rhs = rhs;
@@ -412,28 +437,27 @@ void align_eltwise_input_types(const NodeContext& context,
     // If only one input is PyScalar, replace it with const to mitigate issues with dynamic type caused by dynamic
     // shape.
     if (is_lhs_python_scalar && !is_rhs_python_scalar) {
-        tmp_lhs = context.mark_node(std::make_shared<opset10::ConvertLike>(const_0, lhs));
-        tmp_rhs = context.mark_node(std::make_shared<opset10::ConvertLike>(const_1, rhs));
+        tmp_lhs = context.mark_node(std::make_shared<v1::ConvertLike>(const_0, lhs));
+        tmp_rhs = context.mark_node(std::make_shared<v1::ConvertLike>(const_1, rhs));
     } else if (!is_lhs_python_scalar && is_rhs_python_scalar) {
-        tmp_lhs = context.mark_node(std::make_shared<opset10::ConvertLike>(const_1, lhs));
-        tmp_rhs = context.mark_node(std::make_shared<opset10::ConvertLike>(const_0, rhs));
+        tmp_lhs = context.mark_node(std::make_shared<v1::ConvertLike>(const_1, lhs));
+        tmp_rhs = context.mark_node(std::make_shared<v1::ConvertLike>(const_0, rhs));
     }
 
-    auto at = context.mark_node(
-        std::make_shared<ov::op::v14::ConvertPromoteTypes>(tmp_lhs, tmp_rhs, true, true, element::f32));
+    auto at = context.mark_node(std::make_shared<v14::ConvertPromoteTypes>(tmp_lhs, tmp_rhs, true, true, element::f32));
     auto dst_type = at->get_output_element_type(0);
     if (dst_type.is_dynamic()) {
         // Add ConvertLike on original node to not remove changes to shape done to differentiate between tensors and
         // scalars.
-        lhs = context.mark_node(std::make_shared<opset10::ConvertLike>(lhs, at->output(0)));
-        rhs = context.mark_node(std::make_shared<opset10::ConvertLike>(rhs, at->output(1)));
+        lhs = context.mark_node(std::make_shared<v1::ConvertLike>(lhs, at->output(0)));
+        rhs = context.mark_node(std::make_shared<v1::ConvertLike>(rhs, at->output(1)));
     } else {
         // Cast to destination type
         if (dst_type != lhs_type) {
-            lhs = context.mark_node(std::make_shared<opset10::Convert>(lhs, dst_type));
+            lhs = context.mark_node(std::make_shared<v0::Convert>(lhs, dst_type));
         }
         if (dst_type != rhs_type) {
-            rhs = context.mark_node(std::make_shared<opset10::Convert>(rhs, dst_type));
+            rhs = context.mark_node(std::make_shared<v0::Convert>(rhs, dst_type));
         }
     }
     return;
@@ -445,16 +469,24 @@ void align_output_types(const NodeContext& context, OutputVector& outputs) {
         if (dtype_any.is<element::Type>()) {
             auto dtype = dtype_any.as<element::Type>();
             if (dtype.is_static() && dtype != outputs[i].get_element_type()) {
-                outputs[i] = std::make_shared<opset10::Convert>(outputs[i], dtype);
+                outputs[i] = std::make_shared<v0::Convert>(outputs[i], dtype);
             }
         }
     }
 }
 
+Output<Node> try_constfold(const Output<Node>& x) {
+    auto res = x;
+    if (const auto x_const = ov::util::get_constant_from_source(x)) {
+        res = x_const;
+    }
+    return res;
+}
+
 Output<Node> get_input_with_floating_type(const NodeContext& context, size_t idx) {
     auto x = context.get_input(static_cast<int>(idx));
     // This const only needed for type alignment
-    auto dummy_const = context.mark_node(ov::op::v0::Constant::create(element::f32, Shape({}), {0.5}))->output(0);
+    auto dummy_const = context.mark_node(v0::Constant::create(element::f32, Shape({}), {0.5}))->output(0);
     align_eltwise_input_types(context, x, dummy_const, false, true);
     return x;
 }
@@ -462,7 +494,29 @@ Output<Node> get_input_with_floating_type(const NodeContext& context, size_t idx
 Output<Node> get_input_as_i32(const NodeContext& context, size_t idx) {
     auto x = context.get_input(static_cast<int>(idx));
     if (x.get_element_type() != element::i32) {
-        x = context.mark_node(std::make_shared<ov::op::v0::Convert>(x, element::i32));
+        x = context.mark_node(std::make_shared<v0::Convert>(x, element::i32));
+    }
+    return x;
+}
+
+Output<Node> get_input_concat_if_list(const NodeContext& context, size_t idx) {
+    auto x = context.get_input(static_cast<int>(idx));
+    if (context.get_input_type(idx).is<type::List>() &&
+        std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(x.get_node_shared_ptr())) {
+        auto elems = get_list_as_outputs(x, true);
+        if (elems.size() == 0)
+            // Can we figure real type for empty list?
+            return std::make_shared<v0::Constant>(element::i32, Shape{0}, std::vector<int>{});
+        OutputVector inputs;
+        for (auto& elem : elems) {
+            inputs.push_back(try_constfold(elem));
+        }
+        auto new_x = std::make_shared<v0::Concat>(inputs, 0);
+        new_x->set_friendly_name(x.get_node_shared_ptr()->get_friendly_name());
+        x = new_x;
+    }
+    if (const auto x_const = ov::util::get_constant_from_source(x)) {
+        return x_const;
     }
     return x;
 }
@@ -482,9 +536,10 @@ std::tuple<Output<Node>, Output<Node>> get_inputs_with_promoted_types(const Node
     return std::make_tuple(lhs, rhs);
 }
 
-std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start) {
+std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start, bool unsqueeze_for_concat) {
     std::deque<Output<Node>> res;
     auto current_output = start;
+    auto zero = v0::Constant::create(element::i32, Shape{}, {0});
     while (const auto& input_fw_node =
                std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(current_output.get_node_shared_ptr())) {
         const auto& attrs = input_fw_node->get_attrs();
@@ -492,20 +547,28 @@ std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start) {
             break;
         }
         if (attrs.at(PtFrameworkNode::op_type_key) == "aten::append") {
-            res.push_front(input_fw_node->input(1).get_source_output());
+            auto elem = input_fw_node->get_input_source_output(1);
+            if (unsqueeze_for_concat) {
+                elem = std::make_shared<v0::Unsqueeze>(elem, zero);
+            }
+            res.push_front(elem);
         } else if (attrs.at(PtFrameworkNode::op_type_key) == "aten::add") {
-            const auto&& lhs_list = get_list_as_outputs(input_fw_node->input(1).get_source_output());
-            res.insert(res.end(), lhs_list.begin(), lhs_list.end());
+            const auto&& rhs_list = get_list_as_outputs(input_fw_node->get_input_source_output(1));
+            res.insert(res.end(), rhs_list.begin(), rhs_list.end());
         } else {
             break;
         }
-        current_output = input_fw_node->input(0).get_source_output();
+        current_output = input_fw_node->get_input_source_output(0);
     }
     auto list_construct = cast_fw_node(current_output.get_node_shared_ptr(), "prim::ListConstruct");
     if (list_construct) {
         auto inputs = list_construct->inputs();
         for (auto input_it = inputs.rbegin(); input_it != inputs.rend(); ++input_it) {
-            res.push_front(input_it->get_source_output());
+            auto elem = input_it->get_source_output();
+            if (unsqueeze_for_concat) {
+                elem = std::make_shared<v0::Unsqueeze>(elem, zero);
+            }
+            res.push_front(elem);
         }
     } else {
         res.push_front(current_output);
@@ -537,7 +600,7 @@ void copy_runtime_info_and_name(const std::shared_ptr<Node>& from,
             } else {
                 unique_names.insert(new_name);
             }
-            op->set_friendly_name(new_name);
+            op->set_friendly_name(std::move(new_name));
         }
     }
     copy_runtime_info(from, to);
@@ -550,9 +613,9 @@ Output<Node> masked_fill(ov::pass::NodeRegistry& rg,
                          const Output<Node>& data,
                          const Output<Node>& mask,
                          const Output<Node>& value) {
-    auto _value = rg.make<opset10::ConvertLike>(value, data);
-    auto bool_mask = rg.make<opset10::Convert>(mask, element::boolean);
-    return rg.make<opset10::Select>(bool_mask, _value, data);
+    auto _value = rg.make<v1::ConvertLike>(value, data);
+    auto bool_mask = rg.make<v0::Convert>(mask, element::boolean);
+    return rg.make<v1::Select>(bool_mask, _value, data);
 }
 
 Output<Node> concat_list_from_inputs(const NodeContext& context, size_t begin, size_t end) {
@@ -562,21 +625,28 @@ Output<Node> concat_list_from_inputs(const NodeContext& context, size_t begin, s
             auto const_val = context.const_input<int64_t>(i);
             std::vector<int64_t> dim_vec;
             dim_vec.push_back(const_val);
-            auto dim_const = ov::op::v0::Constant::create(element::i64, Shape{1}, dim_vec);
+            auto dim_const = v0::Constant::create(element::i64, Shape{1}, dim_vec);
             list_elems.push_back(dim_const);
         } else {
             auto input_dim = context.get_input(static_cast<int>(i));
             if (input_dim.get_partial_shape().rank() == 0) {
-                auto zero = ov::op::v0::Constant::create(element::i32, Shape{}, {0});
-                auto unsqueezed_dim = context.mark_node(std::make_shared<ov::op::v0::Unsqueeze>(input_dim, zero));
+                auto zero = v0::Constant::create(element::i32, Shape{}, {0});
+                auto unsqueezed_dim = context.mark_node(std::make_shared<v0::Unsqueeze>(input_dim, zero));
                 list_elems.push_back(unsqueezed_dim);
             } else {
                 list_elems.push_back(input_dim);
             }
         }
     }
-    auto concat = std::make_shared<ov::op::v0::Concat>(list_elems, 0);
+    auto concat = std::make_shared<v0::Concat>(list_elems, 0);
     return concat;
+}
+
+Output<Node> masked_select(const NodeContext& context, const Output<Node>& data, const Output<Node>& mask) {
+    auto input_order = context.mark_node(v0::Constant::create(element::i32, Shape{2}, {1, 0}));
+    auto nonzero = context.mark_node(std::make_shared<v3::NonZero>(mask));
+    auto masked_id = context.mark_node(std::make_shared<v1::Transpose>(nonzero, input_order));
+    return context.mark_node(std::make_shared<v8::GatherND>(data, masked_id));
 }
 
 }  // namespace pytorch
