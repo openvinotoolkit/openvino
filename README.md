@@ -94,9 +94,6 @@ data = np.random.rand(1, 224, 224, 3)
 output = compiled_model({0: data})
 ```
 
-OpenVINO also supports CPU, GPU, and NPU devices and works with models in TensorFlow, PyTorch, ONNX, TensorFlow Lite, PaddlePaddle model formats.
-With OpenVINO you can do automatic performance enhancements at runtime customized to your hardware (preserving model accuracy), including:
-asynchronous execution, batch processing, tensor fusion, load balancing, dynamic inference parallelism, automatic BF16 conversion, and more.
 
 ## Documentation
 
