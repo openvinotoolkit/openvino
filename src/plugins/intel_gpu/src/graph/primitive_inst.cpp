@@ -502,7 +502,7 @@ event::ptr primitive_inst::realloc_if_needed() {
 
     event::ptr ev = nullptr;
     const auto& users = get_user_insts();
-    if (users.size() == 1 && users.front()->get_node().is_type<concatenation>()) {
+    if (users.size() == 1 && users.front()->get_node().is_type<concatenation>() && users.front()->get_node().is_runtime_skippable()) {
         auto concat_inst = users.front();
         if (concat_inst->can_be_optimized()) {
             if (!concat_inst->allocation_done_by_other) {
