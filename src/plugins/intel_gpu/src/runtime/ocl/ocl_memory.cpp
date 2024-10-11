@@ -517,14 +517,9 @@ event::ptr gpu_usm::fill(stream& stream, unsigned char pattern) {
     auto& cl_stream = downcast<ocl_stream>(stream);
     auto ev = stream.create_base_event();
     cl::Event& ev_ocl = downcast<ocl_event>(ev.get())->get();
-    // enqueueFillUsm call will never finish. Driver bug? Uncomment when fixed. Some older drivers doesn't support enqueueFillUsm call at all.
-    // cl_stream.get_usm_helper().enqueue_fill_mem<unsigned char>(cl_stream.get_cl_queue(), _buffer.get(), pattern, _bytes_count, nullptr, &ev_ocl)
-    // Workarounded with enqeue_memcopy. ToDo: Remove below code. Uncomment above.
-    std::vector<unsigned char> temp_buffer(_bytes_count, pattern);
-    // TODO: Do we really need blocking call here? Non-blocking one causes accuracy issues right now, but hopefully it can be fixed in more performant way.
-    const bool blocking = true;
     try {
-        cl_stream.get_usm_helper().enqueue_memcpy(cl_stream.get_cl_queue(), _buffer.get(), temp_buffer.data(), _bytes_count, blocking, nullptr, &ev_ocl);
+        cl_stream.get_usm_helper().enqueue_fill_mem(
+                cl_stream.get_cl_queue(), _buffer.get(), static_cast<const void*>(&pattern), sizeof(unsigned char), _bytes_count, nullptr, &ev_ocl);
     } catch (cl::Error const& err) {
         OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
     }
