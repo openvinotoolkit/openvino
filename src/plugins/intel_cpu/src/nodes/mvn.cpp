@@ -2417,7 +2417,7 @@ void MVN::MVNJitExecutor::mvn_nspc(const uint8_t* src_data, uint8_t* dst_data, c
     const size_t H = shape5d[3];
     const size_t W = shape5d[4];
 
-    size_t threads_num = parallel_get_num_threads();
+    size_t threads_num = parallel_get_max_threads();
     size_t aux_buffer_size = mvnAttrs.execAcrossChannels_ ? 1 : rnd_up(C, blk_size) + blk_size;
     parallel_for(N, [&](size_t b) {
         std::vector<float> mean_buffer(aux_buffer_size * threads_num, 0.f);
@@ -2537,7 +2537,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, co
     size_t C3 = C2 * CB;
     size_t C5 = C * D * H * W;
 
-    size_t threads_num = parallel_get_num_threads();
+    size_t threads_num = parallel_get_max_threads();
     size_t aux_buffer_size = mvnAttrs.execAcrossChannels_ ? blk_size : rnd_up(C, blk_size);
     aux_buffer_size += blk_size;
     std::vector<float> mean_buffer(aux_buffer_size * threads_num);
