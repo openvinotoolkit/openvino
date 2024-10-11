@@ -23,7 +23,7 @@
 ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model,
                                              bool alloc_required)
     : IBaseInferRequest(compiled_model),
-    m_alloc_required(alloc_required) {
+      m_alloc_required(alloc_required) {
     m_use_function_pipelining = m_npuw_model->m_cfg.get<::intel_npu::NPUW_FUNCALL_ASYNC>();
     if (m_use_function_pipelining) {
         LOG_WARN("Function call pipelining is enabled for " << m_npuw_model->m_name
@@ -921,8 +921,8 @@ void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool
 }
 
 ov::Tensor ov::npuw::JustInferRequest::allocTensor(const ov::element::Type type,
-                                                    const ov::Shape& shape,
-                                                    const std::string& device) {
+                                                   const ov::Shape& shape,
+                                                   const std::string& device) {
     if (!m_alloc_required || device == "CPU") {
         return ov::Tensor(type, shape);
     }
