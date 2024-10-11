@@ -22,8 +22,11 @@ model = torchvision.models.resnet50(pretrained=True)
 input_fp32 = ... # FP32 model input
 
 with nncf.torch.disable_patching():
-    exported_model = torch.export.export(model, args=(input_fp32,)).module()
-    quantized_model = nncf.quantize(exported_model, calibration_dataset)
+    # Using capture_pre_autograd_graph to export torch.fx.GraphModule
+    # the same way it done for PyTorch 2 Export Post Training Quantization:
+    # https://pytorch.org/tutorials/prototype/pt2e_quant_ptq.html
+    captured_graph = torch._export.capture_pre_autograd_graph(model, args=(input_fp32,))
+    quantized_model = nncf.quantize(captured_graph, calibration_dataset)
 #! [quantization]
 
 #! [inference]
