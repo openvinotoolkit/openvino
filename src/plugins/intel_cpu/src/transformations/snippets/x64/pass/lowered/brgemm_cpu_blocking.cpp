@@ -94,7 +94,10 @@ bool BrgemmCPUBlocking::mark_blocking_loops(LinearIR& linear_ir,
     brgemm_expr->get_input_port_descriptor(1)->set_subtensor({k_block, n_block});
     brgemm_expr->get_output_port_descriptor(0)->set_subtensor({m_block, n_block});
 
-    const auto copy_b_expr = linear_ir.get_expr_by_node(brgemm->get_brgemm_copy());
+    auto copy_b = brgemm->get_brgemm_copy();
+    if (!copy_b)
+        return true;
+    const auto copy_b_expr = linear_ir.get_expr_by_node(copy_b);
     copy_b_expr->get_input_port_descriptor(0)->set_subtensor({get_full_dim_value(), get_full_dim_value()});
     copy_b_expr->get_output_port_descriptor(0)->set_subtensor({get_full_dim_value(), get_full_dim_value()});
     if (with_compensations(type)) {
