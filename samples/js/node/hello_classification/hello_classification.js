@@ -47,7 +47,7 @@ async function main(modelPath, imagePath, deviceName) {
   const _ppp = new ov.preprocess.PrePostProcessor(model);
   _ppp.input().tensor().setShape(shape).setLayout('NHWC');
   _ppp.input().preprocess().resize(ov.preprocess.resizeAlgorithm.RESIZE_LINEAR);
-  _ppp.input().model().setLayout('NCHW');
+  _ppp.input().model().setLayout('NHWC');
   _ppp.output().tensor().setElementType(ov.element.f32);
   _ppp.build();
 
