@@ -184,7 +184,7 @@ jobs:
 
       - name: Pack Artifacts
         run: |
-          $file = Get-ChildItem -Path "${{ env.INSTALL_DIR }}" | Where-Object { $_.FullName -notmatch 'wheels' }
+          $file = Get-ChildItem -Path "${{ env.INSTALL_DIR }}"
           $compress = @{
             Path = $file
             CompressionLevel = "Optimal"
@@ -222,7 +222,7 @@ jobs:
         uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         with:
           name: openvino_wheels
-          path: ${{ env.INSTALL_DIR }}/wheels/*.whl
+          path: ${{ env.BUILD_DIR }}/wheels/*.whl
           if-no-files-found: 'error'
 
       - name: Upload openvino tests package

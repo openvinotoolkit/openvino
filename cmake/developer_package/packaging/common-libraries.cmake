@@ -97,7 +97,7 @@ macro(ov_define_component_include_rules)
     # we don't pack artifacts of setup.py install, because it's called explicitly in conda / brew
     # or not used at all like in cases with conan / vcpkg
     set(OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE_EXCLUDE_ALL ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
-    # we don't need wheels in package, it's used installed only in open source distribution
+    # we don't need wheels in the distribution packages
     set(OV_CPACK_COMP_PYTHON_WHEELS_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     # we don't need requirements.txt in package, because dependencies are installed by packages managers like conda
     set(OV_CPACK_COMP_OPENVINO_REQ_FILES_EXCLUDE_ALL EXCLUDE_FROM_ALL)
