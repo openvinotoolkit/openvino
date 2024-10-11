@@ -55,7 +55,11 @@ jobs:
           echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
           echo "PARALLEL_TEST_SCRIPT=$GITHUB_WORKSPACE/install/tests/functional_test_utils/layer_tests_summary/run_parallel.py" >> "$GITHUB_ENV"
           echo "PARALLEL_TEST_CACHE=$GITHUB_WORKSPACE/install/tests/test_cache.lst" >> "$GITHUB_ENV"
-
+          
+      - name: Install OpenVINO dependencies (mac)
+        if: runner.os == 'macOS'
+        run: brew install pigz
+      
       - name: Extract OpenVINO packages
         run: |
           pushd $INSTALL_DIR
