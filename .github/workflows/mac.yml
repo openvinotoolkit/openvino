@@ -104,7 +104,7 @@ jobs:
       #
 
       - name: Install build dependencies
-        run: brew install coreutils ninja scons
+        run: brew install coreutils ninja scons pigz
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}
         uses: ./openvino/.github/actions/setup_python
