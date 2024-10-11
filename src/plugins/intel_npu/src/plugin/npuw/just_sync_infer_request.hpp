@@ -19,7 +19,7 @@ class AsyncInferRequest;
 
 class JustInferRequest final : public IBaseInferRequest {
 public:
-    explicit JustInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model);
+    explicit JustInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model, bool alloc_required);
 
     // Query APIs
     std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;

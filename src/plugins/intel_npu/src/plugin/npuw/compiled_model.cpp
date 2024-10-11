@@ -428,6 +428,15 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     // Finalize memory in closures and weight banks
     finalize_weights_bank();
 
+    // Set allocator if there is at least 1 NPU submodel
+    for (std::size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
+        auto& comp_model_desc = m_compiled_submodels[idx];
+        if (*comp_model_desc.device_it == "NPU") {
+            m_alloc_required = true;
+            break;
+        }
+    }
+
     // Print stats report when possible
     {
         LOG_INFO("Initial device distribution:");
@@ -668,7 +677,7 @@ void ov::npuw::CompiledModel::dump_on_fail(std::size_t id, const std::string& de
 
 std::shared_ptr<ov::ISyncInferRequest> ov::npuw::CompiledModel::create_just_sync_infer_request() {
     auto this_sptr = std::static_pointer_cast<ov::npuw::CompiledModel>(shared_from_this());
-    return std::make_shared<ov::npuw::JustInferRequest>(this_sptr);
+    return std::make_shared<ov::npuw::JustInferRequest>(this_sptr, m_alloc_required);
 }
 
 std::shared_ptr<ov::ISyncInferRequest> ov::npuw::CompiledModel::create_sync_infer_request() const {

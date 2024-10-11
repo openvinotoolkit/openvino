@@ -7,18 +7,33 @@
 #include "compiled_model.hpp"
 #include "intel_npu/al/config/npuw.hpp"
 #include "logging.hpp"
+#include "openvino/runtime/iplugin.hpp"
+#include "openvino/runtime/iremote_context.hpp"
 #include "util.hpp"
 
-ov::npuw::IBaseInferRequest::IBaseInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model)
+ov::npuw::IBaseInferRequest::IBaseInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model,
+                                               bool alloc_required)
     : ov::ISyncInferRequest(compiled_model),
       m_npuw_model(compiled_model),
-      m_num_submodels(m_npuw_model->m_compiled_submodels.size()) {
+      m_num_submodels(m_npuw_model->m_compiled_submodels.size()),
+      m_alloc_required(alloc_required) {
     m_subrequests.resize(m_num_submodels, {});
     m_subrequest_devices.resize(m_num_submodels, {});
     m_completion_cbs.resize(m_num_submodels, {});
     if (m_npuw_model->m_acc_check) {
         m_ref_subrequests.resize(m_num_submodels);
     }
+}
+
+ov::Tensor ov::npuw::IBaseInferRequest::allocTensor(const ov::element::Type type,
+                                                    const ov::Shape& shape,
+                                                    const std::string& device) {
+    if (!m_alloc_required || device == "CPU") {
+        return ov::Tensor(type, shape);
+    }
+    static const auto& m_remote_ctx = m_npuw_model->get_plugin()->get_core()->get_default_context(device)._ptr;
+    std::lock_guard<std::mutex> guard(m_alloc_mutex);
+    return ov::make_tensor(m_remote_ctx->create_host_tensor(type, shape));
 }
 
 ov::npuw::IBaseInferRequest::RqPtrs ov::npuw::IBaseInferRequest::create_infer_requests(std::size_t id,

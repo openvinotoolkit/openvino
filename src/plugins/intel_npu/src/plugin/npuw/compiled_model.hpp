@@ -157,6 +157,8 @@ private:
 
     bool m_update_required;
 
+    bool m_alloc_required = false;
+
     std::function<bool(const ov::SoPtr<ov::ITensor>&, const ov::SoPtr<ov::ITensor>&)> m_acc_check;
     std::string m_ref_device;
 

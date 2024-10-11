@@ -21,8 +21,9 @@
 #include "util.hpp"
 #include "weights_bank.hpp"
 
-ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model)
-    : IBaseInferRequest(compiled_model) {
+ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model,
+                                             bool alloc_required)
+    : IBaseInferRequest(compiled_model, alloc_required) {
     m_use_function_pipelining = m_npuw_model->m_cfg.get<::intel_npu::NPUW_FUNCALL_ASYNC>();
     if (m_use_function_pipelining) {
         LOG_WARN("Function call pipelining is enabled for " << m_npuw_model->m_name
@@ -49,7 +50,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         // FIXME: Shouldn't this be handled by the base class? (in create_tensor)
         // A special case for function calls
         if (comp_model_desc.replaced_by) {
-            // Pre-allocate output tesnors for this function call
+            // Pre-allocate output tensors for this function call
             const auto real_idx = comp_model_desc.replaced_by.value();
             auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
             auto& proto_comp_model = proto_comp_model_desc.compiled_model;
@@ -67,14 +68,14 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
                     // Note: these buffers are allocated to the entire NWAY (> tail_size)
                     for (auto&& p : proto_comp_model_desc.spatial->params) {
                         const auto& iport = proto_comp_model_desc.compiled_model->inputs()[p.idx];
-                        m_spatial_io[real_idx].input_tails[p.idx] =
-                            ov::get_tensor_impl(ov::Tensor(iport.get_element_type(), iport.get_shape()));
+                        m_spatial_io[real_idx].input_tails[p.idx] = ov::get_tensor_impl(
+                            allocTensor(iport.get_element_type(), iport.get_shape(), *proto_comp_model_desc.device_it));
                     }
                     const auto num_outs = proto_comp_model_desc.compiled_model->outputs().size();
                     for (std::size_t out_idx = 0u; out_idx < num_outs; out_idx++) {
                         const auto& oport = proto_comp_model_desc.compiled_model->outputs()[out_idx];
-                        m_spatial_io[real_idx].output_tails[out_idx] =
-                            ov::get_tensor_impl(ov::Tensor(oport.get_element_type(), oport.get_shape()));
+                        m_spatial_io[real_idx].output_tails[out_idx] = ov::get_tensor_impl(
+                            allocTensor(oport.get_element_type(), oport.get_shape(), *proto_comp_model_desc.device_it));
                     }
                 }
             }  // if(spatial)
@@ -88,7 +89,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
                     shape[proto_comp_model_desc.spatial->out_dim] = proto_comp_model_desc.spatial->range;
                 }
                 m_funcall_result[LinkFrom{i, out_idx}] =
-                    ov::get_tensor_impl(ov::Tensor(port.get_element_type(), shape));
+                    ov::get_tensor_impl(allocTensor(port.get_element_type(), shape, *proto_comp_model_desc.device_it));
             }
             if (real_idx != i) {
                 // If this function call is NOT the function body, do nothing here - the original
@@ -153,7 +154,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
     LOG_INFO("Preallocating input tensors...");
     for (size_t i = 0; i < m_npuw_model->inputs().size(); i++) {
         const auto& port = m_npuw_model->inputs()[i];
-        m_input_tensors.push_back(ov::get_tensor_impl(ov::Tensor(port.get_element_type(), port.get_shape())));
+        m_input_tensors.push_back(ov::get_tensor_impl(allocTensor(port.get_element_type(), port.get_shape())));
         m_port_to_tensor[port] = TensorStorage{m_input_tensors.back(), true};
     }  // for(inputs)
 
@@ -173,7 +174,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         const auto& tensor =
             funcall_result_iter != m_funcall_result.end()
                 ? funcall_result_iter->second  // Function calls have their tensors allocated, so just use one
-                : ov::get_tensor_impl(ov::Tensor(port.get_element_type(), port.get_shape()));
+                : ov::get_tensor_impl(allocTensor(port.get_element_type(), port.get_shape()));
 
         m_output_tensors.push_back(tensor);
         m_port_to_tensor[port] = TensorStorage{tensor, true};
@@ -372,7 +373,7 @@ void ov::npuw::JustInferRequest::bind_global_parameters(std::size_t idx) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
     const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
 
-    const bool do_copy = needs_copy(idx);
+    const bool do_copy = !m_alloc_required && needs_copy(idx);
     const auto& iodesc = m_subrequests_gio.at(idx);
 
     const auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
