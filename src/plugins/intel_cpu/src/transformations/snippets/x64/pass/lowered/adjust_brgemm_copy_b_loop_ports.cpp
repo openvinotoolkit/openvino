@@ -12,14 +12,16 @@
 #include "snippets/lowered/loop_manager.hpp"
 namespace ov {
 namespace intel_cpu {
+using UnifiedLoopInfo = ov::snippets::lowered::UnifiedLoopInfo;
 
-void pass::AdjustBrgemmCopyBLoopPorts::update_loop_info(const std::shared_ptr<snippets::lowered::UnifiedLoopInfo>& loop_info) {
-    snippets::lowered::UnifiedLoopInfo::LoopPortDesc *copy_b_loop_desc = nullptr;
+int pass::AdjustBrgemmCopyBLoopPorts::get_affected_port_idx(const std::shared_ptr<UnifiedLoopInfo>& loop_info) {
     bool all_dim_idx_zero = true;
     bool first_port = true;
     bool first_port_incremented = false;
+    int idx = 0;
+    int i = 0;
     auto caller = [&](snippets::lowered::LoopPort &loop_port,
-                      snippets::lowered::UnifiedLoopInfo::LoopPortDesc &loop_desc) {
+                      UnifiedLoopInfo::LoopPortDesc &loop_desc) {
         const auto& p = *loop_port.expr_port;
         const auto& src_expr = p.get_port_connector_ptr()->get_source().get_expr();
         if (p.get_type() == snippets::lowered::ExpressionPort::Input &&
@@ -28,22 +30,22 @@ void pass::AdjustBrgemmCopyBLoopPorts::update_loop_info(const std::shared_ptr<sn
             const auto& copy_b_grandparent = src_expr->get_input_port_connector(0)->get_source().get_expr();
             OPENVINO_ASSERT(is_type<BrgemmCopyB>(copy_b_grandparent->get_node()),
                             "RepackedWeightsBufferExpression must have BrgemmCopyB as an input");
-            copy_b_loop_desc = &loop_desc;
+            idx = i;
         }
         if (first_port) {
             first_port = false;
             first_port_incremented = loop_port.is_incremented;
         }
         all_dim_idx_zero &= loop_port.dim_idx == 0;
+        i++;
     };
     loop_info->iterate_through_infos(caller);
 
     // todo: do we really need to check first_port is incremented?
     // We need to increment stride only in case of N blocking
-    if (!first_port_incremented && all_dim_idx_zero && copy_b_loop_desc) {
-        copy_b_loop_desc->ptr_increment *= 2;
-        copy_b_loop_desc->finalization_offset *= 2;
-    }
+    if (!first_port_incremented && all_dim_idx_zero)
+        return idx;
+    return -1;
 }
 
 bool pass::AdjustBrgemmCopyBLoopPorts::run(snippets::lowered::LinearIR& linear_ir,
@@ -76,7 +78,18 @@ bool pass::AdjustBrgemmCopyBLoopPorts::run(snippets::lowered::LinearIR& linear_i
         const auto &loop_mngr = linear_ir.get_loop_manager();
         for (auto i = loop_ids.size(); i < target_loop_ids.size(); i++) {
             const auto &loop_info = loop_mngr->get_loop_info<snippets::lowered::UnifiedLoopInfo>(target_loop_ids[i]);
-            update_loop_info(loop_info);
+            auto idx = get_affected_port_idx(loop_info);
+            if (idx >= 0) {
+                int j = 0;
+                auto caller = [&](UnifiedLoopInfo::LoopPortDesc& desc) {
+                    if (j == idx) {
+//                        desc.ptr_increment *= 2;
+//                        desc.finalization_offset *= 2;
+                    }
+                    j++;
+                };
+                loop_info->iterate_through_descs(caller);
+            }
         }
     }
 

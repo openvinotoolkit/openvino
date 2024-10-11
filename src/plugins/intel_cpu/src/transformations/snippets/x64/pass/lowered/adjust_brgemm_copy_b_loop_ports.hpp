@@ -25,7 +25,9 @@ public:
     bool run(snippets::lowered::LinearIR& linear_ir,
              snippets::lowered::LinearIR::constExprIt begin,
              snippets::lowered::LinearIR::constExprIt end) override;
-    static void update_loop_info(const std::shared_ptr<snippets::lowered::UnifiedLoopInfo>& uni_loop_info);
+
+    using UnifiedLoopInfo = ov::snippets::lowered::UnifiedLoopInfo;
+    static int get_affected_port_idx(const std::shared_ptr<UnifiedLoopInfo>& uni_loop_info);
 };
 
 }  // namespace pass

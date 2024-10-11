@@ -7,6 +7,9 @@
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/utils/utils.hpp"
 
+#include "transformations/snippets/x64/pass/lowered/adjust_brgemm_copy_b_loop_ports.hpp"
+#include "snippets/lowered/pass/serialize_control_flow.hpp"
+
 namespace ov {
 namespace intel_cpu {
 
@@ -38,8 +41,10 @@ CPURuntimeConfigurator::CPURuntimeConfigurator() : ov::snippets::RuntimeConfigur
 
 void CPURuntimeConfigurator::update(const ov::snippets::lowered::LinearIRCPtr& linear_ir) {
     RuntimeConfigurator::update(linear_ir);
-    if (linear_ir->is_dynamic())
+    ov::snippets::lowered::pass::SerializeControlFlow("snsdebug_dynamic.xml").run(*linear_ir);
+    if (linear_ir->is_dynamic()) {
         update_loop_args(linear_ir);
+    }
 }
 
 void CPURuntimeConfigurator::update_tensor_rank(const ov::snippets::VectorDims& master_shape) {
@@ -61,11 +66,19 @@ void CPURuntimeConfigurator::update_loop_args(const ov::snippets::lowered::Linea
         const auto& loop_info = ov::as_type_ptr<ov::snippets::lowered::ExpandedLoopInfo>(loop.second);
         OPENVINO_ASSERT(loop_info, "CPURuntimeConfigurator expects ExpandedLoopInfo in loop manager");
 
+        auto ptr_increments = loop_info->get_ptr_increments();
+        auto fin_offsets = loop_info->get_finalization_offsets();
+        auto repacking_idx = pass::AdjustBrgemmCopyBLoopPorts::get_affected_port_idx(loop_info->get_unified_loop_info());
+        if (repacking_idx >= 0) {
+            ptr_increments[repacking_idx] *= 2;
+            fin_offsets[repacking_idx] *= 2;
+        }
+
         const auto& increment = loop_info->get_increment();
         const auto& data_sizes = loop_info->get_data_sizes();
 
         auto& loop_arg = cpu_config->loop_args[idx];
-        loop_arg = jit_snippets_call_args::loop_args_t(loop_info->get_work_amount(), loop_info->get_ptr_increments(), loop_info->get_finalization_offsets());
+        loop_arg = jit_snippets_call_args::loop_args_t(loop_info->get_work_amount(), ptr_increments, fin_offsets);
         for (int64_t i = 0; i < loop_arg.m_num_data_ptrs; ++i) {
             loop_arg.m_ptr_increments[i] *= (increment * data_sizes[i]);
             loop_arg.m_finalization_offsets[i] *= data_sizes[i];
