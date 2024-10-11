@@ -49,20 +49,22 @@ bool ov::intel_cpu::pass::AdjustBrgemmCopyBLoopPorts::run(snippets::lowered::Lin
             bool first_port_incremented = false;
             auto caller = [&](snippets::lowered::LoopPort &loop_port,
                               snippets::lowered::UnifiedLoopInfo::LoopPortDesc &loop_desc) {
-                const auto &p = *loop_port.expr_port;
+                const auto& p = *loop_port.expr_port;
+                const auto& src_expr = p.get_port_connector_ptr()->get_source().get_expr();
                 if (p.get_type() == snippets::lowered::ExpressionPort::Input &&
-                    p == target_port)
+                    ov::is_type<BrgemmCPU>(p.get_expr()->get_node()) &&
+                    ov::is_type<RepackedWeightsBufferExpression>(src_expr)) {
+                    const auto& copy_b_grandparent = src_expr->get_input_port_connector(0)->get_source().get_expr();
+                    OPENVINO_ASSERT(ov::is_type<BrgemmCopyB>(copy_b_grandparent->get_node()),
+                                    "RepackedWeightsBufferExpression must have BrgemmCopyB as an input");
                     copy_b_loop_desc = &loop_desc;
+                }
                 if (first_port) {
                     first_port = false;
                     first_port_incremented = loop_port.is_incremented;
                 }
                 all_dim_idx_zero &= loop_port.dim_idx == 0;
             };
-//            std::cerr << "\n";
-//            for (auto j : loop_info->get_ptr_increments())
-//                std::cerr << j << ", ";
-//            std::cerr << "\n";
             loop_info->iterate_through_infos(caller);
 
             // todo: do we really need to check first_port is incremented?
@@ -71,11 +73,6 @@ bool ov::intel_cpu::pass::AdjustBrgemmCopyBLoopPorts::run(snippets::lowered::Lin
                 copy_b_loop_desc->ptr_increment *= 2;
                 copy_b_loop_desc->finalization_offset *= 2;
             }
-
-//            std::cerr << "\n";
-//            for (auto j : loop_info->get_ptr_increments())
-//                std::cerr << j << ", ";
-//            std::cerr << "\n";
         }
     }
 
