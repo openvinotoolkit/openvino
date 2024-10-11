@@ -932,13 +932,15 @@ ov::Tensor ov::npuw::JustInferRequest::allocTensor(const ov::element::Type type,
         return ov::Tensor(type, shape);
     }
 
-    m_remote_ctx = m_npuw_model->get_plugin()->get_core()->get_default_context(device)._ptr;
-    ov::SoPtr<ov::ITensor> remote_tensor(nullptr);
+    ov::SoPtr<ov::ITensor> remote_tensor;
+    ov::Tensor allocated_tensor;
     {
         std::lock_guard<std::mutex> guard(m_alloc_mutex);
+        m_remote_ctx = m_npuw_model->get_plugin()->get_core()->get_default_context(device)._ptr;
         remote_tensor = m_remote_ctx->create_host_tensor(type, shape);
+        allocated_tensor = ov::make_tensor(remote_tensor);
     }
-    return ov::make_tensor(remote_tensor);
+    return allocated_tensor;
 }
 
 void ov::npuw::JustInferRequest::subscribe_subrequest(std::size_t idx, Completed cb) {

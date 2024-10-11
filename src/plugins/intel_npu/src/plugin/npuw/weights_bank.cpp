@@ -95,15 +95,16 @@ ov::Tensor Bank::unsafe_eval_and_alloc(const LazyTensor& tensor, const std::stri
         return transformed_tensor;
     }
 
-    m_remote_ctx = m_core->get_default_context(device_for_alloc)._ptr;
     ov::SoPtr<ov::ITensor> remote_tensor;
+    ov::Tensor allocated_tensor;
     {
         // FIXME: L0 allocation may crash when run in parallel
         std::lock_guard<std::mutex> guard(m_alloc_mutex);
+        m_remote_ctx = m_core->get_default_context(device_for_alloc)._ptr;
         remote_tensor =
             m_remote_ctx->create_host_tensor(transformed_tensor.get_element_type(), transformed_tensor.get_shape());
+        allocated_tensor = ov::make_tensor(remote_tensor);
     }
-    auto allocated_tensor = ov::make_tensor(remote_tensor);
     transformed_tensor.copy_to(allocated_tensor);
     m_device_bank[device_for_alloc][tensor] = allocated_tensor;
     return allocated_tensor;

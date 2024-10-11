@@ -454,6 +454,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 }
 
 void ov::npuw::CompiledModel::finalize_weights_bank() {
+    LOG_INFO("Finalizing weights bank...");
     // Register lazy tensors
     for (std::size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
         auto& comp_model_desc = m_compiled_submodels[idx];
@@ -501,6 +502,8 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
             comp_model_desc.is_remote[tidx] = m_weights_bank->is_remote(lt);
         }
     }
+
+    LOG_INFO("Done.");
 }
 
 void ov::npuw::CompiledModel::remove_long_output_names(const std::shared_ptr<ov::Model>& model) {
