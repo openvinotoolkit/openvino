@@ -49,7 +49,14 @@ bool ShlEltwiseExecutorBuilder::isSupported(const EltwiseAttrs& eltwiseAttrs,
         return false;
     }
     const auto unifiedLayout = srcDescs.front()->hasLayoutType(LayoutType::ncsp) ? LayoutType::ncsp : LayoutType::nspc;
-    auto has_unified_layout = [unifiedLayout](const MemoryDescPtr& desc) { return desc->hasLayoutType(unifiedLayout); };
+    const auto unifiedRank = srcDescs.front()->getShape().getRank();
+    auto has_unified_layout = [unifiedLayout, unifiedRank](const MemoryDescPtr& desc) {
+        if (desc->hasLayoutType(LayoutType::nspc)) {    // ensure the same rank
+            if (desc->getShape().getRank() != unifiedRank)
+                return false;
+        }
+        return desc->hasLayoutType(unifiedLayout);
+    };
     if (!(std::all_of(srcDescs.cbegin(), srcDescs.cend(), has_unified_layout) &&
           std::all_of(dstDescs.cbegin(), dstDescs.cend(), has_unified_layout))) {
         DEBUG_LOG("ShlEltwise needs to ensure all inputs and outputs are in the same 'ncsp' or 'nspc' layouts");
