@@ -91,11 +91,9 @@ ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs
     log.debug("ZeroDevice::ZeroDevice - init completed");
 }
 
-std::shared_ptr<IExecutor> ZeroDevice::createExecutor(
-    const std::shared_ptr<const NetworkDescription>& networkDescription,
-    const Config& config) {
+std::shared_ptr<IExecutor> ZeroDevice::createExecutor(const std::shared_ptr<IGraph>& graph, const Config& config) {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Device::createExecutor");
-    return std::make_shared<ZeroExecutor>(_initStructs, networkDescription, config, _group_ordinal);
+    return std::make_shared<ZeroExecutor>(_initStructs, graph, config, _group_ordinal);
 }
 
 std::string ZeroDevice::getName() const {
@@ -203,11 +201,16 @@ ov::device::Type ZeroDevice::getDeviceType() const {
     return ov::device::Type::INTEGRATED;
 }
 
+uint32_t ZeroDevice::getGroupOrdinal() const {
+    return _group_ordinal;
+}
+
 std::shared_ptr<SyncInferRequest> ZeroDevice::createInferRequest(
     const std::shared_ptr<const ICompiledModel>& compiledModel,
+    const std::shared_ptr<IGraph>& graph,
     const std::shared_ptr<IExecutor>& executor,
     const Config& config) {
-    return std::make_shared<ZeroInferRequest>(_initStructs, compiledModel, executor, config);
+    return std::make_shared<ZeroInferRequest>(_initStructs, compiledModel, graph, executor, config, _group_ordinal);
 }
 
 ov::SoPtr<ov::IRemoteTensor> ZeroDevice::createRemoteTensor(std::shared_ptr<ov::IRemoteContext> context,

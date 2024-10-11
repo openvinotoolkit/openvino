@@ -7,6 +7,7 @@
 #include <memory>
 #include <vector>
 
+#include "igraph.hpp"
 #include "intel_npu/config/common.hpp"
 #include "intel_npu/icompiler.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
@@ -17,15 +18,12 @@ class ICompiledModel : public ov::ICompiledModel {
 public:
     using ov::ICompiledModel::ICompiledModel;
 
-    virtual const std::shared_ptr<const NetworkDescription>& get_network_description() const = 0;
+    virtual const std::shared_ptr<IGraph>& get_graph() const = 0;
 
     virtual const Config& get_config() const = 0;
 
-    // Compiler is used for post-processing profiling data when using PERF_COUNT property
-    virtual const ov::SoPtr<ICompiler>& get_compiler() const = 0;
-
-    const NetworkMetadata& get_network_metadata() const {
-        return get_network_description()->metadata;
+    const NetworkMetadata get_network_metadata() const {
+        return get_graph()->get_metadata();
     }
 
 protected:

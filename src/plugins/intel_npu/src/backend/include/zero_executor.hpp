@@ -9,7 +9,7 @@
 
 #include <mutex>
 
-#include "intel_npu/common/npu.hpp"
+#include "igraph.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "zero_init.hpp"
@@ -20,9 +20,9 @@ namespace intel_npu {
 class ZeroExecutor final : public IExecutor {
 public:
     ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& initStructs,
-                 const std::shared_ptr<const NetworkDescription>& networkDescription,
+                 const std::shared_ptr<IGraph>& graph,
                  const Config& config,
-                 const uint32_t& group_ordinal);
+                 uint32_t group_ordinal);
 
     ZeroExecutor(const ZeroExecutor&) = delete;
     ZeroExecutor& operator=(const ZeroExecutor&) = delete;
@@ -34,24 +34,12 @@ public:
         uint32_t idx;
     };
 
-    void setArgumentValue(uint32_t argi_, const void* argv_) const;
     void setWorkloadType(const ov::WorkloadType workloadType) const override;
     void mutexLock() const;
     void mutexUnlock() const;
-    inline ze_graph_handle_t graph() const {
-        return _graph;
-    }
-    inline std::shared_ptr<const ZeroInitStructsHolder> getInitStructs() const {
-        return _initStructs;
-    }
-    inline const std::shared_ptr<const NetworkDescription>& getNetworkDesc() const {
-        return _networkDesc;
-    }
+
     inline const std::shared_ptr<CommandQueue>& getCommandQueue() const {
-        return _command_queues;
-    }
-    inline const uint32_t& get_group_ordinal() const {
-        return _group_ordinal;
+        return _command_queue;
     }
     inline const std::vector<ArgumentDescriptor>& get_input_descriptors() const {
         return _input_descriptors;
@@ -61,24 +49,16 @@ public:
     }
 
 private:
-    void initialize_graph_through_command_list() const;
-
     const Config _config;
     Logger _logger;
 
     const std::shared_ptr<const ZeroInitStructsHolder> _initStructs;
-    std::shared_ptr<const NetworkDescription> _networkDesc;
-
-    ze_graph_dditable_ext_curr_t& _graph_ddi_table_ext;
-
-    const uint32_t _group_ordinal;
-
-    ze_graph_handle_t _graph = nullptr;
+    std::shared_ptr<IGraph> _graph;
 
     std::vector<ArgumentDescriptor> _input_descriptors;
     std::vector<ArgumentDescriptor> _output_descriptors;
 
-    std::shared_ptr<CommandQueue> _command_queues;
+    std::shared_ptr<CommandQueue> _command_queue;
 
     mutable std::mutex _mutex;
 };

@@ -176,17 +176,21 @@ std::string rankToLegacyLayoutString(const size_t rank) {
 }  // namespace
 
 namespace intel_npu {
-namespace driverCompilerAdapter {
 
 template <ze_graph_ext_version_t TableExtension>
-LevelZeroCompilerInDriver<TableExtension>::LevelZeroCompilerInDriver(ze_driver_handle_t driverHandle,
-                                                                     ze_device_handle_t deviceHandle,
-                                                                     ze_context_handle_t zeContext,
-                                                                     ze_graph_dditable_ext_curr_t& graph_ddi_table_ext)
+LevelZeroCompilerInDriver<TableExtension>::LevelZeroCompilerInDriver(
+    ze_driver_handle_t driverHandle,
+    ze_device_handle_t deviceHandle,
+    ze_context_handle_t zeContext,
+    ze_graph_dditable_ext_curr_t& graph_ddi_table_ext,
+    ze_command_queue_npu_dditable_ext_curr_t& commandQueueDdiTable,
+    uint32_t group_ordinal)
     : _driverHandle(driverHandle),
       _deviceHandle(deviceHandle),
       _context(zeContext),
       _graphDdiTableExt(graph_ddi_table_ext),
+      _commandQueueDdiTable(commandQueueDdiTable),
+      _group_ordinal(group_ordinal),
       _logger("LevelZeroCompilerInDriver", Logger::global().level()) {}
 
 template <ze_graph_ext_version_t TableExtension>
@@ -349,21 +353,17 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeIOInfo(const std
 }
 
 template <ze_graph_ext_version_t TableExtension>
-void LevelZeroCompilerInDriver<TableExtension>::release(std::shared_ptr<const NetworkDescription> networkDescription) {
-    _logger.debug("performing release networkDescription");
-    if (networkDescription->metadata.graphHandle != nullptr) {
-        _logger.debug("release - graphHandle is not nullptr");
-        ze_graph_handle_t graphHandle = static_cast<ze_graph_handle_t>(networkDescription->metadata.graphHandle);
-        _logger.debug("release - pfnDestroy graphHandle");
-        auto result = _graphDdiTableExt.pfnDestroy(graphHandle);
+_ze_result_t LevelZeroCompilerInDriver<TableExtension>::release(ze_graph_handle_t graphHandle) {
+    _logger.debug("release - pfnDestroy graphHandle");
+    auto result = _graphDdiTableExt.pfnDestroy(graphHandle);
 
-        if (ZE_RESULT_SUCCESS != result) {
-            _logger.error("failed to release graph handle. L0 pfnDestroy result: %s, code %#X",
-                          ze_result_to_string(result).c_str(),
-                          uint64_t(result));
-        }
+    if (ZE_RESULT_SUCCESS != result) {
+        _logger.error("failed to release graph handle. L0 pfnDestroy result: %s, code %#X",
+                      ze_result_to_string(result).c_str(),
+                      uint64_t(result));
     }
-    _logger.debug("release completed");
+
+    return result;
 }
 
 template <ze_graph_ext_version_t TableExtension>
@@ -404,25 +404,85 @@ void LevelZeroCompilerInDriver<TableExtension>::getNativeBinary(ze_graph_dditabl
 }
 
 template <ze_graph_ext_version_t TableExtension>
-CompiledNetwork LevelZeroCompilerInDriver<TableExtension>::getCompiledNetwork(
-    const NetworkDescription& networkDescription) {
-    if (networkDescription.metadata.graphHandle != nullptr && networkDescription.compiledNetwork.size() == 0) {
-        _logger.info("LevelZeroCompilerInDriver getCompiledNetwork get blob from graphHandle");
-        ze_graph_handle_t graphHandle = static_cast<ze_graph_handle_t>(networkDescription.metadata.graphHandle);
-
-        const uint8_t* blobPtr = nullptr;
-        size_t blobSize = -1;
-        std::vector<uint8_t> blob;
-
-        getNativeBinary(_graphDdiTableExt, graphHandle, blob, blobPtr, blobSize);
-
-        _logger.info("LevelZeroCompilerInDriver getCompiledNetwork returning blob");
-        return CompiledNetwork(blobPtr, blobSize, std::move(blob));
+CompiledNetwork LevelZeroCompilerInDriver<TableExtension>::getCompiledNetwork(ze_graph_handle_t graphHandle) {
+    if (graphHandle == nullptr) {
+        OPENVINO_THROW("Graph handle is null");
     }
-    _logger.info("return the blob from network description");
-    return CompiledNetwork(networkDescription.compiledNetwork.data(),
-                           networkDescription.compiledNetwork.size(),
-                           networkDescription.compiledNetwork);
+
+    _logger.info("LevelZeroCompilerInDriver getCompiledNetwork get blob from graphHandle");
+
+    const uint8_t* blobPtr = nullptr;
+    size_t blobSize = -1;
+    std::vector<uint8_t> blob;
+
+    getNativeBinary(_graphDdiTableExt, graphHandle, blob, blobPtr, blobSize);
+
+    _logger.info("LevelZeroCompilerInDriver getCompiledNetwork returning blob");
+    return CompiledNetwork(blobPtr, blobSize, std::move(blob));
+}
+
+template <typename TableExtension>
+void LevelZeroCompilerInDriver<TableExtension>::setArgumentValue(ze_graph_handle_t graphHandle,
+                                                                 uint32_t argi,
+                                                                 const void* argv) const {
+    auto result = _graphDdiTableExt.pfnSetArgumentValue(graphHandle, argi, argv);
+
+    OPENVINO_ASSERT(result == ZE_RESULT_SUCCESS,
+                    "Failed to set argument value",
+                    " result: ",
+                    ze_result_to_string(result),
+                    ", code 0x",
+                    std::hex,
+                    uint64_t(result),
+                    ". ",
+                    getLatestBuildError());
+}
+
+template <typename TableExtension>
+void LevelZeroCompilerInDriver<TableExtension>::graphInitialie(ze_graph_handle_t graphHandle,
+                                                               const Config& config) const {
+    if (_graphDdiTableExt.version() < ZE_GRAPH_EXT_VERSION_1_8) {
+        initialize_graph_through_command_list(graphHandle, config);
+    } else {
+        ze_graph_properties_2_t properties = {};
+        properties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES;
+        _graphDdiTableExt.pfnGetProperties2(graphHandle, &properties);
+
+        if (properties.initStageRequired & ZE_GRAPH_STAGE_INITIALIZE) {
+            _graphDdiTableExt.pfnGraphInitialize(graphHandle);
+        }
+
+        if (properties.initStageRequired & ZE_GRAPH_STAGE_COMMAND_LIST_INITIALIZE) {
+            initialize_graph_through_command_list(graphHandle, config);
+        }
+    }
+}
+
+template <typename TableExtension>
+void LevelZeroCompilerInDriver<TableExtension>::initialize_graph_through_command_list(ze_graph_handle_t graphHandle,
+                                                                                      const Config& config) const {
+    _logger.debug("ZeroExecutor::ZeroExecutor init start - create graph_command_list");
+    CommandList graph_command_list(_deviceHandle, _context, _graphDdiTableExt, config, _group_ordinal);
+    _logger.debug("ZeroExecutor::ZeroExecutor - create graph_command_queue");
+    CommandQueue graph_command_queue(_deviceHandle,
+                                     _context,
+                                     ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
+                                     _commandQueueDdiTable,
+                                     config,
+                                     _group_ordinal);
+    _logger.debug("ZeroExecutor::ZeroExecutor - create fence");
+    Fence fence(graph_command_queue, config);
+
+    _logger.debug("ZeroExecutor::ZeroExecutor - performing appendGraphInitialize");
+    graph_command_list.appendGraphInitialize(graphHandle);
+    _logger.debug("ZeroExecutor::ZeroExecutor - closing graph command list");
+    graph_command_list.close();
+
+    _logger.debug("ZeroExecutor::ZeroExecutor - performing executeCommandList");
+    graph_command_queue.executeCommandList(graph_command_list, fence);
+    _logger.debug("ZeroExecutor::ZeroExecutor - performing hostSynchronize");
+    fence.hostSynchronize();
+    _logger.debug("ZeroExecutor::ZeroExecutor - hostSynchronize completed");
 }
 
 template <ze_graph_ext_version_t TableExtension>
@@ -863,10 +923,8 @@ ze_result_t LevelZeroCompilerInDriver<TableExtension>::seriazlideIRModelAndCreat
 }
 
 template <ze_graph_ext_version_t TableExtension>
-NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compile(const std::shared_ptr<const ov::Model>& model,
-                                                                      const Config& config) const {
-    _logger.debug("compile start");
-
+ze_graph_handle_t LevelZeroCompilerInDriver<TableExtension>::compile(const std::shared_ptr<const ov::Model>& model,
+                                                                     const Config& config) const {
     ze_device_graph_properties_t deviceGraphProperties{};
     auto result = _graphDdiTableExt.pfnDeviceGetGraphProperties(_deviceHandle, &deviceGraphProperties);
     THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnDeviceGetGraphProperties, Failed to compile network.",
@@ -878,19 +936,22 @@ NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compile(const std:
 
     result = seriazlideIRModelAndCreateGraph(model, config, deviceGraphProperties, graphHandle);
 
-    auto networkMeta = getNetworkMeta(graphHandle);
-    networkMeta.name = model->get_friendly_name();
+    OPENVINO_ASSERT(result == ZE_RESULT_SUCCESS,
+                    "Failed to compile network. L0 createGraph",
+                    " result: ",
+                    ze_result_to_string(result),
+                    ", code 0x",
+                    std::hex,
+                    uint64_t(result),
+                    ". ",
+                    getLatestBuildError());
 
-    _logger.debug("compile end");
-
-    auto networkDescription = NetworkDescription(std::move(networkMeta));
-    return networkDescription;
+    return graphHandle;
 }
 
 template <ze_graph_ext_version_t TableExtension>
-NetworkMetadata LevelZeroCompilerInDriver<TableExtension>::parse(const std::vector<uint8_t>& network,
-                                                                 const Config& config) const {
-    OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "LevelZeroCompilerInDriver::parse", "desc");
+ze_graph_handle_t LevelZeroCompilerInDriver<TableExtension>::parse(const std::vector<uint8_t>& network,
+                                                                   const Config& config) const {
     ze_graph_handle_t graphHandle;
 
     if (!network.empty()) {
@@ -904,7 +965,6 @@ NetworkMetadata LevelZeroCompilerInDriver<TableExtension>::parse(const std::vect
                              nullptr};
 
         auto result = _graphDdiTableExt.pfnCreate(_context, _deviceHandle, &desc, &graphHandle);
-        OV_ITT_TASK_NEXT(PARSE_BLOB, "_graphDdiTableExt");
 
         THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCreate", result, _graphDdiTableExt);
 
@@ -912,12 +972,7 @@ NetworkMetadata LevelZeroCompilerInDriver<TableExtension>::parse(const std::vect
         OPENVINO_THROW("Empty blob");
     }
 
-    OV_ITT_TASK_NEXT(PARSE_BLOB, "getNetworkMeta");
-    const auto networkMeta = getNetworkMeta(graphHandle);
-    OV_ITT_TASK_NEXT(PARSE_BLOB, "NetworkDescription");
-
-    _logger.debug("parse end");
-    return networkMeta;
+    return graphHandle;
 }
 
 template <ze_graph_ext_version_t TableExtension>
@@ -1063,8 +1118,6 @@ NetworkMetadata LevelZeroCompilerInDriver<TableExtension>::getNetworkMeta(ze_gra
     // TODO: support this information in CiD [track: E#33479]
     meta.numStreams = 1;
     meta.bindRelatedDescriptors();
-    // Store the graph handle as a void pointer, return the same graphHandle to backend for ZeroExecutor
-    meta.graphHandle = static_cast<void*>(graphHandle);
 
     return meta;
 }
@@ -1077,5 +1130,4 @@ template class LevelZeroCompilerInDriver<ZE_GRAPH_EXT_VERSION_1_6>;
 template class LevelZeroCompilerInDriver<ZE_GRAPH_EXT_VERSION_1_7>;
 template class LevelZeroCompilerInDriver<ZE_GRAPH_EXT_VERSION_1_8>;
 
-}  // namespace driverCompilerAdapter
 }  // namespace intel_npu

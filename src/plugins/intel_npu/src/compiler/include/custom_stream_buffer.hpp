@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <streambuf>
 
-namespace intel_npu::driverCompilerAdapter {
+namespace intel_npu {
 
 /**
  *  @brief Counter stream buffer, just counts the written bytes.
@@ -79,4 +79,4 @@ private:
     OutputIt writeIt;
 };
 
-}  // namespace intel_npu::driverCompilerAdapter
+}  // namespace intel_npu

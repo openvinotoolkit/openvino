@@ -12,10 +12,10 @@
 #include "openvino/pass/serialize.hpp"
 #include "transformations/op_conversions/convert_interpolate11_downgrade.hpp"
 
-namespace intel_npu::driverCompilerAdapter {
+namespace intel_npu {
 
 IRSerializer::IRSerializer(const std::shared_ptr<const ov::Model>& origModel, const uint32_t supportedOpset)
-    : _logger("DriverCompilerAdapter::IRSerializer", Logger::global().level()),
+    : _logger("IRSerializer", Logger::global().level()),
       _supportedOpset(supportedOpset) {
     // There is no const variant of run_passes so use const_cast here
     // as model serialization does not mutate the model
@@ -101,4 +101,4 @@ void IRSerializer::serializeModelToBuffer(uint8_t* xml, uint8_t* weights) {
     _logger.debug("serializeModelToBuffer end");
 }
 
-}  // namespace intel_npu::driverCompilerAdapter
+}  // namespace intel_npu

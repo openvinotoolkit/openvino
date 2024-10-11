@@ -21,10 +21,12 @@ namespace intel_npu {
 
 class ZeroInferRequest final : public SyncInferRequest {
 public:
-    explicit ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>& backendPtr,
+    explicit ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
                               const std::shared_ptr<const ICompiledModel>& compiledModel,
+                              const std::shared_ptr<IGraph>& graph,
                               const std::shared_ptr<const IExecutor>& executor,
-                              const Config& config);
+                              const Config& config,
+                              uint32_t group_ordinal);
 
     ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override;
     void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override;
@@ -85,8 +87,10 @@ private:
     std::vector<std::optional<TensorData>>& get_input_tensors_data(size_t index) const;
 
     const std::shared_ptr<ZeroInitStructsHolder> _initStructs;
+    const std::shared_ptr<IGraph> _graph;
     const std::shared_ptr<const IExecutor> _executorPtr;
     const ZeroExecutor* _executor;
+    const uint32_t _group_ordinal;
     const Config _config;
     Logger _logger;
 

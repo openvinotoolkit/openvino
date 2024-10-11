@@ -4,18 +4,13 @@
 
 #include "compiler.hpp"
 
+#include <memory>
+#include <string>
+
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/compiler.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
-
-#ifdef ENABLE_DRIVER_COMPILER_ADAPTER
-#    include "driver_compiler_adapter.hpp"
-#endif
-
-#include <memory>
-#include <string>
-
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
 
@@ -50,20 +45,6 @@ ov::SoPtr<ICompiler> loadCompiler(const std::string& libpath) {
     return ov::SoPtr<ICompiler>(compiler, compilerSO);
 }
 
-ov::SoPtr<ICompiler> createCompilerAdapter(std::shared_ptr<NPUBackends> npuBackends, const Logger& log) {
-    log.info("Driver compiler will be used.");
-#ifdef ENABLE_DRIVER_COMPILER_ADAPTER
-    if (npuBackends->getBackendName() != "LEVEL0") {
-        OPENVINO_THROW("NPU Compiler Adapter must be used with LEVEL0 backend");
-    }
-    const auto compilerInterface =
-        std::make_shared<driverCompilerAdapter::LevelZeroCompilerAdapter>(npuBackends->getIEngineBackend()._ptr);
-    return ov::SoPtr<ICompiler>(compilerInterface);
-#else
-    OPENVINO_THROW("NPU Compiler Adapter is not enabled");
-#endif
-}
-
 ov::SoPtr<ICompiler> createNPUCompiler(const Logger& log) {
     log.info("MLIR compiler will be used.");
     std::string baseName = "npu_mlir_compiler";
@@ -78,7 +59,7 @@ ov::SoPtr<ICompiler> createCompilerImpl(std::shared_ptr<NPUBackends> npuBackends
     case ov::intel_npu::CompilerType::MLIR:
         return createNPUCompiler(log);
     case ov::intel_npu::CompilerType::DRIVER:
-        return createCompilerAdapter(std::move(npuBackends), log);
+        OPENVINO_THROW("Removed");
     default:
         OPENVINO_THROW("Invalid NPU_COMPILER_TYPE");
     }

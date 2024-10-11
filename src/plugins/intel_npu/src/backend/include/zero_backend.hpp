@@ -33,6 +33,7 @@ public:
     void* getDriverHandle() const;
     void* getDeviceHandle() const;
     ze_graph_dditable_ext_curr_t& getGraphDdiTable() const;
+    ze_command_queue_npu_dditable_ext_curr_t& getCommandQueueDdiTable() const;
 
     void updateInfo(const Config& config) override;
 

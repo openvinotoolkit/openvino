@@ -20,8 +20,7 @@ class ZeroDevice : public IDevice {
 public:
     ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs);
 
-    std::shared_ptr<IExecutor> createExecutor(const std::shared_ptr<const NetworkDescription>& networkDescription,
-                                              const Config& config) override;
+    std::shared_ptr<IExecutor> createExecutor(const std::shared_ptr<IGraph>& graph, const Config& config) override;
 
     std::string getName() const override;
     std::string getFullDeviceName() const override;
@@ -34,8 +33,10 @@ public:
     ov::device::PCIInfo getPciInfo() const override;
     std::map<ov::element::Type, float> getGops() const override;
     ov::device::Type getDeviceType() const override;
+    uint32_t getGroupOrdinal() const;
 
     std::shared_ptr<SyncInferRequest> createInferRequest(const std::shared_ptr<const ICompiledModel>& compiledModel,
+                                                         const std::shared_ptr<IGraph>& graph,
                                                          const std::shared_ptr<IExecutor>& executor,
                                                          const Config& config) override;
     void updateInfo(const Config& config) override {
