@@ -4,12 +4,12 @@
 import pytest
 
 from pytorch_layer_test_class import PytorchLayerTest
+import numpy as np
 
 
 class TestSearchSorted(PytorchLayerTest):
     def _prepare_input(self):
-        import numpy as np
-        return (np.array(self.sorted).astype(np.float32),np.array(self.values).astype(np.float32))
+        return (np.array(self.sorted).astype(self.sorted_type),np.array(self.values).astype(self.values_type))
 
     def create_model(self, right_mode):
         import torch
@@ -30,7 +30,11 @@ class TestSearchSorted(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.parametrize(("sorted", "values"), [([[1, 3, 5, 7, 9], [2, 4, 6, 8, 10]], [[3, 6, 9], [3, 6, 9]]),([1, 3, 5, 7, 9], [[3, 6, 9],[0, 5, 20]])])
     @pytest.mark.parametrize("right_mode", [False, True])
-    def test_searchsorted(self, sorted, values, right_mode, ie_device, precision, ir_version):
+    @pytest.mark.parametrize("sorted_type", [np.float32, np.int32, np.int8])
+    @pytest.mark.parametrize("values_type", [np.float16, np.int32, np.int64])
+    def test_searchsorted(self, sorted, values, right_mode, sorted_type, values_type, ie_device, precision, ir_version):
         self.sorted = sorted
         self.values = values
+        self.sorted_type = sorted_type
+        self.values_type = values_type
         self._test(*self.create_model(right_mode), ie_device, precision, ir_version)
