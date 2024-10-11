@@ -10,12 +10,11 @@
 #include <optional>
 #include <vector>
 
+#include "base_sync_infer_request.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/tensor.hpp"
-
-#include "base_sync_infer_request.hpp"
 
 namespace ov {
 namespace npuw {
