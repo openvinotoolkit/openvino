@@ -103,12 +103,21 @@ def get_pytorch_decoder_for_model_on_disk(argv, args):
     if isinstance(input_model, (str, pathlib.Path)):
         # attempt to load exported model
         try:
-            model = torch.export.load(input_model)
-            if hasattr(torch, "export") and isinstance(model, (torch.export.ExportedProgram)):
+            exported_program = torch.export.load(input_model)
+            if hasattr(torch, "export") and isinstance(exported_program, (torch.export.ExportedProgram)):
                 from packaging import version
                 if version.parse(torch.__version__) >= version.parse("2.2"):
-                    model = model.run_decompositions()
-                gm = model.module()
+                    exported_program = exported_program.run_decompositions()
+                if hasattr(exported_program, 'example_inputs') and len(exported_program.example_inputs) >= 2:
+                    if len(exported_program.example_inputs[0]) > 0:
+                        example_input = exported_program.example_inputs[0]
+                        prepared_example_input = prepare_torch_inputs(example_input)
+                        argv.example_input = prepared_example_input
+                    elif len(exported_program.example_inputs[1]) > 0:
+                        example_input = exported_program.example_inputs[1]
+                        prepared_example_input = prepare_torch_inputs(example_input)
+                        argv.example_input = prepared_example_input
+                gm = exported_program.module()
                 decoder = TorchFXPythonDecoder(gm)
                 argv.input_model = decoder
                 argv.framework = 'pytorch'
@@ -145,26 +154,18 @@ def get_value_from_list_or_dict(container, name, idx):
     return None
 
 
-def flatten_inputs(inputs, names=None):
+def flatten_inputs_no_names(inputs):
     flattened = []
     if isinstance(inputs, dict):
-        # if names are provided we need to unpack in the same order
-        if names:
-            for name in names:
-                if isinstance(inputs[name], (list, tuple, dict)):
-                    flattened.extend(flatten_inputs(inputs[name]))
-                else:
-                    flattened.append((name, inputs[name]))
-        else:
-            for name, input_data in inputs.items():
-                if isinstance(input_data, (list, tuple, dict)):
-                    flattened.extend(flatten_inputs(input_data))
-                else:
-                    flattened.append((name, input_data))
+        for name, input_data in inputs.items():
+            if isinstance(input_data, (list, tuple, dict)):
+                flattened.extend(flatten_inputs_no_names(input_data))
+            else:
+                flattened.append((name, input_data))
     else:
         for input_data in inputs:
             if isinstance(input_data, (list, tuple, dict)):
-                flattened.extend(flatten_inputs(input_data))
+                flattened.extend(flatten_inputs_no_names(input_data))
             else:
                 flattened.append(input_data)
     return flattened
@@ -186,9 +187,16 @@ def extract_input_info_from_example(args, inputs):
     if args.input_model._input_signature is not None:
         input_names = args.input_model._input_signature[1:] if args.input_model._input_signature[
                                                                    0] == "self" else args.input_model._input_signature
-    if input_names and not is_dict_input:
-        example_inputs = dict(zip(input_names, example_inputs))
-    example_inputs = flatten_inputs(example_inputs, input_names)
+
+    example_inputs = flatten_inputs_no_names(example_inputs)
+    if input_names and len(input_names) == len(example_inputs):
+        new_example_inputs = []
+        for input_name, example_input in zip(input_names, example_inputs):
+            if isinstance(example_input, tuple):
+                new_example_inputs.append((input_name, example_input[1]))
+            else:
+                new_example_inputs.append((input_name, example_input))
+        example_inputs = new_example_inputs
     input_arg = []
     for example in example_inputs:
         name = None
