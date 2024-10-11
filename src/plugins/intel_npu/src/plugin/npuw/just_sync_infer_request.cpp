@@ -16,14 +16,14 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
-#include "openvino/runtime/make_tensor.hpp"
 #include "plugin.hpp"
 #include "util.hpp"
 #include "weights_bank.hpp"
 
 ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model,
                                              bool alloc_required)
-    : IBaseInferRequest(compiled_model, alloc_required) {
+    : IBaseInferRequest(compiled_model),
+    m_alloc_required(alloc_required) {
     m_use_function_pipelining = m_npuw_model->m_cfg.get<::intel_npu::NPUW_FUNCALL_ASYNC>();
     if (m_use_function_pipelining) {
         LOG_WARN("Function call pipelining is enabled for " << m_npuw_model->m_name
@@ -918,6 +918,21 @@ void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool
             });
         }
     }  // if (replaced_by)
+}
+
+ov::Tensor ov::npuw::JustInferRequest::allocTensor(const ov::element::Type type,
+                                                    const ov::Shape& shape,
+                                                    const std::string& device) {
+    if (!m_alloc_required || device == "CPU") {
+        return ov::Tensor(type, shape);
+    }
+    m_remote_ctx = m_npuw_model->get_plugin()->get_core()->get_default_context(device)._ptr;
+    ov::SoPtr<ov::ITensor> remote_tensor;
+    {
+        std::lock_guard<std::mutex> guard(m_alloc_mutex);
+        remote_tensor = m_remote_ctx->create_host_tensor(type, shape);
+    }
+    return ov::make_tensor(remote_tensor);
 }
 
 void ov::npuw::JustInferRequest::subscribe_subrequest(std::size_t idx, Completed cb) {

@@ -7,7 +7,6 @@
 #include <functional>
 #include <map>
 #include <memory>
-#include <mutex>
 #include <optional>
 #include <string>
 #include <vector>
@@ -26,7 +25,7 @@ class CompiledModel;
 // individual subrequests' execution
 class IBaseInferRequest : public ov::ISyncInferRequest {
 public:
-    explicit IBaseInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>&, bool);
+    explicit IBaseInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>&);
 
     // Execution API - explicitly "finalize" the infer() here
     void infer() override;  // final - not final yet
@@ -40,8 +39,6 @@ public:
                      const std::vector<ov::SoPtr<ov::ITensor>>& tensors) override;
 
     void check_tensors() const override;
-
-    ov::Tensor allocTensor(const ov::element::Type type, const ov::Shape& shape, const std::string& device = "NPU");
 
     using sptr = std::shared_ptr<IBaseInferRequest>;
     using Completed = std::function<void(std::exception_ptr)>;
@@ -111,9 +108,6 @@ protected:
     std::vector<SpatialIO> m_spatial_io;
 
     const std::size_t m_num_submodels;
-
-    bool m_alloc_required;
-    std::mutex m_alloc_mutex;
 
     void dump_input_tensors(std::size_t idx);
     void dump_output_tensors(std::size_t idx);
