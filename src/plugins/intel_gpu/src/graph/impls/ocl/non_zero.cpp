@@ -95,6 +95,11 @@ struct gather_nonzero_impl : typed_primitive_impl_ocl<gather_nonzero> {
         update_shapes(*_kernel_data.params, impl_param);
         (_kernel_data.update_dispatch_data_func)(*_kernel_data.params, _kernel_data);
     }
+
+    static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params) {
+        auto updated_impl_params = canonicalize_fused_shapes(impl_params);
+        return updated_impl_params;
+    }
 };
 
 namespace detail {
