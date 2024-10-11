@@ -52,6 +52,8 @@ private:
     void function_prologue(std::size_t idx);
     void unpack_closure(std::size_t idx, RqPtr request);
 
+    void unsafe_during(std::size_t real_idx, const std::function<void()>& f);
+    void unsafe_infer(std::size_t real_idx);
     void unsafe_run_this_prep_next(std::size_t idx, bool& next_prepared_p);
 
     void connect_subrequests();
@@ -64,6 +66,7 @@ private:
     using TensorPtr = ov::SoPtr<ov::ITensor>;
     std::map<LinkFrom, TensorPtr> m_funcall_result;
 
+    bool is_pipelined(std::size_t idx) const;
     bool m_use_function_pipelining = false;
     struct FuncallPipeline {
         // A "brother" subrequest for a "primary" subrequest. Initialized only

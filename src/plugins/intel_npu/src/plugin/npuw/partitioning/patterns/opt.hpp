@@ -26,6 +26,7 @@ public:
 
 struct Context {
     std::string pmm_dims;
+    bool is_spatial = false;
 
     using PPtr = std::shared_ptr<ov::op::v0::Parameter>;
     using NPtr = std::shared_ptr<ov::Node>;
