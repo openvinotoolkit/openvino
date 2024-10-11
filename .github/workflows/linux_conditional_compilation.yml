@@ -346,6 +346,7 @@ jobs:
     with:
       runner: 'aks-linux-8-cores-32gb'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
+      python-version: '3.11'
 
   Overall_Status:
     name: ci/gha_overall_status_linux_cc

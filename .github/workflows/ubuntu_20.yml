@@ -108,6 +108,7 @@ jobs:
       runner: 'aks-linux-4-cores-16gb'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_x64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      os: 'ubuntu_20_04'
 
   Debian_Packages:
     name: Debian Packages

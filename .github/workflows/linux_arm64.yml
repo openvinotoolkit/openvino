@@ -156,6 +156,7 @@ jobs:
       runner: 'aks-linux-16-cores-arm'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_arm64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      os: 'ubuntu_20_04'
 
   Python_Unit_Tests:
     name: Python unit tests
@@ -195,6 +196,7 @@ jobs:
     with:
       runner: 'aks-linux-16-cores-arm'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_arm64 }}
+      python-version: '3.11'
 
   TensorFlow_Models_Tests:
     name: TensorFlow Models tests

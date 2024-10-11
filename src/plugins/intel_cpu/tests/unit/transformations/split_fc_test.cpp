@@ -13,6 +13,7 @@
 #include <transformations/cpu_opset/common/pass/split_fc.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
+#include "openvino/core/visibility.hpp"
 #include <openvino/pass/manager.hpp>
 #include <ov_ops/type_relaxed.hpp>
 
@@ -22,7 +23,12 @@
 using namespace testing;
 using namespace ov::intel_cpu;
 
+#if defined (OPENVINO_ARCH_ARM) && defined(__linux__)
+// Ticket: 153166
+TEST_F(TransformationTestsF, DISABLED_SplitFCTest) {
+#else
 TEST_F(TransformationTestsF, SplitFCTest) {
+#endif
     disable_rt_info_check();
     {
         auto src = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{ 3, 4096, 1 });
@@ -56,7 +62,12 @@ TEST_F(TransformationTestsF, SplitFCTest) {
     }
 }
 
+#if defined (OPENVINO_ARCH_ARM) && defined(__linux__)
+// Ticket: 153166
+TEST_F(TransformationTestsF, DISABLED_SplitFCTest_int8_weight) {
+#else
 TEST_F(TransformationTestsF, SplitFCTest_int8_weight) {
+#endif
     disable_rt_info_check();
     {
         auto src = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{3, 4096, 1});
@@ -118,7 +129,12 @@ TEST_F(TransformationTestsF, SplitFCTest_int8_weight) {
     }
 }
 
+#if defined (OPENVINO_ARCH_ARM) && defined(__linux__)
+// Ticket: 153166
+TEST_F(TransformationTestsF, DISABLED_SplitFCTest_int4_weight) {
+#else
 TEST_F(TransformationTestsF, SplitFCTest_int4_weight) {
+#endif
     disable_rt_info_check();
     {
         auto src = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{3, 4096, 1});
@@ -185,7 +201,12 @@ TEST_F(TransformationTestsF, SplitFCTest_int4_weight) {
     }
 }
 
+#if (defined OPENVINO_ARCH_ARM && defined(__linux__))
+// Ticket: 153166
+TEST_F(TransformationTestsF, DISABLED_SplitFCTest_int4_weight_reshape) {
+#else
 TEST_F(TransformationTestsF, SplitFCTest_int4_weight_reshape) {
+#endif
     disable_rt_info_check();
     {
         auto src = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{ 3, 2048, 1 });

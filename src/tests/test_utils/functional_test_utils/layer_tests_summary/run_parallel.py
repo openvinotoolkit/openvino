@@ -1,24 +1,24 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-import os
-import sys
-import threading
 import csv
 import datetime
-import shlex
 import heapq
-
+import os
+import shlex
+import sys
+import threading
 from argparse import ArgumentParser
-from subprocess import Popen, TimeoutExpired, run, call
 from hashlib import sha256
 from pathlib import Path
 from shutil import rmtree, copyfile
+from subprocess import Popen, TimeoutExpired, run, call
 from tarfile import open as tar_open
-from utils.conformance_utils import get_logger, progressbar
-from utils import constants
-from utils import file_utils
 
 import defusedxml.ElementTree as ET
+
+from utils import constants
+from utils import file_utils
+from utils.conformance_utils import get_logger, progressbar
 
 if not constants.IS_WIN:
     from signal import SIGKILL
@@ -58,6 +58,7 @@ def parse_arguments():
     )
     split_unit_help = "Split by test or suite"
     repeat_help = "Number of times to repeat failed and interrupted tests"
+    excluded_tests_file_help = "Path to the file containing list of tests that should not be executed"
 
     parser.add_argument(
         "-e",
@@ -121,6 +122,13 @@ def parse_arguments():
         type=int,
         required=False,
         default=1
+    )
+    parser.add_argument(
+        "--excluded_tests_file",
+        help=excluded_tests_file_help,
+        type=str,
+        required=False,
+        default=None,
     )
 
     return parser.parse_args()
@@ -1026,8 +1034,16 @@ if __name__ == "__main__":
     logger.info(f"[ARGUMENTS] --parallel_devices={args.parallel_devices}")
     logger.info(f"[ARGUMENTS] --split_unit={args.split_unit}")
     logger.info(f"[ARGUMENTS] --repeat_failed={args.repeat_failed}")
+    logger.info(f"[ARGUMENTS] --excluded_tests_file={args.excluded_tests_file or 'None'}")
     logger.info(f"[ARGUMENTS] Executable file arguments = {exec_file_args}")
     TaskManager.process_timeout = args.process_timeout
+
+    # Get excluded tests from the file
+    excluded_tests = set()
+    if args.excluded_tests_file:
+        with open(args.excluded_tests_file, mode='r', encoding='utf-8') as excluded_tests_file:
+            excluded_tests = set(excluded_tests_file.read().split('\n'))
+
     test_runner = TestParallelRunner(
         exec_file_path=args.exec_file,
         test_command_line=exec_file_args,
@@ -1037,6 +1053,7 @@ if __name__ == "__main__":
         split_unit=args.split_unit,
         repeat_failed=args.repeat_failed,
         is_parallel_devices=args.parallel_devices,
+        excluded_tests=excluded_tests
     )
     test_runner.run()
     if not test_runner.postprocess_logs():
