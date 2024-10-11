@@ -111,6 +111,22 @@ inline int parallel_get_env_threads() {
     }
     return env_cores;
 }
+inline int get_max_nested_levels() {
+#    if defined(_MSC_VER) && !defined(__INTEL_COMPILER)
+    return omp_get_nested();
+#    else
+    return omp_get_max_active_levels();
+#    endif  // defined(_MSC_VER) && !defined(__INTEL_COMPILER)
+}
+// Controls the number of nested parallel blocks.
+// This flag has higher priority than pragma num_threads.
+inline void set_max_nested_levels(int levels) {
+#    if defined(_MSC_VER) && !defined(__INTEL_COMPILER)
+    return omp_set_nested(levels);
+#    else
+    return omp_set_max_active_levels(levels);
+#    endif  // defined(_MSC_VER) && !defined(__INTEL_COMPILER)
+}
 
 #elif OV_THREAD == OV_THREAD_SEQ
 #    include <algorithm>
@@ -151,9 +167,16 @@ void parallel_nt(int nthr, const F& func) {
         func(0, 1);
         return;
     }
-
+    // We expect the number of threads here to be "nthr", so we need to disable dynamic behavior.
+    auto origin_dyn_val = omp_get_dynamic();
+    if (origin_dyn_val != 0) {
+        omp_set_dynamic(0);
+    }
 #    pragma omp parallel num_threads(nthr)
-    func(parallel_get_thread_num(), parallel_get_num_threads());
+    { func(parallel_get_thread_num(), parallel_get_num_threads()); }
+    if (origin_dyn_val != 0) {
+        omp_set_dynamic(origin_dyn_val);
+    }
 #elif OV_THREAD == OV_THREAD_SEQ
     func(0, 1);
 #endif
@@ -185,8 +208,16 @@ void parallel_nt_static(int nthr, const F& func) {
 
 #elif OV_THREAD == OV_THREAD_OMP
 
+    // We expect the number of threads here to be "nthr", so we need to disable dynamic behavior.
+    auto origin_dyn_val = omp_get_dynamic();
+    if (origin_dyn_val != 0) {
+        omp_set_dynamic(0);
+    }
 #    pragma omp parallel num_threads(nthr)
     { func(parallel_get_thread_num(), parallel_get_num_threads()); }
+    if (origin_dyn_val != 0) {
+        omp_set_dynamic(origin_dyn_val);
+    }
 #endif
 }
 
