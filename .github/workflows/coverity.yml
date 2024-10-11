@@ -109,12 +109,6 @@ jobs:
       - name: Cmake build - OpenVINO with Coverity
         run: ${COVERITY_TOOL_DIR}/cov-analysis*/bin/cov-build --dir ${BUILD_DIR}/cov-int cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
 
-      - name: Pack Artefacts
-        run: |
-          pushd ${BUILD_DIR}
-            tar -C ${BUILD_DIR} -I pigz -cvf openvino.tgz cov-int
-          popd
-
       - name: Submit artefacts
         run: |
           apt-get update && apt-get install -y curl jq
@@ -156,5 +150,5 @@ jobs:
         if: always()
         with:
           name: coverity_archive
-          path: ${{ env.BUILD_DIR }}/openvino.tgz
+          path: ${{ env.BUILD_DIR }}/cov-int
           if-no-files-found: 'error'

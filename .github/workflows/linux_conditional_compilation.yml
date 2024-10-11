@@ -197,24 +197,6 @@ jobs:
           ${OPENVINO_REPO}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/benchmark_app -niter 1 -nireq 1 \
             -m ${MODELS_PATH}/models/test_model/test_model_fp32.xml -d CPU
 
-      - name: Pack Artifacts
-        run: |
-          pushd ${INSTALL_DIR}
-            tar -I pigz -cvf ${BUILD_DIR}/openvino_package.tar.gz \
-              install_dependencies/install_openvino_dependencies.sh
-          popd
-
-          cp -v ${OPENVINO_REPO}/temp/tbb/lib/lib* ${INSTALL_TEST_DIR}/tests
-          pushd ${INSTALL_TEST_DIR}
-            tar -I pigz -cvf ${BUILD_DIR}/openvino_tests.tar.gz \
-              tests/ov_cpu_func_tests \
-              tests/libopenvino_template_extension.so \
-              tests/libze_loader.so* \
-              tests/libhwloc* \
-              tests/libtbb* \
-              tests/functional_test_utils/layer_tests_summary/*
-          popd
-
       #
       # Upload build artifacts and logs
       #
@@ -231,7 +213,8 @@ jobs:
         uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         with:
           name: openvino_package
-          path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
+          path: |
+            ${{ env.INSTALL_DIR }}/install_dependencies/install_openvino_dependencies.sh
           if-no-files-found: 'error'
 
       - name: Upload selective build statistics package
@@ -247,7 +230,14 @@ jobs:
         uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         with:
           name: openvino_tests
-          path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
+          path: |
+              ${{ env.INSTALL_TEST_DIR }}/tests/ov_cpu_func_tests
+              ${{ env.INSTALL_TEST_DIR }}/tests/libopenvino_template_extension.so
+              ${{ env.INSTALL_TEST_DIR }}/tests/libze_loader.so*
+              ${{ env.INSTALL_TEST_DIR }}/tests/libhwloc*
+              ${{ env.INSTALL_TEST_DIR }}/tests/libtbb*
+              ${{ env.INSTALL_TEST_DIR }}/tests/functional_test_utils/layer_tests_summary/*
+              ${{ env.OPENVINO_REPO }}/temp/tbb/lib/libtbb* 
           if-no-files-found: 'error'
 
   CC_Build:
