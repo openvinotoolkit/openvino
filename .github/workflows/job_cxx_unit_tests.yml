@@ -40,17 +40,12 @@ jobs:
       SOURCE_COMMAND: ${{ contains(inputs.runner, 'linux') && 'source' || '.' }}
       SETUPVARS: ${{ contains(inputs.runner, 'win') && 'setupvars.ps1' || 'setupvars.sh' }}
     steps:
-      - name: Download OpenVINO package
+      - name: Download OpenVINO packages
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
-          name: openvino_package
+          pattern: openvino_[package|tests]*
           path: ${{ env.INSTALL_DIR }}
-
-      - name: Download OpenVINO tests package
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
-        with:
-          name: openvino_tests
-          path: ${{ env.INSTALL_TEST_DIR }}
+          merge-multiple: true
 
       # Needed as ${{ github.workspace }} is not working correctly when using Docker
       - name: Setup Variables (Unix)
@@ -63,26 +58,6 @@ jobs:
       - name: Setup Variables (Windows)
         if: ${{ runner.os == 'Windows' }}
         run: Add-Content -Path $env:GITHUB_ENV -Value "SETUPVARS_COMMAND=${{ env.SOURCE_COMMAND }} ${{ github.workspace }}/install/${{ env.SETUPVARS }}"
-
-      - name: Extract OpenVINO packages (Unix)
-        if: ${{ runner.os != 'Windows' }}
-        run: |
-          pushd $INSTALL_DIR
-            tar -I pigz -xf openvino_package.tar.gz -C $INSTALL_DIR
-          popd
-          pushd $INSTALL_TEST_DIR
-            tar -I pigz -xf openvino_tests.tar.gz -C $INSTALL_DIR
-          popd
-
-      - name: Extract OpenVINO packages (Windows)
-        if: ${{ runner.os == 'Windows' }}
-        run: |
-          pushd ${{ env.INSTALL_DIR }}
-            Expand-Archive openvino_package.zip -DestinationPath "${{ env.INSTALL_DIR }}"
-          popd
-          pushd ${{ env.INSTALL_TEST_DIR }}
-            Expand-Archive openvino_tests.zip -DestinationPath "${{ env.INSTALL_DIR }}"
-          popd
 
       #
       # Tests

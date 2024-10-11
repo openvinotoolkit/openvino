@@ -183,24 +183,6 @@ jobs:
           cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_TEST_DIR }} -DCOMPONENT=tests -P ${{ env.BUILD_DIR }}/cmake_install.cmake
           cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -DCOMPONENT=python_wheels -P ${{ env.BUILD_DIR }}/cmake_install.cmake
 
-      - name: Pack Artifacts
-        run: |
-          $file=Get-ChildItem -Path "${{ env.INSTALL_DIR }}"
-          $compress = @{
-            Path = $file
-            CompressionLevel = "Optimal"
-            DestinationPath = "${{ env.BUILD_DIR }}/openvino_package.zip"
-          }
-          Compress-Archive @compress
-
-          $file=Get-ChildItem -Path "${{ env.INSTALL_TEST_DIR }}"
-          $compress = @{
-            Path = $file
-            CompressionLevel = "Optimal"
-            DestinationPath = "${{ env.BUILD_DIR }}/openvino_tests.zip"
-          }
-          Compress-Archive @compress
-
       - name: CMake configure, build and install - OpenVINO JS API
         if: ${{ fromJSON(inputs.affected-components).JS_API }}
         run: |
@@ -216,14 +198,14 @@ jobs:
         uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         with:
           name: openvino_package
-          path: ${{ env.BUILD_DIR }}/openvino_package.zip
+          path: ${{ env.INSTALL_DIR }}
           if-no-files-found: 'error'
 
       - name: Upload openvino tests package
         uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         with:
           name: openvino_tests
-          path: ${{ env.BUILD_DIR }}/openvino_tests.zip
+          path: ${{ env.INSTALL_TEST_DIR }}
           if-no-files-found: 'error'
 
       - name: Upload openvino js package

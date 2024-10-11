@@ -55,13 +55,7 @@ jobs:
           echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
           echo "ONNX_RUNTIME_REPO=$GITHUB_WORKSPACE/onnxruntime" >> "$GITHUB_ENV"
           echo "ONNX_RUNTIME_BUILD_DIR=$GITHUB_WORKSPACE/onnxruntime/build" >> "$GITHUB_ENV"
-
-      - name: Extract OpenVINO package
-        run: |
-          pushd ${INSTALL_DIR}
-            tar -I pigz -xf openvino_package.tar.gz -C ${INSTALL_DIR}
-          popd
-          
+         
       - name: Fetch ONNX runtime version and skip tests list
         uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
         with:

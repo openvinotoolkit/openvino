@@ -199,10 +199,6 @@ jobs:
 
       - name: Pack Artifacts
         run: |
-          pushd ${SELECTIVE_BUILD_STAT_DIR}
-            tar -I pigz -cvf ${BUILD_DIR}/openvino_selective_build_stat.tar.gz *
-          popd
-
           pushd ${INSTALL_DIR}
             tar -I pigz -cvf ${BUILD_DIR}/openvino_package.tar.gz \
               install_dependencies/install_openvino_dependencies.sh
@@ -243,7 +239,7 @@ jobs:
         uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         with:
           name: openvino_selective_build_stat
-          path: ${{ env.BUILD_DIR }}/openvino_selective_build_stat.tar.gz
+          path: ${{ env.SELECTIVE_BUILD_STAT_DIR }}
           if-no-files-found: 'error'
 
       - name: Upload OpenVINO tests package
