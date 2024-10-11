@@ -41,8 +41,14 @@ pass::MoveBrgemmRepackingOut::MoveBrgemmRepackingOut() {
         const auto& copy_b_in = pattern_map.at(m_param);
         const auto& copy_b_out = pattern_map.at(m_copy_b);
         const auto copy_b_node = copy_b_out.get_node_shared_ptr();
-        // TODO: how to handle copyB with compensations?
-        if (copy_b_node->get_output_size() != 1 || transformation_callback(copy_b_node))
+
+        const auto& in_desc = PortDescriptorUtils::get_port_descriptor_ptr(copy_b_node->input(0));
+        const auto& layout = in_desc->get_layout();
+        // TODO:
+        // 1. handle copyB with compensations
+        // 2. handle non-planar layout
+        if (!ov::snippets::utils::is_planar_layout(layout) || copy_b_node->get_output_size() != 1 ||
+            transformation_callback(copy_b_node))
             return false;
         return ov::replace_output_update_name(copy_b_out, copy_b_in);
     };

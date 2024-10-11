@@ -6,7 +6,6 @@
 
 #include "snippets/lowered/loop_manager.hpp"
 #include "emitters/plugin/x64/utils.hpp"
-#include "nodes/common/cpu_memcpy.h"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
 
 #define DTYPE_CAST(X) static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(X))

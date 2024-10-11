@@ -43,7 +43,7 @@ void CPURuntimeConfigurator::update(const ov::snippets::lowered::LinearIRCPtr& l
     RuntimeConfigurator::update(linear_ir);
     if (linear_ir->is_dynamic())
         update_loop_args(linear_ir);
-    adjust_offsets_from_descs();
+    adjust_offsets_from_descs(linear_ir);
 }
 
 void CPURuntimeConfigurator::update_tensor_rank(const ov::snippets::VectorDims& master_shape) {
@@ -105,15 +105,28 @@ void CPURuntimeConfigurator::update_requested_descs(const ov::snippets::lowered:
         }
     }
 }
-void CPURuntimeConfigurator::adjust_offsets_from_descs() const {
+void CPURuntimeConfigurator::adjust_offsets_from_descs(const ov::snippets::lowered::LinearIRCPtr& linear_ir) const {
     const auto& cpu_config = ov::as_type_ptr<CPURuntimeConfig>(m_config);
     auto& optimal_descs = cpu_config->m_in_requested_descs;
     for (size_t i = 0; i < m_in_num; ++i) {
-        if (optimal_descs[i]) {
+        const auto& optimal_desc = optimal_descs[i];
+        if (optimal_desc) {
+            // It is assumed that shape is planar
+            const auto& parameter = linear_ir->get_parameters()[i];
+            const auto& original_shape = parameter->get_output_port_descriptor(0)->get_shape();
+            const auto& blocked_shape = optimal_desc->as<DnnlBlockedMemoryDesc>()->getBlockDims();
+
+            ov::snippets::VectorDims shape_for_offset(m_config->tensor_rank - original_shape.size(), 1);
+            // Parallel work amount is copied from original shape
+            shape_for_offset.insert(shape_for_offset.end(), original_shape.begin(), original_shape.end() - m_config->tile_rank);
+            // Only first dim is batch, the rest are repacked KN
+            shape_for_offset.insert(shape_for_offset.end(), blocked_shape.begin() + 1, blocked_shape.end());
+            std::cout << "shape_for_offset = " << ov::PartialShape(shape_for_offset) << std::endl;
+
             auto& offsets = m_config->io_data_offsets[i];
-            // TODO: how exactly should offsets be corrected using info from blocking descriptor?
-            if (i == 1)
-                offsets[3] = 2048 * 2;
+            compute_offsets(shape_for_offset, offsets, shape_for_offset.size(), m_io_data_sizes[i], 0);
+            std::cout << "offsets[*] = " << ov::PartialShape(offsets) << std::endl;
+            OPENVINO_ASSERT(ov::snippets::utils::is_planar_layout(parameter->get_output_port_descriptor(0)->get_layout()));
         }
     }
 }
