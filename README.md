@@ -72,28 +72,6 @@ compiled_model = core.compile_model(ov_model, 'CPU')
 output = compiled_model({0: example.numpy()})
 ```
 
-**TensorFlow Model**
-
-```python
-import numpy as np
-import openvino as ov
-import tensorflow as tf
-
-# load TensorFlow model into memory
-model = tf.keras.applications.MobileNetV2(weights='imagenet')
-
-# convert the model into OpenVINO model
-ov_model = ov.convert_model(model)
-
-# compile the model for CPU device
-core = ov.Core()
-compiled_model = core.compile_model(ov_model, 'CPU')
-
-# infer the model on random data
-data = np.random.rand(1, 224, 224, 3)
-output = compiled_model({0: data})
-```
-
 
 ## Documentation
 
