@@ -100,13 +100,16 @@ class TestLLMModel(TestTorchConvertModel):
             config = {}
         model_kwargs = {"torchscript": True, "trust_remote_code": True}
         is_gptq = is_gptq_model(config)
+        is_gpt2 = name == "openai-community/gpt2"
+
         if is_gptq:
             self.cuda_available, self.gptq_postinit = patch_gptq()
             model_kwargs["torch_dtype"] = torch.float32
             self.ov_config = {"DYNAMIC_QUANTIZATION_GROUP_SIZE": "0"}
+        elif is_gpt2:
+            model_kwargs["torch_dtype"] = torch.float16
         else:
             model_kwargs["torch_dtype"] = "auto"
-            pass
 
         t = AutoTokenizer.from_pretrained(name, trust_remote_code=True)
         self.model = AutoModelForCausalLM.from_pretrained(name, **model_kwargs)
@@ -114,7 +117,7 @@ class TestLLMModel(TestTorchConvertModel):
             model = self.model
         else:
             assert self.model.config.torch_dtype in [
-                torch.float16, torch.bfloat16]
+                torch.float16, torch.bfloat16] or is_gpt2
             model = copy.deepcopy(self.model).float()
 
         example = t("Some input text to verify that model works.",
@@ -188,6 +191,7 @@ class TestLLMModel(TestTorchConvertModel):
     @pytest.mark.parametrize("type,name", [
         ("opt_gptq", "katuni4ka/opt-125m-gptq"),
         ("llama", "TinyLlama/TinyLlama-1.1B-Chat-v1.0"),
+        ("gpt2", "openai-community/gpt2")
     ])
     @pytest.mark.precommit
     @pytest.mark.nightly
