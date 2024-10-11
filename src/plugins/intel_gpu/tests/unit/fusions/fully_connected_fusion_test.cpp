@@ -194,6 +194,7 @@ public:
 #define DYN_CASE_FC_FP16_3D_1 { 2, 32, 3 }, { 2, 32, 16 }, { 16, 3 }, data_types::f16, format::bfyx, data_types::f16, format::oiyx, data_types::f32, format::bfyx
 #define DYN_CASE_FC_FP16_3D_2 { 1, 1, 3 }, { 1, 1, 32 }, { 32, 3 }, data_types::f16, format::bfyx, data_types::f16, format::oiyx, data_types::f32, format::bfyx
 
+#define DYN_CASE_FC_FP16_4D_1 { 1, 1, 1, 1344 }, { 1, 1, 1, 512 }, { 512, 1344 }, data_types::f16, format::bfyx, data_types::f16, format::oiyx, data_types::f16, format::bfyx
 
 
 #define CASE_FC_FP16_INT4_COMP_1 { 1, 128 }, { 1, 128 }, { 128, 128 }, data_types::f16, format::bfyx, data_types::u4, format::oiyx, data_types::f16, format::bfyx
@@ -940,4 +941,41 @@ TEST_P(fc_imad_int8_eltwise_add_ocl_dynamic, basic) {
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_imad_int8_eltwise_add_ocl_dynamic, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
     fully_connected_test_params{ CASE_FC_U8S8_1, 2, 3 },
     fully_connected_test_params{ CASE_FC_U8S8_4, 2, 3 },
+}));
+
+class fc_fp16_fuse_bias_and_find_eltwise_4d : public FullyConnectedFusingTest {
+public:
+    void run_test() {
+        auto p = GetParam();
+        auto test_input_layout = get_input_layout(p);
+        auto in_layout = layout{ ov::PartialShape::dynamic(test_input_layout.get_partial_shape().size()), 
+                                 test_input_layout.data_type, 
+                                 test_input_layout.format };
+        auto data_layout = layout{ p.out_shape, p.default_type, p.default_format };
+        auto weight = layout{ { 29, 512 }, data_types::f16, format::bfyx };
+        auto bias = layout{ { 1, 1, 1, 29 }, data_types::f16, format::bfyx };
+        
+        create_topologies(
+            input_layout("input", in_layout),
+            data("weights", get_mem(get_weights_layout(p))),
+            data("data", get_mem(data_layout, 1, 9)),
+            fully_connected("fc_prim", input_info("input"), "weights"),
+            eltwise("add", { input_info("fc_prim"), input_info("data") }, eltwise_mode::sum),
+            activation("relu", input_info("add"), activation_func::relu),
+            reorder("reorder", input_info("relu"), p.default_format, data_types::f16)
+        );
+
+        tolerance = 1e-2f;
+        execute(p, true);
+    }
+};
+
+TEST_P(fc_fp16_fuse_bias_and_find_eltwise_4d, basic) {
+    if (engine.get_device_info().supports_immad)
+        return;
+    run_test();
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_fuse_bias_and_find_eltwise_4d, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+    fully_connected_test_params{ DYN_CASE_FC_FP16_4D_1, 2, 4 },
 }));

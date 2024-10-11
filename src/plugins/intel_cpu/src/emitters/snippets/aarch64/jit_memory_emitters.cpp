@@ -3,8 +3,6 @@
 //
 
 #include "jit_memory_emitters.hpp"
-#include "transformations/snippets/common/op/load_convert.hpp"
-#include "transformations/snippets/common/op/store_convert.hpp"
 #include "emitters/utils.hpp"
 
 using namespace Xbyak_aarch64;
@@ -25,7 +23,7 @@ jit_memory_emitter::jit_memory_emitter(jit_generator* h, cpu_isa_t isa, const Ex
 
 jit_load_memory_emitter::jit_load_memory_emitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : jit_memory_emitter(h, isa, expr) {
     bool is_supported_precision = one_of(src_prc, ov::element::f32, ov::element::i32, ov::element::f16, ov::element::i8, ov::element::u8) &&
-                                  (src_prc == dst_prc || one_of(dst_prc, ov::element::f32, ov::element::i32));
+                                  src_prc == dst_prc;
     OV_CPU_JIT_EMITTER_ASSERT(is_supported_precision, "Unsupported precision pair.");
 
     const auto load = std::dynamic_pointer_cast<snippets::op::Load>(expr->get_node());
@@ -90,7 +88,7 @@ void jit_load_broadcast_emitter::emit_isa(const std::vector<size_t> &in, const s
 
 jit_store_memory_emitter::jit_store_memory_emitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : jit_memory_emitter(h, isa, expr) {
     bool is_supported_precision = one_of(dst_prc, ov::element::f32, ov::element::i32, ov::element::f16, ov::element::i8, ov::element::u8) &&
-                                  (src_prc == dst_prc || one_of(src_prc, ov::element::f32, ov::element::i32));
+                                  src_prc == dst_prc;
     OV_CPU_JIT_EMITTER_ASSERT(is_supported_precision, "Unsupported precision pair.");
 
     const auto store = ov::as_type_ptr<snippets::op::Store>(expr->get_node());
@@ -98,15 +96,7 @@ jit_store_memory_emitter::jit_store_memory_emitter(jit_generator* h, cpu_isa_t i
     count = store->get_count();
     byte_offset = store->get_offset();
     in_out_type_ = emitter_in_out_map::vec_to_gpr;
-    if (ov::is_type<ov::intel_cpu::StoreConvertTruncation>(expr->get_node())) {
-        store_emitter.reset(new jit_store_emitter(h, isa, src_prc, dst_prc, count, byte_offset, arithmetic_mode::truncation));
-    } else if (ov::is_type<ov::intel_cpu::StoreConvertSaturation>(expr->get_node())) {
-        store_emitter.reset(new jit_store_emitter(h, isa, src_prc, dst_prc, count, byte_offset, arithmetic_mode::saturation));
-    } else if (ov::is_type<ov::snippets::op::Store>(expr->get_node())) {
-        store_emitter.reset(new jit_store_emitter(h, isa, src_prc, dst_prc, count, byte_offset));
-    } else {
-        OV_CPU_JIT_EMITTER_THROW("Expects Store node");
-    }
+    store_emitter.reset(new jit_store_emitter(h, isa, src_prc, dst_prc, count, byte_offset));
 }
 
 void jit_store_memory_emitter::emit_impl(const std::vector<size_t>& in,

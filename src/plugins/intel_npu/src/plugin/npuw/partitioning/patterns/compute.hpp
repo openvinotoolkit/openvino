@@ -41,6 +41,11 @@ public:
     DQMatMulCWi4(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
 };
 
+class VocabMatMul : public ov::pass::MatcherPass {
+public:
+    VocabMatMul(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
+};
+
 class RMSNorm : public ov::pass::MatcherPass {
 public:
     RMSNorm(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
