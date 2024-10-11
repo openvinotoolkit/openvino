@@ -182,15 +182,15 @@ jobs:
         working-directory: ${{ env.BUILD_DIR }}
           
       - name: Pack openvino_package
-        run: tar -I pigz -cvf ${BUILD_DIR}/openvino_package.tar.gz *
+        run: tar -cvf - * | pigz > ${BUILD_DIR}/openvino_package.tar.gz
         working-directory: ${{ env.INSTALL_DIR }}
         
       - name: Pack openvino_developer_package
-        run: tar -I pigz -cvf ${BUILD_DIR}/openvino_developer_package.tar.gz *
+        run: tar -cvf - * | pigz > ${BUILD_DIR}/openvino_developer_package.tar.gz
         working-directory: ${{ env.DEVELOPER_PACKAGE_DIR }}
         
       - name: Pack openvino_tests
-        run: tar -I pigz -cvf ${BUILD_DIR}/openvino_tests.tar.gz *
+        run: tar -cvf - * | pigz > ${BUILD_DIR}/openvino_tests.tar.gz
         working-directory: ${{ env.INSTALL_TEST_DIR }}
       
       - name: Build Debian packages

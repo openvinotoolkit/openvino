@@ -57,8 +57,8 @@ jobs:
 
       - name: Extract OpenVINO packages, wheels and tests
         run: |
-            tar -I pigz -xf openvino_package.tar.gz -C ${INSTALL_DIR}
-            tar -I pigz -xf openvino_tests.tar.gz -C ${INSTALL_DIR}
+            pigz -dc openvino_package.tar.gz | tar -xf - -C ${INSTALL_DIR}
+            pigz -dc openvino_tests.tar.gz | tar -xf - -C ${INSTALL_DIR}
         working-directory: ${{ env.INSTALL_DIR }}
 
       - name: Install OpenVINO dependencies (mac)

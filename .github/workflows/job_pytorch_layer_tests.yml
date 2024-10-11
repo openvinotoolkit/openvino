@@ -69,7 +69,7 @@ jobs:
       - name: Extract OpenVINO artifacts (Linux, macOS)
         if: runner.os != 'Windows'
         run: |
-            tar -I pigz -xf openvino_tests.tar.gz -C ${INSTALL_DIR}
+            pigz -dc openvino_tests.tar.gz | tar -xf - -C ${INSTALL_DIR}
         working-directory: ${{ env.INSTALL_DIR }}
 
       - name: Extract OpenVINO artifacts (Windows)
