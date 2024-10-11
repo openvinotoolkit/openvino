@@ -19,11 +19,12 @@ constexpr size_t BATCH_AXIS = 0;
 
 namespace intel_npu {
 
-SyncInferRequest::SyncInferRequest(const std::shared_ptr<const ICompiledModel>& compiledModel)
+SyncInferRequest::SyncInferRequest(const std::shared_ptr<const ICompiledModel>& compiledModel, const Config& config)
     : _compiledModel(compiledModel),
       _metadata(compiledModel->get_network_metadata()),
-      _userInputTensors(_metadata.inputs.size(), nullptr),
-      _userOutputTensors(_metadata.outputs.size(), nullptr) {
+      _logger("SyncInferRequest", config.get<LOG_LEVEL>()),
+      _userInputTensors(_metadata.inputs.size(), std::vector<ov::SoPtr<ov::ITensor>>(1, {nullptr})),
+      _userOutputTensors(_metadata.outputs.size(), {nullptr}) {
     OPENVINO_ASSERT(_compiledModel);
 
     if (get_outputs().empty()) {
@@ -121,7 +122,7 @@ ov::SoPtr<ov::ITensor> SyncInferRequest::get_tensor(const ov::Output<const ov::N
     OPENVINO_ASSERT(foundPort.found(), "Cannot find tensor for port ", port);
 
     if (foundPort.is_input()) {
-        return _userInputTensors.at(foundPort.idx);
+        return get_user_input(foundPort.idx);
     }
     return _userOutputTensors.at(foundPort.idx);
 }
@@ -138,17 +139,22 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
     }
 
     if (foundPort.is_input()) {
-        _userInputTensors.at(foundPort.idx) = tensor._ptr;
+        get_user_input(foundPort.idx) = tensor;
     } else {
-        _userOutputTensors.at(foundPort.idx) = tensor._ptr;
+        _userOutputTensors.at(foundPort.idx) = tensor;
     }
 }
 
-std::vector<ov::SoPtr<ov::ITensor>> SyncInferRequest::get_tensors(const ov::Output<const ov::Node>& /*port*/) const {
+std::vector<ov::SoPtr<ov::ITensor>> SyncInferRequest::get_tensors(const ov::Output<const ov::Node>& port) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::Plugin, "get_tensors");
 
-    // Using batches of tensors is currently not supported by the NPU plugin. In this scenario, the OpenVINO API demands
-    // returning an empty vector.
+    auto foundPort = find_port(port);
+    OPENVINO_ASSERT(foundPort.found(), "Cannot find input tensors for port ", port);
+
+    if (foundPort.is_input() && is_batched_input(foundPort.idx)) {
+        return get_user_inputs(foundPort.idx);
+    }
+
     return {};
 }
 
@@ -192,11 +198,89 @@ void SyncInferRequest::check_tensor(const ov::Output<const ov::Node>& port,
         "Tensor data equal nullptr!");
 }
 
+void SyncInferRequest::check_batched_tensors(const ov::Output<const ov::Node>& port,
+                                             const std::vector<ov::SoPtr<ov::ITensor>>& tensors) const {
+    OPENVINO_ASSERT(!tensors.empty(), "set_input_tensors/set_tensors can't be called with empty tensors");
+    OPENVINO_ASSERT(
+        tensors.size() != 1,
+        "Internal error (plugin): check_batched_tensors is not allowed to have only one tensor inside batch");
+
+    auto layout = ov::layout::get_layout(port);
+
+    int64_t batch_idx;
+
+    if (layout.empty()) {
+        _logger.warning("set_input_tensors/set_tensors layout is not set, assuming batch dimension is found on 0 axis");
+        batch_idx = BATCH_AXIS;
+    } else {
+        OPENVINO_ASSERT(ov::layout::has_batch(layout),
+                        "set_input_tensors/set_tensors can be used only for inputs with N(batch) dimension"
+                        " 'layout' defined. Current layout is ",
+                        layout.to_string());
+        batch_idx = ov::layout::batch_idx(layout);
+    }
+
+    if (batch_idx < 0) {
+        batch_idx += static_cast<int64_t>(tensors[BATCH_AXIS]->get_shape().size());
+    }
+    OPENVINO_ASSERT(batch_idx == BATCH_AXIS,
+                    "set_input_tensors/set_tensors is not currently supported for batch dimension index ",
+                    batch_idx,
+                    " != 0");
+    std::for_each(tensors.begin(), tensors.end(), [&batch_idx](const ov::SoPtr<ov::ITensor>& item) {
+        OPENVINO_ASSERT(item, "Unintialized tensor is provided!");
+        OPENVINO_ASSERT(item->get_shape()[batch_idx] == 1,
+                        "set_input_tensors/set_tensors. Tensors shall represent one item in a batch, ",
+                        item->get_shape()[batch_idx],
+                        " provided");
+    });
+    auto tensors_size = static_cast<int>(tensors.size());
+    if (port.get_partial_shape().rank().is_static()) {
+        OPENVINO_ASSERT(batch_idx >= 0 && batch_idx < port.get_partial_shape().rank().get_length(),
+                        "set_input_tensors/set_tensors error. Layout ",
+                        layout.to_string(),
+                        " is incorrect for operation with shape ",
+                        port.get_partial_shape());
+        auto batch = port.get_partial_shape()[batch_idx];
+
+        OPENVINO_ASSERT(batch.is_dynamic() || batch.get_length() == tensors_size,
+                        "set_input_tensors/set_tensors error. Input shape ",
+                        port.get_partial_shape(),
+                        "batch ",
+                        batch,
+                        "doesn't match with total blobs count: ",
+                        tensors_size);
+    }
+
+    auto batched_shape = tensors[BATCH_AXIS]->get_shape();
+    auto element_type = tensors[BATCH_AXIS]->get_element_type();
+    batched_shape[batch_idx] = tensors_size;
+    for (const auto& item : tensors) {
+        OPENVINO_ASSERT(item, "Unintialized tensor is provided!");
+        auto item_shape = item->get_shape();
+        item_shape[batch_idx] = batched_shape[batch_idx];
+        OPENVINO_ASSERT(item_shape == batched_shape && item->get_element_type() == element_type &&
+                            "set_input_tensors/set_tensors error. Tensor with element type ",
+                        item->get_element_type(),
+                        " and shape ",
+                        item_shape,
+                        " is not compatible with batched tensor with element type ",
+                        element_type,
+                        " and shape ",
+                        batched_shape);
+        OPENVINO_ASSERT(item->is_continuous(), "Strides for batched tensors should be default.");
+    }
+}
+
 void SyncInferRequest::check_tensors() const {
     const auto& inputs = _compiledModel->inputs();
     for (size_t i = 0; i < inputs.size(); i++) {
-        if (_userInputTensors.at(i)) {
-            check_tensor(inputs[i], _userInputTensors.at(i));
+        if (is_batched_input(i)) {
+            check_batched_tensors(inputs[i], get_user_inputs(i));
+            continue;
+        }
+        if (get_user_input(i)) {
+            check_tensor(inputs[i], get_user_input(i));
         }
     }
 
@@ -229,7 +313,7 @@ std::shared_ptr<ov::ITensor> SyncInferRequest::allocate_tensor(const IODescripto
         OPENVINO_ASSERT(descriptor.relatedDescriptorIndex.has_value(),
                         "The link between state descriptors is missing, state name: ",
                         descriptor.nameFromCompiler);
-        tensor = _userInputTensors.at(*descriptor.relatedDescriptorIndex);
+        tensor = get_user_input(*descriptor.relatedDescriptorIndex)._ptr;
     } else if (allocator) {
         tensor = ov::make_tensor(descriptor.precision, allocatedTensorShape, allocator);
     } else {
@@ -237,8 +321,8 @@ std::shared_ptr<ov::ITensor> SyncInferRequest::allocate_tensor(const IODescripto
     }
 
     if (isInput) {
-        if (_userInputTensors.at(index) == nullptr) {
-            _userInputTensors.at(index) = tensor;
+        if (get_user_input(index) == nullptr) {
+            get_user_input(index) = tensor;
         }
 
         if (descriptor.isStateInput) {
@@ -250,4 +334,17 @@ std::shared_ptr<ov::ITensor> SyncInferRequest::allocate_tensor(const IODescripto
 
     return tensor;
 }
+
+bool SyncInferRequest::is_batched_input(size_t idx) const {
+    return _userInputTensors.at(idx).size() > 1;
+}
+
+ov::SoPtr<ov::ITensor>& SyncInferRequest::get_user_input(size_t index) const {
+    return _userInputTensors.at(index).at(0);
+}
+
+std::vector<ov::SoPtr<ov::ITensor>>& SyncInferRequest::get_user_inputs(size_t index) const {
+    return _userInputTensors.at(index);
+}
+
 }  // namespace intel_npu

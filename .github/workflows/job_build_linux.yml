@@ -85,13 +85,12 @@ jobs:
       DEVELOPER_PACKAGE_DIR: /__w/openvino/openvino/developer_package_install
       BUILD_DIR: /__w/openvino/openvino/openvino_build
       SCCACHE_AZURE_KEY_PREFIX: ${{ inputs.os }}_${{ inputs.arch }}_Release
-      ONNX_RUNTIME_UTILS: /__w/openvino/openvino/openvino/src/frontends/onnx/tests/ci_utils/onnxruntime
       ARTIFACTS_SHARE: "/mount/build-artifacts"
       MANIFEST_PATH: '/__w/openvino/openvino/manifest.yml'
       PRODUCT_TYPE: public_linux_${{ inputs.os }}_${{ inputs.arch }}_release
     steps:
       - name: Clone OpenVINO
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
         with:
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'true'
@@ -106,7 +105,7 @@ jobs:
           git rev-parse HEAD
 
       - name: Clone OpenVINO Contrib
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
         with:
           repository: 'openvinotoolkit/openvino_contrib'
           path: ${{ env.OPENVINO_CONTRIB_REPO }}
@@ -182,22 +181,16 @@ jobs:
 
       - name: Pack Artifacts
         run: |
-
-          # Add the ONNX Runtime version and skip tests list to the archive to use in the ONNX Runtime Job
-          # w/o the need to checkout repository
-
-          cp -R ${ONNX_RUNTIME_UTILS} ${INSTALL_DIR}
-
           pushd ${INSTALL_DIR}
-            tar -czvf ${BUILD_DIR}/openvino_package.tar.gz *
+            tar -I pigz -cvf ${BUILD_DIR}/openvino_package.tar.gz *
           popd
 
           pushd ${DEVELOPER_PACKAGE_DIR}
-            tar -czvf ${BUILD_DIR}/openvino_developer_package.tar.gz *
+            tar -I pigz -cvf ${BUILD_DIR}/openvino_developer_package.tar.gz *
           popd
 
           pushd ${INSTALL_TEST_DIR}
-            tar -czvf ${BUILD_DIR}/openvino_tests.tar.gz *
+            tar -I pigz -cvf ${BUILD_DIR}/openvino_tests.tar.gz *
           popd
 
       - name: Build Debian packages
