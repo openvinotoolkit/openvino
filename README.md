@@ -50,7 +50,7 @@ Check out [OpenVINO GenAI Samples](https://github.com/openvinotoolkit/openvino.g
 
 Here are easy-to-follow code examples demonstrating how to run PyTorch and TensorFlow model inference using OpenVINO:
 
-**PyTorch Model**
+PyTorch Model
 
 ```python
 import openvino as ov
