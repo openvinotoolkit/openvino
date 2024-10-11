@@ -11,7 +11,9 @@ macro(ov_cpack_settings)
     foreach(item IN LISTS cpack_components_all)
         # filter out some components, which are not needed to be wrapped to Windows package
         if(# python wheels are not needed to be wrapped by NSIS installer
-           NOT item STREQUAL OV_CPACK_COMP_PYTHON_WHEELS)
+           NOT item STREQUAL OV_CPACK_COMP_PYTHON_WHEELS AND
+           # It was decided not to distribute JAX as C++ component
+           NOT item STREQUAL "jax")
             list(APPEND CPACK_COMPONENTS_ALL ${item})
         endif()
     endforeach()

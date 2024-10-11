@@ -14,7 +14,9 @@ macro(ov_cpack_settings)
         # filter out some components, which are not needed to be wrapped to conda-forge | brew | conan | vcpkg
         if(NOT OV_CPACK_COMP_${UPPER_COMP}_EXCLUDE_ALL AND
            # python_package is not needed in case of archives, because components like pyopenvino are used, as well as wheels
-           NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE}_python.*")
+           NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE}_python.*" AND
+           # It was decided not to distribute JAX as C++ component
+           NOT item STREQUAL "jax")
             list(APPEND CPACK_COMPONENTS_ALL ${item})
         endif()
     endforeach()
