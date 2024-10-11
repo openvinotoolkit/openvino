@@ -13,26 +13,21 @@
 #include <process.h>
 #endif
 
-#include "openvino/pass/manager.hpp"
-#include "openvino/core/preprocess/pre_post_process.hpp"
-#include "openvino/pass/serialize.hpp"
-#include "transformations/convert_precision.hpp"
-
-#include "template/properties.hpp"
-
-#include "common_test_utils/graph_comparator.hpp"
-
-
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/graph_comparator.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "functional_test_utils/crash_handler.hpp"
-
+#include "openvino/core/preprocess/pre_post_process.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/serialize.hpp"
+#include "openvino/util/common_util.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "shared_test_classes/base/utils/compare_results.hpp"
 #include "shared_test_classes/base/utils/calculate_thresholds.hpp"
-
+#include "shared_test_classes/base/utils/compare_results.hpp"
 #include "shared_test_classes/base/utils/ranges.hpp"
+#include "template/properties.hpp"
+#include "transformations/convert_precision.hpp"
 
 namespace ov {
 namespace test {

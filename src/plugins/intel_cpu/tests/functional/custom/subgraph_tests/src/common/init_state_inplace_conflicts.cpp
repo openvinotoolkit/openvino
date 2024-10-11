@@ -60,6 +60,6 @@ public:
 
 TEST_F(DynamicShapeStatefulModel, smoke_StateInitGraphIplaceConflicts) {
     compile_model();
-    CheckNumberOfNodesWithType(compiledModel, "Reorder", 0);
+    utils::CheckNumberOfNodesWithType(compiledModel, "Reorder", 0);
 }
 } // namespace CPUSubgraphTestsDefinitions

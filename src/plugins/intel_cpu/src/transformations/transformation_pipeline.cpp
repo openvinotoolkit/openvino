@@ -134,6 +134,7 @@
 #include "transformations/cpu_opset/common/pass/decompose_rms_norm.hpp"
 #include "transformations/cpu_opset/common/pass/convert_fq_rnn_to_quantized_rnn.hpp"
 #include "transformations/cpu_opset/common/pass/insert_convert_after_extension.hpp"
+#include "transformations/cpu_opset/common/pass/matmul_split_decomposition.hpp"
 #include "transformations/cpu_opset/common/pass/ngram_fusion.hpp"
 #include "transformations/cpu_opset/common/pass/permute_slice_n_interpolation.hpp"
 #include "transformations/cpu_opset/common/pass/swap_convert_transpose.hpp"
@@ -356,6 +357,11 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
 
     ov::pass::Manager manager("Plugin:CPU");
     manager.set_per_pass_validation(false);
+
+    // Decomposition
+    CPU_REGISTER_PASS_COMMON(manager, ov::intel_cpu::MatmulGatherDecomposition)
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
+
     if (useLpt)
         CPU_REGISTER_PASS_COMMON(manager, ov::pass::MarkDequantizationSubgraph, defaultPrecisions);
 

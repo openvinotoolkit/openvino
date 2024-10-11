@@ -296,13 +296,13 @@ TEST_P(ConcatMultiQuerySDPTest, CompareWithRefs) {
     if (qkvType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
         GTEST_SKIP();
     auto actualOutputs = run_test(function);
-    CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 1);
-    CheckNumberOfNodesWithType(compiledModel, "Concatenation", 0);
-    CheckNumberOfNodesWithType(compiledModel, "Reorder", 0);
-    CheckNumberOfNodesWithType(compiledModel, "Transpose", 1);
-    CheckNumberOfNodesWithType(compiledModel, "Gather", 0);
+    utils::CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 1);
+    utils::CheckNumberOfNodesWithType(compiledModel, "Concatenation", 0);
+    utils::CheckNumberOfNodesWithType(compiledModel, "Reorder", 0);
+    utils::CheckNumberOfNodesWithType(compiledModel, "Transpose", 1);
+    utils::CheckNumberOfNodesWithType(compiledModel, "Gather", 0);
     auto expectedOutputs = run_test(functionRefs);
-    CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 0);
+    utils::CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 0);
     for (size_t i = 0; i < actualOutputs.size(); i++) {
         ov::test::utils::compare(expectedOutputs[i], actualOutputs[i], abs_threshold, rel_threshold);
     }

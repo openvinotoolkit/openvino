@@ -55,9 +55,9 @@ protected:
 TEST_F(InputNoReorderEltwiseBF16, smoke_CompareWithRefs) {
     run();
 
-    CheckNumberOfNodesWithType(compiledModel, "Reorder", 0);
-    CheckNumberOfNodesWithType(compiledModel, "Convert", 0);
-    CheckNumberOfNodesWithTypes(compiledModel, {"Eltwise", "Subgraph"}, 1);
+    utils::CheckNumberOfNodesWithType(compiledModel, "Reorder", 0);
+    utils::CheckNumberOfNodesWithType(compiledModel, "Convert", 0);
+    utils::CheckNumberOfNodesWithTypes(compiledModel, {"Eltwise", "Subgraph"}, 1);
 }
 
 class InputNoReorderEltwiseFP16 : public InputNoReorderEltwiseBF16 {
@@ -76,9 +76,9 @@ TEST_F(InputNoReorderEltwiseFP16, smoke_CompareWithRefs) {
 
     run();
 
-    CheckNumberOfNodesWithType(compiledModel, "Reorder", 0);
-    CheckNumberOfNodesWithType(compiledModel, "Convert", 0);
-    CheckNumberOfNodesWithTypes(compiledModel, {"Eltwise", "Subgraph"}, 1);
+    utils::CheckNumberOfNodesWithType(compiledModel, "Reorder", 0);
+    utils::CheckNumberOfNodesWithType(compiledModel, "Convert", 0);
+    utils::CheckNumberOfNodesWithTypes(compiledModel, {"Eltwise", "Subgraph"}, 1);
 }
 
 }  // namespace test
