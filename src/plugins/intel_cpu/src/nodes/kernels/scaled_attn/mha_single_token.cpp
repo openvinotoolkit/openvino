@@ -1040,8 +1040,6 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                     auto p = past_v_scale_zp.ptr<float>(pv, b_kv, h_group);
                     attn_acc_value(buf_attn_score.ptr<T3>(ithr, b, 0, h_group),
                                    buf_attn_w.ptr<T3>(b, h_group, 0, pv)[0],
-                    attn_acc_value(buf_attn_score.ptr<float>(ithr, b, 0, h_group),
-                                   buf_attn_w.ptr<float>(b, h_group, 0, pv)[0],
                                    v,
                                    S,
                                    p + 0,
