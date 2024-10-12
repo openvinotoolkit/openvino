@@ -29,6 +29,7 @@ static constexpr size_t vec_len_neon = 16lu;
 static constexpr size_t vec_len_f32_avx512 = vec_len_avx512 / sizeof(float);
 static constexpr size_t vec_len_f32_avx2 = vec_len_avx2 / sizeof(float);
 static constexpr size_t vec_len_f32_neon = vec_len_neon / sizeof(float);
+static constexpr size_t vec_len_f16_neon = vec_len_neon / sizeof(ov::float16);
 
 #ifdef HAVE_AVX512F
     inline __m512 cvt_bf16_to_fp32(const __m256i src) {
@@ -200,7 +201,7 @@ static constexpr size_t vec_len_f32_neon = vec_len_neon / sizeof(float);
 #endif
 
 #ifdef OPENVINO_ARCH_ARM64
-    inline float32x4_t exp_ps_neon(float32x4_t& src) {
+    inline float32x4_t exp_ps_neon_f32(const float32x4_t& src) {
         const auto c1 = vreinterpretq_f32_u32(vdupq_n_u32(0x3f7ffff6));
         const auto c2 = vreinterpretq_f32_u32(vdupq_n_u32(0x3efffedb));
         const auto c3 = vreinterpretq_f32_u32(vdupq_n_u32(0x3e2aaf33));
@@ -252,8 +253,42 @@ static constexpr size_t vec_len_f32_neon = vec_len_neon / sizeof(float);
     inline float32x4_t __vld1q_f32(const float* a) {
         return vld1q_f32(a);
     }
+    inline float32x4_t __vld1q_f32(const ov::float16* a) {
+        auto _a = reinterpret_cast<const float16_t*>(a);
+        return vcvt_f32_f16(vld1_f16(_a));
+    }
+    inline void __vst1q_f32(float* a, float32x4_t b) {
+        vst1q_f32(a, b);
+    }
+    inline void __vst1q_f32(ov::float16* a, float32x4_t b) {
+        float16x4_t v_f16 = vcvt_f16_f32(b);
+        vst1_f16(reinterpret_cast<float16_t*>(a), v_f16);
+    }
+    inline void __vst1q_f32(ov::bfloat16* a, float32x4_t b) {
+        uint32x4_t v_int32 = vreinterpretq_u32_f32(b);
+        uint16x4_t v_bf16 = vshrn_n_u32(v_int32, 16);
+
+        vst1_u16(reinterpret_cast<uint16_t*>(a), v_bf16);
+    }
+
 #endif
 
+#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+    inline float16x8_t exp_ps_neon_f16(float16x8_t x) {
+        const float32x4_t x_high = vcvt_f32_f16(vget_high_f16(x));
+        const float32x4_t x_low  = vcvt_f32_f16(vget_low_f16(x));
+
+        // We use f32 to maintain accuracy
+        const float16x8_t res = vcombine_f16(vcvt_f16_f32(exp_ps_neon_f32(x_low)), vcvt_f16_f32(exp_ps_neon_f32(x_high)));
+        return res;
+    }
+    inline float16_t hsum(float16x8_t vec) {
+        float16x4_t sum1 = vpadd_f16(vget_low_f16(vec), vget_high_f16(vec));
+        float16x4_t sum2 = vpadd_f16(sum1, sum1);
+        float16x4_t sum3 = vpadd_f16(sum2, sum2);
+        return vget_lane_f16(sum3, 0);
+    }
+#endif
 }  // namespace XARCH
 }  // namespace Cpu
 }  // namespace Extensions
