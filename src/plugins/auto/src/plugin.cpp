@@ -405,8 +405,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
         cloned_model = model->clone();
     } else {
         LOG_INFO_TAG("compile model with model path");
-        cloned_model = get_core()->read_model(model_path, std::string{});
-        support_devices = filter_device_by_model(support_devices_by_property, cloned_model, load_config);
+        if (work_mode_auto) {
+            cloned_model = get_core()->read_model(model_path, std::string{});
+            support_devices = filter_device_by_model(support_devices_by_property, cloned_model, load_config);
+        } else {
+            auto_s_context->m_model_path = model_path;
+        }
     }
     if (!is_cumulative) {
         devices_with_priority = get_valid_device(support_devices, model_precision);
