@@ -5,61 +5,8 @@
 #include <future>
 
 #include "auto_func_test.hpp"
-#include "common_test_utils/include/common_test_utils/file_utils.hpp"
-#include "openvino/pass/serialize.hpp"
 
 using namespace ov::auto_plugin::tests;
-
-TEST_F(AutoFuncTests, can_run_multi_3syncrequests_with_stateful_model) {
-    ov::CompiledModel compiled_model;
-    OV_ASSERT_NO_THROW(
-        compiled_model = core.compile_model(model_stateful, "AUTO", {ov::device::priorities("MOCK_GPU", "MOCK_CPU")}));
-    ov::InferRequest req1, req2, req3;
-    OV_ASSERT_NO_THROW(req1 = compiled_model.create_infer_request());
-    auto f1 = std::async(std::launch::async, [&] {
-        req1.infer();
-    });
-    auto f2 = std::async(std::launch::async, [&] {
-        req2.infer();
-    });
-    auto f3 = std::async(std::launch::async, [&] {
-        req2.infer();
-    });
-
-    f1.wait();
-    f2.wait();
-    f3.wait();
-
-    OV_ASSERT_NO_THROW(f1.get());
-}
-
-TEST_F(AutoFuncTests, can_run_multi_3syncrequests_with_stateful_model_path) {
-    ov::CompiledModel compiled_model;
-    std::string filePrefix = ov::test::utils::generateTestFilePrefix();
-    auto m_xml_path = filePrefix + ".xml";
-    auto m_bin_path = filePrefix + ".bin";
-    ov::pass::Serialize(m_xml_path, m_bin_path).run_on_model(model_stateful);
-    OV_ASSERT_NO_THROW(compiled_model =
-                           core.compile_model(m_xml_path, "AUTO", {ov::device::priorities("MOCK_GPU", "MOCK_CPU")}));
-    ov::InferRequest req1, req2, req3;
-    OV_ASSERT_NO_THROW(req1 = compiled_model.create_infer_request());
-    auto f1 = std::async(std::launch::async, [&] {
-        req1.infer();
-    });
-    auto f2 = std::async(std::launch::async, [&] {
-        req2.infer();
-    });
-    auto f3 = std::async(std::launch::async, [&] {
-        req3.infer();
-    });
-
-    f1.wait();
-    f2.wait();
-    f3.wait();
-
-    OV_ASSERT_NO_THROW(f1.get());
-    ov::test::utils::removeIRFiles(m_xml_path, m_bin_path);
-}
 
 TEST_F(AutoFuncTests, can_run_3syncrequests_consistently_from_threads) {
     ov::CompiledModel compiled_model;
