@@ -379,6 +379,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value for property key ", ov::cache_encryption_callbacks.name());
             }
+        } else if (key == ov::internal::caching_with_mmap.name()) {
         } else {
             OPENVINO_THROW("NotFound: Unsupported property ", key, " by CPU plugin.");
         }

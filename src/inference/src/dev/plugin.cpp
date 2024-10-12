@@ -73,10 +73,10 @@ ov::SoPtr<ov::ICompiledModel> ov::Plugin::import_model(std::istream& model, cons
     OV_PLUGIN_CALL_STATEMENT(return {m_ptr->import_model(model, properties), m_so});
 }
 
-ov::SoPtr<ov::ICompiledModel> ov::Plugin::import_model(std::istream& networkModel,
+ov::SoPtr<ov::ICompiledModel> ov::Plugin::import_model(std::istream& model,
                                                        const ov::SoPtr<ov::IRemoteContext>& context,
                                                        const ov::AnyMap& config) const {
-    OV_PLUGIN_CALL_STATEMENT(return {m_ptr->import_model(networkModel, context, config), m_so});
+    OV_PLUGIN_CALL_STATEMENT(return {m_ptr->import_model(model, context, config), m_so});
 }
 
 ov::SoPtr<ov::IRemoteContext> ov::Plugin::create_context(const AnyMap& params) const {

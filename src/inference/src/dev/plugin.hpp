@@ -55,7 +55,7 @@ public:
 
     SoPtr<ov::ICompiledModel> import_model(std::istream& model, const ov::AnyMap& properties) const;
 
-    SoPtr<ov::ICompiledModel> import_model(std::istream& networkModel,
+    SoPtr<ov::ICompiledModel> import_model(std::istream& model,
                                            const ov::SoPtr<ov::IRemoteContext>& context,
                                            const ov::AnyMap& config) const;
 
