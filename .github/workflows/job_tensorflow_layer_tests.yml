@@ -7,10 +7,6 @@ on:
         description: 'Machine on which the tests would run'
         type: string
         required: true
-      shell:
-        description: "shell to override the default shell settings in the runner's operating system."
-        type: string
-        required: true
       container:
         description: 'JSON to be converted to the value of the "container" configuration for the job'
         type: string
@@ -20,12 +16,15 @@ on:
         description: 'Components that are affected by changes in the commit defined by the Smart CI Action'
         type: string
         required: true
+      python-version:
+        description: 'Python version to setup. E.g., "3.11"'
+        type: string
+        required: true
 
 permissions: read-all
 
 env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
-  PYTHON_VERSION: '3.11'
 
 jobs:
   TensorFlow_Layer_Tests:
@@ -35,7 +34,7 @@ jobs:
     container: ${{ fromJSON(inputs.container) }}
     defaults:
       run:
-        shell: ${{ inputs.shell }}
+        shell: ${{ contains(inputs.runner, 'win') && 'pwsh' || 'bash' }}
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       OPENVINO_REPO: ${{ github.workspace }}/openvino
@@ -74,10 +73,10 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           pushd $INSTALL_DIR
-            tar -xzf openvino_package.tar.gz -C $INSTALL_DIR
+            tar -I pigz -xf openvino_package.tar.gz -C $INSTALL_DIR
           popd
           pushd $INSTALL_TEST_DIR
-            tar -xzf openvino_tests.tar.gz -C $INSTALL_DIR
+            tar -I pigz -xf openvino_tests.tar.gz -C $INSTALL_DIR
           popd
 
       - name: Extract OpenVINO packages (Windows)
@@ -98,17 +97,13 @@ jobs:
           sparse-checkout-cone-mode: false
           path: 'openvino'
 
-      - name: Setup Python ${{ env.PYTHON_VERSION }}
+      - name: Setup Python ${{ inputs.python-version }}
         uses: ./openvino/.github/actions/setup_python
         with:
-          version: ${{ env.PYTHON_VERSION }}
+          version: ${{ inputs.python-version }}
           pip-cache-path: ${{ runner.os == 'Linux' && env.PIP_CACHE_PATH || '' }}
           should-setup-pip-paths: ${{ runner.os == 'Linux' }}
           self-hosted-runner: ${{ runner.os == 'Linux' }}
-
-      #
-      # Tests
-      #
 
       - name: Install OpenVINO Python wheels (Linux and macOS)
         if: runner.os != 'Windows'
@@ -132,14 +127,8 @@ jobs:
 
       - name: Install Python Layer tests dependencies
         run: |
-          # To enable pytest parallel features
-          python3 -m pip install pytest-xdist[psutil]
-          # layer test requirements
-          python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
-
-      #
-      # Tests
-      #
+          # tensorflow test requirements
+          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/requirements_tensorflow
 
       - name: TensorFlow 1 Layer Tests - TF FE
         if: fromJSON(inputs.affected-components).TF_FE.test
@@ -153,6 +142,14 @@ jobs:
         if: fromJSON(inputs.affected-components).TF_FE.test && runner.os != 'macOS' # Ticket: 123322
         run: |
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow2_keras_tests/ -n logical -m precommit --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf2_fe.xml
+        env:
+          TEST_DEVICE: CPU
+          TEST_PRECISION: FP16
+
+      - name: JAX Layer Tests - TF FE
+        # JAX single layer models converted via TF FE
+        if: ${{ fromJSON(inputs.affected-components).TF_FE.test && runner.arch != 'ARM64' && runner.os != 'macOS' }}
+        run: python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/jax_tests/ -n logical -m precommit --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-jax.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16

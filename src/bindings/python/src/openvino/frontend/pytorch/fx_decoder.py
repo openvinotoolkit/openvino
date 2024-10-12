@@ -4,14 +4,15 @@
 # flake8: noqa
 # mypy: ignore-errors
 
+import logging
+import torch
+import inspect
+
 from openvino.frontend.pytorch.py_pytorch_frontend import _FrontEndPytorchDecoder as Decoder
 from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
-from openvino.runtime import op, PartialShape, Type as OVType, OVAny, Shape
+from openvino.runtime import PartialShape, Type as OVType, OVAny, Shape
 from openvino.frontend.pytorch.utils import make_constant, fetch_attr, pt_to_ov_type_map, torch_tensor_to_ov_const
 
-import torch
-
-import logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
 
@@ -76,6 +77,10 @@ class TorchFXPythonDecoder (Decoder):
                 self.input_shapes = found_shapes
             if not input_types or len(input_types) == 0:
                 self.input_types = found_types
+
+            if hasattr(pt_module, "forward"):
+                input_params = inspect.signature(pt_module.forward).parameters
+                self._input_signature = list(input_params)
 
         elif issubclass(type(pt_module), torch.fx.Node):
 
