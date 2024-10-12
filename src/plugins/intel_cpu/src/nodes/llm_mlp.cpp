@@ -134,7 +134,7 @@ public:
                 if (config.down_quantized) {
                     // de-quantize i32 results in-place into f32
                     auto* ptr_c = work.m_C.ptr<float>();
-                    auto stride_c = work.m_C.stride(0);                      
+                    auto stride_c = work.m_C.stride(0);
                     ov::Extensions::Cpu::XARCH::llm_mlp_dequantize_i32_f32(
                         M,
                         work.BN,
@@ -276,7 +276,7 @@ public:
                 if (config.gate_up_quantized) {
                     // dequantize m_C in-place
                     ptr_c = work.m_C.ptr<float>();
-                    stride_c = work.m_C.stride(0);                    
+                    stride_c = work.m_C.stride(0);
                     ov::Extensions::Cpu::XARCH::llm_mlp_dequantize_i32_f32(
                         M,
                         work.BN,
@@ -333,7 +333,7 @@ struct LLMMLP::Executor : public LLMMLP::ExecutorBase {
         PlainTensor w_gate(pnode->getSrcMemoryAtPort(1));
         PlainTensor w_up(pnode->getSrcMemoryAtPort(2));
         PlainTensor w_down(pnode->getSrcMemoryAtPort(3));
-        
+
         m_rt_prec_f16 = std::is_same<T, ov::float16>::value;
 
         // [N, K] [N, K] interleave (16-16-...) into [2*N, K]
@@ -516,7 +516,8 @@ void LLMMLP::initSupportedPrimitiveDescriptors() {
         inPortConfigs.emplace_back(LayoutType::ncsp, rtPrecision, getInputShapeAtPort(0), false, -1);      // input
         inPortConfigs.emplace_back(LayoutType::ncsp, weightPrecision, getInputShapeAtPort(1), false, -1);  // gate
         inPortConfigs.emplace_back(LayoutType::ncsp, weightPrecision, getInputShapeAtPort(2), false, -1);  // up
-        inPortConfigs.emplace_back(LayoutType::ncsp, m_mlp_config.down_quantized ? ov::element::i8 : ov::element::f16, getInputShapeAtPort(3), false, -1);  // down
+        inPortConfigs.emplace_back(LayoutType::ncsp, m_mlp_config.down_quantized ? ov::element::i8 : ov::element::f16,
+                                   getInputShapeAtPort(3), false, -1);  // down
         inPortConfigs.emplace_back(LayoutType::ncsp, ov::element::f32, getInputShapeAtPort(4), false, -1);  // gate_weight scales per OC
         inPortConfigs.emplace_back(LayoutType::ncsp, ov::element::f32, getInputShapeAtPort(5), false, -1);  // up_weight scales per OC
         if (m_mlp_config.down_quantized)
@@ -550,7 +551,7 @@ void LLMMLP::createPrimitive() {
 #endif
     if (!m_executor) {
         OPENVINO_THROW("LLMMLP Executor creation fails with precision " + rtPrecision.to_string());
-    }    
+    }
 }
 
 void LLMMLP::execute(dnnl::stream strm) {

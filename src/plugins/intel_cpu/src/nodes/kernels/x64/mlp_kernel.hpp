@@ -62,7 +62,7 @@ public:
     }
 
     void tmul(const Xbyak::Tmm& x1, const Xbyak::Tmm& x2, const Xbyak::Tmm& x3) {
-        switch(m_tmul_type) {
+        switch (m_tmul_type) {
             case TMUL_TYPE::SSD:
                 tdpbssd(x1, x2, x3);
             break;
@@ -172,7 +172,7 @@ public:
     }
 
     void tmul(const Xbyak::Tmm& x1, const Xbyak::Tmm& x2, const Xbyak::Tmm& x3) {
-        switch(m_tmul_type) {
+        switch (m_tmul_type) {
             case TMUL_TYPE::SSD:
                 tdpbssd(x1, x2, x3);
             break;
@@ -248,9 +248,9 @@ struct Work {
             w_sum_per_oc.resize<float>({static_cast<size_t>(n1 - n0)});
             auto * p_wsum_per_oc = w_sum_per_oc.ptr<float>();
             auto* pw_temp = pw;
-            for(int n = n0; n < n1; n++, pw_temp += stride_in_bytes / sizeof(Tsrc)) {
+            for (int n = n0; n < n1; n++, pw_temp += stride_in_bytes / sizeof(Tsrc)) {
                 float fsum = 0;
-                for(int k = k0; k < k1; k++)
+                for (int k = k0; k < k1; k++)
                     fsum += pw_temp[k];
                 *p_wsum_per_oc++ = fsum;
             }
@@ -289,12 +289,12 @@ struct Work {
             for (int n = n0; n < n1; n+=32) {
                 for (int dn = 0; dn < 16; dn++, pw1_temp += stride_temp) {
                     float fsum = 0;
-                    for(int k = k0; k < k1; k++) fsum += pw1_temp[k];
+                    for (int k = k0; k < k1; k++) fsum += pw1_temp[k];
                     *p_wsum_per_oc++ = fsum;
                 }
                 for (int dn = 0; dn < 16; dn++, pw2_temp += stride_temp) {
                     float fsum = 0;
-                    for(int k = k0; k < k1; k++) fsum += pw2_temp[k];
+                    for (int k = k0; k < k1; k++) fsum += pw2_temp[k];
                     *p_wsum_per_oc++ = fsum;
                 }
             }
@@ -383,10 +383,12 @@ struct Work {
             m_tile_configer.do_config(&m_tcfg[Mtails]);
             // original: bit0: 0-tilezero+skip load from mem, 1-tilezero+load from mem; tilestore
             // new: bit0: 0-skip load from mem, 1-load from mem; bit1: 0-skip tilezero, 1-tilezero; bit2: 0-skip store, 1-store
-            // if M > 32, firstK: 1 1 0(store, tilezero, skip load),      the otherK except last: 1 0 1(store, skip tilezero, load) lastK: 1 0 1
-            // else,      firstK: 0 1 0(skip store, tilezero, skip load), the otherK except last: 0 0 0(skip all),                  lastK: 1 0 0(store, skip tile zero, skip load)
+            // if M > 32, firstK: 1 1 0(store, tilezero, skip load)
+            //      the otherK except last: 1 0 1(store, skip tilezero, load) lastK: 1 0 1
+            // else
+            //      firstK: 0 1 0(skip store, tilezero, skip load), the otherK except last: 0 0 0(skip all),
+            //      lastK: 1 0 0(store, skip tile zero, skip load)
             int do_accumulation;
-            
             MKernel::call_args args;
             args.strideA = strideA;
             args.strideC = C_stride_bytes;

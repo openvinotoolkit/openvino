@@ -857,7 +857,7 @@ void Transformations::PostLpt() {
                 return node::QKVProjection::isSupportedOperation(node, errorMsg, concurrency);
             },
             QKVProjFusion);
-        
+
         CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::PrintModel, "_xxx.cpp");
     }
 

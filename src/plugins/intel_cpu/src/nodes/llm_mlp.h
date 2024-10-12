@@ -22,7 +22,7 @@ public:
     }
     bool needPrepareParams() const override {
         return false;
-    }    
+    }
     void createPrimitive() override;
     void executeDynamicImpl(dnnl::stream strm) override {
         execute(strm);

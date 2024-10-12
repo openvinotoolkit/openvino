@@ -284,12 +284,8 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
 template <typename T>
 struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
     QKVProjection * m_pnode;
-    Executor(QKVProjection * pnode) : m_pnode(pnode) {
-
-    }
-    void execute() override {
-
-    }
+    Executor(QKVProjection * pnode) : m_pnode(pnode) {}
+    void execute() override {}
 };
 #endif
 
