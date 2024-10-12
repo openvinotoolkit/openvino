@@ -34,7 +34,7 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
         constexpr int MAX_RECURSIVE_DEEP_CHECK_NODE = 10;
         int recursive_deep_check_successor = 0;
         constexpr int MAX_RECURSIVE_DEEP_CHECK_SUCCESSOR = 10;
-        bool final_successor_is_only_root = true;
+        bool successor_is_root = true;
         std::string root_name = readvalue->get_friendly_name();
 
         NodeVector subgraph_nodes;
@@ -42,15 +42,16 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
         NodeVector inputs = {};
         OutputVector outputs = {};
 
+        // Check whether final successor is only root.
         std::function<void(std::shared_ptr<ov::Node>)> check_node_successor = [&](std::shared_ptr<ov::Node> node) {
             recursive_deep_check_successor++;
             if (recursive_deep_check_successor > MAX_RECURSIVE_DEEP_CHECK_SUCCESSOR) {
-                final_successor_is_only_root = false;
+                successor_is_root = false;
                 return;
             }
 
             if (node->get_output_target_inputs(0).size() == 0u) {
-                final_successor_is_only_root = false;
+                successor_is_root = false;
                 return;
             }
 
@@ -76,9 +77,9 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
             }
 
             // Check whether current node have same successor[root_node_name].
-            final_successor_is_only_root = true;
+            successor_is_root = true;
             check_node_successor(node);
-            if (!final_successor_is_only_root) {
+            if (!successor_is_root) {
                 inputs.emplace_back(node);
                 return;
             }
@@ -92,7 +93,7 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
             subgraph_node_names.insert(node->get_friendly_name());
         };
 
-        // Recursive input of ReadValue, and move all suitable nodes to subgraph_nodes.
+        // Recursive inputs of ReadValue, and move all suitable nodes to subgraph_nodes.
         check_node(readvalue->get_input_node_shared_ptr(0));
 
         // Find ReadValue corresponding Assign node.
