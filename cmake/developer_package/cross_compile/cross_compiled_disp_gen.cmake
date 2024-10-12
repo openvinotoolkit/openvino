@@ -14,11 +14,12 @@
 #
 # =================================================================
 
-set(_CPU_CHECK_ANY     "true")
-set(_CPU_CHECK_SSE42   "with_cpu_x86_sse42()")
-set(_CPU_CHECK_AVX     "with_cpu_x86_avx()")
-set(_CPU_CHECK_AVX2    "with_cpu_x86_avx2()")
-set(_CPU_CHECK_AVX512F "with_cpu_x86_avx512f()")
+set(_CPU_CHECK_ANY         "true")
+set(_CPU_CHECK_SSE42       "with_cpu_x86_sse42()")
+set(_CPU_CHECK_AVX         "with_cpu_x86_avx()")
+set(_CPU_CHECK_NEON_FP16   "with_cpu_neon_fp16()")
+set(_CPU_CHECK_AVX2        "with_cpu_x86_avx2()")
+set(_CPU_CHECK_AVX512F     "with_cpu_x86_avx512f()")
 
 function(_generate_dispatcher)
     string(REPLACE "::" ";" XARCH_NAMESPACES "${XARCH_NAMESPACES}")

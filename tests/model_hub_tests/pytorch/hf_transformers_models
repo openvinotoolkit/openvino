@@ -79,7 +79,6 @@ git,microsoft/git-large-coco,xfail,Trace error: We don't have an op for aten::fu
 glpn,vinvino02/glpn-nyu
 gpt_bigcode,bigcode/tiny_starcoder_py
 gpt_neo,EleutherAI/gpt-neo-2.7B
-gpt2,openai-community/gpt2
 gptsan-japanese,Tanrei/GPTSAN-japanese,xfail,Unsupported op aten::index_put_ prim::TupleConstruct prim::TupleUnpack
 graphormer,clefourrier/graphormer-base-pcqm4mv2,xfail,Load error: GraphormerForGraphClassification.forward() missing 6 required positional arguments: 'input_edges' 'attn_bias' 'in_degree' 'out_degree' 'spatial_pos' and 'attn_edge_type'
 grounding-dino,IDEA-Research/grounding-dino-base,xfail,Trace error: op->outputs().size() == 1 INTERNAL ASSERT FAILED

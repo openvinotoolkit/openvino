@@ -169,6 +169,7 @@
 #include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/op/scatter_nd_update.hpp"
 #include "openvino/op/scatter_update.hpp"
+#include "openvino/op/search_sorted.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/selu.hpp"
 #include "openvino/op/shape_of.hpp"

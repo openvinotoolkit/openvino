@@ -14,6 +14,25 @@ const std::vector<ov::element::Type> netPrecisions = {
         ov::element::f16
 };
 
+/* ============= 1D Convolution ============= */
+const auto conv1DParams = ::testing::Combine(
+        ::testing::Values(std::vector<size_t>({1})),
+        ::testing::Values(std::vector<size_t>({1})),
+        ::testing::Values(std::vector<ptrdiff_t>({0})),
+        ::testing::Values(std::vector<ptrdiff_t>({0})),
+        ::testing::Values(std::vector<size_t>({1})),
+        ::testing::Values(192),
+        ::testing::Values(ov::op::PadType::EXPLICIT)
+);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Convolution1D, ConvolutionLayerTest,
+                         ::testing::Combine(
+                                 conv1DParams,
+                                 ::testing::Values(ov::element::f32),
+                                 ::testing::Values(ov::test::static_partial_shapes_to_test_representation(std::vector<ov::PartialShape>({{1, 256, 1}}))),
+                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                         ConvolutionLayerTest::getTestCaseName);
+
 /* ============= 2D Convolution ============= */
 const std::vector<std::vector<size_t >> kernels = {{3, 3},
                                                    {3, 5}};

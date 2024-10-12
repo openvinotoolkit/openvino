@@ -64,6 +64,7 @@ jobs:
     with:
       runner: 'aks-win-4-cores-8gb'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      os: 'windows_2019'
 
   Overall_Status:
     name: ci/gha_overall_status_windows_debug

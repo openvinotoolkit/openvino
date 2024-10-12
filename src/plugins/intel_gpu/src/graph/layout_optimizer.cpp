@@ -445,7 +445,7 @@ bool should_use_winograd_2x3_s1(const convolution_node& node,
 
     auto prim = node.get_primitive();
     if (input_layout.data_type != data_types::f16
-        || input_layout.feature() % 64 != 0  // current algorithm is effective for ifm to be multiply of 64
+        || (input_layout.is_static() && input_layout.feature() % 64 != 0)  // current algorithm is effective for ifm to be multiply of 64
         || weights_layout.spatial(0) != 3     // weights have to be 3x3 by definiton
         || weights_layout.spatial(1) != 3     // weights have to be 3x3 by definition
         || weights_layout.batch() % 64 != 0  // current algorithm is effective for ofm to be multiply of 64
@@ -525,7 +525,7 @@ bool layout_optimizer::convolution_byxf_opt(const layout& input_layout,
         all_ones(conv->dilation) &&
         !node.get_transposed() &&
          node.get_groups() == 1 &&
-         input_layout.feature() % 32 == 0 &&
+         (input_layout.is_static() && input_layout.feature() % 32 == 0) &&
          weights_layout.spatial(1) == 1 && output_layout.feature() % 64 == 0 &&
          weights_layout.batch() % 64 == 0 &&
          all_ones(conv->stride) &&
