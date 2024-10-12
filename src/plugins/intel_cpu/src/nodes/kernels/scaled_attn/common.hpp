@@ -295,11 +295,6 @@ static constexpr size_t vec_len_f16_neon = vec_len_neon / sizeof(ov::float16);
         float32x4_t vec_f32 = vcvtq_f32_u32(vmovl_u16(vec_bf16));
         return vec_f32;
     }
-    inline float32x4_t __vld1q_f32(const ov::float16* a) {
-        float16x4_t vec_f16 = vld1_f16(reinterpret_cast<const __fp16*>(a));
-        float32x4_t vec_f32 = vcvt_f32_f16(vec_f16);
-        return vec_f32;
-    }
     inline float32x4_t __vld1q_f32(const float* a) {
         return vld1q_f32(a);
     }
