@@ -91,7 +91,7 @@ static size_t get_dynamic_quantize_group_size(const fully_connected_params& para
     return 0;
 }
 
-static bool should_dynamic_quantize(const fully_connected_params& params) {
+static bool should_dynamic_quantize(const fully_connected_params& params, bool print_log = false) {
     size_t dynamic_quantization_group_size = get_dynamic_quantize_group_size(params);
 
     if (params.inputs[0].GetFirstElementOffset() != 0)
@@ -107,15 +107,32 @@ static bool should_dynamic_quantize(const fully_connected_params& params) {
     auto input_b = threads.first;
     auto input_f = threads.second;
 
+    auto weight_type = params.weights.GetDType();
     const size_t scale_group_size = params.weights.IFM().v / params.decompression_scale.Feature().v;
     if ((scale_group_size % simd == 0) && (input_f % dynamic_quantization_group_size == 0) &&
         (params.is_shape_agnostic || (params.inputs[0].Batch().v > 1 && input_b > min_slm_size)) &&
         params.inputs[0].GetDType() == Datatype::F16 &&
-        (params.weights.GetDType() == WeightsType::INT4 || params.weights.GetDType() == WeightsType::UINT4)) {
-        GPU_DEBUG_TRACE_DETAIL << " Dynamic quantizing for FC : scale_group_size " << scale_group_size << ", Input (" <<
-            kernel_selector::toString(params.inputs[0].GetDType()) << ", " << kernel_selector::toString(params.outputs[0].GetLayout()) <<
-            ") B: " << params.inputs[0].Batch().v << ", F: " << params.inputs[0].Feature().v << ", Y: " << params.inputs[0].Y().v << std ::endl;
+        // [TEST]
+//        (weight_type == WeightsType::INT4 || weight_type == WeightsType::UINT4)) {
+        (weight_type == WeightsType::INT4 || weight_type == WeightsType::UINT4 || weight_type == WeightsType::UINT8)) {
+        // GPU_DEBUG_TRACE_DETAIL << " Dynamic quantizing for FC : scale_group_size: " << scale_group_size << ", Dyn-quan group size: " << dynamic_quantization_group_size <<
+        //     ", Type(I:" << kernel_selector::toString(params.inputs[0].GetDType()) << ", O:" << kernel_selector::toString(params.outputs[0].GetDType()) <<
+        //     ", W:" << kernel_selector::toString(params.weights.GetDType()) << "), Format(W:" << kernel_selector::toString(params.weights.GetLayout()) <<
+        //     ") B: " << params.inputs[0].Batch().v << ", F: " << params.inputs[0].Feature().v << ", Y: " << params.inputs[0].Y().v << std ::endl;
+        if (print_log) {
+            std::cout << "    -- Dynamic quantizing for FC : scale_group_size: " << scale_group_size << ", Dyn-quan group size: " << dynamic_quantization_group_size <<
+                 ", Type(I:" << kernel_selector::toString(params.inputs[0].GetDType()) << ", O:" << kernel_selector::toString(params.outputs[0].GetDType()) <<
+                ", W:" << kernel_selector::toString(params.weights.GetDType()) << "), Format(W:" << kernel_selector::toString(params.weights.GetLayout()) <<
+                ") B: " << params.inputs[0].Batch().v << ", F: " << params.inputs[0].Feature().v << ", Y: " << params.inputs[0].Y().v << std ::endl;
+        }
         return true;
+    }
+
+    if (print_log) {
+        std::cout << "    -- No!! Dyn-quant selcted for FC : scale_group_size " << scale_group_size << ", Dyn-quan group size: " << dynamic_quantization_group_size <<
+            ", Type(I:" << kernel_selector::toString(params.inputs[0].GetDType()) << ", O:" << kernel_selector::toString(params.outputs[0].GetDType()) <<
+            ", W:" << kernel_selector::toString(params.weights.GetDType()) << "), Format(W:" << kernel_selector::toString(params.weights.GetLayout()) <<
+            ") B: " << params.inputs[0].Batch().v << ", F: " << params.inputs[0].Feature().v << ", Y: " << params.inputs[0].Y().v << std ::endl;
     }
 
     return false;
@@ -375,9 +392,6 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
 
     if (params.weights.GetDType() == WeightsType::UINT4 || params.weights.GetDType() == WeightsType::INT4) {
         if (!params.is_shape_agnostic && batch == 1) {
-            if (should_dynamic_quantize(params))
-                return selector.Default(tune_params(1, 2, 4, 2, 1, 1, 1, EXE_MODE_DEFAULT));
-
             // Tuning for Meteor Lake
             if (is_weight_vertical(params, output_f)) {
                 if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2) {
@@ -405,9 +419,9 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
                 selector.Case(tune_params(8, 2, 2, 4, 1, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM))
                         .Case(tune_params(8, 2, 1, 4, 1, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM));
             }
-            if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16)
+            if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16 && !should_dynamic_quantize(params))
                 return selector.Default(tune_params(8, 1, 1, 4, 1, 1, 1, EXE_MODE_DEFAULT));
-            else if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2)
+            else if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2 && !should_dynamic_quantize(params))
                 return selector.Default(tune_params(8, 4, 1, 2, 1, 1, 1, EXE_MODE_DEFAULT));
             else
                 return selector.Default(tune_params(8, 2, 1, 4, 1, 1, 1, EXE_MODE_DEFAULT));
@@ -415,6 +429,10 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
     } else if (params.compressed && params.engineInfo.supports_immad) {
         return selector.Default(tune_params(1, 1, 1, 4, 1, 1, 1, EXE_MODE_DEFAULT));
     } else if (params.is_shape_agnostic) {
+        // [TEST]
+        if (should_dynamic_quantize(params))
+            selector.Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 4, 1, 1, 1, EXE_MODE_AGE_BASED));
+
         // Use special tuning params for Gen12HP dGPUs, since these parameters demonstrate higher performance
         // due to better HW utilization (reduced TILE_OFM parameter) and better assembler kernel's code
         // generation (extended TILE_K parameter) for both FP16 and FP32 data types
@@ -432,6 +450,10 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
                 selector.Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 1, 1, 1, 1, EXE_MODE_AGE_BASED));
         }
     } else {
+        // [TEST]
+        if (should_dynamic_quantize(params))
+            selector.Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 4, 1, 1, 1, EXE_MODE_AGE_BASED));
+
         if (dtype == Datatype::F16) {
             // tune_params(tile_b, tile_ofm, tile_ifm, tile_k, outer_ofm, dispatch_bsv, dispatch_fsv, exec_options)
             selector.Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 2, 1, 16, 2, EXE_MODE_AGE_BASED))
@@ -571,6 +593,7 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     jit.AddConstant(MakeJitConstant("W_DYN_QUAN_IDX", "fi * TILE_K + kii"));
 
     if (dispatchData.use_slm) {
+        std::cout << "  >> use SLM" << std::endl;
         OPENVINO_ASSERT(dispatchData.tile_n == 2, "[GPU] Unsupported TILE_OFM size for SLM kernel configuration");
         OPENVINO_ASSERT(weights_dt == WeightsType::INT4 || weights_dt == WeightsType::UINT4, "[GPU] Unsupported FC weights type for SLM kernel configuration");
 
@@ -613,6 +636,7 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
         jit.AddConstant(MakeJitConstant("FILTER_LOAD_BLOCK_SIZE", block_read_size));
         jit.AddConstant(MakeJitConstant("FILTER_ELEMENTS_PER_LOAD", weights_elements_per_load));
     } else {
+        std::cout << "  >> NO!!! Not use SLM" << std::endl;
         jit.AddConstant(MakeJitConstant("USE_SLM", 0));
     }
 
@@ -620,7 +644,6 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     if (should_dynamic_quantize(params)) {
         jit.AddConstant(MakeJitConstant("DYNAMIC_QUANTIZE", 1));
         jit.AddConstant(MakeJitConstant("DQ_DECOMPRESSION_SCALE_POST_OP", 1));
-        jit.AddConstant(MakeJitConstant("DQ_TYPE", "char"));
         jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", quantize_grp_size));
     } else {
         if (add_decompress_scale_post_op)
@@ -628,6 +651,7 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
         jit.AddConstant(MakeJitConstant("DYNAMIC_QUANTIZE", 0));
         jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", min_quantize_grp_size));
     }
+    jit.AddConstant(MakeJitConstant("DQ_TYPE", "char"));
 
     jit.AddConstant(MakeJitConstant("IFM_SIZE", get_input_bf_size(params).second));
     jit.AddConstant(MakeJitConstant("SIMD", simd));
@@ -642,6 +666,10 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     jit.AddConstant(MakeJitConstant("DISPATCH_BSV", dispatchData.tile_ms));
     jit.AddConstant(MakeJitConstant("DISPATCH_FSV", dispatchData.tile_ns));
     jit.AddConstant(MakeJitConstant("TILE_IFM_ELEMENTS_SIZE", (dispatchData.tile_mk * simd)));
+
+    std::cout << ">> Jit " << std::endl;
+    std::cout << "  -- TILE_K_OFM : " << tile_k_ofm << ", TILE_K_OFM_PACKED : " << tile_k_ofm_packed
+             << ", TILE_K : " << dispatchData.tile_nk << ", TILE_OFM : " << dispatchData.tile_n << std::endl;
 
     if (quantize_grp_size / (dispatchData.tile_mk * simd) > 1 && quantize_grp_size % (dispatchData.tile_mk * simd) == 0) {
         jit.AddConstant(MakeJitConstant("NUM_LOOP_IN_DYN_QUAN_GROUP", quantize_grp_size / (dispatchData.tile_mk * simd)));
@@ -754,12 +782,14 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
 
             if (!kd.internalBufferSizes.empty()) {
                 // Pre-quantizing kernel was generated. Update the kernel and intermediate buffers or disable it.
-                if (execute_type == KernelType::DEFAULT) {
+                if (execute_type == KernelType::DEFAULT && false) {
                     kd.kernels[0].skip_execution = true;
                 } else {
                     kd.kernels[0].skip_execution = false;
                     size_t input_f = get_input_bf_size(prim_params).second;
                     size_t input_size = input_f * dispatchData.tile_m * dispatchData.gws[2];
+                    std::cout << "  >> GetUpdateDispatchDataFunc :  input_size : " << input_size << ", input_f : " << input_f << ", dispatchData.tile_m : " << dispatchData.tile_m
+                                << ", dispatchData.gws[2] :" << dispatchData.gws[2] << std::endl; 
 
                     if (kd.internalBufferSizes[0] < input_size) {
                         kd.internalBufferSizes.clear();
@@ -810,8 +840,13 @@ KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &pa
         weights_layout = WeightsLayout::os_iyx_osv64;
     }
 
+    // [DEBUG]
+    std::cout << ">> FC : " << params.layerID << "(autoTuneIndex : " << autoTuneIndex << ")" << std::endl;
+    std::cout << "  -- fc_params.weights : " << kernel_selector::toString(fc_params.weights.GetDType()) << std::endl;
+    std::cout << "  -- fc_params.decompression_zero_point : " << kernel_selector::toString(fc_params.decompression_zero_point.GetDType()) << std::endl;
+
     KernelsData kernels_data;
-    if (should_dynamic_quantize(fc_params)) {
+    if (should_dynamic_quantize(fc_params, true)) {
         // Use seperate 2 kernels for dynamic quantizing : quantizing_kernel + fc_kernel
         // 1st kernel : Dynamic quantizing by dynamic_quantize_grp_size
         // 2nd kernel : fully connected kernel with KernelType::DEFAULT. Quantized inputs and scale values could be used.

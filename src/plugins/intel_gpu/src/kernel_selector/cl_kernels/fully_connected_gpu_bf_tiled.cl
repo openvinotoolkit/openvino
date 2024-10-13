@@ -379,7 +379,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                         #if !DECOMPRESSION_SCALE_POST_OP
                             #if DECOMPRESSION_SCALE_GROUPS_NUM > 1
                                 const uint scale_offset = (offset_ofm % DECOMPRESSION_SCALE_BATCH_NUM) * DECOMPRESSION_SCALE_BATCH_PITCH  +
-                                                          (offset_ifm / DECOMPRESSION_SCALE_GROUP_SIZE) * DECOMPRESSION_SCALE_FEATURE_PITCH;
+                                                        (offset_ifm / DECOMPRESSION_SCALE_GROUP_SIZE) * DECOMPRESSION_SCALE_FEATURE_PITCH;
                                 ACCUMULATOR_TYPE ds = decompression_scale[scale_offset];
                             #else
                                 ACCUMULATOR_TYPE ds = d_scales[fi % DECOMPRESSION_SCALE_LENGTH];
@@ -393,7 +393,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                                 ACCUMULATOR_TYPE dzp = DECOMPRESSION_ZP_VALUE;
                             #elif DECOMPRESSION_ZP_GROUPS_NUM > 1
                                 const uint zp_offset = (offset_ofm % DECOMPRESSION_ZP_BATCH_NUM) * DECOMPRESSION_ZP_BATCH_PITCH +
-                                                       (offset_ifm / DECOMPRESSION_ZP_GROUP_SIZE) * DECOMPRESSION_ZP_FEATURE_PITCH;
+                                                    (offset_ifm / DECOMPRESSION_ZP_GROUP_SIZE) * DECOMPRESSION_ZP_FEATURE_PITCH;
                                 ACCUMULATOR_TYPE dzp = decompression_zp[zp_offset];
                             #else
                                 ACCUMULATOR_TYPE dzp = d_zps[fi % DECOMPRESSION_ZP_LENGTH];
@@ -553,7 +553,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
 
                 #if DECOMPRESSION_SCALE_GROUPS_NUM > 1
                     const uint scale_offset = (offset_ofm % DECOMPRESSION_SCALE_BATCH_NUM) * DECOMPRESSION_SCALE_BATCH_PITCH +
-                                              ((ni*TILE_IFM*SIMD) / DECOMPRESSION_SCALE_GROUP_SIZE)*DECOMPRESSION_SCALE_FEATURE_PITCH;
+                                            ((ni*TILE_IFM*SIMD) / DECOMPRESSION_SCALE_GROUP_SIZE)*DECOMPRESSION_SCALE_FEATURE_PITCH;
                     ACCUMULATOR_TYPE ds = decompression_scale[scale_offset];
                 #else
                     ACCUMULATOR_TYPE ds = d_scales[fi % DECOMPRESSION_SCALE_LENGTH];
@@ -612,7 +612,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                         uint offset_ofm = out_f + fi*SIMD + get_sub_group_local_id();
                         #if DECOMPRESSION_SCALE_GROUPS_NUM > 1
                             const uint scale_offset = (offset_ofm % DECOMPRESSION_SCALE_BATCH_NUM) * DECOMPRESSION_SCALE_BATCH_PITCH +
-                                                      ((kii + ki*TILE_K + iterations*TILE_IFM*SIMD) / DECOMPRESSION_SCALE_GROUP_SIZE)*DECOMPRESSION_SCALE_FEATURE_PITCH;
+                                                    ((kii + ki*TILE_K + iterations*TILE_IFM*SIMD) / DECOMPRESSION_SCALE_GROUP_SIZE)*DECOMPRESSION_SCALE_FEATURE_PITCH;
                             ACCUMULATOR_TYPE ds = decompression_scale[scale_offset];
                         #else
                             ACCUMULATOR_TYPE ds = d_scales[fi % DECOMPRESSION_SCALE_LENGTH];
@@ -743,8 +743,11 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
     // =====================================================================================================================================
 }
 
+
+
+
 // Dyc Quantize
-#if USE_SLM && DYNAMIC_QUANTIZE
+//#if USE_SLM && DYNAMIC_QUANTIZE
 #define PACKED_DQ_TYPE                      int
 #define DQ_VEC_TYPE                         MAKE_VECTOR_TYPE(DQ_TYPE, TILE_IFM)
 #define DQ_SLM_FILTER_VEC                   MAKE_VECTOR_TYPE(DQ_TYPE, 4)
@@ -760,6 +763,346 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
 #define AS_TYPE_N_(type, n, x)  as_##type##n(x)
 #define AS_TYPE_N(type, n, x)   AS_TYPE_N_(type, n, x)
 #define AS_DQ_TYPE_4(x)         AS_TYPE_N(DQ_TYPE, INPUT_LOAD_SIZE, x)
+
+inline void FUNC(fc_bf_tiled_kernel_dyn_quan_none_slm)(
+    OPTIONAL_SHAPE_INFO_ARG
+    const __global INPUT0_TYPE* input,
+    __global char* quantized_input,
+    __global INPUT0_TYPE* scale,
+#if DECOMPRESSION_SCALE_TERM
+    const __global DECOMPRESSION_SCALE_TYPE* decompression_scale,
+#endif
+#if DECOMPRESSION_ZP_TERM && !DECOMPRESSION_ZP_SCALAR
+    const __global DECOMPRESSION_ZP_TYPE* decompression_zp,
+#endif
+    __global OUTPUT_TYPE* output,
+    const __global FILTER_TYPE* weights
+//if USE_SLM
+//  , __local int* wei_local_mem
+//#endif
+#if BIAS_TERM
+    , const __global BIAS_TYPE* biases
+#endif
+#if HAS_FUSED_OPS_DECLS
+    , FUSED_OPS_DECLS
+#endif
+) {
+    uint gid = (uint)get_group_id(0);
+    // uint local_id = (uint)get_local_id(2);
+    uint sglid = (uint)get_sub_group_local_id();
+
+    // Dispatch as bs_fs_bsv_fsv, where bsv = DISPATCH_BSV and fsv = DISPATCH_FSV.
+    // This allows more fine grained control over dispatch order than using work-groups and
+    // avoids requirement of threads being available for whole work-group.
+    // It could hovewer have some drawbacks like not providing physical locality or not using
+    // full dispatch pipeline.
+    uint feature_mini_block = gid % DISPATCH_FSV;
+    uint batch_mini_block = gid / DISPATCH_FSV % DISPATCH_BSV;
+    uint feature_mega_block = gid / (DISPATCH_FSV * DISPATCH_BSV) % (CEIL_DIV(TILE_OUT_F_NUM, TILE_OFM * SIMD) / DISPATCH_FSV);
+    uint batch_mega_block = gid / (DISPATCH_FSV * DISPATCH_BSV * CEIL_DIV(TILE_OUT_F_NUM, TILE_OFM * SIMD) / DISPATCH_FSV);
+
+    DQ_FILTER_VEC_TYPE wei = 0;
+    // FILTER_VEC_TYPE wei = 0;
+
+    // uint out_f = gid * (TILE_OFM * SIMD);
+    // uint out_b = LWS_BATCHES * TILE_B * (uint)get_group_id(2) + local_id * TILE_B;
+    uint out_f = (feature_mega_block * DISPATCH_FSV + feature_mini_block) * (OUTER_OFM * TILE_OFM * SIMD);
+    uint out_b = ((batch_mega_block * DISPATCH_BSV + batch_mini_block) * TILE_B);
+
+    #if OUTPUT_3D
+        uint out_b0 = out_b / OUTPUT_FEATURE_NUM;
+        uint out_b1 = out_b % OUTPUT_FEATURE_NUM;
+        uint input_offset = out_b0 * INPUT0_BATCH_PITCH + out_b1 * INPUT0_FEATURE_PITCH + INPUT0_OFFSET;
+    #else
+        uint input_offset = out_b * TILE_IN_B_PITCH + INPUT0_OFFSET;
+    #endif
+
+    uint weights_offset = out_f * INPUT_ELEMENTS_COUNT;
+
+    ACCUMULATOR_VEC_TYPE    acc[TILE_B] = { };
+
+    // Dynamic Quantize
+    MAKE_VECTOR_TYPE(DQ_TYPE, INPUT_LOAD_SIZE)      tiled_input_0[HALF_TILE_B] = { };   // Load 4 linear inputs for packing
+    PACKED_DQ_TYPE                                  packed_in_0[HALF_TILE_B] = { };     // Packing char4 inputs to 1 integer
+    INPUT0_TYPE                                     de_quantize_scale[TILE_B];
+
+    #if COMPRESSED_WEIGHTS && DECOMPRESSION_SCALE_GROUPS_NUM == 1
+        #if DECOMPRESSION_SCALE_LENGTH > 1 && DECOMPRESSION_SCALE_LENGTH % (TILE_OFM * SIMD) == 0
+            ACCUMULATOR_VEC_TYPE d_scale = TO_ACCUMULATOR_VEC_TYPE(BLOCK_READN(DECOMPRESSION_SCALE_TYPE, TILE_OFM, decompression_scale, out_f));
+        #elif DECOMPRESSION_SCALE_LENGTH > 1 && DECOMPRESSION_SCALE_LENGTH % (TILE_OFM * SIMD) != 0
+            ACCUMULATOR_VEC_TYPE d_scale = 0;
+            unroll_for(uint of = 0; of < TILE_OFM; ++of) {
+                uint offset = out_f + of*SIMD + get_sub_group_local_id();
+                if (offset < DECOMPRESSION_SCALE_LENGTH)
+                    ((ACCUMULATOR_TYPE*)(&d_scale))[of] = decompression_scale[offset];
+            }
+        #else
+            ACCUMULATOR_VEC_TYPE d_scale = decompression_scale[0];
+        #endif
+
+        ACCUMULATOR_TYPE* d_scales = (ACCUMULATOR_TYPE*)(&d_scale);
+    #endif
+
+    #if COMPRESSED_WEIGHTS && DECOMPRESSION_ZP_TERM && DECOMPRESSION_ZP_GROUPS_NUM == 1 && !DECOMPRESSION_ZP_SCALAR
+        #if DECOMPRESSION_ZP_LENGTH > 1 && DECOMPRESSION_ZP_LENGTH % (TILE_OFM * SIMD) == 0
+            ACCUMULATOR_VEC_TYPE d_zp = TO_ACCUMULATOR_VEC_TYPE(BLOCK_READN(DECOMPRESSION_ZP_TYPE, TILE_OFM, decompression_zp, out_f));
+        #elif DECOMPRESSION_ZP_LENGTH > 1 && DECOMPRESSION_ZP_LENGTH % (TILE_OFM * SIMD) != 0
+            ACCUMULATOR_VEC_TYPE d_zp = 0;
+            unroll_for(uint of = 0; of < TILE_OFM; ++of) {
+                uint offset = out_f + of*SIMD + get_sub_group_local_id();
+                if (offset < DECOMPRESSION_ZP_LENGTH)
+                    ((ACCUMULATOR_TYPE*)(&d_zp))[of] = decompression_zp[offset];
+            }
+        #else
+            ACCUMULATOR_VEC_TYPE d_zp = decompression_zp[0];
+        #endif
+        ACCUMULATOR_TYPE* d_zps = (ACCUMULATOR_TYPE*)(&d_zp);
+    #endif
+
+    // =====================================================================================================================================
+    // Main computation loop
+    const uint iterations = MAIN_LOOP_ELEMENTS_COUNT / TILE_IFM_ELEMENTS_SIZE;  // TILE_IFM_ELEMENTS_SIZE : (TILE_IFM * SIMD)
+    // Each sub-group loads 2 Batch
+    uint idx_sglid = (sglid * TILE_K) % TILE_IFM_ELEMENTS_SIZE;       // same index for sglid 0~7 : to tile_k direction
+    uint batch_sglid = (sglid * TILE_K) / TILE_IFM_ELEMENTS_SIZE;     // 0 to 1 : to batch direction
+
+    const uint scale_pitch = TILE_IN_B_PITCH / QUANTIZE_GROUP_SIZE;
+    // MAKE_VECTOR_TYPE(int, TILE_B) acc_tmp[TILE_OFM] = { };
+    __attribute__((opencl_unroll_hint(1)))
+    for (uint ni = 0; ni < iterations; ++ni) {
+        uint in_offset = input_offset + (idx_sglid + batch_sglid * TILE_IN_B_PITCH);
+        uint scale_offset = input_offset / QUANTIZE_GROUP_SIZE;
+        for (uint bi = 0; bi < HALF_TILE_B; ++bi) {
+            // Load quantizing info from pre-quantizing kernel
+            tiled_input_0[bi] = vload4(0, &quantized_input[in_offset]);
+            // Packing : Get 4(B)x4(K) integer vector (packing to 4x1 vector)
+            packed_in_0[bi] = as_int(tiled_input_0[bi]);
+
+            // Next batch
+            in_offset += (TILE_IN_B_PITCH * 2);
+
+            #if NUM_LOOP_IN_DYN_QUAN_GROUP == 1
+                de_quantize_scale[bi * 2] = scale[scale_offset];
+                de_quantize_scale[bi * 2 + 1] = scale[scale_offset+ scale_pitch];
+                scale_offset += (scale_pitch * 2);
+            #endif
+        }
+
+        #if NUM_LOOP_IN_DYN_QUAN_GROUP > 1
+            if (ni % NUM_LOOP_IN_DYN_QUAN_GROUP == 0) {
+                unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
+                    de_quantize_scale[bi] = scale[scale_offset];
+                    scale_offset += scale_pitch;
+                }
+            }
+        #endif
+
+        input_offset += TILE_IFM_ELEMENTS_SIZE;
+
+        MAKE_VECTOR_TYPE(int, TILE_B) acc_tmp[TILE_OFM] = { };
+
+        //#if TILE_OFM != 2
+        //#error "FC bf_tiled kernel: can't use SLM optimization with TILE_OFM != 2"
+        //#endif
+        //// DECOMPRESSION_SCALE_POST_OP SHOULD be enabled for dynamic quantize FC : scale is ACCUMULATOR_VAL_ONE
+        //unroll_for(uint load_iter = 0; load_iter < FILTER_LOAD_ITERS; ++load_iter) {
+        //}
+
+        //wei_local_idx = sglid * 2;
+
+        //barrier(CLK_LOCAL_MEM_FENCE);
+
+        unroll_for(uint ki = 0; ki < TILE_IFM_ELEMENTS_SIZE / TILE_K; ++ki) {
+            #if COMPRESSED_WEIGHTS_INT4
+                FILTER_PACKED_VEC_TYPE wei_packed = BLOCK_READN(FILTER_TYPE, TILE_K_OFM_PACKED, weights, weights_offset);
+                // [TEST]
+                // wei = UNPACK_INT4(DQ_TYPE, *((INT4_PACKED_TYPE*)&wei_packed));
+                wei = UNPACK_INT4(DQ_TYPE, *((INT4_PACKED_TYPE*)&wei_packed));
+                // Refer
+                // SLM_FILTER_PACKED_VEC wei_packed = BLOCK_READN(FILTER_TYPE, FILTER_LOAD_BLOCK_SIZE, weights, weights_idx);
+                // DQ_SLM_FILTER_UNPACKED_VEC dq_wei_unpacked = UNPACK_TRANSPOSED_INT4(DQ_TYPE, *((INT4_PACKED_TYPE_PRELOAD *)&wei_packed));
+            #else
+                // wei = TO_FILTER_VEC_TYPE(FILTER_BLOCK_READ(weights, weights_offset));
+                wei = TO_DQ_FILTER_VEC_TYPE(FILTER_BLOCK_READ(weights, weights_offset));
+            #endif
+
+
+            // && !USE_SLM
+            #if COMPRESSED_WEIGHTS
+                #if DECOMPRESSION_ZP_TERM
+                    #if DECOMPRESSION_ZP_SCALAR
+                        DQ_SLM_FILTER_UNPACKED_VEC dzp = (DQ_SLM_FILTER_UNPACKED_VEC)(DECOMPRESSION_ZP_VALUE);
+                        // dq_wei_unpacked -= dzp;
+                        wei -= dzp;
+                    #elif DECOMPRESSION_ZP_GROUPS_NUM > 1
+                        // DQ_TYPE* w = (DQ_TYPE*)(&dq_wei_unpacked);
+                        DQ_TYPE* w = (DQ_TYPE*)(&wei);
+                        const uint ni_offset = ni * TILE_IFM * SIMD;
+                        unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
+                            const uint offset_ofm = out_f + fi*SIMD + sglid;
+                            unroll_for(uint kii = 0; kii < TILE_K; ++kii) {
+                                const uint offset_ifm = ni_offset + ki*TILE_K + kii;
+                                const uint zp_offset = (offset_ofm % DECOMPRESSION_ZP_BATCH_NUM) * DECOMPRESSION_ZP_BATCH_PITCH +
+                                                        (offset_ifm/ DECOMPRESSION_ZP_GROUP_SIZE) * DECOMPRESSION_ZP_FEATURE_PITCH;
+                                w[W_DYN_QUAN_IDX] = w[W_DYN_QUAN_IDX] - TO_DQ_TYPE(decompression_zp[zp_offset]);
+                            }
+                        }
+                    #else
+                        // DQ_TYPE* w = (DQ_TYPE*)(&dq_wei_unpacked);
+                        DQ_TYPE* w = (DQ_TYPE*)(&wei);
+                        unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
+                            unroll_for(uint kii = 0; kii < TILE_K; ++kii) {
+                                w[W_DYN_QUAN_IDX] = w[W_DYN_QUAN_IDX] - d_zps[fi % DECOMPRESSION_ZP_LENGTH];
+                            }
+                        }
+                    #endif
+                #endif
+            #endif
+
+            #if TILE_K != 4
+                #error "FC bf_tiled kernel: unsupported TILE_K size for SLM kernel"
+            #endif
+
+            // Compute input * weight : packed char4 type
+            // char8 weight = vload8(0, (__local char *)(&char_slm_weight[wei_local_idx + 16*2*ki]));
+            char8 weight = wei;
+            char4 first_weight = weight.s0123;
+            char4 second_weight = weight.s4567;
+            unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
+                char4 input_val = as_char4(_sub_group_shuffle(packed_in_0[bi / 2], (bi % 2) * 8 + ki));
+                acc_tmp[0][bi] = imad_SW(acc_tmp[0][bi], input_val, first_weight);
+                acc_tmp[1][bi] = imad_SW(acc_tmp[1][bi], input_val, second_weight);
+            }
+
+            weights_offset += TILE_K_OFM_PACKED * TILE_OFM_PER_OSV_SIZE * SIMD;
+
+            #if DECOMPRESSION_SCALE_POST_OP && (TILE_IFM_ELEMENTS_SIZE > DECOMPRESSION_SCALE_GROUP_SIZE)
+                unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
+                    unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
+                        const uint offset_ofm = out_f + fi*SIMD + sglid;
+
+                        #if DECOMPRESSION_SCALE_GROUPS_NUM > 1
+                            const uint scale_offset = (offset_ofm % DECOMPRESSION_SCALE_BATCH_NUM) * DECOMPRESSION_SCALE_BATCH_PITCH +
+                                                    ((ni*TILE_IFM*SIMD + ki*TILE_K) / DECOMPRESSION_SCALE_GROUP_SIZE)*DECOMPRESSION_SCALE_FEATURE_PITCH;
+                            ACCUMULATOR_TYPE ds = decompression_scale[scale_offset];
+                        #else
+                            ACCUMULATOR_TYPE ds = d_scales[fi % DECOMPRESSION_SCALE_LENGTH];
+                        #endif
+
+                        ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += convert_half(((int *)(&acc_tmp[fi]))[bi]) * ds * de_quantize_scale[bi];
+                        acc_tmp[fi][bi] = 0;
+                    }
+                }
+            #endif
+        }  // Whole tile_k elements of each iteration : ki
+
+        #if DECOMPRESSION_SCALE_POST_OP && (TILE_IFM_ELEMENTS_SIZE <= DECOMPRESSION_SCALE_GROUP_SIZE)
+            // Dynamic-quantizing group size set to same or smaller than scale group size
+            if ((ni % NUM_LOOP_IN_DYN_QUAN_GROUP) == (NUM_LOOP_IN_DYN_QUAN_GROUP - 1)) {
+                const uint ni_offset = ((ni*TILE_IFM*SIMD) / DECOMPRESSION_SCALE_GROUP_SIZE)*DECOMPRESSION_SCALE_FEATURE_PITCH;
+                unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
+                    unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
+                        const uint offset_ofm = out_f + fi*SIMD + sglid;
+
+                        #if DECOMPRESSION_SCALE_GROUPS_NUM > 1
+                            const uint scale_offset = (offset_ofm % DECOMPRESSION_SCALE_BATCH_NUM) * DECOMPRESSION_SCALE_BATCH_PITCH + ni_offset;
+                            ACCUMULATOR_TYPE ds = decompression_scale[scale_offset];
+                        #else
+                            ACCUMULATOR_TYPE ds = d_scales[fi % DECOMPRESSION_SCALE_LENGTH];
+                        #endif
+
+                        ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += convert_half(((int *)(&acc_tmp[fi]))[bi]) * ds * de_quantize_scale[bi];
+                        acc_tmp[fi][bi] = 0;
+                    }
+                }
+            }
+        #endif
+    }  // Main compute loop : ni
+
+    // =====================================================================================================================================
+    // Post-processing: bias, activation, fused-ops
+    ACTIVATION_VEC_TYPE activated[TILE_B] = { };
+    for (uint bi = 0; bi < TILE_B; ++bi) {
+        activated[bi] = TO_ACTIVATION_VEC_TYPE(acc[bi]);
+    }
+
+    #if BIAS_TERM
+        #if TILE_OUT_F_NUM % (TILE_OFM * SIMD) == 0
+            BIAS_VEC_TYPE bias = BIAS_BLOCK_READ(biases, out_f);
+        #else
+            BIAS_VEC_TYPE bias = 0;
+            unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
+                ((BIAS_TYPE*)(&bias))[fi] = biases[out_f + sglid + fi * SIMD];
+            }
+        #endif
+
+        unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
+            activated[bi] += TO_ACTIVATION_VEC_TYPE(bias);
+        }
+    #endif
+
+    OUTPUT_VEC_TYPE result[TILE_B] = { };
+
+    #if HAS_FUSED_OPS
+        unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
+        #if TILE_OFM > 1
+            unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
+                FUSED_OPS_VEC;
+                result[bi][fi] = FUSED_OPS_RESULT_VEC;
+            }
+        #else
+            FUSED_OPS_SCALAR;
+            result[bi] = FUSED_OPS_RESULT_SCALAR;
+        #endif // TILE_OFM > 1
+        }
+    #else
+        unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
+            result[bi] = TO_OUTPUT_VEC_TYPE(ACTIVATION_TYPED(activated[bi], ACTIVATION_PARAMS_TYPED));
+        }
+    #endif
+
+    // =====================================================================================================================================
+    // Write results
+    uint output_offset = out_f * TILE_OUT_F_PITCH + out_b * TILE_OUT_B_PITCH + OUTPUT_OFFSET;
+
+    if (USE_BLOCK_WRITE && (TILE_OUT_F_NUM % (TILE_OFM * SIMD) == 0 || out_f + (TILE_OFM * SIMD) <= TILE_OUT_F_NUM)) {
+        #if IS_DYNAMIC
+            #define WRITE_OUTPUT(bi) do {                                       \
+                    if (bi + out_b < BATCH_SIZE)                                \
+                        OUTPUT_BLOCK_WRITE(output, output_offset, result[bi]);  \
+                    output_offset += TILE_OUT_B_PITCH;                          \
+                } while (false)
+        #else
+            #define WRITE_OUTPUT(bi) do {                                       \
+                    OUTPUT_BLOCK_WRITE(output, output_offset, result[bi]);      \
+                    output_offset += TILE_OUT_B_PITCH;                          \
+                } while (false)
+        #endif
+        CONST_LOOP(TILE_B, WRITE_OUTPUT);
+        #undef WRITE_OUTPUT
+    } else {
+        output_offset += sglid;
+
+        for (uint bi = 0; bi < TILE_B; ++bi) {
+            for (uint fi = 0; fi < TILE_OFM; ++fi) {
+                const bool should_write =
+                #if IS_DYNAMIC
+                    bi + out_b < BATCH_SIZE &&
+                #endif
+                    (TILE_OUT_F_NUM % (TILE_OFM * SIMD) == 0 ||
+                    out_f + fi * SIMD + sglid < TILE_OUT_F_NUM);
+                if (should_write) {
+                    output[output_offset] = ((OUTPUT_TYPE*)(&result[bi]))[fi];
+                }
+                output_offset += SIMD;
+            }
+            output_offset += TILE_OUT_B_PITCH - TILE_OFM * SIMD;
+        }
+    }
+    // =====================================================================================================================================
+}
+
+#if USE_SLM && DYNAMIC_QUANTIZE
 
 inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
     OPTIONAL_SHAPE_INFO_ARG
@@ -1339,27 +1682,50 @@ KERNEL(fc)(
             #endif
             );
         #else
-            FUNC_CALL(fc_bf_tiled_kernel_default)(
-                OPTIONAL_SHAPE_INFO_TENSOR
-                input,
-            #if DECOMPRESSION_SCALE_TERM
-                decompression_scale,
+            #if 0
+                FUNC_CALL(fc_bf_tiled_kernel_default)(
+                    OPTIONAL_SHAPE_INFO_TENSOR
+                    input,
+                #if DECOMPRESSION_SCALE_TERM
+                    decompression_scale,
+                #endif
+                #if DECOMPRESSION_ZP_TERM && !DECOMPRESSION_ZP_SCALAR
+                    decompression_zp,
+                #endif
+                    output,
+                    weights
+                #if USE_SLM
+                    , wei_local_mem
+                #endif
+                #if BIAS_TERM
+                    , biases
+                #endif
+                #if HAS_FUSED_OPS_DECLS
+                    , FUSED_OPS_ARGS
+                #endif
+                );
+            #else
+                FUNC_CALL(fc_bf_tiled_kernel_dyn_quan_none_slm)(
+                    OPTIONAL_SHAPE_INFO_TENSOR
+                    input,
+                    quantized_input,
+                    de_quan_scale,
+                #if DECOMPRESSION_SCALE_TERM
+                    decompression_scale,
+                #endif
+                #if DECOMPRESSION_ZP_TERM && !DECOMPRESSION_ZP_SCALAR
+                    decompression_zp,
+                #endif
+                    output,
+                    weights
+                #if BIAS_TERM
+                    , biases
+                #endif
+                #if HAS_FUSED_OPS_DECLS
+                    , FUSED_OPS_ARGS
+                #endif
+                );
             #endif
-            #if DECOMPRESSION_ZP_TERM && !DECOMPRESSION_ZP_SCALAR
-                decompression_zp,
-            #endif
-                output,
-                weights
-            #if USE_SLM
-                , wei_local_mem
-            #endif
-            #if BIAS_TERM
-                , biases
-            #endif
-            #if HAS_FUSED_OPS_DECLS
-                , FUSED_OPS_ARGS
-            #endif
-            );
         #endif
     }
 #else
@@ -1386,27 +1752,50 @@ KERNEL(fc)(
         #endif
         );
     #else
-        FUNC_CALL(fc_bf_tiled_kernel_default)(
-            OPTIONAL_SHAPE_INFO_TENSOR
-            input,
-        #if DECOMPRESSION_SCALE_TERM
-            decompression_scale,
+        #if 1
+            FUNC_CALL(fc_bf_tiled_kernel_default)(
+                OPTIONAL_SHAPE_INFO_TENSOR
+                input,
+            #if DECOMPRESSION_SCALE_TERM
+                decompression_scale,
+            #endif
+            #if DECOMPRESSION_ZP_TERM && !DECOMPRESSION_ZP_SCALAR
+                decompression_zp,
+            #endif
+                output,
+                weights
+            #if USE_SLM
+                , wei_local_mem
+            #endif
+            #if BIAS_TERM
+                , biases
+            #endif
+            #if HAS_FUSED_OPS_DECLS
+                , FUSED_OPS_ARGS
+            #endif
+            );
+        #else
+            FUNC_CALL(fc_bf_tiled_kernel_dyn_quan_none_slm)(
+                OPTIONAL_SHAPE_INFO_TENSOR
+                input,
+                quantized_input,
+                de_quan_scale,
+            #if DECOMPRESSION_SCALE_TERM
+                decompression_scale,
+            #endif
+            #if DECOMPRESSION_ZP_TERM && !DECOMPRESSION_ZP_SCALAR
+                decompression_zp,
+            #endif
+                output,
+                weights
+            #if BIAS_TERM
+                , biases
+            #endif
+            #if HAS_FUSED_OPS_DECLS
+                , FUSED_OPS_ARGS
+            #endif
+            );
         #endif
-        #if DECOMPRESSION_ZP_TERM && !DECOMPRESSION_ZP_SCALAR
-            decompression_zp,
-        #endif
-            output,
-            weights
-        #if USE_SLM
-            , wei_local_mem
-        #endif
-        #if BIAS_TERM
-            , biases
-        #endif
-        #if HAS_FUSED_OPS_DECLS
-            , FUSED_OPS_ARGS
-        #endif
-        );
     #endif
 #endif
 }
