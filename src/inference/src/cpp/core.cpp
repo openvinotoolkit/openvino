@@ -102,8 +102,6 @@ CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
                                   const std::string& device_name,
                                   const AnyMap& config) {
     OV_CORE_CALL_STATEMENT({
-        const auto device_not_supported = _impl->get_device_unsupported_properties(device_name, config);
-        set_property(device_not_supported);
         auto exec = _impl->compile_model(model, device_name, config);
         return {exec._ptr, exec._so};
     });
@@ -121,8 +119,6 @@ CompiledModel Core::compile_model(const std::wstring& model_path, const AnyMap& 
 
 CompiledModel Core::compile_model(const std::string& model_path, const std::string& device_name, const AnyMap& config) {
     OV_CORE_CALL_STATEMENT({
-        const auto device_not_supported = _impl->get_device_unsupported_properties(device_name, config);
-        set_property(device_not_supported);
         auto exec = _impl->compile_model(model_path, device_name, config);
         return {exec._ptr, exec._so};
     });
@@ -141,8 +137,6 @@ CompiledModel Core::compile_model(const std::string& model,
                                   const std::string& device_name,
                                   const AnyMap& config) {
     OV_CORE_CALL_STATEMENT({
-        const auto device_not_supported = _impl->get_device_unsupported_properties(device_name, config);
-        set_property(device_not_supported);
         auto exec = _impl->compile_model(model, weights, device_name, config);
         return {exec._ptr, exec._so};
     });
@@ -152,8 +146,6 @@ CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
                                   const RemoteContext& context,
                                   const AnyMap& config) {
     OV_CORE_CALL_STATEMENT({
-        const auto device_not_supported = _impl->get_device_unsupported_properties(context.get_device_name(), config);
-        set_property(device_not_supported);
         auto exec = _impl->compile_model(model, ov::SoPtr<ov::IRemoteContext>{context._impl, context._so}, config);
         return {exec._ptr, exec._so};
     });
