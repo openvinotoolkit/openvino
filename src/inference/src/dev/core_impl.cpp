@@ -994,13 +994,10 @@ ov::AnyMap ov::CoreImpl::get_supported_property(const Plugin& plugin,
         supported_config_keys = core_level_properties;
     }
 
-    const auto may_add_supported = rw_only ? [](const PropertyName& p){return p.is_mutable();} : [](const
-    PropertyName&){return true;};
-
     // try to search against OV API 2.0' mutable supported_properties
     try {
         for (auto&& property : plugin.get_property(ov::supported_properties)) {
-            if (may_add_supported(property)) {
+            if (!rw_only || property.is_mutable()) {
                 supported_config_keys.emplace_back(std::move(property));
             }
         }
@@ -1010,7 +1007,7 @@ ov::AnyMap ov::CoreImpl::get_supported_property(const Plugin& plugin,
     // try to search against internal supported_properties
     try {
         for (auto&& property : plugin.get_property(ov::internal::supported_properties)) {
-            if (may_add_supported(property)) {
+            if (!rw_only || property.is_mutable()) {
                 supported_config_keys.emplace_back(std::move(property));
             }
         }
