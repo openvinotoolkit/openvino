@@ -295,10 +295,10 @@ void ov::Model::validate_nodes_and_infer_types() const {
             const auto batch_idx = ov::layout::batch_idx(layout);
             const auto& batch_dim = p_shape[batch_idx];
             OPENVINO_ASSERT(batch_dim.is_dynamic() || batch_dim.get_length() > 0,
-                        "Batch size must be a positive value for input '",
-                        input,
-                        "', but has got: ",
-                        batch_dim.get_length());
+                            "Batch size must be a positive value for input '",
+                            input,
+                            "', but has got: ",
+                            batch_dim.get_length());
         }
     }
 
