@@ -192,8 +192,6 @@ void add_required_reorders::run(program& p) {
         if (usr->is_type<eltwise>()) {
             for (size_t i = 0; i < usr->get_dependencies().size(); i++) {
                 auto& dep = usr->get_dependency(i);
-                if (!dep.is_in_data_flow() || dep.is_constant())
-                    continue;
                 auto dep_layout = dep.get_output_layout();
                 auto out_layout = usr->get_output_layout();
                 bool required_reorder = (format::dimension(out_layout.format) != format::dimension(dep_layout.format)) ||
