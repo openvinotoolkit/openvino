@@ -540,10 +540,9 @@ class IREngine(object):
     @staticmethod
     def __read_rt_info_common(attr):
         attr_name = attr.attrib['name']
-        #  TODO add notice why fixed to 0
-        version = 0
         rt_info = OrderedDict()
         for key in attr.attrib:
-            if key not in ('name', 'version'):
+            # Since 2024.5 Serializeable RuntimeAttribute must not have a version thought version string is empty
+            if key not in ('name', ''):
                 rt_info[key] = attr.attrib[key]
         return {(attr_name, version): rt_info}

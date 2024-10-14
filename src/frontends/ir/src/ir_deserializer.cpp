@@ -965,7 +965,7 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
                 item.print(ss);
                 OPENVINO_THROW("rt_info attribute has no \"name\" field: ", ss.str());
             }
-            // TODO add notice why fixed to ""
+            // Since 2024.5 Serializeable RuntimeAttribute must not have a version thought version string is empty
             const auto& type_info = ov::DiscreteTypeInfo(attribute_name.c_str(), "");
             auto attr = attrs_factory.create_by_type_info(type_info);
             if (!attr.empty()) {

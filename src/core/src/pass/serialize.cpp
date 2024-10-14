@@ -1016,8 +1016,8 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
                     auto& rt_attribute = item.second.as<ov::RuntimeAttribute>();
                     const auto& type_info = rt_attribute.get_type_info();
                     attribute_node.append_attribute("name").set_value(type_info.name);
-                    // TODO add deprecation notice with explanation (RuntimeAttribute should not be versioned, 0 remains
-                    // as legacy for backword compatibity)
+                    // OpenVINO 2024.4 and older require "version" attribute to be present. It's safe to store fixed
+                    // values as all deserialized RuntimeAttribute devired attributes' version is 0 up to 2024.4
                     assert(type_info.get_version().empty());
                     attribute_node.append_attribute("version").set_value("0");
                     rt_info::RTInfoSerializer serializer(attribute_node);
