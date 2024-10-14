@@ -1577,6 +1577,76 @@ public:
             ASSERT_NEAR(output_ptr[i], ref_out_data[i], abs_error) << "at " << i;
         }
     }
+
+    void test_dynamic_static_broadcast_3dim(std::vector<size_t> BMKN, bool is_caching_test, const double abs_error = 0.0001) {
+        tests::random_generator rg;
+        rg.set_seed(GET_SUITE_NAME);
+
+        auto& engine = get_test_engine();
+        cldnn::layout input0_layout;
+        cldnn::layout input1_layout;
+
+        std::vector<int64_t> input0_order = {0, 1, 2};
+        std::vector<int64_t> input1_order = {0, 1, 2};
+        std::vector<int64_t> output_order = {0, 1, 2};
+
+        size_t BATCH_SIZE = BMKN[0];
+        size_t M_SIZE = BMKN[1];
+        size_t K_SIZE = BMKN[2];
+        size_t N_SIZE = BMKN[3];
+
+        ov::Shape input0_shape = { BATCH_SIZE, M_SIZE, K_SIZE };
+        ov::Shape input1_shape = {          1, K_SIZE, N_SIZE };
+        ov::Shape output_shape = { BATCH_SIZE, M_SIZE, N_SIZE };
+
+        input0_layout = layout{ov::PartialShape::dynamic(input0_shape.size()), data_types::f16, format::bfyx};
+        input1_layout = layout{ov::PartialShape(input1_shape), data_types::f16, format::bfyx};
+
+        auto input0_mem = engine.allocate_memory(layout{ov::PartialShape(input0_shape), data_types::f16, format::bfyx});
+        auto input1_mem = engine.allocate_memory(layout{ov::PartialShape(input1_shape), data_types::f16, format::bfyx});
+
+        auto input_0_data = rg.generate_random_1d<ov::float16>(ov::shape_size(input0_shape), -2, 2);
+        auto input_1_data = rg.generate_random_1d<ov::float16>(ov::shape_size(input1_shape), -2, 2);
+
+        set_values(input0_mem, input_0_data);
+        set_values(input1_mem, input_1_data);
+
+        topology topology;
+        topology.add(input_layout("input0", input0_layout),
+                     input_layout("input1", input1_layout),
+                     gemm("gemm", { input_info("input0"), input_info("input1") }, data_types::f16, input0_order, input1_order, output_order)
+        );
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+        network->set_input_data("input0", input0_mem);
+        network->set_input_data("input1", input1_mem);
+
+        auto outputs = network->execute();
+
+        auto output_mem = outputs.at("gemm").get_memory();
+        cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
+
+        std::vector<ov::float16> ref_out_data;
+        ref_out_data.resize(ov::shape_size(output_shape));
+
+        ov::reference::matmul<ov::float16>(input_0_data.data(),
+                                     input_1_data.data(),
+                                     ref_out_data.data(),
+                                     input0_shape,
+                                     input1_shape,
+                                     output_shape,
+                                     false,
+                                     false);
+
+        ASSERT_EQ(output_ptr.size(), ref_out_data.size());
+
+        for (uint32_t i = 0; i < ref_out_data.size(); ++i) {
+            ASSERT_NEAR(output_ptr[i], ref_out_data[i], abs_error) << "at " << i;
+        }
+    }
 };
 
 TEST_F(gemm_gpu_tests, basic_bfyx_t2_inplace_crop_with_pad) {
@@ -1708,6 +1778,10 @@ TEST_F(gemm_gpu_tests, transpose_matmul_static_4d_f32_n_tile_32) {
 
 TEST_F(gemm_gpu_tests, transpose_matmul_static_4d_f32_n_tile_32_input1_ylast) {
     this->test_transpose_matmul_f32(4, false, false, /*BMKN*/{19, 37, 23, 29}, /*input0_order*/{0, 1, 2, 3}, /*input1_order*/{0, 1, 3, 2});
+}
+
+TEST_F(gemm_gpu_tests, test_dynamic_static_broadcast_3dim) {
+    this->test_dynamic_static_broadcast_3dim(/*BMKN*/{2, 16, 2, 2}, false);
 }
 
 TEST_F(gemm_gpu_tests, transpose_matmul_in0_indirect) {

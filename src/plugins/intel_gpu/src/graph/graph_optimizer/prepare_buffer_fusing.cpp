@@ -274,6 +274,9 @@ void concat_in_place_optimization::optimize_cascade(concatenation_node& node, st
     }
     node.set_output_layout(concat_layout);
     node.can_be_optimized(true);
+    if (node.is_dynamic()) {
+        node.set_runtime_skippable(true);
+    }
     GPU_DEBUG_TRACE_DETAIL << "[prepare_buffer_fusing] : " << node.id() << " can be optimized" << std::endl;
 }
 
