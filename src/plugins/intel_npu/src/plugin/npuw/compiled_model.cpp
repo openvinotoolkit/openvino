@@ -442,13 +442,14 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 }
 
 void ov::npuw::CompiledModel::finalize_weights_bank() {
+    LOG_INFO("Finalizing weights bank...");
     // Register lazy tensors
     for (std::size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
         auto& comp_model_desc = m_compiled_submodels[idx];
 
         // Skip optimized out and non-functions
         if (!comp_model_desc.compiled_model && !comp_model_desc.replaced_by) {
-            return;
+            continue;
         }
 
         const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
@@ -489,6 +490,45 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
             comp_model_desc.is_remote[tidx] = m_weights_bank->is_remote(lt);
         }
     }
+
+    LOG_INFO("Done.");
+}
+
+std::string ov::npuw::CompiledModel::global_mem_device() const {
+    // Force globally set device if set
+    const std::string device_alloc = m_cfg.get<::intel_npu::NPUW_WEIGHTS_BANK_ALLOC>();
+    if (!device_alloc.empty()) {
+        return device_alloc;
+    }
+
+    // Check if there is at least 1 NPU submodel
+    for (std::size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
+        auto& comp_model_desc = m_compiled_submodels[idx];
+        if (!comp_model_desc.compiled_model) {
+            continue;
+        }
+        if (ov::npuw::util::starts_with(*comp_model_desc.device_it, "NPU")) {
+            return "NPU";
+        }
+    }
+
+    return "CPU";
+}
+
+std::string ov::npuw::CompiledModel::funcall_mem_device(const std::size_t idx) const {
+    // FIXME: currently we allocate intermediate tensors for EVERY submodel.
+    //        It's not feasible to allocate them in L0 due to high memory consumption.
+    //        Until we make such memory reusable, hard-coding those tensors to CPU.
+    return "CPU";
+
+    // Force globally set device if set
+    const std::string device_alloc = m_cfg.get<::intel_npu::NPUW_WEIGHTS_BANK_ALLOC>();
+    if (!device_alloc.empty()) {
+        return device_alloc;
+    }
+
+    auto& comp_model_desc = m_compiled_submodels[idx];
+    return *comp_model_desc.device_it;
 }
 
 void ov::npuw::CompiledModel::remove_long_output_names(const std::shared_ptr<ov::Model>& model) {

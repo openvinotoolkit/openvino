@@ -6,10 +6,15 @@
 
 #include <limits>
 #include <map>
+#include <mutex>
 #include <optional>
 #include <vector>
 
 #include "base_sync_infer_request.hpp"
+#include "openvino/runtime/iplugin.hpp"
+#include "openvino/runtime/iremote_context.hpp"
+#include "openvino/runtime/make_tensor.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace ov {
 namespace npuw {
@@ -59,6 +64,9 @@ private:
     void connect_subrequests();
     void recreate_subrequests(std::size_t idx);
 
+    ov::SoPtr<ov::ITensor> allocTensor(const ov::element::Type type, const ov::Shape& shape, const std::string& device);
+    ov::SoPtr<ov::ITensor> allocTensor(const ov::Output<const ov::Node>& node, const std::string& device);
+
     using LinkFrom = std::pair<std::size_t /* Subrequest index */
                                ,
                                std::size_t /* Subrequest output index */
@@ -93,6 +101,11 @@ private:
         map_t global_results;  // result idx -> output idx
     };
     std::vector<GlobalIO> m_subrequests_gio;
+
+    std::mutex m_alloc_mutex;
+    std::shared_ptr<ov::IRemoteContext> m_remote_ctx = nullptr;
+
+    std::unordered_set<void*> m_input_allocated;
 };
 
 }  // namespace npuw
