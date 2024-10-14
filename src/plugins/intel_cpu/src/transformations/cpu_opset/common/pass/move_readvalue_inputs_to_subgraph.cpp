@@ -30,28 +30,33 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
             return false;
         }
 
-        int recursive_deep_check_node = 0;
-        constexpr int MAX_RECURSIVE_DEEP_CHECK_NODE = 10;
-        int recursive_deep_check_successor = 0;
-        constexpr int MAX_RECURSIVE_DEEP_CHECK_SUCCESSOR = 10;
-        bool successor_is_root = true;
+        int depth_check_node = 0;
+        constexpr int MAX_DEPTH_CHECK_NODE = 10;
+        int depth_check_successor = 0;
+        constexpr int MAX_DEPTH_CHECK_SUCCESSOR = 10;
+        bool found_output = false;  // Flag: find Output node or out of max depth.
         std::string root_name = readvalue->get_friendly_name();
 
         NodeVector subgraph_nodes;
         std::unordered_set<std::string> subgraph_node_names;
+        std::unordered_set<std::shared_ptr<ov::Node>> visited;  // Visited flag.
         NodeVector inputs = {};
         OutputVector outputs = {};
 
-        // Check whether final successor is only root.
-        std::function<void(std::shared_ptr<ov::Node>)> check_node_successor = [&](std::shared_ptr<ov::Node> node) {
-            recursive_deep_check_successor++;
-            if (recursive_deep_check_successor > MAX_RECURSIVE_DEEP_CHECK_SUCCESSOR) {
-                successor_is_root = false;
+        // Check whether final successor is only ReadValue.
+        std::function<void(std::shared_ptr<ov::Node>)> check_successor = [&](std::shared_ptr<ov::Node> node) {
+            if (visited.find(node) != visited.end()) {
+                return;
+            }
+
+            depth_check_successor++;
+            if (depth_check_successor > MAX_DEPTH_CHECK_SUCCESSOR) {
+                found_output = true;
                 return;
             }
 
             if (node->get_output_target_inputs(0).size() == 0u) {
-                successor_is_root = false;
+                found_output = true;
                 return;
             }
 
@@ -60,14 +65,14 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
                 if (son->get_friendly_name() == root_name) {
                     continue;
                 }
-                check_node_successor(son);
+                check_successor(son);
             }
-            recursive_deep_check_successor--;
+            depth_check_successor--;
         };
 
         std::function<void(std::shared_ptr<ov::Node>)> check_node = [&](std::shared_ptr<ov::Node> node) {
-            recursive_deep_check_node++;
-            if (recursive_deep_check_node > MAX_RECURSIVE_DEEP_CHECK_NODE) {
+            depth_check_node++;
+            if (depth_check_node > MAX_DEPTH_CHECK_NODE) {
                 return;
             }
 
@@ -77,9 +82,10 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
             }
 
             // Check whether current node have same successor[root_node_name].
-            successor_is_root = true;
-            check_node_successor(node);
-            if (!successor_is_root) {
+            found_output = false;
+            check_successor(node);
+            visited.insert(node);
+            if (found_output) {
                 inputs.emplace_back(node);
                 return;
             }
@@ -87,7 +93,7 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
             for (size_t i = 0; i < node->get_input_size(); i++) {
                 check_node(node->get_input_node_shared_ptr(i));
             }
-            recursive_deep_check_node--;
+            depth_check_node--;
             // Cache to subgraph_nodes
             subgraph_nodes.emplace_back(node);
             subgraph_node_names.insert(node->get_friendly_name());
