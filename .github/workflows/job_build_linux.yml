@@ -298,9 +298,9 @@ jobs:
         uses: ./openvino/.github/actions/store_artifacts
         with:
           artifacts: |
-            ${{ env.BUILD_DIR }}/openvino_package
-            ${{ env.BUILD_DIR }}/openvino_developer_package
-            ${{ env.BUILD_DIR }}/openvino_tests
+            ${{ env.INSTALL_DIR }}
+            ${{ env.DEVELOPER_PACKAGE_DIR }}
+            ${{ env.INSTALL_TEST_DIR }}
             ${{ env.BUILD_DIR }}/deb
             ${{ env.MANIFEST_PATH }}
           storage_dir: ${{ env.PRODUCT_TYPE }}
