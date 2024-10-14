@@ -99,7 +99,7 @@ void ModelDeserializer::process_mmap(std::shared_ptr<ov::Model>& model,
     // Map blob content
     std::shared_ptr<ov::AlignedBuffer> weights_buf;
     if (hdr.consts_size) {
-        weights_buf = mmemory;
+        weights_buf = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(buffer_base + hdr.consts_offset, hdr.consts_size, mmemory);
     }
 
     // XML content
