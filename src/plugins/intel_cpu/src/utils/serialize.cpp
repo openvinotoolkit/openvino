@@ -58,19 +58,20 @@ void ModelDeserializer::set_info(pugi::xml_node& root, std::shared_ptr<ov::Model
 }
 
 void ModelDeserializer::operator>>(std::shared_ptr<ov::Model>& model) {
-    if (auto mmap_stream = dynamic_cast<MmapStream*>(&m_istream)) {
-        process_mmap(model, mmap_stream->m_memory);
+    if (auto mmap_buffer = dynamic_cast<OwningSharedStreamBuffer*>(m_istream.rdbuf())) {
+        auto buffer = mmap_buffer->get_buffer();
+        process_mmap(model, buffer);
     } else {
         process_stream(model);
     }
 }
 
 void ModelDeserializer::process_mmap(std::shared_ptr<ov::Model>& model,
-                                     const std::shared_ptr<ov::MappedMemory>& mmemory) {
+                                     const std::shared_ptr<ov::AlignedBuffer>& mmemory) {
     // Note: Don't use seekg with mmaped stream. This may affect the performance of some models.
     // Get file size before seek content.
     // Blob from cache may have other header, so need to skip this.
-    auto buffer_base = mmemory->data();
+    auto buffer_base = reinterpret_cast<char*>(mmemory->get_ptr());
     const auto file_size = mmemory->size();
     const size_t hdr_pos = m_istream.tellg();
 
@@ -98,9 +99,7 @@ void ModelDeserializer::process_mmap(std::shared_ptr<ov::Model>& model,
     // Map blob content
     std::shared_ptr<ov::AlignedBuffer> weights_buf;
     if (hdr.consts_size) {
-        weights_buf = std::make_shared<ov::SharedBuffer<std::shared_ptr<MappedMemory>>>(buffer_base + hdr.consts_offset,
-                                                                                        hdr.consts_size,
-                                                                                        mmemory);
+        weights_buf = mmemory;
     }
 
     // XML content
@@ -130,9 +129,7 @@ void ModelDeserializer::process_mmap(std::shared_ptr<ov::Model>& model,
 
 void ModelDeserializer::process_stream(std::shared_ptr<ov::Model>& model) {
     const size_t hdr_pos = m_istream.tellg();
-    m_istream.seekg(0, m_istream.end);
     const size_t file_size = m_istream.tellg();
-    m_istream.seekg(hdr_pos, m_istream.beg);
 
     pass::StreamSerialize::DataHeader hdr = {};
     m_istream.read(reinterpret_cast<char*>(&hdr), sizeof hdr);
