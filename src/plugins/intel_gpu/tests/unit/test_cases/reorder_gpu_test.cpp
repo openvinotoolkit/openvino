@@ -103,8 +103,6 @@ static void compare_bfyx2blocked_with_ref(const std::string& kernel_name,
     network_ref->set_input_data("input", input);
 
     auto outputs_ref = network_ref->execute();
-    cldnn::event::ptr e1 = outputs_ref.at("reorder").get_event();
-    e1->wait();
 
     // run on optimized kernel
     ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
@@ -116,8 +114,6 @@ static void compare_bfyx2blocked_with_ref(const std::string& kernel_name,
     network->set_input_data("input", input);
 
     auto outputs = network->execute();
-    cldnn::event::ptr e2 = outputs.at("reorder").get_event();
-    e2->wait();
 
     // compare output_ref and output_opt.
     if (output_data_type == data_types::i8)
