@@ -37,9 +37,10 @@ input_fp32 = ... # FP32 model input
 # compile quantized model using torch.compile API
 with nncf.torch.disable_patching():
     compiled_model_int8 = torch.compile(quantized_model, backend="openvino")
-    # First call compiles an OpenVino model underneath, so it could take longer
+    # First call compiles an OpenVINO model underneath, so it could take longer
     # than original model call.
     res = compiled_model_int8(input_fp32)
+    print(res) # torch.tensor(...)
 ...
 
 
@@ -52,6 +53,8 @@ with nncf.torch.disable_patching():
 model_int8 = ov.compile_model(ov_quantized_model)
 
 res = model_int8(input_fp32)
+print(res) # torch.tensor(...)
+
 
 # save the model
 ov.save_model(ov_quantized_model, "quantized_model.xml")
