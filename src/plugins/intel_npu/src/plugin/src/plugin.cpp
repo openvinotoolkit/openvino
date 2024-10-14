@@ -8,6 +8,7 @@
 
 #include "compiled_model.hpp"
 #include "compiler.hpp"
+#include "model_version.hpp"
 #include "device_helpers.hpp"
 #include "intel_npu/al/config/common.hpp"
 #include "intel_npu/al/config/compiler.hpp"
@@ -761,7 +762,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         _logger.info("Successfully read %zu bytes into blob.", graphSize);
 
         stream.seekg(graphSize - sizeof(size_t), stream.beg);
-        Metadata_v1::version_check(blob, stream);
+        check_blob_version(blob, stream);
 
         auto meta = compiler->parse(blob, localConfig);
         meta.name = "net" + std::to_string(_compiledModelLoadCounter++);
