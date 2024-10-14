@@ -35,6 +35,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--ov_dir', type=Path, help='OpenVINO docs directory')
     parser.add_argument('--python', type=Path, help='Python executable')
+    parser.add_argument('--enable_genai', type=str, choices=['ON', 'OFF'], default='OFF', help='Enable GenAI API installation')
     args = parser.parse_args()
     
     version_name = determine_openvino_version(args.ov_dir.joinpath("conf.py"))
@@ -44,20 +45,21 @@ def main():
         print("OpenVINO nightly version installed. OpenVINO GenAI nightly version is not available.")
     elif version_name is None or version_name == "latest":
         install_package(args.python, "openvino")
-        install_package(args.python, "openvino-genai")
+        if args.enable_genai == 'ON':
+            install_package(args.python, "openvino-genai")
     else:
         ov_version = get_latest_version("openvino", version_name)
-        ov_genai_version = get_latest_version("openvino-genai", version_name)
-        
         if ov_version:
             install_package(args.python, f"openvino=={ov_version}")
         else:
             print(f"No matching OpenVINO version found for {version_name}")
         
-        if ov_genai_version:
-            install_package(args.python, f"openvino-genai=={ov_genai_version}")
-        else:
-            print(f"No matching OpenVINO GenAI version found for {version_name}")
+        if args.enable_genai == 'ON':
+            ov_genai_version = get_latest_version("openvino-genai", version_name)
+            if ov_genai_version:
+                install_package(args.python, f"openvino-genai=={ov_genai_version}")
+            else:
+                print(f"No matching OpenVINO GenAI version found for {version_name}")
 
 
 if __name__ == "__main__":
