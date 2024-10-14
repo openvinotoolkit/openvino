@@ -194,11 +194,6 @@ TEST_P(SerializationDeterministicityInputOutputTest, FromOvModel) {
     ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1, irVersion).run_on_model(modelRef);
     auto expected2 = ov::test::readModel(m_out_xml_path_1, m_out_bin_path_1);
 
-    // We need to check and erase this entry because it's expected to be different in these two scenarios.
-    std::string path_key = "weights_path";
-    EXPECT_EQ(m_out_bin_path_1, expected2->get_rt_info()[path_key].as<std::string>());
-    expected2->get_rt_info().erase(path_key);
-
     ov::pass::Serialize(m_out_xml_path_2, m_out_bin_path_2, irVersion).run_on_model(expected2);
 
     EXPECT_EQ(input0Name, expected1->input(0).get_node()->get_friendly_name());
@@ -282,22 +277,9 @@ TEST_P(SerializationDeterministicityInputOutputTest, FromIrModel) {
         xmlFile.close();
     }
 
-    std::string path_key = "weights_path";
-
     auto expected1 = ov::test::readModel(xmlFileName, "");
-
-    // We need to check and erase this entry because it's expected to be different in these two scenarios.
-    EXPECT_EQ("", expected1->get_rt_info()[path_key].as<std::string>());
-    expected1->get_rt_info().erase(path_key);
-
     ov::pass::Serialize(m_out_xml_path_1, "", irVersion).run_on_model(expected1);
-
     auto expected2 = ov::test::readModel(m_out_xml_path_1, "");
-
-    // We need to check and erase this entry because it's expected to be different in these two scenarios.
-    EXPECT_EQ(m_out_bin_path_1, expected2->get_rt_info()[path_key].as<std::string>());
-    expected2->get_rt_info().erase(path_key);
-
     ov::pass::Serialize(m_out_xml_path_2, "", irVersion).run_on_model(expected2);
 
     EXPECT_EQ(input0Name, expected1->input(0).get_node()->get_friendly_name());

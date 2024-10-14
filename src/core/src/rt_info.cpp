@@ -74,7 +74,6 @@ ov::Any get_opset(const ov::Node::RTMap& rt_info) {
 
 void assign_runtime_info(const ov::Node::RTMap& from, ov::Node::RTMap& to) {
     auto opset = get_opset(to);
-
     for (auto& item : from) {
         to[item.first] = item.second;
     }

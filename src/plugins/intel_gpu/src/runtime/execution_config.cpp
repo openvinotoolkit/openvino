@@ -60,6 +60,7 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::cache_encryption_callbacks, EncryptionCallbacks{}),
         std::make_tuple(ov::hint::dynamic_quantization_group_size, 0),
         std::make_tuple(ov::intel_gpu::hint::enable_kernels_reuse, false),
+        std::make_tuple(ov::intel_gpu::weights_path, ""),
 
         // Legacy API properties
         std::make_tuple(ov::intel_gpu::nv12_two_inputs, false),
@@ -79,8 +80,7 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::intel_gpu::allow_new_shape_infer, false),
         std::make_tuple(ov::intel_gpu::use_only_static_kernels_for_dynamic_shape, false),
         std::make_tuple(ov::intel_gpu::buffers_preallocation_ratio, 1.1f),
-        std::make_tuple(ov::intel_gpu::max_kernels_per_batch, 8),
-        std::make_tuple(ov::intel_gpu::weights_path, ""));
+        std::make_tuple(ov::intel_gpu::max_kernels_per_batch, 8));
 }
 
 void ExecutionConfig::register_property_impl(const std::pair<std::string, ov::Any>& property, PropertyVisibility visibility, BaseValidator::Ptr validator) {

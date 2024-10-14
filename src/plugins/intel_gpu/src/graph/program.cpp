@@ -1718,8 +1718,6 @@ void program::cancel_compilation_context() {
 }
 
 void program::save(cldnn::BinaryOutputBuffer& ob) const {
-    std::string weights_path = _config.get_property(ov::intel_gpu::weights_path);
-
     std::map<cldnn::memory::ptr, std::vector<const cldnn::program_node*>> mutable_datas_ptrs;
     ob << nodes_map.size();
 
@@ -1734,10 +1732,6 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
             } else {
                 node.second->as<data>().typed_desc()->mem = data_node.get_attached_memory_ptr();
             }
-        }
-
-        if (node.second->is_type<data>()) {
-            node.second->as<data>().typed_desc()->weights_path = weights_path;
         }
 
         ob << true;

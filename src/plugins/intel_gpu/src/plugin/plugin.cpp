@@ -162,22 +162,6 @@ Plugin::Plugin() {
     m_compiled_model_runtime_properties["OV_VERSION"] = ov_version.buildNumber;
 }
 
-void Plugin::set_cache_info(const std::shared_ptr<const ov::Model>& model, ExecutionConfig& config) const {
-    // GPU_WEIGHTS_PATH is used for the weightless cache mechanism which is used only with
-    // ov::CacheMode::OPTIMIZE_SIZE setting. Not setting GPU_WEIGHTS_PATH will result in not
-    // using that mechanism.
-    if (config.get_property(ov::cache_mode) != ov::CacheMode::OPTIMIZE_SIZE) {
-        return;
-    }
-
-    auto model_rt_info = model->get_rt_info();
-    auto weights_path = model_rt_info.find("weights_path");
-    if (weights_path != model_rt_info.end()) {
-        ov::AnyMap weights_path_property{{"GPU_WEIGHTS_PATH", weights_path->second}};
-        config.set_property(weights_path_property);
-    }
-}
-
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& orig_config) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::compile_model");
     std::string device_id = get_device_id(orig_config);
@@ -189,8 +173,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(orig_config);
     config.apply_user_properties(context->get_engine().get_device_info());
-
-    set_cache_info(model, config);
 
     auto transformed_model = clone_and_transform_model(model, config, context);
     {
@@ -210,8 +192,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(orig_config);
     config.apply_user_properties(context_impl->get_engine().get_device_info());
-
-    set_cache_info(model, config);
 
     auto transformed_model = clone_and_transform_model(model, config, context_impl);
     return std::make_shared<CompiledModel>(transformed_model, shared_from_this(), context_impl, config);
@@ -330,11 +310,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
 
     cldnn::BinaryInputBuffer ib(model, context_impl->get_engine());
 
-    std::string weights_path;
-    ib >> weights_path;
-    config.set_property(ov::intel_gpu::weights_path(weights_path));
-
-    if (config.get_property(ov::cache_mode) == ov::CacheMode::OPTIMIZE_SIZE && weights_path.empty()) {
+    if (config.get_property(ov::cache_mode) == ov::CacheMode::OPTIMIZE_SIZE &&
+        config.get_property(ov::intel_gpu::weights_path).empty()) {
         return nullptr;
     }
 

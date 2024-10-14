@@ -35,7 +35,6 @@ struct data : public primitive_base<data> {
 
     size_t original_size = SIZE_MAX;
     size_t bin_offset = SIZE_MAX;
-    std::string weights_path = "";
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -54,12 +53,11 @@ struct data : public primitive_base<data> {
         size_t data_size = mem->size();
         ob << make_data(&data_size, sizeof(size_t));
 
-        bool is_cache_without_weights = bin_offset != SIZE_MAX && data_size == original_size && !weights_path.empty();
+        bool is_cache_without_weights = bin_offset != SIZE_MAX && data_size == original_size;
 
         if (is_cache_without_weights) {
             ob << true;
             ob << bin_offset;
-            ob << weights_path;
         } else {
             ob << false;
             if (_allocation_type == allocation_type::usm_host || _allocation_type == allocation_type::usm_shared) {
@@ -99,7 +97,6 @@ struct data : public primitive_base<data> {
         std::shared_ptr<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>> shared_buf;
         if (is_cache_without_weights) {
             ib >> bin_offset;
-            ib >> weights_path;
             original_size = data_size;
 
             shared_buf = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(

@@ -9,6 +9,7 @@
 
 #include "openvino/core/except.hpp"
 #include "openvino/core/meta_data.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/loop.hpp"
@@ -19,7 +20,6 @@
 #include "openvino/op/util/read_value_base.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "openvino/op/util/variable.hpp"
-#include "openvino/op/util/weightless_caching_attributes.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/runtime/string_aligned_buffer.hpp"
@@ -945,11 +945,12 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
         if (aw_data) {
             rtInfo["alt_width"] = aw_data.value();
         }
-        if (auto constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(ovNode)) {
-            rtInfo[ov::ConstantBinOffset::get_type_info_static()] =
-                ov::ConstantBinOffset(static_cast<size_t>(pugixml::get_uint64_attr(dn, "offset")));
-            rtInfo[ov::ConstantOriginalSize::get_type_info_static()] =
-                ov::ConstantOriginalSize(static_cast<size_t>(pugixml::get_uint64_attr(dn, "size")));
+        const auto size = dn.attribute("size");
+        const auto offset = dn.attribute("offset");
+        if (size && offset) {
+            rtInfo[ov::WeightlessCacheAttribute::get_type_info_static()] =
+                ov::WeightlessCacheAttribute(static_cast<size_t>(pugixml::get_uint64_attr(dn, "size")),
+                                             static_cast<size_t>(pugixml::get_uint64_attr(dn, "offset")));
         }
     }
 
