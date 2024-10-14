@@ -543,7 +543,10 @@ void MatMul::prepareParams() {
     if (!src0MemPtr || !src0MemPtr->isDefined() || !src1MemPtr || !src1MemPtr->isDefined())
         OPENVINO_THROW(errorPrefix, " has undefined input memory");
 
-    // check for degenerate case
+    // check for a degenerate case. In this context the degenerate case is a matrix multiplication where the
+    // collapsing dimension is zero, e.g., AB=C, where A has the shape [10, 0] and B has the shape [0, 20],
+    // consequently C has shape [10, 20]. In this scenario C is a null matrix (a matrix filled with zeroes)
+    // according to the empty sum convention.
     if (src0MemPtr->getDesc().getShape().hasZeroDims() && src0MemPtr->getDesc().getShape().hasZeroDims() &&
         !dstMemPtr->getDesc().getShape().hasZeroDims()) {
         // todo: obviously we need a special executor that would process fused ops providing a correct result
@@ -658,7 +661,7 @@ void MatMul::execute(dnnl::stream strm) {
     if (execPtr) {
         execPtr->exec(primArgs, strm);
     } else if (hasEmptyInputTensors()) {
-        // this is degenerate case, fill output with zeroes
+        // this is a degenerate case, fill output with zeroes
         getDstMemoryAtPort(0)->nullify();
     } else {
         OPENVINO_THROW(errorPrefix, " doesn't have an initialized executor");
