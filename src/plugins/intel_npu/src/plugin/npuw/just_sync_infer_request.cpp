@@ -66,20 +66,14 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
                     // Note: these buffers are allocated to the entire NWAY (> tail_size)
                     for (auto&& p : proto_comp_model_desc.spatial->params) {
                         const auto& iport = proto_comp_model_desc.compiled_model->inputs()[p.idx];
-                        // FIXME: currently we allocate intermediate tensors for EVERY submodel.
-                        //        It's not feasible to allocate them in L0 due to high memory consumption.
-                        //        Until we make such memory reusable, hard-coding those tensors to CPU.
-                        //        In the future `m_npuw_model->funcall_mem_device(real_idx)` should replace `"CPU"`
-                        m_spatial_io[real_idx].input_tails[p.idx] = allocTensor(iport, "CPU");
+                        m_spatial_io[real_idx].input_tails[p.idx] =
+                            allocTensor(iport, m_npuw_model->funcall_mem_device(real_idx));
                     }
                     const auto num_outs = proto_comp_model_desc.compiled_model->outputs().size();
                     for (std::size_t out_idx = 0u; out_idx < num_outs; out_idx++) {
                         const auto& oport = proto_comp_model_desc.compiled_model->outputs()[out_idx];
-                        // FIXME: currently we allocate intermediate tensors for EVERY submodel.
-                        //        It's not feasible to allocate them in L0 due to high memory consumption.
-                        //        Until we make such memory reusable, hard-coding those tensors to CPU.
-                        //        In the future `m_npuw_model->funcall_mem_device(real_idx)` should replace `"CPU"`
-                        m_spatial_io[real_idx].output_tails[out_idx] = allocTensor(oport, "CPU");
+                        m_spatial_io[real_idx].output_tails[out_idx] =
+                            allocTensor(oport, m_npuw_model->funcall_mem_device(real_idx));
                     }
                 }
             }  // if(spatial)
@@ -92,11 +86,8 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
                 if (proto_comp_model_desc.spatial) {
                     shape[proto_comp_model_desc.spatial->out_dim] = proto_comp_model_desc.spatial->range;
                 }
-                // FIXME: currently we allocate intermediate tensors for EVERY submodel.
-                //        It's not feasible to allocate them in L0 due to high memory consumption.
-                //        Until we make such memory reusable, hard-coding those tensors to CPU.
-                //        In the future `m_npuw_model->funcall_mem_device(real_idx)` should replace `"CPU"`
-                m_funcall_result[LinkFrom{i, out_idx}] = allocTensor(port.get_element_type(), shape, "CPU");
+                m_funcall_result[LinkFrom{i, out_idx}] =
+                    allocTensor(port.get_element_type(), shape, m_npuw_model->funcall_mem_device(real_idx));
             }
             if (real_idx != i) {
                 // If this function call is NOT the function body, do nothing here - the original
