@@ -42,7 +42,7 @@ OP_CONVERTER(translate_argmax);
 OP_CONVERTER(translate_argmin);
 OP_CONVERTER(translate_as_strided);
 OP_CONVERTER(translate_as_tensor);
-OP_CONVERTER(translate_aten2);
+OP_CONVERTER(translate_atan2);
 OP_CONVERTER(translate_avg_poolnd);
 OP_CONVERTER(translate_bool);
 OP_CONVERTER(translate_batch_norm);
@@ -381,7 +381,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::atanh",
          op::optional_out<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Atanh>, 1>},
         {"aten::atanh_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Atanh>>},
-        {"aten::aten2", op::optional_out<op::translate_aten2, 2>},
+        {"aten::atan2", op::optional_out<op::translate_atan2, 2>},
         {"aten::avg_pool1d", op::quantizable_op<op::translate_avg_poolnd>},
         {"aten::avg_pool2d", op::quantizable_op<op::translate_avg_poolnd>},
         {"aten::avg_pool3d", op::quantizable_op<op::translate_avg_poolnd>},
