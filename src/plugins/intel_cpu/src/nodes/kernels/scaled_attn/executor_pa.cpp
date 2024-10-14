@@ -932,21 +932,22 @@ struct MHAHelper {
                 if (_sliding_window) {
                     size_t start_idx = 0;
                     auto new_causal = ncausal;
+                    float* alibi_lookup = nullptr;
                     if (ncausal > _sliding_window) {
                         start_idx = ncausal - static_cast<size_t>(_sliding_window);
                         new_causal = _sliding_window;
                     }
-                    attn_softmax_kernel(score + start_idx,
-                                        reinterpret_cast<DATA_TYPE*>(score) + start_idx,
-                                        _d_scale,
-                                        nullptr,
-                                        nullptr,
-                                        nullptr,
-                                        false,
-                                        new_causal,
-                                        rnd_up(cur_kv_len, _block_size) - start_idx,
-                                        precision_of<DATA_TYPE>::value,
-                                        precision_of<DATA_TYPE>::value);
+                    attn_softmax_kernel<float>(score + start_idx,
+                                               reinterpret_cast<DATA_TYPE*>(score) + start_idx,
+                                               _d_scale,
+                                               alibi_lookup,
+                                               nullptr,
+                                               nullptr,
+                                               false,
+                                               new_causal,
+                                               rnd_up(cur_kv_len, _block_size) - start_idx,
+                                               precision_of<DATA_TYPE>::value,
+                                               precision_of<DATA_TYPE>::value);
 
                     memset(score, 0, sizeof(DATA_TYPE) * start_idx);
                 } else {
@@ -957,18 +958,18 @@ struct MHAHelper {
                         alibi_slope = alibi_slopes.ptr<float>()[h];
                         alibi_lookup = _alibi_lookup.ptr<float>() + _alibi_lookup.m_dims[0] - ncausal;
                     }
-                    attn_softmax_kernel(score,
-                                        reinterpret_cast<DATA_TYPE*>(score),
-                                        _d_scale,
-                                        alibi_lookup,
-                                        nullptr,
-                                        nullptr,
-                                        false,
-                                        ncausal,
-                                        rnd_up(cur_kv_len, _block_size),
-                                        precision_of<DATA_TYPE>::value,
-                                        precision_of<DATA_TYPE>::value,
-                                        alibi_slope);
+                    attn_softmax_kernel<float>(score,
+                                               reinterpret_cast<DATA_TYPE*>(score),
+                                               _d_scale,
+                                               alibi_lookup,
+                                               nullptr,
+                                               nullptr,
+                                               false,
+                                               ncausal,
+                                               rnd_up(cur_kv_len, _block_size),
+                                               precision_of<DATA_TYPE>::value,
+                                               precision_of<DATA_TYPE>::value,
+                                               alibi_slope);
                 }
                 if (score_output) {
                     cvt_copy(score_output + h * rnd_up(cur_kv_len, 16), reinterpret_cast<DATA_TYPE*>(score), cur_kv_len);
@@ -1058,18 +1059,18 @@ struct MHAHelper {
                     alibi_slope = alibi_slopes.ptr<float>()[h];
                     alibi_lookup = _alibi_lookup.ptr<float>() + _alibi_lookup.m_dims[0] - cur_kv_len;
                 }
-                attn_softmax_kernel(_weight.ptr<float>(ithr, h, pq),
-                                    _weight.ptr<float>(ithr, h, pq),
-                                    _d_scale,
-                                    alibi_lookup,
-                                    nullptr,
-                                    nullptr,
-                                    false,
-                                    cur_kv_len,
-                                    cur_kv_len,
-                                    ov::element::f32,
-                                    ov::element::f32,
-                                    alibi_slope);
+                attn_softmax_kernel<float>(_weight.ptr<float>(ithr, h, pq),
+                                           _weight.ptr<float>(ithr, h, pq),
+                                           _d_scale,
+                                           alibi_lookup,
+                                           nullptr,
+                                           nullptr,
+                                           false,
+                                           cur_kv_len,
+                                           cur_kv_len,
+                                           ov::element::f32,
+                                           ov::element::f32,
+                                           alibi_slope);
                 if (score_output) {
                     memcpy(score_output + h * rnd_up(cur_kv_len, 16), _weight.ptr<float>(ithr, h, pq), cur_kv_len * sizeof(float));
                 }
@@ -1157,18 +1158,18 @@ struct MHAHelper {
                 alibi_slope = alibi_slopes.ptr<float>()[h];
                 alibi_lookup = _alibi_lookup.ptr<float>() + _alibi_lookup.m_dims[0] - cur_kv_len;
             }
-            attn_softmax_kernel(_weight_bhl.ptr<float>(b, h, pq),
-                                _weight_bhl.ptr<float>(b, h, pq),
-                                _d_scale,
-                                alibi_lookup,
-                                nullptr,
-                                nullptr,
-                                false,
-                                ncausal,
-                                cur_kv_len,
-                                ov::element::f32,
-                                ov::element::f32,
-                                alibi_slope);
+            attn_softmax_kernel<float>(_weight_bhl.ptr<float>(b, h, pq),
+                                       _weight_bhl.ptr<float>(b, h, pq),
+                                       _d_scale,
+                                       alibi_lookup,
+                                       nullptr,
+                                       nullptr,
+                                       false,
+                                       ncausal,
+                                       cur_kv_len,
+                                       ov::element::f32,
+                                       ov::element::f32,
+                                       alibi_slope);
         });
 
         if (output_score) {
