@@ -129,7 +129,9 @@ void ModelDeserializer::process_mmap(std::shared_ptr<ov::Model>& model,
 
 void ModelDeserializer::process_stream(std::shared_ptr<ov::Model>& model) {
     const size_t hdr_pos = m_istream.tellg();
+    m_istream.seekg(0, m_istream.end);
     const size_t file_size = m_istream.tellg();
+    m_istream.seekg(hdr_pos, m_istream.beg);
 
     pass::StreamSerialize::DataHeader hdr = {};
     m_istream.read(reinterpret_cast<char*>(&hdr), sizeof hdr);

@@ -55,7 +55,9 @@ protected:
         return m_size - m_offset;
     }
 
-    pos_type seekoff(off_type off, std::ios_base::seekdir dir, std::ios_base::openmode which = std::ios_base::in) override {
+    pos_type seekoff(off_type off,
+                     std::ios_base::seekdir dir,
+                     std::ios_base::openmode which = std::ios_base::in) override {
         if (dir != std::ios_base::cur || which != std::ios_base::in) {
             return traits_type::to_int_type(-1);
         }
