@@ -35,6 +35,7 @@ struct ModelLayout {
 
 using metaIterator = std::vector<uint8_t>::iterator;
 
+// need constructors with minor and major fields
 struct Metadata_v1 {
     MetadataVersion version;
     OpenvinoVersion ovVersion;
@@ -43,18 +44,17 @@ struct Metadata_v1 {
 
     std::vector<uint8_t> data();
 
-    void read_metadata(std::vector<uint8_t>::iterator metadataIterator);
+    void read_metadata(std::vector<uint8_t>::iterator& metadataIterator);
 
     void write_metadata(std::ostream& stream);
 } typedef Metadata_v1;
 
-struct Metadata_v2 {
-    Metadata_v1 oldMetadata;
+struct Metadata_v2 : Metadata_v1 {
     ModelLayout layout;
 
-    static std::pair<Metadata_v2, metaIterator> version_checker(std::vector<uint8_t>& blob, std::istream& stream);
+    std::vector<uint8_t> data();
 
-    void read_metadata(std::vector<uint8_t>::iterator metadataIterator);
+    void read_metadata(std::vector<uint8_t>::iterator& metadataIterator);
 
     void write_metadata(std::ostream& stream);
 } typedef Metadata_v2;
@@ -65,7 +65,7 @@ struct Metadata_v3 {
     OpenvinoVersion ovVersion;
     double extra;
 
-    static std::pair<Metadata_v2, metaIterator> version_checker(std::vector<uint8_t>& blob, std::istream& stream);
+    std::vector<uint8_t> data();
 
     void read_metadata(std::vector<uint8_t>::iterator metadataIterator);
 

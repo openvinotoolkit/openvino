@@ -140,6 +140,7 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
 
 std::vector<uint8_t> Metadata_v1::data() {
     std::vector<uint8_t> metadata;
+    std::cout << "v1_data()\n";
 
     metadata.insert(metadata.end(), reinterpret_cast<uint8_t*>(&this->version.major),
     reinterpret_cast<uint8_t*>(&this->version.major) + sizeof(this->version.major));
@@ -168,7 +169,7 @@ void Metadata_v1::version_check(std::vector<uint8_t>& blob, std::istream& stream
     std::cout << "header: " << blobVersionHeader << '\n';
 
     // should we consider the header name changes?
-    // if so, we will need multiple header #defines OR encapsulate them inside the struct metadata
+    // if so, we might need multiple header #defines
     if (versionHeader.compare(blobVersionHeader)) {
         std::cout << "expected header: " << versionHeader << "\n actual header: " << blobVersionHeader << '\n';
         OPENVINO_THROW("Version header mismatch or missing");
@@ -184,29 +185,40 @@ void Metadata_v1::version_check(std::vector<uint8_t>& blob, std::istream& stream
     std::cout << "\nminor: " << metaVersion.minor << '\n';
     metadataIterator += sizeof(uint32_t);
 
+    std::vector<uint8_t> metaVec(metadataIterator, blob.end() - sizeof(size_t));
+    std::vector<uint8_t>::iterator metaIt = metaVec.begin();
     // move this to another function?
-    if (metaVersion.major == 2) {
+    if (metaVersion.major == 1) {
         if (metaVersion.minor > 1 && metaVersion.minor < 5) {
+            std::cout << "We got Metadata_v1\n";
             Metadata_v1 metav1;
-            metav1.read_metadata(metadataIterator);
-        } else if (metaVersion.minor > '6') {
-            //read medata_v2
+            metav1.version = metaVersion;
+            metav1.read_metadata(metaIt);
+        } else if (metaVersion.minor > 6) {
+            std::cout << "We got Metadata_v2\n";
+            Metadata_v2 metav2;
+            metav2.version = metaVersion;
+            metav2.read_metadata(metaIt);
         }
-    } else if (metaVersion.major == '1') {
-        if (metaVersion.minor > '0') {
-            // read metadata_v3
+    } else if (metaVersion.major == 2) {
+        if (metaVersion.minor > 0) {
+            std::cout << "We got Metadata_v3\n";`
+            Metadata_v3 metav3;
+            metav3.version = metaVersion;
+            metav3.read_metadata(metaIt);
         }
     }
 }
 
 // should we check for header here or create a function called version_metadata_handler
 // which checks for header and calls read_metadata
-void Metadata_v1::read_metadata(std::vector<uint8_t>::iterator metadataIterator) {
+void Metadata_v1::read_metadata(std::vector<uint8_t>::iterator& metadataIterator) {
     /*
         is there a way needed to assert the version?
         or do we still want to check for it?
         after all, we can orchestrate everything using metadata major;minor
     */
+    std::cout << "inside read: " << this->version.major << "." << this->version.minor << '\n';
     ov::Version ourOvVersion = ov::get_openvino_version();
     size_t ovVersionSize = strlen(ourOvVersion.buildNumber);
     char* blobOvVersion = new char[ovVersionSize + 1];
@@ -216,49 +228,78 @@ void Metadata_v1::read_metadata(std::vector<uint8_t>::iterator metadataIterator)
 }
 
 void Metadata_v1::write_metadata(std::ostream& stream) {
-    stream.write(reinterpret_cast<char*>(&this->version.major), sizeof(uint8_t));
-    stream.write(reinterpret_cast<char*>(&this->version.minor), sizeof(uint8_t));
+    std::cout << "v1_write()\n";
+    const auto metav1_data = this->data();
 
-    stream.write(this->ovVersion.version.c_str(), this->ovVersion.version.size());
+    stream.write(reinterpret_cast<const char*>(metav1_data.data()), metav1_data.size());
 }
 
-// std::pair<Metadata_v2, metaIterator> Metadata_v2::version_checker(std::vector<uint8_t>& blob, std::istream& stream) {
-//     auto oldMeta = Metadata_v1::version_checker(blob, stream);
-//     Metadata_v2 metav2;
-//     metav2.oldMetadata = oldMeta.first;
+std::vector<uint8_t> Metadata_v2::data() {
+    std::cout << "v2_data()\n";
+    auto metadata {Metadata_v1::data()};
 
-// }
+    metadata.insert(metadata.end(), reinterpret_cast<uint8_t*>(&this->layout.something),
+    reinterpret_cast<uint8_t*>(&this->layout.something) + sizeof(this->layout.something));
 
-void Metadata_v2::read_metadata(std::vector<uint8_t>::iterator metadataIterator) {
-    // reminder: readd v1::read
-    std::copy(metadataIterator, metadataIterator + sizeof(int), &this->layout.something);
+    metadata.insert(metadata.end(), reinterpret_cast<uint8_t*>(&this->layout.somethingElse),
+    reinterpret_cast<uint8_t*>(&this->layout.somethingElse) + sizeof(this->layout.somethingElse));
+
+    return metadata;
+}
+
+void Metadata_v2::read_metadata(std::vector<uint8_t>::iterator& metadataIterator) {
+    std::cout << "v2_read\n";
+    std::cout << "inside read: " << this->version.major << "." << this->version.minor << '\n';
+    Metadata_v1::read_metadata(metadataIterator);
+
+    memcpy(&this->layout.something, &(*metadataIterator), sizeof(this->layout.something));
+    std::cout << "something: " << this->layout.something << '\n';
     metadataIterator += sizeof(int);
 
-    std::copy(metadataIterator, metadataIterator + sizeof(double), &this->layout.somethingElse);
+    memcpy(&this->layout.somethingElse, &(*metadataIterator), sizeof(this->layout.somethingElse));
+    std::cout << "somethingElse: " << this->layout.somethingElse << '\n';
     metadataIterator += sizeof(double);
 }
 
 void Metadata_v2::write_metadata(std::ostream& stream) {
-    this->oldMetadata.write_metadata(stream);
+    std::cout << "v2_write()\n";
+    const auto metav2_data = this->data();
+    stream.write(reinterpret_cast<const char*>(metav2_data.data()), metav2_data.size());
+}
 
-    stream.write(reinterpret_cast<char*>(&this->layout.something), sizeof(int));
-    stream.write(reinterpret_cast<char*>(&this->layout.somethingElse), sizeof(double));
+std::vector<uint8_t> Metadata_v3::data() {
+    std::vector<uint8_t> metadata;
+    std::cout << "v1_data()\n";
+
+    metadata.insert(metadata.end(), reinterpret_cast<uint8_t*>(&this->version.major),
+    reinterpret_cast<uint8_t*>(&this->version.major) + sizeof(this->version.major));
+
+    metadata.insert(metadata.end(), reinterpret_cast<uint8_t*>(&this->version.minor),
+    reinterpret_cast<uint8_t*>(&this->version.minor) + sizeof(this->version.minor));
+
+    metadata.insert(metadata.end(), reinterpret_cast<uint8_t*>(&this->layout.something),
+    reinterpret_cast<uint8_t*>(&this->layout.something) + sizeof(this->layout.something));
+
+    metadata.insert(metadata.end(), reinterpret_cast<uint8_t*>(&this->layout.somethingElse),
+    reinterpret_cast<uint8_t*>(&this->layout.somethingElse) + sizeof(this->layout.somethingElse));
+
+    metadata.insert(metadata.end(), this->ovVersion.version.begin(), this->ovVersion.version.end());
+
+    metadata.insert(metadata.end(), reinterpret_cast<uint8_t*>(&this->extra),
+    reinterpret_cast<uint8_t*>(&this->extra) + sizeof(this->extra));
+
+    return metadata;
 }
 
 void Metadata_v3::read_metadata(std::vector<uint8_t>::iterator metadataIterator) {
-    std::copy(metadataIterator, metadataIterator + sizeof(uint8_t), &this->version.major);
-    metadataIterator += sizeof(uint8_t);
-    std::cout << "major: " << this->version.major;
-    std::copy(metadataIterator, metadataIterator + sizeof(uint8_t), &this->version.minor);
-    std::cout << "\nminor: " << this->version.minor << '\n';
-    metadataIterator += sizeof(uint8_t);
+    std::cout << "inside read: " << this->version.major << "." << this->version.minor << '\n';
 
-    std::copy(metadataIterator, metadataIterator + sizeof(int), &this->layout.something);
-    metadataIterator += sizeof(int);
-    std::cout << "layout.something: " << this->layout.something;
-    std::copy(metadataIterator, metadataIterator + sizeof(double), &this->layout.somethingElse);
-    metadataIterator += sizeof(double);
-    std::cout << "layout.somethingElse: " << this->layout.somethingElse;
+    memcpy(&this->layout.something, &(*metadataIterator), sizeof(this->layout.something));
+    metadataIterator += sizeof(this->layout.something);
+    std::cout << "layout.something: " << this->layout.something << '\n';
+    memcpy(&this->layout.somethingElse, &(*metadataIterator), sizeof(this->layout.somethingElse));
+    metadataIterator += sizeof(this->layout.somethingElse);
+    std::cout << "layout.somethingElse: " << this->layout.somethingElse << '\n';
 
     ov::Version ourOvVersion = ov::get_openvino_version();
     size_t ovVersionSize = strlen(ourOvVersion.buildNumber);
@@ -266,18 +307,16 @@ void Metadata_v3::read_metadata(std::vector<uint8_t>::iterator metadataIterator)
     std::copy(metadataIterator, metadataIterator + ovVersionSize, blobOvVersion);
     std::cout << "blob ov version: " << blobOvVersion << '\n';
     metadataIterator += ovVersionSize;
+
+    memcpy(&this->extra, &(*metadataIterator), sizeof(this->extra));
+    metadataIterator += sizeof(this->extra);
+    std::cout << "extra: " << this->extra << '\n';
 }
 
 void Metadata_v3::write_metadata(std::ostream& stream) {
-    stream.write(reinterpret_cast<char*>(&this->version.major), sizeof(uint8_t));
-    stream.write(reinterpret_cast<char*>(&this->version.minor), sizeof(uint8_t));
+    const auto metav3_data = this->data();
 
-    stream.write(reinterpret_cast<char*>(&this->layout.something), sizeof(int));
-    stream.write(reinterpret_cast<char*>(&this->layout.somethingElse), sizeof(double));
-
-    stream.write(this->ovVersion.version.c_str(), this->ovVersion.version.size());
-
-    stream.write(reinterpret_cast<char*>(&this->extra), sizeof(double));
+    stream.write(reinterpret_cast<const char*>(metav3_data.data()), metav3_data.size());
 }
 
 void CompiledModel::export_model(std::ostream& stream) const {
@@ -289,19 +328,17 @@ void CompiledModel::export_model(std::ostream& stream) const {
     stream.write(metaHeader.data(), metaHeader.length());
     std::cout << "metaHeader size: " << metaHeader.length() << '\n';
 
-    MetadataVersion metaVersion = {2, 2};
+    MetadataVersion metaVersion = {2, 4};
     std::cout << "meta version sizes: " << metaVersion.major << " " << metaVersion.minor << '\n';
     OpenvinoVersion ovVersion = {"2024.5.0-16678-090da7b5376-blob_commit"};
     std::cout << "ovversion size: " << ovVersion.version.size() << '\n';
-    ModelLayout layout = {.something = 2, .somethingElse = 5.3};
+    ModelLayout layout = {.something = 643, .somethingElse = 68.643};
 
     Metadata_v1 metav1 = {metaVersion, ovVersion};
-    Metadata_v2 metav2 = {metav1, layout};
+    Metadata_v2 metav2 = {metaVersion, ovVersion, layout};
+    Metadata_v3 metav3 = {metaVersion, layout, ovVersion, 5.5};
 
-    const auto metav1_data = metav1.data();
-    const char* p_metav1_data = reinterpret_cast<const char*>(metav1_data.data());
-
-    stream.write(p_metav1_data, metav1_data.size());
+    metav3.write_metadata(stream);
 
     size_t blobSizeBeforeVersioning = blob.size();
     stream.write(reinterpret_cast<const char*>(&blobSizeBeforeVersioning), sizeof(size_t));
