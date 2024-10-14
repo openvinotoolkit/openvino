@@ -3,12 +3,6 @@ Line-level text detection with Surya
 
 |Colab|
 
-.. warning::
-
-   Important note: This notebook requires python >= 3.9. Please make
-   sure that your environment fulfill to this requirement before running
-   it
-
 In this tutorial we will perform line-level text detection using
 `Surya <https://github.com/VikParuchuri/surya>`__ toolkit and OpenVINO.
 
@@ -73,7 +67,7 @@ We will use an image from a randomly sampled subset of
     os.environ["GIT_CLONE_PROTECTION_ACTIVE"] = "false"
     
     %pip install -q "openvino>=2024.2.0" "nncf>=2.11.0"
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "transformers<=4.36.2" "surya-ocr==0.4.0" torch datasets "gradio>=4.19" Pillow
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "surya-ocr==0.4.0" torch datasets "gradio>=4.19" Pillow
 
 .. code:: ipython3
 
@@ -133,22 +127,46 @@ To perform line-level text detection we will use ``load_model`` and
 
 .. parsed-literal::
 
-    /home/maleksandr/test_notebooks/check_nb/openvino_notebooks/notebooks/surya-line-level-text-detection/venv/lib/python3.10/site-packages/huggingface_hub/file_download.py:1132: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+    /home/ea/work/py311/lib/python3.11/site-packages/transformers/utils/generic.py:441: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
+      _torch_pytree._register_pytree_node(
+    /home/ea/work/py311/lib/python3.11/site-packages/transformers/utils/generic.py:309: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
+      _torch_pytree._register_pytree_node(
+    /home/ea/work/py311/lib/python3.11/site-packages/transformers/utils/generic.py:309: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
+      _torch_pytree._register_pytree_node(
+    /home/ea/work/py311/lib/python3.11/site-packages/huggingface_hub/file_download.py:1132: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
       warnings.warn(
     
+
+
+.. parsed-literal::
+
+    config.json:   0%|          | 0.00/1.18k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    model.safetensors:   0%|          | 0.00/120M [00:00<?, ?B/s]
+
 
 .. parsed-literal::
 
     Loading detection model vikp/surya_det2 on device cpu with dtype torch.float32
     
 
+
 .. parsed-literal::
 
-    Detecting bboxes: 100%|███████████████████████████████████████████████████████████████████| 1/1 [00:02<00:00,  2.70s/it]
+    preprocessor_config.json:   0%|          | 0.00/430 [00:00<?, ?B/s]
+
+
+.. parsed-literal::
+
+    Detecting bboxes: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:03<00:00,  3.55s/it]
     
 
 
-.. image:: surya-line-level-text-detection-with-output_files/surya-line-level-text-detection-with-output_6_3.png
+.. image:: surya-line-level-text-detection-with-output_files/surya-line-level-text-detection-with-output_6_6.png
 
 
 Convert model to OpenVINO Intermediate Representation (IR) format
@@ -223,7 +241,7 @@ Select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', index=4, options=('CPU', 'GPU.0', 'GPU.1', 'GPU.2', 'AUTO'), value='AUTO')
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
 
 
 
@@ -268,7 +286,7 @@ wrappers for OpenVINO model with interface required by
 
 .. parsed-literal::
 
-    Detecting bboxes: 100%|███████████████████████████████████████████████████████████████████| 1/1 [00:01<00:00,  1.13s/it]
+    Detecting bboxes: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:01<00:00,  1.04s/it]
     
 
 
@@ -411,7 +429,7 @@ Create a quantized model from the ``FP16`` model.
 
 .. parsed-literal::
 
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, openvino
+    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, onnx, openvino
     
 
 
@@ -428,25 +446,9 @@ Create a quantized model from the ``FP16`` model.
 
 
 
-
-
-
-
-    
-
-
-
 .. parsed-literal::
 
     Output()
-
-
-
-
-
-
-    
-
 
 
 
@@ -479,7 +481,7 @@ Now we ready to detect lines with ``int8`` OpenVINO model.
 
 .. parsed-literal::
 
-    Detecting bboxes: 100%|███████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00,  1.21it/s]
+    Detecting bboxes: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00,  1.10it/s]
     
 
 
@@ -510,6 +512,15 @@ Below you can select which model to run: original or quantized.
     )
     
     use_quantized_model
+
+
+
+
+.. parsed-literal::
+
+    Checkbox(value=True, description='Use quantized model')
+
+
 
 .. code:: ipython3
 
@@ -543,6 +554,20 @@ Below you can select which model to run: original or quantized.
     # If you are launching remotely, specify server_name and server_port
     # EXAMPLE: `demo.launch(server_name='your server name', server_port='server port in int')`
     # To learn more please refer to the Gradio docs: https://gradio.app/docs/
+
+
+.. parsed-literal::
+
+    Running on local URL:  http://127.0.0.1:7860
+    
+    To create a public link, set `share=True` in `launch()`.
+    
+
+
+
+
+
+
 
 .. code:: ipython3
 

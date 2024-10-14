@@ -45,7 +45,7 @@ private:
     void* _mem = nullptr;
     void* _data = nullptr;
 
-    bool _external_memory_support = true;
+    bool _external_memory_support = false;
 };
 
 }  // namespace intel_npu

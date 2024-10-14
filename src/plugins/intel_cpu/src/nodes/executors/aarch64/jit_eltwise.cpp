@@ -35,6 +35,7 @@ bool JitEltwiseExecutor::isSupported(
                                      Algorithm::EltwiseIsNaN,
                                      Algorithm::EltwiseLessEqual,
                                      Algorithm::EltwiseLogicalNot,
+                                     Algorithm::EltwiseLogicalXor,
                                      Algorithm::EltwiseMaximum,
                                      Algorithm::EltwiseMinimum,
                                      Algorithm::EltwiseMish,
@@ -46,6 +47,7 @@ bool JitEltwiseExecutor::isSupported(
                                      Algorithm::EltwiseRelu,
                                      Algorithm::EltwiseSelect,
                                      Algorithm::EltwiseSigmoid,
+                                     Algorithm::EltwiseSoftSign,
                                      Algorithm::EltwiseSubtract,
                                      Algorithm::EltwiseSwish,
                                      Algorithm::EltwiseTanh);

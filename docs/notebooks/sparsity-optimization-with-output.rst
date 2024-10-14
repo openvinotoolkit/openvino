@@ -62,10 +62,6 @@ Prerequisites
 .. parsed-literal::
 
     Note: you may need to restart the kernel to use updated packages.
-    ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    mobileclip 0.1.0 requires torch==1.13.1, but you have torch 2.2.2+cpu which is incompatible.
-    mobileclip 0.1.0 requires torchvision==0.14.1, but you have torchvision 0.17.2+cpu which is incompatible.
-    parler-tts 0.2 requires transformers<=4.43.3,>=4.43.0, but you have transformers 4.44.2 which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -86,16 +82,10 @@ Imports
 
 .. parsed-literal::
 
-    2024-09-24 04:35:10.189591: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-09-24 04:35:10.224810: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-10-08 06:07:03.636662: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-10-08 06:07:03.672787: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-09-24 04:35:10.786494: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
-      torch.utils._pytree._register_pytree_node(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
-      torch.utils._pytree._register_pytree_node(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
-      torch.utils._pytree._register_pytree_node(
+    2024-10-08 06:07:04.276208: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Download, quantize and sparsify the model, using Hugging Face Optimum API
@@ -207,18 +197,18 @@ as an example. It is recommended to tune based on your applications.
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.5.0-16765-f0c5d2f4346
+    [ INFO ] Build ................................. 2024.5.0-16913-890f2e12c98
     [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] CPU
-    [ INFO ] Build ................................. 2024.5.0-16765-f0c5d2f4346
+    [ INFO ] Build ................................. 2024.5.0-16913-890f2e12c98
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 75.79 ms
+    [ INFO ] Read model took 74.44 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     input_ids (node: input_ids) : i64 / [...] / [?,?]
@@ -229,7 +219,7 @@ as an example. It is recommended to tune based on your applications.
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [ INFO ] Reshaping model: 'input_ids': [1,64], 'attention_mask': [1,64], 'token_type_ids': [1,64]
-    [ INFO ] Reshape model took 28.12 ms
+    [ INFO ] Reshape model took 27.68 ms
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
     [ INFO ]     input_ids (node: input_ids) : i64 / [...] / [1,64]
@@ -238,7 +228,7 @@ as an example. It is recommended to tune based on your applications.
     [ INFO ] Model outputs:
     [ INFO ]     logits (node: logits) : f32 / [...] / [1,2]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 1022.22 ms
+    [ INFO ] Compile model took 1116.43 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: torch_jit
@@ -270,17 +260,17 @@ as an example. It is recommended to tune based on your applications.
     [ INFO ] Fill input 'token_type_ids' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 27.68 ms
+    [ INFO ] First inference took 32.70 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            9200 iterations
-    [ INFO ] Duration:         60042.85 ms
+    [ INFO ] Count:            9168 iterations
+    [ INFO ] Duration:         60045.93 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        25.90 ms
-    [ INFO ]    Average:       25.94 ms
-    [ INFO ]    Min:           24.76 ms
-    [ INFO ]    Max:           39.00 ms
-    [ INFO ] Throughput:   153.22 FPS
+    [ INFO ]    Median:        25.88 ms
+    [ INFO ]    Average:       25.93 ms
+    [ INFO ]    Min:           23.46 ms
+    [ INFO ]    Max:           40.17 ms
+    [ INFO ] Throughput:   152.68 FPS
 
 
 Benchmark quantized sparse inference performance
@@ -326,18 +316,18 @@ for which a layer will be enabled.
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.5.0-16765-f0c5d2f4346
+    [ INFO ] Build ................................. 2024.5.0-16913-890f2e12c98
     [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] CPU
-    [ INFO ] Build ................................. 2024.5.0-16765-f0c5d2f4346
+    [ INFO ] Build ................................. 2024.5.0-16913-890f2e12c98
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 72.47 ms
+    [ INFO ] Read model took 76.20 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     input_ids (node: input_ids) : i64 / [...] / [?,?]
@@ -348,7 +338,7 @@ for which a layer will be enabled.
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [ INFO ] Reshaping model: 'input_ids': [1,64], 'attention_mask': [1,64], 'token_type_ids': [1,64]
-    [ INFO ] Reshape model took 28.96 ms
+    [ INFO ] Reshape model took 28.03 ms
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
     [ INFO ]     input_ids (node: input_ids) : i64 / [...] / [1,64]
@@ -357,7 +347,7 @@ for which a layer will be enabled.
     [ INFO ] Model outputs:
     [ INFO ]     logits (node: logits) : f32 / [...] / [1,2]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 1078.74 ms
+    [ INFO ] Compile model took 1161.92 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: torch_jit
@@ -389,17 +379,17 @@ for which a layer will be enabled.
     [ INFO ] Fill input 'token_type_ids' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 28.19 ms
+    [ INFO ] First inference took 26.91 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            9152 iterations
-    [ INFO ] Duration:         60030.64 ms
+    [ INFO ] Count:            9204 iterations
+    [ INFO ] Duration:         60044.80 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        25.93 ms
-    [ INFO ]    Average:       25.97 ms
-    [ INFO ]    Min:           24.37 ms
-    [ INFO ]    Max:           40.44 ms
-    [ INFO ] Throughput:   152.46 FPS
+    [ INFO ]    Median:        25.82 ms
+    [ INFO ]    Average:       25.87 ms
+    [ INFO ]    Min:           24.93 ms
+    [ INFO ]    Max:           39.59 ms
+    [ INFO ] Throughput:   153.29 FPS
 
 
 When this might be helpful
