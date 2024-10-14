@@ -552,3 +552,7 @@ extern template bool evaluate_node<ov::op::v15::StringTensorUnpack>(std::shared_
 extern template bool evaluate_node<ov::op::v15::StringTensorPack>(std::shared_ptr<ov::Node> node,
                                                                   ov::TensorVector& outputs,
                                                                   const ov::TensorVector& inputs);
+
+extern template bool evaluate_node<ov::op::v15::SearchSorted>(std::shared_ptr<ov::Node> node,
+                                                              ov::TensorVector& outputs,
+                                                              const ov::TensorVector& inputs);
