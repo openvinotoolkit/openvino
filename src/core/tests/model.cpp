@@ -2298,9 +2298,10 @@ TEST(model, create_model) {
     EXPECT_THROW(ov::Model(ov::OutputVector{ov::Output<ov::Node>{nullptr, 0}}, {}, {}, {}, ""), ov::Exception);
 }
 TEST(model, batch_size_zero) {
-    OV_EXPECT_THROW_HAS_SUBSTRING(bs_utils::create_n_inputs(ov::element::f32, {{0, 3, 16, 16}}, {"NCHW"}),
-                                  ov::Exception,
-                                  "Batch size must be a positive value for input 'opset1::Parameter input0[0]:f32[0,3,16,16]'");
+    OV_EXPECT_THROW_HAS_SUBSTRING(
+        bs_utils::create_n_inputs(ov::element::f32, {{0, 3, 16, 16}}, {"NCHW"}),
+        ov::Exception,
+        "Batch size must be a positive value for input 'opset1::Parameter input0[0]:f32[0,3,16,16]'");
     OV_EXPECT_THROW_HAS_SUBSTRING(
         bs_utils::create_n_inputs(ov::element::f32, {{1, 3, 16, 16}, {0, 3, 16, 16}}, {"NCHW", "NCHW"}),
         ov::Exception,
@@ -2309,7 +2310,8 @@ TEST(model, batch_size_zero) {
         bs_utils::create_n_inputs(ov::element::f32, {{1, 3, 16, 16}}, {"NCHW"})->reshape({0, 3, 16, 16}),
         ov::Exception,
         "Batch size must be a positive value for input 'opset1::Parameter input0[0]:f32[0,3,16,16]");
-    OV_EXPECT_THROW_HAS_SUBSTRING(set_batch(bs_utils::create_n_inputs(ov::element::f32, {{1, 3, 16, 16}}, {"NCHW"}), 0),
-                                  ov::Exception,
-                                  "Batch size must be a positive value for input 'opset1::Parameter input0[0]:f32[0,3,16,16]'");
+    OV_EXPECT_THROW_HAS_SUBSTRING(
+        set_batch(bs_utils::create_n_inputs(ov::element::f32, {{1, 3, 16, 16}}, {"NCHW"}), 0),
+        ov::Exception,
+        "Batch size must be a positive value for input 'opset1::Parameter input0[0]:f32[0,3,16,16]'");
 }
