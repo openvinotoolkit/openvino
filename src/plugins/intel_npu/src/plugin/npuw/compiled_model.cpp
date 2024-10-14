@@ -520,6 +520,15 @@ std::string ov::npuw::CompiledModel::funcall_mem_device(const std::size_t idx) c
     //        It's not feasible to allocate them in L0 due to high memory consumption.
     //        Until we make such memory reusable, hard-coding those tensors to CPU.
     return "CPU";
+
+    // Force globally set device if set
+    const std::string device_alloc = m_cfg.get<::intel_npu::NPUW_WEIGHTS_BANK_ALLOC>();
+    if (!device_alloc.empty()) {
+        return device_alloc;
+    }
+
+    auto& comp_model_desc = m_compiled_submodels[idx];
+    return *comp_model_desc.device_it;
 }
 
 void ov::npuw::CompiledModel::remove_long_output_names(const std::shared_ptr<ov::Model>& model) {
