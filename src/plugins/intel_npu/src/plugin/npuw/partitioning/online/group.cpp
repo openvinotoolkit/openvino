@@ -118,6 +118,8 @@ ov::npuw::Group Group::toGroup() const {
         }
     }
 
+    g.tag = m_isol_tag;
+
     return g;
 }
 

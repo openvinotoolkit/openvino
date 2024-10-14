@@ -936,13 +936,7 @@ void Transformations::MainSnippets(void) {
 #endif
         CPU_DISABLE_PASS_COMMON(snippetsManager, snippets::pass::TokenizeFCSnippets);
     }
-    CPU_REGISTER_PASS_X64(snippetsManager, snippets::pass::SnippetsTokenization, tokenization_config);
-    // [126738] Remove precision constraint when Convert emitters are implemented on arm platform
-    // The redundant "if defined", used to WA error of "empty controlled statement found" should also be removed then.
-#if defined(OPENVINO_ARCH_ARM64)
-    if (config.inferencePrecision == ov::element::f32)
-        CPU_REGISTER_PASS_ARM(snippetsManager, snippets::pass::SnippetsTokenization, tokenization_config);
-#endif
+    CPU_REGISTER_PASS_COMMON(snippetsManager, snippets::pass::SnippetsTokenization, tokenization_config);
 
     // - MHA has BRGEMM that is supported only on AVX512 platforms
     // - CPU Plugin Subgraph supports only f32, bf16 (and quantized) BRGEMM
