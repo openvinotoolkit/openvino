@@ -1527,7 +1527,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         }
 
         if (can_skip_execution) {
-            auto ev = get_network().get_stream().create_user_event(true);
+            auto ev = get_network().get_stream().aggregate_events(events);
             update_shape_done_by_other = false; // reset
             return ev;
         }
