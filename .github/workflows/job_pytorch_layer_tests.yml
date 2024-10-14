@@ -29,7 +29,7 @@ env:
 jobs:
   PyTorch_Layer_Tests:
     name: PyTorch Layer Tests
-    timeout-minutes: 30
+    timeout-minutes: 40
     runs-on: ${{ inputs.runner }}
     container: ${{ fromJSON(inputs.container) }}
     defaults:
@@ -67,10 +67,10 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           pushd $INSTALL_DIR
-            tar -xzf openvino_package.tar.gz -C $INSTALL_DIR
+            tar -I pigz -xf openvino_package.tar.gz -C $INSTALL_DIR
           popd
           pushd $INSTALL_TEST_DIR
-            tar -xzf openvino_tests.tar.gz -C $INSTALL_DIR
+            tar -I pigz -xf openvino_tests.tar.gz -C $INSTALL_DIR
           popd
 
       - name: Extract OpenVINO packages (Windows)
