@@ -14,9 +14,9 @@
 #include <sstream>
 
 #include "logging.hpp"
-#include "openvino/op/constant.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "openvino/runtime/make_tensor.hpp"  // get_tensor_impl
 
 #ifdef UNPACK_PROFILING
 #    include "tbb/concurrent_unordered_map.h"
@@ -1539,14 +1539,14 @@ void ov::npuw::util::gather(const ov::SoPtr<ov::ITensor>& src,
     NPUW_ASSERT(src_type == ov::element::f16 || src_type == ov::element::f32);
     NPUW_ASSERT(src_type == dst_type);
 
-    const auto idx_shape = idx->get_shape();
+    const auto& idx_shape = idx->get_shape();
     NPUW_ASSERT(idx_shape.size() == 2);
     NPUW_ASSERT(idx_shape[0] == 1);
 
-    const auto src_shape = src->get_shape();
+    const auto& src_shape = src->get_shape();
     NPUW_ASSERT(src_shape.size() == 2);
 
-    const auto dst_shape = dst->get_shape();
+    const auto& dst_shape = dst->get_shape();
     NPUW_ASSERT(dst_shape.size() == 3);
     NPUW_ASSERT(src_shape[1] == dst_shape[2]);
 
@@ -1560,6 +1560,45 @@ void ov::npuw::util::gather(const ov::SoPtr<ov::ITensor>& src,
         std::copy_n(pSrcRow, src_shape[1] * src_type.size(), pDst);
         pDst += dst_shape[2] * dst_type.size();
     }
+}
+
+ov::SoPtr<ov::ITensor> ov::npuw::util::view(const ov::SoPtr<ov::ITensor>& src,
+                                            const ov::npuw::util::View& from,
+                                            const ov::npuw::util::View& to) {
+    const auto type = src->get_element_type();
+    NPUW_ASSERT(from.size() == to.size());
+
+    // Sub-byte views are not supported here
+    NPUW_ASSERT(type != ov::element::u4 && type != ov::element::i4);
+
+    const auto num_dims = from.size();
+    ov::Shape view_shape;
+    for (auto d = 0u; d < num_dims; d++) {
+        view_shape.push_back(to[d] - from[d]);
+    }
+
+    const auto strides = src->get_strides();
+    uint8_t* ptr = static_cast<uint8_t*>(src->data());
+
+    // Shift PTR according to the strides
+    for (auto d = 0u; d < num_dims; d++) {
+        ptr += strides[d] * from[d];
+    }
+
+    ov::Tensor viewt(type, view_shape, ptr, strides);
+    return ov::get_tensor_impl(viewt);
+}
+
+ov::SoPtr<ov::ITensor> ov::npuw::util::view(const ov::SoPtr<ov::ITensor>& src,
+                                            std::size_t dim,
+                                            std::size_t offset,
+                                            std::size_t len) {
+    const auto shape = src->get_shape();
+    View view_start = View(shape.size(), 0u);
+    View view_end = shape;
+    view_start[dim] = offset;
+    view_end[dim] = offset + len;
+    return ov::npuw::util::view(src, view_start, view_end);
 }
 
 template <typename InT>
@@ -1627,7 +1666,7 @@ void ov::npuw::util::to_f32(const ov::Tensor& in, ov::Tensor& out) {
     }
 }
 
-void ov::npuw::util::to_f16(ov::Tensor& t) {
+ov::Tensor ov::npuw::util::to_f16(const ov::Tensor& t) {
     ov::Shape shape = t.get_shape();
     NPUW_ASSERT(t.get_element_type() == ov::element::f32);
     NPUW_ASSERT(t.get_size() % 8 == 0);
@@ -1647,7 +1686,7 @@ void ov::npuw::util::to_f16(ov::Tensor& t) {
         pdst += (8 * 2);  // offset in bytes
     }
 
-    t = std::move(tnew);
+    return tnew;
 }
 
 inline uint8_t tread_4b(const ov::Tensor& t, std::size_t r, std::size_t c, std::size_t COLS) {
@@ -1671,7 +1710,7 @@ inline void twrite_4b(ov::Tensor& t, uint8_t value, std::size_t r, std::size_t c
     }
 }
 
-void ov::npuw::util::transpose(ov::Tensor& t) {
+ov::Tensor ov::npuw::util::transpose(const ov::Tensor& t) {
     ov::Shape shape = t.get_shape();
     NPUW_ASSERT(shape.size() == 3);  // Yes, so far only transpose 3D tensors
     NPUW_ASSERT(t.get_element_type() == ov::element::i4);
@@ -1687,7 +1726,7 @@ void ov::npuw::util::transpose(ov::Tensor& t) {
             twrite_4b(tnew, value, j, i, IN_ROWS);
         }
     }
-    t = std::move(tnew);
+    return tnew;
 }
 
 template <typename T>
@@ -1712,12 +1751,12 @@ void permute120(const ov::Tensor& src, ov::Tensor& dst) {
     }
 }
 
-void ov::npuw::util::permute(ov::Tensor& t, const std::vector<std::size_t>& axes) {
+ov::Tensor ov::npuw::util::permute(const ov::Tensor& t, const std::vector<std::size_t>& axes) {
     ov::Shape shape = t.get_shape();
     NPUW_ASSERT(shape.size() == 3);  // Yes, so far only transpose 3D tensors
 
     if (axes[0] == 2 && axes[1] == 0 && axes[2] == 1) {
-        transpose(t);
+        return transpose(t);
     } else if (axes[0] == 0 && axes[1] == 2 && axes[2] == 1) {
         NPUW_ASSERT(t.get_element_type() == ov::element::i4);  // 4bit only here
         ov::Shape tshape = {shape[0], shape[2], shape[1]};
@@ -1731,7 +1770,7 @@ void ov::npuw::util::permute(ov::Tensor& t, const std::vector<std::size_t>& axes
                 }
             }
         }
-        t = std::move(tnew);
+        return tnew;
     } else if (axes[0] == 1 && axes[1] == 0 && axes[2] == 2) {
         NPUW_ASSERT(t.get_element_type() == ov::element::i4);  // 4bit only here too
         ov::Shape tshape = {shape[1], shape[0], shape[2]};
@@ -1746,7 +1785,7 @@ void ov::npuw::util::permute(ov::Tensor& t, const std::vector<std::size_t>& axes
                 }
             }
         }
-        t = std::move(tnew);
+        return tnew;
     } else if (axes[0] == 1 && axes[1] == 2 && axes[2] == 0) {
         ov::Shape tshape = {shape[1], shape[2], shape[0]};
         ov::Tensor tnew(t.get_element_type(), tshape);
@@ -1760,7 +1799,7 @@ void ov::npuw::util::permute(ov::Tensor& t, const std::vector<std::size_t>& axes
         default:
             NPUW_ASSERT("Element type is not supported yet");
         }
-        t = std::move(tnew);
+        return tnew;
     } else {
         NPUW_ASSERT(false && "Not supported yet");
     }
