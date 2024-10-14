@@ -34,7 +34,7 @@ private:
     bool m_transpose_frames = false;
 
     // RDFT executor
-    std::shared_ptr<RDFTExecutor> executor;
+    std::shared_ptr<RDFTExecutor> rdft_executor;
 
     // Input indices
     static constexpr size_t DATA_IDX = 0lu;

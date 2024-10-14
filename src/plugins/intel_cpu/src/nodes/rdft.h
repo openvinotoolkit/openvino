@@ -71,6 +71,44 @@ struct RDFTExecutor {
                                                   enum dft_type type, bool useFFT);
 };
 
+struct RDFTRefExecutor : public RDFTExecutor {
+    RDFTRefExecutor(bool inverse);
+
+private:
+    std::vector<float> generateTwiddlesDFT(size_t inputSize, size_t outputSize, enum dft_type type) override;
+    void dftRealToComplex(float* inputPtr,
+                          const float* twiddlesPtr,
+                          float* outputPtr,
+                          size_t inputSize,
+                          size_t outputSize,
+                          bool parallelize);
+
+    void dftComplexToComplex(float* inputPtr,
+                             const float* twiddlesPtr,
+                             float* outputPtr,
+                             size_t inputSize,
+                             size_t signalSize,
+                             size_t outputSize,
+                             bool parallelize);
+
+    void dftComplexToReal(float* inputPtr,
+                          const float* twiddlesPtr,
+                          float* outputPtr,
+                          size_t inputSize,
+                          size_t signalSize,
+                          size_t outputSize,
+                          bool parallelize);
+
+    void dft(float* inputPtr,
+             const float* twiddlesPtr,
+             float* outputPtr,
+             size_t inputSize,
+             size_t signalSize,
+             size_t outputSize,
+             enum dft_type type,
+             bool parallelize) override;
+};
+
 class RDFT : public Node {
 public:
     RDFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);

@@ -842,126 +842,123 @@ struct RDFTJitExecutor : public RDFTExecutor {
 };
 #endif
 
-struct RDFTRefExecutor : public RDFTExecutor {
-    RDFTRefExecutor(bool inverse) : RDFTExecutor(inverse) {}
+RDFTRefExecutor::RDFTRefExecutor(bool inverse) : RDFTExecutor(inverse) {}
 
-    private:
-        std::vector<float> generateTwiddlesDFT(size_t inputSize, size_t outputSize, enum dft_type type) override {
-            std::vector<float> twiddles(inputSize * outputSize * 2);
-            parallel_for2d(outputSize, inputSize, [&] (size_t k, size_t n) {
-                double angle = 2 * PI * k * n / inputSize;
-                if (!isInverse)
-                    angle = -angle;
-                twiddles[(k * inputSize + n) * 2] = std::cos(angle);
-                twiddles[(k * inputSize + n) * 2 + 1] = std::sin(angle);
-            });
-            return twiddles;
+std::vector<float> RDFTRefExecutor::generateTwiddlesDFT(size_t inputSize, size_t outputSize, enum dft_type type) {
+    std::vector<float> twiddles(inputSize * outputSize * 2);
+    parallel_for2d(outputSize, inputSize, [&] (size_t k, size_t n) {
+        double angle = 2 * PI * k * n / inputSize;
+        if (!isInverse)
+            angle = -angle;
+        twiddles[(k * inputSize + n) * 2] = std::cos(angle);
+        twiddles[(k * inputSize + n) * 2 + 1] = std::sin(angle);
+    });
+    return twiddles;
+}
+
+void RDFTRefExecutor::dftRealToComplex(float* inputPtr, const float* twiddlesPtr, float* outputPtr,
+                size_t inputSize, size_t outputSize, bool parallelize) {
+    auto dftIteration = [&] (size_t k) {
+        float real = 0, imag = 0;
+        for (size_t n = 0; n < inputSize; n++) {
+            float cos = twiddlesPtr[2 * (k * inputSize + n)];
+            float sin = twiddlesPtr[2 * (k * inputSize + n) + 1];
+            real += inputPtr[n] * cos;
+            imag += inputPtr[n] * sin;
         }
+        outputPtr[2 * k] = real;
+        outputPtr[2 * k + 1] = imag;
+    };
+    if (parallelize) {
+        parallel_for(outputSize, dftIteration);
+    } else {
+        for (size_t k = 0; k < outputSize; k++) {
+            dftIteration(k);
+        }
+    }
+}
 
-        void dftRealToComplex(float* inputPtr, const float* twiddlesPtr, float* outputPtr,
-                     size_t inputSize, size_t outputSize, bool parallelize) {
-            auto dftIteration = [&] (size_t k) {
-                float real = 0, imag = 0;
-                for (size_t n = 0; n < inputSize; n++) {
-                    float cos = twiddlesPtr[2 * (k * inputSize + n)];
-                    float sin = twiddlesPtr[2 * (k * inputSize + n) + 1];
-                    real += inputPtr[n] * cos;
-                    imag += inputPtr[n] * sin;
-                }
-                outputPtr[2 * k] = real;
-                outputPtr[2 * k + 1] = imag;
-            };
-            if (parallelize) {
-                parallel_for(outputSize, dftIteration);
-            } else {
-                for (size_t k = 0; k < outputSize; k++) {
-                    dftIteration(k);
-                }
+void RDFTRefExecutor::dftComplexToComplex(float* inputPtr, const float* twiddlesPtr, float* outputPtr,
+                size_t inputSize, size_t signalSize, size_t outputSize, bool parallelize) {
+    auto dftIteration = [&] (size_t k) {
+        float real = 0, imag = 0;
+        for (size_t n = 0; n < inputSize; n++) {
+            float cos = twiddlesPtr[2 * (k * outputSize + n)];
+            float sin = twiddlesPtr[2 * (k * outputSize + n) + 1];
+            float inputReal = inputPtr[2 * n];
+            float inputImag = inputPtr[2 * n + 1];
+            real += inputReal * cos - inputImag * sin;
+            imag += inputImag * cos + inputReal * sin;
+        }
+        if (isInverse) {
+            float* inp = inputPtr + 2 * (inputSize - 2 + outputSize % 2);
+            for (size_t n = inputSize; n < signalSize; n++, inp -= 2) {
+                float cos = twiddlesPtr[2 * (k * outputSize + n)];
+                float sin = twiddlesPtr[2 * (k * outputSize + n) + 1];
+                float inputReal = inp[0];
+                float inputImag = -inp[1];
+                real += inputReal * cos - inputImag * sin;
+                imag += inputImag * cos + inputReal * sin;
             }
+            real /= outputSize;
+            imag /= outputSize;
         }
+        outputPtr[2 * k] = real;
+        outputPtr[2 * k + 1] = imag;
+    };
+    if (parallelize) {
+        parallel_for(outputSize, dftIteration);
+    } else {
+        for (size_t k = 0; k < outputSize; k++) {
+            dftIteration(k);
+        }
+    }
+}
 
-        void dftComplexToComplex(float* inputPtr, const float* twiddlesPtr, float* outputPtr,
-                     size_t inputSize, size_t signalSize, size_t outputSize, bool parallelize) {
-            auto dftIteration = [&] (size_t k) {
-                float real = 0, imag = 0;
-                for (size_t n = 0; n < inputSize; n++) {
-                    float cos = twiddlesPtr[2 * (k * outputSize + n)];
-                    float sin = twiddlesPtr[2 * (k * outputSize + n) + 1];
-                    float inputReal = inputPtr[2 * n];
-                    float inputImag = inputPtr[2 * n + 1];
-                    real += inputReal * cos - inputImag * sin;
-                    imag += inputImag * cos + inputReal * sin;
-                }
-                if (isInverse) {
-                    float* inp = inputPtr + 2 * (inputSize - 2 + outputSize % 2);
-                    for (size_t n = inputSize; n < signalSize; n++, inp -= 2) {
-                        float cos = twiddlesPtr[2 * (k * outputSize + n)];
-                        float sin = twiddlesPtr[2 * (k * outputSize + n) + 1];
-                        float inputReal = inp[0];
-                        float inputImag = -inp[1];
-                        real += inputReal * cos - inputImag * sin;
-                        imag += inputImag * cos + inputReal * sin;
-                    }
-                    real /= outputSize;
-                    imag /= outputSize;
-                }
-                outputPtr[2 * k] = real;
-                outputPtr[2 * k + 1] = imag;
-            };
-            if (parallelize) {
-                parallel_for(outputSize, dftIteration);
-            } else {
-                for (size_t k = 0; k < outputSize; k++) {
-                    dftIteration(k);
-                }
-            }
+void RDFTRefExecutor::dftComplexToReal(float* inputPtr, const float* twiddlesPtr, float* outputPtr,
+                size_t inputSize, size_t signalSize, size_t outputSize, bool parallelize) {
+    auto dftIteration = [&] (size_t k) {
+        float real = 0;
+        for (size_t n = 0; n < inputSize; n++) {
+            float cos = twiddlesPtr[2 * (k * outputSize + n)];
+            float sin = twiddlesPtr[2 * (k * outputSize + n) + 1];
+            float inputReal = inputPtr[2 * n];
+            float inputImag = inputPtr[2 * n + 1];
+            real += inputReal * cos - inputImag * sin;
         }
+        if (isInverse) {
+            float* inp = inputPtr + 2 * (inputSize - 2 + outputSize % 2);
+            for (size_t n = inputSize; n < signalSize; n++, inp -= 2) {
+                float cos = twiddlesPtr[2 * (k * outputSize + n)];
+                float sin = twiddlesPtr[2 * (k * outputSize + n) + 1];
+                float inputReal = inp[0];
+                float inputImag = inp[1];
+                real += inputReal * cos + inputImag * sin;
+            }
+            real /= outputSize;
+        }
+        outputPtr[k] = real;
+    };
+    if (parallelize) {
+        parallel_for(outputSize, dftIteration);
+    } else {
+        for (size_t k = 0; k < outputSize; k++) {
+            dftIteration(k);
+        }
+    }
+}
 
-        void dftComplexToReal(float* inputPtr, const float* twiddlesPtr, float* outputPtr,
-                     size_t inputSize, size_t signalSize, size_t outputSize, bool parallelize) {
-            auto dftIteration = [&] (size_t k) {
-                float real = 0;
-                for (size_t n = 0; n < inputSize; n++) {
-                    float cos = twiddlesPtr[2 * (k * outputSize + n)];
-                    float sin = twiddlesPtr[2 * (k * outputSize + n) + 1];
-                    float inputReal = inputPtr[2 * n];
-                    float inputImag = inputPtr[2 * n + 1];
-                    real += inputReal * cos - inputImag * sin;
-                }
-                if (isInverse) {
-                    float* inp = inputPtr + 2 * (inputSize - 2 + outputSize % 2);
-                    for (size_t n = inputSize; n < signalSize; n++, inp -= 2) {
-                        float cos = twiddlesPtr[2 * (k * outputSize + n)];
-                        float sin = twiddlesPtr[2 * (k * outputSize + n) + 1];
-                        float inputReal = inp[0];
-                        float inputImag = inp[1];
-                        real += inputReal * cos + inputImag * sin;
-                    }
-                    real /= outputSize;
-                }
-                outputPtr[k] = real;
-            };
-            if (parallelize) {
-                parallel_for(outputSize, dftIteration);
-            } else {
-                for (size_t k = 0; k < outputSize; k++) {
-                    dftIteration(k);
-                }
-            }
-        }
-
-        void dft(float* inputPtr, const float* twiddlesPtr, float* outputPtr,
-                 size_t inputSize, size_t signalSize, size_t outputSize,
-                 enum dft_type type, bool parallelize) override {
-            if (type == real_to_complex) {
-                dftRealToComplex(inputPtr, twiddlesPtr, outputPtr, inputSize, outputSize, parallelize);
-            } else if (type == complex_to_complex) {
-                dftComplexToComplex(inputPtr, twiddlesPtr, outputPtr, inputSize, signalSize, outputSize, parallelize);
-            } else if (type == complex_to_real) {
-                dftComplexToReal(inputPtr, twiddlesPtr, outputPtr, inputSize, signalSize, outputSize, parallelize);
-            }
-        }
-};
+void RDFTRefExecutor::dft(float* inputPtr, const float* twiddlesPtr, float* outputPtr,
+            size_t inputSize, size_t signalSize, size_t outputSize,
+            enum dft_type type, bool parallelize) {
+    if (type == real_to_complex) {
+        dftRealToComplex(inputPtr, twiddlesPtr, outputPtr, inputSize, outputSize, parallelize);
+    } else if (type == complex_to_complex) {
+        dftComplexToComplex(inputPtr, twiddlesPtr, outputPtr, inputSize, signalSize, outputSize, parallelize);
+    } else if (type == complex_to_real) {
+        dftComplexToReal(inputPtr, twiddlesPtr, outputPtr, inputSize, signalSize, outputSize, parallelize);
+    }
+}
 
 struct RDFTKey {
     bool isInverse;
