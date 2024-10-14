@@ -8,9 +8,10 @@
 
 #include <ze_graph_ext.h>
 
-#include "cid_compiler_adapter.hpp"
 #include "igraph.hpp"
+#include "izero_compiler_in_driver.hpp"
 #include "npu.hpp"
+
 
 namespace intel_npu {
 

@@ -8,7 +8,6 @@
 
 #include <ze_graph_ext.h>
 
-#include "cid_compiler_adapter.hpp"
 #include "igraph.hpp"
 #include "npu.hpp"
 #include "zero_backend.hpp"

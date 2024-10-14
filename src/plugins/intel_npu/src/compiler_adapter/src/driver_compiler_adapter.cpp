@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cid_compiler_adapter.hpp"
+#include "driver_compiler_adapter.hpp"
 
 #include <ze_graph_ext.h>
 
@@ -12,6 +12,7 @@
 #include "intel_npu/utils/zero/zero_result.hpp"
 #include "ze_intel_npu_uuid.h"
 #include "zero_backend.hpp"
+#include "zero_compiler_in_driver.hpp"
 #include "zero_device.hpp"
 #include "zero_init.hpp"
 

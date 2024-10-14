@@ -8,8 +8,8 @@
 
 #include "icompiler_adapter.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
+#include "izero_compiler_in_driver.hpp"
 #include "npu.hpp"
-#include "zero_compiler_in_driver.hpp"
 
 namespace intel_npu {
 
