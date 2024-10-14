@@ -33,8 +33,12 @@ TEST(type_prop, search_sorted_shape_infer_sorted_dynamic) {
     PerformShapeTest(PartialShape::dynamic(), {1, 3, 6}, {1, 3, 6});
 }
 
-TEST(type_prop, search_sorted_shape_infer_values_dynamic) {
+TEST(type_prop, search_sorted_shape_infer_values_dynamic_1) {
     PerformShapeTest({1, 3, 7, 5}, PartialShape::dynamic(), {1, 3, 7, -1});
+}
+
+TEST(type_prop, search_sorted_shape_infer_values_dynamic_2) {
+    PerformShapeTest({1666}, PartialShape::dynamic(), PartialShape::dynamic());
 }
 
 TEST(type_prop, search_sorted_shape_infer_different_last_dim) {
@@ -75,6 +79,22 @@ TEST(type_prop, search_sorted_shape_infer_both_dynamic_4) {
 
 TEST(type_prop, search_sorted_shape_infer_both_dynamic_5) {
     PerformShapeTest({-1}, {-1, -1, 3}, {-1, -1, 3});
+}
+
+TEST(type_prop, search_sorted_shape_infer_both_dynamic_6) {
+    PerformShapeTest({-1}, PartialShape::dynamic(), PartialShape::dynamic());
+}
+
+TEST(type_prop, search_sorted_shape_infer_both_dynamic_7) {
+    PerformShapeTest({20, 30, 40, -1}, PartialShape::dynamic(), {20, 30, 40, -1});
+}
+
+TEST(type_prop, search_sorted_shape_infer_both_dynamic_8) {
+    PerformShapeTest({10, 20, 30, 40, -1}, {-1, -1, 30, -1, 100}, {10, 20, 30, 40, 100});
+}
+
+TEST(type_prop, search_sorted_shape_infer_both_dynamic_9) {
+    PerformShapeTest({-1, -1}, PartialShape::dynamic(), {-1, -1});
 }
 
 TEST(type_prop, search_sorted_shape_symbols) {
