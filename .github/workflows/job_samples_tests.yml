@@ -59,7 +59,7 @@ jobs:
         if: runner.os == 'macOS'
         run: brew install coreutils pigz
 
-      - name: Extract OpenVINO packages, wheels and tests
+      - name: Extract OpenVINO packages and tests
         run: |
             pigz -dc openvino_package.tar.gz | tar -xf - -C ${INSTALL_DIR}
             pigz -dc openvino_tests.tar.gz | tar -xf - -C ${INSTALL_DIR}
