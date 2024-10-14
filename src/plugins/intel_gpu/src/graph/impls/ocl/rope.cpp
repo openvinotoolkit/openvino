@@ -44,8 +44,8 @@ struct rope_impl : typed_primitive_impl_ocl<rope> {
         params.slice_start = primitive->config.slice_start;
         params.slice_stop = primitive->config.slice_stop;
 
-        params.axis = primitive->config.is_qwen  || primitive->config.is_chatglm || primitive->config.support_2d_rope ? 2 : 3;
-        params.num_of_inputs = primitive->config.support_2d_rope ||primitive->config.is_chatglm || primitive->config.is_interleaved ? 2 : 3;
+        params.axis = primitive->config.is_qwen || primitive->config.is_chatglm ? 2 : 3;
+        params.num_of_inputs = primitive->config.is_chatglm || primitive->config.is_interleaved ? 2 : 3;
 
         if (params.gather_rank > 0) {
             params.num_of_inputs++;
@@ -65,7 +65,7 @@ struct rope_impl : typed_primitive_impl_ocl<rope> {
     static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params) {
         const auto& primitive = impl_params.typed_desc<rope>();
 
-        if (primitive->config.support_2d_rope || primitive->config.is_chatglm || primitive->config.is_qwen) {
+        if (primitive->config.is_chatglm || primitive->config.is_qwen) {
             return primitive_impl::static_canonicalize_shapes(impl_params);
         } else {
             auto updated_impl_params = canonicalize_fused_shapes(impl_params);
