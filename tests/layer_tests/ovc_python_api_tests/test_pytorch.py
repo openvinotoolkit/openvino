@@ -1,14 +1,17 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import os
+import tempfile
 import unittest
 from typing import Tuple, List
 
 import numpy as np
-import openvino.runtime as ov
 import pytest
 import torch
 from common.mo_convert_test_class import CommonMOConvertTest
+
+import openvino.runtime as ov
 from openvino.runtime import PartialShape, Dimension, Model, Type
 
 
@@ -1408,3 +1411,167 @@ class TestPytorchConversionParams(CommonMOConvertTest):
         test_params.update({'input_model': fw_model})
         self._test_by_ref_graph(temp_dir, test_params,
                                 ref_model, compare_tensor_names=False)
+
+
+def pytorch_nn_module_with_enabled_compression(tmp_dir):
+    import torch
+
+    class NeuralNetwork(torch.nn.Module):
+        def __init__(self):
+            super(NeuralNetwork, self).__init__()
+            self.y = torch.arange(10, dtype=torch.float16)
+
+        def forward(self, x, z):
+            return (x + self.y.to(torch.float32)) * z
+
+    param_1 = ov.opset13.parameter([10], dtype=np.float32)
+    param_2 = ov.opset13.parameter([10], dtype=np.float32)
+    const_1 = ov.opset13.constant(np.arange(10), dtype=np.float16)
+    convert_1 = ov.opset13.convert(const_1, np.float32)
+    add_1 = ov.opset13.add(param_1, convert_1)
+    mul_1 = ov.opset13.multiply(add_1, param_2)
+
+    ov_model_ref = Model([mul_1], [param_1, param_2], "test")
+    fw_model = NeuralNetwork()
+    return fw_model, ov_model_ref, {'input': [([10], np.float32), ([10], np.float32)],
+                                    'example_input': (torch.zeros(10), torch.zeros(10))}
+
+
+def pytorch_nn_module_with_disabled_compression(tmp_dir):
+    import torch
+
+    class NeuralNetwork(torch.nn.Module):
+        def __init__(self):
+            super(NeuralNetwork, self).__init__()
+            self.y = torch.arange(10, dtype=torch.float32)
+
+        def forward(self, x, z):
+            return (x + self.y) * z
+
+    param_1 = ov.opset13.parameter([-1], dtype=np.float32)
+    param_2 = ov.opset13.parameter([-1], dtype=np.float32)
+    const_1 = ov.opset13.constant(np.arange(10), dtype=np.float32)
+    add_1 = ov.opset13.add(param_1, const_1)
+    mul_1 = ov.opset13.multiply(add_1, param_2)
+
+    ov_model_ref = Model([mul_1], [param_1, param_2], "test")
+    fw_model = NeuralNetwork()
+    return fw_model, ov_model_ref, {'example_input': (torch.zeros(10), torch.zeros(10)),
+                                    'compress_to_fp16': 'False'}
+
+
+class TestConvertModelForPyTorchModelOnDisk(CommonMOConvertTest):
+    test_data = [
+        'create_pytorch_nn_module_case1',
+        'create_pytorch_nn_module_case2',
+        'create_pytorch_nn_module_case3',
+        'create_pytorch_nn_module_sample_input_int32_two_inputs',
+        'pytorch_nn_module_with_enabled_compression'
+    ]
+
+    @pytest.mark.parametrize('create_model', test_data)
+    @pytest.mark.parametrize('model_format', ['exported_program', 'torch_script'])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_convert_model_for_pytorch_model_on_disk(self, create_model, model_format,
+                                                     ie_device, precision, ir_version,
+                                                     temp_dir, use_legacy_frontend):
+        fw_model, graph_ref, ovc_params = eval(create_model)(temp_dir)
+
+        with tempfile.NamedTemporaryFile(delete=False) as tmpfile:
+            if model_format == 'torch_script':
+                scripted_model = torch.jit.script(fw_model)
+                scripted_model.save(tmpfile.name)
+                test_params = {'input_model': tmpfile.name}
+                if ovc_params is not None:
+                    test_params.update(ovc_params)
+            else:
+                example_input = ovc_params['example_input']
+                exported_program = torch.export.export(fw_model, example_input)
+                torch.export.save(exported_program, tmpfile.name)
+                test_params = {'input_model': tmpfile.name}
+                if ovc_params is not None:
+                    test_params.update(ovc_params)
+
+            self._test_by_ref_graph(temp_dir, test_params,
+                                    graph_ref, compare_tensor_names=False)
+        os.remove(tmpfile.name)
+
+
+def ovc_case1(tmp_dir):
+    pt_model = make_pt_model_two_inputs()
+    ref_model = make_ref_pt_model_two_inputs([1, 3, 10, 10])
+
+    sample_input1 = torch.zeros(1, 3, 10, 10)
+    sample_input2 = torch.zeros(1, 3, 10, 10)
+    sample_input = sample_input1, sample_input2
+
+    return pt_model, ref_model, {'example_input': sample_input}
+
+
+def pytorch_nn_module_case2(tmp_dir):
+    pt_model = make_pt_model_two_inputs()
+    ref_model = make_ref_pt_model_two_inputs([-1, 3, -1, -1])
+
+    sample_input1 = torch.zeros(1, 3, 10, 10)
+    sample_input2 = torch.zeros(1, 3, 10, 10)
+    sample_input = sample_input1, sample_input2
+
+    return pt_model, ref_model, {'input': '[-1,3,-1,-1],[-1,3,-1,-1]',
+                                 'example_input': sample_input}
+
+
+def nested_dict_input_ovc_case2(tmp_dir):
+    class PTModel(torch.nn.Module):
+        def forward(self, a, b):
+            return a["1"] * a["2"] + b
+
+    net = PTModel()
+    a1 = ov.opset10.parameter(PartialShape([-1]), dtype=np.float32)
+    a2 = ov.opset10.parameter(PartialShape([-1]), dtype=np.float32)
+    b = ov.opset10.parameter(PartialShape([-1]), dtype=np.float32)
+    mul = ov.opset10.multiply(a1, a2)
+    add = ov.opset10.add(mul, b)
+    ref_model = Model([add], [a1, a2, b], "test")
+    example_input = (
+        {
+            "1": torch.tensor([1, 2], dtype=torch.float32),
+            "2": torch.tensor([3, 4], dtype=torch.float32)
+        },
+        torch.tensor([5, 6], dtype=torch.float32)
+    )
+    return net, ref_model, {'example_input': example_input}
+
+
+class TestOVCForExportedProgramOnDisk(CommonMOConvertTest):
+    test_data = [
+        'create_pytorch_nn_module_case1',
+        'pytorch_nn_module_case2',
+        'nested_dict_input_ovc_case2',
+        'pytorch_nn_module_with_disabled_compression'
+    ]
+
+    @pytest.mark.parametrize('create_model', test_data)
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_ovc_for_exported_program_on_disk(self, create_model,
+                                              ie_device, precision, ir_version,
+                                              temp_dir, use_legacy_frontend):
+        fw_model, graph_ref, ovc_params = eval(create_model)(temp_dir)
+        example_input = ovc_params['example_input']
+        del ovc_params['example_input']
+
+        ep_file_name = None
+        with tempfile.NamedTemporaryFile(delete=False) as tmpfile:
+            exported_program = torch.export.export(fw_model, tuple(example_input))
+            torch.export.save(exported_program, tmpfile.name)
+            ep_file_name = tmpfile.name
+
+            test_params = {'input_model': ep_file_name}
+            if ovc_params is not None:
+                test_params.update(ovc_params)
+
+            self._test_by_ref_graph(temp_dir, test_params,
+                                    graph_ref, compare_tensor_names=False,
+                                    ovc=True)
+        os.remove(ep_file_name)
