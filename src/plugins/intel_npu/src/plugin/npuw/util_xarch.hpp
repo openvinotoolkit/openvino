@@ -8,6 +8,7 @@
 
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
+#include "openvino/op/constant.hpp"
 
 namespace ov {
 namespace npuw {

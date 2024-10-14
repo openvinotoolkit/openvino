@@ -1553,9 +1553,9 @@ inline ov::Tensor to_f16_impl(const ov::Tensor& t) {
     NPUW_ASSERT(t.get_size() % 8 == 0);
     NPUW_ASSERT(t.is_continuous());
 
-#if defined(HAVE_AVX2)
     ov::Tensor tnew(ov::element::f16, shape);
 
+#if defined(HAVE_AVX2)
     const float* psrc = t.data<float>();
     uint8_t* pdst = static_cast<uint8_t*>(tnew.data());
 
@@ -1567,11 +1567,10 @@ inline ov::Tensor to_f16_impl(const ov::Tensor& t) {
         psrc += 8;        // offset in sizeof(float)
         pdst += (8 * 2);  // offset in bytes
     }
-
-    return tnew;
 #else
     OPENVINO_THROW("AVX2 support is neccessary but it's not enabled!");
 #endif
+    return tnew;
 }
 
 }  // namespace XARCH

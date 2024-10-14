@@ -207,9 +207,9 @@ ov::Tensor LazyTensorImpl::eval() const {
             const auto& ts = cs.get_orig_tensor();
             ov::Tensor dst(type, shape);
             if (tw && tz && ts) {
-                ov::npuw::util::unpack(gti(tw), gti(tz), gti(ts), gti(dst));
+                ov::npuw::util::XARCH::unpack_scale_zp(gti(tw), gti(tz), gti(ts), gti(dst));
             } else if (tw && ts) {
-                ov::npuw::util::unpack(gti(tw), gti(ts), gti(dst));
+                ov::npuw::util::XARCH::unpack_scale(gti(tw), gti(ts), gti(dst));
             } else {
                 NPUW_ASSERT(false && "Unsupported combination");
             }
@@ -224,7 +224,7 @@ ov::Tensor LazyTensorImpl::eval() const {
     case TransformType::PERMUTE:
         return ov::npuw::util::permute(m_parent->eval(), std::get<std::vector<std::size_t>>(m_transform.second));
     case TransformType::CONVERT:
-        return ov::npuw::util::to_f16(m_parent->eval());
+        return ov::npuw::util::XARCH::to_f16(m_parent->eval());
     default:
         NPUW_ASSERT(false);
     }

@@ -27,6 +27,6 @@ void ov::npuw::util::XARCH::unpack_scale_zp(const ov::SoPtr<ov::ITensor>& from,
               unpack_scale_zp_impl(from, zerop, scale, to);
             }
 
-ov::Tensor to_f16(const ov::Tensor& t) {
-    to_f16_impl(t);
+ov::Tensor ov::npuw::util::XARCH::to_f16(const ov::Tensor& t) {
+    return to_f16_impl(t);
 }
