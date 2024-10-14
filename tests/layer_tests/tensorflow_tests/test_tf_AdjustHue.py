@@ -50,8 +50,6 @@ class TestAdjustHue(CommonTFLayerTest):
     def test_adjust_hue_basic(self, input_shape, input_type, special_case,
                               ie_device, precision, ir_version, temp_dir,
                               use_legacy_frontend):
-        if ie_device == 'GPU' and (input_shape == [2, 4, 4, 3] or input_shape == [3, 4, 12, 12, 3]):
-            pytest.skip('150766: Accuracy issue on GPU')
         self._test(*self.create_adjust_hue_net(input_shape, input_type, special_case),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)
