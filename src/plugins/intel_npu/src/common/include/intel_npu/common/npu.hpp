@@ -54,11 +54,14 @@ protected:
 
 //------------------------------------------------------------------------------
 
-class IExecutor {
+class ICompilerAdapter {
 public:
-    virtual ~IExecutor() = default;
+    virtual std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model,
+                                            const Config& config) const = 0;
+    virtual std::shared_ptr<IGraph> parse(const std::vector<uint8_t>& network, const Config& config) const = 0;
+    virtual ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const = 0;
 
-    virtual void setWorkloadType(const ov::WorkloadType workloadType) const = 0;
+    virtual ~ICompilerAdapter() = default;
 };
 
 //------------------------------------------------------------------------------
@@ -66,8 +69,6 @@ public:
 class IDevice : public std::enable_shared_from_this<IDevice> {
 public:
     using Uuid = ov::device::UUID;
-
-    virtual std::shared_ptr<IExecutor> createExecutor(const std::shared_ptr<IGraph>& graph, const Config& config) = 0;
 
     virtual std::string getName() const = 0;
     virtual std::string getFullDeviceName() const = 0;
@@ -84,7 +85,6 @@ public:
     virtual std::shared_ptr<SyncInferRequest> createInferRequest(
         const std::shared_ptr<const ICompiledModel>& compiledModel,
         const std::shared_ptr<IGraph>& graph,
-        const std::shared_ptr<IExecutor>& executor,
         const Config& config) = 0;
 
     virtual void updateInfo(const Config& config) = 0;

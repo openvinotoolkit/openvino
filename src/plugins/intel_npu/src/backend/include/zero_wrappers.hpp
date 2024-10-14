@@ -15,14 +15,6 @@ namespace intel_npu {
 class CommandList;
 class CommandQueue;
 
-enum stage {
-    UPLOAD,
-    EXECUTE,
-    READBACK,
-
-    COUNT
-};
-
 class EventPool {
 public:
     EventPool() = delete;

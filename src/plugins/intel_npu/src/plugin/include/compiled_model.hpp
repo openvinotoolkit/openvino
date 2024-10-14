@@ -44,11 +44,6 @@ public:
 
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
 
-    // For CID path mean it get the blob from compiler through pfnGetNativeBinary using
-    // networkDescription->metadata.graphHandle.
-
-    // For CIP path mean it get the blob from
-    // networkDescription->compiledNetwork.
     void export_model(std::ostream& stream) const override;
 
     std::shared_ptr<const ov::Model> get_runtime_model() const override;
@@ -57,7 +52,7 @@ public:
 
     ov::Any get_property(const std::string& name) const override;
 
-    const std::shared_ptr<IGraph>& get_graph() const override;
+    const NetworkMetadata& get_network_metadata() const override;
 
     const Config& get_config() const override;
 
@@ -66,13 +61,10 @@ private:
 
     void configure_stream_executors();
 
-    void create_executor();
-
     const std::shared_ptr<const ov::Model> _model;
     Config _config;
     Logger _logger;
     const std::shared_ptr<IDevice> _device;
-    mutable std::shared_ptr<IExecutor> _executorPtr;
     std::shared_ptr<ov::threading::ITaskExecutor> _resultExecutor;
 
     // properties map: {name -> [supported, mutable, eval function]}

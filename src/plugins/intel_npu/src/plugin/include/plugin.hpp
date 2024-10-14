@@ -9,7 +9,6 @@
 #include <string>
 
 #include "backends.hpp"
-#include "icompiler_adapter.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/icompiler.hpp"
 #include "intel_npu/utils/logger/logger.hpp"

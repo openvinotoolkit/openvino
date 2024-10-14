@@ -16,7 +16,7 @@ using CompilationParams = std::tuple<std::string,  // Device name
                                      ov::AnyMap    // Config
                                      >;
 
-using IRSerializer = intel_npu::IRSerializer;
+using IRSerializer = intel_npu::driver_compiler_utils::IRSerializer;
 
 namespace ov::test::behavior {
 

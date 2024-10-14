@@ -18,7 +18,6 @@ namespace intel_npu {
 Pipeline::Pipeline(const Config& config,
                    const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
                    const std::shared_ptr<IGraph>& graph,
-                   const std::shared_ptr<const IExecutor>& executorPtr,
                    zeroProfiling::ProfilingPool& profiling_pool,
                    zeroProfiling::ProfilingQuery& profiling_query,
                    std::shared_ptr<zeroProfiling::NpuInferProfiling> npu_profiling,
@@ -27,7 +26,7 @@ Pipeline::Pipeline(const Config& config,
                    const size_t numberOfCommandLists,
                    uint32_t group_ordinal)
     : _config(config),
-      _command_queue(*static_cast<const ZeroExecutor*>(executorPtr.get())->getCommandQueue()),
+      _command_queue(*static_cast<const ZeroExecutor*>(graph->get_executor().get())->getCommandQueue()),
       _event_pool{initStructs->getDevice(),
                   initStructs->getContext(),
                   numberOfCommandLists ? static_cast<uint32_t>(numberOfCommandLists) : 1,
@@ -36,8 +35,6 @@ Pipeline::Pipeline(const Config& config,
       _logger("Pipeline", _config.get<LOG_LEVEL>()) {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Zero_infer_request::Pipeline::Pipeline");
     _logger.debug("Pipeline - initialize started");
-
-    auto executor = static_cast<const ZeroExecutor*>(executorPtr.get());
 
     if (profiling_pool.create()) {
         profiling_query.create(profiling_pool._handle);
@@ -61,7 +58,7 @@ Pipeline::Pipeline(const Config& config,
 
     for (size_t i = 0; i < numberOfCommandLists; i++) {
         size_t ioIndex = 0;
-        for (const auto& desc : executor->get_input_descriptors()) {
+        for (const auto& desc : graph->get_input_descriptors()) {
             if (inputTensorsData.at(ioIndex).size() > 1) {
                 graph->set_argument_value(desc.idx, inputTensorsData.at(ioIndex).at(i)->mem);
 
@@ -77,7 +74,7 @@ Pipeline::Pipeline(const Config& config,
         }
 
         ioIndex = 0;
-        for (const auto& desc : executor->get_output_descriptors()) {
+        for (const auto& desc : graph->get_output_descriptors()) {
             graph->set_argument_value(desc.idx,
                                       static_cast<unsigned char*>(outputTensorsData.at(ioIndex)->mem) +
                                           (i * outputTensorsData.at(ioIndex)->size) / numberOfCommandLists);

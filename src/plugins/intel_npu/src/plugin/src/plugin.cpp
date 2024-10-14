@@ -695,7 +695,16 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     auto compiler = getCompiler(localConfig);
 
     OV_ITT_TASK_NEXT(PLUGIN_COMPILE_MODEL, "compile");
-    auto graph = compiler->compile(model, localConfig);
+    std::shared_ptr<intel_npu::IGraph> graph;
+    try {
+        _logger.debug("performing compile");
+        graph = compiler->compile(model, localConfig);
+    } catch (const std::exception& ex) {
+        OPENVINO_THROW(ex.what());
+    } catch (...) {
+        _logger.error("Unexpected exception");
+        OPENVINO_THROW("NPU plugin: got an unexpected exception from compiler");
+    }
 
     std::shared_ptr<ov::ICompiledModel> compiledModel;
     try {
@@ -767,7 +776,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         _logger.debug("Successfully read %zu bytes into blob.", graphSize);
 
         auto graph = compiler->parse(blob, localConfig);
-        graph->get_metadata().name = "net" + std::to_string(_compiledModelLoadCounter++);
+        graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
 
         const std::shared_ptr<ov::Model> modelDummy =
             create_dummy_model(graph->get_metadata().inputs, graph->get_metadata().outputs);
@@ -825,17 +834,16 @@ std::unique_ptr<ICompilerAdapter> Plugin::getCompiler(const Config& config) cons
     case ov::intel_npu::CompilerType::MLIR:
 
         if (_backends->getBackendName() != "LEVEL0") {
-            OPENVINO_THROW("NPU Compiler Adapter must be used with LEVEL0 backend");
-            return std::make_unique<CipCompilerAdapter>(nullptr);
+            return std::make_unique<PluginCompilerAdapter>(nullptr);
         }
 
-        return std::make_unique<CipCompilerAdapter>(_backends->getIEngineBackend()._ptr);
+        return std::make_unique<PluginCompilerAdapter>(_backends->getIEngineBackend()._ptr);
 
     case ov::intel_npu::CompilerType::DRIVER:
         if (_backends->getBackendName() != "LEVEL0") {
             OPENVINO_THROW("NPU Compiler Adapter must be used with LEVEL0 backend");
         }
-        return std::make_unique<CidCompilerAdapter>(_backends->getIEngineBackend()._ptr);
+        return std::make_unique<DriverCompilerAdapter>(_backends->getIEngineBackend()._ptr);
     default:
         OPENVINO_THROW("Invalid NPU_COMPILER_TYPE");
     }

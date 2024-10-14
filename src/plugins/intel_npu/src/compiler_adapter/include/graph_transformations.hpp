@@ -15,7 +15,7 @@
  * @brief Contain all required transformation on OpenVINO model in case for external compiler usage and
  *  providing forward compatibility (OV model with opset N+M, external compiler with opset N)
  */
-namespace intel_npu {
+namespace intel_npu::driver_compiler_utils {
 
 class IRSerializer {
 public:
@@ -52,4 +52,4 @@ private:
     size_t _weightsSize = 0;
 };
 
-}  // namespace intel_npu
+}  // namespace intel_npu::driver_compiler_utils

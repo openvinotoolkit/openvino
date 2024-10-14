@@ -7,7 +7,6 @@
 #include <memory>
 #include <vector>
 
-#include "igraph.hpp"
 #include "intel_npu/config/common.hpp"
 #include "intel_npu/icompiler.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
@@ -18,13 +17,9 @@ class ICompiledModel : public ov::ICompiledModel {
 public:
     using ov::ICompiledModel::ICompiledModel;
 
-    virtual const std::shared_ptr<IGraph>& get_graph() const = 0;
-
     virtual const Config& get_config() const = 0;
 
-    const NetworkMetadata get_network_metadata() const {
-        return get_graph()->get_metadata();
-    }
+    virtual const NetworkMetadata& get_network_metadata() const = 0;
 
 protected:
     std::shared_ptr<const ICompiledModel> shared_from_this() const {

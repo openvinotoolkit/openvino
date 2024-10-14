@@ -13,14 +13,19 @@
 
 namespace intel_npu {
 
-class CipGraph final : public IGraph {
+class Graph final : public IGraph {
 public:
-    CipGraph(const std::shared_ptr<IZeroLink>& zeroLink,
-             const ov::SoPtr<ICompiler>& compiler,
-             ze_graph_handle_t graphHandle,
-             NetworkMetadata metadata,
-             std::vector<uint8_t> compiledNetwork,
-             const Config& config);
+    Graph(const std::shared_ptr<IZeroLink>& zeroCompilerAdapter,
+          ze_graph_handle_t graphHandle,
+          NetworkMetadata& metadata,
+          const Config& config);
+
+    Graph(const std::shared_ptr<IZeroLink>& zeroCompilerAdapter,
+          const ov::SoPtr<ICompiler>& compiler,
+          ze_graph_handle_t graphHandle,
+          NetworkMetadata& metadata,
+          const std::vector<uint8_t>& compiledNetwork,
+          const Config& config);
 
     CompiledNetwork export_blob() const override;
 
@@ -30,10 +35,10 @@ public:
 
     void initialize() override;
 
-    ~CipGraph() override;
+    ~Graph() override;
 
 private:
-    std::shared_ptr<IZeroLink> _zeroLink;
+    std::shared_ptr<IZeroLink> _zeroCompilerAdapter;
     const ov::SoPtr<ICompiler> _compiler;
     std::vector<uint8_t> _compiledNetwork;
 

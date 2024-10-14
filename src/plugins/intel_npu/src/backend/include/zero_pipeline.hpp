@@ -23,7 +23,6 @@ public:
     Pipeline(const Config& config,
              const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
              const std::shared_ptr<IGraph>& graph,
-             const std::shared_ptr<const IExecutor>& executorPtr,
              zeroProfiling::ProfilingPool& profiling_pool,
              zeroProfiling::ProfilingQuery& profiling_query,
              std::shared_ptr<zeroProfiling::NpuInferProfiling> npu_profiling,
