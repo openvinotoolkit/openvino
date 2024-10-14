@@ -22,6 +22,56 @@ namespace npuw {
 class CompiledModel;
 class AsyncInferRequest;
 
+using LinkFrom = std::pair<std::size_t /* Subrequest index */
+                           ,
+                           std::size_t /* Subrequest output index */
+                           >;          // FIXME: This is a third, if not fourth, definitiion of such structure
+
+using TensorPtr = ov::SoPtr<ov::ITensor>;
+
+class MemAccessSim {
+public:
+    explicit MemAccessSim(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model);
+
+    using ReadList = std::list<LinkFrom>;
+    const ReadList& read_list(std::size_t idx) const;
+
+    std::size_t remaining_reads(const LinkFrom& from);
+    void register_read(const LinkFrom& from);
+
+private:
+    std::map<LinkFrom, std::size_t> m_remaining_reads;
+    std::vector<ReadList> m_read_list;
+};
+
+class FuncMemMgr {
+    MemAccessSim m_sim;
+    std::shared_ptr<ov::npuw::CompiledModel> m_model;
+
+    void assign(const LinkFrom& from);
+
+    // Function ID -> Output port number
+    using FO = std::pair<std::size_t, std::size_t>;
+    struct Assignment {
+        TensorPtr ptr;
+        LinkFrom from;
+    };
+    std::map<FO, std::vector<Assignment>> m_memory;  // Dynamic assignment table
+    std::map<LinkFrom, TensorPtr> m_table;           // Static allocation/assignment table
+
+public:
+    explicit FuncMemMgr(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model);
+
+    using AllocFcn = std::function<TensorPtr(const ov::element::Type&, const ov::Shape&, const std::string&)>;
+    void set_alloc(AllocFcn&& fcn);
+    void assign_memory();
+
+    TensorPtr get_tensor(const LinkFrom& from);
+
+private:
+    AllocFcn m_alloc;
+};
+
 class JustInferRequest final : public IBaseInferRequest {
 public:
     explicit JustInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model);
@@ -64,15 +114,11 @@ private:
     void connect_subrequests();
     void recreate_subrequests(std::size_t idx);
 
-    ov::SoPtr<ov::ITensor> allocTensor(const ov::element::Type type, const ov::Shape& shape, const std::string& device);
-    ov::SoPtr<ov::ITensor> allocTensor(const ov::Output<const ov::Node>& node, const std::string& device);
+    TensorPtr allocMem(const ov::element::Type type, const ov::Shape& shape, const std::string& device);
+    TensorPtr allocOut(const ov::Output<const ov::Node>& node, const std::string& device);
 
-    using LinkFrom = std::pair<std::size_t /* Subrequest index */
-                               ,
-                               std::size_t /* Subrequest output index */
-                               >;          // FIXME: This is a third, if not fourth, definitiion of such structure
-    using TensorPtr = ov::SoPtr<ov::ITensor>;
-    std::map<LinkFrom, TensorPtr> m_funcall_result;
+    FuncMemMgr m_func_mem_mgr;                       // Owns memory
+    std::map<LinkFrom, TensorPtr> m_funcall_result;  // Provides a convenient link
 
     bool is_pipelined(std::size_t idx) const;
     bool m_use_function_pipelining = false;
@@ -103,8 +149,6 @@ private:
     std::vector<GlobalIO> m_subrequests_gio;
 
     std::mutex m_alloc_mutex;
-    std::shared_ptr<ov::IRemoteContext> m_remote_ctx = nullptr;
-
     std::unordered_set<void*> m_input_allocated;
 };
 
