@@ -82,11 +82,11 @@ void post_optimize_lstm_weights_and_output::run(program& p) {
         }
     }
     p.get_processing_order().calc_processing_order(p);
+    int i = 0;
     for (auto node : p.get_processing_order()) {
         if (node->is_type<cldnn::mutable_data>()) {
             continue;
         }
-        int i = 0;
         for (auto prev_node : node->get_dependencies()) {
             if (prev_node.first->is_type<lstm_seq>()) {
                 auto impl = prev_node.first->get_selected_impl();
