@@ -523,11 +523,7 @@ std::string ov::npuw::CompiledModel::funcall_mem_device(const std::size_t idx) c
     }
 
     auto& comp_model_desc = m_compiled_submodels[idx];
-    if (ov::npuw::util::starts_with(*comp_model_desc.device_it, "NPU")) {
-        return "NPU";
-    }
-
-    return "CPU";
+    return *comp_model_desc.device_it;
 }
 
 void ov::npuw::CompiledModel::remove_long_output_names(const std::shared_ptr<ov::Model>& model) {
