@@ -256,15 +256,18 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
         return ro_properties;
     };
     const auto& default_rw_properties = []() {
-        std::vector<ov::PropertyName> rw_properties{ov::device::id,
-                                                    ov::enable_profiling,
-                                                    ov::hint::performance_mode,
-                                                    ov::hint::num_requests,
-                                                    ov::hint::inference_precision,
-                                                    ov::hint::execution_mode,
-                                                    ov::num_streams,
-                                                    ov::template_plugin::disable_transformations,
-                                                    ov::log::level};
+        std::vector<ov::PropertyName> rw_properties{
+            ov::device::id,
+            ov::enable_profiling,
+            ov::hint::performance_mode,
+            ov::hint::num_requests,
+            ov::hint::inference_precision,
+            ov::hint::execution_mode,
+            ov::num_streams,
+            ov::template_plugin::disable_transformations,
+            ov::log::level,
+            ov::hint::model_priority,
+        };
         return rw_properties;
     };
     if (ov::supported_properties == name) {
