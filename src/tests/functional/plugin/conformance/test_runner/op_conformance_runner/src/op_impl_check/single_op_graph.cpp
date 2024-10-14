@@ -2066,6 +2066,15 @@ std::shared_ptr<ov::Model> generateRNNCellBase(const std::shared_ptr<ov::op::Op>
     }
 }
 
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v15::SearchSorted>& node) {
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{16})};
+    const auto values =
+        std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{2, 3}, std::vector<float>(6, 0));
+    auto new_node = std::make_shared<ov::op::v15::SearchSorted>(params.at(0), values);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(new_node)};
+    return std::make_shared<ov::Model>(results, params, "SearchSortedGraph");
+}
+
 std::shared_ptr<ov::Model> generateSubGraphOp(const std::shared_ptr<ov::op::Op> &node) {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{2, 2}}),
                                std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{2, 2}}),
