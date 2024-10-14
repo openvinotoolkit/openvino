@@ -23,7 +23,6 @@ public:
     explicit ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
                               const std::shared_ptr<const ICompiledModel>& compiledModel,
                               const std::shared_ptr<IGraph>& graph,
-                              const std::shared_ptr<const IExecutor>& executor,
                               const Config& config,
                               uint32_t group_ordinal);
 
@@ -87,7 +86,6 @@ private:
 
     const std::shared_ptr<ZeroInitStructsHolder> _initStructs;
     const std::shared_ptr<IGraph> _graph;
-    const std::shared_ptr<const IExecutor> _executorPtr;
     const ZeroExecutor* _executor;
     const uint32_t _group_ordinal;
     const Config _config;

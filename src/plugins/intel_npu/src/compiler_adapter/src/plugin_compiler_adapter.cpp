@@ -23,6 +23,7 @@
 #include "zero_backend.hpp"
 #include "zero_device.hpp"
 #include "zero_init.hpp"
+#include "zero_link.hpp"
 
 namespace {
 std::shared_ptr<void> loadLibrary(const std::string& libpath) {
@@ -55,44 +56,149 @@ ov::SoPtr<intel_npu::ICompiler> loadCompiler(const std::string& libpath) {
 
 namespace intel_npu {
 
-CipCompilerAdapter::CipCompilerAdapter(const std::shared_ptr<IEngineBackend>& iEngineBackend)
-    : _iEngineBackend(iEngineBackend),
-      _logger("CipCompilerAdapter", Logger::global().level()) {
-    _logger.debug("initialize CipCompilerAdapter start");
+PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<IEngineBackend>& iEngineBackend)
+    : _logger("PluginCompilerAdapter", Logger::global().level()) {
+    _logger.debug("initialize PluginCompilerAdapter start");
 
     _logger.info("MLIR compiler will be used.");
     std::string baseName = "npu_mlir_compiler";
     auto libPath = ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(), baseName + OV_BUILD_POSTFIX);
     _compiler = loadCompiler(libPath);
+
+    if (iEngineBackend == nullptr) {
+        return;
+    }
+
+    auto zeroBackend = std::dynamic_pointer_cast<ZeroEngineBackend>(iEngineBackend);
+    if (zeroBackend == nullptr) {
+        return;
+    }
+
+    auto zeroDevice = std::dynamic_pointer_cast<ZeroDevice>(zeroBackend->getDevice());
+    if (zeroDevice == nullptr) {
+        return;
+    }
+
+    ze_context_handle_t zeContext = static_cast<ze_context_handle_t>(zeroBackend->getContext());
+    ze_driver_handle_t driverHandle = static_cast<ze_driver_handle_t>(zeroBackend->getDriverHandle());
+    ze_device_handle_t deviceHandle = static_cast<ze_device_handle_t>(zeroBackend->getDeviceHandle());
+    ze_graph_dditable_ext_curr_t& graphDdiTableExt = zeroBackend->getGraphDdiTable();
+    ze_command_queue_npu_dditable_ext_curr_t& commandQueueDdiTable = zeroBackend->getCommandQueueDdiTable();
+
+    uint32_t graphExtVersion = graphDdiTableExt.version();
+    auto group_ordinal = zeroDevice->getGroupOrdinal();
+
+    if (driverHandle == nullptr) {
+        OPENVINO_THROW("PluginCompilerAdapter failed to get properties about Driver");
+    }
+
+    _logger.info("PluginCompilerAdapter creating adapter using graphExtVersion");
+
+    switch (graphExtVersion) {
+    case ZE_GRAPH_EXT_VERSION_1_3:
+        _zeroLink = std::make_shared<ZeroLink<ze_graph_dditable_ext_1_3_t>>(driverHandle,
+                                                                            deviceHandle,
+                                                                            zeContext,
+                                                                            graphDdiTableExt,
+                                                                            commandQueueDdiTable,
+                                                                            group_ordinal);
+        break;
+    case ZE_GRAPH_EXT_VERSION_1_4:
+        _zeroLink = std::make_shared<ZeroLink<ze_graph_dditable_ext_1_4_t>>(driverHandle,
+                                                                            deviceHandle,
+                                                                            zeContext,
+                                                                            graphDdiTableExt,
+                                                                            commandQueueDdiTable,
+                                                                            group_ordinal);
+        break;
+    case ZE_GRAPH_EXT_VERSION_1_5:
+        _zeroLink = std::make_shared<ZeroLink<ze_graph_dditable_ext_1_5_t>>(driverHandle,
+                                                                            deviceHandle,
+                                                                            zeContext,
+                                                                            graphDdiTableExt,
+                                                                            commandQueueDdiTable,
+                                                                            group_ordinal);
+        break;
+    case ZE_GRAPH_EXT_VERSION_1_6:
+        _zeroLink = std::make_shared<ZeroLink<ze_graph_dditable_ext_1_6_t>>(driverHandle,
+                                                                            deviceHandle,
+                                                                            zeContext,
+                                                                            graphDdiTableExt,
+                                                                            commandQueueDdiTable,
+                                                                            group_ordinal);
+        break;
+    case ZE_GRAPH_EXT_VERSION_1_7:
+        _zeroLink = std::make_shared<ZeroLink<ze_graph_dditable_ext_1_7_t>>(driverHandle,
+                                                                            deviceHandle,
+                                                                            zeContext,
+                                                                            graphDdiTableExt,
+                                                                            commandQueueDdiTable,
+                                                                            group_ordinal);
+        break;
+    case ZE_GRAPH_EXT_VERSION_1_8:
+        _zeroLink = std::make_shared<ZeroLink<ze_graph_dditable_ext_1_8_t>>(driverHandle,
+                                                                            deviceHandle,
+                                                                            zeContext,
+                                                                            graphDdiTableExt,
+                                                                            commandQueueDdiTable,
+                                                                            group_ordinal);
+        break;
+    default:
+        _zeroLink = std::make_shared<ZeroLink<ze_graph_dditable_ext_1_2_t>>(driverHandle,
+                                                                            deviceHandle,
+                                                                            zeContext,
+                                                                            graphDdiTableExt,
+                                                                            commandQueueDdiTable,
+                                                                            group_ordinal);
+        break;
+    }
+
+    _logger.info("initialize PluginCompilerAdapter complete, using graphExtVersion: %d.%d",
+                 ZE_MAJOR_VERSION(graphExtVersion),
+                 ZE_MINOR_VERSION(graphExtVersion));
 }
 
-std::shared_ptr<IGraph> CipCompilerAdapter::compile(const std::shared_ptr<const ov::Model>& model,
-                                                    const Config& config) const {
-    OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "CipCompilerAdapter", "compile");
+std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<const ov::Model>& model,
+                                                       const Config& config) const {
+    OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "compile");
 
     _logger.debug("compile start");
     auto networkDesc = _compiler->compile(model, config);
     _logger.debug("compile end");
 
-    return std::make_shared<CipGraph>(_iEngineBackend,
-                                      std::move(networkDesc.metadata),
-                                      std::move(networkDesc.compiledNetwork),
-                                      config);
+    ze_graph_handle_t graphHandle = nullptr;
+    if (_zeroLink) {
+        graphHandle = _zeroLink->getGraphHandle(networkDesc.compiledNetwork);
+    }
+
+    auto graph = std::make_shared<CipGraph>(_zeroLink,
+                                            _compiler,
+                                            graphHandle,
+                                            std::move(networkDesc.metadata),
+                                            std::move(networkDesc.compiledNetwork),
+                                            config);
+
+    return graph;
 }
 
-std::shared_ptr<IGraph> CipCompilerAdapter::parse(const std::vector<uint8_t>& network, const Config& config) const {
-    OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "CipCompilerAdapter", "parse");
+std::shared_ptr<IGraph> PluginCompilerAdapter::parse(const std::vector<uint8_t>& network, const Config& config) const {
+    OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "parse");
 
     _logger.debug("parse start");
     auto networkMeta = _compiler->parse(network, config);
     _logger.debug("parse end");
 
-    return std::make_shared<CipGraph>(_iEngineBackend, std::move(networkMeta), std::move(network), config);
+    ze_graph_handle_t graphHandle = nullptr;
+    if (_zeroLink) {
+        graphHandle = _zeroLink->getGraphHandle(network);
+    }
+
+    return std::make_shared<CipGraph>(_zeroLink, _compiler, graphHandle, std::move(networkMeta), network, config);
 }
 
-ov::SupportedOpsMap CipCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,
-                                              const Config& config) const {
-    OV_ITT_TASK_CHAIN(QUERY_BLOB, itt::domains::NPUPlugin, "CipCompilerAdapter", "query");
+ov::SupportedOpsMap PluginCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,
+                                                 const Config& config) const {
+    OV_ITT_TASK_CHAIN(QUERY_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "query");
 
     return _compiler->query(model, config);
 }

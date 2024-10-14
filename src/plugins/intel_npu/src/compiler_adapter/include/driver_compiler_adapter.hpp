@@ -6,16 +6,17 @@
 
 #pragma once
 
-#include "icompiler_adapter.hpp"
+#include "driver_compiler_utils.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
-#include "izero_compiler_in_driver.hpp"
+#include "izero_link.hpp"
 #include "npu.hpp"
+#include "zero_backend.hpp"
 
 namespace intel_npu {
 
-class CidCompilerAdapter final : public ICompilerAdapter {
+class DriverCompilerAdapter final : public ICompilerAdapter {
 public:
-    CidCompilerAdapter(const std::shared_ptr<IEngineBackend>& iEngineBackend);
+    DriverCompilerAdapter(const std::shared_ptr<IEngineBackend>& iEngineBackend);
 
     std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
 
@@ -24,7 +25,11 @@ public:
     ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
 
 private:
-    std::shared_ptr<ILevelZeroCompilerInDriver> _apiAdapter;
+    std::shared_ptr<ZeroEngineBackend> _zeroBackend;
+    std::shared_ptr<IZeroLink> _zeroLink;
+
+    ze_device_graph_properties_t _deviceGraphProperties{};
+
     Logger _logger;
 };
 

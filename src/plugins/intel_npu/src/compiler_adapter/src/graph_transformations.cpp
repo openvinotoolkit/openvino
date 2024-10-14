@@ -12,7 +12,7 @@
 #include "openvino/pass/serialize.hpp"
 #include "transformations/op_conversions/convert_interpolate11_downgrade.hpp"
 
-namespace intel_npu {
+namespace intel_npu::driver_compiler_utils {
 
 IRSerializer::IRSerializer(const std::shared_ptr<const ov::Model>& origModel, const uint32_t supportedOpset)
     : _logger("IRSerializer", Logger::global().level()),
@@ -101,4 +101,4 @@ void IRSerializer::serializeModelToBuffer(uint8_t* xml, uint8_t* weights) {
     _logger.debug("serializeModelToBuffer end");
 }
 
-}  // namespace intel_npu
+}  // namespace intel_npu::driver_compiler_utils

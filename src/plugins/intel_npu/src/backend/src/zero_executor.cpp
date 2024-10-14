@@ -21,52 +21,21 @@
 
 using namespace intel_npu;
 
-ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& initStructs,
-                           const std::shared_ptr<IGraph>& graph,
+ZeroExecutor::ZeroExecutor(ze_graph_handle_t graphHandle,
+                           ze_device_handle_t deviceHandle,
+                           ze_context_handle_t contextHandle,
+                           ze_graph_dditable_ext_curr_t& graphDdiTableExt,
+                           ze_command_queue_npu_dditable_ext_curr_t& commandQueueDdiTable,
                            const Config& config,
-                           uint32_t group_ordinal)
+                           uint32_t groupOrdinal)
     : _config(config),
       _logger("Graph", _config.get<LOG_LEVEL>()),
-      _initStructs(initStructs),
-      _graph(graph),
-      _command_queue{std::make_shared<CommandQueue>(_initStructs->getDevice(),
-                                                    _initStructs->getContext(),
+      _command_queue{std::make_shared<CommandQueue>(deviceHandle,
+                                                    contextHandle,
                                                     zeroUtils::toZeQueuePriority(_config.get<MODEL_PRIORITY>()),
-                                                    _initStructs->getCommandQueueDdiTable(),
+                                                    commandQueueDdiTable,
                                                     _config,
-                                                    group_ordinal)} {
-    _logger.debug("ZeroExecutor::ZeroExecutor - create graph");
-    OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_GRAPH, itt::domains::LevelZeroBackend, "Executor::ZeroExecutor", "graphCreate");
-
-    _logger.debug("reuse graph handle created from compiler");
-    auto graph_handle = static_cast<ze_graph_handle_t>(_graph->get_handle());
-
-    OV_ITT_TASK_NEXT(ZERO_EXECUTOR_GRAPH, "pfnGetProperties");
-    _logger.debug("performing pfnGetProperties");
-    ze_graph_properties_t props{};
-    props.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES;
-
-    zeroUtils::throwOnFail("pfnGetProperties", _initStructs->getGraphDdiTable().pfnGetProperties(graph_handle, &props));
-    if (_initStructs->getGraphDdiTable().version() <= ZE_GRAPH_EXT_VERSION_1_1) {
-        OPENVINO_THROW("Incompatibility between the NPU plugin and driver! The driver version is too old, please "
-                       "update the driver version");
-    }
-
-    OV_ITT_TASK_NEXT(ZERO_EXECUTOR_GRAPH, "pfnGetArgumentProperties3");
-    _logger.debug("performing pfnGetArgumentProperties3");
-    for (uint32_t index = 0; index < props.numGraphArgs; ++index) {
-        ze_graph_argument_properties_3_t arg3{};
-        arg3.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_PROPERTIES;
-        zeroUtils::throwOnFail("pfnGetArgumentProperties3",
-                               _initStructs->getGraphDdiTable().pfnGetArgumentProperties3(graph_handle, index, &arg3));
-
-        if (arg3.type == ZE_GRAPH_ARGUMENT_TYPE_INPUT) {
-            _input_descriptors.push_back(ArgumentDescriptor{arg3, index});
-        } else {
-            _output_descriptors.push_back(ArgumentDescriptor{arg3, index});
-        }
-    }
-
+                                                    groupOrdinal)} {
     if (config.has<WORKLOAD_TYPE>()) {
         setWorkloadType(config.get<WORKLOAD_TYPE>());
     }
@@ -94,8 +63,4 @@ void ZeroExecutor::mutexLock() const {
 
 void ZeroExecutor::mutexUnlock() const {
     _mutex.unlock();
-}
-
-ZeroExecutor::~ZeroExecutor() {
-    _logger.debug("~ZeroExecutor()");
 }
