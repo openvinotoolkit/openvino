@@ -29,11 +29,7 @@ KERNEL(slice_ref)(OPTIONAL_SHAPE_INFO_ARG
                   START_BUFFER
                   STEP_BUFFER
                   AXES_BUFFER
-                  __global OUTPUT_TYPE* restrict output
-#if HAS_FUSED_OPS_DECLS
-                , FUSED_OPS_DECLS
-#endif
-)
+                  __global OUTPUT_TYPE* restrict output)
 {
     LOAD_BUFFER(START, start_buff);
     LOAD_BUFFER(STEP, step_buff);
@@ -88,12 +84,7 @@ KERNEL(slice_ref)(OPTIONAL_SHAPE_INFO_ARG
         slice_begin_dim4 + output_dim4 * slice_step[4]);
 #endif
 
-#if HAS_FUSED_OPS
-    FUSED_OPS;
-    output[output_index] = TO_OUTPUT_TYPE(FUSED_OPS_RESULT);
-#else
     output[output_index] = ACTIVATION(input[input_index], ACTIVATION_PARAMS);
-#endif
 }
 
 #undef LOAD_BUFFER;

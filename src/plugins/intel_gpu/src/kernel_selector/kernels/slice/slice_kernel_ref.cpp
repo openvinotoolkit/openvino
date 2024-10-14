@@ -142,16 +142,6 @@ JitConstants SliceKernelRef::GetJitConstants(const slice_params& params) const {
     addJitConstantsForParam(jit, "START", params.compile_time_start, params.start_data_type, default_decorator);
     addJitConstantsForParam(jit, "STEP", params.compile_time_step, params.step_data_type, default_decorator);
 
-    if (!params.fused_ops.empty()) {
-        std::vector<std::string> idx_order = {"b", "f", "y", "x"};
-        if (params.inputs[0].GetDims().size() == 5) {
-            idx_order = {"b", "f", "z", "y", "x"};
-        }
-
-        FusedOpsConfiguration conf = { "", idx_order, "input[input_index]", params.inputs[0].GetDType() };
-        jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
-    }
-
     return jit;
 }
 
