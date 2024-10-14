@@ -14,7 +14,7 @@ if (ENABLE_NPU_RUNTIME_COMMON)
 endif()
 
 if(ENABLE_DRIVER_COMPILER_ADAPTER AND ENABLE_ZEROAPI_BACKEND)
-    add_subdirectory(compiler)
+    add_subdirectory(compiler_adapter)
 endif()
 
 if(ENABLE_ZEROAPI_BACKEND)

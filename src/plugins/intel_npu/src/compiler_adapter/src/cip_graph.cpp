@@ -4,9 +4,11 @@
 
 #include "cip_graph.hpp"
 
+#include "intel_npu/utils/zero/zero_result.hpp"
 #include "zero_backend.hpp"
 #include "zero_device.hpp"
 #include "zero_init.hpp"
+#include "zero_wrappers.hpp"
 
 namespace intel_npu {
 

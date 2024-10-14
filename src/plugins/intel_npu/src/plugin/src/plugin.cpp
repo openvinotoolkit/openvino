@@ -6,9 +6,8 @@
 
 #include <fstream>
 
-#include "cid_compiler_adapter.hpp"
-#include "cip_compiler_adapter.hpp"
 #include "compiled_model.hpp"
+#include "driver_compiler_adapter.hpp"
 #include "igraph.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/common/itt.hpp"
@@ -21,6 +20,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "plugin_compiler_adapter.hpp"
 #include "remote_context.hpp"
 
 using namespace intel_npu;

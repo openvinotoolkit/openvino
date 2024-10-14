@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cip_compiler_adapter.hpp"
+#include "plugin_compiler_adapter.hpp"
 
 #include <ze_graph_ext.h>
 
