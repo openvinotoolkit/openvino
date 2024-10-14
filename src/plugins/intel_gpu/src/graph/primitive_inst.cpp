@@ -49,7 +49,6 @@
 
 #include "json_object.h"
 #include <string>
-#include <stack>
 #include <vector>
 #include <memory>
 #include <algorithm>
@@ -2123,7 +2122,7 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
             GPU_DEBUG_LOG << "[" << _node.id() << ": constant]" << std::endl;
             return ov::intel_gpu::allocate_memory_evenif_zero_bytes(_engine, layout, alloc_type, reset);
         }
-    } else if (!_node.can_share_buffer() || _node.can_be_optimized() || _node.is_output()) {
+    } else if (!_node.can_share_buffer() || impl_params.can_be_optimized() || _node.is_output()) {
         GPU_DEBUG_LOG << "[" << _node.id() << ": output]" << std::endl;
         return ov::intel_gpu::allocate_memory_evenif_zero_bytes(_engine, layout, alloc_type, reset);
     } else {
@@ -2252,10 +2251,10 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
                 // And when we construct unfused subgraph for prim2, we take original eltwise2 primitive which expects eltwise1 primitive as input
                 // which doesn't exist anymore in the graph
                 // Thus we update dependency name used dependencies idx stored in fused descriptor.
-                if (fd.has_outer_dep()) {
-                    if (std::find_if(outer_dep_ids.begin(), outer_dep_ids.end(), [&](const primitive_id& pid) {
-                            return pid == in.pid;
-                        }) == outer_dep_ids.end()) {
+                if (std::find_if(outer_dep_ids.begin(), outer_dep_ids.end(), [&](const primitive_id& pid) {
+                        return pid == in.pid;
+                    }) == outer_dep_ids.end()) {
+                    if (fd.has_outer_dep()) {
                         size_t dep_id = fd.outer_dep_start_idx;
                         auto outer_dep_id = _node->get_dependency(dep_id).id();
 
@@ -2266,6 +2265,8 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
                         } else {
                             in = outer_dep_id;
                         }
+                    } else {
+                        in = _node->id();
                     }
                 }
             }

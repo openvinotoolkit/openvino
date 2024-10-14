@@ -12,6 +12,10 @@ on:
         type: string
         required: false
         default: null
+      python-version:
+        description: 'Python version to setup. E.g., "3.11"'
+        type: string
+        required: true
 
 permissions: read-all
 
@@ -55,25 +59,25 @@ jobs:
       - name: Extract OpenVINO packages
         run: |
           pushd $INSTALL_DIR
-            tar -xzf openvino_package.tar.gz -C $INSTALL_DIR
+            tar -I pigz -xf openvino_package.tar.gz -C $INSTALL_DIR
           popd
 
           pushd $INSTALL_TEST_DIR
-            tar -xzf openvino_tests.tar.gz -C $INSTALL_DIR
+            tar -I pigz -xf openvino_tests.tar.gz -C $INSTALL_DIR
           popd
 
       - name: Fetch setup_python action
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
         with:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
           sparse-checkout-cone-mode: false
           path: 'openvino'
 
-      - name: Setup Python 3.11
+      - name: Setup Python ${{ inputs.python-version }}
         uses: ./openvino/.github/actions/setup_python
         with:
-          version: '3.11'
+          version: ${{ inputs.python-version }}
           should-setup-pip-paths: 'false'
           self-hosted-runner: ${{ runner.os == 'Linux' }}
 
