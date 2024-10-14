@@ -58,7 +58,9 @@ macro(ov_cpack_settings)
            # don't install Intel OpenMP
            NOT item STREQUAL "omp" AND
            # the same for pugixml
-           NOT item STREQUAL "pugixml")
+           NOT item STREQUAL "pugixml" AND
+           # It was decided not to distribute JAX as C++ component
+           NOT item STREQUAL "jax")
             list(APPEND CPACK_COMPONENTS_ALL ${item})
         endif()
     endforeach()
@@ -236,7 +238,8 @@ macro(ov_cpack_settings)
         set(ir_copyright "generic")
     endif()
 
-    if(ENABLE_OV_JAX_FRONTEND)
+    # It was decided not to distribute JAX as C++ component
+    if(ENABLE_OV_JAX_FRONTEND AND OFF)
         set(CPACK_COMPONENT_JAX_DESCRIPTION "OpenVINO JAX Frontend")
         set(CPACK_COMPONENT_JAX_DEPENDS "${OV_CPACK_COMP_CORE}")
         set(CPACK_DEBIAN_JAX_PACKAGE_NAME "libopenvino-jax-frontend-${cpack_name_ver}")
