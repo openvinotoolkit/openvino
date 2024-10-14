@@ -25,6 +25,8 @@ public:
 
     ov::Tensor eval() const;
 
+    void drop_if_const();
+
     ov::Tensor get_orig_tensor() const;
 
     std::size_t get_hash() const;
@@ -246,6 +248,19 @@ bool LazyTensorImpl::has_transformations() const {
     return m_transform.first != TransformType::THIS;
 }
 
+void LazyTensorImpl::drop_if_const() {
+    if (has_transformations()) {
+        return m_parent->drop_if_const();
+    }
+
+    if (std::holds_alternative<OrigData>(m_transform.second)) {
+        auto& data = std::get<OrigData>(m_transform.second);
+        if (std::holds_alternative<ConstPtr>(data)) {
+            std::get<ConstPtr>(data).reset();
+        }
+    }
+}
+
 LazyTensor::LazyTensor(const TransformType& type, const Transform& transform)
     : m_impl(std::make_shared<LazyTensorImpl>(type, transform)) {}
 
@@ -274,6 +289,10 @@ void LazyTensor::update(const TransformType& type, const Transform& transform) {
 
 ov::Tensor LazyTensor::eval() const {
     return m_impl->eval();
+}
+
+void LazyTensor::drop_if_const() {
+    m_impl->drop_if_const();
 }
 
 ov::Tensor LazyTensor::get_orig_tensor() const {
