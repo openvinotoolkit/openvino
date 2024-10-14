@@ -216,11 +216,6 @@ TEST_P(ConcatSDPTest, CompareWithRefs) {
     bool hasShapeOf;
     std::tie(inType, inputShapes, forceKVU8, hasShapeOf) = this->GetParam();
 
-    if ((inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16()) ||
-        (inType == ElementType::f16 && !ov::with_cpu_x86_avx512_core_fp16())) {
-        GTEST_SKIP();
-    }
-
     auto actualOutputs = run_test(function);
     if (!hasShapeOf) {
         CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 1);

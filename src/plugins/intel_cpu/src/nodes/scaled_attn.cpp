@@ -1068,38 +1068,33 @@ void ScaledDotProductAttention::createPrimitive() {
 
     auto builder = [&](const ScaledDotProductAttentionKey& key) -> std::shared_ptr<Executor> {
         std::shared_ptr<Executor> executor = nullptr;
+#ifdef OPENVINO_ARCH_X86_64
         if (rtPrecision == ov::element::bf16) {
-#ifdef OPENVINO_ARCH_X86_64
             executor = std::make_shared<AttentionExecutor<KT_ONEDNN, ov::bfloat16>>(context);
-#endif
         } else if (rtPrecision == ov::element::f16) {
-#ifdef OPENVINO_ARCH_X86_64
             if (with_cpu_x86_avx512_core_fp16()) {
                 executor = std::make_shared<AttentionExecutor<KT_ONEDNN, ov::float16>>(context);
             } else {
                 executor = std::make_shared<AttentionExecutor<KT_REF, ov::float16>>(context);
             }
-#else
-            executor = std::make_shared<AttentionExecutor<KT_REF, ov::float16>>(context);
-#endif
         } else {
-#if defined(OV_CPU_WITH_ACL)
-            if (rtPrecision == ov::element::f16)
-                executor = std::make_shared<AttentionExecutor<KT_ACL, ov::float16>>(context);
-            else
-                executor = std::make_shared<AttentionExecutor<KT_ACL, float>>(context);
-#elif defined(OV_CPU_WITH_MLAS)
-            executor = std::make_shared<AttentionExecutor<KT_MLAS, float>>(context);
-#elif defined(OPENVINO_ARCH_X86_64)
             if (with_cpu_x86_avx512_core()) {
                 executor = std::make_shared<AttentionExecutor<KT_ONEDNN, float>>(context);
             } else {
                 executor = std::make_shared<AttentionExecutor<KT_REF, float>>(context);
             }
-#else
-            executor = std::make_shared<AttentionExecutor<KT_REF, float>>(context);
-#endif
         }
+#elif defined(OV_CPU_WITH_ACL)
+        if (rtPrecision == ov::element::f16) {
+            executor = std::make_shared<AttentionExecutor<KT_ACL, ov::float16>>(context);
+        } else {
+            executor = std::make_shared<AttentionExecutor<KT_ACL, float>>(context);
+        }
+#elif defined(OV_CPU_WITH_MLAS)
+        executor = std::make_shared<AttentionExecutor<KT_MLAS, float>>(context);
+#else
+        executor = std::make_shared<AttentionExecutor<KT_REF, float>>(context);
+#endif
         return executor;
     };
 

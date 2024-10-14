@@ -532,6 +532,7 @@ std::vector<std::string> disabledTestPatterns() {
         // Skip fp16 tests for paltforms that don't support fp16 precision
         retVector.emplace_back(R"(.*INFERENCE_PRECISION_HINT=(F|f)16.*)");
         retVector.emplace_back(R"(.*ConcatMultiQuerySDPTest.*f16.*)");
+        retVector.emplace_back(R"(.*ConcatSDPTest.*f16.*)");
     }
 #elif defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
     if (!ov::intel_cpu::hasHardwareSupport(ov::element::f16)) {
@@ -563,6 +564,7 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*smoke_Snippets_EnforcePrecision_bf16.*)");
         retVector.emplace_back(R"(.*smoke_Snippets_MHAWOTransposeEnforceBF16.*)");
         retVector.emplace_back(R"(.*smoke_Snippets_MHAEnforceBF16.*)");
+        retVector.emplace_back(R"(.*ConcatSDPTest.*bf16.*)");
     }
     // [150842] Need to support dynamic K dimension of BF16|INT8 MatMul on AMX systems
     if (ov::with_cpu_x86_avx512_core_amx()) {
