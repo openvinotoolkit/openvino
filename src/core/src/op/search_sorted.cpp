@@ -21,7 +21,7 @@ SearchSorted::SearchSorted(const Output<Node>& sorted_sequence, const Output<Nod
 bool SearchSorted::validate() const {
     NODE_VALIDATION_CHECK(this, get_input_size() == 2);
     NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(0) == get_input_element_type(1),
+                          get_input_element_type(0).compatible(get_input_element_type(1)),
                           "Sorted sequence and values must have the same element type.");
 
     const auto& sorted_shape = get_input_partial_shape(0);
