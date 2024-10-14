@@ -59,10 +59,10 @@ protected:
                      std::ios_base::seekdir dir,
                      std::ios_base::openmode which = std::ios_base::in) override {
         if (dir != std::ios_base::cur || which != std::ios_base::in) {
-            return traits_type::to_int_type(-1);
+            return pos_type(off_type(-1));
         }
         m_offset += off;
-        return traits_type::to_int_type(m_offset);
+        return pos_type(m_offset);
     }
 
     char* m_data;
