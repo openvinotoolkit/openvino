@@ -113,7 +113,7 @@ void ZeroRemoteTensor::allocate(const size_t bytes) {
         ze_external_memory_import_win32_handle_t memory_import = {ZE_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMPORT_WIN32,
                                                                   nullptr,
                                                                   ZE_EXTERNAL_MEMORY_TYPE_FLAG_OPAQUE_WIN32,
-                                                                  _mem,
+                                                                  const_cast<void*>(_mem),
                                                                   nullptr};
         ze_device_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_DEVICE_MEM_ALLOC_DESC, &memory_import, 0, 0};
         zeroUtils::throwOnFail("zeMemAllocDevice",

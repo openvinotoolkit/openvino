@@ -271,7 +271,7 @@ struct SEPARATE_WEIGHTS final : OptionBase<SEPARATE_WEIGHTS, bool> {
     }
 
     static bool defaultValue() {
-        return false;
+        return true;
     }
 };
 
