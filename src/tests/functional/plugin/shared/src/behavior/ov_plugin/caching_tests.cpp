@@ -380,8 +380,10 @@ TEST_P(CompileModelLoadFromFileTestBase, CanCreateCacheDirAndDumpBinariesUnicode
         // Check that directory with cached model exists after loading network
         ASSERT_TRUE(ov::util::directory_exists(cache_path_w)) << "Directory with cached kernels doesn't exist";
         // Check that folder contains cache files and remove them
-        ASSERT_GT(ov::test::utils::removeFilesWithExt(cache_path_w, ov::util::string_to_wstring("blob")), 0);
-        ASSERT_GT(ov::test::utils::removeFilesWithExt(cache_path_w, ov::util::string_to_wstring("cl_cache")), 0);
+        int removed_files_num = 0;
+        removed_files_num += ov::test::utils::removeFilesWithExt(cache_path_w, ov::util::string_to_wstring("blob"));
+        removed_files_num += ov::test::utils::removeFilesWithExt(cache_path_w, ov::util::string_to_wstring("cl_cache"));
+        ASSERT_GT(removed_files_num, 0);
         ov::test::utils::removeFile(model_xml_path_w);
         ov::test::utils::removeFile(model_bin_path_w);
         // Remove directory and check that it doesn't exist anymore
