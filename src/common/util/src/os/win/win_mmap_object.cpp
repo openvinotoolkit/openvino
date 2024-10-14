@@ -142,6 +142,10 @@ std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::wstring& path) {
     return holder;
 }
 
+MmapStream::MmapStream(const std::wstring& path) : std::ifstream(path.data(), std::ios_base::binary) {
+    m_memory = ov::load_mmap_object(path);
+}
+
 #endif
 
 }  // namespace ov

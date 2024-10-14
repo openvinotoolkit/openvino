@@ -6,6 +6,7 @@
 
 import logging
 import torch
+import inspect
 
 from openvino.frontend.pytorch.py_pytorch_frontend import _FrontEndPytorchDecoder as Decoder
 from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
@@ -23,7 +24,8 @@ class InlinedInput:
 
 class TorchFXPythonDecoder (Decoder):
 
-    def __init__(self, pt_module, fx_gm=None, nodes=None, mark_node_callback=None, input_shapes=[], input_types=[]):
+    def __init__(self, pt_module, fx_gm=None, nodes=None,
+                 mark_node_callback=None, input_shapes=[], input_types=[], dynamic_shapes=False):
         Decoder.__init__(self)
         self.mark_node_callback = mark_node_callback
         # We store every decoder created by this decoder so that all them are not deleted until the first decoder is deleted
@@ -66,7 +68,7 @@ class TorchFXPythonDecoder (Decoder):
                 if shape is not None:
                     new_shape = []
                     for dim in range(0, len(shape)):
-                        if (type(shape[dim]).__name__ == "SymInt"):
+                        if (dynamic_shapes or type(shape[dim]).__name__ == "SymInt"):
                             new_shape.append(-1)
                         else:
                             new_shape.append(shape[dim])
@@ -76,6 +78,10 @@ class TorchFXPythonDecoder (Decoder):
                 self.input_shapes = found_shapes
             if not input_types or len(input_types) == 0:
                 self.input_types = found_types
+
+            if hasattr(pt_module, "forward"):
+                input_params = inspect.signature(pt_module.forward).parameters
+                self._input_signature = list(input_params)
 
         elif issubclass(type(pt_module), torch.fx.Node):
 

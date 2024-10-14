@@ -29,8 +29,6 @@ KERNEL (mvn_gpu_bfyx_opt)(
     float my_sum = 0;
     float tmp;
 
-    __local float lg_storage[SLM_SIZE];
-
     //each WI reads items_num consecutive items from batch*feature
     for (uint i=0; i<items_num; ++i)
     {
@@ -42,23 +40,7 @@ KERNEL (mvn_gpu_bfyx_opt)(
         my_sum += (float)input[data_set_offset + workers_per_data_set * items_num + in_data_set_idx];
     }
 
-    lg_storage[in_data_set_idx] = my_sum;
-
-    barrier(CLK_LOCAL_MEM_FENCE);
-    for (uint offset = workers_per_data_set / 2; offset > 0; offset /= 2) {
-        if (in_data_set_idx < offset) {
-            lg_storage[in_data_set_idx] += lg_storage[in_data_set_idx + offset];
-	}
-        barrier(CLK_LOCAL_MEM_FENCE);
-    }
-
-    if (in_data_set_idx == 0)
-    {
-        lg_storage[0] /= data_set_size;
-    }
-    barrier(CLK_LOCAL_MEM_FENCE);
-
-    my_sum = lg_storage[0];
+    my_sum = work_group_reduce_add(my_sum) / data_set_size;
 
 #if NORMALIZE_VARIANCE == 0
     for (uint i=0; i<items_num; ++i) {
@@ -82,7 +64,6 @@ KERNEL (mvn_gpu_bfyx_opt)(
 #   endif
     }
 #else
-    barrier(CLK_LOCAL_MEM_FENCE);
 
     float my_variance = 0.f;
     //each WI reads items_num consecutive items from batch*feature
@@ -100,30 +81,20 @@ KERNEL (mvn_gpu_bfyx_opt)(
         my_variance = fma(tmp, tmp, my_variance);
     }
 
-    lg_storage[in_data_set_idx] = my_variance;
-
-    barrier(CLK_LOCAL_MEM_FENCE);
-
-    for (uint offset = workers_per_data_set / 2; offset > 0; offset /= 2) {
-        if (in_data_set_idx < offset) {
-            lg_storage[in_data_set_idx] += lg_storage[in_data_set_idx + offset];
-	}
-        barrier(CLK_LOCAL_MEM_FENCE);
-    }
+    my_variance = work_group_reduce_add(my_variance);
 
     if (in_data_set_idx == 0)
     {
-        my_variance = lg_storage[0] / data_set_size;
+        my_variance /= data_set_size;
 
 #   if defined EPS_OUTSIDE_SQRT
-        lg_storage[0] = native_powr(native_sqrt(my_variance) + (float)EPSILON, -1.f);
+        my_variance = native_powr(native_sqrt(my_variance) + (float)EPSILON, -1.f);
 #   elif defined EPS_INSIDE_SQRT
-        lg_storage[0] = native_powr(my_variance + (float)EPSILON, -0.5f);
+        my_variance = native_powr(my_variance + (float)EPSILON, -0.5f);
 #   endif
     }
-    barrier(CLK_LOCAL_MEM_FENCE);
 
-    my_variance = lg_storage[0];
+    my_variance = work_group_broadcast(my_variance, 0);
 
     for (uint i=0; i<items_num; ++i) {
         uint iteration_in_data_set_offset = i * workers_per_data_set;

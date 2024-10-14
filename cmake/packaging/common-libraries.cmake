@@ -16,7 +16,9 @@ macro(ov_cpack_settings)
            # because in case of VCPKG | CONAN | BREW | CONDA-FORGE distributions, python is either not needed or installed separately
            (NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE}_python.*" OR ENABLE_PYTHON_PACKAGING) AND
            # the same for pugixml
-           NOT item STREQUAL "pugixml")
+           NOT item STREQUAL "pugixml" AND
+           # It was decided not to distribute JAX as C++ component
+           NOT item STREQUAL "jax")
             list(APPEND CPACK_COMPONENTS_ALL ${item})
         endif()
     endforeach()
