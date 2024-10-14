@@ -34,11 +34,21 @@ extensions = [
     'breathe'
     ]
 
+autodoc_mock_imports = []
+
 try:
     import openvino
 except ImportError:
-    autodoc_mock_imports = ["openvino"]
+    autodoc_mock_imports.append("openvino")
+    autodoc_mock_imports.append("openvino_genai")  # Mock openvino_genai too, as it depends on openvino
 
+if "openvino" not in autodoc_mock_imports:
+    try:
+        import openvino_genai
+    except ImportError:
+        autodoc_mock_imports.append("openvino_genai")
+
+        
 breathe_projects = {
     "openvino": "../xml/"
 }
