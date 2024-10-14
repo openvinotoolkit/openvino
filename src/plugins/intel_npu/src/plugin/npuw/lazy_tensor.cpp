@@ -256,7 +256,7 @@ void LazyTensorImpl::drop_if_const() {
     if (std::holds_alternative<OrigData>(m_transform.second)) {
         auto& data = std::get<OrigData>(m_transform.second);
         if (std::holds_alternative<ConstPtr>(data)) {
-            m_transform.second = nullptr;
+            std::get<ConstPtr>(data).reset();
         }
     }
 }
