@@ -60,13 +60,14 @@ public:
 
 protected:
 #endif
-    DeviceInformation parse_only_meta_device(const std::string& devices_batch_config,
-                                             const ov::AnyMap& user_config) const;
     DeviceInformation parse_meta_device(const std::string& devices_batch_config, const ov::AnyMap& user_config) const;
 
     static DeviceInformation parse_batch_device(const std::string& device_with_batch);
 
 private:
+    DeviceInformation parse_only_meta_device(const std::string& devices_batch_config,
+                                             const ov::AnyMap& user_config) const;
+
     mutable ov::AnyMap m_plugin_config;
 };
 }  // namespace autobatch_plugin
