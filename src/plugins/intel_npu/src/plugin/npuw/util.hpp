@@ -65,8 +65,9 @@ ov::Tensor permute(const ov::Tensor& t, const std::vector<std::size_t>& axes);
 ov::Tensor concat(const std::vector<ov::Tensor>& tt, std::size_t axis);
 
 namespace at {
-template <class M>
+template <class M_>
 struct Impl {
+    using M = typename std::decay<M_>::type;
     using V = typename M::mapped_type;
 
     M* m = nullptr;
@@ -94,6 +95,11 @@ struct Impl {
 template <typename M>
 Impl<M> _(M* pM) {
     return Impl<M>(pM);
+}
+
+template <typename M>
+Impl<M> _(M&& m) {
+    return Impl<M>(&m);
 }
 
 template <typename M>
