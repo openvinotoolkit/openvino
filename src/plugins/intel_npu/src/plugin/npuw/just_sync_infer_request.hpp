@@ -24,7 +24,7 @@ class AsyncInferRequest;
 
 class JustInferRequest final : public IBaseInferRequest {
 public:
-    explicit JustInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model, bool alloc_required);
+    explicit JustInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model);
 
     // Query APIs
     std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
@@ -64,7 +64,8 @@ private:
     void connect_subrequests();
     void recreate_subrequests(std::size_t idx);
 
-    ov::Tensor allocTensor(const ov::element::Type type, const ov::Shape& shape, const std::string& device = "NPU");
+    ov::SoPtr<ov::ITensor> allocTensor(const ov::element::Type type, const ov::Shape& shape, const std::string& device);
+    ov::SoPtr<ov::ITensor> allocTensor(const ov::Output<const ov::Node>& node, const std::string& device);
 
     using LinkFrom = std::pair<std::size_t /* Subrequest index */
                                ,
@@ -101,9 +102,10 @@ private:
     };
     std::vector<GlobalIO> m_subrequests_gio;
 
-    bool m_alloc_required;
     std::mutex m_alloc_mutex;
     std::shared_ptr<ov::IRemoteContext> m_remote_ctx = nullptr;
+
+    std::unordered_set<void*> m_input_allocated;
 };
 
 }  // namespace npuw

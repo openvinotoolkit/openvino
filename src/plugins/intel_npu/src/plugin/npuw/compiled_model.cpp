@@ -428,18 +428,6 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     // Finalize memory in closures and weight banks
     finalize_weights_bank();
 
-    // Set allocator if there is at least 1 NPU submodel
-    for (std::size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
-        auto& comp_model_desc = m_compiled_submodels[idx];
-        if (!comp_model_desc.compiled_model) {
-            continue;
-        }
-        if (*comp_model_desc.device_it == "NPU") {
-            m_alloc_required = true;
-            break;
-        }
-    }
-
     // Print stats report when possible
     {
         LOG_INFO("Initial device distribution:");
@@ -504,6 +492,42 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
     }
 
     LOG_INFO("Done.");
+}
+
+std::string ov::npuw::CompiledModel::global_mem_device() const {
+    // Force globally set device if set
+    const std::string device_alloc = m_cfg.get<::intel_npu::NPUW_WEIGHTS_BANK_ALLOC>();
+    if (!device_alloc.empty()) {
+        return device_alloc;
+    }
+
+    // Check if there is at least 1 NPU submodel
+    for (std::size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
+        auto& comp_model_desc = m_compiled_submodels[idx];
+        if (!comp_model_desc.compiled_model) {
+            continue;
+        }
+        if (ov::npuw::util::starts_with(*comp_model_desc.device_it, "NPU")) {
+            return "NPU";
+        }
+    }
+
+    return "CPU";
+}
+
+std::string ov::npuw::CompiledModel::funcall_mem_device(const std::size_t idx) const {
+    // Force globally set device if set
+    const std::string device_alloc = m_cfg.get<::intel_npu::NPUW_WEIGHTS_BANK_ALLOC>();
+    if (!device_alloc.empty()) {
+        return device_alloc;
+    }
+
+    auto& comp_model_desc = m_compiled_submodels[idx];
+    if (ov::npuw::util::starts_with(*comp_model_desc.device_it, "NPU")) {
+        return "NPU";
+    }
+
+    return "CPU";
 }
 
 void ov::npuw::CompiledModel::remove_long_output_names(const std::shared_ptr<ov::Model>& model) {
@@ -683,7 +707,7 @@ void ov::npuw::CompiledModel::dump_on_fail(std::size_t id, const std::string& de
 
 std::shared_ptr<ov::ISyncInferRequest> ov::npuw::CompiledModel::create_just_sync_infer_request() {
     auto this_sptr = std::static_pointer_cast<ov::npuw::CompiledModel>(shared_from_this());
-    return std::make_shared<ov::npuw::JustInferRequest>(this_sptr, m_alloc_required);
+    return std::make_shared<ov::npuw::JustInferRequest>(this_sptr);
 }
 
 std::shared_ptr<ov::ISyncInferRequest> ov::npuw::CompiledModel::create_sync_infer_request() const {
