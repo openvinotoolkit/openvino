@@ -21,7 +21,7 @@ SearchSorted::SearchSorted(const Output<Node>& sorted_sequence, const Output<Nod
 void SearchSorted::validate_and_infer_types() {
     OV_OP_SCOPE(v15_SearchSorted_validate_and_infer_types);
     NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(0) == get_input_element_type(1),
+                          get_input_element_type(0).compatible(get_input_element_type(1)),
                           "Sorted sequence and values must have the same element type.");
     const auto& output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
     set_output_type(0, ov::element::i64, output_shapes[0]);
