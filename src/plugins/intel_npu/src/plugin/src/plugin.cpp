@@ -7,8 +7,8 @@
 #include <fstream>
 
 #include "cid_compiler_adapter.hpp"
+#include "cip_compiler_adapter.hpp"
 #include "compiled_model.hpp"
-#include "compiler.hpp"
 #include "igraph.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/common/itt.hpp"
@@ -823,7 +823,14 @@ std::unique_ptr<ICompilerAdapter> Plugin::getCompiler(const Config& config) cons
 
     switch (compilerType) {
     case ov::intel_npu::CompilerType::MLIR:
-        OPENVINO_THROW("MLIR not supported");
+
+        if (_backends->getBackendName() != "LEVEL0") {
+            OPENVINO_THROW("NPU Compiler Adapter must be used with LEVEL0 backend");
+            return std::make_unique<CipCompilerAdapter>(nullptr);
+        }
+
+        return std::make_unique<CipCompilerAdapter>(_backends->getIEngineBackend()._ptr);
+
     case ov::intel_npu::CompilerType::DRIVER:
         if (_backends->getBackendName() != "LEVEL0") {
             OPENVINO_THROW("NPU Compiler Adapter must be used with LEVEL0 backend");
