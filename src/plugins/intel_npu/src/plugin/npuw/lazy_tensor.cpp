@@ -249,14 +249,14 @@ bool LazyTensorImpl::has_transformations() const {
 }
 
 void LazyTensorImpl::drop_if_const() {
-    if (has_transformations()) {
+    if (m_parent) {
         return m_parent->drop_if_const();
     }
 
     if (std::holds_alternative<OrigData>(m_transform.second)) {
         auto& data = std::get<OrigData>(m_transform.second);
         if (std::holds_alternative<ConstPtr>(data)) {
-            std::get<ConstPtr>(data).reset();
+            m_transform.second = nullptr;
         }
     }
 }
