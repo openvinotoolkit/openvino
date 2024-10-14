@@ -196,7 +196,7 @@ static Config::ModelType getModelType(const std::shared_ptr<const Model>& model)
     if (op::util::has_op_with_type<op::v1::Convolution>(model) ||
         op::util::has_op_with_type<op::v1::ConvolutionBackpropData>(model))
         return Config::ModelType::CNN;
-    
+
     if (op::util::has_op_with_type<op::v13::ScaledDotProductAttention>(model) &&
         model->get_variables().size() > 0)
         return Config::ModelType::LLM;
@@ -446,6 +446,7 @@ ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& optio
             ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
             ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::intel_cpu::snippets_mode.name(), ov::PropertyMutability::WO},
             ov::PropertyName{ov::internal::compiled_model_runtime_properties_supported.name(),
                              ov::PropertyMutability::RO},
             ov::PropertyName{ov::cache_encryption_callbacks.name(), ov::PropertyMutability::WO}};

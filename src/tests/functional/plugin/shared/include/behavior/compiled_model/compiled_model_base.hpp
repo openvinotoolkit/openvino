@@ -629,7 +629,7 @@ TEST_P(OVCompiledModelBaseTest, canLoadCorrectNetworkToGetExecutableWithIncorrec
         config.emplace(confItem.first, confItem.second);
     }
 
-    EXPECT_NO_THROW(auto execNet = core->compile_model(function, target_device, config));
+    OV_ASSERT_NO_THROW(std::ignore = core->compile_model(function, target_device, config));
 }
 
 typedef std::tuple<ov::element::Type,  // Type to convert

@@ -51,14 +51,6 @@ DeviceInformation Plugin::parse_meta_device(const std::string& devices_batch_con
                                             const ov::AnyMap& user_config) const {
     auto meta_device = parse_batch_device(devices_batch_config);
     meta_device.device_config = get_core()->get_supported_property(meta_device.device_name, user_config);
-    // check that no irrelevant config-keys left
-    for (const auto& k : user_config) {
-        const auto& name = k.first;
-        if (meta_device.device_config.find(name) == meta_device.device_config.end() &&
-            !ov::util::contains(supported_configKeys, name)) {
-            OPENVINO_THROW("Unsupported config key: ", name);
-        }
-    }
     return meta_device;
 }
 

@@ -957,24 +957,6 @@ ov::AnyMap ov::CoreImpl::get_supported_property(const Plugin& plugin,
                                                 bool keep_core,
                                                 bool rw_only) const {
     const auto& full_device_name = plugin.get_name();
-    if (is_virtual_device(full_device_name)) {
-        // Considerations:
-        // 1. in case of virtual devices all the magic will happen on the level when
-        // virtual device calls ICore::get_supported_property for real HW devices
-        // so, for now we can return user properties almost as is without any
-        // filtering / flattening
-        // 2. The only exception here: while common properties like ov::num::streams or
-        // ov::hint::performance_mode are shared across all the devices, the
-        // ov::device::priority cannot be shared, because it's specific for current virtual
-        // plugin. So, we need to remove ov::device::priorities from the list, because it's
-        // supposed to be set for current virtual plugin and cannot be propagated down
-        auto return_properties = config;
-        auto device_priorities_it = return_properties.find(ov::device::priorities.name());
-        if (device_priorities_it != return_properties.end()) {
-            return_properties.erase(device_priorities_it);
-        }
-        return return_properties;
-    }
 
     static const std::vector<std::string> core_level_properties = {
         ov::cache_dir.name(),
@@ -1028,15 +1010,37 @@ ov::AnyMap ov::CoreImpl::get_supported_property(const Plugin& plugin,
 ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& full_device_name,
                                                 const ov::AnyMap& user_properties,
                                                 const bool keep_core_property) const {
-    const auto parsed = ov::parseDeviceNameIntoConfig(full_device_name);
-    return get_supported_property(get_plugin(parsed._deviceName), user_properties, keep_core_property, rw_only);
+    if (is_virtual_device(full_device_name)) {
+        // Considerations:
+        // 1. in case of virtual devices all the magic will happen on the level when
+        // virtual device calls ICore::get_supported_property for real HW devices
+        // so, for now we can return user properties almost as is without any
+        // filtering / flattening
+        // 2. The only exception here: while common properties like ov::num::streams or
+        // ov::hint::performance_mode are shared across all the devices, the
+        // ov::device::priority cannot be shared, because it's specific for current virtual
+        // plugin. So, we need to remove ov::device::priorities from the list, because it's
+        // supposed to be set for current virtual plugin and cannot be propagated down
+        auto return_properties = user_properties;
+        auto device_priorities_it = return_properties.find(ov::device::priorities.name());
+        if (device_priorities_it != return_properties.end()) {
+            return_properties.erase(device_priorities_it);
+        }
+        return return_properties;
+    } else {
+        const auto parsed = ov::parseDeviceNameIntoConfig(full_device_name);
+        return get_supported_property(get_plugin(parsed._deviceName), user_properties, keep_core_property, rw_only);
+    }
 }
 
 ov::AnyMap ov::CoreImpl::get_hw_plugin_properties_or_forward(const Plugin& plugin,
                                                              const AnyMap& config,
                                                              bool rw_only) const {
     constexpr auto keep_core = false;
-    return is_virtual_device(plugin.get_name()) ? config : get_supported_property(plugin, config, keep_core, rw_only);
+    const auto& device_name = plugin.get_name();
+    const auto forward_config = is_virtual_device(device_name) || is_proxy_device(device_name);
+
+    return forward_config ? config : get_supported_property(plugin, config, keep_core, rw_only);
 }
 
 ov::SoPtr<ov::IRemoteContext> ov::CoreImpl::get_default_context(const std::string& device_name) const {
