@@ -14,6 +14,7 @@ namespace test {
 
 using ConvertToPluginSpecificNodeParams = std::tuple<ov::Shape,                      // non const input shape
                                                      ov::Shape,                      // const input shape
+                                                     bool,                           // large const number
                                                      ov::element::Type,              // element type
                                                      ov::test::utils::EltwiseTypes,  // node type
                                                      size_t,                         // port for const input
@@ -24,14 +25,19 @@ class ConvertToPluginSpecificNode : public testing::WithParamInterface<ConvertTo
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ConvertToPluginSpecificNodeParams> obj) {
         ov::Shape nonConstShape, constShape;
+        bool largeConst;
         ov::element::Type prc;
         ov::test::utils::EltwiseTypes nodeType;
         size_t port, constNodeNum;
-        std::tie(nonConstShape, constShape, prc, nodeType, port, constNodeNum) = obj.param;
+        std::tie(nonConstShape, constShape, largeConst, prc, nodeType, port, constNodeNum) = obj.param;
 
         std::ostringstream result;
         result << "IS_NON_CONST=" << nonConstShape << "_";
         result << "IS_CONST=" << constShape << "_";
+        if (largeConst)
+            result << "IS_LARGE_CONST=true_";
+        else
+            result << "IS_LARGE_CONST=false_";
         result << "PRC=" << prc << "_";
         result << "NODE=" << nodeType << "_";
         result << "PORT=" << port << "_";
@@ -47,15 +53,16 @@ protected:
         targetDevice = ov::test::utils::DEVICE_CPU;
 
         ov::Shape nonConstShape, constShape;
+        bool largeConst;
         ov::element::Type prc;
         ov::test::utils::EltwiseTypes nodeType;
         size_t port;
 
-        std::tie(nonConstShape, constShape, prc, nodeType, port, constNodeNum) = this->GetParam();
+        std::tie(nonConstShape, constShape, largeConst, prc, nodeType, port, constNodeNum) = this->GetParam();
         OPENVINO_ASSERT(shape_size(constShape) == 1);
 
         const auto param = std::make_shared<ov::op::v0::Parameter>(prc, ov::Shape(nonConstShape));
-        const auto constNode = ov::test::utils::make_constant(prc, constShape);
+        const auto constNode = largeConst ? ov::test::utils::make_constant(prc, constShape, 9e8) : ov::test::utils::make_constant(prc, constShape);
         OutputVector inputs(2);
         inputs[port] = constNode;
         inputs[1 - port] = param;
@@ -91,6 +98,7 @@ const std::vector<size_t> port = {0, 1};
 
 const auto testParamsEltwise = ::testing::Combine(::testing::ValuesIn(nonConstIS),
                                                   ::testing::ValuesIn(constIS),
+                                                  ::testing::Values(false),
                                                   ::testing::Values(ov::element::f32),
                                                   ::testing::ValuesIn(nodeTypes),
                                                   ::testing::ValuesIn(port),
@@ -103,6 +111,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CheckEltwise,
 
 const auto testParamsPower = ::testing::Combine(::testing::ValuesIn(nonConstIS),
                                                 ::testing::ValuesIn(constIS),
+                                                ::testing::ValuesIn({ false, true }),
                                                 ::testing::Values(ov::element::f32),
                                                 ::testing::Values(ov::test::utils::EltwiseTypes::POWER),
                                                 ::testing::Values(1),
