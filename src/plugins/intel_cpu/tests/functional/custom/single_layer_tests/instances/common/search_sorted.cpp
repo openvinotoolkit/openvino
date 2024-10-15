@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "custom/single_layer_tests/classes/search_sorted.cpp"
+#include "custom/single_layer_tests/classes/search_sorted.hpp"
 
 #include "utils/cpu_test_utils.hpp"
 #include "utils/fusing_test_utils.hpp"

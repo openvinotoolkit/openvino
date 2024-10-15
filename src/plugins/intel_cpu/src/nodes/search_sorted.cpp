@@ -11,7 +11,7 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 SearchSorted::SearchSorted(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
-    : Node(op, context, NgraphShapeInferFactory(op, PortMask(1, 2))) {
+    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
@@ -43,10 +43,9 @@ void SearchSorted::initSupportedPrimitiveDescriptors() {
     ov::element::Type inputPrec0 = getOriginalInputPrecisionAtPort(0);
     ov::element::Type outputPrec = getOriginalOutputPrecisionAtPort(0);
 
-    addSupportedPrimDesc(
-        {{LayoutType::ncsp, inputPrec0}, {LayoutType::ncsp, ov::element::f32}, {LayoutType::ncsp, ov::element::i32}},
-        {{LayoutType::ncsp, outputPrec}},
-        impl_desc_type::ref);
+    addSupportedPrimDesc({{LayoutType::ncsp, inputPrec0}, {LayoutType::ncsp, inputPrec0}},
+                         {{LayoutType::ncsp, outputPrec}},
+                         impl_desc_type::ref);
 }
 
 bool SearchSorted::created() const {
