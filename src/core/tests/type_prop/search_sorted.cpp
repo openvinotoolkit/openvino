@@ -119,7 +119,9 @@ TEST(type_prop, search_sorted_shape_infer_different_types) {
 TEST(type_prop, search_sorted_shape_infer_wrong_rank) {
     auto sorted = make_shared<ov::op::v0::Parameter>(element::i32, Shape{1, 1, 3, 6});
     auto values = make_shared<ov::op::v0::Parameter>(element::i32, Shape{1, 3, 6});
-    EXPECT_THROW_SUBSTRING(sorted, values, std::string("The inputs' ranks have to be compatible"));
+    EXPECT_THROW_SUBSTRING(sorted,
+                           values,
+                           std::string("sequence is not 1D, the ranks of the inputs have to be compatible"));
 }
 
 TEST(type_prop, search_sorted_shape_infer_wrong_dim) {
@@ -137,7 +139,7 @@ TEST(type_prop, search_sorted_shape_infer_scalar_sorted_sequence) {
 TEST(type_prop, search_sorted_shape_infer_scalar_values_and_nd_sequence) {
     auto sorted = make_shared<ov::op::v0::Parameter>(element::i32, Shape{2, 2});
     auto values = make_shared<ov::op::v0::Parameter>(element::i32, Shape{});
-    EXPECT_THROW_SUBSTRING(sorted, values, std::string("the sorted sequence must be a 1D tensor"));
+    EXPECT_THROW_SUBSTRING(sorted, values, std::string("the ranks of the inputs have to be compatible"));
 }
 
 #undef EXPECT_THROW_SUBSTRING
