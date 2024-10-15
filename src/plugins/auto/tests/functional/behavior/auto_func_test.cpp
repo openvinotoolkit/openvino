@@ -118,14 +118,9 @@ std::shared_ptr<ov::Model> ov::auto_plugin::tests::AutoFuncTests::create_model_w
 std::shared_ptr<ov::Model> ov::auto_plugin::tests::AutoFuncTests::create_stateful_model() {
     auto arg = std::make_shared<ov::opset11::Parameter>(ov::element::f32, ov::Shape{1, 1});
     auto init_const = ov::opset11::Constant::create(ov::element::f32, ov::Shape{1, 1}, {0});
-    // The ReadValue/Assign operations must be used in pairs in the model.
-    // For each such a pair, its own variable object must be created.
     const std::string variable_name("variable0");
-    // auto variable = std::make_shared<ov::op::util::Variable>(
-    //     ov::op::util::VariableInfo{ov::PartialShape::dynamic(), ov::element::dynamic, variable_name});
     auto variable = std::make_shared<ov::op::util::Variable>(
         ov::op::util::VariableInfo{init_const->get_shape(), ov::element::f32, variable_name});
-    // Creating ov::Model
     auto read = std::make_shared<ov::opset11::ReadValue>(init_const, variable);
     std::vector<std::shared_ptr<ov::Node>> args = {arg, read};
     auto add = std::make_shared<ov::opset11::Add>(arg, read);
