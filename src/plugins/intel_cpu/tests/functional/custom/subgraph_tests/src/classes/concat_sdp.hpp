@@ -34,7 +34,7 @@ namespace test {
 template<typename IT, typename T>
 void strided_iota(IT first, size_t n, T value, T stride);
 
-typedef std::tuple<ElementType, std::vector<InputShape>, bool> ConcatSDPTestParams;
+typedef std::tuple<ElementType, std::vector<InputShape>, bool, bool> ConcatSDPTestParams;
 
 class ConcatSDPTest :
         public testing::WithParamInterface<ConcatSDPTestParams>,
@@ -46,7 +46,8 @@ public:
     void prepare();
     void reset();
     std::vector<ov::Tensor> run_test(std::shared_ptr<ov::Model> model);
-    bool hasShapeOf;
+    bool m_forceKVU8;
+    bool m_hasShapeOf;
 protected:
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
     void SetUp() override;
