@@ -22,7 +22,7 @@ public:
         int proj_size0;
         int proj_size1;
         int proj_size2;
-        bool weights_fused;
+        bool weights_combined;
     };
 
     QKVProjectionNode(const OutputVector& args, const Config& cfg) : Op(args), m_config(cfg) {

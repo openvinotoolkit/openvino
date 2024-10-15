@@ -340,7 +340,12 @@ struct LLMMLP::Executor : public LLMMLP::ExecutorBase {
         auto K = w_gate.size(1);
         auto N = w_gate.size(0);
         OPENVINO_ASSERT(w_gate.stride_bytes(0) == w_up.stride_bytes(0));
-        gate_up.setup(w_gate.ptr_v(), w_up.ptr_v(), w_up.stride_bytes(0), N * 2, K, config);
+        if (m_config.gate_up_combined) {
+            N = w_gate.size(0) / 2;
+            gate_up.setup(w_gate.ptr_v(), w_up.ptr_v(N, 0), w_up.stride_bytes(0), N * 2, K, config);
+        } else {
+            gate_up.setup(w_gate.ptr_v(), w_up.ptr_v(), w_up.stride_bytes(0), N * 2, K, config);
+        }
         down.setup(w_down.ptr_v(), w_down.stride_bytes(0), K, N, config);
 
         if (m_config.gate_up_quantized) {

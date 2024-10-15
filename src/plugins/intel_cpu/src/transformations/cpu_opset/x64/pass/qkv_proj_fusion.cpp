@@ -151,7 +151,7 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion(bool allow_dynamic_quantization) {
         QKVProjectionNode::Config config;
         config.quantized = is_quantized_int8;
         config.hidden_size = hidden_size;
-        config.weights_fused = false;
+        config.weights_combined = false;
         config.proj_size0 = proj_size[0];
         config.proj_size1 = proj_size[1];
         config.proj_size2 = proj_size[2];
@@ -228,7 +228,7 @@ ov::intel_cpu::QKVProjFusion2::QKVProjFusion2(bool allow_dynamic_quantization) {
         QKVProjectionNode::Config config;
         config.quantized = is_quantized_int8;
         config.hidden_size = w_shape[1];
-        config.weights_fused = true;
+        config.weights_combined = true;
         config.proj_size0 = split_lengths[0];
         config.proj_size1 = split_lengths[1];
         config.proj_size2 = split_lengths[2];

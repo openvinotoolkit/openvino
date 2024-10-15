@@ -27,6 +27,9 @@ bool LLMMLPNode::visit_attributes(ov::AttributeVisitor& visitor) {
     visitor.on_attribute("act", m_config.act);
     visitor.on_attribute("gate_up_quantized", m_config.gate_up_quantized);
     visitor.on_attribute("down_quantized", m_config.down_quantized);
+    visitor.on_attribute("hidden_size", m_config.hidden_size);
+    visitor.on_attribute("up_size", m_config.up_size);
+    visitor.on_attribute("gate_up_combined", m_config.gate_up_combined);
     visitor.finish_structure();
     return true;
 }

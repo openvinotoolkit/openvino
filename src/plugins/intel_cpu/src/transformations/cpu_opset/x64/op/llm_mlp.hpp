@@ -24,6 +24,7 @@ public:
         bool down_quantized;
         int hidden_size;
         int up_size;
+        bool gate_up_combined;
     };
 
     // args:

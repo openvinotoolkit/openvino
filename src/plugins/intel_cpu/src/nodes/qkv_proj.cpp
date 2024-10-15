@@ -121,7 +121,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
         auto proj_size2 = m_node->m_config.proj_size2;
         auto n_group_workers = allocate_workers({proj_size0, proj_size1, proj_size2}, nthr);
 
-        if (m_node->m_config.weights_fused) {
+        if (m_node->m_config.weights_combined) {
             auto* ptr_weights = reinterpret_cast<int8_t*>(w0.ptr_v());
             create_works(ptr_weights, 0, proj_size0, n_group_workers[0]);
             ptr_weights += proj_size0 * stride_in_bytes;
