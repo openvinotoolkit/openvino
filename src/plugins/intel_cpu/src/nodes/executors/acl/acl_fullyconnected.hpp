@@ -89,6 +89,7 @@ private:
     arm_compute::WeightFormat expectedWeightFormat;
     MemoryCPtr packedWeights;
     ACLFCAttrs aclfcAttrs;
+    arm_compute::TensorInfo wei_tensor_info;
 };
 
 using ACLFullyConnectedExecutorPtr = std::shared_ptr<ACLFullyConnectedExecutor>;

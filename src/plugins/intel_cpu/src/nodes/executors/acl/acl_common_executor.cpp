@@ -85,9 +85,9 @@ bool ACLCommonExecutor::update(const MemoryArgs &memory) {
     // Initialize arm_compute::TensorInfo objects
     //ACLInfos aclMemoryInfos;
     for (int i = 0; i < ACLArgs::COUNT_OF_ARGS; i++) {
-        if (!aclMemoryInfos[i]) {
+        //if (!aclMemoryInfos[i]) {
             aclMemoryInfos[i] = initTensorInfo(aclMemoryShapes[i], aclDataType[i], aclDataLayout[i]);
-        }
+        //}
     }
 
     // Validate arm_compute::TensorInfo objects for specific ACL function

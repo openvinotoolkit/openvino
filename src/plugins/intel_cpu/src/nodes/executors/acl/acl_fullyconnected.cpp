@@ -216,7 +216,7 @@ static MemoryPtr prepareWeightMemory(const MemoryArgs &memory,
 
             auto dnnlSrcDesc = MemoryDescUtils::convertToDnnlMemoryDesc(weiDesc);//weiDescRevertedDims);
             const auto dnnlDstDesc = MemoryDescUtils::convertToDnnlMemoryDesc(dstDesc);
-            dnnlSrcDesc = makeTransposedWeightDescriptor(dnnlSrcDesc, dnnlDstDesc, !aclfcAttrs.weightsNonTransposed);
+            dnnlSrcDesc = makeTransposedWeightDescriptor(dnnlSrcDesc, dnnlDstDesc, aclfcAttrs.weightsNonTransposed);
 
             if (!one_of(expectedWeightFormat, arm_compute::WeightFormat::UNSPECIFIED, arm_compute::WeightFormat::ANY)) {
                 using namespace dnnl::impl;
@@ -338,9 +338,9 @@ ACLFullyConnectedExecutor::ACLFullyConnectedExecutor(const FCAttrs &attrs,
                                                      const MemoryArgs &memory,
                                                      const ExecutorContext::CPtr context) {
     initFCAttrs(attrs, aclTensorAttrs, aclfcAttrs, memory, fullyConnectedLayerInfo, postOps);
-    arm_compute::TensorInfo wei_tensor_info;
+    //arm_compute::TensorInfo wei_tensor_info;
     packedWeights = prepareWeightMemory(memory, context, attrs, aclfcAttrs, postOps, aclMemoryInfos, expectedWeightFormat, wei_tensor_info);
-    setTensorInfo(wei_tensor_info, ACLArgs::ACL_WEI);
+    //setTensorInfo(wei_tensor_info, ACLArgs::ACL_WEI);
 }
 
 bool ACLFullyConnectedExecutor::supports(const FCConfig &config) {
@@ -387,8 +387,8 @@ arm_compute::Status ACLFullyConnectedExecutor::validateTensorsInfo(const ACLInfo
     weightsInfo = arm_compute::WeightsInfo(false, 1, 1, ic_total, false, expectedWeightFormat);
     return arm_compute::NEFullyConnectedLayer::validate(
             aclMemoryInfos[ACLArgs::ACL_SRC_0].get(),
-            //&wei_tensor_info,
-            aclMemoryInfos[ACLArgs::ACL_WEI].get(),
+            &wei_tensor_info,
+            //aclMemoryInfos[ACLArgs::ACL_WEI].get(),
             aclMemoryInfos[ACLArgs::ACL_BIAS].get(),
             aclMemoryInfos[ACLArgs::ACL_DST].get(),
             fullyConnectedLayerInfo,
@@ -399,7 +399,7 @@ ACLFunction ACLFullyConnectedExecutor::configureFunction(const ACLTensors & aclM
     auto neFC = std::make_unique<arm_compute::NEFullyConnectedLayer>();
     //arm_compute::Tensor wei_tensor;
     //wei_tensor.allocator()->init(wei_tensor_info);
-    //aclMemoryTensors[ACLArgs::ACL_WEI]->allocator()->init(wei_tensor_info);
+    aclMemoryTensors[ACLArgs::ACL_WEI]->allocator()->init(wei_tensor_info);
     int ic_total = aclMemoryInfos[ACLArgs::ACL_SRC_0]->dimension(0);
     weightsInfo = arm_compute::WeightsInfo(false, 1, 1, ic_total, false, expectedWeightFormat);
     neFC->configure(
