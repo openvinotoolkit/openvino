@@ -2,6 +2,7 @@ name: Windows (VS 2019, Python 3.11, Debug)
 on:
   workflow_dispatch:
   merge_group:
+  pull_request:
   push:
     branches:
       - master
