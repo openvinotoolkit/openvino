@@ -516,11 +516,6 @@ std::string ov::npuw::CompiledModel::global_mem_device() const {
 }
 
 std::string ov::npuw::CompiledModel::funcall_mem_device(const std::size_t idx) const {
-    // FIXME: currently we allocate intermediate tensors for EVERY submodel.
-    //        It's not feasible to allocate them in L0 due to high memory consumption.
-    //        Until we make such memory reusable, hard-coding those tensors to CPU.
-    return "CPU";
-
     // Force globally set device if set
     const std::string device_alloc = m_cfg.get<::intel_npu::NPUW_WEIGHTS_BANK_ALLOC>();
     if (!device_alloc.empty()) {
