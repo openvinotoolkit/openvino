@@ -202,12 +202,9 @@ ONNX_OP("DequantizeLinear", {19, 20}, ai_onnx::opset_13::dequantize_linear);
 
 namespace opset_21 {
 ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
-    const ov::OutputVector inputs{node.get_ov_inputs()};
+    common::default_op_checks(node, 2);
 
-    FRONT_END_GENERAL_CHECK(2 <= inputs.size() && inputs.size() <= 3,
-                            "The DequantizeLinear op expects 2 required and one optional "
-                            "input. Got: ",
-                            inputs.size());
+    const ov::OutputVector inputs{node.get_ov_inputs()};
     const auto& src_x = inputs[0];
     ov::Output<ov::Node> scale = inputs[1];
     const auto& scale_shape = scale.get_partial_shape();
@@ -218,14 +215,12 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
         return ai_onnx::opset_13::dequantize_linear(node);
     }
 
+    FRONT_END_GENERAL_CHECK(scale_shape.rank().is_static(), "Rank of the input data tensor has to be known (static).");
     FRONT_END_GENERAL_CHECK(scale_shape.rank().get_length() == 2,
                             "DequantizeLinear cannot operate with more than 2D scales");
     FRONT_END_GENERAL_CHECK(src_x.get_partial_shape().is_static(),
                             "DequantizeLinear cannot operate with dynamic shapes of input X");
 
-    // Working
-    //    const auto& unsqueezed_axes = std::make_shared<v0::Constant>(ov::element::i64, Shape{1},
-    //    std::vector<int64_t>{2});
     const auto& unsqueezed_axes = std::make_shared<v0::Constant>(ov::element::i64, Shape{1}, std::vector<int64_t>{1});
 
     if (inputs.size() > 2) {
