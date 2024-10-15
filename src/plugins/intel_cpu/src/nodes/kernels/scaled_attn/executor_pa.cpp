@@ -708,14 +708,38 @@ static void pack_32x16_kernel(T* dst, T* src, size_t dst_stride, size_t src_stri
 }
 
 template<typename T, typename = typename std::enable_if<(std::is_same<T, ov::bfloat16>::value || std::is_same<T, ov::float16>::value), bool>::type>
-static void pack_32Nx16K(T* dst, T* src, T* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride) {
+static void pack_32xK_kernel(T* dst, T* src, size_t dst_stride, size_t src_stride, size_t K) {
+    static const uint64_t idx[8] = {0, 4, 1, 5, 2, 6, 3, 7};
+    auto midx = _mm512_loadu_si512(idx);
+    __mmask16 mask = (1 << K) - 1;
+    for (size_t i = 0; i < K; i++) {
+        auto x = _mm256_maskz_loadu_epi16(mask, src);                              // [a1  a2  a3 a4]   total 256-bits in 4 64bits unit
+        auto y = _mm256_maskz_loadu_epi16(mask, src + src_stride);                 // [b1  b2  b3 b4]   total 256-bits
+        auto a = _mm512_castsi256_si512(x);
+        auto b = _mm512_castsi256_si512(y);
+        a = _mm512_permutexvar_epi64(midx, a);                                      // [a1 x | a2 x | a3 x | a4 x]
+        b = _mm512_permutexvar_epi64(midx, b);                                      // [b1 x | b2 x | b3 x | b4 x]
+        auto B0 = _mm512_unpacklo_epi16(a, b);
+        _mm512_mask_storeu_epi32(dst, mask, B0);
+        src += 2 * src_stride;
+        dst += 2 * dst_stride;
+    }
+}
+
+template<typename T, typename = typename std::enable_if<(std::is_same<T, ov::bfloat16>::value || std::is_same<T, ov::float16>::value), bool>::type>
+static void pack_32NxK(T* dst, T* src, T* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride) {
     for (size_t n = 0; n < N; n += 32) {
         size_t k = 0;
         for (; k + 32 <= K; k += 32) {
             pack_32x32_kernel(dst + k * 2, src + k, dst_stride, src_stride);
         }
-        if (k < K)
+        if (k + 16 <= K) {
             pack_32x16_kernel(dst + k * 2, src + k, dst_stride, src_stride);
+            k += 16;
+        }
+        if (k < K) {
+            pack_32xK_kernel(dst + k * 2, src + k, dst_stride, src_stride, K - k);
+        }
 
         dst += 32 * dst_stride;
         src += 32 * src_stride;
@@ -723,7 +747,7 @@ static void pack_32Nx16K(T* dst, T* src, T* tmp, size_t N, size_t K, size_t dst_
 }
 
 template<typename T, typename = typename std::enable_if<(std::is_same<T, ov::bfloat16>::value || std::is_same<T, ov::float16>::value), bool>::type>
-static void pack_32Nx16K(T* dst, uint8_t* src, T* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride) {
+static void pack_32NxK(T* dst, uint8_t* src, T* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride) {
     // The layout for per token per head:
     // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized feature(u8,idx_S)|
     // The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
@@ -735,14 +759,14 @@ static void pack_32Nx16K(T* dst, uint8_t* src, T* tmp, size_t N, size_t K, size_
         s += src_stride + 2 * sizeof(float);
         t += src_stride;
     }
-    pack_32Nx16K(dst, tmp, reinterpret_cast<T*>(0), N, K, dst_stride, src_stride);
+    pack_32NxK(dst, tmp, reinterpret_cast<T*>(0), N, K, dst_stride, src_stride);
 }
 #endif
 
 template<typename T>
-static void pack_32Nx16K(float* dst, T* src, float* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride) {
+static void pack_32NxK(float* dst, T* src, float* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride) {
     // never called
-    OPENVINO_THROW("pack_32Nx16K: should not be called.");
+    OPENVINO_THROW("pack_32NxK: should not be called.");
 }
 
 template <typename DATA_TYPE, typename KVCACHE_TYPE>
@@ -1377,13 +1401,13 @@ struct MHA {
                 _helper._block_size,
                 _helper._S, _helper._block_size, _helper._S);
             if (q_is_xf16) {
-                pack_32Nx16K(_helper._wv_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
-                    v_ptr,
-                    _helper._output.template ptr<DATA_TYPE>(ithr),
-                    _helper._block_size,
-                    _helper._SV,
-                    rnd_up(_helper._SV, _helper._block_size),
-                    _helper._SV);
+                pack_32NxK(_helper._wv_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
+                           v_ptr,
+                           _helper._output.template ptr<DATA_TYPE>(ithr),
+                           _helper._block_size,
+                           _helper._SV,
+                           rnd_up(_helper._SV, _helper._block_size),
+                           _helper._SV);
             } else {
                 // need to decompress
                 if (!q_cache_is_same) {
@@ -1557,7 +1581,6 @@ struct AttentionExecutor : public PagedAttentionExecutor {
 
         // TODO: enable block_size to be multiple of 32
         OPENVINO_ASSERT(block_size == 32, "CPU: block size must be 32, current: ", block_size);
-        OPENVINO_ASSERT(S % 16 == 0, "CPU: head size must be multiple of 16, current: ", S);
 
         _helper.init(H, S, SV, Hk, h_each_group_len, block_size, sliding_window, scale, max_context_len, alibi_slopes);
     }
