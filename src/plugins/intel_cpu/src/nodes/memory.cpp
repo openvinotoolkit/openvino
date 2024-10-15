@@ -300,21 +300,27 @@ void MemoryOutput::runStatic(dnnl::stream strm)  {
 void MemoryOutput::runDynamic(dnnl::stream strm) {
     //first we have to resize the output memory
     auto inputMem = getSrcMemoryAtPort(0);
-    const auto& newDims = inputMem->getStaticDims();
-    OPENVINO_ASSERT(extMemDesc,
-        "MemoryOutput ",
-        getName(),
-        " uninitialized assigned memory");
-
-    auto newExternDesc = extMemDesc->cloneWithNewDims(newDims);
 
     OPENVINO_ASSERT(assignedMem,
         "MemoryOutput ",
         getName(),
         " uninitialized assigned memory");
-    assignedMem->redefineDesc(newExternDesc);
 
-    runStatic(strm);
+    const auto& newShape = inputMem->getShape();
+    const auto& stateShape = assignedMem->getShape();
+
+    if (stateShape.isDynamic() || stateShape.getStaticDims() != newShape.getStaticDims()) {
+        OPENVINO_ASSERT(extMemDesc,
+            "MemoryOutput ",
+            getName(),
+            " uninitialized assigned memory");
+        auto newExternDesc = extMemDesc->cloneWithNewDims(newShape.getStaticDims());
+        assignedMem->redefineDesc(newExternDesc);
+    }
+
+    if (!newShape.hasZeroDims()) { // no need to copy data for empty tensor
+        runStatic(strm);
+    }
 }
 
 bool MemoryOutputStub::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
@@ -593,15 +599,30 @@ void MemoryInput::runDynamic(dnnl::stream strm) {
         getName(),
         " assigned state has null memory ptr");
 
-    // check whether we can share memory block
-    const auto& stateDims = assignedMem->getStaticDims();
-    const bool hasZeroDims = std::count(std::begin(stateDims), std::end(stateDims), 0) > 0;
-    auto internDesc = getBaseMemDescAtOutputPort(0)->cloneWithNewDims(stateDims, hasZeroDims);
-
     OPENVINO_ASSERT(memBlock,
         "MemoryInput ",
         getName(),
         " has uninitialized memory block.");
+
+    // check whether we can share memory block
+    const auto& shape = assignedMem->getShape();
+    const bool hasZeroDims = shape.hasZeroDims();
+    const bool processInitGraph = needInitGraphProcessing();
+    const auto& stateDims = shape.getStaticDims();
+
+    if (hasZeroDims && !processInitGraph) {
+        // fast track as we don't really need to share memory and transfer any data for empty tensors
+        memBlock->reset();
+        redefineOutputMemory(0, stateDims);
+        return;
+    }
+
+    auto dst = getDstMemoryAtPort(0);
+    auto currentOutputDesc = dst->getDescPtr();
+
+    auto internDesc = currentOutputDesc->isDefined() && (currentOutputDesc->getShape().getStaticDims() == stateDims)
+                          ? currentOutputDesc
+                          : getBaseMemDescAtOutputPort(0)->cloneWithNewDims(stateDims, hasZeroDims);
 
     if (internDesc->isCompatible(assignedMem->getDesc())) {
         memBlock->setMemBlock(assignedMem->getMemoryBlock());
@@ -609,15 +630,13 @@ void MemoryInput::runDynamic(dnnl::stream strm) {
         memBlock->reset();
     }
 
-    const bool processInitGraph = needInitGraphProcessing();
     //reshape output
     const auto& newDims = processInitGraph ? getSrcMemoryAtPort(0)->getStaticDims() : stateDims;
 
-    redefineOutputMemory({newDims});
+    redefineOutputMemory(0, newDims);
 
     //copy data when necessary
     auto src = processInitGraph ? getSrcMemoryAtPort(0) : assignedMem;
-    auto dst = getDstMemoryAtPort(0);
     if (src->getData() != dst->getData()) {
         dst->load(*src);
     }
@@ -847,6 +866,6 @@ void MemoryInputSDPA::resolveInPlaceEdges(Edge::LOOK look) {
     }
 }
 
-}   // namespace node
+}  // namespace node
 }   // namespace intel_cpu
 }   // namespace ov
