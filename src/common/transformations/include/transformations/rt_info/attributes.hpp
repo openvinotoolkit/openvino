@@ -30,7 +30,7 @@ class TRANSFORMATIONS_API Attributes {
 public:
     Attributes();
 
-    Any create_by_type_info(const ov::DiscreteTypeInfo& type_info_name);
+    Any create_by_type_name(const std::string& type_info_name);
 
 private:
     template <class T>
@@ -40,7 +40,7 @@ private:
         });
     }
 
-    std::unordered_map<ov::DiscreteTypeInfo, std::function<Any()>> m_factory_registry;
+    std::unordered_map<std::string, std::function<Any()>> m_factory_registry;
 };
 }  // namespace pass
 }  // namespace ov

@@ -965,18 +965,18 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
                 item.print(ss);
                 OPENVINO_THROW("rt_info attribute has no \"name\" field: ", ss.str());
             }
-            if (!getStrAttribute(item, "version", attribute_version)) {
-                std::stringstream ss;
-                item.print(ss);
-                OPENVINO_THROW("rt_info attribute: ", attribute_name, " has no \"version\" field: ", ss.str());
-            }
-            const auto& type_info = ov::DiscreteTypeInfo(attribute_name.c_str(), attribute_version.c_str());
-            auto attr = attrs_factory.create_by_type_info(type_info);
+            const auto is_version_present = getStrAttribute(item, "version", attribute_version);
+
+            const auto type_name =
+                is_version_present
+                    ? std::string{ov::DiscreteTypeInfo(attribute_name.c_str(), attribute_version.c_str())}
+                    : attribute_name;
+            auto attr = attrs_factory.create_by_type_name(type_name);
             if (!attr.empty()) {
                 if (attr.is<ov::RuntimeAttribute>()) {
                     RTInfoDeserializer attribute_visitor(item);
                     if (attr.as<ov::RuntimeAttribute>().visit_attributes(attribute_visitor)) {
-                        auto res = rt_info.emplace(type_info, attr);
+                        auto res = rt_info.emplace(type_name, attr);
                         if (!res.second) {
                             OPENVINO_THROW("multiple rt_info attributes are detected: ", attribute_name);
                         }
