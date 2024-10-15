@@ -185,6 +185,30 @@ macro(ov_arm_neon_optimization_flags flags)
 endmacro()
 
 #
+# ov_arm_neon_fp16_optimization_flags(<output flags>)
+#
+macro(ov_arm_neon_fp16_optimization_flags flags)
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel" OR CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+        message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
+    elseif(ANDROID)
+        if(ANDROID_ABI STREQUAL "arm64-v8a")
+            set(${flags} -march=armv8.2-a+fp16 -Wno-unused-command-line-argument)
+        else()
+            message(WARNING "fp16 is not supported by Android armv7")
+        endif()
+    elseif(AARCH64)
+        set(${flags} -O2 -march=armv8.2-a+fp16)
+        if(NOT CMAKE_CL_64)
+            list(APPEND ${flags} -ftree-vectorize)
+        endif()
+    elseif(ARM)
+        message(WARNING "fp16 is not supported by 32-bit ARM")
+    else()
+        message(WARNING "fp16 is not supported by architecture ${CMAKE_SYSTEM_PROCESSOR}")
+    endif()
+endmacro()
+
+#
 # ov_disable_all_warnings(<target1 [target2 target3 ...]>)
 #
 # Disables all warnings for 3rd party targets

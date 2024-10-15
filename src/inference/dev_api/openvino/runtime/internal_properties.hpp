@@ -30,6 +30,13 @@ static constexpr Property<std::vector<PropertyName>, PropertyMutability::RO> sup
 static constexpr Property<std::vector<PropertyName>, PropertyMutability::RO> caching_properties{"CACHING_PROPERTIES"};
 
 /**
+ * @brief Read-only property to get a std::vector<PropertyName> of properties
+ * which should affect the loading time from cache
+ * @ingroup ov_dev_api_plugin_api
+ */
+static constexpr Property<bool, PropertyMutability::RO> caching_with_mmap{"CACHING_WITH_MMAP"};
+
+/**
  * @brief Allow to create exclusive_async_requests with one executor
  * @ingroup ov_dev_api_plugin_api
  */

@@ -6,10 +6,15 @@
 
 #include <limits>
 #include <map>
+#include <mutex>
 #include <optional>
 #include <vector>
 
 #include "base_sync_infer_request.hpp"
+#include "openvino/runtime/iplugin.hpp"
+#include "openvino/runtime/iremote_context.hpp"
+#include "openvino/runtime/make_tensor.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace ov {
 namespace npuw {
@@ -52,10 +57,15 @@ private:
     void function_prologue(std::size_t idx);
     void unpack_closure(std::size_t idx, RqPtr request);
 
+    void unsafe_during(std::size_t real_idx, const std::function<void()>& f);
+    void unsafe_infer(std::size_t real_idx);
     void unsafe_run_this_prep_next(std::size_t idx, bool& next_prepared_p);
 
     void connect_subrequests();
     void recreate_subrequests(std::size_t idx);
+
+    ov::SoPtr<ov::ITensor> allocTensor(const ov::element::Type type, const ov::Shape& shape, const std::string& device);
+    ov::SoPtr<ov::ITensor> allocTensor(const ov::Output<const ov::Node>& node, const std::string& device);
 
     using LinkFrom = std::pair<std::size_t /* Subrequest index */
                                ,
@@ -64,6 +74,7 @@ private:
     using TensorPtr = ov::SoPtr<ov::ITensor>;
     std::map<LinkFrom, TensorPtr> m_funcall_result;
 
+    bool is_pipelined(std::size_t idx) const;
     bool m_use_function_pipelining = false;
     struct FuncallPipeline {
         // A "brother" subrequest for a "primary" subrequest. Initialized only
@@ -90,6 +101,11 @@ private:
         map_t global_results;  // result idx -> output idx
     };
     std::vector<GlobalIO> m_subrequests_gio;
+
+    std::mutex m_alloc_mutex;
+    std::shared_ptr<ov::IRemoteContext> m_remote_ctx = nullptr;
+
+    std::unordered_set<void*> m_input_allocated;
 };
 
 }  // namespace npuw
