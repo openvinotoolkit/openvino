@@ -1,13 +1,13 @@
 GenAI Use Cases
 =====================
 
-This article provides several use case scenarios for the inference on
-Generative AI Models. The applications presented in the code samples below
+This article provides several use case scenarios for Generative AI model
+inference. The applications presented in the code samples below
 only require minimal configuration, like setting an inference device. Feel free
 to explore and modify the source code as you need.
 
 
-Using GenAI in Text to Image Conversion
+Using GenAI for Text-to-Image Generation
 #######################################
 
 Examples below demonstrate inference on text-to-image models, like Stable Diffusion
