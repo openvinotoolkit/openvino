@@ -224,6 +224,7 @@ jobs:
           if-no-files-found: 'error'
           
       - name: Upload openvino wheels
+        if: ${{ inputs.build-type != 'Debug' }}
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: openvino_wheels
@@ -255,5 +256,8 @@ jobs:
             ${{ env.BUILD_DIR }}/openvino_tests.zip
             ${{ env.INSTALL_WHEELS_DIR }}/wheels
             ${{ env.MANIFEST_PATH }}
+            ${{ env.STORE_WHEELS == 'true' && format('{0}/wheels', env.BUILD_DIR) || '' }}
           storage_dir: ${{ env.PRODUCT_TYPE }}
           storage_root: ${{ env.ARTIFACTS_SHARE }}
+        env:
+          STORE_WHEELS: ${{ inputs.build-type != 'Debug' }}
