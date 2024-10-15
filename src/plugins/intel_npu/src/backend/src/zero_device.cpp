@@ -107,52 +107,23 @@ std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> ZeroDevice::runIni
     std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> outputHostTensors;
 
     // Match the inputs of the "init" model with the Constant nodes of the original model
-    for (auto&& node : model->get_ops()) {
+    size_t constantIndex = 0;
+    for (auto&& node : model->get_ordered_ops()) {
         if (!ov::is_type<ov::op::v0::Constant>(node)) {
             continue;
         }
 
         const auto constantNode = std::static_pointer_cast<ov::op::v0::Constant>(node);
-        const size_t id = constantNode->get_instance_id();
         const void* address = constantNode->get_data_ptr();
         const size_t size = constantNode->get_byte_size();
-
-        constantIdToTensorData.emplace(id, TensorData{address, size});
+        constantIdToTensorData.emplace(constantIndex++, TensorData{address, size});
     }
 
-    // TODO: Uncomment this once the plan advances
-    // for (const auto& descriptor : zeroInitExecutor->get_input_descriptors()) {
-    //     size_t id = std::stoi(std::string(descriptor.info.name).substr(INIT_INPUT_WEIGHTS_PREFIX.length()));
-    //     OPENVINO_ASSERT(constantIdToTensorData.count(id), "Mismatch between weights IDs and parsed inputs");
-
-    //     inputTensorsData.push_back(constantIdToTensorData.at(id));
-
-    //     createRemoteTensor(context._ptr,
-    //                        zeroUtils::getOVPrecision(descriptor.info.devicePrecision),
-    //                        zeroUtils::getOVShape(descriptor.info),
-    //                        config,
-    //                        ov::intel_npu::TensorType::INPUT,
-    //                        ov::intel_npu::MemType::SHARED_BUF,
-    //                        constantIdToTensorData.at(id).mem);
-    // }
-
     for (const auto& descriptor : zeroInitExecutor->get_input_descriptors()) {
-        const ov::SoPtr<ov::ITensor> hostTensor =
-            createHostTensor(context._ptr,
-                             zeroUtils::getOVPrecision(descriptor.info.devicePrecision),
-                             zeroUtils::getOVShape(descriptor.info),
-                             config);
-        inputTensorsData.push_back(TensorData{hostTensor->data(), hostTensor->get_byte_size()});
-        inputHostTensors.emplace(
-            std::string(descriptor.info.debug_friendly_name).substr(INIT_INPUT_WEIGHTS_PREFIX.length()),
-            hostTensor._ptr);
-        // createRemoteTensor(context._ptr,
-        //                    zeroUtils::getOVPrecision(descriptor.info.devicePrecision),
-        //                    zeroUtils::getOVShape(descriptor.info),
-        //                    config,
-        //                    ov::intel_npu::TensorType::INPUT,
-        //                    ov::intel_npu::MemType::SHARED_BUF,
-        //                    hostTensor->data());
+        size_t id = std::stoi(std::string(descriptor.info.name).substr(INIT_INPUT_WEIGHTS_PREFIX.length()));
+        OPENVINO_ASSERT(constantIdToTensorData.count(id), "Mismatch between weights IDs and parsed inputs");
+
+        inputTensorsData.push_back(constantIdToTensorData.at(id));
     }
 
     for (const auto& descriptor : zeroInitExecutor->get_output_descriptors()) {

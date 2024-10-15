@@ -5,11 +5,12 @@
 #pragma once
 
 #include <string>
+#include <string_view>
 
 namespace intel_npu {
 
 //
-// Prefix for ReadValue and Assign operations in compiler.
+// TODO
 //
 #define READVALUE_PREFIX           std::string("vpux_ie_read_value_")
 #define ASSIGN_PREFIX              std::string("vpux_ie_assign_")
