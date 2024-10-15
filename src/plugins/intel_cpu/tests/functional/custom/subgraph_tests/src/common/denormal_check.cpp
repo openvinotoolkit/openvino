@@ -36,8 +36,8 @@ void SetUp() override {
     targetStaticShapes.push_back({inpShape});
     targetDevice = ov::test::utils::DEVICE_CPU;
 
-    const auto elemsCount = shape_size(inpShape);
     const auto rtPrc = ov::element::f32;
+    const auto elemsCount = shape_size(inpShape) * rtPrc.size();
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(rtPrc, ov::Shape(inpShape))};
     pConstStorage.reset(new ov::AlignedBuffer(elemsCount, alignment));
 
