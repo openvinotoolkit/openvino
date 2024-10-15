@@ -74,6 +74,10 @@ private:
 
     void finalize_weights_bank();
 
+    std::string global_mem_device() const;
+
+    std::string funcall_mem_device(const std::size_t idx) const;
+
     std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc;
     ::intel_npu::Config m_cfg;
     GetPropertiesMap m_prop_to_opt;

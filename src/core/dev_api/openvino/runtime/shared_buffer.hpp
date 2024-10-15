@@ -8,7 +8,7 @@
 
 namespace ov {
 
-/// \brief SharedBuffer class to store pointer to pre-acclocated buffer.
+/// \brief SharedBuffer class to store pointer to pre-allocated buffer.
 template <typename T>
 class SharedBuffer : public ov::AlignedBuffer {
 public:
