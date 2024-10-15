@@ -48,9 +48,24 @@ void CPURuntimeConfigurator::initialization(const ov::snippets::lowered::LinearI
 }
 
 void CPURuntimeConfigurator::update(const ov::snippets::lowered::LinearIRCPtr& linear_ir) {
-    RuntimeConfigurator::update(linear_ir);
-    if (linear_ir->is_dynamic()) {
+    m_config->master_shape = linear_ir->get_master_shape();
+    update_loop_info(linear_ir);
+
+    if (!m_optimizer.optimize()) {
+        // If the optimization was not applied, offsets are updated using shapes from descriptors
+        auto shapes = extract_shapes();
+        update_data_offsets(shapes, extract_layouts());
+        m_latest_shapes = std::move(shapes);
+    }
+    if (linear_ir->is_dynamic())
         loopPortsAdjuster.optimize();
+
+    // Update KernelExecutor Table should be before `update_buffer_scratchpad_size`
+    // because `ComputeAllocationSize` depends on subtensors which are updated in the table
+    get_kernel_executor_table()->update_state(linear_ir);
+    update_buffer_scratchpad_size(linear_ir);
+
+    if (linear_ir->is_dynamic()) {
         update_loop_args(linear_ir);
     }
 }
@@ -102,6 +117,17 @@ CPURuntimeConfigurator::BrgemmCopyBLoopPortsAdjuster::BrgemmCopyBLoopPortsAdjust
                 m_affected_loops[uni_loop].push_back(exp_loop);
         }
     }
+//    const auto& loop_map = linear_ir->get_loop_manager()->get_map();
+//    for (const auto& p : loop_map) {
+//        if (const auto& exp_loop = ov::as_type_ptr<snippets::lowered::ExpandedLoopInfo>(p.second)) {
+//            const auto& uni_loop = exp_loop->get_unified_loop_info();
+//            if (m_affected_loops.count(uni_loop)) {
+//                m_affected_loops[uni_loop].push_back(exp_loop);
+//            } else if (intel_cpu::pass::AdjustBrgemmCopyBLoopPorts::update_loop_info(uni_loop)) {
+//                m_affected_loops[uni_loop].push_back(exp_loop);
+//            }
+//        }
+//    }
 }
 
 void CPURuntimeConfigurator::BrgemmCopyBLoopPortsAdjuster::optimize() {
