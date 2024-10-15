@@ -25,7 +25,8 @@ public:
     // have to use the const char* ptr rather than std::string due to a bug in old gcc versions,
     // the bug is e.g. manifesting on the old CentOS (and it's 4.8.x gcc) used in our testing
     // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=81880
-    static thread_local const char*         m_this_preferred_device_name;
+    static thread_local const char*             m_this_preferred_device_name;
+    static std::int32_t            m_need_retry_times;
 
 protected:
     virtual void init() = 0;

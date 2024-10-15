@@ -9,6 +9,7 @@ namespace auto_plugin {
 thread_local WorkerInferRequest* Schedule::m_this_worker_infer_request = nullptr;
 // TODO: revert to the plain variable (see header file), when we moved to the next CentOS 8.x in our support matrix
 thread_local const char* Schedule::m_this_preferred_device_name = "";
+int32_t Schedule::m_need_retry_times = 0;
 
 void Schedule::launch(const ScheduleContext::Ptr& context) {
     m_context = context;
@@ -55,18 +56,27 @@ bool Schedule::run_pipeline_task(ov::threading::Task& pipeline_task,
     NotBusyPriorityWorkerRequests& idle_workerrequests,
     const DeviceName& preferred_device) {
     WorkerInferRequest* worker_request_ptr = nullptr;
+    static int index = 0;
     std::pair<int, WorkerInferRequest*> worker;
-    if (idle_workerrequests.try_pop(worker)) {
-        worker_request_ptr = worker.second;
-        IdleGuard<NotBusyPriorityWorkerRequests> idle_guard{worker_request_ptr, idle_workerrequests};
-        m_this_worker_infer_request = worker_request_ptr;
-        {
-            auto captured_task = std::move(pipeline_task);
-            captured_task();
+    std::cout << "------- start try pop -------\n";
+    do {
+        std::cout << "------- [Need retry: " << m_need_retry_times << "] try pop index: " << index << std::endl;
+        if (idle_workerrequests.try_pop(worker)) {
+            std::cout << "------- [Need retry: " << m_need_retry_times << "] popped index: " << index++ << std::endl;
+            worker_request_ptr = worker.second;
+            IdleGuard<NotBusyPriorityWorkerRequests> idle_guard{worker_request_ptr, idle_workerrequests};
+            m_this_worker_infer_request = worker_request_ptr;
+            {
+                auto captured_task = std::move(pipeline_task);
+                captured_task();
+            }
+            idle_guard.release();
+            return true;
+        } else {
+            std::cout << "1234567 [Need retry: " << m_need_retry_times << "] Failed to pop index: " << index
+                      << std::endl;
         }
-        idle_guard.release();
-        return true;
-    }
+    } while (m_need_retry_times-- > 0);
     return false;
 }
 
@@ -85,8 +95,11 @@ void Schedule::generate_workers(const std::string& device, const SoCompiledModel
         OPENVINO_THROW("Every device used with AUTO should support query optimal_number_of_infer_requests property from compiled model ",
                     iie.what());
     }
-    const auto num_requests = (m_context->m_device_priorities.end() == it_numrequests ||
-                              it_numrequests->num_requests_per_devices == -1) ? optimal_num : it_numrequests->num_requests_per_devices;
+    auto num_requests =
+        (m_context->m_device_priorities.end() == it_numrequests || it_numrequests->num_requests_per_devices == -1)
+            ? optimal_num
+            : it_numrequests->num_requests_per_devices;
+    num_requests = num_requests < 2 ? 2 : num_requests;
     auto& worker_requests = m_worker_requests[device];
     auto& idle_worker_requests = m_idle_worker_requests[device];
     worker_requests.resize(num_requests);
@@ -128,10 +141,13 @@ void Schedule::generate_workers(const std::string& device, const SoCompiledModel
                     } else {
                         stop_retry_and_continue();
                     }
+                    static int index = 0;
+                    std::cout << "------- try push index: " << ++index << std::endl;
                     // try to return the request to the idle list (fails if the overall object destruction has began)
-                    if (idleGuard.release()->try_push(std::make_pair(worker_request_ptr->m_index, worker_request_ptr))) {
+                    if (index % 2 && idleGuard.release()->try_push(std::make_pair(worker_request_ptr->m_index, worker_request_ptr))) {
                         // let's try to pop a task, as we know there is at least one idle request, schedule if succeeded
                         // if no device-agnostic tasks, let's try pop the device specific task, schedule if succeeded
+                        std::cout << "------- pushed index: " << index << std::endl;
                         ov::threading::Task t;
                         do {
                             m_infer_pipeline_tasks.try_pop(t);
@@ -139,6 +155,11 @@ void Schedule::generate_workers(const std::string& device, const SoCompiledModel
                         do {
                             m_infer_pipeline_tasks_device_specific[device]->try_pop(t);
                         } while (t && schedule_to_worker_infer_request(std::move(t), device));
+                    } else {
+                        m_need_retry_times++;
+                        std::cout << "-------[Need to retry: " << m_need_retry_times
+                                  << " ] Failed to try push index: " << index << std::endl;
+                        std::this_thread::sleep_for(std::chrono::seconds(1));
                     }
                 }
             });
