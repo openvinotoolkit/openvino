@@ -48,5 +48,8 @@
     "remote_path": "./repositories/openvino/nodejs_bindings/{version}/{platform}/",
     "package_name": "openvino_nodejs_bindings_{platform}_{version}_{arch}.tar.gz",
     "host": "https://storage.openvinotoolkit.org"
-  }
+  },
+  "keywords": [
+    "OpenVINO"
+  ]
 }

@@ -115,6 +115,7 @@ Choose the component your Good First Issue is related to. You can run tests to m
 - [C API](https://github.com/openvinotoolkit/openvino/tree/master/src/bindings/c)
 - [Core](https://github.com/openvinotoolkit/openvino/tree/master/src/core)
 - [Python API](https://github.com/openvinotoolkit/openvino/tree/master/src/bindings/python)
+- [Node.js API](https://github.com/openvinotoolkit/openvino/tree/master/src/bindings/js/node)
 
 ##### Frontends
 - [IR Frontend](https://github.com/openvinotoolkit/openvino/tree/master/src/frontends/ir)

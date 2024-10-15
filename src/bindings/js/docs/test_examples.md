@@ -1,6 +1,6 @@
 # How to test the OpenVINO™ JavaScript API
 
-## Build the OpenVINO™ JavaScript API 
+## Build the OpenVINO™ JavaScript API
 For detailed build instructions, refer to the [OpenVINO™ JavaScript API documentation](./README.md).
 
 
@@ -17,14 +17,14 @@ npm run test
 
 To run specific test files, you can pass one or more glob patterns:
 ```shell
-node --test "tests/unit/core.test.js" "tests/unit/*model.test.js" 
+node --test "tests/unit/core.test.js" "tests/unit/*model.test.js"
 ```
 
 Before executing individual test files, a one-time setup is required. If you have not previously executed `npm run test`, initiate the setup by running the following command:
 
 ```shell
 npm run test_setup
-``` 
+```
 
 More information on running tests from the command line can be found in the [Node.js documentation]( https://nodejs.org/docs/latest/api/test.html#running-tests-from-the-command-line).
 
@@ -45,9 +45,9 @@ It is recommended to run the code style check each time new tests are added.
 
 
 ## Writing OpenVINO™ JavaScript API tests
+
 ### Before start
 Follow and complete [Examples of OpenVINO™ JavaScript API code](./code_examples.md).
-
 
 
 ### Adding new test-case in the correct place
@@ -57,7 +57,8 @@ Unit test files are located in the `<openvino_repo>/src/bindings/js/node/tests/u
 
 Always add tests to the correct locations and create new files only when necessary. *Remember to include the license on top of each new file*.
 
-### Test writing guidelines 
+
+### Test writing guidelines
 Each test file starts with a `describe` block to group all tests related to a specific class or module. The name of the `describe` block should match the name of the class or module being tested, for example *ov.Core tests*.
 
 Within the `describe` block, individual tests are defined using `test` or `it` blocks, with the name of the test reflecting what is being tested. If multiple tests relate to the same method, they can be grouped within a nested `describe` block.
