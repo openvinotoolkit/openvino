@@ -20,7 +20,7 @@ Open-source software toolkit for optimizing and deploying deep learning models.
 
 
 - **Inference Optimization**: Boost deep learning performance in computer vision, automatic speech recognition, generative AI, natural language processing with large and small language models, and many other common tasks.
-- **Flexible Model Support**: Use models trained with popular frameworks such as TensorFlow, PyTorch, ONNX, Keras, and PaddlePaddle. Convert and deploy models without original frameworks.
+- **Flexible Model Support**: Use models trained with popular frameworks such PyTorch, TensorFlow, ONNX, Keras, and PaddlePaddle without original frameworks. Directly integrate models built with transformers and diffusers from the HuggingFace Hub with Optimum Intel. Convert and deploy models without original frameworks.
 - **Broad Platform Compatibility**: Reduce resource demands and efficiently deploy on a range of platforms from edge to cloud. OpenVINO™ supports inference on CPU (x86, ARM), GPU (OpenCL capable, integrated and discrete) and AI accelerators (Intel NPU).
 - **Community and Ecosystem**: Join an active community contributing to the enhancement of deep learning performance across various domains.
 
@@ -46,11 +46,11 @@ Learn how to optimize and deploy popular models with the [OpenVINO Notebooks](ht
 - [YOLOv8 Optimization](https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/quantizing-model-with-accuracy-control/yolov8-quantization-with-accuracy-control.ipynb)
 - [Text-to-Image Generation](https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/controlnet-stable-diffusion/controlnet-stable-diffusion.ipynb)
 
-Check out [OpenVINO GenAI Samples](https://github.com/openvinotoolkit/openvino.genai/tree/master/samples) to learn how to run LLMs and Generative AI and [OpenVINO Samples](https://docs.openvino.ai/2024/learn-openvino/openvino-samples.html) for more examples.
+Check out [OpenVINO Samples](https://docs.openvino.ai/2024/learn-openvino/openvino-samples.html) for more examples.
 
 Here are easy-to-follow code examples demonstrating how to run PyTorch and TensorFlow model inference using OpenVINO:
 
-PyTorch Model
+**PyTorch Model**
 
 ```python
 import openvino as ov
@@ -72,8 +72,7 @@ compiled_model = core.compile_model(ov_model, 'CPU')
 output = compiled_model({0: example.numpy()})
 ```
 
-<details>
-<summary>TensorFlow Model</summary>
+**TensorFlow Model**
 
 ```python
 import numpy as np
@@ -94,8 +93,14 @@ compiled_model = core.compile_model(ov_model, 'CPU')
 data = np.random.rand(1, 224, 224, 3)
 output = compiled_model({0: data})
 ```
-</details>
 
+OpenVINO supports CPU, GPU, and NPU [devices](https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes.html) and works with models from PyTorch, TensorFlow, ONNX, TensorFlow Lite, and PaddlePaddle [frameworks](https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html). It includes [APIs](https://docs.openvino.ai/2024/api/api_reference.html) in C++, Python, C, NodeJS, and offers the GenAI API for optimized model pipelines and performance.
+
+## Generative AI with OpenVINO
+
+Get started with the OpenVINO GenAI [installation](https://docs.openvino.ai/2024/get-started/install-openvino/install-openvino-genai.html) and refer to the [detailed guide](https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide/genai-guide.html) to explore the capabilities of Generative AI using OpenVINO.
+
+Learn how to run LLMs and GenAI with [Samples](https://github.com/openvinotoolkit/openvino.genai/tree/master/samples) in the [OpenVINO™ GenAI repo](https://github.com/openvinotoolkit/openvino.genai). See GenAI in action with Jupyter notebooks: [LLM-powered Chatbot](https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/llm-chatbot/README.md) and [LLM Instruction-following pipeline](https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/llm-question-answering/README.md).
 
 ## Documentation
 
@@ -115,10 +120,11 @@ output = compiled_model({0: data})
 ### Integrations
 
 -   [🤗Optimum Intel](https://github.com/huggingface/optimum-intel) - grab and use models leveraging OpenVINO within the Hugging Face API.
--   [Torch.compile with OpenVINO](https://docs.openvino.ai/2024/openvino-workflow/torch-compile.html) - use OpenVINO for Python-native applications by JIT-compiling code into optimized kernels.
--   [OpenVINO LLMs with LlamaIndex](https://docs.llamaindex.ai/en/stable/examples/llm/openvino/) - build context-augmented GenAI applications with the LlamaIndex framework and enhance runtime performance with OpenVINO.
--   [OpenVINO Execution Provider for ONNX Runtime]() - use OpenVINO as a backend with your existing ONNX Runtime code.
-
+-   [Torch.compile](https://docs.openvino.ai/2024/openvino-workflow/torch-compile.html) - use OpenVINO for Python-native applications by JIT-compiling code into optimized kernels.
+-   [OpenVINO LLMs inference and serving with vLMM​](https://docs.vllm.ai/en/stable/getting_started/openvino-installation.html) - enhance vLLM's fast and easy model serving with the OpenVINO backend.
+-   [OpenVINO Execution Provider for ONNX Runtime](https://onnxruntime.ai/docs/execution-providers/OpenVINO-ExecutionProvider.html) - use OpenVINO as a backend with your existing ONNX Runtime code.
+-   [LlamaIndex](https://docs.llamaindex.ai/en/stable/examples/llm/openvino/) - build context-augmented GenAI applications with the LlamaIndex framework and enhance runtime performance with OpenVINO.
+-   [LangChain](https://docs.llamaindex.ai/en/stable/examples/llm/openvino/) - integrate OpenVINO with the LangChain framework to enhance runtime performance for GenAI applications.
 
 Check out the [Awesome OpenVINO](https://github.com/openvinotoolkit/awesome-openvino) repository to discover a collection of community-made AI projects based on OpenVINO!
 
@@ -138,7 +144,7 @@ You can ask questions and get support on:
 * The [`openvino`](https://stackoverflow.com/questions/tagged/openvino) tag on Stack Overflow\*.
 
 
-## Additional Resources
+## Resources
 
 * [Release Notes](https://docs.openvino.ai/2024/about-openvino/release-notes-openvino.html)
 * [OpenVINO Blog](https://blog.openvino.ai/)
