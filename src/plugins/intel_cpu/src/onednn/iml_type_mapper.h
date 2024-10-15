@@ -53,7 +53,6 @@ enum impl_desc_type : int64_t {
 
     // real types
     ref_any             = ref    | any,
-    simple_any          = simple | any,
 
     gemm_any            = gemm | any,
     gemm_blas           = gemm | blas,

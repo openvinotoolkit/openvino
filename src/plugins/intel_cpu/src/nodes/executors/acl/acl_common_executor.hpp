@@ -36,9 +36,6 @@ class ACLCommonExecutor : public Executor {
 public:
     ACLCommonExecutor();
     virtual void updateTensorsShapes(ACLShapes& aclMemoryShapes) = 0;
-    //void setTensorInfo(arm_compute::TensorInfo& tensorInfo, ACLArgs index) {
-    //    aclMemoryInfos[index] = std::make_shared<arm_compute::TensorInfo>(tensorInfo);
-    //}
     virtual arm_compute::Status validateTensorsInfo(const ACLInfos& aclMemoryInfos) = 0;
     virtual ACLFunction configureFunction(const ACLTensors& aclMemoryTensors) = 0;
     impl_desc_type implType() const override {
@@ -46,12 +43,15 @@ public:
     }
     void execute(const MemoryArgs& memory) override;
     bool update(const MemoryArgs& memory) override;
+    arm_compute::TensorInfo& getTensorInfo(ACLArgs index) {
+        return *aclMemoryInfos[index].get();
+    }
     ~ACLCommonExecutor();
-    ACLInfos aclMemoryInfos;
 protected:
     ACLTensorAttrs aclTensorAttrs;
 private:
     ACLTensors aclMemoryTensors;
+    ACLInfos aclMemoryInfos;
     ACLFunction iFunction = nullptr;
 };
 
