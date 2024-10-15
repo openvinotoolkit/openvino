@@ -43,7 +43,7 @@ std::vector<layout> lstm_seq_inst::calc_output_layouts(lstm_seq_node const& node
     auto first_out_fmt = cldnn::format::bfyx;
     auto second_out_fmt = input_layout_x.format;
     auto third_out_fmt = input_layout_x.format;
-    if (node.get_preferred_impl_type() == impl_types::onednn) {
+    if (node.permute_inserted) {
         first_out_fmt = node.get_preferred_output_fmt();
         second_out_fmt = node.get_preferred_output_fmt(1);
         third_out_fmt = node.get_preferred_output_fmt(2);

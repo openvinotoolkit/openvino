@@ -116,6 +116,8 @@ void reorder_factory::get_out_reorder(program& p, cldnn::program_node* prev, cld
     auto permute = std::make_shared<cldnn::permute>(permute_id, input_info{prev->id()}, ord);
     auto& permute_node = p.get_or_create(permute);
     p.add_intermediate(permute_node, *node, *prev,  true);
+    auto prev_seq = static_cast<lstm_seq_node*>(prev);
+    prev_seq->permute_inserted = true;
     prev->recalc_output_layouts(false);
     permute_node.recalc_output_layout(false);
     if (true) {

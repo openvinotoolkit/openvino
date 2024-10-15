@@ -28,6 +28,7 @@ public:
     std::vector<activation_func> activations() const {
         return get_primitive()->params.activations;
     }
+    bool permute_inserted = false;
 };
 
 using lstm_seq_node = typed_program_node<lstm_seq>;

@@ -20,7 +20,7 @@ struct LSTMSeqImplementationManager : public ImplementationManager {
 
     bool validate_impl(const program_node& node) const override {
         assert(node.is_type<lstm_seq>());
-        return true;
+        return node.get_input_layout(0).format == cldnn::format::bfyx;
     }
 
     in_out_fmts_t query_formats(const program_node& node) const override {
