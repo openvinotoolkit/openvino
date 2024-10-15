@@ -52,9 +52,9 @@ static VectorDims makeDummyOutputDims(const VectorDims& inShape, const VectorDim
     return outputShape;
 }
 
-DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr srcDesc,
-                                                 const DnnlMemoryDescPtr dstDesc,
-                                                 bool weightsNonTransposed) {
+static DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr srcDesc,
+                                                        const DnnlMemoryDescPtr dstDesc,
+                                                        bool weightsNonTransposed) {
     if (!weightsNonTransposed)
         return srcDesc;
 
@@ -65,10 +65,10 @@ DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr srcDesc
     return DnnlExtensionUtils::makeDescriptor(transposedWeiDesc);
 }
 
-MemoryPtr reorderData(DnnlMemoryDescPtr srcWeightDesc,
-                      DnnlMemoryDescPtr dstWeightDesc,
-                      MemoryCPtr weightsMem,
-                      ExecutorContext::CPtr context) {
+static MemoryPtr reorderData(DnnlMemoryDescPtr srcWeightDesc,
+                             DnnlMemoryDescPtr dstWeightDesc,
+                             MemoryCPtr weightsMem,
+                             ExecutorContext::CPtr context) {
     Memory input{context->getEngine(), srcWeightDesc, weightsMem->getData()};
     MemoryPtr output = std::make_shared<Memory>(context->getEngine(), dstWeightDesc);
     auto cache = context->getRuntimeCache();
