@@ -176,6 +176,8 @@ jobs:
           if '${{ inputs.compiler-type }}' == 'DPCPP' (
             set VS2022INSTALLDIR=${{ env.VSINSTALLDIR }}
             set
+            @call ${{ env.VSINSTALLDIR }}\VC\Auxiliary\Build\vcvars64.bat
+            set
             @call ${{ env.ONEAPI_INSTALL_DIR }}\setvars.bat
           )
           cmake -G "${{ env.CMAKE_GENERATOR }}" ^
