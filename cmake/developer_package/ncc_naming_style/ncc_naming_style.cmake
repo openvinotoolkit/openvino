@@ -80,7 +80,7 @@ if(ENABLE_NCC_STYLE)
         set(CMAKE_FIND_LIBRARY_PREFIXES ${_old_CMAKE_FIND_LIBRARY_PREFIXES})
         set(CMAKE_FIND_LIBRARY_SUFFIXES ${_old_CMAKE_FIND_LIBRARY_SUFFIXES})
     else()
-        find_library(libclang_location
+        find_host_library(libclang_location
             NAMES clang libclang libclang-${clang_version} libclang-${clang_version}.so libclang-${clang_version}.so.1
             PATHS /usr/lib /usr/local/lib /usr/lib/llvm-${clang_version}/lib /usr/lib/x86_64-linux-gnu
             NO_DEFAULT_PATH
