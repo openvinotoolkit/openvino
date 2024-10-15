@@ -26,7 +26,11 @@ struct rope : public primitive_base<rope> {
          size_t gather_rank = 0)
         : primitive_base(id, inputs),
           config(config),
-          gather_rank(gather_rank) {}
+          gather_rank(gather_rank) {
+            OPENVINO_ASSERT((!config.support_2d_rope
+                || (config.support_2d_rope && config.is_chatglm)),
+                "2D RoPE is currently only supported in Chatglm!");
+        }
 
     RoPE::Config config;
     size_t gather_rank = 0;
