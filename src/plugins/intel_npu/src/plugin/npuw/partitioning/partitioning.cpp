@@ -332,6 +332,8 @@ void Partitioner::identifySubgraphs() {
     LOG_INFO("Identifying subgraphs for model " << model->get_friendly_name() << "...");
     LOG_BLOCK();
 
+    const bool connect_in_f16 = cfg.get<::intel_npu::NPUW_F16IC>();
+
     using namespace ov::npuw;
     std::vector<ov::npuw::Group>& partitions = ens.groups;
 
@@ -406,7 +408,7 @@ void Partitioner::identifySubgraphs() {
             input_mapping[orig_node] = orig_node;
             return orig_node;
         };
-        auto parameter_from = [&input_mapping](ov::Output<ov::Node> output) {
+        auto parameter_from = [&input_mapping, connect_in_f16](ov::Output<ov::Node> output) {
             auto orig_node = output.get_node_shared_ptr();
             auto it = input_mapping.find(orig_node);
             if (it != input_mapping.end()) {
@@ -427,8 +429,14 @@ void Partitioner::identifySubgraphs() {
                 LOG_VERB("Found bound value in " << output << ", substituting it with " << new_const);
             } else {
                 // OK, actually introduce a parameter, cache it, and return.
-                auto new_param =
-                    std::make_shared<ov::op::v0::Parameter>(output.get_element_type(), output.get_partial_shape());
+                // Lower the parameter precision here, if required.
+                // Note: doing so REQUIRES a Convert node to be present here
+                // to maintain graph contracts. See handling where parameter_from is called.
+                auto otype = output.get_element_type();
+                if (otype == ov::element::f32 && connect_in_f16) {
+                    otype = ov::element::f16;
+                }
+                auto new_param = std::make_shared<ov::op::v0::Parameter>(otype, output.get_partial_shape());
                 result = std::static_pointer_cast<ov::Node>(new_param);
             }
             input_mapping[orig_node] = result;
@@ -494,8 +502,20 @@ void Partitioner::identifySubgraphs() {
                         // Can't use input_node here directly since parameter_from converts
                         // ov::Node to Output<Node> which some layers don't support by default.
                         auto new_param = parameter_from(input_desc.get_source_output());
-                        ov::copy_runtime_info(input_node, new_param);
-                        input_desc.replace_source_output(new_param);
+
+                        std::shared_ptr<ov::Node> new_src;
+                        if (new_param->get_element_type() != input_desc.get_element_type()) {
+                            // This is the only case where types may not match
+                            NPUW_ASSERT(input_desc.get_element_type() == ov::element::f32);
+                            NPUW_ASSERT(new_param->get_element_type() == ov::element::f16);
+                            NPUW_ASSERT(connect_in_f16);
+                            new_src = std::make_shared<ov::op::v0::Convert>(new_param, ov::element::f32);
+                        } else {
+                            new_src = new_param;
+                        }
+                        NPUW_ASSERT(new_src);
+                        ov::copy_runtime_info(input_node, new_src);  // NB: Still not sure why do this
+                        input_desc.replace_source_output(new_src);
                     }
                 }  // if (is..)
             }      // for (inputs)
@@ -653,7 +673,13 @@ void Partitioner::identifySubgraphs() {
                         num_optimized_out++;
                         LOG_VERB("Discarding " << output_desc << " -- optimized out!");
                     } else {
-                        auto new_result = std::make_shared<ov::op::v0::Result>(output_desc);
+                        // Register a new Result. Optionally, lower it to f16
+                        ov::Output<ov::Node> result_src =
+                            (output_desc.get_element_type() == ov::element::f32 && connect_in_f16)
+                                ? std::make_shared<ov::op::v0::Convert>(output_desc, ov::element::f16)
+                                : output_desc;
+
+                        auto new_result = std::make_shared<ov::op::v0::Result>(result_src);
                         result_cache[output_layer_ptr] = LinkPtrFrom{this_group_idx, new_result};
 
                         ov::copy_runtime_info(output_desc.get_node_shared_ptr(), new_result);
