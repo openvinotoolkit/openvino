@@ -46,6 +46,8 @@ private:
     // FIXME: This class has many friends..
     friend class IBaseInferRequest;
     friend class JustInferRequest;
+    friend class MemAccessSim;
+    friend class FuncMemMgr;
 
     bool compile_for_success(std::size_t id);
     bool compile_for_device(std::size_t id, const std::string& device_to_try);
