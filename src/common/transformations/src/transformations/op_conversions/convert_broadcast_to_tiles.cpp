@@ -20,7 +20,7 @@ ov::pass::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
     auto broadcast = ov::pass::pattern::wrap_type<ov::op::v1::Broadcast>();
 
     matcher_pass_callback callback = [this](pattern::Matcher& m) {
-        auto broadcast = std::dynamic_pointer_cast<ov::op::v1::Broadcast>(m.get_match_root());
+        auto broadcast = ov::as_type_ptr<ov::op::v1::Broadcast>(m.get_match_root());
 
         if (!broadcast) {
             return false;
@@ -31,10 +31,8 @@ ov::pass::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
             return false;
         }
 
-        auto shape_node =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(broadcast->input_value(1).get_node_shared_ptr());
-        auto axes_node =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(broadcast->input_value(2).get_node_shared_ptr());
+        auto shape_node = ov::as_type_ptr<ov::op::v0::Constant>(broadcast->input_value(1).get_node_shared_ptr());
+        auto axes_node = ov::as_type_ptr<ov::op::v0::Constant>(broadcast->input_value(2).get_node_shared_ptr());
         if (!shape_node || !axes_node)
             return false;
 

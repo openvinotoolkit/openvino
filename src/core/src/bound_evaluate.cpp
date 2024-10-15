@@ -424,11 +424,7 @@ bool ov::could_propagate(const Output<Node>& output, std::vector<Node*>& result)
                 }
             }
             if (can_add) {
-                if (is_type<op::v0::Constant>(node)) {
-                    propagate_rt_info(node, output);
-                } else {
-                    result.push_back(node);
-                }
+                result.push_back(node);
                 nodes_to_do.pop();
                 nodes_done.insert(node);
             }
@@ -498,14 +494,12 @@ bool ov::interval_bound_evaluator(const Node* node,
             vector_of_output_variants.emplace_back(output.get_element_type(), output.get_shape());
         }
 
-        node->evaluate(vector_of_output_variants, input_variant);
+        if (!node->evaluate(vector_of_output_variants, input_variant)) {
+            return false;
+        };
 
         TensorVector vector_of_unsqueezed_output_variants;
         for (const auto& output : vector_of_output_variants) {
-            if (!output) {
-                return false;
-            }
-
             auto unsqueezed_shape = output.get_shape();
             unsqueezed_shape.insert(unsqueezed_shape.begin(), 1);
 

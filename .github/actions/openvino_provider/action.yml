@@ -1,0 +1,222 @@
+name: 'OpenVINO provider'
+description: 'Provides OpenVINO build artifacts from a requested source'
+inputs:
+  revision:
+    description: 'Version of OpenVINO to provide - latest_available_commit | HEAD | specific commit hash | 
+                  latest_nightly | specific package version (e.g. 2024.4.0rc2)'
+    required: true
+  branch_name:
+    description: 'Branch of OpenVINO to take the revision from if no specific hash was provided. 
+                  Taken from github context by default'
+    required: false
+  event_name:
+    description: 'Even name from which artifacts were generated. "push" by default; overwrite it with "pull_request" 
+                  if revision/branch is from PR'
+    default: "push"
+    required: false
+  ov_artifact_name:
+    description: "Name under which to upload provided OpenVINO build artifacts, set automatically by default"
+    required: false
+  platform:
+    description: "Platform for which to get artifacts: centos7 | debian10 | rhel8 | ubuntu20 | 
+      ubuntu20 | ubuntu22 | ubuntu24 | macos | macos_12_6 | windows"
+    required: false
+  arch:
+    description: "Architecture for which to get artifacts: x86_64 | armhf | arm64"
+    default: "x86_64"
+    required: false
+  install_dir:
+    description: 'Local path to install OpenVINO package to. If not specified, package is installed to GitHub workspace 
+                  and uploaded to GitHub'
+    required: false
+  commit_packages_to_provide:
+    description: "Comma-separated list of OpenVINO packages from post-commit to provide ('all' to get everything)"
+    required: false
+  commit_share_path:
+    description: 'Path to share holding OpenVINO post-commit artifacts'
+    required: false
+    default: '/mount/build-artifacts'
+  nightly_package_source:
+    description: 'Source URL hosting OpenVINO nightly archives'
+    required: false
+    default: 'https://storage.openvinotoolkit.org/repositories/openvino/packages/nightly/latest.json'
+  pip_extra_url:
+    description: 'Source URL hosting OpenVINO wheels, for passing to pip as --extra-index-url'
+    required: false
+    default: 'https://storage.openvinotoolkit.org/simple/wheels'
+
+outputs:
+  ov_artifact_name:
+    description: "Name of the artifact to upload OpenVINO build artifacts under"
+    value: ${{ steps.openvino_s3_download.outputs.ov_artifact_name || steps.openvino_commit_output.outputs.ov_artifact_name }}
+  ov_wheel_source:
+    description: "Pip option for custom OV wheel location (--find-links or --extra-index-url)"
+    value: ${{ steps.openvino_s3_wheel.outputs.ov_wheel_source || steps.openvino_commit_wheel.outputs.ov_wheel_source }}
+  ov_version:
+    description: "OpenVINO product version"
+    value: ${{ steps.openvino_s3_wheel.outputs.ov_version || steps.openvino_commit_wheel.outputs.ov_version }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Identify artifacts source
+      id: get_source
+      shell: bash
+      run: |
+        artifacts_source="postcommit"
+        if [[ "${{ inputs.revision }}" == "latest_nightly" || "${{ inputs.revision }}" =~ ^[0-9]{4}\.[0-9]+\.*[0-9]* ]]; then
+          artifacts_source="s3"
+        fi
+        echo "artifacts_source=$artifacts_source" >> $GITHUB_OUTPUT
+
+    - name: Get action revision
+      id: get_action_revision
+      run: echo "action_ref=${{ env.ACTION_REF }}" >> $GITHUB_OUTPUT
+      shell: bash
+      env:
+        ACTION_REF: ${{ github.action_ref || github.base_ref || github.event.merge_group.base_ref || github.ref }}
+
+    - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+      with:
+        repository: 'openvinotoolkit/openvino'
+        ref: ${{ steps.get_action_revision.outputs.action_ref }}
+        sparse-checkout: .github/actions
+
+    - name: Clone OpenVINO to get HEAD commit
+      if: inputs.revision == 'HEAD'
+      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+      with:
+        repository: 'openvinotoolkit/openvino'
+        path: 'openvino'
+        ref: ${{ inputs.branch_name || github.base_ref || github.event.merge_group.base_ref || github.ref }}
+
+    - name: Get OpenVINO HEAD commit
+      id: get_openvino_head_commit
+      if: inputs.revision == 'HEAD'
+      shell: bash
+      run: |
+        head=$(git -C openvino rev-parse HEAD)
+        echo "head=$head" >> $GITHUB_OUTPUT
+
+    - name: Create install dir
+      if: inputs.install_dir
+      shell: bash
+      run: |
+        mkdir -p ${{ inputs.install_dir }}
+
+    # --- Post-commit case ---
+    - name: Download post-commit OpenVINO archives
+      id: openvino_commit_download
+      if: steps.get_source.outputs.artifacts_source == 'postcommit'
+      uses: ./.github/actions/restore_artifacts
+      with:
+        platform: ${{ inputs.platform }}_${{ inputs.arch }}
+        storage_root: ${{ inputs.commit_share_path }}
+        event_name: ${{ inputs.event_name }}
+        trigger_repo_sha: ${{ env.OV_REVISION }}
+        branch_name: ${{ inputs.branch_name }}
+        to_restore: ${{ inputs.commit_packages_to_provide }}
+        target_dir: ${{ inputs.install_dir }}
+      env:
+        OV_REVISION: ${{ inputs.revision == 'HEAD' && steps.get_openvino_head_commit.outputs.head || inputs.revision }}
+
+    - name: Set action outputs
+      id: openvino_commit_output
+      if: steps.openvino_commit_download.outcome == 'success'
+      shell: bash
+      run: |
+        ov_artifact_name=${{ inputs.ov_artifact_name || inputs.platform }}
+        workspace_path=${{ steps.openvino_commit_download.outputs.artifacts_path }}
+        cd $workspace_path
+        ov_package_path=$(find . -name 'openvino_package*' -printf "%P\n" -quit)
+        [ -z "$ov_package_path" ] && echo "No openvino_package found in restored artifacts" && exit 1
+        mv $ov_package_path/* . && rm -rf $ov_package_path
+        echo "ov_artifact_name=$ov_artifact_name" >> $GITHUB_OUTPUT
+        echo "ov_package_path=$workspace_path" >> $GITHUB_OUTPUT
+
+    - name: Get commit wheel
+      id: openvino_commit_wheel
+      if: steps.openvino_commit_download.outcome == 'success'
+      shell: bash
+      run: |
+        artifacts_path=${{ steps.openvino_commit_download.outputs.artifacts_path }}
+        cd $artifacts_path
+        version=$(yq eval '.components.dldt.custom_params.wheel_product_version' manifest.yml)
+        wheel_path=${{ inputs.install_dir && '$artifacts_path/wheels' || './wheels' }}
+        default_find_links_cmd="--find-links=$wheel_path"
+        find_links_cmd=$([[ -n "$PIP_FIND_LINKS" ]] && echo "" || echo "$default_find_links_cmd")
+        echo "ov_version=$version" >> $GITHUB_OUTPUT
+        echo "ov_wheel_source=$default_find_links_cmd" >> $GITHUB_OUTPUT
+
+    - name: Upload commit OpenVINO archives
+      if: steps.openvino_commit_download.outcome == 'success' && !inputs.install_dir
+      uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+      with:
+        name: ${{ steps.openvino_commit_output.outputs.ov_artifact_name }}
+        path: ${{ steps.openvino_commit_output.outputs.ov_package_path }}
+        if-no-files-found: 'error'
+
+    # --- S3 case ---
+    - name: Get a specific S3 package URL
+      id: get_s3_package
+      if: steps.get_source.outputs.artifacts_source == 's3' && inputs.revision != 'latest_nightly'
+      shell: bash
+      run: >-
+        python3 -m venv venv && . venv/bin/activate &&
+        pip install -r $GITHUB_ACTION_PATH/requirements.txt &&
+        python $GITHUB_ACTION_PATH/get_s3_package.py --product openvino --platform ${{ inputs.platform }} --arch ${{ inputs.arch }} 
+        --version ${{ inputs.revision }}
+
+    - name: Download nightly OpenVINO archives
+      id: openvino_s3_download
+      if: steps.get_source.outputs.artifacts_source == 's3'
+      shell: bash
+      run: |
+        if [ ${{ steps.get_s3_package.outcome }} != 'skipped' ]; then
+          ov_package_url=${{ steps.get_s3_package.outputs.package_url }}
+        else
+          ov_package_url=$(curl -s ${{ inputs.nightly_package_source }} | jq -r '.${{ inputs.platform }}_${{ inputs.arch }}')
+        fi
+        cd ${{ inputs.install_dir || env.GITHUB_WORKSPACE }}
+        package_basename=$(basename $ov_package_url)
+        wget $ov_package_url --progress=bar:force:noscroll -O $package_basename
+        package_folder=${package_basename%.*}
+        [[ "$package_basename" == *.zip ]] && unzip "$package_basename" || tar -xvf "$package_basename"
+        rm $package_basename
+        if [ ${{ inputs.install_dir }} ]; then
+          mv $package_folder/* . && rm -rf $package_folder
+        fi
+        ov_artifact_name=$([ ${{ inputs.ov_artifact_name }} ] && echo ${{ inputs.ov_artifact_name }} || echo $package_folder)
+        echo "ov_package_url=$ov_package_url" >> $GITHUB_OUTPUT
+        echo "ov_artifact_name=$ov_artifact_name" >> $GITHUB_OUTPUT
+        echo "ov_package_path=$package_folder" >> $GITHUB_OUTPUT
+
+    - name: Upload OpenVINO archives
+      if: steps.openvino_s3_download.outcome == 'success' && !inputs.install_dir
+      uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+      with:
+        name: ${{ steps.openvino_s3_download.outputs.ov_artifact_name }}
+        path: ${{ steps.openvino_s3_download.outputs.ov_package_path }}
+        if-no-files-found: 'error'
+
+    - name: Get wheel
+      id: openvino_s3_wheel
+      if: steps.openvino_s3_download.outcome == 'success'
+      shell: bash
+      run: |
+        rc_version=$(echo ${{ steps.openvino_s3_download.outputs.ov_package_url }} |
+          grep -oP '(?<=pre-release\/)\d{4}\.\d+\.\d+rc\d+' || true)
+
+        release_version=$(echo ${{ steps.openvino_s3_download.outputs.ov_package_path }} |
+          grep -oP '_\K\d{4}\.\d+\.\d+')
+        
+        dev_version=$(echo ${{ steps.openvino_s3_download.outputs.ov_package_path }} |
+          grep -oP "${release_version//./\\.}\.dev\d{8}" || true)
+
+        version=${rc_version:-${dev_version:-$release_version}}
+
+        extra_index="--pre --extra-index-url ${{ inputs.pip_extra_url }}/nightly \
+          --extra-index-url ${{ inputs.pip_extra_url }}/pre-release"
+
+        echo "ov_version=$version" >> $GITHUB_OUTPUT
+        echo "ov_wheel_source=$extra_index" >> $GITHUB_OUTPUT

@@ -1,5 +1,3 @@
-.. {#openvino_docs_ie_plugin_api_references}
-
 Plugin API Reference
 ====================
 

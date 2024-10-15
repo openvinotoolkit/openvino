@@ -30,7 +30,7 @@ bool is_data_movement_operation(const std::shared_ptr<ov::Node>& node,
 }
 
 bool is_scalar_like(const std::shared_ptr<ov::Node>& node) {
-    auto constant_op = std::dynamic_pointer_cast<ov::opset8::Constant>(node);
+    auto constant_op = ov::as_type_ptr<ov::opset8::Constant>(node);
     return constant_op != nullptr && shape_size(constant_op->get_shape()) == 1;
 }
 }  // namespace
@@ -135,7 +135,7 @@ ov::pass::MoveEltwiseUpThroughDataMovPerChannel::MoveEltwiseUpThroughDataMovPerC
     MATCHER_SCOPE(MoveEltwiseUpThroughDataMovPerChannel);
 
     auto const_predicate = [](const ov::Output<ov::Node>& output) {
-        auto constant_op = std::dynamic_pointer_cast<ov::opset8::Constant>(output.get_node_shared_ptr());
+        auto constant_op = ov::as_type_ptr<ov::opset8::Constant>(output.get_node_shared_ptr());
         if (!constant_op)
             return false;
 
@@ -167,7 +167,8 @@ ov::pass::MoveEltwiseUpThroughDataMovPerChannel::MoveEltwiseUpThroughDataMovPerC
     };
 
     auto eltw_data_flow_in =
-        ov::pass::pattern::wrap_type<ov::op::v1::Reshape, ov::op::v0::Squeeze, ov::op::v0::Unsqueeze>();
+        ov::pass::pattern::wrap_type<ov::op::v1::Reshape, ov::op::v0::Squeeze, ov::op::v0::Unsqueeze>(
+            pattern::consumers_count(1));
     auto eltw_const_in = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(const_predicate);
     auto eltwise_pattern =
         ov::pass::pattern::wrap_type<ov::op::util::BinaryElementwiseArithmetic>({eltw_data_flow_in, eltw_const_in},
@@ -206,7 +207,7 @@ ov::pass::MoveEltwiseUpThroughDataMovPerChannel::MoveEltwiseUpThroughDataMovPerC
         auto new_shape = ov::Shape(parent->get_input_partial_shape(0).size(), 1);
 
         new_shape[channel_idx] = const_shape[channel_idx];
-        auto old_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(eltwise->get_input_node_shared_ptr(const_idx));
+        auto old_const = ov::as_type_ptr<ov::op::v0::Constant>(eltwise->get_input_node_shared_ptr(const_idx));
         auto new_const = std::make_shared<ov::op::v0::Constant>(*old_const, new_shape);
         ov::replace_node_update_name(old_const, new_const);
         ov::replace_output_update_name(eltwise->output(0), eltwise->input_value(data_flow_idx));

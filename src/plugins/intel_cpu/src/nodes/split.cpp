@@ -12,7 +12,7 @@
 #include "utils/general_utils.h"
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include "utils/ngraph_utils.hpp"
-#include <partitioned_mem_mgr.h>
+#include <partitioned_mem_blk.h>
 #include "openvino/op/split.hpp"
 #include "openvino/op/variadic_split.hpp"
 
@@ -232,10 +232,16 @@ bool Split::needPrepareParams() const {
     return needShapeInfer();
 }
 
+void Split::createPrimitive() {
+    if (outputShapesDefined()) {
+        Node::createPrimitive();
+    }
+}
+
 void Split::prepareParams() {
     const auto &srcMemPtr = getSrcMemoryAtPort(0);
-    if (!srcMemPtr || !srcMemPtr->isAllocated()) {
-        THROW_ERROR("has not allocated input memory");
+    if (!srcMemPtr || !srcMemPtr->isDefined()) {
+        THROW_ERROR("has undefined input memory");
     }
 
     if (!constSplitLengths) {
@@ -249,8 +255,8 @@ void Split::prepareParams() {
     std::vector<BlockedMemoryDescCPtr> outDescs;
     for (size_t port = 0; port < outputShapes.size(); ++port) {
         const auto &outMemPtr = this->getDstMemoryAtPort(port);
-        if (!outMemPtr || !outMemPtr->isAllocated()) {
-            THROW_ERROR("has not allocated destination memory");
+        if (!outMemPtr || !outMemPtr->isDefined()) {
+            THROW_ERROR("has undefined destination memory");
         }
 
         if (outMemPtr->getShape().hasZeroDims()) {
@@ -541,7 +547,7 @@ void Split::resolveInPlaceEdges(Edge::LOOK look) {
                     " Split node: ",
                     getName(),
                     " can not use inPlace memory with splitting on dynamic dimension");
-    auto baseMemMngr = getParentEdgeAt(inplaceInpIndx)->getMemory().getMemoryMngr();
+    auto baseMemBlock = getParentEdgeAt(inplaceInpIndx)->getMemory().getMemoryBlock();
     ptrdiff_t offset = 0;
     for (size_t i = 0; i < numberOfOutputs; ++i) {
         auto partDim = outputShapes[i].getDims()[axis];
@@ -560,8 +566,8 @@ void Split::resolveInPlaceEdges(Edge::LOOK look) {
             auto memDesc = selected_pd->getConfig().outConfs[i].getMemDesc();
             MemoryPtr newMem;
             if (partDim != 0) {
-                auto memMngr = std::make_shared<PartitionedMemoryMngr>(baseMemMngr, baseDim, offset, partDim);
-                newMem = std::make_shared<Memory>(getEngine(), memDesc, memMngr);
+                auto memBlock = std::make_shared<PartitionedMemoryBlock>(baseMemBlock, baseDim, offset, partDim);
+                newMem = std::make_shared<Memory>(getEngine(), memDesc, memBlock);
             } else {
                 // empty tensor, no need to reference a part, default memory is enough
                 newMem = std::make_shared<Memory>(getEngine(), memDesc);

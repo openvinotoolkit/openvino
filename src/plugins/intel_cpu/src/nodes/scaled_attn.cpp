@@ -34,6 +34,7 @@
 #include "kernels/scaled_attn/attn_quant.hpp"
 #include "kernels/x64/brgemm_kernel.hpp"
 #include "nodes/common/cpu_convert.h"
+#include "utils/precision_support.h"
 
 #include <algorithm>
 #include <string>
@@ -204,22 +205,15 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
     // k: [B, H, kv_len, S]
     // v: [B, H, kv_len, S]
     const GraphContext::CPtr context;
-    dnnl::memory::desc q_md;
-    dnnl::memory::desc k_md;
-    dnnl::memory::desc weight_md;
-    dnnl::memory::desc v_md;
     dnnl::memory::desc out_md;
-    dnnl::memory attn_score;
-    dnnl::memory attn_weight;
     PlainTensor fp32_out;
     PlainTensor qk_scratch_a;
     PlainTensor qk_scratch_b;
     PlainTensor wv_scratch_a;
     PlainTensor wv_scratch_b;
+    PlainTensor weight_score;
     std::vector<size_t> wsp;
     size_t wsp_size_per_thread = 0;
-    dnnl::matmul qk_prim;
-    dnnl::matmul wv_prim;
     using tag = dnnl::memory::format_tag;
     using dt = dnnl::memory::data_type;
     struct brgemmKey {
@@ -294,8 +288,6 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         }
 
         qk_gemm_ptr = qk_result.first;
-        dnnl::memory::desc attn_md(make_dnnl_dims({B, H, q_len, kv_len}), dt::f32, tag::abcd);
-        weight_md = dnnl::memory::desc(make_dnnl_dims({B, H, q_len, kv_len}), qkv_dt, tag::abcd);
         if (has_out_transpose)
             out_md = dnnl::memory::desc(make_dnnl_dims({B, q_len, H, head_size}), qkv_dt, tag::abcd);
         else
@@ -308,7 +300,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         brgemmKey wv_key = {q_len,
                             head_size,
                             kv_len,
-                            kv_len,
+                            kv_len * (in_type == ov::element::Type_t::f32 ? 1 : 2),
                             present_key.stride(2),
                             static_cast<size_t>(out_md.get_strides()[ldc_index]),
                             false,
@@ -334,10 +326,8 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
 
         qk_scratch_b.resize<T>({B, Hk, qk_gemm_ptr->get_scratch_b_size() / data_size});
         wv_scratch_b.resize<T>({B, Hk, wv_gemm_ptr->get_scratch_b_size() / data_size});
-        if (!attn_score || attn_md.get_size() > attn_score.get_desc().get_size()) {
-            attn_score = dnnl::memory(attn_md, strm.get_engine());
-            attn_weight = dnnl::memory(weight_md, strm.get_engine());
-        }
+        const size_t m_block_size = qk_gemm_ptr->get_mblk_size();
+        weight_score.resize<float>({static_cast<size_t>(parallel_get_max_threads()), H, m_block_size, kv_len});
         if (has_out_transpose) {
             fp32_out.resize<float>({B, q_len, H, head_size});
         } else {
@@ -362,9 +352,6 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         const auto Hk = present_key.size(1);
         const auto kv_len = present_key.size(2);
         size_t h_each_group_len = H / Hk;
-        PlainTensor score, weight;
-        score.resize({B, H, q_len, kv_len}, static_cast<float*>(attn_score.get_data_handle()));
-        weight.resize({B, H, q_len, kv_len}, static_cast<T*>(attn_weight.get_data_handle()));
         const size_t m_block_size = qk_gemm_ptr->get_mblk_size();
         auto m_blocks = (q_len + m_block_size - 1) / m_block_size;
         bool is_bf16 = precision_of<T>::value == ov::element::bf16;
@@ -378,13 +365,13 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         });
 
         // attention
-        parallel_for3d(B, H, m_blocks, [&](size_t b, size_t h, size_t m_blk) {
+        parallel_for3d(B, H, m_blocks, [&](size_t ithr, size_t b, size_t h, size_t m_blk) {
             auto m_start = m_blk * m_block_size;
             auto m_end = std::min(m_start + m_block_size, q_len);
             auto m_cnt = m_end - m_start;
             size_t tid = parallel_get_thread_num();
             T* q_ptr = &query.at<T>({b, h, m_start, 0});
-            float* c_ptr = &score.at<float>({b, h, m_start, 0});
+            float* c_ptr = weight_score.ptr<float>(ithr, h, 0, 0);
             T* k_ptr = &qk_scratch_b.at<T>({b, h / h_each_group_len, 0});
             qk_gemm_ptr->executeGemm(m_cnt < m_block_size,
                                      q_ptr,
@@ -417,19 +404,21 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
             for (size_t m = m_start; m < m_end; m++) {
                 // apply attention mask & sofmax
                 auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
-                attn_softmax(&score.at<float>({b, h, m, 0}),
-                            &weight.at<T>({b, h, m, 0}),
+                auto score = weight_score.ptr<float>(ithr, h, m - m_start);
+                attn_softmax(reinterpret_cast<void*>(score),
+                            reinterpret_cast<T*>(score),
                             d_scale,
-                            alibi_ptr + m * alibi_stride,
+                            reinterpret_cast<void*>(alibi_ptr + m * alibi_stride),
                             attn_mask_ptr + m * attn_mask_stride,
                             cmask_ptr + m * cmask_stride,
                             select_nfltmax_at_0,
                             ncausal,
                             kv_len,
                             precision_of<T>::value,
+                            precision_of<T>::value,
                             precision_of<T>::value);
             }
-            T* w_ptr = &weight.at<T>({b, h, m_start, 0});
+            auto* w_ptr = reinterpret_cast<T*>(weight_score.ptr<float>(ithr, h, 0, 0));
             float* fp32_out_ptr;
             if (is_bf16) {
                 fp32_out_ptr = has_out_transpose ? &fp32_out.at<float>({b, m_start, h, 0}) : &fp32_out.at<float>({b, h, m_start, 0});
@@ -510,15 +499,17 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
 };
 
 #ifdef OV_CPU_WITH_ACL
-template <>
-struct MHAKernel<ScaledDotProductAttention::KT_ACL, float> {
+template <typename T>
+struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
     const GraphContext::CPtr context;
     size_t m_block_size;
+    ov::element::Type precision;
 
     MHAKernel() = delete;
     explicit MHAKernel(GraphContext::CPtr ctx): context(ctx) {
         m_block_size = 512;
         select_nfltmax_at_0 = false;
+        precision = ov::element::from<T>();
     }
 
     PlainTensor causal_mask;
@@ -564,23 +555,23 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, float> {
             auto m_end = std::min(m_start + m_block_size, q_len);
             auto m_cnt = m_end - m_start;
 
-            float* q_ptr = &query.at<float>({b, h, m_start, 0});
-            float* k_ptr = &present_key.at<float>({b, h / h_each_group_len, 0, 0});
-            float* v_ptr = &present_value.at<float>({b, h / h_each_group_len, 0, 0});
+            auto q_ptr = &query.at<T>({b, h, m_start, 0});
+            auto k_ptr = &present_key.at<T>({b, h / h_each_group_len, 0, 0});
+            auto v_ptr = &present_value.at<T>({b, h / h_each_group_len, 0, 0});
 
-            float* alibi_ptr = nullptr;
+            T* alibi_ptr = nullptr;
             auto alibi_stride = 0;
             if (alibi_mask) {
-                alibi_ptr = &alibi_mask.at<float>({b, h, 0, 0}, true);
+                alibi_ptr = &alibi_mask.at<T>({b, h, 0, 0}, true);
                 if (alibi_mask.size(2) > 1)
                     alibi_stride = alibi_mask.stride(2);
             }
             uint8_t* attn_mask_ptr = nullptr;
             auto attn_mask_stride = 0;
             if (attention_mask) {
-                attn_mask_ptr = reinterpret_cast<uint8_t*>(&attention_mask.at<float>({b, h, 0, 0}, true));
+                attn_mask_ptr = reinterpret_cast<uint8_t*>(&attention_mask.at<T>({b, h, 0, 0}, true));
                 if (attention_mask.size(2) > 1)
-                    attn_mask_stride = attention_mask.stride(2) * sizeof(float);
+                    attn_mask_stride = attention_mask.stride(2) * sizeof(T);
             }
             uint8_t* cmask_ptr = nullptr;
             auto cmask_stride = 0;
@@ -596,7 +587,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, float> {
             bool b_transpose = false;
             if (k_stride_s == 1)
                 b_transpose = true;
-            GemmKernel qk_gemm(m_cnt, head_size, kv_len, b_transpose);
+            GemmKernel qk_gemm(m_cnt, head_size, kv_len, b_transpose, precision);
 
             arm_compute::Strides qStrides({query.stride_bytes(3), query.stride_bytes(2)});
             arm_compute::Strides kStrides({present_key.stride_bytes(3), present_key.stride_bytes(2)});
@@ -607,30 +598,31 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, float> {
                                 qStrides,
                                 kStrides);
 
-            auto qk = reinterpret_cast<float*>(qkTensor.buffer());
+            auto qk = reinterpret_cast<T*>(qkTensor.buffer());
 
 
             for (size_t m = m_start; m < m_end; m++) {
                 // apply attention mask & sofmax
                 auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
-                attn_softmax(qk + (m - m_start) * kv_len,
+                attn_softmax(reinterpret_cast<void*>(qk + (m - m_start) * kv_len),
                              qk + (m - m_start) * kv_len,
                              d_scale,
-                             alibi_ptr + m * alibi_stride,
+                             reinterpret_cast<void*>(alibi_ptr + m * alibi_stride),
                              attn_mask_ptr + m * attn_mask_stride,
                              cmask_ptr + m * cmask_stride,
                              select_nfltmax_at_0,
                              ncausal,
                              kv_len,
-                             ov::element::f32,
-                             ov::element::f32);
+                             precision,
+                             precision,
+                             precision);
             }
             arm_compute::TensorInfo outInfo;
             arm_compute::Tensor outTensor;
 
-            auto out = has_out_transpose ? &output_emb.at<float>({b, m_start, h * head_size}) : &output_emb.at<float>({b, h, m_start});
+            auto out = has_out_transpose ? &output_emb.at<T>({b, m_start, h * head_size}) : &output_emb.at<T>({b, h, m_start});
             auto strides = arm_compute::Strides({output_emb.stride_bytes(1), output_emb.stride_bytes(2)});
-            GemmKernel out_gemm(m_cnt, kv_len, head_size);
+            GemmKernel out_gemm(m_cnt, kv_len, head_size, false, precision);
 
             arm_compute::Strides vStrides({present_value.stride_bytes(3), present_value.stride_bytes(2)});
             out_gemm.executeGemm(qkTensor.buffer(),
@@ -778,15 +770,16 @@ struct MHAKernel<ScaledDotProductAttention::KT_MLAS, float> {
             for (size_t m = m_start; m < m_end; m++) {
                 // apply attention mask & sofmax
                 auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
-                attn_softmax(qk + (m - m_start) * qk_m_stride,
+                attn_softmax(reinterpret_cast<void*>(qk + (m - m_start) * qk_m_stride),
                             qk + (m - m_start) * qk_m_stride,
                             d_scale,
-                            alibi_ptr + m * alibi_stride,
+                            reinterpret_cast<void*>(alibi_ptr + m * alibi_stride),
                             attn_mask_ptr + m * attn_mask_stride,
                             cmask_ptr + m * cmask_stride,
                             select_nfltmax_at_0,
                             ncausal,
                             kv_len,
+                            ov::element::f32,
                             ov::element::f32,
                             ov::element::f32);
             }
@@ -1080,8 +1073,11 @@ void ScaledDotProductAttention::createPrimitive() {
             executor = std::make_shared<AttentionExecutor<KT_ONEDNN, ov::bfloat16>>(context);
 #endif
         } else {
-#ifdef OV_CPU_WITH_ACL
-            executor = std::make_shared<AttentionExecutor<KT_ACL, float>>(context);
+#if defined(OV_CPU_WITH_ACL)
+            if (rtPrecision == ov::element::f16)
+                executor = std::make_shared<AttentionExecutor<KT_ACL, ov::float16>>(context);
+            else
+                executor = std::make_shared<AttentionExecutor<KT_ACL, float>>(context);
 #elif defined(OV_CPU_WITH_MLAS)
             executor = std::make_shared<AttentionExecutor<KT_MLAS, float>>(context);
 #elif defined(OPENVINO_ARCH_X86_64)
@@ -1709,6 +1705,8 @@ ov::element::Type ScaledDotProductAttention::getRuntimePrecision() const {
     // bf16 should be enabled only when platform supports
     if (rtPrecision == ov::element::bf16 && ov::with_cpu_x86_bfloat16()) {
         rtPrecision = ov::element::bf16;
+    } else if (rtPrecision == ov::element::f16 && ov::intel_cpu::hasHardwareSupport(ov::element::f16)) {
+        rtPrecision = ov::element::f16;
     } else {
         rtPrecision = ov::element::f32;
     }

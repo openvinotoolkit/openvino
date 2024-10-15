@@ -152,7 +152,11 @@ OutputVector NodeContext::inputs() const {
             // Case when input can be inlined (possible only for fx decoder)
             if (m_decoder->is_input_inlined(i)) {
                 auto inlined_input = m_decoder->inlined_input(i);
-                FRONT_END_GENERAL_CHECK(inlined_input.size() == 1, "Incorrect inlined input with index:", i);
+                FRONT_END_GENERAL_CHECK(inlined_input.size() == 1,
+                                        "Incorrect inlined input with index: ",
+                                        i,
+                                        " for operation ",
+                                        get_op_type());
                 res.push_back(inlined_input[0]);
                 continue;
             }

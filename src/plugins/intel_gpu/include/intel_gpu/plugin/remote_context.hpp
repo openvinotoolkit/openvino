@@ -37,7 +37,6 @@ public:
     ov::SoPtr<ov::ITensor> create_host_tensor(const ov::element::Type type, const ov::Shape& shape) override;
     ov::SoPtr<ov::IRemoteTensor> create_tensor(const ov::element::Type& type, const ov::Shape& shape, const ov::AnyMap& params) override;
 
-
     cldnn::engine& get_engine() { return *m_engine; }
     ov::intel_gpu::gpu_handle_param get_external_queue() const { return m_external_queue; }
 

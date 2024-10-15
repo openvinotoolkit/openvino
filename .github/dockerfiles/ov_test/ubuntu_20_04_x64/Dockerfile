@@ -1,4 +1,5 @@
-FROM openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+ARG REGISTRY="docker.io"
+FROM ${REGISTRY}/library/ubuntu:20.04
 
 USER root
 
@@ -21,6 +22,12 @@ RUN apt-get update && \
         git \
         gpg-agent \
         tzdata \
+        # parallel gzip
+        pigz \
+        # Python
+        python3.9-dev \
+        python3.9-venv \
+        python3.9-distutils \
         libhdf5-dev \
         && \
     rm -rf /var/lib/apt/lists/*
@@ -35,6 +42,13 @@ RUN chmod +x /install_openvino_dependencies.sh && \
 ENV PIP_VERSION="24.0"
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    python3.9 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     rm -f get-pip.py
 
+# Use Python 3.9 as default instead of Python 3.8
+# Using venv here 'cause other methods to switch the default Python on Ubuntu 20 break both system and wheels build
+RUN python3.9 -m venv venv
+ENV PATH="/venv/bin:$PATH"
+
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
+ENV PIP_INSTALL_PATH=/venv/lib/python3.9/site-packages

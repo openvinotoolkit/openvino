@@ -8,6 +8,10 @@ if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
     ov_add_compiler_flags(-Wmissing-declarations)
 endif()
 
+if(OV_COMPILER_IS_INTEL_LLVM)
+    ov_disable_deprecated_warnings()
+endif()
+
 include(cmake/install_tbb.cmake)
 
 # CC library should be registered before other cc targets

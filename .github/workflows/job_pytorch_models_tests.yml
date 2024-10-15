@@ -22,7 +22,7 @@ permissions: read-all
 jobs:
   PyTorch_Models_Tests:
     name: PyTorch Models tests
-    timeout-minutes: ${{ inputs.model_scope == 'precommit' && 30 || 400 }}
+    timeout-minutes: ${{ inputs.model_scope == 'precommit' && 35 || 400 }}
     runs-on: ${{ inputs.runner }}
     container: ${{ fromJSON(inputs.container) }}
     defaults:
@@ -33,6 +33,7 @@ jobs:
       OPENVINO_REPO: ${{ github.workspace }}/openvino
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
       MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
     steps:
       - name: Check sudo
@@ -48,23 +49,19 @@ jobs:
             sudo sh -c "echo 'Acquire::Retries \"10\";' >> /etc/apt/apt.conf.d/80-retries"
           fi
 
-      - name: Download OpenVINO package
+      - name: Download OpenVINO artifacts (tarballs)
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
-          name: openvino_package
+          pattern: openvino_[tests]*
           path: ${{ env.INSTALL_DIR }}
-
-      - name: Download OpenVINO tokenizers extension
+          merge-multiple: true
+          
+      - name: Download OpenVINO artifacts (wheels)
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
-          name: openvino_tokenizers_wheel
-          path: ${{ env.INSTALL_DIR }}
-
-      - name: Download OpenVINO tests package
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
-        with:
-          name: openvino_tests
-          path: ${{ env.INSTALL_TEST_DIR }}
+          pattern: openvino_[wheels|tokenizers_wheel]*
+          path: ${{ env.INSTALL_WHEELS_DIR }}
+          merge-multiple: true
 
       # Needed as ${{ github.workspace }} is not working correctly when using Docker
       - name: Setup Variables
@@ -74,18 +71,13 @@ jobs:
           echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
           echo "MODEL_HUB_TESTS_INSTALL_DIR=$GITHUB_WORKSPACE/install/tests/model_hub_tests" >> "$GITHUB_ENV"
 
-      - name: Extract OpenVINO packages
+      - name: Extract OpenVINO artifacts
         run: |
-          pushd ${INSTALL_DIR}
-            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR}
-          popd
-
-          pushd ${INSTALL_TEST_DIR}
-            tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
-          popd
+            tar -I pigz -xf openvino_tests.tar.gz -C ${INSTALL_DIR}
+        working-directory: ${{ env.INSTALL_DIR }}
 
       - name: Fetch setup_python action
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
         with:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
@@ -109,24 +101,14 @@ jobs:
       - name: Install OpenVINO Python wheels
         run: |
           # To enable pytest parallel features
-          python3 -m pip install pytest-xdist[psutil]
-          python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
-          python3 -m pip install ${INSTALL_DIR}/openvino_tokenizers-*
+          python3 -m pip install ./openvino-*
+          python3 -m pip install ./openvino_tokenizers-*
+        working-directory: ${{ env.INSTALL_WHEELS_DIR }}
 
       - name: Install PyTorch tests requirements for precommit
         if: ${{ inputs.model_scope == 'precommit' }}
         run: |
-          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/requirements.txt
-        env:
-          CPLUS_INCLUDE_PATH: ${{ env.Python_ROOT_DIR }}/include/python${{ env.PYTHON_VERSION }}
-
-      - name: Install PyTorch tests requirements for nightly
-        if: ${{ inputs.model_scope != 'precommit' }}
-        run: |
-          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/requirements.txt
-          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/requirements_secondary.txt
-          echo "Available storage:"
-          df -h
+          python3 -m pip install -r ${INSTALL_TEST_DIR}/requirements_pytorch
         env:
           CPLUS_INCLUDE_PATH: ${{ env.Python_ROOT_DIR }}/include/python${{ env.PYTHON_VERSION }}
 
@@ -134,7 +116,7 @@ jobs:
         if: ${{ inputs.model_scope == 'precommit' || inputs.model_scope == 'nightly_scope1' }}
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_timm_tv_${{ inputs.model_scope }}_tests.html --self-contained-html -v -n 2 -k "TestTimmConvertModel or TestTorchHubConvertModel"
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_timm_tv_${{ inputs.model_scope }}_tests.html --self-contained-html -v -n 2 -k "TestTimmConvertModel or TestTorchHubConvertModel or TestEdsrConvertModel"
         env:
           TYPE: ${{ inputs.model_scope == 'precommit' && 'precommit' || 'nightly' }}
           TEST_DEVICE: CPU
@@ -144,7 +126,7 @@ jobs:
         if: ${{ inputs.model_scope == 'precommit' || inputs.model_scope == 'nightly_scope2' }}
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_${{ inputs.model_scope }}_tests.html --self-contained-html -v -k "not (TestTimmConvertModel or TestTorchHubConvertModel)"
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_${{ inputs.model_scope }}_tests.html --self-contained-html -v -k "not (TestTimmConvertModel or TestTorchHubConvertModel or TestEdsrConvertModel)"
         env:
           TYPE: ${{ inputs.model_scope == 'precommit' && 'precommit' || 'nightly' }}
           TEST_DEVICE: CPU
@@ -189,7 +171,7 @@ jobs:
           df -h
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         if: ${{ !cancelled() }}
         with:
           name: test-results-torch-models-${{ inputs.model_scope }}

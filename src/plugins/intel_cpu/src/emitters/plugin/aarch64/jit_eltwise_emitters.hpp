@@ -278,6 +278,34 @@ private:
     void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
 };
 
+class jit_greater_equal_emitter : public jit_emitter {
+public:
+    jit_greater_equal_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
+                              dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                              const ov::element::Type exec_prc = ov::element::f32);
+
+    jit_greater_equal_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
+                              dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                              const std::shared_ptr<ov::Node>& n);
+
+    size_t get_inputs_count() const override;
+
+    size_t get_aux_vecs_count() const override;
+
+    size_t get_aux_gprs_count() const override;
+
+    static std::set<std::vector<element::Type>> get_supported_precisions(
+            const std::shared_ptr<ov::Node>& node = nullptr);
+
+private:
+    void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const override;
+
+    template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
+
+    void register_table_entries() override;
+};
+
 class jit_hswish_emitter : public jit_emitter {
 public:
     jit_hswish_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
@@ -463,6 +491,90 @@ private:
 
     bool detect_negative;
     bool detect_positive;
+};
+
+class jit_less_equal_emitter : public jit_emitter {
+public:
+    jit_less_equal_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
+                           dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                           const ov::element::Type exec_prc = ov::element::f32);
+
+    jit_less_equal_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
+                           dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                           const std::shared_ptr<ov::Node>& n);
+
+    size_t get_inputs_count() const override;
+
+    size_t get_aux_vecs_count() const override;
+
+    size_t get_aux_gprs_count() const override;
+
+    static std::set<std::vector<element::Type>> get_supported_precisions(
+            const std::shared_ptr<ov::Node>& node = nullptr);
+
+private:
+    void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const override;
+
+    template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
+
+    void register_table_entries() override;
+};
+
+class jit_logical_not_emitter : public jit_emitter {
+public:
+    jit_logical_not_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+                           dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                           const ov::element::Type exec_prc = ov::element::f32);
+
+    jit_logical_not_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+                           dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                           const std::shared_ptr<ov::Node>& node);
+
+    size_t get_inputs_count() const override;
+
+    size_t get_aux_vecs_count() const override;
+
+    size_t get_aux_gprs_count() const override;
+
+    static std::set<std::vector<element::Type>> get_supported_precisions(
+        const std::shared_ptr<ov::Node>& node = nullptr);
+
+private:
+    void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
+
+    template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
+
+    void register_table_entries() override;
+};
+
+class jit_logical_xor_emitter : public jit_emitter {
+public:
+    jit_logical_xor_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
+                            dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                            const ov::element::Type exec_prc = ov::element::f32);
+
+    jit_logical_xor_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
+                            dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                            const std::shared_ptr<ov::Node>& n);
+
+    size_t get_inputs_count() const override;
+
+    size_t get_aux_vecs_count() const override;
+
+    size_t get_aux_gprs_count() const override;
+
+    static std::set<std::vector<element::Type>> get_supported_precisions(
+            const std::shared_ptr<ov::Node>& node = nullptr);
+
+private:
+    void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const override;
+
+    template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
+
+    void register_table_entries() override;
 };
 
 class jit_mod_emitter : public jit_emitter {
@@ -655,6 +767,35 @@ public:
     void register_table_entries() override;
 
     void emit_data() const override;
+
+    static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& node = nullptr);
+
+private:
+    std::unique_ptr<jit_exp_emitter> exp_emitter;
+
+    void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const override;
+
+    template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
+};
+
+class jit_soft_sign_emitter : public jit_emitter {
+public:
+    jit_soft_sign_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+                          dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                          const ov::element::Type exec_prc = ov::element::f32);
+
+    jit_soft_sign_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+                          dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                          const std::shared_ptr<ov::Node>& node);
+
+    size_t get_inputs_count() const override;
+
+    size_t get_aux_vecs_count() const override;
+
+    size_t get_aux_gprs_count() const override;
+
+    void register_table_entries() override;
 
     static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& node = nullptr);
 

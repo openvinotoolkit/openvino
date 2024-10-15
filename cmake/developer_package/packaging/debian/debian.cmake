@@ -11,7 +11,6 @@ include(GNUInstallDirs)
 #
 macro(ov_debian_cpack_set_dirs)
     # override default locations for Debian
-    set(OV_CPACK_TOOLSDIR ${CMAKE_INSTALL_BINDIR}) # only C++ tools are here
     set(OV_CPACK_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR})
     set(OV_CPACK_RUNTIMEDIR ${CMAKE_INSTALL_LIBDIR})
     if(CMAKE_CROSSCOMPILING)
@@ -42,7 +41,7 @@ macro(ov_debian_cpack_set_dirs)
     unset(OV_CPACK_SHAREDIR)
 
     # skipped during debian packaging
-    set(OV_CPACK_WHEELSDIR "tools")
+    set(OV_CPACK_WHEELSDIR "wheels")
 endmacro()
 
 ov_debian_cpack_set_dirs()
@@ -82,6 +81,8 @@ macro(ov_define_component_include_rules)
     # tbb
     set(OV_CPACK_COMP_TBB_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     set(OV_CPACK_COMP_TBB_DEV_EXCLUDE_ALL EXCLUDE_FROM_ALL)
+    # openmp
+    set(OV_CPACK_COMP_OPENMP_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     # licensing
     set(OV_CPACK_COMP_LICENSING_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     # samples
@@ -109,8 +110,6 @@ macro(ov_define_component_include_rules)
     set(OV_CPACK_COMP_OPENVINO_REQ_FILES_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     # nodejs
     set(OV_CPACK_COMP_NPM_EXCLUDE_ALL EXCLUDE_FROM_ALL)
-    # tools
-    set(OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     # scripts
     set(OV_CPACK_COMP_INSTALL_DEPENDENCIES_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     set(OV_CPACK_COMP_SETUPVARS_EXCLUDE_ALL EXCLUDE_FROM_ALL)

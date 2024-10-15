@@ -64,10 +64,12 @@ void validate_result(const ExpressionPtr& expr, const LinearIR& linear_ir) {
 void validate_buffer(const ExpressionPtr& expr, const LinearIR& linear_ir) {
     OPENVINO_ASSERT(ov::is_type<op::Buffer>(expr->get_node()),
                     "Buffer validation expects Buffer op");
+    OPENVINO_ASSERT(ov::is_type<BufferExpression>(expr),
+                    "Buffer validation expects Buffer expression");
     for (const auto& input : expr->get_input_port_connectors()) {
         const auto& source = input->get_source();
         const auto ma = std::dynamic_pointer_cast<snippets::modifier::MemoryAccess>(source.get_expr()->get_node());
-        OPENVINO_ASSERT(ma && ma->is_memory_access_input_port(source.get_index()),
+        OPENVINO_ASSERT(ma && ma->is_memory_access_output_port(source.get_index()),
                     "Buffer expects MemoryAccess parent");
         const auto buffer_siblings = input->get_consumers();
         for (const auto& buffer_sibling : buffer_siblings) {
@@ -124,39 +126,6 @@ void validate_loop_end(const ExpressionPtr& expr, const LinearIR& linear_ir) {
     validate_loop_ports(input_port_infos);
     validate_loop_ports(output_port_infos, loop_end->get_input_num());
 }
-
-// TODO [143395] : Extract this validation checks to the separate `ValidateBuffers` pass
-void validate_buffer_expressions(const LinearIR::container& buffer_expressions) {
-    std::set<size_t> cluster_ids;
-    std::map<size_t, std::set<lowered::ExpressionPtr>> dynamic_buffer_clusters, static_buffer_clusters;
-
-    for (const auto& buffer_expr : buffer_expressions) {
-        const auto buffer = ov::as_type_ptr<op::Buffer>(buffer_expr->get_node());
-        OPENVINO_ASSERT(buffer, "Expected Buffer ops in Buffer expressions of LinearIR");
-
-        // TODO [143395] : MemoryManager should provide exact containers with needed buffers (static or dynamic) without any `is_defined()`
-        auto& clusters = buffer->is_defined() ? static_buffer_clusters : dynamic_buffer_clusters;
-        clusters[buffer->get_cluster_id()].insert(buffer_expr);
-        cluster_ids.insert(buffer->get_cluster_id());
-    }
-
-    OPENVINO_ASSERT(cluster_ids.size() == dynamic_buffer_clusters.size() + static_buffer_clusters.size(), "Incorrect count of Buffer clusters");
-    OPENVINO_ASSERT(cluster_ids.empty() || (*cluster_ids.cbegin() == 0 && *cluster_ids.crbegin() == (cluster_ids.size() - 1)),
-                    "Incorrect indetifiers of Buffer clusters");
-
-    for (const auto& p : static_buffer_clusters) {
-        const auto& cluster_id = p.first;
-        const auto& cluster = p.second;
-        OPENVINO_ASSERT(dynamic_buffer_clusters.count(cluster_id) == 0, "Buffers from the same cluster must be only static or dynamic");
-
-        OPENVINO_ASSERT(cluster.size() > 0, "Incorrect size of buffer cluster");
-        size_t cluster_offset = ov::as_type_ptr<op::Buffer>((*cluster.cbegin())->get_node())->get_offset();
-        for (const auto& buffer_expr : cluster) {
-            OPENVINO_ASSERT(cluster_offset == ov::as_type_ptr<op::Buffer>(buffer_expr->get_node())->get_offset(),
-                            "Static Buffers from the same cluster must have the same offset!");
-        }
-    }
-}
 } // namespace
 
 Validate::Validate() {
@@ -187,8 +156,6 @@ bool Validate::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lo
         OPENVINO_ASSERT(expr->get_exec_num() > prev_exec_order, "Invalid execution order of expression");
         prev_exec_order = expr->get_exec_num();
     }
-
-    validate_buffer_expressions(linear_ir.get_buffers());
 
     return false;
 }

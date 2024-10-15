@@ -19,7 +19,6 @@ macro(ov_npm_cpack_set_dirs)
     set(OV_CPACK_LICENSESDIR licenses)
     set(OV_CPACK_SAMPLESDIR .)
     set(OV_CPACK_WHEELSDIR .)
-    set(OV_CPACK_TOOLSDIR .)
     set(OV_CPACK_DEVREQDIR .)
     set(OV_CPACK_PYTHONDIR .)
 
@@ -61,6 +60,8 @@ macro(ov_define_component_include_rules)
     # tbb
     unset(OV_CPACK_COMP_TBB_EXCLUDE_ALL)
     set(OV_CPACK_COMP_TBB_DEV_EXCLUDE_ALL EXCLUDE_FROM_ALL)
+    # openmp
+    unset(OV_CPACK_COMP_OPENMP_EXCLUDE_ALL)
     # licensing
     unset(OV_CPACK_COMP_LICENSING_EXCLUDE_ALL)
     # samples
@@ -76,8 +77,6 @@ macro(ov_define_component_include_rules)
     set(OV_CPACK_COMP_OPENVINO_REQ_FILES_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     # nodejs
     unset(OV_CPACK_COMP_NPM_EXCLUDE_ALL)
-    # tools
-    set(OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     # scripts
     set(OV_CPACK_COMP_INSTALL_DEPENDENCIES_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     set(OV_CPACK_COMP_SETUPVARS_EXCLUDE_ALL EXCLUDE_FROM_ALL)

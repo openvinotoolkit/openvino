@@ -81,6 +81,7 @@ dataset can be found in `Databricks blog
 post <https://www.databricks.com/blog/2023/04/12/dolly-first-open-commercially-viable-instruction-tuned-llm>`__
 and `repo <https://github.com/databrickslabs/dolly>`__
 
+
 **Table of contents:**
 
 
@@ -140,8 +141,15 @@ documentation <https://huggingface.co/docs/optimum/intel/inference>`__.
 
     %pip uninstall -q -y optimum optimum-intel
     %pip install --pre -Uq "openvino>=2024.2.0" openvino-tokenizers[transformers] --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
-    %pip install -q "diffusers>=0.16.1" "transformers>=4.33.0" "torch>=2.1" "nncf>=2.10.0" onnx "gradio>=4.19" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "diffusers>=0.16.1" "transformers>=4.33.0" "torch>=2.1" "nncf>=2.10.0" "onnx<1.16.2" "gradio>=4.19" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "git+https://github.com/huggingface/optimum-intel.git"
+
+    import requests
+
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+    )
+    open("notebook_utils.py", "w").write(r.text)
 
 Convert model using Optimum-CLI tool
 ------------------------------------
@@ -433,18 +441,12 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
+    from notebook_utils import device_widget
     import openvino as ov
 
     core = ov.Core()
 
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="CPU",
-        description="Device:",
-        disabled=False,
-    )
-
+    device = device_widget("CPU", exclude=["NPU"])
     device
 
 
@@ -495,8 +497,14 @@ guide <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html>`__
 .. code:: ipython3
 
     from pathlib import Path
+
     from transformers import AutoTokenizer
     from optimum.intel.openvino import OVModelForCausalLM
+
+    import openvino.properties as props
+    import openvino.properties.hint as hints
+    import openvino.properties.streams as streams
+
 
     if model_to_run.value == "INT4":
         model_dir = int4_model_dir
@@ -510,7 +518,7 @@ guide <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html>`__
 
     current_device = device.value
 
-    ov_config = {"PERFORMANCE_HINT": "LATENCY", "NUM_STREAMS": "1", "CACHE_DIR": ""}
+    ov_config = {hints.performance_mode(): hints.PerformanceMode.LATENCY, streams.num(): "1", props.cache_dir(): ""}
 
     ov_model = OVModelForCausalLM.from_pretrained(model_dir, device=current_device, ov_config=ov_config)
 
@@ -861,21 +869,6 @@ elements.
         return current_perf_text, num_tokens
 
 
-    def reset_textbox(instruction: str, response: str, perf: str):
-        """
-        Helper function for resetting content of all text fields
-
-        Parameters:
-          instruction (str): Content of user instruction field.
-          response (str): Content of model response field.
-          perf (str): Content of performance info filed
-
-        Returns:
-          empty string for each placeholder
-        """
-        return "", "", ""
-
-
     def select_device(device_str: str, current_text: str = "", progress: gr.Progress = gr.Progress()):
         """
         Helper function for uploading model on the device.
@@ -920,98 +913,20 @@ generation parameters:
 
 .. code:: ipython3
 
-    available_devices = ov.Core().available_devices + ["AUTO"]
+    import requests
 
-    examples = [
-        "Give me recipe for pizza with pineapple",
-        "Write me a tweet about new OpenVINO release",
-        "Explain difference between CPU and GPU",
-        "Give five ideas for great weekend with family",
-        "Do Androids dream of Electric sheep?",
-        "Who is Dolly?",
-        "Please give me advice how to write resume?",
-        "Name 3 advantages to be a cat",
-        "Write instructions on how to become a good AI engineer",
-        "Write a love letter to my best friend",
-    ]
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/dolly-2-instruction-following/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
 
-    with gr.Blocks() as demo:
-        gr.Markdown(
-            "# Instruction following using Databricks Dolly 2.0 and OpenVINO.\n"
-            "Provide insturction which describes a task below or select among predefined examples and model writes response that performs requested task."
-        )
+    from gradio_helper import make_demo
 
-        with gr.Row():
-            with gr.Column(scale=4):
-                user_text = gr.Textbox(
-                    placeholder="Write an email about an alpaca that likes flan",
-                    label="User instruction",
-                )
-                model_output = gr.Textbox(label="Model response", interactive=False)
-                performance = gr.Textbox(label="Performance", lines=1, interactive=False)
-                with gr.Column(scale=1):
-                    button_clear = gr.Button(value="Clear")
-                    button_submit = gr.Button(value="Submit")
-                gr.Examples(examples, user_text)
-            with gr.Column(scale=1):
-                device = gr.Dropdown(choices=available_devices, value=current_device, label="Device")
-                max_new_tokens = gr.Slider(
-                    minimum=1,
-                    maximum=1000,
-                    value=256,
-                    step=1,
-                    interactive=True,
-                    label="Max New Tokens",
-                )
-                top_p = gr.Slider(
-                    minimum=0.05,
-                    maximum=1.0,
-                    value=0.92,
-                    step=0.05,
-                    interactive=True,
-                    label="Top-p (nucleus sampling)",
-                )
-                top_k = gr.Slider(
-                    minimum=0,
-                    maximum=50,
-                    value=0,
-                    step=1,
-                    interactive=True,
-                    label="Top-k",
-                )
-                temperature = gr.Slider(
-                    minimum=0.1,
-                    maximum=5.0,
-                    value=0.8,
-                    step=0.1,
-                    interactive=True,
-                    label="Temperature",
-                )
+    demo = make_demo(run_fn=run_generation, select_device_fn=select_device)
 
-        user_text.submit(
-            run_generation,
-            [user_text, top_p, temperature, top_k, max_new_tokens, performance],
-            [model_output, performance],
-        )
-        button_submit.click(select_device, [device, user_text], [user_text])
-        button_submit.click(
-            run_generation,
-            [user_text, top_p, temperature, top_k, max_new_tokens, performance],
-            [model_output, performance],
-        )
-        button_clear.click(
-            reset_textbox,
-            [user_text, model_output, performance],
-            [user_text, model_output, performance],
-        )
-        device.change(select_device, [device, user_text], [user_text])
-
-    if __name__ == "__main__":
-        try:
-            demo.queue().launch(debug=False, height=800)
-        except Exception:
-            demo.queue().launch(debug=False, share=True, height=800)
-
+    try:
+        demo.queue().launch(debug=False, height=800)
+    except Exception:
+        demo.queue().launch(debug=False, share=True, height=800)
     # If you are launching remotely, specify server_name and server_port
     # EXAMPLE: `demo.launch(server_name='your server name', server_port='server port in int')`
     # To learn more please refer to the Gradio docs: https://gradio.app/docs/

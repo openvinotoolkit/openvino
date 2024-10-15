@@ -6,7 +6,7 @@
 abs_path () {
     script_path=$(eval echo "$1")
     directory=$(dirname "$script_path")
-    builtin cd "$directory" || exit
+    builtin cd "$directory" >/dev/null 2>&1 || exit
     pwd -P
 }
 
@@ -101,7 +101,7 @@ fi
 
 PYTHON_VERSION_MAJOR="3"
 MIN_REQUIRED_PYTHON_VERSION_MINOR="8"
-MAX_SUPPORTED_PYTHON_VERSION_MINOR="12"
+MAX_SUPPORTED_PYTHON_VERSION_MINOR="13"
 
 check_python_version () {
     if [ -z "$python_version" ]; then

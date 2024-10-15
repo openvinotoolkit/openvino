@@ -4,7 +4,8 @@ API Reference
 -------------
 
 .. meta::
-   :description: Explore the features of Python, C, C++ APIs in Intel® Distribution of OpenVINO™ Toolkit.
+   :description: Explore the features of Python, C, C++, and Node.js APIs in the Intel®
+                 Distribution of OpenVINO™ Toolkit.
 
 .. toctree::
    :maxdepth: 2
@@ -14,6 +15,7 @@ API Reference
    OpenVINO Runtime C++ API <c_cpp_api/group__ov__cpp__api>
    OpenVINO Runtime C API <c_cpp_api/group__ov__c__api>
    OpenVINO Node.js API <nodejs_api/nodejs_api>
+   GenAI Python API <genai_api/api>
 
 
 

@@ -112,6 +112,9 @@ struct NetworkMetadata final {
 
     size_t numStreams = 1;
 
+    // Used primarily in the CID path to pass the level zero graph handle from compiler to the backend executor
+    void* graphHandle = nullptr;
+
     /**
      * @brief Binds the (state input, state output) and (dynamic tensor, shape tensor) pairs using the
      * "relatedDescriptorIndex" attribute.
@@ -135,6 +138,7 @@ struct NetworkDescription final {
     NetworkDescription(std::vector<uint8_t>&& compiledNetwork, NetworkMetadata&& metadata)
         : compiledNetwork(std::move(compiledNetwork)),
           metadata(std::move(metadata)) {}
+    NetworkDescription(NetworkMetadata&& metadata) : metadata(std::move(metadata)) {}
     // Force move semantics to prevent blob copies
     NetworkDescription(const NetworkDescription&) = delete;
     NetworkDescription(NetworkDescription&&) = default;
@@ -145,6 +149,32 @@ struct NetworkDescription final {
     std::vector<uint8_t> compiledNetwork;
 
     NetworkMetadata metadata;
+};
+
+/**
+ * @struct CompiledNetwork
+ * @brief Custom container for compiled network, used for export
+ * @var CompiledNetwork::data
+ * Pointer to the address of compiled network
+ * @var CompiledNetwork:size
+ * Size of the compiled network
+ * @var CompiledNetwork::ownedStorage
+ * Plugin owned compiled network storage that is required in case of a driver that
+ * doesn't support graph extension 1.7, as in this case plugin must create a copy of the compiled network.
+ * @note It's unsafe to store either data or size outside of the compiled network object as its destructor
+ * would release the owning container
+ */
+
+struct CompiledNetwork {
+    const uint8_t* data;
+    size_t size;
+    CompiledNetwork(const uint8_t* data, size_t size, std::vector<uint8_t> storage)
+        : data(data),
+          size(size),
+          ownedStorage(std::move(storage)) {}
+
+private:
+    std::vector<uint8_t> ownedStorage;
 };
 
 /**
@@ -195,6 +225,15 @@ public:
     virtual std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
                                                                     const std::vector<uint8_t>& network,
                                                                     const Config& config) const = 0;
+
+    // Driver compiler can use this to release graphHandle, if we do not have executor
+    virtual void release([[maybe_unused]] std::shared_ptr<const NetworkDescription> networkDescription){};
+
+    virtual CompiledNetwork getCompiledNetwork(const NetworkDescription& networkDescription) {
+        return CompiledNetwork(networkDescription.compiledNetwork.data(),
+                               networkDescription.compiledNetwork.size(),
+                               networkDescription.compiledNetwork);
+    }
 
 protected:
     virtual ~ICompiler() = default;

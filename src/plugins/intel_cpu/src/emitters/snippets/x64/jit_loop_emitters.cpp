@@ -5,6 +5,7 @@
 #include "jit_loop_emitters.hpp"
 
 #include "emitters/snippets/jit_snippets_call_args.hpp"
+#include "emitters/snippets/x64/utils.hpp"
 #include "snippets/utils/utils.hpp"
 
 using namespace Xbyak;
@@ -13,6 +14,40 @@ using namespace dnnl::impl::cpu::x64;
 
 namespace ov {
 namespace intel_cpu {
+
+namespace {
+class jit_aux_gpr_holder {
+public:
+    jit_aux_gpr_holder(dnnl::impl::cpu::x64::jit_generator* host, std::vector<size_t>& pool_gpr_idxs, const std::vector<size_t>& used_gpr_idxs)
+        : m_h(host), m_pool_gpr_idxs(pool_gpr_idxs) {
+        // If the pool is empty, let's manualy allocate the gpr and push original vlaue on stack
+        if (m_pool_gpr_idxs.empty()) {
+            m_aux_gpr_idx = ov::intel_cpu::utils::get_aux_gpr(used_gpr_idxs);
+            m_is_preserved = true;
+            m_h->push(m_aux_gpr_idx);
+        } else {
+            m_aux_gpr_idx = Reg64(static_cast<int>(m_pool_gpr_idxs.back()));
+            m_pool_gpr_idxs.pop_back();
+        }
+    }
+
+    ~jit_aux_gpr_holder() {
+        if (m_is_preserved) {
+            m_h->pop(m_aux_gpr_idx);
+        } else {
+            m_pool_gpr_idxs.push_back(m_aux_gpr_idx.getIdx());
+        }
+    }
+
+    const Reg64& get_reg() const { return m_aux_gpr_idx; }
+
+private:
+    dnnl::impl::cpu::x64::jit_generator* m_h;
+    std::vector<size_t>& m_pool_gpr_idxs;
+    Reg64 m_aux_gpr_idx {};
+    bool m_is_preserved = false;
+};
+}  // namespace
 
 /* ================== jit_loop_begin_emitter ====================== */
 
@@ -28,12 +63,6 @@ jit_loop_begin_emitter::jit_loop_begin_emitter(dnnl::impl::cpu::x64::jit_generat
     loop_id = loop_end->get_id();
     is_work_amount_dynamic = ov::snippets::utils::is_dynamic_value(work_amount);
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
-}
-
-size_t jit_loop_begin_emitter::aux_gprs_count() const {
-    // We should have aux GPR to store Loop arguments from `runtime_args`
-    // where we will take all needed information about the current loop: work amount
-    return is_work_amount_dynamic ? 1 : 0;
 }
 
 void jit_loop_begin_emitter::validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
@@ -59,10 +88,10 @@ void jit_loop_begin_emitter::emit_impl(const std::vector<size_t>& in, const std:
 
     Reg64 reg_work_amount = Reg64(static_cast<int>(out.back()));
     if (is_work_amount_dynamic) {
-        Reg64 reg_runtime_params = abi_param1;  // defined by jit_kernel_emitter
-        Reg64 reg_loop_args_ptr = Reg64(static_cast<int>(aux_gpr_idxs[0]));
+        jit_aux_gpr_holder gpr_holder(h, aux_gpr_idxs, out); // loop_begin has only output registers
+        Reg64 reg_loop_args_ptr = gpr_holder.get_reg();
         const auto id_offset = loop_id * sizeof(jit_snippets_call_args::loop_args_t);
-        h->mov(reg_loop_args_ptr, h->ptr[reg_runtime_params + GET_OFF(loop_args)]);
+        h->mov(reg_loop_args_ptr, h->ptr[abi_param1 + GET_OFF(loop_args)]);
         h->mov(reg_work_amount, h->ptr[reg_loop_args_ptr + id_offset + GET_OFF_LOOP_ARGS(m_work_amount)]);
     } else {
         h->mov(reg_work_amount, work_amount);
@@ -141,37 +170,37 @@ void jit_loop_end_emitter::emit_code(const std::vector<size_t> &in, const std::v
     jit_emitter::emit_code(in, out, pool_vec_idxs, pool_gpr_idxs);
 }
 
-size_t jit_loop_end_emitter::aux_gprs_count() const {
-    // We should have aux GPR to store Loop arguments from `runtime_args`
-    // where we will take all needed information about the current loop: data pointer shifts
-    return are_ptr_shifts_dynamic ? 1 : 0;
-}
-
 void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     std::vector<size_t> data_ptr_reg_idxs;
     // the last input is actually a work_amount reg
     data_ptr_reg_idxs.reserve(num_inputs + num_outputs);
     std::copy(in.begin(), in.end() - 1, std::back_inserter(data_ptr_reg_idxs));
 
-    const auto id_offset = loop_id * sizeof(jit_snippets_call_args::loop_args_t);
-    Reg64 reg_increments = are_ptr_shifts_dynamic ? Reg64(static_cast<int>(aux_gpr_idxs[0])) : Reg64();
-
     auto apply_increments = [&](bool use_runtime_args, size_t field_offset, const std::vector<int64_t>& increments, size_t scale) {
-        if (use_runtime_args) {
-            Reg64 reg_runtime_params = abi_param1; /* defined by jit_kernel_emitter */
-            h->mov(reg_increments, h->ptr[reg_runtime_params + GET_OFF(loop_args)]);
-            h->mov(reg_increments, h->ptr[reg_increments + id_offset + field_offset]);
-        }
-        for (size_t idx = 0; idx < data_ptr_reg_idxs.size(); idx++) {
-            const auto& increment = increments[idx];
-            if (is_incremented[idx] && increment != 0) {
-                if (ov::snippets::utils::is_dynamic_value(increment)) {
-                    OV_CPU_JIT_EMITTER_ASSERT(use_runtime_args, "Loop argument structure cannot be pushed to aux GPR");
-                    h->add(Reg64(static_cast<int>(data_ptr_reg_idxs[idx])), h->ptr[reg_increments + idx * sizeof(int64_t)]);
-                } else {
-                    h->add(Reg64(static_cast<int>(data_ptr_reg_idxs[idx])), increment * scale * data_sizes[idx]);
+        Reg64 reg_increments;
+        auto add_increments = [&]() {
+            for (size_t idx = 0; idx < data_ptr_reg_idxs.size(); idx++) {
+                const auto& increment = increments[idx];
+                if (is_incremented[idx] && increment != 0) {
+                    if (ov::snippets::utils::is_dynamic_value(increment)) {
+                        OV_CPU_JIT_EMITTER_ASSERT(use_runtime_args, "Loop argument structure cannot be pushed to aux GPR");
+                        h->add(Reg64(static_cast<int>(data_ptr_reg_idxs[idx])), h->ptr[reg_increments + idx * sizeof(int64_t)]);
+                    } else {
+                        h->add(Reg64(static_cast<int>(data_ptr_reg_idxs[idx])), increment * scale * data_sizes[idx]);
+                    }
                 }
             }
+        };
+
+        const auto id_offset = loop_id * sizeof(jit_snippets_call_args::loop_args_t);
+        if (use_runtime_args) {
+            jit_aux_gpr_holder gpr_holder(h, aux_gpr_idxs, in); // loop_end has only input registers
+            reg_increments = gpr_holder.get_reg();
+            h->mov(reg_increments, h->ptr[abi_param1 + GET_OFF(loop_args)]);
+            h->mov(reg_increments, h->ptr[reg_increments + id_offset + field_offset]);
+            add_increments();
+        } else {
+            add_increments();
         }
     };
 

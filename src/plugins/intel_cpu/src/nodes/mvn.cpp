@@ -2017,10 +2017,10 @@ void MVN::MVNRefExecutor::exec(const uint8_t *src_data, uint8_t *dst_data, const
 void MVN::prepareParams() {
     auto dstMemPtr = getDstMemoryAtPort(0);
     auto srcMemPtr = getSrcMemoryAtPort(0);
-    if (!dstMemPtr || !dstMemPtr->isAllocated())
-        OPENVINO_THROW("Destination memory didn't allocate.");
-    if (!srcMemPtr || !srcMemPtr->isAllocated())
-        OPENVINO_THROW("Input memory didn't allocate.");
+    if (!dstMemPtr || !dstMemPtr->isDefined())
+        OPENVINO_THROW("Destination memory is undefined.");
+    if (!srcMemPtr || !srcMemPtr->isDefined())
+        OPENVINO_THROW("Input memory is undefined.");
     if (getSelectedPrimitiveDescriptor() == nullptr)
         OPENVINO_THROW("Preferable primitive descriptor is not set.");
 
@@ -2417,7 +2417,7 @@ void MVN::MVNJitExecutor::mvn_nspc(const uint8_t* src_data, uint8_t* dst_data, c
     const size_t H = shape5d[3];
     const size_t W = shape5d[4];
 
-    size_t threads_num = parallel_get_num_threads();
+    size_t threads_num = parallel_get_max_threads();
     size_t aux_buffer_size = mvnAttrs.execAcrossChannels_ ? 1 : rnd_up(C, blk_size) + blk_size;
     parallel_for(N, [&](size_t b) {
         std::vector<float> mean_buffer(aux_buffer_size * threads_num, 0.f);
@@ -2537,7 +2537,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, co
     size_t C3 = C2 * CB;
     size_t C5 = C * D * H * W;
 
-    size_t threads_num = parallel_get_num_threads();
+    size_t threads_num = parallel_get_max_threads();
     size_t aux_buffer_size = mvnAttrs.execAcrossChannels_ ? blk_size : rnd_up(C, blk_size);
     aux_buffer_size += blk_size;
     std::vector<float> mean_buffer(aux_buffer_size * threads_num);
@@ -2562,7 +2562,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, co
                 //                      //  |
                 //                      // \|/
                 /////////////////////////////////
-                auto mean_buffer_ptr = &mean_buffer[aux_buffer_size * parallel_get_thread_num()];
+                auto mean_buffer_ptr = &mean_buffer[aux_buffer_size * static_cast<size_t>(parallel_get_thread_num())];
                 for (size_t i = 0; i < blk_size; i++)
                     mean_buffer_ptr[i] = 0.f;
 
@@ -2589,7 +2589,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, co
                     size_t src_offset = b_offset + cb * C2 + d * C1 + h * C0;
 
                     float variance_internal = 0.0f;
-                    auto variance_buffer_ptr = &variance_buffer[aux_buffer_size * parallel_get_thread_num()];
+                    auto variance_buffer_ptr = &variance_buffer[aux_buffer_size * static_cast<size_t>(parallel_get_thread_num())];
                     for (size_t i = 0; i < blk_size; i++)
                         variance_buffer_ptr[i] = 0.f;
 

@@ -22,6 +22,7 @@ and datasets. It consists of the following steps:
 -  Compare the performance of the original, converted and quantized
    models.
 
+
 **Table of contents:**
 
 
@@ -77,7 +78,7 @@ Imports
     from zipfile import ZipFile
     from typing import Iterable
     from typing import Any
-
+    
     import datasets
     import evaluate
     import numpy as np
@@ -86,24 +87,24 @@ Imports
     import openvino as ov
     import torch
     from transformers import BertForSequenceClassification, BertTokenizer
-
+    
     # Fetch `notebook_utils` module
     import requests
-
+    
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
-
+    
     open("notebook_utils.py", "w").write(r.text)
-    from notebook_utils import download_file
+    from notebook_utils import download_file, device_widget
 
 
 .. parsed-literal::
 
-    2024-08-07 01:43:01.894655: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-08-07 01:43:01.928913: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-10-08 02:44:29.489974: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-10-08 02:44:29.524217: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-08-07 01:43:02.467780: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-10-08 02:44:30.075180: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. parsed-literal::
@@ -124,7 +125,7 @@ Settings
     MODEL_LINK = "https://download.pytorch.org/tutorial/MRPC.zip"
     FILE_NAME = MODEL_LINK.split("/")[-1]
     PRETRAINED_MODEL_DIR = os.path.join(MODEL_DIR, "MRPC")
-
+    
     os.makedirs(DATA_DIR, exist_ok=True)
     os.makedirs(MODEL_DIR, exist_ok=True)
 
@@ -169,10 +170,10 @@ PyTorch model formats are supported:
     input_shape = ov.PartialShape([1, -1])
     ir_model_xml = Path(MODEL_DIR) / "bert_mrpc.xml"
     core = ov.Core()
-
+    
     torch_model = BertForSequenceClassification.from_pretrained(PRETRAINED_MODEL_DIR)
     torch_model.eval
-
+    
     input_info = [
         ("input_ids", input_shape, np.int64),
         ("attention_mask", input_shape, np.int64),
@@ -184,7 +185,7 @@ PyTorch model formats are supported:
         "attention_mask": default_input,
         "token_type_ids": default_input,
     }
-
+    
     # Convert the PyTorch model to OpenVINO IR FP32.
     if not ir_model_xml.exists():
         model = ov.convert_model(torch_model, example_input=inputs, input=input_info)
@@ -205,12 +206,12 @@ PyTorch model formats are supported:
 
 .. parsed-literal::
 
-    WARNING:nncf:NNCF provides best results with torch==2.3.*, while current torch version is 2.2.2+cpu. If you encounter issues, consider switching to torch==2.3.*
+    WARNING:nncf:NNCF provides best results with torch==2.4.*, while current torch version is 2.2.2+cpu. If you encounter issues, consider switching to torch==2.4.*
 
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-744/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4674: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4713: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
       warnings.warn(
 
 
@@ -229,19 +230,26 @@ tokenizer from HuggingFace.
     def create_data_source():
         raw_dataset = datasets.load_dataset("glue", "mrpc", split="validation")
         tokenizer = BertTokenizer.from_pretrained(PRETRAINED_MODEL_DIR)
-
+    
         def _preprocess_fn(examples):
             texts = (examples["sentence1"], examples["sentence2"])
             result = tokenizer(*texts, padding="max_length", max_length=MAX_SEQ_LENGTH, truncation=True)
             result["labels"] = examples["label"]
             return result
-
+    
         processed_dataset = raw_dataset.map(_preprocess_fn, batched=True, batch_size=1)
-
+    
         return processed_dataset
-
-
+    
+    
     data_source = create_data_source()
+
+
+.. parsed-literal::
+
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+      warnings.warn(
+
 
 Optimize model using NNCF Post-training Quantization API
 --------------------------------------------------------
@@ -262,8 +270,8 @@ The optimization process contains the following steps:
 .. code:: ipython3
 
     INPUT_NAMES = [key for key in inputs.keys()]
-
-
+    
+    
     def transform_fn(data_item):
         """
         Extract the model's input from the data item.
@@ -272,8 +280,8 @@ The optimization process contains the following steps:
         """
         inputs = {name: np.asarray([data_item[name]], dtype=np.int64) for name in INPUT_NAMES}
         return inputs
-
-
+    
+    
     calibration_dataset = nncf.Dataset(data_source, transform_fn)
     # Quantize the model. By specifying model_type, we specify additional transformer patterns in the model.
     quantized_model = nncf.quantize(model, calibration_dataset, model_type=ModelType.TRANSFORMER)
@@ -293,6 +301,11 @@ The optimization process contains the following steps:
 
 
 
+.. parsed-literal::
+
+    Output()
+
+
 
 
 
@@ -314,51 +327,9 @@ The optimization process contains the following steps:
 
 
 
-
-
-
-
-
-
-
-.. parsed-literal::
-
-    INFO:nncf:50 ignored nodes were found by names in the NNCFGraph
-
-
-
 .. parsed-literal::
 
     Output()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-
-
-
-
-
-
 
 
 
@@ -394,15 +365,8 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
-
+    device = device_widget()
+    
     device
 
 
@@ -430,10 +394,10 @@ changing ``sample_idx`` to another value (from 0 to 407).
     sample_idx = 5
     sample = data_source[sample_idx]
     inputs = {k: torch.unsqueeze(torch.tensor(sample[k]), 0) for k in ["input_ids", "token_type_ids", "attention_mask"]}
-
+    
     result = compiled_quantized_model(inputs)[output_layer]
     result = np.argmax(result)
-
+    
     print(f"Text 1: {sample['sentence1']}")
     print(f"Text 2: {sample['sentence2']}")
     print(f"The same meaning: {'yes' if result == 1 else 'no'}")
@@ -460,7 +424,7 @@ Compare F1-score of FP32 and INT8 models
         """
         compiled_model = core.compile_model(model, device_name=device.value)
         output_layer = compiled_model.output(0)
-
+    
         metric = evaluate.load("glue", "mrpc")
         for batch in dataset:
             inputs = [np.expand_dims(np.asarray(batch[key], dtype=np.int64), 0) for key in INPUT_NAMES]
@@ -469,14 +433,14 @@ Compare F1-score of FP32 and INT8 models
             metric.add_batch(predictions=[predictions], references=[batch["labels"]])
         metrics = metric.compute()
         f1_score = metrics["f1"]
-
+    
         return f1_score
-
-
+    
+    
     print("Checking the accuracy of the original model:")
     metric = validate(model, data_source)
     print(f"F1 score: {metric:.4f}")
-
+    
     print("Checking the accuracy of the quantized model:")
     metric = validate(quantized_model, data_source)
     print(f"F1 score: {metric:.4f}")
@@ -510,7 +474,7 @@ Frames Per Second (FPS) for images.
     num_samples = 50
     sample = data_source[0]
     inputs = {k: torch.unsqueeze(torch.tensor(sample[k]), 0) for k in ["input_ids", "token_type_ids", "attention_mask"]}
-
+    
     with torch.no_grad():
         start = time.perf_counter()
         for _ in range(num_samples):
@@ -518,14 +482,14 @@ Frames Per Second (FPS) for images.
         end = time.perf_counter()
         time_torch = end - start
     print(f"PyTorch model on CPU: {time_torch / num_samples:.3f} seconds per sentence, " f"SPS: {num_samples / time_torch:.2f}")
-
+    
     start = time.perf_counter()
     for _ in range(num_samples):
         compiled_model(inputs)
     end = time.perf_counter()
     time_ir = end - start
     print(f"IR FP32 model in OpenVINO Runtime/{device.value}: {time_ir / num_samples:.3f} " f"seconds per sentence, SPS: {num_samples / time_ir:.2f}")
-
+    
     start = time.perf_counter()
     for _ in range(num_samples):
         compiled_quantized_model(inputs)
@@ -541,9 +505,9 @@ Frames Per Second (FPS) for images.
 
 .. parsed-literal::
 
-    PyTorch model on CPU: 0.069 seconds per sentence, SPS: 14.53
-    IR FP32 model in OpenVINO Runtime/AUTO: 0.021 seconds per sentence, SPS: 48.23
-    OpenVINO IR INT8 model in OpenVINO Runtime/AUTO: 0.010 seconds per sentence, SPS: 105.03
+    PyTorch model on CPU: 0.068 seconds per sentence, SPS: 14.78
+    IR FP32 model in OpenVINO Runtime/AUTO: 0.020 seconds per sentence, SPS: 49.30
+    OpenVINO IR INT8 model in OpenVINO Runtime/AUTO: 0.009 seconds per sentence, SPS: 107.63
 
 
 Finally, measure the inference performance of OpenVINO ``FP32`` and
@@ -573,38 +537,38 @@ in OpenVINO.
     [Step 2/11] Loading OpenVINO Runtime
     [ WARNING ] Default duration 120 seconds is used for unknown device AUTO
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.3.0-16041-1e3b88e4e3f-releases/2024/3
-    [ INFO ]
+    [ INFO ] Build ................................. 2024.4.0-16579-c3152d32c9c-releases/2024/4
+    [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2024.3.0-16041-1e3b88e4e3f-releases/2024/3
-    [ INFO ]
-    [ INFO ]
+    [ INFO ] Build ................................. 2024.4.0-16579-c3152d32c9c-releases/2024/4
+    [ INFO ] 
+    [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.LATENCY.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 18.51 ms
+    [ INFO ] Read model took 18.82 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     input_ids (node: input_ids) : i64 / [...] / [1,?]
-    [ INFO ]     63 , attention_mask (node: attention_mask) : i64 / [...] / [1,?]
+    [ INFO ]     attention_mask , 63 (node: attention_mask) : i64 / [...] / [1,?]
     [ INFO ]     token_type_ids (node: token_type_ids) : i64 / [...] / [1,?]
     [ INFO ] Model outputs:
     [ INFO ]     logits (node: __module.classifier/aten::linear/Add) : f32 / [...] / [1,2]
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [ INFO ] Reshaping model: 'input_ids': [1,128], '63': [1,128], 'token_type_ids': [1,128]
-    [ INFO ] Reshape model took 5.39 ms
+    [ INFO ] Reshape model took 5.48 ms
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
     [ INFO ]     input_ids (node: input_ids) : i64 / [...] / [1,128]
-    [ INFO ]     63 , attention_mask (node: attention_mask) : i64 / [...] / [1,128]
+    [ INFO ]     attention_mask , 63 (node: attention_mask) : i64 / [...] / [1,128]
     [ INFO ]     token_type_ids (node: token_type_ids) : i64 / [...] / [1,128]
     [ INFO ] Model outputs:
     [ INFO ]     logits (node: __module.classifier/aten::linear/Add) : f32 / [...] / [1,2]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 359.41 ms
+    [ INFO ] Compile model took 351.96 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -640,22 +604,22 @@ in OpenVINO.
     [ WARNING ] No input files were given for input 'input_ids'!. This input will be filled with random values!
     [ WARNING ] No input files were given for input '63'!. This input will be filled with random values!
     [ WARNING ] No input files were given for input 'token_type_ids'!. This input will be filled with random values!
-    [ INFO ] Fill input 'input_ids' with random values
-    [ INFO ] Fill input '63' with random values
-    [ INFO ] Fill input 'token_type_ids' with random values
+    [ INFO ] Fill input 'input_ids' with random values 
+    [ INFO ] Fill input '63' with random values 
+    [ INFO ] Fill input 'token_type_ids' with random values 
     [Step 10/11] Measuring performance (Start inference synchronously, limits: 120000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 30.45 ms
+    [ INFO ] First inference took 20.92 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            6598 iterations
-    [ INFO ] Duration:         120005.52 ms
+    [ INFO ] Count:            6334 iterations
+    [ INFO ] Duration:         120017.42 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        17.93 ms
-    [ INFO ]    Average:       18.09 ms
-    [ INFO ]    Min:           17.32 ms
-    [ INFO ]    Max:           34.55 ms
-    [ INFO ] Throughput:   54.98 FPS
+    [ INFO ]    Median:        18.69 ms
+    [ INFO ]    Average:       18.85 ms
+    [ INFO ]    Min:           17.15 ms
+    [ INFO ]    Max:           26.62 ms
+    [ INFO ] Throughput:   52.78 FPS
 
 
 .. code:: ipython3
@@ -671,18 +635,18 @@ in OpenVINO.
     [Step 2/11] Loading OpenVINO Runtime
     [ WARNING ] Default duration 120 seconds is used for unknown device AUTO
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.3.0-16041-1e3b88e4e3f-releases/2024/3
-    [ INFO ]
+    [ INFO ] Build ................................. 2024.4.0-16579-c3152d32c9c-releases/2024/4
+    [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2024.3.0-16041-1e3b88e4e3f-releases/2024/3
-    [ INFO ]
-    [ INFO ]
+    [ INFO ] Build ................................. 2024.4.0-16579-c3152d32c9c-releases/2024/4
+    [ INFO ] 
+    [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.LATENCY.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 41.72 ms
+    [ INFO ] Read model took 25.69 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     input_ids (node: input_ids) : i64 / [...] / [1,?]
@@ -693,7 +657,7 @@ in OpenVINO.
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [ INFO ] Reshaping model: 'input_ids': [1,128], '63': [1,128], 'token_type_ids': [1,128]
-    [ INFO ] Reshape model took 7.46 ms
+    [ INFO ] Reshape model took 7.39 ms
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
     [ INFO ]     input_ids (node: input_ids) : i64 / [...] / [1,128]
@@ -702,7 +666,7 @@ in OpenVINO.
     [ INFO ] Model outputs:
     [ INFO ]     logits (node: __module.classifier/aten::linear/Add) : f32 / [...] / [1,2]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 983.77 ms
+    [ INFO ] Compile model took 1128.78 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -738,20 +702,20 @@ in OpenVINO.
     [ WARNING ] No input files were given for input 'input_ids'!. This input will be filled with random values!
     [ WARNING ] No input files were given for input '63'!. This input will be filled with random values!
     [ WARNING ] No input files were given for input 'token_type_ids'!. This input will be filled with random values!
-    [ INFO ] Fill input 'input_ids' with random values
-    [ INFO ] Fill input '63' with random values
-    [ INFO ] Fill input 'token_type_ids' with random values
+    [ INFO ] Fill input 'input_ids' with random values 
+    [ INFO ] Fill input '63' with random values 
+    [ INFO ] Fill input 'token_type_ids' with random values 
     [Step 10/11] Measuring performance (Start inference synchronously, limits: 120000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 16.30 ms
+    [ INFO ] First inference took 15.68 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            12365 iterations
-    [ INFO ] Duration:         120007.97 ms
+    [ INFO ] Count:            12868 iterations
+    [ INFO ] Duration:         120000.02 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        9.36 ms
-    [ INFO ]    Average:       9.61 ms
-    [ INFO ]    Min:           7.96 ms
-    [ INFO ]    Max:           11.93 ms
-    [ INFO ] Throughput:   103.03 FPS
+    [ INFO ]    Median:        9.01 ms
+    [ INFO ]    Average:       9.23 ms
+    [ INFO ]    Min:           8.43 ms
+    [ INFO ]    Max:           12.91 ms
+    [ INFO ] Throughput:   107.23 FPS
 

@@ -54,6 +54,16 @@ enum class eltwise_mode : int32_t {
     is_inf,
     /// @brief Eltwise is nan.
     is_nan,
+    /// @brief Eltwise bitwise right shift.
+    right_shift,
+    /// @brief Eltwise bitwise left shift.
+    left_shift,
+    /// @brief Eltwise bitwise and.
+    bitwise_and,
+    /// @brief Eltwise bitwise or.
+    bitwise_or,
+    /// @brief Eltwise bitwise xor.
+    bitwise_xor
 };
 
 /// @brief Performs elementwise operations (sum, subtract, max or product) on two input primitives

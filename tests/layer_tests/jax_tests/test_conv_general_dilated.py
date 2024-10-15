@@ -26,7 +26,7 @@ class TestConvGeneralDilated(JaxLayerTest):
                                            feature_group_count=feature_group_count)
             return out
 
-        return jax_conv_general_dilated, None
+        return jax_conv_general_dilated, None, 'conv_general_dilated'
 
     test_data_basic = [
         # regular convolution with NCHW layout for inputs and NHWC layout for output

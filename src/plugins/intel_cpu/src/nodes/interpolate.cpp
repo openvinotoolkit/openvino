@@ -2261,27 +2261,27 @@ void Interpolate::prepareParams() {
     }
 
     auto dstMemPtr = getDstMemoryAtPort(0);
-    if (!dstMemPtr || !dstMemPtr->isAllocated())
-        OPENVINO_THROW(errorPrefix, " did not allocate destination memory");
+    if (!dstMemPtr || !dstMemPtr->isDefined())
+        OPENVINO_THROW(errorPrefix, " has undefined destination memory");
 
     auto srcMemPtr = getSrcMemoryAtPort(DATA_ID);
-    if (!srcMemPtr || !srcMemPtr->isAllocated())
-        OPENVINO_THROW(errorPrefix, " did not allocate input memory");
+    if (!srcMemPtr || !srcMemPtr->isDefined())
+        OPENVINO_THROW(errorPrefix, " has undefined input memory");
 
     if (interpAttrs.shapeCalcMode == InterpolateShapeCalcMode::sizes) {
         auto tsMemPtr = getSrcMemoryAtPort(TARGET_SHAPE_ID);
-        if (!tsMemPtr || !tsMemPtr->isAllocated())
-            OPENVINO_THROW(errorPrefix, " did not allocate target shape memory");
+        if (!tsMemPtr || !tsMemPtr->isDefined())
+            OPENVINO_THROW(errorPrefix, " has undefined target shape memory");
     } else {
         auto scaleMemPtr = getSrcMemoryAtPort(get_scale_id());
-        if (!scaleMemPtr || !scaleMemPtr->isAllocated())
-            OPENVINO_THROW(errorPrefix, " did not allocate scales memory");
+        if (!scaleMemPtr || !scaleMemPtr->isDefined())
+            OPENVINO_THROW(errorPrefix, " has undefined scales memory");
     }
 
     if (isAxesSpecified) {
         auto axesMemPtr = getSrcMemoryAtPort(get_axis_id());
-        if (!axesMemPtr || !axesMemPtr->isAllocated())
-            OPENVINO_THROW(errorPrefix, " did not allocate axes memory");
+        if (!axesMemPtr || !axesMemPtr->isDefined())
+            OPENVINO_THROW(errorPrefix, " has undefined axes memory");
     }
 
     const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
@@ -2377,10 +2377,10 @@ void Interpolate::prepareParams() {
 void Interpolate::createPrimitive() {
     auto srcMemPtr = getSrcMemoryAtPort(DATA_ID);
     auto dstMemPtr = getDstMemoryAtPort(0);
-    if (!srcMemPtr || !srcMemPtr->isAllocated())
-        OPENVINO_THROW(errorPrefix, " did not allocate input memory");
-    if (!dstMemPtr || !dstMemPtr->isAllocated())
-        OPENVINO_THROW(errorPrefix, " did not allocate destination memory");
+    if (!srcMemPtr)
+        OPENVINO_THROW(errorPrefix, " has null input memory");
+    if (!dstMemPtr)
+        OPENVINO_THROW(errorPrefix, " has null destination memory");
 
     if (dstMemPtr->getDesc().hasLayoutType(LayoutType::ncsp)) {
         interpAttrs.layout = InterpolateLayoutType::planar;
@@ -2835,11 +2835,12 @@ void Interpolate::InterpolateJitExecutor::pillowCGathered(const uint8_t *in_ptr_
             size_t threadsNum = parallel_get_num_threads();
             size_t parallelNum = B;
             // IH * OW * C buf needed
+            size_t buffer_size = static_cast<size_t>(OW * IH * C);
             if (parallelNum < threadsNum) {
-                arg.src_ptr[1] = static_cast<uint8_t*>(&pillow_working_buf[(b * OW * IH * C) * srcDataSize]);
+                arg.src_ptr[1] = static_cast<uint8_t*>(&pillow_working_buf[b * buffer_size * srcDataSize]);
             } else {
                 size_t threadsIdx = parallel_get_thread_num();
-                arg.src_ptr[1] = static_cast<uint8_t*>(&pillow_working_buf[(threadsIdx * OW * IH * C) * srcDataSize]);
+                arg.src_ptr[1] = static_cast<uint8_t*>(&pillow_working_buf[threadsIdx * buffer_size * srcDataSize]);
             }
         }
         arg.dst = out_ptr_ + (OW * OH * C * b) * dstDataSize;
@@ -3719,8 +3720,9 @@ void Interpolate::InterpolateRefExecutor::pillowRef(const uint8_t *in_ptr_, uint
                 ypass_in_ptr_nc = static_cast<const uint8_t*>(&pillow_working_buf[(OW * IH * C * b + OW * IH * c) * srcDataSize]);
             } else {
                 size_t threadsIdx = parallel_get_thread_num();
-                xpass_out_ptr_nc = static_cast<uint8_t*>(&pillow_working_buf[(threadsIdx * OW * IH) * srcDataSize]);
-                ypass_in_ptr_nc = static_cast<const uint8_t*>(&pillow_working_buf[(threadsIdx * OW * IH) * srcDataSize]);
+                size_t buffer_size = static_cast<size_t>(OW * IH);
+                xpass_out_ptr_nc = static_cast<uint8_t*>(&pillow_working_buf[threadsIdx * buffer_size * srcDataSize]);
+                ypass_in_ptr_nc = static_cast<const uint8_t*>(&pillow_working_buf[threadsIdx * buffer_size * srcDataSize]);
             }
         } else if (xPass && !yPass) {
             xpass_out_ptr_nc = out_ptr_nc;
@@ -3775,7 +3777,7 @@ void Interpolate::InterpolateExecutorBase::create_pillow_working_buf(Interpolate
     if (srcDimPad5d[3] == dstDim5d[3] || srcDimPad5d[4] == dstDim5d[4])
         return;
     size_t bufSize = srcDimPad5d[3] * dstDim5d[4] * srcDataSize; // IH * OW
-    size_t threadsNum = parallel_get_num_threads();
+    size_t threadsNum = parallel_get_max_threads();
     if (layout == InterpolateLayoutType::planar) {
         // B and C execute in parallel, need separate buf
         size_t parallelNum = srcDimPad5d[0] * srcDimPad5d[1];

@@ -1,4 +1,5 @@
-FROM openvinogithubactions.azurecr.io/dockerhub/nvidia/cuda:11.8.0-runtime-ubuntu22.04
+ARG REGISTRY="docker.io"
+FROM ${REGISTRY}/nvidia/cuda:11.8.0-runtime-ubuntu22.04
 
 USER root
 
@@ -22,6 +23,8 @@ RUN apt-get update && \
         git \
         gpg-agent \
         tzdata \
+        # parallel gzip
+        pigz \
         # Python
         python3.11-dev \
         python3.11-venv \

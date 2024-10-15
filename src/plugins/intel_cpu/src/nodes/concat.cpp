@@ -19,7 +19,7 @@
 #include "common/cpu_memcpy.h"
 #include "common/blocked_desc_creator.h"
 #include <memory_desc/cpu_memory_desc_utils.h>
-#include <partitioned_mem_mgr.h>
+#include <partitioned_mem_blk.h>
 using namespace dnnl;
 
 namespace ov {
@@ -328,8 +328,8 @@ void Concat::prepareParams() {
         return;
 
     const auto& dstMemPtr = getDstMemoryAtPort(0);
-    if (!dstMemPtr || !dstMemPtr->isAllocated())
-        OPENVINO_THROW("Destination memory didn't allocate.");
+    if (!dstMemPtr || !dstMemPtr->isDefined())
+        OPENVINO_THROW("Destination memory is undefined.");
     auto dstMemDesc = dstMemPtr->getDescWithType<BlockedMemoryDesc>();
     if (getSelectedPrimitiveDescriptor() == nullptr)
         OPENVINO_THROW("Preferable primitive descriptor is not set.");
@@ -375,9 +375,9 @@ void Concat::prepareParams() {
     nelemTotal = 0;
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         const auto& srcMemPtr = getSrcMemoryAtPort(i);
-        if (!srcMemPtr || !srcMemPtr->isAllocated()) {
+        if (!srcMemPtr || !srcMemPtr->isDefined()) {
             auto parent = getParentEdgeAt(i)->getParent();
-            OPENVINO_THROW("Source memory from ", parent->getName(), " didn't allocate for node ", getName(), ".");
+            OPENVINO_THROW("Source memory from ", parent->getName(), " is undefined for node ", getName(), ".");
         }
 
         if (canExecRef) {
@@ -559,8 +559,8 @@ void Concat::execNspcSpecCase() {
 
         nonZeroInShapes++;
     }
-
-    const size_t iter_count = getParentEdgeAt(firstNonZeroEdge)->getMemory().getSize() / channelsDataSize[0];
+    const Shape& shape = getSrcMemoryAtPort(firstNonZeroEdge)->getShape();
+    const size_t iter_count = shape.getElementsCount() / shape.getStaticDims()[channelAxis];
 
     parallel_for(iter_count, [&](int i) {
         const size_t dst_off = i * channels_size;
@@ -694,8 +694,8 @@ void Concat::resolveInPlaceEdges(Edge::LOOK look) {
     auto itr = std::find_if(edges.begin(), edges.end(), [](const EdgePtr& edge) { return edge->getStatus() == Edge::Status::Allocated; });
     OPENVINO_ASSERT(itr != edges.end(), " Could not find allocated child edge for concat node: " , getName());
 
-    auto baseMemMngr = (*itr)->getMemory().getMemoryMngr();
-    OPENVINO_ASSERT(baseMemMngr != nullptr, " NULL base memory manager in concat node: " , getName());
+    auto baseMemBlock = (*itr)->getMemory().getMemoryBlock();
+    OPENVINO_ASSERT(baseMemBlock != nullptr, " NULL base memory block in concat node: ", getName());
 
     ptrdiff_t offset = 0;
     for (size_t i = 0; i < numberOfInputs; ++i) {
@@ -714,8 +714,8 @@ void Concat::resolveInPlaceEdges(Edge::LOOK look) {
         auto memDesc = selected_pd->getConfig().inConfs[i].getMemDesc();
         MemoryPtr newMem;
         if (partDim != 0) {
-            auto memMngr = std::make_shared<PartitionedMemoryMngr>(baseMemMngr, baseDim, offset, partDim);
-            newMem = std::make_shared<Memory>(getEngine(), memDesc, memMngr);
+            auto memBlock = std::make_shared<PartitionedMemoryBlock>(baseMemBlock, baseDim, offset, partDim);
+            newMem = std::make_shared<Memory>(getEngine(), memDesc, memBlock);
         } else {
             // empty tensor, no need to reference a part, default memory is enough
             newMem = std::make_shared<Memory>(getEngine(), memDesc);

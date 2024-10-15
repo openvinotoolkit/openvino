@@ -7,7 +7,7 @@
 #include <functional>
 #include <memory>
 
-#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
@@ -71,7 +71,7 @@ class TRANSFORMATIONS_API MultiplyGroupConvolutionBackpropDataFusion;
  *
  * Restrictions:
  * - weights' shape is static
- * - if the constant input to Multiply has the same rank as 'input', the constant first dimension has to be 1
+ * - if the constant input to Multiply has the same rank as weights, the constant first dimension has to be 1
  * - constant input to Multiply has to be broadcastable to weights when 'Convolution Op' is either Convolution or
  * GroupConvolution
  * - shape of a constant input to Multiply has to be in one of following forms: (1), (1, 1, ..., 1), (C, 1, ..., 1), (1,

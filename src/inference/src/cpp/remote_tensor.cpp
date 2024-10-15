@@ -13,6 +13,24 @@
 
 namespace ov {
 
+#define OV_REMOTE_TENSOR_STATEMENT(remote_tensor, ...)                        \
+    OPENVINO_ASSERT(_impl != nullptr, "Tensor was not initialized.");         \
+    auto remote_tensor = std::dynamic_pointer_cast<ov::IRemoteTensor>(_impl); \
+    OPENVINO_ASSERT(remote_tensor, "Tensor is not remote.");                  \
+    try {                                                                     \
+        __VA_ARGS__;                                                          \
+    } catch (const std::exception& ex) {                                      \
+        OPENVINO_THROW(ex.what());                                            \
+    } catch (...) {                                                           \
+        OPENVINO_THROW("Unexpected exception");                               \
+    }
+
+RemoteTensor::RemoteTensor(const RemoteTensor& owner, const Coordinate& begin, const Coordinate& end) {
+    OPENVINO_ASSERT(get_tensor_impl(owner)._ptr, "Cannot create RoiRemoteTensor on top of empty tensor");
+    _impl = make_tensor(std::dynamic_pointer_cast<ov::IRemoteTensor>(owner._impl), begin, end);
+    _so = owner._so;
+}
+
 void RemoteTensor::type_check(const Tensor& tensor, const std::map<std::string, std::vector<std::string>>& type_info) {
     OPENVINO_ASSERT(tensor, "Could not check empty tensor type");
     auto remote_tensor = std::dynamic_pointer_cast<ov::IRemoteTensor>(get_tensor_impl(tensor)._ptr);
@@ -39,33 +57,27 @@ void RemoteTensor::type_check(const Tensor& tensor, const std::map<std::string, 
 }
 
 AnyMap RemoteTensor::get_params() const {
-    OPENVINO_ASSERT(_impl != nullptr, "Tensor was not initialized.");
-    type_check(*this);
-    auto remote_tensor = std::dynamic_pointer_cast<ov::IRemoteTensor>(_impl);
-    try {
-        AnyMap paramMap;
+    auto get_params_impl = [](const std::shared_ptr<ov::IRemoteTensor>& remote_tensor,
+                              const std::shared_ptr<void>& so) {
+        ov::AnyMap params_map;
         for (auto&& param : remote_tensor->get_properties()) {
-            paramMap.emplace(param.first, Any{param.second, _so});
+            params_map.emplace(param.first, Any{param.second, so});
         }
-        return paramMap;
-    } catch (const std::exception& ex) {
-        OPENVINO_THROW(ex.what());
-    } catch (...) {
-        OPENVINO_THROW("Unexpected exception");
-    }
+        return params_map;
+    };
+
+    OV_REMOTE_TENSOR_STATEMENT(remote_tensor, return get_params_impl(remote_tensor, _so));
+}
+
+void RemoteTensor::copy_to(ov::Tensor& dst) const {
+    OV_REMOTE_TENSOR_STATEMENT(remote_tensor, remote_tensor->copy_to(get_tensor_impl(dst)._ptr));
+}
+
+void RemoteTensor::copy_from(const ov::Tensor& src) {
+    OV_REMOTE_TENSOR_STATEMENT(remote_tensor, remote_tensor->copy_from(get_tensor_impl(src)._ptr));
 }
 
 std::string RemoteTensor::get_device_name() const {
-    OPENVINO_ASSERT(_impl != nullptr, "Tensor was not initialized.");
-    auto remote_tensor = std::dynamic_pointer_cast<ov::IRemoteTensor>(_impl);
-    OPENVINO_ASSERT(remote_tensor, "Tensor is not remote.");
-    type_check(*this);
-    try {
-        return remote_tensor->get_device_name();
-    } catch (const std::exception& ex) {
-        OPENVINO_THROW(ex.what());
-    } catch (...) {
-        OPENVINO_THROW("Unexpected exception");
-    }
+    OV_REMOTE_TENSOR_STATEMENT(remote_tensor, return remote_tensor->get_device_name());
 }
 }  // namespace ov

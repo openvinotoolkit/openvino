@@ -340,7 +340,7 @@ void ov::util::convert_path_win_style(std::string& path) {
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
-#    ifdef __APPLE__
+#    ifdef __clang__
 #        pragma clang diagnostic push
 #        pragma clang diagnostic ignored "-Wdeprecated-declarations"
 #    endif
@@ -372,7 +372,7 @@ std::wstring ov::util::string_to_wstring(const std::string& string) {
 #    endif
 }
 
-#    ifdef __APPLE__
+#    ifdef __clang__
 #        pragma clang diagnostic pop
 #    endif
 
@@ -703,15 +703,4 @@ const char* ov::util::trim_file_name(const char* const fname) {
     }
 #endif
     return fname_trim_ptr;
-}
-
-bool ov::util::is_symlink_in_different_path(std::string library_path) {
-#if !defined(__EMSCRIPTEN__) && !defined(__ANDROID__)
-    if (fs::is_symlink(library_path) && ov::util::get_absolute_file_path(ov::util::get_directory(library_path)) !=
-                                            ov::util::get_directory(ov::util::get_absolute_file_path(library_path)))
-        return true;
-    return false;
-#else
-    return false;
-#endif
 }

@@ -1,9 +1,5 @@
-.. {#openvino_workflow}
-
 OpenVINO Workflow
-=================
-
-
+================================================
 
 .. meta::
    :description: OpenVINO toolkit workflow usually involves preparation,
@@ -15,10 +11,10 @@ OpenVINO Workflow
    :hidden:
 
    Model Preparation <openvino-workflow/model-preparation>
-   Model Optimization and Compression <openvino-workflow/model-optimization>
+   openvino-workflow/model-optimization
    Running Inference <openvino-workflow/running-inference>
    Deployment on a Local System  <openvino-workflow/deployment-locally>
-   Deployment on a Model Server <ovms_what_is_openvino_model_server>
+   Deployment on a Model Server <openvino-workflow/model-server/ovms_what_is_openvino_model_server>
    openvino-workflow/torch-compile
 
 

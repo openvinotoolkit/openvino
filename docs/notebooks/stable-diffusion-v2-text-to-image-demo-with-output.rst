@@ -15,11 +15,12 @@ promising results for selecting a wide range of input text prompts!
 `stable-diffusion-v2-text-to-image <stable-diffusion-v2-with-output.html>`__
 notebook for demo purposes and to get started quickly. This version does
 not have the full implementation of the helper utilities needed to
-convert the models from PyTorch to ONNX to OpenVINO, and the OpenVINO
+convert the models from PyTorch to OpenVINO, and the OpenVINO
 ``OVStableDiffusionPipeline`` within the notebook directly. If you would
 like to see the full implementation of stable diffusion for text to
 image, please visit
 `stable-diffusion-v2-text-to-image <stable-diffusion-v2-with-output.html>`__.
+
 
 **Table of contents:**
 
@@ -102,9 +103,9 @@ using ``stable-diffusion-2-1``.
 
     # Retrieve the Text to Image Stable Diffusion pipeline components
     from diffusers import StableDiffusionPipeline
-
+    
     pipe = StableDiffusionPipeline.from_pretrained("stabilityai/stable-diffusion-2-1-base").to("cpu")
-
+    
     # for reducing memory consumption get all components from pipeline independently
     text_encoder = pipe.text_encoder
     text_encoder.eval()
@@ -112,9 +113,9 @@ using ``stable-diffusion-2-1``.
     unet.eval()
     vae = pipe.vae
     vae.eval()
-
+    
     conf = pipe.scheduler.config
-
+    
     del pipe
 
 Step 2: Convert the models to OpenVINO
@@ -144,7 +145,7 @@ pipelines in OpenVINO on our own data!
 .. code:: ipython3
 
     from pathlib import Path
-
+    
     # Define a dir to save text-to-image models
     txt2img_model_dir = Path("sd2.1")
     txt2img_model_dir.mkdir(exist_ok=True)
@@ -157,8 +158,8 @@ pipelines in OpenVINO on our own data!
         convert_vae_decoder,
         convert_vae_encoder,
     )
-
-    # Convert the Text-to-Image models from PyTorch -> Onnx -> OpenVINO
+    
+    # Convert the Text-to-Image models from PyTorch -> OpenVINO
     # 1. Convert the Text Encoder
     txt_encoder_ov_path = txt2img_model_dir / "text_encoder.xml"
     convert_encoder(text_encoder, txt_encoder_ov_path)
@@ -191,18 +192,17 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    import openvino as ov
-
-    core = ov.Core()
-
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
+    import requests
+    
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
-
+    open("notebook_utils.py", "w").write(r.text)
+    
+    from notebook_utils import device_widget
+    
+    device = device_widget()
+    
     device
 
 
@@ -218,6 +218,10 @@ Let’s create instances of our OpenVINO Model for Text to Image.
 
 .. code:: ipython3
 
+    import openvino as ov
+    
+    core = ov.Core()
+    
     text_enc = core.compile_model(txt_encoder_ov_path, device.value)
 
 .. code:: ipython3
@@ -255,10 +259,10 @@ As part of the ``OVStableDiffusionPipeline()`` class:
     from diffusers.schedulers import LMSDiscreteScheduler
     from transformers import CLIPTokenizer
     from implementation.ov_stable_diffusion_pipeline import OVStableDiffusionPipeline
-
+    
     scheduler = LMSDiscreteScheduler.from_config(conf)
     tokenizer = CLIPTokenizer.from_pretrained("openai/clip-vit-large-patch14")
-
+    
     ov_pipe = OVStableDiffusionPipeline(
         tokenizer=tokenizer,
         text_encoder=text_enc,
@@ -306,7 +310,7 @@ explanation of how it works can be found in this
 .. code:: ipython3
 
     import ipywidgets as widgets
-
+    
     text_prompt = widgets.Textarea(
         value="valley in the Alps at sunset, epic vista, beautiful landscape, 4k, 8k",
         description="positive prompt",

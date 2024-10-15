@@ -753,17 +753,16 @@ Please select inference device using dropdown widget:
 
 .. code:: ipython3
 
-    import openvino as ov
-    import ipywidgets as widgets
+    import requests
 
-    core = ov.Core()
-
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
+    open("notebook_utils.py", "w").write(r.text)
+
+    from notebook_utils import device_widget
+
+    device = device_widget()
 
     device
 
@@ -779,6 +778,7 @@ Please select inference device using dropdown widget:
 .. code:: ipython3
 
     import gc
+    import openvino as ov
 
     core = ov.Core()
     ov_dit = core.read_model(OV_DIT_MODEL)
@@ -893,6 +893,7 @@ Interactive demo
 .. code:: ipython3
 
     import gradio as gr
+    import requests
 
 
     def inference(input_prompt, negative_prompt, seed, num_steps, height, width, progress=gr.Progress(track_tqdm=True)):
@@ -919,97 +920,13 @@ Interactive demo
         return images[0][0]
 
 
-    with gr.Blocks() as demo:
-        with gr.Row():
-            with gr.Column():
-                prompt = gr.Textbox(label="Input prompt", lines=3)
-                with gr.Row():
-                    infer_steps = gr.Slider(
-                        label="Number Inference steps",
-                        minimum=1,
-                        maximum=200,
-                        value=15,
-                        step=1,
-                    )
-                    seed = gr.Number(
-                        label="Seed",
-                        minimum=-1,
-                        maximum=1_000_000_000,
-                        value=42,
-                        step=1,
-                        precision=0,
-                    )
-                with gr.Accordion("Advanced settings", open=False):
-                    with gr.Row():
-                        negative_prompt = gr.Textbox(
-                            label="Negative prompt",
-                            value=NEGATIVE_PROMPT,
-                            lines=2,
-                        )
-                    with gr.Row():
-                        oriW = gr.Number(
-                            label="Width",
-                            minimum=768,
-                            maximum=1024,
-                            value=880,
-                            step=16,
-                            precision=0,
-                            min_width=80,
-                        )
-                        oriH = gr.Number(
-                            label="Height",
-                            minimum=768,
-                            maximum=1024,
-                            value=880,
-                            step=16,
-                            precision=0,
-                            min_width=80,
-                        )
-                        cfg_scale = gr.Slider(label="Guidance scale", minimum=1.0, maximum=16.0, value=7.5, step=0.5)
-                with gr.Row():
-                    advanced_button = gr.Button()
-            with gr.Column():
-                output_img = gr.Image(
-                    label="Generated image",
-                    interactive=False,
-                )
-            advanced_button.click(
-                fn=inference,
-                inputs=[
-                    prompt,
-                    negative_prompt,
-                    seed,
-                    infer_steps,
-                    oriH,
-                    oriW,
-                ],
-                outputs=output_img,
-            )
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/hunyuan-dit-image-generation/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
 
-        with gr.Row():
-            gr.Examples(
-                [
-                    ["一只小猫"],
-                    ["a kitten"],
-                    ["一只聪明的狐狸走在阔叶树林里, 旁边是一条小溪, 细节真实, 摄影"],
-                    ["A clever fox walks in a broadleaf forest next to a stream, realistic details, photography"],
-                    ["请将“杞人忧天”的样子画出来"],
-                    ['Please draw a picture of "unfounded worries"'],
-                    ["枯藤老树昏鸦，小桥流水人家"],
-                    ["Withered vines, old trees and dim crows, small bridges and flowing water, people's houses"],
-                    ["湖水清澈，天空湛蓝，阳光灿烂。一只优雅的白天鹅在湖边游泳。它周围有几只小鸭子，看起来非常可爱，整个画面给人一种宁静祥和的感觉。"],
-                    [
-                        "The lake is clear, the sky is blue, and the sun is bright. An elegant white swan swims by the lake. There are several little ducks around it, which look very cute, and the whole picture gives people a sense of peace and tranquility."
-                    ],
-                    ["一朵鲜艳的红色玫瑰花，花瓣撒有一些水珠，晶莹剔透，特写镜头"],
-                    ["A bright red rose flower with petals sprinkled with some water drops, crystal clear, close-up"],
-                    ["风格是写实，画面主要描述一个亚洲戏曲艺术家正在表演，她穿着华丽的戏服，脸上戴着精致的面具，身姿优雅，背景是古色古香的舞台，镜头是近景"],
-                    [
-                        "The style is realistic. The picture mainly depicts an Asian opera artist performing. She is wearing a gorgeous costume and a delicate mask on her face. Her posture is elegant. The background is an antique stage and the camera is a close-up."
-                    ],
-                ],
-                [prompt],
-            )
+    from gradio_helper import make_demo
+
+    demo = make_demo(fn=inference)
 
     try:
         demo.launch(debug=False)
@@ -1018,3 +935,8 @@ Interactive demo
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
+
+.. code:: ipython3
+
+    # please uncomment and run this cell for stopping gradio interface
+    # demo.close()

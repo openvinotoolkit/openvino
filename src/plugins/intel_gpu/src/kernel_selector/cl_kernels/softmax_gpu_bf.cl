@@ -9,8 +9,6 @@
 
 #if IS_DYNAMIC
 
-#define CALC_POWER(n) ({uint pos = 0; uint i = n; do { i >>= 1; ++pos; } while (i); --pos;})
-
 #define BLOCK_READ(ptr, offset) DT_INPUT_BLOCK_READ(ptr, offset)
 #define BLOCK_WRITE(ptr, offset, val) DT_OUTPUT_BLOCK_WRITE(ptr, offset, val)
 #define BLOCK_TYPE INPUT0_TYPE
@@ -35,6 +33,9 @@
 
 #endif
 
+#if !IS_DYNAMIC
+__attribute__((reqd_work_group_size(LWS, 1, 1)))
+#endif
 REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 KERNEL (softmax_gpu_continuous_bfyx)(
     OPTIONAL_SHAPE_INFO_ARG
@@ -55,16 +56,9 @@ KERNEL (softmax_gpu_continuous_bfyx)(
     // | aligned_offset | 16 bytes aligned data offset | actual leftovers
     // ************************************************************************
     // leftover = aligned_offset + actual_leftovers
-#if !IS_DYNAMIC
-    const uint origin_items_num = ITEMS_NUM;               // how many elements are processed per one WI
-    const uint origin_leftovers = LEFTOVERS;
-#else
-    // since workers_per_data_set is calculated by power of 2
-    // items_num can be calculated by dividing data_set_size by power of 2
-    const uint power = CALC_POWER(workers_per_data_set);
-    const uint origin_items_num = data_set_size>>power;
-    const uint origin_leftovers = data_set_size-(origin_items_num<<power);
-#endif
+    const uint origin_items_num = data_set_size / workers_per_data_set;
+    const uint origin_leftovers = data_set_size % workers_per_data_set;
+
     const uint data_set_offset = data_set_idx * data_set_size;
     const uint data_set_offset_byte_counts = data_set_offset * sizeof(INPUT0_TYPE);
     const uint aligned_offset = ((workers_per_data_set > SUB_GROUP_SIZE) && (data_set_offset_byte_counts & 0xF))
@@ -87,8 +81,7 @@ KERNEL (softmax_gpu_continuous_bfyx)(
 
     INPUT0_TYPE my_chunk[STACK_SIZE];
     INPUT0_TYPE my_sum = UNIT_VAL_ZERO;
-
-    __local INPUT0_TYPE lg_storage[SLM_SIZE];
+    INPUT0_TYPE my_maximum = -UNIT_VAL_MAX;
 
     // Read inputs and Get maximum value from data set
     uint input_idx=0;
@@ -108,6 +101,7 @@ KERNEL (softmax_gpu_continuous_bfyx)(
             unroll_for (int j = 0; j < OPT_BLOCK_SIZE; j++)
             {
                 my_chunk[input_idx+j] = vec_tmp[j];
+                my_maximum = max(my_maximum, vec_tmp[j]);
             }
         }
 
@@ -115,6 +109,7 @@ KERNEL (softmax_gpu_continuous_bfyx)(
         {
             BLOCK_TYPE vec_tmp = BLOCK_READ(input, aligned_data_offset + input_idx * get_sub_group_size());
             my_chunk[input_idx] = vec_tmp;
+            my_maximum = max(my_maximum, vec_tmp);
         }
     }
 #else
@@ -125,11 +120,13 @@ KERNEL (softmax_gpu_continuous_bfyx)(
             BLOCK_TYPE vec_tmp = BLOCK_READ(input, aligned_data_offset + input_idx * get_sub_group_size());
 #if SUBGROUP_BLOCK_SIZE == 1
             my_chunk[input_idx] = vec_tmp;
+            my_maximum = max(my_maximum, vec_tmp);
 #else
             unroll_for (int j = 0; j < SUBGROUP_BLOCK_SIZE; j++)
             {
                 INPUT0_TYPE tmp = vec_tmp[j];
                 my_chunk[input_idx+j] = tmp;
+                my_maximum = max(my_maximum, tmp);
             }
 #endif
         }
@@ -138,53 +135,36 @@ KERNEL (softmax_gpu_continuous_bfyx)(
 
     for (; input_idx < items_num; input_idx++)
     {
-        my_chunk[input_idx] = input[aligned_data_offset + get_sub_group_local_id() + input_idx * get_sub_group_size()];
+        INPUT0_TYPE tmp = input[aligned_data_offset + get_sub_group_local_id() + input_idx * get_sub_group_size()];
+        my_chunk[input_idx] = tmp;
+        my_maximum = max(my_maximum, tmp);
     }
 
     if (in_data_set_idx < aligned_offset)
     {
         INPUT0_TYPE tmp = input[data_set_offset + in_data_set_idx];
         my_chunk[input_idx++] = tmp;
+        my_maximum = max(my_maximum, tmp);
     }
 
     if (in_data_set_idx < actual_leftovers)
     {
         INPUT0_TYPE tmp = input[leftover_idx];
         my_chunk[input_idx++] = tmp;
+        my_maximum = max(my_maximum, tmp);
     }
 
-    INPUT0_TYPE my_maximum = -UNIT_VAL_MAX;
-    {
-        const uint num_iters = input_idx;
+#if !IS_DYNAMIC
+    #if LWS == SUB_GROUP_SIZE
+        my_maximum = sub_group_reduce_max(my_maximum);
+    #else
+        my_maximum = work_group_reduce_max(my_maximum);
+    #endif
+#else
+    my_maximum = work_group_reduce_max(my_maximum);
+#endif
 
-        for (uint j=0; j<num_iters; ++j)
-        {
-            my_maximum = max(my_maximum, my_chunk[j]);
-        }
-    }
-
-    my_maximum = sub_group_reduce_max(my_maximum);
-
-    if (get_sub_group_local_id() == 0)
-        lg_storage[get_sub_group_id()] = my_maximum;
-
-    barrier(CLK_LOCAL_MEM_FENCE);
-    if (in_data_set_idx == 0)
-    {
-        for (uint j=1; j<get_num_sub_groups(); ++j)
-            my_maximum = max(my_maximum, lg_storage[j]);
-
-        lg_storage[0] = my_maximum;
-    }
-    barrier(CLK_LOCAL_MEM_FENCE);
-
-    //my_maximum from this point is in fact global maximum
-    my_maximum = lg_storage[0];
-
-    // Get exp(x-max) and sum of exp(x-max)
-    barrier(CLK_LOCAL_MEM_FENCE);
-
-    const uint num_iters = input_idx;
+    uint num_iters = items_num;
 
     for (uint j=0; j<num_iters; ++j)
     {
@@ -193,22 +173,31 @@ KERNEL (softmax_gpu_continuous_bfyx)(
         my_chunk[j] = tmp;
     }
 
-    my_sum = sub_group_reduce_add(my_sum);
-
-    if (get_sub_group_local_id() == 0)
-        lg_storage[get_sub_group_id()] = my_sum;
-
-    barrier(CLK_LOCAL_MEM_FENCE);
-    if (in_data_set_idx == 0)
+    if (in_data_set_idx < aligned_offset)
     {
-        for (uint j=1; j<get_num_sub_groups(); ++j)
-            my_sum += lg_storage[j];
+        INPUT0_TYPE tmp = native_exp(my_chunk[num_iters] - my_maximum);
+        my_sum += tmp;
+        my_chunk[num_iters] = tmp;
 
-        lg_storage[0] = my_sum;
+        num_iters++;
     }
-    barrier(CLK_LOCAL_MEM_FENCE);
 
-    my_sum = lg_storage[0];
+    if (in_data_set_idx < actual_leftovers)
+    {
+        INPUT0_TYPE tmp = native_exp(my_chunk[num_iters] - my_maximum);
+        my_sum += tmp;
+        my_chunk[num_iters] = tmp;
+    }
+
+#if !IS_DYNAMIC
+    #if LWS == SUB_GROUP_SIZE
+        my_sum = sub_group_reduce_add(my_sum);
+    #else
+        my_sum = work_group_reduce_add(my_sum);
+    #endif
+#else
+    my_sum = work_group_reduce_add(my_sum);
+#endif
 
     // Write outputs
     uint output_idx = 0;
@@ -340,6 +329,7 @@ KERNEL (softmax_gpu_continuous_bfyx)(
             unroll_for (int j = 0; j < OPT_BLOCK_SIZE; j++)
             {
                 output[aligned_data_offset + get_sub_group_local_id() + (input_idx + j) * get_sub_group_size()] = vec_tmp[j];
+                my_maximum = max(my_maximum, vec_tmp[j]);
             }
         }
 
@@ -347,63 +337,40 @@ KERNEL (softmax_gpu_continuous_bfyx)(
         {
             BLOCK_TYPE vec_tmp = BLOCK_READ(input, aligned_data_offset + input_idx * get_sub_group_size());
             output[aligned_data_offset + get_sub_group_local_id() + input_idx * get_sub_group_size()] = vec_tmp;
+            my_maximum = max(my_maximum, vec_tmp);
         }
     }
 
     for (; input_idx < items_num; input_idx++)
     {
-        output[aligned_data_offset + get_sub_group_local_id() + input_idx * get_sub_group_size()]
-        = input[aligned_data_offset + get_sub_group_local_id() + input_idx * get_sub_group_size()];
+        INPUT0_TYPE tmp = input[aligned_data_offset + get_sub_group_local_id() + input_idx * get_sub_group_size()];
+        output[aligned_data_offset + get_sub_group_local_id() + input_idx * get_sub_group_size()] = tmp;
+        my_maximum = max(my_maximum, tmp);
     }
 
     if (in_data_set_idx < aligned_offset)
     {
         INPUT0_TYPE tmp = input[data_set_offset + in_data_set_idx];
         output[data_set_offset + in_data_set_idx] = tmp;
+        my_maximum = max(my_maximum, tmp);
     }
 
     if (in_data_set_idx < actual_leftovers)
     {
         INPUT0_TYPE tmp = input[leftover_idx];
         output[leftover_idx] = tmp;
+        my_maximum = max(my_maximum, tmp);
     }
 
-    INPUT0_TYPE my_maximum = -UNIT_VAL_MAX;
-    {
-        const uint num_iters = input_idx;
-
-        for (uint j=0; j<num_iters; ++j)
-        {
-            my_maximum = max(my_maximum, output[aligned_data_offset + get_sub_group_local_id() + j * get_sub_group_size()]);
-        }
-        if (in_data_set_idx < aligned_offset) {
-            my_maximum = max(my_maximum, output[data_set_offset + in_data_set_idx]);
-        }
-        if (in_data_set_idx < actual_leftovers) {
-            my_maximum = max(my_maximum, output[leftover_idx]);
-        }
-    }
-
-    my_maximum = sub_group_reduce_max(my_maximum);
-
-    if (get_sub_group_local_id() == 0)
-        lg_storage[get_sub_group_id()] = my_maximum;
-
-    barrier(CLK_LOCAL_MEM_FENCE);
-    if (in_data_set_idx == 0)
-    {
-        for (uint j=1; j<get_num_sub_groups(); ++j)
-            my_maximum = max(my_maximum, lg_storage[j]);
-
-        lg_storage[0] = my_maximum;
-    }
-    barrier(CLK_LOCAL_MEM_FENCE);
-
-    //my_maximum from this point is in fact global maximum
-    my_maximum = lg_storage[0];
-
-    // Get exp(x-max) and sum of exp(x-max)
-    barrier(CLK_LOCAL_MEM_FENCE);
+#if !IS_DYNAMIC
+    #if LWS == SUB_GROUP_SIZE
+        my_maximum = sub_group_reduce_max(my_maximum);
+    #else
+        my_maximum = work_group_reduce_max(my_maximum);
+    #endif
+#else
+    my_maximum = work_group_reduce_max(my_maximum);
+#endif
 
     const uint num_iters = input_idx;
 
@@ -425,22 +392,15 @@ KERNEL (softmax_gpu_continuous_bfyx)(
         output[leftover_idx] = tmp;
     }
 
-    my_sum = sub_group_reduce_add(my_sum);
-
-    if (get_sub_group_local_id() == 0)
-        lg_storage[get_sub_group_id()] = my_sum;
-
-    barrier(CLK_LOCAL_MEM_FENCE);
-    if (in_data_set_idx == 0)
-    {
-        for (uint j=1; j<get_num_sub_groups(); ++j)
-            my_sum += lg_storage[j];
-
-        lg_storage[0] = my_sum;
-    }
-    barrier(CLK_LOCAL_MEM_FENCE);
-
-    my_sum = lg_storage[0];
+#if !IS_DYNAMIC
+    #if LWS == SUB_GROUP_SIZE
+        my_sum = sub_group_reduce_add(my_sum);
+    #else
+        my_sum = work_group_reduce_add(my_sum);
+    #endif
+#else
+    my_sum = work_group_reduce_add(my_sum);
+#endif
 
     // Write outputs
     uint output_idx = 0;
@@ -527,9 +487,6 @@ KERNEL (softmax_gpu_continuous_bfyx)(
     }
 #endif
 }
-#ifdef CALC_POWER
-#undef CALC_POWER
-#endif
 #undef BLOCK_READ
 #undef BLOCK_WRITE
 #undef BLOCK_TYPE

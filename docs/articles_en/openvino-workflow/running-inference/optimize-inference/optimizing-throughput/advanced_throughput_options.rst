@@ -1,5 +1,3 @@
-.. {#optimizing-throughput_advanced}
-
 Advanced Throughput Options: Streams and Batching
 =======================================================
 

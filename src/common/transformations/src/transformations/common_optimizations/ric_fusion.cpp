@@ -24,6 +24,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/binary_elementwise_arithmetic.hpp"
 #include "openvino/op/util/pad_base.hpp"
+#include "openvino/pass/backward_graph_rewrite.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -552,8 +553,7 @@ public:
             auto input = pattern_map.at(input_p);
             auto ric = ric_attr::get(input).propagate();
 
-            auto order_node =
-                std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(order_p).get_node_shared_ptr());
+            auto order_node = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(order_p).get_node_shared_ptr());
             auto order = order_node->cast_vector<int64_t>();
 
             int64_t new_axis = std::find(order.begin(), order.end(), ric.get_axis()) - order.begin();
@@ -810,8 +810,7 @@ public:
         RUN_ON_FUNCTION_SCOPE(Constant);
         for (const auto& node : model->get_ordered_ops()) {
             if ((std::dynamic_pointer_cast<op::util::BinaryElementwiseArithmetic>(node) ||
-                 std::dynamic_pointer_cast<ov::op::v0::FakeQuantize>(node) ||
-                 std::dynamic_pointer_cast<ov::op::v0::Convert>(node)) &&
+                 ov::as_type_ptr<ov::op::v0::FakeQuantize>(node) || ov::as_type_ptr<ov::op::v0::Convert>(node)) &&
                 node->get_output_partial_shape(0).rank().is_static()) {
                 continue;
             }
@@ -819,7 +818,7 @@ public:
                 for (const auto& consumer : output.get_target_inputs()) {
                     if (ric_attr::has(consumer)) {
                         auto ric = ric_attr::get(consumer);
-                        if (std::dynamic_pointer_cast<ov::op::v0::Constant>(node)) {
+                        if (ov::as_type_ptr<ov::op::v0::Constant>(node)) {
                             ric.set_is_final(true);
                             ric_attr::set(consumer, ric);
                         } else {  // Unsupported
