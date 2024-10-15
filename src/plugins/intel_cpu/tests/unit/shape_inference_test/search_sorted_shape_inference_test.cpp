@@ -13,12 +13,7 @@ using ov::op::v0::Constant;
 using ov::op::v0::Parameter;
 using testing::HasSubstr;
 
-class SearchSortedShapeInferenceTest : public OpStaticShapeInferenceTest<op::v15::SearchSorted> {
-protected:
-    void SetUp() override {
-        output_shapes.resize(1);
-    }
-};
+class SearchSortedShapeInferenceTest : public OpStaticShapeInferenceTest<op::v15::SearchSorted> {};
 
 TEST_F(SearchSortedShapeInferenceTest, same_dimensions_nd_inputs) {
     const auto sorted = std::make_shared<Parameter>(element::i64, PartialShape::dynamic());
