@@ -77,6 +77,7 @@ jobs:
       INSTALL_DIR: ${{ github.workspace }}/openvino_install
       INSTALL_DIR_JS: ${{ github.workspace }}/openvino_install/js
       INSTALL_TEST_DIR: ${{ github.workspace }}/tests_install
+      INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
       BUILD_DIR: ${{ github.workspace }}/build
     if: "!needs.smart_ci.outputs.skip_workflow"
     steps:
@@ -167,7 +168,7 @@ jobs:
         run: |
           cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${{ env.BUILD_DIR }}/cmake_install.cmake
           cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_TEST_DIR }} -DCOMPONENT=tests -P ${{ env.BUILD_DIR }}/cmake_install.cmake
-          cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -DCOMPONENT=python_wheels -P ${{ env.BUILD_DIR }}/cmake_install.cmake
+          cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_WHEELS_DIR }} -DCOMPONENT=python_wheels -P ${{ env.BUILD_DIR }}/cmake_install.cmake
 
       - name: Pack Artifacts
         run: |
@@ -208,6 +209,13 @@ jobs:
         with:
           name: openvino_package
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
+          if-no-files-found: 'error'
+          
+      - name: Upload openvino wheels
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        with:
+          name: openvino_wheels
+          path: ${{ env.INSTALL_WHEELS_DIR }}/wheels/*.whl
           if-no-files-found: 'error'
 
       - name: Upload openvino tests package
