@@ -420,12 +420,12 @@ ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
 ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool support_2d_rope) {
     MATCHER_SCOPE(RoPEFusionChatGLM);
 
-    //  [seq_length, batch_size, 4608]
-    //  [batch_size, seq_length, 4608] support_2d_rope
+    //  [seq_length, batch_size, input_size(will be cropped to match hidden state size)]
+    //  [batch_size, seq_length, input_size] support_2d_rope
     auto qkv_linear = makePattern("[?,?,?]");
     auto seq_length = makePattern("i32[1]");
-    // [max_pos_embeddings, batch_size, 32, 2]
-    // [batch_size, max_pos_embeddings, 32, 2] support_2d_rope
+    // [max_pos_embeddings, batch_size, half_rotary_dims, 2]
+    // [batch_size, max_pos_embeddings, half_rotary_dims, 2] support_2d_rope
     auto cos_sin_cache = makePattern("[?,?,?,?]");
 
     auto ndims = ov::gen_pattern::Symbol("ndims");
