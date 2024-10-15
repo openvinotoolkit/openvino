@@ -196,4 +196,5 @@ Key Features
    LEARN OPENVINO <learn-openvino>
    OPENVINO WORKFLOW <openvino-workflow>
    DOCUMENTATION <documentation>
+   OPENVINO ECOSYSTEM <openvino-ecosystem>
    ABOUT OPENVINO <about-openvino>
