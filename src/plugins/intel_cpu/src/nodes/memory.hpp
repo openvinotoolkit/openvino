@@ -4,12 +4,14 @@
 
 #pragma once
 
+#include <graph.h>
+
+#include <map>
+
 #include "input.h"
 #include "memory_state_base.h"
 #include "ov_optional.hpp"
 #include "proxy_mem_blk.h"
-
-#include <map>
 
 namespace ov {
 namespace intel_cpu {
@@ -54,7 +56,7 @@ public:
 
     ~MemoryOutputBase() override;
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
-    void getSupportedDescriptors() override;
+    void getSupportedDescriptors() override {}
     void initSupportedPrimitiveDescriptors() override;
     void initOptimalPrimitiveDescriptor() override;
     void createPrimitive() override {}
@@ -170,14 +172,22 @@ private:
 
 class MemoryInput : public MemoryInputBase {
 public:
-    using MemoryInputBase::MemoryInputBase;
+    MemoryInput(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
     void initOptimalPrimitiveDescriptor() override;
 
     void resolveInPlaceEdges(Edge::LOOK look) override;
 
+    void selectOptimalPrimitiveDescriptor() override;
+    void createPrimitive() override;
+
     MemStatePtr makeState() const override;
+
+    bool haveSubgraph() const {
+        return body != nullptr;
+    }
 
 private:
     void runStatic(dnnl::stream strm) override;
@@ -186,6 +196,9 @@ private:
     bool needInitGraphProcessing() const;
 
 private:
+    std::shared_ptr<ov::Model> body = nullptr;
+    ov::intel_cpu::Graph subGraph;
+
     ProxyMemoryBlockPtr memBlock = nullptr;
 };
 
