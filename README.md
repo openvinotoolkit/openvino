@@ -124,7 +124,16 @@ Learn how to run LLMs and GenAI with [Samples](https://github.com/openvinotoolki
 -   [OpenVINO LLMs inference and serving with vLMM​](https://docs.vllm.ai/en/stable/getting_started/openvino-installation.html) - enhance vLLM's fast and easy model serving with the OpenVINO backend.
 -   [OpenVINO Execution Provider for ONNX Runtime](https://onnxruntime.ai/docs/execution-providers/OpenVINO-ExecutionProvider.html) - use OpenVINO as a backend with your existing ONNX Runtime code.
 -   [LlamaIndex](https://docs.llamaindex.ai/en/stable/examples/llm/openvino/) - build context-augmented GenAI applications with the LlamaIndex framework and enhance runtime performance with OpenVINO.
--   [LangChain](https://docs.llamaindex.ai/en/stable/examples/llm/openvino/) - integrate OpenVINO with the LangChain framework to enhance runtime performance for GenAI applications.
+-   [LangChain](https://python.langchain.com/docs/integrations/llms/openvino/) - integrate OpenVINO with the LangChain framework to enhance runtime performance for GenAI applications.
+
+<details> <summary> More Integrations </summary>
+
+-   [OpenVINO model serving with Triton Inference Server​](https://github.com/triton-inference-server/openvino_backend)
+-   [OpenVINO model serving with TorchServe​](https://github.com/pytorch/serve/tree/master/examples/pt2/torch_compile_openvino)
+-   [OpenVINO LLMs with Qwen-Agent​​](https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/llm-agent-functioncall/llm-agent-functioncall-qwen.ipynb)
+-   [OpenVINO Natural Language Processing with Spark NLP​​​](https://medium.com/openvino-toolkit/the-need-for-speed-accelerating-nlp-inferencing-in-spark-nlp-with-openvino-runtime-327638fcec80)
+
+</details>
 
 Check out the [Awesome OpenVINO](https://github.com/openvinotoolkit/awesome-openvino) repository to discover a collection of community-made AI projects based on OpenVINO!
 
