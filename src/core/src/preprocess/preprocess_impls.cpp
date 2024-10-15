@@ -327,7 +327,7 @@ void InputInfo::InputInfoImpl::dump(std::ostream& str,
 //----------- OutputInfoImpl ----------
 void OutputInfo::OutputInfoImpl::build(ov::ResultVector& results) {
     auto node = m_output_node;
-    const auto result = std::dynamic_pointer_cast<opset8::Result>(node.get_node_shared_ptr());
+    const auto result = ov::as_type_ptr<opset8::Result>(node.get_node_shared_ptr());
 
     // Set result layout from 'model' information
     if (get_model_data()->is_layout_set()) {
