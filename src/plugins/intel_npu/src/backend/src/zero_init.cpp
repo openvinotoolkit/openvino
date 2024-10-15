@@ -160,7 +160,7 @@ ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder",
                                                                       command_queue_ext_version);
 
     // Load our graph extension
-    ze_graph_dditable_ext_last_t* graph_ddi_table_ext = nullptr;
+    ze_graph_dditable_ext_t* graph_ddi_table_ext = nullptr;
     zeroUtils::throwOnFail("zeDriverGetExtensionFunctionAddress",
                            zeDriverGetExtensionFunctionAddress(driver_handle,
                                                                graph_ext_name.c_str(),
