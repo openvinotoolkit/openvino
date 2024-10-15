@@ -36,7 +36,7 @@ def include_filter(include_list: set | list):
     def _filter(root, files: list):
         if not include_list:
             return []
-        return [f for f in files if f not in include_list and root.name not in include_list]
+        return [f for f in files if f not in include_list and Path(root).name not in include_list]
 
     return _filter
 
