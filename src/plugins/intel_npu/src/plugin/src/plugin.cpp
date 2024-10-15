@@ -758,8 +758,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         stream.read(reinterpret_cast<char*>(blob.data()), graphSize);
         if (!stream) {
             OPENVINO_THROW("Failed to read data from stream!");
+            _logger.debug("Successfully read %zu bytes into blob.", graphSize);
         }
-        _logger.info("Successfully read %zu bytes into blob.", graphSize);
 
         stream.seekg(graphSize - sizeof(size_t), stream.beg);
         check_blob_version(blob, stream);

@@ -11,8 +11,6 @@
 
 namespace intel_npu {
 
-void check_blob_version(std::vector<uint8_t>& blob, std::istream& stream);
-
 struct MetadataVersion {
     uint32_t major;
     uint32_t minor;
@@ -26,6 +24,8 @@ struct ModelLayout {
     int something;
     double somethingElse;
 } typedef ModelLayout;
+
+void check_blob_version(std::vector<uint8_t>& blob, std::istream& stream);
 
 struct Metadata_v1 {
     MetadataVersion version;
@@ -61,4 +61,4 @@ struct Metadata_v3 {
     void write_metadata(std::ostream& stream);
 } typedef Metadata_v3;
 
-}
+} // namespace intel_npu

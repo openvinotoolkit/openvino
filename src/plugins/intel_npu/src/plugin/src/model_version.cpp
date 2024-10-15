@@ -41,7 +41,6 @@ void check_blob_version(std::vector<uint8_t>& blob, std::istream& stream) {
     // should we consider the header name changes?
     // if so, we might need multiple header #defines
     if (versionHeader.compare(blobVersionHeader)) {
-        std::cout << "expected header: " << versionHeader << "\n actual header: " << blobVersionHeader << '\n';
         OPENVINO_THROW("Version header mismatch or missing");
     }
     metadataIterator += versionHeader.size();
@@ -186,4 +185,4 @@ void Metadata_v3::write_metadata(std::ostream& stream) {
     stream.write(reinterpret_cast<const char*>(metav3_data.data()), metav3_data.size());
 }
 
-}
+} // namespace intel_npu
