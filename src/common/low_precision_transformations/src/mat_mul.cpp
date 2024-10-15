@@ -160,7 +160,7 @@ bool MatMulTransformation::transform(TransformationContext &context, ov::pass::p
     }
 
     const auto newMulConst = NetworkHelper::toScalarIfPossible(fold<ov::opset1::Multiply>(
-            mulConst1,
+            foldConvert(mulConst1, element::f32),
             foldConvert(mulConst2, element::f32)));
 
     const auto newMultiply = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(
