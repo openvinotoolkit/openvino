@@ -170,6 +170,7 @@ The following properties are supported:
 | `ov::device::pci_info`/</br>`DEVICE_PCI_INFO` | RO | Returns the PCI bus information of device. See PCIInfo struct definition for details | `N/A`| `N/A` |
 | `ov::intel_npu::device_alloc_mem_size`/</br>`NPU_DEVICE_ALLOC_MEM_SIZE` | RO | Size of already allocated NPU DDR memory | `N/A` | `N/A` |
 | `ov::intel_npu::device_total_mem_size`/</br>`NPU_DEVICE_TOTAL_MEM_SIZE` | RO | Size of available NPU DDR memory | `N/A` | `N/A` |
+| `ov::intel_npu::device_max_mem_alloc_size`/</br>`NPU_MAX_MEM_ALLOC_SIZE` | RO | Maximum size allowed for allocation in NPU DDR memory | `N/A` | `N/A` |
 | `ov::intel_npu::driver_version`/</br>`NPU_DRIVER_VERSION` | RO | NPU driver version. | `N/A` | `N/A` |
 | `ov::intel_npu::compilation_mode_params`/</br>`NPU_COMPILATION_MODE_PARAMS` | RW | Set various parameters supported by the NPU compiler. (See bellow) | `<std::string>`| `N/A` |
 | `ov::intel_npu::turbo`/</br>`NPU_TURBO` | RW | Set Turbo mode on/off | `YES`/ `NO`| `NO` |

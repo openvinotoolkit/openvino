@@ -159,6 +159,15 @@ uint64_t Metrics::GetDeviceTotalMemSize(const std::string& specifiedDeviceName) 
     OPENVINO_THROW("No device with name '", specifiedDeviceName, "' is available");
 }
 
+uint64_t Metrics::GetMaxMemAllocSize(const std::string& specifiedDeviceName) const {
+    const auto devName = getDeviceName(specifiedDeviceName);
+    auto device = _backends->getDevice(devName);
+    if (device) {
+        return device->getMaxMemAllocSize();
+    }
+    OPENVINO_THROW("No device with name '", specifiedDeviceName, "' is available");
+}
+
 std::string Metrics::getDeviceName(const std::string& specifiedDeviceName) const {
     std::vector<std::string> devNames;
     if (_backends == nullptr || (devNames = _backends->getAvailableDevicesNames()).empty()) {

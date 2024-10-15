@@ -30,6 +30,7 @@ public:
     uint32_t getMaxNumSlices() const override;
     uint64_t getAllocMemSize() const override;
     uint64_t getTotalMemSize() const override;
+    uint64_t getMaxMemAllocSize() const override;
     ov::device::PCIInfo getPciInfo() const override;
     std::map<ov::element::Type, float> getGops() const override;
     ov::device::Type getDeviceType() const override;
