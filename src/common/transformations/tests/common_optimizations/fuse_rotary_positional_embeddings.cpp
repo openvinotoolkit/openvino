@@ -787,7 +787,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGML_2d_rope) {
              {"shrink_axis_mask", {}},
              {"ellipsis_mask", {}}});
         auto list_construct_concat_1 =
-            makeOP<ov::opset1::Concat>({{-1}, {1}, gather_105252, {{rotary_ndims / 2}}, {2}}, {{"axis", 0}});
+            makeOP<ov::opset1::Concat>({{-1}, {1}, gather_105252, {rotary_ndims / 2}, {2}}, {{"axis", 0}});
 
         auto reshape_Reshape_373 =
             makeOP<ov::opset1::Reshape>({slice_Slice_357, {0, 32, 0, 32, 2}}, {{"special_zero", true}});
