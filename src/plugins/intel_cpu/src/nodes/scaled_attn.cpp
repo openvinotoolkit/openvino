@@ -1078,11 +1078,15 @@ void ScaledDotProductAttention::createPrimitive() {
                 executor = std::make_shared<AttentionExecutor<KT_REF, ov::float16>>(context);
             }
         } else {
+#ifdef OV_CPU_WITH_MLAS
+            executor = std::make_shared<AttentionExecutor<KT_MLAS, float>>(context);
+#else
             if (with_cpu_x86_avx512_core()) {
                 executor = std::make_shared<AttentionExecutor<KT_ONEDNN, float>>(context);
             } else {
                 executor = std::make_shared<AttentionExecutor<KT_REF, float>>(context);
             }
+#endif
         }
 #elif defined(OV_CPU_WITH_ACL)
         if (rtPrecision == ov::element::f16) {
@@ -1090,8 +1094,6 @@ void ScaledDotProductAttention::createPrimitive() {
         } else {
             executor = std::make_shared<AttentionExecutor<KT_ACL, float>>(context);
         }
-#elif defined(OV_CPU_WITH_MLAS)
-        executor = std::make_shared<AttentionExecutor<KT_MLAS, float>>(context);
 #else
         executor = std::make_shared<AttentionExecutor<KT_REF, float>>(context);
 #endif
