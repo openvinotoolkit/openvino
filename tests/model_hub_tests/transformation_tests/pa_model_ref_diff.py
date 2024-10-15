@@ -1,3 +1,5 @@
+explored_nodes = ("ScaledDotProductAttention", "PagedAttentionExtension", "Parameter", "ReadValue", "Assign")
+
 pa_reference_map = {
 	"hf-internal-testing/tiny-random-LlamaForCausalLM" : {
 		"PagedAttentionExtension" : 2,
