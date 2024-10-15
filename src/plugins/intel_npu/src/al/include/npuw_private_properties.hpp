@@ -214,7 +214,7 @@ static constexpr ov::Property<std::size_t> spatial_nway{"NPUW_SPATIAL_NWAY"};
  * @brief
  * Type: boolean
  * Force subgraph interconnect tensors to f16 precision if those are in f32
- * Default value: true
+ * Default value: false
  */
 static constexpr ov::Property<bool> f16_interconnect{"NPUW_F16IC"};
 
