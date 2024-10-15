@@ -11,7 +11,8 @@ namespace ov {
 
 namespace pass {
 
-void TRANSFORMATIONS_API transformMLIR(std::shared_ptr<ov::Model> model);
+void TRANSFORMATIONS_API transformMLIR(std::shared_ptr<ov::Model> model,
+                                       std::shared_ptr<ov::EvaluationContext> loweringContext);
 
 }
 }

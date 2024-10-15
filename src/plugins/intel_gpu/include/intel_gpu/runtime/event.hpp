@@ -35,6 +35,8 @@ public:
 
     // returns true if handler has been successfully added
     bool add_event_handler(event_handler handler, void* data);
+    // return a handle to an underlying event implementation (i.e. cl_event for OpenCL)
+    virtual void* get_handle() { return nullptr; }
 
     std::vector<instrumentation::profiling_interval> get_profiling_info();
 

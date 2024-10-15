@@ -26,6 +26,7 @@ public:
     explicit ocl_base_event(uint64_t queue_stamp = 0) : event(), _queue_stamp(queue_stamp) { }
     uint64_t get_queue_stamp() const { return _queue_stamp; }
     virtual cl::Event& get() = 0;
+    void* get_handle() override { return static_cast<void*>(get().get()); }
 
 protected:
     uint64_t _queue_stamp = 0;

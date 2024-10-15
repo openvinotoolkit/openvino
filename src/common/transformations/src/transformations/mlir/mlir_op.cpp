@@ -60,6 +60,13 @@
 
 #ifdef GRAPH_COMPILER
 #include "gc/Transforms/Passes.h"
+
+#ifdef GC_USE_IMEX // GC_GPU requires IMEX support
+#include "gc/Utils/Error.h"
+#include "gc/ExecutionEngine/GPURuntime/GpuOclRuntime.h"
+#include "openvino/runtime/intel_gpu/remote_properties.hpp"
+#include "openvino/runtime/internal_properties.hpp"
+#endif
 #endif
 
 namespace {
@@ -225,12 +232,25 @@ std::unique_ptr<llvm::Module> lowerToLLVMIR(Operation* module, llvm::LLVMContext
 struct MemRefDescriptor {
     MemRefDescriptor() = default;
 
-    MemRefDescriptor    (ov::Tensor tensor)
+    MemRefDescriptor    (ov::Tensor tensor, const ov::Shape& module_input_shape)
         : allocated(tensor.data()),
           aligned(tensor.data()),
           offset(0),
-          shape(tensor.get_shape().begin(), tensor.get_shape().end()) {
-        strides.resize(tensor.get_shape().size());
+          shape(module_input_shape.begin(), module_input_shape.end()) {
+        if (shape.size() != tensor.get_shape().size()) {
+            // validate that the shape difference is due to trailing '1's
+            for (size_t i = 0; i < shape.size(); ++i) {
+                if (shape[i] != tensor.get_shape()[i]) {
+                    OPENVINO_THROW("Mismatch in shape sizes");
+                }
+            }
+            for (size_t i = shape.size(); i < tensor.get_shape().size(); ++i) {
+                if (tensor.get_shape()[i] != 1) {
+                    OPENVINO_THROW("Mismatch in shape sizes");
+                }
+            }
+        }
+        strides.resize(shape.size());
         const auto& byte_strides = tensor.get_strides();
         auto element_size = tensor.get_element_type().size();
         for (size_t i = 0; i < strides.size(); ++i) {
@@ -240,6 +260,9 @@ struct MemRefDescriptor {
             //std::cerr << "stride [" << i << "] = " << strides[i] << "\n";
         }
     }
+
+    MemRefDescriptor    (ov::Tensor tensor)
+        : MemRefDescriptor(tensor, tensor.get_shape()) {}
 
     void* allocated;
     void* aligned;
@@ -267,6 +290,155 @@ namespace mlir {
 
 using namespace ::mlir;
 
+std::shared_ptr<MLIREvaluateBase> MLIREvaluateBase::create(OwningOpRef<ModuleOp> module,
+                                                           MlirMode mode,
+                                                           std::shared_ptr<ov::EvaluationContext> loweringContext) {
+    switch (mode) {
+        #ifdef GC_USE_IMEX // GC_GPU requires IMEX support
+        case MLIR_MODE_GC_GPU:
+            return std::make_shared<MLIREvaluateGcGPU>(std::move(module), loweringContext);
+        #endif
+        case MLIR_MODE_TPP:
+        case MLIR_MODE_GC:
+        case MLIR_MODE_DEFAULT:
+            return std::make_shared<MLIREvaluate>(std::move(module), mode);
+        default:
+            OPENVINO_THROW("Unsupported MLIR mode");
+    }
+}
+
+#ifdef GC_USE_IMEX // GC_GPU requires IMEX support
+
+cl_device_id extract_device_from_context(cl_context context) {
+    size_t devices_size;
+    cl_int err = clGetContextInfo(context, CL_CONTEXT_DEVICES, 0, NULL, &devices_size);
+    if (err != CL_SUCCESS) {
+        OPENVINO_THROW("Error getting context info: ", err);
+    }
+    if (devices_size / sizeof(cl_device_id) != 1) {
+        OPENVINO_THROW("Expected exactly one device in the context, got ", devices_size);
+    }
+
+    cl_device_id devices;
+    err = clGetContextInfo(context, CL_CONTEXT_DEVICES, devices_size, &devices, NULL);
+    if (err != CL_SUCCESS) {
+        OPENVINO_THROW("Error getting device IDs: ", err);
+    }
+
+    return devices;
+}
+
+MLIREvaluateGcGPU::MLIREvaluateGcGPU(OwningOpRef<mlir::ModuleOp> _module, std::shared_ptr<ov::EvaluationContext> loweringContext) {
+    OPENVINO_MLIR_DEBUG_PRINT(
+        "[ DEBUG ] Source MLIR:\n"
+        "-----------------------------------------\n");
+    OPENVINO_MLIR_DEBUG(_module->dump());
+    OPENVINO_MLIR_DEBUG_PRINT(
+        "-----------------------------------------\n");
+
+    gc::gpu::OclModuleBuilderOpts opts;
+    OPENVINO_MLIR_DEBUG(opts.printIr = true);
+    gc::gpu::OclModuleBuilder builder(std::move(_module), opts);
+
+    auto it = loweringContext->find(ov::intel_gpu::ocl_context.name());
+    if (it == loweringContext->end()) {
+        OPENVINO_THROW("No cl_context provided for OpenCL execution");
+    }
+    auto context = reinterpret_cast<cl_context>(it->second.as<ov::intel_gpu::gpu_handle_param>());
+    // assuming there's always one device per context
+    auto device = extract_device_from_context(context);
+
+    OPENVINO_MLIR_DEBUG_PRINT(
+        "[ DEBUG ] Target LLVM:\n"
+        "-----------------------------------------\n");
+    if (auto mod = builder.build(device, context)) {
+        module = *mod;
+    } else {
+        OPENVINO_THROW("Failed to build gc::gpuOclModule module");
+    }
+    OPENVINO_MLIR_DEBUG_PRINT(
+        "-----------------------------------------\n");
+};
+
+bool MLIREvaluateGcGPU::invoke(const ov::TensorVector& inputs, ov::TensorVector& outputs, const ov::EvaluationContext& evaluationContext) {
+    gc::gpu::OclContext ctx = build_ocl_context(evaluationContext);
+    gc::gpu::StaticExecutor exec(module);
+
+    auto it = evaluationContext.find(ov::internal::mlir_meta::is_kernel_arg_usm.name());
+    if (it == evaluationContext.end()) {
+        OPENVINO_THROW("No is_kernel_arg_usm provided for OpenCL execution");
+    }
+    std::vector<bool> arg_types = it->second.as<std::vector<bool>>();
+
+    for (size_t i = 0; i < inputs.size(); ++i) {
+        exec.arg(inputs[i].data(), arg_types[i]);
+    }
+    for (size_t i = 0, j = inputs.size(); i < outputs.size(); ++i, ++j) {
+        exec.arg(outputs[i].data(), arg_types[j]);
+    }
+    exec(ctx);
+    maybe_set_result_event(evaluationContext, ctx);
+    return true;
+}
+
+bool MLIREvaluateGcGPU::invoke_packed(std::vector<void*>& args, const ov::EvaluationContext& evaluationContext) {
+    gc::gpu::OclContext ctx = build_ocl_context(evaluationContext);
+    gc::gpu::DynamicExecutor exec(module);
+
+    auto it = evaluationContext.find(ov::internal::mlir_meta::is_kernel_arg_usm.name());
+    if (it == evaluationContext.end()) {
+        OPENVINO_THROW("No is_kernel_arg_usm provided for OpenCL execution");
+    }
+    std::vector<bool> argTypes = it->second.as<std::vector<bool>>();
+    for (size_t i = 0; i < args.size(); i+=4) {
+        exec.arg(
+            /*alignedPtr=*/args[i],
+            /*rank=*/reinterpret_cast<size_t>(args[i + 1]),
+            /*shape=*/reinterpret_cast<int64_t*>(args[i + 2]),
+            /*strides=*/reinterpret_cast<int64_t*>(args[i + 3]),
+            /*isUsm=*/argTypes[i]
+        );
+    }
+    exec(ctx);
+    maybe_set_result_event(evaluationContext, ctx);
+    return true;
+}
+
+void MLIREvaluateGcGPU::maybe_set_result_event(const ov::EvaluationContext& evaluationContext, gc::gpu::OclContext& ctx) {
+    // case with in-order queue where we don't need to return an event
+    if (ctx.lastEvent == nullptr)
+        return;
+    auto it = evaluationContext.find(ov::internal::mlir_meta::result_event.name());
+    if (it == evaluationContext.end()) {
+        OPENVINO_THROW("No result_event provided for OpenCL execution");
+    }
+    cl_event* ev = reinterpret_cast<cl_event*>(it->second.as<void**>());
+    *ev = ctx.lastEvent;
+}
+
+gc::gpu::OclContext MLIREvaluateGcGPU::build_ocl_context(const ov::EvaluationContext& evaluationContext) {
+    auto it = evaluationContext.find(ov::intel_gpu::ocl_queue.name());
+    if (it == evaluationContext.end()) {
+        OPENVINO_THROW("No queue provided for OpenCL execution");
+    }
+    cl_command_queue queue = reinterpret_cast<cl_command_queue>(it->second.as<void*>());
+
+    uint32_t waitListLen = 0;
+    std::vector<void*> waitList;
+    bool foundWaitList = false;
+
+    it = evaluationContext.find(ov::internal::mlir_meta::wait_list.name());
+    if (it != evaluationContext.end()) {
+        waitList = it->second.as<std::vector<void*>>();
+        waitListLen = waitList.size();
+        foundWaitList = true;
+    }
+
+    return gc::gpu::OclContext(module->runtime, queue, /*createEvents=*/foundWaitList,
+                               waitListLen, reinterpret_cast<cl_event*>(waitList.data()));
+}
+
+#endif // GC_USE_IMEX
 
 MLIREvaluate::MLIREvaluate(OwningOpRef<mlir::ModuleOp> _module, MlirMode mode) :
     module(std::move(_module)) {
@@ -304,7 +476,7 @@ MLIREvaluate::MLIREvaluate(OwningOpRef<mlir::ModuleOp> _module, MlirMode mode) :
     }
 }
 
-bool MLIREvaluate::invoke_packed(std::vector<void*>& args) {
+bool MLIREvaluate::invoke_packed(std::vector<void*>& args, const ov::EvaluationContext& evaluationContext) {
     auto invocationResult = engine->invokePacked("entry", args);
     if (invocationResult) {
         llvm::errs() << "JIT invocation failed\n";
@@ -313,7 +485,7 @@ bool MLIREvaluate::invoke_packed(std::vector<void*>& args) {
     return true;
 }
 
-MLIROp::MLIROp(const ov::OutputVector& args, std::shared_ptr<MLIREvaluate> engine, const OVOutputTypes& output_types, const DimensionsMap& dimensions_map)
+MLIROp::MLIROp(const ov::OutputVector& args, std::shared_ptr<MLIREvaluateBase> engine, const OVOutputTypes& output_types, const DimensionsMap& dimensions_map)
     : Op(args),
         engine(engine),
         output_types(output_types),
@@ -332,10 +504,15 @@ NodePtr MLIROp::clone_with_new_inputs(const ov::OutputVector& new_args) const {
     return std::make_shared<MLIROp>(new_args, engine, output_types, dimensions_map);
 }
 
-bool MLIROp::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
+bool MLIROp::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs, const ov::EvaluationContext& evaluationContext) const {
+    if (!engine->requires_packed_args()) {
+        return engine->invoke(inputs, outputs, evaluationContext);
+    }
+
     std::vector<MemRefDescriptor> memref_args;
     for (size_t i = 0; i < inputs.size(); ++i) {
-        memref_args.push_back(MemRefDescriptor(inputs[i]));
+        auto& initial_shape = get_input_shape(i);
+        memref_args.push_back(MemRefDescriptor(inputs[i], initial_shape));
     }
     for (size_t i = 0; i < outputs.size(); ++i) {
         // TODO: Optimize by adding all dimensions to dimensions_map, not only dynamic
@@ -362,7 +539,11 @@ bool MLIROp::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs)
     });
 
     //std::cerr << "[ INFO ] Running kernel in MLIROp::evaluate\n";
-    return engine->invoke_packed(args);
+    return engine->invoke_packed(args, evaluationContext);
+}
+
+bool MLIROp::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
+    return evaluate(outputs, inputs, ov::EvaluationContext());
 }
 
 bool MLIROp::has_evaluate() const {

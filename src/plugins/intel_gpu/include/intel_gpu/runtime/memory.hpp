@@ -52,6 +52,8 @@ struct memory {
     virtual event::ptr fill(stream& stream, const std::vector<event::ptr>& dep_events = {}, bool blocking = true) = 0;
     // only supports gpu_usm
     virtual void* buffer_ptr() const { return nullptr; }
+    // Returns the handle to the underlying memory object (e.g. cl_mem for OpenCL)
+    virtual void* get_handle() const { return nullptr; }
 
     size_t size() const { return _bytes_count; }
     size_t count() const { return _layout.count(); }

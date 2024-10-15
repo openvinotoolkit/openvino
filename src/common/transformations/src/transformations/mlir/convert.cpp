@@ -203,7 +203,10 @@ mlir::OwningOpRef<mlir::ModuleOp> ngraph_to_mlir(MLIRContext* context,
 
 
 // This pass converts a group of nodes into a single MLIROp
-NodePtr ngraph_to_mlir_op(MLIRContext* context, SubgraphPtr subgraph, MlirMode mode) {
+NodePtr ngraph_to_mlir_op(MLIRContext* context,
+                          SubgraphPtr subgraph,
+                          MlirMode mode,
+                          std::shared_ptr<ov::EvaluationContext> loweringContext) {
     mlir::OwningOpRef<mlir::ModuleOp> module = ngraph_to_mlir(context, subgraph->inputs, subgraph->nodes, subgraph->outputs);
 
     const auto& inputs = subgraph->inputs;
@@ -247,7 +250,7 @@ NodePtr ngraph_to_mlir_op(MLIRContext* context, SubgraphPtr subgraph, MlirMode m
     }
     return std::make_shared<MLIROp>(
         subgraph->inputs,
-        std::make_shared<MLIREvaluate>(std::move(module), mode),
+        MLIREvaluate::create(std::move(module), mode, loweringContext),
         output_types,
         output_map
     );
@@ -269,17 +272,19 @@ void replace_subgraph(SubgraphPtr subgraph, NodePtr node) {
 class Partitioner : public ov::pass::ModelPass {
     MLIRContext* context;
     MlirMode mode;
+    std::shared_ptr<ov::EvaluationContext> loweringContext;
 public:
     OPENVINO_RTTI("Partitioner");
 
-    Partitioner(MLIRContext* context, MlirMode mode) :
+    Partitioner(MLIRContext* context, MlirMode mode, std::shared_ptr<ov::EvaluationContext> loweringContext) :
         context(context),
-        mode(mode)
+        mode(mode),
+        loweringContext(loweringContext)
     {}
 
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
         SubgraphTracker tracker([this](SubgraphPtr subgraph) {
-                auto mlir_op = ngraph_to_mlir_op(context, subgraph, mode);
+                auto mlir_op = ngraph_to_mlir_op(context, subgraph, mode, loweringContext);
                 replace_subgraph(subgraph, mlir_op);
                 OPENVINO_MLIR_DEBUG_PRINT("Created MLIR op: " << mlir_op << "\n");
             }
@@ -293,7 +298,10 @@ public:
 };
 
 
-void injectMLIR(std::shared_ptr<ov::Model> model, MLIRContext* context, MlirMode mode) {
+void injectMLIR(std::shared_ptr<ov::Model> model,
+                MLIRContext* context,
+                MlirMode mode,
+                std::shared_ptr<ov::EvaluationContext> loweringContext) {
     ov::pass::Manager manager;
     using namespace ov::op;
     manager.set_per_pass_validation(false);
@@ -304,7 +312,7 @@ void injectMLIR(std::shared_ptr<ov::Model> model, MLIRContext* context, MlirMode
     manager.register_pass<BinaryEltwisePattern<v1::Divide, linalg::DivOp>>();
     manager.register_pass<ReluPattern>();
     manager.register_pass<MatMulPattern>();
-    manager.register_pass<Partitioner>(context, mode);
+    manager.register_pass<Partitioner>(context, mode, loweringContext);
     manager.run_passes(model);
     model->validate_nodes_and_infer_types();
 }
@@ -335,7 +343,7 @@ MLIRContext* get_shared_mlir_context(MlirMode mode) {
     }
 
 #ifdef GRAPH_COMPILER
-    if (mode == MLIR_MODE_GC) {
+    if (mode == MLIR_MODE_GC || mode == MLIR_MODE_GC_GPU) {
         OPENVINO_MLIR_DEBUG_PRINT("GC\n");
         context = std::make_shared<MLIRContext>(gc::initCompilerAndGetDialects());
     } else {
@@ -386,7 +394,8 @@ MLIRContext* get_shared_mlir_context(MlirMode mode) {
 
 } // namespace
 
-void ov::pass::transformMLIR(std::shared_ptr<ov::Model> model) {
+void ov::pass::transformMLIR(std::shared_ptr<ov::Model> model,
+                             std::shared_ptr<ov::EvaluationContext> loweringContext) {
     if(util::getenv_bool("OV_MLIR", true)) {
         const char *default_mode =
 #ifdef TPP_MLIR
@@ -421,11 +430,23 @@ void ov::pass::transformMLIR(std::shared_ptr<ov::Model> model) {
                 "but OV_MLIR_MODE environment variable is set to GC.");
 #endif
             mode = MLIR_MODE_GC;
+        } else if (mode_str == "GC_GPU") {
+#ifndef GRAPH_COMPILER
+            OPENVINO_THROW(
+                "[ ERROR ] OpenVINO wasn't compiled with GRAPH_COMPILER support, "
+                "but OV_MLIR_MODE environment variable is set to GC_GPU.");
+#endif
+#ifndef GC_USE_IMEX // GC_GPU requires IMEX support
+            OPENVINO_THROW(
+                "[ ERROR ] GraphCompiler wasn't compiled with IMEX support (-DGC_ENABLE_IMEX), "
+                "but OV_MLIR_MODE environment variable is set to GC_GPU.");
+#endif
+            mode = MLIR_MODE_GC_GPU;
         } else {
             OPENVINO_ASSERT(mode_str == "DEFAULT");
             mode = MLIR_MODE_DEFAULT;
         }
 
-        injectMLIR(model, get_shared_mlir_context(mode), mode);
+        injectMLIR(model, get_shared_mlir_context(mode), mode, loweringContext);
     }
 }

@@ -1,0 +1,83 @@
+<?xml version="1.0"?>
+<net name="Model0" version="11">
+	<layers>
+		<layer id="0" name="a" type="Parameter" version="opset1">
+			<data shape="64,128" element_type="f16" />
+			<output>
+				<port id="0" precision="FP16" names="a">
+					<dim>64</dim>
+					<dim>128</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="b" type="Const" version="opset1">
+			<data element_type="f16" shape="128, 128" offset="0" size="32768" />
+			<output>
+				<port id="0" precision="FP16">
+					<dim>128</dim>
+					<dim>128</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="aten::linear/MatMul" type="MatMul" version="opset1">
+			<data transpose_a="false" transpose_b="false" />
+			<input>
+				<port id="0" precision="FP16">
+					<dim>64</dim>
+					<dim>128</dim>
+				</port>
+				<port id="1" precision="FP16">
+					<dim>128</dim>
+					<dim>128</dim>
+				</port>
+			</input>
+			<output>
+				<port id="2" precision="FP16">
+					<dim>64</dim>
+					<dim>128</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="4" name="aten::linear/Add" type="Add" version="opset1">
+			<data auto_broadcast="numpy" />
+			<input>
+				<port id="0" precision="FP16">
+					<dim>64</dim>
+					<dim>128</dim>
+				</port>
+				<port id="1" precision="FP16">
+					<dim>64</dim>
+					<dim>128</dim>
+				</port>
+			</input>
+			<output>
+				<port id="2" precision="FP16" names="6,input.5">
+					<dim>64</dim>
+					<dim>128</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="6" name="Result_14" type="Result" version="opset1">
+			<input>
+				<port id="0" precision="FP16">
+					<dim>64</dim>
+					<dim>128</dim>
+				</port>
+			</input>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="2" to-port="0" />
+		<edge from-layer="1" from-port="0" to-layer="2" to-port="1" />
+		<edge from-layer="2" from-port="2" to-layer="4" to-port="0" />
+		<edge from-layer="0" from-port="0" to-layer="4" to-port="1" />
+		<edge from-layer="4" from-port="2" to-layer="6" to-port="0" />
+	</edges>
+	<rt_info>
+		<Runtime_version value="2024.4.0-15645-f5a4471753c-mlir" />
+		<conversion_parameters>
+			<framework value="pytorch" />
+			<is_python_object value="True" />
+		</conversion_parameters>
+	</rt_info>
+</net>

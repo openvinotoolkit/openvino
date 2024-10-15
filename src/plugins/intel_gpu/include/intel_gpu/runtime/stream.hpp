@@ -65,10 +65,12 @@ public:
     virtual event::ptr group_events(std::vector<event::ptr> const& deps) = 0;
     virtual void wait_for_events(const std::vector<event::ptr>& events) = 0;
     virtual event::ptr create_user_event(bool set) = 0;
-    virtual event::ptr create_base_event() = 0;
+    virtual event::ptr create_base_event(void* handle = nullptr) = 0;
     virtual event::ptr aggregate_events(const std::vector<event::ptr>& events, bool group = false, bool is_output = false);
 
     QueueTypes get_queue_type() const { return m_queue_type; }
+    // Returns the handle to the underlying stream object (e.g. cl_command_queue for OpenCL)
+    virtual void* get_handle() const { return nullptr; }
     SyncMethods get_sync_method() const { return m_sync_method; }
 
     static QueueTypes detect_queue_type(engine_types engine_type, void* queue_handle);
