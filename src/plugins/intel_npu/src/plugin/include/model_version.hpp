@@ -20,7 +20,7 @@ struct ModelLayout {
     double somethingElse;
 } typedef ModelLayout;
 
-void check_blob_version(std::vector<uint8_t>& blob, std::istream& stream);
+void check_blob_version(std::vector<uint8_t>& blob);
 
 struct Metadata_v1 {
     MetadataVersion version;

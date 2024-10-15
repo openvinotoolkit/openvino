@@ -21,7 +21,7 @@ std::vector<uint8_t> Metadata_v1::data() {
 }
 
 // actually what should it return?
-void check_blob_version(std::vector<uint8_t>& blob, std::istream& stream) {
+void check_blob_version(std::vector<uint8_t>& blob) {
     constexpr std::string_view versionHeader{"OVNPU"}; // maybe put this some place else
 
     size_t blobDataSize; // blob size *WITHOUT* metadata part
