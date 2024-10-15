@@ -23,7 +23,7 @@ class OPENVINO_API WeightlessCacheAttribute : public RuntimeAttribute {
 public:
     OPENVINO_RTTI("WeightlessCacheAttribute");
 
-    WeightlessCacheAttribute() = default;
+    WeightlessCacheAttribute() = delete;
 
     WeightlessCacheAttribute(size_t original_size, size_t bin_offset)
         : original_size(original_size),
