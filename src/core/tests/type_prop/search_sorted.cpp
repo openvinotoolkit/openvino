@@ -107,7 +107,7 @@ TEST(type_prop, search_sorted_shape_symbols) {
     auto search_sorted_op = make_shared<op::v15::SearchSorted>(sorted, values);
     EXPECT_EQ(search_sorted_op->get_element_type(), element::i64);
     EXPECT_THAT(get_shape_symbols(search_sorted_op->get_output_partial_shape(0)),
-                testing::ElementsAre(sorted_symbols[0], sorted_symbols[1], sorted_symbols[2], values_symbols[3]));
+                testing::ElementsAre(values_symbols[0], values_symbols[1], values_symbols[2], values_symbols[3]));
 }
 
 TEST(type_prop, search_sorted_shape_infer_different_types) {

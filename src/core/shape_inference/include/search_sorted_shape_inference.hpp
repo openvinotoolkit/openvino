@@ -10,7 +10,7 @@
 namespace ov {
 namespace op {
 namespace v15 {
-template <class TShape, class TRShape = result_shape_t<TShape>, class TDim = typename TShape::value_type>
+template <class TShape, class TRShape = result_shape_t<TShape>>
 std::vector<TRShape> shape_infer(const SearchSorted* op, const std::vector<TShape>& input_shapes) {
     const auto& sorted_shape = input_shapes[0];
     const auto& values_shape = input_shapes[1];
@@ -23,8 +23,7 @@ std::vector<TRShape> shape_infer(const SearchSorted* op, const std::vector<TShap
         const auto sorted_in_rank = sorted_shape.size();
         NODE_SHAPE_INFER_CHECK(op, input_shapes, sorted_in_rank > 0, "The sorted sequence input cannot be a scalar.");
         if (sorted_in_rank == 1) {
-            output_shape = values_shape;
-            return {std::move(output_shape)};
+            return {values_shape};
         } else if (!is_values_rank_static) {
             output_shape[sorted_in_rank - 1] = Dimension::dynamic();
         } else {
@@ -34,10 +33,11 @@ std::vector<TRShape> shape_infer(const SearchSorted* op, const std::vector<TShap
                                    sorted_in_rank == values_in_rank,
                                    "The inputs' ranks have to be compatible. If values input is a scalar the sorted "
                                    "sequence must be a 1D tensor.");
+            using TDim = typename TShape::value_type;
             for (size_t i = 0; i < sorted_in_rank - 1; ++i) {
                 NODE_SHAPE_INFER_CHECK(op,
                                        input_shapes,
-                                       TDim::merge(output_shape[i], sorted_shape[i], values_shape[i]),
+                                       TDim::merge(output_shape[i], values_shape[i], sorted_shape[i]),
                                        "All dimensions but the last one have to be compatible.");
             }
         }
