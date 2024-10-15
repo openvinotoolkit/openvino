@@ -18,6 +18,7 @@ namespace test {
 using InputShapeAndTransposeOrder = std::pair<std::vector<InputShape>, std::vector<size_t>>;
 using ConcatMultiQuerySDPParams = std::tuple<ElementType,
                                              InputShapeAndTransposeOrder,
+                                             bool, // force kvcache int8
                                              bool  // has ShapeOf
                                              >;
 // Subgraph:
@@ -52,8 +53,10 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConcatMultiQuerySDPParams>& obj) {
         ElementType qkvType;
         InputShapeAndTransposeOrder inputShapeAndOrders;
-        bool hasShapeof;
-        std::tie(qkvType, inputShapeAndOrders, hasShapeof) = obj.param;
+        bool forceKVU8;
+        bool hasShapeOf;
+        std::tie(qkvType, inputShapeAndOrders, forceKVU8, hasShapeOf) = obj.param;
+        ElementType kvCacheType = forceKVU8 ? ov::element::Type_t::u8 : qkvType;
         std::ostringstream result;
         std::vector<InputShape>& inputShapes = inputShapeAndOrders.first;
         std::vector<size_t>& transposeOrder = inputShapeAndOrders.second;
@@ -71,8 +74,9 @@ public:
             }
             result << ")_";
         }
-        result << "Prc=" << qkvType << "_";
-        result << "HasShapeOf=" << hasShapeof << "_";
+        result << "qDataType=" << qkvType << "_";
+        result << "kvDataType=" << kvCacheType << "_";
+        result << "HasShapeOf=" << hasShapeOf << "_";
         result << "TransposeOrder=";
         result << "(";
         for (const auto& itr : transposeOrder) {
@@ -85,18 +89,21 @@ public:
 
     void SetUp() override {
         InputShapeAndTransposeOrder inputShapeAndOrders;
+        bool forceKVU8;
         bool hasShapeOf;
         ElementType qkvType;
-        std::tie(qkvType, inputShapeAndOrders, hasShapeOf) = this->GetParam();
+        std::tie(qkvType, inputShapeAndOrders, forceKVU8, hasShapeOf) = this->GetParam();
         std::vector<InputShape>& inputShapes = inputShapeAndOrders.first;
         std::vector<size_t>& transposeOrder = inputShapeAndOrders.second;
         targetDevice = ov::test::utils::DEVICE_CPU;
         rel_threshold = 1e-2f;
         configuration[ov::hint::inference_precision.name()] = ov::element::f32;
-        if (qkvType == ElementType::bf16) {
-            configuration[ov::hint::inference_precision.name()] = ov::element::bf16;
+        if (qkvType == ElementType::bf16 || qkvType == ElementType::f16) {
+            configuration[ov::hint::inference_precision.name()] = ov::element::Type(qkvType).get_type_name();
             rel_threshold = 0.01f;
         }
+        if (forceKVU8)
+            configuration["KV_CACHE_PRECISION"] = "u8";
         init_input_shapes(inputShapes);
         ov::ParameterVector inputParams;
         // q,k,v
@@ -229,6 +236,10 @@ public:
                 ov::Tensor t{ov::element::f32, shape};
                 strided_iota(static_cast<float*>(t.data()), t.get_size(), val, 0.1f);
                 inputs.insert({param, t});
+            } else if (param->get_element_type() == element::f16) {
+                ov::Tensor t{ov::element::f16, shape};
+                strided_iota(static_cast<ov::float16*>(t.data()), t.get_size(), val, 0.1f);
+                inputs.insert({param, t});
             } else {
                 ov::Tensor t{ov::element::bf16, shape};
                 strided_iota(static_cast<ov::bfloat16*>(t.data()), t.get_size(), val, 0.1f);
@@ -269,6 +280,10 @@ public:
             outputs.push_back(copy);
         }
         auto states = inferRequest.query_state();
+        // k, v may be in any order
+        std::sort(states.begin(), states.end(), [] (VariableState& a, VariableState& b) {
+            return a.get_name() > b.get_name();
+        });
         for (std::string name : {"pastk", "pastv"}) {
             auto itr = std::find_if(states.begin(), states.end(), [&](const ov::VariableState& state) {
                 return name == state.get_name();
@@ -290,17 +305,20 @@ public:
 TEST_P(ConcatMultiQuerySDPTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     InputShapeAndTransposeOrder inputShapeAndOrders;
+    bool forceKVU8;
     bool hasShapeOf;
     ElementType qkvType;
-    std::tie(qkvType, inputShapeAndOrders, hasShapeOf) = this->GetParam();
-    if (qkvType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
-        GTEST_SKIP();
+    std::tie(qkvType, inputShapeAndOrders, forceKVU8, hasShapeOf) = this->GetParam();
     auto actualOutputs = run_test(function);
     CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 1);
     CheckNumberOfNodesWithType(compiledModel, "Concatenation", 0);
     CheckNumberOfNodesWithType(compiledModel, "Reorder", 0);
     CheckNumberOfNodesWithType(compiledModel, "Transpose", 1);
     CheckNumberOfNodesWithType(compiledModel, "Gather", 0);
+    // use f32 as reference
+    if (qkvType == ElementType::f16) {
+        configuration["INFERENCE_PRECISION_HINT"] = "f32";
+    }
     auto expectedOutputs = run_test(functionRefs);
     CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 0);
     for (size_t i = 0; i < actualOutputs.size(); i++) {
@@ -384,8 +402,9 @@ const std::vector<InputShapeAndTransposeOrder> inputShapeAndReorders = {{
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConcatMultiQuerySDPTest,
                          ConcatMultiQuerySDPTest,
-                         ::testing::Combine(::testing::Values(ElementType::f32, ElementType::bf16),
+                         ::testing::Combine(::testing::Values(ElementType::f32, ElementType::bf16, ElementType::f16),
                                             ::testing::ValuesIn(inputShapeAndReorders),
+                                            ::testing::Values(true, false),
                                             ::testing::Values(true, false)),
                          ConcatMultiQuerySDPTest::getTestCaseName);
 }  // namespace

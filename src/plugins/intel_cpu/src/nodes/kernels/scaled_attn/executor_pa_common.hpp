@@ -69,9 +69,10 @@ public:
     DECLARE_CPU_JIT_AUX_FUNCTIONS(JitMatMulVecAMX)
     int m_head_size;
     int m_block_size;
+    ov::element::Type m_amx_prec;
     TileConfiger m_tile_configer;
     TileConfig m_tile_cfg;
-    JitMatMulVecAMX(int head_size, int block_size);
+    JitMatMulVecAMX(int head_size, int block_size, ov::element::Type amx_prec);
 
     void tile_config() {
         m_tile_configer(&m_tile_cfg);

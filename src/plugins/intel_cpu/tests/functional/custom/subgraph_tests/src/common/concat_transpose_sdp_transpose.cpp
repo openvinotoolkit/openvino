@@ -253,6 +253,10 @@ public:
             outputs.push_back(copy);
         }
         auto states = inferRequest.query_state();
+        // k, v may be in any order
+        std::sort(states.begin(), states.end(), [] (VariableState& a, VariableState& b) {
+            return a.get_name() > b.get_name();
+        });
         for (std::string name : {"pastk", "pastv"}) {
             auto itr = std::find_if(states.begin(), states.end(), [&](const ov::VariableState& state) {
                 return name == state.get_name();
