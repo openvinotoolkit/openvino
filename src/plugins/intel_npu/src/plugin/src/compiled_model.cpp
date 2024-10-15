@@ -146,16 +146,12 @@ void CompiledModel::export_model(std::ostream& stream) const {
 
     constexpr std::string_view metaHeader {"OVNPU"};
     stream.write(metaHeader.data(), metaHeader.length());
-    std::cout << "metaHeader size: " << metaHeader.length() << '\n';
 
     MetadataVersion metaVersion = {1, 3};
-    std::cout << "meta version sizes: " << metaVersion.major << " " << metaVersion.minor << '\n';
-    OpenvinoVersion ovVersion = {"2024.5.0-16678-090da7b5376-blob_commit"};
-    std::cout << "ovversion size: " << ovVersion.version.size() << '\n';
+    OpenvinoVersion ovVersion = {ov::get_openvino_version().buildNumber};
     ModelLayout layout = {.something = 643, .somethingElse = 68.643};
-
     Metadata_v1 metav1 = {metaVersion, ovVersion};
-    Metadata_v2 metav2 = {metaVersion, ovVersion, layout};
+    Metadata_v2 metav2 = {{metaVersion, ovVersion}, layout};
     Metadata_v3 metav3 = {metaVersion, layout, ovVersion, 5.5};
 
     metav1.write_metadata(stream);
