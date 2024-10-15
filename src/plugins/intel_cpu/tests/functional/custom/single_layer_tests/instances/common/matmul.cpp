@@ -35,8 +35,8 @@ const std::vector<ShapeRelatedParams> IS = {
 const std::vector<ShapeRelatedParams> IS_Dynamic = {
     {
         { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
-            {{-1, -1}, {{55, 12}, {33, 7}}}, // input 0
-            {{-1, -1}, {{12, 55}, {7, 33}}}  // input 1
+            {{-1, -1}, {{55, 12}, {33, 7}, {33, 0}, {0, 33}}}, // input 0
+            {{-1, -1}, {{12, 55}, {7, 33}, {0, 33}, {33, 0}}}  // input 1
         },
         {false, false}
     },

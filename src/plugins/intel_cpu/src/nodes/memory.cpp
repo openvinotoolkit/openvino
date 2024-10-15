@@ -419,7 +419,7 @@ MemoryInputBase::~MemoryInputBase() {
 }
 
 MemoryOutputBase& MemoryInputBase::getOutputNode() {
-    OPENVINO_ASSERT(outputNode, "MemoryOutput ", getName(), " doesn't have sibling input");
+    OPENVINO_ASSERT(outputNode, "MemoryInput ", getName(), " doesn't have sibling output");
     return *outputNode;
 }
 
