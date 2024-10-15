@@ -25,7 +25,6 @@ bool starts_with(const std::string& str, const std::string& prefix);
 
 std::string fmt(std::size_t number, std::size_t total);
 
-
 void gather(const ov::SoPtr<ov::ITensor>& src, const ov::SoPtr<ov::ITensor>& idx, const ov::SoPtr<ov::ITensor>& dst);
 
 using View = std::vector<std::size_t>;

@@ -3,11 +3,11 @@
 //
 #pragma once
 
+#include <openvino/core/parallel.hpp>
+
 #include "logging.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
-
-#include <openvino/core/parallel.hpp>
 
 #ifdef UNPACK_PROFILING
 #    include "tbb/concurrent_unordered_map.h"
@@ -244,8 +244,8 @@ static UnpackStat ustat;
 #endif
 
 inline void unpack_i4i8(const ov::SoPtr<ov::ITensor>& from,
-                 const ov::SoPtr<ov::ITensor>& to,
-                 const UnpackOptions& unpack_options) {
+                        const ov::SoPtr<ov::ITensor>& to,
+                        const UnpackOptions& unpack_options) {
     NPUW_ASSERT(from->is_continuous());
     NPUW_ASSERT(to->is_continuous());
     NPUW_ASSERT(from->get_size() == to->get_size());
@@ -332,8 +332,8 @@ inline void unpack_i4i8(const ov::SoPtr<ov::ITensor>& from,
 }
 
 inline void unpack_u4i8(const ov::SoPtr<ov::ITensor>& from,
-                 const ov::SoPtr<ov::ITensor>& to,
-                 const UnpackOptions& unpack_options) {
+                        const ov::SoPtr<ov::ITensor>& to,
+                        const UnpackOptions& unpack_options) {
     NPUW_ASSERT(from->is_continuous());
     NPUW_ASSERT(to->is_continuous());
     NPUW_ASSERT(from->get_size() == to->get_size());
@@ -351,8 +351,8 @@ inline void unpack_u4i8(const ov::SoPtr<ov::ITensor>& from,
 }
 
 inline void unpack_i4f16(const ov::SoPtr<ov::ITensor>& from,
-                  const ov::SoPtr<ov::ITensor>& to,
-                  const UnpackOptions& unpack_options) {
+                         const ov::SoPtr<ov::ITensor>& to,
+                         const UnpackOptions& unpack_options) {
     NPUW_ASSERT(from->is_continuous());
     NPUW_ASSERT(to->is_continuous());
     NPUW_ASSERT(from->get_size() == to->get_size());
@@ -472,9 +472,9 @@ inline void unpack_i4f16(const ov::SoPtr<ov::ITensor>& from,
 }
 
 inline void unpack_i4f16(const ov::SoPtr<ov::ITensor>& from,
-                  const ov::SoPtr<ov::ITensor>& scale,
-                  const ov::SoPtr<ov::ITensor>& to,
-                  const UnpackOptions& unpack_options) {
+                         const ov::SoPtr<ov::ITensor>& scale,
+                         const ov::SoPtr<ov::ITensor>& to,
+                         const UnpackOptions& unpack_options) {
     NPUW_ASSERT(from->is_continuous());
     NPUW_ASSERT(scale->is_continuous());
     NPUW_ASSERT(to->is_continuous());
@@ -629,9 +629,9 @@ inline void unpack_i4f16(const ov::SoPtr<ov::ITensor>& from,
 }
 
 inline void unpack_i4f16_z(const ov::SoPtr<ov::ITensor>& from,
-                    const ov::SoPtr<ov::ITensor>& scale,
-                    const ov::SoPtr<ov::ITensor>& to,
-                    const UnpackOptions& unpack_options) {
+                           const ov::SoPtr<ov::ITensor>& scale,
+                           const ov::SoPtr<ov::ITensor>& to,
+                           const UnpackOptions& unpack_options) {
     NPUW_ASSERT(from->is_continuous());
     NPUW_ASSERT(scale->is_continuous());
     NPUW_ASSERT(to->is_continuous());
@@ -742,8 +742,8 @@ inline void unpack_i4f16_z(const ov::SoPtr<ov::ITensor>& from,
 }
 
 inline void unpack_u4f16(const ov::SoPtr<ov::ITensor>& from,
-                  const ov::SoPtr<ov::ITensor>& to,
-                  const UnpackOptions& unpack_options) {
+                         const ov::SoPtr<ov::ITensor>& to,
+                         const UnpackOptions& unpack_options) {
     NPUW_ASSERT(from->is_continuous());
     NPUW_ASSERT(to->is_continuous());
     NPUW_ASSERT(from->get_size() == to->get_size());
@@ -806,10 +806,10 @@ inline void unpack_u4f16(const ov::SoPtr<ov::ITensor>& from,
 }
 
 inline void unpack_u4f16(const ov::SoPtr<ov::ITensor>& from,
-                  const ov::SoPtr<ov::ITensor>& zerop,
-                  const ov::SoPtr<ov::ITensor>& scale,
-                  const ov::SoPtr<ov::ITensor>& to,
-                  const UnpackOptions& unpack_options) {
+                         const ov::SoPtr<ov::ITensor>& zerop,
+                         const ov::SoPtr<ov::ITensor>& scale,
+                         const ov::SoPtr<ov::ITensor>& to,
+                         const UnpackOptions& unpack_options) {
     NPUW_ASSERT(from->is_continuous());
     NPUW_ASSERT(zerop->is_continuous());
     NPUW_ASSERT(scale->is_continuous());
@@ -987,10 +987,10 @@ inline void unpack_u4f16(const ov::SoPtr<ov::ITensor>& from,
 }
 
 inline void unpack_u4f16_asymm_zp(const ov::SoPtr<ov::ITensor>& from,
-                           const ov::SoPtr<ov::ITensor>& zerop,
-                           const ov::SoPtr<ov::ITensor>& scale,
-                           const ov::SoPtr<ov::ITensor>& to,
-                           const UnpackOptions& unpack_options) {
+                                  const ov::SoPtr<ov::ITensor>& zerop,
+                                  const ov::SoPtr<ov::ITensor>& scale,
+                                  const ov::SoPtr<ov::ITensor>& to,
+                                  const UnpackOptions& unpack_options) {
     NPUW_ASSERT(from->is_continuous());
     NPUW_ASSERT(zerop->is_continuous());
     NPUW_ASSERT(scale->is_continuous());
@@ -1171,10 +1171,10 @@ inline void unpack_u4f16_asymm_zp(const ov::SoPtr<ov::ITensor>& from,
 }
 
 inline void unpack_u4f16_z(const ov::SoPtr<ov::ITensor>& from,
-                    const ov::SoPtr<ov::ITensor>& zerop,
-                    const ov::SoPtr<ov::ITensor>& scale,
-                    const ov::SoPtr<ov::ITensor>& to,
-                    const UnpackOptions& unpack_options) {
+                           const ov::SoPtr<ov::ITensor>& zerop,
+                           const ov::SoPtr<ov::ITensor>& scale,
+                           const ov::SoPtr<ov::ITensor>& to,
+                           const UnpackOptions& unpack_options) {
     NPUW_ASSERT(from->is_continuous());
     NPUW_ASSERT(zerop->is_continuous());
     NPUW_ASSERT(scale->is_continuous());
@@ -1272,8 +1272,8 @@ inline void unpack_u4f16_z(const ov::SoPtr<ov::ITensor>& from,
 }
 
 inline void unpack_u4f32(const ov::SoPtr<ov::ITensor>& from,
-                  const ov::SoPtr<ov::ITensor>& to,
-                  const UnpackOptions& unpack_options) {
+                         const ov::SoPtr<ov::ITensor>& to,
+                         const UnpackOptions& unpack_options) {
     NPUW_ASSERT(from->is_continuous());
     NPUW_ASSERT(to->is_continuous());
     NPUW_ASSERT(from->get_size() == to->get_size());
@@ -1291,8 +1291,8 @@ inline void unpack_u4f32(const ov::SoPtr<ov::ITensor>& from,
 }
 
 inline void unpack_i8f16(const ov::SoPtr<ov::ITensor>& from,
-                  const ov::SoPtr<ov::ITensor>& to,
-                  const UnpackOptions& unpack_options) {
+                         const ov::SoPtr<ov::ITensor>& to,
+                         const UnpackOptions& unpack_options) {
     NPUW_ASSERT(from->is_continuous());
     NPUW_ASSERT(to->is_continuous());
     NPUW_ASSERT(from->get_size() == to->get_size());
@@ -1320,9 +1320,9 @@ inline void unpack_i8f16(const ov::SoPtr<ov::ITensor>& from,
 }
 
 inline void unpack_i8f16(const ov::SoPtr<ov::ITensor>& from,
-                  const ov::SoPtr<ov::ITensor>& scale,
-                  const ov::SoPtr<ov::ITensor>& to,
-                  const UnpackOptions& unpack_options) {
+                         const ov::SoPtr<ov::ITensor>& scale,
+                         const ov::SoPtr<ov::ITensor>& to,
+                         const UnpackOptions& unpack_options) {
     NPUW_ASSERT(from->is_continuous());
     NPUW_ASSERT(scale->is_continuous());
     NPUW_ASSERT(to->is_continuous());
@@ -1362,10 +1362,10 @@ inline void unpack_i8f16(const ov::SoPtr<ov::ITensor>& from,
 }
 
 inline void unpack_u8f16(const ov::SoPtr<ov::ITensor>& from,
-                  const ov::SoPtr<ov::ITensor>& zerop,
-                  const ov::SoPtr<ov::ITensor>& scale,
-                  const ov::SoPtr<ov::ITensor>& to,
-                  const UnpackOptions& _options) {
+                         const ov::SoPtr<ov::ITensor>& zerop,
+                         const ov::SoPtr<ov::ITensor>& scale,
+                         const ov::SoPtr<ov::ITensor>& to,
+                         const UnpackOptions& _options) {
     NPUW_ASSERT(from->is_continuous());
     NPUW_ASSERT(zerop->is_continuous());
     NPUW_ASSERT(scale->is_continuous());
@@ -1446,11 +1446,10 @@ inline void unpack_impl(const ov::SoPtr<ov::ITensor>& from,
 #undef CAST
 }
 
-
 inline void unpack_scale_impl(const ov::SoPtr<ov::ITensor>& from,
-                        const ov::SoPtr<ov::ITensor>& scale,
-                        const ov::SoPtr<ov::ITensor>& to,
-                        const UnpackOptions& unpack_options = UnpackOptions{true, 16, false}) {
+                              const ov::SoPtr<ov::ITensor>& scale,
+                              const ov::SoPtr<ov::ITensor>& to,
+                              const UnpackOptions& unpack_options = UnpackOptions{true, 16, false}) {
     // This is in fact a weight decompression procedure
     const auto type_from = from->get_element_type();
     const auto type_to = to->get_element_type();
@@ -1478,10 +1477,10 @@ inline void unpack_scale_impl(const ov::SoPtr<ov::ITensor>& from,
 }
 
 inline void unpack_scale_zp_impl(const ov::SoPtr<ov::ITensor>& from,
-                        const ov::SoPtr<ov::ITensor>& zerop,
-                        const ov::SoPtr<ov::ITensor>& scale,
-                        const ov::SoPtr<ov::ITensor>& to,
-                        const UnpackOptions& unpack_options = UnpackOptions{true, 16, false}) {
+                                 const ov::SoPtr<ov::ITensor>& zerop,
+                                 const ov::SoPtr<ov::ITensor>& scale,
+                                 const ov::SoPtr<ov::ITensor>& to,
+                                 const UnpackOptions& unpack_options = UnpackOptions{true, 16, false}) {
     const auto type_from = from->get_element_type();
     const auto type_zerop = zerop->get_element_type();
     const auto type_scale = scale->get_element_type();
