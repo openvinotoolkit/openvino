@@ -117,7 +117,7 @@ void ACLCommonExecutor::execute(const MemoryArgs &memory) {
     // TODO: Move import_memory() to update() function - CVS-145871
     for (auto& cpu_mem_ptr : memory) {
         const ACLArgs index = argConvert.at(cpu_mem_ptr.first);
-        if (!aclMemoryTensors[index]->allocator()->data()) {//aclTensorAttrs.memoryUsageIndicator[index]) {
+        if (aclTensorAttrs.memoryUsageIndicator[index]) {//!aclMemoryTensors[index]->allocator()->data()) {
             aclMemoryTensors[index]->allocator()->import_memory(memory.at(cpu_mem_ptr.first)->getData());
         }
     }

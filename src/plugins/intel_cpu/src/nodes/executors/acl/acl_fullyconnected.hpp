@@ -13,6 +13,7 @@ namespace intel_cpu {
 struct ACLFCAttrs {
     ov::element::Type inputPrecision;
     bool isConvertedWeights = false;
+    bool isWeightsRepacked = false;
     bool weightsNonTransposed;
 };
 
