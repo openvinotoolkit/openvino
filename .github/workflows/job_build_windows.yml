@@ -163,7 +163,6 @@ jobs:
             -DENABLE_STRICT_DEPENDENCIES=OFF `
             -DENABLE_PYTHON=ON `
             -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON `
-            -DCMAKE_CONFIGURATION_TYPES=${{ env.CMAKE_BUILD_TYPE }} `
             -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" `
             -DOPENVINO_EXTRA_MODULES="${{ env.OPENVINO_CONTRIB_REPO }}/modules/custom_operations;${{ env.OPENVINO_CONTRIB_REPO }}/modules/java_api" `
             -S ${{ env.OPENVINO_REPO }} `
@@ -173,7 +172,7 @@ jobs:
         run: '& ccache --zero-stats'
 
       - name: Cmake build - OpenVINO
-        run: cmake --build ${{ env.BUILD_DIR }} --parallel --verbose
+        run: cmake --build ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --parallel --verbose
 
       - name: Show ccache stats
         run: '& ccache --show-stats'
