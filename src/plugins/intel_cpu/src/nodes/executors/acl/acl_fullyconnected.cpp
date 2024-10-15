@@ -179,7 +179,6 @@ static MemoryPtr prepareWeightMemory(const MemoryArgs &memory,
                                      const FCAttrs &attrs,
                                      ACLFCAttrs& aclfcAttrs,
                                      const PostOps &postOps,
-                                     //ACLInfos &aclMemoryInfos,
                                      arm_compute::WeightFormat& expectedWeightFormat,
                                      arm_compute::TensorInfo& wei_tensor_info) {
     DEBUG_LOG("ACLFullyConnectedExecutor: prepack weights");
@@ -333,38 +332,34 @@ void ACLFullyConnectedExecutor::updateTensorsShapes(ACLShapes& aclMemoryShapes) 
 }
 
 arm_compute::Status ACLFullyConnectedExecutor::validateTensorsInfo(const ACLInfos & aclMemoryInfos) {
-        if (aclfcAttrs.isConvertedWeights) {
+    if (aclfcAttrs.isConvertedWeights) {
         aclMemoryInfos[ACLArgs::ACL_WEI]->set_data_type(aclMemoryInfos[ACLArgs::ACL_SRC_0]->data_type());
     }
     int ic_total = aclMemoryInfos[ACLArgs::ACL_SRC_0]->dimension(0);
-    weightsInfo = arm_compute::WeightsInfo(false, 1, 1, ic_total, false, expectedWeightFormat);
     return arm_compute::NEFullyConnectedLayer::validate(
             aclMemoryInfos[ACLArgs::ACL_SRC_0].get(),
             &wei_tensor_info,
             aclMemoryInfos[ACLArgs::ACL_BIAS].get(),
             aclMemoryInfos[ACLArgs::ACL_DST].get(),
             fullyConnectedLayerInfo,
-            weightsInfo);
+            arm_compute::WeightsInfo(false, 1, 1, ic_total, false, expectedWeightFormat));
 }
 
 ACLFunction ACLFullyConnectedExecutor::configureFunction(const ACLTensors & aclMemoryTensors) {
     auto neFC = std::make_unique<arm_compute::NEFullyConnectedLayer>();
     aclMemoryTensors[ACLArgs::ACL_WEI]->allocator()->init(wei_tensor_info);
     int ic_total = aclMemoryTensors[ACLArgs::ACL_WEI]->info()->dimension(0);
-    weightsInfo = arm_compute::WeightsInfo(false, 1, 1, ic_total, false, expectedWeightFormat);
     neFC->configure(
             aclMemoryTensors[ACLArgs::ACL_SRC_0].get(),
             aclMemoryTensors[ACLArgs::ACL_WEI].get(),
             aclMemoryTensors[ACLArgs::ACL_BIAS].get(),
             aclMemoryTensors[ACLArgs::ACL_DST].get(),
             fullyConnectedLayerInfo,
-            weightsInfo);
+            arm_compute::WeightsInfo(false, 1, 1, ic_total, false, expectedWeightFormat));
 
-    if (aclfcAttrs.isConvertedWeights || !aclfcAttrs.weightsNonTransposed || aclfcAttrs.isWeightsRepacked) {
+    if (aclfcAttrs.isWeightsRepacked) {
         aclTensorAttrs.memoryUsageIndicator[ACLArgs::ACL_WEI] = false;
         aclMemoryTensors[ACLArgs::ACL_WEI]->allocator()->import_memory(packedWeights->getData());
-    } else {
-        std::cout << "packedWeights is not used" << std::endl;
     }
     return neFC;
 }
@@ -411,9 +406,8 @@ arm_compute::Status acl_fc_executor::ACLWeightFormatGenerator::validateTensorsIn
         aclMemoryInfos[ACLArgs::ACL_WEI]->set_data_type(aclMemoryInfos[ACLArgs::ACL_SRC_0]->data_type());
     }
     int ic_total = aclMemoryInfos[ACLArgs::ACL_SRC_0]->dimension(0);
-    std::cout << "ACL ic_total: " << ic_total << std::endl;
     weightsInfo = arm_compute::WeightsInfo(false, 1, 1, ic_total, false, arm_compute::WeightFormat::ANY);
-    arm_compute::Status s = arm_compute::NEFullyConnectedLayer::has_opt_impl(
+    return arm_compute::NEFullyConnectedLayer::has_opt_impl(
             expectedWeightFormat,
             aclMemoryInfos[ACLArgs::ACL_SRC_0].get(),
             aclMemoryInfos[ACLArgs::ACL_WEI].get(),
@@ -421,8 +415,6 @@ arm_compute::Status acl_fc_executor::ACLWeightFormatGenerator::validateTensorsIn
             aclMemoryInfos[ACLArgs::ACL_DST].get(),
             fullyConnectedLayerInfo,
             weightsInfo);
-    std::cout << "ACL expectedWeightFormat: " << static_cast<int>(expectedWeightFormat) << std::endl;
-    return s;
 }
 
 ACLFunction acl_fc_executor::ACLWeightFormatGenerator::configureFunction(const ACLTensors &aclMemoryTensors) {
@@ -456,5 +448,6 @@ ACLFunction acl_fc_executor::ACLWeightsReorder::configureFunction(const ACLTenso
     return neCopy;
 #endif
 }
+
 }   // namespace intel_cpu
 }   // namespace ov

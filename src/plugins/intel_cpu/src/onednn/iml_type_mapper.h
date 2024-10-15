@@ -52,7 +52,7 @@ enum impl_desc_type : int64_t {
     shl = 1ll<<32,
 
     // real types
-    ref_any             = ref    | any,
+    ref_any             = ref  | any,
 
     gemm_any            = gemm | any,
     gemm_blas           = gemm | blas,

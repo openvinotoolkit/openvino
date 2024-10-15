@@ -85,7 +85,6 @@ public:
 
 private:
     arm_compute::FullyConnectedLayerInfo fullyConnectedLayerInfo;
-    arm_compute::WeightsInfo weightsInfo;
     arm_compute::WeightFormat expectedWeightFormat;
     MemoryCPtr packedWeights;
     ACLFCAttrs aclfcAttrs;
