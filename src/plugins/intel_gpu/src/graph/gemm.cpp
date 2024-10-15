@@ -229,7 +229,8 @@ layout gemm_inst::transform_output_layout(const std::shared_ptr<const gemm> prim
                                 (i == 1) ? transposed_input1_pshape :
                                 input_layouts[i].get_partial_shape();
             for (size_t j = 0; j != input_pshape.size(); ++j) {
-                ov::Dimension::merge(output_pshape[j], output_pshape[j], input_pshape[j]);
+                if (input_pshape[j].get_max_length() != input_pshape[j].get_min_length())
+                    ov::Dimension::merge(output_pshape[j], output_pshape[j], input_pshape[j]);
             }
         }
 
