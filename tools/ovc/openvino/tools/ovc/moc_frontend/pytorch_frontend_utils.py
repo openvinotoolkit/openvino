@@ -89,37 +89,38 @@ def get_pytorch_decoder_for_model_on_disk(argv, args):
     else:
         input_model = argv.input_model
 
-    if isinstance(input_model, (str, pathlib.Path)):
-        # attempt to load scripted model
-        try:
-            inputs = prepare_torch_inputs(example_inputs)
-            model = torch.jit.load(input_model)
-            model.eval()
-            decoder = TorchScriptPythonDecoder(
-                model,
-                example_input=inputs,
-                shared_memory=args.get("share_weights", True),
-                module_extensions=extract_module_extensions(args))
+    if not isinstance(input_model, (str, pathlib.Path)):
+        return False
+
+    # attempt to load scripted model
+    try:
+        inputs = prepare_torch_inputs(example_inputs)
+        model = torch.jit.load(input_model)
+        model.eval()
+        decoder = TorchScriptPythonDecoder(
+            model,
+            example_input=inputs,
+            shared_memory=args.get("share_weights", True),
+            module_extensions=extract_module_extensions(args))
+        argv.input_model = decoder
+        argv.framework = 'pytorch'
+        return True
+    except:
+        pass
+    # attempt to load exported model
+    try:
+        exported_program = torch.export.load(input_model)
+        if hasattr(torch, "export") and isinstance(exported_program, (torch.export.ExportedProgram)):
+            from packaging import version
+            if version.parse(torch.__version__) >= version.parse("2.2"):
+                exported_program = exported_program.run_decompositions()
+            gm = exported_program.module()
+            decoder = TorchFXPythonDecoder(gm, dynamic_shapes=True)
             argv.input_model = decoder
             argv.framework = 'pytorch'
             return True
-        except:
-            pass
-    if isinstance(input_model, (str, pathlib.Path)):
-        # attempt to load exported model
-        try:
-            exported_program = torch.export.load(input_model)
-            if hasattr(torch, "export") and isinstance(exported_program, (torch.export.ExportedProgram)):
-                from packaging import version
-                if version.parse(torch.__version__) >= version.parse("2.2"):
-                    exported_program = exported_program.run_decompositions()
-                gm = exported_program.module()
-                decoder = TorchFXPythonDecoder(gm, dynamic_shapes=True)
-                argv.input_model = decoder
-                argv.framework = 'pytorch'
-                return True
-        except:
-            pass
+    except:
+        pass
     return False
 
 
