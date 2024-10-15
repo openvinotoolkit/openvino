@@ -19,13 +19,12 @@ public:
     struct Config {
         bool quantized;
         int hidden_size;
+        int proj_size0;
+        int proj_size1;
+        int proj_size2;
+        bool weights_fused;
     };
 
-    // args:
-    //      0: input
-    //      1: gate_proj
-    //      2: up_proj
-    //      3: down_proj
     QKVProjectionNode(const OutputVector& args, const Config& cfg) : Op(args), m_config(cfg) {
         validate_and_infer_types();
     }

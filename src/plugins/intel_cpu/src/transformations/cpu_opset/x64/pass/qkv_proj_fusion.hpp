@@ -15,5 +15,11 @@ public:
     QKVProjFusion(bool allow_dynamic_quantization);
 };
 
+class QKVProjFusion2: public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("QKVProjFusion2", "0");
+    QKVProjFusion2(bool allow_dynamic_quantization);
+};
+
 }   // namespace intel_cpu
 }   // namespace ov

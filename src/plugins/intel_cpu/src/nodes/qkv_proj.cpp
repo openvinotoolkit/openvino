@@ -116,14 +116,23 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
                 start_blkN += blkN;
             }
         };
-        auto proj_size0 = static_cast<int>(w0.size(0));
-        auto proj_size1 = static_cast<int>(w1.size(0));
-        auto proj_size2 = static_cast<int>(w2.size(0));
+        auto proj_size0 = m_node->m_config.proj_size0;
+        auto proj_size1 = m_node->m_config.proj_size1;
+        auto proj_size2 = m_node->m_config.proj_size2;
         auto n_group_workers = allocate_workers({proj_size0, proj_size1, proj_size2}, nthr);
 
-        create_works(w0.ptr_v(), 0, proj_size0, n_group_workers[0]);
-        create_works(w1.ptr_v(), 1, proj_size1, n_group_workers[1]);
-        create_works(w2.ptr_v(), 2, proj_size2, n_group_workers[2]);
+        if (m_node->m_config.weights_fused) {
+            auto* ptr_weights = reinterpret_cast<int8_t*>(w0.ptr_v());
+            create_works(ptr_weights, 0, proj_size0, n_group_workers[0]);
+            ptr_weights += proj_size0 * stride_in_bytes;
+            create_works(ptr_weights, 1, proj_size1, n_group_workers[1]);
+            ptr_weights += proj_size1 * stride_in_bytes;
+            create_works(ptr_weights, 2, proj_size2, n_group_workers[2]);
+        } else {
+            create_works(w0.ptr_v(), 0, proj_size0, n_group_workers[0]);
+            create_works(w1.ptr_v(), 1, proj_size1, n_group_workers[1]);
+            create_works(w2.ptr_v(), 2, proj_size2, n_group_workers[2]);
+        }
 
         DEBUG_LOG("QKVProj hidden_size=", K, " proj_sizes=",
                     proj_size0, ",", proj_size1, ",", proj_size2,
@@ -388,24 +397,22 @@ bool QKVProjection::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
                     return false;
                 }
             }
-            auto proj_pshape1 = op->input_value(1).get_shape();
-            auto proj_pshape2 = op->input_value(2).get_shape();
-            auto proj_pshape3 = op->input_value(3).get_shape();
-            if ((proj_pshape1[1] % CACHE_BLK_K_SIZE) != 0) {
+            const auto& config = node_qkv->get_config();
+            if ((config.hidden_size % CACHE_BLK_K_SIZE) != 0) {
                 errorMessage = "QKVProjection input channel size is not multiple of cache blocking size";
                 return false;
             }
 
             auto reg_blk_k_size = node_qkv->get_config().quantized ? REG_BLK_K_SIZE_I8 : REG_BLK_K_SIZE;
-            if ((proj_pshape1[0] % reg_blk_k_size) != 0) {
+            if ((config.proj_size0 % reg_blk_k_size) != 0) {
                 errorMessage = "QKVProjection 1st proj output channel size is not multiple of register blocking size";
                 return false;
             }
-            if ((proj_pshape2[0] % reg_blk_k_size) != 0) {
+            if ((config.proj_size1 % reg_blk_k_size) != 0) {
                 errorMessage = "QKVProjection 2nd proj output channel size is not multiple of register blocking size";
                 return false;
             }
-            if ((proj_pshape3[0] % reg_blk_k_size) != 0) {
+            if ((config.proj_size2 % reg_blk_k_size) != 0) {
                 errorMessage = "QKVProjection 3rd proj output channel size is not multiple of register blocking size";
                 return false;
             }

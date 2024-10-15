@@ -151,6 +151,10 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion(bool allow_dynamic_quantization) {
         QKVProjectionNode::Config config;
         config.quantized = is_quantized_int8;
         config.hidden_size = hidden_size;
+        config.weights_fused = false;
+        config.proj_size0 = proj_size[0];
+        config.proj_size1 = proj_size[1];
+        config.proj_size2 = proj_size[2];
 
         auto old_node = root;
         auto new_node = std::make_shared<QKVProjectionNode>(args, config);
@@ -172,6 +176,92 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion(bool allow_dynamic_quantization) {
         std::cout << "QKVProjFusion: " << __LINE__ << "  " << root->get_friendly_name()
                   << "  is_quantized_int8=" << is_quantized_int8 << std::endl;
 
+        return true;
+    };
+
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(result, matcher_name);
+    this->register_matcher(m, callback);
+}
+
+ov::intel_cpu::QKVProjFusion2::QKVProjFusion2(bool allow_dynamic_quantization) {
+    MATCHER_SCOPE(QKVProjFusion2);
+
+    auto input = makePattern("[?,?,?]");
+
+    auto qkv_proj_weight_const = makePattern<opset1::Constant>({});
+    auto qkv_proj_cvt = makePattern<opset1::Convert>({qkv_proj_weight_const}, {{"destination_type", "f32"}});
+    auto qkv_proj = makePattern<opset1::MatMul>({input, qkv_proj_cvt}, {{"transpose_a", false}, {"transpose_b", true}});
+    auto qkv_split_lengths = makePattern<opset1::Constant>({}, {}, "i32[3]");
+    auto qkv_split = makePattern<opset1::VariadicSplit>({qkv_proj, 2, qkv_split_lengths});
+
+    auto result = qkv_split->output(0);
+
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+        PatternValidator validator(m);
+        if (!validator) {
+            return false;
+        }
+
+        const auto& pattern_map = m.get_pattern_value_map();
+        auto root = m.get_match_root();
+
+        auto node_split_lengths = ov::as_type_ptr<opset1::Constant>(pattern_map.at(qkv_split_lengths).get_node_shared_ptr());
+        if (!node_split_lengths)
+            return false;
+        auto split_lengths = node_split_lengths->get_vector<int32_t>();
+        if (split_lengths.size() != 3) return false;
+
+        auto proj_size = split_lengths[0];
+        if (split_lengths[1] != proj_size) return false;
+        if (split_lengths[2] != proj_size) return false;
+
+        auto qkv_proj_weight_node = ov::as_type_ptr<opset1::Constant>(pattern_map.at(qkv_proj_weight_const).get_node_shared_ptr());
+        if (!qkv_proj_weight_node)
+            return false;
+
+        auto w_shape = qkv_proj_weight_node->get_shape();
+        if (w_shape[0] != proj_size * 3)
+            return false;
+
+        auto is_quantized_int8 = false;
+
+        QKVProjectionNode::Config config;
+        config.quantized = is_quantized_int8;
+        config.hidden_size = w_shape[1];
+        config.weights_fused = true;
+        config.proj_size0 = split_lengths[0];
+        config.proj_size1 = split_lengths[1];
+        config.proj_size2 = split_lengths[2];
+
+        OutputVector args = {
+            pattern_map.at(input),
+            pattern_map.at(qkv_proj_weight_const),
+            pattern_map.at(qkv_proj_weight_const),
+            pattern_map.at(qkv_proj_weight_const)
+            };
+
+        auto old_node = root;
+        auto new_node = std::make_shared<QKVProjectionNode>(args, config);
+        new_node->set_friendly_name(old_node->get_friendly_name());
+        ov::copy_runtime_info({old_node}, new_node);
+
+        // callback is for plugin implementation to check if it can be supported
+        if (!transformation_callback(new_node)) {
+            return false;
+        }
+
+        auto vsplit = pattern_map.at(qkv_split).get_node_shared_ptr();
+
+        for (size_t i = 0; i < vsplit->get_output_size(); i++) {
+            vsplit->output(i).replace(new_node->output(i));
+        }
+
+        new_node->add_node_control_dependents(vsplit);
+        new_node->add_node_control_dependencies(vsplit);
+        vsplit->clear_control_dependents();
+
+        std::cout << "QKVProjFusion2: " << __LINE__ << "  " << root->get_friendly_name()
+                  << "  is_quantized_int8=" << is_quantized_int8 << std::endl;
         return true;
     };
 

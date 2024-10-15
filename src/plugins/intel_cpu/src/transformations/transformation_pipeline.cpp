@@ -858,6 +858,14 @@ void Transformations::PostLpt() {
             },
             QKVProjFusion);
 
+        CPU_REGISTER_PASS_X64(postLPTPassManager, QKVProjFusion2, allow_dyn_quant & 0x1);
+        CPU_SET_CALLBACK_X64(postLPTPassManager,
+            [concurrency](const_node_ptr &node) -> bool {
+                std::string errorMsg;
+                return node::QKVProjection::isSupportedOperation(node, errorMsg, concurrency);
+            },
+            QKVProjFusion2);
+
         CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::PrintModel, "_xxx.cpp");
     }
 
