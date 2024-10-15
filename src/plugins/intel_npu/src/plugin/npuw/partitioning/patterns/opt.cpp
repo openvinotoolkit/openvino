@@ -690,11 +690,6 @@ DQParMMGQ::DQParMMGQ(Context::Ref ctx) {
             return false;
         }
 
-        if (qmmi_shape[1] != 1 && !ctx.get().is_spatial) {
-            // For non 1-token cases, do transformation if and only if and only if the block is spatial
-            return false;
-        }
-
         if (!matmul->get_transpose_a() && !matmul->get_transpose_b()) {
             ctx.get().register_parallel_matmul(node_to_output.at(qmmi), 2, Context::DQParMM{w_param, s_param, matmul});
         } else if (!matmul->get_transpose_a() && matmul->get_transpose_b()) {
