@@ -84,7 +84,7 @@ private:
 class ov::pass::RoPEFusion : public ov::pass::GraphRewrite {
 public:
     OPENVINO_RTTI("RoPEFusion", "0");
-    RoPEFusion() {
+    RoPEFusion(bool support_2d_rope = false) {
         add_matcher<ov::pass::RoPEFusionGPTNEOX>();
         add_matcher<ov::pass::RoPEFusionGPTJ>();
         // optional heads & tails are fused in separate matcher pass,
@@ -95,8 +95,10 @@ public:
 
         add_matcher<ov::pass::RoPEFusionChatGLM>(0);
         add_matcher<ov::pass::RoPEFusionChatGLM>(1);
-        add_matcher<ov::pass::RoPEFusionChatGLM>(0, true);
-        add_matcher<ov::pass::RoPEFusionChatGLM>(1, true);
+        if (support_2d_rope) {
+            add_matcher<ov::pass::RoPEFusionChatGLM>(0, true);
+            add_matcher<ov::pass::RoPEFusionChatGLM>(1, true);
+        }
 
         add_matcher<ov::pass::RoPEFusionQwen>(0);
         add_matcher<ov::pass::RoPEFusionQwen>(1);
