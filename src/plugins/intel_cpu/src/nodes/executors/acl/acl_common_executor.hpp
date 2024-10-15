@@ -47,6 +47,7 @@ public:
         return *aclMemoryInfos[index].get();
     }
     ~ACLCommonExecutor();
+
 protected:
     ACLTensorAttrs aclTensorAttrs;
 private:

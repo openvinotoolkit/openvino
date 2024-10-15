@@ -83,11 +83,8 @@ bool ACLCommonExecutor::update(const MemoryArgs &memory) {
     updateTensorsShapes(aclMemoryShapes);
 
     // Initialize arm_compute::TensorInfo objects
-    //ACLInfos aclMemoryInfos;
     for (int i = 0; i < ACLArgs::COUNT_OF_ARGS; i++) {
-        //if (!aclMemoryInfos[i]) {
-            aclMemoryInfos[i] = initTensorInfo(aclMemoryShapes[i], aclDataType[i], aclDataLayout[i]);
-        //}
+        aclMemoryInfos[i] = initTensorInfo(aclMemoryShapes[i], aclDataType[i], aclDataLayout[i]);
     }
 
     // Validate arm_compute::TensorInfo objects for specific ACL function
@@ -117,7 +114,7 @@ void ACLCommonExecutor::execute(const MemoryArgs &memory) {
     // TODO: Move import_memory() to update() function - CVS-145871
     for (auto& cpu_mem_ptr : memory) {
         const ACLArgs index = argConvert.at(cpu_mem_ptr.first);
-        if (aclTensorAttrs.memoryUsageIndicator[index]) {//!aclMemoryTensors[index]->allocator()->data()) {
+        if (aclTensorAttrs.memoryUsageIndicator[index]) {
             aclMemoryTensors[index]->allocator()->import_memory(memory.at(cpu_mem_ptr.first)->getData());
         }
     }
