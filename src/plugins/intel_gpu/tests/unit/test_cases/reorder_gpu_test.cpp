@@ -1913,10 +1913,8 @@ TEST(reorder_gpu_opt, non_trivial_remove_redundant)
     auto outputs = net.execute();
     auto executed_primitives = net.get_executed_primitives();
 
-    if (engine.get_device_info().supports_immad) {
-        // Currently, oneDNN only supports in_order_queue
-        return;
-    }
+    if (config.get_property(ov::intel_gpu::queue_type) != QueueTypes::out_of_order)
+        GTEST_SKIP();
 
     ASSERT_TRUE(executed_primitives.count("in") == 1);
     ASSERT_TRUE(executed_primitives.at("in") != outputs.at("r1").get_event());
