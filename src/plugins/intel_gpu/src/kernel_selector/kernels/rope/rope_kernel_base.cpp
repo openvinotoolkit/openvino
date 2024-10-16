@@ -70,6 +70,9 @@ JitConstants RoPEKernelBase::GetJitConstants(const rope_params& params, RoPEKern
     if (params.is_qwen) {
         jit.AddConstant(MakeJitConstant("QWEN", true));
     } else if (params.is_chatglm) {
+        if (params.support_2d_rope) {
+            jit.AddConstant(MakeJitConstant("SUPPORT_2D_ROPE", true));
+        }
         jit.AddConstant(MakeJitConstant("CHATGLM", true));
     } else {
         jit.AddConstant(MakeJitConstant("RotateHalf", true));
@@ -85,10 +88,22 @@ RoPEKernelBase::DispatchData RoPEKernelBase::SetDefault(const rope_params& param
 
     std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::BATCH }, { Tensor::DataChannelName::FEATURE },
                                                                      { Tensor::DataChannelName::Y, Tensor::DataChannelName::X }};
-    if (params.is_chatglm || params.is_qwen) {
+    if (params.is_qwen) {
         dispatchData.gws = {input.Batch().v,
                             input.Feature().v,
                             params.head_cnt * std::max(params.rotary_ndims / 2ul, params.head_size - params.rotary_ndims)};
+    } else if (params.is_chatglm) {
+        if (params.support_2d_rope) {
+            // input  [batch_size, seq_length]
+            // output [batch_size, head_count, seq_length, half_rotary_ndims]
+            dispatchData.gws = {input.Batch().v * params.head_cnt,
+                                input.Feature().v,
+                                params.rotary_ndims / 2ul};
+        } else {
+            dispatchData.gws = {input.Batch().v,
+                                input.Feature().v,
+                                params.head_cnt * (params.rotary_ndims / 2ul)};
+        }
     } else {
         dispatchData.gws = {output.Batch().v,
                             output.Feature().v,

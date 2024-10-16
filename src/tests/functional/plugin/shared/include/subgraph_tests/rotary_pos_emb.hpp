@@ -87,5 +87,12 @@ TEST_P(RoPETestGPTJSlice, CompareWithRefs) {
     CheckNumberOfNodesWithType(function, {"RoPE"}, 1);
 };
 
+TEST_P(RoPETestChatGLM2DRoPEStridedSlice, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    run();
+    auto function = compiledModel.get_runtime_model();
+    CheckNumberOfNodesWithType(function, {"RoPE"}, 1);
+};
+
 }  // namespace test
 }  // namespace ov
