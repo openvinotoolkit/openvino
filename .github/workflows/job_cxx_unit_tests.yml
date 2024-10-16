@@ -20,6 +20,11 @@ on:
         description: 'OS that is used for testing in the form of "ubuntu_20_04"'
         type: string
         required: true
+      gtest-filter:
+        description: 'Filter to skip tests(--gtest_filter=POSTIVE_PATTERNS[-NEGATIVE_PATTERNS])'
+        type: string
+        required: false
+        default: '*'
 
 permissions: read-all
 
@@ -165,8 +170,7 @@ jobs:
         if: ${{ fromJSON(inputs.affected-components).transformations.test && runner.arch != 'ARM64' }} # Ticket: 126281
         run: |
           ${{ env.SETUPVARS_COMMAND }}
-
-          ${{ env.INSTALL_TEST_DIR }}/ov_transformations_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-Transformations.xml
+          ${{ env.INSTALL_TEST_DIR }}/ov_transformations_tests --gtest_filter=${{ inputs.gtest-filter }} --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-Transformations.xml
 
       - name: Common test utils tests
         if: ${{ runner.os != 'macOS' }} # Ticket: 134469
