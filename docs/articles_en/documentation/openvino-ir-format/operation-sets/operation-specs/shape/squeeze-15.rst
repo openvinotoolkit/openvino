@@ -125,7 +125,7 @@ Squeeze
         </output>
     </layer>
 
-*Example 4: squeeze 2D tensor with 1 dynamic and one static shape element to a static shape output, according to the opset1 rules*
+*Example 4: squeeze 2D tensor with dynamic and static shape elements to a static shape output, according to the opset1 rules*
 
 .. code-block:: xml
    :force:
@@ -150,7 +150,7 @@ Squeeze
         </output>
     </layer>
 
-*Example 5: squeeze 2D tensor with 1 dynamic and one static shape element to a static shape output, according to the opset15 rules*
+*Example 5: squeeze 2D tensor with dynamic and static shape elements to a dynamic shape output, according to the opset15 rules*
 
 .. code-block:: xml
    :force:
