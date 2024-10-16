@@ -275,6 +275,7 @@ def bitwise_right_shift(
         },
     )
 
+
 @nameable_op
 def slice_scatter(
     data: NodeInput,
