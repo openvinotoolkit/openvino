@@ -452,7 +452,11 @@ void Snapshot::repeatedBlocks(Snapshot::CB &&on_done) {
         });
         // While the current process is entirely done, let the caller
         // influence the partitioning - so the algorithm could continue.
-        on_done();
+        if (on_done) {
+            on_done();
+        } else {
+            return; // FROM top-level repeat!
+        }
     });
     cleanUpUniques();
 
