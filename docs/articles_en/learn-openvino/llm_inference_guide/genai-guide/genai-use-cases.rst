@@ -8,7 +8,7 @@ to explore and modify the source code as you need.
 
 
 Using GenAI for Text-to-Image Generation
-#######################################
+################################################
 
 Examples below demonstrate inference on text-to-image models, like Stable Diffusion
 1.5, 2.1, and LCM, with a text prompt as input. The :ref:`main.cpp <maincpp>`
