@@ -41,8 +41,7 @@ std::string SearchSortedLayerCPUTest::getTestCaseName(testing::TestParamInfo<Sea
             result << ov::test::utils::vec2str(targetShape) << "_";
         }
         result << ")_";
-        result << "right_mode=" << right_mode << "_";
-        //result << CPUTestsBase::getTestCaseName(cpuParams);
+        result << "right_mode=" << right_mode;
 
         return result.str();
     }
@@ -67,10 +66,11 @@ void SearchSortedLayerCPUTest::SetUp() {
 
         SearchSortedSpecificParams searchSortedParams;
 
-        targetDevice = ov::test::utils::DEVICE_CPU;
-
         ElementType inputPrecision;
         std::tie(searchSortedParams, inputPrecision) = basicParamsSet;
+
+        selectedType = makeSelectedTypeStr("ref", inputPrecision);
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         InputShape sortedInputShape;
         InputShape valuesInputShape;
