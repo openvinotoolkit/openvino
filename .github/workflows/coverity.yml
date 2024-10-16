@@ -112,7 +112,7 @@ jobs:
       - name: Pack Artefacts
         run: |
           pushd ${BUILD_DIR}
-            tar -C ${BUILD_DIR} -I pigz -cvf openvino.tgz cov-int
+            tar -cvf - cov-int | pigz > openvino.tgz
           popd
 
       - name: Submit artefacts
