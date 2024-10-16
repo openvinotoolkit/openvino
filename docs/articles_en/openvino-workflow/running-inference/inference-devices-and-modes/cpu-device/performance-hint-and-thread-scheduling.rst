@@ -188,7 +188,7 @@ are executed in parallel.
 For details on multi-stream execution check the
 :doc:`optimization guide <../../optimize-inference/optimizing-throughput/advanced_throughput_options>`.
 
-.. Composability_of_different_threading_runtimes:
+.. _Composability_of_different_threading_runtimes:
 
 Composability of different threading runtimes
 #############################################
