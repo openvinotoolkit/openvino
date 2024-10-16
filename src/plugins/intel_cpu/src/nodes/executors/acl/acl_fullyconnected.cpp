@@ -69,24 +69,24 @@ static MemoryPtr reorderData(DnnlMemoryDescPtr srcWeightDesc,
                              DnnlMemoryDescPtr dstWeightDesc,
                              MemoryCPtr weightsMem,
                              ExecutorContext::CPtr context) {
-    Memory input{context->getEngine(), srcWeightDesc, weightsMem->getData()};
+    MemoryPtr input = std::make_shared<Memory>(context->getEngine(), srcWeightDesc, weightsMem->getData());
     MemoryPtr output = std::make_shared<Memory>(context->getEngine(), dstWeightDesc);
     auto cache = context->getRuntimeCache();
 
-    if (!input.getDesc().isDefined() || !output->getDesc().isDefined())
+    if (!input->getDesc().isDefined() || !output->getDesc().isDefined())
         OPENVINO_THROW("Can't reorder data with dynamic shapes");
 
-    if (input.getShape().hasZeroDims() || output->getShape().hasZeroDims()) {
+    if (input->getShape().hasZeroDims() || output->getShape().hasZeroDims()) {
         return output;
     }
 
-    if (input.getDesc().isCompatible(output->getDesc())) {
-        if (input.getDesc().getPrecision() == element::string) {
-            auto srcPtr = input.getDataAs<StringMemory::OvString>();
+    if (input->getDesc().isCompatible(output->getDesc())) {
+        if (input->getDesc().getPrecision() == element::string) {
+            auto srcPtr = input->getDataAs<StringMemory::OvString>();
             auto dstPtr = output->getDataAs<StringMemory::OvString>();
             std::copy(srcPtr, srcPtr + output->getShape().getElementsCount(), dstPtr);
         } else {
-            auto srcPtr = static_cast<uint8_t*>(input.getData());
+            auto srcPtr = static_cast<uint8_t*>(input->getData());
             auto dstPtr = static_cast<uint8_t*>(output->getData());
 
             auto copySize = output->getSize();
@@ -94,8 +94,9 @@ static MemoryPtr reorderData(DnnlMemoryDescPtr srcWeightDesc,
         }
     } else {
         dnnl::reorder reorder;
+        std::vector<uint8_t> tmpBuff;
 
-        auto srcMemory = input.getPrimitive();
+        auto srcMemory = input->getPrimitive();
         auto dstMemory = output->getPrimitive();
 
         auto srcMemoryDesc = srcMemory.get_desc();
@@ -115,38 +116,38 @@ static MemoryPtr reorderData(DnnlMemoryDescPtr srcWeightDesc,
 
         // try directly reorder
         reorder = getReorderPrim(cache, engine, srcMemoryDesc, dstMemoryDesc);
-        MemoryArgs memoryArgs;
         if (!reorder || parse_impl_name(reorder.get_primitive_desc()->impl()->name()) == ref_any) {
             // try precision conversion then do the reorder
-            if (output->getDataType() != input.getDataType() && node::Convert::isSupportedDesc(input.getDesc()) &&
+            if (output->getDataType() != input->getDataType() && node::Convert::isSupportedDesc(input->getDesc()) &&
                 node::Convert::isSupportedDesc(output->getDesc())) {
                 //we probably could not make the reorder because there is no one supporting this precision conversion
                 //lets try to convert data first using cpu_convert
-                memoryArgs[ARG_SRC] = std::make_shared<Memory>(context->getEngine(), srcWeightDesc, weightsMem->getData());
-                memoryArgs[ARG_DST] = std::make_shared<Memory>(context->getEngine(), dstWeightDesc);
+                MemoryArgs memoryArgs;
+                memoryArgs[ARG_SRC] = input;
+                memoryArgs[ARG_DST] = output;
                 auto aclWeightsConverter = std::make_shared<acl_fc_executor::ACLWeightsConverter>();
                 if (aclWeightsConverter->update(memoryArgs)) {
                     aclWeightsConverter->execute(memoryArgs);
                 } else {
-                    auto count_wei_elem = std::accumulate(memoryArgs[ARG_SRC_0]->getStaticDims().begin(),
-                                                          memoryArgs[ARG_SRC_0]->getStaticDims().end(),
-                                                          1,
-                                                          std::multiplies<>());
-                    cpu_convert(memoryArgs[ARG_SRC_0]->getData(),
-                                memoryArgs[ARG_DST]->getData(),
-                                memoryArgs[ARG_SRC_0]->getPrecision(),
-                                memoryArgs[ARG_DST]->getPrecision(),
-                                count_wei_elem);
+                    auto data = static_cast<const uint8_t *>(input->getData());
+                    tmpBuff.resize(output->getSize());
+
+                    const auto outPrc = DnnlExtensionUtils::DataTypeToElementType(output->getDataType());
+                    cpu_convert(data, tmpBuff.data(), DnnlExtensionUtils::DataTypeToElementType(input->getDataType()),
+                                outPrc, input->getSize() / input->getDesc().getPrecision().size());
+
+                    auto tmpDesc = input->getDesc().cloneWithNewPrecision(outPrc);
+                    Memory tmpMem(engine, std::move(tmpDesc), tmpBuff.data());
+
+                    srcMemory = tmpMem.getPrimitive();
                 }
-                auto dnnlSrcDesc = MemoryDescUtils::convertToDnnlMemoryDesc(dstWeightDesc)->getDnnlDesc();
-                reorder = getReorderPrim(cache, dstMemory.get_engine(), dnnlSrcDesc, dstMemory.get_desc());
-                auto tmpDesc = input.getDesc().cloneWithNewPrecision(memoryArgs[ARG_DST]->getPrecision());
-                Memory tmpMem(engine, std::move(tmpDesc), memoryArgs[ARG_DST]->getData());
-                srcMemory = tmpMem.getPrimitive();
+                reorder = getReorderPrim(cache, dstMemory.get_engine(), srcMemory.get_desc(), dstMemory.get_desc());
+            } else {
+                std::cout << "prec conversion is skipped" << std::endl;
             }
             if (!reorder) {
                 OPENVINO_THROW("No reorder available for the following tensor descriptors: ",
-                               input.getDesc().serializeFormat(),
+                               input->getDesc().serializeFormat(),
                                " and ",
                                output->getDesc().serializeFormat());
             }
