@@ -58,7 +58,7 @@ jobs:
       build-type: 'Debug'
       target-branch: ${{ needs.smart_ci.outputs.target_branch }}
       cmake-options: |-
-        -G "Ninja" \
+        -G "Ninja" `
         -DENABLE_PYTHON=OFF
 
   CXX_Unit_Tests:
@@ -83,3 +83,4 @@ jobs:
             contains(needs.*.result, 'cancelled')
           }}
         run: exit 1
+      

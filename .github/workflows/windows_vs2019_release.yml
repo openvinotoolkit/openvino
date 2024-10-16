@@ -60,7 +60,7 @@ jobs:
       build-type: 'Release'
       target-branch: ${{ needs.smart_ci.outputs.target_branch }}
       cmake-options: |-
-            -G "Ninja Multi-Config" \
+            -G "Ninja Multi-Config" `
             -DENABLE_PYTHON=ON
 
   Samples:
