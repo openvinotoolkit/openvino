@@ -16,13 +16,15 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-ov::pass::StaticScaling::StaticScaling() {
+ov::pass::StaticScaling::StaticScaling(float scale_factor) {
     using namespace ov::pass::pattern;
     using ov::pass::pattern::op::Or;
 
     const float default_scale_factor = 256.f;
     const ov::element::Type infer_prec = ov::element::f32;
     const ov::element::Type scaled_prec = ov::element::f16;
+
+    scale_factor = (scale_factor < 1.f) ? default_scale_factor : scale_factor;
 
     auto input_m = any_input();
     auto weights_m = wrap_type<ov::op::v0::Constant>(type_matches_any({infer_prec}));
@@ -48,19 +50,19 @@ ov::pass::StaticScaling::StaticScaling() {
         auto input = pattern_map.at(input_m);
 
         ov::Shape scale_const_shape = {1};
-        std::vector<float> inverse_scale_value = {(1.f / default_scale_factor)};
+        std::vector<float> inverse_scale_value = {(1.f / scale_factor)};
         std::shared_ptr<ov::Node> inverse_scale_const = std::make_shared<ov::op::v0::Constant>(infer_prec, scale_const_shape, inverse_scale_value);
         auto scale_down = std::make_shared<ov::op::v1::Multiply>(input.get_node_shared_ptr()->output(0),
                                                                  inverse_scale_const->output(0));
         auto precision_down = std::make_shared<ov::op::v0::Convert>(scale_down, scaled_prec);
         conv->input(0).replace_source_output(precision_down->output(0));
 
-        std::vector<float> scale_value = {default_scale_factor};
+        std::vector<float> scale_value = {scale_factor};
         std::shared_ptr<ov::Node> scale_const = std::make_shared<ov::op::v0::Constant>(infer_prec, scale_const_shape, scale_value);
         auto scale_up = std::make_shared<ov::op::v1::Multiply>(conv->output(0),
                                                                scale_const->output(0));
         ov::replace_node(conv, scale_up);
-std::cout << "StaticScaling - converted" << std::endl;
+std::cout << "StaticScaling - converted " << scale_factor << std::endl;
         return true;
     };
 

@@ -20,5 +20,5 @@ class TRANSFORMATIONS_API StaticScaling;
 class ov::pass::StaticScaling : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("StaticScaling", "0");
-    StaticScaling();
+    StaticScaling(float scale_factor = 0.f);
 };
