@@ -157,6 +157,12 @@ protected:
      */
     std::vector<std::vector<size_t>> extract_layouts() const;
 
+    static void compute_offsets(const ov::snippets::VectorDims& shape,
+                                ov::snippets::VectorDims& offsets,
+                                size_t offsets_size,
+                                size_t dim_step,
+                                size_t idx_stride);
+
     class MHAParallelWAOptimizer {
     public:
         MHAParallelWAOptimizer() = default;

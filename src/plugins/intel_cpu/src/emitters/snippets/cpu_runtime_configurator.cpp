@@ -4,7 +4,9 @@
 
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
 
+#include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "snippets/lowered/loop_manager.hpp"
+#include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "snippets/utils/utils.hpp"
 
 #include "transformations/snippets/x64/pass/lowered/adjust_brgemm_copy_b_loop_ports.hpp"
@@ -48,6 +50,7 @@ void CPURuntimeConfigurator::initialization(const ov::snippets::lowered::LinearI
 }
 
 void CPURuntimeConfigurator::update(const ov::snippets::lowered::LinearIRCPtr& linear_ir) {
+    update_requested_descs(linear_ir);
     m_config->master_shape = linear_ir->get_master_shape();
     update_loop_info(linear_ir);
 
@@ -68,6 +71,7 @@ void CPURuntimeConfigurator::update(const ov::snippets::lowered::LinearIRCPtr& l
     if (linear_ir->is_dynamic()) {
         update_loop_args(linear_ir);
     }
+    adjust_offsets_from_descs(linear_ir);
 }
 
 void CPURuntimeConfigurator::update_tensor_rank(const ov::snippets::VectorDims& master_shape) {
@@ -141,6 +145,60 @@ void CPURuntimeConfigurator::BrgemmCopyBLoopPortsAdjuster::optimize() {
                     update_expanded_loop_info(exp_loop, initialized_info);
             }
         }
+}
+
+void CPURuntimeConfigurator::update_requested_descs(const ov::snippets::lowered::LinearIRCPtr& linear_ir) const {
+    const auto& cpu_config = ov::as_type_ptr<CPURuntimeConfig>(m_config);
+    auto& optimal_descs = cpu_config->m_in_requested_descs;
+    optimal_descs.resize(m_in_num);
+    const auto& params = linear_ir->get_parameters();
+    OPENVINO_ASSERT(params.size() == m_in_num);
+    for (size_t i = 0; i < m_in_num; ++i) {
+        // TODO: remove
+        if (i != 1) continue;
+        const auto& param = params[i];
+        const auto consumers = param->get_output_port_connector(0)->get_consumers();
+        OPENVINO_ASSERT(consumers.size() == 1);
+        const auto& consumer = consumers.begin()->get_expr();
+        // TODO: this logic should be more flexible
+        if (ov::is_type<ov::intel_cpu::BrgemmCPU>(consumer->get_node())) {
+            const auto& shape = param->get_output_port_descriptor(0)->get_shape();
+            VectorDims normalized_dims(3, 1);
+            *normalized_dims.rbegin() = *shape.rbegin();
+            *++normalized_dims.rbegin() = *++shape.rbegin();
+            normalized_dims[0] = std::accumulate(shape.begin(), shape.end() - 2, static_cast<Dim>(1), std::multiplies<Dim>());
+
+            const auto data_type = DnnlExtensionUtils::ElementTypeToDataType(param->get_node()->get_output_element_type(0));
+            // TODO: tag must be selected based on Brgemm params (inner block + vnni factor?)
+            const auto tag = dnnl::memory::format_tag::aCB16b64c2b;
+            optimal_descs[i] = std::make_shared<DnnlBlockedMemoryDesc>(Shape(normalized_dims), data_type, tag);
+        }
+    }
+}
+void CPURuntimeConfigurator::adjust_offsets_from_descs(const ov::snippets::lowered::LinearIRCPtr& linear_ir) const {
+    const auto& cpu_config = ov::as_type_ptr<CPURuntimeConfig>(m_config);
+    auto& optimal_descs = cpu_config->m_in_requested_descs;
+    for (size_t i = 0; i < m_in_num; ++i) {
+        const auto& optimal_desc = optimal_descs[i];
+        if (optimal_desc) {
+            // It is assumed that shape is planar
+            const auto& parameter = linear_ir->get_parameters()[i];
+            const auto& original_shape = parameter->get_output_port_descriptor(0)->get_shape();
+            const auto& blocked_shape = optimal_desc->as<DnnlBlockedMemoryDesc>()->getBlockDims();
+
+            ov::snippets::VectorDims shape_for_offset(m_config->tensor_rank - original_shape.size(), 1);
+            // Parallel work amount is copied from original shape
+            shape_for_offset.insert(shape_for_offset.end(), original_shape.begin(), original_shape.end() - m_config->tile_rank);
+            // Only first dim is batch, the rest are repacked KN
+            shape_for_offset.insert(shape_for_offset.end(), blocked_shape.begin() + 1, blocked_shape.end());
+            std::cout << "shape_for_offset = " << ov::PartialShape(shape_for_offset) << std::endl;
+
+            auto& offsets = m_config->io_data_offsets[i];
+            compute_offsets(shape_for_offset, offsets, shape_for_offset.size(), m_io_data_sizes[i], 0);
+            std::cout << "offsets[*] = " << ov::PartialShape(offsets) << std::endl;
+            OPENVINO_ASSERT(ov::snippets::utils::is_planar_layout(parameter->get_output_port_descriptor(0)->get_layout()));
+        }
+    }
 }
 
 } // namespace intel_cpu
