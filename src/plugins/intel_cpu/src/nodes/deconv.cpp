@@ -461,8 +461,21 @@ void Deconvolution::getSupportedDescriptors() {
     outputDataType = DnnlExtensionUtils::ElementTypeToDataType(outPrecision);
     if (inputDataType == memory::data_type::bf16 || outputDataType == memory::data_type::bf16)
        inputDataType = outputDataType = memory::data_type::bf16;
-    if (inputDataType == memory::data_type::f16 || outputDataType == memory::data_type::f16)
-       inputDataType = outputDataType = memory::data_type::f16;
+
+    if (inputDataType == memory::data_type::f16 || outputDataType == memory::data_type::f16) {
+        bool hasStrides = false;
+        for (size_t i = 0; i < deconvAttrs.stride.size(); i++) {
+            if (deconvAttrs.stride[i] != 1) {
+                hasStrides = true;
+                break;
+            }
+        }
+        if (hasStrides)
+            inputDataType = outputDataType = memory::data_type::f32;
+        else
+            inputDataType = outputDataType = memory::data_type::f16;
+    }
+
     if (!fusedWith.empty()) {
         outputDataType = DnnlExtensionUtils::ElementTypeToDataType(fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0));
     }
