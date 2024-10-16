@@ -1,6 +1,6 @@
-explored_nodes = ("ScaledDotProductAttention", "PagedAttentionExtension", "Parameter", "ReadValue", "Assign")
+nodes_to_compare = ("ScaledDotProductAttention", "PagedAttentionExtension", "Parameter", "ReadValue", "Assign")
 
-pa_reference_map = {
+ref_diff_map = {
 	"hf-internal-testing/tiny-random-LlamaForCausalLM" : {
 		"PagedAttentionExtension" : 2,
 		"ScaledDotProductAttention" : -2,
@@ -297,7 +297,7 @@ pa_reference_map = {
 	},
 }
 
-pa_reference_map_ce = {
+ref_diff_map_ce = {
 	"hf-internal-testing/tiny-random-LlamaForCausalLM" : {
 		"ScaledDotProductAttention" : -2,
 		"ReadValue" : -4,

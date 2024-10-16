@@ -2,7 +2,7 @@
 Use this script if you need to regenerate reference diffs for each model
 to test SDPAToPA transformation.
 
-The script will produce model_diff_ref.txt (or model_diff_ref_ce.txt
+The script will produce sdpa2pa_ref_diff.txt (or sdpa2pa_ref_diff_ce.txt
 if using cache-eviction) containing a map in the
 following format with nodes number changes for each model:
 
@@ -26,10 +26,10 @@ pa_reference_map = {
     .
 }
 
-The map has to be pasted into pa_model_ref_diff.py (same directory) for
+The map has to be pasted into sdpa2pa_ref_diff.py (same directory) for
 includes to test SDPAToPA transformation.
 
-Run the script by using 'python generate_model_diffs.py' or 'python generate_model_diffs.py True'
+Run the script by using 'python generate_ref_diffs.py' or 'python generate_ref_diffs.py True'
 for generating the same map, but utilizing cache-eviction.
 '''
 
@@ -41,14 +41,14 @@ from openvino._offline_transformations import paged_attention_transformation
 from openvino._pyopenvino.op import _PagedAttentionExtension, Parameter, Result
 from optimum.intel import OVModelForCausalLM
 
-explored_nodes = ("ScaledDotProductAttention", "PagedAttentionExtension", "Parameter", "ReadValue", "Assign")
+nodes_to_compare = ("ScaledDotProductAttention", "PagedAttentionExtension", "Parameter", "ReadValue", "Assign")
 
 def main():
     use_cache_eviction = False
     if len(sys.argv) >= 2:
         use_cache_eviction = sys.argv[1].lower() in 'true'
 
-    OUTPUT_FILE = Path(os.path.join(os.path.dirname(__file__)), 'model_diff_ref' + ('_ce.txt' if use_cache_eviction else '.txt'))
+    OUTPUT_FILE = Path(os.path.join(os.path.dirname(__file__)), 'sdpa2pa_ref_diff' + ('_ce.txt' if use_cache_eviction else '.txt'))
 
     if OUTPUT_FILE.exists() and OUTPUT_FILE.is_file():
         OUTPUT_FILE.unlink()
@@ -56,7 +56,7 @@ def main():
     with open(OUTPUT_FILE, 'w') as file:
         model_list = utils.get_models_list(os.path.join(os.path.dirname(__file__), "models", "hf-tiny-random-models-precommit"))
         print(OUTPUT_FILE)
-        print('reference_map_ce = {' if use_cache_eviction else 'reference_map = {', file=file)
+        print('ref_diff_map_ce = {' if use_cache_eviction else 'ref_diff_map = {', file=file)
 
         for model_id, _, _, _ in model_list:
             # wrapping in try/catch block to continue printing models even if one has failed
@@ -67,7 +67,7 @@ def main():
 
             before_map = {}
             for op in model.model.get_ordered_ops():
-                if op.get_type_name() in explored_nodes:
+                if op.get_type_name() in nodes_to_compare:
                     before_map[op.get_type_name()] = before_map.get(op.get_type_name(), 0) + 1
 
             # wrapping in try/catch block to continue printing models even if one has failed
@@ -78,7 +78,7 @@ def main():
 
             after_map = {}
             for op in model.model.get_ordered_ops():
-                if op.get_type_name() in explored_nodes:
+                if op.get_type_name() in nodes_to_compare:
                     after_map[op.get_type_name()] = after_map.get(op.get_type_name(), 0) + 1
 
             print(f'\t"{model_id}" : {{', file=file)
