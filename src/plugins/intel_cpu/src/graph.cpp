@@ -194,8 +194,8 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &model,
         const auto port = unusedOutput.get_index();
         const auto nodeName = std::string("stub_") + std::to_string(unusedOutput.get_index()) + "_" + parentNode->getName();
         const NodePtr outNode = std::make_shared<node::Input>(parentNode->outputShapes[port],
-                                                                        parentNode->getOriginalOutputPrecisionAtPort(port),
-                                                                        nodeName, "Result", m_context);
+                                                              parentNode->getOriginalOutputPrecisionAtPort(port),
+                                                              nodeName, "Result", m_context);
         CreateEdge(parentNode, outNode, port, 0);
         AddNode(outNode);
     }
