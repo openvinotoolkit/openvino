@@ -21,20 +21,16 @@ using SearchSortedSpecificParams = std::tuple<InputShape,  // sorted shape
 
 using SearchSortedLayerTestParams = std::tuple<SearchSortedSpecificParams, ElementType>;
 
-using SearchSortedLayerCPUTestParamsSet = SearchSortedLayerTestParams;
-
-class SearchSortedLayerCPUTest : public testing::WithParamInterface<SearchSortedLayerCPUTestParamsSet>,
+class SearchSortedLayerCPUTest : public testing::WithParamInterface<SearchSortedLayerTestParams>,
                                  public SubgraphBaseTest,
                                  public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<SearchSortedLayerCPUTestParamsSet> obj);
+    static std::string getTestCaseName(testing::TestParamInfo<SearchSortedLayerTestParams> obj);
 
 protected:
     void SetUp() override;
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
 };
-
-const std::vector<ElementType> indexPrecisions = {ElementType::i32, ElementType::i64};
 
 extern const std::vector<SearchSortedSpecificParams> SearchSortedParamsVector;
 }  // namespace SearchSorted

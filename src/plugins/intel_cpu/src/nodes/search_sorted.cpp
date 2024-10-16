@@ -40,10 +40,10 @@ void SearchSorted::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    ov::element::Type inputPrec0 = getOriginalInputPrecisionAtPort(0);
+    ov::element::Type inputPrec = getOriginalInputPrecisionAtPort(0);
     ov::element::Type outputPrec = getOriginalOutputPrecisionAtPort(0);
 
-    addSupportedPrimDesc({{LayoutType::ncsp, inputPrec0}, {LayoutType::ncsp, inputPrec0}},
+    addSupportedPrimDesc({{LayoutType::ncsp, inputPrec}, {LayoutType::ncsp, inputPrec}},
                          {{LayoutType::ncsp, outputPrec}},
                          impl_desc_type::ref);
 }
@@ -78,11 +78,11 @@ struct SearchSortedContext {
 
 template <typename T>
 struct SearchSorted::SearchSortedExecute {
-    using TData = typename std::tuple_element<0, T>::type;
-    using TIndex = typename std::tuple_element<1, T>::type;
+    using TInputType = typename std::tuple_element<0, T>::type;
+    using TOutputType = typename std::tuple_element<1, T>::type;
 
     void operator()(SearchSortedContext& ctx) {
-        ctx.node.executeImpl<TData, TIndex>();
+        ctx.node.executeImpl<TInputType, TOutputType>();
     }
 };
 void SearchSorted::execute(dnnl::stream strm) {

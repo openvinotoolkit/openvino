@@ -12,7 +12,7 @@ using namespace CPUTestUtils;
 namespace ov {
 namespace test {
 namespace SearchSorted {
-INSTANTIATE_TEST_SUITE_P(smoke_SearchSortedLayoutTestF32,
+INSTANTIATE_TEST_SUITE_P(smoke_SearchSortedLayoutTest,
                          SearchSortedLayerCPUTest,
                          ::testing::Combine(::testing::ValuesIn(SearchSortedParamsVector),
                                             testing::Values(ElementType::f32)),
