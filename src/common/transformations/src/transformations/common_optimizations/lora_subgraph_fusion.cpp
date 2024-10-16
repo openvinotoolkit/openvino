@@ -23,9 +23,9 @@
 ov::pass::LoraSubgraphFusion::LoraSubgraphFusion() {
     MATCHER_SCOPE(LoraSubgraphFusion);
     using namespace pass::pattern;
-    auto input_m = any_input();
+    auto lora_input_m = any_input();
     auto transpose_const1_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
-    auto transpose1_m = optional<ov::op::v1::Transpose>({input_m, transpose_const1_m}, consumers_count(1));
+    auto transpose1_m = optional<ov::op::v1::Transpose>({lora_input_m, transpose_const1_m}, consumers_count(1));
     auto read_value1_m = wrap_type<ov::op::util::ReadValueBase>();
     auto matmul1_m = wrap_type<ov::op::v0::MatMul>({transpose1_m, read_value1_m}, consumers_count(1));
     auto read_value2_m = wrap_type<ov::op::util::ReadValueBase>();
@@ -34,19 +34,19 @@ ov::pass::LoraSubgraphFusion::LoraSubgraphFusion() {
     auto matmul2_m = wrap_type<ov::op::v0::MatMul>({multiply_m, read_value3_m}, consumers_count(1));
     auto transpose_const2_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
     auto transpose2_m = optional<ov::op::v1::Transpose>({matmul2_m, transpose_const2_m}, consumers_count(1));
-    auto external_matmul_m = wrap_type<ov::op::v0::MatMul, ov::op::v1::Convolution>({input_m, any_input()});
-    auto add_m = wrap_type<ov::op::v1::Add>({transpose2_m, external_matmul_m});
+    auto main_flow_m = wrap_type<ov::op::v0::MatMul, ov::op::v1::Convolution>({lora_input_m, any_input()});
+    auto add_m = wrap_type<ov::op::v1::Add>({transpose2_m, main_flow_m});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        const auto& input = pattern_map.at(input_m);
+        const auto& lora_input = pattern_map.at(lora_input_m);
         const auto& matmul1 = pattern_map.at(matmul1_m);
         const auto& read_value1 = pattern_map.at(read_value1_m);
         const auto& multiply = pattern_map.at(multiply_m);
         const auto& read_value2 = pattern_map.at(read_value2_m);
         const auto& matmul2 = pattern_map.at(matmul2_m);
         const auto& read_value3 = pattern_map.at(read_value3_m);
-        const auto& external_matmul = pattern_map.at(external_matmul_m);
+        const auto& main_flow = pattern_map.at(main_flow_m);
         const auto& add = pattern_map.at(add_m);
 
         const auto add_node = add.get_node_shared_ptr();
@@ -63,14 +63,22 @@ ov::pass::LoraSubgraphFusion::LoraSubgraphFusion() {
             OPENVINO_THROW("Ops are not connected");
         };
 
-        std::vector<ov::Input<ov::Node>> internal_inputs{
+        // Note: internal_inputs/external_connections order corresponds to LoraSubgraph semantic
+        const std::vector<ov::Input<ov::Node>> internal_inputs{
+            find_connected_input(add.get_node(), main_flow.get_node()),
+            // For commutative eltwise ops, input idx may be any, so it must be computed
             pattern_map.count(transpose1_m) ? pattern_map.at(transpose1_m).get_node()->input(0)
                                             : matmul1.get_node()->input(0),
             matmul1.get_node()->input(1),
-            // For commutative eltwise ops, input idx may be any, so it must be computed
             find_connected_input(multiply.get_node(), read_value2.get_node()),
             matmul2.get_node()->input(1),
-            find_connected_input(add.get_node(), external_matmul.get_node()),
+        };
+        const ov::OutputVector external_connections{
+            main_flow,
+            lora_input,
+            read_value1,
+            read_value2,
+            read_value3,
         };
 
         ov::ParameterVector subgraph_parameters;
@@ -83,15 +91,7 @@ ov::pass::LoraSubgraphFusion::LoraSubgraphFusion() {
         // Note: lora consumers should be taken before lora_subgraph creation,
         // because only original consumers should be replaced with lora's output
         const auto& lora_consumers = add.get_target_inputs();
-        auto lora_subgraph = std::make_shared<ov::Model>(ov::OutputVector{add}, subgraph_parameters);
-
-        ov::OutputVector external_connections{
-            input,
-            read_value1,
-            read_value2,
-            read_value3,
-            external_matmul,
-        };
+        const auto lora_subgraph = std::make_shared<ov::Model>(ov::OutputVector{add}, subgraph_parameters);
         const auto lora_node = std::make_shared<ov::op::internal::LoraSubgraph>(external_connections, lora_subgraph);
         ov::copy_runtime_info(m.get_matched_nodes(), lora_node);
         lora_node->set_friendly_name(add_node->get_friendly_name());

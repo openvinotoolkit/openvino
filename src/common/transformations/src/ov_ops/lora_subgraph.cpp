@@ -9,7 +9,6 @@ namespace op {
 namespace internal {
 
 LoraSubgraph::LoraSubgraph(const OutputVector& args, const std::shared_ptr<ov::Model>& body) : SubGraphOp(args) {
-    OPENVINO_ASSERT(args.size() == 5, "LoraSubgraph must have 5 inputs");
     SubGraphOp::set_function(body);
     for (size_t i = 0; i < body->get_parameters().size(); ++i)
         m_input_descriptions[0].push_back(std::make_shared<InvariantInputDescription>(i, i));
@@ -24,6 +23,8 @@ std::shared_ptr<Node> LoraSubgraph::clone_with_new_inputs(const OutputVector& ne
 }
 
 void LoraSubgraph::validate_and_infer_types() {
+    OPENVINO_ASSERT(get_input_size() == 5, "LoraSubgraph must have 5 inputs whereas it has ", get_input_size());
+    OPENVINO_ASSERT(get_output_size() == 1, "LoraSubgraph must have 1 output whereas it has ", get_output_size());
     const auto& body = get_function();
     OPENVINO_ASSERT(body, "LoraSubgraph must have initialized body");
     validate_and_infer_type_body(body, m_input_descriptions[0]);
