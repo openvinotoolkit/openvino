@@ -30,7 +30,7 @@ void registerNPUWOptions(OptionsDesc& desc);
 DEFINE_OPT(NPU_USE_NPUW, bool, false, use_npuw, CompileTime);
 DEFINE_OPT(NPUW_DEVICES, std::string, "NPU,CPU", npuw::devices, CompileTime);
 DEFINE_OPT(NPUW_SUBMODEL_DEVICE, std::string, "", npuw::submodel_device, CompileTime);
-DEFINE_OPT(NPUW_ONLINE_PIPELINE, std::string, "REP", npuw::partitioning::online::pipeline, CompileTime);
+DEFINE_OPT(NPUW_ONLINE_PIPELINE, std::string, "REG", npuw::partitioning::online::pipeline, CompileTime);
 DEFINE_OPT(NPUW_ONLINE_AVOID, std::string, "", npuw::partitioning::online::avoid, CompileTime);
 DEFINE_OPT(NPUW_ONLINE_ISOLATE, std::string, "", npuw::partitioning::online::isolate, CompileTime);
 DEFINE_OPT(NPUW_ONLINE_NO_FOLD, std::string, "", npuw::partitioning::online::nofold, CompileTime);
