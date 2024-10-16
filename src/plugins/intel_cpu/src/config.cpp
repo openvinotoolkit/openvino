@@ -399,6 +399,12 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             inferencePrecision = ov::element::undefined;
         }
     }
+    // enable ACL fast math in PERFORMANCE mode
+#if defined(OV_CPU_WITH_ACL)
+    if (executionMode == ov::hint::ExecutionMode::PERFORMANCE) {
+        aclFastMath = true;
+    }
+#endif
     // disable dynamic quantization and kv quantization for best accuracy
     if (executionMode == ov::hint::ExecutionMode::ACCURACY) {
         if (!fcDynamicQuantizationGroupSizeSetExplicitly) {
