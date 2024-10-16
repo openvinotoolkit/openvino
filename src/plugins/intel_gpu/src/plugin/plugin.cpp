@@ -311,7 +311,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
     cldnn::BinaryInputBuffer ib(model, context_impl->get_engine());
 
     if (config.get_property(ov::cache_mode) == ov::CacheMode::OPTIMIZE_SIZE &&
-        config.get_property(ov::intel_gpu::weights_path).empty()) {
+        config.get_property(ov::weights_path).empty()) {
         return nullptr;
     }
 

@@ -1837,7 +1837,7 @@ void program::load(cldnn::BinaryInputBuffer& ib) {
     init_program();
 
     std::shared_ptr<ov::MappedMemory> mapped_memory = nullptr;
-    std::string weights_path = _config.get_property(ov::intel_gpu::weights_path);
+    std::string weights_path = _config.get_property(ov::weights_path);
     if (!weights_path.empty()) {
         mapped_memory = ov::load_mmap_object(weights_path);
     }
