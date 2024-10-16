@@ -70,6 +70,11 @@ void VariableState::set_state(const ov::SoPtr<ov::ITensor>& state) {
     m_layout.set_partial_shape(src_shape);
     update_device_buffer();
 
+    if (actual_size == 0) {
+        set();
+        return;
+    }
+
     // check whether the src tensor is padded
     std::vector<size_t> src_stride_no_pad(src_rank, 1);
     std::vector<int32_t> upper_pad(src_rank, 0);

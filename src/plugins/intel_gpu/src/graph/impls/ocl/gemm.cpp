@@ -154,6 +154,13 @@ protected:
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, gemm_inst& instance) override {
+        if (instance.get_input_layout(0).count() == 0 ||
+            instance.get_input_layout(1).count() == 0) {
+            stream& stream = instance.get_network().get_stream();
+            stream.enqueue_barrier();
+            return instance.output_memory_ptr()->fill(stream, false);
+        }
+
         if (need_indirect_load(instance))
             return execute_stage(events, instance, indirect_gemm);
         else

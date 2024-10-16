@@ -91,15 +91,15 @@ void gpu_buffer::unlock(const stream& stream) {
     }
 }
 
-event::ptr gpu_buffer::fill(stream& stream) {
+event::ptr gpu_buffer::fill(stream& stream, bool blocking) {
     if (_bytes_count == 0) {
         GPU_DEBUG_TRACE_DETAIL << "Skip EnqueueMemcpy for 0 size tensor" << std::endl;
         return stream.create_user_event(true);
     }
-    return fill(stream, 0);
+    return fill(stream, 0, blocking);
 }
 
-event::ptr gpu_buffer::fill(stream& stream, unsigned char pattern) {
+event::ptr gpu_buffer::fill(stream& stream, unsigned char pattern, bool blocking) {
     if (_bytes_count == 0) {
         GPU_DEBUG_TRACE_DETAIL << "Skip EnqueueMemcpy for 0 size tensor" << std::endl;
         return stream.create_user_event(true);
@@ -109,6 +109,9 @@ event::ptr gpu_buffer::fill(stream& stream, unsigned char pattern) {
     cl::Event& ev_ocl = downcast<ocl_event>(ev.get())->get();
     try {
         cl_stream.get_cl_queue().enqueueFillBuffer<unsigned char>(_buffer, pattern, 0, size(), nullptr, &ev_ocl);
+        if (blocking) {
+            ev_ocl.wait();
+        }
     } catch (cl::Error const& err) {
         OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
     }
@@ -272,15 +275,15 @@ gpu_image2d::gpu_image2d(ocl_engine* engine,
     _slice_pitch = _buffer.getImageInfo<CL_IMAGE_SLICE_PITCH>();
 }
 
-event::ptr gpu_image2d::fill(stream& stream) {
+event::ptr gpu_image2d::fill(stream& stream, bool blocking) {
     if (_bytes_count == 0) {
         GPU_DEBUG_TRACE_DETAIL << "Skip EnqueueMemcpy for 0 size tensor" << std::endl;
         return stream.create_user_event(true);
     }
-    return fill(stream, 0);
+    return fill(stream, 0, blocking);
 }
 
-event::ptr gpu_image2d::fill(stream& stream, unsigned char pattern) {
+event::ptr gpu_image2d::fill(stream& stream, unsigned char pattern, bool blocking) {
     if (_bytes_count == 0) {
         GPU_DEBUG_TRACE_DETAIL << "Skip EnqueueMemcpy for 0 size tensor" << std::endl;
         return stream.create_user_event(true);
@@ -291,6 +294,9 @@ event::ptr gpu_image2d::fill(stream& stream, unsigned char pattern) {
     cl_uint4 pattern_uint4 = {{pattern, pattern, pattern, pattern}};
     try {
         cl_stream.get_cl_queue().enqueueFillImage(_buffer, pattern_uint4, {0, 0, 0}, {_width, _height, 1}, 0, &ev_ocl);
+        if (blocking) {
+            ev_ocl.wait();
+        }
     } catch (cl::Error const& err) {
         OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
     }
@@ -509,7 +515,7 @@ void gpu_usm::unlock(const stream& /* stream */) {
     }
 }
 
-event::ptr gpu_usm::fill(stream& stream, unsigned char pattern) {
+event::ptr gpu_usm::fill(stream& stream, unsigned char pattern, bool blocking) {
     if (_bytes_count == 0) {
         GPU_DEBUG_TRACE_DETAIL << "Skip gpu_usm::fill for 0 size tensor" << std::endl;
         return stream.create_user_event(true);
@@ -517,14 +523,12 @@ event::ptr gpu_usm::fill(stream& stream, unsigned char pattern) {
     auto& cl_stream = downcast<ocl_stream>(stream);
     auto ev = stream.create_base_event();
     cl::Event& ev_ocl = downcast<ocl_event>(ev.get())->get();
-    // enqueueFillUsm call will never finish. Driver bug? Uncomment when fixed. Some older drivers doesn't support enqueueFillUsm call at all.
-    // cl_stream.get_usm_helper().enqueue_fill_mem<unsigned char>(cl_stream.get_cl_queue(), _buffer.get(), pattern, _bytes_count, nullptr, &ev_ocl)
-    // Workarounded with enqeue_memcopy. ToDo: Remove below code. Uncomment above.
-    std::vector<unsigned char> temp_buffer(_bytes_count, pattern);
-    // TODO: Do we really need blocking call here? Non-blocking one causes accuracy issues right now, but hopefully it can be fixed in more performant way.
-    const bool blocking = true;
     try {
-        cl_stream.get_usm_helper().enqueue_memcpy(cl_stream.get_cl_queue(), _buffer.get(), temp_buffer.data(), _bytes_count, blocking, nullptr, &ev_ocl);
+        cl_stream.get_usm_helper().enqueue_fill_mem(
+                cl_stream.get_cl_queue(), _buffer.get(), static_cast<const void*>(&pattern), sizeof(unsigned char), _bytes_count, nullptr, &ev_ocl);
+        if (blocking) {
+            ev_ocl.wait();
+        }
     } catch (cl::Error const& err) {
         OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
     }
@@ -532,7 +536,7 @@ event::ptr gpu_usm::fill(stream& stream, unsigned char pattern) {
     return ev;
 }
 
-event::ptr gpu_usm::fill(stream& stream) {
+event::ptr gpu_usm::fill(stream& stream, bool blocking) {
     // event::ptr ev{ new base_event(_context), false };
     // cl::Event ev_ocl = downcast<ocl_event>(ev.get())->get();
     // cl::usm::enqueue_set_mem(cl_stream.get_cl_queue(), _buffer.get(), 0, _bytes_count, nullptr, &ev_ocl);
@@ -543,7 +547,7 @@ event::ptr gpu_usm::fill(stream& stream) {
         GPU_DEBUG_TRACE_DETAIL << "Skip EnqueueMemcpy for 0 size tensor" << std::endl;
         return stream.create_user_event(true);
     }
-    return fill(stream, 0);
+    return fill(stream, 0, blocking);
 }
 
 event::ptr gpu_usm::copy_from(stream& stream, const void* data_ptr, size_t src_offset, size_t dst_offset, size_t size, bool blocking) {

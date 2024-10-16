@@ -37,7 +37,7 @@ struct count_nonzero_impl : typed_primitive_impl_ocl<count_nonzero> {
     event::ptr execute_impl(const std::vector<event::ptr>& events, count_nonzero_inst& instance) override {
         if (instance.get_impl_params()->input_layouts[0].count() == 0) {
             // set count of non-zero elements to 0 in case if input tensor is empty to have correct memory alloc for gather_nonzero
-            return instance.output_memory(0).fill(instance.get_network().get_stream(), 0);
+            return instance.output_memory(0).fill(instance.get_network().get_stream());
         } else {
             return parent::execute_impl(events, instance);
         }
