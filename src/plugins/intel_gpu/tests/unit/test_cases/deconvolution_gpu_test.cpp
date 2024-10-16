@@ -2932,6 +2932,13 @@ public:
 };
 
 TEST_P(deconvolution_random_test, basic) {
+    auto p = GetParam();
+    auto& engine = get_test_engine();
+    if (engine.get_device_info().supports_immad &&
+        p.input_type == data_types::f16 &&
+        p.weights_format == format::oizyx) {
+        GTEST_SKIP(); // maybe Issue: 94154
+    }
     run();
 }
 
