@@ -4,6 +4,8 @@
 
 #include "ov_ops/lora_subgraph.hpp"
 
+#include "itt.hpp"
+
 namespace ov {
 namespace op {
 namespace internal {
@@ -18,11 +20,13 @@ LoraSubgraph::LoraSubgraph(const OutputVector& args, const std::shared_ptr<ov::M
 }
 
 std::shared_ptr<Node> LoraSubgraph::clone_with_new_inputs(const OutputVector& new_args) const {
+    INTERNAL_OP_SCOPE(internal_LoraSubgraph_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return std::make_shared<LoraSubgraph>(new_args, get_function()->clone());
 }
 
 void LoraSubgraph::validate_and_infer_types() {
+    INTERNAL_OP_SCOPE(internal_LoraSubgraph_validate_and_infer_types);
     OPENVINO_ASSERT(get_input_size() == 5, "LoraSubgraph must have 5 inputs whereas it has ", get_input_size());
     OPENVINO_ASSERT(get_output_size() == 1, "LoraSubgraph must have 1 output whereas it has ", get_output_size());
     const auto& body = get_function();

@@ -65,8 +65,8 @@ ov::pass::LoraSubgraphFusion::LoraSubgraphFusion() {
 
         // Note: internal_inputs/external_connections order corresponds to LoraSubgraph semantic
         const std::vector<ov::Input<ov::Node>> internal_inputs{
-            find_connected_input(add.get_node(), main_flow.get_node()),
             // For commutative eltwise ops, input idx may be any, so it must be computed
+            find_connected_input(add.get_node(), main_flow.get_node()),
             pattern_map.count(transpose1_m) ? pattern_map.at(transpose1_m).get_node()->input(0)
                                             : matmul1.get_node()->input(0),
             matmul1.get_node()->input(1),
