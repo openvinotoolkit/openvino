@@ -83,10 +83,10 @@ ov::pass::LoraSubgraphFusion::LoraSubgraphFusion() {
 
         ov::ParameterVector subgraph_parameters;
         subgraph_parameters.reserve(internal_inputs.size());
-        for (auto& input : internal_inputs) {
-            const auto new_parameter = std::make_shared<ov::op::v0::Parameter>(input.get_element_type(), input.get_partial_shape());
+        for (auto& in : internal_inputs) {
+            auto new_parameter = std::make_shared<ov::op::v0::Parameter>(in.get_element_type(), in.get_partial_shape());
             subgraph_parameters.push_back(new_parameter);
-            input.replace_source_output(new_parameter);
+            in.replace_source_output(new_parameter);
         }
         // Note: lora consumers should be taken before lora_subgraph creation,
         // because only original consumers should be replaced with lora's output
