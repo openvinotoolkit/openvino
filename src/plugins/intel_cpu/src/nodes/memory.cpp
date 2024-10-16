@@ -21,11 +21,34 @@ namespace node {
 namespace {
 class MemoryStub : public IMemory {
 public:
-    MemoryStub(const dnnl::engine& eng, const MemoryDescPtr& pMemDesc) : m_eng(eng), m_pMemDesc(pMemDesc) {}
+    class MemoryBlockStub : public IMemoryBlockObserver {
+        void* getRawPtr() const noexcept override {
+            return nullptr;
+        }
+        void setExtBuff(void* ptr, size_t size) override {
+            // pass
+        }
+        bool resize(size_t size) override {
+            // pass
+            return false;
+        }
+        bool hasExtBuffer() const noexcept override {
+            // pass
+            return false;
+        }
+        void registerMemory(Memory* memPtr) override {
+            // pass
+        }
+        void unregisterMemory(Memory* memPtr) override {
+            // pass
+        }
+    };
 
-    bool isAllocated() const noexcept override {
-       return true;
-    }
+public:
+    MemoryStub(const dnnl::engine& eng, const MemoryDescPtr& pMemDesc)
+        : m_eng(eng),
+          m_pMemDesc(pMemDesc),
+          m_pMemoryBlock(std::make_shared<MemoryBlockStub>()) {}
 
     const MemoryDesc& getDesc() const override {
         return *m_pMemDesc;
@@ -59,8 +82,8 @@ public:
         OPENVINO_THROW("Unexpected call MemoryStub::load()");
     }
 
-    MemoryMngrPtr getMemoryMngr() const override {
-        OPENVINO_THROW("Unexpected call MemoryStub::getMemoryMngr()");
+    MemoryBlockPtr getMemoryBlock() const override {
+        return m_pMemoryBlock;
     }
 
     dnnl::memory getPrimitive() const override {
@@ -74,6 +97,7 @@ public:
 private:
     dnnl::engine m_eng;
     MemoryDescPtr m_pMemDesc;
+    std::shared_ptr<MemoryBlockStub> m_pMemoryBlock;
 };
 } // namespace
 
@@ -233,8 +257,8 @@ void MemoryOutput::resolveInPlaceEdges(Edge::LOOK look) {
         " Unexpected inplace resolve call to an allocated edge: ", parentEdge->name());
 
     auto memDesc = selected_pd->getConfig().inConfs.front().getMemDesc();
-    memMngr = std::make_shared<ProxyMemoryMngr>();
-    auto edgeMem = std::make_shared<Memory>(getEngine(), memDesc, memMngr);
+    memBlock = std::make_shared<ProxyMemoryBlock>();
+    auto edgeMem = std::make_shared<Memory>(getEngine(), memDesc, memBlock);
     parentEdge->reuse(edgeMem);
 }
 
@@ -251,13 +275,13 @@ void MemoryOutput::assignExtMemory(const MemoryPtr& mem, const MemoryDescPtr& me
         getName(),
         " assigned state has null base mem desc ptr");
 
-    if (!memMngr) { return; } //nothing to do, edge memory isn't under control
+    if (!memBlock) { return; } //nothing to do, edge memory isn't under control
     auto inpDesc = getBaseMemDescAtInputPort(0);
 
     if (inpDesc->isCompatible(*extMemDesc)) {
-        memMngr->setMemMngrResize(assignedMem->getMemoryMngr());
+        memBlock->setMemBlockResize(assignedMem->getMemoryBlock());
     } else {
-        memMngr->reset();
+        memBlock->reset();
     }
 }
 
@@ -276,21 +300,27 @@ void MemoryOutput::runStatic(dnnl::stream strm)  {
 void MemoryOutput::runDynamic(dnnl::stream strm) {
     //first we have to resize the output memory
     auto inputMem = getSrcMemoryAtPort(0);
-    const auto& newDims = inputMem->getStaticDims();
-    OPENVINO_ASSERT(extMemDesc,
-        "MemoryOutput ",
-        getName(),
-        " uninitialized assigned memory");
-
-    auto newExternDesc = extMemDesc->cloneWithNewDims(newDims);
 
     OPENVINO_ASSERT(assignedMem,
         "MemoryOutput ",
         getName(),
         " uninitialized assigned memory");
-    assignedMem->redefineDesc(newExternDesc);
 
-    runStatic(strm);
+    const auto& newShape = inputMem->getShape();
+    const auto& stateShape = assignedMem->getShape();
+
+    if (stateShape.isDynamic() || stateShape.getStaticDims() != newShape.getStaticDims()) {
+        OPENVINO_ASSERT(extMemDesc,
+            "MemoryOutput ",
+            getName(),
+            " uninitialized assigned memory");
+        auto newExternDesc = extMemDesc->cloneWithNewDims(newShape.getStaticDims());
+        assignedMem->redefineDesc(newExternDesc);
+    }
+
+    if (!newShape.hasZeroDims()) { // no need to copy data for empty tensor
+        runStatic(strm);
+    }
 }
 
 bool MemoryOutputStub::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
@@ -389,7 +419,7 @@ MemoryInputBase::~MemoryInputBase() {
 }
 
 MemoryOutputBase& MemoryInputBase::getOutputNode() {
-    OPENVINO_ASSERT(outputNode, "MemoryOutput ", getName(), " doesn't have sibling input");
+    OPENVINO_ASSERT(outputNode, "MemoryInput ", getName(), " doesn't have sibling output");
     return *outputNode;
 }
 
@@ -569,31 +599,44 @@ void MemoryInput::runDynamic(dnnl::stream strm) {
         getName(),
         " assigned state has null memory ptr");
 
-    // check whether we can share memory manager
-    const auto& stateDims = assignedMem->getStaticDims();
-    const bool hasZeroDims = std::count(std::begin(stateDims), std::end(stateDims), 0) > 0;
-    auto internDesc = getBaseMemDescAtOutputPort(0)->cloneWithNewDims(stateDims, hasZeroDims);
-
-    OPENVINO_ASSERT(memMngr,
+    OPENVINO_ASSERT(memBlock,
         "MemoryInput ",
         getName(),
-        " has uninitialized memory manager.");
+        " has uninitialized memory block.");
 
-    if (internDesc->isCompatible(assignedMem->getDesc())) {
-        memMngr->setMemMngr(assignedMem->getMemoryMngr());
-    } else {
-        memMngr->reset();
+    // check whether we can share memory block
+    const auto& shape = assignedMem->getShape();
+    const bool hasZeroDims = shape.hasZeroDims();
+    const bool processInitGraph = needInitGraphProcessing();
+    const auto& stateDims = shape.getStaticDims();
+
+    if (hasZeroDims && !processInitGraph) {
+        // fast track as we don't really need to share memory and transfer any data for empty tensors
+        memBlock->reset();
+        redefineOutputMemory(0, stateDims);
+        return;
     }
 
-    const bool processInitGraph = needInitGraphProcessing();
+    auto dst = getDstMemoryAtPort(0);
+    auto currentOutputDesc = dst->getDescPtr();
+
+    auto internDesc = currentOutputDesc->isDefined() && (currentOutputDesc->getShape().getStaticDims() == stateDims)
+                          ? currentOutputDesc
+                          : getBaseMemDescAtOutputPort(0)->cloneWithNewDims(stateDims, hasZeroDims);
+
+    if (internDesc->isCompatible(assignedMem->getDesc())) {
+        memBlock->setMemBlock(assignedMem->getMemoryBlock());
+    } else {
+        memBlock->reset();
+    }
+
     //reshape output
     const auto& newDims = processInitGraph ? getSrcMemoryAtPort(0)->getStaticDims() : stateDims;
 
-    redefineOutputMemory({newDims});
+    redefineOutputMemory(0, newDims);
 
     //copy data when necessary
     auto src = processInitGraph ? getSrcMemoryAtPort(0) : assignedMem;
-    auto dst = getDstMemoryAtPort(0);
     if (src->getData() != dst->getData()) {
         dst->load(*src);
     }
@@ -619,15 +662,15 @@ void MemoryInput::runStatic(dnnl::stream strm) {
 
     auto internDesc = getBaseMemDescAtOutputPort(0);
 
-    OPENVINO_ASSERT(memMngr,
+    OPENVINO_ASSERT(memBlock,
         "MemoryInput ",
         getName(),
-        " has uninitialized memory manager.");
+        " has uninitialized memory block.");
 
     if (internDesc->isCompatible(assignedMem->getDesc())) {
-        memMngr->setMemMngr(assignedMem->getMemoryMngr());
+        memBlock->setMemBlock(assignedMem->getMemoryBlock());
     } else {
-        memMngr->reset();
+        memBlock->reset();
     }
 
     const auto processInitGraph = needInitGraphProcessing();
@@ -653,13 +696,13 @@ void MemoryInput::resolveInPlaceEdges(Edge::LOOK look) {
         " failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
 
     auto memDesc = selected_pd->getConfig().outConfs.front().getMemDesc();
-    memMngr = std::make_shared<ProxyMemoryMngr>();
+    memBlock = std::make_shared<ProxyMemoryBlock>();
 
     for (auto&& edge : getChildEdgesAtPort(0)) { // always only one child port
         OPENVINO_ASSERT(one_of(edge->getStatus(), Edge::Status::Uninitialized, Edge::Status::NotAllocated),
             " Unexpected inplace resolve call to an allocated edge: ", edge->name());
 
-        auto edgeMem = std::make_shared<Memory>(getEngine(), memDesc, memMngr);
+        auto edgeMem = std::make_shared<Memory>(getEngine(), memDesc, memBlock);
         edge->reuse(edgeMem);
     }
 }
@@ -823,6 +866,6 @@ void MemoryInputSDPA::resolveInPlaceEdges(Edge::LOOK look) {
     }
 }
 
-}   // namespace node
+}  // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

@@ -1,4 +1,5 @@
-FROM openvinogithubactions.azurecr.io/dockerio/library/debian:10.13
+ARG REGISTRY="docker.io"
+FROM ${REGISTRY}/library/debian:10.13
 
 USER root
 
@@ -18,6 +19,8 @@ RUN apt-get update && \
         git \
         gpg-agent \
         tzdata \
+        # parallel gzip
+        pigz \
         # Pythons \
         python3 \
         python3-pip \

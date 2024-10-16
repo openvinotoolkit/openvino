@@ -116,6 +116,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"GroupConvolutionBackpropData", Type::Deconvolution},
         {"StridedSlice", Type::StridedSlice},
         {"Slice", Type::StridedSlice},
+        {"SliceScatter", Type::StridedSlice},
         {"Tile", Type::Tile},
         {"ROIAlign", Type::ROIAlign},
         {"ROIAlignRotated", Type::ROIAlignRotated},
@@ -235,6 +236,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"Multinomial", Type::Multinomial},
         {"Reference", Type::Reference},
         {"Subgraph", Type::Subgraph},
+        {"SubModel", Type::SubModel},
         {"PriorBox", Type::PriorBox},
         {"PriorBoxClustered", Type::PriorBoxClustered},
         {"Interaction", Type::Interaction},
@@ -368,6 +370,7 @@ std::string NameFromType(const Type type) {
         CASE(Multinomial);
         CASE(Reference);
         CASE(Subgraph);
+        CASE(SubModel);
         CASE(PriorBox);
         CASE(PriorBoxClustered)
         CASE(MHA);

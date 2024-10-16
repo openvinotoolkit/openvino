@@ -1,4 +1,5 @@
-FROM openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04
+ARG REGISTRY="docker.io"
+FROM ${REGISTRY}/library/ubuntu:22.04
 
 USER root
 
@@ -22,6 +23,8 @@ RUN apt-get update && \
         gpg-agent \
         tzdata \
         libtbb2 \
+        # parallel gzip
+        pigz \
         # Pythons \
         python3.11-dev \
         python3.11-venv \

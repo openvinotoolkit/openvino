@@ -91,13 +91,13 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
 
 /**
  * @brief Setting batching mode
- * @details  In the case of older drivers or discrete platforms, we force batching to compiler mode since it is not
+ * @details  In the case of older drivers, we force batching to compiler mode since it is not
  * supported. Othwersie set it tu AUTO if this wasn't set by the user
  * @param isBatchingSupported  Newer driver versions support batching mode on the plugin.
  * @param config A configuration map.
  */
 void set_batch_config(bool isBatchingSupported, Config& config) {
-    if (!isBatchingSupported || config.get<PLATFORM>() == ov::intel_npu::Platform::NPU3700) {
+    if (!isBatchingSupported) {
         if (config.has<BATCH_MODE>()) {
             if (config.get<BATCH_MODE>() == ov::intel_npu::BatchMode::PLUGIN) {
                 OPENVINO_THROW("Batching on plugin is not supported with this driver version");
@@ -618,7 +618,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         if (localProperties.at(useNpuwKey).as<bool>() == true) {
             // CACHE_DIR isn't supported with NPU_USE_NPUW
             if (localProperties.count(ov::cache_dir.name()) || !_globalConfig.get<CACHE_DIR>().empty()) {
-                OPENVINO_THROW("Option 'CACHE_DIR' is not supported with NPU_USE_NPUW");
+                OPENVINO_THROW("Option 'CACHE_DIR' is not supported with NPU_USE_NPUW!");
             }
             return std::make_shared<ov::npuw::CompiledModel>(model->clone(), shared_from_this(), localProperties);
         } else {

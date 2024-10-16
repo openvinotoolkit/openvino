@@ -78,7 +78,7 @@ ov::SoPtr<ICompiler> createCompilerImpl(std::shared_ptr<NPUBackends> npuBackends
     case ov::intel_npu::CompilerType::MLIR:
         return createNPUCompiler(log);
     case ov::intel_npu::CompilerType::DRIVER:
-        return createCompilerAdapter(npuBackends, log);
+        return createCompilerAdapter(std::move(npuBackends), log);
     default:
         OPENVINO_THROW("Invalid NPU_COMPILER_TYPE");
     }
@@ -92,7 +92,7 @@ ov::SoPtr<ICompiler> intel_npu::createCompiler(std::shared_ptr<intel_npu::NPUBac
     auto logger = Logger::global().clone("createCompiler");
     try {
         logger.debug("performing createCompilerImpl");
-        return createCompilerImpl(npuBackends, compilerType, logger);
+        return createCompilerImpl(std::move(npuBackends), compilerType, logger);
     } catch (const std::exception& ex) {
         OPENVINO_THROW("Got an error during compiler creation: ", ex.what());
     } catch (...) {

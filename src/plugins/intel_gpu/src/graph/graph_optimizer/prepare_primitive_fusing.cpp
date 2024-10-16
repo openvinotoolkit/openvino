@@ -496,7 +496,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 return true;
             } else {
                 auto in_dt = node.get_input_layout(0).data_type;
-                return data_type_traits::is_i8_u8(in_dt);
+                return node.is_dynamic() || data_type_traits::is_i8_u8(in_dt);
             }
         };
 
@@ -534,11 +534,11 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             return does_support_fusings;
         };
 
-        auto mvn_supports_fusings = [](mvn_node& node, bool for_eltwise = false) -> bool {
+        auto mvn_supports_fusings = [](mvn_node& node) -> bool {
             auto in_layout = node.get_input_layout(0);
             if (node.get_primitive()->requires_alignment(in_layout.get_partial_shape()))
                 return false;
-            return data_type_traits::is_i8_u8(in_layout.data_type) || for_eltwise;
+            return true;
         };
 
         auto dts_supports_fusings = [](depth_to_space_node& node) -> bool {
@@ -736,6 +736,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             should_fuse |= input.is_type<strided_slice>();
 
+            should_fuse |= input.is_type<crop>();
+
             bool legacy_fusion = activation_node.get_dependencies().size() == 1 &&
                                  !input.can_be_optimized() &&
                                  !activation_node.is_constant() &&
@@ -896,7 +898,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 can_fuse_parents[i] = (parents[i].first->is_type<convolution>() &&
                                        conv_supports_fusings(parents[i].first->as<convolution>())) ||
                                       (parents[i].first->is_type<mvn>() &&
-                                       mvn_supports_fusings(parents[i].first->as<mvn>(), true)) ||
+                                       mvn_supports_fusings(parents[i].first->as<mvn>())) ||
                                       (parents[i].first->is_type<group_normalization>()) ||
                                       (parents[i].first->is_type<deconvolution>()) ||
                                       (parents[i].first->is_type<permute>()) ||
@@ -920,7 +922,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                       (parents[i].first->is_type<gather>()) ||
                                       (parents[i].first->is_type<reduce>() &&
                                        reduce_supports_fusings(parents[i].first->as<reduce>())) ||
-                                      (parents[i].first->is_type<lrn>());
+                                      (parents[i].first->is_type<lrn>()) ||
+                                      (parents[i].first->is_type<crop>());
             }
 
             // Disable fusion to a node on constant path when second input is in data flow
@@ -1043,6 +1046,15 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             if (can_swap_parents()) {
                 std::swap(fused_idx, peer_idx);
+            }
+
+            // Avoid fusing with GEMM from the LoRA pattern, that can be optimized in case of empty adapters
+            if (parents[fused_idx].first->is_type<gemm>()) {
+                if (parents[peer_idx].first->is_type<fully_connected>() ||
+                    (parents[peer_idx].first->is_type<crop>() &&
+                     parents[peer_idx].first->get_dependency(0).is_type<fully_connected>())) {
+                    std::swap(fused_idx, peer_idx);
+                }
             }
 
             auto fused_node = parents[fused_idx].first;

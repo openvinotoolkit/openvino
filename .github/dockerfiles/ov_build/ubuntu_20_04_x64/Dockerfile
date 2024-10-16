@@ -1,4 +1,5 @@
-FROM openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+ARG REGISTRY="docker.io"
+FROM ${REGISTRY}/library/ubuntu:20.04
 
 USER root
 
@@ -21,11 +22,14 @@ RUN apt-get update && \
         git \
         gpg-agent \
         tzdata \
+        # parallel gzip
+        pigz \
+        # Pythons
+        python3.9-dev \
+        python3.9-venv \
+        python3.9-distutils \
         # For Java API
         default-jdk \
-        # Compiler \
-        gcc-10 \
-        g++-10 \
         && \
     rm -rf /var/lib/apt/lists/*
 
@@ -34,10 +38,6 @@ ADD install_build_dependencies.sh /install_build_dependencies.sh
 RUN chmod +x /install_build_dependencies.sh && \
     /install_build_dependencies.sh && \
     rm -rf /var/lib/apt/lists/*
-
-# Set gcc-10 as a default compiler
-RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 30 && \
-    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-10 30
 
 # Install sscache
 ARG SCCACHE_VERSION="v0.7.5"
@@ -50,10 +50,17 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
     tar -xzf ${SCCACHE_ARCHIVE} --strip-components=1 && rm ${SCCACHE_ARCHIVE}
 
 ENV PATH="$SCCACHE_HOME:$PATH"
+
 # Setup pip
 ENV PIP_VERSION="24.0"
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
-    python3 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    python3 get-pip.py  --no-cache-dir pip==${PIP_VERSION} && \
+    python3.9 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     rm -f get-pip.py
+
+# Use Python 3.9 as default instead of Python 3.8
+# Using venv here 'cause other methods to switch the default Python on Ubuntu 20 break both system and wheels build
+RUN python3.9 -m venv venv
+ENV PATH="/venv/bin:$SCCACHE_HOME:$PATH"
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}

@@ -17,7 +17,8 @@ GPU_DEFINE_PRIMITIVE_TYPE_ID(kv_cache)
 kv_cache_inst::typed_primitive_inst(network& network, const kv_cache_node& node) :
     parent{network, node, false},
     memory_state::variable{node.get_primitive()->variable_info.variable_id} {
-    kv_cache_id = network.get_kv_cache_ids().size();
+    thread_local size_t kv_cache_counter = 0;
+    kv_cache_id = kv_cache_counter++;
 }
 
 layout kv_cache_inst::calc_output_layout(const kv_cache_node& node, kernel_impl_params const& impl_param) {
@@ -83,6 +84,9 @@ int32_t kv_cache_inst::get_prealloc_iter_num() {
 }
 
 void kv_cache_inst::update_shape_info_tensor(const kernel_impl_params& params) {
+    if (!_shape_info_memory) {
+        allocate_shape_info_memory();
+    }
     mem_lock<int32_t> lock(_shape_info_memory, _network.get_stream());
     auto shape_info_ptr = lock.data();
     size_t offset = 0;

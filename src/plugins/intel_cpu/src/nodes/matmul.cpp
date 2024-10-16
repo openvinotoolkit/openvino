@@ -538,10 +538,24 @@ void MatMul::prepareParams() {
     auto dstMemPtr = getDstMemoryAtPort(0);
     auto src0MemPtr = getSrcMemoryAtPort(0);
     auto src1MemPtr = getSrcMemoryAtPort(1);
-    if (!dstMemPtr || !dstMemPtr->isAllocated())
-        OPENVINO_THROW(errorPrefix, " did not allocate destination memory");
-    if (!src0MemPtr || !src0MemPtr->isAllocated() || !src1MemPtr || !src1MemPtr->isAllocated())
-        OPENVINO_THROW(errorPrefix, " did not allocate input memory");
+    if (!dstMemPtr || !dstMemPtr->isDefined())
+        OPENVINO_THROW(errorPrefix, " has undefined destination memory");
+    if (!src0MemPtr || !src0MemPtr->isDefined() || !src1MemPtr || !src1MemPtr->isDefined())
+        OPENVINO_THROW(errorPrefix, " has undefined input memory");
+
+    // check for a degenerate case. In this context the degenerate case is a matrix multiplication where the
+    // collapsing dimension is zero, e.g., AB=C, where A has the shape [10, 0] and B has the shape [0, 20],
+    // consequently C has shape [10, 20]. In this scenario C is a null matrix (a matrix filled with zeroes)
+    // according to the empty sum convention.
+    if (src0MemPtr->getDesc().getShape().hasZeroDims() && src0MemPtr->getDesc().getShape().hasZeroDims() &&
+        !dstMemPtr->getDesc().getShape().hasZeroDims()) {
+        // todo: obviously we need a special executor that would process fused ops providing a correct result
+        OPENVINO_ASSERT(!withBiases && fusedWith.empty(),
+                        "Matmul doesn't support a degenerate case when other ops are fused");
+        //reset executor
+        execPtr.reset();
+        return;
+    }
 
     const NodeDesc* selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
@@ -576,8 +590,8 @@ void MatMul::prepareParams() {
     DnnlMemoryDescPtr dnnlBiasMemDesc = nullptr;
     if (withBiases) {
         auto biasMemory = getSrcMemoryAtPort(2);
-        if (!biasMemory || !biasMemory->isAllocated())
-            OPENVINO_THROW(errorPrefix, " did not allocate bias memory");
+        if (!biasMemory || !biasMemory->isDefined())
+            OPENVINO_THROW(errorPrefix, " has undefined bias memory");
         dnnlBiasMemDesc = biasMemory->getDescWithType<DnnlMemoryDesc>();
     }
 
@@ -646,6 +660,9 @@ void MatMul::prepareParams() {
 void MatMul::execute(dnnl::stream strm) {
     if (execPtr) {
         execPtr->exec(primArgs, strm);
+    } else if (hasEmptyInputTensors()) {
+        // this is a degenerate case, fill output with zeroes
+        getDstMemoryAtPort(0)->nullify();
     } else {
         OPENVINO_THROW(errorPrefix, " doesn't have an initialized executor");
     }
@@ -689,6 +706,10 @@ const std::vector<impl_desc_type>& MatMul::getDefaultImplPriority() {
     };
 
     return priorities;
+}
+
+bool MatMul::isExecutable() const {
+    return !hasEmptyOutputTensors();
 }
 
 }   // namespace node

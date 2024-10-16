@@ -170,6 +170,16 @@ void regclass_graph_Node(py::module m) {
                 :type input_tensors: List[openvino.runtime.Tensor]
                 :rtype: bool
              )");
+    node.def("get_instance_id",
+             &ov::Node::get_instance_id,
+             R"(
+                Returns id of the node.
+                May be used to compare nodes if they are same instances.
+
+                :return: id of the node.
+                :rtype: int
+            )");
+
     node.def("get_input_tensor",
              &ov::Node::get_input_tensor,
              py::arg("index"),
@@ -439,12 +449,6 @@ void regclass_graph_Node(py::module m) {
         std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>> variables;
         util::DictAttributeDeserializer dict_deserializer(attr_dict, variables);
         self->visit_attributes(dict_deserializer);
-    });
-    node.def("validate", [](const std::shared_ptr<ov::Node>& self) {
-        Common::utils::deprecation_warning("validate",
-                                           "2024.4",
-                                           "Please use 'constructor_validate_and_infer_types' method instead.");
-        return self->constructor_validate_and_infer_types();
     });
     node.def("constructor_validate_and_infer_types", [](const std::shared_ptr<ov::Node>& self) {
         return self->constructor_validate_and_infer_types();
