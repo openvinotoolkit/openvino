@@ -170,11 +170,6 @@ ExpressionPtr Expression::clone() const {
 }
 
 bool Expression::visit_attributes(AttributeVisitor &visitor) {
-    auto is_planar_layout = [](const std::vector<size_t>& layout) {
-        for (size_t i = 0; i < layout.size(); ++i)
-            if (layout[i] != i) return false;
-        return true;
-    };
     auto subtensor2str = [](const VectorDims& subtensor) {
         std::stringstream ss;
         for (size_t i = 0; i < subtensor.size(); ++i) {
@@ -203,7 +198,7 @@ bool Expression::visit_attributes(AttributeVisitor &visitor) {
             subtensors.emplace_back("in_subtensor_" + std::to_string(i), subtensor2str(subtensor));
 
         const auto& layout = desc->get_layout();
-        if (!layout.empty() && !is_planar_layout(layout))
+        if (!layout.empty() && !utils::is_planar_layout(layout))
             layouts.emplace_back("in_layout_" + std::to_string(i), layout);
 
         in_reg_types.emplace_back(regTypeToStr(desc->get_reg().type));
@@ -220,7 +215,7 @@ bool Expression::visit_attributes(AttributeVisitor &visitor) {
             subtensors.emplace_back("out_subtensor_" + std::to_string(i), subtensor2str(subtensor));
 
         const auto& layout = desc->get_layout();
-        if (!layout.empty() && !is_planar_layout(layout))
+        if (!layout.empty() && !utils::is_planar_layout(layout))
             layouts.emplace_back("out_layout_" + std::to_string(i), layout);
 
         out_reg_types.emplace_back(regTypeToStr(desc->get_reg().type));
