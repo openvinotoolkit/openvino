@@ -220,7 +220,7 @@ static MemoryPtr prepareWeightMemory(const MemoryArgs &memory,
     };
 
     auto weightCache = context->getWeightsCache();
-    if (weightCache != nullptr) {
+    /*if (weightCache != nullptr) {
         const auto& wgtDims = memory.at(ARG_WEI)->getStaticDims();
         const auto N = wgtDims[0];
         const auto K = wgtDims[1];
@@ -229,7 +229,7 @@ static MemoryPtr prepareWeightMemory(const MemoryArgs &memory,
                                         std::to_string(reinterpret_cast<uint64_t>(memory.at(ARG_WEI)->getData()));
         DEBUG_LOG("ACLFullyConnectedExecutor: findOrCreate, string_hash: ", string_hash);
         return *weightCache->findOrCreate(string_hash, create);
-    }
+    }*/
 
     DEBUG_LOG("ACLFullyConnectedExecutor: Weights cache is not available");
     return create();
