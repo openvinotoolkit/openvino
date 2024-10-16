@@ -23,6 +23,9 @@ namespace ov {
 namespace npuw {
 namespace tests {
 
+// Need for remote tensor allocation in NPUW JustInferRequest and Weight bank.
+// They utilize "create_host_tensor()" method.
+// TODO: Mock "create_host_tensor()" method and add tests for it.
 class MockRemoteContext : public ov::IRemoteContext {
     std::string m_name;
 
