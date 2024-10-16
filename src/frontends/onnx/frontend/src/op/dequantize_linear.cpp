@@ -11,10 +11,15 @@
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/convert_like.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "utils/common.hpp"
+#include "utils/reshape.hpp"
 using namespace ov::op;
 
 namespace ov {
@@ -188,8 +193,78 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
     // these reshapes make sure that dequantization happens over the specified axis
     return detail::dequantize_linear(x, scale, zero_point, node.get_attribute_value<int64_t>("axis", 1), node);
 }
-ONNX_OP("DequantizeLinear", OPSET_SINCE(13), ai_onnx::opset_13::dequantize_linear);
+ONNX_OP("DequantizeLinear", {13, 18}, ai_onnx::opset_13::dequantize_linear);
 }  // namespace opset_13
+
+namespace opset_19 {
+ONNX_OP("DequantizeLinear", {19, 20}, ai_onnx::opset_13::dequantize_linear);
+}  // namespace opset_19
+
+namespace opset_21 {
+ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
+    common::default_op_checks(node, 2);
+
+    const ov::OutputVector inputs{node.get_ov_inputs()};
+    const auto& src_x = inputs[0];
+    ov::Output<ov::Node> scale = inputs[1];
+    const auto& scale_shape = scale.get_partial_shape();
+    ov::Output<ov::Node> zp;
+
+    // When no blocking dequantization is required - use regular DequantizeLinear
+    if (scale_shape.rank().is_static() && scale_shape.rank().get_length() <= 1) {
+        return ai_onnx::opset_13::dequantize_linear(node);
+    }
+
+    FRONT_END_GENERAL_CHECK(scale_shape.rank().is_static(), "Rank of the input data tensor has to be known (static).");
+    FRONT_END_GENERAL_CHECK(scale_shape.rank().get_length() == 2,
+                            "DequantizeLinear cannot operate with more than 2D scales");
+    FRONT_END_GENERAL_CHECK(src_x.get_partial_shape().is_static(),
+                            "DequantizeLinear cannot operate with dynamic shapes of input X");
+
+    const auto& unsqueezed_axes = std::make_shared<v0::Constant>(ov::element::i64, Shape{1}, std::vector<int64_t>{1});
+
+    if (inputs.size() > 2) {
+        zp = inputs[2];
+        if (zp.get_element_type() != scale.get_element_type()) {
+            zp = std::make_shared<v1::ConvertLike>(zp, scale);
+        }
+        zp = std::make_shared<v0::Unsqueeze>(zp, unsqueezed_axes);
+    }
+
+    const auto axis = node.get_attribute_value<int64_t>("axis", 1);
+    const auto block_size = static_cast<size_t>(node.get_attribute_value<int64_t>("block_size", 0));
+    const auto scale_type = scale.get_element_type();
+
+    FRONT_END_GENERAL_CHECK(axis == 0, "Axis != 0 isn't supported");
+    FRONT_END_GENERAL_CHECK(block_size > 0, "block_size must be greater than zero");
+    FRONT_END_GENERAL_CHECK(
+        src_x.get_shape()[0] % block_size == 0,
+        "DequantizeLinear doesn't support case when first dimension of X cannot be divided by block_size");
+
+    const auto& x = src_x.get_element_type() == scale_type ? src_x : std::make_shared<v1::ConvertLike>(src_x, scale);
+    // For further broadcasting scales and zp - reshape input to a shape [x.shape[0]/block_size, block_size, x.shape[1]]
+    ov::Output<ov::Node> broadcastable_x =
+        op::util::reshape(x, Shape{static_cast<size_t>(x.get_shape()[0]) / block_size, block_size, x.get_shape()[1]});
+
+    // Adding additional dimension for broadcasting
+    scale = std::make_shared<v0::Unsqueeze>(scale, unsqueezed_axes);
+
+    if (zp.get_node_shared_ptr()) {
+        broadcastable_x = std::make_shared<v1::Subtract>(broadcastable_x, zp);
+    }
+
+    const auto& scaled_x = std::make_shared<v1::Multiply>(broadcastable_x, scale);
+
+    // Returning back a shape
+    const auto& reshaped_scaled_x =
+        std::make_shared<v1::Reshape>(scaled_x, std::make_shared<v0::ShapeOf>(src_x), false);
+
+    reshaped_scaled_x->set_friendly_name(node.get_name());
+
+    return {reshaped_scaled_x};
+}
+ONNX_OP("DequantizeLinear", OPSET_SINCE(21), ai_onnx::opset_21::dequantize_linear);
+}  // namespace opset_21
 }  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend

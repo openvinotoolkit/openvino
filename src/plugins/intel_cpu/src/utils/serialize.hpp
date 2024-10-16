@@ -40,7 +40,7 @@ public:
 protected:
     static void set_info(pugi::xml_node& root, std::shared_ptr<ov::Model>& model);
 
-    void process_mmap(std::shared_ptr<ov::Model>& model, const std::shared_ptr<ov::MappedMemory>& memory);
+    void process_mmap(std::shared_ptr<ov::Model>& model, const std::shared_ptr<ov::AlignedBuffer>& memory);
 
     void process_stream(std::shared_ptr<ov::Model>& model);
 

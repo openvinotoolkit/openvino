@@ -274,6 +274,9 @@ void concat_in_place_optimization::optimize_cascade(concatenation_node& node, st
     }
     node.set_output_layout(concat_layout);
     node.can_be_optimized(true);
+    if (node.is_dynamic()) {
+        node.set_runtime_skippable(true);
+    }
     GPU_DEBUG_TRACE_DETAIL << "[prepare_buffer_fusing] : " << node.id() << " can be optimized" << std::endl;
 }
 
@@ -458,7 +461,7 @@ bool crop_in_place_optimization::match(const program_node& node,
         return false;
     // if the node is marked as network output, prevent optimizations which would affect a form of its output,
     // unless debug flag is set
-    if (node.is_output() || crop_params.fused_desc.size() > 0 || node.is_in_shape_of_subgraph())
+    if (node.is_output() || crop_params.has_fused_primitives() || node.is_in_shape_of_subgraph())
         return false;
 
     const auto& crop_layout = crop_params.get_output_layout();
@@ -543,6 +546,9 @@ bool crop_in_place_optimization::optimize(crop_node& node) {
     auto crop_layout = node.get_output_layout();
     auto input_layout = node.get_input_layout(0);
     auto crop_params = node.get_kernel_impl_params();
+
+    if (crop_params->has_fused_primitives())
+        return false;
 
     //  Regular crop
     //  crop input buffer

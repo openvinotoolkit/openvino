@@ -36,8 +36,6 @@ public:
         m_right_mode = right_mode;
     }
 
-    bool validate() const;
-
 private:
     bool m_right_mode{};
 };

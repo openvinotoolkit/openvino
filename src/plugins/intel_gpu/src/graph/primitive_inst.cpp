@@ -502,7 +502,7 @@ event::ptr primitive_inst::realloc_if_needed() {
 
     event::ptr ev = nullptr;
     const auto& users = get_user_insts();
-    if (users.size() == 1 && users.front()->get_node().is_type<concatenation>()) {
+    if (users.size() == 1 && users.front()->get_node().is_type<concatenation>() && users.front()->get_node().is_runtime_skippable()) {
         auto concat_inst = users.front();
         if (concat_inst->can_be_optimized()) {
             if (!concat_inst->allocation_done_by_other) {
@@ -655,15 +655,15 @@ event::ptr primitive_inst::realloc_if_needed() {
         }
     }
 
-    // Clear out memory if if was previously reused, but now primitive can't be optimized
-    if (_node->is_runtime_skippable() || _node->is_type<crop>()) {
+    // Clear out memory if was previously reused, but now primitive can't be optimized
+    if (!_node->is_type<concatenation>() && (_node->is_runtime_skippable() || _node->is_type<crop>())) {
         if (can_be_optimized()) {
             _max_output_layout_count = _deps[0].first->_max_output_layout_count;
             GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("can_be_optimized");
             return ev;
         } else if (_outputs[0] && dep_memory_ptr(0) &&
                    _network.get_engine().is_the_same_buffer(dep_memory(0), output_memory(0))) {
-            // Clear out memory if if was previously reused, but now primitive can't be optimized
+            // Clear out memory if was previously reused, but now primitive can't be optimized
             _outputs[0] = nullptr;
             _max_output_layout_count[0] = 0;
         }
@@ -1351,7 +1351,8 @@ void primitive_inst::do_runtime_in_place_concat() {
     if (get_users().size() != 1) return;
 
     auto concat_inst = get_user_insts().front();
-    if (!concat_inst->get_node().is_type<concatenation>() || !concat_inst->get_node().can_be_optimized())
+
+    if (!concat_inst->get_node().is_type<concatenation>() || !(concat_inst->get_node().can_be_optimized() && concat_inst->get_node().is_runtime_skippable()))
         return;
 
     if (has_subgraph_dependency(concat_inst->dependencies())) {
@@ -1526,7 +1527,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         }
 
         if (can_skip_execution) {
-            auto ev = get_network().get_stream().create_user_event(true);
+            auto ev = get_network().get_stream().aggregate_events(events);
             update_shape_done_by_other = false; // reset
             return ev;
         }

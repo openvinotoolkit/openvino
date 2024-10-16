@@ -65,7 +65,7 @@ jobs:
 
       - name: Extract OpenVINO artifacts (Linux and macOS)
         run: |
-          tar -I pigz -xf openvino_tests.tar.gz -C .
+          pigz -dc openvino_tests.tar.gz | tar -xf - -C ${INSTALL_DIR}
         working-directory: ${{ env.INSTALL_DIR }}
 
       - name: Fetch setup_python action
