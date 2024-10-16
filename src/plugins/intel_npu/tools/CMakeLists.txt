@@ -6,3 +6,4 @@
 add_subdirectory(common)
 add_subdirectory(compile_tool)
 add_subdirectory(single-image-test)
+add_subdirectory(protopipe)
