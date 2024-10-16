@@ -125,8 +125,10 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
     if (_executorPtr == nullptr) {
         if (_device != nullptr)
             OPENVINO_THROW(NO_EXECUTOR_FOR_INFERENCE);
-        else
+        else {
+            _logger.error("Can not find device!");
             OPENVINO_THROW(NO_EXECUTOR_FOR_INFERENCE_NODEVICE);
+        }
     }
 
     const std::shared_ptr<SyncInferRequest>& syncInferRequest =
