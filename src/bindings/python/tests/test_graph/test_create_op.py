@@ -2457,6 +2457,7 @@ def test_topk_opset11(op_name):
     assert list(node.get_output_shape(0)) == [1, 3, 3]
     assert list(node.get_output_shape(1)) == [1, 3, 3]
 
+
 def test_slice_scatter():
     data_shape = [10, 7, 2, 13]
     data = ov.parameter(data_shape, name="input", dtype=np.float32)
@@ -2483,6 +2484,7 @@ def test_slice_scatter():
     assert node.get_output_size() == 1
     assert node.get_output_element_type(0) == Type.f32
     assert node_default_axes.get_output_shape(0) == data_shape
+
 
 def test_parameter_get_attributes():
     parameter = ov.parameter([2, 2], dtype=np.float32, name="InputData")
