@@ -188,17 +188,23 @@ are executed in parallel.
 For details on multi-stream execution check the
 :doc:`optimization guide <../../optimize-inference/optimizing-throughput/advanced_throughput_options>`.
 
-.. _Inference_threads_wait_actively:
+.. Composability_of_different_threading_runtimes:
 
-Inference threads wait actively
-###############################
+Composability of different threading runtimes
+#############################################
 
 OpenVINO is by default built with `oneTBB <https://github.com/oneapi-src/oneTBB/>`__ threading library,
 oneTBB has a feature worker_wait like `OpenMP <https://www.openmp.org/>`__ `busy-wait <https://gcc.gnu.org/onlinedocs/libgomp/GOMP_005fSPINCOUNT.html>`__ which makes OpenVINO inference
-threads wait actively for 1ms after task done. The intention is to avoid CPU inactive in the
-tranaction time between tasks of inference. If the postprocessing uses another threading library,
-for example OpenMP, OpenVINO inference will occupy CPU cores for addtional 1ms after inference done.
-This introduces unecessary overhead. In this case, it is recommended to use oneTBB for the threading
-in postprocessing. On hyper-threading machines, limiting the CPU core number used by postprocessing
-will also help since OpenVINO inference by default (latency hint) uses half of CPU cores on
-hyper-threading machines.
+threads wait actively for a while after task done. The intention is to avoid CPU inactive in the
+tranaction time between tasks of inference. 
+
+In the pipeline that runs OpenVINO inferences on CPU interleaved with some other application logic executed
+sequentially. If two parts use different threading runtimes, for example, OpenVINO inferences use oneTBB
+while other application logic uses OpenMP, both will occupy CPU cores for addtional time after task done.
+This may introduce unecessary overhead. 
+
+*Recommend solutions*
+- Most effective way is to use oneTBB for all computations made in pipeline.
+- Rebuild OpenVINO with OpenMP and other application logic uses OpenMP as well.
+- Limit number of threads of OpenVINO and other parts to let OS do better scheduling.
+- Set environment variable `OMP_WAIT_POLICY <https://gcc.gnu.org/onlinedocs/libgomp/OMP_005fWAIT_005fPOLICY.html>`__ to PASSIVE which will disable OpenMP `busy-wait <https://gcc.gnu.org/onlinedocs/libgomp/GOMP_005fSPINCOUNT.html>`__
