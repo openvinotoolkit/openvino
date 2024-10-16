@@ -435,6 +435,16 @@ const std::vector<std::vector<ov::test::InputShape>> dynInputShapes1D_test = {
                 {{1, 1, 257}}
         }
         },
+        {
+        {
+                {ov::Dimension::dynamic(), 192, ov::Dimension::dynamic()},
+                {{1, 192, 257}}
+        },
+        {
+                {1, 1, ov::Dimension::dynamic()},
+                {{1, 1, 1}}
+        }
+        },
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_dynamic1D_test_0, ConvolutionLayerGPUTestDynamicEltwiseFusing,
@@ -474,6 +484,16 @@ const std::vector<std::vector<ov::test::InputShape>> dynInputShapes1D_test1 = {
                 {{1, 1, 191}}
         }
         },
+        {
+        {
+                {ov::Dimension::dynamic(), 512, ov::Dimension::dynamic()},
+                {{1, 512, 191}}
+        },
+        {
+                {1, 1, ov::Dimension::dynamic()},
+                {{1, 1, 1}}
+        }
+        },
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_dynamic1D_test_1, ConvolutionLayerGPUTestDynamicEltwiseFusing,
@@ -511,6 +531,16 @@ const std::vector<std::vector<ov::test::InputShape>> dynInputShapes1D_test2 = {
         {
                 {ov::Dimension::dynamic(), 1, ov::Dimension::dynamic()},
                 {{1, 1, 191}}
+        }
+        },
+        {
+        {
+                {1, 2048, ov::Dimension::dynamic()},
+                {{1, 2048, 191}}
+        },
+        {
+                {ov::Dimension::dynamic(), 1, ov::Dimension::dynamic()},
+                {{1, 1, 1}}
         }
         },
 };
