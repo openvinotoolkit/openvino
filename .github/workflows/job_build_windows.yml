@@ -159,7 +159,8 @@ jobs:
 
       - name: CMake configure
         run: |
-          cmake ${{ inputs.cmake-options }} ` 
+          cmake `
+            ${{ inputs.cmake-options }} `
             -DENABLE_CPPLINT=OFF `
             -DBUILD_SHARED_LIBS=ON `
             -DENABLE_TESTS=ON `
