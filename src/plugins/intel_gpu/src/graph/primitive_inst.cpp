@@ -655,7 +655,7 @@ event::ptr primitive_inst::realloc_if_needed() {
         }
     }
 
-    // Clear out memory if if was previously reused, but now primitive can't be optimized
+    // Clear out memory if was previously reused, but now primitive can't be optimized
     if (!_node->is_type<concatenation>() && (_node->is_runtime_skippable() || _node->is_type<crop>())) {
         if (can_be_optimized()) {
             _max_output_layout_count = _deps[0].first->_max_output_layout_count;
@@ -663,7 +663,7 @@ event::ptr primitive_inst::realloc_if_needed() {
             return ev;
         } else if (_outputs[0] && dep_memory_ptr(0) &&
                    _network.get_engine().is_the_same_buffer(dep_memory(0), output_memory(0))) {
-            // Clear out memory if if was previously reused, but now primitive can't be optimized
+            // Clear out memory if was previously reused, but now primitive can't be optimized
             _outputs[0] = nullptr;
             _max_output_layout_count[0] = 0;
         }
@@ -1527,7 +1527,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         }
 
         if (can_skip_execution) {
-            auto ev = get_network().get_stream().create_user_event(true);
+            auto ev = get_network().get_stream().aggregate_events(events);
             update_shape_done_by_other = false; // reset
             return ev;
         }
