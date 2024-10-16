@@ -73,7 +73,7 @@ Squeeze
             </port>
         </input>
         <output>
-            <port id="2">
+            <port id="2" precision="FP32">
                 <dim>3</dim>
                 <dim>2</dim>
             </port>
@@ -98,7 +98,7 @@ Squeeze
             </port>
         </input>
         <output>
-            <port id="2">
+            <port id="2" precision="FP32">
             </port>
         </output>
     </layer>
@@ -121,7 +121,7 @@ Squeeze
             </port>
         </input>
         <output>
-            <port id="2"/>    <!-- output with dynamic rank -->
+            <port id="2" precision="FP32"/>    <!-- output with dynamic rank -->
         </output>
     </layer>
 
@@ -144,7 +144,7 @@ Squeeze
             </port>
         </input>
         <output>
-            <port id="2">
+            <port id="2" precision="FP32">
                 <dim>2</dim>  <!-- assumes: actual value of <dim>-1</dim> is squeezable -->
             </port>
         </output>
@@ -169,6 +169,6 @@ Squeeze
             </port>
         </input>
         <output>
-            <port id="2"/>    <!-- Output with dynamic rank. Actual value of <dim>-1</dim> might not be squeezable -->
+            <port id="2" precision="FP32" />    <!-- Output with dynamic rank. Actual value of <dim>-1</dim> may or may not be squeezable -->
         </output>
     </layer>
