@@ -66,7 +66,15 @@ ov::intel_cpu::MLPFusion::MLPFusion(bool allow_dynamic_quantization) {
     // gate-up weights are combined
     auto gate_up_proj_weight = makeConst(ov::element::f16, ov::PartialShape({ov::Dimension(), ov::Dimension()}), nullptr);
     auto gate_up_proj_weight_f32 = makePattern<opset1::Convert>({gate_up_proj_weight}, {{"destination_type", "f32"}});
-    auto gate_up_proj = makePattern<opset1::MatMul>({input, gate_up_proj_weight_f32}, {{"transpose_a", false}, {"transpose_b", true}});
+
+    auto gate_up_proj_weight_const_i8 =
+        makeConst(ov::element::i8, ov::PartialShape({ov::Dimension(), ov::Dimension()}), nullptr);
+    auto gate_up_proj_weight_cvt_f32 = makePattern<opset1::Convert>({gate_up_proj_weight_const_i8}, {{"destination_type", "f32"}});
+    auto gate_up_proj_weight_scales_per_OC = makeConst(ov::element::f32, ov::PartialShape({ov::Dimension(), 1}), nullptr);
+    auto gate_up_proj_weight_deq = makePattern<opset1::Multiply>({gate_up_proj_weight_cvt_f32, gate_up_proj_weight_scales_per_OC},
+                                                             {{"auto_broadcast", "numpy"}});
+
+    auto gate_up_proj = makePattern<opset1::MatMul>({input, gate_up_proj_weight_f32 | gate_up_proj_weight_deq}, {{"transpose_a", false}, {"transpose_b", true}});
     auto gate_up_split_lengths = makeConst(ov::element::i32, ov::Shape({2,}), nullptr);
     auto gate_up_proj_split = makePattern<opset1::VariadicSplit>({gate_up_proj, -1, gate_up_split_lengths});
     gate_up_proj_split->set_output_size(2);
@@ -104,10 +112,17 @@ ov::intel_cpu::MLPFusion::MLPFusion(bool allow_dynamic_quantization) {
         // down projection is harder to quantize w/o causing accuracy problem, so it may be un-quantized instead
         bool is_gate_up_quantized_int8 = false;
         bool is_down_proj_int8 = false;
-        bool gate_up_combined = false;
-        if (pattern_map.count(gate_up_proj_weight) > 0 && pattern_map.count(down_proj_weight_compressed) > 0) {
+        bool is_gate_up_combined = false;
+        if (pattern_map.count(gate_up_proj_weight_const_i8) > 0 && pattern_map.count(down_proj_weight_compressed) > 0) {
+            //gate-up combined & quantized
+            is_gate_up_quantized_int8 = true;
+            is_gate_up_combined = true;
+            gate_proj_w = pattern_map.at(gate_up_proj_weight_const_i8);
+            up_proj_w = pattern_map.at(gate_up_proj_weight_const_i8);
+            down_proj_w = pattern_map.at(down_proj_weight_compressed);
+        } else if (pattern_map.count(gate_up_proj_weight) > 0 && pattern_map.count(down_proj_weight_compressed) > 0) {
             //gate-up combined
-            gate_up_combined = true;
+            is_gate_up_combined = true;
             gate_proj_w = pattern_map.at(gate_up_proj_weight);
             up_proj_w = pattern_map.at(gate_up_proj_weight);
             down_proj_w = pattern_map.at(down_proj_weight_compressed);
@@ -163,7 +178,7 @@ ov::intel_cpu::MLPFusion::MLPFusion(bool allow_dynamic_quantization) {
         if (down_shape.size() != 2)
             return false;
 
-        auto up_size = gate_up_combined ? (up_shape[0] / 2) : (up_shape[0]);
+        auto up_size = is_gate_up_combined ? (up_shape[0] / 2) : (up_shape[0]);
         auto down_size = up_shape[1];
         if (down_shape[0] != down_size)
             return false;
@@ -178,7 +193,7 @@ ov::intel_cpu::MLPFusion::MLPFusion(bool allow_dynamic_quantization) {
         config.down_quantized = is_down_proj_int8;
         config.hidden_size = down_size;
         config.up_size = up_size;
-        config.gate_up_combined = gate_up_combined;
+        config.gate_up_combined = is_gate_up_combined;
         if (pattern_map.count(mlp_silu_gate) > 0) {
             config.act = LLMMLPNode::ACT_FN::SILU;
             gate_act = mlp_silu_gate;
@@ -194,8 +209,13 @@ ov::intel_cpu::MLPFusion::MLPFusion(bool allow_dynamic_quantization) {
         new_args.push_back(up_proj_w);
         new_args.push_back(down_proj_w);
         if (is_gate_up_quantized_int8) {
-            new_args.push_back(pattern_map.at(gate_proj_weight_scales_per_OC));
-            new_args.push_back(pattern_map.at(up_proj_weight_scales_per_OC));
+            if (is_gate_up_combined) {
+                new_args.push_back(pattern_map.at(gate_up_proj_weight_scales_per_OC));
+                new_args.push_back(pattern_map.at(gate_up_proj_weight_scales_per_OC));
+            } else {
+                new_args.push_back(pattern_map.at(gate_proj_weight_scales_per_OC));
+                new_args.push_back(pattern_map.at(up_proj_weight_scales_per_OC));
+            }
         }
         if (is_down_proj_int8) {
             new_args.push_back(pattern_map.at(down_proj_weight_scales_per_OC));
@@ -207,7 +227,7 @@ ov::intel_cpu::MLPFusion::MLPFusion(bool allow_dynamic_quantization) {
         ov::copy_runtime_info({pattern_map.at(gate_act).get_node_shared_ptr(),
                                pattern_map.at(down_proj).get_node_shared_ptr()},
                               new_node);
-        if (gate_up_combined) {
+        if (is_gate_up_combined) {
             ov::copy_runtime_info({pattern_map.at(gate_up_proj).get_node_shared_ptr()}, new_node);
         } else {
             ov::copy_runtime_info({pattern_map.at(mlp_gate_proj).get_node_shared_ptr(),

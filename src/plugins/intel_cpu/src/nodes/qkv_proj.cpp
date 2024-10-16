@@ -200,8 +200,13 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
 
         if (m_node->m_config.quantized) {
             w_scale[0] = m_node->getSrcMemoryAtPort(4)->getDataAs<float>();
-            w_scale[1] = m_node->getSrcMemoryAtPort(5)->getDataAs<float>();
-            w_scale[2] = m_node->getSrcMemoryAtPort(6)->getDataAs<float>();
+            if (m_node->m_config.weights_combined) {
+                w_scale[1] = w_scale[0] + m_node->m_config.proj_size0;
+                w_scale[2] = w_scale[1] + m_node->m_config.proj_size1;
+            } else {
+                w_scale[1] = m_node->getSrcMemoryAtPort(5)->getDataAs<float>();
+                w_scale[2] = m_node->getSrcMemoryAtPort(6)->getDataAs<float>();
+            }
         }
 
         const auto& srcStrides = input->getDescWithType<BlockedMemoryDesc>()->getStrides();

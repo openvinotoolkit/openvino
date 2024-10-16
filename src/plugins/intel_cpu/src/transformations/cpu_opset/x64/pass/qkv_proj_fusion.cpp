@@ -190,7 +190,16 @@ ov::intel_cpu::QKVProjFusion2::QKVProjFusion2(bool allow_dynamic_quantization) {
 
     auto qkv_proj_weight_const = makePattern<opset1::Constant>({});
     auto qkv_proj_cvt = makePattern<opset1::Convert>({qkv_proj_weight_const}, {{"destination_type", "f32"}});
-    auto qkv_proj = makePattern<opset1::MatMul>({input, qkv_proj_cvt}, {{"transpose_a", false}, {"transpose_b", true}});
+
+    auto qkv_proj_weight_const_i8 =
+        makeConst(ov::element::i8, ov::PartialShape({ov::Dimension(), ov::Dimension()}), nullptr);
+    auto qkv_proj_weight_f32 = makePattern<opset1::Convert>({qkv_proj_weight_const_i8}, {{"destination_type", "f32"}});
+    auto qkv_proj_weight_scales_per_OC = makeConst(ov::element::f32, ov::PartialShape({ov::Dimension(), 1}), nullptr);
+    auto qkv_proj_weight_deq = makePattern<opset1::Multiply>({qkv_proj_weight_f32, qkv_proj_weight_scales_per_OC},
+                                                             {{"auto_broadcast", "numpy"}});
+
+    auto qkv_proj = makePattern<opset1::MatMul>({input, qkv_proj_cvt | qkv_proj_weight_deq},
+                                                {{"transpose_a", false}, {"transpose_b", true}});
     auto qkv_split_lengths = makePattern<opset1::Constant>({}, {}, "i32[3]");
     auto qkv_split = makePattern<opset1::VariadicSplit>({qkv_proj, 2, qkv_split_lengths});
 
@@ -205,25 +214,36 @@ ov::intel_cpu::QKVProjFusion2::QKVProjFusion2(bool allow_dynamic_quantization) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
 
-        auto node_split_lengths = ov::as_type_ptr<opset1::Constant>(pattern_map.at(qkv_split_lengths).get_node_shared_ptr());
+        auto node_split_lengths =
+            ov::as_type_ptr<opset1::Constant>(pattern_map.at(qkv_split_lengths).get_node_shared_ptr());
         if (!node_split_lengths)
             return false;
         auto split_lengths = node_split_lengths->get_vector<int32_t>();
-        if (split_lengths.size() != 3) return false;
+        if (split_lengths.size() != 3)
+            return false;
 
         auto proj_size = split_lengths[0];
-        if (split_lengths[1] != proj_size) return false;
-        if (split_lengths[2] != proj_size) return false;
+        if (split_lengths[1] != proj_size)
+            return false;
+        if (split_lengths[2] != proj_size)
+            return false;
 
-        auto qkv_proj_weight_node = ov::as_type_ptr<opset1::Constant>(pattern_map.at(qkv_proj_weight_const).get_node_shared_ptr());
+        bool is_quantized_int8 = pattern_map.count(qkv_proj_weight_const_i8);
+
+        std::shared_ptr<opset1::Constant> qkv_proj_weight_node;
+        if (is_quantized_int8) {
+            qkv_proj_weight_node =
+                ov::as_type_ptr<opset1::Constant>(pattern_map.at(qkv_proj_weight_const_i8).get_node_shared_ptr());
+        } else {
+            qkv_proj_weight_node =
+                ov::as_type_ptr<opset1::Constant>(pattern_map.at(qkv_proj_weight_const).get_node_shared_ptr());
+        }
         if (!qkv_proj_weight_node)
             return false;
 
         auto w_shape = qkv_proj_weight_node->get_shape();
         if (w_shape[0] != proj_size * 3)
             return false;
-
-        auto is_quantized_int8 = false;
 
         QKVProjectionNode::Config config;
         config.quantized = is_quantized_int8;
@@ -233,13 +253,13 @@ ov::intel_cpu::QKVProjFusion2::QKVProjFusion2(bool allow_dynamic_quantization) {
         config.proj_size1 = split_lengths[1];
         config.proj_size2 = split_lengths[2];
 
-        OutputVector args = {
-            pattern_map.at(input),
-            pattern_map.at(qkv_proj_weight_const),
-            pattern_map.at(qkv_proj_weight_const),
-            pattern_map.at(qkv_proj_weight_const)
-            };
-
+        OutputVector args = {pattern_map.at(input), qkv_proj_weight_node, qkv_proj_weight_node, qkv_proj_weight_node};
+        if (is_quantized_int8) {
+            auto scales = pattern_map.at(qkv_proj_weight_scales_per_OC).get_node_shared_ptr();
+            args.push_back(scales);
+            args.push_back(scales);
+            args.push_back(scales);
+        }
         auto old_node = root;
         auto new_node = std::make_shared<QKVProjectionNode>(args, config);
         new_node->set_friendly_name(old_node->get_friendly_name());

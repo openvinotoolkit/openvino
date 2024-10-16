@@ -353,6 +353,9 @@ struct LLMMLP::Executor : public LLMMLP::ExecutorBase {
             auto* w_scale_gate = pnode->getSrcMemoryAtPort(4)->getDataAs<float>();
             auto* w_scale_up = pnode->getSrcMemoryAtPort(5)->getDataAs<float>();
             auto* dst = m_w_scale_gateup.ptr<float>();
+            if (m_config.gate_up_combined) {
+                w_scale_up = w_scale_gate + N;
+            }
             for (size_t i = 0; i < N; i += 16) {
                 memcpy(dst, w_scale_gate + i, 16 * sizeof(float));
                 dst += 16;
