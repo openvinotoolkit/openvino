@@ -15,6 +15,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/runtime/make_tensor.hpp"  // get_tensor_impl
+#include "util_xarch.hpp"
 
 bool ov::npuw::util::is_set(const std::size_t sub_idx, const std::string& opt) {
     if (opt.empty() || opt == "NO") {
@@ -63,6 +64,135 @@ std::string ov::npuw::util::fmt(std::size_t number, std::size_t total) {
     std::stringstream ss;
     ss << std::setfill('0') << std::setw(regs) << number;
     return ss.str();
+}
+
+void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
+                            const ov::SoPtr<ov::ITensor>& to,
+                            const UnpackOptions& unpack_options) {
+    // This is in fact a weight decompression procedure
+    auto type_from = from->get_element_type();
+    auto type_to = to->get_element_type();
+
+    namespace ove = ov::element;
+#define CAST(x)    static_cast<int>((x).operator ove::Type_t())
+#define PAIR(f, t) (CAST(f) << 16 | CAST(t))
+#define HNDL(f, t)                                                      \
+    case PAIR(ove::f, ove::t):                                          \
+        ov::npuw::util::XARCH::unpack_##f##t(from, to, unpack_options); \
+        break;
+    switch (PAIR(type_from, type_to)) {
+        HNDL(i4, i8);
+        HNDL(i4, f16);
+        HNDL(u4, i8);
+        HNDL(u4, f16);
+        HNDL(u4, f32);
+        HNDL(i8, f16);
+    default:
+        OPENVINO_THROW("Unknown unpack combination ", type_from, " -> ", type_to);
+    }
+#undef HNDL
+#undef PAIR
+#undef CAST
+}
+
+void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
+                            const ov::SoPtr<ov::ITensor>& scale,
+                            const ov::SoPtr<ov::ITensor>& to,
+                            const UnpackOptions& unpack_options) {
+    // This is in fact a weight decompression procedure
+    const auto type_from = from->get_element_type();
+    const auto type_to = to->get_element_type();
+    NPUW_ASSERT(type_to == ov::element::f16);
+
+    const auto& from_shape = from->get_shape();
+    const auto& scale_shape = scale->get_shape();
+
+    if (type_from == ov::element::i4) {
+        if (from_shape.size() == 3) {
+            if (scale_shape[2] == from_shape[2]) {
+                ov::npuw::util::XARCH::unpack_i4f16_z(from, scale, to, unpack_options);
+            } else {
+                ov::npuw::util::XARCH::unpack_i4f16_scale(from, scale, to, unpack_options);
+            }
+        } else {
+            NPUW_ASSERT(from_shape.size() == 2);
+            ov::npuw::util::XARCH::unpack_i4f16_scale(from, scale, to, unpack_options);
+        }
+    } else if (type_from == ov::element::i8) {
+        ov::npuw::util::XARCH::unpack_i8f16_scale(from, scale, to, unpack_options);
+    } else {
+        NPUW_ASSERT(false && "Unsupported combination");
+    }
+}
+
+void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
+                            const ov::SoPtr<ov::ITensor>& zerop,
+                            const ov::SoPtr<ov::ITensor>& scale,
+                            const ov::SoPtr<ov::ITensor>& to,
+                            const UnpackOptions& unpack_options) {
+    const auto type_from = from->get_element_type();
+    const auto type_zerop = zerop->get_element_type();
+    const auto type_scale = scale->get_element_type();
+    const auto type_to = to->get_element_type();
+
+    if (type_from == ov::element::u4) {
+        NPUW_ASSERT(type_zerop == ov::element::u4 || type_zerop == ov::element::f16 || type_zerop == ov::element::f32);
+        NPUW_ASSERT(type_scale == ov::element::f16 || type_scale == ov::element::f32);
+        NPUW_ASSERT(type_to == ov::element::f16);
+    } else if (type_from == ov::element::u8) {
+        NPUW_ASSERT(type_zerop == ov::element::u8);
+        NPUW_ASSERT(type_scale == ov::element::f16);
+        NPUW_ASSERT(type_to == ov::element::f16);
+    } else {
+        NPUW_ASSERT(false && "Unsupported combination");
+    }
+
+    // This function determines the appropriate unpacking strategy for tensor multiplication
+    // based on the 'scale' shape and 'from' shape.
+    // Example tensors -> (scale.*from):
+    // unpack_u4f16:
+    //     - [4096, 1].*[4096, 4096]
+    //     - [11008, 1].*[11008, 4096]
+    //     - [4096, 32, 1].*[4096, 32, 128]
+    // unpack_u4f16_z:
+    //     - [32, 1, 4096].*[32, 128, 4096]
+    //     - [32, 1, 11008].*[32, 128, 11008]
+    //     - [86, 1, 4096].*[86, 128, 4096]
+    // unpack_u4f16_asymm_zp:
+    //     - [256, 16, 1].*[256, 16, 128]
+    //     - [2048, 16, 1].*[2048, 16, 128]
+    //     - [5632, 16, 1].*[5632, 16, 128]
+    //      Zero Point Shapes: [256, 16, 1], [2048, 16, 1], [5632, 16, 1]
+    // Unsupported Case for scale tensor:
+    //     - [s1, 1, s2, 1, s3]
+
+    const auto& from_shape = from->get_shape();
+    const auto& scale_shape = scale->get_shape();
+
+    if (type_from == ov::element::u4) {
+        if (scale_shape.size() == 3 && scale_shape[0] == from_shape[0] && scale_shape[1] == 1 &&
+            scale_shape[2] == from_shape[2]) {
+            ov::npuw::util::XARCH::unpack_u4f16_z(from, zerop, scale, to, unpack_options);
+        } else if (scale_shape.size() == 3 && scale_shape[0] == from_shape[0] && scale_shape[1] == from_shape[1] &&
+                   scale_shape[2] == 1) {
+            if (zerop->get_size() == 1) {
+                ov::npuw::util::XARCH::unpack_u4f16_scale_zp(from, zerop, scale, to, unpack_options);
+            } else {
+                ov::npuw::util::XARCH::unpack_u4f16_asymm_zp(from, zerop, scale, to, unpack_options);
+            }
+        } else if (scale_shape.size() == 2 && scale_shape[0] == from_shape[0] && scale_shape[1] == 1) {
+            ov::npuw::util::XARCH::unpack_u4f16_scale_zp(from, zerop, scale, to, unpack_options);
+        } else {
+            NPUW_ASSERT(false);
+        }
+    } else if (type_from == ov::element::u8) {
+        // Only support CW for now
+        if (scale_shape.size() == 2 && scale_shape[0] == from_shape[0] && scale_shape[1] == 1) {
+            ov::npuw::util::XARCH::unpack_u8f16(from, zerop, scale, to, unpack_options);
+        } else {
+            NPUW_ASSERT(false);
+        }
+    }
 }
 
 void ov::npuw::util::gather(const ov::SoPtr<ov::ITensor>& src,
@@ -199,6 +329,10 @@ void ov::npuw::util::to_f32(const ov::Tensor& in, ov::Tensor& out) {
         OPENVINO_THROW("Unsupported precision {0}", in.get_element_type().get_type_name());
         break;
     }
+}
+
+ov::Tensor ov::npuw::util::to_f16(const ov::Tensor& t) {
+    return ov::npuw::util::XARCH::to_f16(t);
 }
 
 inline uint8_t tread_4b(const ov::Tensor& t, std::size_t r, std::size_t c, std::size_t COLS) {

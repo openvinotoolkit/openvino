@@ -14,7 +14,6 @@
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "util.hpp"
-#include "util_xarch.hpp"
 
 namespace ov {
 namespace npuw {
