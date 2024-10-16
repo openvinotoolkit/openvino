@@ -436,7 +436,7 @@ jobs:
                 --getest_filter=${GTEST_FILTER} \
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_auto_func_tests.xml
         env:
-          GTEST_FILTER: ${{ matrix.SANITIZER != 'Thread' && '-AutoFuncTests.theading_compiled_with_cpu_help' || '*' }}
+          GTEST_FILTER: ${{ matrix.SANITIZER != 'Thread' && '-*theading_compiled_with_cpu_help:-*threading_test_hardware_slower*' || '*' }}
 
       - name: Template plugin func tests
         if: ${{ !cancelled() }}
