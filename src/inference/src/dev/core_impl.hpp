@@ -149,12 +149,12 @@ private:
                                                           const ov::SoPtr<ov::IRemoteContext>& context,
                                                           const CacheContent& cacheContent) const;
 
-    static ov::SoPtr<ov::ICompiledModel> load_model_from_cache(
+    ov::SoPtr<ov::ICompiledModel> load_model_from_cache(
         const CacheContent& cacheContent,
         ov::Plugin& plugin,
         const ov::AnyMap& config,
         const ov::SoPtr<ov::IRemoteContext>& context,
-        std::function<ov::SoPtr<ov::ICompiledModel>()> compile_model_lambda);
+        std::function<ov::SoPtr<ov::ICompiledModel>()> compile_model_lambda) const;
 
     bool device_supports_model_caching(const ov::Plugin& plugin) const;
 
