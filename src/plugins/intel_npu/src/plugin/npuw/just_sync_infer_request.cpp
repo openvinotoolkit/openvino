@@ -729,7 +729,8 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, boo
             LOG_INFO("- Trying next device...");
 
             // Altering iterators here!! Contracts should be changed!
-            comp_model_desc.device_it++;
+            auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
+            proto_comp_model_desc.device_it++;
             if (!m_npuw_model->compile_for_success(real_idx)) {
                 OPENVINO_THROW("Failed to compile. No more devices are left!");
             }
