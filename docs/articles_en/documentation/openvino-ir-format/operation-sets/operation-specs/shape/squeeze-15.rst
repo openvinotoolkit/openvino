@@ -124,3 +124,51 @@ Squeeze
             <port id="2"/>    <!-- output with dynamic rank -->
         </output>
     </layer>
+
+*Example 4: squeeze 2D tensor with 1 dynamic and one static shape element to a static shape output, according to the opset1 rules*
+
+.. code-block:: xml
+   :force:
+
+    <layer ... type="Squeeze" version="opset15">
+        <data allow_axis_skip="false"/>
+        <input>
+            <port id="0">
+                <dim>2</dim>
+                <dim>-1</dim>
+            </port>
+        </input>
+        <input>
+            <port id="1">
+                <dim>1</dim>  <!-- value is [1] -->
+            </port>
+        </input>
+        <output>
+            <port id="2">
+                <dim>2</dim>  <!-- assumes: actual value of <dim>-1</dim> is squeezable -->
+            </port>
+        </output>
+    </layer>
+
+*Example 5: squeeze 2D tensor with 1 dynamic and one static shape element to a static shape output, according to the opset15 rules*
+
+.. code-block:: xml
+   :force:
+
+    <layer ... type="Squeeze" version="opset15">
+        <data allow_axis_skip="true"/>
+        <input>
+            <port id="0">
+                <dim>2</dim>
+                <dim>-1</dim>
+            </port>
+        </input>
+        <input>
+            <port id="1">
+                <dim>1</dim>  <!-- value is [1] -->
+            </port>
+        </input>
+        <output>
+            <port id="2"/>    <!-- Output with dynamic rank. Actual value of <dim>-1</dim> might not be squeezable -->
+        </output>
+    </layer>
