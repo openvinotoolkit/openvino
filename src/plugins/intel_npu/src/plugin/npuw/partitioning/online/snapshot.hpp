@@ -47,11 +47,11 @@ public:
 
     // Advanced passes for repeated blocks algorithm
     using CB = std::function<void()>;
-    void repeatedBlocks(CB &&on_done = {});
+    void repeatedBlocks(CB&& on_done = {});
     void earlyAvoids();
     void earlyRegroup();
 
-    void stripTag(const std::string &tag);
+    void stripTag(const std::string& tag);
 
     // Utility
     std::shared_ptr<own::ade::Graph> getGraph() const;

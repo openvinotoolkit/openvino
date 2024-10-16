@@ -436,7 +436,7 @@ void Snapshot::earlyRegroup() {
     LOG_INFO("DONE.");
 }
 
-void Snapshot::repeatedBlocks(Snapshot::CB &&on_done) {
+void Snapshot::repeatedBlocks(Snapshot::CB&& on_done) {
     LOG_INFO("Online partitioning: executing repeatedBlocks pass group...");
     LOG_BLOCK();
 
@@ -455,7 +455,7 @@ void Snapshot::repeatedBlocks(Snapshot::CB &&on_done) {
         if (on_done) {
             on_done();
         } else {
-            return; // FROM top-level repeat!
+            return;  // FROM top-level repeat!
         }
     });
     cleanUpUniques();
@@ -1096,8 +1096,8 @@ void Snapshot::setCtx(const ov::npuw::online::PassContext& ctx) {
     m_ctx = ctx;
 }
 
-void Snapshot::stripTag(const std::string &tag) {
-    for (auto &&nh : m_graph->nodes()) {
+void Snapshot::stripTag(const std::string& tag) {
+    for (auto&& nh : m_graph->nodes()) {
         auto gptr = m_graph->meta(nh).get<Group::GPtr>();
         if (gptr->isolatedTag() == tag) {
             gptr->dontIsolate();
