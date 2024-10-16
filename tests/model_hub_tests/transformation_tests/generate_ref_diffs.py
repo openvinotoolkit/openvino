@@ -6,7 +6,7 @@ The script will produce sdpa2pa_ref_diff.txt (or sdpa2pa_ref_diff_ce.txt
 if using cache-eviction) containing a map in the
 following format with nodes number changes for each model:
 
-pa_reference_map = {
+ref_diff_map = {
 	"hf-internal-testing/tiny-random-LlamaForCausalLM" : {
 		"PagedAttentionExtension" : 2,
 		"ScaledDotProductAttention" : -2,
