@@ -797,7 +797,7 @@ void ov::npuw::JustInferRequest::recreate_subrequests(std::size_t idx) {
     auto real_idx = comp_model_desc.replaced_by.value_or(idx);
 
     const auto is_piped = is_pipelined(idx);
-    auto new_rqs = create_infer_requests(idx, is_piped ? 2 : 1);
+    auto new_rqs = create_infer_requests(real_idx, is_piped ? 2 : 1);
 
     // NB: Regardless if this subrequest was a function call
     // or not, always use the real_idx here - for regular
@@ -814,7 +814,9 @@ void ov::npuw::JustInferRequest::recreate_subrequests(std::size_t idx) {
     // overkill - only affected subrequest(s) could be updated instead,
     // but it is a more complex thing and can be implemented separately
     connect_subrequests();
-    m_subrequest_devices[idx] = *comp_model_desc.device_it;
+
+    auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
+    m_subrequest_devices[real_idx] = *proto_comp_model_desc.device_it;
 }
 
 void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, bool& failover) {
@@ -869,7 +871,8 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, boo
             LOG_INFO("- Trying next device...");
 
             // Altering iterators here!! Contracts should be changed!
-            comp_model_desc.device_it++;
+            auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
+            proto_comp_model_desc.device_it++;
             if (!m_npuw_model->compile_for_success(real_idx)) {
                 OPENVINO_THROW("Failed to compile. No more devices are left!");
             }
