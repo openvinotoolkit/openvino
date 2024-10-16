@@ -4,10 +4,15 @@
 
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
 
+#include "memory_desc/cpu_blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
+#include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/utils/utils.hpp"
 
 #ifndef OPENVINO_ARCH_ARM64
+#include "transformations/snippets/x64/op/brgemm_cpu.hpp"
+#include "transformations/snippets/x64/op/brgemm_utils.hpp"
 #include "transformations/snippets/x64/pass/lowered/adjust_brgemm_copy_b_loop_ports.hpp"
 #endif
 namespace ov {
@@ -47,6 +52,7 @@ void CPURuntimeConfigurator::initialization(const ov::snippets::lowered::LinearI
 }
 
 void CPURuntimeConfigurator::update(const ov::snippets::lowered::LinearIRCPtr& linear_ir) {
+    update_requested_descs(linear_ir);
     m_config->master_shape = linear_ir->get_master_shape();
     if (linear_ir->is_dynamic()) {
         update_loop_info(linear_ir);
@@ -69,6 +75,7 @@ void CPURuntimeConfigurator::update(const ov::snippets::lowered::LinearIRCPtr& l
     if (linear_ir->is_dynamic()) {
         update_loop_args(linear_ir);
     }
+    adjust_offsets_from_descs(linear_ir);
 }
 
 void CPURuntimeConfigurator::update_tensor_rank(const ov::snippets::VectorDims& master_shape) {
@@ -135,6 +142,65 @@ void CPURuntimeConfigurator::BrgemmCopyBLoopPortsAdjuster::optimize() {
     }
 }
 #endif
+
+void CPURuntimeConfigurator::update_requested_descs(const ov::snippets::lowered::LinearIRCPtr& linear_ir) const {
+    const auto& cpu_config = ov::as_type_ptr<CPURuntimeConfig>(m_config);
+    auto& optimal_descs = cpu_config->m_in_requested_descs;
+    optimal_descs.resize(m_in_num);
+    const auto& params = linear_ir->get_parameters();
+    OPENVINO_ASSERT(params.size() == m_in_num);
+    for (size_t i = 0; i < m_in_num; ++i) {
+        const auto& param = params[i];
+        auto consumers = param->get_output_port_connector(0)->get_consumers();
+        const bool brgemm_with_extracted_repacking =
+            std::any_of(consumers.begin(), consumers.end(), [](const ov::snippets::lowered::ExpressionPort& port) {
+                auto brgemm = ov::as_type_ptr<ov::intel_cpu::BrgemmCPU>(port.get_expr()->get_node());
+                return port.get_index() == 1 && brgemm && brgemm_utils::with_repacking(brgemm->get_type());
+            });
+        if (brgemm_with_extracted_repacking) {
+            const auto& desc = param->get_output_port_descriptor(0);
+            const auto& shape = desc->get_shape();
+            const auto& K = *++shape.rbegin();
+            const auto& N = *shape.rbegin();
+
+            const auto& precision = param->get_node()->get_output_element_type(0);
+            const auto vnni_factor = brgemm_utils::compute_vnni_factor(precision);
+            // Firstly, batch dims are set
+            VectorDims requested_blocked_shape(shape.begin(), shape.end() - m_config->tile_rank);
+            // Then, the blocked dims are formed
+            requested_blocked_shape.insert(
+                requested_blocked_shape.end(),
+                {snippets::utils::div_up(K, vnni_factor), std::max(N, brgemm_utils::repacking::compute_inner_n_block(precision)), vnni_factor});
+
+            VectorDims requested_order(shape.size() - m_config->tile_rank);
+            std::iota(requested_order.begin(), requested_order.end(), 0);
+            const auto last_idx = shape.size() - 1;
+            requested_order.insert(requested_order.end(), {last_idx - 1, last_idx, last_idx - 1});
+
+            auto cpu_desc = std::make_shared<CpuBlockedMemoryDesc>(precision, Shape(shape), requested_blocked_shape, requested_order);
+            optimal_descs[i] = MemoryDescUtils::convertToDnnlMemoryDesc(cpu_desc);
+        }
+    }
+}
+void CPURuntimeConfigurator::adjust_offsets_from_descs(const ov::snippets::lowered::LinearIRCPtr& linear_ir) const {
+    const auto& cpu_config = ov::as_type_ptr<CPURuntimeConfig>(m_config);
+    auto& optimal_descs = cpu_config->m_in_requested_descs;
+    for (size_t i = 0; i < m_in_num; ++i) {
+        const auto& optimal_desc = optimal_descs[i];
+        if (optimal_desc) {
+            // It is assumed that shape is planar
+            const auto& parameter = linear_ir->get_parameters()[i];
+            const auto& original_shape = parameter->get_output_port_descriptor(0)->get_shape();
+            const auto& blocked_shape = optimal_desc->as<DnnlBlockedMemoryDesc>()->getBlockDims();
+
+            ov::snippets::VectorDims shape_for_offset(m_config->tensor_rank - original_shape.size(), 1);
+            shape_for_offset.insert(shape_for_offset.end(), blocked_shape.begin(), blocked_shape.end());
+            auto& offsets = m_config->io_data_offsets[i];
+            compute_offsets(shape_for_offset, offsets, shape_for_offset.size(), m_io_data_sizes[i], 0);
+            OPENVINO_ASSERT(ov::snippets::utils::is_planar_layout(parameter->get_output_port_descriptor(0)->get_layout()));
+        }
+    }
+}
 
 } // namespace intel_cpu
 } // namespace ov

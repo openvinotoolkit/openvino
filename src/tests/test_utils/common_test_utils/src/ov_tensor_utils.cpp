@@ -444,9 +444,9 @@ public:
                           << " Diff: " << std::fabs(val.expected_value - val.actual_value)
                           << " calculated_abs_threshold: " << val.threshold << " abs_threshold: " << abs_threshold
                           << " rel_threshold: " << rel_threshold << "\n";
-#ifdef NDEBUG
+// #ifdef NDEBUG
                 break;
-#endif
+// #endif
             }
             throw std::runtime_error(msg);
         } else if (!less_or_equal(mvn_results, mvn_threshold)) {
