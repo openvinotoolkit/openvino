@@ -60,7 +60,7 @@ void CheckWeightlessCacheAccuracy::TearDown() {
 }
 
 void CheckWeightlessCacheAccuracy::run() {
-    ov::AnyMap config = {{"CACHE_MODE", ov::CacheMode::OPTIMIZE_SIZE}, {"WEIGHTS_PATH", bin_path}};
+    ov::AnyMap config = { ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE), ov::weights_path(bin_path) };
     auto core = ov::test::utils::PluginCache::get().core();
     ov::pass::Serialize(xml_path, bin_path).run_on_model(model);
 
