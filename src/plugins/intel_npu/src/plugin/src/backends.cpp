@@ -70,7 +70,7 @@ namespace intel_npu {
 // TODO Config will be useless here, since only default values will be used
 NPUBackends::NPUBackends(const std::vector<AvailableBackends>& backendRegistry, [[maybe_unused]] const Config& config)
     : _logger("NPUBackends", Logger::global().level()) {
-    std::map<std::string, ov::SoPtr<IEngineBackend>> registeredBackends;
+    std::vector<ov::SoPtr<IEngineBackend>> registeredBackends;
     [[maybe_unused]] const auto registerBackend = [&](ov::SoPtr<IEngineBackend> backend, const std::string& name) {
         const auto backendDevices = backend->getDeviceNames();
         if (!backendDevices.empty()) {
@@ -79,13 +79,13 @@ NPUBackends::NPUBackends(const std::vector<AvailableBackends>& backendRegistry, 
                 deviceNames << device << " ";
             }
             _logger.debug("Register '%s' with devices '%s'", name.c_str(), deviceNames.str().c_str());
-            registeredBackends.emplace(name, backend);
+            registeredBackends.emplace_back(backend);
         }
     };
 
     for (const auto& name : backendRegistry) {
         std::string backendName = backendToString(name);
-        _logger.debug("Try to init '%s' backend", backendName.c_str());
+        _logger.debug("Try '%s' backend", backendName.c_str());
 
         try {
 #if !defined(OPENVINO_STATIC_LIBRARY) && defined(ENABLE_IMD_BACKEND)
@@ -111,31 +111,24 @@ NPUBackends::NPUBackends(const std::vector<AvailableBackends>& backendRegistry, 
         } catch (const std::exception& ex) {
             _logger.warning("Got an error during backend '%s' loading : %s", backendName.c_str(), ex.what());
         } catch (...) {
-            _logger.error("Got an unknown error during backend '%s' loading", backendName.c_str());
+            _logger.warning("Got an unknown error during backend '%s' loading", backendName.c_str());
         }
     }
 
     if (registeredBackends.empty()) {
-        registeredBackends.emplace("", nullptr);
+        registeredBackends.emplace_back(nullptr);
     }
 
     // TODO: implementation of getDevice methods needs to be updated to go over all
     // registered backends to search a device.
     // A single backend is chosen for now to keep existing behavior
-    _backend = registeredBackends.begin()->second;
+    _backend = *registeredBackends.begin();
 
-    if (registeredBackends.size() > 1) {
-        _logger.info("Both ZeroBackend and IMDBackend inited successfully. Use '%s' backend for inference",
-                      _backend->getName().c_str());
+    if (_backend != nullptr) {
+        _logger.info("Use '%s' backend for inference", _backend->getName().c_str());
     } else {
-        auto name = registeredBackends.begin()->first;
-        if (name == "npu_imd_backend") {
-            _logger.info("Only IMDBackend inited successfuly.");
-        } else if (name == "npu_level_zero_backend") {
-            _logger.info("Only ZeroBackend inited successfuly.");
-        } else {
-            _logger.warning("No backend inited successfully. Only offline compilation can be done!");
-        }
+        _logger.warning("None of the backends were initialized successfully. " \ 
+                        "Only offline compilation can be done!");
     }
 }
 
