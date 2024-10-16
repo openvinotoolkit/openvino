@@ -91,6 +91,18 @@ Then the default settings for low-level performance properties on Windows and Li
       enabled on Linux. Such default settings are aligned with typical workloads running
       in the corresponding environments to guarantee better out-of-the-box (OOB) performance.
 
+.. note::
+
+   From 5th Gen Intel Xeon Processors, new microarchitecture enabled new sub-NUMA clusters
+   feature. A sub-NUMA cluster (SNC) can create two or more localization domains (numa nodes)
+   within a processor by BIOS configuration. 
+   For most models, the best latency performance can be achieved using the number of CPU 
+   cores in a single numa node on multiple 5th Generation Intel Xeon processors platform,
+   which is default latency hint behavior. 
+   For other models, user can explicitly set ``ov::num_streams`` and
+   ``ov::hint::enable_hyper_threading`` to use more CPU cores for the best latency
+   performance.
+
 Throughput Hint
 #####################
 
