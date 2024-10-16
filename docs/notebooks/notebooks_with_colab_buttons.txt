@@ -60,6 +60,9 @@ tiny-sd-image-generation
 vision-background-removal
 vision-monodepth
 whisper-subtitles-generation
+yolov11-instance-segmentation
+yolov11-keypoint-detection
+yolov11-object-detection
 yolov8-instance-segmentation
 yolov8-keypoint-detection
 yolov8-obb
