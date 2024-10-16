@@ -317,6 +317,16 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_1d_zero_scale_uint8_
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_opset21) {
+    auto model = convert_model("dequantize_linear_21.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_expected_output<float>({6, 3},
+                                         std::vector<float>{1, 2, 3, 1, 2, 3, 1, 2, 3, 4, 5, 6, 4, 5, 6, 4, 5, 6});
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_scalar_ignore_axis) {
     auto model = convert_model("dequantize_linear_scalar_ignore_axis.onnx");
 
