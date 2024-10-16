@@ -2,18 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "search_sorted.hpp"
+#include "shared_test_classes/single_op/search_sorted.hpp"
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "utils/cpu_test_utils.hpp"
-#include "utils/precision_support.h"
-
-using namespace CPUTestUtils;
 
 namespace ov {
 namespace test {
-namespace SearchSorted {
 
 static const int SEED = 7877;
 
@@ -75,7 +70,6 @@ void SearchSortedLayerCPUTest::SetUp() {
     ElementType inputPrecision;
     std::tie(searchSortedParams, inputPrecision) = basicParamsSet;
 
-    selectedType = makeSelectedTypeStr("ref", inputPrecision);
     targetDevice = ov::test::utils::DEVICE_CPU;
 
     InputShape sortedInputShape;
@@ -90,18 +84,12 @@ void SearchSortedLayerCPUTest::SetUp() {
     auto op = std::make_shared<ov::op::v15::SearchSorted>(sortedParam, valuesParam, right_mode);
 
     ov::ParameterVector params{sortedParam, valuesParam};
-    function = makeNgraphFunction(inputPrecision, params, op, "SearchSorted");
-}
-
-TEST_P(SearchSortedLayerCPUTest, CompareWithRefs) {
-    run();
-    CheckPluginRelatedResults(compiledModel, "SearchSorted");
+    function = std::make_shared<ov::Model>(op->outputs(), params, "SearchSorted");
 }
 
 const std::vector<SearchSortedSpecificParams> SearchSortedParamsVector = {
     SearchSortedSpecificParams{InputShape{{}, {{1, 18, 104}}}, InputShape{{}, {{1, 18, 104}}}, true},
 };
 
-}  // namespace SearchSorted
 }  // namespace test
 }  // namespace ov
