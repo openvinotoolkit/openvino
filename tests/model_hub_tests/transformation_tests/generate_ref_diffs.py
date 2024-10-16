@@ -106,7 +106,7 @@ def main():
 
             # wrapping in try/catch block to continue printing models even if one has failed
             try:
-                paged_attention_transformation(ov_model, use_cache_eviction, use_cache_eviction)
+                paged_attention_transformation(ov_model, use_cache_eviction, use_cache_eviction, use_cache_eviction)
             except:
                 print(f"Couldn't run SDPAToPA transformation on {model_id} and generate diffs.")
                 continue
@@ -117,10 +117,12 @@ def main():
                     after_map[op.get_type_name()] = after_map.get(op.get_type_name(), 0) + 1
 
             print(f'\t"{model_id}" : {{', file=file)
-            for op in set(after_map.keys()) | set(before_map.keys()):
+            for op in sorted(set(after_map.keys()) | set(before_map.keys())):
                 print(f'\t\t"{op}" : {after_map.get(op, 0) - before_map.get(op, 0)},', file=file)
             print('\t},', file=file)
         print('}', file=file)
+
+    print(f"output written to {OUTPUT_FILE}")
 
 if __name__ == "__main__":
     main()

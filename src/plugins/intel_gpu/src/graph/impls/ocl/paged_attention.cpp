@@ -195,7 +195,6 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
                 if (desc->has_alibi) {
                     args.inputs.push_back(instance.alibi_memory_ptr());
                 }
-            } else if (kernel_idx == 2 || kernel_idx == 3) {
                 // Finalization kernel or mixed stage finalization kernel
                 args.inputs = { instance.past_lens_memory_ptr() };
 
@@ -203,6 +202,10 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
                     // Multi tokens kernel version has additional subsequence_begins_memory memory
                     // dependency
                     args.inputs.push_back(instance.subsequence_begins_memory_ptr());
+                }
+                if (desc->has_rotation_coefficients) {
+                    args.inputs.push_back(instance.rotation_coefficients_memory_ptr());
+                    args.inputs.push_back(instance.rotated_block_indices_memory_ptr());
                 }
             } else if (kernel_idx == 4) {
                 // Output scores calculation kernel

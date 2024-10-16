@@ -64,16 +64,30 @@ static node_tuple kv_read_and_concat(ov::Output<ov::Node> kv_current) {
     return node_tuple(kv_past_par, kv_current2, kv_current_reshaped, kv_concat);
 }
 
+template <class T>
+void insert_rotation_inputs_as(OutputVector& pa_arguments, size_t layer_index) {
+    auto rotation_coefficients = setName(std::make_shared<T>(ov::element::f32, ov::PartialShape{-1}),
+                                         "rotation_coefficients." + std::to_string(layer_index - 1));
+    auto rotated_block_indices = setName(std::make_shared<T>(ov::element::i32, ov::PartialShape{-1}),
+                                         "rotated_block_indices." + std::to_string(layer_index - 1));
+
+    pa_arguments.insert(pa_arguments.begin() + 13, rotation_coefficients);
+    pa_arguments.insert(pa_arguments.begin() + 14, rotated_block_indices);
+}
+
 ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_parameters,
                                                          ParameterVector& model_remaining_params,
                                                          const std::shared_ptr<ov::op::v0::Constant>& sliding_window,
                                                          ParameterVector& parameters_to_remove,
                                                          int& layer_index,
                                                          Output<Node> max_context_len,
-                                                         ParameterVector& block_indices_inputs,
+                                                         ParameterVector& block_indices_inputs_for_each_layer,
                                                          ResultVector& score_results,
-                                                         bool use_block_indices_inputs,
-                                                         bool use_score_outputs) {
+                                                         bool use_per_layer_block_indices_inputs,
+                                                         bool use_score_outputs,
+                                                         bool allow_cache_rotation,
+                                                         ParameterVector& rotation_coefficients_inputs_for_each_layer,
+                                                         ParameterVector& rotated_block_indices_inputs_for_each_layer) {
     MATCHER_SCOPE(StateManagementPattern);
 
     auto k_current = pattern::any_input();
@@ -176,9 +190,11 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
                                           &model_remaining_params,
                                           &sliding_window,
                                           &parameters_to_remove,
-                                          &block_indices_inputs,
+                                          &block_indices_inputs_for_each_layer,
                                           &score_results,
-                                          &layer_index](ov::pass::pattern::Matcher& m) {
+                                          &layer_index,
+                                          &rotation_coefficients_inputs_for_each_layer,
+                                          &rotated_block_indices_inputs_for_each_layer](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto real_q = pattern_map.at(q);
 
@@ -382,11 +398,26 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
                                                                           max_context_len.get_node_shared_ptr()};
         pa_arguments.insert(pa_arguments.end(), additional_params.begin(), additional_params.end());
 
-        if (use_block_indices_inputs) {
+        if (use_per_layer_block_indices_inputs) {
             auto block_indices = setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}),
                                          "block_indices." + std::to_string(layer_index - 1));
             pa_arguments.insert(pa_arguments.begin() + 7, block_indices);
-            block_indices_inputs.push_back(block_indices);
+            block_indices_inputs_for_each_layer.push_back(block_indices);
+        }
+
+        OPENVINO_ASSERT(pa_arguments.size() == 13);
+
+        if (allow_cache_rotation) {
+            auto rotation_coefficients = setName(std::make_shared<v0::Parameter>(element::f32, PartialShape{-1}),
+                                                 "rotation_coefficients." + std::to_string(layer_index - 1));
+            auto rotated_block_indices = setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}),
+                                                 "rotated_block_indices." + std::to_string(layer_index - 1));
+
+            pa_arguments.insert(pa_arguments.begin() + 13, rotation_coefficients);
+            pa_arguments.insert(pa_arguments.begin() + 14, rotated_block_indices);
+
+            rotation_coefficients_inputs_for_each_layer.push_back(rotation_coefficients);
+            rotated_block_indices_inputs_for_each_layer.push_back(rotated_block_indices);
         }
 
         auto paged_attention = std::make_shared<ov::op::PagedAttentionExtension>(pa_arguments);
