@@ -122,7 +122,6 @@ std::shared_ptr<ov::Model> ov::auto_plugin::tests::AutoFuncTests::create_statefu
     auto variable = std::make_shared<ov::op::util::Variable>(
         ov::op::util::VariableInfo{init_const->get_shape(), ov::element::f32, variable_name});
     auto read = std::make_shared<ov::opset11::ReadValue>(init_const, variable);
-    std::vector<std::shared_ptr<ov::Node>> args = {arg, read};
     auto add = std::make_shared<ov::opset11::Add>(arg, read);
     add->set_friendly_name("add_sum");
     auto assign = std::make_shared<ov::opset11::Assign>(add, variable);
