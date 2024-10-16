@@ -48,6 +48,7 @@ bool JitEltwiseExecutor::isSupported(
                                      Algorithm::EltwiseSelect,
                                      Algorithm::EltwiseSigmoid,
                                      Algorithm::EltwiseSoftSign,
+                                     Algorithm::EltwiseSqrt,
                                      Algorithm::EltwiseSubtract,
                                      Algorithm::EltwiseSwish,
                                      Algorithm::EltwiseTanh);
