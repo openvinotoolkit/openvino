@@ -8,7 +8,7 @@ to explore and modify the source code as you need.
 
 
 Using GenAI for Text-to-Image Generation
-################################################
+########################################
 
 Examples below demonstrate inference on text-to-image models, like Stable Diffusion
 1.5, 2.1, and LCM, with a text prompt as input. The :ref:`main.cpp <maincpp>`
@@ -28,7 +28,11 @@ sample shows basic usage of the ``Text2ImagePipeline`` pipeline.
 
             .. code-block:: cpp
 
-               int32_t main(int32_t argc, char* argv[]) try {
+               #include "openvino/genai/text2image/pipeline.hpp"
+
+               #include "imwrite.hpp"
+
+               int32_t main(int32_t argc, char* argv[]) {
                    OPENVINO_ASSERT(argc == 3, "Usage: ", argv[0], " <MODEL_DIR> '<PROMPT>'");
 
                    const std::string models_path = argv[1], prompt = argv[2];
@@ -45,16 +49,6 @@ sample shows basic usage of the ``Text2ImagePipeline`` pipeline.
                    imwrite("image_%d.bmp", image, true);
 
                    return EXIT_SUCCESS;
-               } catch (const std::exception& error) {
-                   try {
-                       std::cerr << error.what() << '\n';
-                   } catch (const std::ios_base::failure&) {}
-                   return EXIT_FAILURE;
-               } catch (...) {
-                   try {
-                       std::cerr << "Non-exception object thrown\n";
-                   } catch (const std::ios_base::failure&) {}
-                   return EXIT_FAILURE;
                }
 
          .. tab-item:: LoRA.cpp
@@ -62,7 +56,11 @@ sample shows basic usage of the ``Text2ImagePipeline`` pipeline.
 
             .. code-block:: cpp
 
-               int32_t main(int32_t argc, char* argv[]) try {
+               #include "openvino/genai/text2image/pipeline.hpp"
+
+               #include "imwrite.hpp"
+
+               int32_t main(int32_t argc, char* argv[]) {
                    OPENVINO_ASSERT(argc >= 3 && (argc - 3) % 2 == 0, "Usage: ", argv[0], " <MODEL_DIR> '<PROMPT>' [<LORA_SAFETENSORS> <ALPHA> ...]]");
 
                    const std::string models_path = argv[1], prompt = argv[2];
@@ -97,16 +95,6 @@ sample shows basic usage of the ``Text2ImagePipeline`` pipeline.
                    imwrite("baseline.bmp", image, true);
 
                    return EXIT_SUCCESS;
-               } catch (const std::exception& error) {
-                   try {
-                       std::cerr << error.what() << '\n';
-                   } catch (const std::ios_base::failure&) {}
-                   return EXIT_FAILURE;
-               } catch (...) {
-                   try {
-                       std::cerr << "Non-exception object thrown\n";
-                   } catch (const std::ios_base::failure&) {}
-                   return EXIT_FAILURE;
                }
 
 
@@ -155,7 +143,7 @@ and use audio files in WAV format at a sampling rate of 16 kHz as input.
              result = pipe.generate(
                  raw_speech,
                  max_new_tokens=100,
-                 # 'task' and 'language' parameters are supported for multilingual models only
+                 # The 'task' and 'language' parameters are supported for multilingual models only.
                  language="<|en|>",
                  task="transcribe",
                  return_timestamps=True,
@@ -176,7 +164,7 @@ and use audio files in WAV format at a sampling rate of 16 kHz as input.
 
       .. code-block:: cpp
 
-         int main(int argc, char* argv[]) try {
+         int main(int argc, char* argv[]) {
              if (3 > argc) {
                  throw std::runtime_error(std::string{"Usage: "} + argv[0] + " <MODEL_DIR> \"<WAV_FILE_PATH>\"");
              }
@@ -207,18 +195,6 @@ and use audio files in WAV format at a sampling rate of 16 kHz as input.
              for (auto& chunk : *result.chunks) {
                  std::cout << "timestamps: [" << chunk.start_ts << ", " << chunk.end_ts << "] text: " << chunk.text << "\n";
              }
-         } catch (const std::exception& error) {
-             try {
-                 std::cerr << error.what() << '\n';
-             } catch (const std::ios_base::failure&) {
-             }
-             return EXIT_FAILURE;
-         } catch (...) {
-             try {
-                 std::cerr << "Non-exception object thrown\n";
-             } catch (const std::ios_base::failure&) {
-             }
-             return EXIT_FAILURE;
          }
 
 
@@ -240,19 +216,41 @@ mark a conversation session, as shown in the samples below:
 
       .. code-block:: python
 
-         import openvino_genai as ov_genai
-         pipe = ov_genai.LLMPipeline(model_path)
+         import argparse
+         import openvino_genai
 
-         pipe.set_generation_config({'max_new_tokens': 100)
 
-         pipe.start_chat()
-         while True:
-            print('question:')
-            prompt = input()
-            if prompt == 'Stop!':
-               break
-            print(pipe.generate(prompt))
-         pipe.finish_chat()
+         def streamer(subword):
+             print(subword, end='', flush=True)
+             # The return flag corresponds to whether generation should be stopped or not.
+             # False means continue generation.
+             return False
+
+
+         def main():
+             parser = argparse.ArgumentParser()
+             parser.add_argument('model_dir')
+             args = parser.parse_args()
+
+             device = 'CPU'  # GPU can be used as well.
+             pipe = openvino_genai.LLMPipeline(args.model_dir, device)
+
+             config = openvino_genai.GenerationConfig()
+             config.max_new_tokens = 100
+
+             pipe.start_chat()
+             while True:
+                 try:
+                     prompt = input('question:\n')
+                 except EOFError:
+                     break
+                 pipe.generate(prompt, config, streamer)
+                 print('\n----------')
+             pipe.finish_chat()
+
+
+         if '__main__' == __name__:
+             main()
 
 
       For more information, refer to the
@@ -263,24 +261,35 @@ mark a conversation session, as shown in the samples below:
 
       .. code-block:: cpp
 
+         #include "openvino/genai/llm_pipeline.hpp"
+
          int main(int argc, char* argv[]) {
-            std::string prompt;
+             if (2 != argc) {
+                 throw std::runtime_error(std::string{"Usage: "} + argv[0] + " <MODEL_DIR>");
+             }
+             std::string prompt;
+             std::string model_path = argv[1];
 
-            std::string model_path = argv[1];
-            ov::genai::LLMPipeline pipe(model_path, "CPU");
+             std::string device = "CPU";  // GPU, NPU can be used as well
+             ov::genai::LLMPipeline pipe(model_path, device);
 
-            ov::genai::GenerationConfig config = pipe.get_generation_config();
-            config.max_new_tokens = 100;
-            pipe.set_generation_config(config)
+             ov::genai::GenerationConfig config;
+             config.max_new_tokens = 100;
+             std::function<bool(std::string)> streamer = [](std::string word) {
+                 std::cout << word << std::flush;
+                 // Return flag corresponds whether generation should be stopped.
+                 // false means continue generation.
+                 return false;
+             };
 
-            pipe.start_chat();
-            for (size_t i = 0; i < questions.size(); i++) {
-               std::cout << "question:\n";
-               std::getline(std::cin, prompt);
-
-               std::cout << pipe.generate(prompt) << std::endl;
-            }
-            pipe.finish_chat();
+             pipe.start_chat();
+             std::cout << "question:\n";
+             while (std::getline(std::cin, prompt)) {
+                 pipe.generate(prompt, config, streamer);
+                 std::cout << "\n----------\n"
+                     "question:\n";
+             }
+             pipe.finish_chat();
          }
 
 
