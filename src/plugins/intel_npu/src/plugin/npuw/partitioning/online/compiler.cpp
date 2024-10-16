@@ -275,6 +275,16 @@ class Compiler {
         COMPUTE  // Separates non-foldable compute subgraphs from the model based on predefined rules + REP
     };
 
+    template <class C>
+    void warn_unused() {
+        const auto& val = m_cfg.get<C>();
+        if (val != C::defaultValue()) {
+            LOG_WARN("User-specified configuration {" << C::key() << " : " << val
+                                                      << "} is ignored in the current pipeline "
+                                                      << m_cfg.get<::intel_npu::NPUW_ONLINE_PIPELINE>());
+        }
+    }
+
     Pipeline currentPipeline() {
         std::string pipeline_opt = m_cfg.getString<::intel_npu::NPUW_ONLINE_PIPELINE>();
         if (pipeline_opt == "NONE") {
@@ -398,6 +408,8 @@ public:
             rep();
             break;
         case Pipeline::REG:
+            warn_unused<::intel_npu::NPUW_ONLINE_ISOLATE>();
+
             // Only get isolates here.
             // NB: We ignore NO_FOLD everywhere except pipeline COMPUTE - this needs
             // to be aligned in the future
@@ -406,6 +418,9 @@ public:
             reg();
             break;
         case Pipeline::COMPUTE:
+            warn_unused<::intel_npu::NPUW_ONLINE_ISOLATE>();
+            warn_unused<::intel_npu::NPUW_ONLINE_NO_FOLD>();
+
             // Manually set predefined isolates and nofolds then do rep() pipeline
             // FIXME: initialize via a dedicated function instead of parsing
             ctx.isolates = detail::getIsolates(detail::ISOL_PRESETS.at("COMPUTE"));
