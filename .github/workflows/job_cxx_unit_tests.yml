@@ -61,6 +61,10 @@ jobs:
           echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
           echo "SETUPVARS_COMMAND=${{ env.SOURCE_COMMAND }} $GITHUB_WORKSPACE/install/${{ env.SETUPVARS }}" >> "$GITHUB_ENV"
 
+      - name: Install OpenVINO dependencies (mac)
+        if: runner.os == 'macOS'
+        run: brew install pigz
+          
       - name: Setup Variables (Windows)
         if: ${{ runner.os == 'Windows' }}
         run: Add-Content -Path $env:GITHUB_ENV -Value "SETUPVARS_COMMAND=${{ env.SOURCE_COMMAND }} ${{ github.workspace }}/install/${{ env.SETUPVARS }}"
@@ -69,10 +73,10 @@ jobs:
         if: ${{ runner.os != 'Windows' }}
         run: |
           pushd $INSTALL_DIR
-            tar -I pigz -xf openvino_package.tar.gz -C $INSTALL_DIR
+            pigz -dc openvino_package.tar.gz | tar -xf - -C ${INSTALL_DIR}
           popd
           pushd $INSTALL_TEST_DIR
-            tar -I pigz -xf openvino_tests.tar.gz -C $INSTALL_DIR
+            pigz -dc openvino_tests.tar.gz | tar -xf - -C ${INSTALL_DIR}
           popd
 
       - name: Extract OpenVINO packages (Windows)
