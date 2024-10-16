@@ -3,6 +3,10 @@
 //
 #include "subgraph.h"
 
+#include "nodes/reorder.h"
+#include "nodes/common/reorder_prim.h"
+#include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
 #include "common/primitive_hashing_utils.hpp"
 #include "dnnl_extension_utils.h"
 #include "onednn/dnnl.h"
@@ -36,6 +40,7 @@
 #include "transformations/snippets/x64/pass/lowered/insert_brgemm_copy_b_buffers.hpp"
 #include "transformations/snippets/x64/pass/remove_converts.hpp"
 #include "transformations/snippets/x64/pass/brgemm_to_brgemm_cpu.hpp"
+#include "transformations/snippets/x64/pass/move_brgemm_repacking_out.hpp"
 #include "transformations/snippets/x64/pass/enforce_precision.hpp"
 #include "transformations/snippets/x64/shape_inference.hpp"
 #endif
@@ -78,7 +83,7 @@ public:
                            const BufferScratchpadAllocator& allocator)
     : SubgraphExecutor(snippet_attrs, snippet, start_offset_in, start_offset_out, snippet_config, allocator) {}
 
-    void exec(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override  {
+    void exec_impl(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override  {
         const auto& callable = m_schedule->get_callable<kernel>();
 
         auto initializer = [&](jit_snippets_call_args& call_args, size_t ithr) {
@@ -126,7 +131,7 @@ public:
         reset_exec_table_state = snippet_config->kernel_executor_table->get_state_reset();
     }
 
-    void exec(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override {
+    void exec_impl(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override {
         const auto& callable = m_schedule->get_callable<dynamic_kernel>();
 
         OPENVINO_ASSERT(data_offsets.size() == inMemPtrs.size() + outMemPtrs.size(), "Incorrect data offset count!");
@@ -647,6 +652,9 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
     }
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before, ov::snippets::pass::PropagatePrecision,
                                            ov::intel_cpu::pass::BrgemmToBrgemmCPU);
+    if (!std::getenv("REFERENCE"))
+        SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After, ov::intel_cpu::pass::BrgemmToBrgemmCPU,
+                                            ov::intel_cpu::pass::MoveBrgemmRepackingOut);
     SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64(Place::PipelineEnd, ov::intel_cpu::pass::RemoveConverts);
     SNIPPETS_REGISTER_PASS_ABSOLUTE_COMMON(Place::PipelineEnd, ov::intel_cpu::pass::MulAddToFMA);
 
@@ -841,7 +849,7 @@ bool Subgraph::created() const {
 
 void Subgraph::execute(dnnl::stream strm) {
     OPENVINO_ASSERT(execPtr, "Can't execute Subgraph node. Primitive didn't created");
-    execPtr->exec(srcMemPtrs, dstMemPtrs);
+    execPtr->execute(strm, srcMemPtrs, dstMemPtrs);
 }
 
 void Subgraph::executeDynamicImpl(dnnl::stream strm) {
@@ -889,6 +897,8 @@ Subgraph::SubgraphExecutor::SubgraphExecutor(const std::shared_ptr<Subgraph::Sub
     m_buffer_scratchpad_size = snippet_config->buffer_scratchpad_size;
     OPENVINO_ASSERT(!ov::snippets::utils::is_dynamic_value(m_buffer_scratchpad_size), "Undefined buffer scratchpad size!");
     m_buffer_scratchpad = allocator(static_cast<size_t>(m_nthreads) * m_buffer_scratchpad_size);
+
+    m_in_requested_descs = snippet_config->m_in_requested_descs;
 
 #if defined(__linux__) && defined(OPENVINO_ARCH_X86_64) && defined(SNIPPETS_DEBUG_CAPS)
     const auto target = std::dynamic_pointer_cast<const CPUTargetMachine>(snippet_attrs->snippet->get_generator()->get_target_machine());
@@ -963,6 +973,22 @@ void Subgraph::SubgraphExecutor::parallel_forNd(const std::function<void(jit_sni
             caller(call_args, indexes.data());
         }
     });
+}
+
+void Subgraph::SubgraphExecutor::execute(dnnl::stream strm, std::vector<MemoryPtr>& inMemPtrs, std::vector<MemoryPtr>& outMemPtrs) {
+    repack_inputs(strm, inMemPtrs);
+    exec_impl(inMemPtrs, outMemPtrs);
+}
+
+void Subgraph::SubgraphExecutor::repack_inputs(dnnl::stream strm, std::vector<MemoryPtr>& inMemPtrs) {
+    OPENVINO_ASSERT(inMemPtrs.size() == m_in_requested_descs.size());
+    for (size_t i = 0; i < m_in_requested_descs.size(); ++i) {
+        if (m_in_requested_descs[i]) {
+            auto repacked_memory = std::make_shared<Memory>(strm.get_engine(), m_in_requested_descs[i]);
+            repacked_memory->load(*inMemPtrs[i]);
+            inMemPtrs[i] = repacked_memory;
+        }
+    }
 }
 
 }   // namespace node

@@ -68,13 +68,10 @@ void BrgemmCPU::custom_constructor_validate_and_infer_types(std::vector<size_t> 
     INTERNAL_OP_SCOPE(BrgemmCPU_constructor_validate_and_infer_types);
     validate_inputs();
 
-    // During ctor call, BrgemmCPU doesn't know his port descriptors.
-    // So we use port descs from source inputs
-    const auto brgemm_copy = with_repacking(m_type) ? get_brgemm_copy() : nullptr;
+    // This shape inference can use get_input_partial_shape(1) in all cases
     const auto planar_input_shapes =
         std::vector<ov::PartialShape>{ snippets::utils::get_planar_pshape(get_input_partial_shape(0), layout_a),
-                                       brgemm_copy ? snippets::utils::get_planar_pshape(brgemm_copy->input(0))
-                                                   : snippets::utils::get_planar_pshape(get_input_partial_shape(1), layout_b) };
+                                       snippets::utils::get_planar_pshape(get_input_partial_shape(1), layout_b) };
     auto output_shape = infer_output_partial_shape(planar_input_shapes);
     set_output_type(0, get_output_type(), snippets::utils::get_planar_pshape(output_shape, layout_c));
 
@@ -141,6 +138,8 @@ std::shared_ptr<BrgemmCopyB> BrgemmCPU::get_brgemm_copy() const {
             return brgemm_copy_b;
         }
     }
+    std::cout << "[ INFO ] get_brgemm_copy didn't find copy_B\n";
+    return nullptr;
     OPENVINO_THROW("BrgemmCopyB hasn't been found!");
 }
 

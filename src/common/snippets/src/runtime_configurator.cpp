@@ -271,26 +271,18 @@ void RuntimeConfigurator::update_data_offsets(const std::vector<VectorDims>& sha
         //    shape:      s0, s1, s2 == 1, s3
         //    offsets: s1*s3, s3,       0,  1
         const auto& shape = shapes[i];
+        OPENVINO_ASSERT(m_config->tensor_rank >= shape.size(), "Incorrect tensor rank!");
         if (shape == m_latest_shapes[i])
             continue;
-
-        const auto& layout = layouts[i];
-        auto& offsets = m_config->io_data_offsets[i];
-
-        offsets.resize(m_config->tensor_rank);
-        std::fill(offsets.begin(), offsets.end(), 0);
         if (utils::is_dynamic_vdims(shape))
             return;
 
-        size_t dim_step = m_io_data_sizes[i];
-        offsets[offsets.size() - 1] = dim_step;
-
-        OPENVINO_ASSERT(m_config->tensor_rank >= shape.size(), "Incorrect tensor rank!");
+        auto& offsets = m_config->io_data_offsets[i];
         const auto idx_stride = m_config->tensor_rank - shape.size();
-        for (int i = static_cast<int>(shape.size()) - 2; i >= 0; i--) {
-            dim_step *= shape[i + 1];
-            offsets[i + idx_stride] = shape[i] != 1 ? dim_step : 0;
-        }
+        compute_offsets(shape, offsets, m_config->tensor_rank, m_io_data_sizes[i], idx_stride);
+
+        std::cout << "offsets[" << i << "] = " << ov::PartialShape(offsets) << std::endl;
+        const auto& layout = layouts[i];
         if (!layout.empty()) {
             std::vector<size_t> reordered_offsets(offsets.size());
             const auto is_input = i < m_in_num;
@@ -316,6 +308,20 @@ std::vector<std::vector<size_t>> RuntimeConfigurator::extract_layouts() const {
     for (size_t i = 0; i < m_io_num; ++i)
         layouts[i] = m_io_descs[i]->get_layout();
     return layouts;
+}
+
+void RuntimeConfigurator::compute_offsets(const ov::snippets::VectorDims& shape,
+                                          ov::snippets::VectorDims& offsets,
+                                          size_t offsets_size,
+                                          size_t dim_step,
+                                          size_t idx_stride) {
+    offsets.resize(offsets_size);
+    std::fill(offsets.begin(), offsets.end(), 0);
+    offsets[offsets.size() - 1] = dim_step;
+    for (int i = static_cast<int>(shape.size()) - 2; i >= 0; i--) {
+        dim_step *= shape[i + 1];
+        offsets[i + idx_stride] = shape[i] != 1 ? dim_step : 0;
+    }
 }
 
 void RuntimeConfigurator::set_kernel_executor_table(std::shared_ptr<KernelExecutorTable> table) const {

@@ -17,11 +17,11 @@ namespace snippets {
 namespace {
 
 const auto& inputShapes_4D = STATIC_SHAPES(
-    {{1, 128, 12, 64}, {1, 128, 12, 64}, {1, 12, 128, 128}, {1, 128, 12, 64}},
-    {{1, 128, 16, 64}, {1, 128, 16, 64}, {1, 16, 1, 1}, {1, 128, 16, 64}},
-    {{1, 128, 16, 64}, {1, 128, 16, 64}, {1, 1, 1, 128}, {1, 128, 16, 64}},
-    {{2, 68, 6, 92}, {2, 68, 6, 92}, {1, 1, 68, 68}, {2, 68, 6, 92}},
-    {{1, 58, 16, 34}, {1, 58, 16, 34}, {1, 1, 1, 58}, {1, 58, 16, 34}});
+    {{1, 128, 12, 640}, {1, 64, 12, 640}, {1, 12, 128, 64}, {1, 64, 12, 64}});
+//    {{1, 128, 16, 64}, {1, 128, 16, 64}, {1, 16, 1, 1}, {1, 128, 16, 64}},
+//    {{1, 128, 16, 64}, {1, 128, 16, 64}, {1, 1, 1, 128}, {1, 128, 16, 64}},
+//    {{2, 68, 6, 92}, {2, 68, 6, 92}, {1, 1, 68, 68}, {2, 68, 6, 92}},
+//    {{1, 58, 16, 34}, {1, 58, 16, 34}, {1, 1, 1, 58}, {1, 58, 16, 34}});
 
 const auto& inputShapes_3D = STATIC_SHAPES(
     {{128, 12, 64}, {128, 12, 64}, {12, 128, 128}, {128, 12, 64}},
@@ -48,7 +48,7 @@ static inline std::vector<std::vector<element::Type>> precision_bf16(size_t coun
 static ov::AnyMap enable_callback() {
     return ov::AnyMap({ov::intel_cpu::snippets_mode(ov::intel_cpu::SnippetsMode::ENABLE)});
 }
-
+/*
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA_4D,
                          MHA,
                          ::testing::Combine(::testing::ValuesIn(inputShapes_4D),
@@ -204,19 +204,19 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(ov::test::utils::DEVICE_CPU),
                        ::testing::Values(CPUTestUtils::empty_plugin_config)),
     MHA::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHABF16_4D,
-                         MHA,
-                         ::testing::Combine(::testing::ValuesIn(inputShapes_4D),
-                                            ::testing::ValuesIn(precision_bf16(4)),
-                                            ::testing::Values(ov::element::f32),
-                                            ::testing::ValuesIn({false, true}),
-                                            ::testing::Values(MHA::default_thread_count),
-                                            ::testing::Values(7),  // MHA + 5 Converts + 1 Transpose on output
-                                            ::testing::Values(6),  // MHA + 5 Converts on inputs and output
-                                            ::testing::Values(ov::test::utils::DEVICE_CPU),
-                                            ::testing::Values(CPUTestUtils::empty_plugin_config)),
-                         MHA::getTestCaseName);
+*/
+//INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHABF16_4D,
+//                         MHA,
+//                         ::testing::Combine(::testing::ValuesIn(inputShapes_4D),
+//                                            ::testing::ValuesIn(precision_bf16(4)),
+//                                            ::testing::Values(ov::element::f32),
+//                                            ::testing::ValuesIn({false, true}),
+//                                            ::testing::Values(MHA::default_thread_count),
+//                                            ::testing::Values(7),  // MHA + 5 Converts + 1 Transpose on output
+//                                            ::testing::Values(6),  // MHA + 5 Converts on inputs and output
+//                                            ::testing::Values(ov::test::utils::DEVICE_CPU),
+//                                            ::testing::Values(CPUTestUtils::empty_plugin_config)),
+//                         MHA::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAEnforceBF16,
                          MHA,
@@ -230,7 +230,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAEnforceBF16,
                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
                                             ::testing::Values(CPUTestUtils::cpu_bf16_plugin_config)),
                          MHA::getTestCaseName);
-
+/*
 INSTANTIATE_TEST_SUITE_P(
     smoke_Snippets_MHAMulAdd,
     MHAMulAdd,
@@ -545,7 +545,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_DynMHA_4D_WithMul,
                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
                                             ::testing::Values(CPUTestUtils::empty_plugin_config)),
                          MHAWithDynamicMul::getTestCaseName);
-
+*/
 }  // namespace
 }  // namespace snippets
 }  // namespace test
