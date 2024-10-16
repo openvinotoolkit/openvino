@@ -127,7 +127,7 @@ NPUBackends::NPUBackends(const std::vector<AvailableBackends>& backendRegistry, 
     if (_backend != nullptr) {
         _logger.info("Use '%s' backend for inference", _backend->getName().c_str());
     } else {
-        _logger.warning("None of the backends were initialized successfully. " \ 
+        _logger.warning("None of the backends were initialized successfully."
                         "Only offline compilation can be done!");
     }
 }
