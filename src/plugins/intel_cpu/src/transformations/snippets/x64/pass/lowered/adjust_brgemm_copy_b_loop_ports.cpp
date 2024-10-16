@@ -42,7 +42,7 @@ bool pass::AdjustBrgemmCopyBLoopPorts::update_loop_info(const std::shared_ptr<sn
     };
     loop_info->iterate_through_infos(caller);
 
-    if (copy_b_loop_desc) {
+    if (copy_b_loop_desc && precision != element::f32) {
         // K blocking loop
         if (first_port_incremented) {
             const auto ptr_incr = copy_b_loop_desc->ptr_increment;
