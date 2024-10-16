@@ -203,7 +203,8 @@ sequentially. If two parts use different threading runtimes, for example, OpenVI
 while other application logic uses OpenMP, both will occupy CPU cores for addtional time after task done.
 This may introduce unecessary overhead. 
 
-*Recommend solutions*
+Recommend solutions
+
 - Most effective way is to use oneTBB for all computations made in pipeline.
 - Rebuild OpenVINO with OpenMP and other application logic uses OpenMP as well.
 - Limit number of threads of OpenVINO and other parts to let OS do better scheduling.
