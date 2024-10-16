@@ -794,7 +794,7 @@ void MemoryInput::resolveInPlaceEdges(Edge::LOOK look) {
     }
 }
 
-MemStatePtr MemoryInput::makeState() const {
+MemStatePtr MemoryInput::makeState() {
     // assume ov::Tensor is always dense
     auto original_desc =
         std::make_shared<CpuBlockedMemoryDesc>(getOriginalOutputPrecisionAtPort(0), outputShapes.at(0));
@@ -810,10 +810,21 @@ MemStatePtr MemoryInput::makeState() const {
         state_name = state_name.substr(0, suffix_idx);
     }
 
-    if (haveSubgraph()) {
-        return std::make_shared<VariableStateSingleBuffer>(state_name,
-                                                           std::make_shared<Memory>(eng, mem_desc),
-                                                           original_desc);
+    // For direct ReadValue Assign pair, if MemoryOutput is MemoryOutputStub, VariableStateSingleBuffer is used.
+    for (auto&& edge : getChildEdgesAtPort(0)) {
+        auto memOutput = std::dynamic_pointer_cast<node::MemoryOutputBase>(edge->getChild());
+        if (nullptr == memOutput) {
+            continue;
+        }
+
+        if (memOutput->getId() == this->getId() &&
+            memOutput->getName().find("_MemoryOutputStub") != std::string::npos) {
+            memoryOutputIsStub = true;
+            std::cout << "== follow MemoryOutputStub, so make VariableStateSingleBuffer -->\n";
+            return std::make_shared<VariableStateSingleBuffer>(state_name,
+                                                               std::make_shared<Memory>(eng, mem_desc),
+                                                               original_desc);
+        }
     }
 
     return std::make_shared<VariableStateDoubleBuffer>(state_name,
@@ -908,7 +919,7 @@ void MemoryInputSDPA::assignStateHook() {
     sdpaNode->assignState(sdpaState, m_child_port_idx);
 }
 
-MemStatePtr MemoryInputSDPA::makeState() const {
+MemStatePtr MemoryInputSDPA::makeState() {
     // assume ov::Tensor is always dense
     auto original_desc =
         std::make_shared<CpuBlockedMemoryDesc>(getOriginalOutputPrecisionAtPort(0), outputShapes.at(0));

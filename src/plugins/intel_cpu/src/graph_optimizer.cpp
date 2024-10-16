@@ -3075,12 +3075,8 @@ void GraphOptimizer::ReplaceMemoryOutputWithMemoryOutputStub(Graph& graph) {
         if (Type::MemoryInput != node->getType()) {
             return false;
         }
-        auto memInput = std::dynamic_pointer_cast<node::MemoryInput>(node);
-        if (memInput) {
-            return memInput->haveSubgraph();
-        }
 
-        return false;
+        return true;
     };
 
     for (size_t i = 0; i < graphNodes.size(); i++) {
@@ -3119,7 +3115,7 @@ void GraphOptimizer::ReplaceMemoryOutputWithMemoryOutputStub(Graph& graph) {
             continue;
         }
         if (memOutput == nullptr) {
-            OPENVINO_THROW("Can't find ", node->getName(), " corresponding sibling node.");
+            continue;
         }
 
         auto memInputNode = std::dynamic_pointer_cast<node::MemoryInputBase>(node);
@@ -3149,6 +3145,7 @@ void GraphOptimizer::ReplaceMemoryOutputWithMemoryOutputStub(Graph& graph) {
         graph.RemoveEdge(memOutputEdge);
         graph.CreateEdge(node, memOutputStub, inputNum, 0);
         graph.AddNode(memOutputStub);
+        std::cout << "== ReplaceMemoryOutputWithMemoryOutputStub" << std::endl;
     }
 }
 

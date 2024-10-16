@@ -6,8 +6,6 @@
 
 #include <graph.h>
 
-#include <map>
-
 #include "input.h"
 #include "memory_state_base.h"
 #include "ov_optional.hpp"
@@ -183,7 +181,7 @@ public:
     void selectOptimalPrimitiveDescriptor() override;
     void createPrimitive() override;
 
-    MemStatePtr makeState() const override;
+    MemStatePtr makeState() override;
 
     bool haveSubgraph() const {
         return body != nullptr;
@@ -200,6 +198,7 @@ private:
     ov::intel_cpu::Graph subGraph;
 
     ProxyMemoryBlockPtr memBlock = nullptr;
+    bool memoryOutputIsStub = false;
 };
 
 class MemoryInputSDPA : public MemoryInputBase {
@@ -221,7 +220,7 @@ public:
     void initOptimalPrimitiveDescriptor() override;
     void resolveInPlaceEdges(Edge::LOOK look) override;
 
-    MemStatePtr makeState() const override;
+    MemStatePtr makeState() override;
 
 private:
     void assignStateHook() override;

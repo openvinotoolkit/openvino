@@ -6,7 +6,6 @@
 #include <openvino/core/type.hpp>
 #include <openvino/op/util/assign_base.hpp>
 #include <openvino/op/util/read_value_base.hpp>
-#include "transformations/cpu_opset/common/op/read_value_with_subgraph.hpp"
 
 using namespace ov::intel_cpu::node;
 
