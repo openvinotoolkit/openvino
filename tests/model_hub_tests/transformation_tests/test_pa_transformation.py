@@ -6,7 +6,7 @@ from openvino._pyopenvino.op import _PagedAttentionExtension
 from optimum.intel import OVModelForCausalLM
 from models_hub_common.utils import retry
 import models_hub_common.utils as utils
-from pa_model_ref_diff import pa_reference_map, pa_reference_map_ce, explored_nodes
+from sdpa2pa_ref_diff import ref_diff_map, ref_diff_map_ce, nodes_to_compare
 import pytest
 import os
 import re
@@ -17,22 +17,24 @@ def run_pa(tmp_path, model_id, model_link, use_block_indices_inputs, use_score_o
 
     before_map = {}
     for op in model.model.get_ordered_ops():
-        if op.get_type_name() in explored_nodes:
+        if op.get_type_name() in nodes_to_compare:
             before_map[op.get_type_name()] = before_map.get(op.get_type_name(), 0) + 1
 
     paged_attention_transformation(model.model, use_block_indices_inputs, use_score_outputs)
 
     after_map = {}
     for op in model.model.get_ordered_ops():
-        if op.get_type_name() in explored_nodes:
+        if op.get_type_name() in nodes_to_compare:
             after_map[op.get_type_name()] = after_map.get(op.get_type_name(), 0) + 1
 
+    # Collect the changes of nodes from nodes_to_compare
+    # And check if the numbers correspond to the reference ones
     resulting_map = {}
     for op in set(after_map.keys()) | set(before_map.keys()):
         resulting_map[op] = after_map.get(op, 0) - before_map.get(op, 0)
 
     use_cache_eviction = use_block_indices_inputs and use_score_outputs
-    reference_map = pa_reference_map_ce[model_id] if use_cache_eviction else pa_reference_map[model_id]
+    reference_map = ref_diff_map_ce[model_id] if use_cache_eviction else ref_diff_map[model_id]
 
     assert reference_map == resulting_map
 
