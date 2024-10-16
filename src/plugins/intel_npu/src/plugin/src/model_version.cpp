@@ -6,21 +6,7 @@
 
 namespace intel_npu {
 
-std::vector<uint8_t> Metadata_v1::data() {
-    std::vector<uint8_t> metadata;
-
-    metadata.insert(metadata.end(), reinterpret_cast<uint8_t*>(&this->version.major),
-    reinterpret_cast<uint8_t*>(&this->version.major) + sizeof(this->version.major));
-
-    metadata.insert(metadata.end(), reinterpret_cast<uint8_t*>(&this->version.minor),
-    reinterpret_cast<uint8_t*>(&this->version.minor) + sizeof(this->version.minor));
-
-    metadata.insert(metadata.end(), this->ovVersion.version.begin(), this->ovVersion.version.end());
-
-    return metadata;
-}
-
-// actually what should it return?
+// should it return the metadata?
 void check_blob_version(std::vector<uint8_t>& blob) {
     constexpr std::string_view versionHeader{"OVNPU"}; // maybe put this some place else
 
@@ -71,6 +57,21 @@ void check_blob_version(std::vector<uint8_t>& blob) {
         }
     }
 }
+
+std::vector<uint8_t> Metadata_v1::data() {
+    std::vector<uint8_t> metadata;
+
+    metadata.insert(metadata.end(), reinterpret_cast<uint8_t*>(&this->version.major),
+    reinterpret_cast<uint8_t*>(&this->version.major) + sizeof(this->version.major));
+
+    metadata.insert(metadata.end(), reinterpret_cast<uint8_t*>(&this->version.minor),
+    reinterpret_cast<uint8_t*>(&this->version.minor) + sizeof(this->version.minor));
+
+    metadata.insert(metadata.end(), this->ovVersion.version.begin(), this->ovVersion.version.end());
+
+    return metadata;
+}
+
 
 void Metadata_v1::read_metadata(std::vector<uint8_t>::iterator& metadataIterator) {
     /*
@@ -142,7 +143,6 @@ std::vector<uint8_t> Metadata_v3::data() {
 }
 
 void Metadata_v3::read_metadata(std::vector<uint8_t>::iterator metadataIterator) {
-
     memcpy(&this->layout.something, &(*metadataIterator), sizeof(this->layout.something));
     metadataIterator += sizeof(this->layout.something);
     memcpy(&this->layout.somethingElse, &(*metadataIterator), sizeof(this->layout.somethingElse));
