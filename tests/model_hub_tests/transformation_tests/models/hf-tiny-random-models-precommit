@@ -41,4 +41,3 @@ facebook/opt-125m,https://huggingface.co/facebook/opt-125m
 facebook/opt-350m,https://huggingface.co/facebook/opt-350m
 katuni4ka/tiny-random-chatglm2,https://huggingface.co/katuni4ka/tiny-random-chatglm2
 katuni4ka/tiny-random-glm4,https://huggingface.co/katuni4ka/tiny-random-glm4
-katuni4ka/tiny-random-orion,https://huggingface.co/katuni4ka/tiny-random-orion,xfail,No ScaledDotProductAttention operation observed in the graph CVS-145820
