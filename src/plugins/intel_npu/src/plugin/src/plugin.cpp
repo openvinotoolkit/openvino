@@ -355,6 +355,13 @@ Plugin::Plugin()
               auto devUuid = _metrics->GetDeviceUuid(specifiedDeviceName);
               return decltype(ov::device::uuid)::value_type{devUuid};
           }}},
+        {ov::device::luid.name(),
+         {true,
+          ov::PropertyMutability::RO,
+          [&](const Config& config) {
+              const auto specifiedDeviceName = get_specified_device_name(config);
+              return _metrics->GetDeviceLUID(specifiedDeviceName);
+          }}},
         // Add FULL_DEVICE_NAME and DEVICE_ARCHITECTURE in supported
         // properties list only in case of non-empty device list (#1424144d)
         {ov::device::architecture.name(),

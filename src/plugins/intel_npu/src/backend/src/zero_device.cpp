@@ -20,6 +20,13 @@ ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs
       log("ZeroDevice", Logger::global().level()) {
     log.debug("ZeroDevice::ZeroDevice init");
     device_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
+
+#if defined(_WIN32) || defined(__CYGWIN__)
+    // Obtain LUID
+    // Luid is obtained via zeDeviceGetProperties, but it is windows-only
+    device_luid.stype = ZE_STRUCTURE_TYPE_DEVICE_LUID_EXT_PROPERTIES;
+    device_properties.pNext = &device_luid;
+#endif
     THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetProperties",
                                 zeDeviceGetProperties(_initStructs->getDevice(), &device_properties));
 
@@ -126,6 +133,16 @@ IDevice::Uuid ZeroDevice::getUuid() const {
     std::copy(std::begin(device_properties.uuid.id), std::end(device_properties.uuid.id), std::begin(uuid.uuid));
 
     return uuid;
+}
+
+ov::device::LUID ZeroDevice::getLUID() const {
+    ov::device::LUID luidstruct;
+    // incompatibility check
+    static_assert(ZE_MAX_DEVICE_LUID_SIZE_EXT == ov::device::LUID::MAX_LUID_SIZE, "LUID size mismatch");
+    for (int i = 0; i < ZE_MAX_DEVICE_LUID_SIZE_EXT; i++) {
+        luidstruct.luid[i] = device_luid.luid.id[i];
+    }
+    return luidstruct;
 }
 
 uint32_t ZeroDevice::getSubDevId() const {
