@@ -8,7 +8,7 @@
 
 namespace ov {
 namespace test {
-TEST_P(SearchSortedLayerCPUTest, Inference) {
+TEST_P(SearchSortedLayerTest, Inference) {
     run();
 }
 }  // namespace test

@@ -9,10 +9,10 @@ namespace test {
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_SearchSortedTest,
-    SearchSortedLayerCPUTest,
-    ::testing::Combine(::testing::ValuesIn(SearchSortedParamsVector),
+    SearchSortedLayerTest,
+    ::testing::Combine(::testing::ValuesIn(SearchSortedLayerTest::GenerateParams()),
                        testing::Values(ElementType::f32, ElementType::f16, ElementType::i64, ElementType::u32)),
-    SearchSortedLayerCPUTest::getTestCaseName);
+    SearchSortedLayerTest::getTestCaseName);
 
 }  // namespace test
 }  // namespace ov

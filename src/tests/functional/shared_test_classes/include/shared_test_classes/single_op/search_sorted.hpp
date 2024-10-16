@@ -15,10 +15,11 @@ using SearchSortedSpecificParams = std::tuple<InputShape,  // sorted shape
 
 using SearchSortedLayerTestParams = std::tuple<SearchSortedSpecificParams, ElementType>;
 
-class SearchSortedLayerCPUTest : public testing::WithParamInterface<SearchSortedLayerTestParams>,
-                                 public ov::test::SubgraphBaseTest {
+class SearchSortedLayerTest : public testing::WithParamInterface<SearchSortedLayerTestParams>,
+                              public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<SearchSortedLayerTestParams> obj);
+    static const std::vector<SearchSortedSpecificParams> GenerateParams();
 
 protected:
     void SetUp() override;

@@ -12,7 +12,7 @@ namespace test {
 
 static const int SEED = 7877;
 
-std::string SearchSortedLayerCPUTest::getTestCaseName(testing::TestParamInfo<SearchSortedLayerTestParams> obj) {
+std::string SearchSortedLayerTest::getTestCaseName(testing::TestParamInfo<SearchSortedLayerTestParams> obj) {
     SearchSortedLayerTestParams basicParamsSet;
     basicParamsSet = obj.param;
 
@@ -45,7 +45,7 @@ std::string SearchSortedLayerCPUTest::getTestCaseName(testing::TestParamInfo<Sea
     return result.str();
 }
 
-void SearchSortedLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
+void SearchSortedLayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     inputs.clear();
     const auto& funcInputs = function->inputs();
 
@@ -61,7 +61,7 @@ void SearchSortedLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& tar
     inputs.insert({funcInputs[1].get_node_shared_ptr(), valuesTensor});
 }
 
-void SearchSortedLayerCPUTest::SetUp() {
+void SearchSortedLayerTest::SetUp() {
     SearchSortedLayerTestParams basicParamsSet;
     basicParamsSet = this->GetParam();
 
@@ -87,9 +87,14 @@ void SearchSortedLayerCPUTest::SetUp() {
     function = std::make_shared<ov::Model>(op->outputs(), params, "SearchSorted");
 }
 
-const std::vector<SearchSortedSpecificParams> SearchSortedParamsVector = {
-    SearchSortedSpecificParams{InputShape{{}, {{1, 18, 104}}}, InputShape{{}, {{1, 18, 104}}}, true},
-};
+const std::vector<SearchSortedSpecificParams> SearchSortedLayerTest::GenerateParams() {
+    const std::vector<SearchSortedSpecificParams> params = {
+        SearchSortedSpecificParams{InputShape{{}, {{1, 18, 104}}}, InputShape{{}, {{1, 18, 104}}}, true},
+        SearchSortedSpecificParams{InputShape{{}, {{50}}}, InputShape{{1, -1, 10}, {{1, 18, 10}}}, false},
+    };
+
+    return params;
+}
 
 }  // namespace test
 }  // namespace ov
