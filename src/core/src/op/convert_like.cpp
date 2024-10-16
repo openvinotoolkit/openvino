@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "itt.hpp"
+#include "openvino/core/constant_fold_utils.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 
@@ -31,14 +32,15 @@ std::shared_ptr<Node> ConvertLike::clone_with_new_inputs(const OutputVector& new
 
 bool ConvertLike::constant_fold(OutputVector& output_values, const OutputVector& input_values) {
     OV_OP_SCOPE(v1_ConvertLike_constant_fold);
-    if (is_const_fold_disabled()) {
-        return false;
+    if (!is_const_fold_disabled()) {
+        if (auto data_const = std::dynamic_pointer_cast<op::v0::Constant>(input_values[0].get_node_shared_ptr())) {
+            auto convert = std::make_shared<ov::op::v0::Convert>(input_values[0], input_values[1].get_element_type());
+            return convert->constant_fold(output_values, OutputVector{data_const});
+        }
     }
 
-    if (auto data_const = std::dynamic_pointer_cast<op::v0::Constant>(input_values[0].get_node_shared_ptr())) {
-        auto convert = std::make_shared<ov::op::v0::Convert>(input_values[0], input_values[1].get_element_type());
-        return convert->constant_fold(output_values, OutputVector{data_const});
-    }
+    // if CF was unsuccessful remove original precision attribute from inputs
+    ov::util::to_original_precision(this);
     return false;
 }
 

@@ -106,15 +106,16 @@ bool Squeeze::evaluate_symbol(TensorSymbolVector& output_symbols) const {
 
 bool Squeeze::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {
     OV_OP_SCOPE(v0_Squeeze_constant_fold);
-    if (get_output_partial_shape(0).is_dynamic() || is_const_fold_disabled()) {
-        return false;
+    if (get_output_partial_shape(0).is_static() && !is_const_fold_disabled()) {
+        if (auto data_const = std::dynamic_pointer_cast<Constant>(inputs_values[0].get_node_shared_ptr())) {
+            const auto& shape = get_output_shape(0);
+            output_values[0] = std::make_shared<Constant>(*data_const, shape);
+            return true;
+        }
     }
 
-    if (auto data_const = std::dynamic_pointer_cast<Constant>(inputs_values[0].get_node_shared_ptr())) {
-        const auto& shape = get_output_shape(0);
-        output_values[0] = std::make_shared<Constant>(*data_const, shape);
-        return true;
-    }
+    // if CF was unsuccessful remove original precision attribute from inputs
+    ov::util::to_original_precision(this);
     return false;
 }
 

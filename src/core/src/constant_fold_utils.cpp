@@ -26,7 +26,7 @@ bool ov::util::is_type_unsupported(const ov::element::Type& type) {
     return std::find(unsupported_types.begin(), unsupported_types.end(), type) != unsupported_types.end();
 }
 
-void ov::util::save_original_input_precisions(const std::shared_ptr<ov::Node>& node) {
+void ov::util::save_original_input_precisions(ov::Node* const node) {
     for (size_t i = 0; i < node->get_input_size(); i++) {
         auto input = node->input(i);
         input.get_rt_info()["original_precision"] = input.get_element_type();
@@ -295,4 +295,44 @@ bool ov::util::evaluate_node_with_unsupported_precision(const ov::Node* node,
     }
 
     return true;
+}
+
+static bool restore_original_input_precision(ov::Node* const node) {
+    bool restored = false;
+    if (ov::is_type<ov::op::v0::Convert>(node)) {
+        auto input = node->input(0);
+        ov::util::remove_original_input_precision_attribute(input);
+        return restored;
+    }
+    for (size_t i = 0; i < node->get_input_size(); i++) {
+        auto input = node->input(i);
+        if (!ov::util::has_original_input_precision(input))
+            continue;
+        const auto original_type = ov::util::get_original_input_precision(input);
+        ov::util::remove_original_input_precision_attribute(input);
+        if (original_type != node->get_input_element_type(i)) {
+            auto convert = std::make_shared<ov::op::v0::Convert>(node->input_value(i), original_type);
+            ov::OutputVector replacements(1);
+            OPENVINO_ASSERT(convert->constant_fold(replacements, convert->input_values()));
+            replacements[0].get_node()->set_friendly_name(node->get_input_node_ptr(i)->get_friendly_name());
+            input.replace_source_output(replacements[0]);
+            restored = true;
+        }
+    }
+    return restored;
+}
+
+std::shared_ptr<ov::Node> ov::util::to_supported_precision(Node* const node) {
+    if (util::node_requires_precision_conversion(node)) {
+        return util::convert_to_supported_precision(node);
+    }
+    return nullptr;
+}
+
+bool ov::util::to_original_precision(Node* const node) {
+    bool restored = restore_original_input_precision(node);
+    if (restored) {
+        node->validate_and_infer_types();
+    }
+    return restored;
 }

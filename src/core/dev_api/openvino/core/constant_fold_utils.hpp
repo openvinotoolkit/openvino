@@ -17,7 +17,7 @@ OPENVINO_API
 bool is_type_unsupported(const element::Type& type);
 
 OPENVINO_API
-void save_original_input_precisions(const std::shared_ptr<Node>& node);
+void save_original_input_precisions(ov::Node* const node);
 
 OPENVINO_API
 bool has_original_input_precision(const Input<Node>& input);
@@ -40,6 +40,11 @@ OPENVINO_API bool node_requires_precision_conversion(const Node* const node);
 OPENVINO_API std::shared_ptr<Node> convert_to_supported_precision(Node* const node);
 
 OPENVINO_API std::shared_ptr<Node> convert_to_supported_precision(Node* const node, const OutputVector& inputs);
+
+OPENVINO_API std::shared_ptr<ov::Node> to_supported_precision(Node* const node);
+OPENVINO_API bool to_original_precision(Node* const node);
+
+OPENVINO_API void mark_node_requires_precision_conversion(const std::shared_ptr<ov::Node>& node);
 
 OPENVINO_API bool evaluate_node_with_unsupported_precision(const Node* node,
                                                            TensorVector& outputs,

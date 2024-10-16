@@ -8,11 +8,12 @@
 #include "openvino/core/constant_fold_utils.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/convert.hpp"
+#include "openvino/op/convert_like.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/read_value_base.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
+#include "openvino/pass/manager.hpp"
 
 /**
  * \brief Check if \ref ov::Output<ov::Node> can be folded base on `can_be_folded` attribute.
@@ -48,77 +49,14 @@ const auto friendly_name_from = [](const ov::Node& node, const size_t output_cou
     return name;
 };
 
-static bool restore_original_input_precision(const std::shared_ptr<ov::Node>& node) {
-    bool restored = false;
-    if (ov::is_type<ov::op::v0::Convert>(node)) {
-        auto input = node->input(0);
-        ov::util::remove_original_input_precision_attribute(input);
-        return restored;
-    }
-    for (size_t i = 0; i < node->get_input_size(); i++) {
-        auto input = node->input(i);
-        if (!ov::util::has_original_input_precision(input))
-            continue;
-        const auto original_type = ov::util::get_original_input_precision(input);
-        ov::util::remove_original_input_precision_attribute(input);
-        if (original_type != node->get_input_element_type(i)) {
-            auto convert = std::make_shared<ov::op::v0::Convert>(node->input_value(i), original_type);
-            ov::OutputVector replacements(1);
-            OPENVINO_ASSERT(convert->constant_fold(replacements, convert->input_values()));
-            replacements[0].get_node()->set_friendly_name(node->get_input_node_ptr(i)->get_friendly_name());
-            input.replace_source_output(replacements[0]);
-            restored = true;
-        }
-    }
-    return restored;
-}
-
-class RequiresPrecisionConversion : public ov::RuntimeAttribute {
-public:
-    OPENVINO_RTTI("requires_precision_conversion", "0");
-
-    bool is_copyable() const override {
-        return false;
-    }
-};
-
-static void mark_node_requires_precision_conversion(const std::shared_ptr<ov::Node>& node) {
-    node->get_rt_info()[RequiresPrecisionConversion::get_type_info_static()] = RequiresPrecisionConversion{};
-}
-
-static bool node_has_requires_precision_conversion_attribute(const std::shared_ptr<const ov::Node>& node) {
-    return node->get_rt_info().count(RequiresPrecisionConversion::get_type_info_static()) > 0;
-}
-
-static void remove_requires_precision_conversion_attribute(const std::shared_ptr<ov::Node>& node) {
-    auto& rt_info = node->get_rt_info();
-    auto it = rt_info.find(RequiresPrecisionConversion::get_type_info_static());
-    if (it != rt_info.end()) {
-        rt_info.erase(it);
-    }
-}
-
 bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(ConstantFolding);
 
     bool rewritten = pre_calculated_values_folding(model);
-
-    for (const auto& original_node : model->get_ordered_ops()) {
-        auto node = original_node;
-        if (node_has_requires_precision_conversion_attribute(node)) {
-            remove_requires_precision_conversion_attribute(node);
-            node = util::convert_to_supported_precision(node.get());
-        } else {
-            rewritten = restore_original_input_precision(node) || rewritten;
-        }
-
-        if (rewritten) {
-            node->validate_and_infer_types();
-        }
-
+    for (const auto& node : model->get_ordered_ops()) {
         OutputVector replacements(node->get_output_size());
         if (node->constant_fold(replacements, node->input_values())) {
-            OPENVINO_ASSERT(!constant_folding_is_disabled(original_node),
+            OPENVINO_ASSERT(!constant_folding_is_disabled(node),
                             "Node folded but constant folding disabled. Check constant_fold implementation for ",
                             node);
             OPENVINO_ASSERT(replacements.size() == node->get_output_size(),
@@ -126,18 +64,18 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
                             node);
 
             for (size_t i = 0; i < replacements.size(); ++i) {
-                auto node_output = original_node->output(i);
+                auto node_output = node->output(i);
                 const auto& replacement = replacements.at(i);
                 auto replacement_ptr = replacement.get_node_shared_ptr();
                 if (replacement_ptr && (node_output != replacement)) {
-                    replacement_ptr->set_friendly_name(friendly_name_from(*original_node, replacements.size(), i));
+                    replacement_ptr->set_friendly_name(friendly_name_from(*node, replacements.size(), i));
 
                     node_output.replace(replacement);
                     // Copy runtime info from source nodes
                     // when it was not propogated during pre-calculation
-                    copy_runtime_info_from_input_values(original_node);
+                    copy_runtime_info_from_input_values(node);
                     // Propagate runtime info attributes to replacement
-                    copy_runtime_info(original_node, replacement_ptr);
+                    copy_runtime_info(node, replacement_ptr);
 
                     rewritten = true;
                 }
@@ -151,16 +89,8 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
                         run_on_model(sub_graph_node->get_function(static_cast<int>(sub_graph_ind))) || rewritten;
                 }
             }
-
-            // if CF was unsuccessful remove original precision attribute from inputs
-            bool restored = restore_original_input_precision(original_node);
-            if (restored) {
-                original_node->validate_and_infer_types();
-                rewritten = true;
-            }
         }
     }
-
     return rewritten;
 }
 
@@ -186,17 +116,12 @@ bool ov::pass::ConstantFolding::pre_calculated_values_folding(const std::shared_
         const auto& input_values = node->input_values();
         bool can_be_folded;
         bool node_has_disabled_constant_folding = constant_folding_is_disabled(node);
-
         // During constant folding process, current node's input precision may not match
         // the node's original input precision. After we removed evaluates for some types (like f16, bf16)
         // we need to convert constants with those types to f32. And at some point - this f32 constant may
         // become an input to a node that's not constfoldable. Then we need to convert that constant back to
         // that input's original precision.
-        util::save_original_input_precisions(node);
-        if (!node_has_disabled_constant_folding && util::node_requires_precision_conversion(node.get())) {
-            mark_node_requires_precision_conversion(node);
-        }
-
+        util::save_original_input_precisions(node.get());
         if (node_has_disabled_constant_folding) {
             can_be_folded = false;
         } else if (is_type<op::util::ShapeOfBase>(node)) {

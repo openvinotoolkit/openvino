@@ -12,10 +12,12 @@
 #include "atomic_guard.hpp"
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
+#include "openvino/core/constant_fold_utils.hpp"
 #include "openvino/core/descriptor/input.hpp"
 #include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/shape_util.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
@@ -699,44 +701,49 @@ bool ov::Node::evaluate_symbol(TensorSymbolVector& output_symbols) const {
 bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& input_values) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::core, "Node::constant_fold");
 
-    if (is_const_fold_disabled()) {
-        return false;
-    }
+    auto is_constant = [](const Output<Node>& input) {
+        return ov::as_type_ptr<ov::op::v0::Constant>(input.get_node_shared_ptr());
+    };
 
     // If all the inputs are constants, try to evaluate the outputs
-    bool all_constants = std::all_of(input_values.begin(), input_values.end(), [](const Output<Node>& input) {
-        return ov::as_type_ptr<ov::op::v0::Constant>(input.get_node_shared_ptr());
-    });
-    if (!all_constants)
-        return false;
+    if (!is_const_fold_disabled() && std::all_of(input_values.begin(), input_values.end(), is_constant)) {
+        auto target_node = util::to_supported_precision(this);
+        if (!target_node) {
+            target_node = this->shared_from_this();
+        }
 
-    NodeVector nodes;
-    TensorVector input_tensors;
-    for (const auto& input : input_values) {
-        nodes.push_back(input.get_node_shared_ptr());
-        auto constant = ov::as_type_ptr<ov::op::v0::Constant>(input.get_node_shared_ptr());
-        void* data = (void*)constant->get_data_ptr();
-        auto tensor = ov::Tensor(input.get_element_type(), input.get_shape(), data);
-        input_tensors.push_back(tensor);
-    }
+        NodeVector nodes;
+        TensorVector input_tensors;
+        for (const auto& input : target_node->input_values()) {
+            nodes.push_back(input.get_node_shared_ptr());
+            auto constant = ov::as_type_ptr<ov::op::v0::Constant>(input.get_node_shared_ptr());
+            void* data = (void*)constant->get_data_ptr();
+            auto tensor = ov::Tensor(input.get_element_type(), input.get_shape(), data);
+            input_tensors.push_back(tensor);
+        }
 
-    TensorVector output_tensors;
-    for (const auto& output : outputs()) {
-        const auto& et = output.get_element_type();
-        if (et != element::undefined && et.is_static()) {
-            output_tensors.emplace_back(output);
-        } else {
-            output_tensors.emplace_back();
+        TensorVector output_tensors;
+        for (const auto& output : target_node->outputs()) {
+            const auto& et = output.get_element_type();
+            if (et != element::undefined && et.is_static()) {
+                output_tensors.emplace_back(output);
+            } else {
+                output_tensors.emplace_back();
+            }
+        }
+
+        if (evaluate(output_tensors, input_tensors)) {
+            for (size_t i = 0; i < output_tensors.size(); ++i) {
+                output_values[i] = make_shared<ov::op::v0::Constant>(output_tensors[i]);
+                ov::copy_runtime_info(nodes, output_values[i].get_node_shared_ptr());
+            }
+            return true;
         }
     }
 
-    if (evaluate(output_tensors, input_tensors)) {
-        for (size_t i = 0; i < output_tensors.size(); ++i) {
-            output_values[i] = make_shared<ov::op::v0::Constant>(output_tensors[i]);
-            ov::copy_runtime_info(nodes, output_values[i].get_node_shared_ptr());
-        }
-        return true;
-    }
+    // if CF was unsuccessful remove original precision attribute from inputs
+    util::to_original_precision(this);
+
     return false;
 }
 

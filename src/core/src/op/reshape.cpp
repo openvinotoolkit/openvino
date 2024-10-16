@@ -97,16 +97,16 @@ bool Reshape::evaluate_symbol(TensorSymbolVector& output_symbols) const {
 }
 
 bool Reshape::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {
-    if (get_output_partial_shape(0).is_dynamic() || is_const_fold_disabled()) {
-        return false;
+    if (get_output_partial_shape(0).is_static() && !is_const_fold_disabled()) {
+        if (auto data_const = std::dynamic_pointer_cast<v0::Constant>(inputs_values[0].get_node_shared_ptr())) {
+            output_values[0] = std::make_shared<v0::Constant>(*data_const, get_output_shape(0));
+            return true;
+        }
     }
 
-    if (auto data_const = std::dynamic_pointer_cast<v0::Constant>(inputs_values[0].get_node_shared_ptr())) {
-        output_values[0] = std::make_shared<v0::Constant>(*data_const, get_output_shape(0));
-        return true;
-    } else {
-        return false;
-    }
+    // if CF was unsuccessful remove original precision attribute from inputs
+    ov::util::to_original_precision(this);
+    return false;
 }
 }  // namespace v1
 }  // namespace op
