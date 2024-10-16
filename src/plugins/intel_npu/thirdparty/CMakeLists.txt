@@ -17,7 +17,7 @@ endif()
 # yaml-cpp
 #
 
-if(ENABLE_INTEL_NPU_INTERNAL)
+if(ENABLE_INTEL_NPU_PROTOPIPE)
     add_subdirectory(yaml-cpp EXCLUDE_FROM_ALL)
     # NB: Suppress warnings in yaml-cpp
     if(NOT MSVC)
