@@ -57,7 +57,8 @@ Squeeze
 .. code-block:: xml
    :force:
 
-    <layer ... type="Squeeze">
+    <layer ... type="Squeeze" version="opset15">
+        <data allow_axis_skip="false"/>
         <input>
             <port id="0">
                 <dim>1</dim>
@@ -84,7 +85,8 @@ Squeeze
 .. code-block:: xml
    :force:
 
-    <layer ... type="Squeeze">
+    <layer ... type="Squeeze" version="opset15">
+        <data allow_axis_skip="false"/>
         <input>
             <port id="0">
                 <dim>1</dim>
@@ -98,5 +100,27 @@ Squeeze
         <output>
             <port id="2">
             </port>
+        </output>
+    </layer>
+
+*Example 3: squeeze 1D tensor with 1 dynamic shape element to a fully dynamic shape*
+
+.. code-block:: xml
+   :force:
+
+    <layer ... type="Squeeze" version="opset15">
+        <data allow_axis_skip="true"/>
+        <input>
+            <port id="0">
+                <dim>-1</dim>
+            </port>
+        </input>
+        <input>
+            <port id="1">
+                <dim>1</dim>  <!-- value is [0] -->
+            </port>
+        </input>
+        <output>
+            <port id="2"/>    <!-- output with dynamic rank -->
         </output>
     </layer>
