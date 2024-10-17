@@ -110,35 +110,40 @@ private:
                              ze_graph_compiler_version_info_t compilerVersion) const;
     std::string serializeConfig(const Config& config, ze_graph_compiler_version_info_t& compilerVersion) const;
 
-    template <ze_graph_ext_version_t T = TableExtension, typename std::enable_if_t<NotSupportArgumentMetadata(T), bool> = true>
+    template <ze_graph_ext_version_t T = TableExtension,
+              typename std::enable_if_t<NotSupportArgumentMetadata(T), bool> = true>
     void getMetadata(ze_graph_dditable_ext_curr_t& graphDdiTableExt,
                      ze_graph_handle_t graphHandle,
                      uint32_t index,
                      std::vector<IODescriptor>& inputs,
                      std::vector<IODescriptor>& outputs) const;
 
-    template <ze_graph_ext_version_t T = TableExtension, typename std::enable_if_t<!NotSupportArgumentMetadata(T), bool> = true>
+    template <ze_graph_ext_version_t T = TableExtension,
+              typename std::enable_if_t<!NotSupportArgumentMetadata(T), bool> = true>
     void getMetadata(ze_graph_dditable_ext_curr_t& graphDdiTableExt,
                      ze_graph_handle_t graphHandle,
                      uint32_t index,
                      std::vector<IODescriptor>& inputs,
                      std::vector<IODescriptor>& outputs) const;
 
-    template <ze_graph_ext_version_t T = TableExtension, typename std::enable_if_t<UseCopyForNativeBinary(T), bool> = true>
+    template <ze_graph_ext_version_t T = TableExtension,
+              typename std::enable_if_t<UseCopyForNativeBinary(T), bool> = true>
     void getNativeBinary(ze_graph_dditable_ext_curr_t& graphDdiTableExt,
                          ze_graph_handle_t graphHandle,
                          std::vector<uint8_t>& blob,
                          const uint8_t*& blobPtr,
                          size_t& blobSize) const;
 
-    template <ze_graph_ext_version_t T = TableExtension, typename std::enable_if_t<!UseCopyForNativeBinary(T), bool> = true>
+    template <ze_graph_ext_version_t T = TableExtension,
+              typename std::enable_if_t<!UseCopyForNativeBinary(T), bool> = true>
     void getNativeBinary(ze_graph_dditable_ext_curr_t& graphDdiTableExt,
                          ze_graph_handle_t graphHandle,
                          std::vector<uint8_t>& /* unusedBlob */,
                          const uint8_t*& blobPtr,
                          size_t& blobSize) const;
 
-    template <ze_graph_ext_version_t T = TableExtension, typename std::enable_if_t<SupportAPIGraphQueryNetworkV2(T), bool> = true>
+    template <ze_graph_ext_version_t T = TableExtension,
+              typename std::enable_if_t<SupportAPIGraphQueryNetworkV2(T), bool> = true>
     ze_result_t seriazlideIRModelAndQueryNetworkCreateV2(const std::shared_ptr<const ov::Model>& model,
                                                          const Config& config,
                                                          ze_device_graph_properties_t deviceGraphProperties,
@@ -146,11 +151,13 @@ private:
                                                          ze_graph_query_network_handle_t& hGraphQueryNetwork) const;
 
     // ext version >= 1.5, support API (pfnCreate2, pfnQueryNetworkCreate2, pfnQueryContextMemory)
-    template <ze_graph_ext_version_t T = TableExtension, typename std::enable_if_t<SupportAPIGraphQueryNetworkV2(T), bool> = true>
+    template <ze_graph_ext_version_t T = TableExtension,
+              typename std::enable_if_t<SupportAPIGraphQueryNetworkV2(T), bool> = true>
     std::unordered_set<std::string> queryImpl(const std::shared_ptr<const ov::Model>& model,
                                               const Config& config) const;
 
-    template <ze_graph_ext_version_t T = TableExtension, typename std::enable_if_t<SupportAPIGraphQueryNetworkV1(T), bool> = true>
+    template <ze_graph_ext_version_t T = TableExtension,
+              typename std::enable_if_t<SupportAPIGraphQueryNetworkV1(T), bool> = true>
     ze_result_t seriazlideIRModelAndQueryNetworkCreateV1(const std::shared_ptr<const ov::Model>& model,
                                                          const Config& config,
                                                          ze_device_graph_properties_t deviceGraphProperties,
@@ -159,7 +166,8 @@ private:
 
     // ext version == 1.3 && 1.4, support API (pfnQueryNetworkCreate, pfnQueryNetworkDestroy,
     // pfnQueryNetworkGetSupportedLayers)
-    template <ze_graph_ext_version_t T = TableExtension, typename std::enable_if_t<SupportAPIGraphQueryNetworkV1(T), bool> = true>
+    template <ze_graph_ext_version_t T = TableExtension,
+              typename std::enable_if_t<SupportAPIGraphQueryNetworkV1(T), bool> = true>
     std::unordered_set<std::string> queryImpl(const std::shared_ptr<const ov::Model>& model,
                                               const Config& config) const;
 
@@ -182,7 +190,8 @@ private:
                             const uint32_t& flags,
                             ze_graph_handle_t* graph) const;
 
-    template <ze_graph_ext_version_t T = TableExtension, typename std::enable_if_t<!NotSupportLogHandle(T), bool> = true>
+    template <ze_graph_ext_version_t T = TableExtension,
+              typename std::enable_if_t<!NotSupportLogHandle(T), bool> = true>
     std::string getLatestBuildError() const;
 
     template <ze_graph_ext_version_t T = TableExtension, typename std::enable_if_t<NotSupportLogHandle(T), bool> = true>

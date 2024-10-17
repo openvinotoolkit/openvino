@@ -42,39 +42,39 @@ LevelZeroCompilerAdapter::LevelZeroCompilerAdapter(std::shared_ptr<IEngineBacken
     switch (graphExtVersion) {
     case ZE_GRAPH_EXT_VERSION_1_3:
         apiAdapter = std::make_shared<LevelZeroCompilerInDriver<ZE_GRAPH_EXT_VERSION_1_3>>(driverHandle,
-                                                                              deviceHandle,
-                                                                              zeContext,
-                                                                              graph_ddi_table_ext);
+                                                                                           deviceHandle,
+                                                                                           zeContext,
+                                                                                           graph_ddi_table_ext);
         break;
     case ZE_GRAPH_EXT_VERSION_1_4:
         apiAdapter = std::make_shared<LevelZeroCompilerInDriver<ZE_GRAPH_EXT_VERSION_1_4>>(driverHandle,
-                                                                              deviceHandle,
-                                                                              zeContext,
-                                                                              graph_ddi_table_ext);
+                                                                                           deviceHandle,
+                                                                                           zeContext,
+                                                                                           graph_ddi_table_ext);
         break;
     case ZE_GRAPH_EXT_VERSION_1_5:
         apiAdapter = std::make_shared<LevelZeroCompilerInDriver<ZE_GRAPH_EXT_VERSION_1_5>>(driverHandle,
-                                                                              deviceHandle,
-                                                                              zeContext,
-                                                                              graph_ddi_table_ext);
+                                                                                           deviceHandle,
+                                                                                           zeContext,
+                                                                                           graph_ddi_table_ext);
         break;
     case ZE_GRAPH_EXT_VERSION_1_6:
         apiAdapter = std::make_shared<LevelZeroCompilerInDriver<ZE_GRAPH_EXT_VERSION_1_6>>(driverHandle,
-                                                                              deviceHandle,
-                                                                              zeContext,
-                                                                              graph_ddi_table_ext);
+                                                                                           deviceHandle,
+                                                                                           zeContext,
+                                                                                           graph_ddi_table_ext);
         break;
     case ZE_GRAPH_EXT_VERSION_1_7:
         apiAdapter = std::make_shared<LevelZeroCompilerInDriver<ZE_GRAPH_EXT_VERSION_1_7>>(driverHandle,
-                                                                              deviceHandle,
-                                                                              zeContext,
-                                                                              graph_ddi_table_ext);
+                                                                                           deviceHandle,
+                                                                                           zeContext,
+                                                                                           graph_ddi_table_ext);
         break;
     case ZE_GRAPH_EXT_VERSION_1_8:
         apiAdapter = std::make_shared<LevelZeroCompilerInDriver<ZE_GRAPH_EXT_VERSION_1_8>>(driverHandle,
-                                                                              deviceHandle,
-                                                                              zeContext,
-                                                                              graph_ddi_table_ext);
+                                                                                           deviceHandle,
+                                                                                           zeContext,
+                                                                                           graph_ddi_table_ext);
         break;
     default:
         apiAdapter = std::make_shared<LevelZeroCompilerInDriver<ZE_GRAPH_EXT_VERSION_1_2>>(driverHandle,
