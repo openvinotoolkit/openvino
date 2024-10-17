@@ -49,10 +49,10 @@ bool ShlEltwiseExecutorBuilder::isSupported(const EltwiseAttrs& eltwiseAttrs,
         return false;
     }
     const auto unifiedLayout = srcDescs.front()->hasLayoutType(LayoutType::ncsp) ? LayoutType::ncsp : LayoutType::nspc;
-    const auto unifiedRank = srcDescs.front()->getShape().getRank();
+    const auto unifiedRank = srcDescs.front()->as<BlockedMemoryDesc>()->getBlockDims().size();
     auto has_unified_layout = [unifiedLayout, unifiedRank](const MemoryDescPtr& desc) {
         if (desc->hasLayoutType(LayoutType::nspc)) {    // ensure the same rank
-            if (desc->getShape().getRank() != unifiedRank)
+            if (desc->as<BlockedMemoryDesc>()->getBlockDims().size() != unifiedRank)
                 return false;
         }
         return desc->hasLayoutType(unifiedLayout);
