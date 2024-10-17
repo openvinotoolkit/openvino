@@ -230,6 +230,9 @@ ov::intel_cpu::QKVProjFusion2::QKVProjFusion2(bool allow_dynamic_quantization) {
 
         bool is_quantized_int8 = pattern_map.count(qkv_proj_weight_const_i8);
 
+        if (!allow_dynamic_quantization && is_quantized_int8)
+            return false;
+
         std::shared_ptr<opset1::Constant> qkv_proj_weight_node;
         if (is_quantized_int8) {
             qkv_proj_weight_node =
