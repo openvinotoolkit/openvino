@@ -72,13 +72,14 @@ bool BrgemmCPUBlocking::mark_blocking_loops(LinearIR& linear_ir,
     const auto& brgemm_expr = *brgemm_it;
     const auto brgemm = ov::as_type_ptr<ov::intel_cpu::BrgemmCPU>(brgemm_expr->get_node());
     const auto type = brgemm->get_type();
+    LinearIR::constExprIt loop_begin_it = with_amx(brgemm->get_type()) ?
+                                          move_new_memory_buffer(linear_ir, brgemm_it) :
+                                          brgemm_it;
+
+    auto res = ov::snippets::lowered::pass::BrgemmBlockingBase::mark_blocking_loops(linear_ir, loop_begin_it, m_block, n_block, k_block);
 
     if (stand_alone(type))
-        return ov::snippets::lowered::pass::BrgemmBlockingBase::mark_blocking_loops(linear_ir, brgemm_it, m_block, n_block, k_block);
-
-    brgemm_expr->get_input_port_descriptor(0)->set_subtensor({m_block, k_block}); //
-    brgemm_expr->get_input_port_descriptor(1)->set_subtensor({k_block, n_block});//
-    brgemm_expr->get_output_port_descriptor(0)->set_subtensor({m_block, n_block});//
+        return res;
 
     const auto copy_b_expr = linear_ir.get_expr_by_node(brgemm->get_brgemm_copy());
     copy_b_expr->get_input_port_descriptor(0)->set_subtensor({get_full_dim_value(), get_full_dim_value()});
@@ -91,28 +92,11 @@ bool BrgemmCPUBlocking::mark_blocking_loops(LinearIR& linear_ir,
     }
 
     const auto& loop_manager = linear_ir.get_loop_manager();
-    if (!is_full_dim_value(k_block)) {
-        const auto loop_begin = get_loop_begin_pos(linear_ir, brgemm_it);
-        const std::vector<LoopPort> entries{LoopPort(brgemm_expr->get_input_port(0), true, 0),
-                                            LoopPort(brgemm_expr->get_input_port(1), true, 1)};
-        const std::vector<LoopPort> exits{LoopPort(brgemm_expr->get_output_port(0), false)};
-        mark_k_blocking(loop_manager, loop_begin, std::next(brgemm_it), entries, exits, k_block);
-    }
-    if (!is_full_dim_value(n_block)) {
-        const auto loop_begin = get_loop_begin_pos(linear_ir, brgemm_it);
-        const std::vector<LoopPort> entries{LoopPort(brgemm_expr->get_input_port(0), false),
-                                            LoopPort(brgemm_expr->get_input_port(1), true)};
-        const std::vector<LoopPort> exits{LoopPort(brgemm_expr->get_output_port(0), true)};
-        mark_n_blocking(loop_manager, loop_begin, std::next(brgemm_it), entries, exits, n_block);
-    }
-    if (!is_full_dim_value(m_block)) {
-        const auto loop_begin = get_loop_begin_pos(linear_ir, brgemm_it);
-        const auto b_input_port = brgemm_expr->get_input_port(1);
-        std::vector<LoopPort> entries{LoopPort(brgemm_expr->get_input_port(0), true), LoopPort(b_input_port, false)};
-        if (with_compensations(type))
-            entries.emplace_back(brgemm_expr->get_input_port(2), false);
-        const std::vector<LoopPort> exits{LoopPort(brgemm_expr->get_output_port(0), true)};
-        mark_m_blocking(loop_manager, loop_begin, std::next(brgemm_it), entries, exits, m_block);
+    if (!is_full_dim_value(m_block) && with_compensations(type)) {
+        const LoopPort default_port(brgemm_expr->get_input_port(1), false);
+        const std::vector<LoopPort> replacement_ports {default_port, LoopPort(brgemm_expr->get_input_port(2), false)};
+        auto m_loop_id = brgemm_expr->get_loop_ids().front();
+        loop_manager->get_loop_info<UnifiedLoopInfo>(m_loop_id)->replace_with_new_ports(default_port, replacement_ports);
     }
     return true;
 }
