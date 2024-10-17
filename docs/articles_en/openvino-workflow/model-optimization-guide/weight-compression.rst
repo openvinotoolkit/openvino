@@ -196,7 +196,7 @@ trade-offs after optimization:
   4 bits. The method can sometimes result in reduced accuracy when used with
   Dynamic Quantization of activations. Requires dataset.
 
-* ``gptq`` - boolean parameter that enables the GPTQ method for more accurate weight
+* ``gptq`` - boolean parameter that enables the GPTQ method for more accurate INT4 weight
   quantization. Requires dataset.
 
 * ``dataset`` - calibration dataset for data-aware weight compression. It is required
