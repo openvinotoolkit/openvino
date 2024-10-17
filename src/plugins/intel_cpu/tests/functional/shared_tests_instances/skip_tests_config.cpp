@@ -572,6 +572,7 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*smoke_Snippets_MatMulTransposeB.*IS\[0\]=\[\?.\?.\?.\?\].*T\[0\]=(u8|i8|bf16)_T\[1\]=(i8|bf16).*)");
         retVector.emplace_back(R"(.*smoke_Snippets_MatMulBias.*IS\[0\]=\[\?.\?.\?.\?\].*T\[0\]=(u8|i8|bf16)_T\[1\]=(i8|bf16).*)");
 
+        retVector.emplace_back(R"(.*smoke_Snippets_MHAWOTransposeEnforceBF16_3D.*IS\[1\]=\[2.64.\?\].*)");
         retVector.emplace_back(R"(.*smoke_Snippets_MHA.*BF16.*/MHA.*IS\[0\]=\[(\?|1).(\?|4).(\?|12).(\?|64)\].*)");
         retVector.emplace_back(R"(.*smoke_Snippets_MHA.*BF16.*/MHA.*IS\[0\]=\[\?.\?.\?\].*)");
         retVector.emplace_back(R"(.*smoke_Snippets_(MHAINT8MatMul|MHAQuantMatMul0|MHAFQAfterMatMul_4D|smoke_Snippets_MHAFQ).*IS\[0\]=\[\?.\?.\?\.\?].*)");

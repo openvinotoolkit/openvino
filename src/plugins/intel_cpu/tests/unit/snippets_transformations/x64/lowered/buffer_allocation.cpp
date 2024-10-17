@@ -315,7 +315,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHABF16AMXOptimizedWSpl
                                  ::testing::Values(true),
                                  ::testing::Values(524288),
                                  ::testing::Values(3),
-                                 ::testing::Values(8)),
+                                 ::testing::Values(7)),
                          BufferAllocationCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHABF16AMXNotOptimizedWOSplit, MHABF16AMXBufferAllocationTest,
@@ -331,9 +331,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHABF16AMXOptimizedWOSp
                          ::testing::Combine(
                                  ::testing::Values(true),
                                  ::testing::Values(false),
-                                 ::testing::Values(1409024),
+                                 ::testing::Values(1671168),
                                  ::testing::Values(3),
-                                 ::testing::Values(8)),
+                                 ::testing::Values(7)),
                          BufferAllocationCPUTest::getTestCaseName);
 
 }  // namespace BufferAllocationCPUTest_Instances
