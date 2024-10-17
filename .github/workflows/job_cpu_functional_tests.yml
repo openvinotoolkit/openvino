@@ -12,6 +12,10 @@ on:
         type: string
         required: false
         default: null
+      python-version:
+        description: 'Python version to setup. E.g., "3.11"'
+        type: string
+        required: true
 
 permissions: read-all
 
@@ -51,15 +55,19 @@ jobs:
           echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
           echo "PARALLEL_TEST_SCRIPT=$GITHUB_WORKSPACE/install/tests/functional_test_utils/layer_tests_summary/run_parallel.py" >> "$GITHUB_ENV"
           echo "PARALLEL_TEST_CACHE=$GITHUB_WORKSPACE/install/tests/test_cache.lst" >> "$GITHUB_ENV"
-
+          
+      - name: Install OpenVINO dependencies (mac)
+        if: runner.os == 'macOS'
+        run: brew install pigz
+      
       - name: Extract OpenVINO packages
         run: |
           pushd $INSTALL_DIR
-            tar -xzf openvino_package.tar.gz -C $INSTALL_DIR
+            pigz -dc openvino_package.tar.gz | tar -xf - -C ${INSTALL_DIR}
           popd
 
           pushd $INSTALL_TEST_DIR
-            tar -xzf openvino_tests.tar.gz -C $INSTALL_DIR
+            pigz -dc openvino_tests.tar.gz | tar -xf - -C ${INSTALL_DIR}
           popd
 
       - name: Fetch setup_python action
@@ -70,10 +78,10 @@ jobs:
           sparse-checkout-cone-mode: false
           path: 'openvino'
 
-      - name: Setup Python 3.11
+      - name: Setup Python ${{ inputs.python-version }}
         uses: ./openvino/.github/actions/setup_python
         with:
-          version: '3.11'
+          version: ${{ inputs.python-version }}
           should-setup-pip-paths: 'false'
           self-hosted-runner: ${{ runner.os == 'Linux' }}
 

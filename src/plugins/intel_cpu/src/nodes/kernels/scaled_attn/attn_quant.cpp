@@ -180,7 +180,6 @@ static void attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
     // For compatibility, all input_kvs are permuted to BHLS
     size_t B = k_src.m_dims[0], H = k_src.m_dims[1], L1 = k_src.m_dims[2], S = k_src.m_dims[3];
     // Internal LBHS layout has strides[L] > strides[B]
-    assert(k_src.m_strides[2] > k_src.m_strides[0]);
     parallel_for3d(L1, B, H, [&](size_t m, size_t b, size_t h) {
         auto p_k = k_scale_zp.ptr<float>(m, b, h);
         auto p_v = v_scale_zp.ptr<float>(m, b, h);
@@ -238,6 +237,8 @@ void attn_quantkv(const ov::intel_cpu::PlainTensor& k_src,
         attn_quant_mt<float, uint8_t>(k_src, v_src, k_dst, v_dst, k_scale_zp, v_scale_zp);
     } else if (k_src.get_precision() == ov::element::bf16 && k_dst.get_precision() == ov::element::u8) {
         attn_quant_mt<ov::bfloat16, uint8_t>(k_src, v_src, k_dst, v_dst, k_scale_zp, v_scale_zp);
+    } else if (k_src.get_precision() == ov::element::f16 && k_dst.get_precision() == ov::element::u8) {
+        attn_quant_mt<ov::float16, uint8_t>(k_src, v_src, k_dst, v_dst, k_scale_zp, v_scale_zp);
     } else {
         OPENVINO_THROW("unsupport src type: ", k_src.get_precision(), ", dst type: ", k_dst.get_precision(), " in attn_quantkv");
     }
@@ -252,6 +253,8 @@ void paged_attn_quantkv(const ov::intel_cpu::PlainTensor& k_src,
         paged_attn_quant_mt<float, uint8_t>(k_src, v_src, k_dst, v_dst, slot_mapping);
     } else if (k_src.get_precision() == ov::element::bf16 && k_dst.get_precision() == ov::element::u8) {
         paged_attn_quant_mt<ov::bfloat16, uint8_t>(k_src, v_src, k_dst, v_dst, slot_mapping);
+    } else if (k_src.get_precision() == ov::element::f16 && k_dst.get_precision() == ov::element::u8) {
+        paged_attn_quant_mt<ov::float16, uint8_t>(k_src, v_src, k_dst, v_dst, slot_mapping);
     } else {
         OPENVINO_THROW("unsupport src type: ", k_src.get_precision(), ", dst type: ", k_dst.get_precision(), " in paged_attn_quantkv");
     }
