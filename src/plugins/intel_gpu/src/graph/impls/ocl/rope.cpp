@@ -53,6 +53,7 @@ struct rope_impl : typed_primitive_impl_ocl<rope> {
 
         params.is_qwen = primitive->config.is_qwen;
         params.is_chatglm = primitive->config.is_chatglm;
+        params.support_2d_rope = primitive->config.support_2d_rope;
         params.transposed_input = primitive->config.input_trans0213;
 
         for (size_t i = 1; i < impl_param.input_layouts.size(); ++i) {

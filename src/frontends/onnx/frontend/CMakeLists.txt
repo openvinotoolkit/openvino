@@ -77,7 +77,7 @@ ov_add_frontend(NAME onnx
                 FILEDESCRIPTION "FrontEnd to load and convert ONNX file format"
                 LINK_LIBRARIES openvino_onnx_common openvino::core::dev)
 
-set(ONNX_OPSET_VERSION 20 CACHE INTERNAL "Supported version of ONNX operator set")
+set(ONNX_OPSET_VERSION 21 CACHE INTERNAL "Supported version of ONNX operator set")
 target_compile_definitions(${TARGET_NAME} PRIVATE ONNX_OPSET_VERSION=${ONNX_OPSET_VERSION})
 
 if(BUILD_SHARED_LIBS)

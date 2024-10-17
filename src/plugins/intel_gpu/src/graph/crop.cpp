@@ -50,7 +50,7 @@ std::vector<layout> crop_inst::calc_output_layouts(const crop_node& /*node*/, co
     std::vector<ShapeType> input_shapes = {
         impl_param.input_layouts[0].get<ShapeType>(),
     };
-    for (size_t i = 1; i < impl_param.input_layouts.size(); ++i) {
+    for (size_t i = 1; i < desc->input.size(); ++i) {
         input_shapes.push_back(impl_param.input_layouts[i].get<ShapeType>());
     }
     int64_t axis = desc->axis;
