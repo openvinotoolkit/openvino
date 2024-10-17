@@ -214,10 +214,9 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
     ACCUMULATOR_VEC_TYPE acc[TILE_B] = { };
     INPUT_VEC_TYPE       in_0[TILE_B] = { };
 
-#if !USE_SLM
+#if !USE_SLM || !COMPRESSED_WEIGHTS_INT4
     FILTER_VEC_TYPE wei = 0;
 #endif
-
 
 #if OUTPUT_3D
     uint out_b0 = out_b / OUTPUT_FEATURE_NUM;
@@ -372,6 +371,9 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                 #else
                 SLM_FILTER_PACKED_VEC wei_packed = BLOCK_READN(FILTER_TYPE, FILTER_LOAD_BLOCK_SIZE/*4*/, weights, weights_idx);
                 SLM_FILTER_UNPACKED_VEC wei_unpacked = UNPACK_INT4(ACCUMULATOR_TYPE, *((INT4_PACKED_TYPE_PRELOAD*)&wei_packed));
+                // comapare
+                // FILTER_PACKED_VEC_TYPE wei_packed = BLOCK_READN(FILTER_TYPE, TILE_K_OFM_PACKED, weights, weights_offset)
+                // wei = UNPACK_INT4(ACCUMULATOR_TYPE, *((INT4_PACKED_TYPE*)&wei_packed));
                 #endif
                 ACCUMULATOR_TYPE* w = (ACCUMULATOR_TYPE*)(&wei_unpacked);
                 unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
@@ -751,7 +753,8 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
 
 
 // Dyc Quantize
-//#if USE_SLM && DYNAMIC_QUANTIZE
+#if USE_SLM && DYNAMIC_QUANTIZE
+
 #define PACKED_DQ_TYPE                      int
 #define DQ_VEC_TYPE                         MAKE_VECTOR_TYPE(DQ_TYPE, TILE_IFM)
 #define DQ_SLM_FILTER_VEC                   MAKE_VECTOR_TYPE(DQ_TYPE, 4)
@@ -768,6 +771,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
 #define AS_TYPE_N(type, n, x)   AS_TYPE_N_(type, n, x)
 #define AS_DQ_TYPE_4(x)         AS_TYPE_N(DQ_TYPE, INPUT_LOAD_SIZE, x)
 
+#if 0
 inline void FUNC(fc_bf_tiled_kernel_dyn_quan_none_slm)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
@@ -926,9 +930,8 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan_none_slm)(
                 // SLM_FILTER_PACKED_VEC wei_packed = BLOCK_READN(FILTER_TYPE, FILTER_LOAD_BLOCK_SIZE, weights, weights_idx);
                 // DQ_SLM_FILTER_UNPACKED_VEC dq_wei_unpacked = UNPACK_TRANSPOSED_INT4(DQ_TYPE, *((INT4_PACKED_TYPE_PRELOAD *)&wei_packed));
             #else
-                // wei = TO_FILTER_VEC_TYPE(FILTER_BLOCK_READ(weights, weights_offset));
-                DQ_FILTER_VEC_TYPE wei_packed = TO_DQ_FILTER_VEC_TYPE(FILTER_BLOCK_READ(weights, weights_offset));
-                // DQ_SLM_FILTER_UNPACKED_VEC wei_packed = TO_DQ_SLM_FILTER_UNPACKED_VEC(BLOCK_READN(FILTER_TYPE, TILE_K_OFM_PACKED, weights, weights_offset));
+                // DQ_FILTER_VEC_TYPE wei_packed = TO_DQ_FILTER_VEC_TYPE(FILTER_BLOCK_READ(weights, weights_offset)); // BLOCK_READN(FILTER_TYPE, TILE_K_OFM_PACKED, weights, weights_offset)
+                DQ_FILTER_VEC_TYPE wei_packed = TO_DQ_FILTER_VEC_TYPE(BLOCK_READN(FILTER_TYPE, TILE_K_OFM_PACKED, weights, weights_offset));
                 wei.s0123 = wei_packed.s0246;
                 wei.s4567 = wei_packed.s1357;
             #endif
@@ -1108,8 +1111,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan_none_slm)(
     }
     // =====================================================================================================================================
 }
-
-#if USE_SLM && DYNAMIC_QUANTIZE
+#endif
 
 inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
     OPTIONAL_SHAPE_INFO_ARG
@@ -1240,15 +1242,6 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
             // Next batch
             in_offset += (TILE_IN_B_PITCH * 2);
 
-            // [TEST]
-            // // Load input.
-            //#define LOAD_IN_0(bi) do {                                  \
-            //        in_0[bi] = INPUT_BLOCK_READ(input, input_offset);   \
-            //        input_offset += TILE_IN_B_PITCH;                    \
-            //    } while (false)
-            //CONST_LOOP(TILE_B, LOAD_IN_0);
-            //#undef LOAD_IN_0
-
             #if NUM_LOOP_IN_DYN_QUAN_GROUP == 1
                 de_quantize_scale[bi * 2] = scale[scale_offset];
                 de_quantize_scale[bi * 2 + 1] = scale[scale_offset+ scale_pitch];
@@ -1281,10 +1274,14 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
 
         __local int* char_slm_weight = (__local int*)wei_local_mem;
 
-        #if FILTER_LAYOUT_OS_IS_YX_OSV64_ISV2
-        uint weights_idx = weights_offset + local_id * SIMD * FILTER_LOAD_ITERS * FILTER_LOAD_BLOCK_SIZE * 2;
+        #if COMPRESSED_WEIGHTS_INT4
+            #if FILTER_LAYOUT_OS_IS_YX_OSV64_ISV2
+                uint weights_idx = weights_offset + local_id * SIMD * FILTER_LOAD_ITERS * FILTER_LOAD_BLOCK_SIZE * 2;
+            #else
+                uint weights_idx = weights_offset + local_id * SIMD * FILTER_LOAD_ITERS * FILTER_ACTUAL_LOAD_BLOCK_SIZE;
+            #endif
         #else
-        uint weights_idx = weights_offset + local_id * SIMD * FILTER_LOAD_ITERS * FILTER_ACTUAL_LOAD_BLOCK_SIZE;
+            uint weights_idx = weights_offset + local_id * SIMD * FILTER_LOAD_ITERS * TILE_K_OFM_PACKED;
         #endif
         uint wei_local_idx = local_id * SIMD * FILTER_LOAD_ITERS * (FILTER_LOAD_BLOCK_SIZE/2) + sglid * 2;
 
@@ -1314,13 +1311,8 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                     DQ_SLM_FILTER_UNPACKED_VEC dq_wei_unpacked = UNPACK_TRANSPOSED_INT4(DQ_TYPE, *((INT4_PACKED_TYPE_PRELOAD *)&wei_packed));
                 #endif
             #else
-                    // INT4
-                    // FILTER_PACKED_VEC_TYPE wei_packed = BLOCK_READN(FILTER_TYPE, TILE_K_OFM_PACKED, weights, weights_offset);
-                    // DQ_SLM_FILTER_UNPACKED_VEC dq_wei_unpacked = UNPACK_INT4(DQ_TYPE, *((INT4_PACKED_TYPE*)&wei_packed));
-                    // INT8
-                    // DQ_SLM_FILTER_UNPACKED_VEC dq_wei_unpacked = TO_DQ_SLM_FILTER_UNPACKED_VEC(BLOCK_READN(FILTER_TYPE, TILE_K_OFM_PACKED, weights, weights_offset));
-                    DQ_SLM_FILTER_UNPACKED_VEC wei_packed = BLOCK_READN(FILTER_TYPE, TILE_K_OFM_PACKED, weights, weights_offset);
                     DQ_SLM_FILTER_UNPACKED_VEC dq_wei_unpacked;
+                    DQ_FILTER_VEC_TYPE wei_packed = TO_DQ_FILTER_VEC_TYPE(FILTER_BLOCK_READ(weights, weights_idx));
                     dq_wei_unpacked.s0123 = wei_packed.s0246;
                     dq_wei_unpacked.s4567 = wei_packed.s1357;
             #endif
@@ -1714,50 +1706,27 @@ KERNEL(fc)(
             #endif
             );
         #else
-            #if 0
-                FUNC_CALL(fc_bf_tiled_kernel_default)(
-                    OPTIONAL_SHAPE_INFO_TENSOR
-                    input,
-                #if DECOMPRESSION_SCALE_TERM
-                    decompression_scale,
-                #endif
-                #if DECOMPRESSION_ZP_TERM && !DECOMPRESSION_ZP_SCALAR
-                    decompression_zp,
-                #endif
-                    output,
-                    weights
-                #if USE_SLM
-                    , wei_local_mem
-                #endif
-                #if BIAS_TERM
-                    , biases
-                #endif
-                #if HAS_FUSED_OPS_DECLS
-                    , FUSED_OPS_ARGS
-                #endif
-                );
-            #else
-                FUNC_CALL(fc_bf_tiled_kernel_dyn_quan_none_slm)(
-                    OPTIONAL_SHAPE_INFO_TENSOR
-                    input,
-                    quantized_input,
-                    de_quan_scale,
-                #if DECOMPRESSION_SCALE_TERM
-                    decompression_scale,
-                #endif
-                #if DECOMPRESSION_ZP_TERM && !DECOMPRESSION_ZP_SCALAR
-                    decompression_zp,
-                #endif
-                    output,
-                    weights
-                #if BIAS_TERM
-                    , biases
-                #endif
-                #if HAS_FUSED_OPS_DECLS
-                    , FUSED_OPS_ARGS
-                #endif
-                );
+            FUNC_CALL(fc_bf_tiled_kernel_default)(
+                OPTIONAL_SHAPE_INFO_TENSOR
+                input,
+            #if DECOMPRESSION_SCALE_TERM
+                decompression_scale,
             #endif
+            #if DECOMPRESSION_ZP_TERM && !DECOMPRESSION_ZP_SCALAR
+                decompression_zp,
+            #endif
+                output,
+                weights
+            #if USE_SLM
+                , wei_local_mem
+            #endif
+            #if BIAS_TERM
+                , biases
+            #endif
+            #if HAS_FUSED_OPS_DECLS
+                , FUSED_OPS_ARGS
+            #endif
+            );
         #endif
     }
 #else
@@ -1784,50 +1753,27 @@ KERNEL(fc)(
         #endif
         );
     #else
-        #if 0
-            FUNC_CALL(fc_bf_tiled_kernel_default)(
-                OPTIONAL_SHAPE_INFO_TENSOR
-                input,
-            #if DECOMPRESSION_SCALE_TERM
-                decompression_scale,
-            #endif
-            #if DECOMPRESSION_ZP_TERM && !DECOMPRESSION_ZP_SCALAR
-                decompression_zp,
-            #endif
-                output,
-                weights
-            #if USE_SLM
-                , wei_local_mem
-            #endif
-            #if BIAS_TERM
-                , biases
-            #endif
-            #if HAS_FUSED_OPS_DECLS
-                , FUSED_OPS_ARGS
-            #endif
-            );
-        #else
-            FUNC_CALL(fc_bf_tiled_kernel_dyn_quan_none_slm)(
-                OPTIONAL_SHAPE_INFO_TENSOR
-                input,
-                quantized_input,
-                de_quan_scale,
-            #if DECOMPRESSION_SCALE_TERM
-                decompression_scale,
-            #endif
-            #if DECOMPRESSION_ZP_TERM && !DECOMPRESSION_ZP_SCALAR
-                decompression_zp,
-            #endif
-                output,
-                weights
-            #if BIAS_TERM
-                , biases
-            #endif
-            #if HAS_FUSED_OPS_DECLS
-                , FUSED_OPS_ARGS
-            #endif
-            );
+        FUNC_CALL(fc_bf_tiled_kernel_default)(
+            OPTIONAL_SHAPE_INFO_TENSOR
+            input,
+        #if DECOMPRESSION_SCALE_TERM
+            decompression_scale,
         #endif
+        #if DECOMPRESSION_ZP_TERM && !DECOMPRESSION_ZP_SCALAR
+            decompression_zp,
+        #endif
+            output,
+            weights
+        #if USE_SLM
+            , wei_local_mem
+        #endif
+        #if BIAS_TERM
+            , biases
+        #endif
+        #if HAS_FUSED_OPS_DECLS
+            , FUSED_OPS_ARGS
+        #endif
+        );
     #endif
 #endif
 }
