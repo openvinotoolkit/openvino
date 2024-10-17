@@ -34,10 +34,11 @@ input_layout_inst::typed_primitive_inst(network& network, input_layout_node cons
     _has_valid_input = false;  // by default input for 'input_layout' is invalid as long as user doesn't call set_data
 }
 
-event::ptr input_layout_inst::set_data(memory::ptr mem) {
+event::ptr input_layout_inst::set_data(memory::ptr mem, bool need_to_check_memory_to_set) {
     auto ol = get_node_output_layout();
 
-    check_memory_to_set(*mem, ol);
+    if (need_to_check_memory_to_set)
+        check_memory_to_set(*mem, ol);
     event::ptr ev = nullptr;
     auto& engine = get_network().get_engine();
     auto& stream = get_network().get_stream();
