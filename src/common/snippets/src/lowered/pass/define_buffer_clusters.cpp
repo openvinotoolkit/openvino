@@ -5,6 +5,7 @@
 #include "snippets/lowered/pass/define_buffer_clusters.hpp"
 
 #include "snippets/lowered/pass/set_buffer_reg_group.hpp"
+#include "snippets/lowered/loop_manager.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "snippets/utils/utils.hpp"
 #include "snippets/itt.hpp"
@@ -14,14 +15,40 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
-using ShiftPtrParams = SetBufferRegGroup::ShiftPtrParams;
+namespace {
+
+std::vector<size_t> get_connected_loops(const BufferExpressionPtr& buffer_expr, const ExpressionPort& consumer) {
+    // [133463] Remove it please
+    if (ov::is_type<op::LoopEnd>(consumer.get_expr()->get_node()))
+        return {};
+    const auto& buffer_loops_ids = buffer_expr->get_loop_ids();
+    const auto& consumer_loop_ids = consumer.get_expr()->get_loop_ids();
+    OPENVINO_ASSERT(buffer_loops_ids.size() <= consumer_loop_ids.size(), "Buffer with consumer are in incorrect loops");
+    size_t idx = 0;
+    while (idx < std::min(buffer_loops_ids.size(), consumer_loop_ids.size()) && buffer_loops_ids[idx] == consumer_loop_ids[idx]) {
+        idx++;
+    }
+    OPENVINO_ASSERT(idx <= consumer_loop_ids.size(), "Incorrect index");
+    return {consumer_loop_ids.cbegin() + idx, consumer_loop_ids.cend()};
+}
+
+UnifiedLoopInfoPtr get_direct_loop_for_buffer_out(const LoopManagerPtr& loop_manager, const BufferExpressionPtr& buffer_expr,
+                                                  const ExpressionPort& consumer) {
+    const auto inner_loops = get_connected_loops(buffer_expr, consumer);
+    if (inner_loops.empty())
+        return nullptr;
+    return loop_manager->get_loop_info<UnifiedLoopInfo>(inner_loops.front());
+}
+} // namespace
+
+using LoopPortInfo = UnifiedLoopInfo::LoopPortInfo;
 
 DefineBufferClusters::BufferClusters::iterator DefineBufferClusters::find_cluster_by_expr(const BufferExpressionPtr& target) {
     return std::find_if(m_clusters.begin(), m_clusters.end(),
                         [&target](const BufferCluster& cluster) { return cluster.count(target) > 0; });
 }
 
-bool DefineBufferClusters::is_direct_buffer(const BufferExpressionPtr& buffer_expr, const ExpressionPtr& target_expr) const {
+bool DefineBufferClusters::is_direct_buffer(const BufferExpressionPtr& buffer_expr, const ExpressionPtr& target_expr) {
     return buffer_expr && buffer_expr->get_loop_ids() == target_expr->get_loop_ids();
 }
 
@@ -42,68 +69,58 @@ size_t DefineBufferClusters::get_cluster_buffer_id(const BufferCluster& cluster)
     return SIZE_MAX;
 }
 
-DefineBufferClusters::BufferPorts DefineBufferClusters::get_input_buffers(const ExpressionPtr& loop_expr) const {
-    BufferPorts input_buffers;
-
-    const auto loop_end = ov::as_type_ptr<op::LoopEnd>(loop_expr->get_node());
-    const auto in_count = loop_end->get_input_num();
-    const auto& connectors = loop_expr->get_input_port_connectors();
-
-    // Input Buffers
-    for (size_t i = 0; i < in_count; ++i) {
-        const auto& source_expr = ov::as_type_ptr<BufferExpression>(connectors[i]->get_source().get_expr());
-        if (!is_direct_buffer(source_expr, loop_expr))
+std::pair<DefineBufferClusters::BufferMap, DefineBufferClusters::BufferMap> DefineBufferClusters::get_direct_buffers(const UnifiedLoopInfoPtr& loop_info,
+                                                                                                                     const ExpressionPtr& loop_expr) {
+    BufferMap input_buffers;
+    const auto& loop_inputs = loop_info->get_input_ports_info();
+    for (const auto& port_info : loop_inputs) {
+        const auto& buffer_expr = ov::as_type_ptr<BufferExpression>(port_info.port.expr_port->get_port_connector_ptr()->get_source().get_expr());
+        if (!is_direct_buffer(buffer_expr, loop_expr))
             continue;
-        // Save as input Buffer
-        const auto ret = input_buffers.insert(std::make_pair(source_expr, std::set<size_t>{ i })).second;
-        if (!ret)
-            input_buffers[source_expr].insert(i);
+        if (input_buffers.count(buffer_expr) > 0) {
+            const auto& port_desc = port_info.desc;
+            OPENVINO_ASSERT(input_buffers[buffer_expr].desc == port_desc,
+                            "Invalid data pointer shifts: If Buffer has several consumers, this consumers must have the same shifts or zero");
+            continue;
+        }
+        input_buffers[buffer_expr] = port_info;
     }
-    return input_buffers;
-}
 
-DefineBufferClusters::BufferPorts DefineBufferClusters::get_output_buffers(const ExpressionPtr& loop_expr) const {
-    BufferPorts output_buffers;
-
-    const auto loop_end = ov::as_type_ptr<op::LoopEnd>(loop_expr->get_node());
-    const auto in_count = loop_end->get_input_num();
-    const auto out_count = loop_end->get_output_num();
-    const auto& connectors = loop_expr->get_input_port_connectors();
-
-    for (size_t i = in_count; i < in_count + out_count; ++i) {
-        for (const auto& consumer : connectors[i]->get_consumers()) {
-            const auto& consumer_expr =  ov::as_type_ptr<BufferExpression>(consumer.get_expr());
-            if (!is_direct_buffer(consumer_expr, loop_expr))
+    BufferMap output_buffers;
+    const auto& loop_outputs = loop_info->get_output_ports_info();
+    for (const auto& port_info : loop_outputs) {
+        const auto& consumer_inputs = port_info.port.expr_port->get_port_connector_ptr()->get_consumers();
+        for (const auto& consumer_input : consumer_inputs) {
+            const auto& buffer_expr = ov::as_type_ptr<BufferExpression>(consumer_input.get_expr());
+            if (!is_direct_buffer(buffer_expr, loop_expr))
                 continue;
-            // Save as output Buffer
-            output_buffers[consumer_expr] = { i };
+            output_buffers[buffer_expr] = port_info;
         }
     }
-    return output_buffers;
+
+    return std::make_pair(input_buffers, output_buffers);
 }
 
-void DefineBufferClusters::parse_loop(const LinearIR::constExprIt& expr_it) {
+void DefineBufferClusters::parse_loop(const LoopManagerPtr& loop_manager, const LinearIR::constExprIt& expr_it) {
     const auto& expr = *expr_it;
-    const auto loop_end = ov::as_type_ptr<op::LoopEnd>(expr->get_node());
-    const auto& ptr_increments = loop_end->get_ptr_increments();
-    const auto& final_offsets = loop_end->get_finalization_offsets();
-    const auto& data_sizes = loop_end->get_element_type_sizes();
+    const auto& loop_end = ov::as_type_ptr<op::LoopEnd>(expr->get_node());
+    const auto& loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(loop_end->get_id());
 
-    // [ Expression -> Port indexes ]
-    const auto input_buffers = get_input_buffers(expr);
-    const auto output_buffers = get_output_buffers(expr);
+    BufferMap input_buffers, output_buffers;
+    std::tie(input_buffers, output_buffers) = get_direct_buffers(loop_info, expr);
 
     for (const auto& in : input_buffers)
         create_new_cluster(in.first);
 
     std::set<ExpressionPtr> visited_buffers;
     for (const auto& out : output_buffers) {
-        const auto output_buffer_expr = out.first;
-        const auto output_buffer_port_idx = *(out.second.cbegin());  // Output port is always one
+        const auto& output_buffer_expr = out.first;
+        const auto& output_buffer_port_info = out.second;
         bool has_been_added = false;
 
         for (const auto& in : input_buffers) {
             const auto& input_buffer_expr = in.first;
+            const auto& input_buffer_port_info = in.second;
             if (visited_buffers.count(input_buffer_expr) > 0)
                 continue;
 
@@ -121,44 +138,38 @@ void DefineBufferClusters::parse_loop(const LinearIR::constExprIt& expr_it) {
                 (input_buffer_expr->get_output_port_descriptor(0)->get_layout() != output_buffer_expr->get_input_port_descriptor(0)->get_layout()))
                 continue;
 
-            // Also memory can be reused if there are the same ShiftPtrParams (data size, final offsets, ptr increments)
-            const auto& input_buffer_ports = in.second;
-            for (const auto& input_buffer_port_idx : input_buffer_ports) {
-                const auto input_params =
-                    ShiftPtrParams(data_sizes[input_buffer_port_idx], ptr_increments[input_buffer_port_idx], final_offsets[input_buffer_port_idx]);
-                const auto output_params =
-                    ShiftPtrParams(data_sizes[output_buffer_port_idx], ptr_increments[output_buffer_port_idx], final_offsets[output_buffer_port_idx]);
-
-                // If data pointer shift parameters are unknown on model compilation stage (dynamic),
-                // we cannot be sure that these data pointers will be proportionally shifted in runtime.
-                // Note: data size of output buffer might be less than data size of input buffer.
-                if (input_params.is_static() && output_params.is_static() &&
-                    input_params.ptr_increment == output_params.ptr_increment &&
-                    input_params.finalization_offset == output_params.finalization_offset &&
-                    input_params.data_size >= output_params.data_size) {
-                    const auto cluster_it = find_cluster_by_expr(input_buffer_expr);
-                    OPENVINO_ASSERT(cluster_it != m_clusters.end(), "Buffer on inputs of Loop must be already saved in clusters");
-                    // Add to the existing cluster
-                    has_been_added = cluster_it->insert(output_buffer_expr).second;
-                    OPENVINO_ASSERT(has_been_added, "Buffer has not been saved in cluster");
-                    // Remove input buffer because we have already use its memory
-                    visited_buffers.insert(input_buffer_expr);
-                    break;
-                }
+            // Memory can be reused if there are the same LoopPortDesc (data size, final offsets, ptr increments).
+            // If data pointer shift parameters are unknown on model compilation stage (dynamic),
+            // we cannot be sure that these data pointers will be proportionally shifted in runtime.
+            // Note: data size of output buffer might be less than data size of input buffer.
+            const auto& input_params = input_buffer_port_info.desc;
+            const auto& output_params = output_buffer_port_info.desc;
+            if (input_params.is_static() && output_params.is_static() &&
+                input_params.ptr_increment == output_params.ptr_increment &&
+                input_params.finalization_offset == output_params.finalization_offset &&
+                input_params.data_size >= output_params.data_size) {
+                const auto cluster_it = find_cluster_by_expr(input_buffer_expr);
+                OPENVINO_ASSERT(cluster_it != m_clusters.end(), "Buffer on inputs of Loop must be already saved in clusters");
+                // Add to the existing cluster
+                has_been_added = cluster_it->insert(output_buffer_expr).second;
+                OPENVINO_ASSERT(has_been_added, "Buffer has not been saved in cluster");
+                // Remove input buffer because we have already use its memory
+                visited_buffers.insert(input_buffer_expr);
+                break;
             }
             if (has_been_added) break;
         }
         if (!has_been_added) {
-            m_clusters.push_back(BufferCluster{output_buffer_expr});
+            create_new_cluster(output_buffer_expr);
         }
     }
 
     // Check Buffers inside to possible memory reusing using `window` sliding
-    parse_nested_loops(input_buffers, output_buffers, expr_it);
+    parse_nested_loops(loop_manager, input_buffers, output_buffers, expr_it);
 }
 
-void DefineBufferClusters::parse_nested_loops(const BufferPorts& input_buffers, const BufferPorts& output_buffers,
-                                              const LinearIR::constExprIt& outer_loop_end_expr_it) {
+void DefineBufferClusters::parse_nested_loops(const LoopManagerPtr& loop_manager, const BufferMap& input_buffers,
+                                              const BufferMap& output_buffers, const LinearIR::constExprIt& outer_loop_end_expr_it) {
     if (input_buffers.empty() && output_buffers.empty())
         return;
 
@@ -178,11 +189,7 @@ void DefineBufferClusters::parse_nested_loops(const BufferPorts& input_buffers, 
                ((inner_buffer_data_size * inner_buffer_final_offsets * -1) == outer_buffer_ptr_increment * outer_buffer_data_size);
     };
 
-    const auto outer_loop_end = ov::as_type_ptr<op::LoopEnd>(outer_loop_end_expr_it->get()->get_node());
-    const auto outer_loop_begin = outer_loop_end->get_loop_begin();
-    const auto& outer_ptr_increments = outer_loop_end->get_ptr_increments();
-    const auto& outer_data_sizes = outer_loop_end->get_element_type_sizes();
-
+    const auto outer_loop_begin = ov::as_type_ptr<op::LoopEnd>(outer_loop_end_expr_it->get()->get_node())->get_loop_begin();
     for (auto it = std::reverse_iterator<LinearIR::constExprIt>(outer_loop_end_expr_it); (*it)->get_node() != outer_loop_begin; ++it) {
         const auto& inner_expr = *it;
         if (const auto inner_buffer_expr = ov::as_type_ptr<BufferExpression>(inner_expr)) {
@@ -191,9 +198,9 @@ void DefineBufferClusters::parse_nested_loops(const BufferPorts& input_buffers, 
             const auto inner_cluster_id = get_cluster_buffer_id(*inner_cluster_it);
             if (inner_cluster_id == SIZE_MAX) continue;
 
-            const auto final_offset = get_buffer_finalization_offset(inner_buffer_expr);
+            const auto final_offset = get_buffer_finalization_offset(loop_manager, inner_buffer_expr);
 
-            auto unite = [&](const BufferPorts& ports, const bool is_input) {
+            auto unite = [&](const BufferMap& ports, const bool is_input) {
                 bool applied = false;
                 for (const auto& port : ports) {
                     const auto cluster_it = find_cluster_by_expr(port.first);
@@ -203,16 +210,12 @@ void DefineBufferClusters::parse_nested_loops(const BufferPorts& input_buffers, 
                     // Buffer from one cluster must be only defined (with known allocation_size) or dynamic (with unknown allocation_size)
                     if (inner_buffer_expr->is_defined() != port.first->is_defined()) continue;
 
-                    bool can_be_reused = true;
-                    for (const auto idx : port.second) {
-                        can_be_reused = can_be_reused &&
-                            can_be_data_ptr_proportionally_shifted(outer_ptr_increments[idx], outer_data_sizes[idx],
-                                                                   final_offset, inner_buffer_expr->get_node()->get_element_type().size());
-                    }
-                    if (!can_be_reused)
+                    const auto& desc = port.second.desc;
+                    if (!can_be_data_ptr_proportionally_shifted(desc.ptr_increment, desc.data_size, final_offset,
+                                                                inner_buffer_expr->get_node()->get_element_type().size()))
                         continue;
 
-                    applied = unite_nested_clusters(inner_cluster_it, *cluster_it, port.first, is_input);
+                    applied = unite_nested_clusters(loop_manager, inner_cluster_it, *cluster_it, port.first, is_input);
                     if (applied) break;
                 }
                 return applied;
@@ -224,25 +227,18 @@ void DefineBufferClusters::parse_nested_loops(const BufferPorts& input_buffers, 
     }
 }
 
-int64_t DefineBufferClusters::get_buffer_finalization_offset(const BufferExpressionPtr& buffer_expr) const {
-    auto index = [](const std::vector<PortConnectorPtr>& loop_inputs, const PortConnectorPtr& buffer_out) {
-        const auto it = std::find(loop_inputs.cbegin(), loop_inputs.cend(), buffer_out);
-        OPENVINO_ASSERT(it != loop_inputs.cend(), "Buffer output PortConnector has not been found in target LoopEnd inputs");
-        return std::distance(loop_inputs.cbegin(), it);
-    };
+int64_t DefineBufferClusters::get_buffer_finalization_offset(const LoopManagerPtr& loop_manager, const BufferExpressionPtr& buffer_expr) const {
     int64_t final_offset = 0;
     double last_loop_exec_order = -1 * std::numeric_limits<double>::max();
     const auto& buffer_outs = buffer_expr->get_output_port_connectors();
     for (const auto& buffer_out : buffer_outs) {
         const auto consumers = buffer_out->get_consumers();
         for (const auto& consumer : consumers) {
-            const auto consumer_expr = consumer.get_expr();
-            const auto loop_end = ov::as_type_ptr<ov::snippets::op::LoopEnd>(consumer_expr->get_node());
-            if (loop_end && consumer_expr->get_loop_ids() == buffer_expr->get_loop_ids()) {
-                const auto loop_order = consumer_expr->get_exec_num();
+            if (const auto& direct_loop = get_direct_loop_for_buffer_out(loop_manager, buffer_expr, consumer)) {
+                const auto loop_order = direct_loop->get_output_ports().back().expr_port->get_expr()->get_exec_num();
                 if (loop_order > last_loop_exec_order) {
-                    const auto& loop_inputs = consumer_expr->get_input_port_connectors();
-                    final_offset = loop_end->get_finalization_offsets()[index(loop_inputs, buffer_out)];
+                    OPENVINO_ASSERT(direct_loop->is_loop_port(consumer), "Consumer of Buffer from another loop must be loop port");
+                    final_offset = direct_loop->get_loop_port_info(consumer).desc.finalization_offset;
                     last_loop_exec_order = loop_order;
                 }
             }
@@ -251,29 +247,31 @@ int64_t DefineBufferClusters::get_buffer_finalization_offset(const BufferExpress
     return final_offset;
 }
 
-bool DefineBufferClusters::unite_nested_clusters(const BufferClusters::iterator& inner_cluster_it,
-                                                 BufferCluster& outer_cluster,
-                                                 const BufferExpressionPtr& outer_buffer, bool is_outer_up) {
+bool DefineBufferClusters::unite_nested_clusters(const LoopManagerPtr& loop_manager, const BufferClusters::iterator& inner_cluster_it,
+                                                 BufferCluster& outer_cluster, const BufferExpressionPtr& outer_buffer, bool is_outer_up) {
     for (const auto& inner_buffer : *inner_cluster_it) {
-        ExpressionPtr common_loop_end_expr = nullptr;
-        size_t outer_idx = SIZE_MAX, inner_idx = SIZE_MAX;
-        const auto& up_buffer = is_outer_up ? outer_buffer : inner_buffer;
-        const auto& down_buffer = is_outer_up ? inner_buffer : outer_buffer;
-        auto& up_idx = is_outer_up ? outer_idx : inner_idx;
-        auto& down_idx = is_outer_up ? inner_idx : outer_idx;
-        if (are_buffer_neighbours(up_buffer, down_buffer, common_loop_end_expr, up_idx, down_idx)) {
-            const auto common_loop_end = ov::as_type_ptr<op::LoopEnd>(common_loop_end_expr->get_node());
-            const auto& inner_ptr_increments = common_loop_end->get_ptr_increments();
-            const auto& inner_final_offsets = common_loop_end->get_finalization_offsets();
-            const auto& inner_data_sizes = common_loop_end->get_element_type_sizes();
-            if (SetBufferRegGroup::can_be_in_one_group({ inner_data_sizes[up_idx], inner_ptr_increments[up_idx], inner_final_offsets[up_idx] },
-                                                       { inner_data_sizes[down_idx], inner_ptr_increments[down_idx], inner_final_offsets[down_idx] })) {
-                for (const auto& inner_buffer : *inner_cluster_it)
-                    inner_buffer->set_reg_group(outer_buffer->get_reg_group());
+        const auto& upper_buffer = is_outer_up ? outer_buffer : inner_buffer;
+        const auto& lower_buffer = is_outer_up ? inner_buffer : outer_buffer;
 
-                outer_cluster.insert(inner_cluster_it->cbegin(), inner_cluster_it->cend());
-                m_clusters.erase(inner_cluster_it);
-                return true;
+        const auto& lower_buffer_source = lower_buffer->get_input_port_connector(0)->get_source();
+        const auto& upper_buffer_consumers = upper_buffer->get_output_port_connector(0)->get_consumers();
+        for (const auto& upper_buffer_consumer : upper_buffer_consumers) {
+            const auto& connected_loops = get_connected_loops(upper_buffer, upper_buffer_consumer);
+            for (const auto& loop_id : connected_loops) {
+                const auto& common_loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(loop_id);
+                if (!common_loop_info->is_loop_port(lower_buffer_source) || !common_loop_info->is_loop_port(upper_buffer_consumer))
+                    continue;
+
+                const auto upper_port_desc = common_loop_info->get_loop_port_info(upper_buffer_consumer);
+                const auto lower_port_desc = common_loop_info->get_loop_port_info(lower_buffer_source);
+                if (SetBufferRegGroup::can_be_in_one_group(upper_port_desc, lower_port_desc)) {
+                    for (const auto& inner_buffer : *inner_cluster_it)
+                        inner_buffer->set_reg_group(outer_buffer->get_reg_group());
+
+                    outer_cluster.insert(inner_cluster_it->cbegin(), inner_cluster_it->cend());
+                    m_clusters.erase(inner_cluster_it);
+                    return true;
+                }
             }
         }
     }
@@ -350,7 +348,7 @@ bool DefineBufferClusters::run(lowered::LinearIR& linear_ir, lowered::LinearIR::
             continue;
         }
         if (ov::is_type<op::LoopEnd>(op)) {
-            parse_loop(expr_it);
+            parse_loop(linear_ir.get_loop_manager(), expr_it);
             continue;
         }
     }
