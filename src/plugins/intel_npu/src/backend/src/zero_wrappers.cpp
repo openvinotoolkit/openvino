@@ -89,17 +89,14 @@ void CommandList::appendMemoryCopy(void* dst, const void* src, const std::size_t
 }
 void CommandList::appendGraphInitialize(const ze_graph_handle_t& graph_handle) const {
     ze_result_t result = _graph_ddi_table_ext.pfnAppendGraphInitialize(_handle, graph_handle, nullptr, 0, nullptr);
-    if (ZE_RESULT_SUCCESS != result) {
-        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnAppendGraphInitialize", result, _graph_ddi_table_ext);
-    }
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnAppendGraphInitialize", result, _graph_ddi_table_ext);
 }
 void CommandList::appendGraphExecute(const ze_graph_handle_t& graph_handle,
                                      const ze_graph_profiling_query_handle_t& profiling_query_handle) const {
     ze_result_t result =
         _graph_ddi_table_ext.pfnAppendGraphExecute(_handle, graph_handle, profiling_query_handle, nullptr, 0, nullptr);
-    if (ZE_RESULT_SUCCESS != result) {
-        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnAppendGraphExecute", result, _graph_ddi_table_ext);
-    }
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnAppendGraphExecute", result, _graph_ddi_table_ext);
+}
 }
 void CommandList::appendNpuTimestamp(uint64_t* timestamp_buff) const {
     THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListAppendWriteGlobalTimestamp",

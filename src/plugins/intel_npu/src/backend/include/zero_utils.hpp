@@ -16,18 +16,20 @@ namespace intel_npu {
 
 namespace zeroUtils {
 
-#define THROW_ON_FAIL_FOR_LEVELZERO_EXT(step, result, graph_ddi_table_ext) \
-    OPENVINO_THROW("L0 ",                                                  \
-                   step,                                                   \
-                   " result: ",                                            \
-                   ze_result_to_string(result),                            \
-                   ", code 0x",                                            \
-                   std::hex,                                               \
-                   uint64_t(result),                                       \
-                   " - ",                                                  \
-                   ze_result_to_description(result),                       \
-                   " . ",                                                  \
-                   intel_npu::zeroUtils::getLatestBuildError(graph_ddi_table_ext));
+#define THROW_ON_FAIL_FOR_LEVELZERO_EXT(step, result, graph_ddi_table_ext)              \
+    if (ZE_RESULT_SUCCESS != result) {                                                  \
+        OPENVINO_THROW("L0 ",                                                           \
+                       step,                                                            \
+                       " result: ",                                                     \
+                       ze_result_to_string(result),                                     \
+                       ", code 0x",                                                     \
+                       std::hex,                                                        \
+                       uint64_t(result),                                                \
+                       " - ",                                                           \
+                       ze_result_to_description(result),                                \
+                       " . ",                                                           \
+                       intel_npu::zeroUtils::getLatestBuildError(graph_ddi_table_ext)); \
+    }
 
 #define THROW_ON_FAIL_FOR_LEVELZERO(step, result)         \
     if (ZE_RESULT_SUCCESS != result) {                    \
@@ -234,12 +236,6 @@ static inline std::string getLatestBuildError(ze_graph_dditable_ext_curr_t& _gra
     uint32_t graphDdiExtVersion = _graph_ddi_table_ext.version();
     bool ifNotSupportLogHandle = true;
     if (graphDdiExtVersion >= ZE_GRAPH_EXT_VERSION_1_4) {
-        ifNotSupportLogHandle = false;
-    }
-
-    if (ifNotSupportLogHandle) {
-        return "";
-    } else {
         // Get log size
         uint32_t size = 0;
         // Null graph handle to get error log
@@ -269,6 +265,8 @@ static inline std::string getLatestBuildError(ze_graph_dditable_ext_curr_t& _gra
         }
         _logger.debug("getLatestBuildError end");
         return logContent;
+    } else {
+        return "";
     }
 }
 

@@ -140,9 +140,8 @@ uint64_t ZeroDevice::getAllocMemSize() const {
     ze_graph_memory_query_t query{};
     ze_result_t result =
         _graph_ddi_table_ext.pfnQueryContextMemory(_initStructs->getContext(), ZE_GRAPH_QUERY_MEMORY_DDR, &query);
-    if (ZE_RESULT_SUCCESS != result) {
-        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnQueryContextMemory", result, _graph_ddi_table_ext);
-    }
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnQueryContextMemory", result, _graph_ddi_table_ext);
+
     return query.allocated;
 }
 
@@ -150,9 +149,8 @@ uint64_t ZeroDevice::getTotalMemSize() const {
     ze_graph_memory_query_t query{};
     ze_result_t result =
         _graph_ddi_table_ext.pfnQueryContextMemory(_initStructs->getContext(), ZE_GRAPH_QUERY_MEMORY_DDR, &query);
-    if (ZE_RESULT_SUCCESS != result) {
-        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnQueryContextMemory", result, _graph_ddi_table_ext);
-    }
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnQueryContextMemory", result, _graph_ddi_table_ext);
+
     return query.total;
 }
 
