@@ -960,16 +960,9 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
             std::string attribute_name, attribute_version;
             // For view:
             // <attribute name="old_api_map_order" version="0" value="0,3,1,2"/>
-            if (!getStrAttribute(item, "name", attribute_name)) {
-                std::stringstream ss;
-                item.print(ss);
-                OPENVINO_THROW("rt_info attribute has no \"name\" field: ", ss.str());
-            }
-            if (!getStrAttribute(item, "version", attribute_version)) {
-                std::stringstream ss;
-                item.print(ss);
-                OPENVINO_THROW("rt_info attribute: ", attribute_name, " has no \"version\" field: ", ss.str());
-            }
+            if (!getStrAttribute(item, "name", attribute_name) || !getStrAttribute(item, "version", attribute_version))
+                continue;
+
             const auto& type_info = ov::DiscreteTypeInfo(attribute_name.c_str(), attribute_version.c_str());
             auto attr = attrs_factory.create_by_type_info(type_info);
             if (!attr.empty()) {
