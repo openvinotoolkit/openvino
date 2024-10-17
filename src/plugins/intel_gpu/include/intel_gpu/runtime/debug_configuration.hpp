@@ -175,6 +175,7 @@ public:
     } dump_prof_data_iter_params;
 
     static std::ostream* verbose_stream;
+    const static int DYNAMIC_QUANTIZE_GROUP_SIZE_NOT_SET = -2;
 };
 
 }  // namespace cldnn
