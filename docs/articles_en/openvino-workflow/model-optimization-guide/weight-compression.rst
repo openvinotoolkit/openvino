@@ -249,7 +249,7 @@ for details of the usage.
 
   .. code-block:: python
 
-    from nncf import compress_weights, CompressWeightsMode, Dataset
+    from nncf import Dataset
     from nncf.data import generate_text_data
 
     # Example: Generating synthetic dataset
