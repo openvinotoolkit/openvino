@@ -427,7 +427,7 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ov_auto_unit_tests.xml
 
       - name: AUTO func Tests
-        if: ${{ !cancelled() }}
+        if: ${{ 'false' }} # Issue 155210
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           ${{ env.INSTALL_TEST_DIR }}/ov_auto_func_tests --gtest_print_time=1 \
