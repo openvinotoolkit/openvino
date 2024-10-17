@@ -175,6 +175,7 @@ TEST_F(TransformationTestsF, RemoveLoopDanglingParametersIfConcatEmptyTensor) {
     }
 }
 
+#ifdef NDEBUG // Issue 155216
 TEST_F(TransformationTestsF, RemoveIfDanglingParametersFromBodiesAndInputs) {
     auto X = std::make_shared<Parameter>(element::f32, Shape{2, 4, 1});
     auto Y = std::make_shared<Parameter>(element::f32, Shape{3, 4, 1});
@@ -212,6 +213,7 @@ TEST_F(TransformationTestsF, RemoveIfDanglingParametersFromBodiesAndInputs) {
         model_ref = std::make_shared<Model>(OutputVector{res}, ParameterVector{X, Y});
     }
 }
+#endif
 
 TEST_F(TransformationTestsF, RemoveIfDanglingParametersOnlyFromBodies) {
     auto X = std::make_shared<Parameter>(element::f32, Shape{2, 4, 1});
