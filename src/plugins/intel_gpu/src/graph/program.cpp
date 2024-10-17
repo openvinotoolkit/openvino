@@ -1896,6 +1896,7 @@ void program::load(cldnn::BinaryInputBuffer& ib) {
     _loaded_from_cache = true;
 
     processing_order.load(ib, *this);
+    set_layout_optimizer_attributes(*_layout_optimizer);
 
     {
         auto& kernels_cache = get_kernels_cache();

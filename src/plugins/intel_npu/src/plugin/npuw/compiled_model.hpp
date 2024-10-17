@@ -46,6 +46,8 @@ private:
     // FIXME: This class has many friends..
     friend class IBaseInferRequest;
     friend class JustInferRequest;
+    friend class MemAccessSim;
+    friend class FuncMemMgr;
 
     bool compile_for_success(std::size_t id);
     bool compile_for_device(std::size_t id, const std::string& device_to_try);
@@ -73,6 +75,10 @@ private:
     void implement_properties();
 
     void finalize_weights_bank();
+
+    std::string global_mem_device() const;
+
+    std::string funcall_mem_device(const std::size_t idx) const;
 
     std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc;
     ::intel_npu::Config m_cfg;
