@@ -170,7 +170,7 @@ private:
 
 class MemoryInput : public MemoryInputBase {
 public:
-    MemoryInput(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    using MemoryInputBase::MemoryInputBase;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
@@ -231,6 +231,40 @@ private:
     std::weak_ptr<ScaledDotProductAttention> m_sdpaNode;
     int m_child_port_idx = -1;
 };
+
+class MemoryInputSingle : public MemoryInput {
+public:
+    MemoryInputSingle(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
+
+    void initOptimalPrimitiveDescriptor() override;
+
+    void resolveInPlaceEdges(Edge::LOOK look) override;
+
+    void selectOptimalPrimitiveDescriptor() override;
+    void createPrimitive() override;
+
+    MemStatePtr makeState() override;
+
+    bool haveSubgraph() const {
+        return body != nullptr;
+    }
+
+private:
+    void runStatic(dnnl::stream strm) override;
+    void runDynamic(dnnl::stream strm) override;
+    void assignStateHook() override {/*pass*/}
+    bool needInitGraphProcessing() const;
+
+private:
+    std::shared_ptr<ov::Model> body = nullptr;
+    ov::intel_cpu::Graph subGraph;
+
+    ProxyMemoryBlockPtr memBlock = nullptr;
+    bool memoryOutputIsStub = false;
+};
+
 }   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

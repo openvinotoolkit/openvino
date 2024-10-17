@@ -54,6 +54,7 @@ enum class Type {
     StridedSlice,
     MemoryOutput,
     MemoryInput,
+    MemoryInputSingle,
     RNNCell,
     RNNSeq,
     FakeQuantize,

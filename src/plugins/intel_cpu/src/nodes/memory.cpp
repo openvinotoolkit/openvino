@@ -20,6 +20,7 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
+#define DEBUG_POS std::cout << "memory.cpp:" << __LINE__ << " " << __FUNCTION__ << " "
 namespace {
 class MemoryStub : public IMemory {
 public:
@@ -833,14 +834,6 @@ MemStatePtr MemoryInput::makeState() {
         original_desc);
 }
 
-MemoryInput::MemoryInput(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
-    : MemoryInputBase::MemoryInputBase(op, context) {
-    auto rvWithSubgraph = ov::as_type_ptr<ov::intel_cpu::ReadValueWithSubgraph>(op);
-    if (rvWithSubgraph) {
-        body = rvWithSubgraph->get_function();
-    }
-}
-
 bool MemoryInput::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (!MemoryInputBase::isSupportedOperation(op, errorMessage)) {
@@ -986,6 +979,334 @@ void MemoryInputSDPA::resolveInPlaceEdges(Edge::LOOK look) {
             edge->reuse(edgeMem);
         }
     }
+}
+
+bool MemoryInputSingle::needInitGraphProcessing() const {
+    return !getParentEdges().empty() && getAssignedState()->is_reset_state();
+}
+
+void MemoryInputSingle::initOptimalPrimitiveDescriptor() {
+    // Mimic the child node memory desc to avoid extra reorder
+    static const Type preferredTypes[] = {
+        Type::ScaledDotProductAttention,
+        Type::MatMul,
+        Type::FullyConnected,
+        Type::Convolution,
+        Type::RNNCell,
+        Type::RNNSeq,
+        Type::Subgraph
+    };
+
+    static const Type skipTypes[] = {
+        Type::ShapeOf
+    };
+
+    auto&& childEdges = getChildEdgesAtPort(0);
+    EdgePtr childEdge = childEdges.front();
+
+    if (childEdges.size() > 1) {
+        // try to prioritize memory desc
+        for (auto&& item : childEdges) {
+            auto itemType = item->getChild()->getType();
+            if (std::any_of(std::begin(skipTypes), std::end(skipTypes), [=](Type type){ return type == itemType; })) {
+                continue;
+            }
+            if (std::any_of(std::begin(preferredTypes),
+                    std::end(preferredTypes), [=](Type type){ return type == itemType; })) {
+                childEdge = item;
+                break;
+            }
+        }
+    }
+
+    auto child = childEdge->getChild();
+    auto childPd = child->getSelectedPrimitiveDescriptor();
+    OPENVINO_ASSERT(childPd,
+        child->getTypeStr(), " ",
+        child->getName(),
+        "failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
+
+    const auto& childConfig = childPd->getConfig();
+    auto mem_desc = childConfig.inConfs[childEdge->getOutputNum()].getMemDesc();
+
+    auto selectedPd = getSelectedPrimitiveDescriptor();
+    OPENVINO_ASSERT(selectedPd,
+        "MemoryInput ",
+        getName(),
+        " failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
+
+    auto config = selectedPd->getConfig();
+    config.outConfs.front().setMemDesc(mem_desc);
+    // bypass any checks, we enforce the child descriptor
+    selectedPd->setConfig(config);
+}
+
+void MemoryInputSingle::selectOptimalPrimitiveDescriptor() {
+    MemoryInputBase::selectOptimalPrimitiveDescriptor();
+    if (haveSubgraph()) {
+        std::vector<Input::InputConfig> graphInputConfig;
+        std::vector<PortConfig> inConfs;
+
+        for (size_t i = 0; i < getParentEdges().size(); i++) {
+            // MemoryInputBase::selectOptimalPrimitiveDescriptor() can't deduce corrent primitave.
+            auto desc = getParentOutputMemDesc(getParentEdgeAt(i));
+            inConfs.emplace_back(desc);
+            graphInputConfig.emplace_back(node::Input::InputConfig{desc, true});
+        }
+
+        std::vector<Input::OutputConfig> graphOutputConfig;
+        for (size_t i = 0; i < getChildEdges().size(); i++) {
+            // TODO: Upgrade OutputConfig and update OutputConfig's first param like InputConfig
+            graphOutputConfig.emplace_back(node::Input::OutputConfig{false, false});
+        }
+
+        // configure the inner graph to get the information about output memory descriptors
+        subGraph.Init(body, context, graphInputConfig, graphOutputConfig);
+
+        // for the output decriptors, use the configuration of the graph's output nodes
+        auto outputDescriptors = subGraph.getOutputMemoryDescriptors();
+
+        std::vector<PortConfig> outConfs;
+        for (const auto& desc : outputDescriptors) {
+            outConfs.emplace_back(desc);
+        }
+
+        const NodeConfig config(inConfs, outConfs);
+
+        supportedPrimitiveDescriptors.clear();
+        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::undef);
+
+        selectPrimitiveDescriptorByIndex(0);
+    }
+}
+
+// @todo add ascii diagramm for memory mapping / reuse
+void MemoryInputSingle::createPrimitive() {
+    MemoryInputBase::createPrimitive();
+    if (haveSubgraph()) {
+        OPENVINO_ASSERT(getOriginalInputsNumber() == subGraph.GetInputNodesMap().size(),
+                        "Number of node inputs must be equal the number of inner graph's inputs");
+
+        std::vector<MemoryPtr> inputMemory;
+        for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
+            inputMemory.emplace_back(getSrcMemoryAtPort(i));
+        }
+
+        OPENVINO_ASSERT(getOriginalOutputsNumber() == subGraph.GetOutputNodesMap().size(),
+                        "Number of node outputs must be equal the number of inner graph's outputs");
+
+        std::vector<MemoryPtr> outputMemory;
+        for (size_t i = 0; i < getOriginalOutputsNumber(); i++) {
+            outputMemory.emplace_back(getDstMemoryAtPort(i));
+        }
+
+        subGraph.Activate(inputMemory, outputMemory);
+    }
+}
+
+void MemoryInputSingle::runDynamic(dnnl::stream strm) {
+    auto assignedMem = getAssignedState()->input_mem();
+
+    OPENVINO_ASSERT(assignedMem,
+        "MemoryInput ",
+        getName(),
+        " assigned state has null memory ptr");
+
+    // check whether we can share memory block
+    const auto& stateDims = assignedMem->getStaticDims();
+    const bool hasZeroDims = std::count(std::begin(stateDims), std::end(stateDims), 0) > 0;
+    auto internDesc = getBaseMemDescAtOutputPort(0)->cloneWithNewDims(stateDims, hasZeroDims);
+
+    OPENVINO_ASSERT(memBlock,
+        "MemoryInput ",
+        getName(),
+        " has uninitialized memory block.");
+
+    if (internDesc->isCompatible(assignedMem->getDesc())) {
+        memBlock->setMemBlock(assignedMem->getMemoryBlock());
+    } else {
+        memBlock->reset();
+    }
+
+    const bool processInitGraph = needInitGraphProcessing();
+    MemoryPtr src = assignedMem;  // declare src memory
+    if (processInitGraph) {
+        if (haveSubgraph()) {
+            subGraph.ResetInferCount();
+            subGraph.Infer();
+            // depending on the memory sharing solution, we can return here if the memory is substituted from the
+            // external graph or override the src pointer with the memory pointer pointing to the subgraph output
+            // memory
+            auto& outputs = subGraph.GetOutputNodesMap();
+            OPENVINO_ASSERT(outputs.size() == 1);
+            auto itr = outputs.begin();
+            src = itr->second->getSrcMemoryAtPort(0);
+
+            // Update state MemoryDesc
+            assignedMem->redefineDesc(getBaseMemDescAtOutputPort(0)->cloneWithNewDims(src->getStaticDims()));
+
+            // Save to state mem
+            DEBUG_LOG("dst memory=", getDstMemoryAtPort(0)->getData(), ", state memory=", assignedMem->getData());
+            if (getDstMemoryAtPort(0)->getData() != assignedMem->getData())
+                assignedMem->load(*src);
+        } else {
+            src = getSrcMemoryAtPort(0);
+        }
+    }
+
+    const auto& newDims = src->getStaticDims();
+    redefineOutputMemory({newDims});
+
+    auto dst = getDstMemoryAtPort(0);
+    if (src->getData() != dst->getData()) {
+        dst->load(*src);
+    }
+}
+
+void MemoryInputSingle::runStatic(dnnl::stream strm) {
+    auto assignedMem = getAssignedState()->input_mem();
+
+    OPENVINO_ASSERT(assignedMem,
+        "MemoryInput ",
+        getName(),
+        " assigned state has null memory ptr");
+
+    const auto& stateDims = assignedMem->getStaticDims();
+    const auto& expectedDims = getBaseMemDescAtOutputPort(0)->getShape().getStaticDims();
+    OPENVINO_ASSERT(expectedDims == stateDims,
+            "MemoryInput ",
+            getName(),
+            " unexpected state shape: ",
+            vec2str(stateDims),
+            ", while the expected shape: ",
+            vec2str(expectedDims));
+
+    auto internDesc = getBaseMemDescAtOutputPort(0);
+
+    OPENVINO_ASSERT(memBlock,
+        "MemoryInput ",
+        getName(),
+        " has uninitialized memory block.");
+
+    if (internDesc->isCompatible(assignedMem->getDesc())) {
+        memBlock->setMemBlock(assignedMem->getMemoryBlock());
+    } else {
+        memBlock->reset();
+    }
+
+    const bool processInitGraph = needInitGraphProcessing();
+    MemoryPtr src = assignedMem;  // declare src memory
+    if (processInitGraph) {
+        if (haveSubgraph()) {
+            subGraph.ResetInferCount();
+            subGraph.Infer();
+
+            auto& outputs = subGraph.GetOutputNodesMap();
+            OPENVINO_ASSERT(outputs.size() == 1);
+            auto itr = outputs.begin();
+            src = itr->second->getSrcMemoryAtPort(0);
+
+            // Save to state mem
+            DEBUG_LOG("dst memory=", getDstMemoryAtPort(0)->getData(), ", state memory=", assignedMem->getData());
+            if (getDstMemoryAtPort(0)->getData() != assignedMem->getData())
+                assignedMem->load(*src);
+        } else {
+            src = getSrcMemoryAtPort(0);
+        }
+    }
+
+    const auto& newDims = src->getStaticDims();
+    redefineOutputMemory({newDims});
+
+    auto dst = getDstMemoryAtPort(0);
+    if (src->getData() != dst->getData()) {
+        dst->load(*src);
+    }
+}
+
+void MemoryInputSingle::resolveInPlaceEdges(Edge::LOOK look) {
+    if (!(look & Edge::LOOK_UP)) {
+        Node::resolveInPlaceEdges(look);
+        return;
+    }
+
+    auto selected_pd = getSelectedPrimitiveDescriptor();
+    OPENVINO_ASSERT(selected_pd,
+        "MemoryInput ",
+        getName(),
+        " failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
+
+    auto memDesc = selected_pd->getConfig().outConfs.front().getMemDesc();
+    memBlock = std::make_shared<ProxyMemoryBlock>();
+
+    for (auto&& edge : getChildEdgesAtPort(0)) { // always only one child port
+        OPENVINO_ASSERT(one_of(edge->getStatus(), Edge::Status::Uninitialized, Edge::Status::NotAllocated),
+            " Unexpected inplace resolve call to an allocated edge: ", edge->name());
+
+        auto edgeMem = std::make_shared<Memory>(getEngine(), memDesc, memBlock);
+        edge->reuse(edgeMem);
+    }
+}
+
+MemStatePtr MemoryInputSingle::makeState() {
+    // assume ov::Tensor is always dense
+    auto original_desc =
+        std::make_shared<CpuBlockedMemoryDesc>(getOriginalOutputPrecisionAtPort(0), outputShapes.at(0));
+
+    auto mem_desc = getBaseMemDescAtOutputPort(0);
+    const auto& eng = getEngine();
+
+    auto state_name = getId();
+
+    // Remove suffix with pair ID. Internal information.
+    auto suffix_idx = state_name.find("/id=");
+    if (suffix_idx != std::string::npos) {
+        state_name = state_name.substr(0, suffix_idx);
+    }
+
+    // For direct ReadValue Assign pair, if MemoryOutput is MemoryOutputStub, VariableStateSingleBuffer is used.
+    for (auto&& edge : getChildEdgesAtPort(0)) {
+        auto memOutput = std::dynamic_pointer_cast<node::MemoryOutputBase>(edge->getChild());
+        if (nullptr == memOutput) {
+            continue;
+        }
+
+        if (memOutput->getId() == this->getId() &&
+            memOutput->getName().find("_MemoryOutputStub") != std::string::npos) {
+            memoryOutputIsStub = true;
+            std::cout << "== follow MemoryOutputStub, so make VariableStateSingleBuffer -->\n";
+            return std::make_shared<VariableStateSingleBuffer>(state_name,
+                                                               std::make_shared<Memory>(eng, mem_desc),
+                                                               original_desc);
+        }
+    }
+
+    // return std::make_shared<VariableStateDoubleBuffer>(state_name,
+    //     std::make_shared<Memory>(eng, mem_desc),
+    //     std::make_shared<Memory>(eng, mem_desc),
+    //     original_desc);
+}
+
+MemoryInputSingle::MemoryInputSingle(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+    : MemoryInput::MemoryInput(op, context) {
+    auto rvWithSubgraph = ov::as_type_ptr<ov::intel_cpu::ReadValueWithSubgraph>(op);
+    if (rvWithSubgraph) {
+        body = rvWithSubgraph->get_function();
+    }
+}
+
+bool MemoryInputSingle::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
+    try {
+        if (!MemoryInputBase::isSupportedOperation(op, errorMessage)) {
+            if (!one_of(op->get_type_info(), ov::intel_cpu::ReadValueWithSubgraph::get_type_info_static())) {
+                errorMessage = "Node is not an instance of ReadValueWithSubgraph from the operation set ov::intel_cpu.";
+                return false;
+            }
+        }
+    } catch (...) {
+        return false;
+    }
+    return true;
 }
 
 }   // namespace node

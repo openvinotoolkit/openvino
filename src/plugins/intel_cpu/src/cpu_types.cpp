@@ -139,7 +139,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"Loop", Type::TensorIterator},
         {"ReadValue", Type::MemoryInput},  // for construction from name ctor, arbitrary name is used
         {"Assign", Type::MemoryOutput},    // for construction from layer ctor
-        {"ReadValueWithSubgraph", Type::MemoryInput},
+        {"ReadValueWithSubgraph", Type::MemoryInputSingle},
         {"Convert", Type::Convert},
         {"NV12toRGB", Type::ColorConvert},
         {"NV12toBGR", Type::ColorConvert},
@@ -304,6 +304,7 @@ std::string NameFromType(const Type type) {
         CASE(SpaceToBatch);
         CASE(MemoryOutput);
         CASE(MemoryInput);
+        CASE(MemoryInputSingle);
         CASE(RNNSeq);
         CASE(RNNCell);
         CASE(Eltwise);
