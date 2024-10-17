@@ -73,7 +73,10 @@ ShapeInferPtr StridedSliceShapeInferFactory::makeShapeInfer() const {
         return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), PortMask(2, 3, 4, 5));
     } else if (const auto StridedSlice_op = ov::as_type_ptr<const ov::op::v1::StridedSlice>(m_op)) {
         const auto& ellipsis_mask = StridedSlice_op->get_ellipsis_mask();
+        const auto& new_axis_mask = StridedSlice_op->get_new_axis_mask();
         if (std::any_of(ellipsis_mask.begin(), ellipsis_mask.end(), [](int64_t x){ return x == 1; })) {
+            return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), port_mask);
+        } else if (std::any_of(new_axis_mask.begin(), new_axis_mask.end(), [](int64_t x){ return x == 1; })) {
             return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), port_mask);
         } else {
             auto vec_to_set = [](const std::vector<int64_t>& vec){
