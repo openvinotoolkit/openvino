@@ -142,8 +142,6 @@ static MemoryPtr reorderData(DnnlMemoryDescPtr srcWeightDesc,
                     srcMemory = tmpMem.getPrimitive();
                 }
                 reorder = getReorderPrim(cache, dstMemory.get_engine(), srcMemory.get_desc(), dstMemory.get_desc());
-            } else {
-                std::cout << "prec conversion is skipped" << std::endl;
             }
             if (!reorder) {
                 OPENVINO_THROW("No reorder available for the following tensor descriptors: ",
@@ -189,7 +187,7 @@ static MemoryPtr prepareWeightMemory(const MemoryArgs &memory,
     }
     auto aclWeightsRepack = std::make_shared<acl_fc_executor::ACLWeightFormatGenerator>(attrs, postOps, memoryArgs);
     bool isNeededReorder = aclWeightsRepack->update(memoryArgs);
-    expectedWeightFormat = aclWeightsRepack->getOptImplWeightFormat();
+    expectedWeightFormat = isNeededReorder ? aclWeightsRepack->getOptImplWeightFormat() : arm_compute::WeightFormat::UNSPECIFIED;
     wei_tensor_info = aclWeightsRepack->getTensorInfo(ACLArgs::ACL_WEI);
 
     MemoryPtr dstMemPtr = std::make_shared<Memory>(context->getEngine(),
