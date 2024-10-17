@@ -62,7 +62,7 @@ SearchSorted
            </port>
        </input>
        <output>
-           <port id="0" precision="INT64">
+           <port id="0" precision="I64">
                <dim>7</dim>
                <dim>256</dim>
                <dim>200</dim>
