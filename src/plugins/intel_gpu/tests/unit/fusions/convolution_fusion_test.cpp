@@ -1438,8 +1438,8 @@ TEST_P(conv_fp32_multi_eltwise_quantization, basic) {
 
     if (engine.get_device_info().supports_immad &&
         p.default_type == data_types::f16 &&
-        p.weights_format == format::gs_oiyx_gsv16) {
-        GTEST_SKIP(); // Issue: 94154
+        p.weights_format == format::os_is_yx_isv16_osv16) {
+        GTEST_SKIP(); // maybe Issue: 94154
     }
 
     tolerance = 1.f;
