@@ -12,12 +12,13 @@ if (NOT DEFINED PROJECT_NAME)
     return()
 endif()
 
+#
+# Dependencies
+#
+
 find_package(OpenCV QUIET COMPONENTS gapi)
-# FIXME: Since OpenCV might come from OpenVINO developer package
-# find_package(OpenCV 4.9 QUIET COMPONENETS gapi)
-# is not enough to disable tool.
 if(OpenCV_VERSION VERSION_LESS 4.9)
-    message(STATUS "NPU ${TARGET_NAME} tool is disabled due to missing dependencies: OpenCV >= 4.9.")
+    message(STATUS "NPU ${TARGET_NAME} tool is disabled due to missing dependencies: gapi from OpenCV >= 4.9.")
     return()
 endif()
 
