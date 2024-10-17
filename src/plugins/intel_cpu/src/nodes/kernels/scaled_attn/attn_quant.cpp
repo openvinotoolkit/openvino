@@ -178,8 +178,7 @@ static void attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                           const ov::intel_cpu::PlainTensor& k_scale_zp,
                           const ov::intel_cpu::PlainTensor& v_scale_zp) {
     // For compatibility, all input_kvs are permuted to BHLS
-    size_t B = k_src.m_dims[0], H = k_src.m_dims[1], L1 = k_src.m_dims[2], S = k_src.m_dims[3];
-    // Internal LBHS layout has strides[L] > strides[B]
+    size_t B = k_src.m_dims[0], H = k_src.m_dims[1], L1 = k_src.m_dims[2], S = k_src.m_dims[3], SV = v_src.m_dims[3];
     parallel_for3d(L1, B, H, [&](size_t m, size_t b, size_t h) {
         auto p_k = k_scale_zp.ptr<float>(m, b, h);
         auto p_v = v_scale_zp.ptr<float>(m, b, h);
@@ -190,7 +189,7 @@ static void attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                  p_k[1]);
         quant_u8(v_src.ptr<T>(b, h, m),
                  v_dst.ptr<T2>(b, h, m),
-                 S,
+                 SV,
                  p_v[0],
                  p_v[1]);
     });
@@ -202,7 +201,7 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                                 const ov::intel_cpu::PlainTensor& k_dst,
                                 const ov::intel_cpu::PlainTensor& v_dst,
                                 const ov::intel_cpu::PlainTensor& slot_mapping) {
-    size_t B = k_src.m_dims[0], H = k_src.m_dims[1], L1 = k_src.m_dims[2], S = k_src.m_dims[3];
+    size_t B = k_src.m_dims[0], H = k_src.m_dims[1], L1 = k_src.m_dims[2], S = k_src.m_dims[3], SV = v_src.m_dims[3];
     size_t block_size = k_dst.m_dims[2];
     parallel_for3d(B, L1, H, [&](size_t b, size_t m, size_t h) {
         auto slot = slot_mapping.ptr<int32_t>(b)[m];
@@ -221,7 +220,7 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                  p_k[1]);
         quant_u8(v_src.ptr<T>(b, h, m),
                  v_dst.ptr<T2>(block_number, h, block_offset) + sizeof(float) + sizeof(float),
-                 S,
+                 SV,
                  p_v[0],
                  p_v[1]);
     });
