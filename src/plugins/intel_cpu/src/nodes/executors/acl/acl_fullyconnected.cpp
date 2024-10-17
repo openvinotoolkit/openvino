@@ -192,35 +192,35 @@ static MemoryPtr prepareWeightMemory(const MemoryArgs &memory,
     expectedWeightFormat = aclWeightsRepack->getOptImplWeightFormat();
     wei_tensor_info = aclWeightsRepack->getTensorInfo(ACLArgs::ACL_WEI);
 
+    MemoryPtr dstMemPtr = std::make_shared<Memory>(context->getEngine(),
+                                                           memory.at(ARG_WEI)->getDescPtr()->cloneWithNewPrecision(aclfcAttrs.inputPrecision));
+    auto dstDesc = dstMemPtr->getDescPtr();
+    const auto dnnlDstDesc = MemoryDescUtils::convertToDnnlMemoryDesc(dstDesc);
+    const auto& weiDesc = memory.at(ARG_WEI)->getDescPtr();
+    auto dnnlSrcDesc = MemoryDescUtils::convertToDnnlMemoryDesc(weiDesc);
+
+    if (isNeededReorder) {
+        dnnl::impl::dim_t o_dim = 0;
+        dnnl::impl::dim_t inner_dim = 1;
+        std::vector<dnnl::impl::dim_t> remaining_dims = {};
+        auto weights_md_ = dnnlDstDesc->getDnnlDesc().get();
+        dnnl::impl::cpu::acl::acl_utils::reorder_to_weight_format(wei_tensor_info, *weights_md_, expectedWeightFormat,
+                                                                    inner_dim, o_dim, remaining_dims, {});
+        aclfcAttrs.isWeightsRepacked = true;
+    }
+
     auto create = [&]() {
         MemoryPtr final_ptr = memory.at(ARG_WEI);
         if (isNeededReorder) {
-            MemoryArgs memoryArgs;
-            memoryArgs[ARG_SRC_0] = memory.at(ARG_WEI);
-            memoryArgs[ARG_DST] = std::make_shared<Memory>(context->getEngine(),
-                                                           memory.at(ARG_WEI)->getDescPtr()->cloneWithNewPrecision(aclfcAttrs.inputPrecision));
-            const auto& weiDesc = memoryArgs[ARG_SRC_0]->getDescPtr();
-            auto dstDesc = memoryArgs[ARG_DST]->getDescPtr();
-            auto dnnlSrcDesc = MemoryDescUtils::convertToDnnlMemoryDesc(weiDesc);
-            const auto dnnlDstDesc = MemoryDescUtils::convertToDnnlMemoryDesc(dstDesc);
-
-            dnnl::impl::dim_t o_dim = 0;
-            dnnl::impl::dim_t inner_dim = 1;
-            std::vector<dnnl::impl::dim_t> remaining_dims = {};
-            auto weights_md_ = dnnlDstDesc->getDnnlDesc().get();
-            dnnl::impl::cpu::acl::acl_utils::reorder_to_weight_format(wei_tensor_info, *weights_md_, expectedWeightFormat,
-                                                                      inner_dim, o_dim, remaining_dims, {});
-
             dnnlSrcDesc = makeTransposedWeightDescriptor(dnnlSrcDesc, dnnlDstDesc, aclfcAttrs.weightsNonTransposed);
-            final_ptr = reorderData(dnnlSrcDesc, dnnlDstDesc, memoryArgs[ARG_SRC_0], context);
-            aclfcAttrs.isWeightsRepacked = true;
+            final_ptr = reorderData(dnnlSrcDesc, dnnlDstDesc, memory.at(ARG_WEI), context);
             DEBUG_LOG("ACLFullyConnectedExecutor: cache miss, perform packing");
         }
         return final_ptr;
     };
 
     auto weightCache = context->getWeightsCache();
-    /*if (weightCache != nullptr) {
+    if (weightCache != nullptr) {
         const auto& wgtDims = memory.at(ARG_WEI)->getStaticDims();
         const auto N = wgtDims[0];
         const auto K = wgtDims[1];
@@ -229,7 +229,7 @@ static MemoryPtr prepareWeightMemory(const MemoryArgs &memory,
                                         std::to_string(reinterpret_cast<uint64_t>(memory.at(ARG_WEI)->getData()));
         DEBUG_LOG("ACLFullyConnectedExecutor: findOrCreate, string_hash: ", string_hash);
         return *weightCache->findOrCreate(string_hash, create);
-    }*/
+    }
 
     DEBUG_LOG("ACLFullyConnectedExecutor: Weights cache is not available");
     return create();
