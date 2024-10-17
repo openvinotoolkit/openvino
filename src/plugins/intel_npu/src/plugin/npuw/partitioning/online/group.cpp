@@ -98,6 +98,12 @@ ov::npuw::Group Group::toGroup() const {
     for (auto&& node : content_copy) {
         g.all_layers.push_back(node->get_friendly_name());
     }
+
+    // Sort layers to stabilize the partitioning
+    std::sort(g.input_layers.begin(), g.input_layers.end());
+    std::sort(g.output_layers.begin(), g.output_layers.end());
+    std::sort(g.all_layers.begin(), g.all_layers.end());
+
     g.gflops = 0.0001f;  // FIXME: calculate proper flops
 
     if (m_repeated && !isNoFold()) {
@@ -111,6 +117,8 @@ ov::npuw::Group Group::toGroup() const {
             g.avoid_list += ',' + *iter;
         }
     }
+
+    g.tag = m_isol_tag;
 
     return g;
 }
@@ -433,6 +441,10 @@ const std::set<std::string>& Group::avoidedTargets() const {
 
 void Group::isolate(const std::string& tag) {
     m_isol_tag = tag;
+}
+
+void Group::dontIsolate() {
+    m_isol_tag = "";
 }
 
 const std::string& Group::isolatedTag() const {
