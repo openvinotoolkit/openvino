@@ -116,6 +116,18 @@ ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder",
         OPENVINO_THROW("queryGraphExtensionVersion: Failed to find Graph extension in NPU Driver");
     }
 
+    // Use version plugin can support as identifier to control workflow
+    if (graph_ext_version > extCurrentVersion) {
+        log.warning("Graph extension version from driver is %d.%d. "
+                    "Larger than plugin max graph ext version %d.%d."
+                    "Force to use plugin ext version with the new table to control flow!",
+                    ZE_MAJOR_VERSION(graph_ext_version),
+                    ZE_MINOR_VERSION(graph_ext_version),
+                    ZE_MAJOR_VERSION(extCurrentVersion),
+                    ZE_MINOR_VERSION(extCurrentVersion));
+        graph_ext_version = extCurrentVersion;
+    }
+
     const uint16_t supported_driver_ext_major_version = 1;
     const uint16_t driver_ext_major_version = ZE_MAJOR_VERSION(graph_ext_version);
     if (supported_driver_ext_major_version != driver_ext_major_version) {
