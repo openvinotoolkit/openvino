@@ -176,10 +176,10 @@ jobs:
       - name: Extract OpenVINO packages
         run: |
           pushd ${INSTALL_DIR}
-            tar -I pigz -xf openvino_package.tar.gz -C ${INSTALL_DIR}
+            pigz -dc openvino_package.tar.gz | tar -xf - -C ${INSTALL_DIR}
           popd
           pushd ${INSTALL_TEST_DIR}
-            tar -I pigz -xf openvino_tests.tar.gz -C ${INSTALL_DIR}
+            pigz -dc openvino_tests.tar.gz | tar -xf - -C ${INSTALL_DIR}
           popd
 
       - name: Fetch setup_python action
@@ -222,7 +222,7 @@ jobs:
         if: ${{ always() }}
         run: |
           pushd ${CONFORMANCE_ARTIFACTS_DIR}
-            tar -I pigz -cvf ${CONFORMANCE_ARTIFACTS_DIR}/conformance_artifacts.tar.gz *
+            tar -cvf - * | pigz > ${CONFORMANCE_ARTIFACTS_DIR}/conformance_artifacts.tar.gz
           popd
 
       - name: Upload Conformance Artifacts
@@ -248,7 +248,7 @@ jobs:
         if: ${{ matrix.TEST_TYPE == 'API' }}
         run: |
           pushd ${CONFORMANCE_ARTIFACTS_DIR}
-          tar -I pigz -cvf ${CONFORMANCE_ARTIFACTS_DIR}/conformance_artifacts.tar.gz *
+            tar -cvf - * | pigz > ${CONFORMANCE_ARTIFACTS_DIR}/conformance_artifacts.tar.gz
           popd
 
       - name: Upload Conformance Artifacts
@@ -451,11 +451,11 @@ jobs:
       - name: Extract OpenVINO packages
         run: |
           pushd ${INSTALL_DIR}
-            tar -I pigz -xf openvino_package.tar.gz -C ${INSTALL_DIR}
+            pigz -dc openvino_package.tar.gz | tar -xf - -C ${INSTALL_DIR}
           popd
 
           pushd ${INSTALL_DIR}
-            tar -I pigz -xf openvino_developer_package.tar.gz -C ${INSTALL_DIR}
+            pigz -dc openvino_developer_package.tar.gz | tar -xf - -C ${INSTALL_DIR}
           popd
 
       - name: Clone OpenVINO Contrib
