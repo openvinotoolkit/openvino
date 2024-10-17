@@ -22,7 +22,7 @@ It is a `set of compression algorithms <https://github.com/openvinotoolkit/nncf/
 organized as a Python package, that make your models smaller and faster. Note that NNCF
 is **not part of the OpenVINO package**, so it needs to be installed separately. It supports
 models in **PyTorch**, **TensorFlow** , **ONNX**, and **OpenVINO IR** formats, offering
-the following optimizations:
+the following main optimizations:
 
 .. image:: ../assets/images/WHAT_TO_USE.svg
 
@@ -42,18 +42,39 @@ the following optimizations:
        as Quantization-aware Training. This kind of optimization requires the use of the model's
        original framework, for NNCF, it is either PyTorch or TensorFlow.
 
-A common approach is to perform post-training quantization first, as it is the easiest option.
-If the result proves unsatisfactory, quantization-aware training will give you higher accuracy
-with the same level of performance boost. For the most performant product, adding filter pruning
-will further streamline the model.
+
+
+Recommended workflows
+##########################
+
+* A common approach for most cases is to:
+
+  1. Perform post-training quantization first, as it is the easiest option.
+  2. For even better results, combine post-training quantization with filter pruning.
+  3. If the accuracy drop is unacceptable, use quantization-aware training instead. It will give
+     you the same level of performance boost, with a smaller impact on accuracy.
+
+* **Weight compression** works **only with LLMs**. Do not try to use it with other models.
+* For **visual-multimodal** use cases, the encoder / decoder split approach may be recommended.
+
+
+
+
+
+
+
+
+.. image:: ../assets/images/DEVELOPMENT_FLOW_V3_crunch.svg
+
+
+
+Installation and usage
+###########################
 
 To learn about the full scope of the framework, its installation, and technical details, visit
 both `the NNCF repository <https://github.com/openvinotoolkit/nncf?tab=readme-ov-file>`__ and
 `NNCF API documentation <https://openvinotoolkit.github.io/nncf/autoapi/nncf/>`__.
 
-
-
-.. image:: ../assets/images/DEVELOPMENT_FLOW_V3_crunch.svg
 
 
 .. tab-set::
