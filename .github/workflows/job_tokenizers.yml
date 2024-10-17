@@ -58,6 +58,10 @@ jobs:
             .github/actions/setup_python
             .github/actions/cache
             install_build_dependencies.sh
+            
+      - name: Install OpenVINO dependencies (mac)
+        if: runner.os == 'macOS'
+        run: brew install pigz
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}
         uses: ./.github/actions/setup_python

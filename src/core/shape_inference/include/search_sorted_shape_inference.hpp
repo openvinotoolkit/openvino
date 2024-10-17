@@ -12,27 +12,39 @@ namespace op {
 namespace v15 {
 template <class TShape, class TRShape = result_shape_t<TShape>>
 std::vector<TRShape> shape_infer(const SearchSorted* op, const std::vector<TShape>& input_shapes) {
-    // [HACK]: By convention, shape_infer should also perform node validation..
-    op->validate();
     const auto& sorted_shape = input_shapes[0];
     const auto& values_shape = input_shapes[1];
+    const auto is_sorted_rank_static = sorted_shape.rank().is_static();
+    const auto is_values_rank_static = values_shape.rank().is_static();
 
-    auto output_shape = values_shape;
-
-    // 1. If we know that the sorted sequence is 1D, than output shape can be anything.
-    if (sorted_shape.rank().is_static() && sorted_shape.rank().get_length() == 1) {
-        return {std::move(output_shape)};
+    if (!is_sorted_rank_static || sorted_shape.size() == 1) {
+        // If the sorted sequence is 1D, then any shape of the values input is allowed.
+        // The shape of the output is the same as the shape of the values.
+        return {values_shape};
     }
 
-    // 2. ND tensor case or rank not known.
-    auto sorted_shape_last_dynamic = sorted_shape;
-    if (sorted_shape.rank().is_static()) {
-        sorted_shape_last_dynamic[sorted_shape.rank().get_length() - 1] = Dimension::dynamic();
+    const auto sorted_in_rank = sorted_shape.size();
+    NODE_SHAPE_INFER_CHECK(op, input_shapes, sorted_in_rank > 0, "The sorted sequence input cannot be a scalar.");
+
+    TRShape output_shape;
+    if (!is_values_rank_static) {
+        output_shape = sorted_shape;
+        output_shape[sorted_in_rank - 1] = Dimension::dynamic();
+    } else {
+        output_shape = values_shape;
+        NODE_SHAPE_INFER_CHECK(
+            op,
+            input_shapes,
+            sorted_in_rank == values_shape.size(),
+            "If the shape of sorted sequence is not 1D, the ranks of the inputs have to be compatible.");
+        using TDim = typename TShape::value_type;
+        for (size_t i = 0; i < sorted_in_rank - 1; ++i) {
+            NODE_SHAPE_INFER_CHECK(op,
+                                   input_shapes,
+                                   TDim::merge(output_shape[i], values_shape[i], sorted_shape[i]),
+                                   "All dimensions but the last one have to be compatible.");
+        }
     }
-
-    const bool sorted_values_merge_success = TShape::merge_into(output_shape, sorted_shape_last_dynamic);
-
-    NODE_VALIDATION_CHECK(op, sorted_values_merge_success, "Shapes of sorted sequence and values are not compatible.");
 
     return {std::move(output_shape)};
 }

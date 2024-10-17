@@ -736,6 +736,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             should_fuse |= input.is_type<strided_slice>();
 
+            should_fuse |= input.is_type<crop>();
+
             bool legacy_fusion = activation_node.get_dependencies().size() == 1 &&
                                  !input.can_be_optimized() &&
                                  !activation_node.is_constant() &&
@@ -920,7 +922,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                       (parents[i].first->is_type<gather>()) ||
                                       (parents[i].first->is_type<reduce>() &&
                                        reduce_supports_fusings(parents[i].first->as<reduce>())) ||
-                                      (parents[i].first->is_type<lrn>());
+                                      (parents[i].first->is_type<lrn>()) ||
+                                      (parents[i].first->is_type<crop>());
             }
 
             // Disable fusion to a node on constant path when second input is in data flow
@@ -1043,6 +1046,15 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             if (can_swap_parents()) {
                 std::swap(fused_idx, peer_idx);
+            }
+
+            // Avoid fusing with GEMM from the LoRA pattern, that can be optimized in case of empty adapters
+            if (parents[fused_idx].first->is_type<gemm>()) {
+                if (parents[peer_idx].first->is_type<fully_connected>() ||
+                    (parents[peer_idx].first->is_type<crop>() &&
+                     parents[peer_idx].first->get_dependency(0).is_type<fully_connected>())) {
+                    std::swap(fused_idx, peer_idx);
+                }
             }
 
             auto fused_node = parents[fused_idx].first;

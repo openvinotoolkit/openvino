@@ -446,7 +446,7 @@ ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& optio
     } else if (ov::internal::supported_properties == name) {
         return decltype(ov::internal::supported_properties)::value_type{
             ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
-#if !defined(OPENVINO_ARCH_ARM)
+#if !defined(OPENVINO_ARCH_ARM) && !(defined(__APPLE__) || defined(__MACOSX))
             ov::PropertyName{ov::internal::caching_with_mmap.name(), ov::PropertyMutability::RO},
 #endif
             ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
