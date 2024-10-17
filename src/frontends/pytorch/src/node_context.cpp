@@ -148,29 +148,30 @@ std::shared_ptr<ov::Model> NodeContext::convert_subgraph(size_t index) const {
 OutputVector NodeContext::inputs() const {
     OutputVector res;
     for (size_t i = 0; i < m_decoder_inputs.size(); i++) {
-        if (input_is_none(i)) {
-            // some operations like aten.index.Tensor can have None inputs
-            auto dummy_decoder = std::make_shared<InternalOpDecoder>("torch::None", 1);
-            auto fw_node = std::make_shared<PtFrameworkNode>(dummy_decoder, OutputVector{});
-            auto attrs = fw_node->get_attrs();
-            attrs["none_value"] = "";
-            attrs[PtFrameworkNode::failed_conversion_key] =
-                "None constant cannot be converted to OpenVINO opset and should be removed by consuming operation.";
-            fw_node->set_attrs(attrs);
-            res.push_back(fw_node->output(0));
-            continue;
-        }
         auto input = m_decoder_inputs.at(i);
         if (input == 0) {
             // Case when input can be inlined (possible only for fx decoder)
             if (m_decoder->is_input_inlined(i)) {
-                auto inlined_input = m_decoder->inlined_input(i);
-                FRONT_END_GENERAL_CHECK(inlined_input.size() == 1,
-                                        "Incorrect inlined input with index: ",
-                                        i,
-                                        " for operation ",
-                                        get_op_type());
-                res.push_back(inlined_input[0]);
+                if (input_is_none(i)) {
+                    // some operations like aten.index.Tensor can have None inputs
+                    auto dummy_decoder = std::make_shared<InternalOpDecoder>("torch::None", 1);
+                    auto fw_node = std::make_shared<PtFrameworkNode>(dummy_decoder, OutputVector{});
+                    auto attrs = fw_node->get_attrs();
+                    attrs["none_value"] = "";
+                    attrs[PtFrameworkNode::failed_conversion_key] =
+                        "None constant cannot be converted to OpenVINO opset and should be removed by consuming "
+                        "operation.";
+                    fw_node->set_attrs(attrs);
+                    res.push_back(fw_node->output(0));
+                } else {
+                    auto inlined_input = m_decoder->inlined_input(i);
+                    FRONT_END_GENERAL_CHECK(inlined_input.size() == 1,
+                                            "Incorrect inlined input with index: ",
+                                            i,
+                                            " for operation ",
+                                            get_op_type());
+                    res.push_back(inlined_input[0]);
+                }
                 continue;
             }
         }
