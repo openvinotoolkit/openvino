@@ -27,7 +27,7 @@ SearchSorted
 
 **Inputs**:
 
-* **1**: ND input tensor of type *T*, containing monotonically increasing sequence on the innermost dimension **Required.**
+* **1**: ND input tensor of type *T* - cannot be a scalar, containing monotonically increasing sequence on the innermost dimension. **Required.**
 
 * **2**: ND input tensor of type *T*, containing the search values. **Required.**
 
