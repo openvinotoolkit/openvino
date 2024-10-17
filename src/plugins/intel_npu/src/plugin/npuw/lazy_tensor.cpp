@@ -99,6 +99,10 @@ std::size_t LazyTensorImpl::get_hash() const {
 }
 
 LazyTensorImpl::LazyTensorImpl(const ov::Tensor& tensor) {
+    if (!tensor) {
+        // Dummy tensor - don't initialize
+        return;
+    }
     m_orig_data = tensor.data();
     m_orig_shape = tensor.get_shape();
     m_orig_type = tensor.get_element_type();
