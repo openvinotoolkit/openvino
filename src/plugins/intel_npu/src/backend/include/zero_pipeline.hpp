@@ -4,10 +4,10 @@
 
 #pragma once
 
+#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "zero_executor.hpp"
 #include "zero_memory.hpp"
 #include "zero_profiling.hpp"
-#include "zero_utils.hpp"
 #include "zero_wrappers.hpp"
 
 namespace intel_npu {
