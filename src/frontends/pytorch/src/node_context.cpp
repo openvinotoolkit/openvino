@@ -148,15 +148,15 @@ std::shared_ptr<ov::Model> NodeContext::convert_subgraph(size_t index) const {
 OutputVector NodeContext::inputs() const {
     OutputVector res;
     for (size_t i = 0; i < m_decoder_inputs.size(); i++) {
-        if (input_is_none(i)) {
-            // some operations like aten.index.tensor can have None inputs
-            auto decoder_with_node = std::make_shared<InternalOpDecoder>("none_value", 1);
-            auto op_with_none = std::make_shared<PtFrameworkNode>(decoder_with_node, ov::OutputVector{});
-            res.push_back(op_with_none->output(0));
-            continue;
-        }
         auto input = m_decoder_inputs.at(i);
         if (input == 0) {
+            if (input_is_none(i)) {
+                // some operations like aten.index.tensor can have None inputs
+                auto decoder_with_node = std::make_shared<InternalOpDecoder>("none_value", 1);
+                auto op_with_none = std::make_shared<PtFrameworkNode>(decoder_with_node, ov::OutputVector{});
+                res.push_back(op_with_none->output(0));
+                continue;
+            }
             // Case when input can be inlined (possible only for fx decoder)
             if (m_decoder->is_input_inlined(i)) {
                 auto inlined_input = m_decoder->inlined_input(i);
