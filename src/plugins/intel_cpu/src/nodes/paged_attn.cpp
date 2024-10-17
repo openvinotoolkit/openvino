@@ -160,8 +160,8 @@ void PagedAttention::execute(dnnl::stream strm) {
         // The outDims[1] should be `num_heads * v_head_size`, it can be got from:
         // because:
         //   q: query_ps[1] = num_heads * head_size
-        //   v: key_ps[1] = num_kv_heads * head_size
-        //   k: value_ps[1] = num_kv_heads * v_head_size
+        //   k: key_ps[1] = num_kv_heads * head_size
+        //   v: value_ps[1] = num_kv_heads * v_head_size
         // therefore:
         //   q * v / k = (num_heads * head_size) * (num_kv_heads * v_head_size) /
         //               (num_kv_heads * head_size) = num_heads * v_head_size
