@@ -18,7 +18,8 @@ SearchSorted
 **Attributes**
 
 * *right*
-* **Description**: If False, set the first suitable index. If True, return the last suitable index for given value. Default is False.
+
+  * **Description**: If False, set the first suitable index. If True, return the last suitable index for given value. Default is False.
   * **Range of values**: true or false
   * **Type**: boolean
   * **Default value**: false
