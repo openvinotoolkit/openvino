@@ -183,10 +183,6 @@ public:
 
     MemStatePtr makeState() override;
 
-    bool haveSubgraph() const {
-        return body != nullptr;
-    }
-
 private:
     void runStatic(dnnl::stream strm) override;
     void runDynamic(dnnl::stream strm) override;

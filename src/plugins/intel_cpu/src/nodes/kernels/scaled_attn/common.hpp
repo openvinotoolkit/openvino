@@ -29,6 +29,7 @@ static constexpr size_t vec_len_neon = 16lu;
 static constexpr size_t vec_len_f32_avx512 = vec_len_avx512 / sizeof(float);
 static constexpr size_t vec_len_f32_avx2 = vec_len_avx2 / sizeof(float);
 static constexpr size_t vec_len_f32_neon = vec_len_neon / sizeof(float);
+static constexpr size_t vec_len_f16_neon = vec_len_neon / sizeof(ov::float16);
 
 #ifdef HAVE_AVX512F
     inline __m512 cvt_bf16_to_fp32(const __m256i src) {
@@ -36,15 +37,22 @@ static constexpr size_t vec_len_f32_neon = vec_len_neon / sizeof(float);
         return _mm512_castsi512_ps(_mm512_slli_epi32(y, 16));
     }
 
+    // load addr to __m512 reg
+    inline __m512 mm512_uni_loadu_ps(const float* a) {
+        return _mm512_loadu_ps(a);
+    }
+
     inline __m512 mm512_uni_loadu_ps(const ov::bfloat16* a) {
         auto vec_bf16 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(a));
         return cvt_bf16_to_fp32(vec_bf16);
     }
 
-    inline __m512 mm512_uni_loadu_ps(const float* a) {
-        return _mm512_loadu_ps(a);
+    inline __m512 mm512_uni_loadu_ps(const ov::float16* a) {
+        auto vec_f16 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(a));
+        return _mm512_cvtph_ps(vec_f16);
     }
 
+    // load addr to __m512 reg
     inline __m512 mm512_uni_loadu_tail_ps(const float* a, size_t count) {
         __mmask16 mask = (1 << count) - 1;
         return _mm512_maskz_loadu_ps(mask, a);
@@ -56,6 +64,13 @@ static constexpr size_t vec_len_f32_neon = vec_len_neon / sizeof(float);
         return cvt_bf16_to_fp32(bf16_vec);
     }
 
+    inline __m512 mm512_uni_loadu_tail_ps(const ov::float16* a, size_t count) {
+        auto mask = (1 << count) - 1;
+        auto f16_vec = _mm256_maskz_loadu_epi16(mask, a);
+        return _mm512_cvtph_ps(f16_vec);
+    }
+
+    // store __m512 reg to addr
     inline void mm512_uni_storeu_ps(float* a,  __m512 v) {
         _mm512_storeu_ps(a, v);
     }
@@ -71,6 +86,13 @@ static constexpr size_t vec_len_f32_neon = vec_len_neon / sizeof(float);
         x = _mm512_mask_blend_epi32(mask, nan, x);                     // Check NaN before converting back to bf16
         _mm256_storeu_si256(reinterpret_cast<__m256i *>(addr), _mm512_cvtepi32_epi16(x));
     }
+
+    inline void mm512_uni_storeu_ps(ov::float16* addr,  __m512 v) {
+        __m256i vec_f16 = _mm512_cvtps_ph(v, 0);
+        _mm256_storeu_si256(reinterpret_cast<__m256i *>(addr), vec_f16);
+    }
+
+    // store __m512 reg to addr
     inline void mm512_uni_mask_storeu_ps(ov::bfloat16 *addr, __mmask16 mask_addr, __m512 xps) {
         __m512i xpi32 = _mm512_castps_si512(xps);
         __m512i nan = _mm512_set1_epi32(0xffff);
@@ -84,18 +106,29 @@ static constexpr size_t vec_len_f32_neon = vec_len_neon / sizeof(float);
         _mm512_mask_cvtepi32_storeu_epi16(addr, mask_addr, x);
     }
 
-    inline __m512 mm512_uni_loadu_ps(ov::float16* a) {
-        auto vec_f16 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(a));
-        return _mm512_cvtph_ps(vec_f16);
+    inline void mm512_uni_storeu_tail_ps(float *addr, __m512 v, size_t count) {
+        __mmask16 mask_addr = (1 << count) - 1;
+        _mm512_mask_storeu_ps(addr, mask_addr, v);
     }
-    inline __m512 mm512_uni_loadu_tail_ps(const ov::float16* a, size_t count) {
-        auto mask = (1 << count) - 1;
-        auto f16_vec = _mm256_maskz_loadu_epi16(mask, a);
-        return _mm512_cvtph_ps(f16_vec);
+
+    inline void mm512_uni_storeu_tail_ps(ov::bfloat16 *addr, __m512 v, size_t count) {
+        __mmask16 mask_addr = (1 << count) - 1;
+        __m512i xpi32 = _mm512_castps_si512(v);
+        __m512i nan = _mm512_set1_epi32(0xffff);
+        auto mask = _mm512_cmp_ps_mask(v, v, _CMP_ORD_Q);
+        __m512i ones = _mm512_set1_epi32(0x1);
+        __m512i vec_bias = _mm512_set1_epi32(0x7fff);
+        auto x = _mm512_and_si512(_mm512_srli_epi32(xpi32, 16), ones); // LSB = x[16]
+        x = _mm512_add_epi32(x, vec_bias);                             // rounding_bias = 0x7fff + LSB
+        x = _mm512_srli_epi32(_mm512_add_epi32(x, xpi32), 16);         // x = (x + rounding_bias) >> 16;
+        x = _mm512_mask_blend_epi32(mask, nan, x);                     // Check NaN before converting back to bf16
+        _mm512_mask_cvtepi32_storeu_epi16(addr, mask_addr, x);
     }
-    inline void mm512_uni_storeu_ps(ov::float16* addr,  __m512 v) {
+
+    inline void mm512_uni_storeu_tail_ps(ov::float16 *addr, __m512 v, size_t count) {
+        __mmask16 mask_addr = (1 << count) - 1;
         __m256i vec_f16 = _mm512_cvtps_ph(v, 0);
-        _mm256_storeu_si256(reinterpret_cast<__m256i *>(addr), vec_f16);
+        _mm256_mask_storeu_epi16(reinterpret_cast<__m256i *>(addr), mask_addr, vec_f16);
     }
 #endif
 
@@ -114,11 +147,10 @@ static constexpr size_t vec_len_f32_neon = vec_len_neon / sizeof(float);
         };
         return _mm256_loadu_si256(&mask[N7]);
     }
+
+    // load addr to __m256 reg
     inline __m256 mm256_uni_loadu_ps(const float* a) {
         return _mm256_loadu_ps(a);
-    }
-    inline void mm256_uni_storeu_ps(float* a,  __m256 v) {
-        _mm256_storeu_ps(a, v);
     }
 
     inline __m256 mm256_uni_loadu_ps(const ov::bfloat16* a) {
@@ -127,6 +159,13 @@ static constexpr size_t vec_len_f32_neon = vec_len_neon / sizeof(float);
         return o;
     }
 
+    inline __m256 mm256_uni_loadu_ps(const ov::float16* a) {
+        auto vec_f16 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(a));
+        auto o = _mm256_cvtph_ps(vec_f16);
+        return o;
+    }
+
+    // load addr tail to __m256 reg
     inline __m256 mm256_uni_loadu_tail_ps(const float* a, const size_t count) {
         auto mask = get_mask(count);
         return _mm256_maskload_ps(a, mask);
@@ -137,6 +176,17 @@ static constexpr size_t vec_len_f32_neon = vec_len_neon / sizeof(float);
         ov::bfloat16 tmp_values[8] = {0};
         std::memcpy(tmp_values, a, count * sizeof(ov::bfloat16));
         return mm256_uni_loadu_ps(tmp_values);
+    }
+
+    inline __m256 mm256_uni_loadu_tail_ps(const ov::float16* a, const size_t count) {
+        ov::float16 tmp_values[8] = {0};
+        std::memcpy(tmp_values, a, count * sizeof(ov::float16));
+        return mm256_uni_loadu_ps(tmp_values);
+    }
+
+    // store __m256 reg to addr
+    inline void mm256_uni_storeu_ps(float* a,  __m256 v) {
+        _mm256_storeu_ps(a, v);
     }
 
     inline void mm256_uni_storeu_ps(ov::bfloat16 *addr, __m256 xps) {
@@ -155,19 +205,15 @@ static constexpr size_t vec_len_f32_neon = vec_len_neon / sizeof(float);
         _mm_storeu_si128(reinterpret_cast<__m128i *>(addr), bf16_o);
     }
 
-    inline __m256 mm256_uni_loadu_ps(ov::float16* a) {
-        auto vec_f16 = _mm_loadu_si128(reinterpret_cast<__m128i*>(a));
-        auto o = _mm256_cvtph_ps(vec_f16);
-        return o;
-    }
-    inline __m256 mm256_uni_loadu_tail_ps(const ov::float16* a, const size_t count) {
-        ov::float16 tmp_values[8] = {0};
-        std::memcpy(tmp_values, a, count * sizeof(ov::float16));
-        return mm256_uni_loadu_ps(tmp_values);
-    }
     inline void mm256_uni_storeu_ps(ov::float16* a,  __m256 v) {
         __m128i vec_f16 = _mm256_cvtps_ph(v, 0);
         _mm_storeu_si128(reinterpret_cast<__m128i *>(a), vec_f16);
+    }
+
+    // store __m256 to addr
+    inline void mm256_uni_storeu_tail_ps(float *addr, __m256 v, size_t count) {
+        const auto mask = get_mask(count);
+        return _mm256_maskstore_ps(addr, mask, v);
     }
 
     inline void hsum(__m256& x) {
@@ -200,7 +246,7 @@ static constexpr size_t vec_len_f32_neon = vec_len_neon / sizeof(float);
 #endif
 
 #ifdef OPENVINO_ARCH_ARM64
-    inline float32x4_t exp_ps_neon(float32x4_t& src) {
+    inline float32x4_t exp_ps_neon_f32(const float32x4_t& src) {
         const auto c1 = vreinterpretq_f32_u32(vdupq_n_u32(0x3f7ffff6));
         const auto c2 = vreinterpretq_f32_u32(vdupq_n_u32(0x3efffedb));
         const auto c3 = vreinterpretq_f32_u32(vdupq_n_u32(0x3e2aaf33));
@@ -252,8 +298,42 @@ static constexpr size_t vec_len_f32_neon = vec_len_neon / sizeof(float);
     inline float32x4_t __vld1q_f32(const float* a) {
         return vld1q_f32(a);
     }
+    inline float32x4_t __vld1q_f32(const ov::float16* a) {
+        auto _a = reinterpret_cast<const float16_t*>(a);
+        return vcvt_f32_f16(vld1_f16(_a));
+    }
+    inline void __vst1q_f32(float* a, float32x4_t b) {
+        vst1q_f32(a, b);
+    }
+    inline void __vst1q_f32(ov::float16* a, float32x4_t b) {
+        float16x4_t v_f16 = vcvt_f16_f32(b);
+        vst1_f16(reinterpret_cast<float16_t*>(a), v_f16);
+    }
+    inline void __vst1q_f32(ov::bfloat16* a, float32x4_t b) {
+        uint32x4_t v_int32 = vreinterpretq_u32_f32(b);
+        uint16x4_t v_bf16 = vshrn_n_u32(v_int32, 16);
+
+        vst1_u16(reinterpret_cast<uint16_t*>(a), v_bf16);
+    }
+
 #endif
 
+#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+    inline float16x8_t exp_ps_neon_f16(float16x8_t x) {
+        const float32x4_t x_high = vcvt_f32_f16(vget_high_f16(x));
+        const float32x4_t x_low  = vcvt_f32_f16(vget_low_f16(x));
+
+        // We use f32 to maintain accuracy
+        const float16x8_t res = vcombine_f16(vcvt_f16_f32(exp_ps_neon_f32(x_low)), vcvt_f16_f32(exp_ps_neon_f32(x_high)));
+        return res;
+    }
+    inline float16_t hsum(float16x8_t vec) {
+        float16x4_t sum1 = vpadd_f16(vget_low_f16(vec), vget_high_f16(vec));
+        float16x4_t sum2 = vpadd_f16(sum1, sum1);
+        float16x4_t sum3 = vpadd_f16(sum2, sum2);
+        return vget_lane_f16(sum3, 0);
+    }
+#endif
 }  // namespace XARCH
 }  // namespace Cpu
 }  // namespace Extensions

@@ -17,6 +17,11 @@ public:
     PagedAttentionExtension(const ov::OutputVector& args);
     void validate_and_infer_types() override;
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
+
+    void set_out_type(int index, const ov::element::Type& output_type);
+
+protected:
+    std::vector<ov::element::Type> m_output_type = {ov::element::undefined, ov::element::undefined};
 };
 
 }  // namespace op

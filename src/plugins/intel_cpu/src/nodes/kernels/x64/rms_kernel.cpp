@@ -163,8 +163,12 @@ void jit_rms_kernel<isa>::generate() {
     mov(reg_tmp.cvt32(), float2int(m_jcp.eps));
     vmovd(xmm_tmp, reg_tmp.cvt32());
     vaddss(xmm_rsqrt, xmm_rsqrt, xmm_tmp);
-    // rsqrt(mean(x^2)+eps)
-    vrsqrtss(xmm_rsqrt, xmm_rsqrt, xmm_rsqrt);
+    // 1 / sqrt(mean(x^2)+eps) dont's use VRSQRTSS. VRSQRTSS uses approximation and has accuracy issue
+    vsqrtss(xmm_rsqrt, xmm_rsqrt, xmm_rsqrt);
+
+    mov(reg_tmp.cvt32(), float2int(1.0f));
+    vmovd(xmm_tmp, reg_tmp.cvt32());
+    vdivss(xmm_rsqrt, xmm_tmp, xmm_rsqrt);
 
     // x * rsqrt(mean(x^2)+eps)
     if (m_jcp.scale_size == 1) {
