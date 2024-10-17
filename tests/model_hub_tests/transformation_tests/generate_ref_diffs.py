@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2024 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 '''
 Use this script if you need to regenerate reference diffs for each model
 to test SDPAToPA transformation.

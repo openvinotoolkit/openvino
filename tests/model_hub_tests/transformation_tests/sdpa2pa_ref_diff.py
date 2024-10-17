@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2024 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 nodes_to_compare = ("ScaledDotProductAttention", "PagedAttentionExtension", "Parameter", "ReadValue", "Assign")
 
 ref_diff_map = {
@@ -225,6 +228,13 @@ ref_diff_map = {
 		"ReadValue" : -8,
 		"Assign" : -8,
 	},
+    "katuni4ka/tiny-random-minicpm" : {
+        "ReadValue" : -8,
+        "ScaledDotProductAttention" : -4,
+        "Assign" : -8,
+        "PagedAttentionExtension" : 4,
+        "Parameter" : 11,
+    },
 	"katuni4ka/tiny-random-falcon-40b" : {
 		"PagedAttentionExtension" : 2,
 		"ScaledDotProductAttention" : -2,
@@ -522,6 +532,13 @@ ref_diff_map_ce = {
 		"Parameter" : 14,
 		"Assign" : -8,
 	},
+    "katuni4ka/tiny-random-minicpm" : {
+        "ScaledDotProductAttention" : -4,
+        "Parameter" : 14,
+        "PagedAttentionExtension" : 4,
+        "ReadValue" : -8,
+        "Assign" : -8,
+    },
 	"katuni4ka/tiny-random-falcon-40b" : {
 		"ScaledDotProductAttention" : -2,
 		"ReadValue" : -4,
