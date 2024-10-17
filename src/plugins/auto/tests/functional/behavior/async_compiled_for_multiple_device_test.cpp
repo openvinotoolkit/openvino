@@ -5,7 +5,7 @@
 #include "auto_func_test.hpp"
 #ifdef __GLIBC__
 #    include <gnu/libc-version.h>
-#    if __GLIBC_MINOR__ >= 34 && NDEBUG // issue 155210
+#    if __GLIBC_MINOR__ >= 34
 #        define ENABLETESTTHREADING
 #    endif
 #endif
