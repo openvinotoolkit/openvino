@@ -11,54 +11,41 @@
 
 namespace intel_npu {
 
+constexpr int CURRENT_METAVERSION_MAJOR = 1;
+constexpr int CURRENT_METAVERSION_MINOR = 0;
+
+constexpr std::string_view VERSION_HEADER = "OVNPU";
+
 struct MetadataVersion {
     uint32_t major;
     uint32_t minor;
-} typedef MetadataVersion;
+};
 
 struct OpenvinoVersion {
-    const std::string version;
-} typedef OpenvinoVersion;
+    uint32_t size;
+    std::string version;
 
-struct ModelLayout {
-    int something;
-    double somethingElse;
-} typedef ModelLayout;
+    OpenvinoVersion(const std::string& version);
+    void read(std::istream& stream);
+};
+
+template<int Major, int Minor>
+struct Metadata { };
+
+template<>
+struct Metadata<1, 0> {
+    MetadataVersion version;
+    OpenvinoVersion ovVersion;
+
+    Metadata();
+
+    std::stringstream data();
+
+    void write(std::ostream& stream);
+
+    void read(std::istream& stream);
+};
 
 void check_blob_version(std::vector<uint8_t>& blob, std::istream& stream);
-
-struct Metadata_v1 {
-    MetadataVersion version;
-    OpenvinoVersion ovVersion;
-
-    std::vector<uint8_t> data();
-
-    void read_metadata(std::vector<uint8_t>::iterator& metadataIterator);
-
-    void write_metadata(std::ostream& stream);
-} typedef Metadata_v1;
-
-struct Metadata_v2 : Metadata_v1 {
-    ModelLayout layout;
-
-    std::vector<uint8_t> data();
-
-    void read_metadata(std::vector<uint8_t>::iterator& metadataIterator);
-
-    void write_metadata(std::ostream& stream);
-} typedef Metadata_v2;
-
-struct Metadata_v3 {
-    MetadataVersion version;
-    ModelLayout layout;
-    OpenvinoVersion ovVersion;
-    double extra;
-
-    std::vector<uint8_t> data();
-
-    void read_metadata(std::vector<uint8_t>::iterator metadataIterator);
-
-    void write_metadata(std::ostream& stream);
-} typedef Metadata_v3;
 
 } // namespace intel_npu

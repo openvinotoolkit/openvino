@@ -144,21 +144,8 @@ void CompiledModel::export_model(std::ostream& stream) const {
     const auto&& blob = _compiler->getCompiledNetwork(_networkPtr);
     stream.write(reinterpret_cast<const char*>(blob.data()), blob.size());
 
-    constexpr std::string_view metaHeader {"OVNPU"};
-    stream.write(metaHeader.data(), metaHeader.length());
-    std::cout << "metaHeader size: " << metaHeader.length() << '\n';
-
-    MetadataVersion metaVersion = {1, 3};
-    std::cout << "meta version sizes: " << metaVersion.major << " " << metaVersion.minor << '\n';
-    OpenvinoVersion ovVersion = {"2024.5.0-16678-090da7b5376-blob_commit"};
-    std::cout << "ovversion size: " << ovVersion.version.size() << '\n';
-    ModelLayout layout = {643, 68.643};
-
-    Metadata_v1 metav1 = {metaVersion, ovVersion};
-    Metadata_v2 metav2 = {metaVersion, ovVersion, layout};
-    Metadata_v3 metav3 = {metaVersion, layout, ovVersion, 5.5};
-
-    metav1.write_metadata(stream);
+    auto meta = Metadata<CURRENT_METAVERSION_MAJOR, CURRENT_METAVERSION_MINOR>();
+    meta.write(stream);
 
     size_t blobSizeBeforeVersioning = blob.size();
     stream.write(reinterpret_cast<const char*>(&blobSizeBeforeVersioning), sizeof(size_t));
