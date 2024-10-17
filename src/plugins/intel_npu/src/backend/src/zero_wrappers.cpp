@@ -97,7 +97,6 @@ void CommandList::appendGraphExecute(const ze_graph_handle_t& graph_handle,
         _graph_ddi_table_ext.pfnAppendGraphExecute(_handle, graph_handle, profiling_query_handle, nullptr, 0, nullptr);
     THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnAppendGraphExecute", result, _graph_ddi_table_ext);
 }
-}
 void CommandList::appendNpuTimestamp(uint64_t* timestamp_buff) const {
     THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListAppendWriteGlobalTimestamp",
                                 zeCommandListAppendWriteGlobalTimestamp(_handle, timestamp_buff, nullptr, 0, nullptr));

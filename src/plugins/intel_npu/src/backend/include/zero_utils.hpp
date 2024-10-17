@@ -234,7 +234,6 @@ static inline std::string getLatestBuildError(ze_graph_dditable_ext_curr_t& _gra
     _logger.debug("getLatestBuildError start");
 
     uint32_t graphDdiExtVersion = _graph_ddi_table_ext.version();
-    bool ifNotSupportLogHandle = true;
     if (graphDdiExtVersion >= ZE_GRAPH_EXT_VERSION_1_4) {
         // Get log size
         uint32_t size = 0;
