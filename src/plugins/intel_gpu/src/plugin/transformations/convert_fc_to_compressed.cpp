@@ -24,7 +24,7 @@
 namespace ov {
 namespace intel_gpu {
 
-ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyConnectedCompressed(bool convert_u4zp_to_u8) {
+ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyConnectedCompressed() {
     using namespace ov::pass::pattern;
 
     auto compressed_constant = [](const ov::Output<ov::Node>& output) {
@@ -83,8 +83,9 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         bool grouped = std::count_if(scale_shape.begin(), scale_shape.end(), [](size_t d) { return d > 1; }) > 1;
 
         auto weight_ptr = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(weights_m).get_node_shared_ptr());
-        bool weight_u8 = (weight_ptr->get_element_type() == ov::element::u8) ? true : false;
-        bool weight_i4 = (weight_ptr->get_element_type().bitwidth() == 4) ? true : false;
+        bool weight_u8 = false;
+        if (weight_ptr->get_element_type() == ov::element::u8 || weight_ptr->get_element_type() == ov::element::i8)
+            weight_u8 = true;
 
         auto reshape_const_to_2d = [has_transpose, grouped](std::shared_ptr<ov::Node> node) {
             auto constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
@@ -103,15 +104,13 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
 
         auto convert_const_to_u8 = [&](std::shared_ptr<ov::Node> node) {
             auto constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
-            if (constant->get_element_type() == ov::element::u8)
-                return std::dynamic_pointer_cast<ov::Node>(constant);
-            // WA: Convert ZP to u8 to avoid u4 reorder
-            if (convert_u4zp_to_u8 && constant->get_element_type() == ov::element::u4)
+            if (constant->get_element_type() == ov::element::u4)
                 return std::dynamic_pointer_cast<ov::Node>(std::make_shared<ov::op::v0::Convert>(node, ov::element::u8));
-            if (!weight_u8 && !weight_i4)
-                return std::dynamic_pointer_cast<ov::Node>(constant);
+            // Convert ZP to u8
+            if (weight_u8)
+                return std::dynamic_pointer_cast<ov::Node>(std::make_shared<ov::op::v0::Convert>(node, ov::element::u8));
 
-             return std::dynamic_pointer_cast<ov::Node>(std::make_shared<ov::op::v0::Convert>(node, ov::element::u8));
+             return std::dynamic_pointer_cast<ov::Node>(constant);
         };
 
 
