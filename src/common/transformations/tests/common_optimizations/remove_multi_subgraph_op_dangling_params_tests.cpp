@@ -175,8 +175,10 @@ TEST_F(TransformationTestsF, RemoveLoopDanglingParametersIfConcatEmptyTensor) {
     }
 }
 
-#ifdef NDEBUG // Issue 155216
 TEST_F(TransformationTestsF, RemoveIfDanglingParametersFromBodiesAndInputs) {
+    #if defined(WIN32) && !defined(NDEBUG)
+        GTEST_SKIP(); // Issue 155216
+    }
     auto X = std::make_shared<Parameter>(element::f32, Shape{2, 4, 1});
     auto Y = std::make_shared<Parameter>(element::f32, Shape{3, 4, 1});
     auto cond = std::make_shared<Constant>(element::boolean, Shape{1}, true);
