@@ -43,7 +43,7 @@ TEST_F(AutoFuncTests, threading_test) {
 
 TEST_F(AutoFuncTests, threading_test_cache_enabled) {
 #if defined(__SANITIZE_ADDRESS__) || defined(__SANITIZE_UNDEFINED__) || defined(__SANITIZE_THREAD__)
-    GTEST_SKIP(); // Issue 155210
+    GTEST_SKIP();  // Issue 155210
 #endif
     core.set_property(ov::cache_dir(cache_path));
     ThreadingTest::runParallel(
@@ -67,7 +67,7 @@ TEST_F(AutoFuncTests, threading_test_get_version) {
 
 TEST_F(AutoFuncTests, theading_compiled_with_cpu_help) {
 #if defined(__SANITIZE_ADDRESS__) || defined(__SANITIZE_UNDEFINED__) || defined(__SANITIZE_THREAD__)
-    GTEST_SKIP(); // Issue 155210
+    GTEST_SKIP();  // Issue 155210
 #endif
     ThreadingTest::runParallel(
         [&]() {
@@ -79,7 +79,7 @@ TEST_F(AutoFuncTests, theading_compiled_with_cpu_help) {
 
 TEST_F(AutoFuncTests, threading_test_hardware_slower) {
 #if defined(__SANITIZE_ADDRESS__) || defined(__SANITIZE_UNDEFINED__) || defined(__SANITIZE_THREAD__)
-    GTEST_SKIP(); // Issue 155210
+    GTEST_SKIP();  // Issue 155210
 #endif
     core.compile_model(model_cannot_batch, "MOCK_CPU");
     core.compile_model(model_cannot_batch, "MOCK_GPU");  // need to initialize the order of plugins in mock_engine
