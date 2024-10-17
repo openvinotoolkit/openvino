@@ -177,8 +177,10 @@ TEST_F(TransformationTestsF, RemoveLoopDanglingParametersIfConcatEmptyTensor) {
 
 TEST_F(TransformationTestsF, RemoveIfDanglingParametersFromBodiesAndInputs) {
 #if defined(WIN32) && !defined(NDEBUG)
-    GTEST_SKIP() << "Skipping smoke_Snippets_MHA3D_SplitM_withMul on Windows in Debug mode due to Issue 155216.";
+    test_skipped = true;
+    GTEST_SKIP() << "Skipping smoke_Snippets_MHA3D_SplitM_withMul on Windows in Debug mode due to Issue 155258.";
 #endif
+
     auto X = std::make_shared<Parameter>(element::f32, Shape{2, 4, 1});
     auto Y = std::make_shared<Parameter>(element::f32, Shape{3, 4, 1});
     auto cond = std::make_shared<Constant>(element::boolean, Shape{1}, true);
