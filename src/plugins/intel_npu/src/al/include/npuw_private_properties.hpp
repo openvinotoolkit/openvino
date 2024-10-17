@@ -48,6 +48,14 @@ static constexpr ov::Property<std::string> weights_bank{"NPUW_WEIGHTS_BANK"};
 /**
  * @brief
  * Type: std::string.
+ * Specify device name for weights bank which is used to allocate memory.
+ * Default value: "".
+ */
+static constexpr ov::Property<std::string> weights_bank_alloc{"NPUW_WEIGHTS_BANK_ALLOC"};
+
+/**
+ * @brief
+ * Type: std::string.
  * Specify a directory where to store cached submodels.
  * Default value: empty.
  */
@@ -59,8 +67,8 @@ namespace online {
  * @brief
  * Type: std::string.
  * Specify which partitioning pipeline to run.
- * Possible values: "NONE", "INIT", "JUST", "REP", "COMPUTE".
- * Default value: "REP".
+ * Possible values: "NONE", "INIT", "JUST", "REP", "REG", "COMPUTE".
+ * Default value: "REG".
  */
 static constexpr ov::Property<std::string> pipeline{"NPUW_ONLINE_PIPELINE"};
 

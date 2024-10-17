@@ -30,7 +30,7 @@ void registerNPUWOptions(OptionsDesc& desc);
 DEFINE_OPT(NPU_USE_NPUW, bool, false, use_npuw, CompileTime);
 DEFINE_OPT(NPUW_DEVICES, std::string, "NPU,CPU", npuw::devices, CompileTime);
 DEFINE_OPT(NPUW_SUBMODEL_DEVICE, std::string, "", npuw::submodel_device, CompileTime);
-DEFINE_OPT(NPUW_ONLINE_PIPELINE, std::string, "REP", npuw::partitioning::online::pipeline, CompileTime);
+DEFINE_OPT(NPUW_ONLINE_PIPELINE, std::string, "REG", npuw::partitioning::online::pipeline, CompileTime);
 DEFINE_OPT(NPUW_ONLINE_AVOID, std::string, "", npuw::partitioning::online::avoid, CompileTime);
 DEFINE_OPT(NPUW_ONLINE_ISOLATE, std::string, "", npuw::partitioning::online::isolate, CompileTime);
 DEFINE_OPT(NPUW_ONLINE_NO_FOLD, std::string, "", npuw::partitioning::online::nofold, CompileTime);
@@ -51,6 +51,7 @@ DEFINE_OPT(NPUW_DCOFF_SCALE, bool, false, npuw::partitioning::dcoff_with_scale, 
 DEFINE_OPT(NPUW_FUNCALL_FOR_ALL, bool, false, npuw::partitioning::funcall_for_all, CompileTime);
 DEFINE_OPT(NPUW_PARALLEL_COMPILE, bool, false, npuw::parallel_compilation, CompileTime);
 DEFINE_OPT(NPUW_WEIGHTS_BANK, std::string, "", npuw::weights_bank, CompileTime);
+DEFINE_OPT(NPUW_WEIGHTS_BANK_ALLOC, std::string, "", npuw::weights_bank_alloc, CompileTime);
 DEFINE_OPT(NPUW_CACHE_DIR, std::string, "", npuw::cache_dir, CompileTime);
 DEFINE_OPT(NPUW_FUNCALL_ASYNC, bool, false, npuw::funcall_async, RunTime);
 DEFINE_OPT(NPUW_ACC_CHECK, bool, false, npuw::accuracy::check, RunTime);

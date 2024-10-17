@@ -284,12 +284,12 @@ public:
     Partitioner(const std::shared_ptr<ov::Model>& _model,
                 ov::npuw::Ensemble& _ens,
                 ov::npuw::Partitioning& _P,
-                ::intel_npu::Config& cfg)
+                ::intel_npu::Config& _cfg)
         : model(_model),
           ens(_ens),
           P(_P),
           func_pipeline_type(FunctionPipelineType::FOLD),
-          cfg(cfg) {}
+          cfg(_cfg) {}
 
     ////////////////////////////////////////////////////////
     // Partitioning execution pipeline
@@ -345,6 +345,10 @@ void Partitioner::identifySubgraphs() {
     }
     LOG_INFO("Caching done: " << node_id_cache.size() << " layers.");
 
+    // Accumulate knowledge about known OV layers when walking
+    // over a topologically-sorted list.
+    std::unordered_set<NodeSPtr> nodes_known_now;
+
     // FIXME: Need to do some sanity checks here. What if partitioning
     // has been generated for another variation of this model?
     // What if that was a completely different model?
@@ -364,6 +368,7 @@ void Partitioner::identifySubgraphs() {
             group_nodes.insert(it->second);
         }
         group.sg._repeated_id = group.repeated_id;
+        group.sg._forced_to_fcall = group.forced_to_fcall;
         group.sg._gflops = group.gflops;
         group.sg._ops = group.all_layers.size();
         P.total_ops += group.sg._ops;
@@ -457,16 +462,19 @@ void Partitioner::identifySubgraphs() {
                     continue;
                 } else if ((ov::is_type<ov::op::v8::Slice>(input_node) ||
                             ov::is_type<ov::op::v0::Convert>(input_node)) &&
+                           !nodes_known_now.count(input_node) &&
                            ov::op::util::is_parameter(input_node->input(0).get_source_output().get_node_shared_ptr())) {
                     // So the situation is:
-                    // - a group has an input layer
+                    //  - a group has an input layer
                     //  - which reads from a Slice or Convert
                     //  - which reads from a Parameter
+                    //  - not a part of any prior group
                     // This happens when an offline plan is used with a kvcache
                     // model extended with slices to maintain zero-copy (LLM case)
                     auto extra_param = input_node->input(0).get_source_output().get_node_shared_ptr();
                     input_mapping[input_node] = extra_param;
                     extra_params.insert(extra_param);
+                    LOG_DEBUG("Registered extra param " << extra_param);
                 } else {
                     // Ok, this input is connected to some other node's output
                     // Replace this connection with a link to a newly created Parameter
@@ -670,7 +678,8 @@ void Partitioner::identifySubgraphs() {
             }
         }
         this_group_idx++;  // FIXME: indexed() is better!
-    }                      // for (partitions)
+        nodes_known_now.insert(group_nodes.begin(), group_nodes.end());
+    }  // for (partitions)
 
     // Return what we've got here
     std::vector<Subgraph>& result = P.subgraphs;
@@ -1386,14 +1395,16 @@ void Partitioner::matchParameters(const std::string& func_name) {
             this_model_nodes.insert(node_ptr.get());
         }
         for (auto&& node : call->get_ordered_ops()) {
+            using ov::npuw::util::at::_;
+
             if (ov::op::util::is_parameter(node)) {
                 PKey pkey;
                 for (auto&& iport : node->output(0).get_target_inputs()) {
                     if (this_model_nodes.count(iport.get_node()) > 0) {
                         LOG_DEBUG("Register link " << iport.get_node()->get_friendly_name() << " : "
                                                    << iport.get_index());
-                        pkey.insert(
-                            PReader{layer_to_prototype.at(iport.get_node()->get_friendly_name()), iport.get_index()});
+                        pkey.insert(PReader{_(layer_to_prototype).at(iport.get_node()->get_friendly_name()),
+                                            iport.get_index()});
                     }
                 }
                 LOG_DEBUG("Find orig parameter for " << node);
@@ -1454,6 +1465,8 @@ void Partitioner::matchResults(const std::string& func_name) {
 }
 
 void Partitioner::createFunction(FunctionPipeline& func_ggg) {
+    using namespace ov::npuw::weights;
+
     ov::npuw::Subgraph& body_sg = func_ggg.refs.front();
     const std::string func_name = body_sg._repeated_id;
 
@@ -1471,6 +1484,7 @@ void Partitioner::createFunction(FunctionPipeline& func_ggg) {
     funcall._gflops = body_sg._gflops;  // preserving this is required for proper stats
     funcall._ops = body_sg._ops;        // preserving this is requried for proper stats
     funcall._avoid_list = body_sg._avoid_list;
+    funcall._forced_to_fcall = body_sg._forced_to_fcall;
 
     // Declare a new function AND record a function call
     ov::npuw::Function function;
@@ -1509,7 +1523,9 @@ void Partitioner::createFunction(FunctionPipeline& func_ggg) {
                 new_param_idx++;
 
                 LOG_DEBUG("Register " << prod_output << " in the function closure");
-                funcall._closure.push_back(ov::npuw::util::tensor_from_const(input_node));  // (n)/1/i/c
+                funcall._lazy_closure.push_back(
+                    LazyTensor(TransformType::THIS,
+                               std::static_pointer_cast<ov::op::v0::Constant>(input_node)));  // (n)/1/i/c
             } else if (ov::op::util::is_parameter(input_node)) {
                 LOG_DEBUG("Handling a Parameter input " << prod_output);
                 LOG_BLOCK();
@@ -1529,6 +1545,7 @@ void Partitioner::createFunction(FunctionPipeline& func_ggg) {
             }  // if(Const|Parameter)
         }      // for(inputs)
     }          // for(nodes)
+    funcall._closure.resize(funcall._lazy_closure.size());
     function._num_params_total = new_param_idx;
     function._model->validate_nodes_and_infer_types();
     P.functions.insert({func_name, std::move(function)});
@@ -1613,6 +1630,8 @@ void Partitioner::createFunction(const std::string& func_name) {
 }
 
 void Partitioner::matchRepeatedSubgraphs(const std::string& func_name) {
+    using namespace ov::npuw::weights;
+
     LOG_VERB("Process function " << func_name << " in model " << model->get_friendly_name() << "...");
     LOG_BLOCK();
 
@@ -1641,6 +1660,7 @@ void Partitioner::matchRepeatedSubgraphs(const std::string& func_name) {
         funcall._gflops = this_sg._gflops;          // duplicated code again!
         funcall._ops = this_sg._ops;                // duplicated code again!
         funcall._avoid_list = this_sg._avoid_list;  // duplicated code again!
+        funcall._forced_to_fcall = this_sg._forced_to_fcall;
         rearrange_to_function_protocol(this_sg, body_params, funcall._parameters, func_ggg.param_call_to_proto, true);
         rearrange_to_function_protocol(this_sg, body_results, funcall._results, func_ggg.result_call_to_proto);
 
@@ -1652,6 +1672,7 @@ void Partitioner::matchRepeatedSubgraphs(const std::string& func_name) {
         LOG_BLOCK();
         const auto& function = func_iter->second;
         funcall._closure.resize(function._num_params_total - function._param_offset);
+        funcall._lazy_closure.resize(function._num_params_total - function._param_offset);
 
         auto tmp_model = *mod_iter;
         for (auto&& node_ptr : tmp_model->get_ordered_ops()) {
@@ -1672,8 +1693,9 @@ void Partitioner::matchRepeatedSubgraphs(const std::string& func_name) {
                         std::make_pair(proto_layer_name, input_desc.get_index()));  // (t)/1/b
                     LOG_DEBUG("Register " << prod_output << " in the function closure[" << param_idx
                                           << "] (via prototype " << proto_layer_name << ")");
-                    funcall._closure[param_idx - function._param_offset] =
-                        ov::npuw::util::tensor_from_const(input_node);  // (t)/1/c
+                    funcall._lazy_closure[param_idx - function._param_offset] =
+                        LazyTensor(TransformType::THIS,
+                                   std::static_pointer_cast<ov::op::v0::Constant>(input_node));  // (t)/1/c
                 }
             }  // for (inputs)
         }      // for(nodes)
@@ -1731,6 +1753,8 @@ void Partitioner::spatial(const std::string& func_name) {
 }
 
 void Partitioner::optimize(const std::string& func_name) {
+    using namespace ov::npuw::weights;
+
     ov::npuw::Function& f = P.functions.at(func_name);
     auto& func_group = all_functions.at(func_name);
 
@@ -1740,7 +1764,7 @@ void Partitioner::optimize(const std::string& func_name) {
             auto closure_idx = param_idx - f._param_offset;
             ov::parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
                 auto& funcall = func_group.refs[f_idx].get();
-                ov::npuw::util::permute(funcall._closure[closure_idx], p.second);
+                funcall._lazy_closure[closure_idx].update(TransformType::PERMUTE, p.second);
             });
         }
     };
@@ -1750,7 +1774,7 @@ void Partitioner::optimize(const std::string& func_name) {
             auto closure_idx = param_idx - f._param_offset;
             ov::parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
                 auto& funcall = func_group.refs[f_idx].get();
-                ov::npuw::util::to_f16(funcall._closure[closure_idx]);
+                funcall._lazy_closure[closure_idx].update(TransformType::CONVERT, std::monostate{});
             });
         }
     };
@@ -1802,11 +1826,21 @@ void Partitioner::optimize(const std::string& func_name) {
             }
             ov::parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
                 auto& funcall = func_group.refs[f_idx].get();
-                std::vector<ov::Tensor> to_concat;
+                std::vector<LazyTensor> to_concat;
+                // Fill tensor vector
                 for (auto&& cidx : to_concat_idx) {
-                    to_concat.push_back(funcall._closure[cidx]);
+                    // FIXME: Assuming here concat goes first and other transformations later.
+                    //        This allows to store ov::Tensor and ignore their potential history of transformations
+                    NPUW_ASSERT(!funcall._lazy_closure[cidx].has_transformations());
+                    to_concat.push_back(funcall._lazy_closure[cidx]);
                 }
-                funcall._closure.push_back(ov::npuw::util::concat(to_concat, axis));
+                // Note: we can ignore updating funcall._lazy_closure[cidx] here since those LazyTensors will be gone
+                // and the new one added into the vector
+                if (!to_concat.empty()) {
+                    funcall._lazy_closure.push_back(LazyTensor(TransformType::CONCAT, std::make_pair(to_concat, axis)));
+                    // Some of the tensors might be in closure - preserve it's 1:1 idx mapping with _lazy_closure
+                    funcall._closure.push_back(ov::Tensor());
+                }
             });
         }
 
@@ -1830,20 +1864,19 @@ void Partitioner::optimize(const std::string& func_name) {
 
             ov::parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
                 auto& funcall = func_group.refs[f_idx].get();
-                ov::Tensor cw = funcall._closure[w_idx - f._param_offset];
-                ov::Tensor cz = z_idx != -1 ? funcall._closure[z_idx - f._param_offset] : ov::Tensor{};
-                ov::Tensor cs = funcall._closure[s_idx - f._param_offset];
-                ov::Tensor dst(p.first->get_element_type(), p.first->get_shape());
+                // FIXME: assuming no transformations were applied to the tensor - since we are utilizing the original
+                // ov::Tensor below
+                LazyTensor cw = funcall._lazy_closure[w_idx - f._param_offset];
+                LazyTensor cz = z_idx != -1 ? funcall._lazy_closure[z_idx - f._param_offset]
+                                            : LazyTensor(TransformType::THIS, ov::Tensor());
+                LazyTensor cs = funcall._lazy_closure[s_idx - f._param_offset];
 
-                const auto& gti = ov::get_tensor_impl;
-                if (cw && cz && cs) {
-                    ov::npuw::util::unpack(gti(cw), gti(cz), gti(cs), gti(dst));
-                } else if (cw && cs) {
-                    ov::npuw::util::unpack(gti(cw), gti(cs), gti(dst));
-                } else {
-                    NPUW_ASSERT(false && "Unsupported combination");
-                }
-                funcall._closure.push_back(std::move(dst));
+                // FIXME: currently there is an issue that we don't share such tensor between head and tail
+                funcall._lazy_closure.push_back(
+                    LazyTensor(TransformType::UNPACK,
+                               std::make_tuple(cw, cz, cs, p.first->get_shape(), p.first->get_element_type())));
+                // Some of the tensors might be in closure - preserve it's 1:1 idx mapping with _lazy_closure
+                funcall._closure.push_back(ov::Tensor());
             });
         }
 
@@ -1857,25 +1890,31 @@ void Partitioner::optimize(const std::string& func_name) {
             for (auto&& funcall : func_group.refs) {
                 auto new_elem_type = params_to_gather.pnew->get_element_type();
                 const auto& new_shape = params_to_gather.pnew->get_shape();
+                // Note: no allocation needed for this tensor - set to _closure and dummy in _lazy_closure
                 funcall.get()._closure.push_back(ov::Tensor(new_elem_type, new_shape));
+                funcall.get()._lazy_closure.push_back(LazyTensor(TransformType::THIS, ov::Tensor()));
             }
         }
 
         // Add all new parameters introduced by this change
         f._model->add_parameters(new_params);
 
-        // Remove parameters and closures that were concatenated
-        std::vector<ov::Tensor> new_closure;
+        // Remove LazyTensors which will be concatenated
         for (auto&& fref : func_group.refs) {
             auto& funcall = fref.get();
+            std::vector<LazyTensor> new_transforms;
+            // Some of the tensors might be in closure (e.g. host-gather), thus need to preserve the _closure as well
             std::vector<ov::Tensor> new_closure;
-            for (std::size_t cidx = 0; cidx < funcall._closure.size(); cidx++) {
-                if (to_remove_idx.count(f._param_offset + cidx) == 0) {
-                    new_closure.push_back(funcall._closure[cidx]);
+            for (std::size_t tidx = 0; tidx < funcall._lazy_closure.size(); tidx++) {
+                if (to_remove_idx.count(f._param_offset + tidx) == 0) {
+                    new_transforms.push_back(funcall._lazy_closure[tidx]);
+                    new_closure.push_back(funcall._closure[tidx]);
                 }
             }
+            funcall._lazy_closure = std::move(new_transforms);
             funcall._closure = std::move(new_closure);
         }
+        // Remove parameters that were concatenated
         for (auto&& now_remove : to_remove) {
             f._model->remove_parameter(now_remove);
         }
@@ -2021,7 +2060,7 @@ void Partitioner::decompressionCutOff(const std::string& func_name) {
             }
 
             // Finally, remove the function body's parameters here
-            ov::npuw::patterns::finalize_remap(f, closure_remap);
+            ov::npuw::patterns::finalize_remap(f, func_group.refs.front(), closure_remap);
         }  // if (CAST_SCALE && have(params_to_scale))
     }
     LOG_DEBUG("Function model inputs after the DCOFF:");
@@ -2156,6 +2195,8 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
                 LOG_INFO("Turning block " << gid << " into a function " << this_group.repeated_id << "...");
                 LOG_BLOCK();
                 this_group.repeated_id = std::move(new_id);
+                this_group.forced_to_fcall = true;
+
                 ov::npuw::RepeatedBlock this_block;
                 for (const auto& layer : this_group.all_layers) {
                     // Note: NOT move(layer)! It breaks the code here.
