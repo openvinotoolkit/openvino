@@ -22,6 +22,12 @@ if(OpenCV_VERSION VERSION_LESS 4.9)
     return()
 endif()
 
+if (WIN32)
+    # WA: add_tool_target expects to have all dependencies as cmake targets.
+    add_library(winmm INTERFACE)
+    target_link_libraries(winmm INTERFACE "winmm.lib")
+endif()
+
 #
 # Define the target
 #
@@ -40,14 +46,10 @@ ov_add_target(ADD_CPPLINT
                       gflags
                       yaml-cpp
                       openvino::runtime
-                      opencv_gapi)
+                      opencv_gapi
+                      winmm)
 
-if (WIN32)
-    # WA: add_tool_target expects to have all dependencies as cmake targets.
-    add_library(winmm INTERFACE)
-    target_link_libraries(winmm INTERFACE "winmm.lib")
-    list(APPEND DEPENDENCIES winmm)
-endif()
+
 
 set_target_properties(${TARGET_NAME} PROPERTIES
                           FOLDER ${CMAKE_CURRENT_SOURCE_DIR}
