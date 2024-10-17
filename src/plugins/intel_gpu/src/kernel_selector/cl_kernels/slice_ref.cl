@@ -24,7 +24,7 @@
     out_name[4] = in_prefix##_VAL4;
 #endif
 
-KERNEL(slice_ref)(OPTIONAL_SHAPE_INFO_ARG 
+KERNEL(slice_ref)(OPTIONAL_SHAPE_INFO_ARG
                   const __global INPUT0_TYPE* restrict input,
                   START_BUFFER
                   STEP_BUFFER
