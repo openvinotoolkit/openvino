@@ -27,9 +27,9 @@ SearchSorted
 
 **Inputs**:
 
-* **1**: ND input tensor of type *T* - cannot be a scalar, containing monotonically increasing sequence on the innermost dimension. **Required.**
+* **1**: ``sorted`` - ND input tensor of type *T* - cannot be a scalar, containing monotonically increasing sequence on the innermost dimension. **Required.**
 
-* **2**: ND input tensor of type *T*, containing the search values. **Required.**
+* **2**: ``values`` - ND input tensor of type *T*, containing the search values. If sorted sequence is 1D, then the values can have any shape, otherwise the rank should be equal to sorted input. **Required.**
 
 **Outputs**:
 
