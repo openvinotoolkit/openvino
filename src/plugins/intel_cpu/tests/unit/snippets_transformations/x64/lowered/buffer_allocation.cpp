@@ -36,21 +36,24 @@ using BRGEMM_TYPE = intel_cpu::brgemm_utils::BRGEMM_TYPE;
  */
 
 typedef std::tuple<
-    bool,   // Optimized pipeline
-    bool,   // With SplitLoops opt
-    size_t, // Expected Buffer size in bytes
-    size_t, // Expected unique Buffer reg group count
-    size_t  // Expected unique Buffer cluster count
+    std::vector<ov::PartialShape>, // Input shapes
+    bool,                          // Optimized pipeline
+    bool,                          // With SplitLoops opt
+    size_t,                        // Expected Buffer size in bytes
+    size_t,                        // Expected unique Buffer reg group count
+    size_t                         // Expected unique Buffer cluster count
 > BufferAllocationCPUParams;
 
 class BufferAllocationCPUTest : public testing::TestWithParam<BufferAllocationCPUParams> {
 public:
     using VectorDims = ov::snippets::VectorDims;
     static std::string getTestCaseName(testing::TestParamInfo<BufferAllocationCPUParams> obj) {
+        std::vector<ov::PartialShape> shapes;
         bool is_optimized, with_split_loops;
         size_t expected_size, expected_reg_group_count, expected_cluster_count;
-        std::tie(is_optimized, with_split_loops, expected_size, expected_reg_group_count, expected_cluster_count) = obj.param;
+        std::tie(shapes, is_optimized, with_split_loops, expected_size, expected_reg_group_count, expected_cluster_count) = obj.param;
         std::ostringstream result;
+        result << "Shapes=" << ov::test::utils::partialShape2str(shapes) << "_";
         result << "Opt=" << ov::test::utils::bool2str(is_optimized) << "_";
         result << "Split=" << ov::test::utils::bool2str(with_split_loops) << "_";
         result << "ExpBufferSize=" << expected_size << "_";
@@ -61,9 +64,11 @@ public:
 
 protected:
     void SetUp() override {
-        std::tie(m_is_buffer_optimized, m_with_split_loops, m_expected_size, m_expected_reg_group_count, m_expected_cluster_count) = this->GetParam();
+        std::vector<ov::PartialShape> shapes;
+        std::tie(shapes, m_is_buffer_optimized, m_with_split_loops, m_expected_size,
+                 m_expected_reg_group_count, m_expected_cluster_count) = this->GetParam();
 
-        const auto body = GetModel();
+        const auto body = GetModel(shapes);
         m_linear_ir = ov::snippets::lowered::LinearIR(body, std::make_shared<ov::snippets::CPUShapeInferSnippetsFactory>());
         m_linear_ir.set_loop_depth(m_loop_depth);
         // When Subgraph::control_flow_transformations become public method,
@@ -105,7 +110,7 @@ protected:
         EXPECT_EQ(m_linear_ir.get_static_buffer_scratchpad_size(), m_expected_size);
     }
 
-    virtual std::shared_ptr<ov::Model> GetModel() const = 0;
+    virtual std::shared_ptr<ov::Model> GetModel(const std::vector<ov::PartialShape>& shapes) const = 0;
 
     void MarkOp(const std::shared_ptr<ov::Node>& node, const std::vector<size_t>& subtensor) const {
         for (const auto& input : node->inputs())
@@ -131,20 +136,16 @@ protected:
 
 class MHAFP32BufferAllocationTest : public BufferAllocationCPUTest {
 protected:
-    std::shared_ptr<ov::Model> GetModel() const override {
+    std::shared_ptr<ov::Model> GetModel(const std::vector<ov::PartialShape>& shapes) const override {
         const auto subtensor_scalar = std::vector<size_t>{1};
         const auto subtensor_power = std::vector<size_t>{1, ov::snippets::utils::get_full_dim_value()};
         const auto subtensor_full = std::vector<size_t>(2, ov::snippets::utils::get_full_dim_value());
 
         // Dims are selected in order to have blocking loops by each dim
-        const size_t m = 1024;
-        const size_t k = 1024;
-        const size_t n1 = 128;
-        const size_t n2 = 256;
-
-        const auto parameter0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape({1, 12, m, k}));
-        const auto parameter1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape({1, n1, 12, k}));
-        const auto parameter2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape({1, 12, n1, n2}));
+        OPENVINO_ASSERT(shapes.size() == 3, "Incorrect count of input shapes");
+        const auto parameter0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shapes[0]);
+        const auto parameter1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shapes[1]);
+        const auto parameter2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shapes[2]);
 
         const auto order = std::vector<size_t>{0, 2, 3, 1};
         const auto load_reshape = std::make_shared<ov::snippets::op::LoadReshape>(parameter1, 1, 0, order);
@@ -186,20 +187,15 @@ protected:
 
 class MHABF16AMXBufferAllocationTest : public BufferAllocationCPUTest {
 protected:
-    std::shared_ptr<ov::Model> GetModel() const override {
+    std::shared_ptr<ov::Model> GetModel(const std::vector<ov::PartialShape>& shapes) const override {
         const auto subtensor_scalar = std::vector<size_t>{1};
         const auto subtensor_power = std::vector<size_t>{1, ov::snippets::utils::get_full_dim_value()};
         const auto subtensor_full = std::vector<size_t>(2, ov::snippets::utils::get_full_dim_value());
 
-        // Dims are selected in order to have blocking loops by each dim
-        const size_t m = 1024;
-        const size_t k = 1024;
-        const size_t n1 = 128;
-        const size_t n2 = 256;
-
-        const auto parameter0 = std::make_shared<ov::op::v0::Parameter>(ov::element::bf16, ov::PartialShape({1, 12, m, k}));
-        const auto parameter1 = std::make_shared<ov::op::v0::Parameter>(ov::element::bf16, ov::PartialShape({1, n1, 12, k}));
-        const auto parameter2 = std::make_shared<ov::op::v0::Parameter>(ov::element::bf16, ov::PartialShape({1, 12, n1, n2}));
+        OPENVINO_ASSERT(shapes.size() == 3, "Incorrect count of input shapes");
+        const auto parameter0 = std::make_shared<ov::op::v0::Parameter>(ov::element::bf16, shapes[0]);
+        const auto parameter1 = std::make_shared<ov::op::v0::Parameter>(ov::element::bf16, shapes[1]);
+        const auto parameter2 = std::make_shared<ov::op::v0::Parameter>(ov::element::bf16, shapes[2]);
 
         const auto order = std::vector<size_t>{0, 2, 3, 1};
         const auto load_reshape = std::make_shared<ov::snippets::op::LoadReshape>(parameter1, 1, 0, order);
@@ -264,8 +260,17 @@ TEST_P(MHABF16AMXBufferAllocationTest, BufferAllocationCPU) {
 
 namespace BufferAllocationCPUTest_Instances {
 
+std::vector<ov::PartialShape> static_shapes = {
+    { 1, 12, 1024, 1024 }, {1, 128, 12, 1024 }, {1, 12, 128, 256 },
+};
+
+std::vector<ov::PartialShape> dynamic_shapes = {
+    { -1, -1, -1, -1 }, { -1, -1, -1, -1 }, { -1, -1, -1, -1 },
+};
+
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHANotOptimizedWSplit, MHAFP32BufferAllocationTest,
                          ::testing::Combine(
+                                 ::testing::Values(static_shapes),
                                  ::testing::Values(false),
                                  ::testing::Values(true),
                                  ::testing::Values(591360), // Each Buffer has own allocated memory
@@ -275,6 +280,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHANotOptimizedWSplit, 
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHAOptimizedWSplit, MHAFP32BufferAllocationTest,
                          ::testing::Combine(
+                                 ::testing::Values(static_shapes),
                                  ::testing::Values(true),
                                  ::testing::Values(true),
                                  ::testing::Values(573440), // (Buffer before brgemm) + (between brgemms) + (after brgemm)
@@ -284,6 +290,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHAOptimizedWSplit, MHA
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHANotOptimizedWOSplit, MHAFP32BufferAllocationTest,
                          ::testing::Combine(
+                                 ::testing::Values(static_shapes),
                                  ::testing::Values(false),
                                  ::testing::Values(false),
                                  ::testing::Values(2622976), // Each Buffer has own allocated memory
@@ -293,6 +300,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHANotOptimizedWOSplit,
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHAOptimizedWOSplit, MHAFP32BufferAllocationTest,
                          ::testing::Combine(
+                                 ::testing::Values(static_shapes),
                                  ::testing::Values(true),
                                  ::testing::Values(false),
                                  ::testing::Values(1572864), // (between brgemms) + (Buffer before brgemm0 and after brgemm1)
@@ -302,6 +310,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHAOptimizedWOSplit, MH
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHABF16AMXNotOptimizedWSplit, MHABF16AMXBufferAllocationTest,
                          ::testing::Combine(
+                                 ::testing::Values(static_shapes),
                                  ::testing::Values(false),
                                  ::testing::Values(true),
                                  ::testing::Values(713984),
@@ -311,15 +320,17 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHABF16AMXNotOptimizedW
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHABF16AMXOptimizedWSplit, MHABF16AMXBufferAllocationTest,
                          ::testing::Combine(
+                                 ::testing::Values(static_shapes),
                                  ::testing::Values(true),
                                  ::testing::Values(true),
                                  ::testing::Values(524288),
                                  ::testing::Values(3),
-                                 ::testing::Values(8)),
+                                 ::testing::Values(7)),
                          BufferAllocationCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHABF16AMXNotOptimizedWOSplit, MHABF16AMXBufferAllocationTest,
                          ::testing::Combine(
+                                 ::testing::Values(static_shapes),
                                  ::testing::Values(false),
                                  ::testing::Values(false),
                                  ::testing::Values(2491648),
@@ -329,11 +340,32 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHABF16AMXNotOptimizedW
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHABF16AMXOptimizedWOSplit, MHABF16AMXBufferAllocationTest,
                          ::testing::Combine(
+                                 ::testing::Values(static_shapes),
                                  ::testing::Values(true),
                                  ::testing::Values(false),
-                                 ::testing::Values(1409024),
+                                 ::testing::Values(1671168),
                                  ::testing::Values(3),
-                                 ::testing::Values(8)),
+                                 ::testing::Values(7)),
+                         BufferAllocationCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHAOptimizedWSplit_Dynamic, MHAFP32BufferAllocationTest,
+                         ::testing::Combine(
+                                 ::testing::Values(dynamic_shapes),
+                                 ::testing::Values(true),
+                                 ::testing::Values(true),
+                                 ::testing::Values(0),  // no static clusters
+                                 ::testing::Values(2),  // (Buffer before brgemm0 and after brgemm1) + (between brgemms)
+                                 ::testing::Values(3)), // (Buffer before brgemm0) + (between brgemms) + (after brgemm1)
+                         BufferAllocationCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHABF16AMXOptimizedWSplit_Dynamic, MHABF16AMXBufferAllocationTest,
+                         ::testing::Combine(
+                                 ::testing::Values(dynamic_shapes),
+                                 ::testing::Values(true),
+                                 ::testing::Values(true),
+                                 ::testing::Values(32768),  // only WSP buffers
+                                 ::testing::Values(3),
+                                 ::testing::Values(7)),
                          BufferAllocationCPUTest::getTestCaseName);
 
 }  // namespace BufferAllocationCPUTest_Instances
