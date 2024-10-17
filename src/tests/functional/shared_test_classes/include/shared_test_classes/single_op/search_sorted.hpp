@@ -13,7 +13,7 @@ using SearchSortedSpecificParams = std::tuple<InputShape,  // sorted shape
                                               InputShape,  // values shape
                                               bool>;
 
-using SearchSortedLayerTestParams = std::tuple<SearchSortedSpecificParams, ElementType>;
+using SearchSortedLayerTestParams = std::tuple<SearchSortedSpecificParams, ElementType, std::string>;
 
 class SearchSortedLayerTest : public testing::WithParamInterface<SearchSortedLayerTestParams>,
                               public ov::test::SubgraphBaseTest {

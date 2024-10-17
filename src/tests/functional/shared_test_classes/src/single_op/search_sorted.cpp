@@ -19,11 +19,13 @@ std::string SearchSortedLayerTest::getTestCaseName(testing::TestParamInfo<Search
     SearchSortedSpecificParams searchSortedParams;
 
     ElementType inputPrecision;
-    std::tie(searchSortedParams, inputPrecision) = basicParamsSet;
+    std::string targetDevice;
+    std::tie(searchSortedParams, inputPrecision, targetDevice) = basicParamsSet;
 
     InputShape sortedInputShape;
     InputShape valuesInputShape;
     bool right_mode;
+
     std::tie(sortedInputShape, valuesInputShape, right_mode) = searchSortedParams;
 
     std::ostringstream result;
@@ -68,9 +70,7 @@ void SearchSortedLayerTest::SetUp() {
     SearchSortedSpecificParams searchSortedParams;
 
     ElementType inputPrecision;
-    std::tie(searchSortedParams, inputPrecision) = basicParamsSet;
-
-    targetDevice = ov::test::utils::DEVICE_CPU;
+    std::tie(searchSortedParams, inputPrecision, targetDevice) = basicParamsSet;
 
     InputShape sortedInputShape;
     InputShape valuesInputShape;
