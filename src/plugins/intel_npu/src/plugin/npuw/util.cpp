@@ -1872,3 +1872,40 @@ ov::Tensor ov::npuw::util::concat(const std::vector<ov::Tensor>& tt, std::size_t
         NPUW_ASSERT(false && "Not supported yet");
     }
 }
+
+namespace {
+template <typename T>
+ov::npuw::util::range_1d validMaskRange(const T* data, std::size_t len) {
+    using R = ov::npuw::util::range_1d;
+    std::size_t range_begin = 0u;
+    bool was_set = false;
+
+    for (std::size_t idx = 0u; idx < len; idx++) {
+        const bool is_set = static_cast<std::size_t>(data[idx] > 0);
+
+        if (is_set && !was_set) {
+            was_set = true;
+            range_begin = idx;
+        } else if (!is_set && was_set) {
+            return R{range_begin, idx};
+        }
+    }
+    return was_set ? R{range_begin, len} : R{0u, 0u};
+}
+}  // namespace
+
+ov::npuw::util::range_1d ov::npuw::util::validMaskRange(const ov::SoPtr<ov::ITensor>& src) {
+    NPUW_ASSERT(src->is_continuous());
+
+    namespace ove = ov::element;
+#define HNDL(t, T) \
+    case ove::t:   \
+        return ::validMaskRange(static_cast<const T*>(src->data()), src->get_size());
+    switch (src->get_element_type()) {
+        HNDL(i64, int64_t);
+        HNDL(i32, int32_t);
+    default:
+        OPENVINO_THROW("Unsupported type ", src->get_element_type());
+    }
+#undef HNDL
+}

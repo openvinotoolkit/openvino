@@ -15,6 +15,7 @@
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "spatial.hpp"
 
 namespace ov {
 namespace npuw {
@@ -148,8 +149,19 @@ private:
     };
     std::vector<GlobalIO> m_subrequests_gio;
 
+    // BTW, this mutex makes no sense - it is not shared among other concurrent requests.
+    // it should've been static for this purpose.
     std::mutex m_alloc_mutex;
     std::unordered_set<void*> m_input_allocated;
+
+    // Represents spatial run-time info
+    runtime::spatial::Selector::Ptr m_spatial_selector;
+
+    struct Spatial {
+        bool dyn = false;       // Check if handling is needed, decided in ctor
+        std::size_t now = 0u;   // Current spatial submission size
+        std::size_t pidx = 0u;  // Port index to use to read the size (once per infer)
+    } m_spatial;
 };
 
 }  // namespace npuw
