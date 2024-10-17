@@ -140,11 +140,12 @@ void CPURuntimeConfigurator::update_requested_descs(const ov::snippets::lowered:
         // TODO: remove
         if (i != 1) continue;
         const auto& param = params[i];
-        const auto consumers = param->get_output_port_connector(0)->get_consumers();
-        OPENVINO_ASSERT(consumers.size() == 1);
-        const auto& consumer = consumers.begin()->get_expr();
-        // TODO: this logic should be more flexible
-        if (ov::is_type<ov::intel_cpu::BrgemmCPU>(consumer->get_node())) {
+        auto consumers = param->get_output_port_connector(0)->get_consumers();
+        const bool has_brgemm_consumers =
+            std::any_of(consumers.begin(), consumers.end(), [](const ov::snippets::lowered::ExpressionPort& port) {
+                return ov::is_type<ov::intel_cpu::BrgemmCPU>(port.get_expr()->get_node());
+            });
+        if (has_brgemm_consumers) {
             const auto& shape = param->get_output_port_descriptor(0)->get_shape();
             VectorDims normalized_dims(3, 1);
             *normalized_dims.rbegin() = *shape.rbegin();
@@ -174,11 +175,11 @@ void CPURuntimeConfigurator::adjust_offsets_from_descs(const ov::snippets::lower
             shape_for_offset.insert(shape_for_offset.end(), original_shape.begin(), original_shape.end() - m_config->tile_rank);
             // Only first dim is batch, the rest are repacked KN
             shape_for_offset.insert(shape_for_offset.end(), blocked_shape.begin() + 1, blocked_shape.end());
-            std::cout << "shape_for_offset = " << ov::PartialShape(shape_for_offset) << std::endl;
+            std::cout << "[ INFO ] shape_for_offset = " << ov::PartialShape(shape_for_offset) << std::endl;
 
             auto& offsets = m_config->io_data_offsets[i];
             compute_offsets(shape_for_offset, offsets, shape_for_offset.size(), m_io_data_sizes[i], 0);
-            std::cout << "offsets[*] = " << ov::PartialShape(offsets) << std::endl;
+            std::cout << "[ INFO ] offsets[*] = " << ov::PartialShape(offsets) << std::endl;
             OPENVINO_ASSERT(ov::snippets::utils::is_planar_layout(parameter->get_output_port_descriptor(0)->get_layout()));
         }
     }

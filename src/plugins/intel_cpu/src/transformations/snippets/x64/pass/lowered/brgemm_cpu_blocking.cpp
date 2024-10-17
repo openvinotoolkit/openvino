@@ -78,17 +78,24 @@ bool BrgemmCPUBlocking::mark_blocking_loops(LinearIR& linear_ir,
     if (stand_alone(type))
         return res;
 
-    auto copy_b = brgemm->get_brgemm_copy();
-    if (!copy_b)
-        return true;
-    const auto copy_b_expr = linear_ir.get_expr_by_node(copy_b);
-    copy_b_expr->get_input_port_descriptor(0)->set_subtensor({get_full_dim_value(), get_full_dim_value()});
-    copy_b_expr->get_output_port_descriptor(0)->set_subtensor({get_full_dim_value(), get_full_dim_value()});
-    if (with_compensations(type)) {
-        const ov::snippets::VectorDims compensations_subtensor{1, n_block};
-        OPENVINO_ASSERT(brgemm_expr->get_input_count() == 3, "Brgemm must have 3 inputs in case of compensations.");
-        brgemm_expr->get_input_port_descriptor(2)->set_subtensor(compensations_subtensor);
-        copy_b_expr->get_output_port_descriptor(1)->set_subtensor(compensations_subtensor);
+    ExpressionPtr copy_b_expr;
+    const auto b_input_expr = brgemm_expr->get_input_port_connector(1)->get_source().get_expr();
+    if (ov::is_type<BrgemmCopyB>(b_input_expr->get_node())) {
+        copy_b_expr = b_input_expr;
+    } else if (ov::is_type<snippets::op::Buffer>(b_input_expr->get_node())) {
+        const auto input_buffer_expr = b_input_expr->get_input_port_connector(0)->get_source().get_expr();
+        if (ov::is_type<BrgemmCopyB>(b_input_expr->get_node()))
+            copy_b_expr = input_buffer_expr;
+    }
+    if (copy_b_expr) {
+        copy_b_expr->get_input_port_descriptor(0)->set_subtensor({get_full_dim_value(), get_full_dim_value()});
+        copy_b_expr->get_output_port_descriptor(0)->set_subtensor({get_full_dim_value(), get_full_dim_value()});
+        if (with_compensations(type)) {
+            const ov::snippets::VectorDims compensations_subtensor{1, n_block};
+            OPENVINO_ASSERT(brgemm_expr->get_input_count() == 3, "Brgemm must have 3 inputs in case of compensations.");
+            brgemm_expr->get_input_port_descriptor(2)->set_subtensor(compensations_subtensor);
+            copy_b_expr->get_output_port_descriptor(1)->set_subtensor(compensations_subtensor);
+        }
     }
     if (with_amx(type)) {
         move_new_memory_buffer(linear_ir, brgemm_it);
