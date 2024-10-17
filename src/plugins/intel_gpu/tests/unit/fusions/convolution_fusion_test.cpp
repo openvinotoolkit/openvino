@@ -1482,7 +1482,7 @@ TEST_P(conv_fp32_multi_eltwise_concat, basic) {
     cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
     if (engine.get_device_info().supports_immad &&
         p.default_type == data_types::f16 &&
-        p.weights_format == format::is_os_yx_isv16_osv16) {
+        p.weights_format == format::gs_oiyx_gsv16) {
         GTEST_SKIP(); // maybe Issue: 94154
     }
     tolerance = default_tolerance(output_type);
