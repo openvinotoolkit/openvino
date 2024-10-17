@@ -162,15 +162,19 @@ Plugin::Plugin() {
     m_compiled_model_runtime_properties["OV_VERSION"] = ov_version.buildNumber;
 
     // update oneDnn cache
+#ifdef ENABLE_ONEDNN_FOR_GPU
 #if (ENABLE_ONEDNN_FOR_GPU)
     dnnl::set_primitive_cache_capacity(1024);
+#endif
 #endif
 }
 
 Plugin::~Plugin() {
     //clean oneDNN cache
+#ifdef ENABLE_ONEDNN_FOR_GPU
 #if (ENABLE_ONEDNN_FOR_GPU)
     dnnl::set_primitive_cache_capacity(0);
+#endif
 #endif
 }
 
