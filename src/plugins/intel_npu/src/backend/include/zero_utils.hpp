@@ -8,8 +8,6 @@
 #include <ze_api.h>
 #include <ze_graph_ext.h>
 
-#include <type_traits>
-
 #include "intel_npu/al/config/runtime.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
