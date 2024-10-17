@@ -65,7 +65,7 @@ protected:
         ov::intel_cpu::CPURuntimeConfigurator  *m_configurator = nullptr;
         using UniLoopInfoPtr = std::shared_ptr<snippets::lowered::UnifiedLoopInfo>;
         using ExpLoopInfoPtr = std::shared_ptr<snippets::lowered::ExpandedLoopInfo>;
-        std::unordered_map<UniLoopInfoPtr, std::vector<ExpLoopInfoPtr>> m_affected_loops;
+        std::unordered_map<UniLoopInfoPtr, std::vector<ExpLoopInfoPtr>> m_affected_uni2exp_map;
     } loopPortsAdjuster;
 };
 

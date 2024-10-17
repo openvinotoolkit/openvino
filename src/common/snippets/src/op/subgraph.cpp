@@ -57,10 +57,6 @@
 #include "snippets/lowered/pass/set_load_store_scalar.hpp"
 #include "snippets/lowered/pass/extract_loop_invariants.hpp"
 
-//todo: remove before merge
-#include "snippets/lowered/pass/serialize_data_flow.hpp"
-#include "snippets/lowered/pass/serialize_control_flow.hpp"
-
 #include "transformations/utils/utils.hpp"
 
 #include "snippets/pass/manager.hpp"
@@ -433,7 +429,6 @@ void Subgraph::data_flow_transformations(const BlockedShapeVector& blocked_input
 
     manager.register_positioned_passes(backend_passes);
     manager.run_passes(body_ptr());
-    ov::pass::Serialize("snsdebug_ngraph.xml", "snsdebug_ngraph.bin").run_on_model(body_ptr());
 }
 
 void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, size_t min_kernel_work_amount,
@@ -475,7 +470,6 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
     pipeline.register_pass<lowered::pass::ValidateUnifiedLoops>();
     pipeline.register_pass<lowered::pass::InitLoops>();
     pipeline.register_pass<lowered::pass::InsertLoops>();
-//    pipeline.register_pass<ov::snippets::lowered::pass::SerializeControlFlow>("snsdebug_control_0.xml");
     pipeline.register_pass<lowered::pass::AllocateBuffers>(m_linear_ir->get_config().m_are_buffers_optimized);
     pipeline.register_pass<lowered::pass::CleanRepeatedDataPointerShifts>();
     pipeline.register_positioned_passes(lowered_backend_passes);
@@ -485,11 +479,6 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
     validation_pipeline.register_pass<lowered::pass::ValidateBuffers>();
     validation_pipeline.register_pass<lowered::pass::Validate>();
     validation_pipeline.run(*m_linear_ir);
-//    if (m_linear_ir->get_ops().size() > 6) {
-//        std::cerr << "X: " << m_linear_ir->get_ops().size() << "\n";
-//        ov::snippets::lowered::pass::SerializeDataFlow("snsdebug_data.xml").run(*m_linear_ir);
-//        ov::snippets::lowered::pass::SerializeControlFlow("snsdebug_control.xml").run(*m_linear_ir);
-//    }
 
 #ifdef SNIPPETS_DEBUG_CAPS
     if (m_linear_ir->get_config().debug_config.perf_count_mode != DebugCapsConfig::PerfCountMode::Disabled) {
@@ -528,8 +517,6 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
     gen_pipeline.register_pass<lowered::pass::CleanupLoopOffsets>();
     gen_pipeline.register_pass<lowered::pass::OptimizeLoopSingleEvaluation>();
     gen_pipeline.run(*m_linear_ir);
-    snippets::lowered::pass::SerializeControlFlow("snsdebug_lowered.xml").run(*m_linear_ir);
-//    snippets::lowered::pass::SerializeDataFlow("snsdebug_lowered_data.xml").run(*m_linear_ir);
 }
 
 snippets::Schedule Subgraph::generate(const BlockedShapeVector& blocked_input_shapes,

@@ -8,9 +8,6 @@
 #include "snippets/utils/utils.hpp"
 
 #include "transformations/snippets/x64/pass/lowered/adjust_brgemm_copy_b_loop_ports.hpp"
-
-//todo:remove
-#include "snippets/lowered/pass/serialize_control_flow.hpp"
 namespace ov {
 namespace intel_cpu {
 
@@ -104,34 +101,21 @@ void CPURuntimeConfigurator::update_loop_args(const ov::snippets::lowered::Linea
 CPURuntimeConfigurator::BrgemmCopyBLoopPortsAdjuster::BrgemmCopyBLoopPortsAdjuster(const ov::snippets::lowered::LinearIRCPtr& linear_ir,
                                                                                    ov::intel_cpu::CPURuntimeConfigurator *configurator)
     : m_configurator(configurator) {
-    ov::snippets::lowered::pass::SerializeControlFlow("snsdebug_dynamic.xml").run(*linear_ir);
     const auto& pass = std::make_shared<intel_cpu::pass::AdjustBrgemmCopyBLoopPorts>();
     pass->run(*linear_ir);
-    for (const auto& l : pass->get_affected_loops())
-        m_affected_loops[l] = {};
+    const auto& affected_uni_loops = pass->get_affected_loops();
     const auto& loop_map = linear_ir->get_loop_manager()->get_map();
     for (const auto& p : loop_map) {
         if (const auto& exp_loop = ov::as_type_ptr<snippets::lowered::ExpandedLoopInfo>(p.second)) {
             const auto& uni_loop = exp_loop->get_unified_loop_info();
-            if (m_affected_loops.count(uni_loop))
-                m_affected_loops[uni_loop].push_back(exp_loop);
+            if (affected_uni_loops.count(uni_loop))
+                m_affected_uni2exp_map[uni_loop].push_back(exp_loop);
         }
     }
-//    const auto& loop_map = linear_ir->get_loop_manager()->get_map();
-//    for (const auto& p : loop_map) {
-//        if (const auto& exp_loop = ov::as_type_ptr<snippets::lowered::ExpandedLoopInfo>(p.second)) {
-//            const auto& uni_loop = exp_loop->get_unified_loop_info();
-//            if (m_affected_loops.count(uni_loop)) {
-//                m_affected_loops[uni_loop].push_back(exp_loop);
-//            } else if (intel_cpu::pass::AdjustBrgemmCopyBLoopPorts::update_loop_info(uni_loop)) {
-//                m_affected_loops[uni_loop].push_back(exp_loop);
-//            }
-//        }
-//    }
 }
 
 void CPURuntimeConfigurator::BrgemmCopyBLoopPortsAdjuster::optimize() {
-        for (const auto& p : m_affected_loops) {
+        for (const auto& p : m_affected_uni2exp_map) {
             const auto& uni_loop = p.first;
             const auto& exp_loops = p.second;
             snippets::RuntimeConfigurator::LoopInfoRuntimeParamsMap initialized_info;

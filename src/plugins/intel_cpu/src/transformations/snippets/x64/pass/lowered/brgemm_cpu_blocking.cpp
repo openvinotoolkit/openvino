@@ -58,20 +58,6 @@ size_t BrgemmCPUBlocking::get_default_n_blk(size_t n) const {
     return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ? 64 : 24;
 }
 
-std::tuple<size_t, size_t, size_t> BrgemmCPUBlocking::get_blocking_params(const ov::snippets::lowered::ExpressionPtr& brgemm_expr) const {
-    const auto brgemm = ov::as_type_ptr<ov::intel_cpu::BrgemmCPU>(brgemm_expr->get_node());
-    OPENVINO_ASSERT(brgemm, "BrgemmCPU is expected!");
-
-    size_t m_blk, n_blk, k_blk;
-    std::tie(m_blk, n_blk, k_blk) = BrgemmBlockingBase::get_blocking_params(brgemm_expr);
-//    if (with_repacking(brgemm->get_type())) {
-//        n_blk = get_full_dim_value();
-//        k_blk = get_full_dim_value();
-//    }
-    std::cerr << "Blocking params: " << m_blk << " : " << n_blk << " : " << k_blk << "\n";
-    return std::make_tuple(m_blk, n_blk, k_blk);
-}
-
 SpecificIterationHandlers BrgemmCPUBlocking::get_k_loop_handlers(size_t work_amount, size_t block_size) const {
     SpecificIterationHandlers handlers = ov::snippets::lowered::pass::BrgemmBlockingBase::get_k_loop_handlers(work_amount, block_size);
     handlers.register_pass<SpecificLoopIterType::FIRST_ITER, DummyPass>();
@@ -90,9 +76,9 @@ bool BrgemmCPUBlocking::mark_blocking_loops(LinearIR& linear_ir,
     if (stand_alone(type))
         return ov::snippets::lowered::pass::BrgemmBlockingBase::mark_blocking_loops(linear_ir, brgemm_it, m_block, n_block, k_block);
 
-    brgemm_expr->get_input_port_descriptor(0)->set_subtensor({m_block, k_block});
-    brgemm_expr->get_input_port_descriptor(1)->set_subtensor({k_block, n_block});
-    brgemm_expr->get_output_port_descriptor(0)->set_subtensor({m_block, n_block});
+    brgemm_expr->get_input_port_descriptor(0)->set_subtensor({m_block, k_block}); //
+    brgemm_expr->get_input_port_descriptor(1)->set_subtensor({k_block, n_block});//
+    brgemm_expr->get_output_port_descriptor(0)->set_subtensor({m_block, n_block});//
 
     const auto copy_b_expr = linear_ir.get_expr_by_node(brgemm->get_brgemm_copy());
     copy_b_expr->get_input_port_descriptor(0)->set_subtensor({get_full_dim_value(), get_full_dim_value()});
@@ -120,9 +106,6 @@ bool BrgemmCPUBlocking::mark_blocking_loops(LinearIR& linear_ir,
         mark_n_blocking(loop_manager, loop_begin, std::next(brgemm_it), entries, exits, n_block);
     }
     if (!is_full_dim_value(m_block)) {
-    // const bool include_repacking = !is_full_dim_value(k_block) || !is_full_dim_value(n_block);
-    // const auto loop_begin = get_loop_begin_pos(linear_ir, brgemm_it, include_repacking ? copy_b_expr : nullptr);
-    // const auto b_input_port = include_repacking ? copy_b_expr->get_input_port(0) : brgemm_expr->get_input_port(1);
         const auto loop_begin = get_loop_begin_pos(linear_ir, brgemm_it);
         const auto b_input_port = brgemm_expr->get_input_port(1);
         std::vector<LoopPort> entries{LoopPort(brgemm_expr->get_input_port(0), true), LoopPort(b_input_port, false)};

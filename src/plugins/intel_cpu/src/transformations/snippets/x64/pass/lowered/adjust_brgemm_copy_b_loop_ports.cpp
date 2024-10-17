@@ -46,10 +46,7 @@ bool pass::AdjustBrgemmCopyBLoopPorts::update_loop_info(const std::shared_ptr<sn
         // K blocking loop
         if (first_port_incremented) {
             const auto ptr_incr = copy_b_loop_desc->ptr_increment;
-//            const auto blocked_shape_ptr_inc = brgemm_utils::repacking::compute_out_leading_dim(ptr_incr, precision);
-            const auto blocked_shape_ptr_inc = snippets::utils::is_dynamic_value(ptr_incr) ?
-                                               ptr_incr :
-                                               std::max(ptr_incr, precision == element::bf16 ? 32l : 64l);
+            const auto blocked_shape_ptr_inc = brgemm_utils::repacking::compute_out_leading_dim(ptr_incr, precision);
             if (ptr_incr != 0 && ptr_incr != blocked_shape_ptr_inc) {
                 copy_b_loop_desc->ptr_increment = blocked_shape_ptr_inc;
                 OPENVINO_ASSERT(copy_b_loop_desc->finalization_offset % ptr_incr == 0,
@@ -59,7 +56,7 @@ bool pass::AdjustBrgemmCopyBLoopPorts::update_loop_info(const std::shared_ptr<sn
             }
         // N blocking loop
         } else {
-            int64_t k_blk_size = precision == element::bf16 ? 2l : 4l;
+            int64_t k_blk_size = 4 / static_cast<int64_t>(precision.size());
             copy_b_loop_desc->ptr_increment =
                     snippets::utils::dynamic_safe_mul(copy_b_loop_desc->ptr_increment, k_blk_size);
             copy_b_loop_desc->finalization_offset =
