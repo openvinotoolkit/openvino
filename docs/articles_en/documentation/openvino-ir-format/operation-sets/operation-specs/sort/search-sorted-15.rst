@@ -46,7 +46,7 @@ SearchSorted
    :force:
 
    <layer ... type="SearchSorted" ... >
-       <right="True"/>
+       <data right="True"/>
        <input>
            <port id="0">
                <dim>7</dim>
