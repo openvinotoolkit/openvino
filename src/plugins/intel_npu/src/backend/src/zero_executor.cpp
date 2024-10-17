@@ -17,7 +17,6 @@
 #include "openvino/runtime/properties.hpp"
 #include "ze_command_queue_npu_ext.h"
 #include "zero_device.hpp"
-#include "zero_utils.hpp"
 
 using namespace intel_npu;
 

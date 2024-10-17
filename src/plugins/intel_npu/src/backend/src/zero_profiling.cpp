@@ -9,8 +9,8 @@
 #include "intel_npu/config/compiler.hpp"
 #include "intel_npu/profiling.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
+#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "zero_profiling.hpp"
-#include "zero_utils.hpp"
 
 namespace intel_npu {
 namespace zeroProfiling {
