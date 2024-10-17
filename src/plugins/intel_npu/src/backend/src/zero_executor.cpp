@@ -52,8 +52,7 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& i
                              nullptr};
         ze_result_t result =
             _graph_ddi_table_ext.pfnCreate(_initStructs->getContext(), _initStructs->getDevice(), &desc, &_graph);
-            THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCreate", result, _graph_ddi_table_ext);
-
+        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCreate", result, _graph_ddi_table_ext);
 
     } else {
         _logger.debug("reuse graph handle created from compiler");
@@ -66,7 +65,7 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& i
     props.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES;
 
     ze_result_t result = _graph_ddi_table_ext.pfnGetProperties(_graph, &props);
-        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetProperties", result, _graph_ddi_table_ext);
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetProperties", result, _graph_ddi_table_ext);
 
     auto targetDriverExtVersion = _graph_ddi_table_ext.version();
     if (targetDriverExtVersion <= ZE_GRAPH_EXT_VERSION_1_1) {
@@ -80,7 +79,7 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& i
         ze_graph_argument_properties_3_t arg3{};
         arg3.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_PROPERTIES;
         ze_result_t result = _graph_ddi_table_ext.pfnGetArgumentProperties3(_graph, index, &arg3);
-            THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties3", result, _graph_ddi_table_ext);
+        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties3", result, _graph_ddi_table_ext);
 
         if (arg3.type == ZE_GRAPH_ARGUMENT_TYPE_INPUT) {
             _input_descriptors.push_back(ArgumentDescriptor{arg3, index});
