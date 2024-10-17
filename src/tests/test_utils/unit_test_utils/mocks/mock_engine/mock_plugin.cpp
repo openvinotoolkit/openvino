@@ -94,7 +94,7 @@ public:
     }
 
     void set_parameters_if_need(const std::shared_ptr<ov::ICore>& core, const std::string& dev_name) const {
-        if (dynamic_cast<IPlugin*>(m_plugin)) {
+        if (m_plugin) {
             if (!m_plugin->get_core() && core) {
                 m_plugin->set_core(core);
             }
