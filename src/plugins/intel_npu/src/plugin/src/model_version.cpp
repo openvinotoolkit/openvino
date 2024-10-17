@@ -24,7 +24,7 @@ void check_blob_version(std::vector<uint8_t>& blob) {
 
     // should we consider the header name changes?
     // if so, we might need multiple header #defines
-    if (versionHeader.compare(blobVersionHeader)) {
+    if (!versionHeader.compare(blobVersionHeader)) {
         OPENVINO_THROW("Version header mismatch or missing");
     }
     metadataIterator += versionHeader.size();
