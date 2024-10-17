@@ -344,11 +344,10 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     std::map<std::size_t, std::string> forced_sub_devices{};
     std::string fsd_opt = m_cfg.get<::intel_npu::NPUW_SUBMODEL_DEVICE>();
     // Change "last" keyword to tail subgraph number
-    uint32_t last_sub_id = static_cast<uint32_t>(m_compiled_submodels.size() - 1);
     std::size_t last_pos = fsd_opt.find("last");
     if (last_pos != std::string::npos) {
         fsd_opt.erase(last_pos, 4);
-        fsd_opt.insert(last_pos, std::to_string(last_sub_id));
+        fsd_opt.insert(last_pos, std::to_string(last_sub_idx));
     }
 
     forced_sub_devices = ::intel_npu ::OptionParser<std::map<std::size_t, std::string>>::parse(fsd_opt);
