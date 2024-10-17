@@ -21,16 +21,8 @@ public:
         return getType() == Type::LoRA;
     }
 
-    bool needShapeInfer() const override {
-        return false;
-    }
-
     bool needPrepareParams() const override {
         return false;
-    }
-
-    bool isExecutable() const override {
-        return true;
     }
 
     void getSupportedDescriptors() override{};

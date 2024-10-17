@@ -8,7 +8,7 @@
 #include "cpu_memory.h"
 #include "ov_ops/lora_subgraph.hpp"
 #include "utils/debug_capabilities.h"
-#include "shape_inference/shape_inference_internal_dyn.hpp"
+#include "shape_inference/shape_inference_pass_through.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -27,7 +27,7 @@ bool LoRA::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::
 }
 
 LoRA::LoRA(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
-    : Node(op, context, InternalDynShapeInferFactory()) {
+    : Node(op, context, PassThroughShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
@@ -105,40 +105,7 @@ void LoRA::execute(dnnl::stream) {
 }
 
 void LoRA::executeDynamicImpl(dnnl::stream strm) {
-    const bool emptyTensors = hasEmptyInputTensors();
-    if (!emptyTensors) {
-        execute(strm);
-    }
-
-    // we know for sure that the LoRA subgraph doesn't contains any internal dynamic ops, that means that
-    // its shapes depend only on the input
-    // moreover, since there is always inPlace memory on the output edge, we don't need to refresh the output mem block
-    if (!inputShapesModified())
-        return;
-
-    const auto mem = getDstMemoryAtPort(0);
-    if (emptyTensors) {
-        const auto& inpShape = getSrcMemoryAtPort(0)->getShape();
-        if (mem->getShape().isDynamic() || mem->getShape().getStaticDims() != inpShape.getStaticDims()) {
-            auto newDesc = getBaseMemDescAtOutputPort(0)->cloneWithNewDims(inpShape.getStaticDims());
-            mem->redefineDesc(newDesc);
-        }
-    }
-
-    // since the shape inference is not performed for the composite node
-    // a memory of the extra child edges, attached to the output ports
-    // has to be updated after an inference of the inner graph finished
-
-    auto itr = getChildEdges().begin();
-    while (++itr != getChildEdges().end()) {
-        auto& childEdge = *itr;
-        auto childEdgePtr = childEdge.lock();
-        assert(childEdgePtr);
-
-        if (childEdgePtr->getInputNum() == 0) {
-            childEdgePtr->getMemoryPtr()->redefineDesc(mem->getDescPtr());
-        }
-    }
+    execute(strm);
 }
 
 }  // namespace node
