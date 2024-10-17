@@ -66,9 +66,12 @@ target_include_directories(${TARGET_NAME}
         $<TARGET_PROPERTY:LevelZero::NPUExt,INTERFACE_INCLUDE_DIRECTORIES>
 )
 
-if(ENABLE_AVX2)
-    ov_avx2_optimization_flags(avx2_flags)
-    target_compile_options(${TARGET_NAME} PRIVATE "${avx2_flags}")
-endif()
+cross_compiled_file(${TARGET_NAME}
+        ARCH AVX2 ANY
+                    npuw/util_xarch.cpp
+        API         npuw/util_xarch.hpp
+        NAME        unpack_i4i8 unpack_u4i8 unpack_i4f16 unpack_i4f16_scale unpack_i4f16_z unpack_u4f16 unpack_u4f16_scale_zp unpack_u4f16_asymm_zp unpack_u4f16_z unpack_u4f32 unpack_i8f16 unpack_i8f16_scale unpack_u8f16 to_f16
+        NAMESPACE   ov::npuw::util::XARCH
+)
 
 ov_add_api_validator_post_build_step(TARGET ${NPU_PLUGIN_TARGET})
