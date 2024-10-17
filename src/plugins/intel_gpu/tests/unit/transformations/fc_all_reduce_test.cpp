@@ -40,7 +40,7 @@ TEST(TransformationTestsF1, FullyConnectedSplitInput11) {
         unsigned long test_size = 2;
         auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{test_size, test_size});
         std::vector<float> weights(test_size * test_size, 2);
-        auto input2 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{test_size, test_size}, {1, 2, 3, 4});
+        auto input2 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{test_size, test_size}, {5, 6, 7, 8});
         std::cout << "\n" << "weights: ";
         for (size_t i = 0; i < input2->get_vector<float>().size(); i++) {
             std::cout << input2->get_vector<float>()[i] << ", ";
@@ -55,16 +55,21 @@ TEST(TransformationTestsF1, FullyConnectedSplitInput11) {
 
         // -------- Loading a model to the device --------
         ov::Core core;
-        ov::CompiledModel compiled_model = core.compile_model(model, "GPU");
+        // ov::CompiledModel compiled_model = core.compile_model(model, "GPU");
+        ov::CompiledModel compiled_model = core.compile_model(model, "GPU", ov::device::priorities("GPU.0,GPU.1,GPU.2,GPU.3"));
 
         // -------- Create an infer request --------
         ov::InferRequest infer_request = compiled_model.create_infer_request();
 
         // -------- Prepare input --------
-        auto input_generate = ov::test::utils::InputGenerateData(0, 5);
-        auto tensor = ov::test::utils::create_and_fill_tensor(infer_request.get_input_tensor().get_element_type(),
-                                                              infer_request.get_input_tensor().get_shape(),
-                                                              input_generate);
+        std::vector<float> input_data = {1, 2, 3, 4};
+        auto tensor = ov::Tensor(infer_request.get_input_tensor().get_element_type(),
+                                 infer_request.get_input_tensor().get_shape(),
+                                 input_data.data());
+        // auto input_generate = ov::test::utils::InputGenerateData(0, 5);
+        // auto tensor = ov::test::utils::create_and_fill_tensor(infer_request.get_input_tensor().get_element_type(),
+        //                                                       infer_request.get_input_tensor().get_shape(),
+        //                                                       input_generate);
         std::cout << "\n" << "input_tensor: ";
         for (size_t i = 0; i < tensor.get_size(); i++) {
             std::cout << tensor.data<float>()[i] << ", ";
@@ -75,9 +80,71 @@ TEST(TransformationTestsF1, FullyConnectedSplitInput11) {
 
         // -------- Do inference synchronously --------
         infer_request.infer();
-        for (int iter = 0; iter < 2; iter++) {
-             infer_request.infer();
+        // for (int iter = 0; iter < 2; iter++) {
+        //      infer_request.infer();
+        // }
+
+        // -------- Process output
+        auto output_tensor = infer_request.get_output_tensor();
+        std::cout << "\n"
+                  << "output_tensor: " << output_tensor.get_shape() << std::endl;
+        for (size_t i = 0; i < output_tensor.get_size(); i++) {
+            std::cout << output_tensor.data<float>()[i] << ", ";
         }
+        std::cout << std::endl;
+    }
+}
+
+TEST(TransformationTestsF1, FullyConnectedSplitInput8) {
+    {
+        // -------- Construct model
+        unsigned long test_size = 4;
+        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{test_size, test_size});
+        std::vector<float> weights(test_size * test_size, 2);
+        auto input2 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{test_size, test_size}, {17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32});
+        std::cout << "\n" << "weights: ";
+        for (size_t i = 0; i < input2->get_vector<float>().size(); i++) {
+            std::cout << input2->get_vector<float>()[i] << ", ";
+        }
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<op::FullyConnected>(input1, input2, no_bias, ov::element::f32);
+        const auto relu = std::make_shared<ov::op::v0::Relu>(fc);
+        auto model = std::make_shared<ov::Model>(ov::NodeVector{relu}, ov::ParameterVector{input1});
+        //auto model = std::make_shared<ov::Model>(ov::NodeVector{fc}, ov::ParameterVector{input1});
+
+        // ov::serialize(model, "./model_fc.xml", "./model_fc.bin");
+
+        // -------- Loading a model to the device --------
+        ov::Core core;
+        // ov::CompiledModel compiled_model = core.compile_model(model, "GPU");
+        ov::CompiledModel compiled_model = core.compile_model(model, "GPU", ov::device::priorities("GPU.0,GPU.1,GPU.2,GPU.3"));
+        // ov::CompiledModel compiled_model = core.compile_model(model, "GPU", ov::device::priorities("GPU.0,GPU.1,GPU.2,GPU.3"));
+
+        // -------- Create an infer request --------
+        ov::InferRequest infer_request = compiled_model.create_infer_request();
+
+        // -------- Prepare input --------
+        std::vector<float> input_data = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+        auto tensor = ov::Tensor(infer_request.get_input_tensor().get_element_type(),
+                                 infer_request.get_input_tensor().get_shape(),
+                                 input_data.data());
+        // auto input_generate = ov::test::utils::InputGenerateData(0, 5);
+        // auto tensor = ov::test::utils::create_and_fill_tensor(infer_request.get_input_tensor().get_element_type(),
+        //                                                       infer_request.get_input_tensor().get_shape(),
+        //                                                       input_generate);
+        std::cout << "\n" << "input_tensor: ";
+        for (size_t i = 0; i < tensor.get_size(); i++) {
+            std::cout << tensor.data<float>()[i] << ", ";
+        }
+        std::cout << std::endl;
+
+        infer_request.set_input_tensor(tensor);
+
+        // -------- Do inference synchronously --------
+        infer_request.infer();
+        // for (int iter = 0; iter < 2; iter++) {
+        //      infer_request.infer();
+        // }
 
         // -------- Process output
         auto output_tensor = infer_request.get_output_tensor();
@@ -141,7 +208,9 @@ TEST(TransformationTestsF1, FullyConnectedSplitInput16) {
 
         // -------- Loading a model to the device --------
         ov::Core core;
-        ov::CompiledModel compiled_model = core.compile_model(model, "GPU");
+//        ov::CompiledModel compiled_model = core.compile_model(model, "GPU");
+	ov::CompiledModel compiled_model = core.compile_model(model, "GPU", ov::device::priorities("GPU.0,GPU.1,GPU.2,GPU.3"));
+    // ov::CompiledModel compiled_model = core.compile_model(model, "GPU", ov::device::priorities("GPU.0,GPU.1,GPU.2,GPU.3"));
 
         // -------- Create an infer request --------
         ov::InferRequest infer_request = compiled_model.create_infer_request();
@@ -160,9 +229,9 @@ TEST(TransformationTestsF1, FullyConnectedSplitInput16) {
 
         // -------- Do inference synchronously --------
         infer_request.infer();
-        for (int iter = 0; iter < 2; iter++) {
-             infer_request.infer();
-        }
+        // for (int iter = 0; iter < 2; iter++) {
+        //      infer_request.infer();
+        // }
 
         // -------- Process output
         auto output_tensor = infer_request.get_output_tensor();
@@ -218,7 +287,644 @@ TEST(TransformationTestsF1, FullyConnectedSplitInput1024) {
 
         // -------- Do inference synchronously --------
         infer_request.infer();
+        for (int iter = 0; iter < 2000; iter++) {
+            infer_request.infer();
+        }
+
+        // -------- Process output
+        auto output_tensor = infer_request.get_output_tensor();
+        std::cout << "\n"
+                  << "output_tensor: " << output_tensor.get_shape() << std::endl;
+        std::cout << std::endl;
+    }
+}
+
+TEST(TransformationTestsF1, FullyConnectedSplitInput_xj_64) {
+    {
+        // -------- Construct model
+        unsigned long m, k, n;
+        m = k = n = 64;
+        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{m, n});
+        std::vector<float> input_data(m * k, 1);
+        std::vector<float> weights(k * n, 2);
+        std::vector<float> result(m * n, 2);
+
+        auto input2 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{k, n}, weights.data());
+
+        std::cout << "input_shape: " << m << " * " << k << std::endl;
+        std::cout << "weight_shape: " << k << " * " << n << std::endl;
+        std::cout << "output_shape: " << m << " * " << n << std::endl;
+
+        std::cout << std::endl;
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<op::FullyConnected>(input1, input2, no_bias, ov::element::i8);
+        const auto relu = std::make_shared<ov::op::v0::Relu>(fc);
+        auto model = std::make_shared<ov::Model>(ov::NodeVector{relu}, ov::ParameterVector{input1});
+
+        // ov::serialize(model, "./model_fc.xml", "./model_fc.bin");
+
+        // -------- Loading a model to the device --------
+        ov::Core core;
+        // ov::CompiledModel compiled_model = core.compile_model(model, "GPU", ov::device::priorities("GPU.0,GPU.1,GPU.2,GPU.3"));
+        ov::CompiledModel compiled_model = core.compile_model(model, "GPU", ov::device::priorities("GPU.0,GPU.1,GPU.2,GPU.3"));
+
+        // -------- Create an infer request --------
+        ov::InferRequest infer_request = compiled_model.create_infer_request();
+
+        // -------- Prepare input --------
+        auto tensor = ov::Tensor(infer_request.get_input_tensor().get_element_type(),
+                                 infer_request.get_input_tensor().get_shape(),
+                                 input_data.data());
+
+        infer_request.set_input_tensor(tensor);
+
+        // -------- Do inference synchronously --------
+        // infer_request.infer();
+        for (int iter = 0; iter < 2000; iter++) {
+            infer_request.infer();
+        }
+
+        // -------- Process output
+        auto output_tensor = infer_request.get_output_tensor();
+        std::cout << "\n"
+                  << "output_tensor: " << output_tensor.get_shape() << std::endl;
+        std::cout << std::endl;
+    }
+}
+
+TEST(TransformationTestsF1, FullyConnectedSplitInput_xj_128) {
+    {
+        // -------- Construct model
+        unsigned long m, k, n;
+        m = k = n = 128;
+        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{m, n});
+        std::vector<float> input_data(m * k, 1);
+        std::vector<float> weights(k * n, 2);
+        std::vector<float> result(m * n, 2);
+
+        auto input2 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{k, n}, weights.data());
+
+        std::cout << "input_shape: " << m << " * " << k << std::endl;
+        std::cout << "weight_shape: " << k << " * " << n << std::endl;
+        std::cout << "output_shape: " << m << " * " << n << std::endl;
+
+        std::cout << std::endl;
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<op::FullyConnected>(input1, input2, no_bias, ov::element::i8);
+        const auto relu = std::make_shared<ov::op::v0::Relu>(fc);
+        auto model = std::make_shared<ov::Model>(ov::NodeVector{relu}, ov::ParameterVector{input1});
+
+        // ov::serialize(model, "./model_fc.xml", "./model_fc.bin");
+
+        // -------- Loading a model to the device --------
+        ov::Core core;
+        // ov::CompiledModel compiled_model = core.compile_model(model, "GPU", ov::device::priorities("GPU.0,GPU.1,GPU.2,GPU.3"));
+        ov::CompiledModel compiled_model = core.compile_model(model, "GPU", ov::device::priorities("GPU.0,GPU.1,GPU.2,GPU.3"));
+
+        // -------- Create an infer request --------
+        ov::InferRequest infer_request = compiled_model.create_infer_request();
+
+        // -------- Prepare input --------
+        auto tensor = ov::Tensor(infer_request.get_input_tensor().get_element_type(),
+                                 infer_request.get_input_tensor().get_shape(),
+                                 input_data.data());
+
+        infer_request.set_input_tensor(tensor);
+
+        // -------- Do inference synchronously --------
+        // infer_request.infer();
+        for (int iter = 0; iter < 2000; iter++) {
+            infer_request.infer();
+        }
+
+        // -------- Process output
+        auto output_tensor = infer_request.get_output_tensor();
+        std::cout << "\n"
+                  << "output_tensor: " << output_tensor.get_shape() << std::endl;
+        std::cout << std::endl;
+    }
+}
+
+TEST(TransformationTestsF1, FullyConnectedSplitInput_xj_256) {
+    {
+        // -------- Construct model
+        unsigned long m, k, n;
+        m = k = n = 256;
+        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{m, n});
+        std::vector<float> input_data(m * k, 1);
+        std::vector<float> weights(k * n, 2);
+        std::vector<float> result(m * n, 2);
+
+        auto input2 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{k, n}, weights.data());
+
+        std::cout << "input_shape: " << m << " * " << k << std::endl;
+        std::cout << "weight_shape: " << k << " * " << n << std::endl;
+        std::cout << "output_shape: " << m << " * " << n << std::endl;
+
+        std::cout << std::endl;
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<op::FullyConnected>(input1, input2, no_bias, ov::element::i8);
+        const auto relu = std::make_shared<ov::op::v0::Relu>(fc);
+        auto model = std::make_shared<ov::Model>(ov::NodeVector{relu}, ov::ParameterVector{input1});
+
+        // ov::serialize(model, "./model_fc.xml", "./model_fc.bin");
+
+        // -------- Loading a model to the device --------
+        ov::Core core;
+        // ov::CompiledModel compiled_model = core.compile_model(model, "GPU", ov::device::priorities("GPU.0,GPU.1,GPU.2,GPU.3"));
+        ov::CompiledModel compiled_model = core.compile_model(model, "GPU", ov::device::priorities("GPU.0,GPU.1,GPU.2,GPU.3"));
+
+        // -------- Create an infer request --------
+        ov::InferRequest infer_request = compiled_model.create_infer_request();
+
+        // -------- Prepare input --------
+        auto tensor = ov::Tensor(infer_request.get_input_tensor().get_element_type(),
+                                 infer_request.get_input_tensor().get_shape(),
+                                 input_data.data());
+
+        infer_request.set_input_tensor(tensor);
+
+        // -------- Do inference synchronously --------
+        // infer_request.infer();
+        for (int iter = 0; iter < 2000; iter++) {
+            infer_request.infer();
+        }
+
+        // -------- Process output
+        auto output_tensor = infer_request.get_output_tensor();
+        std::cout << "\n"
+                  << "output_tensor: " << output_tensor.get_shape() << std::endl;
+        std::cout << std::endl;
+    }
+}
+
+TEST(TransformationTestsF1, FullyConnectedSplitInput_xj_512) {
+    {
+        // -------- Construct model
+        unsigned long m, k, n;
+        m = k = n = 512;
+        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{m, n});
+        std::vector<float> input_data(m * k, 1);
+        std::vector<float> weights(k * n, 2);
+        std::vector<float> result(m * n, 2);
+
+        auto input2 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{k, n}, weights.data());
+
+        std::cout << "input_shape: " << m << " * " << k << std::endl;
+        std::cout << "weight_shape: " << k << " * " << n << std::endl;
+        std::cout << "output_shape: " << m << " * " << n << std::endl;
+
+        std::cout << std::endl;
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<op::FullyConnected>(input1, input2, no_bias, ov::element::i8);
+        const auto relu = std::make_shared<ov::op::v0::Relu>(fc);
+        auto model = std::make_shared<ov::Model>(ov::NodeVector{relu}, ov::ParameterVector{input1});
+
+        // ov::serialize(model, "./model_fc.xml", "./model_fc.bin");
+
+        // -------- Loading a model to the device --------
+        ov::Core core;
+        // ov::CompiledModel compiled_model = core.compile_model(model, "GPU", ov::device::priorities("GPU.0,GPU.1,GPU.2,GPU.3"));
+        ov::CompiledModel compiled_model = core.compile_model(model, "GPU", ov::device::priorities("GPU.0,GPU.1,GPU.2,GPU.3"));
+
+        // -------- Create an infer request --------
+        ov::InferRequest infer_request = compiled_model.create_infer_request();
+
+        // -------- Prepare input --------
+        auto tensor = ov::Tensor(infer_request.get_input_tensor().get_element_type(),
+                                 infer_request.get_input_tensor().get_shape(),
+                                 input_data.data());
+
+        infer_request.set_input_tensor(tensor);
+
+        // -------- Do inference synchronously --------
+        // infer_request.infer();
+        for (int iter = 0; iter < 2000; iter++) {
+            infer_request.infer();
+        }
+
+        // -------- Process output
+        auto output_tensor = infer_request.get_output_tensor();
+        std::cout << "\n"
+                  << "output_tensor: " << output_tensor.get_shape() << std::endl;
+        std::cout << std::endl;
+    }
+}
+
+TEST(TransformationTestsF1, FullyConnectedSplitInput_xj_1024) {
+    {
+        // -------- Construct model
+        unsigned long m, k, n;
+        m = k = n = 1024;
+        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{m, n});
+        std::vector<float> input_data(m * k, 1);
+        std::vector<float> weights(k * n, 2);
+        std::vector<float> result(m * n, 2);
+
+        auto input2 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{k, n}, weights.data());
+
+        std::cout << "input_shape: " << m << " * " << k << std::endl;
+        std::cout << "weight_shape: " << k << " * " << n << std::endl;
+        std::cout << "output_shape: " << m << " * " << n << std::endl;
+
+        std::cout << std::endl;
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<op::FullyConnected>(input1, input2, no_bias, ov::element::i8);
+        const auto relu = std::make_shared<ov::op::v0::Relu>(fc);
+        auto model = std::make_shared<ov::Model>(ov::NodeVector{relu}, ov::ParameterVector{input1});
+
+        // ov::serialize(model, "./model_fc.xml", "./model_fc.bin");
+
+        // -------- Loading a model to the device --------
+        ov::Core core;
+        // ov::CompiledModel compiled_model = core.compile_model(model, "GPU", ov::device::priorities("GPU.0,GPU.1,GPU.2,GPU.3"));
+        ov::CompiledModel compiled_model = core.compile_model(model, "GPU", ov::device::priorities("GPU.0,GPU.1,GPU.2,GPU.3"));
+
+        // -------- Create an infer request --------
+        ov::InferRequest infer_request = compiled_model.create_infer_request();
+
+        // -------- Prepare input --------
+        auto tensor = ov::Tensor(infer_request.get_input_tensor().get_element_type(),
+                                 infer_request.get_input_tensor().get_shape(),
+                                 input_data.data());
+
+        infer_request.set_input_tensor(tensor);
+
+        // -------- Do inference synchronously --------
+        // infer_request.infer();
+        for (int iter = 0; iter < 2000; iter++) {
+            infer_request.infer();
+        }
+
+        // -------- Process output
+        auto output_tensor = infer_request.get_output_tensor();
+        std::cout << "\n"
+                  << "output_tensor: " << output_tensor.get_shape() << std::endl;
+        std::cout << std::endl;
+    }
+}
+
+TEST(TransformationTestsF1, FullyConnectedSplitInput_xj_2048) {
+    {
+        // -------- Construct model
+        unsigned long m, k, n;
+        m = k = n = 2048;
+        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{m, n});
+        std::vector<float> input_data(m * k, 1);
+        std::vector<float> weights(k * n, 2);
+        std::vector<float> result(m * n, 2);
+
+        auto input2 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{k, n}, weights.data());
+
+        std::cout << "input_shape: " << m << " * " << k << std::endl;
+        std::cout << "weight_shape: " << k << " * " << n << std::endl;
+        std::cout << "output_shape: " << m << " * " << n << std::endl;
+
+        std::cout << std::endl;
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<op::FullyConnected>(input1, input2, no_bias, ov::element::i8);
+        const auto relu = std::make_shared<ov::op::v0::Relu>(fc);
+        auto model = std::make_shared<ov::Model>(ov::NodeVector{relu}, ov::ParameterVector{input1});
+
+        // ov::serialize(model, "./model_fc.xml", "./model_fc.bin");
+
+        // -------- Loading a model to the device --------
+        ov::Core core;
+        // ov::CompiledModel compiled_model = core.compile_model(model, "GPU", ov::device::priorities("GPU.0,GPU.1,GPU.2,GPU.3"));
+        ov::CompiledModel compiled_model = core.compile_model(model, "GPU", ov::device::priorities("GPU.0,GPU.1,GPU.2,GPU.3"));
+
+        // -------- Create an infer request --------
+        ov::InferRequest infer_request = compiled_model.create_infer_request();
+
+        // -------- Prepare input --------
+        auto tensor = ov::Tensor(infer_request.get_input_tensor().get_element_type(),
+                                 infer_request.get_input_tensor().get_shape(),
+                                 input_data.data());
+
+        infer_request.set_input_tensor(tensor);
+
+        // -------- Do inference synchronously --------
+        // infer_request.infer();
+        for (int iter = 0; iter < 2000; iter++) {
+            infer_request.infer();
+        }
+
+        // -------- Process output
+        auto output_tensor = infer_request.get_output_tensor();
+        std::cout << "\n"
+                  << "output_tensor: " << output_tensor.get_shape() << std::endl;
+        std::cout << std::endl;
+    }
+}
+
+TEST(TransformationTestsF1, FullyConnectedSplitInput_xj_4096) {
+    {
+        // -------- Construct model
+        unsigned long m, k, n;
+        m = k = n = 4096;
+        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{m, n});
+        std::vector<float> input_data(m * k, 1);
+        std::vector<float> weights(k * n, 2);
+        std::vector<float> result(m * n, 2);
+
+        auto input2 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{k, n}, weights.data());
+
+        std::cout << "input_shape: " << m << " * " << k << std::endl;
+        std::cout << "weight_shape: " << k << " * " << n << std::endl;
+        std::cout << "output_shape: " << m << " * " << n << std::endl;
+
+        std::cout << std::endl;
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<op::FullyConnected>(input1, input2, no_bias, ov::element::i8);
+        const auto relu = std::make_shared<ov::op::v0::Relu>(fc);
+        auto model = std::make_shared<ov::Model>(ov::NodeVector{relu}, ov::ParameterVector{input1});
+
+        // ov::serialize(model, "./model_fc.xml", "./model_fc.bin");
+
+        // -------- Loading a model to the device --------
+        ov::Core core;
+        // ov::CompiledModel compiled_model = core.compile_model(model, "GPU", ov::device::priorities("GPU.0,GPU.1,GPU.2,GPU.3"));
+        ov::CompiledModel compiled_model = core.compile_model(model, "GPU", ov::device::priorities("GPU.0,GPU.1,GPU.2,GPU.3"));
+
+        // -------- Create an infer request --------
+        ov::InferRequest infer_request = compiled_model.create_infer_request();
+
+        // -------- Prepare input --------
+        auto tensor = ov::Tensor(infer_request.get_input_tensor().get_element_type(),
+                                 infer_request.get_input_tensor().get_shape(),
+                                 input_data.data());
+
+        infer_request.set_input_tensor(tensor);
+
+        // -------- Do inference synchronously --------
+        // infer_request.infer();
+        for (int iter = 0; iter < 2000; iter++) {
+            infer_request.infer();
+        }
+
+        // -------- Process output
+        auto output_tensor = infer_request.get_output_tensor();
+        std::cout << "\n"
+                  << "output_tensor: " << output_tensor.get_shape() << std::endl;
+        std::cout << std::endl;
+    }
+}
+
+TEST(TransformationTestsF1, FullyConnectedSplitInput_xj_8192) {
+    {
+        // -------- Construct model
+        unsigned long m, k, n;
+        m = k = n = 8192;
+        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{m, n});
+        std::vector<float> input_data(m * k, 1);
+        std::vector<float> weights(k * n, 2);
+        std::vector<float> result(m * n, 2);
+
+        auto input2 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{k, n}, weights.data());
+
+        std::cout << "input_shape: " << m << " * " << k << std::endl;
+        std::cout << "weight_shape: " << k << " * " << n << std::endl;
+        std::cout << "output_shape: " << m << " * " << n << std::endl;
+
+        std::cout << std::endl;
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<op::FullyConnected>(input1, input2, no_bias, ov::element::i8);
+        const auto relu = std::make_shared<ov::op::v0::Relu>(fc);
+        auto model = std::make_shared<ov::Model>(ov::NodeVector{relu}, ov::ParameterVector{input1});
+
+        // ov::serialize(model, "./model_fc.xml", "./model_fc.bin");
+
+        // -------- Loading a model to the device --------
+        ov::Core core;
+        // ov::CompiledModel compiled_model = core.compile_model(model, "GPU", ov::device::priorities("GPU.0,GPU.1,GPU.2,GPU.3"));
+        ov::CompiledModel compiled_model = core.compile_model(model, "GPU", ov::device::priorities("GPU.0,GPU.1,GPU.2,GPU.3"));
+
+        // -------- Create an infer request --------
+        ov::InferRequest infer_request = compiled_model.create_infer_request();
+
+        // -------- Prepare input --------
+        auto tensor = ov::Tensor(infer_request.get_input_tensor().get_element_type(),
+                                 infer_request.get_input_tensor().get_shape(),
+                                 input_data.data());
+
+        infer_request.set_input_tensor(tensor);
+
+        // -------- Do inference synchronously --------
+        // infer_request.infer();
+        for (int iter = 0; iter < 1000; iter++) {
+            infer_request.infer();
+        }
+
+        // -------- Process output
+        auto output_tensor = infer_request.get_output_tensor();
+        std::cout << "\n"
+                  << "output_tensor: " << output_tensor.get_shape() << std::endl;
+        std::cout << std::endl;
+    }
+}
+
+TEST(TransformationTestsF1, FullyConnectedSplitInput_xj_16384) {
+    {
+        // -------- Construct model
+        unsigned long m, k, n;
+        m = k = n = 16384;
+        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{m, n});
+        std::vector<float> input_data(m * k, 1);
+        std::vector<float> weights(k * n, 2);
+        std::vector<float> result(m * n, 2);
+
+        auto input2 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{k, n}, weights.data());
+
+        std::cout << "input_shape: " << m << " * " << k << std::endl;
+        std::cout << "weight_shape: " << k << " * " << n << std::endl;
+        std::cout << "output_shape: " << m << " * " << n << std::endl;
+
+        std::cout << std::endl;
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<op::FullyConnected>(input1, input2, no_bias, ov::element::i8);
+        const auto relu = std::make_shared<ov::op::v0::Relu>(fc);
+        auto model = std::make_shared<ov::Model>(ov::NodeVector{relu}, ov::ParameterVector{input1});
+
+        // ov::serialize(model, "./model_fc.xml", "./model_fc.bin");
+
+        // -------- Loading a model to the device --------
+        ov::Core core;
+        // ov::CompiledModel compiled_model = core.compile_model(model, "GPU", ov::device::priorities("GPU.0,GPU.1,GPU.2,GPU.3"));
+        ov::CompiledModel compiled_model = core.compile_model(model, "GPU", ov::device::priorities("GPU.0,GPU.1,GPU.2,GPU.3"));
+
+        // -------- Create an infer request --------
+        ov::InferRequest infer_request = compiled_model.create_infer_request();
+
+        // -------- Prepare input --------
+        auto tensor = ov::Tensor(infer_request.get_input_tensor().get_element_type(),
+                                 infer_request.get_input_tensor().get_shape(),
+                                 input_data.data());
+
+        infer_request.set_input_tensor(tensor);
+
+        // -------- Do inference synchronously --------
+        // infer_request.infer();
+        for (int iter = 0; iter < 200; iter++) {
+            infer_request.infer();
+        }
+
+        // -------- Process output
+        auto output_tensor = infer_request.get_output_tensor();
+        std::cout << "\n"
+                  << "output_tensor: " << output_tensor.get_shape() << std::endl;
+        std::cout << std::endl;
+    }
+}
+
+TEST(TransformationTestsF1, FullyConnectedSplitInput_xj_32768) {
+    {
+        // -------- Construct model
+        unsigned long m, k, n;
+        m = k = n = 32768;
+        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{m, n});
+        std::vector<float> input_data(m * k, 1);
+        std::vector<float> weights(k * n, 2);
+        std::vector<float> result(m * n, 2);
+
+        auto input2 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{k, n}, weights.data());
+
+        std::cout << "input_shape: " << m << " * " << k << std::endl;
+        std::cout << "weight_shape: " << k << " * " << n << std::endl;
+        std::cout << "output_shape: " << m << " * " << n << std::endl;
+
+        std::cout << std::endl;
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<op::FullyConnected>(input1, input2, no_bias, ov::element::i8);
+        const auto relu = std::make_shared<ov::op::v0::Relu>(fc);
+        auto model = std::make_shared<ov::Model>(ov::NodeVector{relu}, ov::ParameterVector{input1});
+
+        // ov::serialize(model, "./model_fc.xml", "./model_fc.bin");
+
+        // -------- Loading a model to the device --------
+        ov::Core core;
+        // ov::CompiledModel compiled_model = core.compile_model(model, "GPU", ov::device::priorities("GPU.0,GPU.1,GPU.2,GPU.3"));
+        ov::CompiledModel compiled_model = core.compile_model(model, "GPU", ov::device::priorities("GPU.0,GPU.1,GPU.2,GPU.3"));
+
+        // -------- Create an infer request --------
+        ov::InferRequest infer_request = compiled_model.create_infer_request();
+
+        // -------- Prepare input --------
+        auto tensor = ov::Tensor(infer_request.get_input_tensor().get_element_type(),
+                                 infer_request.get_input_tensor().get_shape(),
+                                 input_data.data());
+
+        infer_request.set_input_tensor(tensor);
+
+        // -------- Do inference synchronously --------
+        // infer_request.infer();
         for (int iter = 0; iter < 100; iter++) {
+            infer_request.infer();
+        }
+
+        // -------- Process output
+        auto output_tensor = infer_request.get_output_tensor();
+        std::cout << "\n"
+                  << "output_tensor: " << output_tensor.get_shape() << std::endl;
+        std::cout << std::endl;
+    }
+}
+
+TEST(TransformationTestsF1, FullyConnectedSplitInput_xj_1) {
+    {
+        // -------- Construct model
+        unsigned long m, k, n;
+        m = k = 32768;
+        n = 65536;
+        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{m, m});
+        std::vector<float> input_data(m * m, 1);
+        std::vector<float> weights(k * n, 2);
+        // std::vector<float> result(m * n, 2);
+
+        auto input2 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{n, k}, weights.data());
+
+        std::cout << "input_shape: " << m << " * " << k << std::endl;
+        std::cout << "weight_shape: " << k << " * " << n << std::endl;
+        std::cout << "output_shape: " << m << " * " << n << std::endl;
+
+        std::cout << std::endl;
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<op::FullyConnected>(input1, input2, no_bias, ov::element::i8);
+        const auto relu = std::make_shared<ov::op::v0::Relu>(fc);
+        auto model = std::make_shared<ov::Model>(ov::NodeVector{relu}, ov::ParameterVector{input1});
+
+        // ov::serialize(model, "./model_fc.xml", "./model_fc.bin");
+
+        // -------- Loading a model to the device --------
+        ov::Core core;
+        // ov::CompiledModel compiled_model = core.compile_model(model, "GPU", ov::device::priorities("GPU.0,GPU.1"));
+        ov::CompiledModel compiled_model = core.compile_model(model, "GPU", ov::device::priorities("GPU.0,GPU.1,GPU.2,GPU.3"));
+
+        // -------- Create an infer request --------
+        ov::InferRequest infer_request = compiled_model.create_infer_request();
+
+        // -------- Prepare input --------
+        auto tensor = ov::Tensor(infer_request.get_input_tensor().get_element_type(),
+                                 infer_request.get_input_tensor().get_shape(),
+                                 input_data.data());
+
+        infer_request.set_input_tensor(tensor);
+
+        // -------- Do inference synchronously --------
+        // infer_request.infer();
+        for (int iter = 0; iter < 2; iter++) {
+            infer_request.infer();
+        }
+
+        // -------- Process output
+        auto output_tensor = infer_request.get_output_tensor();
+        std::cout << "\n"
+                  << "output_tensor: " << output_tensor.get_shape() << std::endl;
+        std::cout << std::endl;
+    }
+}
+
+TEST(TransformationTestsF1, FullyConnectedSplitInput_xj_2) {
+    {
+        // -------- Construct model
+        unsigned long m, k, n;
+        m = k = n = 65536;
+        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{m, n});
+        std::vector<float> input_data(m * k, 1);
+        std::vector<float> weights(k * n, 2);
+        // std::vector<float> result(m * n, 2);
+
+        auto input2 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{k, n}, weights.data());
+
+        std::cout << "input_shape: " << m << " * " << k << std::endl;
+        std::cout << "weight_shape: " << k << " * " << n << std::endl;
+        std::cout << "output_shape: " << m << " * " << n << std::endl;
+
+        std::cout << std::endl;
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<op::FullyConnected>(input1, input2, no_bias, ov::element::i8);
+        const auto relu = std::make_shared<ov::op::v0::Relu>(fc);
+        auto model = std::make_shared<ov::Model>(ov::NodeVector{relu}, ov::ParameterVector{input1});
+
+        // ov::serialize(model, "./model_fc.xml", "./model_fc.bin");
+
+        // -------- Loading a model to the device --------
+        ov::Core core;
+        // ov::CompiledModel compiled_model = core.compile_model(model, "GPU", ov::device::priorities("GPU.0,GPU.1,GPU.2,GPU.3"));
+        ov::CompiledModel compiled_model = core.compile_model(model, "GPU", ov::device::priorities("GPU.0,GPU.1,GPU.2,GPU.3"));
+
+        // -------- Create an infer request --------
+        ov::InferRequest infer_request = compiled_model.create_infer_request();
+
+        // -------- Prepare input --------
+        auto tensor = ov::Tensor(infer_request.get_input_tensor().get_element_type(),
+                                 infer_request.get_input_tensor().get_shape(),
+                                 input_data.data());
+
+        infer_request.set_input_tensor(tensor);
+
+        // -------- Do inference synchronously --------
+        // infer_request.infer();
+        for (int iter = 0; iter < 10; iter++) {
             infer_request.infer();
         }
 
