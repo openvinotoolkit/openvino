@@ -303,14 +303,14 @@ void BrgemmKernelExecutor::execute(const BrgemmKernelExecutor* executor, call_ar
     }
 
     cpu::x64::brgemm_kernel_params_t brgemm_p;
-    auto is_with_comp = static_cast<size_t>(config.is_with_comp());
+    size_t is_with_comp = config.get_beta() == 0 && config.is_with_comp();
 
     brgemm_p.batch = nullptr;  // default value
     brgemm_p.ptr_A = args->A;
     brgemm_p.ptr_B = args->B;
     brgemm_p.ptr_C = args->C;
     brgemm_p.ptr_D = args->C;
-    brgemm_p.ptr_buf = is_with_comp ? args->scratch : nullptr;
+    brgemm_p.ptr_buf = args->scratch;
     brgemm_p.ptr_bias = nullptr;
     brgemm_p.do_post_ops = is_with_comp;
     brgemm_p.do_apply_comp = is_with_comp;
