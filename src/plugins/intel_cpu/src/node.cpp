@@ -700,27 +700,28 @@ void Node::updateShapes() {
                 if (ShapeInferStatus::success == result.status) {
                     redefineOutputMemory(result.dims);
                 }
-            } else {
-                //guard check for internal dynamic nodes to avoid possible overestimation of the required memory size
-                if (shapeInference && FULL_PORT_MASK == shapeInference->get_port_mask())
-                    return;
-
-                for (auto&& edge : getChildEdges()) {
-                    auto edge_ptr = edge.lock();
-                    CPU_NODE_ASSERT(edge_ptr, " has null edge");
-                    if (edge_ptr->inPlace(Edge::LOOK_UP)) {
-                        continue;
-                    }
-
-                    auto mem = edge_ptr->getMemoryPtr();
-                    CPU_NODE_ASSERT(mem, " has null output memory");
-
-                    if (mem->getShape().hasZeroDims()) {
-                        continue;
-                    }
-                    fetchRawMemory(mem);
-                }
             }
+            //  else {
+            //     //guard check for internal dynamic nodes to avoid possible overestimation of the required memory size
+            //     if (shapeInference && FULL_PORT_MASK == shapeInference->get_port_mask())
+            //         return;
+
+            //     for (auto&& edge : getChildEdges()) {
+            //         auto edge_ptr = edge.lock();
+            //         CPU_NODE_ASSERT(edge_ptr, " has null edge");
+            //         if (edge_ptr->inPlace(Edge::LOOK_UP)) {
+            //             continue;
+            //         }
+
+            //         auto mem = edge_ptr->getMemoryPtr();
+            //         CPU_NODE_ASSERT(mem, " has null output memory");
+
+            //         if (mem->getShape().hasZeroDims()) {
+            //             continue;
+            //         }
+            //         fetchRawMemory(mem);
+            //     }
+            // }
         } catch (const std::exception& exp) {
             THROW_CPU_NODE_ERR(exp.what());
         }
@@ -800,9 +801,9 @@ void Node::redefineOutputMemory(const size_t port, const VectorDims& new_output_
 
     const auto& curr_desc = edges[0]->getMemory().getDesc();
     if (curr_desc.getShape().isStatic() && curr_desc.getShape().getStaticDims() == new_shape) {
-        for (auto&& edge : edges) {
-            fetchRawMemory(edge->getMemoryPtr());
-        }
+        // for (auto&& edge : edges) {
+        //     fetchRawMemory(edge->getMemoryPtr());
+        // }
         return;
     }
 

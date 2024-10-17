@@ -274,8 +274,9 @@ void append_spatial_shape(const TOp* op,
                 pooling::valid_dilated_kernel_with_dim(op, filter_dilated.get_length(), dim, i);
             }
 
-            dim = dim::floor_div(dim - filter_dilated, strides[i]);
-            dim += 1;
+
+            dim = dim::floor_div(dim  + strides[i] - filter_dilated, strides[i]);
+            //dim += 1;
             out_shape.push_back(std::move(dim));
         }
     }
