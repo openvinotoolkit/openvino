@@ -4,6 +4,7 @@
 
 #include "common_test_utils/node_builders/eltwise.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 
@@ -55,7 +56,7 @@ protected:
         OPENVINO_ASSERT(shape_size(constShape) == 1);
 
         const auto param = std::make_shared<ov::op::v0::Parameter>(prc, ov::Shape(nonConstShape));
-        const auto constNode = ov::test::utils::make_constant(prc, constShape);
+        const auto constNode = ov::test::utils::make_constant(prc, constShape, utils::InputGenerateData(1, 9e8, 1, 1));
         OutputVector inputs(2);
         inputs[port] = constNode;
         inputs[1 - port] = param;
