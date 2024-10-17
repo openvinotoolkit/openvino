@@ -18,8 +18,8 @@ void PagedAttentionExtension::validate_and_infer_types() {
     OV_OP_SCOPE(PagedAttentionExtension_validate_and_infer_types);
 
     NODE_VALIDATION_CHECK(this,
-                          get_input_size() == 13,
-                          "PagedAttensionExtension expects 13 inputs, but it has ",
+                          get_input_size() == 15,
+                          "PagedAttensionExtension expects 15 inputs, but it has ",
                           get_input_size());
 
     NODE_VALIDATION_CHECK(
@@ -145,6 +145,35 @@ void PagedAttentionExtension::validate_and_infer_types() {
                           "Element type of `max_context_len` input should be i32, but it is ",
                           get_input_element_type(12),
                           ".");
+
+    NODE_VALIDATION_CHECK(
+            this,
+            get_input_partial_shape(13).rank().is_dynamic() ||
+            get_input_partial_shape(13).rank().get_length() == 0 ||
+            get_input_partial_shape(13).rank().get_length() == 1,
+            "Input `rotation_coefficients` should either have an empty shape or rank 1, but it has rank ",
+            get_input_partial_shape(13).rank().get_length(),
+            ".");
+    NODE_VALIDATION_CHECK(this,
+                          get_input_element_type(13).is_dynamic() || get_input_element_type(13) == element::f32,
+                          "Element type of `rotation_coefficients` input should be f32, but it is ",
+                          get_input_element_type(13),
+                          ".");
+
+    NODE_VALIDATION_CHECK(
+            this,
+            get_input_partial_shape(14).rank().is_dynamic() ||
+            get_input_partial_shape(14).rank().get_length() == 0 ||
+            get_input_partial_shape(14).rank().get_length() == 1,
+            "Input `rotated_block_indices` should either have an empty shape or rank 1 but it has rank ",
+            get_input_partial_shape(14).rank().get_length(),
+            ".");
+    NODE_VALIDATION_CHECK(this,
+                          get_input_element_type(14).is_dynamic() || get_input_element_type(14) == element::i32,
+                          "Element type of `rotated_block_indices` input should be i32, but it is ",
+                          get_input_element_type(14),
+                          ".");
+
 
     if (m_output_type[0] == ov::element::undefined) {
         set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));

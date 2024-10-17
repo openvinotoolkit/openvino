@@ -24,8 +24,11 @@ public:
                            ParameterVector& parameters_to_remove,
                            int& layer_index,
                            ov::Output<Node> max_context_len,
-                           ParameterVector& block_indices_inputs,
+                           ParameterVector& block_indices_inputs_for_each_layer,
                            ResultVector& score_results,
-                           bool use_block_indices,
-                           bool use_score_outputs);
+                           bool use_per_layer_block_indices_inputs,
+                           bool use_score_outputs,
+                           bool allow_cache_rotation,
+                           ParameterVector& rotation_coefficients_inputs_for_each_layer,
+                           ParameterVector& rotated_block_indices_inputs_for_each_layer);
 };

@@ -1128,13 +1128,17 @@ struct MHAHelper {
                        const PlainTensor& subsequence_begins,
                        const PlainTensor& block_indices,
                        const PlainTensor& block_indices_begins,
-                       const PlainTensor& alibi_slopes) {
+                       const PlainTensor& alibi_slopes,
+                       const PlainTensor& rotation_coefficients,
+                       const PlainTensor& rotated_block_indices) {
         auto B = past_lens.size(0);
         auto q_len = query.size(2);
         auto kv_len_in_blocks = div_up(max_context_len, _block_size);
 
         // aligned to cache line (64bytes=16*sizeof(float)) to avoid false sharing
         _weight_bhl.resize<float>({B, _H, q_len, rnd_up(max_context_len, std::max(_block_size, size_t{16}))});
+
+        // TODO (vshampor): implement cache rotation at this spot
 
         parallel_for3d_dynamic(B, kv_len_in_blocks, _Hk, [&](size_t b, size_t pk_in_blocks, size_t hk) {
             auto context_len = static_cast<size_t>(past_lens.ptr<int32_t>()[b]) + 1;
@@ -1467,7 +1471,9 @@ struct MHA {
                     const PlainTensor& subsequence_begins,
                     const PlainTensor& block_indices,
                     const PlainTensor& block_indices_begins,
-                    const PlainTensor& alibi_slopes) {
+                    const PlainTensor& alibi_slopes,
+                    const PlainTensor& rotation_coefficients,
+                    const PlainTensor& rotated_block_indices) {
         _workitems.reset(query, past_lens, subsequence_begins, _helper._block_size);
         if (output_score)
             _helper.init_score_buffers(past_lens, subsequence_begins);
@@ -1479,7 +1485,7 @@ struct MHA {
                 block_indices, block_indices_begins, alibi_slopes);
         } else {
             _helper.exec_loop_bhl(query, present_key, present_value, output_emb, output_score, max_context_len, past_lens, subsequence_begins,
-                block_indices, block_indices_begins, alibi_slopes);
+                block_indices, block_indices_begins, alibi_slopes, rotation_coefficients, rotated_block_indices);
         }
     }
 };
@@ -1494,7 +1500,9 @@ struct AttentionExecutor : public PagedAttentionExecutor {
 
     void init(const std::vector<MemoryPtr>& inputs, const std::vector<MemoryPtr>& outputs, PlainTensor& q, PlainTensor& k, PlainTensor& v, PlainTensor& k_cache,
         PlainTensor& v_cache, PlainTensor& past_lens, PlainTensor& subsequence_begins, PlainTensor& block_indices, PlainTensor& block_indices_begins,
-        float& scale, size_t& sliding_window, PlainTensor& alibi_slopes, size_t& max_context_len, PlainTensor& output_emb, PlainTensor& output_score) {
+        float& scale, size_t& sliding_window, PlainTensor& alibi_slopes, size_t& max_context_len,
+        PlainTensor& rotation_coefficients, PlainTensor& rotated_block_indices,
+        PlainTensor& output_emb, PlainTensor& output_score) {
         q.reset(inputs[ID_Q]);                                      // [B_token, H * S]
         k.reset(inputs[ID_K]);
         v.reset(inputs[ID_V]);
@@ -1509,6 +1517,13 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         if (!inputs[ID_ALIBI_SLOPES]->getShape().hasZeroDims())
             alibi_slopes.reset(inputs[ID_ALIBI_SLOPES]);
         max_context_len = static_cast<size_t>(*inputs[ID_MAX_CONTEXT_LEN]->getDataAs<int32_t>());
+
+        if (!inputs[ID_ROTATION_COEFFICIENTS]->getShape().hasZeroDims())
+            rotation_coefficients.reset(inputs[ID_ROTATION_COEFFICIENTS]);
+
+        if (!inputs[ID_ROTATED_BLOCK_INDICES]->getShape().hasZeroDims())
+            rotated_block_indices.reset(inputs[ID_ROTATED_BLOCK_INDICES]);
+
         output_emb.reset(outputs[0]);
         if (outputs.size() == 2)
             output_score.reset(outputs[1]);
@@ -1548,6 +1563,10 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             scale = 1.0f / sqrt(S);
         if (alibi_slopes) {
             alibi_slopes.assert_dims({H});
+        }
+
+        if (rotated_block_indices) {
+            rotation_coefficients.assert_dims({ H * rotated_block_indices.size(0) * block_size });
         }
         output_emb.assert_dims({B_token, H * S});
         output_emb = output_emb.reshape({B_token, 1, H * S});
@@ -1591,15 +1610,21 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         size_t sliding_window;
         PlainTensor alibi_slopes;
         size_t max_context_len;
+        PlainTensor rotation_coefficients;
+        PlainTensor rotated_block_indices;
         PlainTensor output_emb;
         PlainTensor output_score;
 
         init(inputs, outputs, q, k, v, k_cache, v_cache, past_lens, subsequence_begins, block_indices, block_indices_begins,
-            scale, sliding_window, alibi_slopes, max_context_len, output_emb, output_score);
+            scale, sliding_window, alibi_slopes, max_context_len,
+            rotation_coefficients, rotated_block_indices,
+            output_emb, output_score);
         concat_pastkv(k, v, k_cache, v_cache, past_lens, subsequence_begins, block_indices, block_indices_begins);
 
         _kernel(q, k_cache, v_cache, output_emb, output_score, max_context_len, past_lens, subsequence_begins, block_indices,
-            block_indices_begins, alibi_slopes);
+            block_indices_begins,
+            alibi_slopes,
+            rotation_coefficients, rotated_block_indices);
     }
 };
 #endif

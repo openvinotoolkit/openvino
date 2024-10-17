@@ -182,6 +182,9 @@ JitConstants PagedAttentionSDPAKernelOpt::GetJitConstants(const pa_sdpa_params& 
     if (params.conf.has_alibi_input)
         jit.AddConstant(MakeJitConstant("HAS_ALIBI", 1));
 
+    if (params.conf.has_rotation_coefficients_input)
+        jit.AddConstant(MakeJitConstant("HAS_ROTATION_COEFFICIENTS", 1));
+
     if (kernel_idx == KernelsTypes::MULTI_TOKENS || kernel_idx == KernelsTypes::FINALIZATION_MULTI_TOKENS)
         jit.AddConstant(MakeJitConstant("MULTI_TOKENS_PROCESSING", 1));
 

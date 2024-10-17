@@ -20,9 +20,11 @@
 
 using namespace ov::op;
 
-ov::pass::SDPAToPagedAttention::SDPAToPagedAttention(bool use_block_indices_inputs, bool use_score_outputs)
-    : m_use_block_indices_inputs(use_block_indices_inputs),
-      m_use_score_outputs(use_score_outputs) {}
+ov::pass::SDPAToPagedAttention::SDPAToPagedAttention(bool use_per_layer_block_indices_inputs, bool use_score_outputs,
+                                                     bool allow_cache_rotation)
+    : m_use_per_layer_block_indices_inputs(use_per_layer_block_indices_inputs),
+      m_use_score_outputs(use_score_outputs),
+      m_allow_cache_rotation(allow_cache_rotation) {}
 
 static std::shared_ptr<v0::Parameter> setName(std::shared_ptr<v0::Parameter> node, const char* name) {
     // Set name for both node and output tensor (should be only one tensor, and any other names will be overriden by a
@@ -46,7 +48,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "subsequence_begins"),
         setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "block_indices_begins"),
     };
-    if (!m_use_block_indices_inputs) {
+    if (!m_use_per_layer_block_indices_inputs) {
         auto block_indices = setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "block_indices");
         model_remaining_params.insert(model_remaining_params.begin() + 2, block_indices);
     }
@@ -80,7 +82,9 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     ParameterVector kv_parameters;
     ParameterVector parameters_to_remove;
     ResultVector results_to_remove;  // # used, but cannot really track all Results in stateless model
-    ParameterVector block_indices_inputs;
+    ParameterVector block_indices_inputs_for_each_layer;
+    ParameterVector rotation_coefficients_inputs_for_each_layer;
+    ParameterVector rotated_block_indices_inputs_for_each_layer;
     ResultVector score_results;
 
     std::shared_ptr<v0::Parameter> position_ids;
@@ -109,10 +113,13 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                                                   parameters_to_remove,
                                                   layer_index,
                                                   max_context_len->output(0),
-                                                  block_indices_inputs,
+                                                  block_indices_inputs_for_each_layer,
                                                   score_results,
-                                                  m_use_block_indices_inputs,
-                                                  m_use_score_outputs);
+                                                  m_use_per_layer_block_indices_inputs,
+                                                  m_use_score_outputs,
+                                                  m_allow_cache_rotation,
+                                                  rotation_coefficients_inputs_for_each_layer,
+                                                  rotated_block_indices_inputs_for_each_layer);
     manager.register_pass<PrevSequenceLengthPattern>(prev_max_seq_len, batch_dim);
     manager.register_pass<TotalSequenceLengthPattern>(max_context_len);
     manager.register_pass<PositionIDsReplacer>(unsqueezed_position_ids->output(0));
@@ -168,12 +175,17 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         model->remove_parameter(parameter);
     }
 
-    if (m_use_block_indices_inputs) {
-        model->add_parameters(block_indices_inputs);
+    if (m_use_per_layer_block_indices_inputs) {
+        model->add_parameters(block_indices_inputs_for_each_layer);
     }
 
     if (m_use_score_outputs) {
         model->add_results(score_results);
+    }
+
+    if (m_allow_cache_rotation) {
+        model->add_parameters(rotation_coefficients_inputs_for_each_layer);
+        model->add_parameters(rotated_block_indices_inputs_for_each_layer);
     }
 
     model->add_parameters(kv_parameters);

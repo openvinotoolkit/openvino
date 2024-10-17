@@ -62,6 +62,10 @@ public:
     memory::ptr block_indices_begins_memory_ptr() const { return input_memory_ptr(8); }
     memory::ptr alibi_memory_ptr() const { return input_memory_ptr(11); }
 
+
+    memory::ptr rotation_coefficients_memory_ptr() const { return input_memory_ptr(13); }
+    memory::ptr rotated_block_indices_memory_ptr() const { return input_memory_ptr(14); }
+
     std::shared_ptr<network> prefill_network;
 
 protected:

@@ -147,6 +147,11 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
                 if (desc->has_alibi) {
                     args.inputs.push_back(instance.alibi_memory_ptr());
                 }
+
+                if (desc->has_rotation_coefficients) {
+                    args.inputs.push_back(instance.rotation_coefficients_memory_ptr());
+                    args.inputs.push_back(instance.rotated_block_indices_memory_ptr());
+                }
             } else {
                 args.inputs = { instance.past_lens_memory_ptr() };
 

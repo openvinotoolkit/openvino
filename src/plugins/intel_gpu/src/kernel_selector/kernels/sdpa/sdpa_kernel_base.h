@@ -95,6 +95,7 @@ struct sdpa_configuration {
     int64_t paged_attention_block_size = 0;
     bool has_scale_val = false;
     float scale_val = 0.f;
+    bool has_rotation_coefficients_input = false;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

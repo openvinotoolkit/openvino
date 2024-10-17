@@ -40,6 +40,10 @@ KERNEL(pa_sdpa_opt)(
 #if HAS_ALIBI
     const __global INPUT7_TYPE* alibi_slopes,
 #endif
+#if HAS_ROTATION_COEFFICIENTS
+    const __global INPUT8_TYPE* rotation_coefficients,
+    const __global INPUT9_TYPE* rotated_block_indices,
+#endif
     __global OUTPUT_TYPE* output,
     __global SOFTMAX_ACCUMULATOR_TYPE* exp_sums,
     __global SOFTMAX_ACCUMULATOR_TYPE* max_logits,
@@ -55,7 +59,9 @@ KERNEL(pa_sdpa_opt)(
     // past_lens: [sequences_num]
     // subsequence_begins: [sequences_num + 1]
     // block_indices: [used_blocks_num]
-    // block_indices: [sequences_num + 1]
+    // block_indices_begins: [sequences_num + 1]
+    // rotation_coefficients: [num_rotated_blocks * PAGED_ATTENTION_BLOCK_SIZE]
+    // rotated_block_indices: [num_rotated_blocks ]
     //
     // Output shapes:
     // output: [sequences_num, HEADS_NUM * HEAD_SIZE]
@@ -135,6 +141,10 @@ KERNEL(pa_sdpa_opt)(
             q_val[i] = TO_INPUT0_TYPE(SCALE_VAL) * q_val[i];
 #endif
         }
+#endif
+
+#ifdef HAS_ROTATION_COEFFICIENTS
+        // TODO (vshampor): add cache block rotation at this spot
 #endif
 
         const uint blocks_num_per_partition = min(total_blocks_num - partition_idx * PAGED_ATTENTION_BLOCKS_PER_PARTITION, (uint)PAGED_ATTENTION_BLOCKS_PER_PARTITION);

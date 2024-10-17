@@ -74,6 +74,7 @@ std::string paged_attention_inst::to_string(const paged_attention_node& node) {
     paged_attention_info.add("kv_heads_num", desc->kv_heads_num);
     paged_attention_info.add("scale", desc->scale_val.value_or(1.0f));
     paged_attention_info.add("has_alibi", desc->has_alibi);
+    paged_attention_info.add("has_rotation_coefficients", desc->has_rotation_coefficients);
     node_info->add("paged_attention primitive info", paged_attention_info);
     node_info->dump(primitive_description);
 

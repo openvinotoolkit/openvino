@@ -33,6 +33,8 @@ struct PagedAttentionExecutor {
     static const size_t ID_SLIDING_WINDOW = 10;             // []
     static const size_t ID_ALIBI_SLOPES = 11;               // [H|0], float
     static const size_t ID_MAX_CONTEXT_LEN = 12;            // []
+    static const size_t ID_ROTATION_COEFFICIENTS = 13;      // [num_rotated_blocks * block_size || 0], float
+    static const size_t ID_ROTATED_BLOCK_INDICES = 14;      // [num_rotated_blocks], float
     virtual void execute(const std::vector<ov::intel_cpu::MemoryPtr>& inputs, const std::vector<ov::intel_cpu::MemoryPtr> outputs) = 0;
     virtual ~PagedAttentionExecutor() = default;
 };

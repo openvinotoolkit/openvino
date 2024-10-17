@@ -111,6 +111,13 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
     // max_context_len, int, []
     config.inConfs[PagedAttentionExecutor::ID_MAX_CONTEXT_LEN].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
         ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_MAX_CONTEXT_LEN)));
+    // rotation_coefficients, float, [num_rotated_blocks * block_size || 0]
+    config.inConfs[PagedAttentionExecutor::ID_ROTATION_COEFFICIENTS].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
+            ov::element::f32, getInputShapeAtPort(PagedAttentionExecutor::ID_ROTATION_COEFFICIENTS)));
+    // rotated_block_indices, int, [num_rotated_blocks || 0]
+    config.inConfs[PagedAttentionExecutor::ID_ROTATED_BLOCK_INDICES].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
+            ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_ROTATED_BLOCK_INDICES)));
+
 
     config.outConfs[0].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
         rtPrecision, getOutputShapeAtPort(0)));
