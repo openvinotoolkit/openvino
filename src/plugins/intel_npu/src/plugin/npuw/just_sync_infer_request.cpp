@@ -410,7 +410,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
             LOG_BLOCK();
             m_spatial_selector = runtime::spatial::AttentionMask::find(*this);
             if (!m_spatial_selector) {
-                LOG_WARN("Spatial capability is enabled, but no runt-time features were found.");
+                LOG_WARN("Spatial capability is enabled, but no run-time features were found.");
                 // Fallback selector to ALL
                 m_spatial_selector.reset(new runtime::spatial::All());
             }
@@ -1116,7 +1116,7 @@ ov::npuw::TensorPtr ov::npuw::JustInferRequest::allocMem(const ov::element::Type
         return ov::get_tensor_impl(ov::Tensor(type, shape));
     }
 
-    std::lock_guard<std::mutex> guard(m_alloc_mutex);
+    // Protect access to shared context(s) - at least among infer requests
     auto remote_ctx = m_npuw_model->get_plugin()->get_core()->get_default_context(device)._ptr;
     auto remote_tensor = remote_ctx->create_host_tensor(type, shape);
     return ov::get_tensor_impl(ov::make_tensor(remote_tensor));
