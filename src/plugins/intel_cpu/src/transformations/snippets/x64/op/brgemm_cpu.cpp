@@ -127,22 +127,6 @@ std::shared_ptr<Node> BrgemmCPU::clone_with_new_inputs(const OutputVector& new_a
     }
 }
 
-std::shared_ptr<BrgemmCopyB> BrgemmCPU::get_brgemm_copy() const {
-    OPENVINO_ASSERT(one_of(m_type, BRGEMM_TYPE::REPACKING_ONLY, BRGEMM_TYPE::WITH_COMPENSATIONS, BRGEMM_TYPE::WITH_AMX), "Brgemm doesn't need BrgemmCopyB");
-    auto b_input_node = get_input_node_shared_ptr(1);
-    if (const auto brgemm_copy_b = ov::as_type_ptr<BrgemmCopyB>(b_input_node)) {
-        return brgemm_copy_b;
-    }
-    if (ov::is_type<snippets::op::Buffer>(b_input_node)) {
-        if (const auto brgemm_copy_b = ov::as_type_ptr<BrgemmCopyB>(b_input_node->get_input_node_shared_ptr(0))) {
-            return brgemm_copy_b;
-        }
-    }
-    std::cout << "[ INFO ] get_brgemm_copy didn't find copy_B\n";
-    return nullptr;
-    OPENVINO_THROW("BrgemmCopyB hasn't been found!");
-}
-
 size_t BrgemmCPU::get_offset_scratch() const {
     OPENVINO_ASSERT(with_scratchpad(m_type) && get_input_size() == 3, "Offset of scratchpad must be only in Brgemm with scratchpad on 3rd input");
     return get_input_offset(2);

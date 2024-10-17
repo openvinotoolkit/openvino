@@ -44,7 +44,6 @@ public:
     BRGEMM_TYPE get_type() const { return m_type; }
 
     size_t get_offset_scratch() const;
-    std::shared_ptr<BrgemmCopyB> get_brgemm_copy() const;
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
