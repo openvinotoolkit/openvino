@@ -183,15 +183,17 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
     , FUSED_OPS_DECLS
 #endif
 ) {
-#if 1
+    #if USE_SLM
+        uint gid = (uint)get_group_id(0);
+        uint local_id = (uint)get_local_id(2);
+    #else
+        uint gid = (uint)get_group_id(0);
+    #endif
 
-#if USE_SLM
-    uint gid = (uint)get_group_id(0);
-    uint local_id = (uint)get_local_id(2);
-#else
-    uint gid = (uint)get_group_id(0);
-#endif
     uint sglid = (uint)get_sub_group_local_id();
+
+    // if (gid == 0 && sglid == 0)
+    //     printf("!!!!!!!!!fc_bf_tiled_kernel_default\n");
 
     // Dispatch as bs_fs_bsv_fsv, where bsv = DISPATCH_BSV and fsv = DISPATCH_FSV.
     // This allows more fine grained control over dispatch order than using work-groups and
@@ -203,20 +205,20 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
     uint feature_mega_block = gid / (DISPATCH_FSV * DISPATCH_BSV) % (CEIL_DIV(TILE_OUT_F_NUM, OUTER_OFM * TILE_OFM * SIMD) / DISPATCH_FSV);
     uint batch_mega_block = gid / (DISPATCH_FSV * DISPATCH_BSV * CEIL_DIV(TILE_OUT_F_NUM, OUTER_OFM * TILE_OFM * SIMD) / DISPATCH_FSV);
 
-#if USE_SLM
-    uint out_f = gid * (OUTER_OFM * TILE_OFM * SIMD);
-    uint out_b = LWS_BATCHES * TILE_B * (uint)get_group_id(2) + local_id * TILE_B;
-#else
-    uint out_f = (feature_mega_block * DISPATCH_FSV + feature_mini_block) * (OUTER_OFM * TILE_OFM * SIMD);
-    uint out_b = ((batch_mega_block * DISPATCH_BSV + batch_mini_block) * TILE_B);
-#endif
+    #if USE_SLM
+        uint out_f = gid * (OUTER_OFM * TILE_OFM * SIMD);
+        uint out_b = LWS_BATCHES * TILE_B * (uint)get_group_id(2) + local_id * TILE_B;
+    #else
+        uint out_f = (feature_mega_block * DISPATCH_FSV + feature_mini_block) * (OUTER_OFM * TILE_OFM * SIMD);
+        uint out_b = ((batch_mega_block * DISPATCH_BSV + batch_mini_block) * TILE_B);
+    #endif
 
     ACCUMULATOR_VEC_TYPE acc[TILE_B] = { };
     INPUT_VEC_TYPE       in_0[TILE_B] = { };
 
-#if !USE_SLM || !COMPRESSED_WEIGHTS_INT4
-    FILTER_VEC_TYPE wei = 0;
-#endif
+    #if !USE_SLM || !COMPRESSED_WEIGHTS_INT4
+        FILTER_VEC_TYPE wei = 0;
+    #endif
 
 #if OUTPUT_3D
     uint out_b0 = out_b / OUTPUT_FEATURE_NUM;
@@ -371,9 +373,6 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                 #else
                 SLM_FILTER_PACKED_VEC wei_packed = BLOCK_READN(FILTER_TYPE, FILTER_LOAD_BLOCK_SIZE/*4*/, weights, weights_idx);
                 SLM_FILTER_UNPACKED_VEC wei_unpacked = UNPACK_INT4(ACCUMULATOR_TYPE, *((INT4_PACKED_TYPE_PRELOAD*)&wei_packed));
-                // comapare
-                // FILTER_PACKED_VEC_TYPE wei_packed = BLOCK_READN(FILTER_TYPE, TILE_K_OFM_PACKED, weights, weights_offset)
-                // wei = UNPACK_INT4(ACCUMULATOR_TYPE, *((INT4_PACKED_TYPE*)&wei_packed));
                 #endif
                 ACCUMULATOR_TYPE* w = (ACCUMULATOR_TYPE*)(&wei_unpacked);
                 unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
@@ -383,7 +382,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                         #if !DECOMPRESSION_SCALE_POST_OP
                             #if DECOMPRESSION_SCALE_GROUPS_NUM > 1
                                 const uint scale_offset = (offset_ofm % DECOMPRESSION_SCALE_BATCH_NUM) * DECOMPRESSION_SCALE_BATCH_PITCH  +
-                                                        (offset_ifm / DECOMPRESSION_SCALE_GROUP_SIZE) * DECOMPRESSION_SCALE_FEATURE_PITCH;
+                                                         (offset_ifm / DECOMPRESSION_SCALE_GROUP_SIZE) * DECOMPRESSION_SCALE_FEATURE_PITCH;
                                 ACCUMULATOR_TYPE ds = decompression_scale[scale_offset];
                             #else
                                 ACCUMULATOR_TYPE ds = d_scales[fi % DECOMPRESSION_SCALE_LENGTH];
@@ -397,7 +396,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                                 ACCUMULATOR_TYPE dzp = DECOMPRESSION_ZP_VALUE;
                             #elif DECOMPRESSION_ZP_GROUPS_NUM > 1
                                 const uint zp_offset = (offset_ofm % DECOMPRESSION_ZP_BATCH_NUM) * DECOMPRESSION_ZP_BATCH_PITCH +
-                                                    (offset_ifm / DECOMPRESSION_ZP_GROUP_SIZE) * DECOMPRESSION_ZP_FEATURE_PITCH;
+                                                      (offset_ifm / DECOMPRESSION_ZP_GROUP_SIZE) * DECOMPRESSION_ZP_FEATURE_PITCH;
                                 ACCUMULATOR_TYPE dzp = decompression_zp[zp_offset];
                             #else
                                 ACCUMULATOR_TYPE dzp = d_zps[fi % DECOMPRESSION_ZP_LENGTH];
@@ -745,8 +744,6 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
     }
 #endif
     // =====================================================================================================================================
-
-#endif
 }
 
 
@@ -1137,6 +1134,9 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
     uint gid = (uint)get_group_id(0);
     uint local_id = (uint)get_local_id(2);
     uint sglid = (uint)get_sub_group_local_id();
+
+    // if (gid == 0 && sglid == 0)
+    //     printf("!!!!!!!!!fc_bf_tiled_kernel_dyn_quan\n");
 
     // Dispatch as bs_fs_bsv_fsv, where bsv = DISPATCH_BSV and fsv = DISPATCH_FSV.
     // This allows more fine grained control over dispatch order than using work-groups and

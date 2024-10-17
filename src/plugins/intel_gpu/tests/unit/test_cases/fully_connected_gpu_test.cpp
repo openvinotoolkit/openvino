@@ -1534,7 +1534,7 @@ public:
                 max_diff = abs_diff;
             avg += abs_diff;
             count++;
-            // OPENVINO_ASSERT(abs_diff < 256);
+            OPENVINO_ASSERT(abs_diff < 256);
         }
         std::cout << "---> count: " << count << ", max_diff:" << max_diff << ", avg_diff: " << (avg/count) << std::endl;
     }
@@ -2850,8 +2850,8 @@ public:
 
             auto config = get_test_default_config(engine);
             config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-            ov::intel_gpu::ImplementationDesc fc_impl_desc = { format::bfyx, "fully_connected_gpu_bfyx_ref", impl_types::ocl };
-            // ov::intel_gpu::ImplementationDesc fc_impl_desc = { format::bfyx, "fully_connected_gpu_bf_tiled", impl_types::ocl };
+            // ov::intel_gpu::ImplementationDesc fc_impl_desc = { format::bfyx, "fully_connected_gpu_bfyx_ref", impl_types::ocl };
+            ov::intel_gpu::ImplementationDesc fc_impl_desc = { format::bfyx, "fully_connected_gpu_bf_tiled", impl_types::ocl };
             config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"fc_prim", fc_impl_desc} }));
             config.set_property(ov::hint::dynamic_quantization_group_size(0));
 
@@ -2913,10 +2913,10 @@ public:
                 max_diff = abs_diff;
             avg += abs_diff;
             count++;
-            // OPENVINO_ASSERT(abs_diff < 5);
+            OPENVINO_ASSERT(abs_diff < 5);
         }
         std::cout << "---> count: " << count << ", max_diff:" << max_diff << ", avg_diff: " << (avg/count) << std::endl;
-        // OPENVINO_ASSERT((avg/count) < 0.5);
+        OPENVINO_ASSERT((avg/count) < 0.5);
     }
 
     void test_compressed_int8_scale_dyn_quan_weight_u8(bool is_dynamic, int batch = 1, int ifm = 512, int ofm = 2048,
@@ -2977,8 +2977,8 @@ public:
 
             auto config = get_test_default_config(engine);
             config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-            // ov::intel_gpu::ImplementationDesc fc_impl_desc = { format::bfyx, "fully_connected_gpu_bf_tiled", impl_types::ocl };
-            ov::intel_gpu::ImplementationDesc fc_impl_desc = { format::bfyx, "fully_connected_gpu_bfyx_ref", impl_types::ocl };
+            ov::intel_gpu::ImplementationDesc fc_impl_desc = { format::bfyx, "fully_connected_gpu_bf_tiled", impl_types::ocl };
+            //ov::intel_gpu::ImplementationDesc fc_impl_desc = { format::bfyx, "fully_connected_gpu_bfyx_ref", impl_types::ocl };
             config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"fc_prim", fc_impl_desc} }));
             config.set_property(ov::hint::dynamic_quantization_group_size(0));
 
@@ -3040,12 +3040,10 @@ public:
                 max_diff = abs_diff;
             avg += abs_diff;
             count++;
-            // OPENVINO_ASSERT(abs_diff < 5);
+            OPENVINO_ASSERT(abs_diff < 5);
         }
-        // [TEST]
         std::cout << "---> count: " << count << ", max_diff:" << max_diff << ", avg_diff: " << (avg/count) << std::endl;
-        // GPU_DEBUG_LOG << "---> count: " << count << ", max_diff:" << max_diff << ", avg_diff: " << (avg/count) << std::endl;
-        // OPENVINO_ASSERT((avg/count) < 0.5);
+        OPENVINO_ASSERT((avg/count) < 0.5);
     }
 };
 
