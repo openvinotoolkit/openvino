@@ -249,7 +249,8 @@ void AutoSchedule::init() {
                     });
                 }
                 INFO_RUN([this, &first_infer_time, &cpuhelp_all_start_times, &cpuhelp_all_end_times]() {
-                    first_infer_time = cpuhelp_all_end_times.front() - cpuhelp_all_start_times.front();
+                    if (!cpuhelp_all_end_times.empty() && !cpuhelp_all_start_times.empty())
+                        first_infer_time = cpuhelp_all_end_times.front() - cpuhelp_all_start_times.front();
                     cpuhelp_all_start_times.sort(std::less<Time>());
                     cpuhelp_all_end_times.sort(std::less<Time>());
                     m_cpuhelp_infer_count = cpuhelp_all_start_times.size();
