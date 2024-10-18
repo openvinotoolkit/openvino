@@ -6,6 +6,7 @@ from openvino._pyopenvino.op import _PagedAttentionExtension
 from optimum.intel import OVModelForCausalLM
 from models_hub_common.utils import retry
 import models_hub_common.utils as utils
+from sdpa2pa_ref_diff import ref_diff_map, ref_diff_map_cache_eviction, nodes_to_compare
 import pytest
 import os
 import re
@@ -14,15 +15,28 @@ import re
 def run_pa(tmp_path, model_id, model_link, use_block_indices_inputs, use_score_outputs):
     model = OVModelForCausalLM.from_pretrained(model_id, export=True, trust_remote_code=True)
 
+    before_map = {}
+    for op in model.model.get_ordered_ops():
+        if op.get_type_name() in nodes_to_compare:
+            before_map[op.get_type_name()] = before_map.get(op.get_type_name(), 0) + 1
+
     paged_attention_transformation(model.model, use_block_indices_inputs, use_score_outputs)
 
-    # Test that a _PagedAttentionExtension node appeared after the transformation.
-    pa_counter = 0
+    after_map = {}
     for op in model.model.get_ordered_ops():
-        if isinstance(op, _PagedAttentionExtension):
-            pa_counter += 1
+        if op.get_type_name() in nodes_to_compare:
+            after_map[op.get_type_name()] = after_map.get(op.get_type_name(), 0) + 1
 
-    assert pa_counter > 0, f"The model '{model_id}' has no _PagedAttentionExtension present."
+    # Collect the changes of nodes from nodes_to_compare
+    # And check if the numbers correspond to the reference ones
+    resulting_map = {}
+    for op in set(after_map.keys()) | set(before_map.keys()):
+        resulting_map[op] = after_map.get(op, 0) - before_map.get(op, 0)
+
+    use_cache_eviction = use_block_indices_inputs and use_score_outputs
+    reference_map = ref_diff_map_cache_eviction[model_id] if use_cache_eviction else ref_diff_map[model_id]
+
+    assert reference_map == resulting_map
 
     model_inputs = model.model.inputs
     for input in model_inputs:
@@ -45,7 +59,8 @@ def run_pa(tmp_path, model_id, model_link, use_block_indices_inputs, use_score_o
                 if re.search(block_indices_pattern, name):
                     block_indices_counter += 1
 
-        assert(block_indices_counter == pa_counter)
+        assert block_indices_counter == resulting_map["PagedAttentionExtension"], \
+               f"The number of block_indices inputs doesn't correspond to the expected value. Expected {resulting_map['PagedAttentionExtension']}, received {block_indices_counter}"
     
     if (use_score_outputs):
         score_pattern = r'scores\.[0-9]+'
@@ -57,7 +72,8 @@ def run_pa(tmp_path, model_id, model_link, use_block_indices_inputs, use_score_o
                 if re.search(score_pattern, name):
                     score_outputs_counter += 1
 
-        assert(score_outputs_counter == pa_counter)
+        assert block_indices_counter == resulting_map["PagedAttentionExtension"], \
+               f"The number of scores outputs doesn't correspond to the expected value. Expected {resulting_map['PagedAttentionExtension']}, received {block_indices_counter}"
 
 @pytest.mark.precommit
 @pytest.mark.parametrize("model_name, model_link, mark, reason", utils.get_models_list(os.path.join(os.path.dirname(__file__), "models", "hf-tiny-random-models-precommit")))
