@@ -39,6 +39,8 @@ public:
     virtual bool isBatchingSupported() const = 0;
     /** @brief Backend has support for workload type */
     virtual bool isCommandQueueExtSupported() const = 0;
+    /** @brief Backend has support for LUID info */
+    virtual bool isLUIDExtSupported() const = 0;
     /** @brief Register backend-specific options */
     virtual void registerOptions(OptionsDesc& options) const;
     /** @brief Get Level Zero context*/
@@ -72,6 +74,7 @@ public:
     virtual std::string getName() const = 0;
     virtual std::string getFullDeviceName() const = 0;
     virtual Uuid getUuid() const;
+    virtual ov::device::LUID getLUID() const;
     virtual uint32_t getSubDevId() const;
     virtual uint32_t getMaxNumSlices() const;
     virtual uint64_t getAllocMemSize() const;
