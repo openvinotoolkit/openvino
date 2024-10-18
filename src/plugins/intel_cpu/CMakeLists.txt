@@ -278,6 +278,66 @@ target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:dnnl,
 # is not (yet) needed.
 target_include_directories(${TARGET_NAME} PRIVATE $<TARGET_PROPERTY:openvino::reference,INTERFACE_INCLUDE_DIRECTORIES>)
 
+# Checking for SVE support in CXX and C
+INCLUDE(CheckCSourceCompiles)
+INCLUDE(CheckCXXSourceCompiles)
+
+SET(SVE_CODE "
+#include <arm_sve.h>
+int main() {
+    svfloat64_t a;
+    a = svdup_n_f64(0);
+    return 0;
+}
+")
+
+MACRO(CHECK_SVE lang flags)
+    # Save the current state of required flags
+    SET(CMAKE_REQUIRED_FLAGS_SAVE ${CMAKE_REQUIRED_FLAGS})
+
+    # Set the flags necessary for compiling the test code with SVE support
+    SET(CMAKE_REQUIRED_FLAGS "${CMAKE_${lang}_FLAGS_INIT} ${flags}")
+
+    # Check if the source code compiles with the given flags for the specified language (C or C++)
+    IF(lang STREQUAL "CXX")
+        CHECK_CXX_SOURCE_COMPILES("${SVE_CODE}" ${lang}_HAS_SVE)
+    ELSE()
+        CHECK_C_SOURCE_COMPILES("${SVE_CODE}" ${lang}_HAS_SVE)
+    ENDIF()
+
+    # If the compilation test is successful, set appropriate variables indicating support
+    IF(${lang}_HAS_SVE)
+        SET(${lang}_SVE_FOUND TRUE CACHE BOOL "SVE available on host")
+        SET(${lang}_SVE_FOUND TRUE CACHE BOOL "${lang} SVE support")
+        SET(${lang}_SVE_FLAGS "${flags}" CACHE STRING "${lang} SVE flags")
+    ENDIF()
+
+    # Restore the original state of required flags
+    SET(CMAKE_REQUIRED_FLAGS ${CMAKE_REQUIRED_FLAGS_SAVE})
+
+    # If the compilation test fails, indicate that the support is not found
+    IF(NOT ${lang}_SVE_FOUND)
+        SET(${lang}_SVE_FOUND FALSE CACHE BOOL "${lang} SVE support")
+        SET(${lang}_SVE_FLAGS "" CACHE STRING "${lang} SVE flags")
+    ENDIF()
+
+    # Mark the variables as advanced to hide them in the default CMake GUI
+    MARK_AS_ADVANCED(${lang}_SVE_FOUND ${lang}_SVE_FLAGS)
+ENDMACRO()
+
+CHECK_SVE(CXX "-march=armv8-a+sve")
+CHECK_SVE(C "-march=armv8-a+sve")
+
+# ARCH lists for softmax.cpp and mha_single_token.cpp
+# Based on result of above calls, decide whether to add SVE
+set(SOFTMAX_ARCH_LIST           AVX512F AVX2 NEON_FP16 ANY)
+set(MHA_SINGLE_TOKEN_ARCH_LIST  AVX512F AVX2 NEON_FP16 ANY)
+
+if(CXX_SVE_FOUND AND C_SVE_FOUND)
+    list(APPEND SOFTMAX_ARCH_LIST SVE)
+    list(APPEND MHA_SINGLE_TOKEN_ARCH_LIST SVE)
+endif()
+
 # Cross compiled function
 # TODO: The same for proposal, proposalONNX, topk
 cross_compiled_file(${TARGET_NAME}
@@ -288,14 +348,14 @@ cross_compiled_file(${TARGET_NAME}
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 cross_compiled_file(${TARGET_NAME}
-        ARCH AVX512F AVX2 NEON_FP16 ANY
+        ARCH ${SOFTMAX_ARCH_LIST}
                     src/nodes/kernels/scaled_attn/softmax.cpp
         API         src/nodes/kernels/scaled_attn/softmax.hpp
         NAME        attn_softmax
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 cross_compiled_file(${TARGET_NAME}
-        ARCH AVX512F AVX2 NEON_FP16 ANY
+        ARCH ${MHA_SINGLE_TOKEN_ARCH_LIST}
                     src/nodes/kernels/scaled_attn/mha_single_token.cpp
         API         src/nodes/kernels/scaled_attn/mha_single_token.hpp
         NAME        mha_single_token

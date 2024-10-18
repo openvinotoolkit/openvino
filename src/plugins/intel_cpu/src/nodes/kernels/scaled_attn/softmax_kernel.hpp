@@ -12,7 +12,10 @@
 #include "openvino/core/type/element_type.hpp"
 
 #if defined(OPENVINO_ARCH_ARM64)
-#    include "arm_neon.h"
+#if defined(HAVE_SVE)
+#include "arm_sve.h"
+#endif
+#include "arm_neon.h"
 #endif
 
 namespace ov {
@@ -657,6 +660,28 @@ inline void exp_reduce_sum(float* a, const float max, const size_t size, float& 
     hsum(v_sum);
     sum = _mm256_cvtss_f32(v_sum);
 #elif defined(OPENVINO_ARCH_ARM64)
+#if defined(HAVE_SVE)
+    svfloat32_t v_a;
+    svfloat32_t v_max = svdup_n_f32(max);
+    svfloat32_t v_sum = svdup_n_f32(0.0f);
+    size_t vec_len_f32_sve = svcntw();
+    size_t inc = vec_len_f32_sve;
+    svbool_t pg = svptrue_b32();
+
+    while (i < size) {
+        if (size - i < vec_len_f32_sve) {
+            inc = size - i;
+            pg = svwhilelt_b32(0, static_cast<int>(inc));
+        }
+        v_a = svld1_f32(pg, a + i);
+        v_a = svsub_f32_z(pg, v_a, v_max);
+        v_a = exp_ps_sve(pg, v_a);
+        v_sum = svadd_f32_m(pg, v_sum, v_a);
+        svst1_f32(pg, a + i, v_a);
+        i += inc;
+    }
+    sum = svaddv_f32(svptrue_b32(), v_sum);
+#else
     float32x4_t v_a;
     float32x4_t v_max = vdupq_n_f32(max);
     float32x4_t v_sum = vdupq_n_f32(0.0f);
@@ -670,7 +695,7 @@ inline void exp_reduce_sum(float* a, const float max, const size_t size, float& 
         i += vec_len_f32_neon;
     }
     sum = vaddvq_f32(v_sum);
-
+#endif
 #endif
     for (; i < size; i++) {
         a[i] = exp(a[i] - max);
@@ -781,6 +806,22 @@ inline void multiply_scalar(float* a, float* a_dst, const float val, const size_
         i += (size - i);
     }
 #elif defined(OPENVINO_ARCH_ARM64)
+#if defined(HAVE_SVE)
+    svfloat32_t v_scale = svdup_n_f32(val);
+    size_t inc = vec_len_f32_sve;
+    svbool_t pg = svptrue_b32();
+
+    while (i < size) {
+        if (size - i < vec_len_f32_sve) {
+            inc = size - i;
+            pg = svwhilelt_b32(0, static_cast<int>(inc));
+        }
+        svfloat32_t v_a = svld1_f32(pg, a + i);
+        v_a = svmul_f32_z(pg, v_a, v_scale);
+        svst1_f32(pg, a_dst + i, v_a);
+        i += inc;
+    }
+#else
     float32x4_t v_scale = vdupq_n_f32(val);
     while (i + vec_len_f32_neon <= size) {
         float32x4_t v_a = vld1q_f32(a + i);
@@ -788,6 +829,7 @@ inline void multiply_scalar(float* a, float* a_dst, const float val, const size_
         vst1q_f32(a_dst + i, v_a);
         i += vec_len_f32_neon;
     }
+#endif
 #endif
     for (; i < size; i++) {
         a_dst[i] = a[i] * val;
@@ -972,7 +1014,7 @@ inline void attn_softmax_kernel<float>(float* a,
     // divide sum
     float scalar = 1.0f / sum;
     if (dst_precision == ov::element::f32) {
-        multiply_scalar(a, static_cast<float*>(a_dst), scalar, len);
+        multiply_scalar(a, reinterpret_cast<float*>(a_dst), scalar, len);
         // apply causual mask to final result instead of attn_score
         if (total_size > len)
             memset(static_cast<float*>(a_dst) + len, 0, sizeof(float) * (total_size - len));
