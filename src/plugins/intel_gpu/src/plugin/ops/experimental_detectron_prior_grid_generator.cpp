@@ -15,8 +15,8 @@ static void CreateExperimentalDetectronPriorGridGeneratorOp(
     const std::shared_ptr<ov::op::v6::ExperimentalDetectronPriorGridGenerator>& op) {
     validate_inputs_count(op, {3});
     auto& attrs = op->get_attrs();
-    auto& featmap_shape = op->get_input_shape(1);
-    auto& image_shape = op->get_input_shape(2);
+    auto featmap_shape = op->get_input_shape(1);
+    auto image_shape = op->get_input_shape(2);
     auto inputs = p.GetInputInfo(op);
     inputs.resize(1);  // only priors is read
     cldnn::experimental_detectron_prior_grid_generator prim{layer_type_name_ID(op),
