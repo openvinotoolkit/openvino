@@ -26,6 +26,11 @@
 #include "attn_memcpy.hpp"
 #include "attn_quant.hpp"
 #include "nodes/kernels/x64/brgemm_kernel.hpp"
+#include "nodes/kernels/acl/gemm_kernel.hpp"
+
+#if defined(OPENVINO_ARCH_ARM64)
+#    include <arm_neon.h>
+#endif
 
 namespace ov {
 namespace Extensions {
@@ -36,7 +41,7 @@ using namespace ov;
 using namespace ov::intel_cpu;
 
 // currently depends on brgemm which only support x64
-#ifdef OPENVINO_ARCH_X86_64
+// #ifdef OPENVINO_ARCH_X86_64
 
 #if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
 
@@ -64,6 +69,13 @@ void cvt_copy(TA* dst, TB* src, size_t n) {
     for (; i + vec_len_f32_avx2 <= n; i += vec_len_f32_avx2) {
         auto vb = mm256_uni_loadu_ps(src + i);
         mm256_uni_storeu_ps(dst + i, vb);
+    }
+#elif defined(OPENVINO_ARCH_ARM64)
+    int vec_len_f32_neon = 4;
+    auto _dst = reinterpret_cast<float32_t*>(dst);
+    for (; i + vec_len_f32_neon <= n; i += vec_len_f32_neon) {
+        float32x4_t vb1 = vld1q_f32(src + i);
+        vst1q_f32(_dst + i, vb1);
     }
 #endif
     for (; i < n; i++) {
@@ -191,6 +203,66 @@ static void attn_acc_value_block(float* out, float* weight, T* v, size_t S, size
         }
     }
     return;
+#elif defined(OPENVINO_ARCH_ARM64)
+    size_t j = 0;
+    for (; j + 4 <= block_size; j += 4) {
+        float32x4_t attn_w_vec = {weight[0], weight[1], weight[2], weight[3]};
+        size_t i = 0;
+        for (; i + 4 <= S; i += 4) {
+            float32x4_t v_out = vld1q_f32(out + i);
+            float32x4_t v_in0 = vld1q_f32(v + i);
+            v_out = vfmaq_n_f32(v_out, v_in0, weight[0]);
+            float32x4_t v_in1 = vld1q_f32(v + i + S);
+            v_out = vfmaq_n_f32(v_out, v_in1, weight[1]);
+            float32x4_t v_in2 = vld1q_f32(v + i + S * 2);
+            v_out = vfmaq_n_f32(v_out, v_in2, weight[2]);
+            float32x4_t v_in3 = vld1q_f32(v + i + S * 3);
+            v_out = vfmaq_n_f32(v_out, v_in3, weight[3]);
+            vst1q_f32(out + i, v_out);
+        }
+        for (; i < S; i++) {
+            out[i] += weight[0] * v[i];
+            out[i] += weight[1] * v[i + S];
+            out[i] += weight[2] * v[i + S * 2];
+            out[i] += weight[3] * v[i + S * 3];
+        }
+        v += 4 * S;
+        weight += 4;
+    }
+    if (j + 2 <= block_size) {
+        float32x2_t attn_w_vec = {weight[0], weight[1]};
+        size_t i = 0;
+        for (; i + 4 <= S; i += 4) {
+            float32x4_t v_out = vld1q_f32(out + i);
+            float32x4_t v_in0 = vld1q_f32(v + i);
+            v_out = vfmaq_n_f32(v_out, v_in0, weight[0]);
+            float32x4_t v_in1 = vld1q_f32(v + i + S);
+            v_out = vfmaq_n_f32(v_out, v_in1, weight[1]);
+            vst1q_f32(out + i, v_out);
+        }
+        for (; i < S; i++) {
+            out[i] += weight[0] * v[i];
+            out[i] += weight[1] * v[i + S];
+        }
+        v += 2 * S;
+        weight += 2;
+        j += 2;
+    }
+    if (j < block_size) {
+        float32x2_t attn_w_vec = vdup_n_f32(weight[0]);
+        size_t i = 0;
+        for (; i + 4 <= S; i += 4) {
+            float32x4_t v_out = vld1q_f32(out + i);
+            float32x4_t v_in = vld1q_f32(v + i);
+            v_out = vfmaq_n_f32(v_out, v_in, weight[0]);
+            vst1q_f32(out + i, v_out);
+        }
+        for (; i < S; i++) {
+            out[i] += weight[0] * v[i];
+        }
+    }
+    return;
+
 #endif
     for (size_t j = 0; j < block_size; j++) {
         for (size_t i = 0; i < S; i++) {
@@ -280,6 +352,76 @@ static void attn_acc_value_block(float* out, float* weight, uint8_t* v, size_t S
         }
         for (; i < S; i++) {
             out[i] += weight[0] * (v[i] - v_f0[1]) * v_f0[0];
+        }
+        v += S;
+        weight++;
+    }
+    return;
+#elif defined(OPENVINO_ARCH_ARM64)
+    size_t j = 0;
+    for (; j + 4 <= block_size; j += 4) {
+        float32x4_t scale_vec = {reinterpret_cast<float*>(v)[0], 
+                                 reinterpret_cast<float*>(v + S + 8)[0], 
+                                 reinterpret_cast<float*>(v + 2 * (S + 8))[0], 
+                                 reinterpret_cast<float*>(v + 3 * (S + 8))[0]};
+        float32x4_t zp_vec = {reinterpret_cast<float*>(v)[1], 
+                              reinterpret_cast<float*>(v + S + 8)[1], 
+                              reinterpret_cast<float*>(v + 2 * (S + 8))[1], 
+                              reinterpret_cast<float*>(v + 3 * (S + 8))[1]};
+        float32x4_t weight_vec = {weight[0], weight[1], weight[2], weight[3]};
+        weight_vec = vmulq_f32(weight_vec, scale_vec); 
+        size_t i = 0;
+        v += 8;
+        for (; i + 4 <= S; i += 4) {
+            float32x4_t v_out = vld1q_f32(out + i);
+            uint8x8_t v_in0_u8 = vld1_u8(v + i);
+            int16x8_t v_in0_s16 = vreinterpretq_s16_u16(vmovl_u8(v_in0_u8));
+            float32x4_t v_in0 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(v_in0_s16)));
+            v_in0 = vsubq_f32(v_in0, vdupq_n_f32(zp_vec[0]));
+            v_out = vfmaq_n_f32(v_out, v_in0, vgetq_lane_f32(weight_vec, 0));
+            uint8x8_t v_in1_u8 = vld1_u8(v + i + S + 8);
+            int16x8_t v_in1_s16 = vreinterpretq_s16_u16(vmovl_u8(v_in1_u8));
+            float32x4_t v_in1 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(v_in1_s16)));
+            v_in1 = vsubq_f32(v_in1, vdupq_n_f32(zp_vec[1]));
+            v_out = vfmaq_n_f32(v_out, v_in1, vgetq_lane_f32(weight_vec, 1));
+            uint8x8_t v_in2_u8 = vld1_u8(v + i + 2 * (S + 8));
+            int16x8_t v_in2_s16 = vreinterpretq_s16_u16(vmovl_u8(v_in2_u8));
+            float32x4_t v_in2 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(v_in2_s16)));
+            v_in2 = vsubq_f32(v_in2, vdupq_n_f32(zp_vec[2]));
+            v_out = vfmaq_n_f32(v_out, v_in2, vgetq_lane_f32(weight_vec, 2));
+            uint8x8_t v_in3_u8 = vld1_u8(v + i + 3 * (S + 8));
+            int16x8_t v_in3_s16 = vreinterpretq_s16_u16(vmovl_u8(v_in3_u8));
+            float32x4_t v_in3 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(v_in3_s16)));
+            v_in3 = vsubq_f32(v_in3, vdupq_n_f32(zp_vec[3]));
+            v_out = vfmaq_n_f32(v_out, v_in3, vgetq_lane_f32(weight_vec, 3));
+            vst1q_f32(out + i, v_out);
+        }
+        for (; i < S; i++) {
+            out[i] += weight[0] * (v[i] - reinterpret_cast<float*>(v)[1]) * reinterpret_cast<float*>(v)[0];
+            out[i] += weight[1] * (v[i + S + 8] - reinterpret_cast<float*>(v + S + 8)[1]) * reinterpret_cast<float*>(v + S + 8)[0];
+            out[i] += weight[2] * (v[i + 2 * (S + 8)] - reinterpret_cast<float*>(v + 2 * (S + 8))[1]) * reinterpret_cast<float*>(v + 2 * (S + 8))[0];
+            out[i] += weight[3] * (v[i + 3 * (S + 8)] - reinterpret_cast<float*>(v + 3 * (S + 8))[1]) * reinterpret_cast<float*>(v + 3 * (S + 8))[0];
+        }
+        v += 4 * (S + 8) - 8;
+        weight += 4;
+    }
+    for (; j < block_size; j++) {
+        float scale = reinterpret_cast<float*>(v)[0];
+        float zp = reinterpret_cast<float*>(v)[1];
+        float w = weight[0] * scale;
+        size_t i = 0;
+        v += 8;
+        for (; i + 4 <= S; i += 4) {
+            float32x4_t v_out = vld1q_f32(out + i);
+            uint8x8_t v_in_u8 = vld1_u8(v + i);
+            int16x8_t v_in_s16 = vreinterpretq_s16_u16(vmovl_u8(v_in_u8));
+            float32x4_t v_in = vcvtq_f32_s32(vmovl_s16(vget_low_s16(v_in_s16)));
+            v_in = vsubq_f32(v_in, vdupq_n_f32(zp));
+            v_out = vfmaq_n_f32(v_out, v_in, w);
+            vst1q_f32(out + i, v_out);
+        }
+        for (; i < S; i++) {
+            out[i] += weight[0] * (v[i] - zp) * scale;
         }
         v += S;
         weight++;
@@ -390,6 +532,58 @@ static void dot_product_block(TA* a, TB* b, float* c, size_t n, size_t block_siz
         }
         hsum(vsum);
         float sum = _mm256_cvtss_f32(vsum);
+        for (; i < n; i++) {
+            sum += a[i] * b[i];
+        }
+        b += n;
+        *c++ = sum;
+    }
+    return;
+#elif defined(OPENVINO_ARCH_ARM64)
+    size_t j = 0;
+    for (; j + 4 <= block_size; j += 4) {
+        float32x4_t vsum0 = vdupq_n_f32(0.0f);
+        float32x4_t vsum1 = vdupq_n_f32(0.0f);
+        float32x4_t vsum2 = vdupq_n_f32(0.0f);
+        float32x4_t vsum3 = vdupq_n_f32(0.0f);
+        
+        size_t i = 0;
+        for (; i + 4 <= n; i += 4) {
+            float32x4_t va = vld1q_f32(a + i);
+            vsum0 = vmlaq_f32(vsum0, va, vld1q_f32(b + i));
+            vsum1 = vmlaq_f32(vsum1, va, vld1q_f32(b + i + n));
+            vsum2 = vmlaq_f32(vsum2, va, vld1q_f32(b + i + 2 * n));
+            vsum3 = vmlaq_f32(vsum3, va, vld1q_f32(b + i + 3 * n));
+        }
+
+        float sum0 = vaddvq_f32(vsum0);
+        float sum1 = vaddvq_f32(vsum1);
+        float sum2 = vaddvq_f32(vsum2);
+        float sum3 = vaddvq_f32(vsum3);
+
+        for (; i < n; i++) {
+            sum0 += a[i] * b[i];
+            sum1 += a[i] * b[i + n];
+            sum2 += a[i] * b[i + 2 * n];
+            sum3 += a[i] * b[i + 3 * n];
+        }
+
+        c[0] = sum0;
+        c[1] = sum1;
+        c[2] = sum2;
+        c[3] = sum3;
+        c += 4;
+        b += 4 * n;
+    }
+
+    for (; j < block_size; j++) {
+        float32x4_t vsum = vdupq_n_f32(0.0f);
+        size_t i = 0;
+        for (; i + 4 <= n; i += 4) {
+            float32x4_t va = vld1q_f32(a + i);
+            vsum = vmlaq_f32(vsum, va, vld1q_f32(b + i));
+        }
+        float sum = vaddvq_f32(vsum);
         for (; i < n; i++) {
             sum += a[i] * b[i];
         }
@@ -548,6 +742,82 @@ static void dot_product_block(TA* a, uint8_t* b, float* c, size_t n, size_t bloc
         *c++ = sum * b0[0];
     }
     return;
+#elif defined(OPENVINO_ARCH_ARM64)
+    size_t j = 0;
+    for (; j + 4 <= block_size; j += 4) {
+        float32x4_t vsum0 = vdupq_n_f32(0.0f);
+        float32x4_t vsum1 = vdupq_n_f32(0.0f);
+        float32x4_t vsum2 = vdupq_n_f32(0.0f);
+        float32x4_t vsum3 = vdupq_n_f32(0.0f);
+
+        auto b0 = reinterpret_cast<float*>(b);
+        auto b1 = reinterpret_cast<float*>(b + n + 8);
+        auto b2 = reinterpret_cast<float*>(b + (n + 8) * 2);
+        auto b3 = reinterpret_cast<float*>(b + (n + 8) * 3);
+
+        float32x4_t v_zp0 = vdupq_n_f32(b0[1]);
+        float32x4_t v_zp1 = vdupq_n_f32(b1[1]);
+        float32x4_t v_zp2 = vdupq_n_f32(b2[1]);
+        float32x4_t v_zp3 = vdupq_n_f32(b3[1]);
+
+        size_t i = 0;
+        b += 8;
+        for (; i + 4 <= n; i += 4) {
+            float32x4_t va = vld1q_f32(a + i);
+
+            float32x4_t vb0 = vcvtq_f32_u32(vsubq_f32(vcvtq_f32_u32(vld1q_u8(b + i)), v_zp0));
+            float32x4_t vb1 = vcvtq_f32_u32(vsubq_f32(vcvtq_f32_u32(vld1q_u8(b + i + n + 8)), v_zp1));
+            float32x4_t vb2 = vcvtq_f32_u32(vsubq_f32(vcvtq_f32_u32(vld1q_u8(b + i + 2 * (n + 8))), v_zp2));
+            float32x4_t vb3 = vcvtq_f32_u32(vsubq_f32(vcvtq_f32_u32(vld1q_u8(b + i + 3 * (n + 8))), v_zp3));
+
+            vsum0 = vmlaq_f32(vsum0, va, vb0);
+            vsum1 = vmlaq_f32(vsum1, va, vb1);
+            vsum2 = vmlaq_f32(vsum2, va, vb2);
+            vsum3 = vmlaq_f32(vsum3, va, vb3);
+        }
+
+        float sum0 = vaddvq_f32(vsum0);
+        float sum1 = vaddvq_f32(vsum1);
+        float sum2 = vaddvq_f32(vsum2);
+        float sum3 = vaddvq_f32(vsum3);
+
+        for (; i < n; i++) {
+            sum0 += a[i] * (b[i] - b0[1]);
+            sum1 += a[i] * (b[i + n + 8] - b1[1]);
+            sum2 += a[i] * (b[i + 2 * (n + 8)] - b2[1]);
+            sum3 += a[i] * (b[i + 3 * (n + 8)] - b3[1]);
+        }
+
+        c[0] = sum0 * b0[0];
+        c[1] = sum1 * b1[0];
+        c[2] = sum2 * b2[0];
+        c[3] = sum3 * b3[0];
+        c += 4;
+        b += 4 * (n + 8) - 8;
+    }
+
+    for (; j < block_size; j++) {
+        float32x4_t vsum = vdupq_n_f32(0.0f);
+        auto b0 = reinterpret_cast<float*>(b);
+        float32x4_t v_zp = vdupq_n_f32(b0[1]);
+
+        size_t i = 0;
+        b += 8;
+        for (; i + 4 <= n; i += 4) {
+            float32x4_t va = vld1q_f32(a + i);
+            float32x4_t vb = vsubq_f32(vcvtq_f32_u32(vld1q_u8(b + i)), v_zp);
+            vsum = vmlaq_f32(vsum, va, vb);
+        }
+
+        float sum = vaddvq_f32(vsum);
+
+        for (; i < n; i++) {
+            sum += a[i] * (b[i] - b0[1]);
+        }
+
+        *c++ = sum * b0[0];
+    }
+    return;
 #endif
     for (size_t j = 0; j < block_size; j++) {
         float sum = 0;
@@ -586,6 +856,19 @@ static void attn_reduce(T* dst, float* temp, size_t M, size_t S, size_t temp_str
             src += temp_stride;
         }
         mm256_uni_storeu_ps(dst + i, result_vec_fp32);
+    }
+#elif defined(OPENVINO_ARCH_ARM64)
+    size_t i = 0;
+    for (; i + 4 <= S; i += 4) {
+        auto* src = temp + i;
+        float32x4_t result_vec_fp32 = vdupq_n_f32(0.0f);
+
+        for (size_t m = 0; m < M; m++) {
+            float32x4_t o_vec_fp32 = vld1q_f32(src);
+            result_vec_fp32 = vaddq_f32(result_vec_fp32, o_vec_fp32);
+            src += temp_stride;
+        }
+        vst1q_f32(dst + i, result_vec_fp32);
     }
 #endif
     for (; i < S; i++) {
@@ -763,11 +1046,795 @@ static void pack_32NxK(T* dst, uint8_t* src, T* tmp, size_t N, size_t K, size_t 
 }
 #endif
 
+#if defined(OPENVINO_ARCH_ARM64)
+static void pack_32x32_kernel(uint16_t* dst, uint16_t* src, size_t dst_stride, size_t src_stride) {
+    for (size_t i = 0; i < 16; ++i) {
+        uint16x8x2_t a = vld2q_u16(src);                   // Load and deinterleave 16-bit elements
+        uint16x8x2_t b = vld2q_u16(src + src_stride);      // Load and deinterleave 16-bit elements
+        vst1q_u16(dst, a.val[0]);                          // Store interleaved result
+        vst1q_u16(dst + 8, a.val[1]);                      // Store second part
+        vst1q_u16(dst + 16, b.val[0]);
+        vst1q_u16(dst + 24, b.val[1]);
+        src += 2 * src_stride;
+        dst += 2 * dst_stride;
+    }
+}
+
+static void pack_32x16_kernel(uint16_t* dst, uint16_t* src, size_t dst_stride, size_t src_stride) {
+    for (size_t i = 0; i < 16; ++i) {
+        uint16x8x2_t a = vld2q_u16(src);               // Load and deinterleave
+        vst1q_u16(dst, a.val[0]);                      // Store first 8 elements
+        vst1q_u16(dst + 8, a.val[1]);                  // Store second 8 elements
+        src += src_stride;
+        dst += dst_stride;
+    }
+}
+
+static void pack_32Nx16K(uint16_t* dst, uint16_t* src, uint16_t* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride) {
+    for (size_t n = 0; n < N; n += 32) {
+        size_t k = 0;
+        for (; k + 32 <= K; k += 32) {
+            pack_32x32_kernel(dst + k * 2, src + k, dst_stride, src_stride);
+        }
+        if (k < K)
+            pack_32x16_kernel(dst + k * 2, src + k, dst_stride, src_stride);
+
+        dst += 32 * dst_stride;
+        src += 32 * src_stride;
+    }
+}
+
+static void pack_32Nx16K(uint16_t* dst, uint8_t* src, uint16_t* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride) {
+    auto s = src;
+    auto t = tmp;
+    for (size_t n = 0; n < N; n++) {
+        auto f = reinterpret_cast<float*>(s);
+        attn_dequant_u8_kernel(s + 2 * sizeof(float), t, K, f[0], f[1]);
+        s += src_stride + 2 * sizeof(float);
+        t += src_stride;
+    }
+    pack_32Nx16K(dst, tmp, reinterpret_cast<uint16_t*>(0), N, K, dst_stride, src_stride);
+}
+#endif
+
 template<typename T>
 static void pack_32NxK(float* dst, T* src, float* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride) {
     // never called
     OPENVINO_THROW("pack_32NxK: should not be called.");
 }
+
+#if defined(OPENVINO_ARCH_ARM64)
+
+template <typename DATA_TYPE, typename KVCACHE_TYPE>
+struct MHAHelper {
+    
+    size_t _H;
+    size_t _S;
+    size_t _Hk;
+    size_t _h_each_group_len;
+    size_t _block_size;
+    size_t _nthr;
+    size_t _sliding_window;
+    float _d_scale;
+
+    PlainTensor _weight;            // [nthr, H, 32, rnd_up(kv_len, block_size)], shared by first and second loop along bh
+    PlainTensor _output;            // [nthr, 32, H, S], shared by first and second loop along bh
+    PlainTensor _qk_scratch_a;      // [nthr, scratch_a_size]
+    PlainTensor _qk_scratch_b;      // [B, rnd_up(kv_len, block_size), Hk, scratch_b_size]
+    PlainTensor _wv_scratch_a;
+    PlainTensor _wv_scratch_b;
+    PlainTensor _alibi_lookup;
+    PlainTensor _score_output;
+    std::vector<size_t> _wsp;
+    size_t _wsp_size_per_thread = 0;
+
+    std::vector<std::shared_ptr<GemmKernel>> _qk_gemm;
+    std::vector<std::shared_ptr<GemmKernel>> _wv_gemm;
+    // will accumulate C buffer
+    std::vector<std::shared_ptr<GemmKernel>> _wv_gemm_acc;
+    // second token
+    std::shared_ptr<JitMatMulVecAARCH64> _gemv;
+    bool _fastpath_valid = false;
+    // second token for bhl loop
+    PlainTensor _weight_bhl;
+    PlainTensor _output_bhl;
+    PlainTensor _score_offsets_aligned;
+    PlainTensor _score_offsets;
+
+    MHAHelper() {
+        _weight.resize<float>({size_t{1}, size_t{1}, size_t{1}, size_t{1}});
+    }
+
+    void init(size_t H, size_t S, size_t Hk, size_t h_each_group_len, size_t block_size, size_t sliding_window,
+              float d_scale, size_t kv_len, bool init_alibi_lookup) {
+        // query shape: [B, H, L, S]
+        // present_key shape: [block, H, 32, S]
+        // Q*K': [M1, S] * [M2, S]'
+        //   kernel: Q:[1~block_size, S] * K':[block_size, S]'
+        //   aka: M:1~block_size, N:block_size, K:S
+        // (Q*K')*V: [M1, M2] * [M2, S]
+        //   kernel: (Q*K'):[1~block_size, block_size] * V:[block_size, S]
+        //   aka: M:1~block_size, N:S, K:block_size
+        // Because K and V are from cache, can use M2'=rnd_up(M2, block_size) to simplify logic
+        auto in_type = precision_of<DATA_TYPE>::value;
+        _H = H;
+        _S = S;
+        _Hk = Hk;
+        _h_each_group_len = h_each_group_len;
+        _block_size = block_size;
+        _nthr = static_cast<size_t>(parallel_get_max_threads());
+        _sliding_window = sliding_window;
+        _d_scale = d_scale;
+
+        auto prev_score_stride = _weight.stride(2);
+        auto want_score_stride = rnd_up(kv_len, _block_size);
+        auto new_score_stride = std::max(prev_score_stride, want_score_stride);
+        // resize temporary buffers, weight.size(3) will be aligned to block_size
+        _weight.resize<float>({static_cast<size_t>(_nthr), H, _block_size, new_score_stride});
+        _output.resize<float>({static_cast<size_t>(_nthr), _block_size, H, S});
+
+        // TODO: kernel supports stride
+        if (_qk_gemm.empty() || prev_score_stride < new_score_stride) {
+            _qk_gemm.resize(_block_size);
+            _wv_gemm.resize(_block_size);
+            _wv_gemm_acc.resize(_block_size);
+            for (size_t i = 0; i < _block_size; i++) {
+                _qk_gemm[i] = std::make_shared<GemmKernel>(i + 1,
+                                                             _block_size,
+                                                             _S,
+                                                             _H * _S,
+                                                             _block_size,
+                                                             _weight.stride(2),
+                                                             false,
+                                                             in_type);
+                _wv_gemm[i] = std::make_shared<GemmKernel>(i + 1,
+                                                             _S,
+                                                             _block_size,
+                                                             // if it's bf16, the stride needs double due to reuse float buffer
+                                                             (in_type == ov::element::Type_t::f32 ? 1 : 2) * _weight.stride(2),
+                                                             _S,
+                                                             _output.stride(1),
+                                                             false,
+                                                             in_type);
+                _wv_gemm_acc[i] = std::make_shared<GemmKernel>(i + 1,
+                                                                 _S,
+                                                                 _block_size,
+                                                                 // if it's bf16, the stride needs double due to reuse float buffer
+                                                                 (in_type == ov::element::Type_t::f32 ? 1 : 2) * _weight.stride(2),
+                                                                 _S,
+                                                                 _output.stride(1),
+                                                                 false,
+                                                                 in_type,
+                                                                 true);
+            }
+
+            // wsp is used to compute beta when K is blocked
+            _wsp_size_per_thread = _wv_gemm[0]->get_wsp_size();
+            _wsp.resize(_nthr * _wsp_size_per_thread);
+
+            // allocate scratch a/b, notice get_scratch_a_size/get_scratch_b_size returns in bytes
+            _qk_scratch_a.resize<DATA_TYPE>({_nthr, _qk_gemm[_block_size - 1]->get_scratch_a_size() / sizeof(DATA_TYPE)});
+            _wv_scratch_a.resize<DATA_TYPE>({_nthr, _wv_gemm[_block_size - 1]->get_scratch_a_size() / sizeof(DATA_TYPE)});
+
+            _fastpath_valid = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::amx_bf16) &&
+                (S % 32 == 0) && (block_size % 16 == 0) && (S <= 32 * 6) && precision_of<KVCACHE_TYPE>::value == ov::element::bf16;
+            // aligned to cache line (64bytes=16*sizeof(float)) to avoid false sharing
+            if (_fastpath_valid && !_gemv)
+                _gemv = std::make_shared<JitMatMulVecAMX>(static_cast<int>(S), static_cast<int>(block_size));
+        }
+
+        if (init_alibi_lookup && (!_alibi_lookup || _alibi_lookup.m_dims[0] < kv_len)) {
+            _alibi_lookup.resize<float>({kv_len * 2});
+            for (size_t i = 0; i < _alibi_lookup.m_dims[0]; i++)
+                _alibi_lookup.ptr<float>()[i] = - static_cast<int>((_alibi_lookup.m_dims[0] - 1 - i));
+        }
+    }
+
+    void init_reorder_buffers(size_t batch, size_t kv_len_in_blocks) {
+        _qk_scratch_b.resize<DATA_TYPE>({batch, kv_len_in_blocks, _Hk, _block_size * _S});
+        _wv_scratch_b.resize<DATA_TYPE>({batch, kv_len_in_blocks, _Hk, _block_size * rnd_up(_S, _block_size)});
+    }
+
+    void init_score_buffers(const PlainTensor& past_lens, const PlainTensor& subsequence_begins) {
+        static constexpr int cache_line_size = dnnl::impl::cpu::platform::get_cache_line_size();
+        auto seq_cout = static_cast<int32_t>(past_lens.m_dims[0]);
+        _score_offsets_aligned.resize<int32_t>({past_lens.m_dims[0]});
+        _score_offsets.resize<int32_t>({past_lens.m_dims[0]});
+        int32_t total_kv_len_aligned = 0;
+        int32_t total_kv_len = 0;
+        for (int32_t i = 0; i < seq_cout; i++) {
+            auto q_len = subsequence_begins.ptr<int32_t>()[i + 1] - subsequence_begins.ptr<int32_t>()[i];
+            auto kv_len = past_lens.ptr<int32_t>()[i] + q_len;
+            _score_offsets_aligned.ptr<int32_t>()[i] = total_kv_len_aligned;
+            _score_offsets.ptr<int32_t>()[i] = total_kv_len;
+            // aligned to cache line to avoid false sharing
+            total_kv_len_aligned += rnd_up(kv_len, cache_line_size / sizeof(float));
+            total_kv_len += kv_len;
+        }
+
+        _score_output.resize<float>({total_kv_len_aligned * _H});
+    }
+
+    // compute one block(such as 32 tokens) of query in M dimension: softmax(q_block*k')*v
+    // all tensors such as query... have no batch dimension because batch dimension is varying
+    //  query: [H, L, S]
+    //  present_value: [block_number, H, 32, S]
+    //  output_emb: [L, H * S]
+    //  qk_scratch_b: [rnd_up(kv_len, block_size), Hk, scratch_b_size]
+    //  wv_scratch_b: [rnd_up(kv_len, block_size), Hk, scratch_b_size]
+    void exec_kernel_multiple(const PlainTensor& query, const PlainTensor& present_value, const PlainTensor& output_emb,
+        const PlainTensor& qk_scratch_b, const PlainTensor& wv_scratch_b, const int32_t* block_table, size_t ithr, size_t q_blk,
+        size_t hk, size_t q_len, size_t cur_kv_len, const PlainTensor& alibi_slopes, float* score_output) {
+        auto q_start = q_blk * _block_size;
+        auto q_end = std::min(q_start + _block_size, q_len);
+        auto q_cnt = q_end - q_start;
+        constexpr bool q_is_bf16 = precision_of<DATA_TYPE>::value == ov::element::bf16;
+        constexpr bool q_cache_is_same = precision_of<DATA_TYPE>::value == precision_of<KVCACHE_TYPE>::value;
+        auto cur_kv_len_blocks = div_up(cur_kv_len, _block_size);
+        for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++) {
+            auto* q_ptr = query.ptr<DATA_TYPE>(h, q_start, 0);
+            float* c_ptr = _weight.ptr<float>(ithr, h, 0, 0);
+            // for each query block, loop through all key block
+            // for blocks:
+            // 1 0 0 0 ...
+            // 1 1 0 0 ...
+            // 1 1 1 0 ...
+            // just computing the positions of 1 should be enough
+            for (size_t k_blk = 0; k_blk < cur_kv_len_blocks; k_blk++) {
+                auto* k_ptr = qk_scratch_b.ptr<DATA_TYPE>(k_blk, hk);
+                _qk_gemm[q_cnt - 1]->executeGemm(q_cnt < _block_size,
+                                                 q_ptr,
+                                                 k_ptr,
+                                                 c_ptr + k_blk * _block_size,
+                                                 _wsp.data() + ithr * _wsp_size_per_thread,
+                                                 _qk_scratch_a ? _qk_scratch_a.ptr<DATA_TYPE>(ithr, 0) : nullptr);
+            }
+
+            for (size_t m = q_start; m < q_end; m++) {
+                // apply attention mask & sofmax
+                auto ncausal = (cur_kv_len - q_cnt + (m - q_start) + 1);
+                auto score = _weight.ptr<float>(ithr, h, m - q_start);
+                if (_sliding_window) {
+                    size_t start_idx = 0;
+                    auto new_causal = ncausal;
+                    if (ncausal > _sliding_window) {
+                        start_idx = ncausal - static_cast<size_t>(_sliding_window);
+                        new_causal = _sliding_window;
+                    }
+                    attn_softmax_kernel(score + start_idx,
+                                        reinterpret_cast<DATA_TYPE*>(score) + start_idx,
+                                        _d_scale,
+                                        nullptr,
+                                        nullptr,
+                                        nullptr,
+                                        false,
+                                        new_causal,
+                                        rnd_up(cur_kv_len, _block_size) - start_idx,
+                                        precision_of<DATA_TYPE>::value,
+                                        precision_of<DATA_TYPE>::value);
+
+                    memset(score, 0, sizeof(DATA_TYPE) * start_idx);
+                } else {
+                    // alibi may available when _sliding_window is false
+                    float* alibi_lookup = nullptr;
+                    float alibi_slope = 0.f;
+                    if (alibi_slopes) {
+                        alibi_slope = alibi_slopes.ptr<float>()[h];
+                        alibi_lookup = _alibi_lookup.ptr<float>() + _alibi_lookup.m_dims[0] - ncausal;
+                    }
+                    attn_softmax_kernel(score,
+                                        reinterpret_cast<DATA_TYPE*>(score),
+                                        _d_scale,
+                                        alibi_lookup,
+                                        nullptr,
+                                        nullptr,
+                                        false,
+                                        ncausal,
+                                        rnd_up(cur_kv_len, _block_size),
+                                        precision_of<DATA_TYPE>::value,
+                                        precision_of<DATA_TYPE>::value,
+                                        alibi_slope);
+                }
+                if (score_output) {
+                    cvt_copy(score_output + h * rnd_up(cur_kv_len, 16), reinterpret_cast<DATA_TYPE*>(score), cur_kv_len);
+                }
+            }
+
+            // reuse float buffer, need to use float to compute offset
+            auto* w_ptr = reinterpret_cast<DATA_TYPE*>(_weight.ptr<float>(ithr, h, 0, 0));
+            float* fp32_out_ptr = q_is_bf16 ? _output.ptr<float>(ithr, 0, h, 0) : output_emb.ptr<float>(q_start, h * _S);
+
+            // for each weight block, loop through all value block
+            for (size_t v_blk = 0; v_blk < cur_kv_len_blocks; v_blk++) {
+                DATA_TYPE* v_ptr;
+                if (q_is_bf16 || !q_cache_is_same) {
+                    v_ptr = wv_scratch_b.ptr<DATA_TYPE>(v_blk, hk);
+                } else {
+                    v_ptr = present_value.ptr<DATA_TYPE>(block_table[v_blk], hk);
+                }
+                if (v_blk == 0) {
+                    _wv_gemm[q_cnt - 1]->executeGemm(q_cnt < _block_size,
+                                                     w_ptr + v_blk * _block_size,
+                                                     v_ptr,
+                                                     fp32_out_ptr,
+                                                     _wsp.data() + ithr * _wsp_size_per_thread,
+                                                     _wv_scratch_a ? _wv_scratch_a.ptr<DATA_TYPE>(ithr, 0) : nullptr);
+                } else {
+                    _wv_gemm_acc[q_cnt - 1]->executeGemm(q_cnt < _block_size,
+                                                         w_ptr + v_blk * _block_size,
+                                                         v_ptr,
+                                                         fp32_out_ptr,
+                                                         _wsp.data() + ithr * _wsp_size_per_thread,
+                                                         _wv_scratch_a ? _wv_scratch_a.ptr<DATA_TYPE>(ithr, 0) : nullptr);
+                }
+            }
+            if (q_is_bf16) {
+                attn_memcpy2d_kernel(_output.ptr<float>(ithr, 0, h, 0),
+                                     output_emb.ptr<DATA_TYPE>(q_start, h * _S),
+                                     ov::element::f32,
+                                     ov::element::bf16,
+                                     _output.stride(1),
+                                     output_emb.stride(0),
+                                     _S,
+                                     q_cnt);
+            }
+        }
+    }
+
+    // compute one token, loop along batch and head dimensions
+    // all tensors such as query... have no batch dimension because batch dimension is varying
+    //  query: [H, L, S]
+    //  present_*: [block_number, H, 32, S]
+    //  output_emb: [L, H * S]
+    //  weight: [nthr, H, 32, rnd_up(kv_len, block_size)]
+    //  output: [nthr, 32, H, S]
+    void exec_kernel_one_bh(const PlainTensor& query, const PlainTensor& present_key, const PlainTensor& present_value, const PlainTensor& output_emb,
+        const int32_t* block_table, size_t ithr, size_t hk, size_t q_len, size_t cur_kv_len, const PlainTensor& alibi_slopes, float* score_output) {
+        if (_fastpath_valid) {
+            _gemv->tile_config();
+            for (size_t pk = 0, i = 0; pk < cur_kv_len; pk += _block_size, i++) {
+                auto block_number = block_table[i];
+                for (size_t pq = 0; pq < q_len; pq++) {
+                    for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++) {
+                        (*_gemv)(query.ptr<ov::bfloat16>(h, pq), present_key.ptr<ov::bfloat16>(block_number, hk),
+                            _weight.ptr<float>(ithr, h, pq) + pk);
+                    }
+                }
+            }
+            _gemv->tile_release();
+        } else {
+            for (size_t pk = 0, i = 0; pk < cur_kv_len; pk += _block_size, i++) {
+                auto block_number = block_table[i];
+                for (size_t pq = 0; pq < q_len; pq++) {
+                    for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++) {
+                        dot_product_block(query.ptr<DATA_TYPE>(h, pq), present_key.ptr<KVCACHE_TYPE>(block_number, hk),
+                            _weight.ptr<float>(ithr, h, pq) + pk, _S, std::min(_block_size, cur_kv_len - pk));
+                    }
+                }
+            }
+        }
+
+        for (size_t pq = 0; pq < q_len; pq++) {
+            for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++) {
+                // apply attention mask & sofmax
+                float* alibi_lookup = nullptr;
+                float alibi_slope = 0.f;
+                if (alibi_slopes) {
+                    alibi_slope = alibi_slopes.ptr<float>()[h];
+                    alibi_lookup = _alibi_lookup.ptr<float>() + _alibi_lookup.m_dims[0] - cur_kv_len;
+                }
+                attn_softmax_kernel(_weight.ptr<float>(ithr, h, pq),
+                                    _weight.ptr<float>(ithr, h, pq),
+                                    _d_scale,
+                                    alibi_lookup,
+                                    nullptr,
+                                    nullptr,
+                                    false,
+                                    cur_kv_len,
+                                    cur_kv_len,
+                                    ov::element::f32,
+                                    ov::element::f32,
+                                    alibi_slope);
+                if (score_output) {
+                    memcpy(score_output + h * rnd_up(cur_kv_len, 16), _weight.ptr<float>(ithr, h, pq), cur_kv_len * sizeof(float));
+                }
+            }
+        }
+
+        memset(_output.ptr<float>(ithr), 0, q_len * _H * _S * sizeof(float));
+        for (size_t pv = 0, i = 0; pv < cur_kv_len; pv += _block_size, i++) {
+            auto block_number = block_table[i];
+            auto* v = present_value.ptr<KVCACHE_TYPE>(block_number, hk);
+            for (size_t pq = 0; pq < q_len; pq++) {
+                for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++) {
+                    attn_acc_value_block(_output.ptr<float>(ithr, pq, h),
+                                         _weight.ptr<float>(ithr, h, pq) + pv,
+                                         v,
+                                         _S,
+                                         std::min(_block_size, cur_kv_len - pv));
+                }
+            }
+        }
+        // convert to dst
+        for (size_t pq = 0; pq < q_len; pq++)
+            for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++)
+                cvt_copy(output_emb.ptr<DATA_TYPE>(pq, h * _S), _output.ptr<float>(ithr, pq, h), _S);
+    }
+
+    // compute one token, loop along batch, head dimensions and kv_len, it's special for very long kv_len with small batch tokens.
+    // It will assume NO mixture execution of first and second token.
+    // all tensors such as query... have batch dimension which is DIFFERENT from above
+    //  query: [B, H, L, S]
+    //  present_*: [block_number, H, 32, S]
+    //  output_emb: [B, L, H * S]
+    // 3 loops along batch, head, kv cache length dimensions
+    void exec_loop_bhl(const PlainTensor& query,
+                       const PlainTensor& present_key,
+                       const PlainTensor& present_value,
+                       const PlainTensor& output_emb,
+                       const PlainTensor& output_score,
+                       size_t max_context_len,
+                       const PlainTensor& past_lens,
+                       const PlainTensor& subsequence_begins,
+                       const PlainTensor& block_indices,
+                       const PlainTensor& block_indices_begins,
+                       const PlainTensor& alibi_slopes) {
+        auto B = past_lens.size(0);
+        auto q_len = query.size(2);
+        auto kv_len_in_blocks = div_up(max_context_len, _block_size);
+
+        // aligned to cache line (64bytes=16*sizeof(float)) to avoid false sharing
+        _weight_bhl.resize<float>({B, _H, q_len, rnd_up(max_context_len, std::max(_block_size, size_t{16}))});
+
+        parallel_for3d_dynamic(B, kv_len_in_blocks, _Hk, [&](size_t b, size_t pk_in_blocks, size_t hk) {
+            auto context_len = static_cast<size_t>(past_lens.ptr<int32_t>()[b]) + 1;
+            // kv_len must be valid
+            auto pk = pk_in_blocks * _block_size;
+            if (pk < context_len) {
+                auto block_number = block_indices.ptr<int32_t>()[block_indices_begins.ptr<int32_t>()[b] + pk_in_blocks];
+                if (_fastpath_valid) {
+                    _gemv->tile_config();
+                    for (size_t pq = 0; pq < q_len; pq++) {
+                        for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++) {
+                            (*_gemv)(query.ptr<ov::bfloat16>(b, h, pq), present_key.ptr<ov::bfloat16>(block_number, hk),
+                                _weight_bhl.ptr<float>(b, h, pq) + pk);
+                        }
+                    }
+                    _gemv->tile_release();
+                } else {
+                    for (size_t pq = 0; pq < q_len; pq++) {
+                        for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++) {
+                            dot_product_block(query.ptr<DATA_TYPE>(b, h, pq), present_key.ptr<KVCACHE_TYPE>(block_number, hk),
+                                _weight_bhl.ptr<float>(b, h, pq) + pk, _S, std::min(_block_size, context_len - pk));
+                        }
+                    }
+                }
+            }
+        });
+
+        parallel_for3d_dynamic(B, _H, q_len, [&](size_t b, size_t h, size_t pq) {
+            auto cur_kv_len = static_cast<size_t>(past_lens.ptr<int32_t>()[b]) + 1;
+            auto ncausal = cur_kv_len;
+            // apply attention mask & sofmax
+            float* alibi_lookup = nullptr;
+            float alibi_slope = 0.f;
+            if (alibi_slopes) {
+                alibi_slope = alibi_slopes.ptr<float>()[h];
+                alibi_lookup = _alibi_lookup.ptr<float>() + _alibi_lookup.m_dims[0] - cur_kv_len;
+            }
+            attn_softmax_kernel(_weight_bhl.ptr<float>(b, h, pq),
+                                _weight_bhl.ptr<float>(b, h, pq),
+                                _d_scale,
+                                alibi_lookup,
+                                nullptr,
+                                nullptr,
+                                false,
+                                ncausal,
+                                cur_kv_len,
+                                ov::element::f32,
+                                ov::element::f32,
+                                alibi_slope);
+        });
+
+        if (output_score) {
+            parallel_for2d_dynamic(B, q_len, [&](size_t b, size_t pq) {
+                auto cur_kv_len = static_cast<size_t>(past_lens.ptr<int32_t>()[b]) + 1;
+                auto* src = _weight_bhl.ptr<float>(b, 0, pq);
+                size_t src_stride = _weight_bhl.stride(2);
+                auto* dst = output_score.ptr<float>() + _score_offsets.ptr<int32_t>()[b];
+                attn_reduce(dst, src, _H, cur_kv_len, src_stride);
+            });
+        }
+
+        // attn_w * V
+        _output_bhl.resize<float>({static_cast<size_t>(_nthr), B, q_len, _H, _S});
+        // m_attn_w {B, H, q_len, kv_len}
+        parallel_nt_static(_nthr, [&](const size_t ithr, const size_t nthr) {
+            memset(_output_bhl.ptr<float>(ithr, 0, 0, 0, 0), 0, _output_bhl.stride(0) * sizeof(float));
+        });
+
+        parallel_for3d_dynamic(B, kv_len_in_blocks, _Hk, [&](size_t b, size_t pv_in_blocks, size_t hk) {
+            auto ithr = parallel_get_thread_num();
+            auto context_len = static_cast<size_t>(past_lens.ptr<int32_t>()[b]) + 1;
+            auto pv = pv_in_blocks * _block_size;
+            // kv_len must be valid
+            if (pv < context_len) {
+                auto block_number = block_indices.ptr<int32_t>()[block_indices_begins.ptr<int32_t>()[b] + pv_in_blocks];
+                auto* v = present_value.ptr<KVCACHE_TYPE>(block_number, hk);
+                for (size_t pq = 0; pq < q_len; pq++) {
+                    for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++) {
+                        attn_acc_value_block(_output_bhl.ptr<float>(ithr, b, pq, h),
+                                             _weight_bhl.ptr<float>(b, h, pq) + pv,
+                                             v,
+                                             _S,
+                                             std::min(_block_size, context_len - pv));
+                    }
+                }
+            }
+        });
+
+        parallel_for3d(B, _H, q_len, [&](size_t b, size_t h, size_t pq) {
+            auto* temp = _output_bhl.ptr<float>(0, b, pq, h);
+            size_t temp_stride = _output_bhl.stride(0);
+            auto* dst = output_emb.ptr<DATA_TYPE>(b, pq, h * _S);
+            attn_reduce(dst, temp, _nthr, _S, temp_stride);
+        });
+    }
+};
+
+template <typename DATA_TYPE, typename KVCACHE_TYPE>
+struct MHA {
+    MHAHelper<DATA_TYPE, KVCACHE_TYPE>& _helper;
+    struct AttnWorkItem {
+        int32_t batch_in_reorder;                   // which batch in reorder buffer will be used
+        int32_t batch_in_seq;                       // batch idx in sequence
+        int32_t q_len;                              // current sequence length, 1 for second token, 2+ for first token
+        int32_t q_block_id;                         // block id in this seq, valid at first token
+    };
+    struct ReorderWorkItem {
+        int32_t batch_in_seq;                       // batch idx in sequence
+        int32_t batch_in_reorder;                   // which batch in reorder buffer will be used
+        int32_t kv_block_id;                        // block id in this kv cache seq
+    };
+    struct WorkItems {
+    private:
+        std::vector<AttnWorkItem> attn_items;
+        std::vector<ReorderWorkItem> reorder_items;
+        int32_t max_kv_len_in_reorder;              // max kv len between first tokens
+        int32_t max_batch_in_reorder;
+        int32_t total_kv_len;
+
+    public:
+        void reset(const PlainTensor& query, const PlainTensor& past_lens, const PlainTensor& subsequence_begins, size_t block_size) {
+            attn_items.clear();
+            reorder_items.clear();
+            max_kv_len_in_reorder = 0;
+            max_batch_in_reorder = 0;
+            total_kv_len = 0;
+
+            auto seq_cout = static_cast<int32_t>(past_lens.m_dims[0]);
+            for (int32_t i = 0; i < seq_cout; i++) {
+                auto q_len = subsequence_begins.ptr<int32_t>()[i + 1] - subsequence_begins.ptr<int32_t>()[i];
+                auto kv_len = past_lens.ptr<int32_t>()[i] + q_len;
+                auto kv_len_in_block = static_cast<int32_t>(div_up(kv_len, block_size));
+                if (q_len == 1) {
+                    attn_items.emplace_back(AttnWorkItem{
+                        0,                          // batch_in_reorder
+                        i,                          // batch_in_seq
+                        1ull,                       // q_len
+                        // kv_len in blocks, used in the sort function
+                        kv_len_in_block - 1
+                    });
+                } else {
+                    auto reorder_sub_work_count = kv_len_in_block;
+                    max_kv_len_in_reorder = std::max(max_kv_len_in_reorder, kv_len);
+                    for (int32_t block_id = 0; block_id < reorder_sub_work_count; block_id++) {
+                        reorder_items.emplace_back(ReorderWorkItem{
+                            i,                       // batch_in_seq
+                            max_batch_in_reorder,    // batch_in_reorder
+                            block_id                 // kv_block_id
+                        });
+                    }
+
+                    // workitems for attention
+                    auto attn_sub_work_count = static_cast<int32_t>(div_up(q_len, block_size));
+                    for (int32_t block_id = 0; block_id < attn_sub_work_count; block_id++) {
+                        attn_items.emplace_back(AttnWorkItem{
+                            max_batch_in_reorder,    // batch_in_reorder
+                            i,                       // batch_in_seq
+                            q_len,                   // q_len
+                            block_id                 // q_block_id
+                        });
+                    }
+                    max_batch_in_reorder++;
+                }
+                total_kv_len += kv_len;
+            }
+            // std::sort(attn_items.begin(), attn_items.end(), [] (const AttnWorkItem& left, const AttnWorkItem& right) {
+            //     // kv block number which will be acessed later
+            //     auto left_kv_blocks = left.q_block_id;
+            //     auto right_kv_blocks = right.q_block_id;
+            //     return left_kv_blocks > right_kv_blocks;
+            // });
+        }
+        const AttnWorkItem& get_attn_work_item(size_t idx) const {
+            return attn_items[idx];
+        }
+        size_t attn_work_size() const {
+            return attn_items.size();
+        }
+        const ReorderWorkItem& get_reorder_work_item(size_t idx) const {
+            return reorder_items[idx];
+        }
+        size_t reorder_work_size() const {
+            return reorder_items.size();
+        }
+        size_t get_reorder_max_batch_size() const {
+            return static_cast<size_t>(max_batch_in_reorder);
+        }
+        size_t get_reorder_max_kv_len() const {
+            return static_cast<size_t>(max_kv_len_in_reorder);
+        }
+        size_t get_total_kv_len() const {
+            return static_cast<size_t>(total_kv_len);
+        }
+    };
+
+    WorkItems _workitems;
+
+    MHA(MHAHelper<DATA_TYPE, KVCACHE_TYPE>& helper) : _helper(helper) {}
+
+    // one loop to handle first and second tokens
+    void exec_loop_mixed(const PlainTensor& q,
+                         const PlainTensor& k_cache,
+                         const PlainTensor& v_cache,
+                         const PlainTensor& output_emb,
+                         const PlainTensor& output_score,
+                         size_t max_context_len,
+                         const PlainTensor& past_lens,
+                         const PlainTensor& subsequence_begins,
+                         const PlainTensor& block_indices,
+                         const PlainTensor& block_indices_begins,
+                         const PlainTensor& alibi_slopes) {
+        auto Hk = v_cache.m_dims[1];
+
+        constexpr bool q_is_bf16 = precision_of<DATA_TYPE>::value == ov::element::bf16;
+        constexpr bool q_cache_is_same = precision_of<DATA_TYPE>::value == precision_of<KVCACHE_TYPE>::value;
+        auto attn_work_count = _workitems.attn_work_size();
+        auto reorder_work_count = _workitems.reorder_work_size();
+
+        // buffer for transpose and repack
+        _helper.init_reorder_buffers(_workitems.get_reorder_max_batch_size(), div_up(_workitems.get_reorder_max_kv_len(), _helper._block_size));
+
+        // packed k, v
+        parallel_for2d_dynamic(reorder_work_count, Hk, [&](size_t w, size_t hk) {
+            const auto& item = _workitems.get_reorder_work_item(w);
+            const auto batch_in_seq = item.batch_in_seq;
+            const auto batch_in_reorder = item.batch_in_reorder;
+            const auto kv_block = item.kv_block_id;
+            auto block_number = block_indices.ptr<int32_t>()[block_indices_begins.ptr<int32_t>()[batch_in_seq] + kv_block];
+            if (block_number < 0)
+                return;
+
+            auto ithr = parallel_get_thread_num();
+            auto* k_ptr = k_cache.ptr<KVCACHE_TYPE>(block_number, hk);
+            auto* v_ptr = v_cache.ptr<KVCACHE_TYPE>(block_number, hk);
+            transpose_16NxK(_helper._qk_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
+                k_ptr,
+                _helper._output.template ptr<DATA_TYPE>(ithr),
+                _helper._block_size,
+                _helper._S, _helper._block_size, _helper._S);
+            if (q_is_bf16) {
+                pack_32Nx16K(_helper._wv_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
+                    v_ptr,
+                    _helper._output.template ptr<DATA_TYPE>(ithr),
+                    _helper._block_size,
+                    _helper._S,
+                    rnd_up(_helper._S, _helper._block_size),
+                    _helper._S);
+            } else {
+                // need to decompress
+                if (!q_cache_is_same) {
+                    dequant(_helper._wv_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk), v_ptr, _helper._block_size, _helper._S);
+                }
+            }
+        });
+
+        parallel_for2d_dynamic(attn_work_count, Hk, [&](size_t w, size_t hk) {
+            const auto& item = _workitems.get_attn_work_item(w);
+            const auto batch_in_seq = item.batch_in_seq;
+            const auto batch_in_token = subsequence_begins.ptr<int32_t>()[batch_in_seq];
+            const auto q_len = static_cast<size_t>(item.q_len);
+            size_t ithr = parallel_get_thread_num();
+
+            if (q_len == 1) {
+                const auto cur_kv_len = static_cast<size_t>(past_lens.ptr<int32_t>()[batch_in_seq]) + 1;
+                float* score_output = nullptr;
+                if (output_score) {
+                    auto score_offset = _helper._score_offsets_aligned.template ptr<int32_t>()[batch_in_seq];
+                    score_output = _helper._score_output.template ptr<float>() + score_offset * _helper._H;
+                }
+
+                _helper.exec_kernel_one_bh(q.slice(0, batch_in_token, batch_in_token), k_cache, v_cache,
+                    output_emb.slice(0, batch_in_token, batch_in_token),
+                    block_indices.ptr<int32_t>() + block_indices_begins.ptr<int32_t>()[batch_in_seq],
+                    ithr, hk, 1ul, cur_kv_len, alibi_slopes,
+                    score_output);
+            } else {
+                const auto batch_in_reorder = item.batch_in_reorder;
+                const auto q_blk = item.q_block_id;
+                const auto q_cnt = std::min(_helper._block_size, q_len - q_blk * _helper._block_size);
+                const auto cur_kv_len = static_cast<size_t>(past_lens.ptr<int32_t>()[batch_in_seq]) + q_blk * _helper._block_size + q_cnt;
+                float* score_output = nullptr;
+                if (output_score) {
+                    // last block
+                    if (q_len - q_blk * _helper._block_size <= _helper._block_size) {
+                        auto score_offset = _helper._score_offsets_aligned.template ptr<int32_t>()[batch_in_seq];
+                        score_output = _helper._score_output.template ptr<float>() + score_offset * _helper._H;
+                    }
+                }
+
+                PlainTensor sub_query;
+                sub_query.resize({q_len, _helper._H, _helper._S}, q.ptr<DATA_TYPE>(batch_in_token));
+                sub_query = sub_query.permute({1, 0, 2});
+                _helper.exec_kernel_multiple(sub_query,
+                    v_cache,
+                    output_emb.slice(0, batch_in_token, batch_in_token + q_len).reshape({q_len, _helper._H * _helper._S}),
+                    _helper._qk_scratch_b.slice(0, batch_in_reorder, batch_in_reorder),
+                    _helper._wv_scratch_b.slice(0, batch_in_reorder, batch_in_reorder),
+                    block_indices.ptr<int32_t>() + block_indices_begins.ptr<int32_t>()[batch_in_seq],
+                    ithr,
+                    q_blk,
+                    hk,
+                    q_len,
+                    cur_kv_len,
+                    alibi_slopes,
+                    score_output);
+            }
+        });
+        if (output_score) {
+            parallel_for2d_dynamic(past_lens.m_dims[0], 1, [&](size_t b, size_t pq) {
+                auto seq_len = static_cast<size_t>(subsequence_begins.ptr<int32_t>()[b + 1] - subsequence_begins.ptr<int32_t>()[b]);
+                auto cur_kv_len = static_cast<size_t>(past_lens.ptr<int32_t>()[b]) + seq_len;
+                auto src_offset = _helper._score_offsets_aligned.template ptr<int32_t>()[b];
+                auto* src = _helper._score_output.template ptr<float>() + src_offset * _helper._H;
+                size_t src_stride = rnd_up(cur_kv_len, 16);
+                auto dst_offset = _helper._score_offsets.template ptr<int32_t>()[b];
+                auto* dst = output_score.ptr<float>() + dst_offset;
+                attn_reduce(dst, src, _helper._H, cur_kv_len, src_stride);
+            });
+        }
+    }
+
+    // Q, K, V is ready, do attention
+    void operator()(PlainTensor& query,
+                    PlainTensor& present_key,
+                    PlainTensor& present_value,
+                    PlainTensor& output_emb,
+                    PlainTensor& output_score,
+                    size_t max_context_len,
+                    const PlainTensor& past_lens,
+                    const PlainTensor& subsequence_begins,
+                    const PlainTensor& block_indices,
+                    const PlainTensor& block_indices_begins,
+                    const PlainTensor& alibi_slopes) {
+        _workitems.reset(query, past_lens, subsequence_begins, _helper._block_size);
+        if (output_score)
+            _helper.init_score_buffers(past_lens, subsequence_begins);
+
+        auto nthr = static_cast<size_t>(parallel_get_max_threads());
+
+        if (past_lens.m_dims[0] >= nthr || _workitems.get_reorder_max_batch_size() > 0) {
+            exec_loop_mixed(query, present_key, present_value, output_emb, output_score, max_context_len, past_lens, subsequence_begins,
+                block_indices, block_indices_begins, alibi_slopes);
+        } else {
+            _helper.exec_loop_bhl(query, present_key, present_value, output_emb, output_score, max_context_len, past_lens, subsequence_begins,
+                block_indices, block_indices_begins, alibi_slopes);
+        }
+    }
+};
+
+#else
 
 template <typename DATA_TYPE, typename KVCACHE_TYPE>
 struct MHAHelper {
@@ -1510,6 +2577,7 @@ struct MHA {
     }
 };
 
+#endif
 template <typename DATA_TYPE, typename KVCACHE_TYPE>
 struct AttentionExecutor : public PagedAttentionExecutor {
     MHAHelper<DATA_TYPE, KVCACHE_TYPE> _helper;
@@ -1604,9 +2672,9 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         }
 
         if (k_cache.m_dt == ov::element::Type_t::u8) {
-            paged_attn_quantkv(k, v, k_cache, v_cache, _slot_mapping);
+            paged_attn_quantkv(k, v, k_cache, v_cache, _slot_mapping); // TODO: NEON
         } else {
-            paged_attn_memcpy(k, v, k_cache, v_cache, _slot_mapping);
+            paged_attn_memcpy(k, v, k_cache, v_cache, _slot_mapping); // TODO NEON
         }
     }
 
@@ -1628,7 +2696,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             block_indices_begins, alibi_slopes);
     }
 };
-#endif
+// #endif
 
 std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_type, ov::element::Type kvcache_type) {
     std::shared_ptr<PagedAttentionExecutor> executor;
@@ -1668,9 +2736,31 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
     } else {
         OPENVINO_THROW("make_pa_executor: unsupported precision: ", data_type);
     }
+
+#elif defined(OPENVINO_ARCH_ARM64)
+    if (data_type == ov::element::bf16) {
+        if (kvcache_type == ov::element::u8) {
+            executor = std::make_shared<AttentionExecutor<ov::bfloat16, uint8_t>>();
+        } else {
+            OPENVINO_ASSERT(kvcache_type == ov::element::bf16, "expect kvcache type bf16, current: ", kvcache_type);
+            executor = std::make_shared<AttentionExecutor<ov::bfloat16, ov::bfloat16>>();
+        }
+    } else if (data_type == ov::element::f32) {
+        if (kvcache_type == ov::element::u8) {
+            executor = std::make_shared<AttentionExecutor<float, uint8_t>>();
+        } else if (kvcache_type == ov::element::f16) {
+            executor = std::make_shared<AttentionExecutor<float, ov::float16>>();
+        } else {
+            OPENVINO_ASSERT(kvcache_type == ov::element::f32, "expect kvcache type f32, current: ", kvcache_type);
+            executor = std::make_shared<AttentionExecutor<float, float>>();
+        }
+    } else {
+        OPENVINO_THROW("make_pa_executor: unsupported precision for ARM64: ", data_type);
+    }
 #else
-    OPENVINO_THROW("make_pa_executor: only support x64 platform");
+    OPENVINO_THROW("make_pa_executor: only supported on x86 and ARM64 platforms");
 #endif
+
     return executor;
 }
 
