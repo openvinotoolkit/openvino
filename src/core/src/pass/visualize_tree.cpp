@@ -676,7 +676,7 @@ std::string ov::pass::VisualizeTree::get_node_name(std::shared_ptr<Node> node) {
 }
 
 void ov::pass::VisualizeTree::render() const {
-    std::string ext = ov::util::get_file_ext(m_name);
+    std::string ext = ov::util::get_file_ext(m_name).string();
     std::string output_format = ext.substr(1);
     std::string dot_file = m_name;
     if (ov::util::to_lower(ext) != ".dot") {

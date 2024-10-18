@@ -135,7 +135,7 @@ OpCache::serialize_op(const std::pair<std::shared_ptr<ov::Node>, ov::conformance
 std::string OpCache::get_rel_serilization_dir(const std::shared_ptr<ov::Node>& node) {
     std::string op_folder_name = ov::util::get_node_version(node->get_type_info());
     auto op_el_type = node->get_output_element_type(0).get_type_name();
-    return ov::util::path_join({m_cache_subdir, ov::util::get_node_type(node), op_folder_name, op_el_type});
+    return ov::util::path_join({m_cache_subdir, ov::util::get_node_type(node), op_folder_name, op_el_type}).string();
 }
 
 }  // namespace subgraph_dumper
