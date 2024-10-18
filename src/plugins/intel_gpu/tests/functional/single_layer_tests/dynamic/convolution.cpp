@@ -441,7 +441,17 @@ const std::vector<std::vector<ov::test::InputShape>> dynInputShapes1D_test = {
                 {{1, 192, 257}}
         },
         {
-                {1, 1, ov::Dimension::dynamic()},
+                {1, ov::Dimension::dynamic(), ov::Dimension::dynamic()},
+                {{1, 1, 1}}
+        }
+        },
+        {
+        {
+                {ov::Dimension::dynamic(), 192, ov::Dimension::dynamic()},
+                {{1, 192, 1}}
+        },
+        {
+                {1, ov::Dimension::dynamic(), ov::Dimension::dynamic()},
                 {{1, 1, 1}}
         }
         },
