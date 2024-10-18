@@ -831,18 +831,14 @@ void Transformations::PostLpt() {
     // MLP & QKV fusion optimizations is focused on throughput, only enabled on AMX-bf16 & LLM serving use cases.
     auto can_use_amx_bf16_int8 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) && (config.inferencePrecision == element::bf16);
     auto can_use_amx_fp16 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16) && (config.inferencePrecision == element::f16);
-    if (std::getenv("NO_MLP")) {
-        can_use_amx_fp16 = false;
-        can_use_amx_bf16_int8 = false;
-    }
-    if (can_use_amx_bf16_int8 || can_use_amx_fp16) {
-        int allow_dyn_quant = std::getenv("LLM_DQ") ? atoi(std::getenv("LLM_DQ")) : 0; // config.fcDynamicQuantizationGroupSize > 0
 
-        CPU_REGISTER_PASS_X64(postLPTPassManager, MLPFusion, allow_dyn_quant & 0x2);
+    if (can_use_amx_bf16_int8 || can_use_amx_fp16) {
+        const auto fcDynamicQuantizationGroupSize = config.fcDynamicQuantizationGroupSize;
+        CPU_REGISTER_PASS_X64(postLPTPassManager, MLPFusion);
         CPU_SET_CALLBACK_X64(postLPTPassManager,
-            [](const_node_ptr &node) -> bool {
+            [=](const_node_ptr &node) -> bool {
                 std::string errorMsg;
-                return node::LLMMLP::isSupportedOperation(node, errorMsg);
+                return node::LLMMLP::isSupportedOperation(node, errorMsg, fcDynamicQuantizationGroupSize);
             },
             MLPFusion);
 
@@ -850,19 +846,19 @@ void Transformations::PostLpt() {
         if (concurrency == 0)
             concurrency = parallel_get_max_threads();
 
-        CPU_REGISTER_PASS_X64(postLPTPassManager, QKVProjFusion, allow_dyn_quant & 0x1);
+        CPU_REGISTER_PASS_X64(postLPTPassManager, QKVProjFusion);
         CPU_SET_CALLBACK_X64(postLPTPassManager,
-            [concurrency](const_node_ptr &node) -> bool {
+            [=](const_node_ptr &node) -> bool {
                 std::string errorMsg;
-                return node::QKVProjection::isSupportedOperation(node, errorMsg, concurrency);
+                return node::QKVProjection::isSupportedOperation(node, errorMsg, concurrency, fcDynamicQuantizationGroupSize);
             },
             QKVProjFusion);
 
-        CPU_REGISTER_PASS_X64(postLPTPassManager, QKVProjFusion2, allow_dyn_quant & 0x1);
+        CPU_REGISTER_PASS_X64(postLPTPassManager, QKVProjFusion2);
         CPU_SET_CALLBACK_X64(postLPTPassManager,
-            [concurrency](const_node_ptr &node) -> bool {
+            [=](const_node_ptr &node) -> bool {
                 std::string errorMsg;
-                return node::QKVProjection::isSupportedOperation(node, errorMsg, concurrency);
+                return node::QKVProjection::isSupportedOperation(node, errorMsg, concurrency, fcDynamicQuantizationGroupSize);
             },
             QKVProjFusion2);
 

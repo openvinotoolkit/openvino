@@ -490,7 +490,8 @@ struct LLMMLP::Executor : public LLMMLP::ExecutorBase {
 LLMMLP::LLMMLP(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
-    if (!isSupportedOperation(op, errorMessage)) {
+    const auto & config = context->getConfig();
+    if (!isSupportedOperation(op, errorMessage, config.fcDynamicQuantizationGroupSize)) {
         OPENVINO_THROW("CPU: " + errorMessage);
     }
     const auto node_mlp = std::dynamic_pointer_cast<const LLMMLPNode>(op);
@@ -567,7 +568,7 @@ void LLMMLP::execute(dnnl::stream strm) {
     m_executor->execute();
 }
 
-bool LLMMLP::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
+bool LLMMLP::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage, uint64_t fcDynamicQuantizationGroupSize) noexcept {
 #if defined(OPENVINO_ARCH_X86_64)
     try {
         const auto node_mlp = std::dynamic_pointer_cast<const LLMMLPNode>(op);
@@ -580,6 +581,18 @@ bool LLMMLP::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
             }
             auto down_size = down_proj_w_pshape[0].get_length();
             auto up_size = down_proj_w_pshape[1].get_length();
+
+            auto& config = node_mlp->get_config();
+            if (config.gate_up_quantized && (fcDynamicQuantizationGroupSize < config.hidden_size)) {
+                errorMessage = "LLMMLPNode gate-up-proj only support per-token dynamic quantization";
+                return false;
+            }
+
+            if (config.down_quantized && (fcDynamicQuantizationGroupSize < config.up_size)) {
+                errorMessage = "LLMMLPNode down_proj only support per-token dynamic quantization";
+                return false;
+            }
+
             if (down_size % REG_BLK_K_SIZE) {
                 errorMessage = "LLMMLPNode down_proj size is not multiple of register blocking size";
                 return false;

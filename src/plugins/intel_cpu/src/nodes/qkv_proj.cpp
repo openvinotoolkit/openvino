@@ -325,7 +325,13 @@ void QKVProjection::execute(dnnl::stream strm) {
 QKVProjection::QKVProjection(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
-    if (!isSupportedOperation(op, errorMessage)) {
+
+    const auto & config = context->getConfig();
+    size_t concurrency = config.streamExecutorConfig.get_threads_per_stream();
+    if (concurrency == 0)
+        concurrency = parallel_get_max_threads();
+
+    if (!isSupportedOperation(op, errorMessage, concurrency, config.fcDynamicQuantizationGroupSize)) {
         OPENVINO_THROW("CPU: " + errorMessage);
     }
     const auto node = std::dynamic_pointer_cast<const QKVProjectionNode>(op);
@@ -386,7 +392,7 @@ void QKVProjection::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(inPortConfigs, outPortConfigs, impl_desc_type::ref_any);
 }
 
-bool QKVProjection::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage, int concurrency) noexcept {
+bool QKVProjection::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage, int concurrency, uint64_t fcDynamicQuantizationGroupSize) noexcept {
 #if defined(OPENVINO_ARCH_X86_64)
     try {
         const auto node_qkv = std::dynamic_pointer_cast<const QKVProjectionNode>(op);
@@ -405,6 +411,11 @@ bool QKVProjection::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
             const auto& config = node_qkv->get_config();
             if ((config.hidden_size % CACHE_BLK_K_SIZE) != 0) {
                 errorMessage = "QKVProjection input channel size is not multiple of cache blocking size";
+                return false;
+            }
+
+            if (config.quantized && (fcDynamicQuantizationGroupSize < config.hidden_size)) {
+                errorMessage = std::string("QKVProjection input channel only support per-token dynamic quantization : ") + std::to_string(fcDynamicQuantizationGroupSize) + " " + std::to_string(config.hidden_size);
                 return false;
             }
 

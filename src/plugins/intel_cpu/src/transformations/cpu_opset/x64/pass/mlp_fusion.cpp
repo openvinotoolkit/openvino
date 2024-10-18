@@ -26,7 +26,7 @@ using namespace ov::gen_pattern;
 
 static const char * MLPNAME = std::getenv("MLPNAME");
 
-ov::intel_cpu::MLPFusion::MLPFusion(bool allow_dynamic_quantization) {
+ov::intel_cpu::MLPFusion::MLPFusion() {
     MATCHER_SCOPE(MLPFusion);
 
     auto input = makePattern("[?,?,?]");
@@ -150,9 +150,6 @@ ov::intel_cpu::MLPFusion::MLPFusion(bool allow_dynamic_quantization) {
         } else {
             return false;
         }
-
-        if (!allow_dynamic_quantization && (is_gate_up_quantized_int8 || is_down_proj_int8))
-            return false;
 
         auto gate_proj_w_pshape = gate_proj_w.get_partial_shape();
         auto up_proj_w_pshape = up_proj_w.get_partial_shape();

@@ -12,13 +12,13 @@ namespace intel_cpu {
 class QKVProjFusion: public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("QKVProjFusion", "0");
-    QKVProjFusion(bool allow_dynamic_quantization);
+    QKVProjFusion();
 };
 
 class QKVProjFusion2: public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("QKVProjFusion2", "0");
-    QKVProjFusion2(bool allow_dynamic_quantization);
+    QKVProjFusion2();
 };
 
 }   // namespace intel_cpu

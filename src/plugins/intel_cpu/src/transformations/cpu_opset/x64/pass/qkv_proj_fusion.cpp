@@ -23,7 +23,7 @@
 
 using namespace ov::gen_pattern;
 
-ov::intel_cpu::QKVProjFusion::QKVProjFusion(bool allow_dynamic_quantization) {
+ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
     MATCHER_SCOPE(QKVProjFusion);
 
     auto input = makePattern("[?,?,?]");
@@ -65,9 +65,6 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion(bool allow_dynamic_quantization) {
         }
 
         bool is_quantized_int8 = pattern_map.count(q_proj_weight_const_i8);
-
-        if (!allow_dynamic_quantization && is_quantized_int8)
-            return false;
 
         OutputVector args = {src};
         OutputVector deq_scales;
@@ -183,7 +180,7 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion(bool allow_dynamic_quantization) {
     this->register_matcher(m, callback);
 }
 
-ov::intel_cpu::QKVProjFusion2::QKVProjFusion2(bool allow_dynamic_quantization) {
+ov::intel_cpu::QKVProjFusion2::QKVProjFusion2() {
     MATCHER_SCOPE(QKVProjFusion2);
 
     auto input = makePattern("[?,?,?]");
@@ -229,9 +226,6 @@ ov::intel_cpu::QKVProjFusion2::QKVProjFusion2(bool allow_dynamic_quantization) {
             return false;
 
         bool is_quantized_int8 = pattern_map.count(qkv_proj_weight_const_i8);
-
-        if (!allow_dynamic_quantization && is_quantized_int8)
-            return false;
 
         std::shared_ptr<opset1::Constant> qkv_proj_weight_node;
         if (is_quantized_int8) {
