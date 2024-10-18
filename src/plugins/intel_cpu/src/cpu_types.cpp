@@ -253,7 +253,8 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"EmbeddingBagOffsets", Type::EmbeddingBagOffsets},
         {"LLMMLP", Type::LLMMLP},
         {"QKVProjection", Type::QKVProjection},
-        {"RMS", Type::RMS}
+        {"RMS", Type::RMS},
+        {"LoraSubgraph", Type::LoRA}
     };
     return type_to_name_tbl;
 }
@@ -384,6 +385,7 @@ std::string NameFromType(const Type type) {
         CASE(LLMMLP);
         CASE(QKVProjection);
         CASE(RMS);
+        CASE(LoRA);
         CASE(Unknown);
     }
 #undef CASE
