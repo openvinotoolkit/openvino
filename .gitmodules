@@ -78,6 +78,9 @@
 [submodule "src/plugins/intel_npu/thirdparty/level-zero-ext"]
 	path = src/plugins/intel_npu/thirdparty/level-zero-ext
 	url = https://github.com/intel/level-zero-npu-extensions.git
+[submodule "src/plugins/intel_npu/thirdparty/yaml-cpp"]
+	path = src/plugins/intel_npu/thirdparty/yaml-cpp
+	url = https://github.com/jbeder/yaml-cpp.git
 [submodule "thirdparty/telemetry"]
 	path = thirdparty/telemetry
 	url = https://github.com/openvinotoolkit/telemetry.git
