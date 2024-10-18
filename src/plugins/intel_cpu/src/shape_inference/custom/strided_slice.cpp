@@ -14,12 +14,10 @@ namespace node {
 StridedSliceShapeInfer::StridedSliceShapeInfer(size_t output_size,
         std::unordered_set<int64_t> begin_mask,
         std::unordered_set<int64_t> end_mask,
-        std::unordered_set<int64_t> new_axis_mask,
         std::unordered_set<int64_t> shrink_axis_mask)
     : m_outputShape(output_size, 1),
     m_begin_mask_set(std::move(begin_mask)),
     m_end_mask_set(std::move(end_mask)),
-    m_new_axis_mask_set(std::move(new_axis_mask)),
     m_shrink_axis_mask_set(std::move(shrink_axis_mask)) {}
 
 Result StridedSliceShapeInfer::infer(
@@ -39,12 +37,7 @@ Result StridedSliceShapeInfer::infer(
     auto stridePtr = data_dependency.at(STRIDE_ID)->getDataAs<int32_t>();
 
     for (size_t i = 0, new_idx = 0; i < shapeIn.size(); ++i) {
-        if (m_new_axis_mask_set.count(i)) {
-            // deal with new_axis_mask
-            m_outputShape[new_idx] = 1;
-            m_outputShape[new_idx+1] = shapeIn[i];
-            new_idx+=2;
-        } else if (!m_shrink_axis_mask_set.count(i)) {
+        if (!m_shrink_axis_mask_set.count(i)) {
             // deal with begin_mask and end_mask
             if ((i >= shapeBegin[0]) || (shapeIn[i] == 0)) {
                 m_outputShape[new_idx] = shapeIn[i];
@@ -73,7 +66,9 @@ ShapeInferPtr StridedSliceShapeInferFactory::makeShapeInfer() const {
         return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), PortMask(2, 3, 4, 5));
     } else if (const auto StridedSlice_op = ov::as_type_ptr<const ov::op::v1::StridedSlice>(m_op)) {
         const auto& ellipsis_mask = StridedSlice_op->get_ellipsis_mask();
-        if (std::any_of(ellipsis_mask.begin(), ellipsis_mask.end(), [](int64_t x){ return x == 1; })) {
+        const auto& new_axis_mask = StridedSlice_op->get_new_axis_mask();
+        if (std::any_of(ellipsis_mask.begin(), ellipsis_mask.end(), [](int64_t x){ return x == 1; }) ||
+            std::any_of(new_axis_mask.begin(), new_axis_mask.end(), [](int64_t x){ return x == 1; })) {
             return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), port_mask);
         } else {
             auto vec_to_set = [](const std::vector<int64_t>& vec){
@@ -89,7 +84,6 @@ ShapeInferPtr StridedSliceShapeInferFactory::makeShapeInfer() const {
                     m_op->get_output_partial_shape(0).rank().get_length(),
                     vec_to_set(StridedSlice_op->get_begin_mask()),
                     vec_to_set(StridedSlice_op->get_end_mask()),
-                    vec_to_set(StridedSlice_op->get_new_axis_mask()),
                     vec_to_set(StridedSlice_op->get_shrink_axis_mask()));
         }
     } else {
