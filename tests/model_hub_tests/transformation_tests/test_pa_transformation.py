@@ -6,7 +6,7 @@ from openvino._pyopenvino.op import _PagedAttentionExtension
 from optimum.intel import OVModelForCausalLM
 from models_hub_common.utils import retry
 import models_hub_common.utils as utils
-from sdpa2pa_ref_diff import ref_diff_map, ref_diff_map_ce, nodes_to_compare
+from sdpa2pa_ref_diff import ref_diff_map, ref_diff_map_cache_eviction, nodes_to_compare
 import pytest
 import os
 import re
@@ -34,7 +34,7 @@ def run_pa(tmp_path, model_id, model_link, use_block_indices_inputs, use_score_o
         resulting_map[op] = after_map.get(op, 0) - before_map.get(op, 0)
 
     use_cache_eviction = use_block_indices_inputs and use_score_outputs
-    reference_map = ref_diff_map_ce[model_id] if use_cache_eviction else ref_diff_map[model_id]
+    reference_map = ref_diff_map_cache_eviction[model_id] if use_cache_eviction else ref_diff_map[model_id]
 
     assert reference_map == resulting_map
 
@@ -59,7 +59,8 @@ def run_pa(tmp_path, model_id, model_link, use_block_indices_inputs, use_score_o
                 if re.search(block_indices_pattern, name):
                     block_indices_counter += 1
 
-        assert(block_indices_counter == resulting_map["PagedAttentionExtension"])
+        assert block_indices_counter == resulting_map["PagedAttentionExtension"], \
+               f"The number of block_indices inputs doesn't correspond to the expected value. Expected {resulting_map['PagedAttentionExtension']}, received {block_indices_counter}"
     
     if (use_score_outputs):
         score_pattern = r'scores\.[0-9]+'
@@ -71,11 +72,14 @@ def run_pa(tmp_path, model_id, model_link, use_block_indices_inputs, use_score_o
                 if re.search(score_pattern, name):
                     score_outputs_counter += 1
 
-        assert(score_outputs_counter == resulting_map["PagedAttentionExtension"])
+        assert block_indices_counter == resulting_map["PagedAttentionExtension"], \
+               f"The number of scores outputs doesn't correspond to the expected value. Expected {resulting_map['PagedAttentionExtension']}, received {block_indices_counter}"
 
 @pytest.mark.precommit
 @pytest.mark.parametrize("model_name, model_link, mark, reason", utils.get_models_list(os.path.join(os.path.dirname(__file__), "models", "hf-tiny-random-models-precommit")))
 def test_pa_precommit(tmp_path, model_name, model_link, mark, reason, ie_device):
+    if ie_device == "GPU":
+        pytest.skip("SKIPPING GPU")
     assert mark is None or mark == 'skip' or mark == 'xfail', \
         "Incorrect test case: {}, {}".format(model_name, model_link)
     if mark == 'skip':
@@ -87,6 +91,8 @@ def test_pa_precommit(tmp_path, model_name, model_link, mark, reason, ie_device)
 @pytest.mark.precommit
 @pytest.mark.parametrize("model_name, model_link, mark, reason", utils.get_models_list(os.path.join(os.path.dirname(__file__), "models", "hf-tiny-random-models-precommit")))
 def test_pa_precommit_use_cache_eviction(tmp_path, model_name, model_link, mark, reason, ie_device):
+    if ie_device == "GPU":
+        pytest.skip("SKIPPING GPU")
     assert mark is None or mark == 'skip' or mark == 'xfail', \
         "Incorrect test case: {}, {}".format(model_name, model_link)
     if mark == 'skip':

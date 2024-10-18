@@ -5,7 +5,7 @@
 Use this script if you need to regenerate reference diffs for each model
 to test SDPAToPA transformation.
 
-The script will produce sdpa2pa_ref_diff.txt (or sdpa2pa_ref_diff_ce.txt
+The script will produce sdpa2pa_ref_diff.txt (or sdpa2pa_ref_diff_cache_eviction.txt
 if using cache-eviction) containing a map in the
 following format with nodes number changes for each model:
 
@@ -51,7 +51,7 @@ def main():
     if len(sys.argv) >= 2:
         use_cache_eviction = sys.argv[1].lower() in 'true'
 
-    OUTPUT_FILE = Path(os.path.join(os.path.dirname(__file__)), 'sdpa2pa_ref_diff' + ('_ce.txt' if use_cache_eviction else '.txt'))
+    OUTPUT_FILE = Path(os.path.join(os.path.dirname(__file__)), 'sdpa2pa_ref_diff' + ('_cache_eviction.txt' if use_cache_eviction else '.txt'))
 
     if OUTPUT_FILE.exists() and OUTPUT_FILE.is_file():
         OUTPUT_FILE.unlink()
@@ -59,7 +59,7 @@ def main():
     with open(OUTPUT_FILE, 'w') as file:
         model_list = utils.get_models_list(os.path.join(os.path.dirname(__file__), "models", "hf-tiny-random-models-precommit"))
         print(OUTPUT_FILE)
-        print('ref_diff_map_ce = {' if use_cache_eviction else 'ref_diff_map = {', file=file)
+        print('ref_diff_map_cache_eviction = {' if use_cache_eviction else 'ref_diff_map = {', file=file)
 
         for model_id, _, _, _ in model_list:
             # wrapping in try/catch block to continue printing models even if one has failed

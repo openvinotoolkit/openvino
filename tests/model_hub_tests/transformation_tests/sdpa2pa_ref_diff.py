@@ -307,7 +307,7 @@ ref_diff_map = {
 	},
 }
 
-ref_diff_map_ce = {
+ref_diff_map_cache_eviction = {
 	"hf-internal-testing/tiny-random-LlamaForCausalLM" : {
 		"ScaledDotProductAttention" : -2,
 		"ReadValue" : -4,
