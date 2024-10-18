@@ -59,7 +59,7 @@ jobs:
       - name: Extract OpenVINO package
         run: |
           pushd ${INSTALL_DIR}
-            tar -I pigz -xf openvino_package.tar.gz -C ${INSTALL_DIR}
+            pigz -dc openvino_package.tar.gz | tar -xf - -C ${INSTALL_DIR}
           popd
           
       - name: Fetch ONNX runtime version and skip tests list

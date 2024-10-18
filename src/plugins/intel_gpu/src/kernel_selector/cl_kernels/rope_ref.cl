@@ -11,12 +11,22 @@ KERNEL(rope_ref)(
     const __global INPUT1_TYPE* cos_sin,
     __global OUTPUT_TYPE* output)
 {
+#ifdef SUPPORT_2D_ROPE
+    const uint p = get_global_id(0) / HEAD_COUNT;
+    const uint h = get_global_id(0) % HEAD_COUNT;
+    const uint b = get_global_id(1);//sequence length
+    const uint rf    = get_global_id(2);//max(HALF_ROTARY_NDIMS, HEAD_SIZE - ROTARY_NDIMS)
+    uint output_idx = OUTPUT_GET_INDEX(p, h, b, 0);
+#else
     const uint p = get_global_id(0);
     const uint b = get_global_id(1);
     const uint h = (uint)get_global_id(2) % HEAD_COUNT;
     const uint rf = (uint)get_global_id(2) / HEAD_COUNT;
+    uint output_idx = OUTPUT_GET_INDEX(p, b, h, 0);
+#endif
+
     uint r = rf < HALF_ROTARY_NDIMS ? rf * 2 : 0;
-    uint f = rf < HEAD_SIZE - ROTARY_NDIMS ? rf : 0;
+    uint f = rf < HEAD_SIZE - ROTARY_NDIMS ? rf * 2 : 0;
 
 #ifdef ENABLE_SLICE
     uint input_idx = GET_DATA_INDEX(SLICED_INPUT0, p, b, h * HEAD_SIZE, 0);
@@ -30,19 +40,18 @@ KERNEL(rope_ref)(
     uint cos_sin_b = b < INPUT1_FEATURE_NUM ? b : 0;
     uint cos_sin_idx = INPUT1_GET_INDEX(cos_sin_p, cos_sin_b, 0, 0);
 
-    uint output_idx = OUTPUT_GET_INDEX(p, b, h, 0);
+    float cosv = convert_float(cos_sin[cos_sin_idx + r]);
+    float sinv = convert_float(cos_sin[cos_sin_idx + r + 1]);
 
-    INPUT1_TYPE cosv = cos_sin[cos_sin_idx + r];
-    INPUT1_TYPE sinv = cos_sin[cos_sin_idx + r + 1];
+    float in1 = convert_float(input[input_idx + r]);
+    float in2 = convert_float(input[input_idx + r + 1]);
 
-    INPUT0_TYPE in1 = input[input_idx + r];
-    INPUT0_TYPE in2 = input[input_idx + r + 1];
-
-    output[output_idx + r] = cosv * in1 - sinv * in2;
-    output[output_idx + r + 1] = sinv * in1 + cosv * in2;
+    output[output_idx + r] = TO_OUTPUT_TYPE(cosv * in1 - sinv * in2);
+    output[output_idx + r + 1] = TO_OUTPUT_TYPE(sinv * in1 + cosv * in2);
 
 #ifdef ENABLE_IO_COPY
     output[output_idx + ROTARY_NDIMS + f] = input[input_idx + ROTARY_NDIMS + f];
+    output[output_idx + ROTARY_NDIMS + f + 1] = input[input_idx + ROTARY_NDIMS + f + 1];
 #endif
 }
 #endif

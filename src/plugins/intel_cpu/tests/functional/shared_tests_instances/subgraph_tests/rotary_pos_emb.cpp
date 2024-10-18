@@ -50,5 +50,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_RoPETestGPTJSlice,
                          ::testing::Combine(::testing::Values(true, false),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          RoPETestGPTJSlice::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_RoPETestChatGLM,
+                         RoPETestChatGLM2DRoPEStridedSlice,
+                         ::testing::Values(ov::test::utils::DEVICE_CPU),
+                         RoPETestChatGLM2DRoPEStridedSlice::getTestCaseName);
+
 }  // namespace test
 }  // namespace ov

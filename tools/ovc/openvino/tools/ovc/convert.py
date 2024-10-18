@@ -27,7 +27,7 @@ def convert_model(
 
     Framework-agnostic parameters:
         :param input_model:
-            Model object in original framework (PyTorch, Tensorflow) or path to model file.
+            Model object in original framework (PyTorch, TensorFlow) or path to model file.
 
             Supported formats of input model:
 
@@ -35,6 +35,7 @@ def convert_model(
             torch.nn.Module
             torch.jit.ScriptModule
             torch.jit.ScriptFunction
+            torch.export.ExportedProgram
 
             TF
             tf.compat.v1.Graph

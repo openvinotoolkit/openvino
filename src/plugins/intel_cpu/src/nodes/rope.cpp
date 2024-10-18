@@ -244,34 +244,67 @@ struct RoPE::RoPEExecutorChatGLM : public RoPE::Executor {
         if (m_config.slice_stop - m_config.slice_start > 0) {
             t_src = t_src.slice(2, m_config.slice_start, m_config.slice_stop);
         }
-        auto seq_len = t_src.size(0);
-        auto batch_size = t_src.size(1);
+        if (m_config.support_2d_rope) {
+            // src [batch, length, H x S]
+            auto seq_len = t_src.size(1);
+            auto batch_size = t_src.size(0);
 
-        auto head_cnt = m_config.head_cnt;
-        auto head_size = m_config.head_size;
+            auto head_cnt = m_config.head_cnt;
+            auto head_size = m_config.head_size;
 
-        auto rotary_dims = m_config.rotary_ndims;
+            auto rotary_dims = m_config.rotary_ndims;
 
-        parallel_for3d(seq_len, batch_size, head_cnt, [&](size_t p, size_t b, size_t h) {
-            auto* src = t_src.ptr<T>(p, b, h * head_size);
-            // [length, batch_size, ndims//2, 2]
-            auto* cos_sin = &t_cos_sin.at<float>({p, b, 0, 0}, true);
-            auto* dst = t_dst.ptr<T>(p, b, h, 0);
+            parallel_for3d(batch_size, head_cnt, seq_len, [&](size_t b, size_t h, size_t p) {
+                // src [batch, length, H x S]
+                auto* src = t_src.ptr<T>(b, p, h * head_size);
+                // [batch_size, length, ndims//2, 2]
+                auto* cos_sin = &t_cos_sin.at<float>({b, p, 0, 0}, true);
+                auto* dst = t_dst.ptr<T>(b, h, p, 0);
 
-            if (m_rotaryKernel) {
-                execJitKernel(m_rotaryKernel, src, dst, cos_sin, nullptr);
-            } else {
-                size_t i = 0;
-                for (; i < rotary_dims; i += 2) {
-                    auto cosv = cos_sin[i];
-                    auto sinv = cos_sin[i + 1];
-                    dst[i] = cosv * src[i] - sinv * src[i + 1];
-                    dst[i + 1] = sinv * src[i] + cosv * src[i + 1];
+                if (m_rotaryKernel) {
+                    execJitKernel(m_rotaryKernel, src, dst, cos_sin, nullptr);
+                } else {
+                    size_t i = 0;
+                    for (; i < rotary_dims; i += 2) {
+                        auto cosv = cos_sin[i];
+                        auto sinv = cos_sin[i + 1];
+                        dst[i] = cosv * src[i] - sinv * src[i + 1];
+                        dst[i + 1] = sinv * src[i] + cosv * src[i + 1];
+                    }
                 }
-            }
 
-            memcpy(dst + rotary_dims, src + rotary_dims, (head_size - rotary_dims) * sizeof(T));
-        });
+                memcpy(dst + rotary_dims, src + rotary_dims, (head_size - rotary_dims) * sizeof(T));
+            });
+        } else {
+            auto seq_len = t_src.size(0);
+            auto batch_size = t_src.size(1);
+
+            auto head_cnt = m_config.head_cnt;
+            auto head_size = m_config.head_size;
+
+            auto rotary_dims = m_config.rotary_ndims;
+
+            parallel_for3d(seq_len, batch_size, head_cnt, [&](size_t p, size_t b, size_t h) {
+                auto* src = t_src.ptr<T>(p, b, h * head_size);
+                // [length, batch_size, ndims//2, 2]
+                auto* cos_sin = &t_cos_sin.at<float>({p, b, 0, 0}, true);
+                auto* dst = t_dst.ptr<T>(p, b, h, 0);
+
+                if (m_rotaryKernel) {
+                    execJitKernel(m_rotaryKernel, src, dst, cos_sin, nullptr);
+                } else {
+                    size_t i = 0;
+                    for (; i < rotary_dims; i += 2) {
+                        auto cosv = cos_sin[i];
+                        auto sinv = cos_sin[i + 1];
+                        dst[i] = cosv * src[i] - sinv * src[i + 1];
+                        dst[i + 1] = sinv * src[i] + cosv * src[i + 1];
+                    }
+                }
+
+                memcpy(dst + rotary_dims, src + rotary_dims, (head_size - rotary_dims) * sizeof(T));
+            });
+        }
     }
 };
 

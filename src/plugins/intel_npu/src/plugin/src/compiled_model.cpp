@@ -24,6 +24,9 @@
 namespace {
 
 constexpr std::string_view NO_EXECUTOR_FOR_INFERENCE =
+    "Can't create infer request due to create executor failed! Only exports can be made.";
+
+constexpr std::string_view NO_EXECUTOR_FOR_INFERENCE_NODEVICE =
     "Can't create infer request!\n"
     "Please make sure that the device is available. Only exports can be made.";
 
@@ -118,8 +121,14 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
     if (_executorPtr == nullptr && _device != nullptr) {
         _executorPtr = _device->createExecutor(_networkPtr, _config);
     }
+
     if (_executorPtr == nullptr) {
-        OPENVINO_THROW(NO_EXECUTOR_FOR_INFERENCE);
+        if (_device != nullptr) {
+            OPENVINO_THROW(NO_EXECUTOR_FOR_INFERENCE);
+        } else {
+            _logger.error("Can not find device!");
+            OPENVINO_THROW(NO_EXECUTOR_FOR_INFERENCE_NODEVICE);
+        }
     }
 
     const std::shared_ptr<SyncInferRequest>& syncInferRequest =

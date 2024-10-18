@@ -1776,6 +1776,7 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
 
     ob << _is_body_program;
     ob << _can_be_optimized;
+    ob << get_layout_optimizer().get_optimization_attributes().use_onednn_impls;
     processing_order.save(ob);
 
     {
@@ -1895,9 +1896,13 @@ void program::load(cldnn::BinaryInputBuffer& ib) {
 
     ib >> _is_body_program;
     ib >> _can_be_optimized;
+    int32_t use_onednn_attr = 0;
+    ib >> use_onednn_attr;
+    get_layout_optimizer().set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, use_onednn_attr);
     _loaded_from_cache = true;
 
     processing_order.load(ib, *this);
+    set_layout_optimizer_attributes(*_layout_optimizer);
 
     {
         auto& kernels_cache = get_kernels_cache();

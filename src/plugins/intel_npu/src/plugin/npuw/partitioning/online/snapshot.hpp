@@ -46,9 +46,12 @@ public:
     void fuseInputs();
 
     // Advanced passes for repeated blocks algorithm
-    void repeatedBlocks();
+    using CB = std::function<void()>;
+    void repeatedBlocks(CB&& on_done = {});
     void earlyAvoids();
     void earlyRegroup();
+
+    void stripTag(const std::string& tag);
 
     // Utility
     std::shared_ptr<own::ade::Graph> getGraph() const;
