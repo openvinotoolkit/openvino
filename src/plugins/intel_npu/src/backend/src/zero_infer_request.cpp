@@ -32,7 +32,7 @@ constexpr bool OUTPUT = false;
  * @param zeDescriptor The Level Zero specific structure used for comparison.
  */
 void check_level_zero_attributes_match(const IODescriptor& ioDescriptor,
-                                       const IGraph::ArgumentDescriptor& zeDescriptor) {
+                                       const ArgumentDescriptor& zeDescriptor) {
     std::string zeDescriptorName = zeDescriptor.info.name;
 
     if (isStateInputName(zeDescriptorName)) {
@@ -164,7 +164,6 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
     : SyncInferRequest(compiledModel, config),
       _initStructs(initStructs),
       _graph(graph),
-      _executor(static_cast<const ZeroExecutor*>(_graph->get_executor().get())),
       _group_ordinal(group_ordinal),
       _config(config),
       _logger("ZeroInferRequest", config.get<LOG_LEVEL>()),
@@ -177,8 +176,8 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
                      _initStructs->getProfilingDdiTable()),
       _profilingQuery(0, _initStructs->getDevice(), _initStructs->getProfilingDdiTable()) {
     _logger.debug("ZeroInferRequest::ZeroInferRequest - SyncInferRequest");
-    const std::vector<IGraph::ArgumentDescriptor>& executorInputDescriptors = _graph->get_input_descriptors();
-    const std::vector<IGraph::ArgumentDescriptor>& executorOutputDescriptors = _graph->get_output_descriptors();
+    const std::vector<ArgumentDescriptor>& executorInputDescriptors = _graph->get_input_descriptors();
+    const std::vector<ArgumentDescriptor>& executorOutputDescriptors = _graph->get_output_descriptors();
 
     auto proftype = config.get<PROFILING_TYPE>();
     if (proftype == ov::intel_npu::ProfilingType::INFER) {
@@ -540,14 +539,14 @@ void ZeroInferRequest::infer_async() {
     _logger.debug("InferRequest::infer_async started");
     OV_ITT_TASK_CHAIN(ZERO_INFER, itt::domains::LevelZeroBackend, "infer_async", "start");
 
-    _executor->mutexLock();
+    _graph->mutexLock();
     if (!_pipelineIsCreated) {
         OV_ITT_TASK_NEXT(ZERO_INFER, "create_pipeline");
         create_pipeline();
 
         _pipelineIsCreated = true;
     }
-    _executor->mutexUnlock();
+    _graph->mutexUnlock();
 
     size_t inputIndex = 0;
     for (const auto& userTensor : _userInputTensors) {

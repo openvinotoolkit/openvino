@@ -11,7 +11,7 @@
 #include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
-#include "zero_types.hpp"
+#include "intel_npu/utils/zero/zero_types.hpp"
 
 namespace intel_npu {
 
@@ -26,11 +26,11 @@ Pipeline::Pipeline(const Config& config,
                    const size_t numberOfCommandLists,
                    uint32_t group_ordinal)
     : _config(config),
-      _command_queue(*static_cast<const ZeroExecutor*>(graph->get_executor().get())->getCommandQueue()),
+      _command_queue(graph->get_command_queue()),
       _event_pool{initStructs->getDevice(),
                   initStructs->getContext(),
-                  numberOfCommandLists ? static_cast<uint32_t>(numberOfCommandLists) : 1,
-                  _config},
+                  numberOfCommandLists ? static_cast<uint32_t>(numberOfCommandLists) : 1
+                  },
       _npu_profiling(std::move(npu_profiling)),
       _logger("Pipeline", _config.get<LOG_LEVEL>()) {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Zero_infer_request::Pipeline::Pipeline");
@@ -49,11 +49,10 @@ Pipeline::Pipeline(const Config& config,
             std::make_unique<CommandList>(initStructs->getDevice(),
                                           initStructs->getContext(),
                                           initStructs->getGraphDdiTable(),
-                                          _config,
                                           group_ordinal,
                                           initStructs->getMutableCommandListVersion() ? true : false));
-        _events.emplace_back(std::make_unique<Event>(_event_pool.handle(), static_cast<uint32_t>(i), _config));
-        _fences.emplace_back(std::make_unique<Fence>(_command_queue, _config));
+        _events.emplace_back(std::make_unique<Event>(_event_pool.handle(), static_cast<uint32_t>(i)));
+        _fences.emplace_back(std::make_unique<Fence>(*_command_queue));
     }
 
     for (size_t i = 0; i < numberOfCommandLists; i++) {
@@ -112,9 +111,9 @@ void Pipeline::push() {
     for (size_t i = 0; i < _command_lists.size(); ++i) {
         OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_PUSH, itt::domains::LevelZeroBackend, "Pipeline", "push");
         if (sync_output_with_fences_) {
-            _command_queue.executeCommandList(*_command_lists.at(i), *_fences.at(i));
+            _command_queue->executeCommandList(*_command_lists.at(i), *_fences.at(i));
         } else {
-            _command_queue.executeCommandList(*_command_lists.at(i));
+            _command_queue->executeCommandList(*_command_lists.at(i));
         }
     }
 

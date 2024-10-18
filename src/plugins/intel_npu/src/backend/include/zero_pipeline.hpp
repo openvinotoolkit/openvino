@@ -4,11 +4,11 @@
 
 #pragma once
 
+#include "igraph.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
-#include "zero_executor.hpp"
+#include "intel_npu/utils/zero/zero_wrappers.hpp"
 #include "zero_memory.hpp"
 #include "zero_profiling.hpp"
-#include "zero_wrappers.hpp"
 
 namespace intel_npu {
 
@@ -44,7 +44,7 @@ public:
 
 protected:
     const Config _config;
-    CommandQueue& _command_queue;
+    std::shared_ptr<CommandQueue> _command_queue;
     std::vector<std::unique_ptr<CommandList>> _command_lists;
     std::vector<std::unique_ptr<Fence>> _fences;
     EventPool _event_pool;

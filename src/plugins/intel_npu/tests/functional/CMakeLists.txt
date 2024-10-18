@@ -19,7 +19,7 @@ if(ENABLE_DRIVER_COMPILER_ADAPTER)
        "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/compiler/include")
 
   list(APPEND OPTIONAL_FUNC_TESTS_LIBS openvino_npu_driver_compiler_adapter
-       openvino_npu_level_zero_backend openvino_npu_zero_result_parser)
+       openvino_npu_level_zero_backend openvino_npu_zero_utils)
 endif()
 
 ov_add_test_target(

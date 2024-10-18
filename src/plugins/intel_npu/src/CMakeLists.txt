@@ -17,9 +17,7 @@ if(ENABLE_DRIVER_COMPILER_ADAPTER AND ENABLE_ZEROAPI_BACKEND)
     add_subdirectory(compiler_adapter)
 endif()
 
-if(ENABLE_ZEROAPI_BACKEND)
-    add_subdirectory(backend)
-endif()
+add_subdirectory(backend)
 
 if (ENABLE_NPU_PLUGIN_ENGINE)
     add_subdirectory(plugin)

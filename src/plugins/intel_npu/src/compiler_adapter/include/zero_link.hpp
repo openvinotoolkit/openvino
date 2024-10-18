@@ -10,8 +10,8 @@
 
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
+#include "intel_npu/utils/zero/zero_types.hpp"
 #include "izero_link.hpp"
-#include "zero_types.hpp"
 
 namespace intel_npu {
 
@@ -78,10 +78,10 @@ public:
 
     void graphInitialie(ze_graph_handle_t graphHandle, const Config& config) const override;
 
-    std::shared_ptr<IExecutor> createExecutor(ze_graph_handle_t graphHandle, const Config& config) const override;
-
-    std::tuple<std::vector<IGraph::ArgumentDescriptor>, std::vector<IGraph::ArgumentDescriptor>> getIODesc(
+    std::tuple<std::vector<ArgumentDescriptor>, std::vector<ArgumentDescriptor>> getIODesc(
         ze_graph_handle_t graphHandle) const override;
+
+    std::shared_ptr<CommandQueue> crateCommandQueue(const Config& config) const override;
 
 private:
     template <ze_graph_ext_version_t T = TableExtension,

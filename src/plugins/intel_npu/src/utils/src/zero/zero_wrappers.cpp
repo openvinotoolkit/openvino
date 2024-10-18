@@ -2,19 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "zero_wrappers.hpp"
+#include "intel_npu/utils/zero/zero_wrappers.hpp"
 
-#include "intel_npu/config/common.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
-#include "zero_types.hpp"
 
 namespace intel_npu {
 
-EventPool::EventPool(ze_device_handle_t device_handle,
-                     const ze_context_handle_t& context,
-                     uint32_t event_count,
-                     const Config& config)
-    : _log("EventPool", config.get<LOG_LEVEL>()) {
+EventPool::EventPool(ze_device_handle_t device_handle, const ze_context_handle_t& context, uint32_t event_count)
+    : _log("EventPool", Logger::global().level()) {
     ze_event_pool_desc_t event_pool_desc = {ZE_STRUCTURE_TYPE_EVENT_POOL_DESC,
                                             nullptr,
                                             ZE_EVENT_POOL_FLAG_HOST_VISIBLE,
@@ -29,8 +24,7 @@ EventPool::~EventPool() {
     }
 }
 
-Event::Event(const ze_event_pool_handle_t& event_pool, uint32_t event_index, const Config& config)
-    : _log("Event", config.get<LOG_LEVEL>()) {
+Event::Event(const ze_event_pool_handle_t& event_pool, uint32_t event_index) : _log("Event", Logger::global().level()) {
     ze_event_desc_t event_desc = {ZE_STRUCTURE_TYPE_EVENT_DESC, nullptr, event_index, 0, 0};
     THROW_ON_FAIL_FOR_LEVELZERO("zeEventCreate", zeEventCreate(event_pool, &event_desc, &_handle));
 }
@@ -62,12 +56,11 @@ Event::~Event() {
 CommandList::CommandList(const ze_device_handle_t& device_handle,
                          const ze_context_handle_t& context,
                          ze_graph_dditable_ext_curr_t& graph_ddi_table_ext,
-                         const Config& config,
                          const uint32_t& group_ordinal,
                          bool mtci_is_supported)
     : _context(context),
       _graph_ddi_table_ext(graph_ddi_table_ext),
-      _log("CommandList", config.get<LOG_LEVEL>()) {
+      _log("CommandList", Logger::global().level()) {
     ze_mutable_command_list_exp_desc_t mutable_desc = {ZE_STRUCTURE_TYPE_MUTABLE_COMMAND_LIST_EXP_DESC, nullptr, 0};
     ze_command_list_desc_t desc = {ZE_STRUCTURE_TYPE_COMMAND_LIST_DESC, &mutable_desc, group_ordinal, 0};
     THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListCreate", zeCommandListCreate(_context, device_handle, &desc, &_handle));
@@ -132,22 +125,23 @@ CommandQueue::CommandQueue(const ze_device_handle_t& device_handle,
                            const ze_context_handle_t& context,
                            const ze_command_queue_priority_t& priority,
                            ze_command_queue_npu_dditable_ext_curr_t& command_queue_npu_dditable_ext,
-                           const Config& config,
+
                            const uint32_t& group_ordinal)
     : _context(context),
       _command_queue_npu_dditable_ext(command_queue_npu_dditable_ext),
-      _log("CommandQueue", config.get<LOG_LEVEL>()) {
+      _log("CommandQueue", Logger::global().level()) {
     ze_command_queue_desc_t queue_desc =
         {ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC, nullptr, group_ordinal, 0, 0, ZE_COMMAND_QUEUE_MODE_DEFAULT, priority};
-    if (config.has<TURBO>()) {
-        if (_command_queue_npu_dditable_ext.version()) {
-            bool turbo = config.get<TURBO>();
-            ze_command_queue_desc_npu_ext_t turbo_cfg = {ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC_NPU_EXT, nullptr, turbo};
-            queue_desc.pNext = &turbo_cfg;
-        } else {
-            OPENVINO_THROW("Turbo is not supported by the current driver");
-        }
-    }
+
+    // if (config.has<TURBO>()) {
+    //     if (_command_queue_npu_dditable_ext.version()) {
+    //         bool turbo = config.get<TURBO>();
+    //         ze_command_queue_desc_npu_ext_t turbo_cfg = {ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC_NPU_EXT, nullptr,
+    //         turbo}; queue_desc.pNext = &turbo_cfg;
+    //     } else {
+    //         OPENVINO_THROW("Turbo is not supported by the current driver");
+    //     }
+    // }
     THROW_ON_FAIL_FOR_LEVELZERO("zeCommandQueueCreate",
                                 zeCommandQueueCreate(_context, device_handle, &queue_desc, &_handle));
 }
@@ -176,7 +170,7 @@ CommandQueue::~CommandQueue() {
     }
 }
 
-Fence::Fence(const CommandQueue& command_queue, const Config& config) : _log("Fence", config.get<LOG_LEVEL>()) {
+Fence::Fence(const CommandQueue& command_queue) : _log("Fence", Logger::global().level()) {
     ze_fence_desc_t fence_desc = {ZE_STRUCTURE_TYPE_FENCE_DESC, nullptr, 0};
     THROW_ON_FAIL_FOR_LEVELZERO("zeFenceCreate", zeFenceCreate(command_queue.handle(), &fence_desc, &_handle));
 }

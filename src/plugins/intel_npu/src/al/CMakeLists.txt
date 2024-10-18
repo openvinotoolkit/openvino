@@ -23,13 +23,9 @@ endif()
 target_link_libraries(${TARGET_NAME}
     PUBLIC
         openvino::npu_logger_utils
+        openvino::npu_zero_utils
+        openvino::runtime
         openvino::runtime::dev
-)
-
-target_include_directories(${TARGET_NAME}
-    PUBLIC
-        $<TARGET_PROPERTY:LevelZero::LevelZero,INTERFACE_INCLUDE_DIRECTORIES>
-        $<TARGET_PROPERTY:LevelZero::NPUExt,INTERFACE_INCLUDE_DIRECTORIES>
 )
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})

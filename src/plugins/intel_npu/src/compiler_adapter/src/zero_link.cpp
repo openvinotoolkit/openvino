@@ -7,10 +7,10 @@
 #include <regex>
 #include <string_view>
 
+#include "intel_npu/al/config/runtime.hpp"
 #include "intel_npu/al/prefix.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
 #include "openvino/core/model.hpp"
-#include "zero_executor.hpp"
 
 namespace {
 
@@ -209,16 +209,15 @@ template <typename TableExtension>
 void ZeroLink<TableExtension>::initialize_graph_through_command_list(ze_graph_handle_t graphHandle,
                                                                      const Config& config) const {
     _logger.debug("ZeroExecutor::ZeroExecutor init start - create graph_command_list");
-    CommandList graph_command_list(_deviceHandle, _context, _graphDdiTableExt, config, _group_ordinal);
+    CommandList graph_command_list(_deviceHandle, _context, _graphDdiTableExt, _group_ordinal);
     _logger.debug("ZeroExecutor::ZeroExecutor - create graph_command_queue");
     CommandQueue graph_command_queue(_deviceHandle,
                                      _context,
                                      ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
                                      _commandQueueDdiTable,
-                                     config,
                                      _group_ordinal);
     _logger.debug("ZeroExecutor::ZeroExecutor - create fence");
-    Fence fence(graph_command_queue, config);
+    Fence fence(graph_command_queue);
 
     _logger.debug("ZeroExecutor::ZeroExecutor - performing appendGraphInitialize");
     graph_command_list.appendGraphInitialize(graphHandle);
@@ -700,27 +699,15 @@ std::string ZeroLink<TableExtension>::getLatestBuildError() const {
 }
 
 template <typename TableExtension>
-std::shared_ptr<IExecutor> ZeroLink<TableExtension>::createExecutor(ze_graph_handle_t graphHandle,
-                                                                    const Config& config) const {
-    return std::make_shared<ZeroExecutor>(graphHandle,
-                                          _deviceHandle,
-                                          _context,
-                                          _graphDdiTableExt,
-                                          _commandQueueDdiTable,
-                                          config,
-                                          _group_ordinal);
-}
-
-template <typename TableExtension>
-std::tuple<std::vector<IGraph::ArgumentDescriptor>, std::vector<IGraph::ArgumentDescriptor>>
+std::tuple<std::vector<ArgumentDescriptor>, std::vector<ArgumentDescriptor>>
 ZeroLink<TableExtension>::getIODesc(ze_graph_handle_t graphHandle) const {
     _logger.debug("performing pfnGetProperties");
     ze_graph_properties_t props{};
     props.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES;
     zeroUtils::throwOnFail("pfnGetProperties", _graphDdiTableExt.pfnGetProperties(graphHandle, &props));
 
-    std::vector<IGraph::ArgumentDescriptor> input_descriptors;
-    std::vector<IGraph::ArgumentDescriptor> output_descriptors;
+    std::vector<ArgumentDescriptor> input_descriptors;
+    std::vector<ArgumentDescriptor> output_descriptors;
 
     _logger.debug("performing pfnGetArgumentProperties3");
     for (uint32_t index = 0; index < props.numGraphArgs; ++index) {
@@ -730,13 +717,22 @@ ZeroLink<TableExtension>::getIODesc(ze_graph_handle_t graphHandle) const {
                                _graphDdiTableExt.pfnGetArgumentProperties3(graphHandle, index, &arg3));
 
         if (arg3.type == ZE_GRAPH_ARGUMENT_TYPE_INPUT) {
-            input_descriptors.push_back(IGraph::ArgumentDescriptor{arg3, index});
+            input_descriptors.push_back(ArgumentDescriptor{arg3, index});
         } else {
-            output_descriptors.push_back(IGraph::ArgumentDescriptor{arg3, index});
+            output_descriptors.push_back(ArgumentDescriptor{arg3, index});
         }
     }
 
     return std::make_tuple(input_descriptors, output_descriptors);
+}
+
+template <typename TableExtension>
+std::shared_ptr<CommandQueue> ZeroLink<TableExtension>::crateCommandQueue(const Config& config) const {
+    return std::make_shared<CommandQueue>(_deviceHandle,
+                                          _context,
+                                          zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
+                                          _commandQueueDdiTable,
+                                          _group_ordinal);
 }
 
 template class ZeroLink<ze_graph_dditable_ext_1_2_t>;

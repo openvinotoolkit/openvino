@@ -46,8 +46,14 @@ void CipGraph::initialize() {
     if (_zeroLink) {
         _logger.debug("Graph initialize start");
 
+        std::tie(_input_descriptors, _output_descriptors) = _zeroLink->getIODesc(_handle);
+        _command_queue = _zeroLink->crateCommandQueue(_config);
+
+        if (_config.has<WORKLOAD_TYPE>()) {
+            setWorkloadType(_config.get<WORKLOAD_TYPE>());
+        }
+
         _zeroLink->graphInitialie(_handle, _config);
-        _executor = _zeroLink->createExecutor(_handle, _config);
 
         _logger.debug("Graph initialize finish");
     }

@@ -16,8 +16,6 @@ CidGraph::CidGraph(const std::shared_ptr<IZeroLink>& zeroLink,
       _zeroLink(zeroLink),
       _config(config),
       _logger("CidGraph", _config.get<LOG_LEVEL>()) {
-    std::tie(_input_descriptors, _output_descriptors) = _zeroLink->getIODesc(_handle);
-
     if (_config.get<CREATE_EXECUTOR>()) {
         initialize();
     } else {
@@ -44,8 +42,14 @@ void CidGraph::initialize() {
     if (_zeroLink) {
         _logger.debug("Graph initialize start");
 
+        std::tie(_input_descriptors, _output_descriptors) = _zeroLink->getIODesc(_handle);
+        _command_queue = _zeroLink->crateCommandQueue(_config);
+
+        if (_config.has<WORKLOAD_TYPE>()) {
+            setWorkloadType(_config.get<WORKLOAD_TYPE>());
+        }
+
         _zeroLink->graphInitialie(_handle, _config);
-        _executor = _zeroLink->createExecutor(_handle, _config);
 
         _logger.debug("Graph initialize finish");
     }

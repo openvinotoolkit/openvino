@@ -26,7 +26,7 @@ target_link_libraries(${TARGET_NAME}
         openvino::npu_al
         openvino::npu_common
     PRIVATE
-        openvino_npu_zero_result_parser
+        openvino_npu_zero_utils
         openvino_npu_level_zero_backend
         openvino::runtime
         openvino::runtime::dev

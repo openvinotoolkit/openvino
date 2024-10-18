@@ -4,18 +4,20 @@
 
 #include "zero_init.hpp"
 
+#include <ze_command_queue_npu_ext.h>
+
 #include <regex>
 
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
-#include "ze_api.h"
-#include "ze_command_queue_npu_ext.h"
+
 
 #ifdef _WIN32
 namespace {
 constexpr uint32_t WIN_DRIVER_NO_MCL_SUPPORT = 2688;
 }  // namespace
+
 #endif
 
 namespace intel_npu {
