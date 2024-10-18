@@ -49,6 +49,9 @@ target_include_directories(openvino_core_dev INTERFACE
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/common/transformations/include>
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/common/low_precision_transformations/include>)
 
+target_include_directories(openvino_core_dev SYSTEM INTERFACE
+    $<BUILD_INTERFACE:$<$<TARGET_EXISTS:xbyak::xbyak>:$<TARGET_PROPERTY:xbyak::xbyak,INTERFACE_INCLUDE_DIRECTORIES>>>)
+
 target_link_libraries(openvino_core_dev INTERFACE openvino::itt openvino::util)
 
 set_target_properties(openvino_core_dev PROPERTIES EXPORT_NAME core::dev)
