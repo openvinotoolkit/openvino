@@ -213,11 +213,13 @@ void Snapshot::fuseRemnants() {
         }
         auto consumers = group->dstNodes();
         if (!consumers.empty()) {
-            std::sort(consumers.begin(), consumers.end(), [&](const ade::NodeHandle& nh1, const ade::NodeHandle& nh2) {
-                Group::GPtr g1 = m_graph->meta(nh1).get<Group::GPtr>();
-                Group::GPtr g2 = m_graph->meta(nh2).get<Group::GPtr>();
-                return g1->size() < g2->size();
-            });
+            std::sort(consumers.begin(),
+                      consumers.end(),
+                      [&](const own::ade::NodeHandle& nh1, const own::ade::NodeHandle& nh2) {
+                          Group::GPtr g1 = m_graph->meta(nh1).get<Group::GPtr>();
+                          Group::GPtr g2 = m_graph->meta(nh2).get<Group::GPtr>();
+                          return g1->size() < g2->size();
+                      });
             for (const auto& cons : consumers) {  // FIXME: pick the smallest flops
                 Group::GPtr cons_group = m_graph->meta(cons).get<Group::GPtr>();
                 if (!group->hasCycle(cons_group)) {
@@ -416,10 +418,11 @@ void Snapshot::earlyRegroup() {
             } else if (isolate.pattern == "DQMatMulGQi4") {
                 rewr.add_matcher<ov::npuw::patterns::compute::DQMatMulGQi4>(shared_from_this(), isolate.tag);
                 handle_patterns = true;
+            } else if (isolate.pattern == "VocabMatMul") {
+                rewr.add_matcher<ov::npuw::patterns::compute::VocabMatMul>(shared_from_this(), isolate.tag);
+                handle_patterns = true;
             } else {
-                LOG_WARN("OPENVINO_NPUW_ISOLATE only supports RMSNorm, DQMatMulCWu4, DQMatMulGQu4, DQMatMulCWi4, "
-                         "DQMatMulGQi4 "
-                         << "as patterns. Isolate pattern " << isolate.pattern << " is skipped!");
+                LOG_WARN("OPENVINO_NPUW_ISOLATE: unsupported pattern " << isolate.pattern << " is skipped!");
             }
         }
         }
@@ -433,18 +436,27 @@ void Snapshot::earlyRegroup() {
     LOG_INFO("DONE.");
 }
 
-void Snapshot::repeatedBlocks() {
+void Snapshot::repeatedBlocks(Snapshot::CB&& on_done) {
     LOG_INFO("Online partitioning: executing repeatedBlocks pass group...");
     LOG_BLOCK();
 
     identifyUniques();
     repeat([&] {
         repeat([&] {
-            mergeUniques();
+            repeat([&] {
+                mergeUniques();
+            });
+            mergeTriangles();
+            markInternalCompute();
+            resetExcludedRep();
         });
-        mergeTriangles();
-        markInternalCompute();
-        resetExcludedRep();
+        // While the current process is entirely done, let the caller
+        // influence the partitioning - so the algorithm could continue.
+        if (on_done) {
+            on_done();
+        } else {
+            return;  // FROM top-level repeat!
+        }
     });
     cleanUpUniques();
 
@@ -1051,7 +1063,7 @@ const ov::npuw::online::detail::OVNodeToGroupMapPtr& Snapshot::getNodeToGroupMap
     return m_node_to_gr;
 }
 
-std::shared_ptr<ade::Graph> Snapshot::getGraph() const {
+std::shared_ptr<own::ade::Graph> Snapshot::getGraph() const {
     return m_graph;
 }
 
@@ -1082,4 +1094,13 @@ void Snapshot::repeat(detail::Pass&& pass) {
 
 void Snapshot::setCtx(const ov::npuw::online::PassContext& ctx) {
     m_ctx = ctx;
+}
+
+void Snapshot::stripTag(const std::string& tag) {
+    for (auto&& nh : m_graph->nodes()) {
+        auto gptr = m_graph->meta(nh).get<Group::GPtr>();
+        if (gptr->isolatedTag() == tag) {
+            gptr->dontIsolate();
+        }
+    }
 }
