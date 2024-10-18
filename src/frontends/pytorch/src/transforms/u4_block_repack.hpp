@@ -18,6 +18,12 @@ public:
     U4BlockRepack(bool is_symmetrical = false);
 };
 
+class U4ConvertReshape : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("ov::frontend::pytorch::pass::U4ConvertReshape");
+    U4ConvertReshape();
+};
+
 }  // namespace pass
 }  // namespace pytorch
 }  // namespace frontend
