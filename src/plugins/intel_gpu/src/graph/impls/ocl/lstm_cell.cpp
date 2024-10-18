@@ -53,7 +53,7 @@ public:
         if (!primitive->params.activations.empty()) {
             auto a_sz = primitive->params.activations.size();
             auto param_sz = primitive->params.activation_params.size();
-            OPENVINO_ASSERT(param_sz == 0|| a_sz == param_sz, "[GPU] Unexpected activation params count in lstm_cell impl: ", param_sz);
+            OPENVINO_ASSERT(param_sz == 0 || a_sz == param_sz, "[GPU] Unexpected activation params count in lstm_cell impl: ", param_sz);
             for (size_t i = 0; i < a_sz; i++) {
                 params.activations.emplace_back(get_kernel_selector_activation_param(primitive->params.activations[i]),
                                                          param_sz ? primitive->params.activation_params[i].a : 0.0f,

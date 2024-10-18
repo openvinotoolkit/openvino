@@ -70,11 +70,10 @@ static void CreateLSTMCellOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v4
     validate_inputs_count(op, {6});
     std::string layerName = layer_type_name_ID(op);
     auto inputs = p.GetInputInfo(op);
-    /*
     if (op->get_input_shape(2).size() != 2 || op->get_input_shape(3).size() != 2 \
         || op->get_input_shape(4).size() != 2 || op->get_input_shape(5).size() != 2)
         OPENVINO_THROW("Wrong input shapes for LSTMCell op ", op->get_friendly_name());
-    */
+
     std::vector<cldnn::activation_func> activations;
     std::vector<cldnn::activation_additional_params> activation_params;
     GetLSTMActivationParams(op, activations, activation_params);
@@ -86,7 +85,6 @@ static void CreateLSTMCellOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v4
          cldnn::input_info(), "", "", clip, activations, \
                                             activation_params, cldnn::lstm_weights_order::fizo, direction, cldnn::padding(), \
             static_cast<int>(op->get_output_size())}, 0);
-        //prim.output_data_types = get_output_data_types(op);
         p.add_primitive(*op, prim);
         return;
     }

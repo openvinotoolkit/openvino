@@ -101,18 +101,16 @@ KERNEL(lstm_cell_and_seq_bfyx)(
                     #if DIRECTION == 1 //reverse
                         INPUT0_TYPE_VEC x_block = READ_VEC(0, &x[INPUT0_GET_INDEX(b, real_seq_length-1-i, j*VEC_SIZE, 0)]);
                         INPUT3_TYPE_VEC w_block = READ_VEC(0, &W[INPUT3_GET_INDEX(0, weight_idx, j*VEC_SIZE, 0)]);
-                        input_result += x_block.s0*w_block.s0 + x_block.s1*w_block.s1 + x_block.s2*w_block.s2 + x_block.s3*w_block.s3 + x_block.s4*w_block.s4 + x_block.s5*w_block.s5 + x_block.s6*w_block.s6 + x_block.s7*w_block.s7;
                     #else
                         #ifdef SEQUENCE
                             INPUT0_TYPE_VEC x_block = READ_VEC(0, &x[INPUT0_GET_INDEX(b, i, j*VEC_SIZE, 0)]);
                             INPUT3_TYPE_VEC w_block = READ_VEC(0, &W[INPUT3_GET_INDEX(0, weight_idx, j*VEC_SIZE, 0)]);
-                            input_result += x_block.s0*w_block.s0 + x_block.s1*w_block.s1 + x_block.s2*w_block.s2 + x_block.s3*w_block.s3 + x_block.s4*w_block.s4 + x_block.s5*w_block.s5 + x_block.s6*w_block.s6 + x_block.s7*w_block.s7;
                         #else
                             INPUT0_TYPE_VEC x_block = READ_VEC(0, &x[INPUT0_GET_INDEX(b, j*VEC_SIZE, 0, 0)]);
                             INPUT3_TYPE_VEC w_block = READ_VEC(0, &W[INPUT3_GET_INDEX(weight_idx, j*VEC_SIZE, 0, 0)]);
-                            input_result += x_block.s0*w_block.s0 + x_block.s1*w_block.s1 + x_block.s2*w_block.s2 + x_block.s3*w_block.s3 + x_block.s4*w_block.s4 + x_block.s5*w_block.s5 + x_block.s6*w_block.s6 + x_block.s7*w_block.s7;
                         #endif
                     #endif //DIRECTION == 1 //reverse
+                    input_result += x_block.s0*w_block.s0 + x_block.s1*w_block.s1 + x_block.s2*w_block.s2 + x_block.s3*w_block.s3 + x_block.s4*w_block.s4 + x_block.s5*w_block.s5 + x_block.s6*w_block.s6 + x_block.s7*w_block.s7;
                 }
 
                 unroll_for(uint j=block_num*VEC_SIZE;j<INPUT_SIZE;++j) {

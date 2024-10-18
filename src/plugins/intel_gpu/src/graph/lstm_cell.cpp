@@ -35,8 +35,8 @@ std::vector<layout> lstm_cell_inst::calc_output_layouts(lstm_cell_node const& no
         lstm_hidden_size = -1;
     }
 
-    return {cldnn::layout{ShapeType{lstm_batch_size, lstm_hidden_size}, input_layout_x.data_type, input_layout_x.format}, \
-            cldnn::layout{ShapeType{lstm_batch_size, lstm_hidden_size}, input_layout_x.data_type, input_layout_x.format}};
+    auto out_layout = cldnn::layout{ShapeType{lstm_batch_size, lstm_hidden_size}, input_layout_x.data_type, input_layout_x.format};
+    return {out_layout, out_layout };
 }
 
 template std::vector<layout> lstm_cell_inst::calc_output_layouts<ov::PartialShape>(lstm_cell_node const& node, const kernel_impl_params& impl_param);

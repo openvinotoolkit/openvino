@@ -38,7 +38,7 @@ struct RNNSeqImplementationManager: public ImplementationManager {
             return false;
         }
 
-        return one_of(input_fmt.value, supported_formats) && one_of(input_fmt.value, supported_formats);
+        return one_of(input_fmt.value, supported_formats) && one_of(output_fmt.value, supported_formats);
     }
 };
 

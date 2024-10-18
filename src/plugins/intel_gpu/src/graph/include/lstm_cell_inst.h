@@ -44,8 +44,7 @@ public:
     lstm_weights_order offset_order() const { return get_typed_desc<lstm_cell>()->params.offset_order; }
     float clip() const {
         float clip_val = get_typed_desc<lstm_cell>()->params.clip;
-        if (clip_val < 0)
-            throw std::range_error("Clip value < 0");
+        OPENVINO_ASSERT(clip_val >= 0, "Clip value < 0");
         return clip_val;
     }
     uint32_t direction() const { return get_typed_desc<lstm_cell>()->params.direction; }

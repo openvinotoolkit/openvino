@@ -69,7 +69,7 @@ struct RNNParams{
     primitive_id id;
     input_info x;
     input_info initial_hidden_state;
-    input_info initial_cell_state;/// @brief for lstm_elt primitive field for cell input_info
+    input_info initial_cell_state;
     input_info W;
     input_info R;
     input_info B;
@@ -203,7 +203,7 @@ struct lstm_seq : public primitive_base<lstm_seq> {
     using vec_activation = std::vector<activation_func>;
     using vec_activation_param = std::vector<activation_additional_params>;
     lstm_seq(const RNNParams& p): primitive_base(p.id, p.get_inputs(), p.num_outputs, \
-    {optional_data_type()}, {p.output_padding}), params(p) {}
+        {optional_data_type()}, {p.output_padding}), params(p) {}
     RNNParams params;
     size_t hash() const override {
         size_t seed = primitive::hash();
