@@ -13,6 +13,7 @@ namespace intel_cpu {
 struct ACLFCAttrs {
     ov::element::Type inputPrecision;
     bool isConvertedWeights = false;
+    bool isWeightsRepacked = false;
     bool weightsNonTransposed;
 };
 
@@ -47,7 +48,6 @@ public:
     }
 private:
     arm_compute::FullyConnectedLayerInfo fullyConnectedLayerInfo;
-    arm_compute::WeightsInfo weightsInfo;
     ACLFCAttrs aclfcAttrs;
     arm_compute::WeightFormat expectedWeightFormat;
 };
@@ -84,9 +84,10 @@ public:
 
 private:
     arm_compute::FullyConnectedLayerInfo fullyConnectedLayerInfo;
-    arm_compute::WeightsInfo weightsInfo;
+    arm_compute::WeightFormat expectedWeightFormat;
     MemoryCPtr packedWeights;
     ACLFCAttrs aclfcAttrs;
+    arm_compute::TensorInfo wei_tensor_info;
 };
 
 using ACLFullyConnectedExecutorPtr = std::shared_ptr<ACLFullyConnectedExecutor>;
