@@ -77,7 +77,7 @@ bool ov::op::v0::Unsqueeze::evaluate_symbol(TensorSymbolVector& output_symbols) 
     return ov::util::default_symbol_evaluator(this, output_symbols);
 }
 
-bool ov::op::v0::Unsqueeze::can_constant_fold(const OutputVector& input_values) {
+bool ov::op::v0::Unsqueeze::can_constant_fold(const OutputVector& input_values) const {
     return get_output_partial_shape(0).is_static() && !is_const_fold_disabled();
 }
 

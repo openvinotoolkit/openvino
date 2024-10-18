@@ -696,7 +696,7 @@ bool ov::Node::evaluate_symbol(TensorSymbolVector& output_symbols) const {
     return false;
 }
 
-bool ov::Node::can_constant_fold(const OutputVector& input_values) {
+bool ov::Node::can_constant_fold(const OutputVector& input_values) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::core, "Node::can_constant_fold");
 
     if (is_const_fold_disabled()) {

@@ -255,11 +255,8 @@ bool GatherBase::evaluate_symbol(TensorSymbolVector& output_symbols) const {
     return gather::have_indices_and_axis_bound_set(this) && ov::util::default_symbol_evaluator(this, output_symbols);
 }
 
-bool GatherBase::can_constant_fold(const OutputVector& input_values) {
-    if (get_output_partial_shape(0).is_dynamic() || input_values.size() != 3) {
-        return false;
-    }
-    return true;
+bool GatherBase::can_constant_fold(const OutputVector& input_values) const {
+    return get_output_partial_shape(0).is_static() && input_values.size() == 3;
 }
 
 bool GatherBase::constant_fold(OutputVector& output_values, const OutputVector& input_values) {

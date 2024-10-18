@@ -109,7 +109,7 @@ bool Reshape::constant_fold(OutputVector& output_values, const OutputVector& inp
     }
 }
 
-bool Reshape::can_constant_fold(const OutputVector& input_values) {
+bool Reshape::can_constant_fold(const OutputVector& input_values) const {
     return get_output_partial_shape(0).is_static() && !is_const_fold_disabled();
 }
 }  // namespace v1

@@ -29,7 +29,7 @@ std::shared_ptr<Node> ConvertLike::clone_with_new_inputs(const OutputVector& new
     return std::make_shared<ConvertLike>(new_args.at(0), new_args.at(1));
 }
 
-bool ConvertLike::can_constant_fold(const OutputVector& input_values) {
+bool ConvertLike::can_constant_fold(const OutputVector& input_values) const {
     return !is_const_fold_disabled();
 }
 

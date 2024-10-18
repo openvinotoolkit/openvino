@@ -283,7 +283,7 @@ bool StridedSlice::evaluate_symbol(TensorSymbolVector& output_symbols) const {
            default_symbol_evaluator(this, {0}, output_symbols);
 }
 
-bool StridedSlice::can_constant_fold(const OutputVector& input_values) {
+bool StridedSlice::can_constant_fold(const OutputVector& input_values) const {
     return !is_const_fold_disabled();
 }
 

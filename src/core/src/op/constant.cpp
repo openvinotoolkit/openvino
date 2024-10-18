@@ -663,11 +663,7 @@ bool Constant::evaluate_upper(TensorVector& outputs) const {
     return evaluate(outputs, {});
 }
 
-bool Constant::constant_fold(OutputVector&, const OutputVector&) {
-    return false;
-}
-
-bool Constant::can_constant_fold(const OutputVector& input_values) {
+bool Constant::can_constant_fold(const OutputVector& input_values) const {
     return false;
 }
 
