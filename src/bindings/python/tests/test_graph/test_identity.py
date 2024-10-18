@@ -5,7 +5,7 @@
 import numpy as np
 import pytest
 
-import openvino.runtime.opset14 as ops
+import openvino.runtime.opset15 as ops
 from openvino import PartialShape, Type
 
 
