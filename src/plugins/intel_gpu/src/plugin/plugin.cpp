@@ -166,9 +166,9 @@ Plugin::Plugin() {
 Plugin::~Plugin() {
     // reset oneDNN cache to clean up cached primitives
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    auto capasity = dnnl::get_primitive_cache_capacity();
+    auto capacity = dnnl::get_primitive_cache_capacity();
     dnnl::set_primitive_cache_capacity(0);
-    dnnl::set_primitive_cache_capacity(capasity);
+    dnnl::set_primitive_cache_capacity(capacity);
 #endif
 }
 
