@@ -165,7 +165,7 @@ bool is_valid_model(std::istream& model) {
     const size_t EXPECTED_FIELDS_FOUND = 3u;
     std::unordered_set<::onnx::Field, std::hash<int>> onnx_fields_found = {};
     try {
-        while (!model.eof() && onnx_fields_found.size() < EXPECTED_FIELDS_FOUND) {
+        while (model && onnx_fields_found.size() < EXPECTED_FIELDS_FOUND) {
             const auto field = ::onnx::decode_next_field(model);
 
             if (onnx_fields_found.count(field.first) > 0) {

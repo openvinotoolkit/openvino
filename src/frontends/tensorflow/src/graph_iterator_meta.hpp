@@ -15,7 +15,7 @@ namespace frontend {
 namespace tensorflow {
 
 template <typename T>
-std::basic_string<T> get_variables_index_name(const std::basic_string<T> name) {}
+std::basic_string<T> get_variables_index_name(const std::basic_string<T> name);
 
 template <>
 std::basic_string<char> get_variables_index_name<char>(const std::string name);
