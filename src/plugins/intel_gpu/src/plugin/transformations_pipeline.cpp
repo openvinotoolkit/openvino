@@ -819,10 +819,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         if (!disable_horizontal_fc_fusion)
             manager.register_pass<ov::intel_gpu::FullyConnectedHorizontalFusion>();
+
+        // ZP should not be folded for FC. But still, ZP should be folded for Gather.
+        // Therefore, run MarkDequantizationSubgraph again to fold ZP constant.
+        manager.register_pass<ov::pass::MarkDequantizationSubgraph>(supported_woq_types, true);
         if (device_info.supports_immad) {
-            // For OneDNN, ZP should not be folded for FC. But still, ZP should be folded for Gather.
-            // Therefore, run MarkDequantizationSubgraph again to fold ZP constant.
-            manager.register_pass<ov::pass::MarkDequantizationSubgraph>(supported_woq_types, true);
             if (disable_horizontal_fc_fusion)
                 manager.register_pass<ov::pass::ConstantFolding>();
         }
