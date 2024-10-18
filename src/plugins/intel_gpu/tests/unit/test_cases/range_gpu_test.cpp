@@ -174,6 +174,7 @@ INSTANTIATE_TEST_SUITE_P(range_gpu_test,
                         smoke_range_test,
                         testing::ValuesIn(
                             range_test_param_generator()
+                            .simple_params(float_types,     0,  1.0f, 0.025641024f)
                             .simple_params(general_types,   2,  23,   3)
                             .simple_params(general_types,   1,  21,   2)
                             .simple_params(float_types,     1,  2.5f, 0.5f)
