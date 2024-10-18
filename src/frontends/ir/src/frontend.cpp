@@ -172,8 +172,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
         if (provided_model_stream) {
             return std::make_shared<InputModel>(*provided_model_stream, weights, create_extensions_map());
         } else if (local_model_stream.is_open()) {
-            auto input_model =
-                std::make_shared<InputModel>(local_model_stream, weights, create_extensions_map());
+            auto input_model = std::make_shared<InputModel>(local_model_stream, weights, create_extensions_map());
             local_model_stream.close();
             return input_model;
         } else if (model_buf) {
