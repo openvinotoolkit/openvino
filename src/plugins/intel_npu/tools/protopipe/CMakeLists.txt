@@ -1,62 +1,59 @@
 #
-# Copyright (C) 2022-2024 Intel Corporation.
+# Copyright (C) 2023-2024 Intel Corporation.
 # SPDX-License-Identifier: Apache 2.0
 #
 
-set(TARGET_NAME single-image-test)
+set(TARGET_NAME protopipe)
 
 if (NOT DEFINED PROJECT_NAME)
     cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
-    project(single-image-test_standalone)
+    project(protopipe_standalone)
     include("cmake/standalone.cmake")
     return()
 endif()
 
-find_package(OpenCV QUIET COMPONENTS core imgproc imgcodecs)
-
 #
-# check for missing dependencies
+# Dependencies
 #
 
-set(MISSING_DEPENDENCIES "")
-foreach(LIB opencv_core opencv_imgproc opencv_imgcodecs)
-    if(NOT TARGET ${LIB})
-        list(APPEND MISSING_DEPENDENCIES ${LIB})
-    endif()
-endforeach()
-
-if(NOT MISSING_DEPENDENCIES STREQUAL "")
-    message(STATUS "NPU ${TARGET_NAME} tool is disabled due to missing dependencies: ${MISSING_DEPENDENCIES}")
+find_package(OpenCV QUIET COMPONENTS gapi)
+if(OpenCV_VERSION VERSION_LESS 4.9)
+    message(STATUS "NPU ${TARGET_NAME} tool is disabled due to missing dependencies: gapi from OpenCV >= 4.9.")
     return()
+endif()
+
+if (WIN32)
+    # WA: add_tool_target expects to have all dependencies as cmake targets.
+    add_library(winmm INTERFACE)
+    target_link_libraries(winmm INTERFACE "winmm.lib")
 endif()
 
 #
 # Define the target
 #
 
+set(PROTOPIPE_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
+
 ov_add_target(ADD_CPPLINT
               TYPE EXECUTABLE
               NAME ${TARGET_NAME}
               ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+              ADDITIONAL_SOURCE_DIRS ${PROTOPIPE_SOURCE_DIR}
+              INCLUDES ${PROTOPIPE_SOURCE_DIR}
               LINK_LIBRARIES
                   PRIVATE
+                      Threads::Threads
+                      gflags
+                      yaml-cpp
                       openvino::runtime
-                      opencv_core
-                      opencv_imgproc
-                      opencv_imgcodecs
-                      npu_tools_utils
-                      gflags)
+                      opencv_gapi
+                      winmm)
 
-ov_set_threading_interface_for(${TARGET_NAME})
+
 
 set_target_properties(${TARGET_NAME} PROPERTIES
                           FOLDER ${CMAKE_CURRENT_SOURCE_DIR}
                           CXX_STANDARD 17)
-
-# TODO: fix warnings and remove this exception
-if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
-    ov_add_compiler_flags(-Wno-missing-declarations)
-endif()
 
 #
 # Install
