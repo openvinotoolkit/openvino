@@ -371,8 +371,25 @@ void Graph::Activate(const std::vector<MemoryPtr>& externalInputMemory,
 
     std::tie(m_executableGraphNodes, m_executableSyncNodesInds) = ExtractExecutableNodesAndSyncPoints(syncNodesInds, graphNodes);
 
-    status = hasDynNodes ? (parallel_get_max_threads() > 1 ? Status::ReadyDynamic : Status::ReadyDynamicSeq)
-        : Status::ReadyStatic;
+    if (hasDynNodes) {
+        status = Status::ReadyDynamic;
+        // Here we use the following heuristic: if the number of sync nodes is less than 10 times of the number of exec
+        // nodes, it does make sense to use Sequential dynamic shapes processing due to the high overheads on context
+        // switching when the dynamic shapes are being processed in parallel and there are a lot of sync points. Also
+        // this rule works for short graphs (usually subgraphs) when the amount of nodes is to low to process them in
+        // parallel.
+        const auto exec2sync = m_executableGraphNodes.size() / m_executableSyncNodesInds.size();
+        if (exec2sync < 10 || parallel_get_max_threads() < 2) {
+            status = Status::ReadyDynamicSeq;
+        }
+    } else {
+        status = Status::ReadyStatic;
+    }
+
+    // std::cout << "Graph '" << GetName() << "' has status : "
+    //           << (status == Status::ReadyStatic ? "ReadyStatic"
+    //                                             : (status == Status::ReadyDynamic ? "ReadyDynamic" : "ReadyDynamicSeq"))
+    //           << std::endl;
 
     CPU_DEBUG_CAP_ENABLE(serialize(*this));
 }
