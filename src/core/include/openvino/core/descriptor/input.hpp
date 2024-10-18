@@ -98,7 +98,7 @@ public:
     }
 
     /// \return the shape of the connected output
-    const Shape& get_shape() const;
+    Shape get_shape() const;
 
     /// \return the partial shape of the connected output
     const PartialShape& get_partial_shape() const;
