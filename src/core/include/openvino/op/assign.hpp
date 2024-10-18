@@ -68,6 +68,7 @@ public:
                   const EvaluationContext& evaluation_context) const override;
     bool has_evaluate() const override;
     bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values) override;
+    bool can_constant_fold(const OutputVector& inputs_values) override;
 };
 }  // namespace v6
 }  // namespace op

@@ -104,9 +104,16 @@ bool Squeeze::evaluate_symbol(TensorSymbolVector& output_symbols) const {
     return validate::axes_has_and_set_bound(*this) && ov::util::default_symbol_evaluator(this, output_symbols);
 }
 
+bool Squeeze::can_constant_fold(const OutputVector& inputs_values) {
+    if (get_output_partial_shape(0).is_dynamic() || is_const_fold_disabled()) {
+        return false;
+    }
+    return true;
+}
+
 bool Squeeze::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {
     OV_OP_SCOPE(v0_Squeeze_constant_fold);
-    if (get_output_partial_shape(0).is_dynamic() || is_const_fold_disabled()) {
+    if (!can_constant_fold(inputs_values)) {
         return false;
     }
 
