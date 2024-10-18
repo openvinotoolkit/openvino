@@ -6,11 +6,10 @@
 
 #include "intel_npu/al/itt.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
-#include "zero_executor.hpp"
+#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "zero_host_tensor.hpp"
 #include "zero_infer_request.hpp"
 #include "zero_remote_tensor.hpp"
-#include "zero_utils.hpp"
 
 using namespace intel_npu;
 
@@ -83,13 +82,6 @@ ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs
     log.debug("ZeroDevice::ZeroDevice - findGroupOrdinal");
     _group_ordinal = zeroUtils::findGroupOrdinal(command_group_properties, device_properties);
     log.debug("ZeroDevice::ZeroDevice - init completed");
-}
-
-std::shared_ptr<IExecutor> ZeroDevice::createExecutor(
-    const std::shared_ptr<const NetworkDescription>& networkDescription,
-    const Config& config) {
-    OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Device::createExecutor");
-    return std::make_shared<ZeroExecutor>(_initStructs, networkDescription, config, _group_ordinal);
 }
 
 std::string ZeroDevice::getName() const {
@@ -167,11 +159,15 @@ ov::device::Type ZeroDevice::getDeviceType() const {
     return ov::device::Type::INTEGRATED;
 }
 
+uint32_t ZeroDevice::getGroupOrdinal() const {
+    return _group_ordinal;
+}
+
 std::shared_ptr<SyncInferRequest> ZeroDevice::createInferRequest(
     const std::shared_ptr<const ICompiledModel>& compiledModel,
-    const std::shared_ptr<IExecutor>& executor,
+    const std::shared_ptr<IGraph>& graph,
     const Config& config) {
-    return std::make_shared<ZeroInferRequest>(_initStructs, compiledModel, executor, config);
+    return std::make_shared<ZeroInferRequest>(_initStructs, compiledModel, graph, config, _group_ordinal);
 }
 
 ov::SoPtr<ov::IRemoteTensor> ZeroDevice::createRemoteTensor(std::shared_ptr<ov::IRemoteContext> context,

@@ -9,13 +9,9 @@ add_subdirectory(utils)
 
 add_subdirectory(al)
 
-if(ENABLE_DRIVER_COMPILER_ADAPTER AND ENABLE_ZEROAPI_BACKEND)
-    add_subdirectory(compiler)
-endif()
+add_subdirectory(compiler_adapter)
 
-if(ENABLE_ZEROAPI_BACKEND)
-    add_subdirectory(backend)
-endif()
+add_subdirectory(backend)
 
 if (NOT BUILD_COMPILER_FOR_DRIVER)
     add_subdirectory(plugin)

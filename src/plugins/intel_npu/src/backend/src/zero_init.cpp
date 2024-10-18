@@ -6,9 +6,8 @@
 
 #include "intel_npu/al/itt.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
-#include "ze_api.h"
+#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "ze_command_queue_npu_ext.h"
-#include "zero_utils.hpp"
 
 #ifdef _WIN32
 namespace {
@@ -114,6 +113,11 @@ ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder",
 
     if (graph_ext_name.empty()) {
         OPENVINO_THROW("queryGraphExtensionVersion: Failed to find Graph extension in NPU Driver");
+    }
+
+    if (graph_ext_version <= ZE_GRAPH_EXT_VERSION_1_1) {
+        OPENVINO_THROW("Incompatibility between the NPU plugin and driver! The driver version is too old, please "
+                       "update the driver version");
     }
 
     const uint16_t supported_driver_ext_major_version = 1;

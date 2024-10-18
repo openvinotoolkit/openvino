@@ -8,22 +8,22 @@
 #include <ze_graph_ext.h>
 
 #include "intel_npu/utils/logger/logger.hpp"
+#include "intel_npu/utils/zero/zero_utils.hpp"
+#include "intel_npu/utils/zero/zero_wrappers.hpp"
 #include "npu.hpp"
-#include "zero_executor.hpp"
 #include "zero_pipeline.hpp"
 #include "zero_profiling.hpp"
 #include "zero_remote_tensor.hpp"
-#include "zero_utils.hpp"
-#include "zero_wrappers.hpp"
 
 namespace intel_npu {
 
 class ZeroInferRequest final : public SyncInferRequest {
 public:
-    explicit ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>& backendPtr,
+    explicit ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
                               const std::shared_ptr<const ICompiledModel>& compiledModel,
-                              const std::shared_ptr<const IExecutor>& executor,
-                              const Config& config);
+                              const std::shared_ptr<IGraph>& graph,
+                              const Config& config,
+                              uint32_t group_ordinal);
 
     ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override;
     void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override;
@@ -84,8 +84,8 @@ private:
     std::vector<std::optional<TensorData>>& get_input_tensors_data(size_t index) const;
 
     const std::shared_ptr<ZeroInitStructsHolder> _initStructs;
-    const std::shared_ptr<const IExecutor> _executorPtr;
-    const ZeroExecutor* _executor;
+    const std::shared_ptr<IGraph> _graph;
+    const uint32_t _group_ordinal;
     const Config _config;
     Logger _logger;
 

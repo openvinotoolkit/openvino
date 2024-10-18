@@ -5,31 +5,21 @@
 #pragma once
 
 #include <ze_api.h>
-#include <ze_graph_ext.h>
 
 #include "intel_npu/utils/logger/logger.hpp"
-#include "zero_types.hpp"
-#include "zero_utils.hpp"
+#include "intel_npu/utils/zero/zero_types.hpp"
+#include "intel_npu/utils/zero/zero_utils.hpp"
 
 namespace intel_npu {
 class CommandList;
 class CommandQueue;
-
-enum stage {
-    UPLOAD,
-    EXECUTE,
-    READBACK,
-
-    COUNT
-};
 
 class EventPool {
 public:
     EventPool() = delete;
     EventPool(ze_device_handle_t device_handle,
               const ze_context_handle_t& context,
-              uint32_t event_count,
-              const Config& config);
+              uint32_t event_count);
     EventPool(const EventPool&) = delete;
     EventPool(EventPool&&) = delete;
     EventPool& operator=(const EventPool&) = delete;
@@ -48,7 +38,7 @@ private:
 class Event {
 public:
     Event() = delete;
-    Event(const ze_event_pool_handle_t& event_pool, uint32_t event_index, const Config& config);
+    Event(const ze_event_pool_handle_t& event_pool, uint32_t event_index);
     Event(const Event&) = delete;
     Event(Event&&) = delete;
     Event& operator=(const Event&) = delete;
@@ -74,7 +64,6 @@ public:
     CommandList(const ze_device_handle_t& device_handle,
                 const ze_context_handle_t& context,
                 ze_graph_dditable_ext_curr_t& graph_ddi_table_ext,
-                const Config& config,
                 const uint32_t& group_ordinal,
                 bool mtci_is_supported = false);
     CommandList(const CommandList&) = delete;
@@ -109,7 +98,7 @@ private:
 class Fence {
 public:
     Fence() = delete;
-    Fence(const CommandQueue& command_queue, const Config& config);
+    Fence(const CommandQueue& command_queue);
     Fence(const Fence&) = delete;
     Fence(Fence&&) = delete;
     Fence& operator=(const Fence&) = delete;
@@ -135,7 +124,6 @@ public:
                  const ze_context_handle_t& context,
                  const ze_command_queue_priority_t& priority,
                  ze_command_queue_npu_dditable_ext_curr_t& command_queue_npu_dditable_ext,
-                 const Config& config,
                  const uint32_t& group_ordinal);
     CommandQueue(const CommandQueue&) = delete;
     CommandQueue(CommandQueue&&) = delete;

@@ -112,9 +112,6 @@ struct NetworkMetadata final {
 
     size_t numStreams = 1;
 
-    // Used primarily in the CID path to pass the level zero graph handle from compiler to the backend executor
-    void* graphHandle = nullptr;
-
     /**
      * @brief Binds the (state input, state output) and (dynamic tensor, shape tensor) pairs using the
      * "relatedDescriptorIndex" attribute.
@@ -138,7 +135,6 @@ struct NetworkDescription final {
     NetworkDescription(std::vector<uint8_t>&& compiledNetwork, NetworkMetadata&& metadata)
         : compiledNetwork(std::move(compiledNetwork)),
           metadata(std::move(metadata)) {}
-    NetworkDescription(NetworkMetadata&& metadata) : metadata(std::move(metadata)) {}
     // Force move semantics to prevent blob copies
     NetworkDescription(const NetworkDescription&) = delete;
     NetworkDescription(NetworkDescription&&) = default;
@@ -185,12 +181,6 @@ private:
 class ICompiler : public std::enable_shared_from_this<ICompiler> {
 public:
     /**
-     * @brief Returns the maximum OpenVino opset version supported by the compiler
-     * @return opset version e.g. 11 for opset11
-     */
-    virtual uint32_t getSupportedOpsetVersion() const = 0;
-
-    /**
      * @brief Transforms a network from the OpenVINO model representation to a format executable
      * by a NPU device
      * @param model a shared pointer to the OpenVINO model to be compiled
@@ -198,7 +188,9 @@ public:
      *        including config options related to compilation
      * @return a shared pointer on an object implementing NetworkDescription interface
      */
-    virtual NetworkDescription compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const = 0;
+    virtual NetworkDescription compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const {
+        OPENVINO_THROW("Not implemented.");
+    };
 
     /**
      * @brief Returns information about supported layers of the network passed
@@ -207,7 +199,9 @@ public:
      *        including config options related to compilation
      * @returns SupportedOpsMap structure with information about supported layers
      */
-    virtual ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const = 0;
+    virtual ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const {
+        OPENVINO_THROW("Not implemented.");
+    };
 
     /**
      * @brief Parses already compiled network to extract meta information:
@@ -220,20 +214,15 @@ public:
      *        to be used for creating network description
      * @return a shared pointer on an object implementing NetworkDescription interface
      */
-    virtual NetworkMetadata parse(const std::vector<uint8_t>& network, const Config& config) const = 0;
+    virtual NetworkMetadata parse(const std::vector<uint8_t>& network, const Config& config) const {
+        OPENVINO_THROW("Not implemented.");
+    };
 
     virtual std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
                                                                     const std::vector<uint8_t>& network,
-                                                                    const Config& config) const = 0;
-
-    // Driver compiler can use this to release graphHandle, if we do not have executor
-    virtual void release([[maybe_unused]] std::shared_ptr<const NetworkDescription> networkDescription){};
-
-    virtual CompiledNetwork getCompiledNetwork(const NetworkDescription& networkDescription) {
-        return CompiledNetwork(networkDescription.compiledNetwork.data(),
-                               networkDescription.compiledNetwork.size(),
-                               networkDescription.compiledNetwork);
-    }
+                                                                    const Config& config) const {
+        OPENVINO_THROW("Not implemented.");
+    };
 
 protected:
     virtual ~ICompiler() = default;

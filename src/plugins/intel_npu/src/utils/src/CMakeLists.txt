@@ -3,6 +3,4 @@
 #
 
 add_subdirectory(logger)
-if(ENABLE_ZEROAPI_BACKEND)
-    add_subdirectory(zero)
-endif()
+add_subdirectory(zero)

@@ -30,13 +30,11 @@ if(ENABLE_DRIVER_COMPILER_ADAPTER)
     )
 endif()
 
-if(ENABLE_ZEROAPI_BACKEND)
-    target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_ZEROAPI_BACKEND)
-    target_link_libraries(${TARGET_NAME}
-        PRIVATE
-            openvino_npu_level_zero_backend
-    )
-endif()
+target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_ZEROAPI_BACKEND)
+target_link_libraries(${TARGET_NAME}
+    PRIVATE
+        openvino_npu_level_zero_backend
+)
 
 if(ENABLE_IMD_BACKEND)
     target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_IMD_BACKEND)

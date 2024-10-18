@@ -8,15 +8,12 @@
 #include <type_traits>
 #include <utility>
 
-#include "intel_npu/al/icompiler.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
-#include "zero_executor.hpp"
+#include "intel_npu/utils/zero/zero_types.hpp"
+#include "izero_link.hpp"
 
 namespace intel_npu {
-namespace driverCompilerAdapter {
-
-using SerializedIR = std::pair<size_t, std::shared_ptr<uint8_t>>;
 
 #define NotSupportLogHandle(T) \
     (std::is_same<T, ze_graph_dditable_ext_1_2_t>::value || std::is_same<T, ze_graph_dditable_ext_1_3_t>::value)
@@ -52,68 +49,47 @@ using SerializedIR = std::pair<size_t, std::shared_ptr<uint8_t>>;
  * Adapter to use CiD through ZeroAPI
  */
 template <typename TableExtension>
-class LevelZeroCompilerInDriver final : public ICompiler {
+class ZeroLink final : public IZeroLink {
 public:
-    LevelZeroCompilerInDriver(ze_driver_handle_t driverHandle,
-                              ze_device_handle_t deviceHandle,
-                              ze_context_handle_t zeContext,
-                              ze_graph_dditable_ext_curr_t& graph_ddi_table_ext);
-    LevelZeroCompilerInDriver(const LevelZeroCompilerInDriver&) = delete;
-    LevelZeroCompilerInDriver& operator=(const LevelZeroCompilerInDriver&) = delete;
-    ~LevelZeroCompilerInDriver() override;
+    ZeroLink(ze_driver_handle_t driverHandle,
+             ze_device_handle_t deviceHandle,
+             ze_context_handle_t zeContext,
+             ze_graph_dditable_ext_curr_t& graph_ddi_table_ext,
+             ze_command_queue_npu_dditable_ext_curr_t& _commandQueueDdiTable,
+             uint32_t group_ordinal);
+    ZeroLink(const ZeroLink&) = delete;
+    ZeroLink& operator=(const ZeroLink&) = delete;
+    ~ZeroLink();
 
-    uint32_t getSupportedOpsetVersion() const override final;
+    std::unordered_set<std::string> queryResultFromSupportedLayers(SerializedIR serializedIR,
+                                                                   const std::string& buildFlags) const override;
+    ze_graph_handle_t getGraphHandle(SerializedIR serializedIR,
+                                     const std::string& buildFlags,
+                                     const uint32_t& flags) const override;
 
-    ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
-
-    NetworkDescription compile(const std::shared_ptr<const ov::Model>& model,
-                               const Config& config) const override final;
-
-    ze_result_t seriazlideIRModelAndCreateGraph(const std::shared_ptr<const ov::Model>& model,
-                                                const Config& config,
-                                                ze_device_graph_properties_t deviceGraphProperties,
-                                                ze_graph_handle_t& graphHandle) const;
-
-    NetworkMetadata parse(const std::vector<uint8_t>& network, const Config& config) const override final;
-
-    std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
-                                                            const std::vector<uint8_t>& network,
-                                                            const Config& config) const override final {
-        OPENVINO_THROW("Profiling post-processing is not implemented.");
-    }
+    ze_graph_handle_t getGraphHandle(const std::vector<uint8_t>& network) const override;
 
     template <typename T = TableExtension, std::enable_if_t<!NotSupportQuery(T), bool> = true>
     std::unordered_set<std::string> getQueryResultFromSupportedLayers(
         ze_result_t result,
         ze_graph_query_network_handle_t& hGraphQueryNetwork) const;
 
-    /**
-     * @brief Serialize input / output information to string format.
-     * @details Format:
-     * --inputs_precisions="0:<input1Precision> [1:<input2Precision>]"
-     * --inputs_layouts="0:<input1Layout> [1:<input2Layout>]"
-     * --outputs_precisions="0:<output1Precision>"
-     * --outputs_layouts="0:<output1Layout>"
-     *
-     * For older compiler versions, the name of the inputs/outputs may be used instead of their indices.
-     *
-     * Since the layout information is no longer an important part of the metadata values when using the 2.0 OV
-     * API, the layout fields shall be filled with default values in order to assure the backward compatibility
-     * with the driver.
-     */
-    static std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const bool useIndices);
+    NetworkMetadata getNetworkMeta(ze_graph_handle_t graphHandle) const override;
 
-    void release(std::shared_ptr<const NetworkDescription> networkDescription) override;
+    _ze_result_t release(ze_graph_handle_t graphHandle) override;
 
-    CompiledNetwork getCompiledNetwork(const NetworkDescription& networkDescription) override;
+    CompiledNetwork getCompiledNetwork(ze_graph_handle_t graphHandle) override;
+
+    void setArgumentValue(ze_graph_handle_t graphHandle, uint32_t argi_, const void* argv) const override;
+
+    void graphInitialie(ze_graph_handle_t graphHandle, const Config& config) const override;
+
+    std::tuple<std::vector<ArgumentDescriptor>, std::vector<ArgumentDescriptor>> getIODesc(
+        ze_graph_handle_t graphHandle) const override;
+
+    std::shared_ptr<CommandQueue> crateCommandQueue(const Config& config) const override;
 
 private:
-    NetworkMetadata getNetworkMeta(ze_graph_handle_t graphHandle) const;
-
-    SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
-                             ze_graph_compiler_version_info_t compilerVersion) const;
-    std::string serializeConfig(const Config& config, ze_graph_compiler_version_info_t& compilerVersion) const;
-
     template <typename T = TableExtension, typename std::enable_if_t<NotSupportArgumentMetadata(T), bool> = true>
     void getMetadata(ze_graph_dditable_ext_curr_t& graphDdiTableExt,
                      ze_graph_handle_t graphHandle,
@@ -143,45 +119,38 @@ private:
                          size_t& blobSize) const;
 
     template <typename T = TableExtension, typename std::enable_if_t<SupportAPIGraphQueryNetworkV2(T), bool> = true>
-    ze_result_t seriazlideIRModelAndQueryNetworkCreateV2(const std::shared_ptr<const ov::Model>& model,
-                                                         const Config& config,
-                                                         ze_device_graph_properties_t deviceGraphProperties,
+    ze_result_t seriazlideIRModelAndQueryNetworkCreateV2(SerializedIR serializedIR,
+                                                         const std::string& buildFlags,
                                                          const ze_device_handle_t& _deviceHandle,
                                                          ze_graph_query_network_handle_t& hGraphQueryNetwork) const;
 
     // ext version >= 1.5, support API (pfnCreate2, pfnQueryNetworkCreate2, pfnQueryContextMemory)
     template <typename T = TableExtension, typename std::enable_if_t<SupportAPIGraphQueryNetworkV2(T), bool> = true>
-    std::unordered_set<std::string> queryImpl(const std::shared_ptr<const ov::Model>& model,
-                                              const Config& config) const;
+    std::unordered_set<std::string> queryImpl(SerializedIR serializedIR, const std::string& buildFlags) const;
 
     template <typename T = TableExtension, typename std::enable_if_t<SupportAPIGraphQueryNetworkV1(T), bool> = true>
-    ze_result_t seriazlideIRModelAndQueryNetworkCreateV1(const std::shared_ptr<const ov::Model>& model,
-                                                         const Config& config,
-                                                         ze_device_graph_properties_t deviceGraphProperties,
+    ze_result_t seriazlideIRModelAndQueryNetworkCreateV1(SerializedIR serializedIR,
+                                                         const std::string& buildFlags,
                                                          const ze_device_handle_t& _deviceHandle,
                                                          ze_graph_query_network_handle_t& hGraphQueryNetwork) const;
 
     // ext version == 1.3 && 1.4, support API (pfnQueryNetworkCreate, pfnQueryNetworkDestroy,
     // pfnQueryNetworkGetSupportedLayers)
     template <typename T = TableExtension, typename std::enable_if_t<SupportAPIGraphQueryNetworkV1(T), bool> = true>
-    std::unordered_set<std::string> queryImpl(const std::shared_ptr<const ov::Model>& model,
-                                              const Config& config) const;
+    std::unordered_set<std::string> queryImpl(SerializedIR serializedIR, const std::string& buildFlags) const;
 
     // For ext version < 1.3
     template <typename T = TableExtension, typename std::enable_if_t<NotSupportQuery(T), bool> = true>
-    std::unordered_set<std::string> queryImpl(const std::shared_ptr<const ov::Model>& model,
-                                              const Config& config) const;
+    std::unordered_set<std::string> queryImpl(SerializedIR serializedIR, const std::string& buildFlags) const;
 
     template <typename T = TableExtension, typename std::enable_if_t<NotSupportGraph2(T), bool> = true>
-    ze_result_t createGraph(const ze_graph_format_t& format,
-                            const SerializedIR& serializedIR,
+    ze_result_t createGraph(SerializedIR serializedIR,
                             const std::string& buildFlags,
                             const uint32_t& flags,
                             ze_graph_handle_t* graph) const;
 
     template <typename T = TableExtension, typename std::enable_if_t<!NotSupportGraph2(T), bool> = true>
-    ze_result_t createGraph(const ze_graph_format_t& format,
-                            const SerializedIR& serializedIR,
+    ze_result_t createGraph(SerializedIR serializedIR,
                             const std::string& buildFlags,
                             const uint32_t& flags,
                             ze_graph_handle_t* graph) const;
@@ -194,14 +163,18 @@ private:
         return "";
     }
 
-private:
+    void initialize_graph_through_command_list(ze_graph_handle_t graphHandle, const Config& config) const;
+
     ze_driver_handle_t _driverHandle = nullptr;
     ze_device_handle_t _deviceHandle = nullptr;
     ze_context_handle_t _context = nullptr;
 
     ze_graph_dditable_ext_curr_t& _graphDdiTableExt;
+    ze_command_queue_npu_dditable_ext_curr_t& _commandQueueDdiTable;
+
+    const uint32_t _group_ordinal;
+
     Logger _logger;
 };
 
-}  // namespace driverCompilerAdapter
 }  // namespace intel_npu
