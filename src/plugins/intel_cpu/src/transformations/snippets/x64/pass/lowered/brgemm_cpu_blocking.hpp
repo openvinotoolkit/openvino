@@ -41,12 +41,10 @@ private:
                                                                            const snippets::lowered::LinearIR::constExprIt& brgemm_it);
 
     static snippets::lowered::LinearIR::constExprIt get_loop_begin_pos(snippets::lowered::LinearIR& linear_ir,
-                                                                       const snippets::lowered::LinearIR::constExprIt& brgemm_it,
-                                                                       const snippets::lowered::ExpressionPtr& copy_b_expr);
+                                                                       const snippets::lowered::LinearIR::constExprIt& brgemm_it);
 
     snippets::lowered::SpecificIterationHandlers get_k_loop_handlers(size_t work_amount, size_t block_size) const override;
 
-    std::tuple<size_t, size_t, size_t> get_blocking_params(const ov::snippets::lowered::ExpressionPtr& brgemm_expr) const override;
     bool mark_blocking_loops(snippets::lowered::LinearIR& linear_ir,
                              const snippets::lowered::LinearIR::constExprIt& brgemm_it,
                              size_t m_block,
