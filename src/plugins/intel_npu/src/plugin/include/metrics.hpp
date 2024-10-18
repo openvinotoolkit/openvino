@@ -33,6 +33,7 @@ public:
     std::string GetBackendName() const;
     uint64_t GetDeviceAllocMemSize(const std::string& specifiedDeviceName) const;
     uint64_t GetDeviceTotalMemSize(const std::string& specifiedDeviceName) const;
+    uint64_t GetMaxMemAllocSize(const std::string& specifiedDeviceName) const;
     uint32_t GetDriverVersion() const;
     uint32_t GetGraphExtVersion() const;
     uint32_t GetSteppingNumber(const std::string& specifiedDeviceName) const;

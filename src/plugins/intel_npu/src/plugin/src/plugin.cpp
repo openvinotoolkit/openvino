@@ -438,6 +438,12 @@ Plugin::Plugin()
           [&](const Config& config) {
               return _metrics->GetDeviceTotalMemSize(get_specified_device_name(config));
           }}},
+        {ov::intel_npu::device_max_mem_alloc_size.name(),
+         {true,
+          ov::PropertyMutability::RO,
+          [&](const Config& config) {
+              return _metrics->GetMaxMemAllocSize(get_specified_device_name(config));
+          }}},
         {ov::intel_npu::driver_version.name(),
          {true,
           ov::PropertyMutability::RO,
