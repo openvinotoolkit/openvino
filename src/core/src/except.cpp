@@ -19,9 +19,9 @@ std::string ov::Exception::make_what(const char* file,
                                      const std::string& explanation) {
     std::stringstream ss;
     if (check_string) {
-        ss << "Check '" << check_string << "' failed at " << util::trim_file_name(file) << ":" << line;
+        ss << "Check '" << check_string << "' failed at " << util::trim_file_name(file).string() << ":" << line;
     } else {
-        ss << "Exception from " << util::trim_file_name(file) << ":" << line;
+        ss << "Exception from " << util::trim_file_name(file).string() << ":" << line;
     }
     if (!context_info.empty()) {
         ss << ":" << std::endl << context_info;

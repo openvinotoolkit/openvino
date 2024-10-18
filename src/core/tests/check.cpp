@@ -55,7 +55,7 @@ TEST(check, ov_throw_exception_check_relative_path_to_source) {
     }
     using namespace testing;
     const auto path = ov::util::path_join({"src", "core", "tests", "check.cpp"});
-    const auto exp_native_slash = "Exception from " + path + ":";
+    const auto exp_native_slash = "Exception from " + path.string() + ":";
     const auto exp_fwd_slash = "Exception from src/core/tests/check.cpp:";
     OV_EXPECT_THROW(OPENVINO_THROW("Test message"),
                     ov::Exception,

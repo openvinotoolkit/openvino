@@ -13,6 +13,7 @@
 #include <sstream>
 
 #include "openvino/util/common_util.hpp"
+#include "openvino/util/file_path.hpp"
 
 #ifdef _WIN32
 #    ifndef NOMINMAX
@@ -64,31 +65,12 @@
 #    endif
 #endif
 
-std::string ov::util::get_file_name(const std::string& s) {
-    std::string rc = s;
-    // Linux-style separator
-    auto pos = s.find_last_of('/');
-    if (pos != std::string::npos) {
-        rc = s.substr(pos + 1);
-        return rc;
-    }
-    // Windows-style separator
-    pos = s.find_last_of('\\');
-    if (pos != std::string::npos) {
-        rc = s.substr(pos + 1);
-    }
-    return rc;
+ov::util::Path ov::util::get_file_name(const ov::util::Path& s) {
+    return s.filename();
 }
 
-std::string ov::util::get_file_ext(const std::string& s) {
-    std::string rc = get_file_name(s);
-    auto pos = rc.find_last_of('.');
-    if (pos != std::string::npos) {
-        rc = rc.substr(pos);
-    } else {
-        rc = "";
-    }
-    return rc;
+ov::util::Path ov::util::get_file_ext(const ov::util::Path& s) {
+    return s.extension();
 }
 
 std::string ov::util::get_directory(const std::string& s) {
@@ -122,60 +104,19 @@ std::wstring ov::util::get_directory(const std::wstring& s) {
 #endif
 
 namespace {
-
-std::string join_paths(const std::string& s1, const std::string& s2) {
-    std::string rc;
-    if (s2.size() > 0) {
-        if (s2[0] == '/') {
-            rc = s2;
-        } else if (s1.size() > 0) {
-            rc = s1;
-            if (rc[rc.size() - 1] != '/') {
-#ifndef _WIN32
-                rc += '/';
-#else
-                rc += '\\';
-#endif
-            }
-            rc += s2;
-        } else {
-            rc = s2;
-        }
+ov::util::Path join_paths(const ov::util::Path& s1, const ov::util::Path& s2) {
+    if (s2.empty()) {
+        return s1;
+    } else if (s1.empty() || *s2.begin() == ov::util::Path{"/"}) {
+        return s2;
     } else {
-        rc = s1;
+        return s1 / s2;
     }
-    return rc;
 }
-
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-std::wstring join_paths(const std::wstring& s1, const std::wstring& s2) {
-    std::wstring rc;
-    if (s2.size() > 0) {
-        if (s2[0] == '/') {
-            rc = s2;
-        } else if (s1.size() > 0) {
-            rc = s1;
-            if (rc[rc.size() - 1] != '/') {
-#    ifndef _WIN32
-                rc += '/';
-#    else
-                rc += '\\';
-#    endif
-            }
-            rc += s2;
-        } else {
-            rc = s2;
-        }
-    } else {
-        rc = s1;
-    }
-    return rc;
-}
-#endif
 }  // namespace
 
-std::string ov::util::path_join(const std::vector<std::string>& paths) {
-    std::string result;
+ov::util::Path ov::util::path_join(const std::vector<ov::util::Path>& paths) {
+    ov::util::Path result{};
     if (paths.empty()) {
         return result;
     }
@@ -194,7 +135,7 @@ std::wstring ov::util::path_join_w(const std::vector<std::wstring>& paths) {
     }
     result = paths[0];
     for (size_t i = 1; i < paths.size(); i++) {
-        result = join_paths(result, paths[i]);
+        result = join_paths(result, paths[i]).wstring();
     }
     return result;
 }
@@ -249,15 +190,15 @@ static void iterate_files_worker(const std::string& path,
 }
 #endif
 
-void ov::util::iterate_files(const std::string& path,
-                             const std::function<void(const std::string& file, bool is_dir)>& func,
+void ov::util::iterate_files(const ov::util::Path& path,
+                             const std::function<void(const ov::util::Path& file, bool is_dir)>& func,
                              bool recurse,
                              bool include_links) {
-    std::vector<std::string> files;
-    std::vector<std::string> dirs;
+    std::vector<ov::util::Path> files;
+    std::vector<ov::util::Path> dirs;
 #ifdef _WIN32
 #    ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-    std::wstring pathw = string_to_wstring(path);
+    std::wstring pathw = path.native();
     std::wstring file_match = path_join_w({pathw, L"*"});
     WIN32_FIND_DATAW data;
     HANDLE hFind = FindFirstFileW(file_match.c_str(), &data);
@@ -307,7 +248,7 @@ void ov::util::iterate_files(const std::string& path,
 #else
     iterate_files_worker(
         path,
-        [&files, &dirs](const std::string& file, bool is_dir) {
+        [&files, &dirs](const ov::util::Path& file, bool is_dir) {
             if (is_dir) {
                 dirs.push_back(file);
             } else {
@@ -319,10 +260,10 @@ void ov::util::iterate_files(const std::string& path,
 #endif
 
     for (const auto& f : files) {
-        func(f, false);
+        func(f.native(), false);
     }
     for (const auto& f : dirs) {
-        func(f, true);
+        func(f.native(), true);
     }
 }
 
@@ -443,13 +384,8 @@ void ov::util::create_directory_recursive(const std::string& path) {
     }
 }
 
-bool ov::util::directory_exists(const std::string& path) {
-    struct stat sb;
-
-    if (stat(path.c_str(), &sb) == 0 && S_ISDIR(sb.st_mode)) {
-        return true;
-    }
-    return false;
+bool ov::util::directory_exists(const ov::util::Path& path) {
+    return ov::util::fs::is_directory(path);
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
@@ -578,14 +514,14 @@ ov::util::FilePath ov::util::get_compiled_plugin_path(const std::string& plugin)
     str << "openvino-" << OpenVINO_VERSION;
     const auto sub_folder = str.str();
 
-    std::string abs_file_path = ov::util::path_join({ov_library_path, sub_folder, plugin});
+    ov::util::Path abs_file_path = ov::util::path_join({ov_library_path, sub_folder, plugin});
     if (ov::util::file_exists(abs_file_path))
-        return ov::util::to_file_path(abs_file_path);
+        return abs_file_path.wstring();
 
     // 2. in the openvino.so location
     abs_file_path = ov::util::path_join({ov_library_path, plugin});
     if (ov::util::file_exists(abs_file_path))
-        return ov::util::to_file_path(abs_file_path);
+        return abs_file_path.wstring();
 
     auto lib_name = plugin;
     // For 3rd case - convert to 4th case
@@ -611,27 +547,27 @@ ov::util::FilePath ov::util::get_plugin_path(const std::string& plugin, const st
     if (ov::util::is_absolute_file_path(plugin))
         return ov::util::to_file_path(plugin);
 
-    auto xml_path_ = xml_path;
+    ov::util::Path xml_path_ = xml_path;
     if (xml_path.find(ov::util::FileTraits<char>::file_separator) == std::string::npos)
         xml_path_ = ov::util::path_join({std::string("."), xml_path});  // treat plugins.xml as CWD/plugins.xml
 
     // For 2nd case
     if (plugin.find(ov::util::FileTraits<char>::file_separator) != std::string::npos) {
         auto path_ = ov::util::path_join({ov::util::get_directory(xml_path_), plugin});
-        return ov::util::to_file_path(ov::util::get_absolute_file_path(path_));  // canonicalize path
+        return ov::util::to_file_path(ov::util::get_absolute_file_path(path_.string()));  // canonicalize path
     }
 
-    auto lib_file_name = plugin;
+    ov::util::Path lib_file_name = plugin;
     // For 3rd case - convert to 4th case
     if (!ov::util::ends_with(plugin, ov::util::FileTraits<char>::library_ext()))
         lib_file_name = ov::util::make_plugin_library_name({}, plugin);
 
     // For 4th case
-    auto lib_path = ov::util::path_join({ov::util::get_directory(xml_path_), lib_file_name});
-    lib_path = ov::util::get_absolute_file_path(lib_path);  // canonicalize path
+    ov::util::Path lib_path = ov::util::path_join({ov::util::get_directory(xml_path_), lib_file_name});
+    lib_path = ov::util::get_absolute_file_path(lib_path.string());  // canonicalize path
     if (as_abs_only || ov::util::file_exists(lib_path))
-        return ov::util::to_file_path(lib_path);
-    return ov::util::to_file_path(lib_file_name);
+        return ov::util::to_file_path(lib_path.string());
+    return ov::util::to_file_path(lib_file_name.string());
 }
 
 std::vector<uint8_t> ov::util::load_binary(const std::string& path) {
@@ -686,21 +622,14 @@ void ov::util::save_binary(const std::string& path, const char* binary, size_t b
     }
 }
 
-const char* ov::util::trim_file_name(const char* const fname) {
-    static const auto pattern_native_sep =
-        std::string(OV_NATIVE_PARENT_PROJECT_ROOT_DIR) + FileTraits<char>::file_separator;
+ov::util::Path ov::util::trim_file_name(const ov::util::Path& fname) {
+    // fs::relative, fs::proximate not avalieble in experimantal, upgrade on C++17.
 
-    const auto has_native_sep_pattern_ptr = std::strstr(fname, pattern_native_sep.c_str());
-    auto fname_trim_ptr = has_native_sep_pattern_ptr ? has_native_sep_pattern_ptr + pattern_native_sep.size() : fname;
+    auto it = std::find(fname.begin(), fname.end(), ov::util::Path{OV_NATIVE_PARENT_PROJECT_ROOT_DIR});
 
-#if defined(_WIN32)
-    // On windows check also forward slash as in some case the __FILE__ can have it instead native backward slash.
-    if (fname_trim_ptr == fname) {
-        static const auto pattern_fwd_sep = std::string(OV_NATIVE_PARENT_PROJECT_ROOT_DIR) + '/';
-        if (const auto has_fwd_sep_pattern_ptr = std::strstr(fname, pattern_fwd_sep.c_str())) {
-            fname_trim_ptr = has_fwd_sep_pattern_ptr + pattern_fwd_sep.size();
-        }
+    if (it != fname.end()) {
+        return ov::util::path_join(std::vector<ov::util::Path>(++it, fname.end()));
+    } else {
+        return fname;
     }
-#endif
-    return fname_trim_ptr;
 }
