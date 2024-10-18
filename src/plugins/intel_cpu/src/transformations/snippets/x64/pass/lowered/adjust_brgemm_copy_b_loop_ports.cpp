@@ -108,19 +108,13 @@ bool pass::AdjustBrgemmCopyBLoopPorts::run(const snippets::lowered::LinearIR& li
     };
 
     for (const auto& expr : linear_ir) {
-        const auto& node = expr->get_node();
-        // TODO: except current CopyB->Buffer->BrgemmCPU sequence,
-        // Parameter->BrgemmCPU(with CopyB outside the Subgraph) sequence must be handled.
-        if (!is_type<BrgemmCopyB>(node))
+        const auto brgemm = ov::as_type_ptr<BrgemmCPU>(expr->get_node());
+        if (!brgemm || brgemm_utils::stand_alone(brgemm->get_type()))
             continue;
-        const auto& loop_ids = expr->get_loop_ids();
-        const auto& child_ports = expr->get_output_port(0).get_connected_ports();
-        // Note: this pass should be executed before Loop insertion, so there is no LooEnd fake dependency
-        OPENVINO_ASSERT(child_ports.size() == 1 &&
-                        is_type<snippets::lowered::BufferExpression>(child_ports.begin()->get_expr()),
-                        "BrgemmCopyB should have one BufferExpression child");
-        auto grandchild_ports = child_ports.begin()->get_expr()->get_output_port(0).get_connected_ports();
-        iterate_through_ports(loop_ids, grandchild_ports);
+        const auto& input_connector = expr->get_input_port_connector(1);
+        auto parent_out_ports = input_connector->get_consumers();
+        const auto& parent_loop_ids = input_connector->get_source().get_expr()->get_loop_ids();
+        iterate_through_ports(parent_loop_ids, parent_out_ports);
     }
 
     return modified;

@@ -4,11 +4,13 @@
 
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
 
+#include "memory_desc/cpu_blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "snippets/lowered/loop_manager.hpp"
-#include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "snippets/utils/utils.hpp"
-
+#include "transformations/snippets/x64/op/brgemm_cpu.hpp"
+#include "transformations/snippets/x64/op/brgemm_utils.hpp"
 #include "transformations/snippets/x64/pass/lowered/adjust_brgemm_copy_b_loop_ports.hpp"
 namespace ov {
 namespace intel_cpu {
@@ -137,25 +139,35 @@ void CPURuntimeConfigurator::update_requested_descs(const ov::snippets::lowered:
     const auto& params = linear_ir->get_parameters();
     OPENVINO_ASSERT(params.size() == m_in_num);
     for (size_t i = 0; i < m_in_num; ++i) {
-        // TODO: remove
-        if (i != 1) continue;
         const auto& param = params[i];
         auto consumers = param->get_output_port_connector(0)->get_consumers();
-        const bool has_brgemm_consumers =
+        const bool brgemm_with_extracted_repacking =
             std::any_of(consumers.begin(), consumers.end(), [](const ov::snippets::lowered::ExpressionPort& port) {
-                return ov::is_type<ov::intel_cpu::BrgemmCPU>(port.get_expr()->get_node());
+                auto brgemm = ov::as_type_ptr<ov::intel_cpu::BrgemmCPU>(port.get_expr()->get_node());
+                return brgemm && brgemm_utils::with_repacking(brgemm->get_type());
             });
-        if (has_brgemm_consumers) {
-            const auto& shape = param->get_output_port_descriptor(0)->get_shape();
-            VectorDims normalized_dims(3, 1);
-            *normalized_dims.rbegin() = *shape.rbegin();
-            *++normalized_dims.rbegin() = *++shape.rbegin();
-            normalized_dims[0] = std::accumulate(shape.begin(), shape.end() - 2, static_cast<Dim>(1), std::multiplies<Dim>());
+        if (brgemm_with_extracted_repacking) {
+            const auto& desc = param->get_output_port_descriptor(0);
+            const auto& shape = desc->get_shape();
+            const auto& K = *++shape.rbegin();
+            const auto& N = *shape.rbegin();
 
-            const auto data_type = DnnlExtensionUtils::ElementTypeToDataType(param->get_node()->get_output_element_type(0));
-            // TODO: tag must be selected based on Brgemm params (inner block + vnni factor?)
-            const auto tag = dnnl::memory::format_tag::aCB16b64c2b;
-            optimal_descs[i] = std::make_shared<DnnlBlockedMemoryDesc>(Shape(normalized_dims), data_type, tag);
+            const auto& precision = param->get_node()->get_output_element_type(0);
+            const auto vnni_factor = brgemm_utils::compute_vnni_factor(precision);
+            const auto n_block = brgemm_utils::repacking::compute_inner_n_block(precision);
+            // Firstly, batch dims are set
+            VectorDims requested_blocked_shape(shape.begin(), shape.end() - m_config->tile_rank);
+            // Then, the blocked dims are formed
+            requested_blocked_shape.insert(
+                requested_blocked_shape.end(),
+                {snippets::utils::div_up(K, vnni_factor), snippets::utils::div_up(N, n_block), n_block, vnni_factor});
+            // Please note: only planar layout is supported for now
+            const VectorDims order{0, 1, 2, 3, 3, 2};
+            auto cpu_desc = std::make_shared<ov::intel_cpu::CpuBlockedMemoryDesc>(precision,
+                                                                                  Shape(shape),
+                                                                                  requested_blocked_shape,
+                                                                                  order);
+            optimal_descs[i] = MemoryDescUtils::convertToDnnlMemoryDesc(cpu_desc);
         }
     }
 }

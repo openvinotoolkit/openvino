@@ -46,9 +46,10 @@ size_t K = std::getenv("K") ? std::atoi(std::getenv("K")) : 2;
 size_t N = std::getenv("N") ? std::atoi(std::getenv("N")) : 32;
 size_t B1 = std::getenv("B1") ? std::atoi(std::getenv("B1")) : 1;
 size_t B2 = std::getenv("B2") ? std::atoi(std::getenv("B2")) : 1;
+size_t B3 = std::getenv("B3") ? std::atoi(std::getenv("B3")) : 1;
 
 std::vector<std::vector<ov::test::InputShape>> input_shapes{
-    { {{}, {{B1, 1, 1, K}}},   {{}, {{B2, 5, K, N}}} },
+    { {{}, {{B1, 1, 1, K}}},   {{}, {{B2, B3, K, N}}} },
     // { {{}, {{2, 1, 3, 5}}},   {{}, {{1, 3, 5, 3}}} },
     // { {{}, {{3, 1, 32, 14}}},   {{}, {{1, 3, 14, 37}}} },
     // { {{}, {{1, 2, 37, 23}}},   {{}, {{2, 1, 23, 37}}} },
