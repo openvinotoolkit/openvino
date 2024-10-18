@@ -14,7 +14,6 @@
 #include "zero_pipeline.hpp"
 #include "zero_profiling.hpp"
 #include "zero_remote_tensor.hpp"
-#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "zero_wrappers.hpp"
 
 namespace intel_npu {
