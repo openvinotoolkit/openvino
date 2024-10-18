@@ -30,11 +30,11 @@ uint32_t ZeroEngineBackend::getGraphExtVersion() const {
 }
 
 bool ZeroEngineBackend::isBatchingSupported() const {
-    return _instance->getGraphDdiTable().version() >= ZE_GRAPH_EXT_VERSION_1_6;
+    return _instance->isExtensionSupported(std::string(ZE_GRAPH_EXT_NAME_1_6));
 }
 
 bool ZeroEngineBackend::isCommandQueueExtSupported() const {
-    return _instance->getCommandQueueDdiTable().version() >= ZE_COMMAND_QUEUE_NPU_EXT_VERSION_1_0;
+    return _instance->isExtensionSupported(std::string(ZE_COMMAND_QUEUE_NPU_EXT_NAME));
 }
 
 bool ZeroEngineBackend::isLUIDExtSupported() const {
