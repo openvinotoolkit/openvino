@@ -11,6 +11,7 @@
 #include "intel_npu/config/runtime.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
+#include "zero_types.hpp"
 
 namespace intel_npu {
 
