@@ -18,19 +18,9 @@
 namespace ov {
 namespace npuw {
 namespace weights {
-
-enum class TransformType : int { THIS, PERMUTE, CONVERT, CONCAT, UNPACK };
-
 // Forward declaration
 class LazyTensor;
 struct LazyTensorImpl;
-
-using ConcatMeta = std::pair<std::vector<LazyTensor>, std::size_t>;
-using UnpackMeta = std::tuple<LazyTensor, LazyTensor, LazyTensor, ov::Shape, ov::element::Type>;
-using ConstPtr = std::shared_ptr<ov::op::v0::Constant>;
-using OrigData = std::variant<ConstPtr, ov::Tensor>;
-
-using Transform = std::variant<OrigData, std::vector<std::size_t>, std::monostate, ConcatMeta, UnpackMeta>;
 
 class LazyTensor {
 public:
@@ -40,17 +30,24 @@ public:
     };
 
     LazyTensor() = default;
-    LazyTensor(const TransformType& type, const Transform& transform);
+    LazyTensor(const ov::Tensor& tensor);
+    LazyTensor(const std::shared_ptr<ov::op::v0::Constant>& const_ptr);
+    LazyTensor(const std::vector<LazyTensor>& to_concat, const std::size_t axis);  // construct from concat
+    LazyTensor(const LazyTensor& cw,
+               const LazyTensor& cz,
+               const LazyTensor& cs,
+               const ov::Shape& shape,
+               const ov::element::Type& type);  // construct from unpack
+
+    LazyTensor permute(const std::vector<std::size_t>& axes);
+    LazyTensor convert();
 
     bool operator==(const LazyTensor& other) const;
     bool operator!=(const LazyTensor& other) const;
 
-    void update(const TransformType& type, const Transform& transform);
     ov::Tensor eval() const;
 
-    ov::Tensor get_orig_tensor() const;
     std::size_t get_hash() const;
-    bool has_transformations() const;
 
 private:
     std::shared_ptr<LazyTensorImpl> m_impl = nullptr;
