@@ -16,7 +16,7 @@ namespace ov {
 namespace frontend {
 namespace tensorflow_lite {
 
-class SparsityInfo : public ov::RuntimeAttribute {
+class TENSORFLOW_LITE_API SparsityInfo : public ov::RuntimeAttribute {
 public:
     struct SparsityDataDesc {
         uint8_t segments_type;
