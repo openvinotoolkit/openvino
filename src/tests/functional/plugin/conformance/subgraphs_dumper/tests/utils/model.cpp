@@ -43,6 +43,9 @@ TEST_F(ModelUtilsTest, generate_0) {
 }
 
 TEST_F(ModelUtilsTest, generate_1) {
+#if defined(WIN32) && !defined(NDEBUG)
+    GTEST_SKIP() << "Skipping on Windows in Debug mode due to Issue 155346.";
+#endif
     Model_1 test;
     std::shared_ptr<ov::Model> test_model = test.get(), recovered_model;
     {
@@ -56,6 +59,9 @@ TEST_F(ModelUtilsTest, generate_1) {
 }
 
 TEST_F(ModelUtilsTest, generate_2) {
+#if defined(WIN32) && !defined(NDEBUG)
+    GTEST_SKIP() << "Skipping on Windows in Debug mode due to Issue 155346.";
+#endif
     Model_2 test;
     std::shared_ptr<ov::Model> test_model = test.get(), recovered_model;
     {
