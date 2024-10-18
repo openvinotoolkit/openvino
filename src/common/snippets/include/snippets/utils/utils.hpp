@@ -305,6 +305,16 @@ void visit_path(const lowered::ExpressionPtr& expr,
                 std::function<void(lowered::ExpressionPtr)> func,
                 bool visit_parent_path);
 
+/**
+ * @brief Checks if layout is planar
+ */
+inline bool is_planar_layout(const std::vector<size_t>& layout) {
+    for (size_t i = 0; i < layout.size(); ++i)
+        if (layout[i] != i)
+            return false;
+    return true;
+}
+
 } // namespace utils
 } // namespace snippets
 } // namespace ov
