@@ -303,3 +303,28 @@ def slice_scatter(
         inputs = as_nodes(data, updates, start, stop, step, axes, name=name)
 
     return _get_node_factory_opset15().create("SliceScatter", inputs)
+
+
+@nameable_op
+def stft(
+    data: NodeInput,
+    window: NodeInput,
+    frame_size: NodeInput,
+    frame_step: NodeInput,
+    transpose_frames: bool,
+    name: Optional[str] = None,
+) -> Node:
+    """Return a node which generates STFT operation.
+
+    :param  data: The node providing input data.
+    :param  window: The node providing window data.
+    :param  frame_size: The node with scalar value representing the size of Fourier Transform.
+    :param  frame_step: The distance (number of samples) between successive window frames.
+    :param  transpose_frames: Flag to set output shape layout. If true the `frames` dimension is at out_shape[2],
+                              otherwise it is at out_shape[1].
+    :param  name: The optional name for the created output node.
+    :return: The new node performing STFT operation.
+    """
+
+    inputs = as_nodes(data, window, frame_size, frame_step, name=name)
+    return _get_node_factory_opset15().create("STFT", inputs)
