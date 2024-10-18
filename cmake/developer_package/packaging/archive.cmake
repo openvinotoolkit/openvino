@@ -30,8 +30,7 @@ macro(ov_archive_cpack_set_dirs)
     set(OV_CPACK_DOCDIR docs)
     set(OV_CPACK_LICENSESDIR licenses)
     set(OV_CPACK_SAMPLESDIR samples)
-    set(OV_CPACK_WHEELSDIR tools)
-    set(OV_CPACK_TOOLSDIR tools)
+    set(OV_CPACK_WHEELSDIR wheels)
     set(OV_CPACK_DEVREQDIR tools)
     set(OV_CPACK_PYTHONDIR python)
 
@@ -87,12 +86,11 @@ macro(ov_define_component_include_rules)
     unset(OV_CPACK_COMP_BENCHMARK_APP_EXCLUDE_ALL)
     unset(OV_CPACK_COMP_OVC_EXCLUDE_ALL)
     set(OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE_EXCLUDE_ALL EXCLUDE_FROM_ALL)
-    unset(OV_CPACK_COMP_PYTHON_WHEELS_EXCLUDE_ALL)
+    # we don't need wheels in the distribution packages 
+    set(OV_CPACK_COMP_PYTHON_WHEELS_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     unset(OV_CPACK_COMP_OPENVINO_REQ_FILES_EXCLUDE_ALL)
     # nodejs
     set(OV_CPACK_COMP_NPM_EXCLUDE_ALL EXCLUDE_FROM_ALL)
-    # tools
-    set(OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     # scripts
     unset(OV_CPACK_COMP_INSTALL_DEPENDENCIES_EXCLUDE_ALL)
     unset(OV_CPACK_COMP_SETUPVARS_EXCLUDE_ALL)

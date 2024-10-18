@@ -93,14 +93,12 @@ JitConstants MVNKernelBfyxOpt::GetJitConstants(const mvn_params& params, MVNKern
         const std::string lws_0 = "get_local_size(0)";
         jit.AddConstants({
             MakeJitConstant("LWS", lws_0),
-            MakeJitConstant("SLM_SIZE", dispatchData.maxSlmSize),
-            MakeJitConstant("DATA_SETS_COUNT", data_set_count),
             MakeJitConstant("DATA_SET_SIZE", data_set_size),
+            MakeJitConstant("DATA_SETS_COUNT", data_set_count),
         });
     } else {
         jit.AddConstants({
             MakeJitConstant("LWS", dispatchData.lws[0]),
-            MakeJitConstant("SLM_SIZE", dispatchData.lws[0]),
             MakeJitConstant("DATA_SETS_COUNT", dispatchData.dataSetsCount),
             MakeJitConstant("DATA_SET_SIZE", dispatchData.dataSetSize),
         });

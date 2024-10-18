@@ -48,6 +48,10 @@ public:
                 (const));
     MOCK_METHOD(std::shared_ptr<ov::Model>, read_model, (const std::string&, const ov::Tensor&, bool), (const));
     MOCK_METHOD(std::shared_ptr<ov::Model>, read_model, (const std::string&, const std::string&), (const));
+    MOCK_METHOD(std::shared_ptr<ov::Model>,
+                read_model,
+                (const std::shared_ptr<AlignedBuffer>&, const std::shared_ptr<AlignedBuffer>&),
+                (const));
     MOCK_METHOD(ov::SoPtr<ov::IRemoteContext>, get_default_context, (const std::string&), (const));
     MOCK_METHOD(ov::SoPtr<ov::ICompiledModel>,
                 import_model,
