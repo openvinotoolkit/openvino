@@ -81,6 +81,7 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         bool has_transpose = pattern_map.count(transpose_m);
         auto scale_shape = pattern_map.at(mul_const_m).get_shape();
         bool grouped = std::count_if(scale_shape.begin(), scale_shape.end(), [](size_t d) { return d > 1; }) > 1;
+        bool sub_with_convert = (pattern_map.count(sub_with_convert_m) > 0) ? true : false;
 
         auto weight_ptr = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(weights_m).get_node_shared_ptr());
         bool weight_u8 = false;
@@ -104,13 +105,15 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
 
         auto convert_const_to_u8 = [&](std::shared_ptr<ov::Node> node) {
             auto constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
+            // Convert ZP to u8
+            if (constant->get_element_type() == ov::element::u8)
+                return std::dynamic_pointer_cast<ov::Node>(constant);
             if (constant->get_element_type() == ov::element::u4)
                 return std::dynamic_pointer_cast<ov::Node>(std::make_shared<ov::op::v0::Convert>(node, ov::element::u8));
-            // Convert ZP to u8
-            if (weight_u8)
+            if (weight_u8 && sub_with_convert)
                 return std::dynamic_pointer_cast<ov::Node>(std::make_shared<ov::op::v0::Convert>(node, ov::element::u8));
 
-             return std::dynamic_pointer_cast<ov::Node>(constant);
+            return std::dynamic_pointer_cast<ov::Node>(constant);
         };
 
 
