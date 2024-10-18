@@ -77,7 +77,8 @@ def patched_forward_sym(self, *args, **kwargs):
         unpacked_weights, 1, 2).contiguous().view(-1, self.group_size, self.width)
 
     # all zp is 8 for symmetrical, will repack to i4 in pt fe transformation
-    unpacked_weights = unpacked_weights.to(dtype) * self.scales    
+    unpacked_weights = (unpacked_weights.to(torch.int8) - torch.tensor(8, dtype=torch.int8))
+    unpacked_weights = unpacked_weights.to(dtype) * self.scales
     unpacked_weights = unpacked_weights.view(-1, self.width)
 
     out = x @ unpacked_weights
