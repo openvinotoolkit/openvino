@@ -18,7 +18,6 @@ public:
     StridedSliceShapeInfer(size_t output_size,
                            std::unordered_set<int64_t> begin_mask,
                            std::unordered_set<int64_t> end_mask,
-                           std::unordered_set<int64_t> new_axis_mask,
                            std::unordered_set<int64_t> shrink_axis_mask);
 
     Result infer(
@@ -33,7 +32,6 @@ private:
     VectorDims m_outputShape;
     const std::unordered_set<int64_t> m_begin_mask_set;
     const std::unordered_set<int64_t> m_end_mask_set;
-    const std::unordered_set<int64_t> m_new_axis_mask_set;
     const std::unordered_set<int64_t> m_shrink_axis_mask_set;
 };
 
