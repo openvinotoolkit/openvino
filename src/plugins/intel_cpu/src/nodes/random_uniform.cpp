@@ -12,6 +12,19 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
+// Following const values are taken from the original paper:
+// https://www.thesalmons.org/john/random123/papers/random123sc11.pdf
+constexpr uint32_t CRUSH_RESISTANCE_CONST_LOWER_VALUE = 0x9E3779B9;
+constexpr uint32_t CRUSH_RESISTANCE_CONST_UPPER_VALUE = 0xBB67AE85;
+constexpr uint64_t STATISTIC_MAXIMIZING_MULTIPLIER_N = 0xD2511F53;
+constexpr uint64_t STATISTIC_MAXIMIZING_MULTIPLIER_COUNTER = 0xCD9E8D57;
+constexpr uint64_t ROUNDS_NUMBER = 10llu;
+
+// Following const values are taken from the original paper (used by PyTorch):
+// https://dl.acm.org/doi/pdf/10.1145/272991.272995
+constexpr int32_t MERSENNE_STATE_N = 624;
+constexpr int32_t MERSENNE_STATE_M = 397;
+
 bool RandomUniform::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (op->get_type_info() != op::v8::RandomUniform::get_type_info_static()) {
@@ -366,42 +379,37 @@ void RandomUniform::prepareMersenneTwisterParams() {
 }
 
 void RandomUniform::prepareGeneratorKernel() {
-    if (one_of(m_algo, PHILOX, MERSENNE_TWISTER)) {
 #if defined(OPENVINO_ARCH_X86_64)
+    if (m_algo == PHILOX) {
+        kernel::random_uniform::PhiloxGeneratorCompileParams jcp;
+        jcp.out_data_type = m_output_prc;
 
-        
+        m_jit_kernel = kernel::JitKernel<kernel::random_uniform::PhiloxGeneratorCompileParams,
+                                        kernel::random_uniform::PhiloxGeneratorCallArgs>
+                                        ::createInstance<kernel::random_uniform::PhiloxGenerator>(jcp);
+    } else if (m_algo == MERSENNE_TWISTER) {
+        kernel::random_uniform::MersenneTwisterGeneratorCompileParams jcp;
+        jcp.out_data_type = m_output_prc;
+        jcp.optimized = m_mersenne_twister_optimization_enabled;
 
-        if (m_algo == PHILOX) {
-            kernel::random_uniform::PhiloxGeneratorCompileParams jcp;
-            jcp.out_data_type = m_output_prc;
+        m_jit_kernel = kernel::JitKernel<kernel::random_uniform::MersenneTwisterGeneratorCompileParams,
+                                        kernel::random_uniform::MersenneTwisterGeneratorCallArgs>
+                                        ::createInstance<kernel::random_uniform::MersenneTwisterGenerator>(jcp);
+    }
 
-            m_jit_kernel = kernel::JitKernel<kernel::random_uniform::PhiloxGeneratorCompileParams,
-                                            kernel::random_uniform::PhiloxGeneratorCallArgs>
-                                            ::createInstance<kernel::random_uniform::PhiloxGenerator>(jcp);
-        } else {
-            kernel::random_uniform::MersenneTwisterGeneratorCompileParams jcp;
-            jcp.out_data_type = m_output_prc;
-            jcp.optimized = m_mersenne_twister_optimization_enabled;
-
-            m_jit_kernel = kernel::JitKernel<kernel::random_uniform::MersenneTwisterGeneratorCompileParams,
-                                            kernel::random_uniform::MersenneTwisterGeneratorCallArgs>
-                                            ::createInstance<kernel::random_uniform::MersenneTwisterGenerator>(jcp);
-        }
-
-        if (m_jit_kernel) {
-            if (auto selected_pd = getSelectedPrimitiveDescriptor()) {
-                using namespace dnnl::impl::cpu;
-                if (m_jit_kernel->getIsa() == x64::avx512_core) {
-                    selected_pd->setImplementationType(jit_avx512);
-                } else if (m_jit_kernel->getIsa() == x64::avx2) {
-                    selected_pd->setImplementationType(jit_avx2);
-                } else if (m_jit_kernel->getIsa() == x64::sse41) {
-                    selected_pd->setImplementationType(jit_sse42);
-                }
+    if (m_jit_kernel) {
+        if (auto selected_pd = getSelectedPrimitiveDescriptor()) {
+            using namespace dnnl::impl::cpu;
+            if (m_jit_kernel->getIsa() == x64::avx512_core) {
+                selected_pd->setImplementationType(jit_avx512);
+            } else if (m_jit_kernel->getIsa() == x64::avx2) {
+                selected_pd->setImplementationType(jit_avx2);
+            } else if (m_jit_kernel->getIsa() == x64::sse41) {
+                selected_pd->setImplementationType(jit_sse42);
             }
         }
-#endif // OPENVINO_ARCH_X86_64
     }
+#endif // OPENVINO_ARCH_X86_64
 }
 
 
@@ -568,9 +576,9 @@ std::pair<uint64_t, uint64_t> RandomUniform::computePhilox(void* out, size_t out
 #define EXEC_CASE(P)                                                                                    \
             case element::P: {                                                                          \
                 auto out_t = reinterpret_cast<element_type_traits<element::P>::value_type *>(out_cur);  \
-                for (; work_rest > 0l; work_rest -= params.step, out_t += params.step) {                          \
+                for (; work_rest > 0l; work_rest -= params.step, out_t += params.step) {                \
                     runPhilox(m_global_seed, counter, n, res);                                          \
-                    auto el_to_copy = std::min(params.step, static_cast<uint64_t>(work_rest));               \
+                    auto el_to_copy = std::min(params.step, static_cast<uint64_t>(work_rest));          \
                     convertToOutputTypePhilox(res, m_min_val.P, m_range_val.P, out_t, el_to_copy);      \
                     if (++n == 0) {                                                                     \
                         counter++;                                                                      \
