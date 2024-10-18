@@ -33,9 +33,6 @@ private:
     /// STFT params
     bool m_transpose_frames = false;
 
-    // RDFT executor
-    std::shared_ptr<RDFTExecutor> rdft_executor;
-
     // Input indices
     static constexpr size_t DATA_IDX = 0lu;
     static constexpr size_t WINDOW_IDX = 1lu;
