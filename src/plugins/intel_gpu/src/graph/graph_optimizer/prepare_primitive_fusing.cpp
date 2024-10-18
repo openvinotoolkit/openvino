@@ -736,6 +736,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             should_fuse |= input.is_type<strided_slice>();
 
+            should_fuse |= input.is_type<crop>();
+
             bool legacy_fusion = activation_node.get_dependencies().size() == 1 &&
                                  !input.can_be_optimized() &&
                                  !activation_node.is_constant() &&
@@ -920,7 +922,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                       (parents[i].first->is_type<gather>()) ||
                                       (parents[i].first->is_type<reduce>() &&
                                        reduce_supports_fusings(parents[i].first->as<reduce>())) ||
-                                      (parents[i].first->is_type<lrn>());
+                                      (parents[i].first->is_type<lrn>()) ||
+                                      (parents[i].first->is_type<crop>());
             }
 
             // Disable fusion to a node on constant path when second input is in data flow
@@ -1047,6 +1050,23 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             auto fused_node = parents[fused_idx].first;
             auto peer_node = parents[peer_idx].first;
+
+            // Avoid fusing with GEMM from the LoRA pattern, that can be optimized in case of empty adapters
+            if (fused_node->is_type<gemm>()) {
+                bool is_fc_lora = peer_node->is_type<fully_connected>() ||
+                                  (peer_node->is_type<crop>() &&
+                                   peer_node->get_dependency(0).is_type<fully_connected>());
+
+                bool is_conv_lora = peer_node->is_type<convolution>();
+
+                bool is_gemm_lora = peer_node->is_type<gemm>() &&
+                                    fused_node->get_input_pshape().rbegin()->is_dynamic();
+
+                if (is_fc_lora || is_conv_lora || is_gemm_lora) {
+                    std::swap(peer_node, fused_node);
+                }
+            }
+
             if (lo.get_optimization_attributes().use_onednn_impls && lo.is_primitive_implemented_for_onednn(*fused_node)) {
                 auto eltw_in_size = peer_node->get_output_layout();
                 if (eltw_in_size.is_dynamic()

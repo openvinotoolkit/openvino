@@ -1074,7 +1074,7 @@ void ROIAlign::executeSpecified() {
         if (!isPlainFmt) {
             std::vector<float> workingBuf;
             int bufSize = rnd_up(C, 16);
-            size_t threadsNum = parallel_get_num_threads();
+            size_t threadsNum = parallel_get_max_threads();
             workingBuf.resize(bufSize * threadsNum, 0.f);
             parallel_for3d(realRois, pooledH, pooledW, [&](int n, int yBinInd, int xBinInd) {
                 int numSamplesROI = numSamples[n];

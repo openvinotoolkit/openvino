@@ -16,13 +16,177 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
-#include "openvino/runtime/make_tensor.hpp"
 #include "plugin.hpp"
 #include "util.hpp"
 #include "weights_bank.hpp"
 
+ov::npuw::MemAccessSim::MemAccessSim(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model) {
+    LOG_VERB("Running memory access simulation...");
+    LOG_BLOCK();
+
+    // Initialize the read list
+    m_read_list.resize(compiled_model->m_compiled_submodels.size());
+
+    // Initialize read counters for tensors in the graph:
+    // 1. Interconnect
+    for (const auto& kvp : compiled_model->m_submodels_input_to_prev_output) {
+        const auto& read_to = kvp.first;     // who reads
+        const auto& read_from = kvp.second;  // reads what
+
+        if (read_to == CompiledModel::NO_LINK || read_from == CompiledModel::NO_LINK) {
+            continue;
+        }
+
+        // Record # of reads for this particular Source
+        m_remaining_reads[read_from]++;
+
+        // Record a read request for this particular Subgraph (who reads the Source)
+        m_read_list[read_to.first].push_back(read_from);
+    }
+    // 2. Global model's outputs
+    for (auto&& read_from : compiled_model->m_outputs_to_submodels_outputs) {
+        m_remaining_reads[read_from]++;
+    }
+
+    LOG_VERB("Done");
+}
+
+const ov::npuw::MemAccessSim::ReadList& ov::npuw::MemAccessSim::read_list(std::size_t idx) const {
+    return m_read_list.at(idx);
+}
+
+std::size_t ov::npuw::MemAccessSim::remaining_reads(const LinkFrom& from) {
+    return m_remaining_reads.at(from);
+}
+
+void ov::npuw::MemAccessSim::register_read(const LinkFrom& from) {
+    m_remaining_reads.at(from)--;
+}
+
+ov::npuw::FuncMemMgr::FuncMemMgr(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model)
+    : m_sim(compiled_model),
+      m_model(compiled_model) {}
+
+void ov::npuw::FuncMemMgr::set_alloc(AllocFcn&& fcn) {
+    m_alloc = std::move(fcn);
+}
+
+void ov::npuw::FuncMemMgr::assign_memory() {
+    LOG_VERB("Assigning function memory...");
+    LOG_BLOCK();
+
+    const auto num_submodels = m_model->m_compiled_submodels.size();
+
+    // Walk over the subgraphs, pre-allocate and pre-assign tensors to the subgraphs
+    // outputs.
+    for (std::size_t idx = 0u; idx < num_submodels; idx++) {
+        LOG_VERB("Process Subgraph[" << idx << "]");
+        LOG_BLOCK();
+        const auto& comp_model_desc = m_model->m_compiled_submodels[idx];
+        if (!comp_model_desc.compiled_model && !comp_model_desc.replaced_by) {
+            // no model & no funcall - optimized out, do nothing
+            continue;
+        }
+
+        // Simulate subgraph execution: poll its input list first
+        const auto& read_list = m_sim.read_list(idx);
+
+        // Now, get the outputs for the subgraph. If it is "regular", there's
+        // nothing to do - this subgraph owns its outputs on its own.
+        // If it is a function, though - look up in the function's memory storage.
+        if (comp_model_desc.replaced_by) {
+            const auto real_idx = comp_model_desc.replaced_by.value();
+            const auto& proto_comp_model_desc = m_model->m_compiled_submodels[real_idx];
+
+            const auto num_outs = proto_comp_model_desc.compiled_model->outputs().size();
+            for (std::size_t out_idx = 0u; out_idx < num_outs; out_idx++) {
+                const LinkFrom this_out = LinkFrom{idx, out_idx};
+                assign(this_out);
+            }
+        }
+
+        // Here happens the imaginary execution... Hocus pocus, done - that's a
+        // simulation after all
+        // After the execution, mark that the read_list was read.
+        for (auto&& from : read_list) {
+            m_sim.register_read(from);
+        }
+        LOG_VERB("Done");
+    }
+
+    // Report memory residency
+    for (auto&& m : m_memory) {
+        LOG_VERB("Function " << m.first.first << "/out port " << m.first.second << " : maximum memory residency "
+                             << m.second.size() << " tensor(s)");
+    }
+
+    LOG_VERB("Done");
+}
+
+void ov::npuw::FuncMemMgr::assign(const LinkFrom& from) {
+    // This method is the center of the function memory management.
+    // The logic is simple:
+    // - Look for an output tensor to reuse
+    //   - If there's one, assign it to this allocation
+    //   - If there's none, allocate a new tensor
+    // - How a tensor to reuse is piced:
+    //   1. It should exist
+    //   2. It's "remaining reads" count should be 0 (all planned reads
+    //      happened at this point).
+    // The tensor storage is organized like this:
+    // - Function: Here we use .replaced_by as a function identifier; taken from `from`
+    //   - Output index: taken from `from`
+    //     - A vector of resident tensors
+
+    LOG_VERB("Assinging tensor for Subgraph[" << from.first << "]/" << from.second << "...");
+    LOG_BLOCK();
+
+    const auto& comp_model_desc = m_model->m_compiled_submodels[from.first];
+    NPUW_ASSERT(comp_model_desc.replaced_by.has_value());
+
+    const auto real_idx = comp_model_desc.replaced_by.value();
+
+    FO func_output = {real_idx, from.second};
+    auto& assigned_memory = m_memory[func_output];
+    auto asgn_iter = std::find_if(assigned_memory.begin(), assigned_memory.end(), [&](Assignment& a) {
+        return m_sim.remaining_reads(a.from) == 0u;
+    });
+    if (asgn_iter != assigned_memory.end()) {
+        // Reassign this memory slot to the new "from"
+        asgn_iter->from = from;
+        m_table[from] = asgn_iter->ptr;
+    } else {
+        // No free space at this point - allocate a new tensor
+        const auto& proto_comp_model_desc = m_model->m_compiled_submodels[real_idx];
+        const auto& proto_comp_model = proto_comp_model_desc.compiled_model;
+
+        const auto& oport = proto_comp_model->outputs()[from.second];
+        ov::Shape oshape = oport.get_shape();
+
+        if (proto_comp_model_desc.spatial) {
+            oshape[proto_comp_model_desc.spatial->out_dim] = proto_comp_model_desc.spatial->range;
+        }
+        const auto& device = m_model->funcall_mem_device(real_idx);
+        TensorPtr new_tensor = m_alloc(oport.get_element_type(), oshape, device);
+        NPUW_ASSERT(new_tensor);
+
+        assigned_memory.push_back(Assignment{new_tensor, from});
+        m_table[from] = new_tensor;
+    }
+    LOG_VERB("Done");
+}
+
+ov::npuw::TensorPtr ov::npuw::FuncMemMgr::get_tensor(const LinkFrom& from) {
+    return m_table.at(from);
+}
+
 ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model)
-    : IBaseInferRequest(compiled_model) {
+    : IBaseInferRequest(compiled_model),
+      m_func_mem_mgr(compiled_model) {
+    using namespace std::placeholders;
+    m_func_mem_mgr.set_alloc(std::bind(&JustInferRequest::allocMem, this, _1, _2, _3));
+    m_func_mem_mgr.assign_memory();
+
     m_use_function_pipelining = m_npuw_model->m_cfg.get<::intel_npu::NPUW_FUNCALL_ASYNC>();
     if (m_use_function_pipelining) {
         LOG_WARN("Function call pipelining is enabled for " << m_npuw_model->m_name
@@ -35,6 +199,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
     // Create infer requests
     // Preallocate funcall tensors & substitute function call requests
     bool failover_happened = false;
+    bool has_spatial = false;
     for (size_t i = 0; i < m_num_submodels; i++) {
         LOG_INFO("Creating infer request for Subgraph[" << i << "]...");
         LOG_BLOCK();
@@ -49,7 +214,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         // FIXME: Shouldn't this be handled by the base class? (in create_tensor)
         // A special case for function calls
         if (comp_model_desc.replaced_by) {
-            // Pre-allocate output tesnors for this function call
+            // Pre-allocate output tensors for this function call
             const auto real_idx = comp_model_desc.replaced_by.value();
             auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
             auto& proto_comp_model = proto_comp_model_desc.compiled_model;
@@ -57,6 +222,8 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
 
             // Initialize the spatial IO placeholders, if required
             if (proto_comp_model_desc.spatial) {
+                has_spatial = true;
+
                 m_spatial_io[real_idx].inputs.resize(proto_comp_model_desc.param_base);
                 m_spatial_io[real_idx].input_tails.resize(proto_comp_model_desc.param_base);
                 m_spatial_io[real_idx].outputs.resize(num_outputs);
@@ -68,27 +235,20 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
                     for (auto&& p : proto_comp_model_desc.spatial->params) {
                         const auto& iport = proto_comp_model_desc.compiled_model->inputs()[p.idx];
                         m_spatial_io[real_idx].input_tails[p.idx] =
-                            ov::get_tensor_impl(ov::Tensor(iport.get_element_type(), iport.get_shape()));
+                            allocOut(iport, m_npuw_model->funcall_mem_device(real_idx));
                     }
                     const auto num_outs = proto_comp_model_desc.compiled_model->outputs().size();
                     for (std::size_t out_idx = 0u; out_idx < num_outs; out_idx++) {
                         const auto& oport = proto_comp_model_desc.compiled_model->outputs()[out_idx];
                         m_spatial_io[real_idx].output_tails[out_idx] =
-                            ov::get_tensor_impl(ov::Tensor(oport.get_element_type(), oport.get_shape()));
+                            allocOut(oport, m_npuw_model->funcall_mem_device(real_idx));
                     }
                 }
             }  // if(spatial)
 
             for (size_t out_idx = 0; out_idx < num_outputs; out_idx++) {
-                const auto& port = proto_comp_model->outputs()[out_idx];
-                ov::Shape shape = port.get_shape();
-
-                // If the subgraph is spatial, promote the output size to the full vector size
-                if (proto_comp_model_desc.spatial) {
-                    shape[proto_comp_model_desc.spatial->out_dim] = proto_comp_model_desc.spatial->range;
-                }
-                m_funcall_result[LinkFrom{i, out_idx}] =
-                    ov::get_tensor_impl(ov::Tensor(port.get_element_type(), shape));
+                const auto from = LinkFrom{i, out_idx};
+                m_funcall_result[from] = m_func_mem_mgr.get_tensor(from);
             }
             if (real_idx != i) {
                 // If this function call is NOT the function body, do nothing here - the original
@@ -153,7 +313,9 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
     LOG_INFO("Preallocating input tensors...");
     for (size_t i = 0; i < m_npuw_model->inputs().size(); i++) {
         const auto& port = m_npuw_model->inputs()[i];
-        m_input_tensors.push_back(ov::get_tensor_impl(ov::Tensor(port.get_element_type(), port.get_shape())));
+        ov::SoPtr<ov::ITensor> allocated = allocOut(port, m_npuw_model->global_mem_device());
+        m_input_tensors.push_back(allocated);
+        m_input_allocated.insert(allocated->data());
         m_port_to_tensor[port] = TensorStorage{m_input_tensors.back(), true};
     }  // for(inputs)
 
@@ -173,7 +335,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         const auto& tensor =
             funcall_result_iter != m_funcall_result.end()
                 ? funcall_result_iter->second  // Function calls have their tensors allocated, so just use one
-                : ov::get_tensor_impl(ov::Tensor(port.get_element_type(), port.get_shape()));
+                : allocOut(port, m_npuw_model->global_mem_device());
 
         m_output_tensors.push_back(tensor);
         m_port_to_tensor[port] = TensorStorage{tensor, true};
@@ -239,6 +401,24 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
             }
         }  // for(closure)
         LOG_VERB("DONE");
+    }
+
+    // Handle spatial dynamic submission
+    if (has_spatial) {
+        if (m_npuw_model->m_cfg.get<::intel_npu::NPUW_SPATIAL_DYN>()) {
+            LOG_VERB("Finding spatial features...");
+            LOG_BLOCK();
+            m_spatial_selector = runtime::spatial::AttentionMask::find(*this);
+            if (!m_spatial_selector) {
+                LOG_WARN("Spatial capability is enabled, but no run-time features were found.");
+                // Fallback selector to ALL
+                m_spatial_selector.reset(new runtime::spatial::All());
+            }
+        } else {
+            // Just force selector to ALL
+            m_spatial_selector.reset(new runtime::spatial::All());
+        }
+        LOG_VERB("Done");
     }
 }
 
@@ -347,6 +527,11 @@ void ov::npuw::JustInferRequest::prepare_for_infer() {
         LOG_DEBUG("Pre-initializing weights for subgraph[" << id << "]");
         unpack_closure(id, m_subrequests[id]);
     }
+
+    // Adjust spatial input range, if supported
+    if (m_spatial_selector) {
+        m_spatial_selector->prepare();
+    }
     LOG_DEBUG("Done");
 }
 
@@ -421,7 +606,7 @@ void ov::npuw::JustInferRequest::bind_global_parameters(std::size_t idx) {
         LOG_BLOCK();
         if (!is_spatial_param(sub_in_idx)) {
             // Input parameter is non-spatial, do normal handling
-            if (do_copy) {
+            if (do_copy || m_input_allocated.count(g_tnsr->data()) == 0) {
                 LOG_DEBUG("Will be copied");
                 copy_list.emplace_back(g_tnsr, s_port);
             } else {
@@ -756,6 +941,7 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx) {
         // must be prepared in the m_spatial_io at this point
         const auto& spatial = comp_model_desc.spatial.value();
         const auto num_outputs = comp_model_desc.compiled_model->outputs().size();
+        NPUW_ASSERT(m_spatial_selector);
 
         // Create a sparse vector with full input sizes.
         // For the access simplicity, its size is aligned with function's
@@ -781,6 +967,10 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx) {
 
         std::size_t offset = 0u;
         for (std::size_t i = 0u; i < spatial.nway_iters; i++, offset += spatial.nway) {
+            if (!m_spatial_selector->need_submit(offset, spatial.nway)) {
+                continue;
+            }
+
             // Collect spatial inputs for this offset
             for (auto&& param : spatial.params) {
                 const auto& iport = comp_model_desc.compiled_model->inputs()[param.idx];
@@ -804,7 +994,7 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx) {
         }  // for(full_nway_times)
 
         // Now process the tail, if required
-        if (spatial.tail_size) {
+        if (spatial.tail_size && m_spatial_selector->need_submit(offset, spatial.tail_size)) {
             // Copy the sub-ranges to spatial inputs
             // NOTE: tails buffers are read from/written to at 0th offset!
             for (auto&& param : spatial.params) {
@@ -917,6 +1107,24 @@ void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool
             });
         }
     }  // if (replaced_by)
+}
+
+ov::npuw::TensorPtr ov::npuw::JustInferRequest::allocMem(const ov::element::Type type,
+                                                         const ov::Shape& shape,
+                                                         const std::string& device) {
+    if (device == "CPU" || ov::shape_size(shape) == 0) {
+        return ov::get_tensor_impl(ov::Tensor(type, shape));
+    }
+
+    // Protect access to shared context(s) - at least among infer requests
+    auto remote_ctx = m_npuw_model->get_plugin()->get_core()->get_default_context(device)._ptr;
+    auto remote_tensor = remote_ctx->create_host_tensor(type, shape);
+    return ov::get_tensor_impl(ov::make_tensor(remote_tensor));
+}
+
+ov::npuw::TensorPtr ov::npuw::JustInferRequest::allocOut(const ov::Output<const ov::Node>& node,
+                                                         const std::string& device) {
+    return allocMem(node.get_element_type(), node.get_shape(), device);
 }
 
 void ov::npuw::JustInferRequest::subscribe_subrequest(std::size_t idx, Completed cb) {
