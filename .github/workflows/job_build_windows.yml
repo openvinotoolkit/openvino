@@ -218,21 +218,21 @@ jobs:
       #
 
       - name: Upload openvino package
-        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: openvino_package
           path: ${{ env.BUILD_DIR }}/openvino_package.zip
           if-no-files-found: 'error'
           
       - name: Upload openvino wheels
-        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: openvino_wheels
           path: ${{ env.BUILD_DIR }}/wheels/*.whl
           if-no-files-found: 'error'
 
       - name: Upload openvino tests package
-        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.zip
@@ -240,7 +240,7 @@ jobs:
 
       - name: Upload openvino js package
         if: ${{ fromJSON(inputs.affected-components).JS_API }}
-        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: openvino_js_package
           path: ${{ env.INSTALL_DIR_JS }}
