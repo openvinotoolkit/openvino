@@ -261,7 +261,6 @@ void RuntimeConfigurator::update_data_offsets(const std::vector<VectorDims>& sha
                                               const std::vector<std::vector<size_t>>& layouts) const {
     OPENVINO_ASSERT(shapes.size() == m_io_num, "Number of custom shapes must be 0 or be equal to m_io_num");
     OPENVINO_ASSERT(layouts.size() == m_io_num, "Number of custom layouts must be 0 or be equal to m_io_num");
-    std::cout << "[ INFO ] Offsets\n";
     for (size_t i = 0; i <  m_io_num; ++i) {
         // offsets represent distance between consecutive elements of corresponding dimension.
         // If a dim size == 1, then the next dim starts immediately and the stride is 0
@@ -282,7 +281,6 @@ void RuntimeConfigurator::update_data_offsets(const std::vector<VectorDims>& sha
         const auto idx_stride = m_config->tensor_rank - shape.size();
         compute_offsets(shape, offsets, m_config->tensor_rank, m_io_data_sizes[i], idx_stride);
 
-        std::cout << "\t offsets[" << i << "] = " << ov::PartialShape(offsets) << std::endl;
         const auto& layout = layouts[i];
         if (!layout.empty()) {
             std::vector<size_t> reordered_offsets(offsets.size());

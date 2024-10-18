@@ -50,6 +50,7 @@ pass::MoveBrgemmRepackingOut::MoveBrgemmRepackingOut() {
         if (!ov::snippets::utils::is_planar_layout(layout) || copy_b_node->get_output_size() != 1 ||
             transformation_callback(copy_b_node))
             return false;
+        std::cout << "[ INFO ] MoveBrgemmRepackingOut is finished\n";
         return ov::replace_output_update_name(copy_b_out, copy_b_in);
     };
 

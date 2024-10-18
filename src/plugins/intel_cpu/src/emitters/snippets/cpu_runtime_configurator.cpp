@@ -144,7 +144,7 @@ void CPURuntimeConfigurator::update_requested_descs(const ov::snippets::lowered:
         const bool brgemm_with_extracted_repacking =
             std::any_of(consumers.begin(), consumers.end(), [](const ov::snippets::lowered::ExpressionPort& port) {
                 auto brgemm = ov::as_type_ptr<ov::intel_cpu::BrgemmCPU>(port.get_expr()->get_node());
-                return brgemm && brgemm_utils::with_repacking(brgemm->get_type());
+                return port.get_index() == 1 && brgemm && brgemm_utils::with_repacking(brgemm->get_type());
             });
         if (brgemm_with_extracted_repacking) {
             const auto& desc = param->get_output_port_descriptor(0);
@@ -183,15 +183,9 @@ void CPURuntimeConfigurator::adjust_offsets_from_descs(const ov::snippets::lower
             const auto& blocked_shape = optimal_desc->as<DnnlBlockedMemoryDesc>()->getBlockDims();
 
             ov::snippets::VectorDims shape_for_offset(m_config->tensor_rank - original_shape.size(), 1);
-            // Parallel work amount is copied from original shape
-            shape_for_offset.insert(shape_for_offset.end(), original_shape.begin(), original_shape.end() - m_config->tile_rank);
-            // Only first dim is batch, the rest are repacked KN
-            shape_for_offset.insert(shape_for_offset.end(), blocked_shape.begin() + 1, blocked_shape.end());
-            std::cout << "[ INFO ] shape_for_offset = " << ov::PartialShape(shape_for_offset) << std::endl;
-
+            shape_for_offset.insert(shape_for_offset.end(), blocked_shape.begin(), blocked_shape.end());
             auto& offsets = m_config->io_data_offsets[i];
             compute_offsets(shape_for_offset, offsets, shape_for_offset.size(), m_io_data_sizes[i], 0);
-            std::cout << "[ INFO ] offsets[*] = " << ov::PartialShape(offsets) << std::endl;
             OPENVINO_ASSERT(ov::snippets::utils::is_planar_layout(parameter->get_output_port_descriptor(0)->get_layout()));
         }
     }

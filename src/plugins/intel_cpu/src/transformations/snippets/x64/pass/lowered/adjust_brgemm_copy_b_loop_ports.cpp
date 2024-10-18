@@ -86,7 +86,6 @@ bool pass::AdjustBrgemmCopyBLoopPorts::run(const snippets::lowered::LinearIR& li
             }
         }
         for (const auto& target_port : ports) {
-            std::cout << "[ INFO ] AdjustBrgemmCopyBLoopPorts works\n";
             const auto &target_loop_ids = target_port.get_expr()->get_loop_ids();
 
             // If loop ids match, it means there is no blocking loop
