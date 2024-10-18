@@ -142,9 +142,9 @@ OutputVector index_on_list(ov::pass::NodeRegistry& rg,
     auto transpose_dims = v0::Constant::create(element::i32, Shape{permutation_dims.size()}, permutation_dims);
     auto transposed_input = rg.make<v1::Transpose>(data, transpose_dims);
     auto flatten_input = flatten(rg, transposed_input, adv_idx_count);
-    auto cum_adv_index = masked_indicies[advanced_ids.back()];
+    auto cum_adv_index = masked_indicies[advanced_ids[adv_idx_count - 1]];
     cum_adv_index = rg.make<v0::Convert>(cum_adv_index, element::i32);
-    auto multiplier = input_dims->output(advanced_ids.back());
+    auto multiplier = input_dims->output(advanced_ids[adv_idx_count - 1]);
     for (int i = static_cast<int>(adv_idx_count) - 2; i > -1; i--) {
         auto input_id = advanced_ids[i];
         auto m_idx = rg.make<v0::Convert>(masked_indicies[input_id], element::i32);
@@ -157,7 +157,7 @@ OutputVector index_on_list(ov::pass::NodeRegistry& rg,
     // check if all advanced indices are consecutive.
     std::vector<size_t> consequence_dims;
     auto cum_adv_index_shape_tensor = rg.make<v3::ShapeOf>(cum_adv_index, element::i32);
-    for (size_t i = advanced_ids[0]; i <= advanced_ids[advanced_ids.back()]; i++) {
+    for (size_t i = advanced_ids[0]; i <= advanced_ids[advanced_ids.size() - 1]; i++) {
         consequence_dims.push_back(i);
     }
     // unfold regular index axes
