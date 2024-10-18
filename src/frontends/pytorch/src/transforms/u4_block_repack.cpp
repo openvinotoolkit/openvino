@@ -134,16 +134,19 @@ U4ConvertReshape::U4ConvertReshape() {
     const auto& m_convert_8 = wrap_type<v0::Convert>({m_constant_8});
     const auto& m_multiply = wrap_type<v1::Multiply>({m_convert_8, m_convert_1});
 
-    const auto& m_converted_constant_8 = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{m_multiply, m_convert_8});
+    const auto& m_converted_constant_8 =
+        std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{m_multiply, m_convert_8});
     const auto& m_subtract = wrap_type<v1::Subtract>({m_convert, m_converted_constant_8});
-    const auto& m_converted_constant = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{m_subtract, m_constant});
+    const auto& m_converted_constant =
+        std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{m_subtract, m_constant});
     const auto& m_reshape = wrap_type<v1::Reshape>({m_converted_constant, any_input()});
 
     register_matcher(
         std::make_shared<Matcher>(m_reshape, "ov::frontend::pytorch::pass::U4ConvertReshape"),
         [=](Matcher& m) {
             auto& pattern_to_output = m.get_pattern_value_map();
-            auto u4_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output[m_constant].get_node_shared_ptr());
+            auto u4_const =
+                std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output[m_constant].get_node_shared_ptr());
             if (!u4_const)
                 return false;
 
@@ -155,13 +158,17 @@ U4ConvertReshape::U4ConvertReshape() {
 
             std::shared_ptr<v0::Constant> new_const;
             if (pattern_to_output.count(m_constant_8)) {
-                auto constant_8 = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output[m_constant_8].get_node_shared_ptr());
-                if (ov::shape_size(constant_8->get_output_shape(0)) != 1 || constant_8->get_output_element_type(0).is_real() || constant_8->cast_vector<int64_t>()[0] != 8)
+                auto constant_8 = std::dynamic_pointer_cast<ov::op::v0::Constant>(
+                    pattern_to_output[m_constant_8].get_node_shared_ptr());
+                if (ov::shape_size(constant_8->get_output_shape(0)) != 1 ||
+                    constant_8->get_output_element_type(0).is_real() || constant_8->cast_vector<int64_t>()[0] != 8)
                     return false;
-            
-                if (pattern_to_output.count(m_constant_1)){
-                    auto constant_1 = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output[m_constant_1].get_node_shared_ptr());
-                    if (ov::shape_size(constant_1->get_output_shape(0)) != 1 || constant_1->get_output_element_type(0).is_real() || constant_1->cast_vector<int64_t>()[0] != 1)
+
+                if (pattern_to_output.count(m_constant_1)) {
+                    auto constant_1 = std::dynamic_pointer_cast<ov::op::v0::Constant>(
+                        pattern_to_output[m_constant_1].get_node_shared_ptr());
+                    if (ov::shape_size(constant_1->get_output_shape(0)) != 1 ||
+                        constant_1->get_output_element_type(0).is_real() || constant_1->cast_vector<int64_t>()[0] != 1)
                         return false;
                 }
 
@@ -175,13 +182,12 @@ U4ConvertReshape::U4ConvertReshape() {
                     // subtracting 8 from 2 int4 elements
                     dst[i] = src[i] ^ 0b10001000;
                 }
-            }
-            else {
+            } else {
                 new_const = std::make_shared<v0::Constant>(*u4_const, dst_shape);
             }
 
             NodeVector pattern_nodes;
-            for(auto const& iout: pattern_to_output)
+            for (auto const& iout : pattern_to_output)
                 pattern_nodes.push_back(std::move(iout.first));
 
             copy_runtime_info(pattern_nodes, new_const);
