@@ -2,16 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <optional>
-
-#include "intel_npu/al/icompiled_model.hpp"
-#include "intel_npu/utils/logger/logger.hpp"
 #include "npu.hpp"
-#include "openvino/runtime/so_ptr.hpp"
 
 namespace intel_npu {
 
-constexpr std::string_view VERSION_HEADER = "OVNPU";
+constexpr std::string_view DELIMITER = "OVNPU";
 
 constexpr int CURRENT_METAVERSION_MAJOR = 1;
 constexpr int CURRENT_METAVERSION_MINOR = 0;
@@ -40,7 +35,7 @@ struct Metadata<1, 0> {
 
     Metadata();
 
-    std::stringstream data();
+    std::stringstream data() const;
 
     void write(std::ostream& stream);
 

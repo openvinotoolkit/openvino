@@ -3,8 +3,7 @@
 //
 
 #include "model_version.hpp"
-
-#include "compiled_model.hpp"
+#include "intel_npu/utils/logger/logger.hpp"
 
 namespace intel_npu {
 
@@ -21,10 +20,10 @@ void OpenvinoVersion::read(std::istream& stream) {
 
 Metadata<1, 0>::Metadata() : version{1, 0}, ovVersion{ov::get_openvino_version().buildNumber} {}
 
-std::stringstream Metadata<1, 0>::data() {
+std::stringstream Metadata<1, 0>::data() const {
     std::stringstream stream;
 
-    stream.write(VERSION_HEADER.data(), VERSION_HEADER.size());
+    stream.write(DELIMITER.data(), DELIMITER.size());
 
     stream.write(reinterpret_cast<const char*>(&version.major), sizeof(version.major));
     stream.write(reinterpret_cast<const char*>(&version.minor), sizeof(version.minor));
@@ -45,22 +44,21 @@ void Metadata<1, 0>::read(std::istream& stream) {
 
 void check_blob_version(std::vector<uint8_t>& blob) {
     size_t blobDataSize;
-    auto metadataIterator = blob.end() - sizeof(size_t);
+    auto metadataIterator = blob.end() - sizeof(blobDataSize);
     memcpy(&blobDataSize, &(*metadataIterator), sizeof(blobDataSize));
-    if (blobDataSize == blob.size() - sizeof(blobDataSize)) { // actually this check is useless, isn't it?
+    if (blobDataSize >= blob.size() - sizeof(blobDataSize)) {
         OPENVINO_THROW("Imported blob is not versioned");
     }
 
     metadataIterator = blob.begin() + blobDataSize;
+    std::stringstream metadataStream;
+    metadataStream.write(reinterpret_cast<const char*>(&(*metadataIterator)), blob.end() - metadataIterator - sizeof(blobDataSize));
 
-    std::string blobVersionHeader(metadataIterator, metadataIterator + VERSION_HEADER.size());
-    if (VERSION_HEADER != blobVersionHeader) {
+    std::string blobVersionHeader(DELIMITER.size(), '\0');
+    metadataStream.read(&blobVersionHeader[0], DELIMITER.size());
+    if (DELIMITER != blobVersionHeader) {
         OPENVINO_THROW("Version header mismatch or missing");
     }
-    metadataIterator += VERSION_HEADER.size();
-
-    std::stringstream metadataStream;
-    metadataStream.write(reinterpret_cast<const char*>(&(*metadataIterator)), blob.end() - metadataIterator - sizeof(size_t));
 
     MetadataVersion metaVersion;
     metadataStream.read(reinterpret_cast<char*>(&metaVersion.major), sizeof(metaVersion.major));
