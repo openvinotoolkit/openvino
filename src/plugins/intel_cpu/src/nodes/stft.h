@@ -7,7 +7,6 @@
 #include <string>
 
 #include "node.h"
-#include "rdft.h"
 
 namespace ov {
 namespace intel_cpu {
