@@ -42,6 +42,7 @@ OP_CONVERTER(translate_argmax);
 OP_CONVERTER(translate_argmin);
 OP_CONVERTER(translate_as_strided);
 OP_CONVERTER(translate_as_tensor);
+OP_CONVERTER(translate_atan2);
 OP_CONVERTER(translate_avg_pool1d);
 OP_CONVERTER(translate_avg_pool2d);
 OP_CONVERTER(translate_avg_pool3d);
@@ -385,6 +386,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::atanh",
          op::optional_out<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Atanh>, 1>},
         {"aten::atanh_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Atanh>>},
+        {"aten::atan2", op::translate_atan2},
         {"aten::avg_pool1d", op::quantizable_op<op::translate_avg_pool1d>},
         {"aten::avg_pool2d", op::quantizable_op<op::translate_avg_pool2d>},
         {"aten::avg_pool3d", op::quantizable_op<op::translate_avg_pool3d>},
@@ -776,6 +778,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.asinh.default", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Asinh>},
         {"aten.atan.default", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Atan>},
         {"aten.atanh.default", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Atanh>},
+        {"aten.atan2.default", op::translate_atan2},
         {"aten.avg_pool2d.default", op::translate_avg_pool2d},
         {"aten.avg_pool3d.default", op::translate_avg_pool3d},
         {"aten.baddbmm.default", op::translate_addmm_fx},
