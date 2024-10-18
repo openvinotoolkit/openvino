@@ -4,14 +4,17 @@
 
 #include "model_version.hpp"
 
+#include "compiled_model.hpp"
+
 namespace intel_npu {
 
 OpenvinoVersion::OpenvinoVersion(const std::string& version) {
     this->version = version;
-    this->size = version.size();
+    this->size = static_cast<uint32_t>(version.size());
 }
 
 void OpenvinoVersion::read(std::istream& stream) {
+    // compare here ov version?
     stream.read(reinterpret_cast<char*>(&size), sizeof(size));
     version.resize(size);
     stream.read(&version[0], size);
@@ -34,9 +37,9 @@ std::stringstream Metadata<1, 0>::data() {
 }
 
 void Metadata<1, 0>::write(std::ostream& stream) {
-    std::stringstream metav1_data = data();
+    std::stringstream metaData = data(); // maybe we find a better name
 
-    stream << metav1_data.rdbuf();
+    stream << metaData.rdbuf();
 }
 
 void Metadata<1, 0>::read(std::istream& stream) {
@@ -47,7 +50,7 @@ void check_blob_version(std::vector<uint8_t>& blob, std::istream& stream) {
     size_t blobDataSize;
     auto metadataIterator = blob.end() - sizeof(size_t);
     memcpy(&blobDataSize, &(*metadataIterator), sizeof(blobDataSize));
-    if (blobDataSize == blob.size() - sizeof(blobDataSize)) {
+    if (blobDataSize == blob.size() - sizeof(blobDataSize)) { // actually this check is useless, isn't it?
         OPENVINO_THROW("Imported blob is not versioned");
     }
 

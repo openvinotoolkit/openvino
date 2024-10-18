@@ -146,7 +146,7 @@ void CompiledModel::export_model(std::ostream& stream) const {
 
     auto meta = Metadata<CURRENT_METAVERSION_MAJOR, CURRENT_METAVERSION_MINOR>();
     meta.write(stream);
-
+    // should we move this inside meta.write()?
     size_t blobSizeBeforeVersioning = blob.size();
     stream.write(reinterpret_cast<const char*>(&blobSizeBeforeVersioning), sizeof(size_t));
 

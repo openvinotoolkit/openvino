@@ -26,6 +26,7 @@ struct OpenvinoVersion {
     std::string version;
 
     OpenvinoVersion(const std::string& version);
+
     void read(std::istream& stream);
 };
 
