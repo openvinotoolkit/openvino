@@ -6,7 +6,7 @@
 #include "common/utils.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
-#include "intel_npu/al/config/common.hpp"
+#include "config/common.hpp"
 
 #include <openvino/runtime/intel_npu/properties.hpp>
 
