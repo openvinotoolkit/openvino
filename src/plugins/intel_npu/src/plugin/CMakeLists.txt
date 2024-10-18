@@ -61,11 +61,13 @@ target_include_directories(${TARGET_NAME}
     PRIVATE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/>
 )
-target_include_directories(${TARGET_NAME}
-    SYSTEM PRIVATE
-        $<TARGET_PROPERTY:LevelZero::LevelZero,INTERFACE_INCLUDE_DIRECTORIES>
-        $<TARGET_PROPERTY:LevelZero::NPUExt,INTERFACE_INCLUDE_DIRECTORIES>
-)
+if(ENABLE_ZEROAPI_BACKEND)
+    target_include_directories(${TARGET_NAME}
+        SYSTEM PRIVATE
+            $<TARGET_PROPERTY:LevelZero::LevelZero,INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:LevelZero::NPUExt,INTERFACE_INCLUDE_DIRECTORIES>
+    )
+endif()
 
 cross_compiled_file(${TARGET_NAME}
         ARCH AVX2 ANY
