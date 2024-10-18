@@ -183,7 +183,7 @@ struct padding {
     }
 
     friend bool operator<(const padding& lhs, const padding& rhs) {
-        OPENVINO_ASSERT(!lhs.is_dynamic() && !rhs.is_dynamic(), "[GPU] padding compare is called for dynamic shape");
+        // Compare only actual padding size not _dynamic_dims_mask
         if (lhs._lower_size < rhs._lower_size) return true;
         else if (lhs._lower_size > rhs._lower_size) return false;
         if (lhs._upper_size < rhs._upper_size) return true;
