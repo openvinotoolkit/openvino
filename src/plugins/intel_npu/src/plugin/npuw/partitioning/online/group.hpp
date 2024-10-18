@@ -77,6 +77,7 @@ public:
     // FIXME: unify avoid and isolate
     void avoid(const std::string& device);
     void isolate(const std::string& tag);
+    void dontIsolate();
     const std::set<std::string>& avoidedTargets() const;
     const std::string& isolatedTag() const;
     std::string specialTags() const;

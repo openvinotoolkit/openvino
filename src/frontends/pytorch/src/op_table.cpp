@@ -42,7 +42,9 @@ OP_CONVERTER(translate_argmax);
 OP_CONVERTER(translate_argmin);
 OP_CONVERTER(translate_as_strided);
 OP_CONVERTER(translate_as_tensor);
-OP_CONVERTER(translate_avg_poolnd);
+OP_CONVERTER(translate_avg_pool1d);
+OP_CONVERTER(translate_avg_pool2d);
+OP_CONVERTER(translate_avg_pool3d);
 OP_CONVERTER(translate_bool);
 OP_CONVERTER(translate_batch_norm);
 OP_CONVERTER(translate_bitwise_and);
@@ -139,7 +141,9 @@ OP_CONVERTER(translate_masked_scatter);
 OP_CONVERTER(translate_masked_select);
 OP_CONVERTER(translate_max);
 OP_CONVERTER(translate_maximum);
-OP_CONVERTER(translate_max_poolnd);
+OP_CONVERTER(translate_max_pool1d);
+OP_CONVERTER(translate_max_pool2d);
+OP_CONVERTER(translate_max_pool3d);
 OP_CONVERTER(translate_mean);
 OP_CONVERTER(translate_meshgrid);
 OP_CONVERTER(translate_min);
@@ -281,7 +285,8 @@ OP_CONVERTER(translate_leaky_relu_fx);
 OP_CONVERTER(translate_log_sigmoid_fx);
 OP_CONVERTER(translate_log_softmax_fx);
 OP_CONVERTER(translate_max_dim_fx);
-OP_CONVERTER(translate_max_poolnd_fx);
+OP_CONVERTER(translate_max_pool2d_fx);
+OP_CONVERTER(translate_max_pool3d_fx);
 OP_CONVERTER(translate_mean_fx);
 OP_CONVERTER(translate_min_dim_fx);
 OP_CONVERTER(translate_new_full_fx);
@@ -380,9 +385,9 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::atanh",
          op::optional_out<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Atanh>, 1>},
         {"aten::atanh_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Atanh>>},
-        {"aten::avg_pool1d", op::quantizable_op<op::translate_avg_poolnd>},
-        {"aten::avg_pool2d", op::quantizable_op<op::translate_avg_poolnd>},
-        {"aten::avg_pool3d", op::quantizable_op<op::translate_avg_poolnd>},
+        {"aten::avg_pool1d", op::quantizable_op<op::translate_avg_pool1d>},
+        {"aten::avg_pool2d", op::quantizable_op<op::translate_avg_pool2d>},
+        {"aten::avg_pool3d", op::quantizable_op<op::translate_avg_pool3d>},
         {"aten::baddbmm", op::translate_addmm},
         {"aten::batch_norm", op::translate_batch_norm},
         {"aten::bitwise_and", op::translate_bitwise_and},
@@ -534,12 +539,12 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::max", op::translate_max},
         {"aten::mv", op::translate_1to1_match_2_inputs<opset10::MatMul>},
         {"aten::maximum", op::translate_maximum},
-        {"aten::max_pool1d", op::quantizable_op<op::translate_max_poolnd>},
-        {"aten::max_pool1d_with_indices", op::quantizable_op<op::translate_max_poolnd>},
-        {"aten::max_pool2d", op::quantizable_op<op::translate_max_poolnd>},
-        {"aten::max_pool2d_with_indices", op::quantizable_op<op::translate_max_poolnd>},
-        {"aten::max_pool3d", op::quantizable_op<op::translate_max_poolnd>},
-        {"aten::max_pool3d_with_indices", op::quantizable_op<op::translate_max_poolnd>},
+        {"aten::max_pool1d", op::quantizable_op<op::translate_max_pool1d>},
+        {"aten::max_pool1d_with_indices", op::quantizable_op<op::translate_max_pool1d>},
+        {"aten::max_pool2d", op::quantizable_op<op::translate_max_pool2d>},
+        {"aten::max_pool2d_with_indices", op::quantizable_op<op::translate_max_pool2d>},
+        {"aten::max_pool3d", op::quantizable_op<op::translate_max_pool3d>},
+        {"aten::max_pool3d_with_indices", op::quantizable_op<op::translate_max_pool3d>},
         {"aten::mean", op::quantizable_op<op::translate_mean>},
         {"aten::meshgrid", op::translate_meshgrid},
         {"aten::min", op::translate_min},
@@ -663,6 +668,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         // aten::unbind - Supported in limited set of patterns
         {"aten::unflatten", op::translate_unflatten},
         {"aten::unfold", op::translate_unfold},
+        // aten::unsafe_chunk - Supported in limited set of patterns
         {"aten::unsqueeze", op::quantizable_op<op::translate_1to1_match_2_inputs<opset10::Unsqueeze>>},
         {"aten::upsample_bicubic2d", op::translate_upsample_bicubic2d},
         {"aten::upsample_bilinear2d", op::translate_upsample_bilinear2d},
@@ -770,8 +776,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.asinh.default", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Asinh>},
         {"aten.atan.default", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Atan>},
         {"aten.atanh.default", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Atanh>},
-        {"aten.avg_pool2d.default", op::translate_avg_poolnd},
-        {"aten.avg_pool3d.default", op::translate_avg_poolnd},
+        {"aten.avg_pool2d.default", op::translate_avg_pool2d},
+        {"aten.avg_pool3d.default", op::translate_avg_pool3d},
         {"aten.baddbmm.default", op::translate_addmm_fx},
         {"aten.bitwise_and.Scalar", op::translate_bitwise_and},
         {"aten.bitwise_and.Tensor", op::translate_bitwise_and},
@@ -869,8 +875,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.masked_fill_.Tensor", op::inplace_op<op::translate_masked_fill>},
         {"aten.max.default", op::translate_max},
         {"aten.max.dim", op::translate_max_dim_fx},
-        {"aten.max_pool2d_with_indices.default", op::translate_max_poolnd_fx},
-        {"aten.max_pool3d_with_indices.default", op::translate_max_poolnd_fx},
+        {"aten.max_pool2d_with_indices.default", op::translate_max_pool2d_fx},
+        {"aten.max_pool3d_with_indices.default", op::translate_max_pool3d_fx},
         {"aten.maximum.default", op::translate_maximum},
         {"aten.mean.default", op::translate_mean_fx},
         {"aten.mean.dim", op::translate_mean_fx},
