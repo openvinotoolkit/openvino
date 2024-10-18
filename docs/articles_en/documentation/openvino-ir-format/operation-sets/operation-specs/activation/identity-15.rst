@@ -9,27 +9,10 @@ Identity
 
 **Category**: *Matrix*
 
-**Short description**: *Identity* operation forwards the input as the output, essentially computing the4 linear activation function f(x) = x.
+**Short description**: The *Identity* operation forwards the input to the output.
 
-**Detailed description**: *Identity* operation either directly outputs the input, or returns a new Tensor with the same shape, data type and data as the input.
-
-This behavior is targeted to mimic the design of PyTorch and Tensorflow frameworks. PyTorch by design returns the reference of the input, whereas Tensorflow creates a copy of the input.
-
-Copy operation is significantly more memory- and computationally-heavy.
-
-**Attribute**:
-
-* *copy*
-
-  * **Description**: Modifies the behavior of Identity. If false, input is passed as the output, keeping the same memory adress. If true, a copy of input is created and returned as input.
-  * **Range of values**: `true`, `false`
-
-    * ``true`` - returned value is a copy of the input. Significantly slower.
-    * ``false`` - returned value is the input itself.
-
-  * **Type**: `bool`
-  * **Default value**: `false`
-  * **Required**: *No*
+**Detailed description**: The *Identity* operation generates a new tensor that mirrors the input tensor in shape, data type, and content, effectively implementing the linear activation function f(x) = x.
+This operation creates a copy of the input data, therefore any modifications to the output tensor do not impact the original input tensor.
 
 **Input**:
 
@@ -63,4 +46,3 @@ Copy operation is significantly more memory- and computationally-heavy.
             </port>
         </output>
     </layer>
-
