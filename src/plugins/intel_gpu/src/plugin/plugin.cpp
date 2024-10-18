@@ -164,7 +164,7 @@ Plugin::Plugin() {
     // update oneDnn cache
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #if (ENABLE_ONEDNN_FOR_GPU)
-    dnnl::set_primitive_cache_capacity(1024);
+    //dnnl::set_primitive_cache_capacity(1024);
 #endif
 #endif
 }
@@ -174,6 +174,7 @@ Plugin::~Plugin() {
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #if (ENABLE_ONEDNN_FOR_GPU)
     dnnl::set_primitive_cache_capacity(0);
+    dnnl::set_primitive_cache_capacity(1024);
 #endif
 #endif
 }
