@@ -21,6 +21,10 @@ Buffer::Buffer(const OutputVector& arguments) : Op(arguments), m_impl(std::make_
 Buffer::Buffer(const ov::Shape& shape, ov::element::Type element_type) : Op(), m_impl(std::make_shared<NewMemoryImpl>(shape, element_type)) {
     constructor_validate_and_infer_types();
 }
+Buffer::Buffer(ov::element::Type element_type, const ov::Shape& shape, std::shared_ptr<Node> shared_from)
+    : Op(), m_impl(std::make_shared<InplaceMemoryImpl>(shape, element_type, shared_from)) {
+    constructor_validate_and_infer_types();
+}
 Buffer::Buffer(const OutputVector& arguments, std::shared_ptr<BaseImpl> impl) : Op(arguments), m_impl(std::move(impl)) {
     constructor_validate_and_infer_types();
 }
@@ -99,6 +103,45 @@ Buffer::NewMemoryImpl::ShapeInfer::ShapeInfer(ov::Shape shape) : m_shape(std::mo
 
 Buffer::NewMemoryImpl::ShapeInfer::Result Buffer::NewMemoryImpl::ShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
     OPENVINO_ASSERT(input_shapes.empty(), "NewMemoryBuffer shape inference must have input shapes");
+    return {{m_shape}, ShapeInferStatus::success};
+}
+
+Buffer::InplaceMemoryImpl::InplaceMemoryImpl(const ov::Shape& shape, ov::element::Type element_type, std::shared_ptr<Node> shared_from)
+    : m_shape(shape), m_element_type(element_type), m_inplace_from_node(shared_from) {}
+
+size_t Buffer::InplaceMemoryImpl::get_allocation_size() const {
+    return ov::shape_size(m_shape);
+}
+
+std::shared_ptr<Buffer::BaseImpl> Buffer::InplaceMemoryImpl::clone() const {
+    return std::make_shared<InplaceMemoryImpl>(m_shape, m_element_type, m_inplace_from_node);
+}
+
+void Buffer::InplaceMemoryImpl::validate_and_infer_types(Buffer* buffer) const {
+    OPENVINO_ASSERT(buffer, "Buffer is missed");
+    OPENVINO_ASSERT(buffer->get_input_size() == 0, "InplaceMemory Buffer mustn't have inputs");
+    buffer->set_output_type(0, m_element_type, m_shape);
+}
+
+bool Buffer::InplaceMemoryImpl::visit_attributes(AttributeVisitor& visitor) {
+    visitor.on_attribute("shape", m_shape);
+    visitor.on_attribute("element_type", m_element_type);
+    visitor.on_attribute("inplace_from_node", m_inplace_from_node);
+    return true;
+}
+
+std::shared_ptr<Node> Buffer::InplaceMemoryImpl::get_inplace_from() const {
+    return m_inplace_from_node;
+}
+
+void Buffer::InplaceMemoryImpl::set_inplace_from(std::shared_ptr<Node> inplace_from) {
+    m_inplace_from_node = inplace_from;
+}
+
+Buffer::InplaceMemoryImpl::ShapeInfer::ShapeInfer(ov::Shape shape) : m_shape(std::move(shape)) {}
+
+Buffer::InplaceMemoryImpl::ShapeInfer::Result Buffer::InplaceMemoryImpl::ShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
+    OPENVINO_ASSERT(input_shapes.empty(), "InplaceMemoryBuffer shape inference must have input shapes");
     return {{m_shape}, ShapeInferStatus::success};
 }
 

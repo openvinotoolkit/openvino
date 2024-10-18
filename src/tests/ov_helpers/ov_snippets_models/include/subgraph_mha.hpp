@@ -388,6 +388,44 @@ protected:
 };
 
 /* Graph:
+ *           Param0 Param1
+ *              \     /
+ *              MatMul0
+ *                 \
+ *             Relu + Abs
+ *                   \      Param2
+ *                    \      /
+ *                     MatMul1
+ */
+class MHAWithoutSoftmaxFunction : public SnippetsFunctionBase {
+public:
+    explicit MHAWithoutSoftmaxFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
+        OPENVINO_ASSERT(input_shapes.size() == 3, "Got invalid number of input shapes");
+    }
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+};
+
+/* Graph:
+ *            Param0  Param1
+ *              \     /
+ *              MatMul0
+ *                 \
+ *               Softmax
+ *                   \      Param2
+ *                    \      /
+ *                     MatMul1
+ */
+class MHAWithSoftmaxFunction : public SnippetsFunctionBase {
+public:
+    explicit MHAWithSoftmaxFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
+        OPENVINO_ASSERT(input_shapes.size() == 3, "Got invalid number of input shapes");
+    }
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+};
+
+/* Graph:
  *       Transpose/Parameter
  *    \     /
  *    MatMul0 [transposed_b = true/false]
