@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/variadic_split.hpp"
@@ -303,6 +304,15 @@ void ProgramBuilder::add_primitive(const ov::Node& op, std::shared_ptr<cldnn::pr
 
     prim->origin_op_name = op.get_friendly_name();
     prim->origin_op_type_name = op.get_type_name();
+
+    if (auto data_prim = dynamic_cast<cldnn::data*>(prim.get())) {
+        auto rt_info = op.get_rt_info();
+        auto weightless_cache_attr = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
+        if (weightless_cache_attr != rt_info.end()) {
+            data_prim->bin_offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
+            data_prim->original_size = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().original_size;
+        }
+    }
 
     bool should_profile = prim->type != cldnn::mutable_data::type_id() &&
                           prim->type != cldnn::data::type_id();
