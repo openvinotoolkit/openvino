@@ -102,7 +102,7 @@ Use the following code snippet to change the default settings:
 
       .. code-block:: python
 
-         pipeline_config = { "MAX_PROMPT_LEN": 1500, "MIN_RESPONSE_LEN": 500 }
+         pipeline_config = { "MAX_PROMPT_LEN": 1024, "MIN_RESPONSE_LEN": 512 }
          pipe = ov_genai.LLMPipeline(model_path, "NPU", pipeline_config)
 
    .. tab-item:: C++
@@ -110,7 +110,7 @@ Use the following code snippet to change the default settings:
 
       .. code-block:: cpp
 
-         ov::AnyMap pipeline_config = { { "MAX_PROMPT_LEN",  1500 }, { "MIN_RESPONSE_LEN", 500 } };
+         ov::AnyMap pipeline_config = { { "MAX_PROMPT_LEN",  1024 }, { "MIN_RESPONSE_LEN", 512 } };
          ov::genai::LLMPipeline pipe(model_path, "NPU", pipeline_config);
 
 

@@ -40,25 +40,22 @@ jobs:
       OPENVINO_REPO: ${{ github.workspace }}/openvino
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
       LAYER_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/layer_tests
     steps:
-      - name: Download OpenVINO package
+      - name: Download OpenVINO artifacts (tarballs)
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
-          name: openvino_package
+          pattern: openvino_[tests]*
           path: ${{ env.INSTALL_DIR }}
-
-      - name: Download OpenVINO tests package
+          merge-multiple: true
+          
+      - name: Download OpenVINO artifacts (wheels)
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
-          name: openvino_tests
-          path: ${{ env.INSTALL_TEST_DIR }}
-
-      - name: Download OpenVINO tokenizers extension
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
-        with:
-          name: openvino_tokenizers_wheel
-          path: ${{ env.INSTALL_DIR }}
+          pattern: openvino_[wheels|openvino_tokenizers]*
+          path: ${{ env.INSTALL_WHEELS_DIR }}
+          merge-multiple: true
 
       # Needed as ${{ github.workspace }} is not working correctly when using Docker
       - name: Setup Variables
@@ -69,25 +66,21 @@ jobs:
           echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
           echo "LAYER_TESTS_INSTALL_DIR=$GITHUB_WORKSPACE/install/tests/layer_tests" >> "$GITHUB_ENV"
 
+      - name: Install OpenVINO dependencies (mac)
+        if: runner.os == 'macOS'
+        run: brew install pigz
+          
       - name: Extract OpenVINO packages (Linux, macOS)
         if: runner.os != 'Windows'
         run: |
-          pushd $INSTALL_DIR
-            tar -I pigz -xf openvino_package.tar.gz -C $INSTALL_DIR
-          popd
-          pushd $INSTALL_TEST_DIR
-            tar -I pigz -xf openvino_tests.tar.gz -C $INSTALL_DIR
-          popd
+            pigz -dc openvino_tests.tar.gz | tar -xf - -C ${INSTALL_DIR}
+        working-directory: ${{ env.INSTALL_DIR }}
 
-      - name: Extract OpenVINO packages (Windows)
+      - name: Extract OpenVINO artifacts (Windows)
         if: runner.os == 'Windows'
         run: |
-          pushd ${{ env.INSTALL_DIR }}
-            Expand-Archive openvino_package.zip -DestinationPath ${{ env.INSTALL_DIR }}
-          popd
-          pushd ${{ env.INSTALL_TEST_DIR }}
             Expand-Archive openvino_tests.zip -DestinationPath ${{ env.INSTALL_DIR }}
-          popd
+        working-directory: ${{ env.INSTALL_DIR }}
 
       - name: Fetch setup_python action
         uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
@@ -109,21 +102,23 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           # Install the core OV wheel
-          python3 -m pip install ${INSTALL_DIR}/tools/openvino-*.whl
+          python3 -m pip install ./openvino-*.whl
 
           # Install the core OV Tokenizers wheel
-          python3 -m pip install ${INSTALL_DIR}/openvino_tokenizers-*.whl
+          python3 -m pip install ./openvino_tokenizers-*.whl
+        working-directory: ${{ env.INSTALL_WHEELS_DIR }}
 
       - name: Install OpenVINO Python wheels (Windows)
         if: runner.os == 'Windows'
         run: |
           # Find and install the core OV wheel
-          $ovCoreWheelPath=Get-ChildItem -Path ${{ env.INSTALL_DIR }}\tools -Filter openvino-*.whl | % { $_.FullName }
+          $ovCoreWheelPath=Get-ChildItem -Path . -Filter openvino-*.whl | % { $_.FullName }
           python3 -m pip install "$ovCoreWheelPath"
 
           # Find and install the core OV Tokenizers wheel
-          $ovCoreWheelPath=Get-ChildItem -Path ${{ env.INSTALL_DIR }} -Filter openvino_tokenizers-*.whl | % { $_.FullName }
+          $ovCoreWheelPath=Get-ChildItem -Path . -Filter openvino_tokenizers-*.whl | % { $_.FullName }
           python3 -m pip install "$ovCoreWheelPath"
+        working-directory: ${{ env.INSTALL_WHEELS_DIR }}
 
       - name: Install Python Layer tests dependencies
         run: |
@@ -155,7 +150,7 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         if: ${{ !cancelled() }}
         with:
           name: test-results-python-tf-layers
