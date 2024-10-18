@@ -22,12 +22,12 @@ namespace behavior {
 
 using OVClassQueryModelTest = OVClassBaseTestP;
 
-TEST_P(OVClassModelTestP, QueryModelActualNoThrow) {
+TEST_P(OVClassQueryModelTest, QueryModelActualNoThrow) {
     ov::Core ie = ov::test::utils::create_core();
     ie.query_model(actualNetwork, target_device);
 }
 
-TEST_P(OVClassModelTestP, QueryModelWithKSO) {
+TEST_P(OVClassQueryModelTest, QueryModelWithKSO) {
     ov::Core ie = ov::test::utils::create_core();
 
     auto rl_map = ie.query_model(ksoNetwork, target_device);
