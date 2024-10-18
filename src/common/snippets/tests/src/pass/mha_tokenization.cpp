@@ -170,6 +170,7 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA3D_SplitM) {
 
 TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA3D_SplitM_withMul) {
 #if defined(WIN32) && !defined(NDEBUG)
+    test_skipped = true;
     GTEST_SKIP() << "Skipping on Windows in Debug mode due to Issue 155258.";
 #endif
     const auto& f = MHASplitMFunction(std::vector<PartialShape>{{128, 12, 64}, {128, 12, 64}, {12, 128, 128}, {128, 12, 64}},
@@ -195,6 +196,7 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA4D_SplitM) {
 
 TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA4D_SplitM_withMul) {
 #if defined(WIN32) && !defined(NDEBUG)
+    test_skipped = true;
     GTEST_SKIP() << "Skipping on Windows in Debug mode due to Issue 155258.";
 #endif
     const auto& f = MHASplitMFunction(std::vector<PartialShape>{{1, 384, 16, 64}, {1, 384, 16, 64}, {1, 1, 1, 384}, {1, 384, 16, 64}},
