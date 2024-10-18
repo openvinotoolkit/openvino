@@ -151,8 +151,7 @@ DQMatMulCWi::DQMatMulCWi() {
 
         if ((ov::element::i4 == matched_qweight->get_element_type() ||
              ov::element::i8 == matched_qweight->get_element_type()) &&
-            qcoeff_shape[1] == 1 &&
-            !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
+            qcoeff_shape[1] == 1 && !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
             auto matched_node_cvtw = node_to_output.at(qcvtw).get_node_shared_ptr();
             auto matched_node_cvtm = node_to_output.at(qcvtm).get_node_shared_ptr();
             auto matched_node_muls = node_to_output.at(qmuls).get_node_shared_ptr();
