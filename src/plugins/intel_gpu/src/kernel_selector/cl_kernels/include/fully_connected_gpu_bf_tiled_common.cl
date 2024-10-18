@@ -130,7 +130,11 @@ inline void (FUNC_NAME)(
         //       but significantly degrades readability and generality of code.
         //       It doesn't also show noticable performance improvement on tested configurations.
         #if DECOMPRESSION_SCALE_POST_OP
+        #if IS_DYNAMIC
+            MAKE_VECTOR_TYPE(float, TILE_OFM) acc_tmp[FORCED_TILE_B] = { };
+        #else
             ACCUMULATOR_VEC_TYPE acc_tmp[FORCED_TILE_B] = { };
+        #endif
         #endif
 
         unroll_for(uint ki = 0; ki < (TILE_IFM * SIMD) / TILE_K; ++ki) {
@@ -184,7 +188,11 @@ inline void (FUNC_NAME)(
                     INPUT0_TYPE in_val = _sub_group_shuffle(((INPUT0_TYPE*)(&in_0[bi]))[total_k / SIMD], total_k % SIMD);
                     unroll_for (uint fi = 0; fi < TILE_OFM; ++fi) {
 #if DECOMPRESSION_SCALE_POST_OP
+#if IS_DYNAMIC
+                        ((float*)(&acc_tmp[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[W_IDX];
+#else
                         ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[W_IDX];
+#endif
 #else
                         ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[W_IDX];
 #endif
@@ -203,7 +211,11 @@ inline void (FUNC_NAME)(
                     #else
                         ACCUMULATOR_TYPE ds = d_scales[fi % DECOMPRESSION_SCALE_LENGTH];
                     #endif
+#if IS_DYNAMIC
+                    ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += convert_half(((float*)(&acc_tmp[bi]))[fi] * ds);
+#else
                     ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi] * ds;
+#endif
                     acc_tmp[bi][fi] = 0;
                 }
             }
@@ -221,7 +233,11 @@ inline void (FUNC_NAME)(
                 #else
                     ACCUMULATOR_TYPE ds = d_scales[fi % DECOMPRESSION_SCALE_LENGTH];
                 #endif
+#if IS_DYNAMIC
+                ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += convert_half(((float*)(&acc_tmp[bi]))[fi] * ds);
+#else
                 ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi] * ds;
+#endif
             }
         }
 #endif
