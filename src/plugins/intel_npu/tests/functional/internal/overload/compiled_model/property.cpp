@@ -134,7 +134,6 @@ std::vector<std::pair<std::string, ov::Any>> plugin_internal_mutable_properties 
         {ov::intel_npu::max_tiles.name(), ov::Any(8)},
         {ov::intel_npu::stepping.name(), ov::Any(4)},
         {ov::intel_npu::dpu_groups.name(), ov::Any(2)},
-        {ov::intel_npu::use_elf_compiler_backend.name(), ov::Any(ov::intel_npu::ElfCompilerBackend::YES)},
         {ov::intel_npu::create_executor.name(), ov::Any(0)},
 };
 

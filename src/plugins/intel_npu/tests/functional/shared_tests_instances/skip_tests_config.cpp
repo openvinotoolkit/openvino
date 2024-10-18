@@ -480,13 +480,6 @@ std::vector<std::string> disabledTestPatterns() {
                 // [Tracking number: E#111369]
                 ".*OVInferRequestMultithreadingTests.canRun3SyncRequestsConsistently.*"
         });
-
-        // [Tracking number: E#107154]
-        _skipRegistry.addPatterns(
-                "Can't disable ELF Backend since Graphfile does not work on linux", {
-                ".*NPU_USE_ELF_COMPILER_BACKEND:NO.*",
-                ".*USE_ELF_COMPILER_BACKEND_NO.*"
-        });
 #endif
 
         _skipRegistry.addPatterns(backendName.isIMD(), "IMD/Simics do not support the tests",
