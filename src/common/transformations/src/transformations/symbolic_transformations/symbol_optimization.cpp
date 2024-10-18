@@ -7,6 +7,7 @@
 #include "itt.hpp"
 #include "openvino/core/bound_evaluation_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/tensor_util.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
@@ -354,12 +355,99 @@ void save_shape_sources(const std::shared_ptr<ov::Node>& op, STS_map& symbol_sha
         }
     }
 }
+
+struct OutputValue {
+    std::vector<ov::Any> value;
+
+    bool operator==(const OutputValue& other) const {
+        if (value.size() != other.value.size())
+            return false;
+        for (size_t i = 0; i < value.size(); ++i)
+            if (value.at(i) != other.value.at(i))
+                return false;
+        return true;
+    }
+
+    bool operator<(const OutputValue& other) const {
+        return std::lexicographical_compare(
+            std::begin(value),
+            std::end(value),
+            std::begin(other.value),
+            std::end(other.value),
+            [](const ov::Any& a, const ov::Any& b) {
+                // each element is either a symbol or an integer. in case they differ any integer is less than a symbol.
+                if (a.is<std::shared_ptr<ov::Symbol>>() && b.is<std::shared_ptr<ov::Symbol>>())
+                    return a.as<std::shared_ptr<ov::Symbol>>() < b.as<std::shared_ptr<ov::Symbol>>();
+                if (a.is<int64_t>() && b.is<int64_t>())
+                    return a.as<int64_t>() < b.as<int64_t>();
+                return a.is<int64_t>();
+            });
+    }
+
+    static std::pair<bool, OutputValue> make(const ov::Output<ov::Node>& output) {
+        auto symbols = output.get_tensor().get_value_symbol();
+        if (symbols.empty() || symbols.size() == 1)
+            return {false, OutputValue()};
+        if (std::all_of(symbols.begin(), symbols.end(), [](const std::shared_ptr<ov::Symbol>& s) {
+                return s != nullptr;
+            })) {
+            std::vector<ov::Any> symbols_as_any(symbols.size(), nullptr);
+            for (size_t i = 0; i < symbols.size(); ++i)
+                symbols_as_any[i] = ov::symbol::ancestor_of(symbols[i]);
+            return {true, {symbols_as_any}};
+        } else {
+            const auto& lower = output.get_tensor().get_lower_value();
+            const auto& upper = output.get_tensor().get_upper_value();
+            const auto& et = output.get_element_type();
+            if (!lower || !upper || (et != ov::element::i64 && et != ov::element::i32))
+                return {false, OutputValue()};
+            const auto& lower_value = ov::util::to_vector<int64_t>(lower);
+            const auto& upper_value = ov::util::to_vector<int64_t>(upper);
+            if (lower_value->size() != symbols.size() || upper_value->size() != symbols.size())
+                return {false, OutputValue()};
+            std::vector<ov::Any> symbols_as_any(symbols.size(), nullptr);
+            for (size_t i = 0; i < symbols_as_any.size(); ++i) {
+                if (symbols.at(i) != nullptr)
+                    symbols_as_any[i] = ov::symbol::ancestor_of(symbols.at(i));
+                else if (lower_value->at(i) == upper_value->at(i))
+                    symbols_as_any[i] = lower_value->at(i);
+                else
+                    return {false, OutputValue()};
+            }
+        }
+        return {false, OutputValue()};
+    }
+};
+
+void save_and_update_value_sources(const std::shared_ptr<ov::Node>& op,
+                                   std::map<OutputValue, ov::Output<ov::Node>>& multi_symbol_source) {
+    for (auto& output : op->outputs()) {
+        if (output.get_tensor().get_value_symbol().size() < 2)
+            continue;  // singular values are handled by optimize_value_usage helper
+        auto result = OutputValue::make(output);
+        if (result.first) {
+            if (multi_symbol_source.count(result.second)) {
+                auto alternative_source = multi_symbol_source[result.second];
+                if (output.get_element_type() != alternative_source.get_element_type())
+                    continue;
+                if (output.get_partial_shape().is_dynamic() ||
+                    output.get_partial_shape() != alternative_source.get_partial_shape())
+                    continue;
+                output.replace(alternative_source);
+            } else {
+                multi_symbol_source[result.second] = output;
+            }
+        }
+    }
+}
+
 }  // namespace
 
 bool ov::pass::OptimizeSymbolsUsedAsValues::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RUN_ON_FUNCTION_SCOPE(OptimizeSymbolsUsedAsValues);
     STS_map symbol_shape_source;
     STS_map symbol_value_source;
+    std::map<OutputValue, ov::Output<ov::Node>> multi_symbol_source;
     for (const auto& op : topological_order(m)) {
         // Result has output port which has shared (during validate_and_infer_type) tensor with input port.
         // Transformations may replace input of Result. After replacement and before Result::validate_and_infer_type --
@@ -375,6 +463,7 @@ bool ov::pass::OptimizeSymbolsUsedAsValues::run_on_model(const std::shared_ptr<o
         for (auto& output : op->outputs())
             optimize_value_usage(output, symbol_shape_source, symbol_value_source);
         save_shape_sources(op, symbol_shape_source);
+        save_and_update_value_sources(op, multi_symbol_source);
     }
     return true;
 }
