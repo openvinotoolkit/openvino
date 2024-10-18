@@ -39,6 +39,7 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
+    bool evaluate_symbol(ov::TensorSymbolVector& output_symbols) const override;
     bool has_evaluate() const override;
 };
 }  // namespace v1
