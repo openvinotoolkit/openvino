@@ -588,9 +588,6 @@ TEST_P(OVCheckMetricsPropsTests_ModelDependceProps, ChangeCorrectDevicePropertie
 TEST_P(OVClassSetDefaultDeviceIDPropTest, SetDefaultDeviceIDNoThrow) {
     ov::Core ie = ov::test::utils::create_core();
     // sw plugins are not requested to support `ov::available_devices` and ` ov::device::id` property
-    if (sw_plugin_in_target_device(target_device)) {
-        return;
-    }
     auto deviceIDs = ie.get_property(target_device, ov::available_devices);
     if (std::find(deviceIDs.begin(), deviceIDs.end(), deviceID) == deviceIDs.end()) {
         GTEST_FAIL();
@@ -613,9 +610,6 @@ TEST_P(OVSpecificDeviceSetConfigTest, GetConfigSpecificDeviceNoThrow) {
         deviceID =  target_device.substr(pos + 1,  target_device.size());
     }
     // sw plugins are not requested to support `ov::available_devices`, `ov::device::id` and `ov::num_streams` property
-    if (sw_plugin_in_target_device(target_device)) {
-        return;
-    }
     auto deviceIDs = ie.get_property(clear_target_device, ov::available_devices);
     if (std::find(deviceIDs.begin(), deviceIDs.end(), deviceID) == deviceIDs.end()) {
         GTEST_FAIL() << "No DeviceID" << std::endl;
@@ -672,9 +666,6 @@ TEST_P(OVSpecificDeviceGetConfigTest, GetConfigSpecificDeviceNoThrow) {
 }
 
 TEST_P(OVGetAvailableDevicesPropsTest, GetAvailableDevicesNoThrow) {
-    if (sw_plugin_in_target_device(target_device)) {
-        return;
-    }
     ov::Core ie = ov::test::utils::create_core();
     std::vector<std::string> devices;
 
@@ -727,9 +718,6 @@ TEST_P(OVClassSetDevicePriorityConfigPropsTest, SetConfigAndCheckGetConfigNoThro
 }
 
 TEST_P(OVGetMetricPropsTest, GetMetricAndPrintNoThrow_AVAILABLE_DEVICES) {
-    if (sw_plugin_in_target_device(target_device)) {
-        return;
-    }
     ov::Core ie = ov::test::utils::create_core();
     std::vector<std::string> device_ids;
 
