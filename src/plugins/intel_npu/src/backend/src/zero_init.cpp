@@ -6,9 +6,8 @@
 
 #include "intel_npu/al/itt.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
-#include "ze_api.h"
+#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "ze_command_queue_npu_ext.h"
-#include "zero_utils.hpp"
 
 #ifdef _WIN32
 namespace {

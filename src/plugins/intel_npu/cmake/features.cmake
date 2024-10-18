@@ -6,6 +6,10 @@ ov_option(ENABLE_MLIR_COMPILER "Enable compilation of npu_mlir_compiler librarie
 
 ov_option(BUILD_COMPILER_FOR_DRIVER "Enable build of npu_driver_compiler" OFF)
 
+ov_option(ENABLE_ZEROAPI_BACKEND "Enable zero backend libraries" ON)
+
+ov_option(ENABLE_DRIVER_COMPILER_ADAPTER "Enable driver compiler adapter" ON)
+
 # if ENABLE_ZEROAPI_BACKEND=ON, it adds the ze_loader dependency for driver compiler
 ov_dependent_option(ENABLE_ZEROAPI_BACKEND "Enable zero-api as a plugin backend" ON "NOT BUILD_COMPILER_FOR_DRIVER" OFF)
 

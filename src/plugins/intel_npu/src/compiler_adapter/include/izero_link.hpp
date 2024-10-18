@@ -8,6 +8,7 @@
 
 #include "driver_compiler_utils.hpp"
 #include "igraph.hpp"
+#include "intel_npu/utils/zero/zero_wrappers.hpp"
 #include "npu.hpp"
 
 namespace intel_npu {
@@ -33,10 +34,10 @@ public:
 
     virtual void graphInitialie(ze_graph_handle_t graphHandle, const Config& config) const = 0;
 
-    virtual std::shared_ptr<IExecutor> createExecutor(ze_graph_handle_t graphHandle, const Config& config) const = 0;
-
-    virtual std::tuple<std::vector<IGraph::ArgumentDescriptor>, std::vector<IGraph::ArgumentDescriptor>> getIODesc(
+    virtual std::tuple<std::vector<ArgumentDescriptor>, std::vector<ArgumentDescriptor>> getIODesc(
         ze_graph_handle_t graphHandle) const = 0;
+
+    virtual std::shared_ptr<CommandQueue> crateCommandQueue(const Config& config) const = 0;
 
     virtual ~IZeroLink() = default;
 };
