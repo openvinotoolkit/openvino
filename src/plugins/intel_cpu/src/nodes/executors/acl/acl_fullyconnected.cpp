@@ -377,7 +377,7 @@ ACLFunction ACLFullyConnectedExecutor::configureFunction(const ACLTensors & aclM
                                     arm_compute::WeightsInfo() :
                                     arm_compute::WeightsInfo(false, 1, 1, ic_total, false, expectedWeightFormat));
 
-    if (aclfcAttrs.isWeightsRepacked) {
+    if (aclfcAttrs.isWeightsRepacked || aclfcAttrs.isConvertedWeights) {
         aclTensorAttrs.memoryUsageIndicator[ACLArgs::ACL_WEI] = false;
         aclMemoryTensors[ACLArgs::ACL_WEI]->allocator()->import_memory(packedWeights->getData());
     }
