@@ -67,7 +67,7 @@ namespace online {
  * @brief
  * Type: std::string.
  * Specify which partitioning pipeline to run.
- * Possible values: "NONE", "INIT", "JUST", "REP", "REG", "COMPUTE".
+ * Possible values: "NONE", "INIT", "JUST", "REP", "REG", "COMPUTE", "SPATIAL".
  * Default value: "REG".
  */
 static constexpr ov::Property<std::string> pipeline{"NPUW_ONLINE_PIPELINE"};
@@ -206,9 +206,17 @@ static constexpr ov::Property<bool> spatial{"NPUW_SPATIAL"};
  * @brief
  * Type: std::size_t.
  * Submission size for the spatial execution.
- * Default value: 64
+ * Default value: 128
  */
 static constexpr ov::Property<std::size_t> spatial_nway{"NPUW_SPATIAL_NWAY"};
+
+/**
+ * @brief
+ * Type: boolean.
+ * Enable dynamic submission for spatial subgraphs. Requires SPATIAL pipeline to be selected.
+ * Default value: true
+ */
+static constexpr ov::Property<bool> spatial_dyn{"NPUW_SPATIAL_DYN"};
 
 /**
  * @brief
