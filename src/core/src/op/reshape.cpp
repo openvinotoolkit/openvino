@@ -97,7 +97,7 @@ bool Reshape::evaluate_symbol(TensorSymbolVector& output_symbols) const {
 }
 
 bool Reshape::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {
-    if (get_output_partial_shape(0).is_dynamic() || is_const_fold_disabled()) {
+    if (!can_constant_fold(inputs_values)) {
         return false;
     }
 
@@ -107,6 +107,10 @@ bool Reshape::constant_fold(OutputVector& output_values, const OutputVector& inp
     } else {
         return false;
     }
+}
+
+bool Reshape::can_constant_fold(const OutputVector& input_values) const {
+    return get_output_partial_shape(0).is_static() && !is_const_fold_disabled();
 }
 }  // namespace v1
 }  // namespace op

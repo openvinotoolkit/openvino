@@ -215,7 +215,7 @@ public:
     bool evaluate_upper(TensorVector& outputs) const override;
 
     // Don't constant fold a constant; it would make a copy
-    bool constant_fold(OutputVector& outputs, const OutputVector& inputs) override;
+    bool can_constant_fold(const OutputVector& inputs_values) const override;
 
     /// \brief Returns the value of the constant node as a Shape object
     ///        Can only be used on element::i64 nodes and interprets

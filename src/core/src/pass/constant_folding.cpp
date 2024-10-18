@@ -105,6 +105,21 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
 
     for (const auto& original_node : model->get_ordered_ops()) {
         auto node = original_node;
+        if (!original_node->can_constant_fold(original_node->input_values())) {
+            if (auto sub_graph_node = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(node)) {
+                // recursively constant fold operators containing subgraphs (ie: TensorIterator, Loop)
+                size_t sub_graphs_num = sub_graph_node->get_internal_subgraphs_size();
+                for (size_t sub_graph_ind = 0; sub_graph_ind < sub_graphs_num; ++sub_graph_ind) {
+                    rewritten =
+                        run_on_model(sub_graph_node->get_function(static_cast<int>(sub_graph_ind))) || rewritten;
+                }
+            }
+            rewritten = restore_original_input_precision(original_node) || rewritten;
+            if (rewritten) {
+                original_node->validate_and_infer_types();
+            }
+            continue;
+        }
         if (node_has_requires_precision_conversion_attribute(node)) {
             remove_requires_precision_conversion_attribute(node);
             node = util::convert_to_supported_precision(node.get());
@@ -143,15 +158,6 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
                 }
             }
         } else {
-            if (auto sub_graph_node = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(node)) {
-                // recursively constant fold operators containing subgraphs (ie: TensorIterator, Loop)
-                size_t sub_graphs_num = sub_graph_node->get_internal_subgraphs_size();
-                for (size_t sub_graph_ind = 0; sub_graph_ind < sub_graphs_num; ++sub_graph_ind) {
-                    rewritten =
-                        run_on_model(sub_graph_node->get_function(static_cast<int>(sub_graph_ind))) || rewritten;
-                }
-            }
-
             // if CF was unsuccessful remove original precision attribute from inputs
             bool restored = restore_original_input_precision(original_node);
             if (restored) {
