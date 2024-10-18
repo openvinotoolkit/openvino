@@ -63,19 +63,19 @@ the model precision and the ratio of P-cores and E-cores.
 
 Then the default settings for low-level performance properties on Windows and Linux are as follows:
 
-+--------------------------------------+------------------------------------------------------------------------+--------------------------------------------------------------------+
-| Property                             | Windows                                                                | Linux                                                              |
-+======================================+========================================================================+====================================================================+
-| ``ov::num_streams``                  | 1                                                                      | 1                                                                  |
-+--------------------------------------+------------------------------------------------------------------------+--------------------------------------------------------------------+
-| ``ov::inference_num_threads``        | is equal to the number of P-cores or P-cores+E-cores on one socket     | is equal to the number of P-cores or P-cores+E-cores on one socket |
-+--------------------------------------+------------------------------------------------------------------------+--------------------------------------------------------------------+
-| ``ov::hint::scheduling_core_type``   | :ref:`Core Type Table of Latency Hint <core_type_latency>`             | :ref:`Core Type Table of Latency Hint <core_type_latency>`         |
-+--------------------------------------+------------------------------------------------------------------------+--------------------------------------------------------------------+
-| ``ov::hint::enable_hyper_threading`` | No                                                                     | No                                                                 |
-+--------------------------------------+------------------------------------------------------------------------+--------------------------------------------------------------------+
-| ``ov::hint::enable_cpu_pinning``     | No / Not Supported                                                     | Yes except using P-cores and E-cores together                      |
-+--------------------------------------+------------------------------------------------------------------------+--------------------------------------------------------------------+
++--------------------------------------+-----------------------------------------------------------------------+-----------------------------------------------------------------------+
+| Property                             | Windows                                                               | Linux                                                                 |
++======================================+=======================================================================+=======================================================================+
+| ``ov::num_streams``                  | 1                                                                     | 1                                                                     |
++--------------------------------------+-----------------------------------------------------------------------+-----------------------------------------------------------------------+
+| ``ov::inference_num_threads``        | is equal to the number of P-cores or P-cores+E-cores on one numa node | is equal to the number of P-cores or P-cores+E-cores on one numa node |
++--------------------------------------+-----------------------------------------------------------------------+-----------------------------------------------------------------------+
+| ``ov::hint::scheduling_core_type``   | :ref:`Core Type Table of Latency Hint <core_type_latency>`            | :ref:`Core Type Table of Latency Hint <core_type_latency>`            |
++--------------------------------------+-----------------------------------------------------------------------+-----------------------------------------------------------------------+
+| ``ov::hint::enable_hyper_threading`` | No                                                                    | No                                                                    |
++--------------------------------------+-----------------------------------------------------------------------+-----------------------------------------------------------------------+
+| ``ov::hint::enable_cpu_pinning``     | No / Not Supported                                                    | Yes except using P-cores and E-cores together                         |
++--------------------------------------+-----------------------------------------------------------------------+-----------------------------------------------------------------------+
 
 .. note::
 
@@ -90,6 +90,18 @@ Then the default settings for low-level performance properties on Windows and Li
     - ``ov::hint::enable_cpu_pinning`` is disabled by default on Windows and macOS, and
       enabled on Linux. Such default settings are aligned with typical workloads running
       in the corresponding environments to guarantee better out-of-the-box (OOB) performance.
+
+.. note::
+
+   From 5th Gen Intel Xeon Processors, new microarchitecture enabled new sub-NUMA clusters
+   feature. A sub-NUMA cluster (SNC) can create two or more localization domains (numa nodes)
+   within a processor by BIOS configuration. 
+   For most models, the best latency performance can be achieved using the number of CPU 
+   cores in a single numa node on multiple 5th Generation Intel Xeon processors platform,
+   which is default latency hint behavior. 
+   For other models, user can explicitly set ``ov::num_streams`` and
+   ``ov::hint::enable_hyper_threading`` to use more CPU cores for the best latency
+   performance.
 
 Throughput Hint
 #####################
