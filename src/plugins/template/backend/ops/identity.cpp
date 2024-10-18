@@ -7,13 +7,6 @@
 #include "evaluate_node.hpp"
 #include "openvino/core/type/element_iterator.hpp"
 
-template <ov::element::Type_t ET>
-inline bool evaluate(const std::shared_ptr<ov::op::v15::Identity>& op,
-                     ov::TensorVector& outputs,
-                     const ov::TensorVector& inputs) {
-    using T = typename ov::element_type_traits<ET>::value_type;
-}
-
 template <>
 bool evaluate_node<ov::op::v15::Identity>(std::shared_ptr<ov::Node> node,
                                           ov::TensorVector& outputs,
