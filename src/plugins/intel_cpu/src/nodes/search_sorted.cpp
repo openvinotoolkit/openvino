@@ -43,6 +43,20 @@ void SearchSorted::initSupportedPrimitiveDescriptors() {
     ov::element::Type inputPrec = getOriginalInputPrecisionAtPort(0);
     ov::element::Type outputPrec = getOriginalOutputPrecisionAtPort(0);
 
+    if (!one_of(inputPrec,
+                ov::element::f32,
+                ov::element::i32,
+                ov::element::bf16,
+                ov::element::f16,
+                ov::element::u8,
+                ov::element::i8)) {
+        inputPrec = ov::element::f32;
+    }
+
+    if (!one_of(outputPrec, ov::element::i32, ov::element::i64)) {
+        outputPrec = ov::element::i32;
+    }
+
     addSupportedPrimDesc({{LayoutType::ncsp, inputPrec}, {LayoutType::ncsp, inputPrec}},
                          {{LayoutType::ncsp, outputPrec}},
                          impl_desc_type::ref);
