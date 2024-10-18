@@ -155,8 +155,7 @@ OutputVector translate_stack_fx(const NodeContext& context) {
         return {u4_const};
 
     for (size_t i = 0; i < num_elements; i++) {
-        auto stack_input =
-            context.mark_node(std::make_shared<v0::Unsqueeze>(stack_inputs[i], dim));
+        auto stack_input = context.mark_node(std::make_shared<v0::Unsqueeze>(stack_inputs[i], dim));
         list_elems.push_back(stack_input);
     }
     return translate_cat_common(context, list_elems, axis, true);
