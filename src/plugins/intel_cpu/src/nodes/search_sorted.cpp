@@ -93,7 +93,7 @@ void SearchSorted::execute(dnnl::stream strm) {
 
 #define CASE(OV_TYPE)                                                                           \
     OV_CASE2(OV_TYPE, ov::element::i64, ov::element_type_traits<OV_TYPE>::value_type, int64_t), \
-        OV_CASE2(OV_TYPE, ov::element::i32, ov::element_type_traits<OV_TYPE>::value_type, int32_t)
+    OV_CASE2(OV_TYPE, ov::element::i32, ov::element_type_traits<OV_TYPE>::value_type, int32_t)
 
     OV_SWITCH(intel_cpu,
               SearchSortedExecute,
@@ -103,7 +103,6 @@ void SearchSorted::execute(dnnl::stream strm) {
               CASE(ov::element::f16),
               CASE(ov::element::bf16),
               CASE(ov::element::i32),
-              CASE(ov::element::u32),
               CASE(ov::element::i8),
               CASE(ov::element::u8))
 
