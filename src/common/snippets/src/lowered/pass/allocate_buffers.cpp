@@ -41,6 +41,7 @@ bool AllocateBuffers::run(lowered::LinearIR& linear_ir, lowered::LinearIR::const
     pipeline.run(linear_ir, linear_ir.cbegin(), linear_ir.cend());
 
     linear_ir.set_static_buffer_scratchpad_size(buffer_scratchpad_size);
+    // std::cout << "buffer_scratchpad_size:" << buffer_scratchpad_size << std::endl;
 
     return buffer_scratchpad_size > 0;
 }

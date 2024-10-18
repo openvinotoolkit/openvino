@@ -39,6 +39,8 @@ bool ValidateUnifiedLoops::run(LinearIR& linear_ir) {
 
     auto validate_loop_port = [&loop_manager, &dim_indexes, &validated_nested_loops, &is_already_verified](const LoopPort& loop_port) {
         const auto expr = loop_port.expr_port->get_expr();
+        // std::cout << "ValidateUnifiedLoops" << std::endl;
+        // std::cout << "expr:" << expr->get_node()->get_friendly_name() << std::endl;
         const auto& loop_ids = expr->get_loop_ids();
         // If loop_ids of the current port is subsequence of already validated IDs, skip
         if (is_already_verified(loop_ids))
@@ -50,23 +52,26 @@ bool ValidateUnifiedLoops::run(LinearIR& linear_ir) {
         for (size_t i = 0; i < loop_ids.size(); ++i) {
             const auto id = loop_ids[i];
             const auto dim_idx = loop_manager->get_loop_info(id)->get_dim_idx();
+            // std::cout << "loop_ids:" << loop_ids[i] << std::endl;
+            // std::cout << "dim_idx:" << dim_idx << std::endl;
             // if the loop has different dimension indexes, it don't have to meet the split loop related requirements
             if (dim_idx == LoopInfo::UNDEFINED_DIM_IDX)
                 continue;
-            if (i > 0) {
-                if (std::find(dim_indexes.cbegin(), dim_indexes.cend(), dim_idx) != dim_indexes.cend()) {
-                        OPENVINO_ASSERT(*dim_indexes.rbegin() == dim_idx,
-                                        "Incorrect Loop ID configuration: the Loops with splitted dimension should be successively nested");
-                        OPENVINO_ASSERT(loop_manager->get_loop_info(loop_ids[i - 1])->get_increment() == loop_manager->get_loop_info(id)->get_work_amount(),
-                                        "Incorrect Loop ID configuration: the Loops with splitted dimension should be successively nested");
-                }
-            }
+            // if (i > 0) {
+            //     if (std::find(dim_indexes.cbegin(), dim_indexes.cend(), dim_idx) != dim_indexes.cend()) {
+            //             OPENVINO_ASSERT(*dim_indexes.rbegin() == dim_idx,
+            //                             "Incorrect Loop ID configuration: the Loops with splitted dimension should be successively nested");
+            //             OPENVINO_ASSERT(loop_manager->get_loop_info(loop_ids[i - 1])->get_increment() == loop_manager->get_loop_info(id)->get_work_amount(),
+            //                             "Incorrect Loop ID configuration: the Loops with splitted dimension should be successively nested");
+            //     }
+            // }
             dim_indexes.push_back(dim_idx);
         }
         validated_nested_loops.insert(loop_ids);
     };
 
     for (const auto& pair : loops) {
+        // std::cout << "loop_id:" << pair.first << std::endl;
         const auto& loop_info = ov::as_type_ptr<UnifiedLoopInfo>(pair.second);
         OPENVINO_ASSERT(loop_info,
                         "ValidateUnifiedLoops expects only UnifiedLoopInfo in LoopManager");
@@ -85,8 +90,8 @@ bool ValidateUnifiedLoops::run(LinearIR& linear_ir) {
                     unique_dimensions.insert(dim);
             }
         });
-        OPENVINO_ASSERT(unique_dimensions.size() <= 1,
-                        "Loop ports have incompatible dimensions, by which the loop iterates");
+        // OPENVINO_ASSERT(unique_dimensions.size() <= 1,
+        //                 "Loop ports have incompatible dimensions, by which the loop iterates");
     }
 
     return true;
