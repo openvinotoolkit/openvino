@@ -23,6 +23,7 @@
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/reference/convert.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
+#include "openvino/runtime/compute_hash.hpp"
 #include "openvino/runtime/string_aligned_buffer.hpp"
 #include "openvino/util/file_util.hpp"
 #include "pugixml.hpp"
@@ -69,32 +70,16 @@ std::string translate_type_name(const std::string& name) {
     return name;
 }
 
-size_t hash_combine(const void* v, int64_t size) {
-    constexpr auto cel_size = sizeof(size_t);
-    auto seed = static_cast<size_t>(size);
-    const auto data = static_cast<const size_t*>(v);
-    const auto d_end = std::next(data, size / cel_size);
-    // The constant value used as a magic number has been
-    // traditionally used e.g. in boost library's hash_combine.
-    // It happens to be derived from the golden ratio.
-    for (auto d = data; d != d_end; ++d) {
-        seed ^= *d + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-    }
-    size_t last_bytes{0};
-    std::memcpy(&last_bytes, d_end, size % cel_size);
-    seed ^= last_bytes + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-    return seed;
-}
-
 class ConstantWriter {
 public:
     using FilePosition = int64_t;
     using HashValue = size_t;
     using ConstWritePositions = std::multimap<HashValue, std::pair<FilePosition, void const*>>;
 
-    ConstantWriter(std::ostream& bin_data, bool enable_compression = true)
+    ConstantWriter(std::ostream& bin_data, bool enable_compression = true, bool write_hash_value = false)
         : m_binary_output(bin_data),
           m_enable_compression(enable_compression),
+          m_write_hash_value(write_hash_value),
           m_blob_offset(bin_data.tellp()) {}
 
     FilePosition write(const char* ptr,
@@ -132,18 +117,24 @@ public:
             // the same hash for {2, 2} and {0, 128} arrays.
             // But even strong hashing algorithms sometimes give collisions.
             // Therefore we always have to compare values when finding a match in the hash multimap.
-            const HashValue hash = hash_combine(ptr_to_write, *new_size);
+            const HashValue hash = ov::runtime::compute_hash(ptr_to_write, *new_size);
+
             auto found = m_hash_to_file_positions.find(hash);
             // iterate over all matches of the key in the multimap
             while (found != m_hash_to_file_positions.end()) {
-                if (memcmp(ptr, found->second.second, size) == 0)
+                if (memcmp(ptr, found->second.second, size) == 0) {
                     return found->second.first;
+                }
                 found++;
             }
             // Since fp16_compressed data will be disposed at exit point and since we cannot reread it from the ostream,
             // we store pointer to the original uncompressed blob.
             m_hash_to_file_positions.insert({hash, {offset, static_cast<void const*>(ptr)}});
-            m_binary_output.write(ptr_to_write, *new_size);
+            if (m_write_hash_value) {
+                m_binary_output.write(reinterpret_cast<const char*>(&hash), sizeof(uint64_t));
+            } else {
+                m_binary_output.write(ptr_to_write, *new_size);
+            }
         }
         return offset;
     }
@@ -188,6 +179,7 @@ private:
     ConstWritePositions m_hash_to_file_positions;
     std::ostream& m_binary_output;
     bool m_enable_compression;
+    bool m_write_hash_value;
     FilePosition m_blob_offset;  // blob offset inside output stream
 };
 
@@ -1221,7 +1213,7 @@ void serializeFunc(std::ostream& xml_file,
     std::string name = "net";
     pugi::xml_document xml_doc;
     pugi::xml_node net_node = xml_doc.append_child(name.c_str());
-    ConstantWriter constant_write_handler(bin_file);
+    ConstantWriter constant_write_handler(bin_file, true, true);
     XmlSerializer visitor(net_node, name, constant_write_handler, version, deterministic);
     visitor.on_attribute(name, model);
 
@@ -1393,10 +1385,19 @@ bool pass::StreamSerialize::run_on_model(const std::shared_ptr<ov::Model>& model
 /// -------- Hash calculation pass -------------
 
 namespace {
-template <typename T>
-static uint64_t hash_combine(uint64_t seed, const T& a) {
-    // Hash combine formula from boost
-    return seed ^ (std::hash<T>()(a) + 0x9e3779b9 + (seed << 6) + (seed >> 2));
+// Hash combine formula from boost for uint64_t.
+inline uint64_t hash_combine(uint64_t h, uint64_t k) {
+    constexpr uint64_t m = 0xc6a4a7935bd1e995;
+    constexpr int r = 47;
+
+    k *= m;
+    k ^= k >> r;
+    k *= m;
+
+    h ^= k;
+    h *= m;
+
+    return h + 0xe6546b64;
 }
 
 class OstreamHashWrapper final : public std::streambuf {
@@ -1408,19 +1409,23 @@ public:
     }
 
     std::streamsize xsputn(const char* s, std::streamsize n) override {
-        // Reinterpret data as uint32_t and accumulate in uint64_t to avoid overflow fluctuations in parallel_sum.
-        auto* int_sum = reinterpret_cast<const uint32_t*>(s);
-        const uint64_t n32 = n / sizeof(uint32_t);
+        uint64_t h = ov::runtime::compute_hash(s, n);
+        m_res = hash_combine(m_res, h);
 
-        m_res += parallel_sum(n32, uint64_t(0lu), [&](size_t k) -> uint32_t {
-            return int_sum[k];
-        });
+        return n;
+    }
+};
 
-        const uint64_t rest = n % sizeof(uint32_t);
-        for (uint64_t i = 0lu; i < rest; i++) {
-            m_res += s[n - rest + i];
-        }
+class OstreamHashWrapperBin final : public std::streambuf {
+    uint64_t m_res = 0lu;
 
+public:
+    uint64_t getResult() const {
+        return m_res;
+    }
+
+    std::streamsize xsputn(const char* s, std::streamsize n) override {
+        m_res = hash_combine(m_res, *reinterpret_cast<const uint64_t*>(s));
         return n;
     }
 };
@@ -1429,7 +1434,7 @@ public:
 bool pass::Hash::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(Hash);
     OstreamHashWrapper xmlHash;
-    OstreamHashWrapper binHash;
+    OstreamHashWrapperBin binHash;
     std::ostream xml(&xmlHash);
     std::ostream bin(&binHash);
 

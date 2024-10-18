@@ -36,9 +36,24 @@ static const Xbyak::Operand::Code abi_save_gpr_regs[] = {
 #    endif
 #endif  // XBYAK64
 
-class Generator : public Xbyak::CodeGenerator {
-    static constexpr size_t xmm_len = 16;
+typedef enum {
+    isa_any,
+    sse42,
+    avx,
+    avx2,
+    avx512_common,
+    avx512_core,
+    avx512_core_vnni,
+    avx512_mic,
+    avx512_mic_4ops,
+    avx512_core_bf16,
+    avx512_vpopcnt,
+    fp16,
+    pclmulqdq,
+    vpclmulqdq
+} cpu_isa_t;
 
+class Generator : public Xbyak::CodeGenerator {
 #ifdef _WIN32
     static constexpr size_t xmm_to_preserve_start = 6;
     static constexpr size_t xmm_to_preserve = 10;
@@ -52,29 +67,19 @@ class Generator : public Xbyak::CodeGenerator {
 
     const Xbyak::Reg64 reg_EVEX_max_8b_offt;
     static constexpr int EVEX_max_8b_offt = 0x200;
+    size_t m_vlen = ymm_len;
 
 public:
-    const Xbyak::Reg64 param = abi_param1;
+    static constexpr size_t xmm_len = 16;
+    static constexpr size_t ymm_len = 32;
+    static constexpr size_t zmm_len = 64;
 
-    typedef enum {
-        isa_any,
-        sse42,
-        avx,
-        avx2,
-        avx512_common,
-        avx512_core,
-        avx512_core_vnni,
-        avx512_mic,
-        avx512_mic_4ops,
-        avx512_core_bf16,
-        avx512_vpopcnt,
-        fp16
-    } cpu_isa_t;
+    const Xbyak::Reg64 param = abi_param1;
 
     static bool mayiuse(const cpu_isa_t cpu_isa);
     static bool is_x64();
 
-    Generator(void* code_ptr = nullptr, size_t code_size = 16 * 1024);
+    Generator(cpu_isa_t isa = avx2, void* code_ptr = nullptr, size_t code_size = 16 * 1024);
     void preamble();
     void postamble();
 
@@ -85,7 +90,12 @@ public:
 
     template <typename T>
     void copy(const Xbyak::Reg64& dst, const Xbyak::Reg64& src, const Xbyak::Reg64& size);
+
+    size_t get_vlen() {
+        return m_vlen;
+    }
 };
+
 }  // namespace jit
 }  // namespace reference
 }  // namespace ov
