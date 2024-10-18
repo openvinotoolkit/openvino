@@ -15,7 +15,7 @@ namespace op {
 class OPENVINO_API Sink : public Op {
 public:
     ~Sink() override = 0;
-    OPENVINO_OP("Sink");
+    OPENVINO_OP("Sink", "util", Op);
 
 protected:
     Sink() : Op() {}

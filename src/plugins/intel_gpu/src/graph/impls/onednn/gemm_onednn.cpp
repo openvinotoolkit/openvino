@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "gemm_onednn.hpp"
 #include "gemm_inst.h"
+#include "intel_gpu/runtime/utils.hpp"
 #include "primitive_onednn_base.h"
-#include "impls/registry/implementation_map.hpp"
-
-#include "kernel_selector_common.h"
 
 #include <oneapi/dnnl/dnnl.hpp>
 
@@ -437,32 +436,11 @@ public:
     }
 };
 
-namespace detail {
-
-attach_gemm_onednn::attach_gemm_onednn() {
-    std::vector<data_types> dt = {
-        data_types::f32,
-        data_types::f16,
-        data_types::u8,
-        data_types::i8,
-    };
-    std::vector<format::type> fmt = {
-        format::bfyx,
-        format::bfxy,
-        format::byxf,
-        format::byfx,
-        format::bxfy,
-        format::fybx,  //format used for gemm fusion
-        format::fyxb,  //format used for gemm fusion
-        format::xbfy, // format used for gemm fusion
-        format::ybfx, // format used for gemm fusion
-        format::bfzyx,
-        format::bfwzyx,
-    };
-    implementation_map<gemm>::add(impl_types::onednn, gemm_onednn::create, dt, fmt);
+std::unique_ptr<primitive_impl> GemmImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const  {
+    assert(node.is_type<gemm>());
+    return onednn::gemm_onednn::create(static_cast<const gemm_node&>(node), params);
 }
 
-}  // namespace detail
 }  // namespace onednn
 }  // namespace cldnn
 

@@ -19,22 +19,22 @@ CPU
 
    .. tab-item:: Supported Hardware
 
+      * Intel® Core™ Ultra Series 1 and Series 2 (Windows only)
       * Intel® Xeon® 6 processor (preview)
       * Intel Atom® Processor X Series
       * Intel Atom® processor with Intel® SSE4.2 support
       * Intel® Pentium® processor N4200/5, N3350/5, N3450/5 with Intel® HD Graphics
       * 6th - 14th generation Intel® Core™ processors
-      * Intel® Core™ Ultra Series 1 and Series 2 (Windows only)
       * 1st - 5th generation Intel® Xeon® Scalable Processors
       * ARM CPUs with armv7a and higher, ARM64 CPUs with arm64-v8a and higher, Apple® Mac with Apple silicon
 
    .. tab-item:: Supported Operating Systems
 
+      * Windows 11, 64-bit
+      * Windows 10, 64-bit
       * Ubuntu 24.04 long-term support (LTS), 64-bit (Kernel 6.8+) (preview support)
       * Ubuntu 22.04 long-term support (LTS), 64-bit (Kernel 5.15+)
       * Ubuntu 20.04 long-term support (LTS), 64-bit (Kernel 5.15+)
-      * Windows 10, 64-bit
-      * Windows 11, 64-bit
       * macOS 12.6 and above, 64-bit and ARM64
       * CentOS 7
       * Red Hat Enterprise Linux 9.3-9.4, 64-bit
@@ -48,22 +48,22 @@ GPU
 
    .. tab-item::  Supported Hardware
 
+      * Intel® Arc™ GPU Series
       * Intel® HD Graphics
       * Intel® UHD Graphics
       * Intel® Iris® Pro Graphics
       * Intel® Iris® Xe Graphics
       * Intel® Iris® Xe Max Graphics
-      * Intel® Arc™ GPU Series
       * Intel® Data Center GPU Flex Series
       * Intel® Data Center GPU Max Series
 
    .. tab-item::  Supported Operating Systems
 
+      * Windows 11, 64-bit
+      * Windows 10, 64-bit
       * Ubuntu 24.04 long-term support (LTS), 64-bit
       * Ubuntu 22.04 long-term support (LTS), 64-bit
       * Ubuntu 20.04 long-term support (LTS), 64-bit
-      * Windows 10, 64-bit
-      * Windows 11, 64-bit
       * CentOS 7
       * Red Hat Enterprise Linux 9.3-9.4, 64-bit
 
@@ -89,7 +89,7 @@ Intel® Neural Processing Unit
 
       * Ubuntu 24.04 long-term support (LTS), 64-bit (preview support)
       * Ubuntu 22.04 long-term support (LTS), 64-bit
-      * Windows 11, 64-bit (22H2, 23H2)
+      * Windows 11, 64-bit (22H2 and later)
 
    .. tab-item:: Additional considerations
 

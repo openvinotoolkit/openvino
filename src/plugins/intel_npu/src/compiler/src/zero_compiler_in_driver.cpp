@@ -4,7 +4,6 @@
 
 #include "zero_compiler_in_driver.hpp"
 
-#include <fstream>
 #include <regex>
 #include <string_view>
 
@@ -272,13 +271,19 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeIOInfo(const std
 
     inputsPrecisionSS << INPUTS_PRECISIONS_KEY << KEY_VALUE_SEPARATOR << VALUE_DELIMITER;
     inputsLayoutSS << INPUTS_LAYOUTS_KEY << KEY_VALUE_SEPARATOR << VALUE_DELIMITER;
+    const auto getRankOrThrow = [](const ov::PartialShape& shape) -> size_t {
+        if (shape.rank().is_dynamic()) {
+            OPENVINO_THROW("Dynamic rank is not supported for NPU plugin");
+        }
+        return shape.rank().get_length();
+    };
 
     if (!parameters.empty()) {
         size_t parameterIndex = 0;
 
         for (const std::shared_ptr<ov::op::v0::Parameter>& parameter : parameters) {
-            const ov::element::Type& precision = parameter->get_element_type();
-            const size_t rank = parameter->get_shape().size();
+            const auto precision = parameter->get_element_type();
+            const auto rank = getRankOrThrow(parameter->get_partial_shape());
 
             if (parameterIndex != 0) {
                 inputsPrecisionSS << VALUES_SEPARATOR;
@@ -310,10 +315,9 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeIOInfo(const std
     outputsLayoutSS << OUTPUTS_LAYOUTS_KEY << KEY_VALUE_SEPARATOR << VALUE_DELIMITER;
 
     size_t resultIndex = 0;
-
     for (const std::shared_ptr<ov::op::v0::Result>& result : results) {
-        const ov::element::Type_t precision = result->get_element_type();
-        const size_t rank = result->get_shape().size();
+        const auto precision = result->get_element_type();
+        const auto rank = getRankOrThrow(result->get_output_partial_shape(0));
 
         if (resultIndex != 0) {
             outputsPrecisionSS << VALUES_SEPARATOR;
@@ -363,46 +367,83 @@ void LevelZeroCompilerInDriver<TableExtension>::release(std::shared_ptr<const Ne
 }
 
 template <typename TableExtension>
-std::vector<uint8_t> LevelZeroCompilerInDriver<TableExtension>::getCompiledNetwork(
-    std::shared_ptr<const NetworkDescription> networkDescription) {
-    if (networkDescription->metadata.graphHandle != nullptr && networkDescription->compiledNetwork.size() == 0) {
+template <typename T, std::enable_if_t<UseCopyForNativeBinary(T), bool>>
+void LevelZeroCompilerInDriver<TableExtension>::getNativeBinary(ze_graph_dditable_ext_curr_t& graphDdiTableExt,
+                                                                ze_graph_handle_t graphHandle,
+                                                                std::vector<uint8_t>& blob,
+                                                                const uint8_t*& blobPtr,
+                                                                size_t& blobSize) const {
+    // Get blob size first
+    auto result = _graphDdiTableExt.pfnGetNativeBinary(graphHandle, &blobSize, nullptr);
+    blob.resize(blobSize);
+
+    OPENVINO_ASSERT(result == ZE_RESULT_SUCCESS,
+                    "Failed to compile network. L0 pfnGetNativeBinary get blob size",
+                    " result: ",
+                    ze_result_to_string(result),
+                    ", code 0x",
+                    std::hex,
+                    uint64_t(result),
+                    ". ",
+                    getLatestBuildError());
+
+    // Get blob data
+    result = _graphDdiTableExt.pfnGetNativeBinary(graphHandle, &blobSize, blob.data());
+
+    OPENVINO_ASSERT(result == ZE_RESULT_SUCCESS,
+                    "Failed to compile network. L0 pfnGetNativeBinary get blob data",
+                    " result: ",
+                    ze_result_to_string(result),
+                    ", code 0x",
+                    std::hex,
+                    uint64_t(result),
+                    ". ",
+                    getLatestBuildError());
+
+    blobPtr = blob.data();
+}
+
+template <typename TableExtension>
+template <typename T, std::enable_if_t<!UseCopyForNativeBinary(T), bool>>
+void LevelZeroCompilerInDriver<TableExtension>::getNativeBinary(ze_graph_dditable_ext_curr_t& graphDdiTableExt,
+                                                                ze_graph_handle_t graphHandle,
+                                                                std::vector<uint8_t>& /* unusedBlob */,
+                                                                const uint8_t*& blobPtr,
+                                                                size_t& blobSize) const {
+    // Get blob ptr and size
+    auto result = _graphDdiTableExt.pfnGetNativeBinary2(graphHandle, &blobSize, &blobPtr);
+
+    OPENVINO_ASSERT(result == ZE_RESULT_SUCCESS,
+                    "Failed to compile network. L0 pfnGetNativeBinary get blob size",
+                    " result: ",
+                    ze_result_to_string(result),
+                    ", code 0x",
+                    std::hex,
+                    uint64_t(result),
+                    ". ",
+                    getLatestBuildError());
+}
+
+template <typename TableExtension>
+CompiledNetwork LevelZeroCompilerInDriver<TableExtension>::getCompiledNetwork(
+    const NetworkDescription& networkDescription) {
+    if (networkDescription.metadata.graphHandle != nullptr && networkDescription.compiledNetwork.size() == 0) {
         _logger.info("LevelZeroCompilerInDriver getCompiledNetwork get blob from graphHandle");
-        ze_graph_handle_t graphHandle = static_cast<ze_graph_handle_t>(networkDescription->metadata.graphHandle);
+        ze_graph_handle_t graphHandle = static_cast<ze_graph_handle_t>(networkDescription.metadata.graphHandle);
 
-        // Get blob size first
+        const uint8_t* blobPtr = nullptr;
         size_t blobSize = -1;
+        std::vector<uint8_t> blob;
 
-        auto result = _graphDdiTableExt.pfnGetNativeBinary(graphHandle, &blobSize, nullptr);
+        getNativeBinary(_graphDdiTableExt, graphHandle, blob, blobPtr, blobSize);
 
-        OPENVINO_ASSERT(result == ZE_RESULT_SUCCESS,
-                        "Failed to compile network. L0 pfnGetNativeBinary get blob size",
-                        " result: ",
-                        ze_result_to_string(result),
-                        ", code 0x",
-                        std::hex,
-                        uint64_t(result),
-                        ". ",
-                        getLatestBuildError());
-
-        std::vector<uint8_t> blob(blobSize);
-        // Get blob data
-        result = _graphDdiTableExt.pfnGetNativeBinary(graphHandle, &blobSize, blob.data());
-
-        OPENVINO_ASSERT(result == ZE_RESULT_SUCCESS,
-                        "Failed to compile network. L0 pfnGetNativeBinary get blob data",
-                        " result: ",
-                        ze_result_to_string(result),
-                        ", code 0x",
-                        std::hex,
-                        uint64_t(result),
-                        ". ",
-                        getLatestBuildError());
         _logger.info("LevelZeroCompilerInDriver getCompiledNetwork returning blob");
-        return blob;
-    } else {
-        _logger.info("return the blob from network description");
-        return networkDescription->compiledNetwork;
+        return CompiledNetwork(blobPtr, blobSize, std::move(blob));
     }
+    _logger.info("return the blob from network description");
+    return CompiledNetwork(networkDescription.compiledNetwork.data(),
+                           networkDescription.compiledNetwork.size(),
+                           networkDescription.compiledNetwork);
 }
 
 template <typename TableExtension>
@@ -1201,6 +1242,8 @@ template class LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_3_t>;
 template class LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_4_t>;
 template class LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_5_t>;
 template class LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_6_t>;
+template class LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_7_t>;
+template class LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_8_t>;
 
 }  // namespace driverCompilerAdapter
 }  // namespace intel_npu
