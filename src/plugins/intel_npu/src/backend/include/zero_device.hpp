@@ -9,10 +9,10 @@
 
 #include "intel_npu/al/icompiled_model.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
+#include "intel_npu/utils/zero/zero_types.hpp"
 #include "npu.hpp"
 #include "openvino/runtime/intel_npu/remote_properties.hpp"
 #include "zero_init.hpp"
-#include "zero_types.hpp"
 
 namespace intel_npu {
 

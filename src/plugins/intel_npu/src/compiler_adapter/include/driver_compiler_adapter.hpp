@@ -28,7 +28,7 @@ private:
     std::shared_ptr<ZeroEngineBackend> _zeroBackend;
     std::shared_ptr<IZeroLink> _zeroLink;
 
-    ze_device_graph_properties_t _deviceGraphProperties{};
+    ze_device_graph_properties_t _deviceGraphProperties = {};
 
     Logger _logger;
 };

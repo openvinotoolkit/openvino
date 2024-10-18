@@ -8,11 +8,15 @@
 #include <ze_api.h>
 #include <ze_graph_ext.h>
 
-#include "intel_npu/al/config/runtime.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
 
 namespace intel_npu {
+
+struct ArgumentDescriptor {
+    ze_graph_argument_properties_3_t info;
+    uint32_t idx;
+};
 
 namespace zeroUtils {
 
