@@ -38,6 +38,9 @@ torchaudio==2.2.2; platform_system == "Darwin" and platform_machine == "x86_64"
 wheel==0.44.0
 PyYAML==6.0.2
 kornia==0.7.3
+super-image==0.1.7
+# huggingface-hub required for super-image
+huggingface-hub==0.25.2
 
 # use latest released version once it's available
 git+https://github.com/huggingface/optimum-intel.git@main; python_version < "3.12"
