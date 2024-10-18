@@ -82,7 +82,7 @@ public:
     const std::string& isolatedTag() const;
     std::string specialTags() const;
     void addWeightsPrecision(const std::vector<ov::element::Type>& prec);
-    const std::vector<ov::element::Type>& getWeightsPrecision() const;
+    const std::vector<ov::element::Type>& getConstsPrecision() const;
 
 private:
     void includeExtraLayers(detail::OVNodeSet& input_layers,
@@ -109,7 +109,7 @@ private:
 
     // Structure to keep track of mixed precision within initial model
     // Note: partitioning is stable so keep it in a single vector
-    std::vector<ov::element::Type> m_weights_precision;
+    std::vector<ov::element::Type> m_consts_precision;
 
     // Unique repeated tag
     std::shared_ptr<Repeated> m_repeated = nullptr;

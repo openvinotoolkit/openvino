@@ -22,7 +22,7 @@ namespace detail {
 bool isOp(const std::shared_ptr<ov::Node>& node);
 // Find Const->Convert->Node if any and return Const precisions.
 // Used for mixed-precision models to properly identify repeated blocks.
-std::vector<ov::element::Type> getWeightsPrecision(const std::shared_ptr<ov::Node>& node);
+std::vector<ov::element::Type> getConstsPrecision(const std::shared_ptr<ov::Node>& node);
 }  // namespace detail
 
 // Core part of the partitioning algorithm which implements a list of graph passes.
