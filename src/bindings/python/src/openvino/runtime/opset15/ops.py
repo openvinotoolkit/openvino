@@ -252,25 +252,20 @@ def bitwise_left_shift(
 
 
 @nameable_op
-def bitwise_right_shift(
+def identity(
     data: NodeInput,
-    copy: bool = False,
     name: Optional[str] = None,
 ) -> Node:
-    """Identity operation is used as a placeholder. It either passes down the input,
-    or creates a copy of the input to forward to the output.
+    """Identity operation is used as a placeholder. It creates a copy of the input to forward to the output.
 
     :param data: Tensor with data.
-    :param copy: Boolean that defines the behavior of Identity. If false, input is passed as output, otherwise, a copy of input is created. Defaults to False.
 
     :return: The new node performing BitwiseRightShift operation.
     """
     return _get_node_factory_opset15().create(
         "Identity",
         as_nodes(data, name=name),
-        {
-            "copy": copy,
-        },
+        {},
     )
 
 
