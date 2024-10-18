@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_npu/al/config/compiler.hpp"
+#include "config/compiler.hpp"
 
 using namespace intel_npu;
 using namespace ov::intel_npu;

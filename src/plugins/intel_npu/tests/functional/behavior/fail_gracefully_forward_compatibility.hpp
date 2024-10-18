@@ -20,7 +20,7 @@
 #include <openvino/runtime/compiled_model.hpp>
 #include <openvino/runtime/core.hpp>
 
-#include "intel_npu/al/config/common.hpp"
+#include "config/common.hpp"
 
 using CompilationParams = std::tuple<std::string,  // Device name
                                      ov::AnyMap    // Config

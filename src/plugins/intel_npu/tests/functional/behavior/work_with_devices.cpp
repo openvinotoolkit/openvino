@@ -4,7 +4,7 @@
 
 #include "behavior/work_with_devices.hpp"
 #include "common/utils.hpp"
-#include "intel_npu/al/config/common.hpp"
+#include "config/common.hpp"
 
 namespace {
 
