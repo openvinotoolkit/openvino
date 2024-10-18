@@ -1553,8 +1553,13 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
                     auto allocated_mem = d.first->output_memory_ptr();
                     auto actual_input_layout = d.first->get_output_layout();
                     auto& engine = _network.get_engine();
+                    cldnn::memory_ptr actual_mem = nullptr;
                     // Need to use actual layout, not the fake aligned memory layout
-                    auto actual_mem = engine.reinterpret_buffer(*allocated_mem, actual_input_layout);
+                    if (actual_input_layout.count() != 0) {
+                        actual_mem = engine.reinterpret_buffer(*allocated_mem, actual_input_layout);
+                    } else {
+                        actual_mem = engine.allocate_memory(actual_input_layout);
+                    }
                     subgraph->set_input_data(d.first->id(), std::move(actual_mem));
                 }
             }
@@ -2323,6 +2328,13 @@ bool primitive_inst::is_valid_fusion() const {
 
     if (fused_eltwise_prims.empty())
         return true;
+
+    if (_node->is_type<fully_connected>() || _node->is_type<gemm>() || _node->is_type<convolution>()) {
+        if (_impl_params->input_layouts[0].count() == 0 ||
+            _impl_params->input_layouts[1].count() == 0) {
+            return false;
+        }
+    }
 
     if (_node->is_type<fully_connected>() && _node->get_preferred_impl_type() == impl_types::ocl) {
         // TODO: Only fc_bf_tiled_kernel & ref kernel are verified for fused eltwise. To support more fc kernels for eltwise fusion
