@@ -27,8 +27,7 @@ struct RNNSeqImplementationManager: public ImplementationManager {
         auto in_dt = input_layout.data_type;
         auto out_dt = output_layout.data_type;
         static const std::vector<format::type> supported_formats = {
-            format::bfyx,
-            format::fyxb,
+            format::bfyx
         };
         static const std::vector<ov::element::Type_t> supported_data_types = {
             data_types::f32,
