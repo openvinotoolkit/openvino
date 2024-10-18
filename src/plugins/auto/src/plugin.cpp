@@ -404,8 +404,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
         support_devices = filter_device_by_model(support_devices_by_property, model, load_config);
         cloned_model = model->clone();
     } else {
-        // AUTO / MULTI don't support caching explicitly, but can redirect this functionality to actual HW plugin
         LOG_INFO_TAG("compile model with model path");
+        if (work_mode_auto) {
+            cloned_model = get_core()->read_model(model_path, std::string{});
+            support_devices = filter_device_by_model(support_devices_by_property, cloned_model, load_config);
+        } else {
+            auto_s_context->m_model_path = model_path;
+        }
     }
     if (!is_cumulative) {
         devices_with_priority = get_valid_device(support_devices, model_precision);
@@ -427,7 +432,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     }
     // clone the model, in case of reshape conflict
     auto_s_context->m_model = cloned_model;
-    auto_s_context->m_model_path = model_path;
     auto_s_context->m_device_priorities = support_devices;
     auto_s_context->m_device_priorities_initial = std::move(support_devices);
     auto_s_context->m_str_devices = std::move(str_devices);

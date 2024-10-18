@@ -249,7 +249,8 @@ void AutoSchedule::init() {
                     });
                 }
                 INFO_RUN([this, &first_infer_time, &cpuhelp_all_start_times, &cpuhelp_all_end_times]() {
-                    first_infer_time = cpuhelp_all_end_times.front() - cpuhelp_all_start_times.front();
+                    if (!cpuhelp_all_end_times.empty() && !cpuhelp_all_start_times.empty())
+                        first_infer_time = cpuhelp_all_end_times.front() - cpuhelp_all_start_times.front();
                     cpuhelp_all_start_times.sort(std::less<Time>());
                     cpuhelp_all_end_times.sort(std::less<Time>());
                     m_cpuhelp_infer_count = cpuhelp_all_start_times.size();
@@ -332,11 +333,10 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
     }
     try {
         auto compile_start_time = std::chrono::high_resolution_clock::now();
-        if (!(m_context->m_model_path.empty())) {
-            context.m_compiled_model =
-                m_context->m_ov_core->compile_model(m_context->m_model_path, device, device_config);
-        } else {
+        if ((m_context->m_model)) {
             context.m_compiled_model = m_context->m_ov_core->compile_model(model, device, device_config);
+        } else {
+            OPENVINO_THROW("OpenVino Model is empty!");
         }
         context.m_is_load_success = true;
         auto compile_end_time = std::chrono::high_resolution_clock::now();
