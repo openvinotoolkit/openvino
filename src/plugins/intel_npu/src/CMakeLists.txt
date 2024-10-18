@@ -10,7 +10,7 @@ add_subdirectory(utils)
 add_subdirectory(al)
 
 if(ENABLE_DRIVER_COMPILER_ADAPTER AND ENABLE_ZEROAPI_BACKEND)
-    add_subdirectory(compiler)
+    add_subdirectory(compiler_adapter)
 endif()
 
 if(ENABLE_ZEROAPI_BACKEND)

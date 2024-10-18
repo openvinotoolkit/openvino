@@ -54,7 +54,7 @@ public:
                                     const ov::AnyMap& properties) const override;
 
 private:
-    ov::SoPtr<ICompiler> getCompiler(const Config& config) const;
+    std::unique_ptr<ICompilerAdapter> getCompiler(const Config& config) const;
 
     std::shared_ptr<NPUBackends> _backends;
 
