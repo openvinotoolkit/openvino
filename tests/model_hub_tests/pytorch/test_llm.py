@@ -128,7 +128,7 @@ class TestLLMModel(TestTorchConvertModel):
             example["past_key_values"] = pkv
             example["attention_mask"] = torch.cat(
                 [example["attention_mask"], am], -1)
-        if atype not in ["opt", "falcon", "mbart_gptq", "mpt"]:
+        if atype not in ["opt", "falcon", "mbart", "mpt"]:
             ids = torch.cumsum(example["attention_mask"] != 0, dim=1) - 1
             example["position_ids"] = ids[:, -
                                           example["input_ids"].shape[1]:]
