@@ -55,11 +55,9 @@ static VectorDims makeDummyOutputDims(const VectorDims& inShape, const VectorDim
 static DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr srcDesc,
                                                         const DnnlMemoryDescPtr dstDesc,
                                                         bool weightsNonTransposed) {
-    if (!weightsNonTransposed) {
-        DEBUG_LOG("TRANSPOSE SKIPPED!");
+    if (!weightsNonTransposed)
         return srcDesc;
-    }
-    DEBUG_LOG("TRANSPOSE IS DONE!");
+
     const auto& weiDesc = srcDesc->getDnnlDesc();
     const auto reorderedWeiDesc = dnnl::memory::desc{weiDesc.get_dims(), weiDesc.get_data_type(), dnnl::memory::format_tag::ba};
     const auto transposedWeiDesc = reorderedWeiDesc.reshape(dstDesc->getDnnlDesc().get_dims());
@@ -79,12 +77,10 @@ static MemoryPtr reorderData(DnnlMemoryDescPtr srcWeightDesc,
         OPENVINO_THROW("Can't reorder data with dynamic shapes");
 
     if (input->getShape().hasZeroDims() || output->getShape().hasZeroDims()) {
-        DEBUG_LOG("hasZeroDims!");
         return output;
     }
 
     if (input->getDesc().isCompatible(output->getDesc())) {
-        DEBUG_LOG("isCompatible!");
         if (input->getDesc().getPrecision() == element::string) {
             auto srcPtr = input->getDataAs<StringMemory::OvString>();
             auto dstPtr = output->getDataAs<StringMemory::OvString>();
@@ -97,7 +93,6 @@ static MemoryPtr reorderData(DnnlMemoryDescPtr srcWeightDesc,
             cpu_memcpy(dstPtr, srcPtr, copySize);
         }
     } else {
-        DEBUG_LOG("!isCompatible");
         dnnl::reorder reorder;
         std::vector<uint8_t> tmpBuff;
 
@@ -121,9 +116,7 @@ static MemoryPtr reorderData(DnnlMemoryDescPtr srcWeightDesc,
 
         // try directly reorder
         reorder = getReorderPrim(cache, engine, srcMemoryDesc, dstMemoryDesc);
-        DEBUG_LOG("REORDER IMPL NAME: ", reorder.get_primitive_desc()->impl()->name());
         if (!reorder || parse_impl_name(reorder.get_primitive_desc()->impl()->name()) == ref_any) {
-            DEBUG_LOG("PRECISION CONVERSION!", static_cast<int>(input->getDataType()), " -> ", static_cast<int>(output->getDataType()));
             // try precision conversion then do the reorder
             if (output->getDataType() != input->getDataType() && node::Convert::isSupportedDesc(input->getDesc()) &&
                 node::Convert::isSupportedDesc(output->getDesc())) {
@@ -135,9 +128,7 @@ static MemoryPtr reorderData(DnnlMemoryDescPtr srcWeightDesc,
                 auto aclWeightsConverter = std::make_shared<acl_fc_executor::ACLWeightsConverter>();
                 if (aclWeightsConverter->update(memoryArgs)) {
                     aclWeightsConverter->execute(memoryArgs);
-                    DEBUG_LOG("PRECISION CONVERSION - ACL!");
                 } else {
-                    DEBUG_LOG("PRECISION CONVERSION - cpu_convert!");
                     auto data = static_cast<const uint8_t *>(input->getData());
                     tmpBuff.resize(output->getSize());
 
@@ -158,8 +149,6 @@ static MemoryPtr reorderData(DnnlMemoryDescPtr srcWeightDesc,
                                " and ",
                                output->getDesc().serializeFormat());
             }
-        } else {
-            DEBUG_LOG("reorder is not ref!");
         }
         if (reorder) {
             dnnl::stream loc_stream(engine, dnnl::stream::flags::in_order);
@@ -178,7 +167,7 @@ static MemoryPtr prepareWeightMemory(const MemoryArgs &memory,
                                      const PostOps &postOps,
                                      arm_compute::WeightFormat& expectedWeightFormat,
                                      arm_compute::TensorInfo& wei_tensor_info) {
-    DEBUG_LOG("ACLFullyConnectedExecutor: prepack weights123");
+    DEBUG_LOG("ACLFullyConnectedExecutor: prepack weights");
 
     MemoryArgs memoryArgs;
     memoryArgs[ARG_BIAS]  = memory.at(ARG_BIAS);
@@ -198,8 +187,6 @@ static MemoryPtr prepareWeightMemory(const MemoryArgs &memory,
     }
     auto aclWeightsRepack = std::make_shared<acl_fc_executor::ACLWeightFormatGenerator>(attrs, postOps, memoryArgs);
     bool isNeededReorder = aclWeightsRepack->update(memoryArgs);
-    DEBUG_LOG("isNeededReorder: ", isNeededReorder);
-    DEBUG_LOG("!aclfcAttrs.weightsNonTransposed: ", !aclfcAttrs.weightsNonTransposed);
     expectedWeightFormat = isNeededReorder ? aclWeightsRepack->getOptImplWeightFormat() : arm_compute::WeightFormat::UNSPECIFIED;
     wei_tensor_info = aclWeightsRepack->getTensorInfo(ACLArgs::ACL_WEI);
 
@@ -219,6 +206,7 @@ static MemoryPtr prepareWeightMemory(const MemoryArgs &memory,
                                                                     inner_dim, o_dim, remaining_dims, {});
         aclfcAttrs.isWeightsRepacked = true;
     }
+#if defined(OPENVINO_ARCH_ARM)
     if (!aclfcAttrs.weightsNonTransposed) {
         auto reverse_weights_dims = memory.at(ARG_WEI)->getStaticDims();
         std::reverse(reverse_weights_dims.begin(), reverse_weights_dims.end());
@@ -229,17 +217,17 @@ static MemoryPtr prepareWeightMemory(const MemoryArgs &memory,
         dnnlSrcDesc = makeTransposedWeightDescriptor(dnnlSrcDesc, dnnlDstDesc, !aclfcAttrs.weightsNonTransposed);
         aclfcAttrs.isWeightsRepacked = true;
     }
+#endif
+#if defined(OPENVINO_ARCH_ARM64)
+    if (aclfcAttrs.weightsNonTransposed) {
+        dnnlSrcDesc = makeTransposedWeightDescriptor(dnnlSrcDesc, dnnlDstDesc, aclfcAttrs.weightsNonTransposed);
+        aclfcAttrs.isWeightsRepacked = true;
+    }
+#endif
 
     auto create = [&]() {
         MemoryPtr final_ptr = memory.at(ARG_WEI);
-        if (isNeededReorder || !aclfcAttrs.weightsNonTransposed || aclfcAttrs.isConvertedWeights) {
-            //dnnlSrcDesc = makeTransposedWeightDescriptor(dnnlSrcDesc, dnnlDstDesc, aclfcAttrs.weightsNonTransposed);
-            if (!aclfcAttrs.weightsNonTransposed) {
-        //auto reverse_weights_dims = memory.at(ARG_WEI)->getStaticDims();
-        //std::reverse(reverse_weights_dims.begin(), reverse_weights_dims.end());
-        //auto weiDesc_reverse_weights_dims = weiDesc->cloneWithNewDims(reverse_weights_dims, true);
-        //dnnlSrcDesc = MemoryDescUtils::convertToDnnlMemoryDesc(weiDesc_reverse_weights_dims);
-            }
+        if (aclfcAttrs.isWeightsRepacked || aclfcAttrs.isConvertedWeights) {
             final_ptr = reorderData(dnnlSrcDesc, dnnlDstDesc, memory.at(ARG_WEI), context);
             DEBUG_LOG("ACLFullyConnectedExecutor: cache miss, perform packing");
         }
@@ -247,7 +235,7 @@ static MemoryPtr prepareWeightMemory(const MemoryArgs &memory,
     };
 
     auto weightCache = context->getWeightsCache();
-    /*if (weightCache != nullptr) {
+    if (weightCache != nullptr) {
         const auto& wgtDims = memory.at(ARG_WEI)->getStaticDims();
         const auto N = wgtDims[0];
         const auto K = wgtDims[1];
@@ -256,7 +244,7 @@ static MemoryPtr prepareWeightMemory(const MemoryArgs &memory,
                                         std::to_string(reinterpret_cast<uint64_t>(memory.at(ARG_WEI)->getData()));
         DEBUG_LOG("ACLFullyConnectedExecutor: findOrCreate, string_hash: ", string_hash);
         return *weightCache->findOrCreate(string_hash, create);
-    }*/
+    }
 
     DEBUG_LOG("ACLFullyConnectedExecutor: Weights cache is not available");
     return create();
@@ -299,8 +287,6 @@ static void initFCAttrs(const FCAttrs &attrs,
     if (memory.at(ARG_SRC)->getPrecision() != memory.at(ARG_WEI)->getPrecision()) {
         aclfcAttrs.isConvertedWeights = true;
     }
-    DEBUG_LOG("isConvertedWeights: ", aclfcAttrs.isConvertedWeights, " ",
-    memory.at(ARG_SRC)->getPrecision().c_type_string(), " -> ", memory.at(ARG_WEI)->getPrecision().c_type_string());
 }
 
 ACLFullyConnectedExecutor::ACLFullyConnectedExecutor(const FCAttrs &attrs,
