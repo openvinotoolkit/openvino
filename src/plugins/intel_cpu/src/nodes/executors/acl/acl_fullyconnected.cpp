@@ -232,7 +232,7 @@ static MemoryPtr prepareWeightMemory(const MemoryArgs &memory,
 
     auto create = [&]() {
         MemoryPtr final_ptr = memory.at(ARG_WEI);
-        if (isNeededReorder || !aclfcAttrs.weightsNonTransposed) {
+        if (isNeededReorder || !aclfcAttrs.weightsNonTransposed || aclfcAttrs.isConvertedWeights) {
             //dnnlSrcDesc = makeTransposedWeightDescriptor(dnnlSrcDesc, dnnlDstDesc, aclfcAttrs.weightsNonTransposed);
             if (!aclfcAttrs.weightsNonTransposed) {
         //auto reverse_weights_dims = memory.at(ARG_WEI)->getStaticDims();
@@ -247,7 +247,7 @@ static MemoryPtr prepareWeightMemory(const MemoryArgs &memory,
     };
 
     auto weightCache = context->getWeightsCache();
-    if (weightCache != nullptr) {
+    /*if (weightCache != nullptr) {
         const auto& wgtDims = memory.at(ARG_WEI)->getStaticDims();
         const auto N = wgtDims[0];
         const auto K = wgtDims[1];
@@ -256,7 +256,7 @@ static MemoryPtr prepareWeightMemory(const MemoryArgs &memory,
                                         std::to_string(reinterpret_cast<uint64_t>(memory.at(ARG_WEI)->getData()));
         DEBUG_LOG("ACLFullyConnectedExecutor: findOrCreate, string_hash: ", string_hash);
         return *weightCache->findOrCreate(string_hash, create);
-    }
+    }*/
 
     DEBUG_LOG("ACLFullyConnectedExecutor: Weights cache is not available");
     return create();
@@ -299,6 +299,8 @@ static void initFCAttrs(const FCAttrs &attrs,
     if (memory.at(ARG_SRC)->getPrecision() != memory.at(ARG_WEI)->getPrecision()) {
         aclfcAttrs.isConvertedWeights = true;
     }
+    DEBUG_LOG("isConvertedWeights: ", aclfcAttrs.isConvertedWeights, " ",
+    memory.at(ARG_SRC)->getPrecision().c_type_string(), " -> ", memory.at(ARG_WEI)->getPrecision().c_type_string());
 }
 
 ACLFullyConnectedExecutor::ACLFullyConnectedExecutor(const FCAttrs &attrs,
