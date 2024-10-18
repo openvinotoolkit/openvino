@@ -47,10 +47,16 @@ DeviceInformation Plugin::parse_batch_device(const std::string& device_with_batc
     return {std::move(deviceName), {{}}, static_cast<uint32_t>(batch)};
 }
 
-DeviceInformation Plugin::parse_meta_device(const std::string& devices_batch_config,
-                                            const ov::AnyMap& user_config) const {
+DeviceInformation Plugin::parse_only_meta_device(const std::string& devices_batch_config,
+                                                 const ov::AnyMap& user_config) const {
     auto meta_device = parse_batch_device(devices_batch_config);
     meta_device.device_config = get_core()->get_supported_property(meta_device.device_name, user_config);
+    return meta_device;
+}
+
+DeviceInformation Plugin::parse_meta_device(const std::string& devices_batch_config,
+                                            const ov::AnyMap& user_config) const {
+    auto meta_device = parse_only_meta_device(devices_batch_config, user_config);
     // check that no irrelevant config-keys left
     for (const auto& k : user_config) {
         const auto& name = k.first;
@@ -140,7 +146,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     if (device_batch == full_properties.end()) {
         OPENVINO_THROW("ov::device::priorities key for AUTO BATCH is not set for BATCH device");
     }
-    auto meta_device = parse_meta_device(device_batch->second.as<std::string>(), properties);
+    auto meta_device = parse_only_meta_device(device_batch->second.as<std::string>(), properties);
 
     const auto& device_name = meta_device.device_name;
     const auto& device_config = meta_device.device_config;
