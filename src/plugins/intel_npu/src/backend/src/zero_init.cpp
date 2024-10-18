@@ -105,6 +105,12 @@ ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder",
     THROW_ON_FAIL_FOR_LEVELZERO("zeDriverGetExtensionProperties",
                                 zeDriverGetExtensionProperties(driver_handle, &count, extProps.data()));
 
+    // save the list of extension properties for later searches
+    for (auto it = extProps.begin(); it != extProps.end(); ++it) {
+        ze_driver_extension_properties_t p = *it;
+        driver_extension_properties.emplace(std::string(p.name), p.version);
+    }
+
     // Query our graph extension version
     std::string graph_ext_name;
     uint32_t graph_ext_version = 0;

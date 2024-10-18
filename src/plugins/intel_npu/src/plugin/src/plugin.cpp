@@ -356,7 +356,7 @@ Plugin::Plugin()
               return decltype(ov::device::uuid)::value_type{devUuid};
           }}},
         {ov::device::luid.name(),
-         {true,
+         {_backends->isLUIDExtSupported(),
           ov::PropertyMutability::RO,
           [&](const Config& config) {
               const auto specifiedDeviceName = get_specified_device_name(config);

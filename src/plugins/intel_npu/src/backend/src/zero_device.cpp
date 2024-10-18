@@ -21,12 +21,11 @@ ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs
     log.debug("ZeroDevice::ZeroDevice init");
     device_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
 
-#if defined(_WIN32) || defined(__CYGWIN__)
-    // Obtain LUID
-    // Luid is obtained via zeDeviceGetProperties, but it is windows-only
-    device_luid.stype = ZE_STRUCTURE_TYPE_DEVICE_LUID_EXT_PROPERTIES;
-    device_properties.pNext = &device_luid;
-#endif
+    // Get LUID info, if supported
+    if (_initStructs->isExtensionSupported(std::string(ZE_DEVICE_LUID_EXT_NAME))) {
+        device_luid.stype = ZE_STRUCTURE_TYPE_DEVICE_LUID_EXT_PROPERTIES;
+        device_properties.pNext = &device_luid;
+    }
     THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetProperties",
                                 zeDeviceGetProperties(_initStructs->getDevice(), &device_properties));
 

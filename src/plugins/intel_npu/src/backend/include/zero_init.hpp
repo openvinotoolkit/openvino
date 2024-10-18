@@ -52,6 +52,9 @@ public:
     inline uint32_t getMutableCommandListVersion() const {
         return mutable_command_list_version;
     }
+    inline bool isExtensionSupported(std::string ext_name) const {
+        return driver_extension_properties.count(ext_name) > 0 ? true : false;
+    }
 
 private:
     static const ze_driver_uuid_t uuid;
@@ -61,6 +64,7 @@ private:
     ze_driver_handle_t driver_handle = nullptr;
     ze_device_handle_t device_handle = nullptr;
 
+    std::map<std::string, uint32_t> driver_extension_properties;
     std::unique_ptr<ze_graph_dditable_ext_decorator> graph_dditable_ext_decorator;
     std::unique_ptr<ze_command_queue_npu_dditable_ext_decorator> command_queue_npu_dditable_ext_decorator;
     std::unique_ptr<ze_graph_profiling_ddi_table_ext_decorator> graph_profiling_npu_dditable_ext_decorator;

@@ -39,6 +39,8 @@ public:
     virtual bool isBatchingSupported() const = 0;
     /** @brief Backend has support for workload type */
     virtual bool isCommandQueueExtSupported() const = 0;
+    /** @brief Backend has support for LUID info */
+    virtual bool isLUIDExtSupported() const = 0;
     /** @brief Register backend-specific options */
     virtual void registerOptions(OptionsDesc& options) const;
     /** @brief Get Level Zero context*/
