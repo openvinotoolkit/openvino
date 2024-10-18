@@ -301,6 +301,19 @@ model to avoid extra computation. This is how it can be done for LLMs:
 Now the model can be converted to OpenVINO using Optimum Intel Python API or CLI interfaces
 mentioned above.
 
+Execution on CPU device
+##########################
+
+As mentioned on :ref:`Composability of different threading runtimes <Composability_of_different_threading_runtimes>`, OpenVINO default threading runtime
+oneTBB keeps CPU cores actively for a while after inference done. When using Optimum Intel Python API,
+it will call Torch (via HF transformers) for postprocessing (for example beam search or gready search).
+Torch uses OpenMP for threading, OpenMP will need to wait for CPU cores which are being kept actively by
+oneTBB. OpenMP by default has the `busy-wait <https://gcc.gnu.org/onlinedocs/libgomp/GOMP_005fSPINCOUNT.html>`__ which can delay the next OpenVINO inference as well.
+
+The recommendation
+
+* Limit the CPU thread number of Torch. `torch.set_num_threads <https://pytorch.org/docs/stable/generated/torch.set_num_threads.html>`__
+* Set environment variable `OMP_WAIT_POLICY <https://gcc.gnu.org/onlinedocs/libgomp/OMP_005fWAIT_005fPOLICY.html>`__ to PASSIVE which will disable OpenMP `busy-wait <https://gcc.gnu.org/onlinedocs/libgomp/GOMP_005fSPINCOUNT.html>`__
 
 Additional Resources
 #####################
