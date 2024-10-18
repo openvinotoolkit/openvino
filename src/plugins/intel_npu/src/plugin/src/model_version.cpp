@@ -16,7 +16,6 @@ OpenvinoVersion::OpenvinoVersion(const std::string& version) {
 void OpenvinoVersion::read(std::istream& stream) {
     // compare here ov version?
     stream.read(reinterpret_cast<char*>(&size), sizeof(size));
-    version.resize(size);
     stream.read(&version[0], size);
 }
 
@@ -38,7 +37,6 @@ std::stringstream Metadata<1, 0>::data() {
 
 void Metadata<1, 0>::write(std::ostream& stream) {
     std::stringstream metaData = data(); // maybe we find a better name
-
     stream << metaData.rdbuf();
 }
 
@@ -56,30 +54,24 @@ void check_blob_version(std::vector<uint8_t>& blob, std::istream& stream) {
 
     metadataIterator = blob.begin() + blobDataSize;
 
-    char* blobVersionHeader = new char[VERSION_HEADER.size() + 1];
-    blobVersionHeader[VERSION_HEADER.size()] = '\0';
-    std::copy(metadataIterator, metadataIterator + VERSION_HEADER.size(), blobVersionHeader);
-    std::cout << "header: " << blobVersionHeader << '\n';
-
-    if (VERSION_HEADER != std::string_view(blobVersionHeader, VERSION_HEADER.size())) {
-        delete[] blobVersionHeader;
+    std::string blobVersionHeader(metadataIterator, metadataIterator + VERSION_HEADER.size());
+    if (VERSION_HEADER != blobVersionHeader) {
         OPENVINO_THROW("Version header mismatch or missing");
     }
     metadataIterator += VERSION_HEADER.size();
 
+    std::stringstream metadataStream;
+    metadataStream.write(reinterpret_cast<const char*>(&(*metadataIterator)), blob.end() - metadataIterator - sizeof(size_t));
+
     MetadataVersion metaVersion;
-    memcpy(&metaVersion.major, &(*metadataIterator), sizeof(metaVersion.major));
-    metadataIterator += sizeof(uint32_t);
+    metadataStream.read(reinterpret_cast<char*>(&metaVersion.major), sizeof(metaVersion.major));
     std::cout << "major: " << metaVersion.major;
 
-    memcpy(&metaVersion.minor, &(*metadataIterator), sizeof(metaVersion.minor));
+    metadataStream.read(reinterpret_cast<char*>(&metaVersion.minor), sizeof(metaVersion.minor));
     std::cout << "\nminor: " << metaVersion.minor << '\n';
-    metadataIterator += sizeof(uint32_t);
 
     auto meta = Metadata<CURRENT_METAVERSION_MAJOR, CURRENT_METAVERSION_MINOR>();
-    meta.read(stream);
-
-    delete[] blobVersionHeader;
+    meta.read(metadataStream);
 }
 
 } // namespace intel_npu
