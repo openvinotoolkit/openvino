@@ -43,6 +43,10 @@ IDevice::Uuid IDevice::getUuid() const {
     OPENVINO_THROW("Get UUID not supported");
 }
 
+ov::device::LUID IDevice::getLUID() const {
+    OPENVINO_THROW("Get LUID not supported");
+}
+
 uint32_t IDevice::getSubDevId() const {
     OPENVINO_THROW("Get SubDevId is not supported");
 }

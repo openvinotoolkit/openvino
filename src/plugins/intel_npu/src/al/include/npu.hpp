@@ -72,6 +72,7 @@ public:
     virtual std::string getName() const = 0;
     virtual std::string getFullDeviceName() const = 0;
     virtual Uuid getUuid() const;
+    virtual ov::device::LUID getLUID() const;
     virtual uint32_t getSubDevId() const;
     virtual uint32_t getMaxNumSlices() const;
     virtual uint64_t getAllocMemSize() const;
