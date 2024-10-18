@@ -15,6 +15,7 @@
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "spatial.hpp"
 
 namespace ov {
 namespace npuw {
@@ -148,8 +149,10 @@ private:
     };
     std::vector<GlobalIO> m_subrequests_gio;
 
-    std::mutex m_alloc_mutex;
     std::unordered_set<void*> m_input_allocated;
+
+    // Represents spatial run-time info
+    runtime::spatial::Selector::Ptr m_spatial_selector;
 };
 
 }  // namespace npuw

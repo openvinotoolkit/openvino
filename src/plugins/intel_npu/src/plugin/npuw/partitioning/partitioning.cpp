@@ -1605,7 +1605,7 @@ void Partitioner::identifySpatialRange(ov::npuw::Function& f) {
     const auto& f_params = f._model->get_parameters();
     NPUW_ASSERT(f_params.size() > 0);
 
-    using S = ov::npuw::Function::Spatial;
+    using S = ov::npuw::function::Spatial;
     S spatial;
     spatial._range = f_result_0_shape[1];
     spatial._out_dim = 1;  // the only case we're looking into now

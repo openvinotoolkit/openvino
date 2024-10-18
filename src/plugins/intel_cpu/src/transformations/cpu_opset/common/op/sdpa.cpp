@@ -27,26 +27,37 @@ void ov::intel_cpu::ScaledDotProductAttentionWithKVCache::validate_and_infer_typ
     // [B, H, L1, S]
     auto q_ps = get_input_partial_shape(0);
     // [B, H, L0, S]
-    auto past_kv_ps = get_input_partial_shape(input_num - 1);
+    auto past_k_ps = get_input_partial_shape(input_num - 2);
+    auto past_v_ps = get_input_partial_shape(input_num - 1);
     // [present_kv_batch_size]
     auto beam_idx_ps = get_input_partial_shape(input_num - 3);
 
     auto output_logits = q_ps;
     NODE_VALIDATION_CHECK(this, m_config.output_BLHxS == false);
+    NODE_VALIDATION_CHECK(this, q_ps.rank().is_static());
     NODE_VALIDATION_CHECK(this, q_ps.size() >= 3);
     // permute_axes from original to [B, H, L, S]
     const auto& permute_axes = this->m_config.permute_axes;
-    if (past_kv_ps.rank().is_static()) {
+    if (past_k_ps.rank().is_static() || past_v_ps.rank().is_static()) {
         const size_t batch_index = permute_axes.empty() ? 0 : permute_axes[0];
         const size_t length_index = permute_axes.empty() ? q_ps.size() - 2 : permute_axes[permute_axes.size() - 2];
         const size_t head_num_index = permute_axes.empty() ? q_ps.size() - 3 : permute_axes[permute_axes.size() - 3];
-        NODE_VALIDATION_CHECK(this, q_ps.size() == past_kv_ps.size());
+        if (past_k_ps.rank().is_static())
+            NODE_VALIDATION_CHECK(this, q_ps.size() == past_k_ps.size());
+        if (past_v_ps.rank().is_static())
+            NODE_VALIDATION_CHECK(this, q_ps.size() == past_v_ps.size());
         for (size_t i = 0; i < q_ps.size(); i++) {
             if (i == head_num_index) {
-                if (q_ps[i].is_static() && past_kv_ps[i].is_static()) {
+                if (q_ps[i].is_static() && past_v_ps[i].is_static()) {
                     NODE_VALIDATION_CHECK(this,
-                                          q_ps[i].get_length() % past_kv_ps[i].get_length() == 0,
+                                          q_ps[i].get_length() % past_v_ps[i].get_length() == 0,
                                           "shape not compatiable at index ",
+                                          i);
+                }
+                if (past_k_ps[i].is_static() && past_v_ps[i].is_static()) {
+                    NODE_VALIDATION_CHECK(this,
+                                          past_k_ps[i].get_length() == past_v_ps[i].get_length(),
+                                          "kv shape not compatiable at index ",
                                           i);
                 }
             } else {
@@ -54,8 +65,14 @@ void ov::intel_cpu::ScaledDotProductAttentionWithKVCache::validate_and_infer_typ
             }
         }
         // batch_size can be dynamically changed by gather logic
-        past_kv_ps[batch_index] = beam_idx_ps[0];
-        past_kv_ps[length_index] += q_ps[length_index];
+        if (past_k_ps.rank().is_static()) {
+            past_k_ps[batch_index] = beam_idx_ps[0];
+            past_k_ps[length_index] += q_ps[length_index];
+        }
+        if (past_v_ps.rank().is_static()) {
+            past_v_ps[batch_index] = beam_idx_ps[0];
+            past_v_ps[length_index] += q_ps[length_index];
+        }
     }
     if (!permute_axes.empty()) {
         if (q_ps.rank().is_static()) {
@@ -65,9 +82,11 @@ void ov::intel_cpu::ScaledDotProductAttentionWithKVCache::validate_and_infer_typ
             }
         }
     }
+    if (output_logits.rank().is_static() && past_v_ps.rank().is_static())
+        output_logits[output_logits.size() - 1] = past_v_ps[output_logits.size() - 1];
     set_output_type(0, get_input_element_type(0), output_logits);
-    set_output_type(1, get_input_element_type(input_num - 1), past_kv_ps);
-    set_output_type(2, get_input_element_type(input_num - 1), past_kv_ps);
+    set_output_type(1, get_input_element_type(input_num - 1), past_k_ps);
+    set_output_type(2, get_input_element_type(input_num - 1), past_v_ps);
 }
 
 bool ov::intel_cpu::ScaledDotProductAttentionWithKVCache::visit_attributes(ov::AttributeVisitor& visitor) {
