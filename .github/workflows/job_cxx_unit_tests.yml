@@ -75,12 +75,12 @@ jobs:
             test_args: --gtest_print_time=1 --gtest_output=xml:TEST-IRFrontend.xml
               
           - name: PaddlePaddle frontend tests
-            condition: ${{ fromJSON(inputs.affected-components).PDPD_FE.test && runner.os != 'Windows' }} # Ticket: 149651
+            condition: fromJSON(inputs.affected-components).PDPD_FE.test && runner.os != 'Windows' # Ticket: 149651
             test_binary: paddle_tests
             test_args: --gtest_print_time=1 --gtest_output=xml:TEST-PaddleTests.xml
             
           - name: ONNX frontend tests
-            condition: ${{ fromJSON(inputs.affected-components).ONNX_FE.test && runner.arch != 'ARM64' }} # Ticket for macOS ARM64: 122663, for Linux ARM64: 126280, 153161
+            condition: fromJSON(inputs.affected-components).ONNX_FE.test && runner.arch != 'ARM64' # Ticket for macOS ARM64: 122663, for Linux ARM64: 126280, 153161
             test_binary: ov_onnx_frontend_tests
             test_args: --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:TEST-ONNXFrontend.xml
             
@@ -100,12 +100,12 @@ jobs:
             test_args: --gtest_print_time=1 --gtest_output=xml:TEST-TensorFlowLiteFrontend.xml
             
           - name: Transformations func tests
-            condition: ${{ fromJSON(inputs.affected-components).transformations.test && runner.arch != 'ARM64' }} # Ticket: 126281
+            condition: fromJSON(inputs.affected-components).transformations.test && runner.arch != 'ARM64' # Ticket: 126281
             test_binary: ov_transformations_tests
             test_args: --gtest_print_time=1 --gtest_output=xml:TEST-Transformations.xml \
             
           - name: Common test utils tests
-            condition: ${{ runner.os != 'macOS' }} # Ticket: 134469 
+            condition: runner.os != 'macOS' # Ticket: 134469 
             test_binary: ov_util_tests
             test_args: --gtest_print_time=1 --gtest_output=xml:TEST-CommonUtilTests.xml
             
@@ -145,7 +145,7 @@ jobs:
             test_args: --gtest_print_time=1 --gtest_filter=*smoke* --gtest_output=xml:TEST-TemplateFuncTests.xml
             
           - name: OV utils unit tests 
-            condition: ${{ runner.os != 'macOS' }} # Ticket: 134469
+            condition: runner.os != 'macOS' # Ticket: 134469
             test_binary: ov_util_tests
             test_args: --gtest_print_time=1 --gtest_output=xml:TEST-ov_util_tests.xml
              
