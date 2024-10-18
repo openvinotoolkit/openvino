@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/op/Identity.hpp"
+#include "openvino/op/identity.hpp"
 
 #include <gtest/gtest.h>
 
 #include "openvino/op/unique.hpp"
 #include "visitors/visitors.hpp"
 
-using ov::test::NodeBuilder;
+namespace ov {
+namespace test {
 
 TEST(attributes, Identity) {
     NodeBuilder::opset().insert<ov::op::v15::Identity>();
@@ -22,3 +23,6 @@ TEST(attributes, Identity) {
     constexpr auto expected_attr_count = 0;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
 }
+
+}  // namespace test
+}  // namespace ov

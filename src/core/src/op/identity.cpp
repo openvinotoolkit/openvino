@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/identity.hpp"
+
 #include <cstring>
 
 #include "itt.hpp"
 #include "openvino/core/attribute_visitor.hpp"
-#include "openvino/op/identity.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/reference/identity.hpp"
 
@@ -37,4 +39,6 @@ std::shared_ptr<Node> Identity::Identity::clone_with_new_inputs(const OutputVect
 
     return std::make_shared<Identity>(new_args.at(0));
 }
+}  // namespace v15
+}  // namespace op
 }  // namespace ov

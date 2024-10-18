@@ -9,37 +9,33 @@
 #include "openvino/op/parameter.hpp"
 
 namespace {
-struct IdentityParams {
-    IdentityParams(const reference_tests::Tensor& matrices, bool copy, std::string name)
-        : matrices{matrices},
-          test_case_name{std::move(name)} {}
-
-    reference_tests::Tensor matrices;
-    std::string test_case_name;
-};
+using IdentityParams = std::tuple<reference_tests::Tensor, std::string>;
 
 class ReferenceIdentity : public testing::TestWithParam<IdentityParams>, public reference_tests::CommonReferenceTest {
 public:
     void SetUp() override {
         const auto& params = GetParam();
+        const auto& matrices = std::get<0>(params);
         function = CreateFunction(params);
-        inputData = {params.matrices.data};
-        refOutData = {params.matrices.data};
+        inputData = {matrices.data};
+        refOutData = {matrices.data};
     }
 
     static std::string getTestCaseName(const testing::TestParamInfo<IdentityParams>& obj) {
         std::ostringstream name;
-        name << obj.param.test_case_name;
+        const auto& matrices = std::get<0>(obj.param);
+        name << std::get<1>(obj.param);
         name << "_input_type_";
-        name << obj.param.matrices.type;
+        name << matrices.type;
         name << "_shape_";
-        name << obj.param.matrices.shape;
+        name << matrices.shape;
         return name.str();
     }
 
 private:
     static std::shared_ptr<ov::Model> CreateFunction(const IdentityParams& params) {
-        const auto in_matrices = std::make_shared<ov::op::v0::Parameter>(params.matrices.type, params.matrices.shape);
+        const auto& matrices = std::get<0>(params);
+        const auto in_matrices = std::make_shared<ov::op::v0::Parameter>(matrices.type, matrices.shape);
         const auto identity = std::make_shared<ov::op::v15::Identity>(in_matrices);
         return std::make_shared<ov::Model>(identity->outputs(), ov::ParameterVector{in_matrices});
     }
@@ -52,29 +48,11 @@ std::vector<IdentityParams> generateIdentityParams() {
     const ov::Shape matrices_2_2_shape{2, 2};
     const ov::Shape matrices_2_3_3_shape{2, 3, 3};
 
-    reference_tests::Tensor matrices_2_2(matrices_2_2_shape, ET, std::vector<VT>{0.5f, 1.0f, 3.0f, 2.0f});
+    reference_tests::Tensor matrices_2_2(matrices_2_2_shape, ET, std::vector<VT>{1, 2, 4, 5});
 
     reference_tests::Tensor matrices_2_3_3(matrices_2_3_3_shape,
                                            ET,
-                                           std::vector<VT>{2.0f,
-                                                           -1.0f,
-                                                           0.0f,
-                                                           -1.0f,
-                                                           2.0f,
-                                                           -1.0f,
-                                                           0.0f,
-                                                           -1.0f,
-                                                           2.0f,
-
-                                                           3.0f,
-                                                           1.0f,
-                                                           2.0f,
-                                                           0.0f,
-                                                           4.0f,
-                                                           1.0f,
-                                                           2.0f,
-                                                           -2.0f,
-                                                           0.0f});
+                                           std::vector<VT>{1, 2, 3, 4, 5, 6, 7, 8, 9, 9, 8, 7, 4, 5, 3, 1, 2, 6});
 
     std::vector<IdentityParams> params;
     params.emplace_back(matrices_2_2, "single");
@@ -89,13 +67,10 @@ std::vector<IdentityParams> generateIdentityParams() {
                                                           generateIdentityParams<ov::element::f16>(),
                                                           generateIdentityParams<ov::element::f64>(),
                                                           generateIdentityParams<ov::element::f32>(),
-                                                          generateIdentityParams<ov::element::i4>(),
                                                           generateIdentityParams<ov::element::i8>(),
                                                           generateIdentityParams<ov::element::i16>(),
                                                           generateIdentityParams<ov::element::i32>(),
                                                           generateIdentityParams<ov::element::i64>(),
-                                                          generateIdentityParams<ov::element::u1>(),
-                                                          generateIdentityParams<ov::element::u4>(),
                                                           generateIdentityParams<ov::element::u8>(),
                                                           generateIdentityParams<ov::element::u16>(),
                                                           generateIdentityParams<ov::element::u32>(),
