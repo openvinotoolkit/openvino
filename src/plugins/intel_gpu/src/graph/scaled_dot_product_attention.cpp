@@ -87,6 +87,14 @@ std::string scaled_dot_product_attention_inst::to_string(scaled_dot_product_atte
     json_composite scaled_dot_product_attention_info;
     scaled_dot_product_attention_info.add("input id", input.id());
     scaled_dot_product_attention_info.add("is_causal", desc->is_causal);
+    scaled_dot_product_attention_info.add("is_kv_compressed", desc->is_kv_compressed);
+    scaled_dot_product_attention_info.add("combine_scales_and_zp", desc->combine_scales_and_zp);
+    scaled_dot_product_attention_info.add("group_size", desc->quantization_config.group_sizes);
+    scaled_dot_product_attention_info.add("is_asymmetric_quantization", desc->quantization_config.is_asymmetric_quantization());
+    scaled_dot_product_attention_info.add("quantization_dt", desc->quantization_config.quantization_dt);
+    scaled_dot_product_attention_info.add("scale_dt", desc->quantization_config.scale_dt);
+    scaled_dot_product_attention_info.add("zp_dt", desc->quantization_config.zp_dt);
+    scaled_dot_product_attention_info.add("indirect_axis", desc->indirect_axis);
     scaled_dot_product_attention_info.add("has_attn_mask_input", desc->has_attn_mask_input);
     scaled_dot_product_attention_info.add("has_scale_input", desc->has_scale_input);
     scaled_dot_product_attention_info.add("input_q_transpose_order", desc->input_q_transpose_order);

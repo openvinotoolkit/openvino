@@ -58,6 +58,7 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::cache_mode, ov::CacheMode::OPTIMIZE_SPEED),
         std::make_tuple(ov::cache_encryption_callbacks, EncryptionCallbacks{}),
         std::make_tuple(ov::hint::dynamic_quantization_group_size, 32),
+        std::make_tuple(ov::hint::kv_cache_precision, ov::element::undefined),
         std::make_tuple(ov::intel_gpu::hint::enable_kernels_reuse, false),
         std::make_tuple(ov::weights_path, ""),
 
@@ -208,6 +209,14 @@ void ExecutionConfig::apply_debug_options(const cldnn::device_info& info) {
             set_property(ov::hint::dynamic_quantization_group_size(UINT64_MAX));
         else
             set_property(ov::hint::dynamic_quantization_group_size(debug_config->dynamic_quantize_group_size));
+    }
+
+    GPU_DEBUG_IF(debug_config->use_kv_cache_compression != -1) {
+        GPU_DEBUG_IF(debug_config->use_kv_cache_compression == 1) {
+            set_property(ov::hint::kv_cache_precision(ov::element::i8));
+        } else {
+            set_property(ov::hint::kv_cache_precision(ov::element::undefined));
+        }
     }
 }
 

@@ -26,7 +26,31 @@ SDPA::SDPA(const OutputVector& inputs,
     , m_order_k(order_k)
     , m_order_v(order_v)
     , m_order_out(order_out)
-    , m_output_type(output_type) {
+    , m_output_type(output_type)
+    , m_compressed(false) {
+    set_arguments(inputs);
+    set_causal(is_causal);
+    validate_and_infer_types();
+}
+
+SDPA::SDPA(const OutputVector& inputs,
+           const bool is_causal,
+           const std::vector<int64_t>& order_q,
+           const std::vector<int64_t>& order_k,
+           const std::vector<int64_t>& order_v,
+           const std::vector<int64_t>& order_out,
+           const QuantizationConfig& quantization_config,
+           const bool combine_scales_and_zp,
+           const ov::element::Type output_type)
+    : m_is_causal(is_causal)
+    , m_order_q(order_q)
+    , m_order_k(order_k)
+    , m_order_v(order_v)
+    , m_order_out(order_out)
+    , m_output_type(output_type)
+    , m_compressed(true)
+    , m_combine_scales_and_zp(combine_scales_and_zp)
+    , m_quantization_config(quantization_config) {
     set_arguments(inputs);
     set_causal(is_causal);
     validate_and_infer_types();
@@ -46,11 +70,13 @@ std::shared_ptr<ov::Node> SDPA::clone_with_new_inputs(const ov::OutputVector& ne
 
 void SDPA::validate_and_infer_types() {
     const auto input_size = get_input_size();
+
+    const auto compression_inputs = get_compression_inputs_num();
     NODE_VALIDATION_CHECK(this,
-        input_size == 3 || input_size == 4 || input_size == 5,
+        input_size >= 3 + compression_inputs && input_size <= 5 + compression_inputs,
         "Number of inputs is incorrect. Current value is: ",
         input_size,
-        ", expected 3, 4 or 5.");
+        ", expected 3, 4 or 5 data inputs and ", compression_inputs, " KV-cache compression related inputs");
 
     std::vector<ov::PartialShape> input_shapes;
     for (size_t i = 0; i < input_size; i++) {
@@ -75,6 +101,18 @@ bool SDPA::visit_attributes(ov::AttributeVisitor &visitor) {
     visitor.on_attribute("order_out", m_order_out);
     visitor.on_attribute("output_type", m_output_type);
     return true;
+}
+
+size_t SDPA::get_compression_inputs_num() const {
+    size_t compression_inputs = 0;
+    if (m_compressed) {
+        compression_inputs += 2; // 2 * scales
+
+        if (m_quantization_config.is_asymmetric_quantization() && !m_combine_scales_and_zp)
+            compression_inputs += 2; // 2 * zp
+    }
+
+    return compression_inputs;
 }
 
 std::vector<ov::PartialShape> shape_infer(const SDPA* op,

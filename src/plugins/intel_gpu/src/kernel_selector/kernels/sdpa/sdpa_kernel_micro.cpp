@@ -342,6 +342,9 @@ bool SDPAKernelMicro::Validate(const Params& p) const {
     if (params.conf.head_size > 256)
         return false;
 
+    if (params.conf.is_kv_compressed)
+        return false;
+
     return true;
 }
 
