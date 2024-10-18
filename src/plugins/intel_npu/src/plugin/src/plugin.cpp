@@ -203,6 +203,7 @@ Plugin::Plugin()
 
     // TODO: generation of available backends list can be done during execution of CMake scripts
     std::vector<AvailableBackends> backendRegistry;
+    // dummy
 
 #if defined(OPENVINO_STATIC_LIBRARY)
     backendRegistry.push_back(AvailableBackends::LEVEL_ZERO);
