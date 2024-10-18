@@ -259,7 +259,7 @@ public:
 
         auto config = get_test_default_config(engine);
         if (impl_type != impl_types::any)
-            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"tile", {format::bfyx, "", impl_types::cpu}} }));
+            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"tile", {format::bfzyx, "", impl_types::cpu}} }));
 
         cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
         network->set_input_data("input", input);

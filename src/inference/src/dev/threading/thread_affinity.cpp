@@ -87,8 +87,9 @@ bool pin_thread_to_vacant_core(int thrIdx,
 }
 
 bool pin_current_thread_to_socket(int socket) {
-    const int sockets = ov::get_available_numa_nodes().size();
-    const int cores = ov::get_number_of_cpu_cores();
+    auto proc_type_table = get_org_proc_type_table();
+    const int sockets = proc_type_table.size() > 1 ? proc_type_table.size() - 1 : 1;
+    const int cores = proc_type_table[0][MAIN_CORE_PROC];
     const int cores_per_socket = cores / sockets;
 
     int ncpus = 0;

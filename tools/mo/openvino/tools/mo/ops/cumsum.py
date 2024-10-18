@@ -57,19 +57,3 @@ class CumSum(Op):
             reverse = node.reverse if node.has_valid('reverse') else False
             exclusive = node.exclusive if node.has_valid('exclusive') else False
             node.out_port(0).data.set_value(cumsum(input_value, axis=axis, reverse=reverse, exclusive=exclusive))
-
-
-class MXNetCumSum(Op):
-    enabled = False
-    op = 'MXNetCumSum'
-
-    def __init__(self, graph: Graph, attrs: dict):
-        super().__init__(graph, {
-            'op': self.op,
-            'type': None,
-
-            'infer': None,
-
-            'in_ports_count': 1,
-            'out_ports_count': 1,
-        }, attrs)

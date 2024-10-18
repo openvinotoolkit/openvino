@@ -17,11 +17,6 @@ class PriorBox_extender(Extender):
         for attr in attrs:
             PriorBox_extender.attr_restore(op, attr)
 
-        if 'framework' in op.graph.graph['cmd_params'] and op.graph.graph['cmd_params'].framework == 'mxnet':
-            # Need to use separate shape inference function as done in MO pipeline.
-            op['infer'] = multi_box_prior_infer_mxnet
-            op['stop_attr_upd'] = True
-
     @staticmethod
     def attr_restore(node: Node, attribute: str, value=None):
         # Function to restore some specific attr for PriorBox & PriorBoxClustered layers

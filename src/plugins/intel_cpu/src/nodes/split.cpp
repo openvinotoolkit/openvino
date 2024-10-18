@@ -12,7 +12,7 @@
 #include "utils/general_utils.h"
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include "utils/ngraph_utils.hpp"
-#include <partitioned_mem_mgr.h>
+#include <partitioned_mem_blk.h>
 #include "openvino/op/split.hpp"
 #include "openvino/op/variadic_split.hpp"
 

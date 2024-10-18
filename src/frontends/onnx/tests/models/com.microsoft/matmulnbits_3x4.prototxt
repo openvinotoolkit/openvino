@@ -1,0 +1,92 @@
+ir_version: 3
+producer_name: "OpenVINO ONNX Frontend"
+producer_version: ""
+model_version: 0
+graph {
+  name: "test_matmul_2d"
+  node {
+    input: "a"
+    input: "b_Q4"
+    input: "b_scales"
+    output: "c"
+    op_type: "MatMulNBits"
+    attribute {
+      name: "K"
+      i: 4
+      type: INT
+    }
+    attribute {
+      name: "N"
+      i: 3
+      type: INT
+    }
+    attribute {
+      name: "accuracy_level"
+      i: 4
+      type: INT
+    }
+    attribute {
+      name: "bits"
+      i: 4
+      type: INT
+    }
+    attribute {
+      name: "block_size"
+      i: 16
+      type: INT
+    }
+    domain: "com.microsoft"
+  }
+  initializer {
+    dims: 3
+    dims: 1
+    dims: 8
+    data_type: 2
+    name: "b_Q4"
+    raw_data: "&P\000\000\000\000\000\000\005b\000\000\000\000\000\000\004\204\000\000\000\000\000\000"
+  }
+  initializer {
+    dims: 3
+    data_type: 1
+    name: "b_scales"
+    raw_data: "\000\000 \277\000\000 \277\000\000@\277"
+  }
+  input {
+    name: "a"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 4
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "c"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 7
+}
+opset_import {
+  version: 1
+}

@@ -315,9 +315,13 @@ def main():
                     del device_number_streams[device]
 
         device_config = {}
-        for device in config:
-            if benchmark.device.find(device) == 0:
-                device_config = config[device]
+        # In case of multiple devices found prefer the one given in CLI argument
+        if benchmark.device.find(device_name) == 0 and device_name in config.keys():
+            device_config = config[device_name]
+        else:
+            for device in config:
+                if benchmark.device.find(device) == 0:
+                    device_config = config[device]
         if args.cache_dir:
             benchmark.set_cache_dir(args.cache_dir)
 

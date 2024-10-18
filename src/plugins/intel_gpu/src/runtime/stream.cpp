@@ -19,6 +19,13 @@ QueueTypes stream::detect_queue_type(engine_types engine_type, void* queue_handl
     }
 }
 
+SyncMethods stream::get_expected_sync_method(const ExecutionConfig& config) {
+    auto profiling = config.get_property(ov::enable_profiling);
+    auto queue_type = config.get_property(ov::intel_gpu::queue_type);
+    return profiling ? SyncMethods::events : queue_type == QueueTypes::out_of_order ? SyncMethods::barriers
+                                                                                    : SyncMethods::none;
+}
+
 event::ptr stream::aggregate_events(const std::vector<event::ptr>& events, bool group, bool is_output) {
     if (events.size() == 1 && !is_output)
         return events[0];

@@ -45,6 +45,7 @@ It consists of the following steps:
 -  Compare original and optimized pipelines from performance and
    accuracy standpoints
 
+
 **Table of contents:**
 
 
@@ -142,7 +143,7 @@ documentation <https://huggingface.co/docs/optimum/intel/inference>`__.
 
 .. code:: ipython3
 
-    %pip install -q "torch>=2.1.0" "git+https://github.com/huggingface/optimum-intel.git" "openvino>=2024.0.0" onnx tqdm "gradio>=4.19" "transformers>=4.33.0" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "torch>=2.1.0" "git+https://github.com/huggingface/optimum-intel.git" "openvino>=2024.0.0" "onnx<1.16.2" tqdm "gradio>=4.19" "transformers>=4.33.0" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "nncf>=2.9.0" datasets jiwer
 
 Download and Convert Models
@@ -210,17 +211,16 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    import openvino as ov
+    import requests
     
-    core = ov.Core()
-    
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
+    open("notebook_utils.py", "w").write(r.text)
+    
+    from notebook_utils import device_widget
+    
+    device = device_widget(default="CPU", exclude=["AUTO", "GPU"])
     
     device
 
@@ -535,11 +535,9 @@ improve model inference speed.
 
 .. code:: ipython3
 
-    to_quantize = widgets.Checkbox(
-        value=True,
-        description="Quantization",
-        disabled=False,
-    )
+    from notebook_utils import quantization_widget
+    
+    to_quantize = quantization_widget()
     
     to_quantize
 
@@ -564,6 +562,7 @@ some time to complete.
 .. code:: ipython3
 
     from utils import get_quantized_pipeline, CALIBRATION_DATASET_SIZE
+    import openvino as ov
     
     grammar_corrector_pipe_fp32 = grammar_corrector_pipe
     grammar_corrector_pipe_int8 = None
@@ -572,7 +571,7 @@ some time to complete.
         grammar_corrector_pipe_int8 = get_quantized_pipeline(
             grammar_corrector_pipe_fp32,
             grammar_corrector_tokenizer,
-            core,
+            ov.Core(),
             grammar_corrector_dir,
             quantized_model_path,
             device.value,

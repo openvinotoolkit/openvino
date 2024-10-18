@@ -25,7 +25,7 @@ public:
              zeroProfiling::ProfilingPool& profiling_pool,
              zeroProfiling::ProfilingQuery& profiling_query,
              std::shared_ptr<zeroProfiling::NpuInferProfiling> npu_profiling,
-             const std::vector<std::optional<TensorData>>& inputTensorsData,
+             const std::vector<std::vector<std::optional<TensorData>>>& inputTensorsData,
              const std::vector<std::optional<TensorData>>& outputTensorsData,
              const size_t numberOfCommandLists);
 
@@ -37,7 +37,8 @@ public:
     void pull();
     void reset() const;
 
-    void updateCommandList(const TensorData& tensorsData, const uint32_t index);
+    void updateCommandList(const TensorData& tensorsData, uint32_t index);
+    void updateCommandList(const TensorData& tensorsData, uint32_t index, size_t commandListIndex);
 
 protected:
     const Config _config;

@@ -4,6 +4,8 @@
 import os
 import re
 import argparse
+import sys
+
 import yaml
 import json
 import jsonschema
@@ -146,6 +148,8 @@ def parse_args():
     parser.add_argument('--skip-when-only-listed-files-changed',
                         help="Comma-separated list of patterns (fnmatch-style). If PR has only matching files changed, "
                              "return indicator that CI can be skipped")
+    parser.add_argument('--enable_for_org', default='openvinotoolkit',
+                        help='Enable running workflows for a given organization; triggers from other orgs are skipped')
     args = parser.parse_args()
     return args
 
@@ -176,6 +180,13 @@ def main():
         components_config = yaml.safe_load(config)
 
     owner, repository = args.repo.split('/')
+
+    if owner != args.enable_for_org:
+        logger.info(f"Running workflows is enabled only for repos in {args.enable_for_org} organization. "
+                    f"The current workflow was initiated from other org: {owner}, skipping")
+        set_github_output("skip_workflow", "True")
+        sys.exit(0)
+
     gh_api = GhApi(owner=owner, repo=repository, token=os.getenv("GITHUB_TOKEN"))
     pr = gh_api.pulls.get(args.pr) if args.pr else None
 

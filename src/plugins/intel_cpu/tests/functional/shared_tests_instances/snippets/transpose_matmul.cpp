@@ -41,6 +41,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMult, TransposeMatMul,
                                  ::testing::ValuesIn(transpose_input_shapes),
                                  ::testing::Values(0), // Transpose on 0th Matmul input
                                  ::testing::ValuesIn(precisions(false)),
+                                 ::testing::Values(MatMulType::MatMul),
                                  ::testing::Values(1), // MatMul
                                  ::testing::Values(1), // Tokenized MatMul + FusedTranspose
                                  ::testing::Values(ov::test::utils::DEVICE_CPU)),
@@ -57,22 +58,29 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_DynMatMult, TransposeMatMul,
                                  ::testing::ValuesIn(transpose_input_shapes_dynamic),
                                  ::testing::Values(0), // Transpose on 0th Matmul input
                                  ::testing::ValuesIn(precisions(true)),
+                                 ::testing::Values(MatMulType::MatMul),
                                  ::testing::Values(1), // MatMul
                                  ::testing::Values(1), // Tokenized MatMul + FusedTranspose
                                  ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          TransposeMatMul::getTestCaseName);
 
-// TODO: FuseTransposeToBrgemm supports fusing only if Transpose is before Parameter in cases when Transpose is on input at the moment
-//       When we support the branch Parameter->FQ->Transpose->MatMul[0th input], uncomment this test case please
-// INSTANTIATE_TEST_SUITE_P(smoke_Snippets_TransposeMatMulFQ, TransposeMatMulFQ,
-//                          ::testing::Combine(
-//                                  ::testing::ValuesIn(transpose_input_shapes),
-//                                  ::testing::Values(0), // Transpose on 0th Matmul input
-//                                  ::testing::Values(ov::element::i8),
-//                                  ::testing::Values(1), // MatMul
-//                                  ::testing::Values(1), // Tokenized MatMul + FusedTranspose
-//                                  ::testing::Values(ov::test::utils::DEVICE_CPU)),
-//                          TransposeMatMulFQ::getTestCaseName);
+std::vector<std::vector<ov::test::InputShape>> fc_transpose_input_shapes{
+    {
+        {PartialShape{-1, -1, -1, 2500}, {{1, 49, 2, 2500}, {1, 70, 2, 2500}, {1, 49, 2, 2500}}},
+        {{}, {{2500, 256}}}
+    },
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_FullyConnected, TransposeMatMul,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(fc_transpose_input_shapes),
+                                 ::testing::Values(0), // Transpose on 0th Matmul input
+                                 ::testing::ValuesIn(precisions(true)),
+                                 ::testing::Values(MatMulType::FullyConnected),
+                                 ::testing::Values(1), // Fused MatMul + Transpose
+                                 ::testing::Values(1), // Tokenized MatMul + FusedTranspose
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         TransposeMatMul::getTestCaseName);
 } // namespace transpose_zero_input
 
 namespace transpose_first_input {
@@ -82,6 +90,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMult, TransposeMatMul,
                                  ::testing::ValuesIn(transpose_input_shapes),
                                  ::testing::Values(1), // Transpose on 1st Matmul input
                                  ::testing::ValuesIn(precisions(false)),
+                                 ::testing::Values(MatMulType::MatMul),
                                  ::testing::Values(1), // MatMul
                                  ::testing::Values(1), // Tokenized MatMul + FusedTranspose
                                  ::testing::Values(ov::test::utils::DEVICE_CPU)),
@@ -98,6 +107,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_DynMatMult, TransposeMatMul,
                                  ::testing::ValuesIn(transpose_input_shapes_dynamic),
                                  ::testing::Values(1), // Transpose on 1st Matmul input
                                  ::testing::ValuesIn(precisions(true)),
+                                 ::testing::Values(MatMulType::MatMul),
                                  ::testing::Values(1), // MatMul
                                  ::testing::Values(1), // Tokenized MatMul + FusedTranspose
                                  ::testing::Values(ov::test::utils::DEVICE_CPU)),
@@ -108,6 +118,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_TransposeMatMulFQ, TransposeMatMulFQ,
                                  ::testing::ValuesIn(transpose_input_shapes),
                                  ::testing::Values(1), // Transpose on 1st Matmul input
                                  ::testing::ValuesIn(precisions()),
+                                 ::testing::Values(MatMulType::MatMul),
                                  ::testing::Values(1), // MatMul
                                  ::testing::Values(1), // Tokenized MatMul + FusedTranspose
                                  ::testing::Values(ov::test::utils::DEVICE_CPU)),
@@ -122,6 +133,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMult, TransposeMatMul,
                                  ::testing::ValuesIn(transpose_input_shapes),
                                  ::testing::Values(2), // Transpose on Matmul output
                                  ::testing::ValuesIn(precisions()),
+                                 ::testing::Values(MatMulType::MatMul),
                                  ::testing::Values(1), // MatMul
                                  ::testing::Values(1), // Tokenized MatMul + FusedTranspose
                                  ::testing::Values(ov::test::utils::DEVICE_CPU)),
@@ -138,22 +150,29 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_DynMatMult, TransposeMatMul,
                                  ::testing::ValuesIn(transpose_input_shapes_dynamic),
                                  ::testing::Values(2), // Transpose on Matmul output
                                  ::testing::ValuesIn(precisions(true)),
+                                 ::testing::Values(MatMulType::MatMul),
                                  ::testing::Values(1), // MatMul
                                  ::testing::Values(1), // Tokenized MatMul + FusedTranspose
                                  ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          TransposeMatMul::getTestCaseName);
 
-// TODO: At the moment we doesn't support the branch MatMul[output]->Transpose->FQ.
-//      When we add support, uncomment this test case please
-// INSTANTIATE_TEST_SUITE_P(smoke_Snippets_TransposeMatMulFQ, TransposeMatMulFQ,
-//                          ::testing::Combine(
-//                                  ::testing::ValuesIn(transpose_input_shapes),
-//                                  ::testing::Values(2), // Transpose on Matmul output
-//                                  ::testing::Values(ov::element::i8),
-//                                  ::testing::Values(1), // MatMul
-//                                  ::testing::Values(1), // Tokenized MatMul + FusedTranspose
-//                                  ::testing::Values(ov::test::utils::DEVICE_CPU)),
-//                          TransposeMatMulFQ::getTestCaseName);
+std::vector<std::vector<ov::test::InputShape>> fc_transpose_input_shapes{
+    {
+        {PartialShape{-1, -1, -1, 2500}, {{2, 1, 49, 2500}, {1, 2, 70, 2500}, {2, 1, 49, 2500}}},
+        {{}, {{2500, 256}}}
+    },
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_FullyConnected, TransposeMatMul,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(fc_transpose_input_shapes),
+                                 ::testing::Values(2), // Transpose on Matmul output
+                                 ::testing::ValuesIn(precisions(true)),
+                                 ::testing::Values(MatMulType::FullyConnected),
+                                 ::testing::Values(1), // MatMul
+                                 ::testing::Values(1), // Tokenized MatMul + FusedTranspose
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         TransposeMatMul::getTestCaseName);
 } // namespace transpose_output
 
 namespace explicit_transpose {
@@ -179,6 +198,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_ExplicitTransposeMatMul, ExplicitTranspo
                                  ::testing::ValuesIn(STATIC_SHAPES({{1, 2, 69, 43}, {2, 49, 2, 43}})),
                                  ::testing::Values(1), // Transpose on second input
                                  ::testing::ValuesIn(precisions()),
+                                 ::testing::Values(MatMulType::MatMul),
                                  ::testing::Values(1), // Subgraph;
                                  ::testing::Values(1), // Tokenized MatMul+Bias
                                  ::testing::Values(ov::test::utils::DEVICE_CPU)),
@@ -195,6 +215,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_DynExplicitTransposeMatMul, ExplicitTran
                                  ::testing::ValuesIn(explicit_input_shapes_dynamic),
                                  ::testing::Values(1), // Transpose on second input
                                  ::testing::ValuesIn(precisions(true)),
+                                 ::testing::Values(MatMulType::MatMul),
                                  ::testing::Values(1), // Subgraph;
                                  ::testing::Values(1), // Tokenized MatMul+Bias
                                  ::testing::Values(ov::test::utils::DEVICE_CPU)),
@@ -205,6 +226,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_TransposeMatMulBias, ExplicitTransposeMa
                                  ::testing::ValuesIn(STATIC_SHAPES({{1, 2, 69, 43}, {2, 49, 2, 43}, {1, 1, 69, 49}})),
                                  ::testing::Values(1), // Transpose on second input
                                  ::testing::ValuesIn(precisions()),
+                                 ::testing::Values(MatMulType::MatMul),
                                  ::testing::Values(1), // Subgraph;
                                  ::testing::Values(1), // Tokenized MatMul+Bias
                                  ::testing::Values(ov::test::utils::DEVICE_CPU)),
@@ -222,6 +244,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_DynTransposeMatMulBias, ExplicitTranspos
                                  ::testing::ValuesIn(explicit_bias_input_shapes_dynamic),
                                  ::testing::Values(1), // Transpose on second input
                                  ::testing::ValuesIn(precisions(true)),
+                                 ::testing::Values(MatMulType::MatMul),
                                  ::testing::Values(1), // Subgraph;
                                  ::testing::Values(1), // Tokenized MatMul+Bias
                                  ::testing::Values(ov::test::utils::DEVICE_CPU)),

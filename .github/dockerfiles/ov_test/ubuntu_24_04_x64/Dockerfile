@@ -20,6 +20,8 @@ RUN apt-get update && \
         git \
         gpg-agent \
         tzdata \
+        # parallel gzip
+        pigz \
         # Python
         python3-full \
         libhdf5-dev \

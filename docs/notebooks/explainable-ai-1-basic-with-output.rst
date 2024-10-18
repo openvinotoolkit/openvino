@@ -42,6 +42,7 @@ from `Open Model
 Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__ is used in
 this tutorial.
 
+
 **Table of contents:**
 
 
@@ -53,7 +54,8 @@ this tutorial.
 -  `Load an Image <#load-an-image>`__
 -  `Do Inference <#do-inference>`__
 -  `Create Explainer <#create-explainer>`__
--  `Do Explanation <#do-explanation>`__
+-  `Do Explanation <#do-explanation>`__  
+
 
 This is a self-contained example that relies solely on its own code.
 
@@ -65,13 +67,13 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 .. code:: ipython3
 
     import platform
-
+    
     # Install openvino package
     %pip install -q "openvino>=2024.2.0" opencv-python tqdm
-
+    
     # Install openvino xai package
     %pip install -q --no-deps  "openvino-xai>=1.0.0"
-
+    
     if platform.system() != "Windows":
         %pip install -q "matplotlib>=3.4"
     else:
@@ -85,22 +87,22 @@ Imports
 .. code:: ipython3
 
     from pathlib import Path
-
+    
     import cv2
     import matplotlib.pyplot as plt
     import numpy as np
     import openvino as ov
     import openvino_xai as xai
-
+    
     # Fetch `notebook_utils` module
     import requests
-
+    
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
-
+    
     open("notebook_utils.py", "w").write(r.text)
-
+    
     from notebook_utils import download_file, device_widget
 
 Download the Model and data samples
@@ -111,15 +113,15 @@ Download the Model and data samples
 .. code:: ipython3
 
     base_artifacts_dir = Path("./artifacts").expanduser()
-
+    
     model_name = "v3-small_224_1.0_float"
     model_xml_name = f"{model_name}.xml"
     model_bin_name = f"{model_name}.bin"
-
+    
     model_xml_path = base_artifacts_dir / model_xml_name
-
+    
     base_url = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/models/mobelinet-v3-tf/FP32/"
-
+    
     if not model_xml_path.exists():
         download_file(base_url + model_xml_name, model_xml_name, base_artifacts_dir)
         download_file(base_url + model_bin_name, model_bin_name, base_artifacts_dir)
@@ -130,7 +132,7 @@ Download the Model and data samples
 .. parsed-literal::
 
     v3-small_224_1.0_float already downloaded to artifacts
-
+    
 
 Select inference device
 -----------------------
@@ -176,13 +178,13 @@ Load an Image
         "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco.jpg",
         directory="data",
     )
-
+    
     # The MobileNet model expects images in RGB format.
     image = cv2.cvtColor(cv2.imread(filename=str(image_filename)), code=cv2.COLOR_BGR2RGB)
-
+    
     # Resize to MobileNet image shape.
     input_image = cv2.resize(src=image, dsize=(224, 224))
-
+    
     # Reshape to model input shape.
     input_image = np.expand_dims(input_image, 0)
     plt.imshow(image);
@@ -191,7 +193,7 @@ Load an Image
 .. parsed-literal::
 
     'data/coco.jpg' already exists.
-
+    
 
 
 .. image:: explainable-ai-1-basic-with-output_files/explainable-ai-1-basic-with-output_11_1.png
@@ -213,21 +215,21 @@ Do Inference
         "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/datasets/imagenet/imagenet_2012.txt",
         directory="data",
     )
-
+    
     imagenet_classes = imagenet_filename.read_text().splitlines()
 
 
 .. parsed-literal::
 
     'data/imagenet_2012.txt' already exists.
-
+    
 
 .. code:: ipython3
 
     # The model description states that for this model, class 0 is a background.
     # Therefore, a background must be added at the beginning of imagenet_classes.
     imagenet_classes = ["background"] + imagenet_classes
-
+    
     print(f"class index: {result_index}")
     print(f"class name: {imagenet_classes[result_index]}")
     print(f"class score: {result_infer[0][result_index]:.2f}")
@@ -238,7 +240,7 @@ Do Inference
     class index: 206
     class name: n02099267 flat-coated retriever
     class score: 0.76
-
+    
 
 Create Explainer
 ----------------
@@ -259,7 +261,7 @@ Create Explainer
     INFO:openvino_xai:Target insertion layer is not provided - trying to find it in auto mode.
     INFO:openvino_xai:Using ReciproCAM method (for CNNs).
     INFO:openvino_xai:Explaining the model in white-box mode.
-
+    
 
 Do Explanation
 --------------

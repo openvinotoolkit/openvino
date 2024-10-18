@@ -32,6 +32,7 @@ text-guided image-to-image generation using Stable Diffusion.
 This notebook demonstrates how to convert and run stable diffusion model
 using OpenVINO.
 
+
 **Table of contents:**
 
 
@@ -194,8 +195,6 @@ Select device from dropdown list for running inference using OpenVINO.
 
 .. code:: ipython3
 
-    import openvino as ov
-    
     device = device_widget()
     device
 
@@ -398,14 +397,16 @@ so we can just load it.
 
 .. code:: ipython3
 
-    core = ov.Core()
+    import requests
     
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
+    open("notebook_utils.py", "w").write(r.text)
+    
+    from notebook_utils import device_widget
+    
+    device = device_widget()
     
     device
 

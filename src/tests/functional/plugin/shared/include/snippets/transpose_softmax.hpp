@@ -21,7 +21,7 @@ typedef std::tuple<
 
 
 class TransposeSoftmax : public testing::WithParamInterface<ov::test::snippets::TransposeSoftmaxParams>,
-                         virtual public ov::test::SnippetsTestsCommon {
+                         virtual public SnippetsTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::TransposeSoftmaxParams> obj);
 

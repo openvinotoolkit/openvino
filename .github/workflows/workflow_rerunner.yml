@@ -21,7 +21,8 @@ permissions: read-all
 jobs:
   rerun:
     name: Rerun Workflow
-    if: ${{ github.event.workflow_run.conclusion == 'failure' }}  # Run only for the failed workflows
+    # Run only for the failed workflows in openvinotoolkit org
+    if: ${{ github.event.workflow_run.conclusion == 'failure' && github.repository_owner == 'openvinotoolkit' }}
     runs-on: aks-linux-2-cores-8gb
     permissions:
       actions: write
@@ -30,7 +31,7 @@ jobs:
       checks: read
     steps:
       - name: Checkout
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
         with:
           sparse-checkout: '.github/scripts/workflow_rerun'
 
@@ -57,11 +58,11 @@ jobs:
 
   rerunner_tests:
     name: Rerunner Tests
-    if: ${{ github.event_name == 'pull_request' }}
+    if: ${{ github.event_name == 'pull_request' && github.repository_owner == 'openvinotoolkit' }}
     runs-on: aks-linux-2-cores-8gb
     steps:
       - name: Checkout
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
         with:
           sparse-checkout: '.github/scripts/workflow_rerun'
           lfs: true

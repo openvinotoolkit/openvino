@@ -33,7 +33,7 @@ bool InsertLoadStore::insert_load(LinearIR& linear_ir, const LinearIR::constExpr
         const auto& consumer = consumer_expr->get_node();
         const auto ma = std::dynamic_pointer_cast<modifier::MemoryAccess>(consumer);
         if (ma && ma->is_memory_access_input_port(consumer_input.get_index()))
-            return false;
+            continue;
 
         const auto load = std::make_shared<op::Load>(data_ngraph_output, get_count(data_expr->get_output_port(0)));
         linear_ir.insert_node(load, std::vector<PortConnectorPtr>{ data_out }, consumer_expr->get_loop_ids(),

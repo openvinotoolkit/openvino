@@ -14,7 +14,7 @@ OpenVINO Workflow
    openvino-workflow/model-optimization
    Running Inference <openvino-workflow/running-inference>
    Deployment on a Local System  <openvino-workflow/deployment-locally>
-   Deployment on a Model Server <ovms_what_is_openvino_model_server>
+   Deployment on a Model Server <openvino-workflow/model-server/ovms_what_is_openvino_model_server>
    openvino-workflow/torch-compile
 
 
@@ -89,7 +89,7 @@ OpenVINO uses the following functions for reading, converting, and saving models
 |    Deploy a model locally, reading the file directly from your application and utilizing about-openvino/additional-resources available to the system.
 |    Deployment on a local system uses the steps described in the section on running inference.
 
-| :doc:`Deployment Option 2. Using Model Server <ovms_what_is_openvino_model_server>`
+| :doc:`Deployment Option 2. Using Model Server <openvino-workflow/model-server/ovms_what_is_openvino_model_server>`
 |    Deploy a model remotely, connecting your application to an inference server and utilizing external about-openvino/additional-resources, with no impact on the app's performance.
 |    Deployment on OpenVINO Model Server is quick and does not require any additional steps described in the section on running inference.
 

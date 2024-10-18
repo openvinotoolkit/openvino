@@ -91,6 +91,22 @@ protected:
     // FROM(Every subrequests' output port) TO(Its output tensor)
     std::map<ov::Output<const ov::Node>, TensorStorage> m_port_to_tensor;
 
+    // FIXME: Currently is initialized/managed by subclass as well.
+    // Moved here dumping purposes only
+    // Another sparse vector. Represents populated spatial I/O parameters
+    // which can should be read/written by parts in multile submissions.
+    // An ugly structure, cries for refactoring
+    // See function_prologue for details.
+    // Also it contains pre-allocated tensors for tails handling
+    struct SpatialIO {
+        std::vector<ov::SoPtr<ov::ITensor>> inputs;   // # of elements - # of graph-side inputs
+        std::vector<ov::SoPtr<ov::ITensor>> outputs;  // # of elements - # of subgraph outputs
+
+        std::vector<ov::SoPtr<ov::ITensor>> input_tails;   // temporary buffers for input tails
+        std::vector<ov::SoPtr<ov::ITensor>> output_tails;  // temporary buffers for output tails
+    };
+    std::vector<SpatialIO> m_spatial_io;
+
     const std::size_t m_num_submodels;
 
     void dump_input_tensors(std::size_t idx);
@@ -111,6 +127,7 @@ protected:
     std::size_t m_run_iter = 0u;
 
     bool needs_copy(std::size_t idx) const;
+    bool needs_copy(std::size_t idx, std::size_t cidx) const;
     std::size_t next(std::size_t idx_base) const;
     std::size_t real(std::size_t idx) const;
 

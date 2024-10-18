@@ -23,8 +23,8 @@ the images most related to the query.
 In this tutorial, we consider how to use MobileCLIP to implement a
 visual content search engine for finding relevant frames in video.
 
-**Table of contents:**
 
+**Table of contents:**
 
 -  `Prerequisites <#prerequisites>`__
 -  `Select model <#select-model>`__
@@ -78,7 +78,7 @@ Prerequisites
     remote: Counting objects: 100% (84/84), done.[K
     remote: Compressing objects: 100% (61/61), done.[K
     remote: Total 84 (delta 29), reused 75 (delta 22), pack-reused 0 (from 0)[K
-    Unpacking objects: 100% (84/84), 467.39 KiB | 3.57 MiB/s, done.
+    Unpacking objects: 100% (84/84), 467.39 KiB | 2.58 MiB/s, done.
 
 
 .. code:: ipython3
@@ -450,8 +450,8 @@ Perform search
 
 .. parsed-literal::
 
-    Image encoding took 0.0975 ms
-    Text encoding took 0.0117 ms
+    Image encoding took 0.108 ms
+    Text encoding took 0.0118 ms
 
 
 
@@ -529,7 +529,7 @@ be used separately. Let’s convert each part to OpenVINO.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/mobileclip/modules/common/transformer.py:125: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/mobileclip/modules/common/transformer.py:125: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if seq_len != self.num_embeddings:
 
 
@@ -614,8 +614,8 @@ Perform search
 
 .. parsed-literal::
 
-    Image encoding took 0.0319 ms
-    Text encoding took 0.00718 ms
+    Image encoding took 0.0271 ms
+    Text encoding took 0.00495 ms
 
 
 
@@ -660,7 +660,7 @@ models can require different optimal threshold for search.
     available_devices = list(core.available_devices) + ["AUTO"]
 
     download_file(
-        "https://github.com/intel-iot-devkit/sample-videos/raw/master/car-detection.mp4",
+        "https://storage.openvinotoolkit.org/data/test_data/videos/car-detection.mp4",
         directory=sample_path,
     )
     download_file(

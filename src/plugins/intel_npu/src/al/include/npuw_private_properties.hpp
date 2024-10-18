@@ -45,14 +45,30 @@ static constexpr ov::Property<std::string> submodel_device{"NPUW_SUBMODEL_DEVICE
  */
 static constexpr ov::Property<std::string> weights_bank{"NPUW_WEIGHTS_BANK"};
 
+/**
+ * @brief
+ * Type: std::string.
+ * Specify device name for weights bank which is used to allocate memory.
+ * Default value: "".
+ */
+static constexpr ov::Property<std::string> weights_bank_alloc{"NPUW_WEIGHTS_BANK_ALLOC"};
+
+/**
+ * @brief
+ * Type: std::string.
+ * Specify a directory where to store cached submodels.
+ * Default value: empty.
+ */
+static constexpr ov::Property<std::string> cache_dir{"NPUW_CACHE_DIR"};
+
 namespace partitioning {
 namespace online {
 /**
  * @brief
  * Type: std::string.
  * Specify which partitioning pipeline to run.
- * Possible values: "NONE", "INIT", "JUST", "REP", "COMPUTE".
- * Default value: "REP".
+ * Possible values: "NONE", "INIT", "JUST", "REP", "REG", "COMPUTE".
+ * Default value: "REG".
  */
 static constexpr ov::Property<std::string> pipeline{"NPUW_ONLINE_PIPELINE"};
 
@@ -173,9 +189,34 @@ static constexpr ov::Property<bool> dyn_quant{"NPUW_DQ"};
  * Identify and merge parallel MatMuls over dimension(s) specified.
  * When set to YES, applies transformation for all dimensions.
  * Works with FOLD enabled only.
+ * Set to NO or pass empty value to disable the option.
  * Default value: 2.
  */
 static constexpr ov::Property<std::string> par_matmul_merge_dims{"NPUW_PMM"};
+
+/**
+ * @brief
+ * Type: boolean.
+ * Enable spatial execution for selected subgraphs. Requires COMPUTE isolation.
+ * Default value: false
+ */
+static constexpr ov::Property<bool> spatial{"NPUW_SPATIAL"};
+
+/**
+ * @brief
+ * Type: std::size_t.
+ * Submission size for the spatial execution.
+ * Default value: 64
+ */
+static constexpr ov::Property<std::size_t> spatial_nway{"NPUW_SPATIAL_NWAY"};
+
+/**
+ * @brief
+ * Type: boolean
+ * When applicable, do embedding gather on host.
+ * Default value: true.
+ */
+static constexpr ov::Property<bool> host_gather{"NPUW_HOST_GATHER"};
 
 /**
  * @brief
@@ -266,7 +307,7 @@ static constexpr ov::Property<bool> full{"NPUW_DUMP_FULL"};
  * Type: std::string.
  * Dump the specified subgraph(s) in OpenVINO IR form in the current directory.
  * Possible values: Comma-separated list of subgraph indices or "YES" for all
- * subgraphs, e.g. "0,1" or "YES".
+ * subgraphs, "NO" or just empty value to turn option off. E.g. "0,1" or "YES".
  * Default value: empty.
  */
 static constexpr ov::Property<std::string> subgraphs{"NPUW_DUMP_SUBS"};
@@ -276,7 +317,7 @@ static constexpr ov::Property<std::string> subgraphs{"NPUW_DUMP_SUBS"};
  * Type: std::string.
  * Dump subgraph on disk if a compilation failure happens.
  * Possible values: Comma-separated list of subgraph indices or "YES" for all
- * subgraphs, e.g. "0,1" or "YES".
+ * subgraphs, "NO" or just empty value to turn option off. E.g. "0,1" or "YES".
  * Default value: empty.
  */
 static constexpr ov::Property<std::string> subgraphs_on_fail{"NPUW_DUMP_SUBS_ON_FAIL"};
@@ -286,7 +327,7 @@ static constexpr ov::Property<std::string> subgraphs_on_fail{"NPUW_DUMP_SUBS_ON_
  * Type: std::string.
  * Dump input & output tensors for subgraph(s).
  * Possible values: Comma-separated list of subgraph indices or "YES" for all
- * subgraphs, e.g. "0,1" or "YES".
+ * subgraphs, "NO" or just empty value to turn option off. E.g. "0,1" or "YES".
  * Default value: empty.
  */
 static constexpr ov::Property<std::string> inputs_outputs{"NPUW_DUMP_IO"};

@@ -319,6 +319,11 @@ static void proposal_exec(const T* class_probs,
                           const Shape& output_shape,
                           const Shape& out_probs_shape,
                           const op::v0::Proposal::Attributes& attrs) {
+    const auto batch_num = static_cast<unsigned int>(class_probs_shape[0]);
+    const auto coordinates_offset = attrs.framework == "tensorflow" ? 0.f : 1.f;
+    const auto initial_clip = attrs.framework == "tensorflow";
+    const auto swap_xy = attrs.framework == "tensorflow";
+
     const T* p_bottom_item = class_probs;
     const T* p_d_anchor_item = bbox_deltas;
     T* p_roi_item = output;
@@ -328,8 +333,8 @@ static void proposal_exec(const T* class_probs,
     const unsigned int bottom_H = static_cast<unsigned int>(class_probs_shape[2]);
     const unsigned int bottom_W = static_cast<unsigned int>(class_probs_shape[3]);
     // input image height and width
-    const T img_H = image_shape[0];
-    const T img_W = image_shape[1];
+    const T img_H = image_shape[swap_xy ? 1 : 0];
+    const T img_W = image_shape[swap_xy ? 0 : 1];
     // scale factor for H and W, depends on shape of image_shape
     // can be split into H and W {image_height, image_width, scale_height,
     // scale_width}
@@ -349,11 +354,6 @@ static void proposal_exec(const T* class_probs,
     std::vector<unsigned int> roi_indices(attrs.post_nms_topn);
 
     std::vector<float> anchors = generate_anchors(attrs, anchor_count);
-
-    unsigned int batch_num = static_cast<unsigned int>(class_probs_shape[0]);
-    float coordinates_offset = attrs.framework == "tensorflow" ? 0.0f : 1.0f;
-    bool initial_clip = attrs.framework == "tensorflow";
-    bool swap_xy = attrs.framework == "tensorflow";
 
     for (unsigned int batch_idx = 0; batch_idx < batch_num; ++batch_idx) {
         std::fill(roi_indices.begin(), roi_indices.end(), 0);

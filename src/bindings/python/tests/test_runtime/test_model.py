@@ -80,7 +80,7 @@ def test_add_outputs(output, expectation, raise_msg):
         assert len(model.results) == 2
         assert "relu_t1" in model.outputs[1].get_tensor().names
         assert len(new_outs) == 1
-        assert new_outs[0].get_node() == model.outputs[1].get_node()
+        assert new_outs[0].get_node().get_instance_id() == model.outputs[1].get_node().get_instance_id()
         assert new_outs[0].get_index() == model.outputs[1].get_index()
     if e is not None:
         assert raise_msg in str(e.value)
@@ -97,7 +97,7 @@ def test_add_output_port():
     new_outs = model.add_outputs(relu1.output(0))
     assert len(model.results) == 2
     assert len(new_outs) == 1
-    assert new_outs[0].get_node() == model.outputs[1].get_node()
+    assert new_outs[0].get_node().get_instance_id() == model.outputs[1].get_node().get_instance_id()
     assert new_outs[0].get_index() == model.outputs[1].get_index()
 
 
@@ -117,9 +117,9 @@ def test_add_outputs_several_outputs(args):
     assert len(model.get_results()) == 3
     assert len(model.results) == 3
     assert len(new_outs) == 2
-    assert new_outs[0].get_node() == model.outputs[1].get_node()
+    assert new_outs[0].get_node().get_instance_id() == model.outputs[1].get_node().get_instance_id()
     assert new_outs[0].get_index() == model.outputs[1].get_index()
-    assert new_outs[1].get_node() == model.outputs[2].get_node()
+    assert new_outs[1].get_node().get_instance_id() == model.outputs[2].get_node().get_instance_id()
     assert new_outs[1].get_index() == model.outputs[2].get_index()
 
 

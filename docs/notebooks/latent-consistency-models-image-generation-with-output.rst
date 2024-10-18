@@ -44,6 +44,7 @@ An additional part demonstrates how to run quantization with
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ to speed up
 pipeline.
 
+
 **Table of contents:**
 
 
@@ -91,7 +92,7 @@ Prerequisites
 .. code:: ipython3
 
     %pip install -q "torch>=2.1" --index-url https://download.pytorch.org/whl/cpu
-    %pip install -q "openvino>=2023.1.0" transformers "diffusers>=0.23.1" pillow "gradio>=4.19" "nncf>=2.7.0" "datasets>=2.14.6" "peft==0.6.2" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "openvino>=2024.3.0" transformers "diffusers>=0.30.1" pillow "gradio>=4.19" "nncf>=2.12.0" "datasets>=2.14.6" --extra-index-url https://download.pytorch.org/whl/cpu
 
 Prepare models for OpenVINO format conversion
 ---------------------------------------------
@@ -684,14 +685,16 @@ inference using OpenVINO.
 
     core = ov.Core()
     
-    import ipywidgets as widgets
+    import requests
     
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="CPU",
-        description="Device:",
-        disabled=False,
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
+    open("notebook_utils.py", "w").write(r.text)
+    
+    from notebook_utils import device_widget
+    
+    device = device_widget()
     
     device
 
@@ -807,8 +810,11 @@ improve model inference speed.
 
 .. code:: ipython3
 
+    from notebook_utils import quantization_widget
+    
     skip_for_device = "GPU" in device.value
-    to_quantize = widgets.Checkbox(value=not skip_for_device, description="Quantization", disabled=skip_for_device)
+    to_quantize = quantization_widget(not skip_for_device)
+    
     to_quantize
 
 

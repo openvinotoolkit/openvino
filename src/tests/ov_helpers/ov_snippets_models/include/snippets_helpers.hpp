@@ -57,6 +57,7 @@ protected:
     const std::vector<PartialShape> input_shapes;
 
     virtual void validate_function(const std::shared_ptr<Model> &f) const;
+    static void validate_params_shape(const std::vector<PartialShape>& input_shapes, const ov::ParameterVector& params);
 };
 
 /// \brief Base class for snippets subgraphs with customizable embedded op sequences. Note that the custom_ops allowed types are

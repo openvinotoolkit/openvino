@@ -79,7 +79,7 @@ class RNN(Op):
 
         input_size = get_rnn_input_size(node)
         batch_size, seq_len = get_rnn_batch_size_and_seq_len(node)
-        # MXNet, ONNX has the same input layout
+        # ONNX has the same input layout
         input_shape = shape_array([seq_len, batch_size, input_size])
         if node.format == 'tf':
             input_shape = shape_array([batch_size, seq_len, input_size])
@@ -127,12 +127,8 @@ def rnn_infer(node: Node, out_ports=None):
 
     num_directions = 2 if node.direction in ['bidirectional'] else 1
     if node.has_num_directions:
-        if node.format == 'mxnet' and node.normalized is False:
-            # In MXNet RNN layer return output with shape [seq_len, batch_size, hidden_size * num_directions]
-            out_shape[-1] *= num_directions
-        else:
-            # ONNX-like, insert extra dimension to output shape for num_directions
-            out_shape = shape_insert(out_shape, 1, np.int64(num_directions))
+        # ONNX-like, insert extra dimension to output shape for num_directions
+        out_shape = shape_insert(out_shape, 1, np.int64(num_directions))
 
     # 0 output is required creating it if doesn't exist
     if 0 not in node.out_nodes():
@@ -193,12 +189,7 @@ def get_rnn_batch_size_and_seq_len(node: Node):
         if node.batch_dim == 1:
             seq_len = out_shape[0]
 
-            if node.format == 'mxnet':
-                assert len(out_shape) == 3, 'incorrect out_shape rank for node {}'.format(node_name)
-                # for MXNet out_shape = [seq_len, batch_size, hidden_size]
-                batch_size = out_shape[1]
-                in_port_with_initial_states = 2
-            elif node.format == 'onnx':
+            if node.format == 'onnx':
                 assert len(out_shape) == 4, 'incorrect out_shape rank for node {}'.format(node_name)
                 # even for ONNX in extractor 'batch_dim': 1 (front/onnx/lstm_ext.py:26) despite the fact that
                 # out_shape = [seq_len, num_directions, batch_size, hidden_size]
@@ -241,28 +232,8 @@ def get_rnn_input_size(node: Node):
         # ONNX weights on input 1 contain only W part, R, and B are connected separately
         # weights_shape = `[num_directions, 4 * hidden_size, input_size]`
         weights_size = node.in_port(1).data.get_shape()
-        assert len(weights_size) == 3, 'incorrect weights ranks for MXNet {} node {}'.format(node.op, node_name)
+        assert len(weights_size) == 3, 'incorrect weights ranks for ONNX {} node {}'.format(node.op, node_name)
         input_size = weights_size[2]
-        return input_size
-    elif node.format == 'mxnet':
-        multiplier = node.multiplier
-        hidden_size = node.hidden_size
-        num_layers = node.num_layers
-        direction = 2 if node.has_num_directions else 1
-
-        # for MXNet models we always get flattened weights which contains WRB
-        weights_size = node.in_port(1).data.get_shape()
-        assert len(weights_size) == 1, 'incorrect weights ranks for MXNet {} node {}'.format(node.op, node_name)
-        weights_size = weights_size[0]
-
-        size = hidden_size * direction * multiplier
-        other_layer_params_size = (hidden_size * direction + hidden_size + 2) * size
-        first_layer_params_size = weights_size - (num_layers - 1) * other_layer_params_size
-        # lhe lines above to find first_layer_params_size was taken from MXNetSplitMultiLayers.py:79
-        # input_size can be calculated from the first_layer_params_size
-        # if first_layer_params_size = (input_size + hidden_size + 2) * size
-        # then input_size = first_layer_params_size / size - 2 - hidden_size
-        input_size = first_layer_params_size / size - 2 - hidden_size
         return input_size
     elif node.format == 'tf':
         log.error('reverse infer for TensorFlow RNN operation {} is not implemented yet'.format(node_name),

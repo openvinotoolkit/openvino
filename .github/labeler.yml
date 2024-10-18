@@ -76,6 +76,8 @@
 
 'category: NPUW':
 - 'src/plugins/intel_npu/src/plugin/npuw/**/*'
+- 'src/plugins/intel_npu/tests/functional/behavior/npuw/**/*'
+- 'src/plugins/intel_npu/tests/unit/behavior/npuw/**/*'
 
 'category: HETERO':
 - 'src/plugins/hetero/**/*'
@@ -150,6 +152,7 @@
 - 'tests/layer_tests/tensorflow_tests/**/*'
 - 'tests/layer_tests/tensorflow2_keras_tests/**/*'
 - 'tests/layer_tests/jax_tests/**/*'
+- 'tests/requirements_tensorflow'
 - any: ['tests/model_hub_tests/**',
         '!tests/model_hub_tests/pytorch/**/*',
         '!tests/model_hub_tests/jax/**/*']
@@ -165,6 +168,7 @@
 - 'src/bindings/python/src/openvino/frontend/pytorch/**/*'
 - 'tests/layer_tests/py_frontend_tests/test_torch_decoder.py'
 - 'tests/layer_tests/py_frontend_tests/test_torch_frontend.py'
+- 'tests/requirements_pytorch'
 - any: ['tests/model_hub_tests/**',
         '!tests/model_hub_tests/tensorflow/**/*',
         '!tests/model_hub_tests/jax/**/*']

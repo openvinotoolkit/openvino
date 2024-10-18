@@ -339,6 +339,20 @@ ov::Any DecoderFlatBuffer::get_attribute(const std::string& name) const {
         } else {
             return {};
         }
+    } else if (name == "exclusive" && m_type == "CUMSUM") {
+        bool has_attribute = this->has_attribute(&tflite::CumsumOptions::exclusive);
+        if (has_attribute) {
+            return this->get_attribute(&tflite::CumsumOptions::exclusive);
+        } else {
+            return {};
+        }
+    } else if (name == "reverse" && m_type == "CUMSUM") {
+        bool has_attribute = this->has_attribute(&tflite::CumsumOptions::reverse);
+        if (has_attribute) {
+            return this->get_attribute(&tflite::CumsumOptions::reverse);
+        } else {
+            return {};
+        }
     }
 
     const auto opts = m_node_def->custom_options();

@@ -4,6 +4,8 @@
 import numpy as np
 import pytest
 import torch
+from packaging import version
+
 from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
 
@@ -69,7 +71,7 @@ class TestBitwiseOp(PytorchLayerTest):
     )
     @pytest.mark.parametrize("out", [False, skip_if_export(True)])
     def test_bitwise_mixed_dtypes(
-        self, op_type, out, lhs_dtype, rhs_dtype, lhs_shape, rhs_shape, ie_device, precision, ir_version
+            self, op_type, out, lhs_dtype, rhs_dtype, lhs_shape, rhs_shape, ie_device, precision, ir_version
     ):
         if ie_device == "GPU" and (lhs_dtype != "bool" or rhs_dtype != "bool"):
             pytest.xfail(reason="bitwise ops are not supported on GPU")

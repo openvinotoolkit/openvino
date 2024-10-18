@@ -21,14 +21,8 @@ namespace intel_cpu {
 class Transformations {
 public:
     Transformations(const std::shared_ptr<ov::Model>& initialModel,
-                    const bool                        enableLpt,
-                    const ov::element::Type           inferencePrecision,
-                    const Config::SnippetsMode&       snippetsMode,
                     const Config&                     config)
         : model(initialModel),
-          enableLpt(enableLpt),
-          inferencePrecision(inferencePrecision),
-          snippetsMode(snippetsMode),
           config(config) {
             CPU_DEBUG_CAPS_MAYBE_UNUSED(this->config);
           }
@@ -40,9 +34,6 @@ public:
 
 private:
     std::shared_ptr<ov::Model> model;
-    const bool    enableLpt;
-    const ov::element::Type inferencePrecision;
-    const Config::SnippetsMode snippetsMode;
     const Config& config;
 
     void PreLpt(const std::vector<ov::element::Type>& defaultPrecisions);
@@ -57,6 +48,7 @@ private:
 
     static bool fuse_type_to_convert(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
     static bool fuse_type_to_fq(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
+    static bool fuse_type_to_pa(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
 };
 
 }   // namespace intel_cpu

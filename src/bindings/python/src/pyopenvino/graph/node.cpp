@@ -170,6 +170,16 @@ void regclass_graph_Node(py::module m) {
                 :type input_tensors: List[openvino.runtime.Tensor]
                 :rtype: bool
              )");
+    node.def("get_instance_id",
+             &ov::Node::get_instance_id,
+             R"(
+                Returns id of the node.
+                May be used to compare nodes if they are same instances.
+
+                :return: id of the node.
+                :rtype: int
+            )");
+
     node.def("get_input_tensor",
              &ov::Node::get_input_tensor,
              py::arg("index"),

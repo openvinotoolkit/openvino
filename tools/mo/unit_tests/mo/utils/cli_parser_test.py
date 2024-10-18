@@ -2051,8 +2051,6 @@ class TestConvertModelParamsParsing(unittest.TestCase):
                                                  'tensorflow_custom_operations_config_update',
                                                  'tensorflow_object_detection_api_pipeline_config',
                                                  'tensorboard_logdir', 'tensorflow_custom_layer_libraries'},
-            'MXNet-specific parameters:': {'input_symbol', 'nd_prefix_name', 'pretrained_model_name', 'save_params_from_nd',
-                                           'legacy_mxnet_model', 'enable_ssd_gluoncv'},
             'Kaldi-specific parameters:': {'counts', 'remove_output_softmax', 'remove_memory'},
             'PaddlePaddle-specific parameters:': {'example_output'},
         }

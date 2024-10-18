@@ -35,6 +35,7 @@ Transformer <https://en.wikipedia.org/wiki/Transformer_(machine_learning_model)>
 and
 `ResNet34 <https://pytorch.org/vision/main/models/generated/torchvision.models.resnet34.html>`__.
 
+
 **Table of contents:**
 
 

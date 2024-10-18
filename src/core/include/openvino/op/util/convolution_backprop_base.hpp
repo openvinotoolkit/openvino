@@ -12,7 +12,7 @@ namespace util {
 /// \brief Base class for operations like back propagation convolution
 class OPENVINO_API ConvolutionBackPropBase : public ConvolutionBase {
 public:
-    OPENVINO_OP("ConvolutionBackPropBase", "util");
+    OPENVINO_OP("ConvolutionBackPropBase", "util", ConvolutionBase);
 
     /// \brief Constructs a conversion operation.
     ConvolutionBackPropBase() = default;

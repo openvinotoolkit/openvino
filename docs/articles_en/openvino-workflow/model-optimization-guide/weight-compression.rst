@@ -1,5 +1,5 @@
-Weight Compression
-==================
+LLM Weight Compression
+=========================
 
 .. toctree::
    :maxdepth: 1
@@ -187,7 +187,7 @@ trade-offs after optimization:
       ratio=0.9,
     )
 
-* ``scale_estimation`` - boolean parameter that enables more accurate estimation of 
+* ``scale_estimation`` - boolean parameter that enables more accurate estimation of
   quantization scales. Especially helpful when the weights of all layers are quantized to
   4 bits. Requires dataset.
 

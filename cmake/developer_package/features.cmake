@@ -49,6 +49,8 @@ ov_dependent_option (ENABLE_AVX2 "Enable AVX2 optimizations" ON "X86_64 OR (X86 
 
 ov_dependent_option (ENABLE_AVX512F "Enable AVX512 optimizations" ON "X86_64 OR (X86 AND NOT EMSCRIPTEN)" OFF)
 
+ov_dependent_option(ENABLE_NEON_FP16 "Enable ARM FP16 optimizations" ON "AARCH64" OFF)
+
 # Type of build, we add this as an explicit option to default it to ON
 get_property(BUILD_SHARED_LIBS_DEFAULT GLOBAL PROPERTY TARGET_SUPPORTS_SHARED_LIBS)
 ov_option (BUILD_SHARED_LIBS "Build as a shared library" ${BUILD_SHARED_LIBS_DEFAULT})

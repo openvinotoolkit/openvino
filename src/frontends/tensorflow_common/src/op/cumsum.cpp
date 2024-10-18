@@ -18,7 +18,8 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_cumsum_op(const NodeContext& node) {
-    default_op_checks(node, 2, {"Cumsum"}, true);
+    default_op_checks(node, 2, {"Cumsum", "CUMSUM"}, true);
+
     auto x = node.get_input(0);
     auto axis = node.get_input(1);
     auto exclusive = node.get_attribute<bool>("exclusive", false);

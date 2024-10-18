@@ -11,8 +11,6 @@ def deduce_legacy_frontend_by_namespace(argv: Namespace):
     if not hasattr(argv, 'framework') or not argv.framework:
         if getattr(argv, 'saved_model_dir', None) or getattr(argv, 'input_meta_graph', None):
             argv.framework = 'tf'
-        elif getattr(argv, 'input_symbol', None) or getattr(argv, 'pretrained_model_name', None):
-            argv.framework = 'mxnet'
         elif getattr(argv, 'input_proto', None):
             argv.framework = 'caffe'
         elif argv.input_model is None:
@@ -20,7 +18,7 @@ def deduce_legacy_frontend_by_namespace(argv: Namespace):
         else:
             argv.framework = guess_framework_by_ext(argv.input_model)
 
-    return map(lambda x: argv.framework == x, ['tf', 'caffe', 'mxnet', 'kaldi', 'onnx'])
+    return map(lambda x: argv.framework == x, ['tf', 'caffe', 'kaldi', 'onnx'])
 
 
 def guess_framework_by_ext(input_model_path: str) -> int:
@@ -30,8 +28,6 @@ def guess_framework_by_ext(input_model_path: str) -> int:
         return 'tf'
     elif re.match(r'^.*\.pbtxt$', input_model_path):
         return 'tf'
-    elif re.match(r'^.*\.params$', input_model_path):
-        return 'mxnet'
     elif re.match(r'^.*\.nnet$', input_model_path):
         return 'kaldi'
     elif re.match(r'^.*\.mdl', input_model_path):

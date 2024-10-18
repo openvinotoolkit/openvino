@@ -153,8 +153,7 @@ add_custom_target(ie_wheel ALL DEPENDS ${openvino_wheel_path} ${fdupes_report})
 add_custom_command(
     TARGET ie_wheel
     POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E remove_directory "${CMAKE_CURRENT_SOURCE_DIR}/build_${pyversion}"
-    COMMAND ${CMAKE_COMMAND} -E true # w/a this ensures the command always succeeds
+    COMMAND ${CMAKE_COMMAND} -E remove_directory "${CMAKE_CURRENT_SOURCE_DIR}/build_${pyversion}" || ${CMAKE_COMMAND} -E true # w/a this ensures the command always succeeds
     DEPENDS ${openvino_wheel_path}
     WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
     COMMENT "Cleaning up Python wheel build for wheel ${openvino_wheel_name}"
