@@ -25,7 +25,7 @@ ParamsKey LSTMSeqKernelRef::GetSupportedKey() const {
 }
 
 KernelsData LSTMSeqKernelRef::GetKernelsData(const Params& params) const {
-    return GetCommonKernelsData(params, true, false);
+    return GetCommonKernelsData(params, true);
 }
 
 KernelsPriority LSTMSeqKernelRef::GetKernelsPriority(const Params& /*params*/) const {
