@@ -8,7 +8,7 @@
 #include <memory>
 #include <string>
 
-#include "intel_npu/al/config/config.hpp"
+#include "config/config.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/iremote_tensor.hpp"
 

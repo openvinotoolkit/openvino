@@ -4,15 +4,15 @@
 
 #pragma once
 
-#include <base/ov_behavior_test_utils.hpp>
 #include <cstring>
-#include <intel_npu/al/config/compiler.hpp>
 #include <string>
 #include <vector>
 
+#include "base/ov_behavior_test_utils.hpp"
 #include "common/functions.h"
 #include "common/npu_test_env_cfg.hpp"
-#include "intel_npu/al/config/common.hpp"
+#include "config/common.hpp"
+#include "config/compiler.hpp"
 #include "npu_private_properties.hpp"
 
 

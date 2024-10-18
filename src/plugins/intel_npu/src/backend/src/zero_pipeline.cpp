@@ -7,10 +7,10 @@
 #include <ze_api.h>
 #include <ze_graph_ext.h>
 
-#include "intel_npu/al/itt.hpp"
-#include "intel_npu/al/prefix.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
+#include "npu_itt.hpp"
+#include "prefix.hpp"
 #include "zero_types.hpp"
 
 namespace intel_npu {

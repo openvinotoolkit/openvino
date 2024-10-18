@@ -23,10 +23,9 @@
 #include "util.hpp"
 
 // required for get_properties_per_device()
-#include <intel_npu/al/config/config.hpp>
-#include <intel_npu/al/config/npuw.hpp>
-#include <npuw_private_properties.hpp>
-
+#include "config/config.hpp"
+#include "config/npuw.hpp"
+#include "npuw_private_properties.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"

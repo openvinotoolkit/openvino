@@ -7,7 +7,7 @@
 #include <memory>
 
 #include "../partitioning.hpp"  // ov::npuw::Ensemble
-#include "intel_npu/al/config/config.hpp"
+#include "config/config.hpp"
 #include "openvino/openvino.hpp"
 
 namespace ov {

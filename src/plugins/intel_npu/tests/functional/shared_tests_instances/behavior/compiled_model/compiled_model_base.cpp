@@ -5,7 +5,7 @@
 #include "behavior/compiled_model/compiled_model_base.hpp"
 #include "common/utils.hpp"
 #include "common/npu_test_env_cfg.hpp"
-#include "intel_npu/al/config/common.hpp"
+#include "config/common.hpp"
 
 using namespace ov::test::behavior;
 namespace {

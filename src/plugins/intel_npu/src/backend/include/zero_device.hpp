@@ -7,7 +7,7 @@
 #include <ze_api.h>
 #include <ze_graph_ext.h>
 
-#include "intel_npu/al/icompiled_model.hpp"
+#include "icompiled_model.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "npu.hpp"
 #include "openvino/runtime/intel_npu/remote_properties.hpp"

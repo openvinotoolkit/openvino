@@ -10,7 +10,7 @@
 #include <iostream>
 #include <sstream>
 #include "gtest/gtest.h"
-#include "intel_npu/al/config/config.hpp"
+#include "config/config.hpp"
 #include "npu_private_properties.hpp"
 #include "npu_test_report.hpp"
 #include "npu_test_tool.hpp"

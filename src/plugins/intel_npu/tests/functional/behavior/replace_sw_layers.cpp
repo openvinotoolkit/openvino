@@ -8,7 +8,7 @@
 #include "common/functions.h"
 #include "common/utils.hpp"
 #include "common/npu_test_env_cfg.hpp"
-#include "intel_npu/al/config/common.hpp"
+#include "config/common.hpp"
 #include "npu_private_properties.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"

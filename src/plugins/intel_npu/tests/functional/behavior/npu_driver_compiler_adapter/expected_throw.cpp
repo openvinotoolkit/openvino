@@ -4,7 +4,7 @@
 
 #include "expected_throw.hpp"
 #include "common/utils.hpp"
-#include "intel_npu/al/config/common.hpp"
+#include "config/common.hpp"
 
 using namespace ov::test::behavior;
 

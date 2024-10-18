@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "intel_npu/al/icompiled_model.hpp"
-#include "intel_npu/al/icompiler.hpp"
+#include "icompiled_model.hpp"
+#include "icompiler.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "variable_state.hpp"

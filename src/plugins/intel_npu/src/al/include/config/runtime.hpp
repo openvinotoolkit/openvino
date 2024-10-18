@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "intel_npu/al/config/config.hpp"
+#include "config/config.hpp"
 #include "npu_private_properties.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"

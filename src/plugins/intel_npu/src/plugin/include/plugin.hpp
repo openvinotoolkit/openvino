@@ -9,8 +9,8 @@
 #include <string>
 
 #include "backends.hpp"
-#include "intel_npu/al/config/config.hpp"
-#include "intel_npu/al/icompiler.hpp"
+#include "config/config.hpp"
+#include "icompiler.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "metrics.hpp"
 #include "npu.hpp"
