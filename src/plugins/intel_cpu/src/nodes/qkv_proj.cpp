@@ -392,7 +392,10 @@ void QKVProjection::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(inPortConfigs, outPortConfigs, impl_desc_type::ref_any);
 }
 
-bool QKVProjection::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage, int concurrency, uint64_t fcDynamicQuantizationGroupSize) noexcept {
+bool QKVProjection::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
+                                         std::string& errorMessage,
+                                         int concurrency,
+                                         uint64_t fcDynamicQuantizationGroupSize) noexcept {
 #if defined(OPENVINO_ARCH_X86_64)
     try {
         const auto node_qkv = std::dynamic_pointer_cast<const QKVProjectionNode>(op);
@@ -415,7 +418,7 @@ bool QKVProjection::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
             }
 
             if (config.quantized && (fcDynamicQuantizationGroupSize < config.hidden_size)) {
-                errorMessage = std::string("QKVProjection input channel only support per-token dynamic quantization : ") + std::to_string(fcDynamicQuantizationGroupSize) + " " + std::to_string(config.hidden_size);
+                errorMessage = "QKVProjection input channel only support per-token dynamic quantization";
                 return false;
             }
 

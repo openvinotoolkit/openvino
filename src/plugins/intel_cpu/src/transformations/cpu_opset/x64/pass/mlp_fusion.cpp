@@ -74,8 +74,13 @@ ov::intel_cpu::MLPFusion::MLPFusion() {
     auto gate_up_proj_weight_deq = makePattern<opset1::Multiply>({gate_up_proj_weight_cvt_f32, gate_up_proj_weight_scales_per_OC},
                                                              {{"auto_broadcast", "numpy"}});
 
-    auto gate_up_proj = makePattern<opset1::MatMul>({input, gate_up_proj_weight_f32 | gate_up_proj_weight_deq}, {{"transpose_a", false}, {"transpose_b", true}});
-    auto gate_up_split_lengths = makeConst(ov::element::i32, ov::Shape({2,}), nullptr);
+    auto gate_up_proj = makePattern<opset1::MatMul>({input, gate_up_proj_weight_f32 | gate_up_proj_weight_deq},
+                                                    {{"transpose_a", false}, {"transpose_b", true}});
+    auto gate_up_split_lengths = makeConst(ov::element::i32,
+                                           ov::Shape({
+                                               2,
+                                           }),
+                                           nullptr);
     auto gate_up_proj_split = makePattern<opset1::VariadicSplit>({gate_up_proj, -1, gate_up_split_lengths});
     gate_up_proj_split->set_output_size(2);
 
@@ -86,7 +91,9 @@ ov::intel_cpu::MLPFusion::MLPFusion() {
     auto mlp_up_proj = makePattern<opset1::MatMul>({input, up_proj_weight | up_proj_weight_compressed | up_proj_weight_deq},
                                                    {{"transpose_a", false}, {"transpose_b", true}});
 
-    auto mlp_gated_up = makePattern<opset1::Multiply>({mlp_silu_gate | mlp_gelu_gate, mlp_up_proj | gate_up_proj_split->output(1)}, {{"auto_broadcast", "numpy"}});
+    auto mlp_gated_up =
+        makePattern<opset1::Multiply>({mlp_silu_gate | mlp_gelu_gate, mlp_up_proj | gate_up_proj_split->output(1)},
+                                      {{"auto_broadcast", "numpy"}});
     auto down_proj = makePattern<opset1::MatMul>({mlp_gated_up, down_proj_weight | down_proj_weight_compressed | down_proj_weight_deq},
                                                  {{"transpose_a", false}, {"transpose_b", true}});  //  [?,?,down_size]
 
@@ -97,7 +104,7 @@ ov::intel_cpu::MLPFusion::MLPFusion() {
         if (!validator) {
             return false;
         }
-        
+
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
         auto src = pattern_map.at(input);

@@ -836,7 +836,7 @@ void Transformations::PostLpt() {
         const auto fcDynamicQuantizationGroupSize = config.fcDynamicQuantizationGroupSize;
         CPU_REGISTER_PASS_X64(postLPTPassManager, MLPFusion);
         CPU_SET_CALLBACK_X64(postLPTPassManager,
-            [=](const_node_ptr &node) -> bool {
+            [fcDynamicQuantizationGroupSize](const_node_ptr &node) -> bool {
                 std::string errorMsg;
                 return node::LLMMLP::isSupportedOperation(node, errorMsg, fcDynamicQuantizationGroupSize);
             },
