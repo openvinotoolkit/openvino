@@ -89,6 +89,9 @@ void SearchSortedLayerTest::SetUp() {
 const std::vector<SearchSortedSpecificParams> SearchSortedLayerTest::GenerateParams() {
     const std::vector<SearchSortedSpecificParams> params = {
         SearchSortedSpecificParams{InputShape{{}, {{1, 18, 104}}}, InputShape{{}, {{1, 18, 104}}}, true},
+        SearchSortedSpecificParams{InputShape{{}, {{1, 2, 3, 100}}}, InputShape{{}, {{1, 2, 3, 10}}}, true},
+        SearchSortedSpecificParams{InputShape{{}, {{2, 1, 2, 3, 10}}}, InputShape{{}, {{2, 1, 2, 3, 20}}}, false},
+        SearchSortedSpecificParams{InputShape{{}, {{1}}}, InputShape{{}, {{2, 1, 2, 3, 20}}}, false},
         SearchSortedSpecificParams{InputShape{{}, {{50}}}, InputShape{{1, -1, 10}, {{1, 18, 10}}}, false},
     };
 
