@@ -133,12 +133,7 @@ void AutoSchedule::init() {
     auto customize_helper_context_from_cache_setting = [this](bool is_actual_cpu,
                                                               AutoCompileContext m_compile_context[],
                                                               ScheduleContext::Ptr& m_context) {
-        const auto cpu_iter = deviceChecker().check_and_return_if_device_in_list("CPU", m_context->m_device_priorities);
-        if (cpu_iter == m_context->m_device_priorities.end()) {
-            m_compile_context[CPU].m_is_enabled = false;
-            return;
-        }
-        m_compile_context[CPU].m_is_enabled = true;
+        bool is_stateful_model = false;
         if (!is_actual_cpu) {
             const auto& device = m_compile_context[ACTUALDEVICE].m_device_info.device_name;
             auto& device_config = m_compile_context[ACTUALDEVICE].m_device_info.config;
@@ -157,12 +152,57 @@ void AutoSchedule::init() {
                 else
                     blobId = ov::ModelCache::compute_hash(m_context->m_model_path, properties);
                 std::string cached_model_path = ov::util::make_path(cache_dir, blobId + ".blob");
-                m_compile_context[CPU].m_is_enabled = !ov::util::file_exists(cached_model_path);
-                LOG_DEBUG_TAG("device: %s %s cached blob: %s ",
-                              device.c_str(),
-                              m_compile_context[CPU].m_is_enabled ? "not found" : "found",
-                              cached_model_path.c_str());
+                if (!ov::util::file_exists(cached_model_path)) {
+                    LOG_DEBUG_TAG("device: %s not found cached blob: %s ", device.c_str(), cached_model_path.c_str());
+                    // not found blob file
+                    if (!m_context->m_model) {
+                        // passed model path
+                        std::cout << "=== blob not found and will read model here ===\n";
+                        auto m_model = m_context->m_ov_core->read_model(m_context->m_model_path, std::string{});
+                        for (auto& op : m_model->get_ops()) {
+                            if (std::dynamic_pointer_cast<ov::op::util::AssignBase>(op) ||
+                                std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(op)) {
+                                is_stateful_model = true;
+                                break;
+                            }
+                        }
+                        if (is_stateful_model) {
+                            std::cout
+                                << "=== stateful model. will disable CPU as accelerator and runtime fallback ===\n";
+                            m_compile_context[CPU].m_is_enabled = false;
+                            m_context->m_runtime_fallback = false;
+                            m_context->m_startup_fallback = false;
+                        }
+                    }
+                } else {
+                    // found blob file
+                    std::cout << "=== found blob and will passing model path to acutal device ===\n";
+                    LOG_DEBUG_TAG("device: %s found cached blob: %s ", device.c_str(), cached_model_path.c_str());
+                    m_compile_context[CPU].m_is_enabled = false;
+                    m_context->m_startup_fallback = false;
+                    if (m_context->m_model) {
+                        m_context->m_runtime_fallback = false;
+                    } else {
+                        auto m_model = m_context->m_ov_core->read_model(m_context->m_model_path, std::string{});
+                        for (auto& op : m_model->get_ops()) {
+                            if (std::dynamic_pointer_cast<ov::op::util::AssignBase>(op) ||
+                                std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(op)) {
+                                is_stateful_model = true;
+                                break;
+                            }
+                        }
+                        if (is_stateful_model) {
+                            std::cout << "=== stateful model. will disable runtime fallback ===\n";
+                            m_context->m_runtime_fallback = false;
+                        }
+                    }
+                }
             }
+        }
+        const auto cpu_iter = deviceChecker().check_and_return_if_device_in_list("CPU", m_context->m_device_priorities);
+        if (cpu_iter == m_context->m_device_priorities.end()) {
+            m_compile_context[CPU].m_is_enabled = false;
+            return;
         }
         if (m_compile_context[CPU].m_is_enabled) {
             m_compile_context[CPU].m_device_info = *cpu_iter;
@@ -184,9 +224,8 @@ void AutoSchedule::init() {
         // m_compile_context[ACTUALDEVICE]
         if (is_actual_cpu || !m_context->m_startup_fallback) {
             m_compile_context[CPU].m_is_enabled = false;
-        } else {
-            customize_helper_context_from_cache_setting(is_actual_cpu, m_compile_context, m_context);
         }
+        customize_helper_context_from_cache_setting(is_actual_cpu, m_compile_context, m_context);
         // initialize the rest members of load context
         for (int i = 0; i < CONTEXTNUM; i++) {
             if (m_compile_context[i].m_is_enabled) {
@@ -336,7 +375,7 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
         if ((m_context->m_model)) {
             context.m_compiled_model = m_context->m_ov_core->compile_model(model, device, device_config);
         } else {
-            OPENVINO_THROW("OpenVino Model is empty!");
+            context.m_compiled_model = m_context->m_ov_core->compile_model(m_context->m_model_path, device, device_config);
         }
         context.m_is_load_success = true;
         auto compile_end_time = std::chrono::high_resolution_clock::now();
