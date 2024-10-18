@@ -34,8 +34,11 @@ STFT::STFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
         THROW_CPU_NODE_ERR(errorMessage);
     }
 
-    auto STFT_op = as_type_ptr<op::v15::STFT>(op);
-    m_transpose_frames = STFT_op->get_transpose_frames();
+    const auto stft_op = as_type_ptr<op::v15::STFT>(op);
+    m_transpose_frames = stft_op->get_transpose_frames();
+
+    m_is_frame_size_const = is_type<op::v0::Constant>(stft_op->get_input_node_ptr(FRAME_SIZE_IDX));
+    m_is_frame_step_const = is_type<op::v0::Constant>(stft_op->get_input_node_ptr(FRAME_STEP_IDX));
 }
 
 void STFT::getSupportedDescriptors() {
@@ -64,13 +67,8 @@ void STFT::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(configurators, {{LayoutType::ncsp, ov::element::f32}}, impl_desc_type::ref_any);
 }
 
-void STFT::prepareParams() {
-    const auto& input_shape = getParentEdgeAt(DATA_IDX)->getMemory().getStaticDims();
-    if (input_shape.size() < 2) {
-        THROW_CPU_NODE_ERR("has incompatible 'data' shape ",
-                           PartialShape(input_shape),
-                           ". Only tensors of rank at least 2 are allowed.");
-    }
+bool STFT::needPrepareParams() const {
+    return false;
 }
 
 bool STFT::created() const {
@@ -89,11 +87,11 @@ void STFT::execute(dnnl::stream strm) {
 }
 
 void STFT::executeDynamicImpl(dnnl::stream strm) {
-    auto result = shapeInfer();
-    if (ShapeInferStatus::success == result.status) {
-        redefineOutputMemory(result.dims);
-    }
     execute(strm);
+}
+
+bool STFT::needShapeInfer() const {
+    return !(m_is_frame_size_const && m_is_frame_step_const) || Node::needShapeInfer();
 }
 
 }  // namespace node

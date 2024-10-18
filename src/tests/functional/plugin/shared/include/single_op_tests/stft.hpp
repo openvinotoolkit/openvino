@@ -8,7 +8,7 @@
 
 namespace ov {
 namespace test {
-TEST_P(STFTLayerTest, Inference) {
+TEST_P(STFTLayerTest, CompareWithRefs) {
     run();
 };
 }  // namespace test
