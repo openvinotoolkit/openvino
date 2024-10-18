@@ -643,16 +643,22 @@ void SyncInferRequest::allocate_states() {
         bool indirect_kv_cache = false;
         int64_t beam_axis = 0;
         int64_t concat_axis = 0;
+        bool compressed = false;
+        bool has_zp_state = false;
         auto kv_cache_shape = vi.second.m_layout.get_partial_shape();
         for (auto& p : state_prims) {
             if (auto kv_cache_prim = dynamic_cast<const cldnn::kv_cache*>(p)) {
                 indirect_kv_cache = kv_cache_prim->indirect;
                 beam_axis = ov::util::normalize(kv_cache_prim->gather_axis, kv_cache_shape.size());
                 concat_axis = ov::util::normalize(kv_cache_prim->concat_axis, kv_cache_shape.size());
+                compressed = kv_cache_prim->compressed;
+                has_zp_state = kv_cache_prim->get_compression_zp_inputs_num() > 0;
             }
         }
 
-        if (indirect_kv_cache) {
+        if (compressed) {
+            m_variables.emplace(vi.first, std::make_shared<VariableStateIndirectKVCacheCompressed>(vi.second, m_context, m_shape_predictor, beam_axis, concat_axis, has_zp_state));
+        } else if (indirect_kv_cache) {
             m_variables.emplace(vi.first, std::make_shared<VariableStateIndirectKVCache>(vi.second, m_context, m_shape_predictor, beam_axis, concat_axis));
         } else {
             m_variables.emplace(vi.first, std::make_shared<VariableState>(vi.second, m_context, m_shape_predictor));

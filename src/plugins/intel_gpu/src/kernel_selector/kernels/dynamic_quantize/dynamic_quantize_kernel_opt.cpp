@@ -148,6 +148,15 @@ bool DynamicQuantizeKernelOpt::Validate(const Params& params) const {
     if (dq_params.inputs[0].GetPaddedVal() != 0 || dq_params.outputs[0].GetPaddedVal() != 0)
         return false;
 
+    if (dq_params.append_axis != -1)
+        return false;
+
+    if (dq_params.group_sizes.back() != UINT64_MAX)
+        return false;
+
+    if (!dq_params.scales_output_order.empty())
+        return false;
+
     return true;
 }
 }  // namespace kernel_selector

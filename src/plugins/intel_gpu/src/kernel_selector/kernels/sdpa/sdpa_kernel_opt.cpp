@@ -4,6 +4,7 @@
 
 #include "sdpa_kernel_opt.h"
 #include "kernel_selector_utils.h"
+#include "common_types.h"
 #include <string>
 #include <vector>
 
@@ -25,6 +26,18 @@ static size_t get_sg_number_scale_factor(const sdpa_params& sdpa_params, size_t 
         const size_t optimal_scale_factor = 2;
         if (sdpa_params.conf.head_size * optimal_scale_factor <= sdpa_params.engineInfo.maxWorkGroupSize) {
             return optimal_scale_factor;
+        }
+    } else if (kernel_type == KernelsTypes::SINGLE_TOKEN) {
+        int USE_SCALE_FACTOR = 0;
+        if (const auto env_var = std::getenv("USE_SCALE_FACTOR")) {
+            std::istringstream ss(env_var);
+            ss >> USE_SCALE_FACTOR;
+        }
+        if (USE_SCALE_FACTOR) {
+            const size_t optimal_scale_factor = 2;
+            if (sdpa_params.conf.head_size * optimal_scale_factor <= sdpa_params.engineInfo.maxWorkGroupSize) {
+                return optimal_scale_factor;
+            }
         }
     }
 
@@ -126,6 +139,7 @@ static std::string GetKernelName(std::string base_name, KernelsTypes type, const
 
 ParamsKey SDPAKernelOpt::GetSupportedKey() const {
     ParamsKey k;
+    k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableInputDataType(Datatype::INT32);
@@ -152,6 +166,9 @@ bool SDPAKernelOpt::Validate(const Params& p) const {
     const sdpa_params& params = static_cast<const sdpa_params&>(p);
 
     if (params.conf.head_size < 1 || params.conf.head_size % subgroup_size != 0)
+        return false;
+
+    if (params.conf.use_asymmetric_quantization && !params.conf.combine_scales_and_zp)
         return false;
 
     return true;
@@ -231,10 +248,11 @@ CommonDispatchData SDPAKernelOpt::SetDefault(const sdpa_params& params, size_t k
         const size_t target_seq_len_block_size = kernel_idx == 1 ? get_target_seq_len_block_size() : 1;
 
         if (kernel_idx == KernelsTypes::SINGLE_TOKEN) {
+            const size_t sg_num_scale = get_sg_number_scale_factor(params, kernel_idx);
             dispatch_data.gws = { batch_size * heads_num,
                                   CeilDiv(target_seq_len, target_seq_len_block_size),
-                                  head_size * num_of_partitions };
-            dispatch_data.lws = { 1, 1, head_size };
+                                  head_size * num_of_partitions * sg_num_scale };
+            dispatch_data.lws = { 1, 1, head_size * sg_num_scale };
         } else if (kernel_idx == KernelsTypes::MULTI_TOKENS) {
             const size_t sg_num_scale = get_sg_number_scale_factor(params, kernel_idx);
             dispatch_data.gws = { batch_size * heads_num,
@@ -307,8 +325,20 @@ KernelsData SDPAKernelOpt::GetKernelsData(const Params& params) const {
                          static_cast<int>(prim_params.outputs.size()),
                          prim_params.is_shape_agnostic);
 
-        if (prim_params.indirect_axis != -1 && kernel_idx != KernelsTypes::FINALIZATION)
-            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(prim_params.inputs.size())});
+        auto beam_table_idx = prim_params.inputs.size();
+        if (prim_params.conf.is_kv_compressed && kernel_idx != KernelsTypes::FINALIZATION) {
+            auto key_cache_compression_scale_idx = static_cast<uint32_t>(prim_params.inputs.size());
+            auto value_cache_compression_scale_idx = static_cast<uint32_t>(prim_params.inputs.size() + 1);
+
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, key_cache_compression_scale_idx});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, value_cache_compression_scale_idx});
+
+            beam_table_idx += 2;
+        }
+
+        if (prim_params.indirect_axis != -1 && kernel_idx != KernelsTypes::FINALIZATION) {
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(beam_table_idx)});
+        }
 
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});

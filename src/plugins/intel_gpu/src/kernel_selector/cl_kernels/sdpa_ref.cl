@@ -112,6 +112,7 @@ inline uint FUNC(get_bt_index_value)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uin
 #endif
 
 #define APPLY_SCALE_TO_QUERY 1
+#define HAS_KV_CACHE_ZP_INPUT USE_ASYMMETRIC_QUANTIZATION && !COMBINE_SCALES_AND_ZP
 
 KERNEL(sdpa_ref)(
     OPTIONAL_SHAPE_INFO_ARG
@@ -125,6 +126,14 @@ KERNEL(sdpa_ref)(
     const __global INPUT4_TYPE* scale,
 #endif
     __global OUTPUT_TYPE* output,
+#if IS_KV_COMPRESSED
+    const __global KEY_COMPRESSION_SCALE_TYPE* key_scale,
+    const __global VALUE_COMPRESSION_SCALE_TYPE* val_scale,
+#if HAS_KV_CACHE_ZP_INPUT
+    const __global KEY_COMPRESSION_ZP_TYPE* key_zp,
+    const __global VALUE_COMPRESSION_ZP_TYPE* val_zp,
+#endif
+#endif
 #ifdef BEAM_TABLE_TYPE
     const __global BEAM_TABLE_TYPE* beam_table,
 #endif
@@ -162,7 +171,27 @@ KERNEL(sdpa_ref)(
 #else
                 INPUT0_TYPE q_val = query_input[query_offset];
 #endif
+#if IS_KV_COMPRESSED
+                INPUT1_TYPE k_val_comp = key_input[key_offset];
+                half k_val = (half)k_val_comp;
+#if COMPRESSED_PER_HEAD
+                const uint key_scale_comp_offset = GET_DATA_INDEX(KEY_COMPRESSION_SCALE, b_idx, b1 / BROADCAST_GROUP_SIZE, s, 0);
+#else
+                const uint key_scale_comp_offset = GET_DATA_INDEX(KEY_COMPRESSION_SCALE, b_idx, 0, s, 0);
+#endif
+#if USE_ASYMMETRIC_QUANTIZATION
+#if HAS_KV_CACHE_ZP_INPUT
+                k_val = (k_val - key_zp[key_scale_comp_offset]) * key_scale[key_scale_comp_offset];
+#else
+                k_val = (k_val - key_scale[key_scale_comp_offset + 1]) * key_scale[key_scale_comp_offset];
+#endif
+
+#else
+                k_val *= key_scale[key_scale_comp_offset];
+#endif
+#else
                 INPUT1_TYPE k_val = key_input[key_offset];
+#endif
                 acc += q_val * k_val;
             }
 
@@ -236,7 +265,27 @@ KERNEL(sdpa_ref)(
 #endif
         uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1, 0, 0, s, head_size_idx);
 
+#if IS_KV_COMPRESSED
+        INPUT2_TYPE __value = value_input[value_offset];
+        half value = (half)__value;
+    #if COMPRESSED_PER_HEAD
+        const uint value_scale_comp_offset = GET_DATA_INDEX(VALUE_COMPRESSION_SCALE, b_idx, b1 / BROADCAST_GROUP_SIZE, s, 0);
+    #else
+        const uint value_scale_comp_offset = GET_DATA_INDEX(VALUE_COMPRESSION_SCALE, b_idx, 0, s, 0);
+    #endif
+#if USE_ASYMMETRIC_QUANTIZATION
+#if HAS_KV_CACHE_ZP_INPUT
+        value = (value - val_zp[value_scale_comp_offset]) * val_scale[value_scale_comp_offset];
+#else
+        value = (value - val_scale[value_scale_comp_offset + 1]) * val_scale[value_scale_comp_offset];
+#endif
+#else
+        value *= val_scale[value_scale_comp_offset];
+#endif
+        acc += tmp_buf[tmp_buf_offset] * value;
+#else
         acc += tmp_buf[tmp_buf_offset] * value_input[value_offset];
+#endif
     }
 
     uint output_offset = OUTPUT_GET_INDEX(b0, b1, target_seq_idx, head_size_idx);

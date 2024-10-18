@@ -29,6 +29,18 @@ public:
                  const std::vector<int64_t>& order_out,
                  const ov::element::Type output_type = ov::element::undefined);
 
+    IndirectSDPA(const OutputVector& data_inputs,
+                 const ov::Output<Node>& beam_table,
+                 const bool is_causal,
+                 const int64_t indirect_axis,
+                 const std::vector<int64_t>& order_q,
+                 const std::vector<int64_t>& order_k,
+                 const std::vector<int64_t>& order_v,
+                 const std::vector<int64_t>& order_out,
+                 const QuantizationConfig& quantization_config,
+                 const bool combine_scales_and_zp,
+                 const ov::element::Type output_type = ov::element::undefined);
+
     bool visit_attributes(ov::AttributeVisitor &visitor) override;
     void validate_and_infer_types() override;
 

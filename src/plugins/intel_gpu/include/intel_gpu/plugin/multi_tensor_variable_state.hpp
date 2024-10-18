@@ -46,5 +46,30 @@ private:
     size_t m_concat_axis = 0;
 };
 
+// This is multi-tensor state for Indirect KV-Cache + Gemm pattern
+// Internally it stores KV Cache state + Beam Table state + compression scales state + (optional compression zero points)
+class VariableStateIndirectKVCacheCompressed : public VariableStateIndirectKVCache {
+public:
+    VariableStateIndirectKVCacheCompressed(const VariableStateInfo& info,
+                                           std::shared_ptr<RemoteContextImpl> context,
+                                           std::shared_ptr<cldnn::ShapePredictor> shape_predictor,
+                                           size_t beam_idx,
+                                           size_t concat_idx,
+                                           bool has_zp_state);
+    using Ptr = std::shared_ptr<VariableStateIndirectKVCacheCompressed>;
+
+    void set_state(const ov::SoPtr<ov::ITensor>& state) override;
+    ov::SoPtr<ov::ITensor> get_state() const override;
+
+    VariableState::Ptr get_compression_scale_state() const;
+    void set_compression_scale_layout(const cldnn::layout& new_layout);
+
+    VariableState::Ptr get_compression_zp_state() const;
+    void set_compression_zp_layout(const cldnn::layout& new_layout);
+    bool has_zp_state() const;
+
+private:
+    bool m_has_zp_state = false;
+};
 }  // namespace intel_gpu
 }  // namespace ov

@@ -35,16 +35,24 @@ std::vector<layout> kv_cache_inst::calc_output_layouts(kv_cache_node const& /*no
 
     std::vector<ShapeType> input_shapes = {impl_param.get_input_layout(0).get<ShapeType>(),
                                            impl_param.get_input_layout(1).get<ShapeType>()};
-    if (desc->num_outputs > 1)
+    if (desc->indirect) {
         input_shapes.push_back(impl_param.get_input_layout(2).get<ShapeType>());
+    }
 
-    std::vector<ShapeType> output_shapes = shape_infer(&op, input_shapes);
+    if (desc->compressed) {
+        input_shapes.push_back(impl_param.get_input_layout(3).get<ShapeType>());
 
-    static const std::map<size_t, size_t> ports_map = {{0, 0}, {1, 2}};
+        if (desc->get_compression_zp_inputs_num() > 0) {
+            input_shapes.push_back(impl_param.get_input_layout(4).get<ShapeType>());
+        }
+    }
+
+    std::vector<ShapeType> output_shapes = desc->compressed ? shape_infer(&op, input_shapes, desc->quantization_config, desc->scales_zp_output_order, desc->combine_scales_and_zp)
+                                                            : shape_infer(&op, input_shapes);
 
     std::vector<layout> out_layouts;
     for (size_t i = 0; i < desc->num_outputs; i++) {
-        auto out_type = desc->output_data_types[i].value_or(impl_param.get_input_layout(ports_map.at(i)).data_type);
+        auto out_type = desc->output_data_types[i].value();
         out_layouts.emplace_back(output_shapes[i], out_type, impl_param.get_output_layout(i).format);
     }
 
@@ -63,6 +71,9 @@ std::string kv_cache_inst::to_string(const kv_cache_node& node) {
     kv_cache_info.add("concat axis", node.get_primitive()->concat_axis);
     kv_cache_info.add("gather axis", node.get_primitive()->gather_axis);
     kv_cache_info.add("indirect", node.get_primitive()->indirect);
+    kv_cache_info.add("compressed", node.get_primitive()->compressed);
+    kv_cache_info.add("combine_scales_and_zp", node.get_primitive()->combine_scales_and_zp);
+    kv_cache_info.add("scales_zp_output_order", node.get_primitive()->scales_zp_output_order);
     node_info->add("kv_cache info", kv_cache_info);
     std::stringstream primitive_description;
     node_info->dump(primitive_description);

@@ -15,9 +15,9 @@ namespace kernel_selector {
 sdpa_kernel_selector::sdpa_kernel_selector() {
     Attach<SDPAKernelOpt>();
     Attach<SDPAKernelRef>();
-#ifdef ENABLE_ONEDNN_FOR_GPU
+    #ifdef ENABLE_ONEDNN_FOR_GPU
     Attach<SDPAKernelMicro>();
-#endif
+    #endif
 }
 
 KernelsData sdpa_kernel_selector::GetBestKernels(const Params& params) const {
