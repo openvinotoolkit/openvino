@@ -22,7 +22,7 @@ from openvino import PartialShape, Type
 def test_inverse_param_inputs(input_shape, expected_output_shape, op_name):
     data = ops.parameter(input_shape, dtype=np.float32)
 
-    op = ops.inverse(data, name=op_name)
+    op = ops.identity(data, name=op_name)
     assert op.get_output_size() == 1
     assert op.get_type_name() == "Identity"
     assert op.get_friendly_name() == op_name
