@@ -6,9 +6,9 @@
 
 #include <cstdint>
 
-#include "intel_npu/al/config/config.hpp"
-#include "intel_npu/al/icompiled_model.hpp"
-#include "intel_npu/al/icompiler.hpp"
+#include "config/config.hpp"
+#include "icompiled_model.hpp"
+#include "icompiler.hpp"
 #include "openvino/runtime/intel_npu/remote_properties.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/properties.hpp"

@@ -4,15 +4,15 @@
 
 #include "zero_infer_request.hpp"
 
-#include "intel_npu/al/config/common.hpp"
-#include "intel_npu/al/config/compiler.hpp"
-#include "intel_npu/al/config/runtime.hpp"
-#include "intel_npu/al/itt.hpp"
-#include "intel_npu/al/prefix.hpp"
+#include "config/common.hpp"
+#include "config/compiler.hpp"
+#include "config/runtime.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
+#include "npu_itt.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/runtime/intel_npu/remote_properties.hpp"
 #include "openvino/runtime/make_tensor.hpp"
+#include "prefix.hpp"
 #include "zero_memory.hpp"
 
 using namespace intel_npu;

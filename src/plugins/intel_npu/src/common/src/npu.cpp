@@ -4,7 +4,7 @@
 
 #include "npu.hpp"
 
-#include "intel_npu/al/itt.hpp"
+#include "npu_itt.hpp"
 #include "openvino/util/shared_object.hpp"
 
 namespace intel_npu {
