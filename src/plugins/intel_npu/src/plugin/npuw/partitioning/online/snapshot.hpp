@@ -18,8 +18,11 @@ namespace online {
 
 namespace detail {
 // At partitioning level we exclude some "non-Ops" to not interfere with the passes.
-// We include some of them back to properly link everything at plugin level
+// We include some of them back to properly link everything at plugin level.
 bool isOp(const std::shared_ptr<ov::Node>& node);
+// Find Const->Convert->Node if any and return Const precisions.
+// Used for mixed-precision models to properly identify repeated blocks.
+std::vector<ov::element::Type> getConstsPrecision(const std::shared_ptr<ov::Node>& node);
 }  // namespace detail
 
 // Core part of the partitioning algorithm which implements a list of graph passes.
@@ -69,6 +72,7 @@ private:
     void identifyUniques();
     void mergeUniques();
     void mergeTriangles();
+    void splitMixedPrecision();
     void cleanUpUniques();
     void afterUniques();
     void markInternalCompute();
