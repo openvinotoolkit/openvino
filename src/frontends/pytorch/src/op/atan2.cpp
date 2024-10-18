@@ -48,13 +48,11 @@ OutputVector translate_atan2(const NodeContext& context) {
     // create some constants to adjust result according to quadrant.
     auto zero = context.mark_node(v0::Constant::create(ov::element::i32, Shape{}, {0}));
     auto pi = context.mark_node(v0::Constant::create(ov::element::f64, Shape{}, {M_PI}));
-    auto neg_pi = context.mark_node(v0::Constant::create(ov::element::f64, Shape{}, {-M_PI}));
     auto half_pi = context.mark_node(v0::Constant::create(ov::element::f64, Shape{}, {M_PI_2}));
     auto neg_half_pi = context.mark_node(v0::Constant::create(ov::element::f64, Shape{}, {-M_PI_2}));
 
     zero = context.mark_node(std::make_shared<v1::ConvertLike>(zero, rhs));
     pi = context.mark_node(std::make_shared<v1::ConvertLike>(pi, rhs));
-    neg_pi = context.mark_node(std::make_shared<v1::ConvertLike>(neg_pi, rhs));
     half_pi = context.mark_node(std::make_shared<v1::ConvertLike>(half_pi, rhs));
     neg_half_pi = context.mark_node(std::make_shared<v1::ConvertLike>(neg_half_pi, rhs));
 

@@ -773,6 +773,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.asinh.default", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Asinh>},
         {"aten.atan.default", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Atan>},
         {"aten.atanh.default", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Atanh>},
+        {"aten.atan2.default", op::translate_atan2},
         {"aten.avg_pool2d.default", op::translate_avg_poolnd},
         {"aten.avg_pool3d.default", op::translate_avg_poolnd},
         {"aten.baddbmm.default", op::translate_addmm_fx},
