@@ -37,6 +37,10 @@ bool ZeroEngineBackend::isCommandQueueExtSupported() const {
     return _instance->getCommandQueueDdiTable().version() >= ZE_COMMAND_QUEUE_NPU_EXT_VERSION_1_0;
 }
 
+bool ZeroEngineBackend::isLUIDExtSupported() const {
+    return _instance->isExtensionSupported(std::string(ZE_DEVICE_LUID_EXT_NAME));
+}
+
 ZeroEngineBackend::~ZeroEngineBackend() = default;
 
 const std::shared_ptr<IDevice> ZeroEngineBackend::getDevice() const {
