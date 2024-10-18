@@ -325,6 +325,5 @@ def stft(
     :param  name: The optional name for the created output node.
     :return: The new node performing STFT operation.
     """
-
     inputs = as_nodes(data, window, frame_size, frame_step, name=name)
     return _get_node_factory_opset15().create("STFT", inputs)
