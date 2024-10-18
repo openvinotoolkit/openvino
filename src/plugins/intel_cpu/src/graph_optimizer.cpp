@@ -183,6 +183,10 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph &graph) {
     MatchSdpaKvCache(graph);
     graph.RemoveDroppedNodes();
 
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "DropRedundantMemoryOutput");
+    DropRedundantMemoryOutput(graph);
+    graph.RemoveDroppedNodes();
+
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "RemoveDroppedEdges");
     graph.RemoveDroppedEdges();
 }
@@ -3183,6 +3187,92 @@ void GraphOptimizer::MatchSdpaKvCache(Graph &graph) {
 
         graph.AddNode(memInputSdpa);
         graph.AddNode(memOutputStub);
+    }
+}
+
+void GraphOptimizer::DropRedundantMemoryOutput(Graph &graph) {
+    // When we have a MemoryInput->MemoryOutput pair, that means that the state is immediately populated with the init
+    // subgraph values when the init subgraph exists. In all the other cases the state is simply a read only object.
+    // We can optimize such a case removing the MemoryOutput node and transferring the state values update
+    // responsibility to a special type of the MemoryInput node - MemoryInputSingle
+    auto& graphNodes = graph.GetNodes();
+
+    auto isSuitableMemInput = [](const NodePtr& node) -> bool {
+        if (Type::MemoryInput != node->getType()) {
+            return false;
+        }
+        NodePtr MemoryOutput = nullptr;
+        auto&& childEdges = node->getChildEdgesAtPort(0);
+        for (auto&& item : childEdges) {
+            auto childNode = item->getChild();
+
+            if (Type::MemoryOutput == childNode->getType()) {
+                if (MemoryOutput && MemoryOutput != childNode) {
+                    //only one child MemoryOutput is expected
+                    return false;
+                }
+                MemoryOutput = childNode;
+            }
+        }
+        return true;
+    };
+
+    for (size_t i = 0; i < graphNodes.size(); i++) {
+        auto node = graphNodes[i];
+        if (!isSuitableMemInput(node)) {
+            continue;
+        }
+
+        CPU_GRAPH_OPTIMIZER_SCOPE(DropRedundantMemoryOutput_Node);
+
+        auto memInputNode = std::dynamic_pointer_cast<node::MemoryInputBase>(node);
+        OPENVINO_ASSERT(memInputNode, "MemoryInput node ", node->getName(), " has unexpected dynamic type");
+
+        ov::optional<Shape> inputShape;
+        ov::optional<ov::element::Type> inputPrc;
+
+        if (!node->getParentEdges().empty()) {
+            inputShape = ov::optional<Shape>(node->getInputShapeAtPort(0));
+            inputPrc = ov::optional<ov::element::Type>(node->getOriginalInputPrecisionAtPort(0));
+        }
+
+        //search for the MemoryOutputNode
+        NodePtr memoryOutputNode;
+        for (auto&& edge : node->getChildEdgesAtPort(0)) {
+            auto child = edge->getChild();
+            if (Type::MemoryOutput == child->getType()) {
+                memoryOutputNode = child;
+                break;
+            }
+        }
+        OPENVINO_ASSERT(memoryOutputNode, "Corresponding MemoryOutput has not been found");
+
+        graph.RemoveEdge(memoryOutputNode->getParentEdgeAt(0));
+        // there are no output edges from MemoryOutput nodes
+
+        auto memInputSingle = std::make_shared<MemoryInputSingle>(memInputNode->getId(),
+                                                                  memInputNode->getName(),
+                                                                  memInputNode->getTypeStr(),
+                                                                  memInputNode->getOutputShapeAtPort(0),
+                                                                  memInputNode->getOriginalOutputPrecisionAtPort(0),
+                                                                  graph.getGraphContext(),
+                                                                  inputShape,
+                                                                  inputPrc);
+
+        if (!memInputNode->getParentEdges().empty()) {
+            auto parentEdge = memInputNode->getParentEdgeAt(0);
+            auto parent = parentEdge->getParent();
+            const auto inputNum = parentEdge->getInputNum();
+            graph.RemoveEdge(parentEdge);
+            graph.CreateEdge(parent, memInputSingle, inputNum, 0);
+        }
+
+        for (auto&& edge : memInputNode->getChildEdgesAtPort(0)) {
+            auto child = edge->getChild();
+            const auto outputNum = edge->getOutputNum();
+            graph.RemoveEdge(edge);
+            graph.CreateEdge(memInputSingle, child, 0, outputNum);
+        }
     }
 }
 

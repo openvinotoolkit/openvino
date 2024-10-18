@@ -179,14 +179,28 @@ public:
 
     MemStatePtr makeState() const override;
 
-private:
+protected:
+    bool needInitGraphProcessing() const;
     void runStatic(dnnl::stream strm) override;
     void runDynamic(dnnl::stream strm) override;
+
+private:
     void assignStateHook() override {/*pass*/}
-    bool needInitGraphProcessing() const;
 
 private:
     ProxyMemoryBlockPtr memBlock = nullptr;
+};
+
+class MemoryInputSingle : public MemoryInput {
+public:
+    using MemoryInput::MemoryInput; // TODO: custom constructor assigning memory stub
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
+
+    MemStatePtr makeState() const override;
+
+private:
+    void runStatic(dnnl::stream strm) override;
+    void runDynamic(dnnl::stream strm) override;
 };
 
 class MemoryInputSDPA : public MemoryInputBase {

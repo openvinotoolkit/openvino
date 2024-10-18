@@ -866,6 +866,71 @@ void MemoryInputSDPA::resolveInPlaceEdges(Edge::LOOK look) {
     }
 }
 
+MemStatePtr MemoryInputSingle::makeState() const {
+    // assume ov::Tensor is always dense
+    auto original_desc =
+        std::make_shared<CpuBlockedMemoryDesc>(getOriginalOutputPrecisionAtPort(0), outputShapes.at(0));
+
+    auto mem_desc = getBaseMemDescAtOutputPort(0);
+    const auto& eng = getEngine();
+
+    auto state_name = getId();
+
+    // Remove suffix with pair ID. Internal information.
+    auto suffix_idx = state_name.find("/id=");
+    if (suffix_idx != std::string::npos) {
+        state_name = state_name.substr(0, suffix_idx);
+    }
+
+    // TODO: change to single buffer
+    return std::make_shared<VariableStateDoubleBuffer>(state_name,
+        std::make_shared<Memory>(eng, mem_desc),
+        std::make_shared<Memory>(eng, mem_desc),
+        original_desc);
+}
+
+void MemoryInputSingle::runStatic(dnnl::stream strm) {
+    MemoryInput::runStatic(strm);
+    if (needInitGraphProcessing()) {
+        // since there is no corresponding MemoryOutput node, we need to update the state here
+        auto result = getDstMemoryAtPort(0); // only one output port
+        auto stateMem = getAssignedState()->output_mem();
+        CPU_NODE_ASSERT(stateMem, " state memory has nullptr");
+        if (result->getData() != stateMem->getData()) {
+            stateMem->load(*result);
+        }
+    }
+}
+
+void MemoryInputSingle::runDynamic(dnnl::stream strm) {
+    MemoryInput::runDynamic(strm);
+    if (needInitGraphProcessing()) {
+        // since there is no corresponding MemoryOutput node, we need to update the state here
+        auto result = getDstMemoryAtPort(0); // only one output port
+        auto state = getAssignedState();
+        auto stateMem = state->output_mem();
+        CPU_NODE_ASSERT(stateMem, " state memory has nullptr");
+
+        const auto& newShape = result->getShape();
+        const auto& stateShape = stateMem->getShape();
+
+        if (stateShape.isDynamic() || stateShape.getStaticDims() != newShape.getStaticDims()) {
+            auto extMemDesc = state->internal_desc();
+            auto newExternDesc = extMemDesc->cloneWithNewDims(newShape.getStaticDims());
+            stateMem->redefineDesc(newExternDesc);
+        }
+
+        if (result->getData() != stateMem->getData()) {
+            stateMem->load(*result);
+        }
+    }
+}
+
+bool MemoryInputSingle::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
+                                             std::string& errorMessage) noexcept {
+    return MemoryInput::isSupportedOperation(op, errorMessage);
+}
+
 }  // namespace node
 }   // namespace intel_cpu
 }   // namespace ov
