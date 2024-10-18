@@ -36,6 +36,7 @@ namespace op {
     template <class T>     \
     OutputVector op(const ov::frontend::jax::NodeContext& node)
 
+OP_CONVERTER(translate_argmax);
 OP_T_CONVERTER(translate_binary_op);
 OP_CONVERTER(translate_broadcast_in_dim);
 OP_CONVERTER(translate_concatenate);
@@ -59,6 +60,7 @@ OP_CONVERTER(translate_transpose);
 // Supported ops for Jaxpr
 const std::map<std::string, CreatorFunction> get_supported_ops_jaxpr() {
     return {{"add", op::translate_1to1_match_2_inputs<v1::Add>},
+            {"argmax", op::translate_argmax},
             {"broadcast_in_dim", op::translate_broadcast_in_dim},
             {"concatenate", op::translate_concatenate},
             {"constant", op::translate_constant},
