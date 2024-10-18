@@ -295,7 +295,7 @@ NodeDebugHelper::NodeDebugHelper(const primitive_inst& inst)
             debug_config->dump_layers_dst_only == 0 && debug_config->is_layer_for_dumping(layer_name)) {
             std::string debug_str_for_bin_load = " Command for loading : OV_GPU_LoadDumpRawBinary=\"" + layer_name + ":";
             for (size_t i = 0; i < m_inst.dependencies().size(); i++) {
-                std::string name = get_file_prefix() + layer_name + "_src" + std::to_string(i);
+                std::string name = get_file_prefix() + "_src" + std::to_string(i);
                 auto input_mem = m_inst.dep_memory_ptr(i);
                 if (input_mem == nullptr) {
                     GPU_DEBUG_COUT  << " input_mem_" << i << " is nullptr. Nothing to dump." << std::endl;
