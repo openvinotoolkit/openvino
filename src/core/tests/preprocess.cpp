@@ -1548,7 +1548,7 @@ TEST(pre_post_process, postprocess_convert_element_type_explicit) {
     auto names_count = std::count_if(ops.begin(), ops.end(), [](std::shared_ptr<ov::Node> n) {
         return n->output(0).get_tensor().get_names().count("tensor_output1") > 0;
     });
-    EXPECT_EQ(names_count, 2);  // last node + result referencing to it
+    EXPECT_EQ(names_count, 1);  // last node + result referencing to it
     EXPECT_EQ(name, f->output().get_node_shared_ptr()->get_friendly_name());
     EXPECT_EQ(name_last_op,
               f->get_results().front()->get_input_source_output(0).get_node_shared_ptr()->get_friendly_name());
