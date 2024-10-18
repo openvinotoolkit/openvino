@@ -68,7 +68,7 @@ bool pass::AdjustBrgemmCopyBLoopPorts::update_loop_info(const std::shared_ptr<sn
 }
 
 bool pass::AdjustBrgemmCopyBLoopPorts::run(const snippets::lowered::LinearIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(pass::itt::domains::SnippetsTransform, "Snippets::AdjustBrgemmCopyBLoopPorts")
+    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::AdjustBrgemmCopyBLoopPorts")
 
     bool modified = false;
 

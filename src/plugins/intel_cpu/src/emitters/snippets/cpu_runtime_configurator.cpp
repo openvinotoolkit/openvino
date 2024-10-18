@@ -99,8 +99,7 @@ void CPURuntimeConfigurator::update_loop_args(const ov::snippets::lowered::Linea
 }
 
 CPURuntimeConfigurator::BrgemmCopyBLoopPortsAdjuster::BrgemmCopyBLoopPortsAdjuster(const ov::snippets::lowered::LinearIRCPtr& linear_ir,
-                                                                                   ov::intel_cpu::CPURuntimeConfigurator *configurator)
-    : m_configurator(configurator) {
+                                                                                   ov::intel_cpu::CPURuntimeConfigurator *configurator) {
     const auto& pass = std::make_shared<intel_cpu::pass::AdjustBrgemmCopyBLoopPorts>();
     pass->run(*linear_ir);
     const auto& affected_uni_loops = pass->get_affected_loops();
