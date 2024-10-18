@@ -57,8 +57,7 @@ void SearchSortedLayerTest::generate_inputs(const std::vector<ov::Shape>& target
         ov::test::utils::create_and_fill_tensor_unique_sequence(dataPrecision, targetInputStaticShapes[0], 0, 8, SEED);
     inputs.insert({funcInputs[0].get_node_shared_ptr(), sortedTensor});
 
-    auto valuesTensor =
-        ov::test::utils::create_and_fill_tensor_unique_sequence(dataPrecision, targetInputStaticShapes[1], 0, 8, SEED);
+    auto valuesTensor = ov::test::utils::create_and_fill_tensor(dataPrecision, targetInputStaticShapes[1]);
 
     inputs.insert({funcInputs[1].get_node_shared_ptr(), valuesTensor});
 }
