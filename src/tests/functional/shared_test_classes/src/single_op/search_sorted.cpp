@@ -12,7 +12,7 @@ namespace test {
 
 static const int SEED = 7877;
 
-std::string SearchSortedLayerTest::getTestCaseName(testing::TestParamInfo<SearchSortedLayerTestParams> obj) {
+std::string SearchSortedLayerTest::getTestCaseName(const testing::TestParamInfo<SearchSortedLayerTestParams>& obj) {
     SearchSortedLayerTestParams basicParamsSet;
     basicParamsSet = obj.param;
 

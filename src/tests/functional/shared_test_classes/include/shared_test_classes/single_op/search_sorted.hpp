@@ -18,15 +18,13 @@ using SearchSortedLayerTestParams = std::tuple<SearchSortedSpecificParams, Eleme
 class SearchSortedLayerTest : public testing::WithParamInterface<SearchSortedLayerTestParams>,
                               public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<SearchSortedLayerTestParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<SearchSortedLayerTestParams>& obj);
     static const std::vector<SearchSortedSpecificParams> GenerateParams();
 
 protected:
     void SetUp() override;
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
 };
-
-extern const std::vector<SearchSortedSpecificParams> SearchSortedParamsVector;
 
 }  // namespace test
 }  // namespace ov

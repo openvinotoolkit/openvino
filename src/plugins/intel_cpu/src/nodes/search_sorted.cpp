@@ -102,6 +102,8 @@ void SearchSorted::execute(dnnl::stream strm) {
               CASE(ov::element::f32),
               CASE(ov::element::f16),
               CASE(ov::element::bf16),
+              CASE(ov::element::i32),
+              CASE(ov::element::u32),
               CASE(ov::element::i8),
               CASE(ov::element::u8))
 
