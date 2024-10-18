@@ -160,6 +160,22 @@ Plugin::Plugin() {
     // Set common info for compiled_model_runtime_properties
     auto& ov_version = ov::get_openvino_version();
     m_compiled_model_runtime_properties["OV_VERSION"] = ov_version.buildNumber;
+
+    // update oneDnn cache
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#if (ENABLE_ONEDNN_FOR_GPU)
+    dnnl::set_primitive_cache_capacity(1024);
+#endif
+#endif
+}
+
+Plugin::~Plugin() {
+    //clean oneDNN cache
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#if (ENABLE_ONEDNN_FOR_GPU)
+    dnnl::set_primitive_cache_capacity(0);
+#endif
+#endif
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& orig_config) const {
