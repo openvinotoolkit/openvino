@@ -12,6 +12,7 @@ set(shellcheck_skip_list
     "${OpenVINO_SOURCE_DIR}/thirdparty"
     "${OpenVINO_SOURCE_DIR}/src/plugins/intel_cpu/thirdparty"
     "${OpenVINO_SOURCE_DIR}/src/plugins/intel_gpu/thirdparty"
+    "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/thirdparty"
     "${OpenVINO_SOURCE_DIR}/src/bindings/python/thirdparty/pybind11"
     "${TEMP}")
 
