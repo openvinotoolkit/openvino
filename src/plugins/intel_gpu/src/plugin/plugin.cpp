@@ -161,16 +161,10 @@ Plugin::Plugin() {
     auto& ov_version = ov::get_openvino_version();
     m_compiled_model_runtime_properties["OV_VERSION"] = ov_version.buildNumber;
 
-    // update oneDnn cache
-#ifdef ENABLE_ONEDNN_FOR_GPU
-#if (ENABLE_ONEDNN_FOR_GPU)
-    //dnnl::set_primitive_cache_capacity(1024);
-#endif
-#endif
 }
 
 Plugin::~Plugin() {
-    //clean oneDNN cache
+    // reset oneDNN cache to clean up cached primitives
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #if (ENABLE_ONEDNN_FOR_GPU)
     dnnl::set_primitive_cache_capacity(0);
