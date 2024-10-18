@@ -463,17 +463,14 @@ void Deconvolution::getSupportedDescriptors() {
        inputDataType = outputDataType = memory::data_type::bf16;
 
     if (inputDataType == memory::data_type::f16 || outputDataType == memory::data_type::f16) {
-        bool hasStrides = false;
-        for (size_t i = 0; i < deconvAttrs.stride.size(); i++) {
-            if (deconvAttrs.stride[i] != 1) {
-                hasStrides = true;
-                break;
-            }
-        }
-        if (hasStrides)
+        // TODO: remove this limitation after adding support for f16 in oneDNN MFDNN-12580
+        if (std::any_of(deconvAttrs.stride.begin(), deconvAttrs.stride.end(), [](ptrdiff_t stride) {
+                return stride != 1;
+            })) {
             inputDataType = outputDataType = memory::data_type::f32;
-        else
+        } else {
             inputDataType = outputDataType = memory::data_type::f16;
+        }
     }
 
     if (!fusedWith.empty()) {
