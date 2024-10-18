@@ -14,6 +14,27 @@
 #include "openvino/util/file_util.hpp"
 #include "read_ir.hpp"
 
+#ifdef _WIN32
+#    include <windows.h>
+#else
+#    include <sys/stat.h>
+#endif
+
+namespace {
+bool createReadOnlyFile(const std::string& filename) {
+    std::ofstream file(filename);
+    if (file.is_open()) {
+        file.close();
+#ifdef _WIN32
+        return SetFileAttributes(filename.c_str(), FILE_ATTRIBUTE_READONLY) != 0;
+#else
+        return chmod(filename.c_str(), S_IRUSR) == 0;  // Set file as read-only for owner
+#endif
+    }
+    return false;
+}
+}  // namespace
+
 using SerializationParams = std::tuple<std::string, std::string>;
 
 class SerializationTest : public ov::test::TestsCommon, public testing::WithParamInterface<SerializationParams> {
@@ -55,6 +76,24 @@ public:
         std::remove(m_out_bin_path.c_str());
     }
 };
+
+TEST(SerializationTest, WriteInReadOnly) {
+    // Create read-only files
+    ASSERT_TRUE(createReadOnlyFile(m_out_xml_path));
+    ASSERT_TRUE(createReadOnlyFile(m_out_bin_path));
+
+    // Set up the serializer with the current paths
+    ov::pass::Serialize serializer(m_out_xml_path, m_out_bin_path);
+
+    auto m = std::make_shared<ov::Model>(ov::OutputVector{}, ov::ParameterVector{}, "");
+
+    // Expect that running the serializer on a read-only file throws an exception
+    EXPECT_THROW(serializer.run_on_model(m), ov::AssertFailure);
+
+    // Confirm that files were not successfully written.
+    ASSERT_FALSE(std::ifstream(m_out_xml_path).good());
+    ASSERT_FALSE(std::ifstream(m_out_bin_path).good());
+}
 
 TEST_P(SerializationTest, CompareFunctions) {
     CompareSerialized([this](const std::shared_ptr<ov::Model>& m) {
