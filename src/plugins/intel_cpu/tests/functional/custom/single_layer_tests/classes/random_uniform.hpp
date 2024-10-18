@@ -17,6 +17,7 @@ typedef std::tuple<
         ov::test::ElementType,            // Output precision
         uint64_t,                         // Global seed
         uint64_t,                         // Operational seed
+        ov::op::PhiloxAlignment,          // Alignment of generator
         bool,                             // Is 1st input constant
         bool,                             // Is 2nd input constant
         bool,                             // Is 3rd input constant
@@ -45,6 +46,7 @@ private:
     uint64_t m_operational_seed;
     double m_min_val;
     double m_max_val;
+    bool m_nonzero_seeds;
     static constexpr double m_mean_threshold = 0.075;
     static constexpr double m_variance_threshold = 0.15;
 };
