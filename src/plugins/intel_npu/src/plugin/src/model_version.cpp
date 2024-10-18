@@ -27,7 +27,6 @@ std::stringstream Metadata<1, 0>::data() {
     stream.write(VERSION_HEADER.data(), VERSION_HEADER.size());
 
     stream.write(reinterpret_cast<const char*>(&version.major), sizeof(version.major));
-
     stream.write(reinterpret_cast<const char*>(&version.minor), sizeof(version.minor));
 
     stream.write(ovVersion.version.c_str(), ovVersion.version.size());
@@ -44,7 +43,7 @@ void Metadata<1, 0>::read(std::istream& stream) {
     ovVersion.read(stream);
 }
 
-void check_blob_version(std::vector<uint8_t>& blob, std::istream& stream) {
+void check_blob_version(std::vector<uint8_t>& blob) {
     size_t blobDataSize;
     auto metadataIterator = blob.end() - sizeof(size_t);
     memcpy(&blobDataSize, &(*metadataIterator), sizeof(blobDataSize));

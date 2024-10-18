@@ -11,10 +11,10 @@
 
 namespace intel_npu {
 
+constexpr std::string_view VERSION_HEADER = "OVNPU";
+
 constexpr int CURRENT_METAVERSION_MAJOR = 1;
 constexpr int CURRENT_METAVERSION_MINOR = 0;
-
-constexpr std::string_view VERSION_HEADER = "OVNPU";
 
 struct MetadataVersion {
     uint32_t major;
@@ -47,6 +47,6 @@ struct Metadata<1, 0> {
     void read(std::istream& stream);
 };
 
-void check_blob_version(std::vector<uint8_t>& blob, std::istream& stream);
+void check_blob_version(std::vector<uint8_t>& blob);
 
 } // namespace intel_npu
