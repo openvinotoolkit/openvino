@@ -204,26 +204,20 @@ static MemoryPtr prepareWeightMemory(const MemoryArgs &memory,
         auto weights_md_ = dnnlDstDesc->getDnnlDesc().get();
         dnnl::impl::cpu::acl::acl_utils::reorder_to_weight_format(wei_tensor_info, *weights_md_, expectedWeightFormat,
                                                                     inner_dim, o_dim, remaining_dims, {});
-        aclfcAttrs.isWeightsRepacked = true;
-    }
-#if defined(OPENVINO_ARCH_ARM)
-    if (!aclfcAttrs.weightsNonTransposed) {
-        auto reverse_weights_dims = memory.at(ARG_WEI)->getStaticDims();
-        std::reverse(reverse_weights_dims.begin(), reverse_weights_dims.end());
-        auto dstDesc_reverse_weights_dims = dstDesc->cloneWithNewDims(reverse_weights_dims, true);
-        auto weiDesc_reverse_weights_dims = weiDesc->cloneWithNewDims(reverse_weights_dims, true);
-        dnnlDstDesc = MemoryDescUtils::convertToDnnlMemoryDesc(dstDesc_reverse_weights_dims);
-        dnnlSrcDesc = MemoryDescUtils::convertToDnnlMemoryDesc(weiDesc_reverse_weights_dims);
-        dnnlSrcDesc = makeTransposedWeightDescriptor(dnnlSrcDesc, dnnlDstDesc, !aclfcAttrs.weightsNonTransposed);
-        aclfcAttrs.isWeightsRepacked = true;
-    }
-#endif
-#if defined(OPENVINO_ARCH_ARM64)
-    if (aclfcAttrs.weightsNonTransposed) {
         dnnlSrcDesc = makeTransposedWeightDescriptor(dnnlSrcDesc, dnnlDstDesc, aclfcAttrs.weightsNonTransposed);
         aclfcAttrs.isWeightsRepacked = true;
+    } else {
+        if (!aclfcAttrs.weightsNonTransposed) {
+            auto reverse_weights_dims = memory.at(ARG_WEI)->getStaticDims();
+            std::reverse(reverse_weights_dims.begin(), reverse_weights_dims.end());
+            auto dstDesc_reverse_weights_dims = dstDesc->cloneWithNewDims(reverse_weights_dims, true);
+            auto weiDesc_reverse_weights_dims = weiDesc->cloneWithNewDims(reverse_weights_dims, true);
+            dnnlDstDesc = MemoryDescUtils::convertToDnnlMemoryDesc(dstDesc_reverse_weights_dims);
+            dnnlSrcDesc = MemoryDescUtils::convertToDnnlMemoryDesc(weiDesc_reverse_weights_dims);
+            dnnlSrcDesc = makeTransposedWeightDescriptor(dnnlSrcDesc, dnnlDstDesc, !aclfcAttrs.weightsNonTransposed);
+            aclfcAttrs.isWeightsRepacked = true;
+        }
     }
-#endif
 
     auto create = [&]() {
         MemoryPtr final_ptr = memory.at(ARG_WEI);
