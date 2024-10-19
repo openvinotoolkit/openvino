@@ -7,6 +7,7 @@
 #include <string>
 
 #include "logging.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
@@ -52,15 +53,25 @@ void unpack(const ov::SoPtr<ov::ITensor>& from,
 
 void gather(const ov::SoPtr<ov::ITensor>& src, const ov::SoPtr<ov::ITensor>& idx, const ov::SoPtr<ov::ITensor>& dst);
 
+using View = std::vector<std::size_t>;
+ov::SoPtr<ov::ITensor> view(const ov::SoPtr<ov::ITensor>& src, const View& from, const View& to);
+
+ov::SoPtr<ov::ITensor> view(const ov::SoPtr<ov::ITensor>& src, std::size_t dim, std::size_t offset, std::size_t len);
+
 void to_f32(const ov::Tensor& in, ov::Tensor& out);
-void to_f16(ov::Tensor& t);
-void transpose(ov::Tensor& t);
-void permute(ov::Tensor& t, const std::vector<std::size_t>& axes);
+ov::Tensor to_f16(const ov::Tensor& t);
+ov::Tensor transpose(const ov::Tensor& t);
+ov::Tensor permute(const ov::Tensor& t, const std::vector<std::size_t>& axes);
 ov::Tensor concat(const std::vector<ov::Tensor>& tt, std::size_t axis);
 
+// Start is inclusive, end is exclusive
+using range_1d = std::pair<std::size_t, std::size_t>;
+range_1d validMaskRange(const ov::SoPtr<ov::ITensor>& t);
+
 namespace at {
-template <class M>
+template <class M_>
 struct Impl {
+    using M = typename std::decay<M_>::type;
     using V = typename M::mapped_type;
 
     M* m = nullptr;
@@ -88,6 +99,11 @@ struct Impl {
 template <typename M>
 Impl<M> _(M* pM) {
     return Impl<M>(pM);
+}
+
+template <typename M>
+Impl<M> _(M&& m) {
+    return Impl<M>(&m);
 }
 
 template <typename M>

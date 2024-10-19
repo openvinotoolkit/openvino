@@ -20,17 +20,26 @@ namespace npuw {
 namespace online {
 
 namespace detail {
+
+namespace {
+static const std::map<std::string, std::string> ISOL_PRESETS = {{"COMPUTE",
+                                                                 "P:DQMatMulGQu4/compute,P:DQMatMulCWu4/compute,"
+                                                                 "P:DQMatMulGQi4/compute,P:DQMatMulCWi4/compute,"
+                                                                 "P:VocabMatMul/compute,"
+                                                                 "P:RMSNorm/compute"}};
+}
+
 // For missing declaration warning
+// FIXME: Instead, one should use namespace{}
 size_t getMinGraphSize(::intel_npu::Config& cfg);
 size_t getMinRepBlocks(::intel_npu::Config& cfg);
 size_t getMinRepBlockSize(::intel_npu::Config& cfg);
 std::vector<Avoid> getAvoids(::intel_npu::Config& cfg);
 std::vector<Isolate> getIsolates(::intel_npu::Config& cfg);
-std::vector<Isolate> getIsolates(const std::string isolates_unparsed);
+std::vector<Isolate> getIsolates(const std::string& isolates_unparsed);
 std::vector<std::string> getNoFolds(::intel_npu::Config& cfg);
 std::vector<std::string> getNoFolds(const std::string& nofolds_unparsed);
 // Set default predefined values for COMPUTE pipeline
-void setComputeConfig(PassContext& ctx);
 void dump_partitioning(const ov::npuw::Ensemble& ens, const std::string& to);
 
 size_t getMinGraphSize(::intel_npu::Config& cfg) {
@@ -64,8 +73,8 @@ std::vector<Avoid> getAvoids(::intel_npu::Config& cfg) {
 
     std::string avoids_opt = cfg.getString<::intel_npu::NPUW_ONLINE_AVOID>();
     if (avoids_opt.empty()) {
-        LOG_WARN(::intel_npu::NPUW_ONLINE_AVOID().key()
-                 << " property is not set! NPU device will be prioritized for every subgraph.");
+        LOG_VERB(::intel_npu::NPUW_ONLINE_AVOID().key()
+                 << " property is not set. NPU device will be prioritized for every subgraph.");
         return {};
     }
 
@@ -108,13 +117,18 @@ std::vector<Isolate> getIsolates(::intel_npu::Config& cfg) {
     return getIsolates(cfg.getString<::intel_npu::NPUW_ONLINE_ISOLATE>());
 }
 
-std::vector<Isolate> getIsolates(const std::string isolates_unparsed) {
+std::vector<Isolate> getIsolates(const std::string& isolates_unparsed) {
     if (isolates_unparsed.empty()) {
         return {};
     }
 
     std::vector<Isolate> isolates;
-    std::string s = std::move(isolates_unparsed);
+    std::string s = isolates_unparsed;
+
+    auto preset_iter = ISOL_PRESETS.find(s);
+    if (preset_iter != ISOL_PRESETS.end()) {
+        s = preset_iter->second;
+    }
 
     size_t pos = 0;
     size_t start = 0;
@@ -189,13 +203,6 @@ std::vector<std::string> getNoFolds(const std::string& nofolds_unparsed) {
     return nofolds;
 }
 
-void setComputeConfig(PassContext& ctx) {
-    // FIXME: initialize via a dedicated function instead of parsing
-    ctx.isolates = detail::getIsolates("P:DQMatMulGQu4/compute,P:DQMatMulCWu4/compute,P:DQMatMulGQi4/"
-                                       "compute,P:DQMatMulCWi4/compute,P:RMSNorm/compute");
-    ctx.nofolds = detail::getNoFolds("compute");
-}
-
 void dump_partitioning(const ov::npuw::Ensemble& ens, const std::string& to) {
     pugi::xml_document doc;
 
@@ -218,6 +225,9 @@ void dump_partitioning(const ov::npuw::Ensemble& ens, const std::string& to) {
         }
         if (!group.avoid_list.empty()) {
             gr.append_attribute("avoid") = group.avoid_list.data();
+        }
+        if (!group.tag.empty()) {
+            gr.append_attribute("tag") = group.tag.data();
         }
 
         // Note: Ensemble also add "id" attribute but it's not used by the plugin
@@ -257,12 +267,24 @@ void dump_partitioning(const ov::npuw::Ensemble& ens, const std::string& to) {
 // Interface to get online partitioning from the model
 class Compiler {
     enum class Pipeline {
-        NONE,    // Partitioning will consist of a single group with all the Ops
-        INIT,    // Initialize only. The hardest mode, every group has just 1 layer inside
-        JUST,    // "justParitioning" - combination of LHF + Remnants
-        REP,     // Repeated blocks pipeline - combination of repeatedBlocks and Remnants - default configuration
-        COMPUTE  // Separates non-foldable compute subgraphs from the model based on predefined rules + REP
+        NONE,     // Partitioning will consist of a single group with all the Ops
+        INIT,     // Initialize only. The hardest mode, every group has just 1 layer inside
+        JUST,     // "justParitioning" - combination of LHF + Remnants
+        REP,      // Repeated blocks pipeline - combination of repeatedBlocks and Remnants
+        REG,      // Regularized repeated blocks pipeline - same as REP, but with some strong hints first
+        COMPUTE,  // Separates non-foldable compute subgraphs from the model based on predefined rules + REP
+        SPATIAL   // Similar to COMPUTE but allows folding
     };
+
+    template <class C>
+    void warn_unused() {
+        const auto& val = m_cfg.get<C>();
+        if (val != C::defaultValue()) {
+            LOG_WARN("User-specified configuration {" << C::key() << " : " << val
+                                                      << "} is ignored in the current pipeline "
+                                                      << m_cfg.get<::intel_npu::NPUW_ONLINE_PIPELINE>());
+        }
+    }
 
     Pipeline currentPipeline() {
         std::string pipeline_opt = m_cfg.getString<::intel_npu::NPUW_ONLINE_PIPELINE>();
@@ -274,8 +296,12 @@ class Compiler {
             return Pipeline::JUST;
         } else if (pipeline_opt == "REP") {
             return Pipeline::REP;
+        } else if (pipeline_opt == "REG") {
+            return Pipeline::REG;
         } else if (pipeline_opt == "COMPUTE") {
             return Pipeline::COMPUTE;
+        } else if (pipeline_opt == "SPATIAL") {
+            return Pipeline::SPATIAL;
         } else {
             LOG_WARN("Unknown partitioning compiler pipeline " << pipeline_opt << ", switching to REP");
             return Pipeline::REP;
@@ -329,6 +355,23 @@ class Compiler {
         LOG_INFO("Done");
     }
 
+    void reg() {
+        LOG_INFO("Online partitioning: compiling regularized repeated blocks pipeline...");
+        LOG_BLOCK();
+
+        m_snapshot->earlyAvoids();
+        m_snapshot->earlyRegroup();
+        m_snapshot->repeatedBlocks([&]() {
+            // This callback is called when repeatingBlocks algorithm thinks it is done
+            m_snapshot->stripTag("compute");
+        });
+        m_snapshot->repeat([&] {
+            m_snapshot->fuseRemnantsExtended();
+        });
+
+        LOG_INFO("Done");
+    }
+
 public:
     Compiler(const std::shared_ptr<ov::Model>& model, ::intel_npu::Config& cfg)
         : m_model(model),
@@ -367,9 +410,34 @@ public:
         case Pipeline::REP:
             rep();
             break;
+        case Pipeline::REG:
+            warn_unused<::intel_npu::NPUW_ONLINE_ISOLATE>();
+
+            // Only get isolates here.
+            // NB: We ignore NO_FOLD everywhere except pipeline COMPUTE - this needs
+            // to be aligned in the future
+            ctx.isolates = detail::getIsolates(detail::ISOL_PRESETS.at("COMPUTE"));
+            m_snapshot->setCtx(ctx);
+            reg();
+            break;
         case Pipeline::COMPUTE:
+            warn_unused<::intel_npu::NPUW_ONLINE_ISOLATE>();
+            warn_unused<::intel_npu::NPUW_ONLINE_NO_FOLD>();
+
             // Manually set predefined isolates and nofolds then do rep() pipeline
-            detail::setComputeConfig(ctx);
+            // FIXME: initialize via a dedicated function instead of parsing
+            ctx.isolates = detail::getIsolates(detail::ISOL_PRESETS.at("COMPUTE"));
+            ctx.nofolds = detail::getNoFolds("compute");
+            m_snapshot->setCtx(ctx);
+            rep();
+            break;
+        case Pipeline::SPATIAL:
+            warn_unused<::intel_npu::NPUW_ONLINE_ISOLATE>();
+            m_cfg.update(::intel_npu::Config::ConfigMap{{std::string(::intel_npu::NPUW_SPATIAL::key()), "YES"}});
+
+            // Manually set predefined isolates and nofolds then do rep() pipeline
+            // FIXME: initialize via a dedicated function instead of parsing
+            ctx.isolates = detail::getIsolates(detail::ISOL_PRESETS.at("COMPUTE"));
             m_snapshot->setCtx(ctx);
             rep();
             break;

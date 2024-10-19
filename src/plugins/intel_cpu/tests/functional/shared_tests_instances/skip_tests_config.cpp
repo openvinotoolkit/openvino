@@ -358,6 +358,8 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_VariableState/OVInferRequestVariableStateTest.*)");
     // Issue: 141705
     retVector.emplace_back(R"(.*smoke_arm_Deconv_2D_Planar_FP16/DeconvolutionLayerCPUTest.*INFERENCE_PRECISION_HINT=f16.*)");
+    // Issue: 154882
+    retVector.emplace_back(R"(.*ConcatMultiQuerySDPTest.*f16.*)");
 #endif
 
 #if defined(OPENVINO_ARCH_ARM)
@@ -499,8 +501,6 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_Snippets_Eltwise/TwoInputsAndOutputs.*)");
     // arm jit_eltwise_emitters doesn't support jit_power_dynamic_emitter yet
     retVector.emplace_back(R"(smoke_Snippets_Eltwise/MaxNumParamsEltwise.*)");
-    // TODO: 141292
-    retVector.emplace_back(R"(smoke_Snippets_Eltwise_FP16.*)");
 #endif
 #if defined(_WIN32)
     retVector.emplace_back(R"(.*smoke_QuantizedConvolutionBatchNormTransposeOnWeights/QuantizedConvolutionBatchNorm.CompareWithRefs/conv_type=convolution_quantize_type=fake_quantize_intervals_type=per_(tensor|channel)_transpose_on_weights=true_device=CPU.*)");
@@ -531,11 +531,14 @@ std::vector<std::string> disabledTestPatterns() {
     if (!ov::with_cpu_x86_avx512_core_fp16()) {
         // Skip fp16 tests for paltforms that don't support fp16 precision
         retVector.emplace_back(R"(.*INFERENCE_PRECISION_HINT=(F|f)16.*)");
+        retVector.emplace_back(R"(.*ConcatMultiQuerySDPTest.*f16.*)");
+        retVector.emplace_back(R"(.*ConcatSDPTest.*f16.*)");
     }
 #elif defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
     if (!ov::intel_cpu::hasHardwareSupport(ov::element::f16)) {
         // Skip fp16 tests for paltforms that don't support fp16 precision
         retVector.emplace_back(R"(.*INFERENCE_PRECISION_HINT=(F|f)16.*)");
+        retVector.emplace_back(R"(.*Prc=f16.*)");
     } else {
         // Issue 117407
         retVector.emplace_back(
@@ -561,6 +564,7 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*smoke_Snippets_EnforcePrecision_bf16.*)");
         retVector.emplace_back(R"(.*smoke_Snippets_MHAWOTransposeEnforceBF16.*)");
         retVector.emplace_back(R"(.*smoke_Snippets_MHAEnforceBF16.*)");
+        retVector.emplace_back(R"(.*ConcatSDPTest.*bf16.*)");
     }
     // [150842] Need to support dynamic K dimension of BF16|INT8 MatMul on AMX systems
     if (ov::with_cpu_x86_avx512_core_amx()) {

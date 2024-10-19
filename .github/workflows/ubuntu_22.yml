@@ -176,10 +176,10 @@ jobs:
       - name: Extract OpenVINO packages
         run: |
           pushd ${INSTALL_DIR}
-            tar -I pigz -xf openvino_package.tar.gz -C ${INSTALL_DIR}
+            pigz -dc openvino_package.tar.gz | tar -xf - -C ${INSTALL_DIR}
           popd
           pushd ${INSTALL_TEST_DIR}
-            tar -I pigz -xf openvino_tests.tar.gz -C ${INSTALL_DIR}
+            pigz -dc openvino_tests.tar.gz | tar -xf - -C ${INSTALL_DIR}
           popd
 
       - name: Fetch setup_python action
@@ -222,12 +222,12 @@ jobs:
         if: ${{ always() }}
         run: |
           pushd ${CONFORMANCE_ARTIFACTS_DIR}
-            tar -I pigz -cvf ${CONFORMANCE_ARTIFACTS_DIR}/conformance_artifacts.tar.gz *
+            tar -cvf - * | pigz > ${CONFORMANCE_ARTIFACTS_DIR}/conformance_artifacts.tar.gz
           popd
 
       - name: Upload Conformance Artifacts
         if: ${{ always() }}
-        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: conformance_artifacts_${{ matrix.TEST_TYPE }}-${{ env.TEST_DEVICE }}
           path: ${{ env.CONFORMANCE_ARTIFACTS_DIR }}/conformance_artifacts.tar.gz
@@ -248,12 +248,12 @@ jobs:
         if: ${{ matrix.TEST_TYPE == 'API' }}
         run: |
           pushd ${CONFORMANCE_ARTIFACTS_DIR}
-          tar -I pigz -cvf ${CONFORMANCE_ARTIFACTS_DIR}/conformance_artifacts.tar.gz *
+            tar -cvf - * | pigz > ${CONFORMANCE_ARTIFACTS_DIR}/conformance_artifacts.tar.gz
           popd
 
       - name: Upload Conformance Artifacts
         if: ${{ matrix.TEST_TYPE == 'API' }}
-        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: conformance_artifacts_${{ matrix.TEST_TYPE }}-TEMPLATE
           path: ${{ env.CONFORMANCE_ARTIFACTS_DIR }}/conformance_artifacts.tar.gz
@@ -288,6 +288,7 @@ jobs:
       runner: 'aks-linux-4-cores-16gb'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      os: 'ubuntu_22_04'
 
   Python_Unit_Tests:
     name: Python unit tests
@@ -327,6 +328,7 @@ jobs:
     with:
       runner: 'aks-linux-8-cores-32gb'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
+      python-version: '3.11'
 
   TensorFlow_Models_Tests_Precommit:
     name: TensorFlow Models tests
@@ -449,11 +451,11 @@ jobs:
       - name: Extract OpenVINO packages
         run: |
           pushd ${INSTALL_DIR}
-            tar -I pigz -xf openvino_package.tar.gz -C ${INSTALL_DIR}
+            pigz -dc openvino_package.tar.gz | tar -xf - -C ${INSTALL_DIR}
           popd
 
           pushd ${INSTALL_DIR}
-            tar -I pigz -xf openvino_developer_package.tar.gz -C ${INSTALL_DIR}
+            pigz -dc openvino_developer_package.tar.gz | tar -xf - -C ${INSTALL_DIR}
           popd
 
       - name: Clone OpenVINO Contrib

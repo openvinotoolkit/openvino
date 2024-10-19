@@ -44,6 +44,7 @@ jobs:
       INSTALL_DIR: "${{ github.workspace }}\\openvino_install"
       INSTALL_DIR_JS: "${{ github.workspace }}\\openvino_install\\js"
       INSTALL_TEST_DIR: "${{ github.workspace }}\\tests_install"
+      INSTALL_WHEELS_DIR: "${{ github.workspace }}\\install\\wheels"
       BUILD_DIR: "${{ github.workspace }}\\openvino_build"
       ARTIFACTS_SHARE: "C:\\mount\\build-artifacts"
       MANIFEST_PATH: "${{ github.workspace }}\\manifest.yml"
@@ -179,13 +180,14 @@ jobs:
 
       - name: Cmake install - OpenVINO
         run: |
-          cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${{ env.BUILD_DIR }}/cmake_install.cmake
-          cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_TEST_DIR }} -DCOMPONENT=tests -P ${{ env.BUILD_DIR }}/cmake_install.cmake
-          cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -DCOMPONENT=python_wheels -P ${{ env.BUILD_DIR }}/cmake_install.cmake
+          cmake --install . --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }}
+          cmake --install . --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_WHEELS_DIR }} --component python_wheels
+          cmake --install . --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_TEST_DIR }} --component tests
+        working-directory: ${{ env.BUILD_DIR }}
 
       - name: Pack Artifacts
         run: |
-          $file=Get-ChildItem -Path "${{ env.INSTALL_DIR }}"
+          $file = Get-ChildItem -Path "${{ env.INSTALL_DIR }}"
           $compress = @{
             Path = $file
             CompressionLevel = "Optimal"
@@ -204,23 +206,33 @@ jobs:
       - name: CMake configure, build and install - OpenVINO JS API
         if: ${{ fromJSON(inputs.affected-components).JS_API }}
         run: |
-          cmake -DCPACK_GENERATOR=NPM -DENABLE_SYSTEM_TBB=OFF -UTBB* -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }}
+          cmake -UTBB* -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }} `
+                -DCPACK_GENERATOR=NPM `
+                -DENABLE_SYSTEM_TBB=OFF `
+                -DENABLE_WHEEL=OFF
           cmake --build ${{ env.BUILD_DIR }} --parallel
-          cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR_JS }} -P ${{ env.BUILD_DIR }}/cmake_install.cmake
+          cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR_JS }}
 
       #
       # Upload build artifacts and logs
       #
 
       - name: Upload openvino package
-        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: openvino_package
           path: ${{ env.BUILD_DIR }}/openvino_package.zip
           if-no-files-found: 'error'
+          
+      - name: Upload openvino wheels
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: openvino_wheels
+          path: ${{ env.BUILD_DIR }}/wheels/*.whl
+          if-no-files-found: 'error'
 
       - name: Upload openvino tests package
-        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.zip
@@ -228,7 +240,7 @@ jobs:
 
       - name: Upload openvino js package
         if: ${{ fromJSON(inputs.affected-components).JS_API }}
-        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: openvino_js_package
           path: ${{ env.INSTALL_DIR_JS }}
@@ -242,6 +254,7 @@ jobs:
           artifacts: |
             ${{ env.BUILD_DIR }}/openvino_package.zip
             ${{ env.BUILD_DIR }}/openvino_tests.zip
+            ${{ env.INSTALL_WHEELS_DIR }}/wheels
             ${{ env.MANIFEST_PATH }}
           storage_dir: ${{ env.PRODUCT_TYPE }}
           storage_root: ${{ env.ARTIFACTS_SHARE }}

@@ -378,6 +378,21 @@ std::shared_ptr<ov::op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> 
     return fw_node;
 }
 
+std::shared_ptr<ov::op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> node,
+                                                          std::initializer_list<std::string> types) {
+    auto fw_node = std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(node);
+    if (!fw_node) {
+        return nullptr;
+    }
+    const auto& attrs = fw_node->get_attrs();
+    for (auto type : types) {
+        if (attrs.find(PtFrameworkNode::op_type_key) != attrs.end() && attrs.at(PtFrameworkNode::op_type_key) == type) {
+            return fw_node;
+        }
+    }
+    return nullptr;
+}
+
 std::shared_ptr<ov::Node> make_list_construct(const ov::OutputVector& inputs) {
     auto list_construct = std::make_shared<ov::op::util::FrameworkNode>(inputs, inputs.size());
     ov::op::util::FrameworkNodeAttrs attrs;

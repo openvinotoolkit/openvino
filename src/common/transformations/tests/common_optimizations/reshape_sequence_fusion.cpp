@@ -12,6 +12,7 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/core/visibility.hpp"
 #include "openvino/opsets/opset6.hpp"
 
 using namespace testing;
@@ -104,7 +105,12 @@ TEST_F(TransformationTestsF, ReshapeSequenceFusion3_special_zero_false) {
     }
 }
 
+#if (defined OPENVINO_ARCH_ARM && defined(__linux__))
+// Ticket: 153165
+TEST_F(TransformationTestsF, DISABLED_ReshapeSequenceFusion4_i32_special_zero_true) {
+#else
 TEST_F(TransformationTestsF, ReshapeSequenceFusion4_i32_special_zero_true) {
+#endif
     {
         const bool special_zero = true;
         auto data = std::make_shared<opset6::Parameter>(element::f32, PartialShape{1, 2, 3});
@@ -126,7 +132,12 @@ TEST_F(TransformationTestsF, ReshapeSequenceFusion4_i32_special_zero_true) {
     }
 }
 
+#if (defined OPENVINO_ARCH_ARM && defined(__linux__))
+// Ticket: 153165
+TEST_F(TransformationTestsF, DISABLED_ReshapeSequenceFusion4_i32_special_zero_false) {
+#else
 TEST_F(TransformationTestsF, ReshapeSequenceFusion4_i32_special_zero_false) {
+#endif
     {
         const bool special_zero = false;
         auto data = std::make_shared<opset6::Parameter>(element::f32, PartialShape{1, 2, 3});
@@ -148,7 +159,12 @@ TEST_F(TransformationTestsF, ReshapeSequenceFusion4_i32_special_zero_false) {
     }
 }
 
+#if (defined OPENVINO_ARCH_ARM && defined(__linux__))
+// Ticket: 153165
+TEST_F(TransformationTestsF, DISABLED_ReshapeSequenceFusion4_i64_special_zero_true) {
+#else
 TEST_F(TransformationTestsF, ReshapeSequenceFusion4_i64_special_zero_true) {
+#endif
     {
         const bool special_zero = true;
         auto data = std::make_shared<opset6::Parameter>(element::f32, PartialShape{1, 2, 3});
@@ -170,7 +186,12 @@ TEST_F(TransformationTestsF, ReshapeSequenceFusion4_i64_special_zero_true) {
     }
 }
 
+#if (defined OPENVINO_ARCH_ARM && defined(__linux__))
+// Ticket: 153165
+TEST_F(TransformationTestsF, DISABLED_ReshapeSequenceFusion4_i64_special_zero_false) {
+#else
 TEST_F(TransformationTestsF, ReshapeSequenceFusion4_i64_special_zero_false) {
+#endif
     {
         const bool special_zero = false;
         auto data = std::make_shared<opset6::Parameter>(element::f32, PartialShape{1, 2, 3});
@@ -192,7 +213,12 @@ TEST_F(TransformationTestsF, ReshapeSequenceFusion4_i64_special_zero_false) {
     }
 }
 
+#if (defined OPENVINO_ARCH_ARM && defined(__linux__))
+// Ticket: 153165
+TEST_F(TransformationTestsF, DISABLED_ReshapeSequenceFusion5_special_zero_true) {
+#else
 TEST_F(TransformationTestsF, ReshapeSequenceFusion5_special_zero_true) {
+#endif
     {
         const bool special_zero = true;
         auto data = std::make_shared<opset6::Parameter>(element::f32, PartialShape{1, 2, 3});
@@ -214,7 +240,12 @@ TEST_F(TransformationTestsF, ReshapeSequenceFusion5_special_zero_true) {
     }
 }
 
+#if (defined OPENVINO_ARCH_ARM && defined(__linux__))
+// Ticket: 153165
+TEST_F(TransformationTestsF, DISABLED_ReshapeSequenceFusion5_special_zero_false) {
+#else
 TEST_F(TransformationTestsF, ReshapeSequenceFusion5_special_zero_false) {
+#endif
     {
         const bool special_zero = false;
         auto data = std::make_shared<opset6::Parameter>(element::f32, PartialShape{1, 2, 3});
