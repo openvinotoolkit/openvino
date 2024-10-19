@@ -3072,7 +3072,7 @@ void GraphOptimizer::ReplaceMemoryOutputWithMemoryOutputStub(Graph& graph) {
     auto& graphNodes = graph.GetNodes();
 
     auto isSuitableMemInput = [](const NodePtr& node) -> bool {
-        if (Type::MemoryInput != node->getType()) {
+        if (!one_of(node->getType(), Type::MemoryInputSingle, Type::MemoryInput)) {
             return false;
         }
 

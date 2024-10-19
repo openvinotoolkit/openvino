@@ -77,7 +77,7 @@ private:
     OP_EXTENSION(ov::intel_cpu::CausalMaskPreprocessNode)                   \
     OP_EXTENSION(ov::intel_cpu::SwishNode)                                  \
     OP_EXTENSION(ov::intel_cpu::NgramNode)                                  \
-    OP_EXTENSION(ov::intel_cpu::ReadValueWithSubgraph)                  \
+    OP_EXTENSION(ov::intel_cpu::ReadValueWithSubgraph)                      \
     OP_EXTENSION(ov::op::internal::GatherCompressed)                        \
     OP_EXTENSION(ov::op::internal::NonMaxSuppressionIEInternal)             \
     OP_EXTENSION(ov::op::internal::MulticlassNmsIEInternal)                 \

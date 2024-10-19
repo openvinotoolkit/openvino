@@ -242,9 +242,13 @@ public:
     void createPrimitive() override;
 
     MemStatePtr makeState() override;
+    bool needShapeInfer() const override { return true; }
 
     bool haveSubgraph() const {
         return body != nullptr;
+    }
+    bool created() const override {
+        return getType() == Type::MemoryInputSingle;
     }
 
 private:

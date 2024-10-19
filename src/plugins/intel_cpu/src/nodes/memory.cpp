@@ -20,7 +20,6 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-#define DEBUG_POS std::cout << "memory.cpp:" << __LINE__ << " " << __FUNCTION__ << " "
 namespace {
 class MemoryStub : public IMemory {
 public:
@@ -596,65 +595,11 @@ void MemoryInput::initOptimalPrimitiveDescriptor() {
 
 void MemoryInput::selectOptimalPrimitiveDescriptor() {
     MemoryInputBase::selectOptimalPrimitiveDescriptor();
-    if (haveSubgraph()) {
-        std::vector<Input::InputConfig> graphInputConfig;
-        std::vector<PortConfig> inConfs;
-
-        for (size_t i = 0; i < getParentEdges().size(); i++) {
-            // MemoryInputBase::selectOptimalPrimitiveDescriptor() can't deduce corrent primitave.
-            auto desc = getParentOutputMemDesc(getParentEdgeAt(i));
-            inConfs.emplace_back(desc);
-            graphInputConfig.emplace_back(node::Input::InputConfig{desc, true});
-        }
-
-        std::vector<Input::OutputConfig> graphOutputConfig;
-        for (size_t i = 0; i < getChildEdges().size(); i++) {
-            // TODO: Upgrade OutputConfig and update OutputConfig's first param like InputConfig
-            graphOutputConfig.emplace_back(node::Input::OutputConfig{false, false});
-        }
-
-        // configure the inner graph to get the information about output memory descriptors
-        subGraph.Init(body, context, graphInputConfig, graphOutputConfig);
-
-        // for the output decriptors, use the configuration of the graph's output nodes
-        auto outputDescriptors = subGraph.getOutputMemoryDescriptors();
-
-        std::vector<PortConfig> outConfs;
-        for (const auto& desc : outputDescriptors) {
-            outConfs.emplace_back(desc);
-        }
-
-        const NodeConfig config(inConfs, outConfs);
-
-        supportedPrimitiveDescriptors.clear();
-        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::undef);
-
-        selectPrimitiveDescriptorByIndex(0);
-    }
 }
 
 // @todo add ascii diagramm for memory mapping / reuse
 void MemoryInput::createPrimitive() {
     MemoryInputBase::createPrimitive();
-    if (haveSubgraph()) {
-        OPENVINO_ASSERT(getOriginalInputsNumber() == subGraph.GetInputNodesMap().size(),
-                        "Number of node inputs must be equal the number of inner graph's inputs");
-
-        std::vector<MemoryPtr> inputMemory;
-        for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
-            inputMemory.emplace_back(getSrcMemoryAtPort(i));
-        }
-
-        OPENVINO_ASSERT(getOriginalOutputsNumber() == subGraph.GetOutputNodesMap().size(),
-                        "Number of node outputs must be equal the number of inner graph's outputs");
-
-        std::vector<MemoryPtr> outputMemory;
-        for (size_t i = 0; i < getOriginalOutputsNumber(); i++) {
-            outputMemory.emplace_back(getDstMemoryAtPort(i));
-        }
-
-        subGraph.Activate(inputMemory, outputMemory);
-    }
 }
 
 void MemoryInput::runDynamic(dnnl::stream strm) {
@@ -740,29 +685,8 @@ void MemoryInput::runStatic(dnnl::stream strm) {
     }
 
     const bool processInitGraph = needInitGraphProcessing();
-    MemoryPtr src = assignedMem;  // declare src memory
-    if (processInitGraph) {
-        if (haveSubgraph()) {
-            subGraph.ResetInferCount();
-            subGraph.Infer();
-
-            auto& outputs = subGraph.GetOutputNodesMap();
-            OPENVINO_ASSERT(outputs.size() == 1);
-            auto itr = outputs.begin();
-            src = itr->second->getSrcMemoryAtPort(0);
-
-            // Save to state mem
-            DEBUG_LOG("dst memory=", getDstMemoryAtPort(0)->getData(), ", state memory=", assignedMem->getData());
-            if (getDstMemoryAtPort(0)->getData() != assignedMem->getData())
-                assignedMem->load(*src);
-        } else {
-            src = getSrcMemoryAtPort(0);
-        }
-    }
-
-    const auto& newDims = src->getStaticDims();
-    redefineOutputMemory({newDims});
-
+    //copy data when necessary
+    auto src = processInitGraph ? getSrcMemoryAtPort(0) : assignedMem;
     auto dst = getDstMemoryAtPort(0);
     if (src->getData() != dst->getData()) {
         dst->load(*src);
@@ -809,23 +733,6 @@ MemStatePtr MemoryInput::makeState() {
         state_name = state_name.substr(0, suffix_idx);
     }
 
-    // For direct ReadValue Assign pair, if MemoryOutput is MemoryOutputStub, VariableStateSingleBuffer is used.
-    for (auto&& edge : getChildEdgesAtPort(0)) {
-        auto memOutput = std::dynamic_pointer_cast<node::MemoryOutputBase>(edge->getChild());
-        if (nullptr == memOutput) {
-            continue;
-        }
-
-        if (memOutput->getId() == this->getId() &&
-            memOutput->getName().find("_MemoryOutputStub") != std::string::npos) {
-            memoryOutputIsStub = true;
-            std::cout << "== follow MemoryOutputStub, so make VariableStateSingleBuffer -->\n";
-            return std::make_shared<VariableStateSingleBuffer>(state_name,
-                                                               std::make_shared<Memory>(eng, mem_desc),
-                                                               original_desc);
-        }
-    }
-
     return std::make_shared<VariableStateDoubleBuffer>(state_name,
         std::make_shared<Memory>(eng, mem_desc),
         std::make_shared<Memory>(eng, mem_desc),
@@ -833,17 +740,7 @@ MemStatePtr MemoryInput::makeState() {
 }
 
 bool MemoryInput::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
-    try {
-        if (!MemoryInputBase::isSupportedOperation(op, errorMessage)) {
-            if (!one_of(op->get_type_info(), ov::intel_cpu::ReadValueWithSubgraph::get_type_info_static())) {
-                errorMessage = "Node is not an instance of ReadValueWithSubgraph from the operation set ov::intel_cpu.";
-                return false;
-            }
-        }
-    } catch (...) {
-        return false;
-    }
-    return true;
+    return MemoryInputBase::isSupportedOperation(op, errorMessage);
 }
 
 MemoryInputSDPA::MemoryInputSDPA(const std::string id,
@@ -1263,30 +1160,24 @@ MemStatePtr MemoryInputSingle::makeState() {
     }
 
     // For direct ReadValue Assign pair, if MemoryOutput is MemoryOutputStub, VariableStateSingleBuffer is used.
-    for (auto&& edge : getChildEdgesAtPort(0)) {
-        auto memOutput = std::dynamic_pointer_cast<node::MemoryOutputBase>(edge->getChild());
-        if (nullptr == memOutput) {
-            continue;
-        }
-
-        if (memOutput->getId() == this->getId() &&
-            memOutput->getName().find("_MemoryOutputStub") != std::string::npos) {
-            memoryOutputIsStub = true;
-            std::cout << "== follow MemoryOutputStub, so make VariableStateSingleBuffer -->\n";
-            return std::make_shared<VariableStateSingleBuffer>(state_name,
-                                                               std::make_shared<Memory>(eng, mem_desc),
-                                                               original_desc);
-        }
-    }
-
-    // return std::make_shared<VariableStateDoubleBuffer>(state_name,
-    //     std::make_shared<Memory>(eng, mem_desc),
-    //     std::make_shared<Memory>(eng, mem_desc),
-    //     original_desc);
+    memoryOutputIsStub = true;
+    std::cout << "== follow MemoryOutputStub, so make VariableStateSingleBuffer -->\n";
+    return std::make_shared<VariableStateSingleBuffer>(state_name,
+                                                       std::make_shared<Memory>(eng, mem_desc),
+                                                       original_desc);
 }
 
 MemoryInputSingle::MemoryInputSingle(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : MemoryInput::MemoryInput(op, context) {
+    std::string errorMessage;
+    if (!isSupportedOperation(op, errorMessage)) {
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
+    }
+
+    // MemoryInputSingle has its own type, resgister must be called here.
+    if (created()) {
+        context->getMemoryStatesRegister()->registerInput(this);
+    }
     auto rvWithSubgraph = ov::as_type_ptr<ov::intel_cpu::ReadValueWithSubgraph>(op);
     if (rvWithSubgraph) {
         body = rvWithSubgraph->get_function();

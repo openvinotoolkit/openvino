@@ -135,6 +135,7 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(EmbeddingBagPacked, Type::EmbeddingBagPacked);
     INTEL_CPU_NODE(Input, Type::Input);
     INTEL_CPU_NODE(Input, Type::Output);
+    INTEL_CPU_NODE(MemoryInputSingle, Type::MemoryInputSingle);
     INTEL_CPU_NODE(MemoryInput, Type::MemoryInput);
     INTEL_CPU_NODE(MemoryOutput, Type::MemoryOutput);
     INTEL_CPU_NODE(Tile, Type::Tile);
