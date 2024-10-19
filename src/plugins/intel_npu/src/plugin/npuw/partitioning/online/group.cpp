@@ -443,6 +443,10 @@ void Group::isolate(const std::string& tag) {
     m_isol_tag = tag;
 }
 
+void Group::dontIsolate() {
+    m_isol_tag = "";
+}
+
 const std::string& Group::isolatedTag() const {
     return m_isol_tag;
 }

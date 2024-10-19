@@ -243,6 +243,7 @@ void MockPluginBase<DeviceType>::create_implementation() {
             .WillByDefault([](const ov::AnyMap& remote_properties) -> ov::SoPtr<ov::IRemoteContext> {
                 OPENVINO_NOT_IMPLEMENTED;
             });
+    // This method is utilized for remote tensor allocation in NPUW JustInferRequest and Weight bank.
     ON_CALL(*this, get_default_context)
             .WillByDefault([](const ov::AnyMap& remote_properties) -> ov::SoPtr<ov::IRemoteContext> {
                 return std::make_shared<MockRemoteContext>(device_name);
