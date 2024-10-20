@@ -56,7 +56,6 @@ class TestArgmax(JaxLayerTest):
     @pytest.mark.parametrize("index_dtype", [np.int32, np.int64])
     @pytest.mark.parametrize("input_duplicate", [False, True])
     @pytest.mark.nightly
-    @pytest.mark.precommit
     @pytest.mark.precommit_jax_fe
     def test_argmax(self, ie_device, precision, ir_version, input_shape, axis, input_type, index_dtype, input_duplicate):
         self._test(*self.create_model(input_shape, axis, input_type, index_dtype, input_duplicate),
