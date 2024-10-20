@@ -199,30 +199,6 @@ private:
     reorder_factory& _rf;
 };
 
-class post_optimize_lstm_weights_and_output : public base_pass {
-public:
-    explicit post_optimize_lstm_weights_and_output(reorder_factory& rf_ref);
-
-private:
-    struct weights_bias_offset {
-        size_t weights_offset;
-        size_t bias_offset;
-
-        // When using this ctor weights offset is added to the bias_offset
-        weights_bias_offset(const size_t w_offset, const size_t b_offset)
-            : weights_offset(w_offset)
-            , bias_offset(weights_offset + b_offset)
-        {}
-    };
-
-    void run(program& p) override;
-    template<typename T>
-    weights_bias_offset get_weights_bias_offset(const T& node);
-    template<typename T>
-    void optimize_lstm_weights(T& node, program& p);
-    reorder_factory& _rf;
-};
-
 class propagate_constants : public base_pass {
 public:
     propagate_constants() : base_pass("propagate_constants") {}

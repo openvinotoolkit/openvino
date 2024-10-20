@@ -199,19 +199,16 @@ void reorder_factory::get_weights_split(primitive_id input_id,
 
     std::string permute_id = input_id + "_perx";
     std::vector<uint16_t> ord{2, 4, 3, 0, 1};
-    //std::vector<uint16_t> ord{0, 1, 2, 3, 4};
     auto permute = std::make_shared<cldnn::permute>(permute_id, input_info{concat_id}, ord);
     auto& permute_node = p.get_or_create(permute);
     p.add_intermediate(permute_node, node, con_node,  true);
     permute_node.get_output_layout(false);
     select_implementation(p, con_node);
     select_implementation(p, reorder_node);
-
     select_implementation(p, crop0_node);
     select_implementation(p, crop1_node);
     select_implementation(p, crop2_node);
     select_implementation(p, crop3_node);
-
     select_implementation(p, permute_node);
     p.mark_if_constant(crop0_node);
     p.mark_if_constant(crop1_node);
@@ -235,20 +232,17 @@ void reorder_factory::get_bias_split(primitive_id input_id,
     cache_key ckey{ input_id, reorder_params->get_output_layout(), false };
     auto hiddenSize = reorder_params->get_input_layout().get_shape()[1] / 4;
     auto cropSizeR = cldnn::tensor{1, static_cast<int>(hiddenSize), 1, 1};
-    std::string crop_id = input_id + "_crop";
-    auto crop0_id = primitive_id(crop_id + "0");
-    auto crop1_id = primitive_id(crop_id + "1");
-    auto crop2_id = primitive_id(crop_id + "2");
-    auto crop3_id = primitive_id(crop_id + "3");
-    auto crop0 = std::make_shared<cldnn::crop>(crop0_id, input_id, cropSizeR, cldnn::tensor{0, 0, 0, 0});
-    auto crop1 = std::make_shared<cldnn::crop>(crop1_id, input_id, cropSizeR, cldnn::tensor{0, static_cast<int>(1*hiddenSize), 0, 0});
-    auto crop2 = std::make_shared<cldnn::crop>(crop2_id, input_id, cropSizeR, cldnn::tensor{0, static_cast<int>(2*hiddenSize), 0, 0});
-    auto crop3 = std::make_shared<cldnn::crop>(crop3_id, input_id, cropSizeR, cldnn::tensor{0, static_cast<int>(3*hiddenSize), 0, 0});
-    auto& crop0_node = p.get_or_create(crop0);
-    auto& crop1_node = p.get_or_create(crop1);
-    auto& crop2_node = p.get_or_create(crop2);
-    auto& crop3_node = p.get_or_create(crop3);
-    std::vector<input_info> con_input{input_info(crop1_id), input_info(crop0_id), input_info(crop2_id), input_info(crop3_id)};
+    std::string crop_id_b = input_id + "_c";
+    auto get_crop_node = [&](int cropNum) -> cldnn::program_node& {
+        auto crop_id = primitive_id(crop_id_b + std::to_string(cropNum));
+        auto crop_prim = std::make_shared<cldnn::crop>(crop_id,  input_id, cropSizeR, cldnn::tensor{0, static_cast<int>(cropNum*hiddenSize), 0, 0});
+        return p.get_or_create(crop_prim);
+    };
+    auto& crop0_node = get_crop_node(0);
+    auto& crop1_node = get_crop_node(1);
+    auto& crop2_node = get_crop_node(2);
+    auto& crop3_node = get_crop_node(3);
+    std::vector<input_info> con_input{input_info(crop1_node.id()), input_info(crop0_node.id()), input_info(crop2_node.id()), input_info(crop3_node.id())};
     cldnn::primitive_id concat_id{input_id + "concat"};
     auto con = std::make_shared<cldnn::concatenation>(concat_id, con_input, 2);
     auto& con_node = p.get_or_create(con);
@@ -273,16 +267,11 @@ void reorder_factory::get_bias_split(primitive_id input_id,
     p.add_intermediate(permute_node, node, con_node,  true);
     permute_node.get_output_layout(false);
     select_implementation(p, crop0_node);
-
     select_implementation(p, crop1_node);
-
     select_implementation(p, crop2_node);
     select_implementation(p, crop3_node);
-
     select_implementation(p, permute_node);
-
     select_implementation(p, con_node);
-
     p.mark_if_constant(crop0_node);
     p.mark_if_constant(crop1_node);
     p.mark_if_constant(crop2_node);

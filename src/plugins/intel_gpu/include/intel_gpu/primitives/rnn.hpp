@@ -203,8 +203,10 @@ struct lstm_seq : public primitive_base<lstm_seq> {
     using vec_activation = std::vector<activation_func>;
     using vec_activation_param = std::vector<activation_additional_params>;
     lstm_seq(const RNNParams& p): primitive_base(p.id, p.get_inputs(), p.num_outputs, \
-        {optional_data_type()}, {p.output_padding}), params(p) {}
+        {optional_data_type()}, {p.output_padding}), params(p), weights(params.W), bias(params.B) {}
     RNNParams params;
+    input_info weights;
+    input_info bias;
     size_t hash() const override {
         size_t seed = primitive::hash();
         seed = hash_combine(seed, params.hash());

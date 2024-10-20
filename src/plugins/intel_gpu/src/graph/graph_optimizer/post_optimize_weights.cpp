@@ -9,7 +9,9 @@
 #include "convolution_inst.h"
 #include "deconvolution_inst.h"
 #include "fully_connected_inst.h"
+#include "lstm_seq_inst.h"
 #include "intel_gpu/runtime/format.hpp"
+#include "intel_gpu/primitives/mutable_data.hpp"
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "graph/impls/onednn/utils.hpp"
 #endif // ENABLE_ONEDNN_FOR_GPU
@@ -19,6 +21,9 @@ post_optimize_weights::post_optimize_weights(reorder_factory& rf_ref)
     : base_pass("post_optimize_weights"), _rf(rf_ref) {}
 
 template<typename T> post_optimize_weights::weights_bias_offset post_optimize_weights::get_weights_bias_offset(const T& node) {
+    if (node.type() == lstm_seq::type_id()) {
+        return weights_bias_offset(3, 3);
+    }
     return weights_bias_offset(node.get_primitive()->input.size(), program_helpers::wrap_if_single(node.get_primitive()->weights).size());
 }
 
@@ -109,15 +114,26 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
                     set_implementation(weights_reorder_node);
                 }
             } else {
-                auto weights_reorder = _rf.get_weights_reorder(prev_node.id(), weights_reorder_params);
-                // insert new weights reorder node to topology
-                p.add_intermediate(weights_reorder.first, node, i, !weights_reorder.second);
-                // set weights reorder's node output layout and implementation
-                auto& weights_reorder_node = node.get_dependency(i);
-                weights_reorder_node.get_output_layout(false);
+                if (node.type() == lstm_seq::type_id()) {
+                    program_node& prev_node = node.get_dependency(i);
+                    if (i != 5) {
+                        _rf.get_weights_split(prev_node.id(), weights_reorder_params, p, prev_node, node, i);
+                    } else {
+                        _rf.get_bias_split(prev_node.id(), weights_reorder_params, p, prev_node, node);
+                    }
+                    auto& weights_reorder_node = node.get_dependency(i);
+                    weights_reorder_node.get_output_layout(false);
+                } else {
+                    auto weights_reorder = _rf.get_weights_reorder(prev_node.id(), weights_reorder_params);
+                    // insert new weights reorder node to topology
+                    p.add_intermediate(weights_reorder.first, node, i, !weights_reorder.second);
+                    // set weights reorder's node output layout and implementation
+                    auto& weights_reorder_node = node.get_dependency(i);
+                    weights_reorder_node.get_output_layout(false);
 
-                if (!weights_reorder.second) {
-                    set_implementation(weights_reorder_node);
+                    if (!weights_reorder.second) {
+                        set_implementation(weights_reorder_node);
+                    }
                 }
             }
         }
@@ -134,8 +150,33 @@ void post_optimize_weights::run(program& p) {
             optimize_weights(node->as<deconvolution>(), p);
         } else if (node->is_type<fully_connected>()) {
             optimize_weights(node->as<fully_connected>(), p);
+        } else if (node->is_type<lstm_seq>()) {
+            optimize_weights(node->as<lstm_seq>(), p);
         }
     }
+    p.get_processing_order().calc_processing_order(p);
+    int i = 0;
+    for (auto node : p.get_processing_order()) {
+        if (node->is_type<cldnn::mutable_data>()) {
+            continue;
+        }
+        for (auto prev_node : node->get_dependencies()) {
+            if (prev_node.first->is_type<lstm_seq>()) {
+                auto impl = prev_node.first->get_selected_impl();
+                 if (!impl)
+                    continue;
+                auto weights_reorder_params = impl->get_weights_reorder_params();
+                if (weights_reorder_params == nullptr) {
+                    continue;
+                }
+                prev_node.first->recalc_output_layouts(false);
+                _rf.get_out_reorder(p, prev_node.first, node, i);
+                node->recalc_output_layouts(false);
+                i++;
+            }
+        }
+    }
+    p.get_processing_order().calc_processing_order(p);
 }
 
 }  // namespace cldnn
