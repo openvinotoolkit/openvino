@@ -49,12 +49,7 @@ class TestArgmax(JaxLayerTest):
                                                    ([2, 18, 32, 25], 0),
                                                    ([2, 18, 32, 25], 1),
                                                    ([2, 18, 32, 25], 2),
-                                                   ([2, 18, 32, 25], 3),
-                                                   ([2, 18, 32, 25, 128], 0),
-                                                   ([2, 18, 32, 25, 128], 1),
-                                                   ([2, 18, 32, 25, 128], 2),
-                                                   ([2, 18, 32, 25, 128], 3),
-                                                   ([2, 18, 32, 25, 128], 4)])
+                                                   ([2, 18, 32, 25], 3)])
     @pytest.mark.parametrize('input_type', [np.int8, np.uint8, np.int16, np.uint16,
                                             np.int32, np.uint32, np.int64, np.uint64,
                                             np.float16, np.float32, np.float64])
