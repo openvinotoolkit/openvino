@@ -201,9 +201,9 @@ transition time between inference tasks.
 In the pipeline that runs OpenVINO inferences on the CPU along with other sequential application logic, using different threading runtimes (e.g., OpenVINO inferences use oneTBB,
 while other application logic uses OpenMP) will cause both to occupy CPU cores for additional time after the task done, leading to overhead. 
 
-Recommended solutions
+Recommended solutions:
 
-- Most effective way is to use oneTBB for all computations made in pipeline.
-- Rebuild OpenVINO with OpenMP in case other application logic uses OpenMP.
-- Limit number of threads of OpenVINO and other parts to let OS do better scheduling.
-- In case other application logic uses OpenMP, set environment variable `OMP_WAIT_POLICY <https://gcc.gnu.org/onlinedocs/libgomp/OMP_005fWAIT_005fPOLICY.html>`__ to PASSIVE which will disable OpenMP `busy-wait <https://gcc.gnu.org/onlinedocs/libgomp/GOMP_005fSPINCOUNT.html>`__
+- The most effective way is to use oneTBB for all computations made in the pipeline.
+- Rebuild OpenVINO with OpenMP if other application logic uses OpenMP.
+- Limit the number of threads for OpenVINO and other parts to improve OS scheduling.
+- If other application logic uses OpenMP, set the environment variable `OMP_WAIT_POLICY <https://gcc.gnu.org/onlinedocs/libgomp/OMP_005fWAIT_005fPOLICY.html>`__ to `PASSIVE` to disable OpenMP `busy-wait <https://gcc.gnu.org/onlinedocs/libgomp/GOMP_005fSPINCOUNT.html>`__.
