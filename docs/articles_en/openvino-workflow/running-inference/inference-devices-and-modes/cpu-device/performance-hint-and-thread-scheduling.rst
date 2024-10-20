@@ -193,15 +193,13 @@ For details on multi-stream execution check the
 Composability of different threading runtimes
 #############################################
 
-OpenVINO is by default built with `oneTBB <https://github.com/oneapi-src/oneTBB/>`__ threading library,
-oneTBB has a feature worker_wait like `OpenMP <https://www.openmp.org/>`__ `busy-wait <https://gcc.gnu.org/onlinedocs/libgomp/GOMP_005fSPINCOUNT.html>`__ which makes OpenVINO inference
-threads wait actively for a while after task done. The intention is to avoid CPU inactive in the
-transition time between tasks of inference. 
+OpenVINO is by default built with the `oneTBB <https://github.com/oneapi-src/oneTBB/>`__ threading library,
+oneTBB has a feature` worker_wait`, similar to `OpenMP <https://www.openmp.org/>`__ `busy-wait <https://gcc.gnu.org/onlinedocs/libgomp/GOMP_005fSPINCOUNT.html>`__, which makes OpenVINO inference
+threads wait actively for a while after a task done. The intention is to avoid CPU inactivity in the
+transition time between inference tasks. 
 
-In the pipeline that runs OpenVINO inferences on CPU interleaved with some other application logic executed
-sequentially. If two parts use different threading runtimes, for example, OpenVINO inferences use oneTBB
-while other application logic uses OpenMP, both will occupy CPU cores for addtional time after task done.
-This may introduce unnecessary overhead. 
+In the pipeline that runs OpenVINO inferences on the CPU along with other sequential application logic, using different threading runtimes (e.g., OpenVINO inferences use oneTBB,
+while other application logic uses OpenMP) will cause both to occupy CPU cores for additional time after the task done, leading to overhead. 
 
 Recommended solutions
 
