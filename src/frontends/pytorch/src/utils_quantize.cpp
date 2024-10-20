@@ -237,9 +237,8 @@ std::shared_ptr<Node> u4_compression_stack(const OutputVector& list_elems, int64
             return nullptr;
     }
 
-    std::shared_ptr<Node> bitwise_shift =
-        cast_fw_node(list_elems[1].get_node_shared_ptr(),
-                     {"aten::bitwise_right_shift", "aten.bitwise_right_shift.Tensor_Scalar"});
+    auto bitwise_shift = cast_fw_node(list_elems[1].get_node_shared_ptr(),
+                                      {"aten::bitwise_right_shift", "aten.bitwise_right_shift.Tensor_Scalar"});
     if (!bitwise_shift)
         return nullptr;
 

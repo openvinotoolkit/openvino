@@ -151,6 +151,7 @@ OutputVector translate_stack_fx(const NodeContext& context) {
         stack_inputs.push_back(context.get_input(static_cast<int>(i)));
     }
 
+    // returns the u4 constant if the stack operation is a part of the decompression pattern
     if (const auto& u4_const = u4_compression_stack(stack_inputs, axis))
         return {u4_const};
 
