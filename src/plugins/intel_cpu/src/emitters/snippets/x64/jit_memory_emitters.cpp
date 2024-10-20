@@ -5,8 +5,8 @@
 #include "jit_memory_emitters.hpp"
 
 #include "emitters/snippets/jit_snippets_call_args.hpp"
-#include "transformations/snippets/common/op/load_convert.hpp"
-#include "transformations/snippets/common/op/store_convert.hpp"
+#include "transformations/snippets/x64/op/load_convert.hpp"
+#include "transformations/snippets/x64/op/store_convert.hpp"
 #include "snippets/op/buffer.hpp"
 
 

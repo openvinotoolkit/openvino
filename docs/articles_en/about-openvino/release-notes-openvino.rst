@@ -15,7 +15,7 @@ OpenVINO Release Notes
 
 
 
-2024.4 - 18 September 2024
+2024.4 - 19 September 2024
 #############################
 
 :doc:`System Requirements <./release-notes-openvino/system-requirements>` | :doc:`Release policy <./release-notes-openvino/release-policy>` | :doc:`Installation Guides <./../get-started/install-openvino>`
@@ -63,7 +63,7 @@ Now deprecated
 
   * The macOS x86_64 debug bins
   * Python 3.8
-  * dKMB support
+  * Discrete Keem Bay support
 
 * Intel® Streaming SIMD Extensions (Intel® SSE) will be supported in source code form, but not
   enabled in the binary package by default, starting with OpenVINO 2025.0.
@@ -203,8 +203,7 @@ OpenVINO Model Server
   * Ability to compress the KV Cache to a lower precision, reducing memory consumption without
     a significant loss of accuracy.
   * ``stop`` sampling parameters, to define a sequence that stops text generation.
-  * ``logprobs`` sampling parameter, returning the probabilities to returned tokens, which can
-    be used to calculate the model perplexity metric, among other things.
+  * ``logprobs`` sampling parameter, returning the probabilities to returned tokens.
   * Generic metrics related to execution of the MediaPipe graph that can be used for autoscaling
     based on the current load and the level of concurrency.
   * `Demo of text generation horizontal scalability <https://github.com/openvinotoolkit/model_server/tree/main/demos/continuous_batching/scaling>`__
@@ -212,6 +211,7 @@ OpenVINO Model Server
   * Automatic cancelling of text generation for disconnected clients.
   * Non-UTF-8 responses from the model can be now automatically changed to Unicode replacement
     characters, due to their configurable handling.
+  * Intel GPU with paged attention is now supported.
   * Support for Llama3.1 models.
 
 * The following has been improved:
@@ -301,7 +301,25 @@ Known Issues
 |   OpenVINO.GenAI archive doesn't have debug libraries for OpenVINO Tokenizers and
     OpenVINO.GenAI.
 
+| **Component: ONNX for ARM**
+| ID: n/a
+| Description:
+|   For ARM binaries, the `1.16 ONNX library <https://vcpkg.link/ports/onnx/versions>`__
+    is not yet available. The ONNX library for ARM, version 1.15, does not include the latest
+    functional and security updates. Users should update to the latest version as it becomes
+    available.
+|   Currently, if an unverified AI model is supplied to the ONNX frontend, it could lead to a
+    directory traversal issue. Ensure that the file name and file path that a model contains
+    are verified and correct. To learn more about the vulnerability, see:
+    `CVE-2024-27318 <https://nvd.nist.gov/vuln/detail/CVE-2024-27318>`__ and
+    `CVE-2024-27319 <https://nvd.nist.gov/vuln/detail/CVE-2024-27319>`__.
 
+| **Component: Kaldi**
+| ID: n/a
+| Description:
+|   There is a known issue with the Kaldi DL framework support on the Python version 3.12 due
+    to the numpy version incompatibilities. As Kaldi support in OpenVINO is currently deprecated
+    and will be discontinued with version 2025.0, the issue will not be addressed.
 
 
 Previous 2024 releases
@@ -1305,7 +1323,12 @@ Deprecated and to be removed in the future
   with OpenVINO 2024.5.
 * Python 3.8 is now considered deprecated, and it will not be available beyond the 2024.4
   OpenVINO version.
-* dKMB support is now considered deprecated and will be fully removed with OpenVINO 2024.5
+
+  * As MxNet doesn't support Python version higher than 3.8, according to the
+    `MxNet PyPI project <https://pypi.org/project/mxnet/>`__,
+    it will no longer be supported in future versions, either.
+
+* Discrete Keem Bay support is now considered deprecated and will be fully removed with OpenVINO 2024.5
 * Intel® Streaming SIMD Extensions (Intel® SSE) will be supported in source code form, but not
   enabled in the binary package by default, starting with OpenVINO 2025.0
 * The openvino-nightly PyPI module will soon be discontinued. End-users should proceed with the

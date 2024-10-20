@@ -18,11 +18,8 @@ using cpu_isa_t = dnnl::impl::cpu::aarch64::cpu_isa_t;
 jit_load_emitter::jit_load_emitter(dnnl::impl::cpu::aarch64::jit_generator *host, dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                                    ov::element::Type src_prc, ov::element::Type dst_prc, int load_num, int byte_offset,
                                    ov::element::Type exec_prc, emitter_in_out_map in_out_type)
-: jit_emitter(host, host_isa, exec_prc, in_out_type), name_("unknown"), load_num_(load_num), byte_offset_(byte_offset),
-              src_prc_(src_prc), dst_prc_(dst_prc) {
-    if (src_prc_ != dst_prc_) {
-        convert_truncation_emitter.reset(new jit_convert_truncation_emitter(host, host_isa, src_prc, dst_prc, exec_prc));
-    }
+: jit_emitter(host, host_isa, exec_prc, in_out_type), name_("unknown"), load_num_(load_num), byte_offset_(byte_offset), prc_(src_prc) {
+    OV_CPU_JIT_EMITTER_ASSERT(src_prc == dst_prc, "Unsupported precision pair.");
 }
 
 void jit_load_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const {
@@ -133,30 +130,24 @@ void jit_load_emitter::load_byte(const std::vector<size_t> &in_idxs, const std::
 
 template <cpu_isa_t isa>
 void jit_load_emitter::emit_isa(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const {
-    bool is_supported_precision = one_of(src_prc_, ov::element::f32, ov::element::i32, ov::element::f16, ov::element::i8, ov::element::u8) &&
-                                  (src_prc_ == dst_prc_ || one_of(dst_prc_, ov::element::f32, ov::element::i32));
-    OV_CPU_JIT_EMITTER_ASSERT(is_supported_precision, "Unsupported precision pair.");
+    OV_CPU_JIT_EMITTER_ASSERT(one_of(prc_, ov::element::f32, ov::element::i32, ov::element::f16, ov::element::i8, ov::element::u8),
+                             "Unsupported precision.");
     OV_CPU_JIT_EMITTER_ASSERT(load_num_ <= 4, "Unexpected number of elements to load.");
 
-    switch (src_prc_) {
+    switch (prc_) {
         case ov::element::f32:
         case ov::element::i32:
-            load_qbyte<isa>(in_idxs, src_prc_ == dst_prc_ ? out_idxs : aux_vec_idxs);
+            load_qbyte<isa>(in_idxs, out_idxs);
             break;
         case ov::element::f16:
-            load_dbyte<isa>(in_idxs, src_prc_ == dst_prc_ ? out_idxs : aux_vec_idxs);
+            load_dbyte<isa>(in_idxs, out_idxs);
             break;
         case ov::element::i8:
         case ov::element::u8:
-            load_byte<isa>(in_idxs, src_prc_ == dst_prc_ ? out_idxs : aux_vec_idxs);
+            load_byte<isa>(in_idxs, out_idxs);
             break;
         default:
-            OV_CPU_JIT_EMITTER_THROW("Unsupported input type: ", src_prc_.get_type_name());
-    }
-
-    if (src_prc_ != dst_prc_) {
-        OPENVINO_ASSERT(convert_truncation_emitter, "Invalid convert_truncation_emitter.");
-        convert_truncation_emitter->emit_code(aux_vec_idxs, out_idxs);
+            OV_CPU_JIT_EMITTER_THROW("Unsupported precision: ", prc_.get_type_name());
     }
 }
 
@@ -167,27 +158,11 @@ size_t jit_load_emitter::get_aux_gprs_count() const {
     return 0;
 }
 
-size_t jit_load_emitter::get_aux_vecs_count() const {
-    if (src_prc_ != dst_prc_)
-        return 1;
-
-    return 0;
-}
-
 jit_store_emitter::jit_store_emitter(dnnl::impl::cpu::aarch64::jit_generator *host, dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                                      ov::element::Type src_prc, ov::element::Type dst_prc, int store_num, int byte_offset,
                                      arithmetic_mode mode, ov::element::Type exec_prc, emitter_in_out_map in_out_type)
-    : jit_emitter(host, host_isa, exec_prc, in_out_type), name_("unknown"), store_num_(store_num), byte_offset_(byte_offset),
-                  src_prc_(src_prc), dst_prc_(dst_prc) {
-    if (src_prc_ != dst_prc_) {
-        if (mode == arithmetic_mode::truncation) {
-            convert_emitter.reset(new jit_convert_truncation_emitter(host, host_isa, src_prc, dst_prc, exec_prc));
-        } else if (mode == arithmetic_mode::saturation) {
-            convert_emitter.reset(new jit_convert_saturation_emitter(host, host_isa, src_prc, dst_prc, exec_prc));
-        } else {
-            OV_CPU_JIT_EMITTER_THROW("Unsupported Convert emitter.");
-        }
-    }
+    : jit_emitter(host, host_isa, exec_prc, in_out_type), name_("unknown"), store_num_(store_num), byte_offset_(byte_offset), prc_(dst_prc) {
+    OV_CPU_JIT_EMITTER_ASSERT(src_prc == dst_prc, "Unsupported precision pair.");
 }
 
 void jit_store_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const {
@@ -299,42 +274,29 @@ void jit_store_emitter::store_byte(const std::vector<size_t> &in_idxs, const std
 
 template <cpu_isa_t isa>
 void jit_store_emitter::emit_isa(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const {
-    bool is_supported_precision = one_of(dst_prc_, ov::element::f32, ov::element::i32, ov::element::f16, ov::element::i8, ov::element::u8) &&
-                                  (src_prc_ == dst_prc_ || one_of(src_prc_, ov::element::f32, ov::element::i32));
-    OV_CPU_JIT_EMITTER_ASSERT(is_supported_precision, "Unsupported precision pair.");
+    OV_CPU_JIT_EMITTER_ASSERT(one_of(prc_, ov::element::f32, ov::element::i32, ov::element::f16, ov::element::i8, ov::element::u8),
+                             "Unsupported precision.");
     OV_CPU_JIT_EMITTER_ASSERT(store_num_ <= 4, "Unexpected number of elements to store.");
 
-    if (src_prc_ != dst_prc_) {
-        OPENVINO_ASSERT(convert_emitter, "Invalid convert_emitter.");
-        convert_emitter->emit_code(in_idxs, aux_vec_idxs);
-    }
-
-    switch (dst_prc_) {
+    switch (prc_) {
         case ov::element::f32:
         case ov::element::i32:
-            store_qbyte<isa>(src_prc_ == dst_prc_ ? in_idxs : aux_vec_idxs, out_idxs);
+            store_qbyte<isa>(in_idxs, out_idxs);
             break;
         case ov::element::f16:
-            store_dbyte<isa>(src_prc_ == dst_prc_ ? in_idxs : aux_vec_idxs, out_idxs);
+            store_dbyte<isa>(in_idxs, out_idxs);
             break;
         case ov::element::i8:
         case ov::element::u8:
-            store_byte<isa>(src_prc_ == dst_prc_ ? in_idxs : aux_vec_idxs, out_idxs);
+            store_byte<isa>(in_idxs, out_idxs);
             break;
         default:
-            OV_CPU_JIT_EMITTER_THROW("Unsupported output type: ", dst_prc_.get_type_name());
+            OV_CPU_JIT_EMITTER_THROW("Unsupported precision: ", prc_.get_type_name());
     }
 }
 
 size_t jit_store_emitter::get_aux_gprs_count() const {
     if (store_num_ == 3)
-        return 1;
-
-    return 0;
-}
-
-size_t jit_store_emitter::get_aux_vecs_count() const {
-    if (src_prc_ != dst_prc_)
         return 1;
 
     return 0;

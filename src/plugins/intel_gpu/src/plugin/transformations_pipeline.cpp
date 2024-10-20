@@ -421,14 +421,15 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::ConvertPad12ToPad1, false>();
         manager.register_pass<DecomposeReduceForScalarOutput>();
 
-        precisions_map int_convert_precision_map {
-                {ov::element::i64, ov::element::i32},
-                {ov::element::u64, ov::element::i32},
-                {ov::element::u16, ov::element::i32},
-                {ov::element::u32, ov::element::i32},
-                {ov::element::boolean, ov::element::u8},
-                {ov::element::i4, ov::element::i8},
-                {ov::element::u4, ov::element::u8},
+        precisions_map int_convert_precision_map{
+            {ov::element::i64, ov::element::i32},
+            {ov::element::u64, ov::element::i32},
+            {ov::element::i16, ov::element::i32},
+            {ov::element::u16, ov::element::i32},
+            {ov::element::u32, ov::element::i32},
+            {ov::element::boolean, ov::element::u8},
+            {ov::element::i4, ov::element::i8},
+            {ov::element::u4, ov::element::u8},
         };
 
         manager.register_pass<ov::pass::Validate>();
@@ -861,7 +862,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         const size_t zp_pad_size = device_info.supports_immad ? 16 : 32;
         manager.register_pass<ov::intel_gpu::BroadcastAndPadZeroPointBuffers>(zp_pad_size, device_info.supports_immad);
 
-        manager.register_pass<ov::pass::RoPEFusion>();
+        manager.register_pass<ov::pass::RoPEFusion>(true);
         pass_config->disable<ov::pass::RoPEFusionGPTJ>();
         pass_config->disable<ov::pass::RoPEFusionIOSlicing>();
         pass_config->disable<ov::pass::RoPEShareCosSin>();
