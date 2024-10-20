@@ -5,8 +5,10 @@
 #include "node.h"
 #include "cpu_types.h"
 #include "edge.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "partitioned_mem_blk.h"
 
+#include <iterator>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <vector>
@@ -233,6 +235,9 @@ void Node::selectOptimalPrimitiveDescriptor() {
 }
 
 void Node::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& priority, bool ignoreConstInputs) {
+    OPENVINO_ASSERT(!getSupportedPrimitiveDescriptors().empty(),
+                    "Supported primitive descriptors list is empty for: ", this);
+
     for (auto& type : priority) {
         int selectedPrimitive = -1;
         int equalsFormatCount = -1;
@@ -305,13 +310,40 @@ void Node::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& pr
         }
     }
 
-    OPENVINO_ASSERT(!getSupportedPrimitiveDescriptors().empty(),
-                    "Supported primitive descriptors list is empty for node: ",
-                    getName(),
-                    " type: ",
-                    NameFromType(getType()));
+    // fallback. No spds matched parent's configuration
+    // @todo apply the same fallback logic to selectPreferPrimitiveDescriptorWithShape
+    const auto& firstSpd = supportedPrimitiveDescriptors.front();
+    const auto& firstSpdInputConfig = firstSpd.getConfig().inConfs;
 
-    // fallback. If there are no primitives from priority list just select a first
+    if (firstSpdInputConfig.empty()) {
+        return selectPrimitiveDescriptorByIndex(0);
+    }
+
+    const auto& firstSpdInputDataDesc = firstSpdInputConfig.front().getMemDesc();
+    if (firstSpdInputDataDesc->hasLayoutType(LayoutType::nCsp8c) ||
+        firstSpdInputDataDesc->hasLayoutType(LayoutType::nCsp16c)) {
+        // assume that node prioritized a blocking layout for a reason
+        return selectPrimitiveDescriptorByIndex(0);
+    }
+
+    const auto modeType = context->getConfig().modelType;
+    auto bestSpdByModelType = std::find_if(supportedPrimitiveDescriptors.begin(), supportedPrimitiveDescriptors.begin(),
+                                                    [modeType](const NodeDesc& nodeDesc) {
+                                                        const auto& spdInputConfig = nodeDesc.getConfig().inConfs;
+                                                        if (spdInputConfig.empty()) return false;
+                                                        // mostly care about activations
+                                                        const auto& spdInputDataDesc = spdInputConfig.at(0).getMemDesc();
+                                                        if (modeType == Config::ModelType::CNN) { // assume nspc are prefered for CNNs
+                                                            return spdInputDataDesc->hasLayoutType(LayoutType::nspc);
+                                                        } else { // and ncsp are prefered for others
+                                                            return spdInputDataDesc->hasLayoutType(LayoutType::ncsp);
+                                                        }
+                                                    });
+
+    if (bestSpdByModelType != supportedPrimitiveDescriptors.end()) {
+        return selectPrimitiveDescriptorByIndex(std::distance(supportedPrimitiveDescriptors.begin(), bestSpdByModelType));
+    }
+
     selectPrimitiveDescriptorByIndex(0);
 }
 
@@ -334,6 +366,9 @@ bool Node::isReorderRequired(ov::intel_cpu::MemoryDescPtr desc1, ov::intel_cpu::
 }
 
 void Node::selectPreferPrimitiveDescriptorWithShape(const std::vector<impl_desc_type>& priority, bool ignoreConstInputs) {
+    OPENVINO_ASSERT(!getSupportedPrimitiveDescriptors().empty(),
+                    "Supported primitive descriptors list is empty for: ", this);
+
     // Filter out dynamic shape.
     if (isDynamic) {
         return selectPreferPrimitiveDescriptor(priority, ignoreConstInputs);
@@ -424,12 +459,6 @@ void Node::selectPreferPrimitiveDescriptorWithShape(const std::vector<impl_desc_
             return;
         }
     }
-
-    OPENVINO_ASSERT(!getSupportedPrimitiveDescriptors().empty(),
-                    "Supported primitive descriptors list is empty for node: ",
-                    getName(),
-                    " type: ",
-                    NameFromType(getType()));
 
     // fallback. If there are no primitives from priority list just select a first
     selectPrimitiveDescriptorByIndex(0);
