@@ -2255,6 +2255,75 @@ std::set<std::vector<element::Type>> jit_sigmoid_emitter::get_supported_precisio
     return {{element::f32}};
 }
 
+/// SOFT_PLUS ///
+jit_soft_plus_emitter::jit_soft_plus_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+                                             dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                             const std::shared_ptr<ov::Node>& node)
+        : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {
+    prepare_table();
+    exp_emitter = std::make_unique<jit_exp_emitter>(h, host_isa, exec_prc);
+}
+
+jit_soft_plus_emitter::jit_soft_plus_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+                                             dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                             const ov::element::Type exec_prc) : jit_emitter(host, host_isa, exec_prc) {
+    prepare_table();
+    exp_emitter = std::make_unique<jit_exp_emitter>(h, host_isa, exec_prc);
+}
+
+size_t jit_soft_plus_emitter::get_inputs_count() const { return 1; }
+
+size_t jit_soft_plus_emitter::get_aux_vecs_count() const { return exp_emitter->get_aux_vecs_count() + 2; }
+
+size_t jit_soft_plus_emitter::get_aux_gprs_count() const { return exp_emitter->get_aux_gprs_count() + 1; }
+
+void jit_soft_plus_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+    if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
+        emit_isa<dnnl::impl::cpu::aarch64::asimd>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OPENVINO_THROW("Can't create jit eltwise kernel");
+    }
+}
+
+template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
+void jit_soft_plus_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+    if (exec_prc_ != ov::element::f32) {
+        OPENVINO_THROW("unsupported precision: " + exec_prc_.to_string());
+    }
+
+    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
+    const TReg src(in_vec_idxs[0]);
+    const TReg dst(out_vec_idxs[0]);
+    const TReg aux1(aux_vec_idxs[exp_emitter->get_aux_vecs_count()]);
+    const TReg aux2(aux_vec_idxs[exp_emitter->get_aux_vecs_count() + 1]);
+
+    exp_emitter->emit_code(
+        { src.getIdx() },
+        out_vec_idxs,
+        aux_vec_idxs,
+        aux_gpr_idxs);
+    h->ld1r(aux1.s, table_val2("one"));
+    h->fadd(dst.s, dst.s, aux1.s);
+    h->fcvtzs(aux2.s, dst.s);
+    h->cls(aux1.s, aux2.s);
+    h->ld1r(aux2.s, table_val("bit_count"));
+    h->fsub(aux1.s, aux2.s, aux1.s);
+    // aux1.s contains nearest power of 2 for e^x + 1
+    h->ld1r(aux2.s, table_val("ln2f"));
+    h->fmul(aux2.s, aux1.s, aux2.s); // Computed n*ln2 in aux2.s
+    h->fsub(dst.s, dst.s);
+}
+
+void jit_soft_plus_emitter::register_table_entries() {
+    push_arg_entry_of("one", 0x3f800000, true);
+    push_arg_entry_of("threshold", 0x41a00000, true); // Threshold set to 20
+    push_arg_entry_of("ln2f", 0x3f317218, true); // Natural log of 2
+}
+
+std::set<std::vector<element::Type>> jit_soft_plus_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+    return {{element::f32}};
+}
+
 /// SOFT_SIGN ///
 jit_soft_sign_emitter::jit_soft_sign_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                                              dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,

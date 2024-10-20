@@ -54,6 +54,7 @@ bool JitEltwiseExecutor::isSupported(
                                      Algorithm::EltwiseRoundHalfToEven,
                                      Algorithm::EltwiseSelect,
                                      Algorithm::EltwiseSigmoid,
+                                     Algorithm::EltwiseSoftPlus,
                                      Algorithm::EltwiseSoftSign,
                                      Algorithm::EltwiseSqrt,
                                      Algorithm::EltwiseSubtract,

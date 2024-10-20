@@ -193,6 +193,7 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
         (activation_type == utils::ActivationTypes::GeluTanh) ||
         (activation_type == utils::ActivationTypes::Relu) ||
         (activation_type == utils::ActivationTypes::Sigmoid) ||
+        (activation_type == utils::ActivationTypes::SoftPlus) ||
         (activation_type == utils::ActivationTypes::SoftSign) ||
         (activation_type == utils::ActivationTypes::Sqrt) ||
         (activation_type == utils::ActivationTypes::Swish) ||
