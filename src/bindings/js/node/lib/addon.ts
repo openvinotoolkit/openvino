@@ -676,7 +676,14 @@ export interface NodeAddon {
     PrePostProcessor: PrePostProcessorConstructor;
   };
 
-  saveModel: (model:Model, path:string, compressToFp16?:boolean) => void;
+  /**
+   * It saves model in a specified path.
+   * @param [model] Model that will be saved.
+   * @param [path] Path for saving the model.
+   * @param [compressToFp16] [OPTIONAL] Whether to compress the model
+   * to float16. Default is set to `true`.
+   */
+  saveModel(model:Model, path:string, compressToFp16?:boolean) : void;
 
   element: typeof element;
 }

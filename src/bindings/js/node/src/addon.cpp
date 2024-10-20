@@ -30,22 +30,19 @@ void init_class(Napi::Env env,
     exports.Set(class_name, prototype);
 }
 
-// void save_model(const std::shared_ptr<const ov::Model>& m,
-//  const std::string& output_model,
-//  bool compress_to_fp16) {
 Napi::Value save_model(const Napi::CallbackInfo& info) {
     std::vector<std::string> allowed_signatures;
     try {
         if (ov::js::validate<ModelWrap, Napi::String>(info, allowed_signatures)) {
             const auto& model = info[0].ToObject();
             const auto m = Napi::ObjectWrap<ModelWrap>::Unwrap(model);
-            auto path = js_to_cpp<std::string>(info, 1);
+            const auto path = js_to_cpp<std::string>(info, 1);
             ov::save_model(m->get_model(), path);
         } else if (ov::js::validate<ModelWrap, Napi::String, Napi::Boolean>(info, allowed_signatures)) {
             const auto& model = info[0].ToObject();
             const auto m = Napi::ObjectWrap<ModelWrap>::Unwrap(model);
-            auto path = js_to_cpp<std::string>(info, 1);
-            auto compress_to_fp16 = js_to_cpp<bool>(info, 2);
+            const auto path = js_to_cpp<std::string>(info, 1);
+            const auto compress_to_fp16 = info[2].ToBoolean();
             ov::save_model(m->get_model(), path, compress_to_fp16);
         } else {
             OPENVINO_THROW("'saveModel'", ov::js::get_parameters_error_msg(info, allowed_signatures));
@@ -53,6 +50,7 @@ Napi::Value save_model(const Napi::CallbackInfo& info) {
     } catch (const std::exception& e) {
         reportError(info.Env(), e.what());
     }
+
     return info.Env().Undefined();
 }
 

@@ -5,9 +5,9 @@
 const { addon: ov } = require('../..');
 const assert = require('assert');
 const { describe, it, before, beforeEach } = require('node:test');
-const { testModels, getModelPath, isModelAvailable } = require('./utils.js');
+const { testModels, compareModels, getModelPath, isModelAvailable } = require('./utils.js');
 const epsilon = 0.5;
-const outDir = './tests/out';
+const outDir = 'tests/unit/out';
 
 describe('ov basic tests.', () => {
   let testXml = null;
@@ -32,6 +32,24 @@ describe('ov basic tests.', () => {
     const devices = core.getAvailableDevices();
 
     assert.ok(devices.includes('CPU'));
+  });
+
+  describe('ov.saveModel()', () => {
+    it('saveModel(model:Model, path:string, compressToFp16:bool=true)', () => {
+      const xmlPath = `${outDir}/${modelLike[0].getName()}_fp16.xml`;
+      assert.doesNotThrow(() => ov.saveModel(modelLike[0], xmlPath));
+
+      const savedModel = core.readModelSync(xmlPath);
+      assert.doesNotThrow(() => compareModels(modelLike[0], savedModel));
+    });
+
+    it('saveModel(model:Model, path:string, compressToFp16:bool)', () => {
+      const xmlPath = `${outDir}/${modelLike[0].getName()}_fp32.xml`;
+      assert.doesNotThrow(() => ov.saveModel(modelLike[0], xmlPath, false));
+
+      const savedModel = core.readModelSync(xmlPath);
+      assert.doesNotThrow(() => compareModels(modelLike[0], savedModel));
+    });
   });
 
   describe('Core.getVersions()', () => {
@@ -331,12 +349,6 @@ describe('ov basic tests.', () => {
         () => core.importModel(userStream, 'CPU', testString).then(),
         /'importModel' method called with incorrect parameters./,
       );
-    });
-
-    it('Test saveModel(model, path)', () => {
-      const path = `${outDir}/saved_model.xml`;
-
-      ov.saveModel(modelLike[0], path);
     });
   });
 });

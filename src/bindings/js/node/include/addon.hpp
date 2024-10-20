@@ -40,5 +40,9 @@ void init_function(Napi::Env env,
     exports.Set(func_name, napi_func);
 }
 
-
 Napi::Object init_module(Napi::Env env, Napi::Object exports);
+
+/**
+     * @brief Saves model in a specified path.
+*/
+Napi::Value save_model(const Napi::CallbackInfo& info);
