@@ -66,18 +66,16 @@ KERNEL(lstm_cell_and_seq_bfyx)(
                         #ifdef SEQUENCE
                             INPUT1_TYPE_VEC initial_block = READ_VEC(0, &initial_hidden_state[INPUT1_GET_INDEX(b, 0, j*VEC_SIZE, 0)]);
                             INPUT4_TYPE_VEC r_block = READ_VEC(0, &R[INPUT4_GET_INDEX(0, weight_idx, j*VEC_SIZE, 0)]);
-                            hidden_result += initial_block.s0*r_block.s0 + initial_block.s1*r_block.s1 + initial_block.s2*r_block.s2 + initial_block.s3*r_block.s3 + initial_block.s4*r_block.s4 + initial_block.s5*r_block.s5 + initial_block.s6*r_block.s6 + initial_block.s7*r_block.s7;
                         #else
                             INPUT1_TYPE_VEC initial_block = READ_VEC(0, &initial_hidden_state[INPUT1_GET_INDEX(b, j*VEC_SIZE, 0, 0)]);
                             INPUT4_TYPE_VEC r_block = READ_VEC(0, &R[INPUT4_GET_INDEX(weight_idx, j*VEC_SIZE, 0, 0)]);
-                            hidden_result += initial_block.s0*r_block.s0 + initial_block.s1*r_block.s1 + initial_block.s2*r_block.s2 + initial_block.s3*r_block.s3 + initial_block.s4*r_block.s4 + initial_block.s5*r_block.s5 + initial_block.s6*r_block.s6 + initial_block.s7*r_block.s7;
-
                         #endif
+                        hidden_result += dot(initial_block, r_block);
                     }else{
                         #ifdef SEQUENCE
                             OUTPUT_TYPE_VEC h_block = READ_VEC(0, &hidden_history[OUTPUT_GET_INDEX(b, 0, prev_idx, j*VEC_SIZE)]);
                             INPUT4_TYPE_VEC r_block = READ_VEC(0, &R[INPUT4_GET_INDEX(0, weight_idx, j*VEC_SIZE, 0)]);
-                            hidden_result += h_block.s0*r_block.s0 + h_block.s1*r_block.s1 + h_block.s2*r_block.s2 + h_block.s3*r_block.s3 + h_block.s4*r_block.s4 + h_block.s5*r_block.s5 + h_block.s6*r_block.s6 + h_block.s7*r_block.s7;
+                            hidden_result += dot(h_block, r_block);
                         #endif
                     }
                 }
@@ -110,7 +108,7 @@ KERNEL(lstm_cell_and_seq_bfyx)(
                             INPUT3_TYPE_VEC w_block = READ_VEC(0, &W[INPUT3_GET_INDEX(weight_idx, j*VEC_SIZE, 0, 0)]);
                         #endif
                     #endif //DIRECTION == 1 //reverse
-                    input_result += x_block.s0*w_block.s0 + x_block.s1*w_block.s1 + x_block.s2*w_block.s2 + x_block.s3*w_block.s3 + x_block.s4*w_block.s4 + x_block.s5*w_block.s5 + x_block.s6*w_block.s6 + x_block.s7*w_block.s7;
+                    input_result += dot(x_block, w_block);
                 }
 
                 unroll_for(uint j=block_num*VEC_SIZE;j<INPUT_SIZE;++j) {
