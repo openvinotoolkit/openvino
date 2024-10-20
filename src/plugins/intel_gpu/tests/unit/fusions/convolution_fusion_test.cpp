@@ -1026,11 +1026,6 @@ TEST_P(conv_fp32_prelu_eltwise, vector_ops) {
     ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "", impl_types::ocl };
     cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
-    if (engine.get_device_info().supports_immad &&
-        p.default_type == data_types::f16 &&
-        p.weights_format == format::gs_oiyx_gsv16) {
-        GTEST_SKIP(); // maybe Issue: 94154
-    }
     tolerance = default_tolerance(p.data_type);
     execute(p);
 }
@@ -1051,11 +1046,7 @@ TEST_P(conv_fp32_prelu_eltwise, vector_ops_slope_2) {
 
     ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "", impl_types::ocl };
     cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
-    if (engine.get_device_info().supports_immad &&
-        p.default_type == data_types::f16 &&
-        p.weights_format == format::gs_oiyx_gsv16) {
-        GTEST_SKIP(); // maybe Issue: 94154
-    }
+
     tolerance = default_tolerance(p.data_type);
     if (engine.get_device_info().supports_immad) {
         tolerance = 1e-2f;
@@ -1080,11 +1071,7 @@ TEST_P(conv_fp32_prelu_eltwise, vector_ops_mixed_types) {
 
     ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "", impl_types::ocl };
     cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
-    if (engine.get_device_info().supports_immad &&
-        p.default_type == data_types::f16 &&
-        p.weights_format == format::gs_oiyx_gsv16) {
-        GTEST_SKIP(); // maybe Issue: 94154
-    }
+
     tolerance = default_tolerance(p.data_type);
     execute(p);
 }
@@ -1106,11 +1093,7 @@ TEST_P(conv_fp32_prelu_eltwise, vector_ops_mixed_types_slope_2) {
 
     ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "", impl_types::ocl };
     cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
-    if (engine.get_device_info().supports_immad &&
-        p.default_type == data_types::f16 &&
-        p.weights_format == format::gs_oiyx_gsv16) {
-        GTEST_SKIP(); // maybe Issue: 94154
-    }
+
     tolerance = default_tolerance(p.data_type);
     execute(p);
 }
@@ -1480,11 +1463,6 @@ TEST_P(conv_fp32_multi_eltwise_concat, basic) {
     );
     ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "", impl_types::ocl };
     cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
-    if (engine.get_device_info().supports_immad &&
-        p.default_type == data_types::f16 &&
-        p.weights_format == format::gs_oiyx_gsv16) {
-        GTEST_SKIP(); // maybe Issue: 94154
-    }
     tolerance = default_tolerance(output_type);
     execute(p);
 }
@@ -2865,11 +2843,7 @@ TEST_P(conv_fp16_activation, basic) {
         activation("activation", input_info("conv_prim"), activation_func::abs),
         reorder("reorder_bfyx", input_info("activation"), p.default_format, data_types::f32)
     );
-    if (engine.get_device_info().supports_immad &&
-        p.default_type == data_types::f16 &&
-        p.weights_format == format::gs_oiyx_gsv16) {
-        GTEST_SKIP(); // maybe Issue: 94154
-    }
+
     execute(p);
 }
 
@@ -2892,11 +2866,7 @@ TEST_P(conv_fp16_scale, basic) {
         eltwise("scale", { input_info("conv_prim"), input_info("scale_data") }, eltwise_mode::prod),
         reorder("reorder_bfyx", input_info("scale"), p.default_format, data_types::f32)
     );
-    if (engine.get_device_info().supports_immad &&
-        p.default_type == data_types::f16 &&
-        p.weights_format == format::gs_oiyx_gsv16) {
-        GTEST_SKIP(); // maybe Issue: 94154
-    }
+
     tolerance = default_tolerance(p.default_type);
     execute(p);
 }
