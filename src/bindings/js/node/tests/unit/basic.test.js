@@ -7,6 +7,7 @@ const assert = require('assert');
 const { describe, it, before, beforeEach } = require('node:test');
 const { testModels, getModelPath, isModelAvailable } = require('./utils.js');
 const epsilon = 0.5;
+const outDir = './tests/out';
 
 describe('ov basic tests.', () => {
   let testXml = null;
@@ -330,6 +331,12 @@ describe('ov basic tests.', () => {
         () => core.importModel(userStream, 'CPU', testString).then(),
         /'importModel' method called with incorrect parameters./,
       );
+    });
+
+    it('Test saveModel(model, path)', () => {
+      const path = `${outDir}/saved_model.xml`;
+
+      ov.saveModel(modelLike[0], path);
     });
   });
 });

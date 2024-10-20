@@ -675,6 +675,9 @@ export interface NodeAddon {
     resizeAlgorithm: typeof resizeAlgorithm;
     PrePostProcessor: PrePostProcessorConstructor;
   };
+
+  saveModel: (model:Model, path:string, compressToFp16?:boolean) => void;
+
   element: typeof element;
 }
 
