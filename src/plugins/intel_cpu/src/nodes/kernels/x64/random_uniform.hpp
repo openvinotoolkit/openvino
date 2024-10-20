@@ -44,7 +44,6 @@ struct MersenneTwisterGeneratorCallArgs {
     uint64_t elements_remaining = 0lu;
     bool optimization_enabled = false;
     uint32_t out_data_type = 0u;
-
 };
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
