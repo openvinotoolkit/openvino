@@ -56,7 +56,7 @@ public:
     void get_out_reorder(program& p, cldnn::program_node* prev, cldnn::program_node* node, int i);
 
     void get_weights_split(primitive_id input_id, std::shared_ptr<WeightsReorderParams> reorder_params, program& p, cldnn::program_node&, \
-                           cldnn::program_node&, int);
+                           cldnn::program_node&, size_t);
 
     void get_bias_split(primitive_id input_id, std::shared_ptr<WeightsReorderParams> reorder_params, program& p, cldnn::program_node&, \
                         cldnn::program_node&);

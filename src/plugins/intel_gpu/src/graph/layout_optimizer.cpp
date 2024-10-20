@@ -147,7 +147,7 @@ void reorder_factory::select_implementation(program& p, program_node& node) {
 
 void reorder_factory::get_weights_split(primitive_id input_id,
                                                                                  std::shared_ptr<WeightsReorderParams> reorder_params, program& p, \
-                                                                                 cldnn::program_node& prev, cldnn::program_node& node, int i) {
+                                                                                 cldnn::program_node& prev, cldnn::program_node& node, size_t i) {
     OPENVINO_ASSERT(reorder_params != nullptr, "[GPU] WeightsReorderParams is not initialized.");
     std::string reorder_id = input_id + "_reo_" + std::to_string(i);
     auto hiddenSize = reorder_params->get_input_layout().get_shape()[1] / 4;
