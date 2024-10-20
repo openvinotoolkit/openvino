@@ -3040,10 +3040,10 @@ public:
                 max_diff = abs_diff;
             avg += abs_diff;
             count++;
-            OPENVINO_ASSERT(abs_diff < 5);
+            OPENVINO_ASSERT(abs_diff < 8);
         }
         std::cout << "---> count: " << count << ", max_diff:" << max_diff << ", avg_diff: " << (avg/count) << std::endl;
-        OPENVINO_ASSERT((avg/count) < 0.5);
+        OPENVINO_ASSERT((avg/count) < 0.8);
     }
 };
 

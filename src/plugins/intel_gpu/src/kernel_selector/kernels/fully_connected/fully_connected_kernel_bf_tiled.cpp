@@ -806,6 +806,7 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
                         kd.internalBufferSizes.clear();
                         kd.internalBufferSizes.push_back(input_size);                           // quantized input is char type
                         kd.internalBufferSizes.push_back(input_size / quantize_grp_size * 2);   // de_quan_scale is half type
+                        kd.internalBufferSizes.push_back(input_size / quantize_grp_size * 2);
                     }
 
                     kd.kernels[0].params.workGroups.global = {std::max((input_size / quantize_grp_size), (size_t)1), 1, 1};
@@ -1026,7 +1027,9 @@ KernelsData FullyConnected_bf_tiled::GetMultiKernelsData(const Params &params,
         quan_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
         quan_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         quan_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        quan_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
         kd.internalBufferSizes.push_back(input_size);
+        kd.internalBufferSizes.push_back(input_size / quantize_grp_size * 2);
         kd.internalBufferSizes.push_back(input_size / quantize_grp_size * 2);
         kernel_number++;
     }
@@ -1060,6 +1063,7 @@ KernelsData FullyConnected_bf_tiled::GetMultiKernelsData(const Params &params,
 
         fc_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         fc_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        fc_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
         kernel_number++;
     }
 
@@ -1097,6 +1101,7 @@ KernelsData FullyConnected_bf_tiled::GetMultiKernelsData(const Params &params,
 
         sa_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         sa_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        sa_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
     }
 
     // std::cout << "    >> kernels all done " << std::endl;
