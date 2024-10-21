@@ -53,19 +53,6 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
 
     auto sliding_window = v0::Constant::create(element::i32, Shape{}, {0});  // sliding_window
 
-    std::shared_ptr<v0::Parameter> input_ids_node =
-        std::dynamic_pointer_cast<v0::Parameter>(model->input("input_ids").get_node_shared_ptr());
-    input_ids_node->set_partial_shape(PartialShape{-1});
-    auto unsqueezed_input_ids =
-        std::make_shared<v0::Unsqueeze>(input_ids_node, v0::Constant::create(element::i32, Shape{}, {1}));
-    replace_node(input_ids_node, unsqueezed_input_ids);
-
-    auto cur_seq_len = std::make_shared<v8::Gather>(std::make_shared<v3::ShapeOf>(unsqueezed_input_ids),
-                                                    v0::Constant::create(element::i64, Shape{}, {1}),
-                                                    v0::Constant::create(element::i64, Shape{}, {0}));
-    auto prev_max_seq_len =
-        std::make_shared<v1::Subtract>(max_context_len, std::make_shared<v0::Convert>(cur_seq_len, element::i32));
-
     auto has_parameter = [=](const std::shared_ptr<ov::Model>& model, const std::string& name) -> bool {
         for (auto& t : model->inputs()) {
             const auto& names = t.get_names();
@@ -76,6 +63,21 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
 
         return false;
     };
+
+    auto input_ids_name = has_parameter(model, "input_ids") ? "input_ids" : "inputs_embeds";
+
+    std::shared_ptr<v0::Parameter> input_ids_node =
+        std::dynamic_pointer_cast<v0::Parameter>(model->input(input_ids_name).get_node_shared_ptr());
+    input_ids_node->set_partial_shape(PartialShape{-1});
+    auto unsqueezed_input_ids =
+        std::make_shared<v0::Unsqueeze>(input_ids_node, v0::Constant::create(element::i32, Shape{}, {1}));
+    replace_node(input_ids_node, unsqueezed_input_ids);
+
+    auto cur_seq_len = std::make_shared<v8::Gather>(std::make_shared<v3::ShapeOf>(unsqueezed_input_ids),
+                                                    v0::Constant::create(element::i64, Shape{}, {1}),
+                                                    v0::Constant::create(element::i64, Shape{}, {0}));
+    auto prev_max_seq_len =
+        std::make_shared<v1::Subtract>(max_context_len, std::make_shared<v0::Convert>(cur_seq_len, element::i32));
 
     ParameterVector kv_parameters;
     ParameterVector parameters_to_remove;
