@@ -165,8 +165,6 @@ Plugin::Plugin() {
 Plugin::~Plugin() {
     // reset oneDNN cache to clean up cached primitives
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    static std::mutex dnnl_cache_mutex;
-    std::lock_guard<std::mutex> guard(dnnl_cache_mutex);
     auto capacity = dnnl::get_primitive_cache_capacity();
     dnnl::set_primitive_cache_capacity(0);
     dnnl::set_primitive_cache_capacity(capacity);
