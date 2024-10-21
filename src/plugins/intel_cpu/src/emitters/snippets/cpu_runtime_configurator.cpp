@@ -154,15 +154,14 @@ void CPURuntimeConfigurator::update_requested_descs(const ov::snippets::lowered:
 
             const auto& precision = param->get_node()->get_output_element_type(0);
             const auto vnni_factor = brgemm_utils::compute_vnni_factor(precision);
-            const auto n_block = brgemm_utils::repacking::compute_inner_n_block(precision);
             // Firstly, batch dims are set
             VectorDims requested_blocked_shape(shape.begin(), shape.end() - m_config->tile_rank);
             // Then, the blocked dims are formed
             requested_blocked_shape.insert(
                 requested_blocked_shape.end(),
-                {snippets::utils::div_up(K, vnni_factor), snippets::utils::div_up(N, n_block), n_block, vnni_factor});
+                {snippets::utils::div_up(K, vnni_factor), std::max(N, brgemm_utils::repacking::compute_inner_n_block(precision)), vnni_factor});
             // Please note: only planar layout is supported for now
-            const VectorDims order{0, 1, 2, 3, 3, 2};
+            const VectorDims order{0, 1, 2, 3, 2};
             auto cpu_desc = std::make_shared<ov::intel_cpu::CpuBlockedMemoryDesc>(precision,
                                                                                   Shape(shape),
                                                                                   requested_blocked_shape,
