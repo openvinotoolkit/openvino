@@ -289,7 +289,6 @@ ACLFullyConnectedExecutor::ACLFullyConnectedExecutor(const FCAttrs &attrs,
                                                      const ExecutorContext::CPtr context) {
     initFCAttrs(attrs, aclTensorAttrs, aclfcAttrs, memory, fullyConnectedLayerInfo, postOps);
     packedWeights = prepareWeightMemory(memory, context, attrs, aclfcAttrs, postOps, expectedWeightFormat, wei_tensor_info);
-    fullyConnectedLayerInfo.enable_fast_math = attrs.aclFastMath && arm_compute::is_fixed_format_fast_math(expectedWeightFormat);
 }
 
 bool ACLFullyConnectedExecutor::supports(const FCConfig &config) {
