@@ -41,23 +41,25 @@ std::shared_ptr<ov::Model> create_decomposed_model(bool with_axes) {
     const auto stop = ov::op::v0::Constant::create(ov::element::i32, {3}, {9, 7, 2});
     const auto step = ov::op::v0::Constant::create(ov::element::i32, {3}, {2, 1, 1});
     const auto axes = ov::op::v0::Constant::create(ov::element::i32, {3}, {0, 1, 2});
-    auto zero = ov::op::v0::Constant::create(ov::element::i64, {}, {0});
-    auto one = ov::op::v0::Constant::create(ov::element::i64, {}, {1});
-    auto neg_one_1d = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
-    auto scatter_shape = ov::op::v0::Constant::create(ov::element::i64, {2}, {-1, 1});
+    auto const_0 = ov::op::v0::Constant::create(ov::element::i64, {}, {0});
+    auto const_1 = ov::op::v0::Constant::create(ov::element::i64, {}, {1});
+    auto const_1d_neg_1 = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
+    auto const_scatter_indices_shape = ov::op::v0::Constant::create(ov::element::i64, {2}, {-1, 1});
     auto data_shape = std::make_shared<ov::opset8::ShapeOf>(data, ov::element::i64);
-    auto num_elements_data = std::make_shared<ov::opset8::ReduceProd>(data_shape, zero, false);
-    auto data_indices_flattened = std::make_shared<ov::opset8::Range>(zero, num_elements_data, one, ov::element::i64);
-    auto full_data_indices = std::make_shared<ov::opset8::Reshape>(data_indices_flattened, data_shape, false);
+    auto num_elements_data = std::make_shared<ov::opset8::ReduceProd>(data_shape, const_0, false);
+    auto data_indices_flatten =
+        std::make_shared<ov::opset8::Range>(const_0, num_elements_data, const_1, ov::element::i64);
+    auto full_data_indices = std::make_shared<ov::opset8::Reshape>(data_indices_flatten, data_shape, false);
     std::shared_ptr<ov::opset8::Slice> slice_indices;
     if (!with_axes) {
         slice_indices = std::make_shared<ov::opset8::Slice>(full_data_indices, start, stop, step);
     } else {
         slice_indices = std::make_shared<ov::opset8::Slice>(full_data_indices, start, stop, step, axes);
     }
-    auto slice_indices_flatten = std::make_shared<ov::opset8::Reshape>(slice_indices, scatter_shape, false);
-    auto updates_flatten = std::make_shared<ov::opset8::Reshape>(updates, neg_one_1d, false);
-    auto data_flatten = std::make_shared<ov::opset8::Reshape>(data, neg_one_1d, false);
+    auto slice_indices_flatten =
+        std::make_shared<ov::opset8::Reshape>(slice_indices, const_scatter_indices_shape, false);
+    auto updates_flatten = std::make_shared<ov::opset8::Reshape>(updates, const_1d_neg_1, false);
+    auto data_flatten = std::make_shared<ov::opset8::Reshape>(data, const_1d_neg_1, false);
     auto output_flatten =
         std::make_shared<ov::opset8::ScatterNDUpdate>(data_flatten, slice_indices_flatten, updates_flatten);
     auto slicescatter = std::make_shared<ov::opset8::Reshape>(output_flatten, data_shape, false);
