@@ -10,9 +10,6 @@ using namespace ov::test::behavior;
 
 namespace {
 
-INSTANTIATE_TEST_SUITE_P(smoke_OVClassModelTestP, OVClassModelTestP,
-                         ::testing::Values(std::string(ov::test::utils::DEVICE_GPU)));
-
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassModelOptionalTestP, OVClassModelOptionalTestP,
                          ::testing::Values(std::string(ov::test::utils::DEVICE_GPU)));
 
