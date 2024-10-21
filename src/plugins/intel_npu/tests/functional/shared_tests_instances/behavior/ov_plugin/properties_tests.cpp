@@ -8,8 +8,8 @@
 
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
-#include "config/common.hpp"
-#include "npu_private_properties.hpp"
+#include "intel_npu/al/config/common.hpp"
+#include "intel_npu/al/npu_private_properties.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"

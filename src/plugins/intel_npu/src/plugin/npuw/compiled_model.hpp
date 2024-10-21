@@ -7,8 +7,8 @@
 #include <optional>
 
 #include "common.hpp"
-#include "config/config.hpp"
-#include "config/npuw.hpp"
+#include "intel_npu/al/config/config.hpp"
+#include "intel_npu/al/config/npuw.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/so_ptr.hpp"

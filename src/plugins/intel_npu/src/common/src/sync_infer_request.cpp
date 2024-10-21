@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "sync_infer_request.hpp"
+#include "intel_npu/common/sync_infer_request.hpp"
 
+#include "intel_npu/al/prefix.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/plugin_itt.hpp"
 #include "openvino/util/common_util.hpp"
-#include "prefix.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace {

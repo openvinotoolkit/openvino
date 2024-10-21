@@ -4,7 +4,7 @@
 
 #include "zero_wrappers.hpp"
 
-#include "config/common.hpp"
+#include "intel_npu/al/config/common.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "zero_types.hpp"
 

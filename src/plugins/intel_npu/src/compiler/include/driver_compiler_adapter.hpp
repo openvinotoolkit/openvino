@@ -6,9 +6,9 @@
 
 #include <ze_graph_ext.h>
 
-#include "icompiler.hpp"
+#include "intel_npu/al/icompiler.hpp"
+#include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
-#include "npu.hpp"
 
 namespace intel_npu {
 namespace driverCompilerAdapter {

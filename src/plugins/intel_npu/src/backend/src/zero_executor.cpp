@@ -11,10 +11,10 @@
 #include <sstream>
 #include <string>
 
-#include "config/common.hpp"
-#include "npu_itt.hpp"
+#include "intel_npu/al/config/common.hpp"
+#include "intel_npu/al/prefix.hpp"
+#include "intel_npu/common/itt.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "prefix.hpp"
 #include "ze_command_queue_npu_ext.h"
 #include "zero_device.hpp"
 #include "zero_utils.hpp"

@@ -7,7 +7,7 @@
 #include <cstdint>
 #include <map>
 
-#include "npu_private_properties.hpp"
+#include "intel_npu/al/npu_private_properties.hpp"
 
 namespace utils {
 bool isNPUDevice(const uint32_t deviceId);

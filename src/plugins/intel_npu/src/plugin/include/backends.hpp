@@ -12,9 +12,9 @@
 #include "openvino/runtime/so_ptr.hpp"
 
 // Plugin
+#include "intel_npu/al/npu_private_properties.hpp"
+#include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
-#include "npu.hpp"
-#include "npu_private_properties.hpp"
 
 namespace intel_npu {
 

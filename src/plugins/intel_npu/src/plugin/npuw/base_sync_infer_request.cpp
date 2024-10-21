@@ -5,7 +5,7 @@
 #include "base_sync_infer_request.hpp"
 
 #include "compiled_model.hpp"
-#include "config/npuw.hpp"
+#include "intel_npu/al/config/npuw.hpp"
 #include "logging.hpp"
 #include "util.hpp"
 

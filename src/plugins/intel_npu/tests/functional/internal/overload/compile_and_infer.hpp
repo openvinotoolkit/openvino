@@ -9,8 +9,8 @@
 #include <sstream>
 
 #include "base/ov_behavior_test_utils.hpp"
-#include "config/common.hpp"
-#include "npu_private_properties.hpp"
+#include "intel_npu/al/config/common.hpp"
+#include "intel_npu/al/npu_private_properties.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/runtime/properties.hpp"

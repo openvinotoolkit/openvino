@@ -4,8 +4,8 @@
 
 #include "zero_init.hpp"
 
+#include "intel_npu/common/itt.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
-#include "npu_itt.hpp"
 #include "ze_api.h"
 #include "ze_command_queue_npu_ext.h"
 #include "zero_utils.hpp"

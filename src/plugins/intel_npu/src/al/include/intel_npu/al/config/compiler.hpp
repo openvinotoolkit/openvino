@@ -7,8 +7,8 @@
 #include <thread>
 
 #include "common.hpp"
-#include "config/config.hpp"
-#include "npu_private_properties.hpp"
+#include "intel_npu/al/config/config.hpp"
+#include "intel_npu/al/npu_private_properties.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 
 namespace ov {

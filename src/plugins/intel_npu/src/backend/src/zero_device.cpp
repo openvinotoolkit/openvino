@@ -4,8 +4,8 @@
 
 #include "zero_device.hpp"
 
+#include "intel_npu/common/itt.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
-#include "npu_itt.hpp"
 #include "zero_executor.hpp"
 #include "zero_host_tensor.hpp"
 #include "zero_infer_request.hpp"

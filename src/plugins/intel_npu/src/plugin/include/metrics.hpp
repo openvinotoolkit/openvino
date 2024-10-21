@@ -9,8 +9,8 @@
 #include <vector>
 
 #include "backends.hpp"
-#include "npu.hpp"
-#include "npu_private_properties.hpp"
+#include "intel_npu/al/npu_private_properties.hpp"
+#include "intel_npu/common/npu.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
