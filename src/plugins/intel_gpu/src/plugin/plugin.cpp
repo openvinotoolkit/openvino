@@ -160,12 +160,13 @@ Plugin::Plugin() {
     // Set common info for compiled_model_runtime_properties
     auto& ov_version = ov::get_openvino_version();
     m_compiled_model_runtime_properties["OV_VERSION"] = ov_version.buildNumber;
-
+    std::cout << "DEBUG: gpu plugin init" << std::endl;
 }
 
 Plugin::~Plugin() {
     // reset oneDNN cache to clean up cached primitives
 #ifdef ENABLE_ONEDNN_FOR_GPU
+    std::cout << "DEBUG: gpu plugin destructor" << std::endl;
     auto capasity = dnnl::get_primitive_cache_capacity();
     dnnl::set_primitive_cache_capacity(0);
     dnnl::set_primitive_cache_capacity(capasity);
