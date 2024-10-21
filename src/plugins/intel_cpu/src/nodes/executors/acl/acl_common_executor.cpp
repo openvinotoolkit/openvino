@@ -38,9 +38,9 @@ static void initACLTensorParams(const MemoryPtr& memoryPtr,
     }
 }
 
-static std::shared_ptr<arm_compute::TensorInfo> initTensorInfo(const arm_compute::TensorShape& tensorShape,
-                              const arm_compute::DataType& dataType,
-                              const arm_compute::DataLayout& dataLayout) {
+std::shared_ptr<arm_compute::TensorInfo> ACLCommonExecutor::initTensorInfo(const arm_compute::TensorShape& tensorShape,
+                                                                           const arm_compute::DataType& dataType,
+                                                                           const arm_compute::DataLayout& dataLayout) {
     std::shared_ptr<arm_compute::TensorInfo> aclMemoryInfo = nullptr;
     if (dataType != arm_compute::DataType::UNKNOWN) {
         aclMemoryInfo = std::make_shared<arm_compute::TensorInfo>(
@@ -72,6 +72,9 @@ bool ACLCommonExecutor::update(const MemoryArgs &memory) {
     ACLTypes   aclDataType{};
     ACLLayouts aclDataLayout{};
     for (auto& cpu_mem_ptr : memory) {
+        if (cpu_mem_ptr.second->getSize() == 0) {
+            continue;
+        }
         const ACLArgs index = argConvert.at(cpu_mem_ptr.first);
         initACLTensorParams(cpu_mem_ptr.second, aclTensorAttrs,
                             aclMemoryShapes[index],
