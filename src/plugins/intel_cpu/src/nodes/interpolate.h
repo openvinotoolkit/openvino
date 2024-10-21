@@ -116,6 +116,7 @@ private:
             virtual void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_) = 0;
             virtual ~InterpolateExecutorBase() = default;
             VectorDims getSrcDimPad5d() const { return srcDimPad5d; }
+            size_t m_threads_num = 0lu;
 
         private:
             void buildTblNN(const VectorDims& srcDimPad5d, const VectorDims& dstDim5d, const std::vector<float>& dataScales,
@@ -160,7 +161,6 @@ private:
                                    const dnnl::primitive_attr &attr);
 
             void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_) override;
-
         private:
             // nearest neighbor
             void NNPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_,
