@@ -85,6 +85,10 @@ class MHAWithoutSoftmax: public MHA {
     std::shared_ptr<SnippetsFunctionBase> get_subgraph() const override;
 };
 
+class MHAWithSoftmax: public MHA {
+    std::shared_ptr<SnippetsFunctionBase> get_subgraph() const override;
+};
+
 class MHATransposedB : public MHA {
     std::shared_ptr<SnippetsFunctionBase> get_subgraph() const override;
 };

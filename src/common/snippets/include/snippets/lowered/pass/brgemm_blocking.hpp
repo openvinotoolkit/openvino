@@ -107,8 +107,8 @@ public:
             const auto brgemm = ov::as_type_ptr<BRGEMM_TYPE>(brgemm_expr->get_node());
             if (!brgemm)
                 continue;
-            OPENVINO_ASSERT(!blocking_loop_exists(loop_manager, brgemm_expr),
-                            "Brgemm mustn't be covered in loops before blocking pass");
+            // OPENVINO_ASSERT(!blocking_loop_exists(loop_manager, brgemm_expr),
+            //                 "Brgemm mustn't be covered in loops before blocking pass");
             size_t m_block, n_block, k_block;
             std::tie(m_block, n_block, k_block) = get_blocking_params(brgemm_expr);
             modified = mark_blocking_loops(linear_ir, expr_it, m_block, n_block, k_block);

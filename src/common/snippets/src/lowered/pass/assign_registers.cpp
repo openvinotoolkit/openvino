@@ -8,6 +8,7 @@
 #include "snippets/snippets_isa.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/utils/utils.hpp"
+// #include "snippets/op/buffer.hpp"
 
 // This header is needed to avoid MSVC warning "C2039: 'inserter': is not a member of 'std'"
 #include <iterator>
@@ -67,12 +68,11 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
         }
         io_index++;
     }
-    auto get_inplace_buffers_from_result = [=] (const ExpressionPtr& result) {
+    auto get_inplace_buffers_from_result = [&] (const ExpressionPtr& result) {
         std::vector<ExpressionPtr> buf;
         const auto& buffers = linear_ir.get_buffers();
         for (const auto& buffer : buffers) {
-            const auto& inplace_buffer = ov::as_type_ptr<op::InplaceMemoryBuffer>(buffer->get_node());
-            if (inplace_buffer && inplace_buffer->get_inplace_from() == result->get_node()) {
+            if (ov::as_type_ptr<op::Buffer>(buffer->get_node())->get_inplace_from() == result->get_node()) {
                 buf.push_back(buffer);
             }
         }
@@ -105,6 +105,8 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
     for (const auto& expr : exprs) {
         auto op = expr->get_node();
         if (const auto& buffer_expr = ov::as_type_ptr<BufferExpression>(expr)) {
+            if (ov::as_type_ptr<op::Buffer>(buffer_expr->get_node())->get_inplace_from() != nullptr)
+                continue;
             const auto reg_group = buffer_expr->get_reg_group();
             // All buffers have one common data pointer
             const auto assigned_reg = num_results + num_parameters + reg_group;

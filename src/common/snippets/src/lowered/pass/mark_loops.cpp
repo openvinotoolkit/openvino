@@ -28,7 +28,8 @@ bool MarkLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
                ov::is_type<ov::op::v0::Constant>(node) ||
                ov::is_type<ov::op::v0::Parameter>(node) ||
                ov::is_type<op::RankNormalization>(node) ||
-               ov::is_type<op::Reshape>(node);
+               ov::is_type<op::Reshape>(node) ||
+               (ov::is_type<op::Buffer>(node) && ov::as_type_ptr<op::Buffer>(node)->get_inplace_from() != nullptr);
     };
 
     auto are_conflicted = [](const ExpressionPort& lhs, const ExpressionPort& rhs) {

@@ -29,6 +29,7 @@ public:
     Buffer(const ov::Output<ov::Node>& arg);
     Buffer(const OutputVector& arguments);
     Buffer(const ov::Shape& shape, ov::element::Type element_type = ov::element::u8);
+    Buffer(ov::element::Type element_type, const ov::Shape& shape, std::shared_ptr<Node> shared_from = nullptr);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
@@ -38,6 +39,8 @@ public:
 
     size_t get_allocation_size() const { return m_impl->get_allocation_size(); }
 
+    void set_inplace_from(std::shared_ptr<Node> inplace_from) { m_impl->set_inplace_from(inplace_from); }
+    std::shared_ptr<Node> get_inplace_from() const { return m_impl->get_inplace_from(); }
     class ShapeInfer : public IShapeInferSnippets {
         std::shared_ptr<IShapeInferSnippets> m_impl_shape_infer {nullptr};
     public:
@@ -56,6 +59,8 @@ private:
         virtual void validate_and_infer_types(Buffer* buffer) const = 0;
         virtual bool visit_attributes(AttributeVisitor& visitor) = 0;
         virtual std::shared_ptr<IShapeInferSnippets> get_shape_infer() const = 0;
+        virtual void set_inplace_from(std::shared_ptr<Node> inplace_from) {}
+        virtual std::shared_ptr<Node> get_inplace_from() const { return nullptr; }
     };
 
     // IntermediateMemoryImpl represents intermediate memory.
@@ -97,6 +102,30 @@ private:
 
         ov::Shape m_shape;
         ov::element::Type m_element_type = ov::element::u8;  // u8 - default 1 byte
+    };
+
+    class InplaceMemoryImpl : public BaseImpl {
+    public:
+        InplaceMemoryImpl(const ov::Shape& shape, ov::element::Type element_type, std::shared_ptr<Node> shared_from);
+
+        size_t get_allocation_size() const override;
+        std::shared_ptr<BaseImpl> clone() const override;
+        void validate_and_infer_types(Buffer* buffer) const override;
+        bool visit_attributes(AttributeVisitor& visitor) override;
+        std::shared_ptr<Node> get_inplace_from() const override;
+        void set_inplace_from(std::shared_ptr<Node> inplace_from) override;
+        std::shared_ptr<IShapeInferSnippets> get_shape_infer() const override { return std::make_shared<ShapeInfer>(m_shape); }
+    private:
+        class ShapeInfer : public IShapeInferSnippets {
+            ov::Shape m_shape;
+        public:
+            explicit ShapeInfer(ov::Shape shape);
+            Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
+        };
+
+        ov::Shape m_shape;
+        ov::element::Type m_element_type = ov::element::u8;  // u8 - default 1 byte
+        std::shared_ptr<Node> m_inplace_from_node = nullptr;  // assign the same reg and offset as inplace_from_node
     };
 
     // This constructor is used only in clone_with_new_inputs
