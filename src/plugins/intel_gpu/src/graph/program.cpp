@@ -1795,15 +1795,9 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
         for (auto& impl_id : impl_ids) {
             std::string type_name = get_node_ptr(impl_id)->get_selected_impl()->m_manager->get_type_info().name;
             ob << type_name;
-            if (get_node_ptr(impl_id)->get_selected_impl()->is_onednn()) {
-                ob << true;
-                auto params = get_node_ptr(impl_id)->get_kernel_impl_params();
-                ob.setKernelImplParams(params.get());
-                ob << get_node_ptr(impl_id)->selected_impl;
-            } else {
-                ob << false;
-                ob << get_node_ptr(impl_id)->selected_impl;
-            }
+            auto params = get_node_ptr(impl_id)->get_kernel_impl_params();
+            ob.setKernelImplParams(params.get());
+            ob << get_node_ptr(impl_id)->selected_impl;
             ob << get_node_ptr(impl_id)->get_selected_impl()->get_cached_kernel_ids(kernels_cache);
         }
     }
@@ -1928,15 +1922,10 @@ void program::load(cldnn::BinaryInputBuffer& ib) {
             ib >> type_name;
             ov::DiscreteTypeInfo type(type_name.c_str());
             auto impl_manager = p_node.type()->get(type);
-            bool is_onednn;
-            ib >> is_onednn;
-            if (is_onednn) {
-                auto params = p_node.get_kernel_impl_params();
-                ib.setKernelImplParams(params.get());
-                ib >> p_node.selected_impl;
-            } else {
-                ib >> p_node.selected_impl;
-            }
+
+            auto params = p_node.get_kernel_impl_params();
+            ib.setKernelImplParams(params.get());
+            ib >> p_node.selected_impl;
 
             p_node.selected_impl->m_manager = impl_manager.get();
 

@@ -32,6 +32,10 @@ struct convolution_impl : typed_primitive_impl_ocl<convolution> {
         if (is_dynamic()) {
             auto& kernel_selector = kernel_selector_t::Instance();
             auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
+
+            const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
+            _kernel_data.params = std::make_shared<kernel_params_t>(get_kernel_params(*impl_params, true));
+
             kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
         }
     }
