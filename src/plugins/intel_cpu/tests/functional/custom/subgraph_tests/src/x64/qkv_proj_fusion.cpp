@@ -81,6 +81,8 @@ protected:
             auto tensor = ov::test::utils::create_and_fill_tensor(ov::element::f32, ov::Shape{OC, IC}, in_data);
             return std::make_shared<ov::op::v0::Constant>(tensor);
         };
+        if (param.use_dynamic_quant)
+            configuration.insert({ov::hint::dynamic_quantization_group_size.name(), std::numeric_limits<uint64_t>::max()});
 
         auto q_proj_weight = create_const(param.q_proj_size, param.hidden);
         auto k_proj_weight = create_const(param.k_proj_size, param.hidden);

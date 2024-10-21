@@ -79,6 +79,8 @@ protected:
             auto tensor = ov::test::utils::create_and_fill_tensor(ov::element::f32, ov::Shape{OC, IC}, in_data);
             return std::make_shared<ov::op::v0::Constant>(tensor);
         };
+        if (param.use_dynamic_quant)
+            configuration.insert({ov::hint::dynamic_quantization_group_size.name(), std::numeric_limits<uint64_t>::max()});
 
         auto gate_weight = create_const(param.up_size, param.down_size, 100);
         auto up_weight = create_const(param.up_size, param.down_size, 100);
