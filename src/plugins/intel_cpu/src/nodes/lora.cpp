@@ -2,22 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "composite.h"
+#include "lora.h"
 
 #include "nodes/input.h"
 #include "cpu_memory.h"
-#include "transformations/cpu_opset/common/op/submodel.hpp"
+#include "ov_ops/lora_subgraph.hpp"
 #include "utils/debug_capabilities.h"
-#include "shape_inference/shape_inference_internal_dyn.hpp"
+#include "shape_inference/shape_inference_pass_through.hpp"
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
 
-bool Composite::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
+bool LoRA::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!ov::is_type<ov::intel_cpu::SubModel>(op)) {
-            errorMessage = "Unknown SubGraph operation : " + std::string(op->get_type_info().name) + " with name '" +
+        if (!ov::is_type<ov::op::internal::LoraSubgraph>(op)) {
+            errorMessage = "Unknown LoRA operation : " + std::string(op->get_type_info().name) + " with name '" +
                            op->get_friendly_name() + "'";
         }
     } catch (...) {
@@ -26,19 +26,23 @@ bool Composite::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, 
     return true;
 }
 
-Composite::Composite(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
-    : Node(op, context, InternalDynShapeInferFactory()) {
+LoRA::LoRA(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
+    : Node(op, context, PassThroughShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
-    const auto& subModel = ov::as_type_ptr<SubModel>(op);
-    OPENVINO_ASSERT(subModel, "Attempt to create SubGraph node from an invalid op type: ", op);
+    const auto& loraModel = ov::as_type_ptr<ov::op::internal::LoraSubgraph>(op);
+    OPENVINO_ASSERT(loraModel,
+                    "Attempt to create LoRA node from an invalid op type: ",
+                    op,
+                    " with name ",
+                    op->get_friendly_name());
 
-    m_body = subModel->get_function();
+    m_body = loraModel->get_function();
 }
 
-void Composite::selectOptimalPrimitiveDescriptor() {
+void LoRA::selectOptimalPrimitiveDescriptor() {
     // for the input configuration, just always use the parent configuration
     std::vector<PortConfig> inConfs;
     std::vector<Input::InputConfig> graphInputConfig;
@@ -61,8 +65,14 @@ void Composite::selectOptimalPrimitiveDescriptor() {
     auto outputDescriptors = m_graph.getOutputMemoryDescriptors();
 
     std::vector<PortConfig> outConfs;
-    for (const auto& desc : outputDescriptors) {
-        outConfs.emplace_back(desc);
+    const auto& desc = outputDescriptors.front();
+
+    outConfs.emplace_back(desc);
+
+    if (desc->isCompatible(*(inConfs.front().getMemDesc()))) {
+        outConfs.at(0).inPlace(0); // use the memory from the first input inPlace
+    } else {
+        THROW_CPU_NODE_ERR("Unexpected input/output descriptor mismatch"); //FIXME: add enforcing the output descriptor
     }
 
     const NodeConfig config(inConfs, outConfs);
@@ -73,8 +83,8 @@ void Composite::selectOptimalPrimitiveDescriptor() {
     selectPrimitiveDescriptorByIndex(0);
 }
 
-// @todo add ascii diagramm for memory mapping / reuse
-void Composite::createPrimitive() {
+// @todo add ascii diagram for memory mapping / reuse
+void LoRA::createPrimitive() {
     OPENVINO_ASSERT(getOriginalInputsNumber() == m_graph.GetInputNodesMap().size(),
                     "Number of node inputs must be equal the number of inner graph's inputs");
 
@@ -86,37 +96,16 @@ void Composite::createPrimitive() {
     OPENVINO_ASSERT(getOriginalOutputsNumber() == m_graph.GetOutputNodesMap().size(),
                     "Number of node outputs must be equal the number of inner graph's outputs");
 
-    std::vector<MemoryPtr> outputMemory;
-    for (size_t i = 0; i < getOriginalOutputsNumber(); i++) {
-        outputMemory.emplace_back(getDstMemoryAtPort(i));
-    }
-
+    std::vector<MemoryPtr> outputMemory{getDstMemoryAtPort(0)};
     m_graph.Activate(inputMemory, outputMemory);
 }
 
-void Composite::execute(dnnl::stream) {
+void LoRA::execute(dnnl::stream) {
     m_graph.Infer();
 }
 
-void Composite::executeDynamicImpl(dnnl::stream strm) {
+void LoRA::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
-
-    // since the shape inference is not performed for the composite node
-    // a memory of the extra child edges, attached to the output ports
-    // has to be updated after an inference of the inner graph finished
-    auto& childEdges = getChildEdges();
-    for (size_t i = 0; i < getOriginalOutputsNumber(); i++) {
-        const auto mem = getDstMemoryAtPort(i);
-        for (size_t j = getOriginalOutputsNumber(); j < childEdges.size(); j++) {
-            auto& childEdge = childEdges[j];
-            auto childEdgePtr = childEdge.lock();
-            assert(childEdgePtr);
-
-            if (childEdgePtr->getInputNum() == static_cast<int>(i)) {
-                childEdgePtr->getMemoryPtr()->redefineDesc(mem->getDescPtr());
-            }
-        }
-    }
 }
 
 }  // namespace node
