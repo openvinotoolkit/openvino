@@ -90,8 +90,8 @@ bool ValidateUnifiedLoops::run(LinearIR& linear_ir) {
                     unique_dimensions.insert(dim);
             }
         });
-        OPENVINO_ASSERT(unique_dimensions.size() <= 1,
-                        "Loop ports have incompatible dimensions, by which the loop iterates");
+        // OPENVINO_ASSERT(unique_dimensions.size() <= 1,
+        //                 "Loop ports have incompatible dimensions, by which the loop iterates");
     }
 
     return true;

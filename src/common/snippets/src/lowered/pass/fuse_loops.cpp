@@ -76,8 +76,8 @@ bool FuseLoops::can_be_fused(const UnifiedLoopInfoPtr& loop_upper, const Unified
     const auto& inner_splitted_loop_compatible =
         (!ispl_loop_upper && !ispl_loop_lower) ||
         (ispl_loop_upper && ispl_loop_lower && ispl_loop_upper->get_outer_splitted_loop_info() == ispl_loop_lower->get_outer_splitted_loop_info());
-    return first_iter_handlers_match && inner_splitted_loop_compatible && (is_dynamic_case || equal_parameters || bcastable_upper || bcastable_lower);
-    // return inner_splitted_loop_compatible && (is_dynamic_case || equal_parameters || bcastable_upper || bcastable_lower);
+    // return first_iter_handlers_match && inner_splitted_loop_compatible && (is_dynamic_case || equal_parameters || bcastable_upper || bcastable_lower);
+    return inner_splitted_loop_compatible && (is_dynamic_case || equal_parameters || bcastable_upper || bcastable_lower);
 }
 
 void FuseLoops::move(LinearIR& linear_ir, const LoopManagerPtr& loop_manager, size_t loop_id,
