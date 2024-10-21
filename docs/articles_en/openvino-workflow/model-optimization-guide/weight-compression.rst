@@ -251,14 +251,14 @@ only when a better dataset is not available. Refer to the
 `example <https://github.com/openvinotoolkit/nncf/tree/develop/examples/llm_compression/openvino/tiny_llama_synthetic_data>`__
 for details of the usage.
 
-  .. code-block:: python
+.. code-block:: python
 
-    from nncf import Dataset
-    from nncf.data import generate_text_data
+   from nncf import Dataset
+   from nncf.data import generate_text_data
 
-    # Example: Generating synthetic dataset
-    synthetic_data = generate_text_data(model, tokenizer)
-    nncf_dataset = nncf.Dataset(synthetic_data, transform_fn)
+   # Example: Generating synthetic dataset
+   synthetic_data = generate_text_data(model, tokenizer)
+   nncf_dataset = nncf.Dataset(synthetic_data, transform_fn)
 
 For data-aware weight compression refer to the following
 `example <https://github.com/openvinotoolkit/nncf/tree/develop/examples/llm_compression/openvino/tiny_llama>`__.
