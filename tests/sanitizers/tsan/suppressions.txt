@@ -1,0 +1,15 @@
+# Copyright (C) 2018-2024 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+# This is a ThreadSanitizer (TSan) suppression file which provides a default
+# configuration for the builds with -DENABLE_SANITIZER=ON.
+# More information about LSan suppressions on
+# https://github.com/google/sanitizers/wiki/threadsanitizersuppressions
+
+# race conditions from thirdparty libs
+race:libtbb
+mutex:libtbb
+race:libhwloc
+# race conditions from std libs
+race:libstdc++
+race:libc
