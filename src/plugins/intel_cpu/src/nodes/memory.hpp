@@ -121,15 +121,13 @@ protected:
 
 class MemoryInputBase : public Input, public MemoryStateNode {
 public:
+    enum class mode {
+        read_value_assign,
+        single_read_value
+    };
+
+public:
     MemoryInputBase(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
-    MemoryInputBase(const std::string id,
-                    const std::string& name,
-                    const std::string& type,
-                    const Shape& output_shape,
-                    const ov::element::Type& output_prc,
-                    const GraphContext::CPtr context,
-                    const ov::optional<Shape>& input_shape,
-                    const ov::optional<ov::element::Type>& input_prc);
 
     ~MemoryInputBase() override;
 
@@ -153,6 +151,17 @@ public:
     void assignState(MemStatePtr newState) override final; // NOLINT
 
 protected:
+    MemoryInputBase(const std::string id,
+                    const std::string& name,
+                    const std::string& type,
+                    const Shape& output_shape,
+                    const ov::element::Type& output_prc,
+                    const GraphContext::CPtr context,
+                    const ov::optional<Shape>& input_shape,
+                    const ov::optional<ov::element::Type>& input_prc,
+                    mode mode = mode::read_value_assign);
+
+protected:
     virtual void runStatic(dnnl::stream strm) = 0;
     virtual void runDynamic(dnnl::stream strm) = 0;
     virtual void assignStateHook() = 0;
@@ -161,11 +170,19 @@ protected:
     }
 
 private:
+    using executeHookPtr = void (MemoryInputBase::*)(void);
+
+private:
+    void assignState();
+    void bypassAssignState();
+
+private:
     /**
      * @brief keeps reference to output sibling node
      */
     MemoryOutputBase* outputNode = nullptr;
     MemStatePtr state = nullptr;
+    executeHookPtr executeHook;
 };
 
 class MemoryInput : public MemoryInputBase {
@@ -193,7 +210,15 @@ private:
 
 class MemoryInputSingle : public MemoryInput {
 public:
-    using MemoryInput::MemoryInput; // TODO: custom constructor assigning memory stub
+    MemoryInputSingle(const std::string id,
+                      const std::string& name,
+                      const std::string& type,
+                      const Shape& output_shape,
+                      const ov::element::Type& output_prc,
+                      const GraphContext::CPtr context,
+                      const ov::optional<Shape>& input_shape,
+                      const ov::optional<ov::element::Type>& input_prc);
+
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
     MemStatePtr makeState() const override;
