@@ -9,8 +9,8 @@
 #include "partitioning/online/snapshot.hpp"
 #include "partitioning/online/group.hpp"
 
-#include "intel_npu/al/config/config.hpp"
-#include "intel_npu/al/config/npuw.hpp"
+#include "config/config.hpp"
+#include "config/npuw.hpp"
 
 #include "openvino/openvino.hpp"
 #include "openvino/op/ops.hpp"
