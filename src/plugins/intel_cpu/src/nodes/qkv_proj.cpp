@@ -259,7 +259,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
                         stride_dst = stride_dst_2;
                     }
 
-                    auto* src = work.m_C.ptr<float>();
+                    auto* src = work.m_C.template ptr<float>();
                     auto stride_src = work.m_C.stride(0);
                     if (m_node->m_config.quantized) {
                         // dequantize output & convert to f32 in-place
@@ -272,7 +272,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
                             stride_src,
                             m_quant_act.scale,
                             m_quant_act.zp,
-                            work.w_sum_per_oc.ptr<float>(),
+                            work.w_sum_per_oc.template ptr<float>(),
                             w_scale[work.output_id] + work.n0,
                             asym);
                     }
