@@ -7,7 +7,9 @@
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/utils/utils.hpp"
 
+#ifndef OPENVINO_ARCH_ARM64
 #include "transformations/snippets/x64/pass/lowered/adjust_brgemm_copy_b_loop_ports.hpp"
+#endif
 namespace ov {
 namespace intel_cpu {
 
@@ -97,7 +99,14 @@ void CPURuntimeConfigurator::update_loop_args(const ov::snippets::lowered::Linea
         }
     }
 }
+#ifdef OPENVINO_ARCH_ARM64
+CPURuntimeConfigurator::BrgemmCopyBLoopPortsAdjuster::BrgemmCopyBLoopPortsAdjuster(const ov::snippets::lowered::LinearIRCPtr& linear_ir,
+                                                                                   ov::intel_cpu::CPURuntimeConfigurator *configurator) {
+}
 
+void CPURuntimeConfigurator::BrgemmCopyBLoopPortsAdjuster::optimize() {
+}
+#else
 CPURuntimeConfigurator::BrgemmCopyBLoopPortsAdjuster::BrgemmCopyBLoopPortsAdjuster(const ov::snippets::lowered::LinearIRCPtr& linear_ir,
                                                                                    ov::intel_cpu::CPURuntimeConfigurator *configurator) {
     const auto& pass = std::make_shared<intel_cpu::pass::AdjustBrgemmCopyBLoopPorts>();
@@ -125,6 +134,7 @@ void CPURuntimeConfigurator::BrgemmCopyBLoopPortsAdjuster::optimize() {
             }
         }
 }
+#endif
 
 } // namespace intel_cpu
 } // namespace ov

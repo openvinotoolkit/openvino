@@ -7,11 +7,9 @@
 #include "adjust_brgemm_copy_b_loop_ports.hpp"
 #include "snippets/utils/utils.hpp"
 #include "snippets/lowered/loop_manager.hpp"
-#include "emitters/snippets/cpu_runtime_configurator.hpp"
+#include "snippets/lowered/expressions/buffer_expression.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
-#include "transformations/snippets/x64/op/brgemm_utils.hpp"
-#include "transformations/snippets/x64/pass/lowered/expressions/brgemm_copy_b_buffer_expressions.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -85,11 +83,11 @@ bool pass::AdjustBrgemmCopyBLoopPorts::run(const snippets::lowered::LinearIR& li
         auto grandchild_ports = child_ports.begin()->get_expr()->get_output_port(0).get_connected_ports();
         auto it = grandchild_ports.begin();
         while (it != grandchild_ports.end()) {
-            const auto& node = it->get_expr()->get_node();
-            if (is_type<intel_cpu::BrgemmCPU>(node)) {
+            const auto& port_node = it->get_expr()->get_node();
+            if (is_type<intel_cpu::BrgemmCPU>(port_node)) {
                 it++;
             } else {
-                OPENVINO_ASSERT(is_type<snippets::op::LoopEnd>(node),
+                OPENVINO_ASSERT(is_type<snippets::op::LoopEnd>(port_node),
                                 "Invalid grandchild of BrgemmCopyB");
                 it = grandchild_ports.erase(it);
             }
