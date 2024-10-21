@@ -524,3 +524,23 @@ ov_status_e ov_preprocess_prepostprocessor_build(const ov_preprocess_prepostproc
 
     return ov_status_e::OK;
 }
+
+ov_status_e ov_preprocess_prepostprocessor_pad(ov_preprocess_prepostprocessor_t* preprocess_input_process_steps,
+                                               int32_t* pads_begin,
+                                               int32_t pads_begin_size,
+                                               int32_t* pads_end,
+                                               int32_t pads_end_size,
+                                               float value,
+                                               ov::op::PadMode mode) {
+    if (!preprocess_input_process_steps) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    try {
+        std::vector<int32_t> vec_begin(pads_begin, pads_begin + pads_begin_size);
+        std::vector<int32_t> vec_end(pads_end, pads_end + pads_end_size);
+        preprocess_input_process_steps->object->pad(vec_begin, vec_end, value, mode);
+    }
+    CATCH_OV_EXCEPTIONS
+
+    return ov_status_e::OK;
+}
