@@ -45,6 +45,12 @@ void CreateVariableAccessPrimitive(ProgramBuilder &p, const std::shared_ptr<ov::
     p.add_primitive(*op, prim);
 }
 
+bool IsReadValueOp(std::shared_ptr<ov::Node> op) {
+    return ov::is_type<ov::op::v3::ReadValue>(op) ||
+           ov::is_type<ov::op::v6::ReadValue>(op) ||
+           ov::is_type<ov::intel_gpu::op::ReadValue>(op);
+}
+
 void CreateReadValueOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v3::ReadValue>& op) {
     validate_inputs_count(op, {0, 1});
     CreateVariableAccessPrimitive<cldnn::read_value>(p, op, op->get_variable_id());
@@ -57,6 +63,9 @@ void CreateReadValueOp(ProgramBuilder& p, const std::shared_ptr<ov::intel_gpu::o
 
 void CreateAssignOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v3::Assign>& op) {
     validate_inputs_count(op, {1});
+    if (IsReadValueOp(op->get_input_node_shared_ptr(0))) {
+        return;
+    }
     CreateVariableAccessPrimitive<cldnn::assign>(p, op, op->get_variable_id());
 }
 
@@ -67,6 +76,9 @@ void CreateReadValueOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v6::Read
 
 void CreateAssignOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v6::Assign>& op) {
     validate_inputs_count(op, {1});
+    if (IsReadValueOp(op->get_input_node_shared_ptr(0))) {
+        return;
+    }
     CreateVariableAccessPrimitive<cldnn::assign>(p, op, op->get_variable_id());
 }
 

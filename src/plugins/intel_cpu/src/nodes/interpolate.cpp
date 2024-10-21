@@ -3777,7 +3777,7 @@ void Interpolate::InterpolateExecutorBase::create_pillow_working_buf(Interpolate
     if (srcDimPad5d[3] == dstDim5d[3] || srcDimPad5d[4] == dstDim5d[4])
         return;
     size_t bufSize = srcDimPad5d[3] * dstDim5d[4] * srcDataSize; // IH * OW
-    size_t threadsNum = parallel_get_num_threads();
+    size_t threadsNum = parallel_get_max_threads();
     if (layout == InterpolateLayoutType::planar) {
         // B and C execute in parallel, need separate buf
         size_t parallelNum = srcDimPad5d[0] * srcDimPad5d[1];

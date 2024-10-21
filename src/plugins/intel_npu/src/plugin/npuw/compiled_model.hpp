@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2023-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,7 @@
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "partitioning/partitioning.hpp"
+#include "spatial.hpp"
 #include "weights_bank.hpp"
 
 namespace intel_npu {
@@ -46,6 +47,8 @@ private:
     // FIXME: This class has many friends..
     friend class IBaseInferRequest;
     friend class JustInferRequest;
+    friend class MemAccessSim;
+    friend class FuncMemMgr;
 
     bool compile_for_success(std::size_t id);
     bool compile_for_device(std::size_t id, const std::string& device_to_try);
@@ -72,7 +75,11 @@ private:
 
     void implement_properties();
 
-    void fill_weights_bank(const std::size_t idx);
+    void finalize_weights_bank();
+
+    std::string global_mem_device() const;
+
+    std::string funcall_mem_device(const std::size_t idx) const;
 
     std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc;
     ::intel_npu::Config m_cfg;
@@ -116,15 +123,22 @@ private:
 
         std::optional<std::size_t> replaced_by;
 
+        Subgraph::Gather host_gather;
+        std::optional<ov::npuw::compiled::Spatial> spatial;
+
         // FIXME: This is a 1:1 copy of the ov::npuw::Subgraph structure
         // w.r.t. function calls
-        Subgraph::Gather host_gather;
-
         std::size_t param_base = 0;
+        // NB: closure and lazy_closure are of the same size - to preserve proper indexing.
+        //     closure is responsible for host-side tensors (DCOFF, Gather, etc) while
+        //     lazy_closure is used for weights sharing and allocating device memory.
         std::vector<ov::Tensor> closure;
+        std::vector<weights::LazyTensor> lazy_closure;
         std::vector<ov::Tensor> scales;
         std::vector<ov::Tensor> zerops;
-        std::vector<bool> update_required;
+        std::vector<bool> is_remote;
+
+        bool forced_to_fcall = false;
 
         // FIXME: Take it out of structure
         ov::SoPtr<ov::ICompiledModel> ref_compiled_model;
@@ -134,6 +148,8 @@ private:
         execution_stats stat;
     };
     std::vector<CompiledModelDesc> m_compiled_submodels;
+
+    bool m_update_required;
 
     std::function<bool(const ov::SoPtr<ov::ITensor>&, const ov::SoPtr<ov::ITensor>&)> m_acc_check;
     std::string m_ref_device;

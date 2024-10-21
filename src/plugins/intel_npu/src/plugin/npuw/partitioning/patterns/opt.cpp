@@ -50,7 +50,7 @@ Context::PPtr Context::concat(ov::ParameterVector&& v, std::size_t dim) {
     const auto& first = v.front();
     const auto first_shape = first->get_shape();
     for (auto&& p : v) {
-        const auto this_shape = p->get_shape();
+        const auto& this_shape = p->get_shape();
         NPUW_ASSERT(first_shape.size() == this_shape.size());
         for (std::size_t d = 0; d < first_shape.size(); d++) {
             if (d != dim) {
@@ -80,8 +80,8 @@ Context::PPtr Context::unpack(Context::PPtr w, Context::PPtr z, Context::PPtr s,
 }
 
 Context::PPtr Context::unpack(Context::PPtr w, Context::PPtr s, ov::element::Type type) {
-    const auto w_shape = w->get_shape();
-    const auto s_shape = s->get_shape();
+    const auto& w_shape = w->get_shape();
+    const auto& s_shape = s->get_shape();
 
     Context::PPtr new_param;
     if (w_shape.size() == 3 && s_shape.size() == 3) {
@@ -100,8 +100,8 @@ Context::PPtr Context::unpack(Context::PPtr w, Context::PPtr s, ov::element::Typ
 }
 
 Context::PPtr Context::host_gather(Context::PPtr w, Context::PPtr ids) {
-    const auto w_shape = w->get_shape();
-    const auto ids_shape = ids->get_shape();
+    const auto& w_shape = w->get_shape();
+    const auto& ids_shape = ids->get_shape();
 
     NPUW_ASSERT(w_shape.size() == 2);
     NPUW_ASSERT(ids_shape.size() == 2);
@@ -335,7 +335,7 @@ DQMatMulGQ2i::DQMatMulGQ2i(Context::Ref ctx) {
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
     auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qcvtw, qcoeff});
     auto qreshp = opp::wrap_type<ov::op::v1::Reshape>({qmuls, opp::any_input()});
-    auto qcvtr = opp::wrap_type<ov::op::v0::Convert>({qreshp});
+    auto qcvtr = opp::optional<ov::op::v0::Convert>({qreshp->output(0)});
     auto qmmi = opp::any_input();
     auto qmm = opp::wrap_type<ov::op::v0::MatMul>({qmmi, qcvtr});
 
@@ -409,13 +409,18 @@ DQMatMulGQ2i::DQMatMulGQ2i(Context::Ref ctx) {
             auto rshp_ccat = std::make_shared<ov::op::v1::Reshape>(scaled, rshp_ccat_c, false);
 
             auto reduce_axis = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 1);
-            auto reduce = std::make_shared<ov::op::v1::ReduceSum>(rshp_ccat, reduce_axis, true);
+            // Make reduceSum not to keep axis because then it will convert to poolings in compiler.
+            // Otherwise reduceSum will convert to the convolution which is less efficient than poolings.
+            auto reduce = std::make_shared<ov::op::v1::ReduceSum>(rshp_ccat, reduce_axis, false);
 
             auto rshp_out_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, out_shape);
             auto rshp_out = std::make_shared<ov::op::v1::Reshape>(reduce, rshp_out_c, false);
 
-            // Convert the result to f32 to maintain the graph contracts. FIXME should be avoided
-            auto out = std::make_shared<ov::op::v0::Convert>(rshp_out, ov::element::f32);
+            // Convert the result to f32 to maintain the graph contracts if required.
+            std::shared_ptr<ov::Node> out = rshp_out;
+            if (matched_matmul->get_element_type() == ov::element::f32) {
+                out = std::make_shared<ov::op::v0::Convert>(rshp_out, ov::element::f32);
+            }
 
             // Now.. Reconnect the matmul readers to the new output (reducesum)
             for (auto&& r : matched_matmul->output(0).get_target_inputs()) {
@@ -473,7 +478,6 @@ DQMatMulGQiP::DQMatMulGQiP(Context::Ref ctx) {
         auto qweight_shape = matched_qweight->output(0).get_shape();
         auto qcoeff_shape = matched_qcoeff->output(0).get_shape();
         auto act_shape = matched_out_mmi.get_shape();
-        auto out_shape = matched_node_matmul->output(0).get_shape();
 
         if (ov::element::i4 == matched_qweight->get_element_type() && qweight_shape.size() == 3 &&
             ov::element::f32 == matched_qcoeff->get_element_type() && qcoeff_shape.size() == 3 &&
@@ -587,7 +591,6 @@ DQMatMulGQ2iP::DQMatMulGQ2iP(Context::Ref ctx) {
         auto qweight_shape = matched_qweight->output(0).get_shape();
         auto qcoeff_shape = matched_qcoeff->output(0).get_shape();
         auto act_shape = matched_out_mmi.get_shape();
-        auto out_shape = matched_node_matmul->output(0).get_shape();
 
         if (ov::element::i4 == matched_qweight->get_element_type() && qweight_shape.size() == 3 &&
             ov::element::f16 == matched_qcoeff->get_element_type() && qcoeff_shape.size() == 3 &&
@@ -687,8 +690,8 @@ DQParMMGQ::DQParMMGQ(Context::Ref ctx) {
 
         auto qmmi_shape = node_to_output.at(qmm).get_shape();
 
-        if (qmmi_shape.size() != 3 || qmmi_shape[0] != 1 || qmmi_shape[1] != 1) {
-            // Limit token to 1-token shapes only (prefill requires its own tranformation)
+        if (qmmi_shape.size() != 3 || qmmi_shape[0] != 1) {
+            // Not handling such cases
             return false;
         }
 
@@ -709,8 +712,11 @@ void mergeParallelMatMuls(const std::shared_ptr<ov::Model>& m, Context& ctx) {
             continue;
         }
         ov::Output<ov::Node> orig_multiply;
+
         std::size_t axis_to_concat = -1;
         std::tie(orig_multiply, axis_to_concat) = mul_to_mms.first;
+
+        const ov::Shape orig_act_shape = orig_multiply.get_shape();
 
         if (!util::is_set(axis_to_concat, ctx.pmm_dims)) {
             LOG_VERB("Parallel MatMuls found, but fusion over dim " << axis_to_concat << " is not enabled");
@@ -746,7 +752,7 @@ void mergeParallelMatMuls(const std::shared_ptr<ov::Model>& m, Context& ctx) {
         auto new_cvt = std::make_shared<ov::op::v0::Convert>(new_w, new_s->get_element_type());
 
         std::shared_ptr<ov::Node> new_mul = std::make_shared<ov::op::v1::Multiply>(new_cvt, new_s);
-        if (new_s->get_element_type() == ov::element::f16) {
+        if ((new_s->get_element_type() == ov::element::f16) && (orig_multiply.get_element_type() == ov::element::f32)) {
             new_mul = std::make_shared<ov::op::v0::Convert>(new_mul, ov::element::f32);
         }
         auto new_w_shape = new_w->get_shape();
@@ -773,10 +779,10 @@ void mergeParallelMatMuls(const std::shared_ptr<ov::Model>& m, Context& ctx) {
             auto this_orig_wshape = parallel_matmuls[i].w->get_shape();
             auto this_slice_start =
                 std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, S{0, 0, offset});
-            auto this_slice_end =
-                std::make_shared<ov::op::v0::Constant>(ov::element::i32,
-                                                       ov::Shape{3},
-                                                       S{1, 1, offset + this_orig_wshape[axis_to_concat]});
+            auto this_slice_end = std::make_shared<ov::op::v0::Constant>(
+                ov::element::i32,
+                ov::Shape{3},
+                S{1, orig_act_shape[1], offset + this_orig_wshape[axis_to_concat]});
             auto this_slice_step = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, S{1, 1, 1});
             auto this_slice =
                 std::make_shared<ov::op::v8::Slice>(new_mm, this_slice_start, this_slice_end, this_slice_step);
@@ -818,7 +824,7 @@ DQLiftGatherAsymCW::DQLiftGatherAsymCW() {
         auto matched_out_z = node_to_output.at(qzerop);
         auto matched_out_s = node_to_output.at(qcoeff);
         auto matched_out_ids = node_to_output.at(cvtids);
-        auto matched_out_gather = node_to_output.at(gather);
+        const auto& matched_out_gather = node_to_output.at(gather);
 
         // Replicate the compute part
         auto gather_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 0);
@@ -861,7 +867,7 @@ DQLiftGatherSymCW::DQLiftGatherSymCW() {
         auto matched_out_w = node_to_output.at(qweight);
         auto matched_out_s = node_to_output.at(qcoeff);
         auto matched_out_ids = node_to_output.at(cvtids);
-        auto matched_out_gather = node_to_output.at(gather);
+        const auto& matched_out_gather = node_to_output.at(gather);
 
         // Create new gathers on W and S, connect respectively
         auto new_cvt_w = std::make_shared<ov::op::v0::Convert>(matched_out_w, ov::element::f16);
@@ -903,7 +909,7 @@ DQLiftGatherSymGQ::DQLiftGatherSymGQ() {
         auto matched_out_w = node_to_output.at(qweight);
         auto matched_out_s = node_to_output.at(qcoeff);
         auto matched_out_ids = node_to_output.at(cvtids);
-        auto matched_out_gather = node_to_output.at(gather);
+        const auto& matched_out_gather = node_to_output.at(gather);
 
         auto matched_gather_shape = matched_out_gather.get_shape();
 
@@ -1034,10 +1040,10 @@ HostGather::HostGather(Context::Ref ctx) {
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
         auto out_shape = node_to_output.at(qgthrw).get_shape();
-        auto matched_out_qweight = node_to_output.at(qweight);
+        auto& matched_out_qweight = node_to_output.at(qweight);
         auto qweight_type = matched_out_qweight.get_element_type();
 
-        auto matched_out_gather = node_to_output.at(qgthrw);
+        const auto& matched_out_gather = node_to_output.at(qgthrw);
 
         auto sole_reader = [](ov::Output<ov::Node> out) {
             const auto readers = out.get_target_inputs();
@@ -1050,7 +1056,7 @@ HostGather::HostGather(Context::Ref ctx) {
              ov::is_type<ov::op::v0::Convert>(sole_reader(matched_out_gather)))) {
             auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
             auto matched_node_ids = node_to_output.at(pids).get_node_shared_ptr();
-            auto matched_out_gthr = node_to_output.at(qgthrw);
+            const auto& matched_out_gthr = node_to_output.at(qgthrw);
             auto matched_qweight = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qweight);
             auto matched_ids = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_ids);
 
@@ -1094,7 +1100,7 @@ HostGatherDQ::HostGatherDQ(Context::Ref ctx) {
 
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
-        auto matched_out_mul = node_to_output.at(qmul);
+        const auto& matched_out_mul = node_to_output.at(qmul);
         auto out_shape = matched_out_mul.get_shape();
 
         if (out_shape.size() != 3 && out_shape.size() != 4) {
@@ -1106,7 +1112,7 @@ HostGatherDQ::HostGatherDQ(Context::Ref ctx) {
         // were Hs = hidden size, G is # of groups, N is the prompt size.
         auto out_len = out_shape.size() == 3 ? out_shape[2] : out_shape[2] * out_shape[3];
 
-        auto matched_out_qweight = node_to_output.at(qweight);
+        const auto& matched_out_qweight = node_to_output.at(qweight);
         auto qweight_type = matched_out_qweight.get_element_type();
 
         if (out_len >= 2048 && qweight_type == ov::element::i4) {
@@ -1173,8 +1179,6 @@ DQUnpackDictMatMulCWu::DQUnpackDictMatMulCWu(Context::Ref ctx) {
         auto matched_result = std::static_pointer_cast<ov::op::v0::Result>(matched_node_res);
 
         auto qcoeff_shape = matched_qcoeff->output(0).get_shape();
-        auto qzerop_shape = matched_qzerop->output(0).get_shape();
-        auto act_shape = matched_mmi.get_shape();
 
         if (ov::element::u8 == matched_qweight->get_element_type() && qcoeff_shape[1] == 1 &&
             !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
@@ -1228,8 +1232,7 @@ DQUnpackDictMatMulGQi::DQUnpackDictMatMulGQi(Context::Ref ctx) {
         auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
         auto matched_result = std::static_pointer_cast<ov::op::v0::Result>(matched_node_res);
 
-        auto qcoeff_shape = matched_qcoeff->output(0).get_shape();
-        auto act_shape = matched_mmi.get_shape();
+        const auto& qcoeff_shape = matched_qcoeff->output(0).get_shape();
 
         if (ov::element::i4 == matched_qweight->get_element_type() && qcoeff_shape.size() == 3) {
             auto new_cvt_a = std::make_shared<ov::op::v0::Convert>(matched_mmi, ov::element::f16);
