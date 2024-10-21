@@ -15,7 +15,6 @@ OpenvinoVersion::OpenvinoVersion(const std::string& version) {
 void OpenvinoVersion::read(std::istream& stream) {
     // compare here ov version?
     stream.read(reinterpret_cast<char*>(&size), sizeof(size));
-    version.resize(size);
     stream.read(&version[0], size);
 }
 
@@ -29,6 +28,7 @@ std::stringstream Metadata<1, 0>::data() const {
     stream.write(reinterpret_cast<const char*>(&version.major), sizeof(version.major));
     stream.write(reinterpret_cast<const char*>(&version.minor), sizeof(version.minor));
 
+    stream.write(reinterpret_cast<const char*>(&ovVersion.size), sizeof(ovVersion.size));
     stream.write(ovVersion.version.c_str(), ovVersion.version.size());
 
     return stream;
