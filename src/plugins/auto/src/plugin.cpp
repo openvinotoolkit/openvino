@@ -404,8 +404,31 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
         support_devices = filter_device_by_model(support_devices_by_property, model, load_config);
         cloned_model = model->clone();
     } else {
-        // AUTO / MULTI don't support caching explicitly, but can redirect this functionality to actual HW plugin
         LOG_INFO_TAG("compile model with model path");
+        auto iter_plugin_cache_dir = properties.find(ov::cache_dir.name());
+        std::string cache_dir =
+            iter_plugin_cache_dir != properties.end() ? iter_plugin_cache_dir->second.as<std::string>() : "";
+        if (cache_dir.empty()) {
+            try {
+                cache_dir = get_core()->get_property("", ov::cache_dir);
+            } catch (std::exception&) {
+                LOG_DEBUG_TAG("Failed to get property %s from core", ov::cache_dir.name());
+            }
+        }
+        if (work_mode_auto && cache_dir.empty()) {
+            // cache disable and will read model first here
+            LOG_DEBUG_TAG("Try to read model via core from model path: %s", model_path.c_str());
+            try {
+                cloned_model = get_core()->read_model(model_path, std::string{});
+            } catch (const ov::Exception&) {
+                OPENVINO_THROW("Failed to read model from model path:%s", model_path.c_str());
+            }
+            support_devices = filter_device_by_model(support_devices_by_property, cloned_model, load_config);
+        } else {
+            // cache enabled and will pass model path into schedule
+            LOG_DEBUG_TAG("Will pass model path into auto schedule: %s", model_path.c_str());
+            auto_s_context->m_model_path = model_path;
+        }
     }
     if (!is_cumulative) {
         devices_with_priority = get_valid_device(support_devices, model_precision);
@@ -427,7 +450,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     }
     // clone the model, in case of reshape conflict
     auto_s_context->m_model = cloned_model;
-    auto_s_context->m_model_path = model_path;
     auto_s_context->m_device_priorities = support_devices;
     auto_s_context->m_device_priorities_initial = std::move(support_devices);
     auto_s_context->m_str_devices = std::move(str_devices);
