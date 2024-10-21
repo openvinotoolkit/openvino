@@ -8,12 +8,12 @@
 #include <ze_graph_ext.h>
 
 #include "intel_npu/utils/logger/logger.hpp"
+#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "npu.hpp"
 #include "zero_executor.hpp"
 #include "zero_pipeline.hpp"
 #include "zero_profiling.hpp"
 #include "zero_remote_tensor.hpp"
-#include "zero_utils.hpp"
 #include "zero_wrappers.hpp"
 
 namespace intel_npu {
