@@ -233,7 +233,11 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
             return false;
         }
         ModelProto* model_proto_ptr = static_cast<ModelProto*>(model_proto_addr);
-        if (!model_proto_ptr->has_ir_version() || model_proto_ptr->ir_version() > Version::IR_VERSION) {
+        try {
+            if (!model_proto_ptr->has_ir_version() || model_proto_ptr->ir_version() > Version::IR_VERSION) {
+                return false;
+            }
+        } catch (...) {
             return false;
         }
         return true;
