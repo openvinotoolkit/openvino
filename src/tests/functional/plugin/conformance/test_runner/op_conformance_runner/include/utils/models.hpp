@@ -44,7 +44,7 @@ get_model_paths(const std::vector<std::string>& conformance_ir_paths,
         std::vector<std::string> filelist;
         // Looking for any applicable files in a folders
         for (const auto& conformance_ir_path : conformance_ir_paths) {
-            std::vector<std::string> tmp_buf;
+            std::vector<ov::util::Path> tmp_buf;
             if (ov::util::directory_exists(conformance_ir_path)) {
                 tmp_buf = ov::util::get_filelist_recursive({conformance_ir_path}, {std::regex(R"(.*\.xml)")});
             } else if (ov::util::file_exists(conformance_ir_path)) {
@@ -56,25 +56,20 @@ get_model_paths(const std::vector<std::string>& conformance_ir_paths,
             for (auto& val : tmp_buf) {
                 bool is_op = false;
 #ifdef _WIN32
-                for (auto it = val.begin(); it != val.end(); ++it) {
-                    if (*it == '/')
-                        val.replace(it, it + 1, ov::test::utils::FileSeparator);
-                }
+                val.make_preferred();
 #endif
-                for (const auto& path_item : ov::test::utils::splitStringByDelimiter(val, ov::test::utils::FileSeparator)) {
-                    auto tmp_path_item = path_item;
-                    auto pos = tmp_path_item.find('-');
-                    if (pos != std::string::npos) {
-                        tmp_path_item = tmp_path_item.substr(0, pos);
-                    }
+                for (const auto& path_item : ov::test::utils::splitStringByDelimiter(val.string(), ov::test::utils::FileSeparator)) {
+                    auto pos = path_item.find('-');
+                    auto tmp_path_item = pos == std::string::npos ? path_item : path_item.substr(0, pos);
+
                     if (op_filelist.find(tmp_path_item) != op_filelist.end()) {
-                        op_filelist[tmp_path_item].push_back({val, get_ref_path(val)});
+                        op_filelist[tmp_path_item].push_back({val.string(), get_ref_path(val.string())});
                         is_op = true;
                         break;
                     }
                 }
                 if (!is_op) {
-                    op_filelist["undefined"].push_back({val, get_ref_path(val)});
+                    op_filelist["undefined"].push_back({val.string(), get_ref_path(val.string())});
                 }
             }
         }
