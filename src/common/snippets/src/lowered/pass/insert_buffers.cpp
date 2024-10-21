@@ -278,13 +278,6 @@ bool InsertBuffers::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begi
                 return expr->get_node() == inplace_from;
             });
             // find based on rt info as maybe inplace_from node is changed by transformation
-            for (auto pos_it = begin; pos_it != end; pos_it++) {
-                const auto& rt_info_consumer = (*pos_it)->get_node()->get_rt_info();
-                const auto& it = rt_info_consumer.find("inplace_source_index");
-                if (it != rt_info_consumer.end()) {
-                    std::cout << "test:" << (it->second).as<size_t>() << std::endl;
-                }
-            }
             if (inplace_from_expr == end) {
                 std::cout << "inplace buffer_expr inplace from not find by pointer" << std::endl;
                 const auto& rt_info_consumer = expr->get_node()->get_rt_info();
@@ -294,11 +287,6 @@ bool InsertBuffers::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begi
                 inplace_from_expr = std::find_if(begin, end, [&](const ExpressionPtr& expr_pool) {
                     const auto& rt_info = expr_pool->get_node()->get_rt_info();
                     const auto& it = rt_info.find("inplace_source_index");
-                    std::cout << "find.........." << std::endl;
-                    if (it != rt_info.end()) {
-                        std::cout << "find inplace_from" << std::endl;
-                        std::cout << "it->second:" << (it->second).as<size_t>() << std::endl;
-                    }
                     return (it != rt_info.end()) && ((it->second).as<size_t>() == inplace_consumer_index);
                 });
             }
@@ -319,7 +307,7 @@ bool InsertBuffers::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begi
                 auto child = it->get_expr()->get_node();
                 if (ov::as_type_ptr<op::Buffer>(child) || ov::as_type_ptr<ov::op::v0::Result>(child)) {
                     buffer_expr->set_inplace_from(child);
-                    reset_to_child = false;
+                    reset_to_child = true;
                     break;
                 }
             }
@@ -338,33 +326,13 @@ bool InsertBuffers::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begi
                 }
             };
             auto pos = get_pos(expr);
+            pos++;
+            std::cout << "insert pos:" << (*pos)->get_node()->get_friendly_name() << std::endl;
 
             auto buffer_loop_ids = std::vector<size_t>{};
             auto input =(*inplace_from_expr)->get_output_port_connectors();
             std::set<ExpressionPort> potential_consumers;
             linear_ir.insert_node(buffer, input, buffer_loop_ids, false, pos, potential_consumers);
-
-            // const auto& inplace_from = inplace_buffer->get_inplace_from();  // max
-            // auto child = inplace_from->get_output_target_inputs(0).begin()->get_node(); // sub
-            // if (ov::is_type<ov::op::v0::Result>(child) || ov::is_type<op::Buffer>(child)) {
-            //     continue; // already have memory that share, no need to allocate
-            // } else {
-            //     // inplace from inplace_from node output, if inplace_from is not stored, need insert buffer after inplace_from is used.
-            //     auto buffer = std::make_shared<op::IntermediateMemoryBuffer>(inplace_from->output(0));
-            //     const auto pos = std::find_if(begin, end, [&child](const ExpressionPtr& expr) {
-            //          return expr->get_node().get() == child;
-            //     });
-            //     const auto inplace_from_expr = std::find_if(begin, end, [&inplace_from](const ExpressionPtr& expr) {
-            //          return expr->get_node() == inplace_from;
-            //     });
-            //     OPENVINO_ASSERT(pos != end, "can not find inplace_from node for InplaceMemoryBuffer.");
-            //     auto buffer_loop_ids = std::vector<size_t>{};
-            //     auto input =(*inplace_from_expr)->get_output_port_connectors();
-            //     std::set<ExpressionPort> potential_consumers = input[0]->get_consumers();
-            //     // insert buffer, with input of inplace_from output connectors.
-            //     linear_ir.insert_node(
-            //         buffer, input, buffer_loop_ids, false, pos, potential_consumers);
-            // }
         }
     }
 
