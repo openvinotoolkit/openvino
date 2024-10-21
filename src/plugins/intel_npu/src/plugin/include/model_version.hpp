@@ -28,6 +28,7 @@ struct OpenvinoVersion {
 struct MetadataBase {
     virtual void read(std::istream& stream) = 0;
     virtual void write(std::ostream& stream) = 0;
+    virtual bool isCompatible(const MetadataBase& other) const = 0;
     virtual ~MetadataBase() = default;
 };
 
@@ -46,10 +47,13 @@ struct Metadata<1, 0> : public MetadataBase {
     void write(std::ostream& stream) override;
 
     void read(std::istream& stream) override;
+
+    bool isCompatible(const MetadataBase& other) const override;
 };
 
 std::unique_ptr<MetadataBase> createMetadata(int major, int minor);
 
+void check_blob_compatibility(const MetadataBase& meta1, const MetadataBase& meta2);
 void check_blob_version(std::vector<uint8_t>& blob);
 
 } // namespace intel_npu

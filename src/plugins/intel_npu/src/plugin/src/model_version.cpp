@@ -15,6 +15,7 @@ OpenvinoVersion::OpenvinoVersion(const std::string& version) {
 void OpenvinoVersion::read(std::istream& stream) {
     // compare here ov version?
     stream.read(reinterpret_cast<char*>(&size), sizeof(size));
+    version.resize(size);
     stream.read(&version[0], size);
 }
 
@@ -46,8 +47,19 @@ std::unique_ptr<MetadataBase> createMetadata(int major, int minor) {
     if (major == 1 && minor == 0) {
         return std::make_unique<Metadata<1, 0>>();
     } else {
-        OPENVINO_THROW("Unsupported metadata version.");
+        OPENVINO_THROW("Unsupported metadata version!");
     }
+}
+
+bool Metadata<1, 0>::isCompatible(const MetadataBase& other) const {
+    const auto* otherMeta = dynamic_cast<const Metadata<1, 0>*>(&other);
+    if (otherMeta) {
+        std::cout << "ourMetaOV:\n" << ovVersion.version << "blobMetaOV: " << otherMeta->ovVersion.version << '\n';
+        return version.major == otherMeta->version.major &&
+               version.minor == otherMeta->version.minor &&
+               ovVersion.version == otherMeta->ovVersion.version;
+    }
+    return false;
 }
 
 void check_blob_version(std::vector<uint8_t>& blob) {
@@ -55,7 +67,7 @@ void check_blob_version(std::vector<uint8_t>& blob) {
     auto metadataIterator = blob.end() - sizeof(blobDataSize);
     memcpy(&blobDataSize, &(*metadataIterator), sizeof(blobDataSize));
     if (blobDataSize >= blob.size() - sizeof(blobDataSize)) {
-        OPENVINO_THROW("Imported blob is not versioned");
+        OPENVINO_THROW("Imported blob is not versioned!");
     }
 
     metadataIterator = blob.begin() + blobDataSize;
@@ -65,15 +77,19 @@ void check_blob_version(std::vector<uint8_t>& blob) {
     std::string blobVersionHeader(DELIMITER.size(), '\0');
     metadataStream.read(&blobVersionHeader[0], DELIMITER.size());
     if (DELIMITER != blobVersionHeader) {
-        OPENVINO_THROW("Version header mismatch or missing");
+        OPENVINO_THROW("Version header mismatch or missing!");
     }
 
     MetadataVersion metaVersion;
     metadataStream.read(reinterpret_cast<char*>(&metaVersion.major), sizeof(metaVersion.major));
     metadataStream.read(reinterpret_cast<char*>(&metaVersion.minor), sizeof(metaVersion.minor));
 
-    auto meta = createMetadata(metaVersion.major, metaVersion.minor);
-    meta->read(metadataStream);
+    auto blobMeta = createMetadata(metaVersion.major, metaVersion.minor);
+    blobMeta->read(metadataStream);
+    auto ourMeta = Metadata<CURRENT_METAVERSION_MAJOR, CURRENT_METAVERSION_MINOR>();
+    if (!ourMeta.isCompatible(*blobMeta)) {
+        OPENVINO_THROW("Incompatible blob metadata version!");
+    }
 }
 
 } // namespace intel_npu
