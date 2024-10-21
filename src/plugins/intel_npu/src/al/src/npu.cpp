@@ -59,6 +59,10 @@ uint64_t IDevice::getTotalMemSize() const {
     OPENVINO_THROW("Get TotalMemSize is not supported");
 }
 
+uint64_t IDevice::getMaxMemAllocSize() const {
+    OPENVINO_THROW("Get MaxMemAllocSize is not supported");
+}
+
 ov::device::PCIInfo IDevice::getPciInfo() const {
     OPENVINO_THROW("Get PCIInfo is not supported");
 }
