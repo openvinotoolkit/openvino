@@ -110,7 +110,7 @@ Prerequisites
     remote: Counting objects: 100% (76/76), done.[K
     remote: Compressing objects: 100% (42/42), done.[K
     remote: Total 233 (delta 54), reused 34 (delta 34), pack-reused 157 (from 1)[K
-    Receiving objects: 100% (233/233), 13.34 MiB | 21.85 MiB/s, done.
+    Receiving objects: 100% (233/233), 13.34 MiB | 17.27 MiB/s, done.
     Resolving deltas: 100% (80/80), done.
 
 
@@ -406,10 +406,10 @@ Perform model quantization
 
 .. parsed-literal::
 
-    2024-09-23 23:58:13.958747: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-09-23 23:58:13.997019: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-10-07 23:39:33.824396: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-10-07 23:39:33.863560: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-09-23 23:58:14.401686: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-10-07 23:39:34.271973: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 
@@ -517,7 +517,7 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 41.97 ms
+    [ INFO ] Read model took 41.88 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     x (node: x) : f32 / [...] / [1,3,512,512]
@@ -533,7 +533,7 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ INFO ] Model outputs:
     [ INFO ]     ***NO_NAME*** (node: __module.refine_net.0.0/aten::_convolution/Add) : f32 / [...] / [1,2,512,512]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 1287.31 ms
+    [ INFO ] Compile model took 1324.47 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -570,17 +570,17 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ INFO ] Fill input 'x' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 542.48 ms
+    [ INFO ] First inference took 546.73 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
     [ INFO ] Count:            78 iterations
-    [ INFO ] Duration:         17349.82 ms
+    [ INFO ] Duration:         17576.14 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        1320.11 ms
-    [ INFO ]    Average:       1317.01 ms
-    [ INFO ]    Min:           1079.53 ms
-    [ INFO ]    Max:           1425.66 ms
-    [ INFO ] Throughput:   4.50 FPS
+    [ INFO ]    Median:        1343.65 ms
+    [ INFO ]    Average:       1345.58 ms
+    [ INFO ]    Min:           1275.53 ms
+    [ INFO ]    Max:           1422.57 ms
+    [ INFO ] Throughput:   4.44 FPS
 
 
 .. code:: ipython3
@@ -606,7 +606,7 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 67.62 ms
+    [ INFO ] Read model took 68.76 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     x (node: x) : f32 / [...] / [1,3,512,512]
@@ -622,7 +622,7 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ INFO ] Model outputs:
     [ INFO ]     ***NO_NAME*** (node: __module.refine_net.0.0/aten::_convolution/Add) : f32 / [...] / [1,2,512,512]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 2228.26 ms
+    [ INFO ] Compile model took 2200.26 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -659,17 +659,17 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ INFO ] Fill input 'x' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 271.91 ms
+    [ INFO ] First inference took 278.04 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            162 iterations
-    [ INFO ] Duration:         16058.72 ms
+    [ INFO ] Count:            156 iterations
+    [ INFO ] Duration:         15666.14 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        587.59 ms
-    [ INFO ]    Average:       589.02 ms
-    [ INFO ]    Min:           480.70 ms
-    [ INFO ]    Max:           660.90 ms
-    [ INFO ] Throughput:   10.09 FPS
+    [ INFO ]    Median:        590.73 ms
+    [ INFO ]    Average:       595.46 ms
+    [ INFO ]    Min:           292.79 ms
+    [ INFO ]    Max:           702.51 ms
+    [ INFO ] Throughput:   9.96 FPS
 
 
 Interactive inference
