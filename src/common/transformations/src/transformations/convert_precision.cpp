@@ -29,7 +29,7 @@ bool fuse_type_to_parameter(const std::shared_ptr<ov::Node>& node,
                             bool convert_input_precision);
 
 // this function inserts Convert operations to 'data' input and outputs of `node`
-// to execute 'node' with the original type.
+// to execute 'node' with the original type. This function supports nodes with single output.
 bool wrap_into_original_type(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
 bool store_original_type_as_attribute(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
 
@@ -243,8 +243,8 @@ bool convert_function_precision(const std::shared_ptr<Model>& f,
     auto register_constants = [&const_to_internal_output](const std::vector<std::shared_ptr<Node>>& ops) {
         for (auto& node : ops) {
             for (auto& input : node->inputs()) {
-                if (auto const_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(
-                        input.get_source_output().get_node_shared_ptr())) {
+                if (auto const_node =
+                        ov::as_type_ptr<ov::op::v0::Constant>(input.get_source_output().get_node_shared_ptr())) {
                     const_to_internal_output[const_node.get()].emplace_back(input);
                 }
             }
@@ -302,7 +302,7 @@ bool convert_function_precision(const std::shared_ptr<Model>& f,
         // TODO: we need to split NopElimination pass to separate MatcherPasses and call
         // Convert elimination here
         for (auto& node : ops) {
-            if (auto convert = std::dynamic_pointer_cast<ov::op::v0::Convert>(node)) {
+            if (auto convert = ov::as_type_ptr<ov::op::v0::Convert>(node)) {
                 if (pass::constant_folding_is_disabled(node))
                     continue;
                 // WA for topK, dont remove fake convert
@@ -622,17 +622,20 @@ bool wrap_into_original_type(const std::shared_ptr<ov::Node>& node, const precis
 
     const auto& to = it->second;
     const auto& from = it->first;
-
-    auto convert_before = std::make_shared<ov::op::v0::Convert>(node->input_value(0), from);
-    node->input(0).replace_source_output(convert_before);
-    auto consumers = node->output(0).get_target_inputs();
-    auto convert_after = std::make_shared<ov::op::v0::Convert>(node, to);
-    for (auto& input : consumers) {
-        const auto consumer = input.get_node();
-        if (ov::is_type<ov::op::v0::Result>(consumer) || ov::is_type<ov::op::v0::Convert>(consumer)) {
-            continue;
+    if (node->get_input_size()) {
+        auto convert_before = std::make_shared<ov::op::v0::Convert>(node->input_value(0), from);
+        node->input(0).replace_source_output(convert_before);
+    }
+    if (node->get_output_size() == 1) {
+        auto consumers = node->output(0).get_target_inputs();
+        auto convert_after = std::make_shared<ov::op::v0::Convert>(node, to);
+        for (auto& input : consumers) {
+            const auto consumer = input.get_node();
+            if (ov::is_type<ov::op::v0::Result>(consumer) || ov::is_type<ov::op::v0::Convert>(consumer)) {
+                continue;
+            }
+            input.replace_source_output(convert_after);
         }
-        input.replace_source_output(convert_after);
     }
 
     return true;
@@ -982,7 +985,7 @@ bool fuse_type_to_shapeof_v0(const std::shared_ptr<ov::Node>& node, const precis
     if (auto type_relaxed = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(node)) {
         type_relaxed->set_overridden_output_type(to);
         return true;
-    } else if (auto casted = std::dynamic_pointer_cast<ov::op::v0::ShapeOf>(node)) {
+    } else if (auto casted = ov::as_type_ptr<ov::op::v0::ShapeOf>(node)) {
         auto relaxed_op = std::make_shared<ov::op::TypeRelaxed<ov::op::v0::ShapeOf>>(*casted,
                                                                                      ov::element::TypeVector{},
                                                                                      ov::element::TypeVector{to});
@@ -996,7 +999,7 @@ bool extend_select_type(const std::shared_ptr<ov::Node>& node, const precisions_
     if (auto type_relaxed = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(node)) {
         type_relaxed->set_origin_input_type(ov::element::boolean, 0);
         return true;
-    } else if (auto casted = std::dynamic_pointer_cast<ov::op::v1::Select>(node)) {
+    } else if (auto casted = ov::as_type_ptr<ov::op::v1::Select>(node)) {
         auto relaxed_op =
             std::make_shared<op::TypeRelaxed<ov::op::v1::Select>>(*casted,
                                                                   ov::element::TypeVector{ov::element::boolean},

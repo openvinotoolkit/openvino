@@ -4,6 +4,7 @@
 
 #include "plugin.h"
 
+#include "cpu_streams_calculation.hpp"
 #include "internal_properties.hpp"
 #include "itt.h"
 #include "openvino/runtime/intel_cpu/properties.hpp"
@@ -11,13 +12,14 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
-#include "openvino/util/codec_xor.hpp"
-#include "serialize.h"
 #include "transformations/transformation_pipeline.h"
 #include "transformations/utils/utils.hpp"
+#include "utils/codec_xor.hpp"
 #include "utils/denormals.hpp"
 #include "utils/precision_support.h"
+#include "utils/serialize.hpp"
 #include "weights_cache.hpp"
+#include "openvino/op/paged_attention.hpp"
 
 #if defined(__linux__)
 #    include <signal.h>
@@ -192,54 +194,16 @@ void Plugin::calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& m
     }
 }
 
-static bool shouldEnableLPT(const ov::AnyMap& modelConfig, const Config& engineConfig) {
-    const auto& enableLPT = modelConfig.find(ov::intel_cpu::lp_transforms_mode.name());
-    if (enableLPT == modelConfig.end())  // model config has higher priority
-        return engineConfig.lpTransformsMode == Config::LPTransformsMode::On;
-
-    try {
-        return enableLPT->second.as<bool>();
-    } catch (ov::Exception&) {
-        OPENVINO_THROW("Wrong value ",
-                       enableLPT->second.as<std::string>(),
-                       " for property key LP_TRANSFORMS_MODE. Expected values: YES/NO");
-    }
-}
-
-static ov::element::Type getInferencePrecision(const ov::AnyMap& modelConfig,
-                                               const Config& engineConfig,
-                                               Config::ModelType modelType) {
-    Config tempConf = engineConfig;
-    tempConf.readProperties(modelConfig, modelType);
-    return tempConf.inferencePrecision;
-}
-
 static Config::ModelType getModelType(const std::shared_ptr<const Model>& model) {
     if (op::util::has_op_with_type<op::v1::Convolution>(model) ||
         op::util::has_op_with_type<op::v1::ConvolutionBackpropData>(model))
         return Config::ModelType::CNN;
-    
-    if (op::util::has_op_with_type<op::v13::ScaledDotProductAttention>(model) &&
-        model->get_variables().size() > 0)
+
+    if ((op::util::has_op_with_type<op::v13::ScaledDotProductAttention>(model) && model->get_variables().size() > 0) ||
+         op::util::has_op_with_type<ov::op::PagedAttentionExtension>(model))
         return Config::ModelType::LLM;
 
     return Config::ModelType::Unknown;
-}
-
-static Config::SnippetsMode getSnippetsMode(const ov::AnyMap& modelConfig, const Config& engineConfig) {
-    const auto& snippetsMode = modelConfig.find(ov::intel_cpu::snippets_mode.name());
-    if (snippetsMode == modelConfig.end())    // not set explicitly
-        return Config::SnippetsMode::Enable;  // enable by default
-
-    const auto& val = snippetsMode->second.as<std::string>();
-    if (val == ov::util::to_string(ov::intel_cpu::SnippetsMode::IGNORE_CALLBACK))
-        return Config::SnippetsMode::IgnoreCallback;
-    else if (val == ov::util::to_string(ov::intel_cpu::SnippetsMode::DISABLE))
-        return Config::SnippetsMode::Disable;
-    else if (val == ov::util::to_string(ov::intel_cpu::SnippetsMode::ENABLE))
-        return Config::SnippetsMode::Enable;
-    else
-        OPENVINO_THROW("Wrong value for property key SNIPPETS_MODE. Expected values: ENABLE/DISABLE/IGNORE_CALLBACK");
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
@@ -276,26 +240,23 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     auto config = orig_config;
     const std::shared_ptr<ov::Model> cloned_model = model->clone();
-    const bool enableLPT = shouldEnableLPT(config, engConfig);
     Config::ModelType modelType = getModelType(model);
-    ov::element::Type inferencePrecision = getInferencePrecision(config, engConfig, modelType);
-    const Config::SnippetsMode snippetsMode = getSnippetsMode(config, engConfig);
     DEBUG_LOG(PrintableModel(*cloned_model, "org_"));
 
     // update the props after the perf mode translated to configs
     // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
     Config conf = engConfig;
+    conf.readProperties(config, modelType);
 
-    Transformations transformations(cloned_model, enableLPT, inferencePrecision, snippetsMode, conf);
+    Transformations transformations(cloned_model, conf);
 
     transformations.UpToLpt();
 
-    conf.readProperties(config, modelType);
     calculate_streams(conf, cloned_model);
 
     if (!conf.cacheEncrypt || !conf.cacheDecrypt) {
-        conf.cacheEncrypt = ov::util::codec_xor;
-        conf.cacheDecrypt = ov::util::codec_xor;
+        conf.cacheEncrypt = codec_xor_str;
+        conf.cacheDecrypt = codec_xor_str;
     }
 
     transformations.PostLpt();
@@ -485,6 +446,9 @@ ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& optio
     } else if (ov::internal::supported_properties == name) {
         return decltype(ov::internal::supported_properties)::value_type{
             ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
+#if !defined(OPENVINO_ARCH_ARM) && !(defined(__APPLE__) || defined(__MACOSX))
+            ov::PropertyName{ov::internal::caching_with_mmap.name(), ov::PropertyMutability::RO},
+#endif
             ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
             ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::internal::compiled_model_runtime_properties_supported.name(),
@@ -557,18 +521,12 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     Config::ModelType modelType = getModelType(model);
     conf.readProperties(config, modelType);
 
-    const auto& lptProp = config.find(ov::intel_cpu::lp_transforms_mode.name());
-    const bool enableLPT =
-        (lptProp != config.end() && lptProp->second.as<bool>() == true) /* enabled in the orig_config*/
-        || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled */;
-    const Config::SnippetsMode snippetsMode = getSnippetsMode(config, conf);
-
     auto context = std::make_shared<GraphContext>(conf, fake_w_cache, false);
 
     auto supported = ov::get_supported_nodes(
         model,
         [&](std::shared_ptr<ov::Model>& model) {
-            Transformations transformation(model, enableLPT, conf.inferencePrecision, snippetsMode, engConfig);
+            Transformations transformation(model, conf);
             transformation.UpToLpt();
             transformation.PostLpt();
             transformation.Snippets();
@@ -592,25 +550,24 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     return res;
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& networkModel, const ov::AnyMap& config) const {
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_stream,
+                                                         const ov::AnyMap& config) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "import_model");
 
-    std::function<std::string(const std::string&)> decrypt;
+    CacheDecrypt decrypt{ codec_xor };
+    bool decript_from_string = false;
     if (config.count(ov::cache_encryption_callbacks.name())) {
         auto encryption_callbacks = config.at(ov::cache_encryption_callbacks.name()).as<EncryptionCallbacks>();
-        decrypt = encryption_callbacks.decrypt;
-    }
-
-    if (!decrypt) {
-        decrypt = ov::util::codec_xor;
+        decrypt.m_decrypt_str = encryption_callbacks.decrypt;
+        decript_from_string = true;
     }
 
     ModelDeserializer deserializer(
-        networkModel,
-        [this](const std::string& model, const ov::Tensor& weights) {
-            return get_core()->read_model(model, weights, true);
+        model_stream,
+        [this](const std::shared_ptr<ov::AlignedBuffer>& model, const std::shared_ptr<ov::AlignedBuffer>& weights) {
+            return get_core()->read_model(model, weights);
         },
-        std::move(decrypt));
+        decrypt, decript_from_string);
 
     std::shared_ptr<ov::Model> model;
     deserializer >> model;

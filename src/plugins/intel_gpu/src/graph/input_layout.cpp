@@ -37,8 +37,11 @@ input_layout_inst::typed_primitive_inst(network& network, input_layout_node cons
 event::ptr input_layout_inst::set_data(memory::ptr mem, bool need_to_check_memory_to_set) {
     auto ol = get_node_output_layout();
 
-    if (need_to_check_memory_to_set)
+    bool empty_mem = mem->size() == 0 && (ol.is_dynamic() || ol.count() == 0);
+    if (!empty_mem || need_to_check_memory_to_set) {
         check_memory_to_set(*mem, ol);
+    }
+
     event::ptr ev = nullptr;
     auto& engine = get_network().get_engine();
     auto& stream = get_network().get_stream();
