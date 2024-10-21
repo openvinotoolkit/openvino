@@ -764,7 +764,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
 #define MAKE_DQ_TYPE_VEC(x)                 MAKE_VECTOR_TYPE(DQ_TYPE, x)
 
 #define TO_DQ_TYPE(x)                       CAT(CAT(convert_, DQ_TYPE),_sat)(x)
-#define TO_FILTER_TYPE(x)                       CAT(CAT(convert_, FILTER_TYPE),_sat)(x)
+//#define TO_FILTER_TYPE(x)                   CAT(CAT(convert_, FILTER_TYPE),_sat)(x)
 #define TO_DQ_VEC_TYPE(x)                   CAT(convert_, DQ_VEC_TYPE)(x)
 #define TO_ACCUM_DQ_TYPE(x)                 CAT(convert_, ACCUM_DQ_TYPE)(x)
 #define TO_DQ_SLM_FILTER_UNPACKED_VEC(x)    CAT(convert_, DQ_SLM_FILTER_UNPACKED_VEC)(x)
@@ -788,7 +788,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
 #endif
     __global OUTPUT_TYPE* output,
     const __global FILTER_TYPE* weights
-    , __local int* wei_local_mem
+    , __local uint* wei_local_mem
 #if BIAS_TERM
     , const __global BIAS_TYPE* biases
 #endif
@@ -904,7 +904,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
             // Load quantizing info from pre-quantizing kernel
             tiled_input_0[bi] = vload4(0, &quantized_input[in_offset]);
             // Packing : Get 4(B)x4(K) integer vector (packing to 4x1 vector)
-            packed_in_0[bi] = as_int(tiled_input_0[bi]);
+            packed_in_0[bi] = as_uint(tiled_input_0[bi]);
 
             // Next batch
             in_offset += (TILE_IN_B_PITCH * 2);
@@ -951,7 +951,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
             barrier(CLK_LOCAL_MEM_FENCE);
         #endif
 
-        __local int* char_slm_weight = (__local int*)wei_local_mem;
+        __local uint* char_slm_weight = (__local uint*)wei_local_mem;
 
         #if COMPRESSED_WEIGHTS_INT4
             #if FILTER_LAYOUT_OS_IS_YX_OSV64_ISV2
@@ -1040,36 +1040,32 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                         #endif
 
                         const uint ni_offset = ni * TILE_IFM * SIMD + local_id * FILTER_LOAD_ITERS * FILTER_LOAD_BLOCK_SIZE;
-                        unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
-                            const uint offset_ofm = out_f + fi*SIMD + sglid;
-                            const uint offset_ifm = ni_offset + load_iter * FILTER_LOAD_BLOCK_SIZE;
-                            const uint zp_offset = (offset_ofm % DECOMPRESSION_ZP_BATCH_NUM) * DECOMPRESSION_ZP_BATCH_PITCH +
-                                                    (offset_ifm / DECOMPRESSION_ZP_GROUP_SIZE) * DECOMPRESSION_ZP_FEATURE_PITCH;
-                            wei_zp[fi] = TO_ACCUMULATOR_TYPE(decompression_zp[zp_offset]);
-                        }
+                        const uint offset_ofm = out_f + fi*SIMD + sglid;
+                        const uint offset_ifm = ni_offset + load_iter * FILTER_LOAD_BLOCK_SIZE;
+                        const uint zp_offset = (offset_ofm % DECOMPRESSION_ZP_BATCH_NUM) * DECOMPRESSION_ZP_BATCH_PITCH +
+                                                (offset_ifm / DECOMPRESSION_ZP_GROUP_SIZE) * DECOMPRESSION_ZP_FEATURE_PITCH;
+                        wei_zp[fi] = TO_ACCUMULATOR_TYPE(decompression_zp[zp_offset]);
                     #else
-                        unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
-                            wei_zp[fi] = TO_ACCUMULATOR_TYPE(d_zps[fi % DECOMPRESSION_ZP_LENGTH]);
-                        }
+                        wei_zp[fi] = TO_ACCUMULATOR_TYPE(d_zps[fi % DECOMPRESSION_ZP_LENGTH]);
                     #endif
                 }
             #endif
 
             #if FILTER_LOAD_BLOCK_SIZE == 2
                 DQ_SLM_FILTER_VEC wei_1 = {dq_wei_unpacked.s01, dq_wei_unpacked.s23};
-                char_slm_weight[wei_local_idx] = as_int(wei_1);
+                char_slm_weight[wei_local_idx] = as_uint(wei_1);
             #elif FILTER_LOAD_BLOCK_SIZE == 4
                 DQ_SLM_FILTER_VEC wei_1 = {dq_wei_unpacked.s01, dq_wei_unpacked.s23};
-                char_slm_weight[wei_local_idx] = as_int(wei_1);
+                char_slm_weight[wei_local_idx] = as_uint(wei_1);
                 DQ_SLM_FILTER_VEC wei_2 = {dq_wei_unpacked.s45, dq_wei_unpacked.s67};
-                char_slm_weight[wei_local_idx+1] = as_int(wei_2);
+                char_slm_weight[wei_local_idx+1] = as_uint(wei_2);
             #elif FILTER_LOAD_BLOCK_SIZE == 8
                 DQ_SLM_FILTER_VEC wei_1 = {dq_wei_unpacked.s01, dq_wei_unpacked.s23};
-                char_slm_weight[wei_local_idx] = as_int(wei_1);
+                char_slm_weight[wei_local_idx] = as_uint(wei_1);
                 DQ_SLM_FILTER_VEC wei_2 = {dq_wei_unpacked.s45, dq_wei_unpacked.s67};
-                char_slm_weight[wei_local_idx+1] = as_int(wei_2);
+                char_slm_weight[wei_local_idx+1] = as_uint(wei_2);
                 DQ_SLM_FILTER_VEC wei_3 = {dq_wei_unpacked.s89, dq_wei_unpacked.sab};
-                char_slm_weight[wei_local_idx+2] = as_int(wei_3);
+                char_slm_weight[wei_local_idx+2] = as_uint(wei_3);
                 DQ_SLM_FILTER_VEC wei_4 = {dq_wei_unpacked.scd, dq_wei_unpacked.sef};
                 char_slm_weight[wei_local_idx+3] = as_int(wei_4);
             #else
@@ -1077,7 +1073,11 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
             #endif
 
             wei_local_idx += SIMD * (FILTER_LOAD_BLOCK_SIZE/2);
-            weights_idx += SIMD * FILTER_ACTUAL_LOAD_BLOCK_SIZE;
+            #if COMPRESSED_WEIGHTS_INT8
+                weights_idx += SIMD * TILE_K_OFM_PACKED;
+            #else
+                weights_idx += SIMD * FILTER_ACTUAL_LOAD_BLOCK_SIZE;
+            #endif
         }
 
         wei_local_idx = sglid * 2;
@@ -1264,7 +1264,7 @@ KERNEL(fc)(
 ) {
 #if USE_SLM
     #if DYNAMIC_QUANTIZE
-        __local int dq_wei_local_mem[SIMD * TILE_OFM * SIMD];
+        __local uint dq_wei_local_mem[SIMD * TILE_OFM * SIMD];
     #else
         __local ACCUMULATOR_TYPE wei_local_mem[TILE_IFM * SIMD * TILE_OFM * SIMD];
     #endif
