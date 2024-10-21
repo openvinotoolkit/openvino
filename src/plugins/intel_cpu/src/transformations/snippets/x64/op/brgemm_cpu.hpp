@@ -27,10 +27,16 @@ public:
     BrgemmCPU(const Output<Node>& A, const Output<Node>& B, BRGEMM_TYPE type,
               const size_t offset_a = 0, const size_t offset_b = 0, const size_t offset_c = 0,
               std::vector<size_t> layout_a = {}, std::vector<size_t> layout_b = {}, std::vector<size_t> layout_c = {});
+    BrgemmCPU(const Output<Node>& A, const Output<Node>& B, BRGEMM_TYPE type, const Output<Node>& C,
+              const size_t offset_a = 0, const size_t offset_b = 0, const size_t offset_c = 0,
+              std::vector<size_t> layout_a = {}, std::vector<size_t> layout_b = {}, std::vector<size_t> layout_c = {});
     BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Output<Node>& scratch, BRGEMM_TYPE type,
               const size_t offset_a = 0, const size_t offset_b = 0, const size_t offset_scratch = 0, const size_t offset_c = 0,
               std::vector<size_t> layout_a = {}, std::vector<size_t> layout_b = {}, std::vector<size_t> layout_c = {});
     BrgemmCPU(const Output<Node>& A, const Output<Node>& B, BRGEMM_TYPE type,
+              const PortDescriptor& desc_a, const PortDescriptor& desc_b, const PortDescriptor& desc_c,
+              std::vector<size_t> layout_a = {}, std::vector<size_t> layout_b = {}, std::vector<size_t> layout_c = {});
+    BrgemmCPU(const Output<Node>& A, const Output<Node>& B, BRGEMM_TYPE type, const Output<Node>& C,
               const PortDescriptor& desc_a, const PortDescriptor& desc_b, const PortDescriptor& desc_c,
               std::vector<size_t> layout_a = {}, std::vector<size_t> layout_b = {}, std::vector<size_t> layout_c = {});
     BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Output<Node>& scratch, BRGEMM_TYPE type,
@@ -50,10 +56,13 @@ public:
 
     constexpr static size_t SCRATCH_BYTE_SIZE = 32 * 1024;
 
+    bool is_c_pre_scale() const { return has_c_pre_scale; }
+
 private:
     void custom_constructor_validate_and_infer_types(std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c);
     void validate_with_scratchpad() const;
     void validate_inputs() const;
+    bool has_c_pre_scale = false;
 
     BRGEMM_TYPE m_type = BRGEMM_TYPE::STAND_ALONE;
 };

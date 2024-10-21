@@ -59,6 +59,10 @@ bool FuseLoops::can_be_fused(const UnifiedLoopInfoPtr& loop_upper, const Unified
     // We can fuse them into one Loop with work amount `128` and increment `vector size`
     const auto work_amount_upper = loop_upper->get_work_amount(), work_amount_lower = loop_lower->get_work_amount();
     const auto increment_upper = loop_upper->get_increment(), increment_lower = loop_lower->get_increment();
+    // std::cout << "work_amount_upper:" << work_amount_upper << std::endl;
+    // std::cout << "work_amount_lower:" << work_amount_lower << std::endl;
+    // std::cout << "increment_upper:" << increment_upper << std::endl;
+    // std::cout << "increment_lower:" << increment_lower << std::endl;
     const bool is_dynamic_case =
         (utils::is_dynamic_value(work_amount_upper) || utils::is_dynamic_value(work_amount_lower)) && increment_upper == increment_lower;
     const bool equal_parameters =
@@ -76,7 +80,8 @@ bool FuseLoops::can_be_fused(const UnifiedLoopInfoPtr& loop_upper, const Unified
     const auto& inner_splitted_loop_compatible =
         (!ispl_loop_upper && !ispl_loop_lower) ||
         (ispl_loop_upper && ispl_loop_lower && ispl_loop_upper->get_outer_splitted_loop_info() == ispl_loop_lower->get_outer_splitted_loop_info());
-    return first_iter_handlers_match && inner_splitted_loop_compatible && (is_dynamic_case || equal_parameters || bcastable_upper || bcastable_lower);
+    // return first_iter_handlers_match && inner_splitted_loop_compatible && (is_dynamic_case || equal_parameters || bcastable_upper || bcastable_lower);
+    return inner_splitted_loop_compatible && (is_dynamic_case || equal_parameters || bcastable_upper || bcastable_lower);
 }
 
 void FuseLoops::move(LinearIR& linear_ir, const LoopManagerPtr& loop_manager, size_t loop_id,
@@ -149,8 +154,11 @@ bool FuseLoops::fuse_lower_into_current(LinearIR& linear_ir, const LoopManagerPt
                                         LinearIR::constExprIt& current_loop_begin_pos, LinearIR::constExprIt& current_loop_end_pos) {
     const auto& loop_current = loop_manager->get_loop_info<UnifiedLoopInfo>(current_loop_id);
     const auto& loop_target = loop_manager->get_loop_info<UnifiedLoopInfo>(target_loop_id);
-    if (!can_be_fused(loop_current, loop_target))
+    if (!can_be_fused(loop_current, loop_target)) {
+        std::cout << "fuse_lower_into_current can_be_fused is NOT" << std::endl;
         return false;
+    }
+        // return false;
 
     // We can fuse Loop_down to Loop_up only in cases when other parents of Loop_down are before Loop_up
     // Because Loop_down should be explicitly moved after Loop_up in linear IR, and we must save control dependency
@@ -161,12 +169,29 @@ bool FuseLoops::fuse_lower_into_current(LinearIR& linear_ir, const LoopManagerPt
         const auto& parent_expr = parent_expr_output.get_expr();
         if (ov::is_type<ov::op::v0::Parameter>(parent_expr->get_node()) || parent_expr == current_output_port->get_expr())
             continue;
+        std::cout << "parent_expr:" << parent_expr->get_node()->get_friendly_name() << std::endl;
+        for (size_t i = 0; i < parent_expr->get_loop_ids().size(); i++) {
+            std::cout << "parent_expr->get_loop_ids:" << parent_expr->get_loop_ids()[i] << std::endl;
+        }
+        std::cout << "current_loop_id:" << current_loop_id << std::endl;
+        auto a = is_loop_id_found(parent_expr->get_loop_ids(), current_loop_id);
+        auto b = parent_expr->get_exec_num();
+        auto c = (*current_loop_begin_pos)->get_exec_num();
+        std::cout << "is_loop_id_found:" << a << std::endl;
+        std::cout << "parent_expr->get_exec_num():" << b << std::endl;
+        std::cout << "(*current_loop_begin_pos)->get_exec_num():" << c << std::endl;
         is_fusion_allowed = is_loop_id_found(parent_expr->get_loop_ids(), current_loop_id) ||  // The parent expr is from the same current Loop
                             parent_expr->get_exec_num() < (*current_loop_begin_pos)->get_exec_num(); // The parent is before current Loop
+        // is_fusion_allowed = is_loop_id_found(parent_expr->get_loop_ids(), current_loop_id) ||  // The parent expr is from the same current Loop
+        //                     parent_expr->get_exec_num() < (*current_loop_begin_pos)->get_exec_num() ||
+        //                     parent_expr->get_node()->get_friendly_name() == "Buffer_4090"; // The parent is before current Loop
     }
 
-    if (!is_fusion_allowed)
+    if (!is_fusion_allowed) {
+        std::cout << "fuse_lower_into_current is_fusion_allowed is NOT" << std::endl;
         return false;
+    }
+        // return false;
 
     LinearIR::constExprIt target_loop_begin_pos, target_loop_end_pos;
     std::tie(target_loop_begin_pos, target_loop_end_pos) = loop_manager->get_loop_bounds(linear_ir, target_loop_id);
@@ -190,6 +215,8 @@ bool FuseLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
     for (auto expr_it = begin; expr_it != end; expr_it++) {
         const auto expr = *expr_it;
         const auto& node = expr->get_node();
+        const auto node_name = node->get_friendly_name();
+        std::cout << "expr_fuse_loop:" << node_name << std::endl;
         if (ov::is_type<ov::op::v0::Parameter>(node) ||
             ov::is_type<ov::op::v0::Constant>(node) ||
             ov::is_type<ov::op::v0::Result>(node))
@@ -200,6 +227,9 @@ bool FuseLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
         const auto current_loop_depth = current_expr_loops.size();
         for (size_t i = 0; i < current_loop_depth; ++i) {
             const auto current_loop_id = current_expr_loops[i];
+            if (node_name == "PowerStatic_4096") {
+                std::cout << "current_loop_id:" << current_loop_id << std::endl;
+            }
             // If the current Loop ID is in prev fused Loops, it means that on previous step all possible fusions are completed
             if (prev_fused_loops.count(current_loop_id) != 0)
                 continue;
@@ -224,6 +254,10 @@ bool FuseLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
                     const auto parent_expr_output = *input_port.expr_port->get_connected_ports().begin();
                     const auto& parent_expr = parent_expr_output.get_expr();
                     const auto parent = parent_expr->get_node();
+                    // if (ov::is_type<snippets::op::Brgemm>(parent)) {
+                    //     std::cout << "ov::is_type<snippets::op::Brgemm>(parent)" << std::endl;
+                    //     break;
+                    // }
                     if (ov::is_type<ov::op::v0::Constant>(parent) ||
                         ov::is_type<ov::op::v0::Parameter>(parent) ||
                         ov::is_type<op::Buffer>(parent)) {
@@ -245,10 +279,18 @@ bool FuseLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
                         continue;
 
                     const auto upper_loop_id = upper_loop_ids[loop_idx];
-                    OPENVINO_ASSERT(current_loop_id != upper_loop_id,
-                                    "Loops cannot have parents of input ports with the same identifier (", upper_loop_id, ")");
+                    if (current_loop_id == upper_loop_id) {
+                        continue;
+                    }
+                    // OPENVINO_ASSERT(current_loop_id != upper_loop_id,
+                    //                 "Loops cannot have parents of input ports with the same identifier (", upper_loop_id, ")");
                     if (fuse_upper_into_current(linear_ir, loop_manager, input_port.expr_port, current_loop_id, upper_loop_id,
                                                 current_loop_begin_pos, current_loop_end_pos)) {
+                        std::cout << "fuse_upper_into_current ok" << std::endl;
+                        std::cout << "current_loop_id:" << current_loop_id << std::endl;
+                        std::cout << "upper_loop_id:" << upper_loop_id << std::endl;
+                        std::cout << "node:" << node->get_friendly_name() << std::endl;
+                        std::cout << "parent:" << parent->get_friendly_name() << std::endl;
                         was_fusion_up = true;
                         prev_fused_loops.insert(current_loop_id);
                         current_loop_info = loop_manager->get_loop_info(current_loop_id);
@@ -262,14 +304,37 @@ bool FuseLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
                 // Loop_0 (Current)    Loop_0 + Loop_1 => new `Loop_0`
                 //   |               =>           |
                 // Loop_1 (Lower)                 |
+                if (node_name == "PowerStatic_4096") {
+                    std::cout << "start fusion_down" << std::endl;
+                }
                 bool was_fusion_down = false;
                 const auto& output_ports = current_loop_info->get_output_ports();
                 for (size_t out_port = 0; !was_fusion_down && out_port < output_ports.size(); ++out_port) {
                     const auto& output_port = output_ports[out_port];
                     const auto consumer_exprs_inputs = output_port.expr_port->get_connected_ports();
                     for (const auto& consumer_expr_input : consumer_exprs_inputs) {
-                        const auto& consumer_expr = consumer_expr_input.get_expr();
+                        auto consumer_expr = consumer_expr_input.get_expr();
                         const auto consumer = consumer_expr->get_node();
+                        if (node_name == "PowerStatic_4096") {
+                            std::cout << "PowerStatic_4096 child:" << consumer->get_friendly_name() << std::endl;
+                        }
+                        // if parent of consumer is brgemm, not fuse
+                        // if (ov::is_type<snippets::op::Brgemm>(consumer)) {
+                        //     break;
+                        // }
+                        // bool brgemm_node_as_parent = false;
+                        // const auto& parent_num = consumer_expr->get_input_count();
+                        // for (size_t i = 0; i < parent_num; i++) {
+                        //     const auto& parent = consumer_expr->get_input_port_connector(i)->get_source().get_expr();
+                        //     if (ov::is_type<snippets::op::Brgemm>(parent)) {
+                        //         brgemm_node_as_parent = true;
+                        //         break;
+                        //     }
+                        // }
+                        // if (brgemm_node_as_parent) {
+                        //     break;
+                        // }
+
                         if (ov::is_type<ov::op::v0::Result>(consumer) ||
                             ov::is_type<op::Buffer>(consumer)) {
                             continue;
@@ -294,8 +359,17 @@ bool FuseLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
                         if (current_loop_id == lower_loop_id)
                             continue;
 
+                        if (node_name == "PowerStatic_4096") {
+                            std::cout << "start check fuse_lower_into_current child()" << std::endl;
+                        }
+
                         if (fuse_lower_into_current(linear_ir, loop_manager, output_port.expr_port, current_loop_id, lower_loop_id,
                                                     current_loop_begin_pos, current_loop_end_pos)) {
+                            std::cout << "fuse_lower_into_current ok" << std::endl;
+                            std::cout << "current_loop_id:" << current_loop_id << std::endl;
+                            std::cout << "lower_loop_id:" << lower_loop_id << std::endl;
+                            std::cout << "node:" << node->get_friendly_name() << std::endl;
+                            std::cout << "consumer:" << consumer->get_friendly_name() << std::endl;
                             was_fusion_down = true;
                             prev_fused_loops.insert(current_loop_id);
                             current_loop_info = loop_manager->get_loop_info(current_loop_id);

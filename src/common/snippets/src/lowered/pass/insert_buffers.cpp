@@ -117,7 +117,22 @@ void InsertBuffers::insertion(LinearIR& linear_ir,
             const auto pos = insertion_position(linear_ir, loop_manager, parent_expr, expr);
             const auto buffer = std::make_shared<op::Buffer>(parent->output(parent_port));
             const auto buffer_consumer = has_shape_infer_parent ? top_shape_infer_expr->get_input_port(0)  : *entry_port;
-            linear_ir.insert_node(buffer, std::vector<ExpressionPort>{ parent_expr_output }, buffer_loop_ids, false, pos, { buffer_consumer  });
+            auto buffer_iter = linear_ir.insert_node(
+                buffer, std::vector<ExpressionPort>{ parent_expr_output }, buffer_loop_ids, false, pos, { buffer_consumer  });
+            // if buffer and parent have the same loop id, buffer shape should be subtensor of parent output.
+            const auto buffer_in_idx = (*buffer_iter)->get_input_count() - 1;
+            const auto& parent_port = (*buffer_iter)->get_input_port_connector(buffer_in_idx)->get_source();
+            const auto& parent_expr = parent_port.get_expr();
+            const auto& parent_loop_id = parent_expr->get_loop_ids();
+            if (parent_loop_id == (*buffer_iter)->get_loop_ids()) {
+                auto buffer_shape = (*buffer_iter)->get_input_port_descriptor(0)->get_shape();
+                const auto& subtensor =  ov::snippets::utils::get_projected_subtensor(parent_port);
+                for (size_t sub = 0; sub < subtensor.size(); sub++) {
+                    buffer_shape[buffer_shape.size() - 1 - sub] = subtensor[subtensor.size() - 1 - sub];
+                }
+                (*buffer_iter)->get_input_port_descriptor(0)->set_shape(buffer_shape);
+                (*buffer_iter)->get_output_port_descriptor(0)->set_shape(buffer_shape);
+            }
         }
     }
 
@@ -200,7 +215,21 @@ void InsertBuffers::insertion(LinearIR& linear_ir,
             //             |    <- It should be new PortConnector
             //            Relu
             // Output port connector is automatically filled from PortDescriptor
-            linear_ir.insert_node(buffer, std::vector<ExpressionPort>{ *exit_port }, buffer_loop_ids, false, pos, { potential_consumers });
+            auto buffer_iter = linear_ir.insert_node(
+                buffer, std::vector<ExpressionPort>{ *exit_port }, buffer_loop_ids, false, pos, { potential_consumers });
+            const auto& buffer_consumers = (*buffer_iter)->get_output_port_connector(0)->get_consumers();
+            if (buffer_consumers.size() == 1) {
+                const auto& buffer_child_expr = buffer_consumers.begin()->get_expr();
+                if (buffer_child_expr->get_loop_ids() == (*buffer_iter)->get_loop_ids()) {
+                    const auto& subtensor = buffer_consumers.begin()->get_descriptor_ptr()->get_subtensor();
+                    auto buffer_shape = (*buffer_iter)->get_input_port_descriptor(0)->get_shape();
+                    for (size_t sub = 0; sub < subtensor.size(); sub++) {
+                        buffer_shape[buffer_shape.size() - 1 - sub] = subtensor[subtensor.size() - 1 - sub];
+                    }
+                    (*buffer_iter)->get_input_port_descriptor(0)->set_shape(buffer_shape);
+                    (*buffer_iter)->get_output_port_descriptor(0)->set_shape(buffer_shape);
+                }
+            }
         }
     }
 }
@@ -235,6 +264,76 @@ bool InsertBuffers::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begi
         }
 
         insertion(linear_ir, expr_it, end, loop_manager, loop_entries, loop_exits);
+    }
+    // insert buffer if one operation output is shared from another buffer
+    for (auto expr_it = begin; expr_it != end; expr_it++) {
+        const auto expr = *expr_it;
+        const auto& buffer_expr = ov::as_type_ptr<BufferExpression>(expr);
+        if (!buffer_expr)
+            continue;
+        std::cout << "buffer_expr:" << buffer_expr->get_node()->get_friendly_name() << std::endl;
+        if (const auto& inplace_from = buffer_expr->get_inplace_node()) {
+            std::cout << "inplace buffer_expr" << std::endl;
+            auto inplace_from_expr = std::find_if(begin, end, [&inplace_from](const ExpressionPtr& expr) {
+                return expr->get_node() == inplace_from;
+            });
+            // find based on rt info as maybe inplace_from node is changed by transformation
+            if (inplace_from_expr == end) {
+                std::cout << "inplace buffer_expr inplace from not find by pointer" << std::endl;
+                const auto& rt_info_consumer = expr->get_node()->get_rt_info();
+                const auto& it = rt_info_consumer.find("inplace_consumer_index");
+                size_t inplace_consumer_index = it->second.as<size_t>();
+                std::cout << "inplace_consumer_index:" << inplace_consumer_index << std::endl;
+                inplace_from_expr = std::find_if(begin, end, [&](const ExpressionPtr& expr_pool) {
+                    const auto& rt_info = expr_pool->get_node()->get_rt_info();
+                    const auto& it = rt_info.find("inplace_source_index");
+                    return (it != rt_info.end()) && ((it->second).as<size_t>() == inplace_consumer_index);
+                });
+            }
+            if (inplace_from_expr == end) {
+                std::cout << "inplace buffer_expr inplace from not find by get_rt_info" << std::endl;
+                continue;
+            }
+            std::cout << "buffer_expr_inplace_from:" << (*inplace_from_expr)->get_node()->get_friendly_name() << std::endl;
+
+            const auto& inplace_from_node  = (*inplace_from_expr)->get_node();
+            // if already inplace to a result or buffer, no need insert
+            if (ov::as_type_ptr<op::Buffer>(inplace_from_node) || ov::as_type_ptr<ov::op::v0::Result>(inplace_from_node))
+                continue;
+            // if child of inplace_from node is result or buffer, set inplace to the child
+            bool reset_to_child = false;
+            auto output_consumers = (*inplace_from_expr)->get_output_port_connector(0)->get_consumers();
+            for (auto it = output_consumers.begin(); it != output_consumers.end(); ++it) {
+                auto child = it->get_expr()->get_node();
+                if (ov::as_type_ptr<op::Buffer>(child) || ov::as_type_ptr<ov::op::v0::Result>(child)) {
+                    buffer_expr->set_inplace_from(child);
+                    reset_to_child = true;
+                    break;
+                }
+            }
+            if (reset_to_child)
+                continue;
+            // insert IntermediateMemoryBuffer after buffer_expr's last child
+            auto buffer = std::make_shared<op::Buffer>(inplace_from->output(0));
+            auto get_pos = [&](ExpressionPtr inplace_to) {
+                const auto& inplace_buffer_consumers = inplace_to->get_output_port_connector(0)->get_consumers();
+                for (auto pos_it = end; pos_it != expr_it; pos_it--) {
+                    for (const auto& consumer : inplace_buffer_consumers) {
+                        if ((*pos_it) == consumer.get_expr()) {
+                            return pos_it;
+                        }
+                    }
+                }
+            };
+            auto pos = get_pos(expr);
+            pos++;
+            std::cout << "insert pos:" << (*pos)->get_node()->get_friendly_name() << std::endl;
+
+            auto buffer_loop_ids = std::vector<size_t>{};
+            auto input =(*inplace_from_expr)->get_output_port_connectors();
+            std::set<ExpressionPort> potential_consumers;
+            linear_ir.insert_node(buffer, input, buffer_loop_ids, false, pos, potential_consumers);
+        }
     }
 
     return true;
