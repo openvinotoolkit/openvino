@@ -3,11 +3,14 @@ name: Rerun Workflow with Known Errors
 on:
   workflow_run:
     workflows:
-      - Linux (Ubuntu 20.04, Python 3.11)
+      - Linux (Ubuntu 20.04, Python 3.9)
+      - Linux (Ubuntu 22.04, Python 3.11)
+      - Linux (Ubuntu 24.04, Python 3.12)
       - Linux ARM64 (Ubuntu 20.04, Python 3.11)
       - Linux Static CC (Ubuntu 22.04, Python 3.11, Clang)
       - Linux RISC-V with Conan (Ubuntu 22.04, Python 3.10)
-      - Windows (VS 2019, Python 3.11)
+      - Windows (VS 2019, Python 3.11, Release)
+      - Windows (VS 2019, Python 3.11, Debug)
       - Windows Conditional Compilation (VS 2022, Python 3.11)
     types:
       - completed
@@ -55,6 +58,10 @@ jobs:
       - name: Rerun Retriggered (Ticket ${{ env.FOUND_ERROR_TICKET }})
         if: ${{ env.PIPELINE_RETRIGGERED == 'true' }}
         run: echo "Rerun retriggered for ${{ github.event.workflow_run.html_url }} with ticket ${{ env.FOUND_ERROR_TICKET }}"
+
+      - name: ${{ github.event.workflow_run.html_url }}
+        if: ${{ env.PIPELINE_RETRIGGERED == 'true' }}
+        run: echo "Step for statistics gathering"
 
   rerunner_tests:
     name: Rerunner Tests
