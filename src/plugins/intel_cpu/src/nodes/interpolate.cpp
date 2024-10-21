@@ -2833,13 +2833,22 @@ void Interpolate::InterpolateJitExecutor::pillowCGathered(const uint8_t *in_ptr_
         arg.src_ptr[0] = in_ptr_ + (IW * IH * C * b) * srcDataSize;
         if (xPass && yPass) {
             size_t threadsNum = parallel_get_num_threads();
+            if (b == 0) {
+                printf("InterpolateJitExecutor::pillowCGathered %lu\n", threadsNum);
+            }
             size_t parallelNum = B;
             // IH * OW * C buf needed
             size_t buffer_size = static_cast<size_t>(OW * IH * C);
             if (parallelNum < threadsNum) {
+                if (b >= threadsNum || b >= m_threads_num) {
+                    printf("InterpolateJitExecutor::pillowCGathered threadsNum: %lu; b: %lu\n", threadsNum, b);
+                }
                 arg.src_ptr[1] = static_cast<uint8_t*>(&pillow_working_buf[b * buffer_size * srcDataSize]);
             } else {
                 size_t threadsIdx = parallel_get_thread_num();
+                if (threadsIdx >= threadsNum || threadsIdx >= m_threads_num) {
+                    printf("InterpolateJitExecutor::pillowCGathered threadsNum: %lu; threadsIdx: %lu\n", threadsNum, threadsIdx);
+                }
                 arg.src_ptr[1] = static_cast<uint8_t*>(&pillow_working_buf[threadsIdx * buffer_size * srcDataSize]);
             }
         }
@@ -3713,13 +3722,24 @@ void Interpolate::InterpolateRefExecutor::pillowRef(const uint8_t *in_ptr_, uint
         const uint8_t *ypass_in_ptr_nc = nullptr;
         if (xPass && yPass) {
             size_t threadsNum = parallel_get_num_threads();
+            static bool print = true;
+            if (print) {
+                print = false;
+                printf("[CPU] InterpolateJitExecutor::pillowRef threadsNum: %lu\n", threadsNum);
+            }
             size_t parallelNum = B * C;
             // IH * OW buf needed
             if (parallelNum < threadsNum) {
+                if (parallelNum >= threadsNum || parallelNum >= m_threads_num) {
+                    printf("[CPU] InterpolateJitExecutor::pillowRef threadsNum: %lu; parallelNum: %lu\n", threadsNum, parallelNum);
+                }
                 xpass_out_ptr_nc = static_cast<uint8_t*>(&pillow_working_buf[(OW * IH * C * b + OW * IH * c) * srcDataSize]);
                 ypass_in_ptr_nc = static_cast<const uint8_t*>(&pillow_working_buf[(OW * IH * C * b + OW * IH * c) * srcDataSize]);
             } else {
                 size_t threadsIdx = parallel_get_thread_num();
+                if (threadsIdx >= threadsNum || threadsIdx >= m_threads_num) {
+                    printf("[CPU] InterpolateJitExecutor::pillowRef threadsNum: %lu; threadsIdx: %lu\n", threadsNum, threadsIdx);
+                }
                 size_t buffer_size = static_cast<size_t>(OW * IH);
                 xpass_out_ptr_nc = static_cast<uint8_t*>(&pillow_working_buf[threadsIdx * buffer_size * srcDataSize]);
                 ypass_in_ptr_nc = static_cast<const uint8_t*>(&pillow_working_buf[threadsIdx * buffer_size * srcDataSize]);
@@ -3778,6 +3798,8 @@ void Interpolate::InterpolateExecutorBase::create_pillow_working_buf(Interpolate
         return;
     size_t bufSize = srcDimPad5d[3] * dstDim5d[4] * srcDataSize; // IH * OW
     size_t threadsNum = parallel_get_max_threads();
+    printf("[CPU] InterpolateExecutorBase::create_pillow_working_buf threadsNum: %lu\n", threadsNum);
+    m_threads_num = threadsNum;
     if (layout == InterpolateLayoutType::planar) {
         // B and C execute in parallel, need separate buf
         size_t parallelNum = srcDimPad5d[0] * srcDimPad5d[1];
