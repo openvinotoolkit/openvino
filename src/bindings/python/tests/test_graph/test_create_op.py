@@ -2486,6 +2486,22 @@ def test_slice_scatter():
     assert node_default_axes.get_output_shape(0) == data_shape
 
 
+def test_stft():
+    data_shape = [4, 48]
+    data = ov.parameter(data_shape, name="input", dtype=np.float32)
+    window = ov.parameter([7], name="window", dtype=np.float32)
+    frame_size = ov.constant(np.array(11, dtype=np.int32))
+    frame_step = ov.constant(np.array(3, dtype=np.int32))
+    transpose_frames = True
+
+    op = ov_opset15.stft(data, window, frame_size, frame_step, transpose_frames)
+
+    assert op.get_type_name() == "STFT"
+    assert op.get_output_size() == 1
+    assert op.get_output_element_type(0) == Type.f32
+    assert op.get_output_shape(0) == [4, 13, 6, 2]
+
+
 def test_parameter_get_attributes():
     parameter = ov.parameter([2, 2], dtype=np.float32, name="InputData")
     parameter_attributes = parameter.get_attributes()
