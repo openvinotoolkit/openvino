@@ -59,10 +59,10 @@ jobs:
       - name: Extract OpenVINO packages
         run: |
           pushd $INSTALL_DIR
-            tar -I pigz -xf openvino_package.tar.gz -C $INSTALL_DIR
+            pigz -dc openvino_package.tar.gz | tar -xf - -C ${INSTALL_DIR}
           popd
           pushd $INSTALL_TEST_DIR
-            tar -I pigz -xf openvino_tests.tar.gz -C $INSTALL_DIR
+            pigz -dc openvino_tests.tar.gz | tar -xf - -C ${INSTALL_DIR}
           popd
 
       - name: Install dependencies (Linux)
@@ -128,7 +128,7 @@ jobs:
 
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         if: always()
         with:
           name: test-results-${{ inputs.test_type }}-${{ inputs.device }}

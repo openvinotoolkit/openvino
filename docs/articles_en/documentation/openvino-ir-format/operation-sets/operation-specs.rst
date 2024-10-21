@@ -197,6 +197,7 @@ Operation Specifications
    ScatterElementsUpdate-12 <operation-specs/movement/scatter-elements-update-12>
    ScatterNDUpdate-3 <operation-specs/movement/scatter-nd-update-3>
    ScatterUpdate-3 <operation-specs/movement/scatter-update-3>
+   SearchSorted-15 <operation-specs/sort/search-sorted-15>
    Select-1 <operation-specs/condition/select-1>
    Selu-1 <operation-specs/activation/selu-1>
    ShapeOf-1 <operation-specs/shape/shape-of-1>

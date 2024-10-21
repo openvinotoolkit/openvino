@@ -1576,10 +1576,14 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, 
             }
         }
     } else if (std::floor(power) == power && power != 0) {
-        int ipower = std::abs(static_cast<int>(power));
+        int64_t ipower = std::abs(static_cast<int64_t>(power)) - 1;
         h->uni_vmovups(vmm_aux0, vmm_dst);
-        for (int i = 1; i < ipower; i++) {
-            h->uni_vmulps(vmm_dst, vmm_dst, vmm_aux0);
+        while (ipower > 0) {
+            if (ipower & 0x1)
+                h->uni_vmulps(vmm_dst, vmm_dst, vmm_aux0);
+            if (ipower > 1)
+                h->uni_vmulps(vmm_aux0, vmm_aux0, vmm_aux0);
+            ipower = ipower >> 1;
         }
 
         if (power < 0.f) {
