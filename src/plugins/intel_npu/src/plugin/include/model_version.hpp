@@ -2,7 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "npu.hpp"
+#include <stdint.h>
+
+#include <memory>
+#include <string>
+#include <vector>
 
 namespace intel_npu {
 
@@ -32,10 +36,10 @@ struct MetadataBase {
     virtual ~MetadataBase() = default;
 };
 
-template<int Major, int Minor>
-struct Metadata : public MetadataBase { };
+template <int Major, int Minor>
+struct Metadata : public MetadataBase {};
 
-template<>
+template <>
 struct Metadata<1, 0> : public MetadataBase {
     MetadataVersion version;
     OpenvinoVersion ovVersion;
@@ -55,4 +59,4 @@ std::unique_ptr<MetadataBase> createMetadata(int major, int minor);
 
 std::unique_ptr<MetadataBase> read_metadata_from(std::vector<uint8_t>& blob);
 
-} // namespace intel_npu
+}  // namespace intel_npu

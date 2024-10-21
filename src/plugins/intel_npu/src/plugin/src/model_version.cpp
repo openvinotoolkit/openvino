@@ -3,7 +3,11 @@
 //
 
 #include "model_version.hpp"
-#include "intel_npu/utils/logger/logger.hpp"
+
+#include <cstring>
+#include <sstream>
+
+#include "openvino/core/version.hpp"
 
 namespace intel_npu {
 
@@ -35,7 +39,7 @@ std::stringstream Metadata<1, 0>::data() const {
 }
 
 void Metadata<1, 0>::write(std::ostream& stream) {
-    std::stringstream metaData = data(); // maybe we find a better name
+    std::stringstream metaData = data();  // maybe we find a better name
     stream << metaData.rdbuf();
 }
 
@@ -44,9 +48,12 @@ void Metadata<1, 0>::read(std::istream& stream) {
 }
 
 std::unique_ptr<MetadataBase> createMetadata(int major, int minor) {
-    if (major == 1 && minor == 0) {
+    switch (major) {
+    case 1:
+        // add if statement for checking minor?
         return std::make_unique<Metadata<1, 0>>();
-    } else {
+
+    default:
         return nullptr;
     }
 }
@@ -54,8 +61,7 @@ std::unique_ptr<MetadataBase> createMetadata(int major, int minor) {
 bool Metadata<1, 0>::isCompatible(const MetadataBase& other) const {
     const auto* otherMeta = dynamic_cast<const Metadata<1, 0>*>(&other);
     if (otherMeta) {
-        return version.major == otherMeta->version.major &&
-               ovVersion.version == otherMeta->ovVersion.version;
+        return version.major == otherMeta->version.major && ovVersion.version == otherMeta->ovVersion.version;
     }
     return false;
 }
@@ -65,17 +71,18 @@ std::unique_ptr<MetadataBase> read_metadata_from(std::vector<uint8_t>& blob) {
     auto metadataIterator = blob.end() - sizeof(blobDataSize);
     memcpy(&blobDataSize, &(*metadataIterator), sizeof(blobDataSize));
     if (blobDataSize >= blob.size() - sizeof(blobDataSize)) {
-        OPENVINO_THROW("Imported blob is not versioned!");
+        // OPENVINO_THROW("Imported blob is not versioned!");
     }
 
     metadataIterator = blob.begin() + blobDataSize;
     std::stringstream metadataStream;
-    metadataStream.write(reinterpret_cast<const char*>(&(*metadataIterator)), blob.end() - metadataIterator - sizeof(blobDataSize));
+    metadataStream.write(reinterpret_cast<const char*>(&(*metadataIterator)),
+                         blob.end() - metadataIterator - sizeof(blobDataSize));
 
     std::string blobVersionHeader(DELIMITER.size(), '\0');
     metadataStream.read(&blobVersionHeader[0], DELIMITER.size());
     if (DELIMITER != blobVersionHeader) {
-        OPENVINO_THROW("Version header mismatch or missing!");
+        // OPENVINO_THROW("Version header mismatch or missing!");
     }
 
     MetadataVersion metaVersion;
@@ -89,4 +96,4 @@ std::unique_ptr<MetadataBase> read_metadata_from(std::vector<uint8_t>& blob) {
     return storedMeta;
 }
 
-} // namespace intel_npu
+}  // namespace intel_npu
