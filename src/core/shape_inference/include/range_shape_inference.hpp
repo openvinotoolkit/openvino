@@ -72,9 +72,13 @@ std::vector<TRShape> range_shape_infer(const Node* op,
             span = stop - start;
         }
 
-        double strided = ceil(fabs(span) / fabs(step));
+        uint32_t strided = static_cast<uint32_t>(ceil(fabs(span) / fabs(step)));
+        const double epsilon = 1e-06;
+        if (!output_is_integral && (strided - 1) * step >= span - epsilon) {
+            strided -= 1;
+        }
 
-        output_shapes[0] = TRShape{static_cast<uint32_t>(strided)};
+        output_shapes[0] = TRShape{strided};
     } else {
         output_shapes[0] = ov::PartialShape::dynamic(1);
     }
