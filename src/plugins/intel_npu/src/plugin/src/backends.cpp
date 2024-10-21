@@ -7,8 +7,8 @@
 #include <fstream>
 #include <memory>
 
-#include "config/common.hpp"
-#include "device_helpers.hpp"
+#include "intel_npu/common/device_helpers.hpp"
+#include "intel_npu/config/common.hpp"
 
 #if defined(ENABLE_ZEROAPI_BACKEND)
 #    include "zero_backend.hpp"

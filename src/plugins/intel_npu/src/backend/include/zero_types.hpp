@@ -11,7 +11,7 @@
 
 #include <string_view>
 
-#include "config/runtime.hpp"
+#include "intel_npu/config/runtime.hpp"
 
 /**
  * @brief Last version of Table of Graph Extension functions used within plugin

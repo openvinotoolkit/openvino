@@ -6,9 +6,9 @@
 
 #include <ze_graph_profiling_ext.h>
 
-#include "config/compiler.hpp"
+#include "intel_npu/config/compiler.hpp"
+#include "intel_npu/profiling.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
-#include "profiling.hpp"
 #include "zero_profiling.hpp"
 #include "zero_utils.hpp"
 

@@ -7,8 +7,8 @@
 #include <memory>
 #include <vector>
 
-#include "config/common.hpp"
-#include "icompiler.hpp"
+#include "intel_npu/config/common.hpp"
+#include "intel_npu/icompiler.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 
 namespace intel_npu {

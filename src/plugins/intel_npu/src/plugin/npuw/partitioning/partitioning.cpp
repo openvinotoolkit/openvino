@@ -8,7 +8,7 @@
 
 #include "../logging.hpp"
 #include "../util.hpp"
-#include "config/npuw.hpp"
+#include "intel_npu/config/npuw.hpp"
 #include "online/compiler.hpp"
 #include "online/utils/utils.hpp"  // getMetaDesc
 #include "openvino/core/parallel.hpp"

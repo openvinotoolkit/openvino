@@ -6,7 +6,7 @@
 
 #include <vector>
 
-#include "config/common.hpp"
+#include "intel_npu/config/common.hpp"
 #include "zero_device.hpp"
 
 namespace intel_npu {

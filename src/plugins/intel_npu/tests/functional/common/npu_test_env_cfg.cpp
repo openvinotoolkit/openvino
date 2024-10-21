@@ -7,9 +7,8 @@
 #include <cstdlib>
 #include <stdexcept>
 
-#include "config/common.hpp"
-#include "config/config.hpp"
-
+#include "intel_npu/config/common.hpp"
+#include "intel_npu/config/config.hpp"
 
 namespace ov::test::utils {
 

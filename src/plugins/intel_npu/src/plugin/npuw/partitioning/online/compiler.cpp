@@ -9,9 +9,9 @@
 
 #include "../../logging.hpp"
 #include "../../util.hpp"
-#include "config/config.hpp"
-#include "config/npuw.hpp"
 #include "group.hpp"
+#include "intel_npu/config/config.hpp"
+#include "intel_npu/config/npuw.hpp"
 #include "pugixml.hpp"
 #include "snapshot.hpp"
 

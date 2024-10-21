@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "remote_tensor.hpp"
+#include "intel_npu/common/remote_tensor.hpp"
 
-#include "config/common.hpp"
+#include "intel_npu/config/common.hpp"
 #include "openvino/core/type/element_iterator.hpp"
 #include "openvino/runtime/intel_npu/remote_properties.hpp"
 

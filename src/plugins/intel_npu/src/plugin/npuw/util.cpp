@@ -4,7 +4,7 @@
 
 #include "util.hpp"
 
-#include <config/config.hpp>
+#include <intel_npu/config/config.hpp>
 #include <iomanip>
 #include <openvino/core/parallel.hpp>
 #include <openvino/core/type/bfloat16.hpp>
