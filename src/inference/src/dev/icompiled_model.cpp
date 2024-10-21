@@ -10,6 +10,28 @@
 #include "openvino/runtime/properties.hpp"
 #include "transformations/utils/utils.hpp"
 
+// These deperecated functions are moved here as static to facilitate for IR v10
+static inline std::string create_ie_output_name(const ov::Output<const ov::Node>& output) {
+    std::string out_name;
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    auto tensor_name = ov::descriptor::get_ov_tensor_legacy_name(output.get_tensor());
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    if (!tensor_name.empty()) {
+        out_name = std::move(tensor_name);
+    } else {
+        const auto& prev_layer = output.get_node_shared_ptr();
+        out_name = prev_layer->get_friendly_name();
+        if (prev_layer->get_output_size() != 1) {
+            out_name += "." + std::to_string(output.get_index());
+        }
+    }
+    return out_name;
+}
+
+static inline std::string create_ie_output_name(const ov::Output<ov::Node>& output) {
+    return create_ie_output_name(ov::Output<const ov::Node>(output.get_node(), output.get_index()));
+}
+
 ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model,
                                    const std::shared_ptr<const ov::IPlugin>& plugin,
                                    const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor,
@@ -77,9 +99,7 @@ ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model
         for (const auto& result : model->get_results()) {
             auto fake_param = std::make_shared<ov::op::v0::Parameter>(result->get_output_element_type(0),
                                                                       result->get_output_partial_shape(0));
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            const std::string res_name = ov::op::util::create_ie_output_name(result->input_value(0));
-            OPENVINO_SUPPRESS_DEPRECATED_END
+            const std::string res_name = create_ie_output_name(result->input_value(0));
             fake_param->set_friendly_name(res_name);
             fake_param->set_element_type(result->get_element_type());
             fake_param->validate_and_infer_types();
