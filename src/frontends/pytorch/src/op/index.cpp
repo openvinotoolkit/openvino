@@ -89,7 +89,7 @@ OutputVector translate_index_fx(const NodeContext& context) {
     OutputVector ids{list_elems.begin(), list_elems.end()};
     ov::Output<ov::Node> res;
     bool use_input_as_output = true;
-    index_tensor_on_list(rg, x, ids, rank.get_length(), res, use_input_as_output);
+    index_tensor_on_list(rg, x, ids, rank, res, use_input_as_output);
     context.mark_nodes(rg.get());
     return {res};
 };

@@ -692,10 +692,10 @@ Output<Node> flatten(ov::pass::NodeRegistry& rg, const Output<Node>& value, size
     return rg.make<v1::Reshape>(value, output_shape, true);
 }
 
-void index_tensor_on_list(ov::pass::NodeRegistry& rg,
+bool index_tensor_on_list(ov::pass::NodeRegistry& rg,
                           const Output<Node>& data,
                           const ov::OutputVector& indices,
-                          int64_t rank,
+                          const ov::Rank& rank,
                           Output<Node>& new_output,
                           bool& use_input_as_output) {
     // Multiple tensors as indices. Each tensor could either be
@@ -755,7 +755,7 @@ void index_tensor_on_list(ov::pass::NodeRegistry& rg,
     if (advanced_ids.size() == 0) {
         new_output = data;
         use_input_as_output = true;
-        return;
+        return true;
     }
     // perform gather for single element case
     if (advanced_ids.size() == 1) {
@@ -764,21 +764,25 @@ void index_tensor_on_list(ov::pass::NodeRegistry& rg,
             auto gather = rg.make<v8::GatherND>(data, index);
             new_output = gather->output(0);
             use_input_as_output = false;
-            return;
+            return true;
         }
         index = rg.make<v0::Convert>(index, element::i32);
         auto dim = rg.make<v0::Constant>(element::i32, Shape{}, static_cast<int32_t>(advanced_ids[0]));
         auto gather = rg.make<v8::Gather>(data, index, dim);
         new_output = gather->output(0);
         use_input_as_output = false;
-        return;
+        return true;
+    }
+    // index transformation supports only tensors with static rank
+    if (rank.is_dynamic()) {
+        return false;
     }
     auto adv_idx_count = advanced_ids.size();
     auto input_shape = rg.make<v3::ShapeOf>(data, element::i32);
     auto zero = rg.make<v0::Constant>(element::i32, Shape{}, 0);
-    auto input_dims = rg.make<v1::Split>(input_shape, zero, rank);
+    auto input_dims = rg.make<v1::Split>(input_shape, zero, rank.get_length());
     std::vector<size_t> non_used_dims;
-    for (auto i = 0; i < rank; i++) {
+    for (auto i = 0; i < rank.get_length(); i++) {
         if (std::find(advanced_ids.begin(), advanced_ids.end(), i) == advanced_ids.end()) {
             non_used_dims.push_back(i);
         }
@@ -822,7 +826,7 @@ void index_tensor_on_list(ov::pass::NodeRegistry& rg,
             adv_idx_permute.push_back(i);
         }
         adv_idx_permute.push_back(0);
-        for (size_t i = advanced_ids[0] + 1; i < (rank - adv_idx_count + 1); i++) {
+        for (size_t i = advanced_ids[0] + 1; i < (rank.get_length() - adv_idx_count + 1); i++) {
             adv_idx_permute.push_back(i);
         }
         // Transpose folded advanced indexed axis to its original location.
@@ -850,7 +854,7 @@ void index_tensor_on_list(ov::pass::NodeRegistry& rg,
     gather = rg.make<v1::Reshape>(gather, final_shape, false);
     new_output = gather->output(0);
     use_input_as_output = false;
-    return;
+    return true;
 }
 
 }  // namespace pytorch

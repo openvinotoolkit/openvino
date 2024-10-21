@@ -131,10 +131,10 @@ Output<Node> masked_select(const NodeContext& context, const Output<Node>& data,
 
 Output<Node> flatten(ov::pass::NodeRegistry& rg, const Output<Node>& value, size_t axis);
 
-void index_tensor_on_list(ov::pass::NodeRegistry& rg,
+bool index_tensor_on_list(ov::pass::NodeRegistry& rg,
                           const Output<Node>& data,
                           const ov::OutputVector& indices,
-                          int64_t rank,
+                          const ov::Rank& rank,
                           Output<Node>& new_output,
                           bool& use_input_as_output);
 

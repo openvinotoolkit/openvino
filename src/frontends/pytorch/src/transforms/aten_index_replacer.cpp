@@ -50,13 +50,12 @@ AtenIndexToSelect::AtenIndexToSelect() {
             auto ids = list_indicies->input_values();
             auto rank = input_node.get_partial_shape().rank();
             // index transformation supports only tensors with static rank
-            if (rank.is_dynamic()) {
+            ov::Output<ov::Node> new_output;
+            bool use_input_as_output = true;
+            if (!index_tensor_on_list(rg, input_node, ids, rank, new_output, use_input_as_output)) {
                 add_exception_to_fw_node(index_op, "aten::index: dynamic rank for aten::index input is not supported.");
                 return false;
             }
-            ov::Output<ov::Node> new_output;
-            bool use_input_as_output = true;
-            index_tensor_on_list(rg, input_node, ids, rank.get_length(), new_output, use_input_as_output);
             if (use_input_as_output) {
                 index_op->output(0).replace(index_op->get_input_source_output(0));
                 return true;
