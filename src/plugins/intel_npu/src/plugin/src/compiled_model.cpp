@@ -4,6 +4,7 @@
 
 #include "compiled_model.hpp"
 
+#include <chrono>
 #include <fstream>
 #include <string_view>
 
@@ -44,6 +45,9 @@ namespace intel_npu {
 
 using intel_npu::envVarStrToBool;
 
+std::chrono::steady_clock::time_point begin;
+std::chrono::steady_clock::time_point end;
+
 CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
                              const std::shared_ptr<IDevice>& device,
@@ -63,7 +67,12 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
         _logger.debug("performing compile and expecting a network description");
 
         if (!config.get<SEPARATE_WEIGHTS>()) {
+            begin = std::chrono::steady_clock::now();
             _networkPtr = std::make_shared<const NetworkDescription>(_compiler->compile(model, config));
+            end = std::chrono::steady_clock::now();
+            std::cout << "compiler->compile() call "
+                      << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]"
+                      << std::endl;
         } else {
             const std::vector<std::shared_ptr<NetworkDescription>> initMainNetworkDescriptions =
                 _compiler->compileWS(model, config);
@@ -71,8 +80,19 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
             const std::shared_ptr<NetworkDescription> initNetworkDescription = initMainNetworkDescriptions[0];
             const std::shared_ptr<NetworkDescription> mainNetworkDescription = initMainNetworkDescriptions[1];
 
+            begin = std::chrono::steady_clock::now();
             const std::shared_ptr<IExecutor> initExecutor = create_executor(initNetworkDescription);
+            end = std::chrono::steady_clock::now();
+            std::cout << "Init create_executor() "
+                      << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]"
+                      << std::endl;
+
+            begin = std::chrono::steady_clock::now();
             run_init(initExecutor);
+            end = std::chrono::steady_clock::now();
+            std::cout << "run_init() call "
+                      << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]"
+                      << std::endl;
 
             _networkPtr = mainNetworkDescription;
         }
@@ -150,7 +170,11 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
     syncInferRequest->initialize_states();
 
     if (!_weightsInputs.empty()) {
+        begin = std::chrono::steady_clock::now();
         syncInferRequest->set_weights_inputs(_weightsInputs);
+        end = std::chrono::steady_clock::now();
+        std::cout << "set_weights_inputs() call "
+                  << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
     }
 
     return std::make_shared<AsyncInferRequest>(syncInferRequest,

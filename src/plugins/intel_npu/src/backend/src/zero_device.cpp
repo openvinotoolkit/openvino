@@ -273,10 +273,23 @@ std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> ZeroDevice::runIni
     std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> outputHostTensors;
     std::vector<std::vector<uint8_t>> dummy;
 
+    std::chrono::steady_clock::time_point begin;
+    std::chrono::steady_clock::time_point end;
+
+    begin = std::chrono::steady_clock::now();
     auto clonedModel = model->clone();
+    end = std::chrono::steady_clock::now();
+    std::cout << "model->clone() call " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()
+              << "[ms]" << std::endl;
+
+    begin = std::chrono::steady_clock::now();
     runModelPasses(clonedModel);
+    end = std::chrono::steady_clock::now();
+    std::cout << "runModelPasses() call " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()
+              << "[ms]" << std::endl;
 
     // Match the inputs of the "init" model with the Constant nodes of the original model
+    begin = std::chrono::steady_clock::now();
     size_t constantIndex = 0;
     for (auto&& node : clonedModel->get_ordered_ops()) {
         if (!ov::is_type<ov::op::v0::Constant>(node)) {
@@ -288,7 +301,11 @@ std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> ZeroDevice::runIni
         const size_t size = constantNode->get_byte_size();
         constantIdToTensorData.emplace(constantIndex++, TensorData{address, size});
     }
+    end = std::chrono::steady_clock::now();
+    std::cout << "getting constant IDs " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()
+              << "[ms]" << std::endl;
 
+    begin = std::chrono::steady_clock::now();
     for (const auto& descriptor : zeroInitExecutor->get_input_descriptors()) {
         size_t id = std::stoi(std::string(descriptor.info.name).substr(INIT_INPUT_WEIGHTS_PREFIX.length()));
         OPENVINO_ASSERT(constantIdToTensorData.count(id), "Mismatch between weights IDs and parsed inputs");
@@ -306,7 +323,11 @@ std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> ZeroDevice::runIni
         inputTensorsData.push_back(TensorData{hostTensor->data(), hostTensor->get_byte_size()});
         inputHostTensors.push_back(hostTensor._ptr);
     }
+    end = std::chrono::steady_clock::now();
+    std::cout << "Setting init inputs " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()
+              << "[ms]" << std::endl;
 
+    begin = std::chrono::steady_clock::now();
     for (const auto& descriptor : zeroInitExecutor->get_output_descriptors()) {
         const ov::SoPtr<ov::ITensor> hostTensor =
             createHostTensor(context._ptr,
@@ -318,6 +339,9 @@ std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> ZeroDevice::runIni
             std::string(descriptor.info.debug_friendly_name).substr(INIT_OUTPUT_WEIGHTS_PREFIX.length()),
             hostTensor._ptr);
     }
+    end = std::chrono::steady_clock::now();
+    std::cout << "Creating output tensors "
+              << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
 
     auto progilingPool = zeroProfiling::ProfilingPool(zeroInitExecutor->graph(),
                                                       zeroProfiling::POOL_SIZE,
@@ -333,8 +357,12 @@ std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> ZeroDevice::runIni
                                                      inputTensorsData,
                                                      outputTensorsData,
                                                      /*numberOfCommandLists*/ 1);
+    begin = std::chrono::steady_clock::now();
     pipeline->push();
     pipeline->pull();
+    end = std::chrono::steady_clock::now();
+    std::cout << "Running the pipeline " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()
+              << "[ms]" << std::endl;
 
     return outputHostTensors;
 }
