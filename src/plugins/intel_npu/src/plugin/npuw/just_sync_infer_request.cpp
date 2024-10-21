@@ -199,6 +199,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
     // Create infer requests
     // Preallocate funcall tensors & substitute function call requests
     bool failover_happened = false;
+    bool has_spatial = false;
     for (size_t i = 0; i < m_num_submodels; i++) {
         LOG_INFO("Creating infer request for Subgraph[" << i << "]...");
         LOG_BLOCK();
@@ -221,6 +222,8 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
 
             // Initialize the spatial IO placeholders, if required
             if (proto_comp_model_desc.spatial) {
+                has_spatial = true;
+
                 m_spatial_io[real_idx].inputs.resize(proto_comp_model_desc.param_base);
                 m_spatial_io[real_idx].input_tails.resize(proto_comp_model_desc.param_base);
                 m_spatial_io[real_idx].outputs.resize(num_outputs);
@@ -399,6 +402,24 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         }  // for(closure)
         LOG_VERB("DONE");
     }
+
+    // Handle spatial dynamic submission
+    if (has_spatial) {
+        if (m_npuw_model->m_cfg.get<::intel_npu::NPUW_SPATIAL_DYN>()) {
+            LOG_VERB("Finding spatial features...");
+            LOG_BLOCK();
+            m_spatial_selector = runtime::spatial::AttentionMask::find(*this);
+            if (!m_spatial_selector) {
+                LOG_WARN("Spatial capability is enabled, but no run-time features were found.");
+                // Fallback selector to ALL
+                m_spatial_selector.reset(new runtime::spatial::All());
+            }
+        } else {
+            // Just force selector to ALL
+            m_spatial_selector.reset(new runtime::spatial::All());
+        }
+        LOG_VERB("Done");
+    }
 }
 
 void ov::npuw::JustInferRequest::connect_subrequests() {
@@ -505,6 +526,11 @@ void ov::npuw::JustInferRequest::prepare_for_infer() {
     for (auto&& id : m_funcall_heads) {
         LOG_DEBUG("Pre-initializing weights for subgraph[" << id << "]");
         unpack_closure(id, m_subrequests[id]);
+    }
+
+    // Adjust spatial input range, if supported
+    if (m_spatial_selector) {
+        m_spatial_selector->prepare();
     }
     LOG_DEBUG("Done");
 }
@@ -915,6 +941,7 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx) {
         // must be prepared in the m_spatial_io at this point
         const auto& spatial = comp_model_desc.spatial.value();
         const auto num_outputs = comp_model_desc.compiled_model->outputs().size();
+        NPUW_ASSERT(m_spatial_selector);
 
         // Create a sparse vector with full input sizes.
         // For the access simplicity, its size is aligned with function's
@@ -940,6 +967,10 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx) {
 
         std::size_t offset = 0u;
         for (std::size_t i = 0u; i < spatial.nway_iters; i++, offset += spatial.nway) {
+            if (!m_spatial_selector->need_submit(offset, spatial.nway)) {
+                continue;
+            }
+
             // Collect spatial inputs for this offset
             for (auto&& param : spatial.params) {
                 const auto& iport = comp_model_desc.compiled_model->inputs()[param.idx];
@@ -963,7 +994,7 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx) {
         }  // for(full_nway_times)
 
         // Now process the tail, if required
-        if (spatial.tail_size) {
+        if (spatial.tail_size && m_spatial_selector->need_submit(offset, spatial.tail_size)) {
             // Copy the sub-ranges to spatial inputs
             // NOTE: tails buffers are read from/written to at 0th offset!
             for (auto&& param : spatial.params) {
@@ -1085,7 +1116,7 @@ ov::npuw::TensorPtr ov::npuw::JustInferRequest::allocMem(const ov::element::Type
         return ov::get_tensor_impl(ov::Tensor(type, shape));
     }
 
-    std::lock_guard<std::mutex> guard(m_alloc_mutex);
+    // Protect access to shared context(s) - at least among infer requests
     auto remote_ctx = m_npuw_model->get_plugin()->get_core()->get_default_context(device)._ptr;
     auto remote_tensor = remote_ctx->create_host_tensor(type, shape);
     return ov::get_tensor_impl(ov::make_tensor(remote_tensor));
