@@ -17,19 +17,25 @@ struct MetadataVersion {
 };
 
 struct OpenvinoVersion {
-    uint32_t size;
     std::string version;
+    uint32_t size;
 
     OpenvinoVersion(const std::string& version);
 
     void read(std::istream& stream);
 };
 
+struct MetadataBase {
+    virtual void read(std::istream& stream) = 0;
+    virtual void write(std::ostream& stream) = 0;
+    virtual ~MetadataBase() = default;
+};
+
 template<int Major, int Minor>
-struct Metadata { };
+struct Metadata : public MetadataBase { };
 
 template<>
-struct Metadata<1, 0> {
+struct Metadata<1, 0> : public MetadataBase {
     MetadataVersion version;
     OpenvinoVersion ovVersion;
 
@@ -37,10 +43,12 @@ struct Metadata<1, 0> {
 
     std::stringstream data() const;
 
-    void write(std::ostream& stream);
+    void write(std::ostream& stream) override;
 
-    void read(std::istream& stream);
+    void read(std::istream& stream) override;
 };
+
+std::unique_ptr<MetadataBase> createMetadata(int major, int minor);
 
 void check_blob_version(std::vector<uint8_t>& blob);
 

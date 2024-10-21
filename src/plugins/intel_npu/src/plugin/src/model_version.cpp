@@ -42,6 +42,14 @@ void Metadata<1, 0>::read(std::istream& stream) {
     ovVersion.read(stream);
 }
 
+std::unique_ptr<MetadataBase> createMetadata(int major, int minor) {
+    if (major == 1 && minor == 0) {
+        return std::make_unique<Metadata<1, 0>>();
+    } else {
+        OPENVINO_THROW("Unsupported metadata version.");
+    }
+}
+
 void check_blob_version(std::vector<uint8_t>& blob) {
     size_t blobDataSize;
     auto metadataIterator = blob.end() - sizeof(blobDataSize);
@@ -62,13 +70,10 @@ void check_blob_version(std::vector<uint8_t>& blob) {
 
     MetadataVersion metaVersion;
     metadataStream.read(reinterpret_cast<char*>(&metaVersion.major), sizeof(metaVersion.major));
-    std::cout << "major: " << metaVersion.major;
-
     metadataStream.read(reinterpret_cast<char*>(&metaVersion.minor), sizeof(metaVersion.minor));
-    std::cout << "\nminor: " << metaVersion.minor << '\n';
 
-    auto meta = Metadata<CURRENT_METAVERSION_MAJOR, CURRENT_METAVERSION_MINOR>();
-    meta.read(metadataStream);
+    auto meta = createMetadata(metaVersion.major, metaVersion.minor);
+    meta->read(metadataStream);
 }
 
 } // namespace intel_npu
