@@ -34,6 +34,7 @@ public:
     bool evaluate_symbol(TensorSymbolVector& output_symbols) const override;
 
     bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values) override;
+    bool can_constant_fold(const OutputVector& inputs_values) const override;
     const int64_t& get_batch_dims() const;
     void set_batch_dims(int64_t batch_dims);
 
