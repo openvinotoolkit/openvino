@@ -112,7 +112,7 @@ jobs:
       - name: Pack Artefacts
         run: |
           pushd ${BUILD_DIR}
-            tar -C ${BUILD_DIR} -I pigz -cvf openvino.tgz cov-int
+            tar -cvf - cov-int | pigz > openvino.tgz
           popd
 
       - name: Submit artefacts
@@ -144,7 +144,7 @@ jobs:
         run: ${COVERITY_TOOL_DIR}/cov-analysis*/bin/cov-configure -c ${COVERITY_TOOL_DIR}/cov-analysis-linux64-2023.6.2/config/coverity_config.xml -lscc text
 
       - name: Upload Coverity build log
-        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         if: always()
         with:
           name: coverity_logs
@@ -152,7 +152,7 @@ jobs:
           if-no-files-found: 'error'
 
       - name: Upload Coverity build archive
-        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         if: always()
         with:
           name: coverity_archive

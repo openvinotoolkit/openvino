@@ -33,6 +33,7 @@ jobs:
       OPENVINO_REPO: ${{ github.workspace }}/openvino
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
       MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
     steps:
       - name: Check sudo
@@ -48,23 +49,19 @@ jobs:
             sudo sh -c "echo 'Acquire::Retries \"10\";' >> /etc/apt/apt.conf.d/80-retries"
           fi
 
-      - name: Download OpenVINO package
+      - name: Download OpenVINO artifacts (tarballs)
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
-          name: openvino_package
+          pattern: openvino_[tests]*
           path: ${{ env.INSTALL_DIR }}
-
-      - name: Download OpenVINO tokenizers extension
+          merge-multiple: true
+          
+      - name: Download OpenVINO artifacts (wheels)
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
-          name: openvino_tokenizers_wheel
-          path: ${{ env.INSTALL_DIR }}
-
-      - name: Download OpenVINO tests package
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
-        with:
-          name: openvino_tests
-          path: ${{ env.INSTALL_TEST_DIR }}
+          pattern: openvino_[wheels|tokenizers_wheel]*
+          path: ${{ env.INSTALL_WHEELS_DIR }}
+          merge-multiple: true
 
       # Needed as ${{ github.workspace }} is not working correctly when using Docker
       - name: Setup Variables
@@ -74,15 +71,10 @@ jobs:
           echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
           echo "MODEL_HUB_TESTS_INSTALL_DIR=$GITHUB_WORKSPACE/install/tests/model_hub_tests" >> "$GITHUB_ENV"
 
-      - name: Extract OpenVINO packages
+      - name: Extract OpenVINO artifacts
         run: |
-          pushd ${INSTALL_DIR}
-            tar -I pigz -xf openvino_package.tar.gz -C ${INSTALL_DIR}
-          popd
-
-          pushd ${INSTALL_TEST_DIR}
-            tar -I pigz -xf openvino_tests.tar.gz -C ${INSTALL_DIR}
-          popd
+            pigz -dc openvino_tests.tar.gz | tar -xf - -C ${INSTALL_DIR}
+        working-directory: ${{ env.INSTALL_DIR }}
 
       - name: Fetch setup_python action
         uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
@@ -109,8 +101,9 @@ jobs:
       - name: Install OpenVINO Python wheels
         run: |
           # To enable pytest parallel features
-          python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
-          python3 -m pip install ${INSTALL_DIR}/openvino_tokenizers-*
+          python3 -m pip install ./openvino-*
+          python3 -m pip install ./openvino_tokenizers-*
+        working-directory: ${{ env.INSTALL_WHEELS_DIR }}
 
       - name: Install PyTorch tests requirements for precommit
         if: ${{ inputs.model_scope == 'precommit' }}
@@ -144,7 +137,7 @@ jobs:
         if: ${{ inputs.model_scope == 'precommit' }}
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_pa_transformation.py -m precommit --html=${INSTALL_TEST_DIR}/TEST-torch_pagedattention_tests.html --self-contained-html -v --tb=short -n 2
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_pa_transformation.py -m precommit --html=${INSTALL_TEST_DIR}/TEST-torch_pagedattention_tests.html --self-contained-html -vvv -s --tb=short -n 2
         env:
           TEST_DEVICE: CPU
           USE_SYSTEM_CACHE: False
@@ -167,6 +160,17 @@ jobs:
           TEST_DEVICE: CPU
           USE_SYSTEM_CACHE: False
 
+      - name: TorchFX GPTQ Pattern Test
+        if: ${{ inputs.model_scope == 'precommit' }}
+        # install torch 2.3.1 as newer is not yet supported by openvino backend
+        run: |
+          export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
+          python3 -m pip install torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1 --upgrade --index-url https://download.pytorch.org/whl/cpu
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_gptq_torchfx_transformations.py -m precommit --html=${INSTALL_TEST_DIR}/TEST-torch_gptqpattern_tests.html --self-contained-html -v --tb=short
+        env:
+          TEST_DEVICE: CPU
+          USE_SYSTEM_CACHE: False
+
       - name: Reformat unsupported ops file
         if: ${{ inputs.model_scope != 'precommit' && !cancelled()}}
         run: |
@@ -178,7 +182,7 @@ jobs:
           df -h
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         if: ${{ !cancelled() }}
         with:
           name: test-results-torch-models-${{ inputs.model_scope }}
