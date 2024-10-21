@@ -1,11 +1,12 @@
 name: Windows (VS 2019, Python 3.11, Debug)
 on:
   workflow_dispatch:
-  merge_group:
-  push:
-    branches:
-      - master
-      - 'releases/**'
+  # TODO: temporary disabled due to 155031
+  # merge_group:
+  # push:
+  #   branches:
+  #     - master
+  #     - 'releases/**'
 concurrency:
   # github.ref is not unique in post-commit
   group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-windows-vs2019-debug
