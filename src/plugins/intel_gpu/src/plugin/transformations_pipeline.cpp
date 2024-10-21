@@ -15,8 +15,11 @@
 #include "intel_gpu/plugin/transformations_pipeline.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/itt.hpp"
+#include "low_precision/add.hpp"
 #include "low_precision/convolution.hpp"
 #include "low_precision/convolution_backprop_data.hpp"
+#include "low_precision/fold_convert.hpp"
+#include "low_precision/fuse_convert.hpp"
 #include "low_precision/group_convolution.hpp"
 #include "low_precision/low_precision.hpp"
 #include "low_precision/mat_mul.hpp"
@@ -25,7 +28,9 @@
 #include "low_precision/pull_reshape_through_dequantization.hpp"
 #include "low_precision/pull_transpose_through_dequantization.hpp"
 #include "low_precision/recurrent_cell.hpp"
+#include "low_precision/rt_info/bias_attribute.hpp"
 #include "low_precision/strided_slice.hpp"
+#include "low_precision/transpose.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/validation_util.hpp"
@@ -46,6 +51,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/rnn_cell.hpp"
 #include "openvino/op/rnn_sequence.hpp"
+#include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
@@ -312,13 +318,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // it expects to have the same data type for weights and zero points (apply it only for u8 data type, since other compression
         // types are not supported by oneDNN)
         manager.register_pass<ov::pass::MarkDequantizationSubgraph>(supported_woq_types, !device_info.supports_immad);
-
-        // Need to check if transformations work correctly for mixed models with both compression and quantization at the same time.
-        if (!is_model_quantized) {
-            pass_config->set_callback<ov::pass::MarkDequantizationSubgraph>([&](const std::shared_ptr<const ov::Node> node) {
-                return !is_decompression_multiply(node);
-            });
-        }
+        pass_config->set_callback<ov::pass::MarkDequantizationSubgraph>([&](const std::shared_ptr<const ov::Node> node) {
+            return !is_decompression_multiply(node);
+        });
 
         const bool keep_precision_sensitive_in_fp32_1 = true;
         const bool convert_input_output_precision = false;
@@ -727,6 +729,46 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
             return LayerTransformation::isAsymmetricQuantization(node, defaultPrecisions)
                 || WeightableLayerTransformation::isAsymmetricOnWeights(node, defaultPrecisions);
+        });
+
+        lptPassConfig->set_callback<TransposeTransformation>([&](const_node_ptr& node) -> bool {
+            for (auto& user : node->get_users()) {
+                if (ov::is_type<ov::op::v13::ScaledDotProductAttention>(user))
+                    return true;
+            }
+
+            return false;
+        });
+
+        lptPassConfig->set_callback<MarkupPrecisions>([](const_node_ptr& node) -> bool {
+            return ov::is_type<ov::opset1::Multiply>(node) && !MultiplyToGroupConvolutionTransformation::canBeTransformedToGroupConvolution(node);
+        });
+        lptPassConfig->set_callback<ConvolutionBackpropDataTransformation>([&defaultPrecisions](const_node_ptr& node) -> bool {
+            return LayerTransformation::isAsymmetricQuantization(node, defaultPrecisions) ||
+                WeightableLayerTransformation::isAsymmetricOnWeights(node, defaultPrecisions);
+        });
+        lptPassConfig->set_callback<AddTransformation>([](const_node_ptr& node) -> bool {
+            return ov::marked_as_bias(node);
+        });
+        lptPassConfig->set_callback<FoldConvertTransformation>([](const_node_ptr& node) -> bool {
+            const auto& consumers = node->get_output_target_inputs(0);
+            if (consumers.size() == 1) {
+                const auto consumer = consumers.begin()->get_node()->shared_from_this();
+                return ov::is_type<ov::opset1::Multiply>(consumer) && is_decompression_multiply(consumer);
+            }
+            return false;
+        });
+        lptPassConfig->set_callback<FuseConvertTransformation>([](const_node_ptr& node) -> bool {
+            if (ov::is_type<ov::opset1::Multiply>(node)) {
+                return ov::is_type<ov::opset1::Multiply>(node) && is_decompression_multiply(node);
+            } else if (ov::is_type<ov::opset1::Subtract>(node)) {
+                const auto& consumers = node->get_output_target_inputs(0);
+                if (consumers.size() == 1) {
+                    const auto consumer = consumers.begin()->get_node()->shared_from_this();
+                    return ov::is_type<ov::opset1::Multiply>(consumer) && is_decompression_multiply(consumer);
+                }
+            }
+            return false;
         });
 
         lptPassConfig->set_callback<MultiplyToGroupConvolutionTransformation>([&](const_node_ptr& node) -> bool {
