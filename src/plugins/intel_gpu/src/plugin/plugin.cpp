@@ -162,6 +162,17 @@ Plugin::Plugin() {
     m_compiled_model_runtime_properties["OV_VERSION"] = ov_version.buildNumber;
 }
 
+Plugin::~Plugin() {
+    // reset oneDNN cache to clean up cached primitives
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    static std::mutex dnnl_cache_mutex;
+    std::lock_guard<std::mutex> guard(dnnl_cache_mutex);
+    auto capacity = dnnl::get_primitive_cache_capacity();
+    dnnl::set_primitive_cache_capacity(0);
+    dnnl::set_primitive_cache_capacity(capacity);
+#endif
+}
+
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& orig_config) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::compile_model");
     std::string device_id = get_device_id(orig_config);
