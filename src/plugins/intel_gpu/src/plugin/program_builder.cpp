@@ -266,8 +266,7 @@ std::vector<cldnn::input_info> ProgramBuilder::GetInputInfo(const std::shared_pt
         // But there is no need to maintain output port index for the next node e.g. Result
         bool is_legacy_multiple_outputs = !allow_new_shape_infer
                                           || ov::is_type<ov::op::v1::Split>(prevOp)
-                                          || ov::is_type<ov::op::v1::VariadicSplit>(prevOp)
-                                          || ov::is_type<ov::op::v4::LSTMCell>(prevOp);
+                                          || ov::is_type<ov::op::v1::VariadicSplit>(prevOp);
         if (prevOp->get_output_size() > 1 && is_legacy_multiple_outputs) {
             prevName += ".out" + std::to_string(op->get_input_source_output(i).get_index());
         }

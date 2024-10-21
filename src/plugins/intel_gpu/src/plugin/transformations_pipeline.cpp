@@ -510,7 +510,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             const auto& data_pshape = data.get_partial_shape();
             if (data_pshape.rank().is_static() && data_pshape.rank().get_length() > 1 && !data_pshape[1].is_static())
                 return false;
-            auto max_seq_len = data.get_shape().at(1);
             if (std::dynamic_pointer_cast<const ov::op::v5::RNNSequence>(node)) {
                 return false;
             } else if (std::dynamic_pointer_cast<const ov::op::v5::GRUSequence>(node)) {
@@ -518,7 +517,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             } else if (const auto &lstm_seq = std::dynamic_pointer_cast<const ov::op::v5::LSTMSequence>(node)) {
                 return lstm_seq->get_clip() == 0.0f &&
                        lstm_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"} &&
-                       max_seq_len < 16 &&
                        !ov::op::util::is_seq_len_provided(lstm_seq->get_input_node_shared_ptr(0),
                                                           lstm_seq->get_input_node_shared_ptr(3));
             }
@@ -536,7 +534,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             [isCellPrimitiveSupported](const_node_ptr &node) -> bool {
                 return !isCellPrimitiveSupported(node);
             });
-
         if (unroll_loop) {
             pass_config->set_callback<ov::pass::ConvertRNNSequenceToTensorIterator,
                     ov::pass::ConvertGRUSequenceToTensorIterator,

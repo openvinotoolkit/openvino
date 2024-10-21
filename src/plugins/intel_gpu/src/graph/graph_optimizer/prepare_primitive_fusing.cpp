@@ -665,7 +665,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             if (input.in_shape_of_subgraph || node->in_shape_of_subgraph)
                 return;
 
-            if (lo.get_optimization_attributes().use_onednn_impls) {
+            if (lo.get_optimization_attributes().use_onednn_impls && supports_immad) {
                 if (input.is_type<reshape>() || input.is_type<concatenation>())
                     return;
                 auto additional_params_input = activation_node.get_primitive()->additional_params_input;
@@ -811,7 +811,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                             (lo.should_select_b_fs_yx_fsv16_layout(input_data.as<convolution>(), input_data.get_input_layout(1)) &&
                              !is_grouped_conv(input_data.as<convolution>())) ||
                            // Avoid fusing to b_fs_yx_fsv16 (and similar) kernels
-                           lo.get_optimization_attributes().use_onednn_impls ||
+                           (lo.get_optimization_attributes().use_onednn_impls && supports_immad) ||
                            (in_dt_is_i8_u8 && out_dt_is_i8_u8));
 
             should_fuse |= input_data.is_type<pooling>() && quantize_node.get_scale_shift_opt();
@@ -1067,7 +1067,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 }
             }
 
-            if (lo.get_optimization_attributes().use_onednn_impls && lo.is_primitive_implemented_for_onednn(*fused_node)) {
+            if (lo.get_optimization_attributes().use_onednn_impls && supports_immad && lo.is_primitive_implemented_for_onednn(*fused_node)) {
                 auto eltw_in_size = peer_node->get_output_layout();
                 if (eltw_in_size.is_dynamic()
                     // this whitelist condition is temporarily and to be relaxed soon.
