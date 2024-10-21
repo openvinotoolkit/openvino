@@ -25,6 +25,7 @@ ExpressionPtr BufferExpression::clone() const {
 }
 
 bool BufferExpression::visit_attributes(AttributeVisitor &visitor) {
+    Expression::visit_attributes(visitor);
     auto allocation_size = utils::value2str(m_allocation_size);
     auto offset = utils::value2str(m_offset);
     visitor.on_attribute("allocation_size", allocation_size);

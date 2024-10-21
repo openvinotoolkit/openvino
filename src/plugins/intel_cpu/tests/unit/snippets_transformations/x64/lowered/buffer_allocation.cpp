@@ -332,7 +332,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHABF16AMXOptimizedWOSp
                                  ::testing::Values(true),
                                  ::testing::Values(false),
                                  ::testing::Values(1409024),
-                                 ::testing::Values(3),
+                                 ::testing::Values(4),
                                  ::testing::Values(8)),
                          BufferAllocationCPUTest::getTestCaseName);
 
