@@ -80,7 +80,7 @@
             "dependencies": [
                 {
                     "name": "onnx",
-                    "version>=": "1.15.0"
+                    "version>=": "1.16.2"
                 },
                 {
                     "name": "protobuf",
