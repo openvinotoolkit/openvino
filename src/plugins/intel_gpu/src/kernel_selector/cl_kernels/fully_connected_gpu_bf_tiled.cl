@@ -97,6 +97,7 @@ KERNEL(quantize_input)(
 // Macros for vectorized types.
 #define INPUT_VEC_TYPE             MAKE_VECTOR_TYPE(INPUT0_TYPE, TILE_IFM)
 #define ACCUMULATOR_VEC_TYPE       MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, TILE_OFM)
+#define ACCUMULATOR_TMP_VEC_TYPE   MAKE_VECTOR_TYPE(ACCUMULATOR_TMP_TYPE, TILE_OFM)
 #define FILTER_VEC_TYPE            MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, TILE_K_OFM)
 #define FILTER_PACKED_VEC_TYPE     MAKE_VECTOR_TYPE(FILTER_TYPE, TILE_K_OFM_PACKED)
 #define BIAS_VEC_TYPE              MAKE_VECTOR_TYPE(BIAS_TYPE, TILE_OFM)
@@ -326,7 +327,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
         // NOTE: Manually unrolling multiplication loop leads to lower register pressure and allows for bigger block sizes,
         //       but significantly degrades readability and generality of code.
         //       It doesn't also show noticable performance improvement on tested configurations.
-        ACCUMULATOR_VEC_TYPE acc_tmp[TILE_B] = { };
+        ACCUMULATOR_TMP_VEC_TYPE acc_tmp[TILE_B] = { };
 
         #if USE_SLM && COMPRESSED_WEIGHTS_INT4
             #if TILE_OFM != 2
@@ -507,13 +508,13 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
 #if DECOMPRESSION_SCALE_POST_OP
                     half weight = ((ACCUMULATOR_TYPE*)(&wei))[W_IDX];
                     #if TILE_OFM > 1
-                        ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi] += in_val * weight;
+                        ((ACCUMULATOR_TMP_TYPE*)(&acc_tmp[bi]))[fi] += in_val * weight;
                     #else
                         acc_tmp[bi] += in_val * weight;
                     #endif
 #else
                     #if TILE_OFM > 1
-                        ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[W_IDX];
+                        ((ACCUMULATOR_TMP_TYPE*)(&acc_tmp[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[W_IDX];
                     #else
                         acc_tmp[bi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[W_IDX];
                     #endif
@@ -536,10 +537,10 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                         ACCUMULATOR_TYPE ds = d_scales[fi % DECOMPRESSION_SCALE_LENGTH];
                     #endif
                     #if TILE_OFM > 1
-                    ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi] * ds;
+                    ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += TO_ACCUMULATOR_TYPE(((ACCUMULATOR_TMP_TYPE*)(&acc_tmp[bi]))[fi] * ds);
                     acc_tmp[bi][fi] = 0;
                     #else
-                    acc[bi] += acc_tmp[bi] * ds;
+                    acc[bi] += TO_ACCUMULATOR_TYPE(acc_tmp[bi] * ds);
                     acc_tmp[bi] = 0;
                     #endif
                 }
@@ -559,9 +560,9 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                     ACCUMULATOR_TYPE ds = d_scales[fi % DECOMPRESSION_SCALE_LENGTH];
                 #endif
                 #if TILE_OFM > 1
-                ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi] * ds;
+                ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += TO_ACCUMULATOR_TYPE(((ACCUMULATOR_TMP_TYPE*)(&acc_tmp[bi]))[fi] * ds);
                 #else
-                acc[bi] += acc_tmp[bi] * ds;
+                acc[bi] += TO_ACCUMULATOR_TYPE(acc_tmp[bi] * ds);
                 #endif
             }
         }
@@ -571,7 +572,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
         unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
             unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
                 #if TILE_OFM > 1
-                ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi];
+                ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += ((ACCUMULATOR_TMP_TYPE*)(&acc_tmp[bi]))[fi];
                 #else
                 acc[bi] += acc_tmp[bi];
                 #endif
@@ -1415,6 +1416,7 @@ KERNEL(fc)(
 
 #undef INPUT_VEC_TYPE
 #undef ACCUMULATOR_VEC_TYPE
+#undef ACCUMULATOR_TMP_VEC_TYPE
 #undef FILTER_VEC_TYPE
 #undef BIAS_VEC_TYPE
 #undef OUTPUT_VEC_TYPE

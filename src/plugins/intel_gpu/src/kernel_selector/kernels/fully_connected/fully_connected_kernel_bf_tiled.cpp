@@ -659,9 +659,14 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
 
     auto activation_dt = GetActivationType(params);
     auto accumulator_dt = GetAccumulatorType(params);
+    auto accumulator_tmp_dt = GetAccumulatorType(params);
     jit.Merge(MakeTypeJitConstants(activation_dt, "ACTIVATION"));
     jit.Merge(MakeActivationJitConstants(params.activations, activation_dt, "_TYPED"));
     jit.Merge(MakeTypeJitConstants(accumulator_dt, "ACCUMULATOR"));
+    if (add_decompress_scale_post_op) {
+        accumulator_tmp_dt = Datatype::F32;
+    }
+    jit.Merge(MakeTypeJitConstants(accumulator_tmp_dt, "ACCUMULATOR_TMP"));
 
     // for 3d output we are treating spatial as features
     if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
