@@ -58,8 +58,8 @@ std::vector<TRShape> shape_infer(const STFT* op,
         op,
         input_shapes,
         0 < frame_size_val &&
-            (signal_shape[1].is_static() ? static_cast<TDimVal>(frame_size_val) < signal_shape[1].get_length()
-                                         : frame_size_val < signal_shape[1].get_interval().get_max_val()),
+            (signal_shape[1].is_static() ? static_cast<TDimVal>(frame_size_val) <= signal_shape[1].get_length()
+                                         : frame_size_val <= signal_shape[1].get_interval().get_max_val()),
         "Provided frame size is ",
         frame_size_val,
         " but must be in range [1, ",
