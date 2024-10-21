@@ -77,6 +77,9 @@ FullyConnected::FullyConnected(const std::shared_ptr<ov::Node>& op, const GraphC
       errorPrefix("FullyConnected node with name '" + getName() + "'") {
     std::string errorMessage;
     initTensorParallelConfig(context);
+#if defined(OV_CPU_WITH_ACL)
+    attrs.aclFastMath = context->getConfig().aclFastMath;
+#endif
     if (!isSupportedOperation(op, errorMessage))
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
 }
