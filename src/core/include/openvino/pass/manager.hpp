@@ -101,7 +101,7 @@ protected:
     std::string m_name = "UnnamedManager";
 
 private:
-    bool run_pass(const std::shared_ptr<PassBase>& pass, const std::shared_ptr<Model>& model, bool needs_validate);
+    bool run_pass(const std::shared_ptr<PassBase>& pass, const std::shared_ptr<Model>& model, bool& needs_validate);
 };
 }  // namespace pass
 }  // namespace ov
