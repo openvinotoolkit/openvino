@@ -67,12 +67,32 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
         }
         io_index++;
     }
+    auto get_inplace_buffers_from_result = [=] (const ExpressionPtr& result) {
+        std::vector<ExpressionPtr> buf;
+        const auto& buffers = linear_ir.get_buffers();
+        for (const auto& buffer : buffers) {
+            const auto& inplace_buffer = ov::as_type_ptr<op::InplaceMemoryBuffer>(buffer->get_node());
+            if (inplace_buffer && inplace_buffer->get_inplace_from() == result->get_node()) {
+                buf.push_back(buffer);
+            }
+        }
+        return buf;
+    };
     for (const auto& result : results) {
         manually_assigned_gprs[result->get_input_port_connector(0)] = io_index;
         // shape infer ops sequence before result
         const auto& shape_infer_sources = utils::get_first_parent_shape_infer_expr_seq(result);
         for (const auto& parent_shape_infer_expr : shape_infer_sources) {
             manually_assigned_gprs[parent_shape_infer_expr->get_input_port_connector(0)] = io_index;
+        }
+        const auto& buffers_inplace_result = get_inplace_buffers_from_result(result);
+        for (const auto& buffer : buffers_inplace_result) {
+            for (size_t i = 0; i < buffer->get_input_count(); ++i) {
+                manually_assigned_gprs[buffer->get_input_port_connector(i)] = io_index;
+            }
+            for (size_t i = 0; i < buffer->get_output_count(); ++i) {
+                manually_assigned_gprs[buffer->get_output_port_connector(i)] = io_index;
+            }
         }
         io_index++;
     }
