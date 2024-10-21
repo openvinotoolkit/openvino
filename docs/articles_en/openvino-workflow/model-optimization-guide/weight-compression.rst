@@ -238,6 +238,7 @@ trade-offs after optimization:
   There are three modes: INT8_ASYM, INT8_SYM, and NONE, which retains
   the original floating-point precision of the model weights (``INT8_ASYM`` is default value).
 
+
 **Use synthetic data for LLM weight compression**
 
 It is possible to generate a synthetic dataset using the `nncf.data.generate_text_data` method for
