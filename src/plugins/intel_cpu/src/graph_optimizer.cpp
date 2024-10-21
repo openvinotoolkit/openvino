@@ -3214,7 +3214,7 @@ void GraphOptimizer::DropRedundantMemoryOutput(Graph &graph) {
                 MemoryOutput = childNode;
             }
         }
-        return true;
+        return nullptr != MemoryOutput;
     };
 
     for (size_t i = 0; i < graphNodes.size(); i++) {
@@ -3249,8 +3249,6 @@ void GraphOptimizer::DropRedundantMemoryOutput(Graph &graph) {
 
         graph.RemoveEdge(memoryOutputNode->getParentEdgeAt(0));
         // there are no output edges from MemoryOutput nodes
-
-        graph.DropNode(memoryOutputNode);
 
         // now replace the existing MemoryInput with a special type that works without the corresponding MemoryOutput
         auto memInputSingle = std::make_shared<MemoryInputSingle>(memInputNode->getId(),
