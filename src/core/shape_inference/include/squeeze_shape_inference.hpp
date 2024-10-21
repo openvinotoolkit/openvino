@@ -10,7 +10,6 @@
 
 namespace ov {
 namespace op {
-namespace v0 {
 
 /**
  * \brief Do Squeeze shape inference.
@@ -21,7 +20,7 @@ namespace v0 {
  * \param input_shapes   Squeeze input shapes.
  * \param ta             Tensor accessor to constant data.
  */
-template <class T, class TRShape = result_shape_t<T>>
+template <class T, class TRShape = result_shape_t<T>, class Squeeze>
 std::vector<TRShape> shape_infer(const Squeeze* op,
                                  const std::vector<T>& input_shapes,
                                  const ITensorAccessor& ta = make_tensor_accessor()) {
@@ -115,6 +114,24 @@ std::vector<TRShape> shape_infer(const Squeeze* op,
     }
     return output_shapes;
 }
+namespace v0 {
+template <class T, class TRShape = result_shape_t<T>>
+std::vector<TRShape> shape_infer(const Squeeze* op,
+                                 const std::vector<T>& input_shapes,
+                                 const ITensorAccessor& ta = make_tensor_accessor())
+    {
+        return ov::op::shape_infer(op, input_shapes, ta);
+    }
 }  // namespace v0
+
+namespace v15 {
+template <class T, class TRShape = result_shape_t<T>>
+std::vector<TRShape> shape_infer(const Squeeze* op,
+                                 const std::vector<T>& input_shapes,
+                                 const ITensorAccessor& ta = make_tensor_accessor())
+    {
+        return ov::op::shape_infer(op, input_shapes, ta);
+    }
+}  // namespace v15
 }  // namespace op
 }  // namespace ov
