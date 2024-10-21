@@ -196,7 +196,7 @@ jobs:
     name: C++ CPU unit tests
     needs: [ Docker, Build, Smart_CI ]
     timeout-minutes: 30
-    runs-on: aks-linux-8-cores-32gb
+    runs-on: aks-linux-8-cores-32gb-staging
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_x64 }}
     defaults:
