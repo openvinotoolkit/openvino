@@ -52,3 +52,11 @@ const ov::PartialShape& ov::descriptor::Output::get_partial_shape() const {
 const ov::element::Type& ov::descriptor::Output::get_element_type() const {
     return m_tensor->get_element_type();
 }
+
+void ov::descriptor::Output::set_names(const std::unordered_set<std::string>& names) {
+    get_tensor().set_names(names);
+}
+
+void ov::descriptor::Output::add_names(const std::unordered_set<std::string>& names) {
+    get_tensor().add_names(names);
+}
