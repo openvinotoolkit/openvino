@@ -10,15 +10,35 @@ namespace ov {
 namespace intel_cpu {
 namespace kernel {
 
-#define GET_OFF(field) offsetof(RandomUniformCallArgs, field)
+namespace random_uniform {
+
+#define BROADCAST_R(F, V, R, C)           \
+    mov(R, C);                            \
+    F(V, R);
+
+#define BROADCAST_P(F, V, R, C)           \
+    mov(R, ptr[r64_params + GET_OFF(C)]);  \
+    F(V, ptr[R]);
+
+#define INIT_ARR(A, V, R, T)                                                                \
+    static const T A[8] = { V, V, V, V, V, V, V, V };                                       \
+    if (isa == x64::avx2) {                                                                 \
+        mov(R, reinterpret_cast<uintptr_t>(A));                                             \
+    } else {                                                                                \
+        static const T* A##_aligned = A + (reinterpret_cast<int64_t>(A) % 16) / sizeof(T);  \
+        mov(R, reinterpret_cast<uintptr_t>(A##_aligned));                                   \
+    }
+
+////////////// PHILOX GENERATOR /////////////////////////
+
+#define GET_OFF(field) offsetof(PhiloxGeneratorCallArgs, field)
 
 template <x64::cpu_isa_t isa>
-RandomUniform<isa>::RandomUniform(const RandomUniformCompileParams& jcp) :
-        JitKernel(jit_name(), jcp, isa) {
-}
+PhiloxGenerator<isa>::PhiloxGenerator(const PhiloxGeneratorCompileParams& jcp) :
+    JitKernel(jit_name(), jcp, isa) {}
 
 template <x64::cpu_isa_t isa>
-void RandomUniform<isa>::generate() {
+void PhiloxGenerator<isa>::generate() {
     this->preamble();
     registersPool = RegistersPool::create(isa, {rax, rcx, rsp, rdi, k0});
 
@@ -36,7 +56,7 @@ void RandomUniform<isa>::generate() {
 }
 
 template <>
-void RandomUniform<x64::avx512_core>::initVectors() {
+void PhiloxGenerator<x64::avx512_core>::initVectors() {
     const auto r64_aux = getReg64();
     const auto r32_aux = Xbyak::Reg32(r64_aux.getIdx());
     const auto r16_aux = Xbyak::Reg16(r64_aux.getIdx());
@@ -58,14 +78,7 @@ void RandomUniform<x64::avx512_core>::initVectors() {
         v_convert_1 = getVmm();
     }
 
-    // Initialize constants.
-#define BROADCAST_R(F, V, R, C)           \
-    mov(R, C);                            \
-    F(V, R);
-#define BROADCAST_P(F, V, R, C)           \
-    mov(R, ptr[r64_params + GET_OFF(C)]);  \
-    F(V, ptr[R]);
-
+    // Initialize constants
     BROADCAST_R(vpbroadcastq, v_max_mul_n_64, r64_aux, STATISTIC_MAXIMIZING_MULTIPLIER_N)
     BROADCAST_R(vpbroadcastq, v_max_mul_c_64, r64_aux, STATISTIC_MAXIMIZING_MULTIPLIER_COUNTER)
     BROADCAST_R(vpbroadcastd, v_add_low_k,    r32_aux, CRUSH_RESISTANCE_CONST_LOWER_VALUE)
@@ -138,13 +151,10 @@ void RandomUniform<x64::avx512_core>::initVectors() {
         mov(r64_aux, reinterpret_cast<uintptr_t>(perm_16));
         uni_vmovups(v_perm_16, ptr[r64_aux]);
     }
-
-#undef BROADCAST_R
-#undef BROADCAST_P
 }
 
 template <x64::cpu_isa_t isa> // Works for AVX2, SSE41
-void RandomUniform<isa>::initVectors() {
+void PhiloxGenerator<isa>::initVectors() {
     const auto r64_aux = getReg64();
 
     v_max_mul_n_64 = getVmm();
@@ -158,15 +168,6 @@ void RandomUniform<isa>::initVectors() {
 
     r64_n_inc      = getReg64();
     r64_min        = getReg64();
-
-#define INIT_ARR(A, V, R, T)                                                                \
-    static const T A[8] = { V, V, V, V, V, V, V, V };                                       \
-    if (isa == x64::avx2) {                                                                 \
-        mov(R, reinterpret_cast<uintptr_t>(A));                                             \
-    } else {                                                                                \
-        static const T* A##_aligned = A + (reinterpret_cast<int64_t>(A) % 16) / sizeof(T);  \
-        mov(R, reinterpret_cast<uintptr_t>(A##_aligned));                                   \
-    }
 
     // Initialize constants.
     INIT_ARR(max_mul_n_64, STATISTIC_MAXIMIZING_MULTIPLIER_N, r64_aux, uint64_t);
@@ -247,12 +248,10 @@ void RandomUniform<isa>::initVectors() {
     }
 
     uni_vpaddq(v_n_64, v_n_64, ptr[r64_aux]);
-
-#undef INIT_ARR
 }
 
 template <x64::cpu_isa_t isa>
-void RandomUniform<isa>::process() {
+void PhiloxGenerator<isa>::process() {
     auto v_dst_0 = getVmm();
     auto v_dst_1 = getVmm();
     std::vector<Vmm> v_res{ v_dst_0, v_dst_1 };
@@ -294,7 +293,7 @@ void RandomUniform<isa>::process() {
 }
 
 template <x64::cpu_isa_t isa>
-void RandomUniform<isa>::calculateRound(const Vmm& vmm_k_0, const Vmm& vmm_k_1, const Vmm& vmm_c_0, const Vmm& vmm_c_1,
+void PhiloxGenerator<isa>::calculateRound(const Vmm& vmm_k_0, const Vmm& vmm_k_1, const Vmm& vmm_c_0, const Vmm& vmm_c_1,
                                         const Vmm& vmm_n_0, const Vmm& vmm_n_1, const Vmm& vmm_aux_0, const Vmm& vmm_aux_1) {
     uni_vpmuludq(vmm_aux_0, vmm_n_0, v_max_mul_n_64);  // {p0,p1,p0,p1} = {n0,_,n0,_} * {m0,_,m0,_}
     uni_vpmuludq(vmm_aux_1, vmm_c_0, v_max_mul_c_64);  // {r0,r1,r0,r1} = {c0,_,c0,_} * {m0,_,m0,_}
@@ -309,7 +308,7 @@ void RandomUniform<isa>::calculateRound(const Vmm& vmm_k_0, const Vmm& vmm_k_1, 
 }
 
 template <x64::cpu_isa_t isa>
-void RandomUniform<isa>::runPhilox(const std::vector<Vmm>& vmm_dst, const Vmm& vmm_key, const Vmm& vmm_counter, const Vmm& vmm_n) {
+void PhiloxGenerator<isa>::runPhilox(const std::vector<Vmm>& vmm_dst, const Vmm& vmm_key, const Vmm& vmm_counter, const Vmm& vmm_n) {
     auto vmm_k_0 = getVmm();
     auto vmm_k_1 = getVmm();
     auto vmm_n_0 = getVmm();
@@ -368,13 +367,13 @@ void RandomUniform<isa>::runPhilox(const std::vector<Vmm>& vmm_dst, const Vmm& v
 }
 
 template <x64::cpu_isa_t isa>
-void RandomUniform<isa>::raiseKey(const Vmm& vmm_k_0, const Vmm& vmm_k_1) {
+void PhiloxGenerator<isa>::raiseKey(const Vmm& vmm_k_0, const Vmm& vmm_k_1) {
     uni_vpaddd(vmm_k_0, vmm_k_0, v_add_low_k); // {k0,_,k0,_} + {l0,_,l0,_}
     uni_vpaddd(vmm_k_1, vmm_k_1, v_add_up_k);  // {k1,_,k1,_} + {u0,_,u0,_}
 }
 
 template <>
-void RandomUniform<x64::avx512_core>::convert(const std::vector<Vmm>& v_dst, const std::vector<Vmm>& v_src) {
+void PhiloxGenerator<x64::avx512_core>::convert(const std::vector<Vmm>& v_dst, const std::vector<Vmm>& v_src) {
     if (m_jcp.out_data_type.size() == 4) {
         for (size_t i = 0lu; i < v_src.size(); i++) {
             const auto& vmm_src = v_src[i];
@@ -453,7 +452,7 @@ void RandomUniform<x64::avx512_core>::convert(const std::vector<Vmm>& v_dst, con
 }
 
 template <x64::cpu_isa_t isa> // Works for AVX2, SSE41
-void RandomUniform<isa>::convert(const std::vector<Vmm>& v_dst, const std::vector<Vmm>& v_src) {
+void PhiloxGenerator<isa>::convert(const std::vector<Vmm>& v_dst, const std::vector<Vmm>& v_src) {
     if (m_jcp.out_data_type.size() == 4) {
         for (size_t i = 0lu; i < v_src.size(); i++) {
             auto vmm_src = v_src[i];
@@ -536,7 +535,7 @@ void RandomUniform<isa>::convert(const std::vector<Vmm>& v_dst, const std::vecto
 }
 
 template <>
-void RandomUniform<x64::avx512_core>::tail(const std::vector<Vmm>& vmm_dst) {
+void PhiloxGenerator<x64::avx512_core>::tail(const std::vector<Vmm>& vmm_dst) {
     Xbyak::Label l_end;
     const auto k_rest_mask = getMask();
 
@@ -572,7 +571,7 @@ void RandomUniform<x64::avx512_core>::tail(const std::vector<Vmm>& vmm_dst) {
 }
 
 template <>
-void RandomUniform<x64::avx2>::tail(const std::vector<Vmm>& vmm_dst) {
+void PhiloxGenerator<x64::avx2>::tail(const std::vector<Vmm>& vmm_dst) {
     Xbyak::Label l_0, l_end;
     const auto step = vlen / sizeof(uint32_t);
 
@@ -601,7 +600,7 @@ void RandomUniform<x64::avx2>::tail(const std::vector<Vmm>& vmm_dst) {
 }
 
 template <x64::cpu_isa_t isa>
-void RandomUniform<isa>::tail(const std::vector<Vmm>& vmm_dst) {
+void PhiloxGenerator<isa>::tail(const std::vector<Vmm>& vmm_dst) {
     Xbyak::Label l_0, l_end;
     const auto step = vlen / sizeof(uint32_t);
 
@@ -626,10 +625,243 @@ void RandomUniform<isa>::tail(const std::vector<Vmm>& vmm_dst) {
     L(l_end);
 }
 
-template class RandomUniform<x64::avx512_core>;
-template class RandomUniform<x64::avx2>;
-template class RandomUniform<x64::sse41>;
+template class PhiloxGenerator<x64::avx512_core>;
+template class PhiloxGenerator<x64::avx2>;
+template class PhiloxGenerator<x64::sse41>;
 
+#undef GET_OFF
+
+//////////////// MERSENNE TWISTER GENERATOR ////////////////////
+
+#define GET_OFF(field) offsetof(MersenneTwisterGeneratorCallArgs, field)
+template <x64::cpu_isa_t isa>
+MersenneTwisterGenerator<isa>::MersenneTwisterGenerator(const MersenneTwisterGeneratorCompileParams& jcp) :
+    JitKernel(jit_name(), jcp, isa) {}
+
+template <x64::cpu_isa_t isa>
+void MersenneTwisterGenerator<isa>::generate() {
+    this->preamble();
+    registersPool = RegistersPool::create(isa, {rax, rcx, rsp, rdi, rdx, k0});
+
+    r64_dst = getReg64();
+    r64_state = getReg64();
+    r64_state_shift = getReg64();
+    r64_step = getReg64();
+    r64_work_amount = getReg64();
+    r64_elements_remaining = getReg64();
+
+    mov(r64_dst,  ptr[r64_params + GET_OFF(dst_ptr)]);
+    mov(r64_state_id, ptr[r64_params + GET_OFF(state_id)]);
+    mov(r64_state_shift, ptr[r64_params + GET_OFF(state_shift)]);
+    mov(r64_step, ptr[r64_params + GET_OFF(step)]);
+    mov(r64_work_amount, ptr[r64_params + GET_OFF(work_amount)]);
+    mov(r64_elements_remaining, ptr[r64_params + GET_OFF(elements_remaining)]);
+
+    initVectors();
+    process();
+
+    registersPool.reset();
+    this->postamble();
+}
+
+template <x64::cpu_isa_t isa>
+void MersenneTwisterGenerator<isa>::initVectors() {
+    const auto r64_aux = getReg64();
+    const auto r32_aux = Xbyak::Reg32(r64_aux.getIdx());
+
+    v_min = getVmm();
+    v_range = getVmm();
+    v_state = getVmm();
+    v_result = getVmm();
+    v_mask = getVmm();
+    v_divisor = getVmm();
+
+    // Initialize constants based on the requested data type
+    if (m_jcp.out_data_type == element::f32) {
+        BROADCAST_R(vpbroadcastd, v_mask, r32_aux, (1 << std::numeric_limits<float>::digits) - 1)
+        BROADCAST_R(vpbroadcastd, v_divisor, r32_aux, 1.0f / (1 << std::numeric_limits<float>::digits))
+    } else if (m_jcp.out_data_type == element::f16) {
+        BROADCAST_R(vpbroadcastd, v_mask, r32_aux, (1 << std::numeric_limits<float16>::digits) - 1)
+        BROADCAST_R(vpbroadcastd, v_divisor, r32_aux, 1.0f / (1 << std::numeric_limits<float16>::digits))
+    } else if (m_jcp.out_data_type == element::bf16) {
+        BROADCAST_R(vpbroadcastd, v_mask, r32_aux, (1 << 8) - 1)
+        BROADCAST_R(vpbroadcastd, v_divisor, r32_aux, 1.0f / (1 << 8))
+    }
+
+    BROADCAST_P(vpbroadcastd, v_min, r64_aux, min_ptr)
+    BROADCAST_P(vpbroadcastd, v_range, r64_aux, range_ptr)
+
+    BROADCAST_R(vpbroadcastd, v_const_1, r32_aux, MT_CONST_1)
+    BROADCAST_R(vpbroadcastd, v_const_2, r32_aux, MT_CONST_2)
+}
+
+template <x64::cpu_isa_t isa>
+void MersenneTwisterGenerator<isa>::process() {
+    using namespace Xbyak;
+
+    Label loop, end;
+    L(loop);
+    {
+        cmp(r64_work_amount, 0);
+        je(end);
+
+        // Generate random numbers
+        generateRandomNumbers(v_result, v_state);
+
+        // Convert to output type
+        convertToOutputTypeMersenne(v_result, v_min, v_range, v_dst, r64_elements_remaining);
+
+        // Update pointers and counters
+        add(r64_dst, r64_step);
+        dec(r64_work_amount);
+        jmp(loop);
+    }
+    L(end);
+}
+
+template <x64::cpu_isa_t isa>
+void MersenneTwisterGenerator<isa>::generateRandomNumbers(const Vmm& v_result, const Vmm& v_state) {
+    using namespace Xbyak;
+
+    // Load state
+    movdqu(v_state, ptr[r64_state + r64_state_shift]);
+
+    // Apply Mersenne Twister transformations
+    movdqa(v_result, v_state);
+    psrld(v_result, MT_U);
+    pxor(v_result, v_state);
+    pslld(v_result, MT_S);
+    pand(v_result, v_const_1);
+    pxor(v_result, v_state);
+    pslld(v_result, MT_T);
+    pand(v_result, v_const_2);
+    pxor(v_result, v_state);
+    psrld(v_result, MT_L);
+    pxor(v_result, v_state);
+
+    // Store result
+    movdqu(ptr[r64_dst], v_result);
+}
+
+template <x64::cpu_isa_t isa>
+void MersenneTwisterGenerator<isa>::convertToOutputTypeMersenne(const Vmm& v_result, const Vmm& v_min, const Vmm& v_range, const Vmm& v_dst, const Xbyak::Reg64& r64_elements_remaining) {
+    using namespace Xbyak;
+
+    const auto r64_aux = getReg64();
+    const auto r64_aux_2 = getReg64();
+
+    const auto r32_aux = Xbyak::Reg32(r64_aux.getIdx());
+    const auto r32_aux_2 = Xbyak::Reg32(r64_aux_2.getIdx());
+
+
+    if (m_jcp.out_data_type == element::f32) {
+        // Apply mask and divisor
+        pand(v_result, v_mask);
+        cvtdq2ps(v_result, v_result);
+        mulps(v_result, v_divisor);
+
+        // Scale and shift
+        mulps(v_result, v_range);
+        addps(v_result, v_min);
+
+        // Store result
+        movdqu(ptr[r64_dst], v_result);
+    } else if (m_jcp.out_data_type == element::f16) {
+        // Apply mask and divisor
+        pand(v_result, v_mask);
+        cvtdq2ps(v_result, v_result);
+        mulps(v_result, v_divisor);
+
+        // Scale and shift
+        mulps(v_result, v_range);
+        addps(v_result, v_min);
+
+        // Convert to float16 and store result
+        vcvtps2ph(v_result, v_result, _op_mxcsr);
+        movdqu(ptr[r64_dst], v_result);
+    } else if (m_jcp.out_data_type == element::bf16) {
+        // Apply mask and divisor
+        pand(v_result, v_mask);
+        cvtdq2ps(v_result, v_result);
+        mulps(v_result, v_divisor);
+
+        // Scale and shift
+        mulps(v_result, v_range);
+        addps(v_result, v_min);
+
+        // Convert to bfloat16 and store result
+        vcvtneps2bf16(v_result, v_result);
+        movdqu(ptr[r64_dst], v_result);
+    } else if (m_jcp.out_data_type == element::i32) {
+        // Convert to int32 and store result
+        movdqu(ptr[r64_dst], v_result);
+    } else if (m_jcp.out_data_type == element::i64) {
+        if (m_jcp.optimized) {
+            // Move the lower 32 bits of v_result to r32_aux
+            movd(r32_aux, v_result);
+            
+            // Move the lower 32 bits of v_range to r32_aux_2
+            movd(r32_aux_2, v_range);
+            
+            // Perform the modulo operation
+            xor_(rdx, rdx); // Clear RDX (set it to zero)
+            mov(rax, r32_aux); // Move r32_aux to RAX for division
+            div(r32_aux_2); // Divide RAX by r32_aux_2, quotient in RAX, remainder in RDX
+            
+            // Move the remainder (result % range) to r32_aux
+            mov(r32_aux, rdx);
+            
+            // Add v_min to r32_aux
+            movd(r32_aux_2, v_min);
+            add(r32_aux, r32_aux_2);
+            
+            // Store the result in the destination pointer
+            mov(ptr[r64_dst], r32_aux);
+        } else {
+            // Extract the first two 32-bit values from v_result
+            movd(r32_aux, v_result); // Move the lower 32 bits of v_result[0] to r32_aux
+            pextrd(r32_aux_2, v_result, 1); // Extract the second 32-bit value (v_result[1]) to r32_aux_2
+
+            // Combine the two 32-bit values into a 64-bit integer
+            mov(r64_aux, r32_aux); // Move r32_aux to the lower 32 bits of r64_aux
+            shl(r64_aux, 32); // Shift r64_aux left by 32 bits
+            mov(r64_aux_2, r32_aux_2); // Move r32_aux_2 to r64_aux_2
+            or_(r64_aux, r64_aux_2); // Combine with r64_aux_2 to form a 64-bit integer
+
+            // Prepare for division
+            xor_(rdx, rdx); // Clear RDX (set it to zero)
+            mov(rax, r64_aux); // Move the combined 64-bit value to RAX
+
+            // Perform the division
+            mov(r64_aux_2, qword[v_range]); // Move the range value to r64_aux_2
+            div(r64_aux_2); // Divide RAX by r64_aux_2, quotient in RAX, remainder in RDX
+
+            // Move the remainder to r64_aux
+            mov(r64_aux, rdx); // Move the remainder (result % range) to r64_aux
+
+            // Add the minimum value
+            mov(r64_aux_2, qword[v_min]); // Move the minimum value to r64_aux_2
+            add(r64_aux, r64_aux_2); // Add r64_aux_2 to r64_aux
+
+            // Store the result in the destination pointer
+            mov(qword[r64_dst], r64_aux); // Move the final result to the memory location pointed by r64_dst
+        }
+    } else {
+        OPENVINO_THROW("RandomUniform kernel does not support precision ", m_jcp.out_data_type, " for ", x64::get_isa_info());
+    }
+}
+
+template class MersenneTwisterGenerator<x64::avx512_core>;
+template class MersenneTwisterGenerator<x64::avx2>;
+template class MersenneTwisterGenerator<x64::sse41>;
+
+#undef GET_OFF
+
+#undef INIT_ARR
+#undef BROADCAST_R
+#undef BROADCAST_P
+
+}   // namespace random_uniform
 }   // namespace kernel
 }   // namespace intel_cpu
 }   // namespace ov
