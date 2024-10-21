@@ -107,14 +107,17 @@ INSTANTIATE_TEST_SUITE_P(
            make_tuple(unit_test::ShapeVector{{3, 2, 3}, {3}, {3}, {3}}, std::vector<std::vector<int32_t>>{{2, 0, 0}, {3, 2, 3}, {1, 1, 2}},
                       std::vector<int64_t>(4, 0), std::vector<int64_t>(4, 0), std::vector<int64_t>(4, 0), std::vector<int64_t>(4, 0), StaticShape({1, 2, 2})),
            make_tuple(unit_test::ShapeVector{{3, 2, 3}, {3}, {3}, {3}}, std::vector<std::vector<int32_t>>{{1, 0, 0}, {0, 0, 0}, {1, 1, 1}},
-                      std::vector<int64_t>{0, 1, 1}, std::vector<int64_t>(3, 1), std::vector<int64_t>(3, 0), std::vector<int64_t>(3, 0), StaticShape({2, 2, 3})),
+                      std::vector<int64_t>{0, 1, 1}, std::vector<int64_t>(3, 1), std::vector<int64_t>(3, 0), std::vector<int64_t>(3, 0),
+                      StaticShape({2, 2, 3})),
            make_tuple(unit_test::ShapeVector{{3, 2, 3}, {3}, {3}, {3}}, std::vector<std::vector<int32_t>>{{0, 1, 0}, {2, 0, 0}, {1, 1, 2}},
-                      std::vector<int64_t>{1, 0, 1}, std::vector<int64_t>{0, 1, 1}, std::vector<int64_t>(3, 0), std::vector<int64_t>(3, 0), StaticShape({2, 1, 2})),
+                      std::vector<int64_t>{1, 0, 1}, std::vector<int64_t>{0, 1, 1}, std::vector<int64_t>(3, 0), std::vector<int64_t>(3, 0),
+                      StaticShape({2, 1, 2})),
            make_tuple(unit_test::ShapeVector{{3, 2, 3}, {3}, {3}, {3}}, std::vector<std::vector<int32_t>>{{0, 0, 0}, {1, 0, 0}, {1, 1, -1}},
-                      std::vector<int64_t>{0, 1, 1}, std::vector<int64_t>{0, 1, 1}, std::vector<int64_t>(3, 0), std::vector<int64_t>(3, 0), StaticShape({1, 2, 3})),
+                      std::vector<int64_t>{0, 1, 1}, std::vector<int64_t>{0, 1, 1}, std::vector<int64_t>(3, 0), std::vector<int64_t>(3, 0),
+                      StaticShape({1, 2, 3})),
            make_tuple(unit_test::ShapeVector{{2000, 128}, {3}, {3}, {3}}, std::vector<std::vector<int32_t>>{{0, 0, 0}, {0, 128, 0}, {1, 1, 1}},
-                      std::vector<int64_t>{0, 1, 1}, std::vector<int64_t>{0, 0, 1}, std::vector<int64_t>{1, 0, 0}, std::vector<int64_t>(3, 0), StaticShape({1, 128, 128}))
-    ),
+                      std::vector<int64_t>{0, 1, 1}, std::vector<int64_t>{0, 0, 1}, std::vector<int64_t>{1, 0, 0}, std::vector<int64_t>(3, 0),
+                      StaticShape({1, 128, 128}))),
     StridedSliceCpuShapeInferenceTest::getTestCaseName);
 
 } // namespace cpu_shape_infer
