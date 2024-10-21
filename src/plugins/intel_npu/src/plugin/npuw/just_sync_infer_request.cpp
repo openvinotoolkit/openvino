@@ -397,7 +397,8 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
             // Will be utilized when there is no FOLDing
             if (!m_npuw_model->m_update_required) {
                 // At this point closure already contains allocated and transformed tensor ready to be used
-                request->set_tensor(iport, ov::get_tensor_impl(closure));
+                // FIXME: Need to drop reference to Const node here
+                //request->set_tensor(iport, ov::get_tensor_impl(closure));
             }
         }  // for(closure)
         LOG_VERB("DONE");
@@ -628,11 +629,12 @@ void ov::npuw::JustInferRequest::bind_global_parameters(std::size_t idx) {
 
     // Run host-side gather, if required
     if (comp_model_desc.host_gather.dst_idx != -1) {
+        // FIXME: need to hold memory somewhere else for Const
         auto& dst = comp_model_desc.closure[comp_model_desc.host_gather.dst_idx - comp_model_desc.param_base];
         const auto& vocab = comp_model_desc.closure[comp_model_desc.host_gather.src_idx - comp_model_desc.param_base];
         const auto& lport = comp_model_desc.compiled_model->inputs()[comp_model_desc.host_gather.idx_idx];
-        const auto lookup = subr->get_tensor(lport);
-        ov::npuw::util::gather(ov::get_tensor_impl(vocab), lookup, ov::get_tensor_impl(dst));
+        // const auto lookup = subr->get_tensor(lport);
+        // ov::npuw::util::gather(ov::get_tensor_impl(vocab), lookup, ov::get_tensor_impl(dst));
     }
 
     LOG_DEBUG("Done");
@@ -768,10 +770,12 @@ void ov::npuw::JustInferRequest::unpack_closure(std::size_t idx, RqPtr request) 
         } else if (m_npuw_model->m_update_required) {
             if (needs_copy(idx, cidx)) {
                 // Remember where copy is requried
-                closure_copy_required.push_back(cidx);
+                //closure_copy_required.push_back(cidx);
+                // Need to utilize another mechanism here - other Const ref
             } else {
                 // Easy case, just set one to another
-                request->set_tensor(iport, ov::get_tensor_impl(closure));
+                // FIXME: need to drop reference to Const node here
+                //request->set_tensor(iport, ov::get_tensor_impl(closure));
             }
         }
     }  // for(closure)

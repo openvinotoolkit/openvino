@@ -474,11 +474,20 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
                 comp_model_desc.is_remote[tidx] = false;
                 continue;
             }
-            const auto& lt = comp_model_desc.lazy_closure[tidx];
+            auto& lt = comp_model_desc.lazy_closure[tidx];
             comp_model_desc.closure[tidx] = m_weights_bank->get(lt, *func_desc.device_it);
             // FIXME: find a more reliable way to do so
             comp_model_desc.is_remote[tidx] = m_weights_bank->is_remote(lt);
+
+            // Need to store all via copy, then drop all, including these (or not store these intially)
+            // if (comp_model_desc.is_remote[tidx]) {
+            //     lt.drop_if_const();
+            // }
         }
+        comp_model_desc.closure.clear();
+        comp_model_desc.scales.clear();
+        comp_model_desc.zerops.clear();
+        comp_model_desc.lazy_closure.clear();
     }
 
     LOG_INFO("Done.");
