@@ -219,6 +219,9 @@ Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op,
     for (size_t i = 0; i < deconvAttrs.dilation.size(); i++) {
         deconvAttrs.kernel.push_back(weightDims[withGroups + 2 + i]);
     }
+#if defined(OV_CPU_WITH_ACL)
+    deconvAttrs.aclFastMath = context->getConfig().aclFastMath;
+#endif
 
     externOutShape = inputShapes.size() == 3;
     biasPort = externOutShape ? 3 : 2;

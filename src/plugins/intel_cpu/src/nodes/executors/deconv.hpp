@@ -22,6 +22,9 @@ struct DeconvAttrs {
     std::vector<ptrdiff_t> paddingR;
     ov::CoordinateDiff outputPadding;
     bool withBiasesParam = false;
+#if defined(OV_CPU_WITH_ACL)
+    bool aclFastMath = false;
+#endif
 };
 
 class DeconvExecutor {
