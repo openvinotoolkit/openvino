@@ -269,6 +269,21 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(CPUTestUtils::empty_plugin_config)),
     MHA::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(
+    smoke_Snippets_MHAFlashAttention,
+    MHAWithoutSoftmax,
+    ::testing::Combine(
+        ::testing::ValuesIn(STATIC_SHAPES({{1, 512, 2, 64}, {1, 1024, 2, 64}, {1, 1024, 2, 16}})),
+        ::testing::ValuesIn(precision_f32(3)),
+        ::testing::Values(ov::element::f32),
+        ::testing::ValuesIn({false}),
+        ::testing::Values(MHA::default_thread_count),
+        ::testing::Values(1),
+        ::testing::Values(1),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
+        ::testing::Values(CPUTestUtils::empty_plugin_config)),
+    MHA::getTestCaseName);
+
 const auto& inputShapeSelect = STATIC_SHAPES(
     // without broadcast
     {{1, 128, 12, 64}, {1, 128, 12, 64}, {1, 12, 128, 128}, {1, 12, 128, 128}, {1, 12, 128, 128}, {1, 128, 12, 64}},

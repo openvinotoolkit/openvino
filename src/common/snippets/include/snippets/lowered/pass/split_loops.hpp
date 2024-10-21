@@ -65,7 +65,7 @@ public:
 private:
     static bool can_be_split(const UnifiedLoopInfoPtr& current, const UnifiedLoopInfoPtr& target);
 
-    static void split(LinearIR& linear_ir, size_t loop_to_split_id, size_t outer_increment, size_t loop_position);
+    static size_t split(LinearIR& linear_ir, size_t loop_to_split_id, size_t outer_increment, size_t loop_position);
 
     /**
      * @interface TransformInnerSplitLoop

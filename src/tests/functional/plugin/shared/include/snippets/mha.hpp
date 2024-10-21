@@ -81,6 +81,10 @@ class MHAMulAdd : public MHA {
     std::shared_ptr<SnippetsFunctionBase> get_subgraph() const override;
 };
 
+class MHAWithoutSoftmax: public MHA {
+    std::shared_ptr<SnippetsFunctionBase> get_subgraph() const override;
+};
+
 class MHATransposedB : public MHA {
     std::shared_ptr<SnippetsFunctionBase> get_subgraph() const override;
 };
