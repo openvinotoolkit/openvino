@@ -208,10 +208,6 @@ void ROIAlignForward(const int64_t nthreads,
         // roi could have 4 or 5 columns
         const T* offset_bottom_rois = bottom_rois + n * roi_cols;
         int64_t roi_batch_ind = 0;
-        if (roi_cols == 5) {
-            roi_batch_ind = static_cast<int64_t>(offset_bottom_rois[0]);
-            offset_bottom_rois++;
-        }
 
         T offset = aligned ? static_cast<T>(0.5) : static_cast<T>(0.0);
         // Do not use rounding; this implementation detail is critical
