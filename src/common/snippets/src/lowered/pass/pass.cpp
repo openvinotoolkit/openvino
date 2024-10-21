@@ -33,6 +33,7 @@ void PassPipeline::run(LinearIR& linear_ir) const {
 
 void PassPipeline::run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) const {
     for (const auto& pass : m_passes) {
+        std::cout << "pass_name_control_flow s:" << pass->get_type_name() << std::endl;
         OPENVINO_ASSERT(pass != nullptr, "PassPipeline has empty pass!");
         SNIPPETS_DEBUG_LIR_PASS_DUMP(linear_ir, pass);
 
@@ -46,6 +47,7 @@ void PassPipeline::run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearI
         } else {
             OPENVINO_THROW("Unexpected pass (", pass->get_type_info(), ") is registered in PassPipeline");
         }
+        std::cout << "pass_name_control_flow e:" << pass->get_type_name() << std::endl;
     }
 }
 

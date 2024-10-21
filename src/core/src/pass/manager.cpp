@@ -338,6 +338,7 @@ bool ov::pass::Manager::run_passes(const std::shared_ptr<ov::Model>& model) {
 
     profiler.start_timer(m_name);
     for (const auto& pass : m_pass_list) {
+        std::cout << "pass_name s:" << pass->get_name() << std::endl;
         const auto& pass_name = pass->get_name();
 
         profiler.start_timer(pass_name);
@@ -348,6 +349,7 @@ bool ov::pass::Manager::run_passes(const std::shared_ptr<ov::Model>& model) {
 
         profiler.visualize(model, pass_name);
         profiler.serialize(model, pass_name);
+        std::cout << "pass_name e:" << pass->get_name() << std::endl;
     }
     profiler.stop_timer(m_name, model_changed);
 

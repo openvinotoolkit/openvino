@@ -53,6 +53,7 @@ public:
     bool is_independent_memory() const { return get_input_count() == 0; }
 
     std::shared_ptr<Node> get_inplace_node() const;
+    void set_inplace_from(std::shared_ptr<Node> inplace_from);
 
 protected:
     BufferExpression(const std::shared_ptr<Node>& n, const std::shared_ptr<IShapeInferSnippetsFactory>& factory);

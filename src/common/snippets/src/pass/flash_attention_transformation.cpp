@@ -74,13 +74,20 @@ FlashAttentionTransformation::FlashAttentionTransformation() {
         const auto& softmax_input = softmax->input_value(0);
         const auto reduce_max = std::make_shared<ov::snippets::op::ReduceMax>(softmax_input, axis);  // 512*1
         const auto new_max = std::make_shared<ov::op::v1::Maximum>(scratch_old_max, reduce_max);     // 512*1
+        size_t inplace_idx = 0;
         scratch_old_max->set_inplace_from(new_max); // save new to old after old usage(compensation calculation) finished.
+        new_max->get_rt_info()["inplace_source_index"] = inplace_idx;
+        scratch_old_max->get_rt_info()["inplace_consumer_index"] = inplace_idx;
+        inplace_idx++;
         ov::snippets::op::ReduceBase::compute_and_set_reduce_subtensors(reduce_max);
         const auto subtract = std::make_shared<ov::op::v1::Subtract>(softmax_input, new_max);
         const auto exp = std::make_shared<ov::op::v0::Exp>(subtract);
 
         const auto reduce_sum = std::make_shared<ov::snippets::op::ReduceSum>(exp, axis);
         scratch_old_sum->set_inplace_from(reduce_sum); // save new to old after old usage(compensation calculation) finished.
+        reduce_sum->get_rt_info()["inplace_source_index"] = inplace_idx;
+        scratch_old_sum->get_rt_info()["inplace_consumer_index"] = inplace_idx;
+        inplace_idx++;
         ov::snippets::op::ReduceBase::compute_and_set_reduce_subtensors(reduce_sum);
         const auto power = std::make_shared<ov::snippets::op::PowerStatic>(reduce_sum, -1.f);
         const auto softmax_out = std::make_shared<ov::op::v1::Multiply>(exp, power);  // softmax result
@@ -101,7 +108,11 @@ FlashAttentionTransformation::FlashAttentionTransformation() {
         const auto scaled_output = std::make_shared<ov::op::v1::Multiply>(scratch_old_result, compensation_scale);
         // out = out_new(softmax_out * V) + compensation_scale * out_old
         const auto add = std::make_shared<ov::op::v1::Add>(brgemm_new, scaled_output);
+        // const auto result = std::make_shared<ov::op::v0::Result>(add);
         scratch_old_result->set_inplace_from(add);
+        add->get_rt_info()["inplace_source_index"] = inplace_idx;
+        scratch_old_result->get_rt_info()["inplace_consumer_index"] = inplace_idx;
+        inplace_idx++;
 
         // remove softmax
         copy_runtime_info(softmax, {reduce_max, subtract, exp, reduce_sum, power, softmax_out});
