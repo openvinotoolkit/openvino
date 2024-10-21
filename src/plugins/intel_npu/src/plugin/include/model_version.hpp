@@ -53,7 +53,6 @@ struct Metadata<1, 0> : public MetadataBase {
 
 std::unique_ptr<MetadataBase> createMetadata(int major, int minor);
 
-void check_blob_compatibility(const MetadataBase& meta1, const MetadataBase& meta2);
-void check_blob_version(std::vector<uint8_t>& blob);
+std::unique_ptr<MetadataBase> read_metadata_from(std::vector<uint8_t>& blob);
 
 } // namespace intel_npu

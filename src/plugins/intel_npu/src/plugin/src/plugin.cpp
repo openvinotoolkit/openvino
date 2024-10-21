@@ -760,7 +760,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         }
         _logger.debug("Successfully read %zu bytes into blob.", graphSize);
 
-        check_blob_version(blob);
+        auto storedMeta = read_metadata_from(blob);
+        auto currentMeta = Metadata<CURRENT_METAVERSION_MAJOR, CURRENT_METAVERSION_MINOR>();
+        if (!currentMeta.isCompatible(*storedMeta)) {
+            OPENVINO_THROW("Incompatible blob metadata version!");
+        }
 
         auto meta = compiler->parse(blob, localConfig);
         meta.name = "net" + std::to_string(_compiledModelLoadCounter++);

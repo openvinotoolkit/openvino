@@ -47,22 +47,20 @@ std::unique_ptr<MetadataBase> createMetadata(int major, int minor) {
     if (major == 1 && minor == 0) {
         return std::make_unique<Metadata<1, 0>>();
     } else {
-        OPENVINO_THROW("Unsupported metadata version!");
+        return nullptr;
     }
 }
 
 bool Metadata<1, 0>::isCompatible(const MetadataBase& other) const {
     const auto* otherMeta = dynamic_cast<const Metadata<1, 0>*>(&other);
     if (otherMeta) {
-        std::cout << "ourMetaOV:\n" << ovVersion.version << "blobMetaOV: " << otherMeta->ovVersion.version << '\n';
         return version.major == otherMeta->version.major &&
-               version.minor == otherMeta->version.minor &&
                ovVersion.version == otherMeta->ovVersion.version;
     }
     return false;
 }
 
-void check_blob_version(std::vector<uint8_t>& blob) {
+std::unique_ptr<MetadataBase> read_metadata_from(std::vector<uint8_t>& blob) {
     size_t blobDataSize;
     auto metadataIterator = blob.end() - sizeof(blobDataSize);
     memcpy(&blobDataSize, &(*metadataIterator), sizeof(blobDataSize));
@@ -84,12 +82,11 @@ void check_blob_version(std::vector<uint8_t>& blob) {
     metadataStream.read(reinterpret_cast<char*>(&metaVersion.major), sizeof(metaVersion.major));
     metadataStream.read(reinterpret_cast<char*>(&metaVersion.minor), sizeof(metaVersion.minor));
 
-    auto blobMeta = createMetadata(metaVersion.major, metaVersion.minor);
-    blobMeta->read(metadataStream);
-    auto ourMeta = Metadata<CURRENT_METAVERSION_MAJOR, CURRENT_METAVERSION_MINOR>();
-    if (!ourMeta.isCompatible(*blobMeta)) {
-        OPENVINO_THROW("Incompatible blob metadata version!");
+    auto storedMeta = createMetadata(metaVersion.major, metaVersion.minor);
+    if (storedMeta != nullptr) {
+        storedMeta->read(metadataStream);
     }
+    return storedMeta;
 }
 
 } // namespace intel_npu
