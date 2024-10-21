@@ -127,7 +127,14 @@ Output<Node> masked_fill(ov::pass::NodeRegistry& rg,
 
 Output<Node> concat_list_from_inputs(const NodeContext& context, size_t begin, size_t end);
 
-Output<Node> masked_select(const NodeContext& context, const Output<Node>& data, const Output<Node>& mask);
+Output<Node> flatten(ov::pass::NodeRegistry& rg, const Output<Node>& value, size_t axis);
+
+void index_tensor_on_list(ov::pass::NodeRegistry& rg,
+                          const Output<Node>& data,
+                          const ov::OutputVector& indices,
+                          int64_t rank,
+                          Output<Node>& new_output,
+                          bool& use_input_as_output);
 
 namespace op {
 template <OutputVector (*T)(const NodeContext&), size_t idx = 0>
