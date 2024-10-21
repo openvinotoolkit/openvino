@@ -7,14 +7,14 @@
 #include <regex>
 #include <string_view>
 
-#include "config/common.hpp"
-#include "config/compiler.hpp"
-#include "config/runtime.hpp"
 #include "graph_transformations.hpp"
+#include "intel_npu/al/config/common.hpp"
+#include "intel_npu/al/config/compiler.hpp"
+#include "intel_npu/al/config/runtime.hpp"
+#include "intel_npu/al/prefix.hpp"
+#include "intel_npu/common/itt.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
-#include "npu_itt.hpp"
 #include "openvino/core/model.hpp"
-#include "prefix.hpp"
 
 namespace {
 

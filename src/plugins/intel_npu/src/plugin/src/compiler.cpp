@@ -4,10 +4,10 @@
 
 #include "compiler.hpp"
 
-#include "config/compiler.hpp"
+#include "intel_npu/al/config/compiler.hpp"
+#include "intel_npu/al/npu_private_properties.hpp"
+#include "intel_npu/common/itt.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
-#include "npu_itt.hpp"
-#include "npu_private_properties.hpp"
 
 #ifdef ENABLE_DRIVER_COMPILER_ADAPTER
 #    include "driver_compiler_adapter.hpp"
