@@ -4,6 +4,7 @@
 
 #include "snippets/lowered/pass/define_buffer_clusters.hpp"
 
+#include "snippets/lowered/pass/mark_invariant_shape_path.hpp"
 #include "snippets/lowered/pass/set_buffer_reg_group.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/snippets_isa.hpp"
@@ -57,6 +58,15 @@ void DefineBufferClusters::create_new_cluster(const BufferExpressionPtr& buffer_
     // If Buffer is missed in clusters, create new cluster with the single Buffer node inside
     if (cluster_it == m_clusters.cend()) {
         m_clusters.push_back(BufferCluster{buffer_expr});
+    }
+}
+
+void DefineBufferClusters::add_buffers_to_cluster(BufferCluster& existing_cluster, const std::set<BufferExpressionPtr>& buffers) {
+    existing_cluster.insert(buffers.cbegin(), buffers.cend());
+    // All buffers in one cluster must be only static or dynamic (no mixes).
+    if (std::any_of(existing_cluster.cbegin(), existing_cluster.cend(), [](const BufferExpressionPtr& buffer) { return !buffer->is_defined(); })) {
+        for (auto& buffer : existing_cluster)
+            buffer->set_allocation_size(utils::get_dynamic_value<size_t>());
     }
 }
 
@@ -124,40 +134,54 @@ void DefineBufferClusters::parse_loop(const LoopManagerPtr& loop_manager, const 
             if (visited_buffers.count(input_buffer_expr) > 0)
                 continue;
 
-            // If allocated sizes of buffers are unkown on compilation stage (dynamic),
-            // we cannot be sure that they're will be the same in runtime.
-            if (!input_buffer_expr->is_defined()|| !output_buffer_expr->is_defined())
-                continue;
-
             // Memory can be reused if reading and writing are executed proportionally:
-            //  - the same buffer allocation sizes
             //  - output buffer can have precision with data size less than input buffer
-            //  - the same reading/writing order
-            if ((input_buffer_expr->get_allocation_size() != output_buffer_expr->get_allocation_size()) ||
-                (input_buffer_expr->get_data_type().size() < output_buffer_expr->get_data_type().size()) ||
-                (input_buffer_expr->get_output_port_descriptor(0)->get_layout() != output_buffer_expr->get_input_port_descriptor(0)->get_layout()))
+            if ((input_buffer_expr->get_data_type().size() < output_buffer_expr->get_data_type().size()))
                 continue;
 
-            // Memory can be reused if there are the same LoopPortDesc (data size, final offsets, ptr increments).
-            // If data pointer shift parameters are unknown on model compilation stage (dynamic),
-            // we cannot be sure that these data pointers will be proportionally shifted in runtime.
-            // Note: data size of output buffer might be less than data size of input buffer.
+            //  - Memory can be reused if there are the same LoopPortDesc (data size, final offsets, ptr increments).
+            //    If data pointer shift parameters are unknown on model compilation stage (dynamic),
+            //    we can be sure that these data pointers will be proportionally shifted in runtime
+            //    only if they are marked by the same color path in "InvariantShapePath".
+            //  - Also memory can be shared if Buffer has the same allocation size.
+            //    If they're undefined, check that they have the same rule for initialization of allocation size
             const auto& input_params = input_buffer_port_info.desc;
             const auto& output_params = output_buffer_port_info.desc;
-            if (input_params.is_static() && output_params.is_static() &&
-                input_params.ptr_increment == output_params.ptr_increment &&
-                input_params.finalization_offset == output_params.finalization_offset &&
-                input_params.data_size >= output_params.data_size) {
-                const auto cluster_it = find_cluster_by_expr(input_buffer_expr);
-                OPENVINO_ASSERT(cluster_it != m_clusters.end(), "Buffer on inputs of Loop must be already saved in clusters");
-                // Add to the existing cluster
-                has_been_added = cluster_it->insert(output_buffer_expr).second;
-                OPENVINO_ASSERT(has_been_added, "Buffer has not been saved in cluster");
-                // Remove input buffer because we have already use its memory
-                visited_buffers.insert(input_buffer_expr);
-                break;
+            if (input_params.is_static() && output_params.is_static()) {
+                if (input_buffer_expr->get_allocation_size() != output_buffer_expr->get_allocation_size())
+                    continue;
+
+                if (input_params.ptr_increment != output_params.ptr_increment ||
+                    input_params.finalization_offset != output_params.finalization_offset)
+                    continue;
+
+            } else {
+                // If they're undefined, they must have the same rule for initialization of allocation size
+                if (input_buffer_expr->get_type_info() != BufferExpression::get_type_info_static() ||
+                    output_buffer_expr->get_type_info() != BufferExpression::get_type_info_static())
+                    continue;
+
+                // If they're undefined, they must be on the same shape-path.
+                // It means that in runtime they will have the same loop ptr arithmethic
+                size_t input_path, output_path;
+                if (!MarkInvariantShapePath::initInvariantPortShapePaths(*input_buffer_port_info.port.expr_port, input_path) ||
+                    !MarkInvariantShapePath::initInvariantPortShapePaths(*output_buffer_port_info.port.expr_port, output_path))
+                    continue;
+
+                if (input_path != output_path)
+                    continue;
             }
-            if (has_been_added) break;
+
+            if (input_params.data_size < output_params.data_size)
+                continue;
+
+            const auto cluster_it = find_cluster_by_expr(input_buffer_expr);
+            OPENVINO_ASSERT(cluster_it != m_clusters.end(), "Buffer on inputs of Loop must be already saved in clusters");
+            // Add to the existing cluster
+            add_buffers_to_cluster(*cluster_it, {output_buffer_expr});
+            // Remove input buffer because we have already use its memory
+            visited_buffers.insert(input_buffer_expr);
+            break;
         }
         if (!has_been_added) {
             create_new_cluster(output_buffer_expr);
@@ -173,20 +197,19 @@ void DefineBufferClusters::parse_nested_loops(const LoopManagerPtr& loop_manager
     if (input_buffers.empty() && output_buffers.empty())
         return;
 
-    // The inner Buffer can reuse memory of the outer Buffer using `window` sliding only if:
-    //  - The finalization offset of the latest Loop connected to the inner Buffer is equal to pointer increment of outer Buffer to emulate `window` sliding
-    //  - This outer Buffer should have the same Buffer ID as inner to move data ptr of inner Buffer after each outer Loop iteration.
-    //    It's needed because all Loops reset data pointers of connected Buffer after full work.
-    //    To avoid rewriting of outer Buffer data we have to have the same Buffer ID (GPR) to proportionally shift pointers both Buffers.
-
-    auto can_be_data_ptr_proportionally_shifted = [](int64_t outer_buffer_ptr_increment, int64_t outer_buffer_data_size,
-                                                     int64_t inner_buffer_final_offsets, int64_t inner_buffer_data_size) {
+    auto can_be_data_ptr_proportionally_shifted = [](const LoopPortInfo& outer_port_info, const LoopPortInfo& inner_port_info) {
+        const auto& inner_desc = inner_port_info.desc;
+        const auto& outer_desc = outer_port_info.desc;
         // If data pointer shift parameters are unknown on model compilation stage (dynamic),
-        // we cannot be sure that these data pointers will be proportionally shifted in runtime.
-        if (utils::is_dynamic_value(outer_buffer_ptr_increment) || utils::is_dynamic_value(inner_buffer_final_offsets))
-            return false;
-        return (outer_buffer_ptr_increment != 0) &&
-               ((inner_buffer_data_size * inner_buffer_final_offsets * -1) == outer_buffer_ptr_increment * outer_buffer_data_size);
+        // we can be sure that these data pointers will be proportionally shifted in runtime only if they're on the same invariant shape path
+        if (utils::is_dynamic_value(outer_desc.ptr_increment) || utils::is_dynamic_value(inner_desc.finalization_offset)) {
+            size_t input_path, output_path;
+            return MarkInvariantShapePath::initInvariantPortShapePaths(*inner_port_info.port.expr_port, input_path) &&
+                   MarkInvariantShapePath::initInvariantPortShapePaths(*outer_port_info.port.expr_port, output_path) &&
+                   input_path == output_path;
+        }
+        return (outer_desc.ptr_increment != 0) &&
+               ((outer_desc.data_size * outer_desc.finalization_offset * -1) == outer_desc.ptr_increment * outer_desc.data_size);
     };
 
     const auto outer_loop_begin = ov::as_type_ptr<op::LoopEnd>(outer_loop_end_expr_it->get()->get_node())->get_loop_begin();
@@ -198,7 +221,7 @@ void DefineBufferClusters::parse_nested_loops(const LoopManagerPtr& loop_manager
             const auto inner_cluster_id = get_cluster_buffer_id(*inner_cluster_it);
             if (inner_cluster_id == SIZE_MAX) continue;
 
-            const auto final_offset = get_buffer_finalization_offset(loop_manager, inner_buffer_expr);
+            const auto final_loop_info = get_buffer_last_loop_port_info(loop_manager, inner_buffer_expr);
 
             auto unite = [&](const BufferMap& ports, const bool is_input) {
                 bool applied = false;
@@ -209,11 +232,13 @@ void DefineBufferClusters::parse_nested_loops(const LoopManagerPtr& loop_manager
                     if (cluster_it == inner_cluster_it) continue;
                     // Buffer from one cluster must be only defined (with known allocation_size) or dynamic (with unknown allocation_size)
                     if (inner_buffer_expr->is_defined() != port.first->is_defined()) continue;
-
-                    const auto& desc = port.second.desc;
-                    if (!can_be_data_ptr_proportionally_shifted(desc.ptr_increment, desc.data_size, final_offset,
-                                                                inner_buffer_expr->get_node()->get_element_type().size()))
-                        continue;
+                    // The inner Buffer can reuse memory of the outer Buffer using `window` sliding only if:
+                    //  - The finalization offset of the latest Loop connected to the inner Buffer is equal to
+                    //    pointer increment of outer Buffer to emulate `window` sliding
+                    //  - This outer Buffer should have the same Buffer ID as inner to move data ptr of inner Buffer after each outer Loop iteration.
+                    //    It's needed because all Loops reset data pointers of connected Buffer after full work.
+                    //    To avoid rewriting of outer Buffer data we have to have the same Buffer ID (GPR) to proportionally shift pointers both Buffers.
+                    if (!can_be_data_ptr_proportionally_shifted(port.second, final_loop_info)) continue;
 
                     applied = unite_nested_clusters(loop_manager, inner_cluster_it, *cluster_it, port.first, is_input);
                     if (applied) break;
@@ -227,8 +252,9 @@ void DefineBufferClusters::parse_nested_loops(const LoopManagerPtr& loop_manager
     }
 }
 
-int64_t DefineBufferClusters::get_buffer_finalization_offset(const LoopManagerPtr& loop_manager, const BufferExpressionPtr& buffer_expr) const {
-    int64_t final_offset = 0;
+UnifiedLoopInfo::LoopPortInfo DefineBufferClusters::get_buffer_last_loop_port_info(const LoopManagerPtr& loop_manager,
+                                                                                   const BufferExpressionPtr& buffer_expr) const {
+    LoopPortInfo final_info;
     double last_loop_exec_order = -1 * std::numeric_limits<double>::max();
     const auto& buffer_outs = buffer_expr->get_output_port_connectors();
     for (const auto& buffer_out : buffer_outs) {
@@ -238,13 +264,13 @@ int64_t DefineBufferClusters::get_buffer_finalization_offset(const LoopManagerPt
                 const auto loop_order = direct_loop->get_output_ports().back().expr_port->get_expr()->get_exec_num();
                 if (loop_order > last_loop_exec_order) {
                     OPENVINO_ASSERT(direct_loop->is_loop_port(consumer), "Consumer of Buffer from another loop must be loop port");
-                    final_offset = direct_loop->get_loop_port_info(consumer).desc.finalization_offset;
+                    final_info = direct_loop->get_loop_port_info(consumer);
                     last_loop_exec_order = loop_order;
                 }
             }
         }
     }
-    return final_offset;
+    return final_info;
 }
 
 bool DefineBufferClusters::unite_nested_clusters(const LoopManagerPtr& loop_manager, const BufferClusters::iterator& inner_cluster_it,
@@ -264,11 +290,11 @@ bool DefineBufferClusters::unite_nested_clusters(const LoopManagerPtr& loop_mana
 
                 const auto upper_port_desc = common_loop_info->get_loop_port_info(upper_buffer_consumer);
                 const auto lower_port_desc = common_loop_info->get_loop_port_info(lower_buffer_source);
-                if (SetBufferRegGroup::can_be_in_one_group(upper_port_desc, lower_port_desc)) {
+                if (SetBufferRegGroup::can_be_in_one_reg_group(upper_port_desc, lower_port_desc)) {
                     for (const auto& inner_buffer : *inner_cluster_it)
                         inner_buffer->set_reg_group(outer_buffer->get_reg_group());
 
-                    outer_cluster.insert(inner_cluster_it->cbegin(), inner_cluster_it->cend());
+                    add_buffers_to_cluster(outer_cluster, *inner_cluster_it);
                     m_clusters.erase(inner_cluster_it);
                     return true;
                 }

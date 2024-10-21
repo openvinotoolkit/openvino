@@ -42,12 +42,12 @@ public:
     bool run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) override;
 
     /**
-     * @brief Check if two Buffers can be in one register group by LoopPortInfo < Port, data_size, ptr_increment, finalization_offset >
+     * @brief Check if two Buffers can be in one register group by LoopDesc < data_size, ptr_increment, finalization_offset >
      * @param lhs LoopPortInfo (Port and Data pointer shift params for first Buffer)
      * @param rhs LoopPortInfo (Port and Data pointer shift params for second Buffer)
      * @return Returns True if params are valid to reuse one register. Otherwise returns False
      */
-    static bool can_be_in_one_group(const UnifiedLoopInfo::LoopPortInfo& lhs, const UnifiedLoopInfo::LoopPortInfo& rhs);
+    static bool can_be_in_one_reg_group(const UnifiedLoopInfo::LoopPortInfo& lhs, const UnifiedLoopInfo::LoopPortInfo& rhs);
 
 private:
     using BufferPool = std::vector<BufferExpressionPtr>;
@@ -90,10 +90,11 @@ private:
      */
     static void update_adj_matrix(const BufferMap::value_type& lhs, const BufferMap::value_type& rhs, const BufferPool& buffers,
                                   std::vector<bool>& adj);
+
     /**
      * @brief Check if two Buffers are adjacent and cannot have the same ID
-     * @param lhs Pair where first value is Expression with first Buffer and second value is data pointer shift params for it
-     * @param rhs Pair where first value is Expression with second Buffer and second value is data pointer shift params for it
+     * @param lhs LoopPortInfo (Port and Data pointer shift params for first Buffer)
+     * @param rhs LoopPortInfo (Port and Data pointer shift params for second Buffer)
      * @return Returns True if they are adjacent, otherwise returns False
      */
     static bool are_adjacent(const BufferMap::value_type& lhs, const BufferMap::value_type& rhs);

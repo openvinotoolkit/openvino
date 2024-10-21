@@ -67,6 +67,12 @@ private:
      */
     void create_new_cluster(const BufferExpressionPtr& buffer_expr);
     /**
+     * @brief Add buffers to the existing clusters
+     * @param existing_cluster existing clusters
+     * @param buffers buffers which will be added to the existing cluster
+     */
+    void add_buffers_to_cluster(BufferCluster& existing_cluster, const std::set<BufferExpressionPtr>& buffers);
+    /**
      * @brief Returns common ID of cluster if all buffer inside have the same Buffer ID. Otherwise returns the default value SIZE_MAX
      *        that means that Buffers in cluster have different IDs.
      * @param cluster set of Buffer expressions - cluster
@@ -102,12 +108,12 @@ private:
     void parse_nested_loops(const LoopManagerPtr& loop_manager, const BufferMap& input_buffers, const BufferMap& output_buffers,
                             const LinearIR::constExprIt& outer_loop_end_expr_it);
     /**
-     * @brief Finds the last connected Loop to the target Buffer and returns the corresponding finalization offset
+     * @brief Finds the last connected Loop to the target Buffer and returns the corresponding loop port info
      * @param loop_manager loop manager
      * @param buffer_expr expression with Buffer op
      * @return finalization offset - int64_t value
      */
-    int64_t get_buffer_finalization_offset(const LoopManagerPtr& loop_manager, const BufferExpressionPtr& buffer_expr) const;
+    UnifiedLoopInfo::LoopPortInfo get_buffer_last_loop_port_info(const LoopManagerPtr& loop_manager, const BufferExpressionPtr& buffer_expr) const;
     /**
      * @brief Check if two Buffer expressions are connected to the same Loop. Set common LoopEnd as `loop` parameter and
      *        indexes of Loop ports `up_idx` and `down_idx` if Buffers are really neighbours

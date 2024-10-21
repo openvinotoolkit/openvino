@@ -4,6 +4,7 @@
 
 #include "snippets/lowered/pass/set_buffer_reg_group.hpp"
 
+#include "snippets/lowered/pass/mark_invariant_shape_path.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/snippets_isa.hpp"
@@ -26,17 +27,22 @@ size_t SetBufferRegGroup::get_buffer_idx(const BufferExpressionPtr& target, cons
     return std::distance(pool.cbegin(), iter);
 }
 
-bool SetBufferRegGroup::can_be_in_one_group(const UnifiedLoopInfo::LoopPortInfo& lhs, const UnifiedLoopInfo::LoopPortInfo& rhs) {
-    // If data pointer shift parameters are unknown on model compilation stage (dynamic),
-    // we cannot be sure that these data pointers will be proportionally shifted.
-    // Then we force `false` value here to set unique registers for these buffers
-    if (lhs.desc.is_dynamic() || rhs.desc.is_dynamic()) {
+bool SetBufferRegGroup::can_be_in_one_reg_group(const UnifiedLoopInfo::LoopPortInfo& lhs_info,
+                                                const UnifiedLoopInfo::LoopPortInfo& rhs_info) {
+    // In dynamic case, the high priority has marking "InvariantShapePath"
+    if (lhs_info.desc.is_dynamic() || rhs_info.desc.is_dynamic()) {
+        size_t rhs_path, lhs_path;
+        if (MarkInvariantShapePath::initInvariantPortShapePaths(*lhs_info.port.expr_port, lhs_path) &&
+            MarkInvariantShapePath::initInvariantPortShapePaths(*rhs_info.port.expr_port, rhs_path)) {
+            return rhs_path == lhs_path;
+        }
         return false;
     }
-
-    const auto equal_ptr_params_shifting = lhs.desc.ptr_increment == rhs.desc.ptr_increment && lhs.desc.finalization_offset == rhs.desc.finalization_offset;
-    const auto equal_element_type_sizes = lhs.desc.data_size == rhs.desc.data_size;
-    return equal_ptr_params_shifting && (equal_element_type_sizes || (lhs.desc.ptr_increment == 0 && lhs.desc.finalization_offset == 0));
+    // static case:
+    const auto equal_ptr_params_shifting = lhs_info.desc.ptr_increment == rhs_info.desc.ptr_increment &&
+                                           lhs_info.desc.finalization_offset == rhs_info.desc.finalization_offset;
+    const auto equal_element_type_sizes = lhs_info.desc.data_size == rhs_info.desc.data_size;
+    return equal_ptr_params_shifting && (equal_element_type_sizes || (lhs_info.desc.ptr_increment == 0 && lhs_info.desc.finalization_offset == 0));
 }
 
 bool SetBufferRegGroup::are_adjacent(const BufferMap::value_type& lhs, const BufferMap::value_type& rhs) {
@@ -44,7 +50,7 @@ bool SetBufferRegGroup::are_adjacent(const BufferMap::value_type& lhs, const Buf
     const auto& rhs_ids = rhs.first->get_loop_ids();
     const auto equal_loop_ids = lhs_ids == rhs_ids;
     if (equal_loop_ids) {  // Buffers are connected to the same Loop and have the same outer Loops
-        return !can_be_in_one_group(lhs.second, rhs.second);
+        return !can_be_in_one_reg_group(lhs.second, rhs.second);
     } else {  // Buffers are connected to the same Loop, but one of Buffers - inside this Loop, another - outside
         // Buffers are adjacent if outer Buffer has non-zero data shift params
         if (lhs_ids.size() == rhs_ids.size()) // If the count of outer Loops are equal, it means that outer loops are already different
@@ -200,6 +206,7 @@ auto SetBufferRegGroup::coloring(BufferPool& buffers, std::vector<bool>& adj) ->
 
 bool SetBufferRegGroup::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::SetBufferRegGroup")
+
     // Identify Buffers using Graph coloring algorithm.
     BufferPool buffer_pool = linear_ir.get_buffers();
     // For the better coloring Buffers should be stored in the order of execution numbers
