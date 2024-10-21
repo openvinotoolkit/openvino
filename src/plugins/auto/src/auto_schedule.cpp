@@ -133,6 +133,7 @@ void AutoSchedule::init() {
     auto customize_helper_context_from_cache_setting = [this](bool is_actual_cpu,
                                                               AutoCompileContext m_compile_context[],
                                                               ScheduleContext::Ptr& m_context) {
+        m_compile_context[CPU].m_is_enabled = m_context->m_startup_fallback;
         bool is_stateful_model = false;
         if (!is_actual_cpu) {
             const auto& device = m_compile_context[ACTUALDEVICE].m_device_info.device_name;
@@ -180,22 +181,6 @@ void AutoSchedule::init() {
                     LOG_DEBUG_TAG("device: %s found cached blob: %s ", device.c_str(), cached_model_path.c_str());
                     m_compile_context[CPU].m_is_enabled = false;
                     m_context->m_startup_fallback = false;
-                    if (m_context->m_model) {
-                        m_context->m_runtime_fallback = false;
-                    } else {
-                        auto m_model = m_context->m_ov_core->read_model(m_context->m_model_path, std::string{});
-                        for (auto& op : m_model->get_ops()) {
-                            if (std::dynamic_pointer_cast<ov::op::util::AssignBase>(op) ||
-                                std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(op)) {
-                                is_stateful_model = true;
-                                break;
-                            }
-                        }
-                        if (is_stateful_model) {
-                            std::cout << "=== stateful model. will disable runtime fallback ===\n";
-                            m_context->m_runtime_fallback = false;
-                        }
-                    }
                 }
             }
         }
