@@ -44,6 +44,7 @@ bool SplitLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, 
         // Note: we currently consider only the outermost loops for splitting
         // Splitting could also be done in a more general case, but the splitted loop and its parent must always
         // be in the same set of outer loops. Otherwise they won't be fused.
+        // TODO: need extend to support inner loop for K/V matrix
         const auto& loop_id = loop_ids.front();
         const auto loop = loop_manager->get_loop_info<UnifiedLoopInfo>(loop_id);
         for (const auto& input_port : loop->get_input_ports()) {
