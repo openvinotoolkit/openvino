@@ -278,14 +278,15 @@ public:
     }
 };
 
-template<typename Tdst>
-static void repackB(Tdst* dst, ov::float16* src, int N_stride, int N, int K) {
-    static_assert(std::is_same<ov::bfloat16, Tdst>::value || std::is_same<ov::float16, Tdst>::value);
+template <typename Tdst>
+static typename std::enable_if<std::is_same<ov::bfloat16, Tdst>::value || std::is_same<ov::float16, Tdst>::value>::type
+repackB(Tdst* dst, ov::float16* src, int N_stride, int N, int K) {
     static FP16ToBF16Kernel fp16_to_bf16;
     if (N == 16 && K == 32) {
         // SIMD optimized version
         ov::Extensions::Cpu::XARCH::llm_mlp_transpose_epi32_16x16(dst, src, N_stride * sizeof(Tdst));
-        if (std::is_same<ov::bfloat16, Tdst>::value)  fp16_to_bf16(dst);
+        if (std::is_same<ov::bfloat16, Tdst>::value)
+            fp16_to_bf16(dst);
         return;
     }
 

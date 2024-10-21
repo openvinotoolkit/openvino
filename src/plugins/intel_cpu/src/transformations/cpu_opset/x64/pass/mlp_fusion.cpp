@@ -24,8 +24,6 @@
 
 using namespace ov::gen_pattern;
 
-static const char * MLPNAME = std::getenv("MLPNAME");
-
 ov::intel_cpu::MLPFusion::MLPFusion() {
     MATCHER_SCOPE(MLPFusion);
 
@@ -241,9 +239,6 @@ ov::intel_cpu::MLPFusion::MLPFusion() {
         if (!transformation_callback(new_node)) {
             return false;
         }
-
-        std::cout << "MLPFusion: " << __LINE__ << "  " << root->get_friendly_name()
-                  << "  is_is_quantized_int8 (gate-up, down) =" << is_gate_up_quantized_int8 << "," << is_down_proj_int8 << std::endl;
 
         ov::replace_node(old_node, new_node);
         return true;

@@ -583,12 +583,12 @@ bool LLMMLP::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
             auto up_size = down_proj_w_pshape[1].get_length();
 
             auto& config = node_mlp->get_config();
-            if (config.gate_up_quantized && (fcDynamicQuantizationGroupSize < config.hidden_size)) {
+            if (config.gate_up_quantized && (fcDynamicQuantizationGroupSize < static_cast<uint64_t>(config.hidden_size))) {
                 errorMessage = "LLMMLPNode gate-up-proj only support per-token dynamic quantization";
                 return false;
             }
 
-            if (config.down_quantized && (fcDynamicQuantizationGroupSize < config.up_size)) {
+            if (config.down_quantized && (fcDynamicQuantizationGroupSize < static_cast<uint64_t>(config.up_size))) {
                 errorMessage = "LLMMLPNode down_proj only support per-token dynamic quantization";
                 return false;
             }

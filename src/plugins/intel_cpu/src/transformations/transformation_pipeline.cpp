@@ -861,8 +861,6 @@ void Transformations::PostLpt() {
                 return node::QKVProjection::isSupportedOperation(node, errorMsg, concurrency, fcDynamicQuantizationGroupSize);
             },
             QKVProjFusion2);
-
-        CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::PrintModel, "_xxx.cpp");
     }
 
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::transpose_sinking::TSShapeOfForward);

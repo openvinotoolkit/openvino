@@ -170,9 +170,6 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
             new_node->add_node_control_dependencies(target);
             target->clear_control_dependents();
         }
-        std::cout << "QKVProjFusion: " << __LINE__ << "  " << root->get_friendly_name()
-                  << "  is_quantized_int8=" << is_quantized_int8 << std::endl;
-
         return true;
     };
 
@@ -239,7 +236,7 @@ ov::intel_cpu::QKVProjFusion2::QKVProjFusion2() {
             return false;
 
         auto w_shape = qkv_proj_weight_node->get_shape();
-        if (w_shape[0] != proj_size * 3)
+        if (w_shape[0] != static_cast<uint64_t>(proj_size * 3))
             return false;
 
         QKVProjectionNode::Config config;
@@ -277,8 +274,6 @@ ov::intel_cpu::QKVProjFusion2::QKVProjFusion2() {
         new_node->add_node_control_dependencies(vsplit);
         vsplit->clear_control_dependents();
 
-        std::cout << "QKVProjFusion2: " << __LINE__ << "  " << root->get_friendly_name()
-                  << "  is_quantized_int8=" << is_quantized_int8 << std::endl;
         return true;
     };
 
