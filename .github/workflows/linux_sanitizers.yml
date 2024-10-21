@@ -4,6 +4,9 @@ on:
     # run daily at 00:00
     - cron: '0 0 * * *'
   workflow_dispatch:
+  pull_request:
+    branches:
+      - master
 
 concurrency:
   # github.ref is not unique in post-commit
@@ -343,7 +346,7 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-PaddleTests.xml
 
       - name: ONNX frontend tests
-        if: ${{ !cancelled() && matrix.SANITIZER != 'Thread' }} # Ticket: 155291
+        if: ${{ !cancelled() }} # Ticket: 155291
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_onnx_frontend_tests --gtest_print_time=1 \
