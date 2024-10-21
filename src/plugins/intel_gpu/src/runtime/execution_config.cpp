@@ -60,6 +60,7 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::cache_encryption_callbacks, EncryptionCallbacks{}),
         std::make_tuple(ov::hint::dynamic_quantization_group_size, 0),
         std::make_tuple(ov::intel_gpu::hint::enable_kernels_reuse, false),
+        std::make_tuple(ov::weights_path, ""),
 
         // Legacy API properties
         std::make_tuple(ov::intel_gpu::nv12_two_inputs, false),

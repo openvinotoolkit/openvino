@@ -42,18 +42,15 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
                              RemoteContextImpl::Ptr context,
                              const ExecutionConfig& config)
-    : ov::ICompiledModel(model,
-                         plugin,
-                         context,
-                         create_task_executor(plugin, config),
-                         nullptr)
-    , m_context(context)
-    , m_config(config)
-    , m_wait_executor(std::make_shared<ov::threading::CPUStreamsExecutor>(ov::threading::IStreamsExecutor::Config{"Intel GPU plugin wait executor"}))
-    , m_model_name(model->get_friendly_name())
-    , m_inputs(ov::ICompiledModel::inputs())
-    , m_outputs(ov::ICompiledModel::outputs())
-    , m_loaded_from_cache(false) {
+    : ov::ICompiledModel(model, plugin, context, create_task_executor(plugin, config), nullptr),
+      m_context(context),
+      m_config(config),
+      m_wait_executor(std::make_shared<ov::threading::CPUStreamsExecutor>(
+          ov::threading::IStreamsExecutor::Config{"Intel GPU plugin wait executor"})),
+      m_model_name(model->get_friendly_name()),
+      m_inputs(ov::ICompiledModel::inputs()),
+      m_outputs(ov::ICompiledModel::outputs()),
+      m_loaded_from_cache(false) {
     auto graph_base = std::make_shared<Graph>(model, m_context, m_config, 0);
     for (uint16_t n = 0; n < m_config.get_property(ov::num_streams); n++) {
         auto graph = n == 0 ? graph_base : std::make_shared<Graph>(graph_base, n);
@@ -170,7 +167,10 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
 //     [ ov::Node::Input/ ov::Node::Output ]
 //     [ ov::intel_gpu::Graph ]
 void CompiledModel::export_model(std::ostream& model) const {
-    if (m_config.get_property(ov::cache_mode) == ov::CacheMode::OPTIMIZE_SIZE)
+    // If ov::CacheMode::OPTIMIZE_SIZE is set, do the export iff it's possible to do weightless caching
+    // which requires the weights_path.
+    if (m_config.get_property(ov::cache_mode) == ov::CacheMode::OPTIMIZE_SIZE &&
+        m_config.get_property(ov::weights_path).empty())
         return;
 
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CompiledModel::export_model");
