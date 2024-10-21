@@ -46,9 +46,9 @@ class TestMatMulU4Weights(PytorchLayerTest):
     rng = np.random.default_rng(seed=123)
 
     def _prepare_input(self):
-        return np.round(5.00 * self.rng.random([2, 4], dtype=np.float32) - 2.50, 4)
+        return (np.round(5.00 * self.rng.random([2, 4], dtype=np.float32) - 2.50, 4),)
 
-    def create_model(self, compressed_weight, scale, zero_point, weight_shape):
+    def create_model(self, group_size):
         class aten_mm_u4(torch.nn.Module):
             def __init__(self, compressed_weight, scale, zero_point, weight_shape):
                 super(aten_mm_u4, self).__init__()
@@ -60,7 +60,7 @@ class TestMatMulU4Weights(PytorchLayerTest):
                 self.zero_point_shape = zero_point.shape
                 self.register_buffer("_zero_point", pack_uint4(zero_point))
 
-                self.weigh = weight_shape
+                self.weight_shape = weight_shape
 
             def forward(self, x):
                 compressed_weight = unpack_uint4(self.packed_weight)
@@ -69,13 +69,22 @@ class TestMatMulU4Weights(PytorchLayerTest):
                 zero_point = unpack_uint4(self._zero_point)
                 zero_point = zero_point.reshape(self.zero_point_shape)
 
-                weight = decompress_asymmetric(x, self._scale, zero_point)
+                weight = decompress_asymmetric(compressed_weight, self._scale, zero_point)
                 weight = weight.reshape(self.weight_shape)
                 weight = weight.type(dtype=torch.float32)
 
                 return torch.matmul(x, weight)
 
         ref_net = None
+
+        weight_shape = (4, 2)
+        ngroups = weight_shape[0] // group_size
+        compressed_weight_shape = (ngroups, group_size, weight_shape[1])
+        zero_point_shape = scale_shape = (ngroups, 1, weight_shape[1])
+
+        compressed_weight = (15.00 * self.rng.random(compressed_weight_shape, dtype=np.float32)).astype(dtype=np.uint8)
+        scale = np.round(10.00 * self.rng.random(scale_shape, dtype=np.float32) - 5.00)
+        zero_point = (15.00 * self.rng.random(zero_point_shape, dtype=np.float32)).astype(dtype=np.uint8)
 
         t_compressed_weight = torch.from_numpy(compressed_weight)
         t_scale = torch.from_numpy(scale)
@@ -88,22 +97,13 @@ class TestMatMulU4Weights(PytorchLayerTest):
     @pytest.mark.precommit_fx_backend
     @pytest.mark.parametrize("group_size", [2, 4])
     def test_matmul_u4(self, group_size, ie_device, precision, ir_version):
-        weight_shape = (4, 2)
-        ngroups = weight_shape[0] // group_size
-        compressed_weight_shape = (ngroups, group_size, weight_shape[1])
-        zero_point_shape = scale_shape = (ngroups, 1, weight_shape[1])
-
-        compressed_weight = (15.00 * self.rng.random(compressed_weight_shape, dtype=np.float32)).astype(dtype=np.uint8)
-        scale = np.round(5.00 * self.rng.random(scale_shape, dtype=np.float32) - 2.50, 4)
-        zero_point = (15.00 * self.rng.random(zero_point_shape, dtype=np.float32)).astype(dtype=np.uint8)
-
         self._test(
-            *self.create_model(compressed_weight, scale, zero_point, weight_shape),
+            *self.create_model(group_size),
             ie_device,
             precision,
             ir_version,
-            quantized_ops=True,
-            quant_size=scale
+            trace_model=True,
+            dynamic_quantization_group_size=0
         )
 
 
@@ -111,9 +111,9 @@ class TestMatMulI4Weights(PytorchLayerTest):
     rng = np.random.default_rng(seed=123)
 
     def _prepare_input(self):
-        return np.round(5.00 * self.rng.random([2, 4], dtype=np.float32) - 2.50, 4)
+        return (np.round(5.00 * self.rng.random([2, 4], dtype=np.float32) - 2.50, 4),)
 
-    def create_model(self, compressed_weight, scale, weight_shape):
+    def create_model(self, group_size):
         class aten_mm_i4(torch.nn.Module):
             def __init__(self, compressed_weight, scale, weight_shape):
                 super(aten_mm_i4, self).__init__()
@@ -122,19 +122,29 @@ class TestMatMulI4Weights(PytorchLayerTest):
 
                 self.register_buffer("_scale", scale.type(dtype=torch.float16))
 
-                self.weigh = weight_shape
+                self.weight_shape = weight_shape
 
             def forward(self, x):
                 compressed_weight = unpack_int4(self.packed_weight)
                 compressed_weight = compressed_weight.reshape(self.compressed_weight_shape)
 
-                weight = decompress_symmetric(x, self._scale)
+                weight = decompress_symmetric(compressed_weight, self._scale)
                 weight = weight.reshape(self.weight_shape)
                 weight = weight.type(dtype=torch.float32)
 
                 return torch.matmul(x, weight)
 
         ref_net = None
+
+        weight_shape = (4, 2)
+        ngroups = weight_shape[0] // group_size
+        compressed_weight_shape = (ngroups, group_size, weight_shape[1])
+        scale_shape = (ngroups, 1, weight_shape[1])
+
+        compressed_weight = (16.00 * self.rng.random(compressed_weight_shape, dtype=np.float32) - 8.00).astype(
+            dtype=np.int8
+        )
+        scale = np.round(10.00 * self.rng.random(scale_shape, dtype=np.float32) - 5.00)
 
         t_compressed_weight = torch.from_numpy(compressed_weight)
         t_scale = torch.from_numpy(scale)
@@ -146,21 +156,11 @@ class TestMatMulI4Weights(PytorchLayerTest):
     @pytest.mark.precommit_fx_backend
     @pytest.mark.parametrize("group_size", [2, 4])
     def test_matmul_i4(self, group_size, ie_device, precision, ir_version):
-        weight_shape = (4, 2)
-        ngroups = weight_shape[0] // group_size
-        compressed_weight_shape = (ngroups, group_size, weight_shape[1])
-        scale_shape = (ngroups, 1, weight_shape[1])
-
-        compressed_weight = (16.00 * self.rng.random(compressed_weight_shape, dtype=np.float32) - 8.00).astype(
-            dtype=np.int8
-        )
-        scale = np.round(5.00 * self.rng.random(scale_shape, dtype=np.float32) - 2.50, 4)
-
         self._test(
-            *self.create_model(compressed_weight, scale, weight_shape),
+            *self.create_model(group_size),
             ie_device,
             precision,
             ir_version,
-            quantized_ops=True,
-            quant_size=scale
+            trace_model=True,
+            dynamic_quantization_group_size=0
         )
