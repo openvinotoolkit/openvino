@@ -24,8 +24,6 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
 
-#include "snippets/lowered/pass/serialize_control_flow.hpp"
-
 
 namespace ov {
 namespace test {
@@ -93,7 +91,6 @@ protected:
         pipeline.register_pass<ov::snippets::lowered::pass::InitLoops>();
         pipeline.register_pass<ov::snippets::lowered::pass::InsertLoops>();
         pipeline.register_pass<ov::snippets::lowered::pass::AllocateBuffers>(m_is_buffer_optimized);
-        pipeline.register_pass<ov::snippets::lowered::pass::SerializeControlFlow>("snsdebug_control.xml");
         pipeline.run(m_linear_ir);
     }
 
