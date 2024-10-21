@@ -31,6 +31,8 @@ MatMulToBrgemm::MatMulToBrgemm() {
         if (matmul->get_transpose_a())
             return false;
 
+        std::cout << "MatMulToBrgemm 0" << std::endl;
+
         auto generate_layout = [](const ov::PartialShape& shape, const bool transpose) {
             std::vector<size_t> layout(shape.size());
             std::iota(layout.begin(), layout.end(), 0);
@@ -41,8 +43,9 @@ MatMulToBrgemm::MatMulToBrgemm() {
 
         const auto layout_a = generate_layout(matmul->get_input_partial_shape(0), matmul->get_transpose_a());
         const auto layout_b = generate_layout(matmul->get_input_partial_shape(1), matmul->get_transpose_b());
+        std::cout << "MatMulToBrgemm 0.1" << std::endl;
         const auto brgemm = std::make_shared<op::Brgemm>(matmul->input_value(0), matmul->input_value(1), 0, 0, 0, layout_a, layout_b);
-
+        std::cout << "MatMulToBrgemm 1" << std::endl;
         static const std::vector<size_t> subtensor{utils::get_full_dim_value(), utils::get_full_dim_value()};
         PortDescriptorUtils::set_port_descriptor(brgemm->input(0), subtensor, layout_a);
         PortDescriptorUtils::set_port_descriptor(brgemm->input(1), subtensor, layout_b);
@@ -55,6 +58,7 @@ MatMulToBrgemm::MatMulToBrgemm() {
         brgemm->set_friendly_name(matmul->get_friendly_name());
         ov::copy_runtime_info(matmul, nodes);
         ov::replace_node(matmul, nodes.back());
+        std::cout << "MatMulToBrgemm 2" << std::endl;
         return true;
     };
 

@@ -13,6 +13,10 @@
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
 
+#include "cpu/x64/jit_generator.hpp"
+#include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#include "onednn/dnnl.h"
+
 #define DIM_CAST(X) static_cast<dnnl_dim_t>(X)
 #define DTYPE_CAST(X) static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(X))
 
@@ -22,11 +26,11 @@ using namespace dnnl::impl::cpu::x64;
 
 namespace {
 size_t init_hash(dnnl_data_type_t dt_in0, dnnl_data_type_t dt_in1, bool is_with_amx,
-                 bool is_with_comp, dnnl::impl::cpu::x64::cpu_isa_t isa) {
+                 bool is_with_comp, bool is_c_pre_scale, dnnl::impl::cpu::x64::cpu_isa_t isa) {
     size_t seed = 0;
 #define HASH(X) seed = hash_combine(seed, X)
     HASH(dt_in0); HASH(dt_in1);
-    HASH(is_with_amx); HASH(is_with_comp);
+    HASH(is_with_amx); HASH(is_with_comp); HASH(is_c_pre_scale);
     HASH(isa);
 #undef HASH
     return seed;
@@ -36,10 +40,10 @@ size_t init_hash(dnnl_data_type_t dt_in0, dnnl_data_type_t dt_in1, bool is_with_
 namespace ov {
 namespace intel_cpu {
 BrgemmKernelConfig::BrgemmKernelConfig(const element::Type& in0_dtype, const element::Type& in1_dtype,
-                                       bool is_with_amx, bool is_with_comp,
+                                       bool is_with_amx, bool is_with_comp, bool is_c_pre_scale,
                                        dnnl::impl::cpu::x64::cpu_isa_t primitive_isa) :
                                        m_static_params(std::make_shared<StaticParams>(in0_dtype, in1_dtype,
-                                                                                      is_with_amx, is_with_comp,
+                                                                                      is_with_amx, is_with_comp, is_c_pre_scale,
                                                                                       primitive_isa)) {
     m_hash = compute_hash();
 }
@@ -83,12 +87,12 @@ BrgemmKernelConfig::operator amx_tile_config_t() const {
 }
 
 BrgemmKernelConfig::StaticParams::StaticParams(const element::Type& in0_dtype, const element::Type& in1_dtype,
-                                               bool is_with_amx, bool is_with_comp,
+                                               bool is_with_amx, bool is_with_comp, bool is_c_pre_scale,
                                                dnnl::impl::cpu::x64::cpu_isa_t primitive_isa) :
                                                dt_in0(DTYPE_CAST(in0_dtype)), dt_in1(DTYPE_CAST(in1_dtype)),
-                                               is_with_amx(is_with_amx), is_with_comp(is_with_comp),
+                                               is_with_amx(is_with_amx), is_with_comp(is_with_comp), is_c_pre_scale(is_c_pre_scale),
                                                isa(primitive_isa),
-                                               hash(init_hash(dt_in0, dt_in1, is_with_amx, is_with_comp, isa)) {
+                                               hash(init_hash(dt_in0, dt_in1, is_with_amx, is_with_comp, is_c_pre_scale, isa)) {
 }
 
 bool BrgemmKernelConfig::StaticParams::operator==(const StaticParams& rhs) const {
@@ -127,6 +131,123 @@ std::string BrgemmKernelConfig::to_string() const {
 #undef PRINT
 #endif
 
+template <cpu_isa_t isa>
+struct jit_c_pre_scale_kernel_f32 : public jit_c_pre_scale_kernel, public jit_generator {
+    DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_c_pre_scale_kernel_f32)
+
+    explicit jit_c_pre_scale_kernel_f32(jit_c_pre_scale_params jcp) : jit_c_pre_scale_kernel(jcp), jit_generator(jit_name()) {}
+
+    void create_ker() override {
+        jit_generator::create_kernel();
+        ker_ = (decltype(ker_))jit_ker();
+    }
+    // src and dst are the same. shape agnostic.
+    void generate() override {
+        load_pool_gpr_idxs = {static_cast<size_t>(reg_tmp1_64.getIdx()), static_cast<size_t>(reg_tmp2_64.getIdx())};
+        store_pool_gpr_idxs = {static_cast<size_t>(reg_tmp1_64.getIdx())};
+        store_pool_vec_idxs = {static_cast<size_t>(vmm_zero.getIdx())};
+        load_emitter = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.data_prc, ov::element::f32, vector_step));
+        load_emitter_tail = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.data_prc, ov::element::f32, 1));
+        store_emitter = std::unique_ptr<jit_store_emitter>(new jit_store_emitter(this, isa, ov::element::f32, jcp_.data_prc, vector_step));
+        store_emitter_tail = std::unique_ptr<jit_store_emitter>(new jit_store_emitter(this, isa, ov::element::f32, jcp_.data_prc, 1));
+
+        this->preamble();
+        mov(reg_data, ptr[reg_params + GET_OFF_BRGEMM_C_PRE_SCALE_ARGS(data_ptr)]);
+        mov(reg_scale, ptr[reg_params + GET_OFF_BRGEMM_C_PRE_SCALE_ARGS(scale_ptr)]);
+        mov(reg_work_amount_M, ptr[reg_params + GET_OFF_BRGEMM_C_PRE_SCALE_ARGS(work_amount_M)]);
+
+        uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
+
+        Xbyak::Label m_loop_label;
+        Xbyak::Label m_loop_end_label;
+        L(m_loop_label);
+        {
+            cmp(reg_work_amount_M, 0);
+            jle(m_loop_end_label, T_NEAR);
+
+            mov(reg_work_amount_N, ptr[reg_params + GET_OFF_BRGEMM_C_PRE_SCALE_ARGS(work_amount_N)]); // reset N for each M
+            uni_vbroadcastss(vmm_scale, ptr[reg_scale]);
+
+            Xbyak::Label n_loop_label;
+            Xbyak::Label n_loop_end_label;
+            L(n_loop_label);
+            {
+                cmp(reg_work_amount_N, vector_step);
+                jl(n_loop_end_label, T_NEAR);
+
+                load_emitter->emit_code({static_cast<size_t>(reg_data.getIdx())},
+                                        {static_cast<size_t>(vmm_data.getIdx())}, {}, {load_pool_gpr_idxs});
+                uni_vfmadd231ps(vmm_data, vmm_data, vmm_scale);
+                store_emitter->emit_code({static_cast<size_t>(vmm_data.getIdx())}, {static_cast<size_t>(reg_data.getIdx())},
+                                         {store_pool_vec_idxs}, {store_pool_gpr_idxs});
+
+                add(reg_data, vector_step * jcp_.data_prc.size());
+                sub(reg_work_amount_N, vector_step);
+                jmp(n_loop_label, T_NEAR);
+            }
+            L(n_loop_end_label);
+
+            // tail n
+            Xbyak::Label n_loop_tail_label;
+            Xbyak::Label n_loop_tail_end_label;
+            L(n_loop_tail_label);
+            {
+                cmp(reg_work_amount_N, 0);
+                jle(n_loop_tail_end_label, T_NEAR);
+
+                load_emitter_tail->emit_code({static_cast<size_t>(reg_data.getIdx())},
+                                             {static_cast<size_t>(vmm_data.getIdx())}, {}, {load_pool_gpr_idxs});
+                uni_vfmadd231ps(vmm_data, vmm_data, vmm_scale);
+                store_emitter_tail->emit_code({static_cast<size_t>(vmm_data.getIdx())}, {static_cast<size_t>(reg_data.getIdx())},
+                                              {store_pool_vec_idxs}, {store_pool_gpr_idxs});
+
+                add(reg_data, 1 * jcp_.data_prc.size());
+                sub(reg_work_amount_N, 1);
+                jmp(n_loop_tail_label, T_NEAR);
+            }
+            L(n_loop_tail_end_label);
+
+            add(reg_scale, 1 * jcp_.scale_prc.size());
+            sub(reg_work_amount_M, 1);
+            jmp(m_loop_label, T_NEAR);
+        }
+        L(m_loop_end_label);
+
+        this->postamble();
+
+        load_emitter->emit_data();
+        load_emitter_tail->emit_data();
+        store_emitter->emit_data();
+        store_emitter_tail->emit_data();
+    }
+
+private:
+    using Vmm = typename dnnl::impl::utils::conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2,
+            Xbyak::Ymm, Xbyak::Zmm>::type;
+    const int vlen = cpu_isa_traits<isa>::vlen;
+    const int vector_step = vlen / sizeof(float);
+    Xbyak::Reg64 reg_params = abi_param1;
+    Xbyak::Reg64 reg_data = r8;
+    Xbyak::Reg64 reg_scale = r9;
+    Xbyak::Reg64 reg_work_amount_M = r10;
+    Xbyak::Reg64 reg_work_amount_N = r11;
+    Xbyak::Reg64 reg_tmp1_64 = r14;
+    Xbyak::Reg64 reg_tmp2_64 = r15;
+
+    Vmm vmm_scale = Vmm(1);
+    Vmm vmm_data = Vmm(2);
+    Vmm vmm_zero = Vmm(3);
+
+    std::unique_ptr<jit_load_emitter> load_emitter;
+    std::unique_ptr<jit_load_emitter> load_emitter_tail;
+    std::unique_ptr<jit_store_emitter> store_emitter;
+    std::unique_ptr<jit_store_emitter> store_emitter_tail;
+
+    std::vector<size_t> store_pool_gpr_idxs;
+    std::vector<size_t> store_pool_vec_idxs;
+    std::vector<size_t> load_pool_gpr_idxs;
+};
+
 BrgemmKernelExecutor::BrgemmKernelExecutor(ov::intel_cpu::MultiCacheWeakPtr kernel_cache, BrgemmKernelConfig config) :
         CPUKernelExecutor<BrgemmKernelConfig, BrgemmCompiledKernel>(std::move(kernel_cache), std::move(config)) { }
 
@@ -160,6 +281,18 @@ std::shared_ptr<BrgemmCompiledKernel> BrgemmKernelExecutor::compile_kernel(const
     status = brgemm_kernel_create(&kernel_, desc);
     OV_CPU_JIT_EMITTER_ASSERT(status == dnnl_success, "Cannot create brgemm kernel due to invalid params");
     compiled_kernel->compiled_kernel = std::unique_ptr<brgemm_kernel_t>(kernel_);
+
+    // compile C pre scale kernel
+    if (config.is_c_pre_scale()) {
+        jit_c_pre_scale_params jcp;
+        jcp.data_prc = ov::element::f32;
+        jcp.scale_prc = ov::element::f32;
+        if (cpu::x64::avx512_core == config.get_isa()) {
+            compiled_kernel->c_pre_scale_kernel.reset(new jit_c_pre_scale_kernel_f32<cpu::x64::avx512_core>(jcp));
+        } else if (cpu::x64::avx2 == config.get_isa()) {
+            compiled_kernel->c_pre_scale_kernel.reset(new jit_c_pre_scale_kernel_f32<cpu::x64::avx2>(jcp));
+        }
+    }
 
     return compiled_kernel;
 }
@@ -326,6 +459,16 @@ void BrgemmKernelExecutor::execute(const BrgemmKernelExecutor* executor, call_ar
     auto kernel = executor->get_kernel();
     const auto& config = static_cast<const BrgemmKernelConfig&>(executor->get_config());
     OV_CPU_JIT_EMITTER_ASSERT(kernel, "has nullptr compiler kernel or invalid config");
+
+    if (config.is_c_pre_scale()) {
+        jit_c_pre_scale_call_args c_pre_scale_args;
+        c_pre_scale_args.data_ptr = args->C;
+        c_pre_scale_args.scale_ptr = args->C_pre_scale;
+        c_pre_scale_args.work_amount_M = config.get_M();
+        c_pre_scale_args.work_amount_N = config.get_N();
+
+        (*kernel->c_pre_scale_kernel)(&c_pre_scale_args);
+    }
 
     const auto tile_config = args->amx_tile_config;
     if (config.is_with_amx() && tile_config && !config.compatible(tile_config)) {

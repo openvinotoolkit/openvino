@@ -98,28 +98,15 @@ FlashAttentionTransformation::FlashAttentionTransformation() {
         const auto exp_diff = std::make_shared<ov::op::v0::Exp>(max_diff);
         const auto sum_diff = std::make_shared<ov::op::v1::Multiply>(scratch_old_sum, power);
         const auto compensation_scale = std::make_shared<ov::op::v1::Multiply>(exp_diff, sum_diff);
-
         // out_new
-        const auto brgemm_new = std::make_shared<op::Brgemm>(softmax_out, brgemm1->input_value(1));
-        // compensation_scale * out_old
-        // make sure this buffer is inpace with output memory
-        const auto scratch_old_result = std::make_shared<snippets::op::Buffer>(ov::element::f32,
-            brgemm1->get_output_partial_shape(0).get_shape());
-        const auto scaled_output = std::make_shared<ov::op::v1::Multiply>(scratch_old_result, compensation_scale);
-        // out = out_new(softmax_out * V) + compensation_scale * out_old
-        const auto add = std::make_shared<ov::op::v1::Add>(brgemm_new, scaled_output);
-        // const auto result = std::make_shared<ov::op::v0::Result>(add);
-        scratch_old_result->set_inplace_from(add);
-        add->get_rt_info()["inplace_source_index"] = inplace_idx;
-        scratch_old_result->get_rt_info()["inplace_consumer_index"] = inplace_idx;
-        inplace_idx++;
+        const auto brgemm_new = std::make_shared<op::Brgemm>(softmax_out, brgemm1->input_value(1), compensation_scale);
 
         // remove softmax
         copy_runtime_info(softmax, {reduce_max, subtract, exp, reduce_sum, power, softmax_out});
         softmax->output(0).replace(softmax->input_value(0));
         // replace brgemm1
-        copy_runtime_info(brgemm1, add);
-        return ov::replace_node_update_name(brgemm1, add);
+        copy_runtime_info(brgemm1, brgemm_new);
+        return ov::replace_node_update_name(brgemm1, brgemm_new);
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(softmax_m, matcher_name);

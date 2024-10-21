@@ -470,6 +470,7 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
     pipeline.register_pass<lowered::pass::MarkLoops>(vector_size);
     pipeline.register_pass<lowered::pass::ReduceDecomposition>(vector_size);
     pipeline.register_pass<lowered::pass::FuseLoops>();
+    pipeline.register_pass<lowered::pass::FuseLoops>();
     pipeline.register_pass<lowered::pass::SplitLoops>();
     pipeline.register_pass<lowered::pass::MoveResultOutOfLoop>();
     pipeline.register_pass<lowered::pass::InsertBuffers>();

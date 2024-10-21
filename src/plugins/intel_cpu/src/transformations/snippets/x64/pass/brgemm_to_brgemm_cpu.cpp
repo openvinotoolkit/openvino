@@ -47,6 +47,7 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
 
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::BrgemmToBrgemmCPU")
+        std::cout << "BrgemmToBrgemmCPU 0" << std::endl;
         const auto node = m.get_match_root();
         const auto brgemm = ov::as_type_ptr<snippets::op::Brgemm>(node);
         const auto brgemm_plugin = ov::as_type_ptr<BrgemmCPU>(node);
@@ -75,9 +76,20 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
 
         std::shared_ptr<BrgemmCPU> brgemm_cpu = nullptr;
         std::shared_ptr<BrgemmCopyB> brgemm_repacking = nullptr;
+        std::cout << "BrgemmToBrgemmCPU 2" << std::endl;
         if (stand_alone(brgemm_type)) {
-            brgemm_cpu = std::make_shared<BrgemmCPU>(brgemm->input_value(0), brgemm->input_value(1), brgemm_type,
+            std::cout << "BrgemmToBrgemmCPU 2.1" << std::endl;
+            std::cout << "brgemm->get_input_count():" << brgemm->get_input_count() << std::endl;
+            if (!brgemm->with_c_pre_ops) {
+                std::cout << "BrgemmToBrgemmCPU 2 input" << std::endl;
+                brgemm_cpu = std::make_shared<BrgemmCPU>(brgemm->input_value(0), brgemm->input_value(1), brgemm_type,
                                                      offset_a, offset_b, offset_c, layout_a, layout_b, layout_c);
+            } else {
+                std::cout << "BrgemmToBrgemmCPU 3 input" << std::endl;
+                brgemm_cpu = std::make_shared<BrgemmCPU>(brgemm->input_value(0), brgemm->input_value(1), brgemm_type, brgemm->input_value(2),
+                                                     offset_a, offset_b, offset_c, layout_a, layout_b, layout_c);
+            }
+            // std::cout << "BrgemmToBrgemmCPU 2.2" << std::endl;
         } else {
             const auto copy_b_type = with_compensations(brgemm_type) ? brgemm_type : brgemm_utils::BRGEMM_TYPE::REPACKING_ONLY;
             brgemm_repacking = std::make_shared<BrgemmCopyB>(brgemm->input_value(1), element_type_a, copy_b_type, offset_b, 0, 0, layout_b);
@@ -104,6 +116,7 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
                 OPENVINO_THROW("Invalid configuration for BRGEMM CPU");
             }
         }
+        std::cout << "BrgemmToBrgemmCPU 3" << std::endl;
 
         brgemm_cpu->set_friendly_name(brgemm->get_friendly_name());
         ov::replace_node(brgemm, brgemm_cpu);
@@ -121,6 +134,7 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
         // output Layout was updated (out shape will be updated in validate_and_infer_types())
         if (brgemm_repacking)
             brgemm_repacking->validate_and_infer_types();
+        std::cout << "BrgemmToBrgemmCPU 4" << std::endl;
         brgemm_cpu->validate_and_infer_types();
 
         return true;
