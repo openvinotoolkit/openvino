@@ -60,7 +60,8 @@ void CheckWeightlessCacheAccuracy::TearDown() {
 }
 
 void CheckWeightlessCacheAccuracy::run() {
-    ov::AnyMap config = { ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE), ov::weights_path(bin_path) };
+    ov::AnyMap config = { ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE) };
+    ov::AnyMap config_with_weights_path = { ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE), ov::weights_path(bin_path) };
     auto core = ov::test::utils::PluginCache::get().core();
     ov::pass::Serialize(xml_path, bin_path).run_on_model(model);
 
@@ -73,7 +74,7 @@ void CheckWeightlessCacheAccuracy::run() {
 
     auto ifstr = std::ifstream(cache_path, std::ifstream::binary);
     ov::CompiledModel imported_model;
-    OV_ASSERT_NO_THROW(imported_model = core->import_model(ifstr, ov::test::utils::DEVICE_GPU, config));
+    OV_ASSERT_NO_THROW(imported_model = core->import_model(ifstr, ov::test::utils::DEVICE_GPU, config_with_weights_path));
     ifstr.close();
 
     auto orig_req = compiled_model.create_infer_request();
