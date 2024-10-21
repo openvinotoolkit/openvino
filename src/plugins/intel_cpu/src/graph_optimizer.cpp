@@ -183,8 +183,8 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph &graph) {
     MatchSdpaKvCache(graph);
     graph.RemoveDroppedNodes();
 
-    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "ReplaceMemoryOutputWithMemoryOutputStub");
-    ReplaceMemoryOutputWithMemoryOutputStub(graph);
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "ReplaceMemoryOutputWithMemoryOutputSingleStub");
+    ReplaceMemoryOutputWithMemoryOutputSingleStub(graph);
     graph.RemoveDroppedNodes();
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "RemoveDroppedEdges");
@@ -3068,11 +3068,11 @@ void GraphOptimizer::RemoveConvertMemoryOutput(Graph &graph) {
     }
 }
 
-void GraphOptimizer::ReplaceMemoryOutputWithMemoryOutputStub(Graph& graph) {
+void GraphOptimizer::ReplaceMemoryOutputWithMemoryOutputSingleStub(Graph& graph) {
     auto& graphNodes = graph.GetNodes();
 
     auto isSuitableMemInput = [](const NodePtr& node) -> bool {
-        if (!one_of(node->getType(), Type::MemoryInputSingle, Type::MemoryInput)) {
+        if (!one_of(node->getType(), Type::MemoryInputSingle)) {
             return false;
         }
 
@@ -3085,7 +3085,7 @@ void GraphOptimizer::ReplaceMemoryOutputWithMemoryOutputStub(Graph& graph) {
             continue;
         }
 
-        CPU_GRAPH_OPTIMIZER_SCOPE(ReplaceMemoryOutputWithMemoryOutputStub);
+        CPU_GRAPH_OPTIMIZER_SCOPE(ReplaceMemoryOutputWithMemoryOutputSingleStub);
 
         auto memoryNode = std::dynamic_pointer_cast<node::MemoryNode>(node);
         if (nullptr == memoryNode) {
@@ -3103,8 +3103,8 @@ void GraphOptimizer::ReplaceMemoryOutputWithMemoryOutputStub(Graph& graph) {
                     break;
                 }
 
-                auto memOutputStub = std::dynamic_pointer_cast<MemoryOutputStub>(child);
-                if (memOutputStub && memOutputStub->getId() == memoryNode->getId()) {
+                auto memOutputSingleStub = std::dynamic_pointer_cast<MemoryOutputSingleStub>(child);
+                if (memOutputSingleStub && memOutputSingleStub->getId() == memoryNode->getId()) {
                     isReplaced = true;
                     break;
                 }
@@ -3133,19 +3133,20 @@ void GraphOptimizer::ReplaceMemoryOutputWithMemoryOutputStub(Graph& graph) {
         auto& memOutputBase = memInputNode->getOutputNode();
 
         // Create a stub memory output
-        auto memOutputStub = std::make_shared<MemoryOutputStub>(memOutputBase.getId(),
-                                                                memOutputBase.getName() + "_MemoryOutputStub",
-                                                                memOutputBase.getTypeStr(),
-                                                                memOutputBase.getInputShapeAtPort(0),
-                                                                memOutputBase.getOriginalInputPrecisionAtPort(0),
-                                                                graph.getGraphContext());
+        auto memOutputSingleStub =
+            std::make_shared<MemoryOutputSingleStub>(memOutputBase.getId(),
+                                                     memOutputBase.getName() + "_MemoryOutputSingleStub",
+                                                     memOutputBase.getTypeStr(),
+                                                     memOutputBase.getInputShapeAtPort(0),
+                                                     memOutputBase.getOriginalInputPrecisionAtPort(0),
+                                                     graph.getGraphContext());
 
         auto memOutputEdge = memOutputBase.getParentEdgeAt(0);
         const auto inputNum = memOutputEdge->getInputNum();
         graph.RemoveEdge(memOutputEdge);
-        graph.CreateEdge(node, memOutputStub, inputNum, 0);
-        graph.AddNode(memOutputStub);
-        std::cout << "== ReplaceMemoryOutputWithMemoryOutputStub" << std::endl;
+        graph.CreateEdge(node, memOutputSingleStub, inputNum, 0);
+        graph.AddNode(memOutputSingleStub);
+        std::cout << "== ReplaceMemoryOutputWithMemoryOutputSingleStub" << std::endl;
     }
 }
 

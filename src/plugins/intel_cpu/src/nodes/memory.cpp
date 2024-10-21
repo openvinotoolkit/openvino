@@ -362,6 +362,14 @@ void MemoryOutputStub::assignExtMemory(const MemoryPtr& mem, const MemoryDescPtr
     //nothing to do
 }
 
+bool MemoryOutputSingleStub::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
+    return MemoryOutputBase::isSupportedOperation(op, errorMessage);
+}
+
+void MemoryOutputSingleStub::assignExtMemory(const MemoryPtr& mem, const MemoryDescPtr& memDesc) {
+    return MemoryOutput::assignExtMemory(mem, memDesc);
+}
+
 bool MemoryInputBase::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (!one_of(op->get_type_info(),
@@ -1012,17 +1020,6 @@ void MemoryInputSingle::runDynamic(dnnl::stream strm) {
     const bool hasZeroDims = std::count(std::begin(stateDims), std::end(stateDims), 0) > 0;
     auto internDesc = getBaseMemDescAtOutputPort(0)->cloneWithNewDims(stateDims, hasZeroDims);
 
-    OPENVINO_ASSERT(memBlock,
-        "MemoryInput ",
-        getName(),
-        " has uninitialized memory block.");
-
-    if (internDesc->isCompatible(assignedMem->getDesc())) {
-        memBlock->setMemBlock(assignedMem->getMemoryBlock());
-    } else {
-        memBlock->reset();
-    }
-
     const bool processInitGraph = needInitGraphProcessing();
     MemoryPtr src = assignedMem;  // declare src memory
     if (processInitGraph) {
@@ -1078,17 +1075,6 @@ void MemoryInputSingle::runStatic(dnnl::stream strm) {
 
     auto internDesc = getBaseMemDescAtOutputPort(0);
 
-    OPENVINO_ASSERT(memBlock,
-        "MemoryInput ",
-        getName(),
-        " has uninitialized memory block.");
-
-    if (internDesc->isCompatible(assignedMem->getDesc())) {
-        memBlock->setMemBlock(assignedMem->getMemoryBlock());
-    } else {
-        memBlock->reset();
-    }
-
     const bool processInitGraph = needInitGraphProcessing();
     MemoryPtr src = assignedMem;  // declare src memory
     if (processInitGraph) {
@@ -1132,13 +1118,12 @@ void MemoryInputSingle::resolveInPlaceEdges(Edge::LOOK look) {
         " failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
 
     auto memDesc = selected_pd->getConfig().outConfs.front().getMemDesc();
-    memBlock = std::make_shared<ProxyMemoryBlock>();
 
     for (auto&& edge : getChildEdgesAtPort(0)) { // always only one child port
         OPENVINO_ASSERT(one_of(edge->getStatus(), Edge::Status::Uninitialized, Edge::Status::NotAllocated),
             " Unexpected inplace resolve call to an allocated edge: ", edge->name());
 
-        auto edgeMem = std::make_shared<Memory>(getEngine(), memDesc, memBlock);
+        auto edgeMem = std::make_shared<MemoryStub>(getEngine(), memDesc);
         edge->reuse(edgeMem);
     }
 }
@@ -1160,8 +1145,6 @@ MemStatePtr MemoryInputSingle::makeState() {
     }
 
     // For direct ReadValue Assign pair, if MemoryOutput is MemoryOutputStub, VariableStateSingleBuffer is used.
-    memoryOutputIsStub = true;
-    std::cout << "== follow MemoryOutputStub, so make VariableStateSingleBuffer -->\n";
     return std::make_shared<VariableStateSingleBuffer>(state_name,
                                                        std::make_shared<Memory>(eng, mem_desc),
                                                        original_desc);
