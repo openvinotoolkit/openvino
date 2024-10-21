@@ -9,6 +9,7 @@
 
 #include "openvino/core/except.hpp"
 #include "openvino/core/meta_data.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/loop.hpp"
@@ -943,6 +944,13 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
         const auto aw_data = dn.attribute("alt_width");
         if (aw_data) {
             rtInfo["alt_width"] = aw_data.value();
+        }
+        const auto size = dn.attribute("size");
+        const auto offset = dn.attribute("offset");
+        if (size && offset) {
+            rtInfo[ov::WeightlessCacheAttribute::get_type_info_static()] =
+                ov::WeightlessCacheAttribute(static_cast<size_t>(pugixml::get_uint64_attr(dn, "size")),
+                                             static_cast<size_t>(pugixml::get_uint64_attr(dn, "offset")));
         }
     }
 
