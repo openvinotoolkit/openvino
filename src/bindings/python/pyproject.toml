@@ -1,0 +1,21 @@
+[project]
+name = "openvino"
+dynamic = ["version"]
+description = "OpenVINO(TM) Runtime"
+readme = {file = "README.md", content-type="text/markdown"}
+license = {text = "OSI Approved :: Apache Software License"}
+authors = [
+    { name = "OpenVINO Developers", email = "openvino@intel.com" },
+]
+classifiers = [
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+requires-python = ">=3.9"
+
+[build-system]
+requires = ["setuptools>=42,<72", "wheel", "cmake"]
+build-backend = "setuptools.build_meta"
