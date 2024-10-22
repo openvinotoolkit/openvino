@@ -2,3 +2,4 @@
 optimum-intel
 nncf
 whowhatbench @ git+https://github.com/openvinotoolkit/openvino.genai.git#subdirectory=tools/who_what_benchmark
+pytest
