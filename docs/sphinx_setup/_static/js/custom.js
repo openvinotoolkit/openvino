@@ -417,6 +417,7 @@ document.addEventListener('DOMContentLoaded', function () {
             await searchInterfaceSa.initialize({
                 accessToken: "xx1f2aebd3-4307-4632-aeea-17c13378b237",
                 organizationId: "intelcorporationnonproduction2ybdyblf7",
+                organizationEndpoints: await searchInterface.getOrganizationEndpoints('intelcorporationnonproduction2ybdyblf7')
             });
             searchInterfaceSa.executeFirstSearch();
         }
@@ -424,6 +425,7 @@ document.addEventListener('DOMContentLoaded', function () {
             await searchInterface.initialize({
                 accessToken: "xx1f2aebd3-4307-4632-aeea-17c13378b237",
                 organizationId: "intelcorporationnonproduction2ybdyblf7",
+                organizationEndpoints: await searchInterface.getOrganizationEndpoints('intelcorporationnonproduction2ybdyblf7')
             });
             searchInterface.executeFirstSearch();
         }
