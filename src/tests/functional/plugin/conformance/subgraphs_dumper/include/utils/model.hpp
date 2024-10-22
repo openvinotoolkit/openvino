@@ -192,17 +192,14 @@ generate_model(ov::NodeVector& nodes,
     }
     auto h1 = std::hash<std::string>{}(string_to_hash);
     model->set_friendly_name(std::to_string(h1));
-    {
-        auto it = nodes.begin();
-        while (it != nodes.end()) {
-            if (cloned_node_map.count((*it)->get_friendly_name())) {
-                nodes.erase(it);
-            } else {
-                ++it;
-            }
+    for (auto it = nodes.begin(); it != nodes.end();) {
+        if (cloned_node_map.count((*it)->get_friendly_name())) {
+            it = nodes.erase(it);
+        } else {
+            ++it;
         }
     }
-    
+
     return { model, model_input_info };
 }
 
