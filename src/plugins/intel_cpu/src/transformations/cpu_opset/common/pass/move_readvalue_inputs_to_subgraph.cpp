@@ -30,10 +30,6 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
             return false;
         }
 
-        int depth_check_node = 0;
-        constexpr int MAX_DEPTH_CHECK_NODE = 10;
-        int depth_check_successor = 0;
-        constexpr int MAX_DEPTH_CHECK_SUCCESSOR = 10;
         bool found_output = false;  // Flag: find Output node or out of max depth.
         std::string root_name = readvalue->get_friendly_name();
 
@@ -49,12 +45,7 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
                 return;
             }
 
-            depth_check_successor++;
-            if (depth_check_successor > MAX_DEPTH_CHECK_SUCCESSOR) {
-                found_output = true;
-                return;
-            }
-
+            // Output node.
             if (node->get_output_target_inputs(0).size() == 0u) {
                 found_output = true;
                 return;
@@ -67,15 +58,9 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
                 }
                 check_successor(son);
             }
-            depth_check_successor--;
         };
 
         std::function<void(std::shared_ptr<ov::Node>)> check_node = [&](std::shared_ptr<ov::Node> node) {
-            depth_check_node++;
-            if (depth_check_node > MAX_DEPTH_CHECK_NODE) {
-                return;
-            }
-
             if (ov::op::util::is_parameter(node)) {
                 inputs.emplace_back(node);
                 return;
@@ -93,7 +78,7 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
             for (size_t i = 0; i < node->get_input_size(); i++) {
                 check_node(node->get_input_node_shared_ptr(i));
             }
-            depth_check_node--;
+
             // Cache to subgraph_nodes
             subgraph_nodes.emplace_back(node);
             subgraph_node_names.insert(node->get_friendly_name());

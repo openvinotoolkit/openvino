@@ -27,7 +27,7 @@ class MemoryStateNode : public MemoryNode {
 public:
     using MemoryNode::MemoryNode;
     virtual void assignState(MemStatePtr newState) = 0;
-    virtual MemStatePtr makeState() = 0;
+    virtual MemStatePtr makeState() const = 0;
 };
 
 using MmemoryStateNodePtr = std::shared_ptr<MemoryStateNode>;

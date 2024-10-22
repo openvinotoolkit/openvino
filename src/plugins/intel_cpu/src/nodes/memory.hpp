@@ -54,7 +54,7 @@ public:
 
     ~MemoryOutputBase() override;
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
-    void getSupportedDescriptors() override {}
+    void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void initOptimalPrimitiveDescriptor() override;
     void createPrimitive() override {}
@@ -191,7 +191,7 @@ public:
     void selectOptimalPrimitiveDescriptor() override;
     void createPrimitive() override;
 
-    MemStatePtr makeState() override;
+    MemStatePtr makeState() const override;
 
 private:
     void runStatic(dnnl::stream strm) override;
@@ -223,7 +223,7 @@ public:
     void createPrimitive() override;
     void resolveInPlaceEdges(Edge::LOOK look) override;
 
-    MemStatePtr makeState() override;
+    MemStatePtr makeState() const override;
 
 private:
     void assignStateHook() override;
@@ -248,7 +248,7 @@ public:
     void selectOptimalPrimitiveDescriptor() override;
     void createPrimitive() override;
 
-    MemStatePtr makeState() override;
+    MemStatePtr makeState() const override;
     bool needShapeInfer() const override { return true; }
 
     bool haveSubgraph() const {

@@ -154,6 +154,8 @@ MemoryInputBase& MemoryOutputBase::getInputNode() {
     return *inputNode;
 }
 
+void MemoryOutputBase::getSupportedDescriptors() {}
+
 void MemoryOutputBase::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
@@ -716,7 +718,7 @@ void MemoryInput::resolveInPlaceEdges(Edge::LOOK look) {
     }
 }
 
-MemStatePtr MemoryInput::makeState() {
+MemStatePtr MemoryInput::makeState() const {
     // assume ov::Tensor is always dense
     auto original_desc =
         std::make_shared<CpuBlockedMemoryDesc>(getOriginalOutputPrecisionAtPort(0), outputShapes.at(0));
@@ -777,7 +779,7 @@ void MemoryInputSDPA::assignStateHook() {
     sdpaNode->assignState(sdpaState, m_child_port_idx);
 }
 
-MemStatePtr MemoryInputSDPA::makeState() {
+MemStatePtr MemoryInputSDPA::makeState() const {
     // assume ov::Tensor is always dense
     auto original_desc =
         std::make_shared<CpuBlockedMemoryDesc>(getOriginalOutputPrecisionAtPort(0), outputShapes.at(0));
@@ -1090,7 +1092,7 @@ void MemoryInputSingle::resolveInPlaceEdges(Edge::LOOK look) {
     }
 }
 
-MemStatePtr MemoryInputSingle::makeState() {
+MemStatePtr MemoryInputSingle::makeState() const {
     // assume ov::Tensor is always dense
     auto original_desc =
         std::make_shared<CpuBlockedMemoryDesc>(getOriginalOutputPrecisionAtPort(0), outputShapes.at(0));

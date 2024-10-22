@@ -3146,7 +3146,6 @@ void GraphOptimizer::ReplaceMemoryOutputWithMemoryOutputSingleStub(Graph& graph)
         graph.RemoveEdge(memOutputEdge);
         graph.CreateEdge(node, memOutputSingleStub, inputNum, 0);
         graph.AddNode(memOutputSingleStub);
-        std::cout << "== ReplaceMemoryOutputWithMemoryOutputSingleStub" << std::endl;
     }
 }
 
