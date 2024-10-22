@@ -10,9 +10,13 @@
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/if.hpp"
+#include "openvino/op/less.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
+#include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "utils.hpp"
 
@@ -39,9 +43,9 @@ OutputVector translate_stft(const NodeContext& context) {
         hop_length = context.get_input(2);
     } else {
         // Defualt floor(n_fft / 4)
-        const auto four = std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, 4);
-        const auto four_cast = std::make_shared<ov::op::v1::ConvertLike>(four, n_fft);
-        hop_length = std::make_shared<ov::op::v1::Divide>(n_fft, four_cast);
+        const auto four = context.mark_node(std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, 4));
+        const auto four_cast = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(four, n_fft));
+        hop_length = context.mark_node(std::make_shared<ov::op::v1::Divide>(n_fft, four_cast));
     }
 
     ov::Output<ov::Node> win_length;
@@ -55,10 +59,12 @@ OutputVector translate_stft(const NodeContext& context) {
     if (!context.input_is_none(4)) {
         window = context.get_input(4);
     } else {
-        const auto one = std::make_shared<ov::op::v0::Constant>(ov::element::f32, Shape{}, 1.0);
-        const auto one_cast = std::make_shared<ov::op::v1::ConvertLike>(one, input);
-        const auto n_fft_vec = std::make_shared<ov::op::v0::Unsqueeze>(one, input);
-        window = std::make_shared<ov::op::v3::Broadcast>(one_cast, n_fft_vec);
+        const auto one = context.mark_node(std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, 1));
+        const auto one_cast = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(one, input));
+        const auto zero = context.mark_node(std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{1}, 0));
+        const auto n_fft_cast = context.mark_node(std::make_shared<ov::op::v0::Convert>(n_fft, ov::element::i64));
+        const auto n_fft_vec = context.mark_node(std::make_shared<ov::op::v0::Unsqueeze>(n_fft_cast, zero));
+        window = context.mark_node(std::make_shared<ov::op::v3::Broadcast>(one_cast, n_fft_vec));
     }
 
     bool center = true;
@@ -92,13 +98,13 @@ OutputVector translate_stft(const NodeContext& context) {
     auto const_0 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {0}));
     auto const_1 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {1}));
     auto input_shape = context.mark_node(std::make_shared<v3::ShapeOf>(input, element::i32));
-    auto class_probs_shape = context.mark_node(std::make_shared<v8::Gather>(input_shape, const_neg_1, const_0));
-    auto inp_shape = context.mark_node(std::make_shared<v0::Concat>(OutputVector{const_neg_1, class_probs_shape}, 0));
+    auto signal_shape = context.mark_node(std::make_shared<v8::Gather>(input_shape, const_neg_1, const_0));
+    auto inp_shape = context.mark_node(std::make_shared<v0::Concat>(OutputVector{const_neg_1, signal_shape}, 0));
     input = context.mark_node(std::make_shared<v1::Reshape>(input, inp_shape, false));
 
+    // Perform STFT
     constexpr bool transpose_frames = true;
     auto stft = context.mark_node(std::make_shared<v15::STFT>(input, window, n_fft, hop_length, transpose_frames));
-
     return {stft};
 };
 }  // namespace op
