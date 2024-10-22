@@ -918,7 +918,11 @@ Subgraph::SubgraphExecutor::SubgraphExecutor(const std::shared_ptr<Subgraph::Sub
     OPENVINO_ASSERT(!ov::snippets::utils::is_dynamic_value(m_buffer_scratchpad_size), "Undefined buffer scratchpad size!");
     m_buffer_scratchpad = allocator(static_cast<size_t>(m_nthreads) * m_buffer_scratchpad_size);
 
-    m_in_requested_descs = snippet_config->m_in_requested_descs;
+    const auto& requested_descs = snippet_config->m_in_requested_descs;
+    m_requested_repackings.resize(requested_descs.size());
+    for (size_t i = 0; i < requested_descs.size(); ++i) {
+        m_requested_repackings[i].requested_desc = requested_descs[i];
+    }
 
 #if defined(__linux__) && defined(OPENVINO_ARCH_X86_64) && defined(SNIPPETS_DEBUG_CAPS)
     const auto target = std::dynamic_pointer_cast<const CPUTargetMachine>(snippet_attrs->snippet->get_generator()->get_target_machine());
@@ -1001,14 +1005,17 @@ void Subgraph::SubgraphExecutor::execute(dnnl::stream strm, std::vector<MemoryPt
 }
 
 void Subgraph::SubgraphExecutor::repack_inputs(dnnl::stream strm, std::vector<MemoryPtr>& inMemPtrs) {
-    OPENVINO_ASSERT(inMemPtrs.size() == m_in_requested_descs.size());
-    for (size_t i = 0; i < m_in_requested_descs.size(); ++i) {
-        const auto& requested_desc = m_in_requested_descs[i];
+    OPENVINO_ASSERT(inMemPtrs.size() == m_requested_repackings.size());
+    for (size_t i = 0; i < m_requested_repackings.size(); ++i) {
+        const auto& requested_desc = m_requested_repackings[i].requested_desc;
+        auto& scratch_mem = m_requested_repackings[i].scratch_mem;
         if (requested_desc) {
-            if (!m_scratch_memory || !m_scratch_memory->getDesc().isCompatible(*requested_desc))
-                m_scratch_memory = m_scratchpad->createScratchPadMem(requested_desc);
-            m_scratch_memory->load(*inMemPtrs[i]);
-            inMemPtrs[i] = m_scratch_memory;
+            if (!scratch_mem || !scratch_mem->getDesc().isCompatible(*requested_desc)) {
+                scratch_mem = m_scratchpad->createScratchPadMem(requested_desc);
+                std::cout << "scratch_mem is created for requested desc " << i << std::endl;
+            }
+            scratch_mem->load(*inMemPtrs[i]);
+            inMemPtrs[i] = scratch_mem;
         }
     }
 }

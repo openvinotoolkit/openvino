@@ -171,9 +171,12 @@ protected:
 private:
     void repack_inputs(dnnl::stream strm, std::vector<MemoryPtr>& inMemPtrs);
 
-    std::vector<MemoryDescPtr> m_in_requested_descs = {};
+    struct RequestedRepacking {
+        MemoryDescPtr requested_desc = {};
+        MemoryPtr scratch_mem = {};
+    };
+    std::vector<RequestedRepacking> m_requested_repackings = {};
     DnnlScratchPadPtr m_scratchpad = {};
-    MemoryPtr m_scratch_memory = {};
 };
 
 }   // namespace node
