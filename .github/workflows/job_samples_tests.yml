@@ -31,39 +31,39 @@ jobs:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
       BUILD_DIR: ${{ github.workspace }}/build
     steps:
-      - name: Download OpenVINO package
+      - name: Download OpenVINO artifacts (tarballs) 
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
-          name: openvino_package
+          pattern: openvino_[package|tests]*
           path: ${{ env.INSTALL_DIR }}
+          merge-multiple: true
 
-      - name: Download OpenVINO tests package
+      - name: Download OpenVINO artifacts (wheels) 
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
-          name: openvino_tests
-          path: ${{ env.INSTALL_TEST_DIR }}
-
+          pattern: openvino_[wheels]*
+          path: ${{ env.INSTALL_WHEELS_DIR }}
+          merge-multiple: true          
+            
       # Needed as ${{ github.workspace }} is not working correctly when using Docker
       - name: Setup Variables
         run: |
           echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
           echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
           echo "BUILD_DIR=$GITHUB_WORKSPACE/build" >> "$GITHUB_ENV"
-
-      - name: Extract OpenVINO packages
-        run: |
-          pushd $INSTALL_DIR
-            tar -I pigz -xf openvino_package.tar.gz -C $INSTALL_DIR
-          popd
-          pushd $INSTALL_TEST_DIR
-            tar -I pigz -xf openvino_tests.tar.gz -C $INSTALL_DIR
-          popd
-
+      
       - name: Install OpenVINO dependencies (mac)
         if: runner.os == 'macOS'
-        run: brew install coreutils
+        run: brew install coreutils pigz
+
+      - name: Extract OpenVINO packages and tests
+        run: |
+            pigz -dc openvino_package.tar.gz | tar -xf - -C ${INSTALL_DIR}
+            pigz -dc openvino_tests.tar.gz | tar -xf - -C ${INSTALL_DIR}
+        working-directory: ${{ env.INSTALL_DIR }}
 
       - name: Fetch setup_python action
         # Python is already installed on Ubuntu within Dockerfile
@@ -122,7 +122,7 @@ jobs:
           export SHARE=$INSTALL_TEST_DIR/smoke_tests/samples_smoke_tests_data
 
           # Install Python benchmark_app by installing openvino-*.whl
-          python3 -m pip install --ignore-installed PyYAML -r $INSTALL_TEST_DIR/smoke_tests/requirements.txt $INSTALL_DIR/tools/openvino-*.whl
+          python3 -m pip install --ignore-installed PyYAML -r $INSTALL_TEST_DIR/smoke_tests/requirements.txt $INSTALL_WHEELS_DIR/openvino-*.whl
           export LD_LIBRARY_PATH=${IE_APP_PATH}:$LD_LIBRARY_PATH
 
           source ${INSTALL_DIR}/setupvars.sh
