@@ -84,7 +84,7 @@ ov_sitemap_urlset = [
 ov_sitemap_meta = [
     ('coveo:metadata', {
         'ovversion': version_name,
-        'ovcategory': 'null'
+        'ovdoctype': 'null'
     })
 ]
 
