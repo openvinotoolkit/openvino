@@ -63,6 +63,8 @@ class TestMatMulU4Weights(PytorchLayerTest):
                 self.weight_shape = weight_shape
 
             def forward(self, x):
+                # NNCF UINT4 asymmetric decompression pattern
+                # https://github.com/openvinotoolkit/nncf/blob/develop/nncf/torch/quantization/layers.py
                 compressed_weight = unpack_uint4(self.packed_weight)
                 compressed_weight = compressed_weight.reshape(self.compressed_weight_shape)
 
@@ -125,6 +127,8 @@ class TestMatMulI4Weights(PytorchLayerTest):
                 self.weight_shape = weight_shape
 
             def forward(self, x):
+                # NNCF INT4 symmetric decompression pattern
+                # https://github.com/openvinotoolkit/nncf/blob/develop/nncf/torch/quantization/layers.py
                 compressed_weight = unpack_int4(self.packed_weight)
                 compressed_weight = compressed_weight.reshape(self.compressed_weight_shape)
 
