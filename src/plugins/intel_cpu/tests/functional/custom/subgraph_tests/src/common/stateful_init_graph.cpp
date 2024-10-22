@@ -88,21 +88,15 @@ protected:
         }
     }
 
+    virtual void check_init_graph_node() = 0;
+
     void prepare() {
         compile_model();
 
         inferRequest = compiledModel.create_infer_request();
         ASSERT_TRUE(inferRequest);
 
-        // Node with friendly name "init_graph/add_1" should be moved into subgraph.
-        bool found_init_graph_add = false;
-        for (auto node : compiledModel.get_runtime_model()->get_ops()) {
-            if (node->get_friendly_name() == "init_graph/add_1") {
-                found_init_graph_add = true;
-                break;
-            }
-        }
-        EXPECT_FALSE(found_init_graph_add);
+        check_init_graph_node();
 
         // ref
         functionRefs = function->clone();
@@ -169,9 +163,100 @@ public:
         auto res = std::make_shared<ov::op::v0::Result>(add_0);
         function = std::make_shared<ov::Model>(ov::ResultVector({res}), ov::SinkVector({assign}), input_params);
     }
+
+    void check_init_graph_node() override {
+        // Node with friendly name "init_graph/add_1" and init_graph/mm_0 should be moved into subgraph.
+        bool found_init_graph_add = false;
+        bool found_init_graph_mm = false;
+        for (auto node : compiledModel.get_runtime_model()->get_ops()) {
+            if (node->get_friendly_name() == "init_graph/add_1") {
+                found_init_graph_add = true;
+                break;
+            }
+            if (node->get_friendly_name() == "init_graph/mm_0") {
+                found_init_graph_mm = true;
+                break;
+            }
+        }
+        EXPECT_FALSE(found_init_graph_add);
+        EXPECT_FALSE(found_init_graph_mm);
+    }
+};
+
+// Model:
+//
+//             Param_1   Weights1
+//                \      /
+//                 Conv1
+//                   |
+//   Weights2  ReadValue ........
+//         \   /    \           .
+//        Conv2     Assign ......
+//          |
+//        Result
+
+class InitGraphStatefulModelInplace : public InitGraphStatefulModelBase {
+public:
+    void SetUp() override {
+        targetDevice = utils::DEVICE_CPU;
+        auto& InputShapes = this->GetParam();
+        init_input_shapes(InputShapes);
+        ov::ParameterVector input_params;
+        for (auto&& shape : inputDynamicShapes) {
+            input_params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrc, shape));
+        }
+
+        input_params[0]->set_friendly_name("input_0");
+
+        // init_graph
+        auto createConv = [&](std::shared_ptr<ov::Node> input, ov::Shape filterShape, std::string name) {
+            std::vector<float> weightValuesFP32(ov::shape_size<ov::Shape>(filterShape));
+            for (size_t i = 0; i < weightValuesFP32.size(); i++) {
+                weightValuesFP32.data()[i] = sin(static_cast<float>(i));
+            }
+            auto weightsNode = std::make_shared<ov::op::v0::Constant>(ov::element::f32, filterShape, weightValuesFP32);
+            std::shared_ptr<ov::Node> conv = std::make_shared<ov::op::v1::Convolution>(input,
+                                                                                       weightsNode,
+                                                                                       ov::Strides({1, 1}),
+                                                                                       ov::CoordinateDiff({1, 1}),
+                                                                                       ov::CoordinateDiff({0, 0}),
+                                                                                       ov::Strides({1, 1}));
+            conv->set_friendly_name(name);
+            return conv;
+        };
+
+        auto conv1 = createConv(input_params[0], ov::Shape({1, 1, 2, 2}), "init_graph/conv1");
+
+        const std::string variable_name("var_model_inplace");
+        auto variable = std::make_shared<ov::op::util::Variable>(
+            ov::op::util::VariableInfo{{inputDynamicShapes[0]}, netPrc, variable_name});
+
+        auto read = std::make_shared<ov::op::v6::ReadValue>(conv1, variable);
+        auto assign = std::make_shared<ov::op::v6::Assign>(read, variable);
+
+        auto conv2 = createConv(read, ov::Shape({1, 1, 2, 2}), "conv2");
+
+        auto res = std::make_shared<ov::op::v0::Result>(conv2);
+        function = std::make_shared<ov::Model>(ov::ResultVector({res}), ov::SinkVector({assign}), input_params);
+    }
+
+    void check_init_graph_node() override {
+        // Node with friendly name "init_graph/conv1" should be moved into subgraph.
+        bool found_init_graph_conv = false;
+        for (auto node : compiledModel.get_runtime_model()->get_ops()) {
+            if (node->get_friendly_name() == "init_graph/conv1") {
+                found_init_graph_conv = true;
+                break;
+            }
+        }
+        EXPECT_FALSE(found_init_graph_conv);
+    }
 };
 
 TEST_P(InitGraphStatefulModelDirectPair, CompareWithRefs) {
+    run();
+}
+TEST_P(InitGraphStatefulModelInplace, CompareWithRefs) {
     run();
 }
 
@@ -195,5 +280,20 @@ INSTANTIATE_TEST_SUITE_P(smoke_StatefulInitGraph,
                          InitGraphStatefulModelDirectPair,
                          ::testing::ValuesIn(inputShapes),
                          InitGraphStatefulModelDirectPair::getTestCaseName);
+
+}  // namespace
+
+namespace {
+const std::vector<std::vector<InputShape>> inputShapes2 = {
+    {
+        // Static shape.
+        {{1, 1, 2, 2}, {{1, 1, 2, 2}}},
+    }
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_StatefulInitGraph,
+                         InitGraphStatefulModelInplace,
+                         ::testing::ValuesIn(inputShapes2),
+                         InitGraphStatefulModelInplace::getTestCaseName);
 
 }  // namespace
