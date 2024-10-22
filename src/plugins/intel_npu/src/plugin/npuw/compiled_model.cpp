@@ -436,6 +436,10 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
     // Register lazy tensors
     for (std::size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
         auto& comp_model_desc = m_compiled_submodels[idx];
+        comp_model_desc.closure.clear();
+        comp_model_desc.scales.clear();
+        comp_model_desc.zerops.clear();
+        comp_model_desc.lazy_closure.clear();
 
         // Skip optimized out and non-functions
         if (!comp_model_desc.compiled_model && !comp_model_desc.replaced_by) {
@@ -444,7 +448,6 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
 
         const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
         auto& func_desc = m_compiled_submodels[real_idx];
-
         for (std::size_t tidx = 0; tidx < comp_model_desc.lazy_closure.size(); ++tidx) {
             if (comp_model_desc.closure[tidx]) {
                 continue;  // host-side closure
@@ -484,10 +487,6 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
             //     lt.drop_if_const();
             // }
         }
-        comp_model_desc.closure.clear();
-        comp_model_desc.scales.clear();
-        comp_model_desc.zerops.clear();
-        comp_model_desc.lazy_closure.clear();
     }
 
     LOG_INFO("Done.");
