@@ -360,12 +360,7 @@ struct OutputValue {
     std::vector<ov::Any> value;
 
     bool operator==(const OutputValue& other) const {
-        if (value.size() != other.value.size())
-            return false;
-        for (size_t i = 0; i < value.size(); ++i)
-            if (value.at(i) != other.value.at(i))
-                return false;
-        return true;
+        return value == other.value;
     }
 
     bool operator<(const OutputValue& other) const {
@@ -388,34 +383,22 @@ struct OutputValue {
         auto symbols = output.get_tensor().get_value_symbol();
         if (symbols.empty() || symbols.size() == 1)
             return {false, OutputValue()};
-        if (std::all_of(symbols.begin(), symbols.end(), [](const std::shared_ptr<ov::Symbol>& s) {
-                return s != nullptr;
-            })) {
-            std::vector<ov::Any> symbols_as_any(symbols.size(), nullptr);
-            for (size_t i = 0; i < symbols.size(); ++i)
-                symbols_as_any[i] = ov::symbol::ancestor_of(symbols[i]);
-            return {true, {symbols_as_any}};
-        } else {
-            const auto& lower = output.get_tensor().get_lower_value();
-            const auto& upper = output.get_tensor().get_upper_value();
-            const auto& et = output.get_element_type();
-            if (!lower || !upper || (et != ov::element::i64 && et != ov::element::i32))
+
+        const auto& lower_value = ov::util::to_vector<int64_t>(output.get_tensor().get_lower_value());
+        const auto& upper_value = ov::util::to_vector<int64_t>(output.get_tensor().get_upper_value());
+        const auto& et = output.get_element_type();
+        bool use_values = lower_value && upper_value && (et == ov::element::i64 || et == ov::element::i32);
+
+        std::vector<ov::Any> symbols_as_any(symbols.size(), nullptr);
+        for (size_t i = 0; i < symbols_as_any.size(); ++i) {
+            if (use_values && lower_value->at(i) == upper_value->at(i))
+                symbols_as_any[i] = lower_value->at(i);
+            else if (symbols.at(i) != nullptr)
+                symbols_as_any[i] = ov::symbol::ancestor_of(symbols.at(i));
+            else
                 return {false, OutputValue()};
-            const auto& lower_value = ov::util::to_vector<int64_t>(lower);
-            const auto& upper_value = ov::util::to_vector<int64_t>(upper);
-            if (lower_value->size() != symbols.size() || upper_value->size() != symbols.size())
-                return {false, OutputValue()};
-            std::vector<ov::Any> symbols_as_any(symbols.size(), nullptr);
-            for (size_t i = 0; i < symbols_as_any.size(); ++i) {
-                if (symbols.at(i) != nullptr)
-                    symbols_as_any[i] = ov::symbol::ancestor_of(symbols.at(i));
-                else if (lower_value->at(i) == upper_value->at(i))
-                    symbols_as_any[i] = lower_value->at(i);
-                else
-                    return {false, OutputValue()};
-            }
         }
-        return {false, OutputValue()};
+        return {true, {symbols_as_any}};
     }
 };
 
@@ -428,8 +411,11 @@ void save_and_update_value_sources(const std::shared_ptr<ov::Node>& op,
         if (result.first) {
             if (multi_symbol_source.count(result.second)) {
                 auto alternative_source = multi_symbol_source[result.second];
-                if (output.get_element_type() != alternative_source.get_element_type())
-                    continue;
+                if (output.get_element_type() != alternative_source.get_element_type()) {
+                    auto convert = std::make_shared<ov::op::v0::Convert>(alternative_source, output.get_element_type());
+                    ov::copy_runtime_info(output.get_node_shared_ptr(), convert);
+                    alternative_source = convert->output(0);
+                }
                 if (output.get_partial_shape().is_dynamic() ||
                     output.get_partial_shape() != alternative_source.get_partial_shape())
                     continue;
