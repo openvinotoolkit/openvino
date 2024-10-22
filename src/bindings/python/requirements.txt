@@ -1,4 +1,3 @@
 numpy>=1.16.6,<2.1.0
 openvino-telemetry>=2023.2.1
-build<1.3
 packaging
