@@ -13,34 +13,43 @@
 #include "openvino/pass/manager.hpp"
 #include "transformations/op_conversions/convert_slicescatter.hpp"
 #include "transformations/utils/utils.hpp"
-using namespace testing;
-
 namespace {
-
-std::shared_ptr<ov::Model> create_v15_model(bool with_axes) {
-    const auto data = std::make_shared<ov::opset15::Parameter>(ov::element::f32, ov::Shape{256, 10, 15});
-    const auto updates = std::make_shared<ov::opset15::Parameter>(ov::element::f32, ov::Shape{4, 7, 2});
-    const auto start = ov::op::v0::Constant::create(ov::element::i32, {3}, {2, 0, 0});
-    const auto stop = ov::op::v0::Constant::create(ov::element::i32, {3}, {9, 7, 2});
-    const auto step = ov::op::v0::Constant::create(ov::element::i32, {3}, {2, 1, 1});
-    const auto axes = ov::op::v0::Constant::create(ov::element::i32, {3}, {0, 1, 2});
+std::shared_ptr<ov::Model> create_v15_model(ov::NodeVector inputs) {
+    const auto data = inputs.at(0);
+    const auto updates = inputs.at(1);
+    const auto start = inputs.at(2);
+    const auto stop = inputs.at(3);
+    const auto step = inputs.at(4);
+    ov::ParameterVector params{};
+    for (auto inp : inputs) {
+        const auto param = ov::as_type_ptr<ov::op::v0::Parameter>(inp);
+        if (param) {
+            params.push_back(param);
+        }
+    }
     std::shared_ptr<ov::opset15::SliceScatter> slicescatter;
-    if (!with_axes) {
+    if (inputs.size() == 5) {
         slicescatter = std::make_shared<ov::opset15::SliceScatter>(data, updates, start, stop, step);
     } else {
-        slicescatter = std::make_shared<ov::opset15::SliceScatter>(data, updates, start, stop, step, axes);
+        slicescatter = std::make_shared<ov::opset15::SliceScatter>(data, updates, start, stop, step, inputs.at(5));
     }
     slicescatter->set_friendly_name("slicescatter15");
-    return std::make_shared<ov::Model>(slicescatter->outputs(), ov::ParameterVector{data, updates});
+    return std::make_shared<ov::Model>(slicescatter->outputs(), params);
 }
 
-std::shared_ptr<ov::Model> create_decomposed_model(bool with_axes) {
-    const auto data = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{256, 10, 15});
-    const auto updates = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{4, 7, 2});
-    const auto start = ov::op::v0::Constant::create(ov::element::i32, {3}, {2, 0, 0});
-    const auto stop = ov::op::v0::Constant::create(ov::element::i32, {3}, {9, 7, 2});
-    const auto step = ov::op::v0::Constant::create(ov::element::i32, {3}, {2, 1, 1});
-    const auto axes = ov::op::v0::Constant::create(ov::element::i32, {3}, {0, 1, 2});
+std::shared_ptr<ov::Model> create_decomposed_model(ov::NodeVector inputs) {
+    const auto data = inputs.at(0);
+    const auto updates = inputs.at(1);
+    const auto start = inputs.at(2);
+    const auto stop = inputs.at(3);
+    const auto step = inputs.at(4);
+    ov::ParameterVector params{};
+    for (auto inp : inputs) {
+        const auto param = ov::as_type_ptr<ov::op::v0::Parameter>(inp);
+        if (param) {
+            params.push_back(param);
+        }
+    }
     auto const_0 = ov::op::v0::Constant::create(ov::element::i64, {}, {0});
     auto const_1 = ov::op::v0::Constant::create(ov::element::i64, {}, {1});
     auto const_1d_neg_1 = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
@@ -51,10 +60,10 @@ std::shared_ptr<ov::Model> create_decomposed_model(bool with_axes) {
         std::make_shared<ov::opset8::Range>(const_0, num_elements_data, const_1, ov::element::i64);
     auto full_data_indices = std::make_shared<ov::opset8::Reshape>(data_indices_flatten, data_shape, false);
     std::shared_ptr<ov::opset8::Slice> slice_indices;
-    if (!with_axes) {
+    if (inputs.size() == 5) {
         slice_indices = std::make_shared<ov::opset8::Slice>(full_data_indices, start, stop, step);
     } else {
-        slice_indices = std::make_shared<ov::opset8::Slice>(full_data_indices, start, stop, step, axes);
+        slice_indices = std::make_shared<ov::opset8::Slice>(full_data_indices, start, stop, step, inputs.at(5));
     }
     auto slice_indices_flatten =
         std::make_shared<ov::opset8::Reshape>(slice_indices, const_scatter_indices_shape, false);
@@ -64,24 +73,105 @@ std::shared_ptr<ov::Model> create_decomposed_model(bool with_axes) {
         std::make_shared<ov::opset8::ScatterNDUpdate>(data_flatten, slice_indices_flatten, updates_flatten);
     auto slicescatter = std::make_shared<ov::opset8::Reshape>(output_flatten, data_shape, false);
     slicescatter->set_friendly_name("slicescatter15");
-
-    return std::make_shared<ov::Model>(slicescatter->outputs(), ov::ParameterVector{data, updates});
+    return std::make_shared<ov::Model>(slicescatter->outputs(), params);
 }
-
 }  // namespace
 
 TEST_F(TransformationTestsF, ConvertSliceScatter15Decomposition_axes) {
+    ov::NodeVector inputs = {
+        std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{256, 10, 15}),
+        std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{4, 7, 2}),
+        ov::op::v0::Constant::create(ov::element::i32, {3}, {2, -15, 25}),
+        ov::op::v0::Constant::create(ov::element::i32, {3}, {9, 7, -3}),
+        ov::op::v0::Constant::create(ov::element::i32, {3}, {2, 1, -1}),
+        ov::op::v0::Constant::create(ov::element::i32, {3}, {0, 1, -1}),
+    };
     manager.register_pass<ov::pass::ConvertSliceScatter>();
-    model = create_v15_model(true);
-    model_ref = create_decomposed_model(true);
+    model = create_v15_model(inputs);
+    model_ref = create_decomposed_model(inputs);
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CmpValues::NAMES);
 }
 
 TEST_F(TransformationTestsF, ConvertSliceScatter15Decomposition_no_axes) {
+    ov::NodeVector inputs = {
+        std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{256, 10, 15}),
+        std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{4, 7, 2}),
+        ov::op::v0::Constant::create(ov::element::i32, {3}, {2, -15, 25}),
+        ov::op::v0::Constant::create(ov::element::i32, {3}, {9, 7, -3}),
+        ov::op::v0::Constant::create(ov::element::i32, {3}, {2, 1, -1}),
+    };
     manager.register_pass<ov::pass::ConvertSliceScatter>();
-    model = create_v15_model(false);
-    model_ref = create_decomposed_model(false);
+    model = create_v15_model(inputs);
+    model_ref = create_decomposed_model(inputs);
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CmpValues::NAMES);
+}
+
+TEST_F(TransformationTestsF, ConvertSliceScatter15Decomposition_axes_data_dynamic) {
+    ov::NodeVector inputs = {
+        std::make_shared<ov::opset15::Parameter>(ov::element::i32, ov::PartialShape::dynamic()),
+        std::make_shared<ov::opset15::Parameter>(ov::element::i32, ov::PartialShape::dynamic()),
+        ov::op::v0::Constant::create(ov::element::i32, {3}, {2, -15, 25}),
+        ov::op::v0::Constant::create(ov::element::i32, {3}, {9, 7, -3}),
+        ov::op::v0::Constant::create(ov::element::i32, {3}, {2, 1, -1}),
+        ov::op::v0::Constant::create(ov::element::i32, {3}, {0, 1, -1}),
+    };
+    manager.register_pass<ov::pass::ConvertSliceScatter>();
+    model = create_v15_model(inputs);
+    model_ref = create_decomposed_model(inputs);
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CmpValues::NAMES);
+}
+
+TEST_F(TransformationTestsF, ConvertSliceScatter15Decomposition_no_axes_data_dynamic) {
+    ov::NodeVector inputs = {
+        std::make_shared<ov::opset15::Parameter>(ov::element::i32, ov::PartialShape::dynamic()),
+        std::make_shared<ov::opset15::Parameter>(ov::element::i32, ov::PartialShape::dynamic()),
+        ov::op::v0::Constant::create(ov::element::i32, {3}, {2, -15, 25}),
+        ov::op::v0::Constant::create(ov::element::i32, {3}, {9, 7, -3}),
+        ov::op::v0::Constant::create(ov::element::i32, {3}, {2, 1, -1}),
+    };
+    manager.register_pass<ov::pass::ConvertSliceScatter>();
+    model = create_v15_model(inputs);
+    model_ref = create_decomposed_model(inputs);
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CmpValues::NAMES);
+}
+
+TEST_F(TransformationTestsF, ConvertSliceScatter15Decomposition_axes_dynamic) {
+    manager.register_pass<ov::pass::ConvertSliceScatter>();
+    ov::NodeVector inputs = {
+        std::make_shared<ov::opset15::Parameter>(ov::element::i32, ov::PartialShape::dynamic()),
+        std::make_shared<ov::opset15::Parameter>(ov::element::i32, ov::PartialShape::dynamic()),
+        std::make_shared<ov::opset15::Parameter>(ov::element::i32, ov::PartialShape::dynamic()),
+        std::make_shared<ov::opset15::Parameter>(ov::element::i32, ov::PartialShape::dynamic()),
+        std::make_shared<ov::opset15::Parameter>(ov::element::i32, ov::PartialShape::dynamic()),
+        std::make_shared<ov::opset15::Parameter>(ov::element::i32, ov::PartialShape::dynamic()),
+    };
+    model = create_v15_model(inputs);
+    model_ref = create_decomposed_model(inputs);
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CmpValues::NAMES);
+}
+
+TEST_F(TransformationTestsF, ConvertSliceScatter15Decomposition_no_axes_dynamic) {
+    manager.register_pass<ov::pass::ConvertSliceScatter>();
+    ov::NodeVector inputs = {
+        std::make_shared<ov::opset15::Parameter>(ov::element::i32, ov::PartialShape::dynamic()),
+        std::make_shared<ov::opset15::Parameter>(ov::element::i32, ov::PartialShape::dynamic()),
+        std::make_shared<ov::opset15::Parameter>(ov::element::i32, ov::PartialShape::dynamic()),
+        std::make_shared<ov::opset15::Parameter>(ov::element::i32, ov::PartialShape::dynamic()),
+        std::make_shared<ov::opset15::Parameter>(ov::element::i32, ov::PartialShape::dynamic()),
+    };
+    model = create_v15_model(inputs);
+    model_ref = create_decomposed_model(inputs);
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CmpValues::NAMES);
 }
