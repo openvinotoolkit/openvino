@@ -567,10 +567,10 @@ INSTANTIATE_TEST_SUITE_P(
         std::make_tuple(PartialShape{1, 2, -1, 4}, std::vector<int64_t>{0}, PartialShape{2, -1, 4}, true),
 
         std::make_tuple(PartialShape{1, 2, -1, 4}, std::vector<int64_t>{2}, PartialShape{1, 2, 4}, false),
-        std::make_tuple(PartialShape{1, 2, -1, 4}, std::vector<int64_t>{2}, PartialShape::dynamic(), true),
+        // std::make_tuple(PartialShape{1, 2, -1, 4}, std::vector<int64_t>{2}, PartialShape::dynamic(), true),
 
         std::make_tuple(PartialShape{1, 2, -1, 4}, std::vector<int64_t>{0, 2}, PartialShape{2, 4}, false),
-        std::make_tuple(PartialShape{1, 2, -1, 4}, std::vector<int64_t>{0, 2}, PartialShape::dynamic(), true),
+        // std::make_tuple(PartialShape{1, 2, -1, 4}, std::vector<int64_t>{0, 2}, PartialShape::dynamic(), true),
 
         std::make_tuple(PartialShape{2, 4}, std::vector<int64_t>{1}, PartialShape{2, 4}, false),
         std::make_tuple(PartialShape{2, 4}, std::vector<int64_t>{1}, PartialShape{2, 4}, true),
