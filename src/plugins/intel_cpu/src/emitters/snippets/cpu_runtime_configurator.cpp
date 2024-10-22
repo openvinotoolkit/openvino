@@ -160,12 +160,13 @@ void CPURuntimeConfigurator::update_requested_descs(const ov::snippets::lowered:
             requested_blocked_shape.insert(
                 requested_blocked_shape.end(),
                 {snippets::utils::div_up(K, vnni_factor), std::max(N, brgemm_utils::repacking::compute_inner_n_block(precision)), vnni_factor});
-            // Please note: only planar layout is supported for now
-            const VectorDims order{0, 1, 2, 3, 2};
-            auto cpu_desc = std::make_shared<ov::intel_cpu::CpuBlockedMemoryDesc>(precision,
-                                                                                  Shape(shape),
-                                                                                  requested_blocked_shape,
-                                                                                  order);
+
+            VectorDims requested_order(shape.size() - m_config->tile_rank);
+            std::iota(requested_order.begin(), requested_order.end(), 0);
+            const auto last_idx = shape.size() - 1;
+            requested_order.insert(requested_order.end(), {last_idx - 1, last_idx, last_idx - 1});
+
+            auto cpu_desc = std::make_shared<CpuBlockedMemoryDesc>(precision, Shape(shape), requested_blocked_shape, requested_order);
             optimal_descs[i] = MemoryDescUtils::convertToDnnlMemoryDesc(cpu_desc);
         }
     }
