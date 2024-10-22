@@ -39,8 +39,8 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
         NodeVector inputs = {};
         OutputVector outputs = {};
 
-        // Check whether final successor is only ReadValue.
-        std::function<void(std::shared_ptr<ov::Node>)> check_successor = [&](std::shared_ptr<ov::Node> node) {
+        // DFS, Check if current node's final successor is only ReadValue.
+        std::function<void(std::shared_ptr<ov::Node>)> dfs = [&](std::shared_ptr<ov::Node> node) {
             if (visited.find(node) != visited.end()) {
                 return;
             }
@@ -56,11 +56,11 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
                 if (son->get_friendly_name() == root_name) {
                     continue;
                 }
-                check_successor(son);
+                dfs(son);
             }
         };
 
-        std::function<void(std::shared_ptr<ov::Node>)> check_node = [&](std::shared_ptr<ov::Node> node) {
+        std::function<void(std::shared_ptr<ov::Node>)> reverse_dfs = [&](std::shared_ptr<ov::Node> node) {
             if (ov::op::util::is_parameter(node)) {
                 inputs.emplace_back(node);
                 return;
@@ -68,7 +68,7 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
 
             // Check whether current node have same successor[root_node_name].
             found_output = false;
-            check_successor(node);
+            dfs(node);
             visited.insert(node);
             if (found_output) {
                 inputs.emplace_back(node);
@@ -76,7 +76,7 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
             }
 
             for (size_t i = 0; i < node->get_input_size(); i++) {
-                check_node(node->get_input_node_shared_ptr(i));
+                reverse_dfs(node->get_input_node_shared_ptr(i));
             }
 
             // Cache to subgraph_nodes
@@ -84,8 +84,8 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
             subgraph_node_names.insert(node->get_friendly_name());
         };
 
-        // Recursive inputs of ReadValue, and move all suitable nodes to subgraph_nodes.
-        check_node(readvalue->get_input_node_shared_ptr(0));
+        // Reverse DFS ReadValue, find all suitable nodes and move them to subgraph_nodes.
+        reverse_dfs(readvalue->get_input_node_shared_ptr(0));
 
         // Find ReadValue corresponding Assign node.
         std::shared_ptr<ov::op::v6::Assign> corresponding_assign = nullptr;
