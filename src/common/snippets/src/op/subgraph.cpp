@@ -439,8 +439,6 @@ void Subgraph::data_flow_transformations(const BlockedShapeVector& blocked_input
     std::string bino = "original.bin";
     mgr.register_pass<ov::pass::Serialize>(xmlo, bino);
     mgr.run_passes(body_ptr());
-
-    std::cout << "original e" << std::endl;
 }
 
 void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, size_t min_kernel_work_amount,
@@ -469,7 +467,6 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
     lowered::pass::PassPipeline pipeline(lowered_pass_config);
     pipeline.register_pass<lowered::pass::MarkLoops>(vector_size);
     pipeline.register_pass<lowered::pass::ReduceDecomposition>(vector_size);
-    pipeline.register_pass<lowered::pass::FuseLoops>();
     pipeline.register_pass<lowered::pass::FuseLoops>();
     pipeline.register_pass<lowered::pass::SplitLoops>();
     pipeline.register_pass<lowered::pass::MoveResultOutOfLoop>();

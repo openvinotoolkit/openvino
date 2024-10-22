@@ -41,6 +41,19 @@ size_t LoopInfo::get_dim_idx() const {
     }
 }
 
+// size_t LoopInfo::get_dim_idx() const {
+//     OPENVINO_ASSERT(!m_output_ports.empty(), "Loop info must have at least one output port");
+//     auto equal_dim_idxes = [&](const LoopPort& p) {
+//         return !p.is_incremented || p.dim_idx == m_output_ports[0].dim_idx;
+//     };
+//     if (std::all_of(m_input_ports.begin(), m_input_ports.end(), equal_dim_idxes) &&
+//         std::all_of(m_output_ports.begin(), m_output_ports.end(), equal_dim_idxes)) {
+//         return m_output_ports[0].dim_idx;
+//     } else {
+//         return UNDEFINED_DIM_IDX;
+//     }
+// }
+
 size_t LoopInfo::get_input_count() const {
     return m_input_ports.size();
 }

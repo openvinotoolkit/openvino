@@ -56,8 +56,23 @@ FlashAttentionTransformation::FlashAttentionTransformation() {
             return false;
         }
 
+        auto set_exp_subtensor = [](const std::shared_ptr<ov::op::Op>& buf) {
+            auto shape = buf->get_output_partial_shape(0).get_shape();
+            size_t shape_rank = shape.size();
+            std::vector<size_t> subtensor(shape_rank, 1);
+            for (size_t i = shape_rank - 1; i >= 0; i--) {
+                if (shape[i] == 1) {
+                    subtensor[i] = utils::get_full_dim_value();
+                } else {
+                    break;
+                }
+            }
+            lowered::PortDescriptorUtils::set_port_descriptor_ptr(buf->output(0), std::make_shared<lowered::PortDescriptor>(buf->output(0), subtensor));
+            std::cout << "set_buffer_subtensor" << std::endl;
+        };
+
         // reused in each loop as value in previous loop
-        // scratch_old_max and output of new_max are inplace to remove cycle dependecy, and the memory is shared.
+        // scratch_old_max and output of new_max are inplace to remove cycle dependency, and the memory is shared.
         // insert buffer after new_max in control_flow.
         // store new_max to scratch_old_max should perform after scratch_old_max usage is finished.
         // MM0(512*64 64*4096) -> softmax(512*4096) buffer512 -> MM1(512*4096 4096*64)
@@ -68,8 +83,10 @@ FlashAttentionTransformation::FlashAttentionTransformation() {
         max_sum_shape[rank - 1] = 1;
         // initialized with min in first iteration
         const auto scratch_old_max = std::make_shared<snippets::op::Buffer>(ov::element::f32, max_sum_shape);
+        set_exp_subtensor(scratch_old_max);
         // initialized with zero in first iteration
         const auto scratch_old_sum = std::make_shared<snippets::op::Buffer>(ov::element::f32, max_sum_shape);
+        set_exp_subtensor(scratch_old_sum);
 
         const auto& softmax_input = softmax->input_value(0);
         const auto reduce_max = std::make_shared<ov::snippets::op::ReduceMax>(softmax_input, axis);  // 512*1
@@ -96,8 +113,14 @@ FlashAttentionTransformation::FlashAttentionTransformation() {
         // in first iteration, set sum_old to zero.
         const auto max_diff = std::make_shared<ov::op::v1::Subtract>(scratch_old_max, reduce_max);
         const auto exp_diff = std::make_shared<ov::op::v0::Exp>(max_diff);
-        const auto sum_diff = std::make_shared<ov::op::v1::Multiply>(scratch_old_sum, power);
-        const auto compensation_scale = std::make_shared<ov::op::v1::Multiply>(exp_diff, sum_diff);
+        // const auto sum_diff = std::make_shared<ov::op::v1::Multiply>(scratch_old_sum, power);
+        // const auto compensation_scale = std::make_shared<ov::op::v1::Multiply>(exp_diff, sum_diff);
+        const auto sum_diff = std::make_shared<ov::op::v1::Multiply>(scratch_old_sum, exp_diff);
+        const auto compensation_scale = std::make_shared<ov::op::v1::Divide>(sum_diff, reduce_sum);
+        set_exp_subtensor(max_diff);
+        set_exp_subtensor(exp_diff);
+        set_exp_subtensor(sum_diff);
+        set_exp_subtensor(compensation_scale);
         // out_new
         const auto brgemm_new = std::make_shared<op::Brgemm>(softmax_out, brgemm1->input_value(1), compensation_scale);
 

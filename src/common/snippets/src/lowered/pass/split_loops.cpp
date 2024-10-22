@@ -151,8 +151,8 @@ bool SplitLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, 
     // Ticket: 113666
     // FuseLoops pass is explicitly run here in order to avoid unnecessary computations
     // in case if loops are not split but FuseLoops is registered in pass manager after SplitLoops
-    if (loop_was_split)
-        FuseLoops().run(linear_ir, begin, end);
+    // if (loop_was_split)
+    //     FuseLoops().run(linear_ir, begin, end);
     return loop_was_split;
 }
 

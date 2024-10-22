@@ -29,8 +29,9 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A, const Output<Node>& B, BRGEMM_TYPE t
 }
 
 BrgemmCPU::BrgemmCPU(const Output<Node>& A, const Output<Node>& B, BRGEMM_TYPE type, const Output<Node>& C,
-                     const size_t offset_a, const size_t offset_b, const size_t offset_c,
-                     std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c)
+                     const size_t offset_a, const size_t offset_b, const size_t offset_c_scale, const size_t offset_c,
+                     std::vector<size_t> layout_a, std::vector<size_t> layout_b,
+                     std::vector<size_t> layout_c_scale, std::vector<size_t> layout_c)
     : Brgemm(), m_type(type), has_c_pre_scale(true) {
     // We call default ctor of Brgemm class to avoid incorrect shape infer in constructor_validate_and_type_infer() call
     std::cout << "BrgemmCPU1" << std::endl;
@@ -39,8 +40,8 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A, const Output<Node>& B, BRGEMM_TYPE t
     ctor_initialize(std::set<size_t>{0, 1, 2}, std::set<size_t>{0});
     set_input_port_descriptor({0, offset_a}, 0);
     set_input_port_descriptor({0, offset_b}, 1);
+    set_input_port_descriptor({0, offset_c_scale}, 2);
     set_output_port_descriptor({0, offset_c}, 0);
-    set_input_port_descriptor({0, 0}, 2);
     std::cout << "BrgemmCPU2" << std::endl;
     custom_constructor_validate_and_infer_types(std::move(layout_a), std::move(layout_b), std::move(layout_c));
     std::cout << "BrgemmCPU3" << std::endl;
@@ -72,12 +73,14 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A, const Output<Node>& B, BRGEMM_TYPE t
 }
 
 BrgemmCPU::BrgemmCPU(const Output<Node>& A, const Output<Node>& B, BRGEMM_TYPE type, const Output<Node>& C,
-                     const PortDescriptor& desc_a, const PortDescriptor& desc_b, const PortDescriptor& desc_c,
-                     std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c)
+                     const PortDescriptor& desc_a, const PortDescriptor& desc_b,
+                     const PortDescriptor& desc_c, const PortDescriptor& desc_c_scale,
+                     std::vector<size_t> layout_a, std::vector<size_t> layout_b,
+                     std::vector<size_t> layout_c_scale, std::vector<size_t> layout_c)
     : Brgemm(), m_type(type), has_c_pre_scale(true) {
     set_arguments({A, B, C});
     set_output_size(1);
-    m_input_ports = {{0, desc_a}, {1, desc_b}, {2, PortDescriptor()}};
+    m_input_ports = {{0, desc_a}, {1, desc_b}, {2, desc_c_scale}};
     m_output_ports = {{0, desc_c}};
     custom_constructor_validate_and_infer_types(std::move(layout_a), std::move(layout_b), std::move(layout_c));
 }
@@ -152,9 +155,11 @@ std::shared_ptr<Node> BrgemmCPU::clone_with_new_inputs(const OutputVector& new_a
     if (!with_scratchpad(m_type)) {
         if (has_c_pre_scale) {
             return std::make_shared<BrgemmCPU>(new_args.at(0), new_args.at(1), m_type, new_args.at(2),
-                                           get_input_port_descriptor(0), get_input_port_descriptor(1), get_output_port_descriptor(0),
+                                           get_input_port_descriptor(0), get_input_port_descriptor(1),
+                                           get_input_port_descriptor(2), get_output_port_descriptor(0),
                                            snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout(),
                                            snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(1))->get_layout(),
+                                           snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(2))->get_layout(),
                                            snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(output(0))->get_layout());
         } else {
             return std::make_shared<BrgemmCPU>(new_args.at(0), new_args.at(1), m_type,
