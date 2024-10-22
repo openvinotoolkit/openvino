@@ -8,6 +8,7 @@
 #include "common_test_utils/node_builders/convolution.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "template/properties.hpp"
 
 namespace ov {
 namespace test {
@@ -35,6 +36,78 @@ void LoraPatternBase::run_test_empty_tensors() {
     auto tx_result = inferRequest.get_tensor(outputs[0]);
     auto tz_result = inferRequest.get_tensor(outputs[1]);
     ov::test::utils::compare(tx_result, tz_result, 1e-4, 1e-4);
+}
+
+void LoraPatternBase::run_test_random_tensors() {
+    compile_model();
+    inferRequest = compiledModel.create_infer_request();
+    ASSERT_TRUE(inferRequest);
+
+    // use the Template plugin as a reference
+
+    auto compiledReferenceModel = core->compile_model(function,
+                                                      ov::test::utils::DEVICE_TEMPLATE,
+                                                      {{ov::template_plugin::disable_transformations(true)}});
+    auto inferRequestRef = compiledReferenceModel.create_infer_request();
+    ASSERT_TRUE(inferRequestRef);
+
+    generate_inputs(targetStaticShapes.front());
+    for (const auto& input : inputs) {
+        inferRequest.set_tensor(input.first, input.second);
+        inferRequestRef.set_tensor(input.first, input.second);
+    }
+
+    constexpr size_t lora_order = 25lu;
+    constexpr size_t infer_count = 6lu;
+
+    std::unordered_map<std::string, ov::Shape> stateShapes;
+
+    auto&& states = inferRequest.query_state();
+    for (auto&& state : states) {
+        auto shape = state.get_state().get_shape();
+        std::for_each(shape.begin(), shape.end(), [=](ov::Shape::value_type& x) {
+            if (0 == x) {
+                x = lora_order;
+            }
+        });
+        stateShapes.insert({state.get_name(), std::move(shape)});
+    }
+
+    for (size_t i = 0; i < infer_count; ++i) {
+        // set states
+
+        auto&& states = inferRequest.query_state();
+        auto&& refStates = inferRequestRef.query_state();
+
+        if (!(i & 0x1)) { //every even call
+            // generate and set state tensors
+            for (auto&& item : states) {
+                using ov::test::utils::InputGenerateData;
+                const auto& shape = stateShapes.at(item.get_name());
+                auto tensor = ov::test::utils::create_and_fill_tensor(netType, shape, InputGenerateData{0, 10, 1, i});
+                item.set_state(tensor);
+                auto itr = std::find_if(refStates.begin(), refStates.end(), [&](const ov::VariableState& state) {
+                    return state.get_name() == item.get_name();
+                });
+                ASSERT_FALSE(itr == refStates.end());
+                itr->get_state().set_shape(shape);
+                itr->set_state(tensor);
+            }
+        }
+
+        inferRequest.infer();
+        inferRequestRef.infer();
+        auto outputs = function->outputs();
+
+        auto tx_result = inferRequest.get_tensor(outputs[0]);
+        auto tz_result = inferRequest.get_tensor(outputs[1]);
+
+        auto tx_result_ref = inferRequestRef.get_tensor(outputs[0]);
+        auto tz_result_ref = inferRequestRef.get_tensor(outputs[1]);
+
+        ov::test::utils::compare(tx_result, tx_result_ref, 1e-4, 1e-4);
+        ov::test::utils::compare(tz_result, tz_result_ref, 1e-4, 1e-4);
+    }
 }
 
 void LoraPatternMatmul::SetUp() {
