@@ -253,7 +253,7 @@ debug_configuration::debug_configuration()
         , disable_runtime_skip_reorder(0)
         , disable_primitive_fusing(0)
         , disable_fake_alignment(0)
-        , dynamic_quantize_group_size(0)
+        , dynamic_quantize_group_size(DYNAMIC_QUANTIZE_GROUP_SIZE_NOT_SET)
         , disable_horizontal_fc_fusion(0) {
 #ifdef GPU_DEBUG_CONFIG
     get_gpu_debug_env_var("Help", help);
