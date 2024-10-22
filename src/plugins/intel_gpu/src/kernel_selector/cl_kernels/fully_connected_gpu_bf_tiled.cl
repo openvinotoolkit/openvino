@@ -46,11 +46,11 @@ KERNEL(quantize_input)(
         max_value = fmax(max_value, temp);
     }
 
-    half quan_scale = (half)max_value / 128;
+    half quan_scale = (half)max_value / 127;
     half quantized_sum = 0;
     for (uint i = 0 ; i < quantize_block ; ++i) {
         half4 buff = input_0[i] / (half4)quan_scale;
-        quantized_value[i] = CAT(convert_, MAKE_VECTOR_TYPE(DQ_TYPE, INPUT_LOAD_SIZE))(buff);
+        quantized_value[i] = CAT(CAT(convert_, MAKE_VECTOR_TYPE(DQ_TYPE, INPUT_LOAD_SIZE)), _rte)(buff);
         quantized_sum += (buff[0] + buff[1] + buff[2] + buff[3]);
         vstore4(quantized_value[i], 0, &quantized_input[input_offset + i * 4]);
     }
@@ -754,7 +754,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
 // Dyc Quantize
 #if USE_SLM && DYNAMIC_QUANTIZE
 
-#define PACKED_DQ_TYPE                      int
+#define PACKED_DQ_TYPE                      uint
 #define ACCUM_DQ_TYPE                       int
 #define DQ_SLM_FILTER_VEC                   MAKE_VECTOR_TYPE(FILTER_TYPE, 4)
 #define DQ_SLM_FILTER_PACKED_VEC            MAKE_VECTOR_TYPE(FILTER_TYPE, FILTER_ACTUAL_LOAD_BLOCK_SIZE)
@@ -1067,7 +1067,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                 DQ_SLM_FILTER_VEC wei_3 = {dq_wei_unpacked.s89, dq_wei_unpacked.sab};
                 char_slm_weight[wei_local_idx+2] = as_uint(wei_3);
                 DQ_SLM_FILTER_VEC wei_4 = {dq_wei_unpacked.scd, dq_wei_unpacked.sef};
-                char_slm_weight[wei_local_idx+3] = as_int(wei_4);
+                char_slm_weight[wei_local_idx+3] = as_uint(wei_4);
             #else
                 #error "FC bf_tiled kernel: unsupported FILTER_LOAD_BLOCK_SIZE for SLM kernel"
             #endif
