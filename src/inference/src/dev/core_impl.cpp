@@ -1034,14 +1034,12 @@ ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& full_device_n
     }
 }
 
-ov::AnyMap ov::CoreImpl::get_hw_plugin_properties_or_forward(const Plugin& plugin,
-                                                             const AnyMap& config,
-                                                             bool rw_only) const {
+ov::AnyMap ov::CoreImpl::get_hw_plugin_properties_or_forward(const Plugin& plugin, const AnyMap& config) const {
     constexpr auto keep_core = false;
     const auto& device_name = plugin.get_name();
     const auto forward_config = is_virtual_device(device_name) || is_proxy_device(device_name);
 
-    return forward_config ? config : get_supported_property(plugin, config, keep_core, rw_only);
+    return forward_config ? config : get_supported_property(plugin, config, keep_core, !rw_only);
 }
 
 ov::SoPtr<ov::IRemoteContext> ov::CoreImpl::get_default_context(const std::string& device_name) const {

@@ -187,7 +187,7 @@ private:
 
     AnyMap get_supported_property(const Plugin& plugin, const AnyMap& config, bool keep_core, bool rw_only) const;
 
-    AnyMap get_hw_plugin_properties_or_forward(const Plugin& plugin, const AnyMap& config, bool rw_only = false) const;
+    AnyMap get_hw_plugin_properties_or_forward(const Plugin& plugin, const AnyMap& config) const;
 
 public:
     CoreImpl();
