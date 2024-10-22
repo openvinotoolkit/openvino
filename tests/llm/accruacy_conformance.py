@@ -25,7 +25,7 @@ NUMBER_OF_SAMPLES = 15
 METRIC_OF_INTEREST = "similarity"
 
 REFERENCES = {
-    "llama": {"INT8": 0.93, "INT4": 0.93},
+    "llama": {"INT8": 0.95, "INT4": 0.95},
     "qwen2": {"INT8": 0.70, "INT4": 0.70},
 }
 ACCURACY_THRESHOLDS = {
