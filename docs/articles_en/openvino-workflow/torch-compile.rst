@@ -20,6 +20,186 @@ By default, Torch code runs in eager-mode, but with the use of ``torch.compile``
 How to Use
 ####################
 
+
+.. tab-set::
+
+   .. tab-item:: Image Generation
+
+      .. tab-set::
+
+         .. tab-item:: Stable-Diffusion-2
+
+            .. code-block:: py
+               :force:
+
+               import torch
+               from diffusers import StableDiffusionPipeline, DPMSolverMultistepScheduler
+
+               model_id = "stabilityai/stable-diffusion-2-1"
+
+               # Use the DPMSolverMultistepScheduler (DPM-Solver++) scheduler here instead
+               pipe = StableDiffusionPipeline.from_pretrained(model_id, torch_dtype=torch.float16)
+               pipe.scheduler = DPMSolverMultistepScheduler.from_config(pipe.scheduler.config)
+
+               + pipe.text_encoder = torch.compile(pipe.text_encoder, backend="openvino") #Optional
+               + pipe.unet = torch.compile(pipe.unet, backend=“openvino”)
+               + pipe.vae.decode = torch.compile(pipe.vae.decode, backend=“openvino”) #Optional
+
+               prompt = "a photo of an astronaut riding a horse on mars"
+               image = pipe(prompt).images[0]
+
+               image.save("astronaut_rides_horse.png")
+
+
+         .. tab-item:: Stable-Diffusion-3
+
+            .. code-block:: py
+
+               import torch
+               from diffusers import StableDiffusion3Pipeline
+
+               pipe = StableDiffusion3Pipeline.from_pretrained("stabilityai/stable-diffusion-3-medium-diffusers", torch_dtype=torch.float32)
+
+               + pipe.transformer = torch.compile(pipe.transformer, backend="openvino")
+
+               image = pipe(
+                   "A cat holding a sign that says hello world",
+                   negative_prompt="",
+                   num_inference_steps=28,
+                   guidance_scale=7.0,
+               ).images[0]
+
+               image.save('out.png')
+
+         .. tab-item:: Stable-Diffusion-XL
+
+            .. code-block:: py
+
+               import torch
+               from diffusers import UNet2DConditionModel, DiffusionPipeline, LCMScheduler
+
+               unet = UNet2DConditionModel.from_pretrained("latent-consistency/lcm-sdxl", torch_dtype=torch.float16, variant="fp16")
+               pipe = DiffusionPipeline.from_pretrained("stabilityai/stable-diffusion-xl-base-1.0", unet=unet, torch_dtype=torch.float16, variant="fp16")
+               pipe.scheduler = LCMScheduler.from_config(pipe.scheduler.config)
+
+               + pipe.text_encoder = torch.compile(pipe.text_encoder, backend="openvino") #Optional
+               + pipe.unet = torch.compile(pipe.unet, backend="openvino")
+               + pipe.vae.decode = torch.compile(pipe.vae.decode, backend="openvino") #Optional
+
+               prompt = "a close-up picture of an old man standing in the rain"
+               image = pipe(prompt, num_inference_steps=5, guidance_scale=8.0).images[0]
+               image.save("result.png")
+
+   .. tab-item:: Text Generation
+
+      .. tab-set::
+
+         .. tab-item:: Llama-3.2-1B
+
+            .. code-block:: py
+
+               import torch
+               from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
+
+               model_name_or_path = "meta-llama/Llama-3.2-1B-Instruct"
+               tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, trust_remote_code=True, torch_dtype=torch.float32)
+               model = AutoModelForCausalLM.from_pretrained(
+                   model_name_or_path,
+                   trust_remote_code=True,
+                   device_map='cpu',
+                   torch_dtype=torch.float32
+               )
+
+               prompt = "Tell me about AI"
+
+               + model.forward = torch.compile(model.forward, backend="openvino", options={'aot_autograd': True})
+
+               pipe = pipeline(
+                   "text-generation",
+                   model=model,
+                   tokenizer=tokenizer,
+                   max_new_tokens=64
+               )
+               result = pipe(prompt)
+               print(result[0]['generated_text'])
+
+
+         .. tab-item:: Llama-2-7B-GPTQ
+
+            .. code-block:: py
+
+               import torch
+               from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
+
+               model_name_or_path = "TheBloke/Llama-2-7B-GPTQ"
+               tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, trust_remote_code=True, torch_dtype=torch.float32)
+               model = AutoModelForCausalLM.from_pretrained(
+                   model_name_or_path,
+                   trust_remote_code=True,
+                   device_map='cpu',
+                   torch_dtype=torch.float32
+               )
+
+               prompt = "Tell me about AI"
+
+               + model.forward = torch.compile(model.forward, backend="openvino", options={'aot_autograd': True})
+
+               pipe = pipeline(
+                   "text-generation",
+                   model=model,
+                   tokenizer=tokenizer,
+                   max_new_tokens=64
+               )
+               result = pipe(prompt)
+               print(result[0]['generated_text'])
+
+
+         .. tab-item:: Chatglm-4-GPTQ
+
+            .. code-block:: py
+
+               import torch
+               from transformers import AutoModelForCausalLM, AutoTokenizer
+
+               query = "tell me about AI“
+
+               tokenizer = AutoTokenizer.from_pretrained("mcavus/glm-4v-9b-gptq-4bit-dynamo", trust_remote_code=True)
+               inputs = tokenizer.apply_chat_template([{"role": "user", "content": query}],
+                                                      add_generation_prompt=True,
+                                                      tokenize=True,
+                                                      return_tensors="pt",
+                                                      return_dict=True
+                                                      )
+               model = AutoModelForCausalLM.from_pretrained(
+                   "mcavus/glm-4v-9b-gptq-4bit-dynamo",
+                   torch_dtype=torch.float32,
+                   low_cpu_mem_usage=True,
+                   trust_remote_code=True
+               )
+
+               + model.transformer.encoder.forward = torch.compile(model.transformer.encoder.forward, backend="openvino", options={"aot_autograd":True})
+
+               gen_kwargs = {"max_length": 2500, "do_sample": True, "top_k": 1}
+               with torch.no_grad():
+                   outputs = model.generate(**inputs, **gen_kwargs)
+                   outputs = outputs[:, inputs['input_ids'].shape[1]:]
+                   print(tokenizer.decode(outputs[0], skip_special_tokens=True))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 To use ``torch.compile``, you need to define the ``openvino`` backend in your PyTorch application.
 This way Torch FX subgraphs will be directly converted to OpenVINO representation without
 any additional PyTorch-based tracing/scripting.
