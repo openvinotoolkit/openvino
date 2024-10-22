@@ -170,7 +170,7 @@ void Plugin::set_cache_info(const std::shared_ptr<const ov::Model>& model, Execu
         return;
     }
 
-    auto rt_info = model->get_rt_info();
+    const auto& rt_info = model->get_rt_info();
     auto weights_path = rt_info.find("weights_path");
     if (weights_path != rt_info.end()) {
         ov::AnyMap weights_path_property{{"WEIGHTS_PATH", weights_path->second}};
