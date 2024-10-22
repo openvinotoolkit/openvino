@@ -49,7 +49,7 @@ OPENVINO_SOURCE_DIR = SCRIPT_DIR.parents[2]
 OPENVINO_BINARY_DIR = os.getenv("OPENVINO_BINARY_DIR", f'{OPENVINO_SOURCE_DIR}/build_wheel')
 OPENVINO_PYTHON_BINARY_DIR = os.getenv("OPENVINO_PYTHON_BINARY_DIR", "python_build")
 CONFIG = os.getenv("BUILD_TYPE", "Release")
-OV_RUNTIME_LIBS_DIR = os.getenv("OV_RUNTIME_LIBS_DIR", f"runtime/{LIBS_DIR}/{ARCH}/{CONFIG}")
+OV_RUNTIME_LIBS_DIR = os.getenv("OV_RUNTIME_LIBS_DIR", f"runtime/{LIBS_DIR}/{ARCH}")
 TBB_LIBS_DIR = os.getenv("TBB_LIBS_DIR", f"runtime/3rdparty/tbb/{LIBS_DIR}")
 PUGIXML_LIBS_DIR = os.getenv("PUGIXML_LIBS_DIR", f"runtime/3rdparty/pugixml/{LIBS_DIR}")
 PY_PACKAGES_DIR = os.getenv("PY_PACKAGES_DIR", "python")
@@ -297,7 +297,7 @@ class CustomBuild(build):
             # perform installation steps if we are not given a full path
             if not os.path.isabs(install_dir):
                 # install_dir is just a sub-dir after install prefix, let's make a full path
-                comp_data["install_dir"] = os.path.join(prefix, install_dir)
+                # comp_data["install_dir"] = os.path.join(prefix, install_dir)
 
                 # even perform a build in case of binary directory does not exist
                 binary_dir = binary_dir if os.path.isabs(binary_dir) else os.path.join(self.build_temp, binary_dir)
@@ -328,7 +328,6 @@ class CustomBuild(build):
                                      "--component", cpack_comp_name])
 
     def run(self):
-        print("DEBUG::: build start")
         if not PYTHON_EXTENSIONS_ONLY:
             # build and install clib into temporary directories
             self.cmake_build_and_install(LIB_INSTALL_CFG)
@@ -351,7 +350,6 @@ class CustomBuild(build):
             path_rel = path.relative_to(src)
             (dst / path_rel.parent).mkdir(exist_ok=True, parents=True)
             copyfile(path, dst / path_rel)
-        print("DEBUG::: build end")
 
 class PrepareLibs(build_clib):
     """Prepares prebuilt libraries.
@@ -372,7 +370,7 @@ class PrepareLibs(build_clib):
     def post_install(self, install_cfg):
         """Install prebuilt libraries to the temp directories, set rpath."""
         for comp, comp_data in install_cfg.items():
-            install_dir = comp_data.get("install_dir")
+            install_dir = os.path.join(comp_data.get("prefix"), comp_data.get("install_dir"))
 
             # we need to resolve symlinks before setting rpath to avoid doing it multiple times
             install_dir_path = Path(install_dir)
@@ -445,7 +443,6 @@ class PrepareLibs(build_clib):
 
     def copy_package_libs(self, src_dirs):
         """Collect package data files (clibs and other plugin support files) from preinstalled dirs and put all runtime libraries to the subpackage."""
-        print(f"DEBUG::: copy_package_libs start")
         package_clibs_dir = os.path.join(PACKAGE_DIR, WHEEL_LIBS_INSTALL_DIR)
         os.makedirs(package_clibs_dir, exist_ok=True)
 
@@ -459,6 +456,7 @@ class PrepareLibs(build_clib):
 
         for src_dir in src_dirs:
             # copy so / dylib files to WHEEL_LIBS_INSTALL_DIR (clibs) inside python package
+            self.announce(f"copy_package_libs: src_dir: {src_dir}", level=log.INFO)
             for file_path in Path(src_dir).rglob("*"):
                 file_name = os.path.basename(file_path)
                 if file_path.is_symlink():
@@ -467,15 +465,13 @@ class PrepareLibs(build_clib):
                 if file_path.is_file() and not is_blacklisted(file_name, blacklist_patterns):
                     dst_file = os.path.join(package_clibs_dir, file_name)
                     copyfile(file_path, dst_file)
-                    self.announce(f"Copy {file_path} to {dst_file}", level=3)
+                    self.announce(f"Copy {file_path} to {dst_file}", level=log.INFO)
 
         if Path(package_clibs_dir).exists():
-            print(f"DEBUG::: {WHEEL_LIBS_PACKAGE}")
             self.announce(f"Adding {WHEEL_LIBS_PACKAGE} package", level=3)
             packages.append(WHEEL_LIBS_PACKAGE)
             package_data.update({WHEEL_LIBS_PACKAGE: ["*"]})
 
-        print(f"DEBUG::: copy_package_libs end")
 
     def copy_package_data(self, src_dirs):
         """Collect package data files from preinstalled dirs and put to the subpackage."""
@@ -578,7 +574,6 @@ def replace_strings_in_file(file_path, replacements):
 class CopyExt(build_ext):
     """Copy extension files to the build directory."""
     def run(self):
-        print(f"DEBUG::: CopyExt start")
         if len(self.extensions) == 1:
             self.extensions = find_prebuilt_extensions(get_install_dirs_list(PY_INSTALL_CFG))
 
@@ -595,9 +590,6 @@ class CopyExt(build_ext):
                 set_rpath(rpath, os.path.realpath(src))
 
             copy_file(src, dst, verbose=self.verbose, dry_run=self.dry_run)
-
-        print(f"DEBUG::: CopyExt end")
-
 
 
 class CustomInstall(install):
@@ -744,6 +736,7 @@ def get_install_dirs_list(install_cfg):
     install_dirs = []
     for comp_info in install_cfg.values():
         full_install_dir = os.path.join(comp_info.get("prefix"), comp_info.get("install_dir"))
+        print(f"get_install_dirs_list: prefix: {comp_info.get('prefix')}, install_dir: {comp_info.get('install_dir')}")
         if full_install_dir not in install_dirs:
             install_dirs.append(full_install_dir)
     return install_dirs
