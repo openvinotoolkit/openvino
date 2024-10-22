@@ -23,6 +23,10 @@ void OpenvinoVersion::read(std::istream& stream) {
 
 Metadata<1, 0>::Metadata() : version{1, 0}, ovVersion{ov::get_openvino_version().buildNumber} {}
 
+void Metadata<1, 0>::read(std::istream& stream) {
+    ovVersion.read(stream);
+}
+
 void Metadata<1, 0>::write(std::ostream& stream) {
     stream.write(DELIMITER.data(), DELIMITER.size());
 
@@ -33,15 +37,16 @@ void Metadata<1, 0>::write(std::ostream& stream) {
     stream.write(ovVersion.version.c_str(), ovVersion.version.size());
 }
 
-void Metadata<1, 0>::read(std::istream& stream) {
-    ovVersion.read(stream);
-}
-
 std::unique_ptr<MetadataBase> createMetadata(int major, int minor) {
     switch (major) {
     case 1:
-        // add if statement for checking minor?
-        return std::make_unique<Metadata<1, 0>>();
+        switch (minor) {
+            case 0:
+                return std::make_unique<Metadata<1, 0>>();
+
+            default:
+                return nullptr;
+        }
 
     default:
         return nullptr;
@@ -49,9 +54,11 @@ std::unique_ptr<MetadataBase> createMetadata(int major, int minor) {
 }
 
 bool Metadata<1, 0>::isCompatible() {
+    // checking if we still support the format
     if (version.major != CURRENT_METAVERSION_MAJOR) {
         return false;
     }
+    // checking if we can import the blob
     return ovVersion.version == ov::get_openvino_version().buildNumber;
 }
 

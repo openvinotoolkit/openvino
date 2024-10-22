@@ -30,8 +30,6 @@ struct OpenvinoVersion {
 };
 
 struct MetadataBase {
-    MetadataVersion version;
-
     virtual void read(std::istream& stream) = 0;
     virtual void write(std::ostream& stream) = 0;
     virtual bool isCompatible() = 0;
@@ -48,9 +46,9 @@ struct Metadata<1, 0> : public MetadataBase {
 
     Metadata();
 
-    void write(std::ostream& stream) override;
-
     void read(std::istream& stream) override;
+
+    void write(std::ostream& stream) override;
 
     bool isCompatible() override;
 };
