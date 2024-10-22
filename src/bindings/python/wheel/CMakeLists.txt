@@ -102,12 +102,12 @@ set(openvino_wheel_path "${openvino_wheels_output_dir}/${openvino_wheel_name}")
 
 # for --config-setting explanation see https://github.com/pypa/setuptools/issues/2491
 set(wheel_build_command
-        ${Python3_EXECUTABLE} -m build "${CMAKE_CURRENT_SOURCE_DIR}"
-            --outdir ${openvino_wheels_output_dir}
-            --config-setting=--build-option=--build-number=${WHEEL_BUILD}
-            --config-setting=--build-option=--plat-name=${PLATFORM_TAG}
-            --config-setting=--quiet
-            --wheel)
+    ${Python3_EXECUTABLE} -m build "${CMAKE_CURRENT_SOURCE_DIR}"
+        --outdir ${openvino_wheels_output_dir}
+        --config-setting=--build-option=--build-number=${WHEEL_BUILD}
+        --config-setting=--build-option=--plat-name=${PLATFORM_TAG}
+        --config-setting=--quiet
+        --wheel)
 
 add_custom_command(OUTPUT ${openvino_wheel_path}
     COMMAND ${setup_py_env} ${wheel_build_command}
