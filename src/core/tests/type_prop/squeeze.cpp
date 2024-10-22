@@ -602,8 +602,7 @@ TEST_P(SqueezeAxesPyTorchDynamicRank, squeeze_axes_dynamic_rank_param) {
 
     auto param = make_shared<ov::op::v0::Parameter>(element::f32, p_shape);
     auto axes_node = make_shared<ov::op::v0::Constant>(element::u64, Shape{axes.size()}, axes);
-    // const auto squeeze = std::make_shared<op::v15::Squeeze>(param, axes_node, allow_axis_skip);
-    const auto squeeze = std::make_shared<op::v15::Squeeze>(param, axes_node);
+    const auto squeeze = std::make_shared<op::v15::Squeeze>(param, axes_node, allow_axis_skip);
 
     EXPECT_EQ(squeeze->get_element_type(), element::f32);
     EXPECT_EQ(squeeze->get_output_partial_shape(0), exp_shape);
