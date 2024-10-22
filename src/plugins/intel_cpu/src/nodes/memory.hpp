@@ -204,7 +204,6 @@ private:
     ov::intel_cpu::Graph subGraph;
 
     ProxyMemoryBlockPtr memBlock = nullptr;
-    bool memoryOutputIsStub = false;
 };
 
 class MemoryInputSDPA : public MemoryInputBase {
@@ -222,8 +221,6 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
     void createPrimitive() override;
-    void initSupportedPrimitiveDescriptors() override;
-    void initOptimalPrimitiveDescriptor() override;
     void resolveInPlaceEdges(Edge::LOOK look) override;
 
     MemStatePtr makeState() override;

@@ -437,29 +437,20 @@ void MemoryInputBase::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    auto&& shape = getOutputShapeAtPort(0);
     auto precision = getOriginalOutputPrecisionAtPort(0);
     auto&& descCreators = ov::intel_cpu::BlockedDescCreator::getCommonCreators();
-
     NodeConfig config;
 
     if (!getParentEdges().empty()) {
-        PortConfig inPortConfig;
-
-        inPortConfig.inPlace(-1);
-        inPortConfig.constant(false);
-        inPortConfig.setMemDesc(descCreators.at(LayoutType::ncsp)->createSharedDesc(precision, shape));
-
-        config.inConfs.push_back(std::move(inPortConfig));
+        const auto& inputShape = getInputShapeAtPort(0);
+        config.inConfs.emplace_back(descCreators.at(LayoutType::ncsp)->createSharedDesc(precision, inputShape));
     }
 
-    PortConfig outPortConfig;
-
-    outPortConfig.inPlace(0);
-    outPortConfig.constant(false);
-    outPortConfig.setMemDesc(descCreators.at(LayoutType::ncsp)->createSharedDesc(precision, shape));
-
-    config.outConfs.push_back(std::move(outPortConfig));
+    const auto& outputShape = getOutputShapeAtPort(0);
+    config.outConfs.emplace_back(
+        descCreators.at(LayoutType::ncsp)->createSharedDesc(precision, outputShape),
+        BlockedMemoryDesc::FULL_MASK,
+        0);
 
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
 }
@@ -775,35 +766,6 @@ void MemoryInputSDPA::createPrimitive() {
         }
     }
     OPENVINO_ASSERT(m_child_port_idx != -1, getName(), " should be connected to SDPA node.");
-}
-
-void MemoryInputSDPA::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
-        return;
-
-    auto&& shape = getOutputShapeAtPort(0);
-    auto precision = getOriginalOutputPrecisionAtPort(0);
-    auto&& descCreators = ov::intel_cpu::BlockedDescCreator::getCommonCreators();
-    NodeConfig config;
-    if (!getParentEdges().empty()) {
-        PortConfig inPortConfig;
-        inPortConfig.inPlace(-1);
-        inPortConfig.constant(false);
-        inPortConfig.setMemDesc(descCreators.at(LayoutType::ncsp)->createSharedDesc(precision, shape));
-        config.inConfs.push_back(std::move(inPortConfig));
-    }
-
-    PortConfig outPortConfig;
-    outPortConfig.inPlace(0);
-    outPortConfig.constant(false);
-    // layout for fake memory obj, the child sdpa also does not use it
-    outPortConfig.setMemDesc(descCreators.at(LayoutType::ncsp)->createSharedDesc(precision, shape));
-    config.outConfs.push_back(std::move(outPortConfig));
-    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
-}
-
-void MemoryInputSDPA::initOptimalPrimitiveDescriptor() {
-    Node::initOptimalPrimitiveDescriptor();
 }
 
 void MemoryInputSDPA::assignStateHook() {

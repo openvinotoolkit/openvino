@@ -7,6 +7,7 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -53,6 +54,7 @@ U4BlockRepack::U4BlockRepack(bool is_symmetrical) {
             auto reshape1 = pattern_to_output[m_reshape1].get_node_shared_ptr();
             auto transpose = pattern_to_output[m_transpose].get_node_shared_ptr();
             auto reshape2 = pattern_to_output[m_reshape2].get_node_shared_ptr();
+            auto pattern_root = reshape2;
 
             if (constant->get_element_type() != element::u4)
                 return false;
@@ -76,9 +78,26 @@ U4BlockRepack::U4BlockRepack(bool is_symmetrical) {
 
             auto get_number = get_u4;
             auto constant_dtype = element::u4;
+            NodeVector copy_from{std::move(constant), std::move(reshape1), std::move(transpose), reshape2};
             if (is_symmetrical) {
                 get_number = get_i4;
                 constant_dtype = element::i4;
+                // find pattern Convert(W, i8) -> Subtract(8)
+                auto reshape_targets = reshape2->output(0).get_target_inputs();
+                if (reshape_targets.size() != 1)
+                    return false;
+                auto convert = reshape_targets.begin()->get_node()->shared_from_this();
+                if (!std::dynamic_pointer_cast<ov::op::v0::Convert>(convert))
+                    return false;
+                auto convert_targets = convert->output(0).get_target_inputs();
+                if (convert_targets.size() != 1)
+                    return false;
+                auto subtract = convert_targets.begin()->get_node()->shared_from_this();
+                if (!std::dynamic_pointer_cast<ov::op::v1::Subtract>(subtract))
+                    return false;
+                pattern_root = subtract;
+                copy_from.push_back(std::move(convert));
+                copy_from.push_back(subtract);
             }
             auto new_const = std::make_shared<v0::Constant>(constant_dtype, destination_shape);
             auto dst = const_cast<uint8_t*>(                                   // const_cast?
@@ -96,8 +115,8 @@ U4BlockRepack::U4BlockRepack(bool is_symmetrical) {
                 }
             }
 
-            copy_runtime_info({std::move(constant), std::move(reshape1), std::move(transpose), reshape2}, new_const);
-            replace_node(reshape2, new_const);
+            copy_runtime_info(copy_from, new_const);
+            replace_node(pattern_root, new_const);
 
             return true;
         });

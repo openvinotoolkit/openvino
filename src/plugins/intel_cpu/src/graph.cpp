@@ -44,6 +44,7 @@
 #include <oneapi/dnnl/dnnl.hpp>
 #include "common/primitive_desc_iface.hpp"
 
+#include "openvino/runtime/exception.hpp"
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
 #include "openvino/core/parallel.hpp"
 
@@ -1337,6 +1338,8 @@ inline void Graph::ExecuteNodeWithCatch(const NodePtr& node, SyncInferRequest* r
 
     try {
         ExecuteNode(node, request, numaId);
+    } catch (const ov::Cancelled&) {
+        throw;
     } catch (const std::exception& exp) {
         OPENVINO_THROW(*node, exp.what());
     }
