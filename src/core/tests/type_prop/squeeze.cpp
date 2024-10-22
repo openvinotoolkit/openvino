@@ -25,7 +25,7 @@ class type_prop_local : public testing::Test {};
 using Squeeze_v0 = op::v0::Squeeze;
 using Squeeze_v15 = op::v15::Squeeze;
 
-using SqueezeTypes = ::testing::Types <Squeeze_v0, Squeeze_v15>;
+using SqueezeTypes = ::testing::Types<Squeeze_v0, Squeeze_v15>;
 
 TYPED_TEST_SUITE(type_prop_local, SqueezeTypes);
 
@@ -340,44 +340,44 @@ INSTANTIATE_TEST_SUITE_P(type_prop_shrink_shape_default_axes,
 
 TEST_P(SqueezeTest, partial_shape_dimension_propagation_const_axis_i32) {
     const auto axes_node = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{axes.size()}, axes);
-{
-    const auto squeeze = std::make_shared<op::v0::Squeeze>(param, axes_node);
-    EXPECT_EQ(squeeze->get_element_type(), element::f32);
-    EXPECT_EQ(squeeze->get_output_partial_shape(0), exp_shape);
-}
-{
-    const auto squeeze = std::make_shared<op::v15::Squeeze>(param, axes_node);
-    EXPECT_EQ(squeeze->get_element_type(), element::f32);
-    EXPECT_EQ(squeeze->get_output_partial_shape(0), exp_shape);
-}
+    {
+        const auto squeeze = std::make_shared<op::v0::Squeeze>(param, axes_node);
+        EXPECT_EQ(squeeze->get_element_type(), element::f32);
+        EXPECT_EQ(squeeze->get_output_partial_shape(0), exp_shape);
+    }
+    {
+        const auto squeeze = std::make_shared<op::v15::Squeeze>(param, axes_node);
+        EXPECT_EQ(squeeze->get_element_type(), element::f32);
+        EXPECT_EQ(squeeze->get_output_partial_shape(0), exp_shape);
+    }
 }
 
 TEST_P(SqueezeTest, partial_shape_dimension_propagation_parameter_axes_no_data) {
     const auto axes_node = std::make_shared<ov::op::v0::Parameter>(element::u64, PartialShape{Shape{axes.size()}});
-{
-    const auto squeeze = std::make_shared<op::v0::Squeeze>(param, axes_node);
-    EXPECT_EQ(squeeze->get_element_type(), element::f32);
-    EXPECT_TRUE(squeeze->get_output_partial_shape(0).compatible(exp_shape));
-}
-{
-    const auto squeeze = std::make_shared<op::v15::Squeeze>(param, axes_node);
-    EXPECT_EQ(squeeze->get_element_type(), element::f32);
-    EXPECT_TRUE(squeeze->get_output_partial_shape(0).compatible(exp_shape));
-}
+    {
+        const auto squeeze = std::make_shared<op::v0::Squeeze>(param, axes_node);
+        EXPECT_EQ(squeeze->get_element_type(), element::f32);
+        EXPECT_TRUE(squeeze->get_output_partial_shape(0).compatible(exp_shape));
+    }
+    {
+        const auto squeeze = std::make_shared<op::v15::Squeeze>(param, axes_node);
+        EXPECT_EQ(squeeze->get_element_type(), element::f32);
+        EXPECT_TRUE(squeeze->get_output_partial_shape(0).compatible(exp_shape));
+    }
 }
 
 TEST_P(SqueezeTest, partial_shape_dimension_propagation_dynamic_axes) {
     const auto axes_node = std::make_shared<ov::op::v0::Parameter>(element::u64, PartialShape::dynamic());
-{
-    const auto squeeze = std::make_shared<op::v0::Squeeze>(param, axes_node);
-    EXPECT_EQ(squeeze->get_element_type(), element::f32);
-    EXPECT_EQ(squeeze->get_output_partial_shape(0), PartialShape::dynamic());
-}
-{
-    const auto squeeze = std::make_shared<op::v15::Squeeze>(param, axes_node);
-    EXPECT_EQ(squeeze->get_element_type(), element::f32);
-    EXPECT_EQ(squeeze->get_output_partial_shape(0), PartialShape::dynamic());
-}
+    {
+        const auto squeeze = std::make_shared<op::v0::Squeeze>(param, axes_node);
+        EXPECT_EQ(squeeze->get_element_type(), element::f32);
+        EXPECT_EQ(squeeze->get_output_partial_shape(0), PartialShape::dynamic());
+    }
+    {
+        const auto squeeze = std::make_shared<op::v15::Squeeze>(param, axes_node);
+        EXPECT_EQ(squeeze->get_element_type(), element::f32);
+        EXPECT_EQ(squeeze->get_output_partial_shape(0), PartialShape::dynamic());
+    }
 }
 
 TEST_P(SqueezeTest, symbols_propagation) {
@@ -391,14 +391,14 @@ TEST_P(SqueezeTest, symbols_propagation) {
     param = make_shared<ov::op::v0::Parameter>(element::f32, p_shape);
 
     const auto axes_node = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{axes.size()}, axes);
-{
-    const auto squeeze = std::make_shared<op::v0::Squeeze>(param, axes_node);
-    EXPECT_EQ(get_shape_symbols(squeeze->get_output_partial_shape(0)), exp_symbols);
-}
-{
-    const auto squeeze = std::make_shared<op::v15::Squeeze>(param, axes_node);
-    EXPECT_EQ(get_shape_symbols(squeeze->get_output_partial_shape(0)), exp_symbols);
-}
+    {
+        const auto squeeze = std::make_shared<op::v0::Squeeze>(param, axes_node);
+        EXPECT_EQ(get_shape_symbols(squeeze->get_output_partial_shape(0)), exp_symbols);
+    }
+    {
+        const auto squeeze = std::make_shared<op::v15::Squeeze>(param, axes_node);
+        EXPECT_EQ(get_shape_symbols(squeeze->get_output_partial_shape(0)), exp_symbols);
+    }
 }
 
 using SqueezeShapeTests = SqueezeTest;
@@ -411,16 +411,16 @@ INSTANTIATE_TEST_SUITE_P(type_prop_shrink_shape_no_axes,
 TEST_P(SqueezeShapeTests, shape_dimension_propagation_const_axis_i64) {
     param = std::make_shared<ov::op::v0::Parameter>(element::f64, p_shape.to_shape());
     const auto axes_node = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{axes.size()}, axes);
-{
-    const auto squeeze = std::make_shared<op::v0::Squeeze>(param, axes_node);
-    EXPECT_EQ(squeeze->get_element_type(), element::f64);
-    EXPECT_EQ(squeeze->get_output_partial_shape(0), exp_shape.to_shape());
-}
-{
-    const auto squeeze = std::make_shared<op::v15::Squeeze>(param, axes_node);
-    EXPECT_EQ(squeeze->get_element_type(), element::f64);
-    EXPECT_EQ(squeeze->get_output_partial_shape(0), exp_shape.to_shape());
-}
+    {
+        const auto squeeze = std::make_shared<op::v0::Squeeze>(param, axes_node);
+        EXPECT_EQ(squeeze->get_element_type(), element::f64);
+        EXPECT_EQ(squeeze->get_output_partial_shape(0), exp_shape.to_shape());
+    }
+    {
+        const auto squeeze = std::make_shared<op::v15::Squeeze>(param, axes_node);
+        EXPECT_EQ(squeeze->get_element_type(), element::f64);
+        EXPECT_EQ(squeeze->get_output_partial_shape(0), exp_shape.to_shape());
+    }
 }
 
 using SqueezeNoAxesTest = SqueezeTest;
@@ -431,16 +431,16 @@ INSTANTIATE_TEST_SUITE_P(type_prop_shrink_shape_no_axes,
                          PrintToStringParamName());
 
 TEST_P(SqueezeNoAxesTest, partial_shape_dimension_propagation_no_axes) {
-{
-    const auto squeeze = std::make_shared<op::v0::Squeeze>(param);
-    EXPECT_EQ(squeeze->get_element_type(), element::f32);
-    EXPECT_EQ(squeeze->get_output_partial_shape(0), exp_shape);
-}
-{
-    const auto squeeze = std::make_shared<op::v15::Squeeze>(param);
-    EXPECT_EQ(squeeze->get_element_type(), element::f32);
-    EXPECT_EQ(squeeze->get_output_partial_shape(0), exp_shape);
-}
+    {
+        const auto squeeze = std::make_shared<op::v0::Squeeze>(param);
+        EXPECT_EQ(squeeze->get_element_type(), element::f32);
+        EXPECT_EQ(squeeze->get_output_partial_shape(0), exp_shape);
+    }
+    {
+        const auto squeeze = std::make_shared<op::v15::Squeeze>(param);
+        EXPECT_EQ(squeeze->get_element_type(), element::f32);
+        EXPECT_EQ(squeeze->get_output_partial_shape(0), exp_shape);
+    }
 }
 
 using SqueezeScalarAxisTest = SqueezeTest;
@@ -455,47 +455,46 @@ INSTANTIATE_TEST_SUITE_P(
 
 TEST_P(SqueezeScalarAxisTest, axis_value_as_vector) {
     const auto axes_node = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{}, axes);
-{
-    const auto squeeze = std::make_shared<op::v0::Squeeze>(param, axes_node);
-    EXPECT_EQ(squeeze->get_element_type(), element::f32);
-    EXPECT_EQ(squeeze->get_output_partial_shape(0), exp_shape);
-}
-{
-    const auto squeeze = std::make_shared<op::v15::Squeeze>(param, axes_node);
-    EXPECT_EQ(squeeze->get_element_type(), element::f32);
-    EXPECT_EQ(squeeze->get_output_partial_shape(0), exp_shape);
-}
+    {
+        const auto squeeze = std::make_shared<op::v0::Squeeze>(param, axes_node);
+        EXPECT_EQ(squeeze->get_element_type(), element::f32);
+        EXPECT_EQ(squeeze->get_output_partial_shape(0), exp_shape);
+    }
+    {
+        const auto squeeze = std::make_shared<op::v15::Squeeze>(param, axes_node);
+        EXPECT_EQ(squeeze->get_element_type(), element::f32);
+        EXPECT_EQ(squeeze->get_output_partial_shape(0), exp_shape);
+    }
 }
 
 TEST_P(SqueezeScalarAxisTest, axis_value_as_integer) {
     const auto axes_node = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{}, axes.front());
-{
-    const auto squeeze = std::make_shared<op::v0::Squeeze>(param, axes_node);
-    EXPECT_EQ(squeeze->get_element_type(), element::f32);
-    EXPECT_EQ(squeeze->get_output_partial_shape(0), exp_shape);
-}
-{
-    const auto squeeze = std::make_shared<op::v15::Squeeze>(param, axes_node);
-    EXPECT_EQ(squeeze->get_element_type(), element::f32);
-    EXPECT_EQ(squeeze->get_output_partial_shape(0), exp_shape);
-}
+    {
+        const auto squeeze = std::make_shared<op::v0::Squeeze>(param, axes_node);
+        EXPECT_EQ(squeeze->get_element_type(), element::f32);
+        EXPECT_EQ(squeeze->get_output_partial_shape(0), exp_shape);
+    }
+    {
+        const auto squeeze = std::make_shared<op::v15::Squeeze>(param, axes_node);
+        EXPECT_EQ(squeeze->get_element_type(), element::f32);
+        EXPECT_EQ(squeeze->get_output_partial_shape(0), exp_shape);
+    }
 }
 
 using SqueezeBoundTest = UnSqueezeBoundTest;
 
-const auto test_values_in = Values(
-    std::make_tuple(PartialShape::dynamic(6), PartialShape::dynamic(1)),
-    std::make_tuple(PartialShape{Dimension(-1)}, PartialShape{Dimension(-1)}),
-    std::make_tuple(PartialShape{Dimension::dynamic(), 8}, PartialShape{Dimension::dynamic()}),
-    std::make_tuple(PartialShape{Dimension(4, 8), Dimension::dynamic()}, PartialShape{Dimension(4, 8)}),
-    std::make_tuple(PartialShape{Dimension(20, -1), Dimension::dynamic()}, PartialShape{{20, -1}}),
-    std::make_tuple(PartialShape{Dimension(-1, 5), Dimension::dynamic()}, PartialShape{Dimension(-1, 5)}),
-    std::make_tuple(PartialShape{15}, PartialShape{15}),
-    std::make_tuple(PartialShape{2, 6}, PartialShape{2})
-    );
+const auto test_values_in =
+    Values(std::make_tuple(PartialShape::dynamic(6), PartialShape::dynamic(1)),
+           std::make_tuple(PartialShape{Dimension(-1)}, PartialShape{Dimension(-1)}),
+           std::make_tuple(PartialShape{Dimension::dynamic(), 8}, PartialShape{Dimension::dynamic()}),
+           std::make_tuple(PartialShape{Dimension(4, 8), Dimension::dynamic()}, PartialShape{Dimension(4, 8)}),
+           std::make_tuple(PartialShape{Dimension(20, -1), Dimension::dynamic()}, PartialShape{{20, -1}}),
+           std::make_tuple(PartialShape{Dimension(-1, 5), Dimension::dynamic()}, PartialShape{Dimension(-1, 5)}),
+           std::make_tuple(PartialShape{15}, PartialShape{15}),
+           std::make_tuple(PartialShape{2, 6}, PartialShape{2}));
 
 template <typename T>
-auto create_squeeze (PartialShape symboled_shape) -> std::shared_ptr<T> {
+auto create_squeeze(PartialShape symboled_shape) -> std::shared_ptr<T> {
     constexpr auto et = element::i64;
     const auto symboled_param = std::make_shared<ov::op::v0::Parameter>(et, symboled_shape);
     const auto symboled_shape_of = std::make_shared<op::v0::ShapeOf>(symboled_param);
@@ -511,11 +510,7 @@ auto create_squeeze (PartialShape symboled_shape) -> std::shared_ptr<T> {
     return squeeze;
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    type_prop_bounds_propagate,
-    SqueezeBoundTest,
-    test_values_in,
-    PrintToStringParamName());
+INSTANTIATE_TEST_SUITE_P(type_prop_bounds_propagate, SqueezeBoundTest, test_values_in, PrintToStringParamName());
 
 /**
  * \brief Check symbol and dynamic value propagation.
@@ -552,7 +547,6 @@ TEST_P(SqueezeBoundTest, propagate_symbol_and_dynamic_value_squeeze_v15) {
     const auto symbols = get_shape_symbols(bc->get_output_partial_shape(0));
     EXPECT_THAT(symbols, ElementsAre(in_symbols.front()));
 }
-
 
 using SqueezeAxesDynamicRankTestParam = decltype(std::tuple_cat(SqueezeTypePropTestParam{}, std::make_tuple(false)));
 class SqueezeAxesPyTorchDynamicRank : public ::testing::TestWithParam<SqueezeAxesDynamicRankTestParam> {
@@ -616,4 +610,4 @@ TEST_P(SqueezeAxesPyTorchDynamicRank, squeeze_axes_dynamic_rank_param) {
     EXPECT_EQ(squeeze->get_allow_axis_skip(), allow_axis_skip);
 }
 
-} // namespace
+}  // namespace

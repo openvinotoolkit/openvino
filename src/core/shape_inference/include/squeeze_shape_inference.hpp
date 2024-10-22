@@ -118,20 +118,18 @@ namespace v0 {
 template <class T, class TRShape = result_shape_t<T>>
 std::vector<TRShape> shape_infer(const Squeeze* op,
                                  const std::vector<T>& input_shapes,
-                                 const ITensorAccessor& ta = make_tensor_accessor())
-    {
-        return ov::op::shape_infer(op, input_shapes, ta);
-    }
+                                 const ITensorAccessor& ta = make_tensor_accessor()) {
+    return ov::op::shape_infer(op, input_shapes, ta);
+}
 }  // namespace v0
 
 namespace v15 {
 template <class T, class TRShape = result_shape_t<T>>
 std::vector<TRShape> shape_infer(const Squeeze* op,
                                  const std::vector<T>& input_shapes,
-                                 const ITensorAccessor& ta = make_tensor_accessor())
-    {
-        return ov::op::shape_infer(op, input_shapes, ta);
-    }
+                                 const ITensorAccessor& ta = make_tensor_accessor()) {
+    return ov::op::shape_infer(op, input_shapes, ta);
+}
 }  // namespace v15
 }  // namespace op
 }  // namespace ov
