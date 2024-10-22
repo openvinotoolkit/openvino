@@ -528,6 +528,7 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_quantizelinear_e5m2_cpu",
         "OnnxBackendNodeModelTest.test_dequantizelinear_e4m3fn_float16_cpu",
         "OnnxBackendNodeModelTest.test_dequantizelinear_e4m3fn_zero_point_cpu",
+    ),
     (
         xfail_issue_119900,
         "OnnxBackendNodeModelTest.test_resize_downsample_scales_linear_half_pixel_symmetric_cpu",
