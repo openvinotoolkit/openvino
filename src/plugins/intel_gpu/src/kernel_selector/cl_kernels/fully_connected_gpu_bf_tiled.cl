@@ -850,7 +850,6 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
     INPUT0_TYPE                                     de_quantize_scale[TILE_B];
 
     #if COMPRESSED_WEIGHTS_INT8
-        // INPUT0_TYPE activation_sum[TILE_B] = { };
         ACCUM_DQ_TYPE activation_sum[TILE_B] = { };
     #endif
 
@@ -911,8 +910,6 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
 
             #if NUM_LOOP_IN_DYN_QUAN_GROUP == 1
                 #if COMPRESSED_WEIGHTS_INT8
-                    // activation_sum[bi * 2] = act_sum[scale_offset];
-                    // activation_sum[bi * 2 + 1] = act_sum[scale_offset + scale_pitch];
                     activation_sum[bi * 2] = TO_ACCUM_DQ_TYPE(act_sum[scale_offset]);
                     activation_sum[bi * 2 + 1] = TO_ACCUM_DQ_TYPE(act_sum[scale_offset + scale_pitch]);
                 #endif
@@ -927,7 +924,6 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
             if (ni % NUM_LOOP_IN_DYN_QUAN_GROUP == 0) {
                 unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
                     #if COMPRESSED_WEIGHTS_INT8
-                        // activation_sum[bi] = act_sum[scale_offset];
                         activation_sum[bi] = TO_ACCUM_DQ_TYPE(act_sum[scale_offset]);
                     #endif
                     de_quantize_scale[bi] = scale[scale_offset];
@@ -1016,7 +1012,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                             const uint offset_ifm = ni_offset + load_iter * FILTER_LOAD_BLOCK_SIZE + kii;
                             const uint zp_offset = (offset_ofm % DECOMPRESSION_ZP_BATCH_NUM) * DECOMPRESSION_ZP_BATCH_PITCH +
                                                     (offset_ifm / DECOMPRESSION_ZP_GROUP_SIZE) * DECOMPRESSION_ZP_FEATURE_PITCH;
-                            w[W_DYN_QUAN_IDX] = w[W_DYN_QUAN_IDX] - TO_FILTER_TYPE(decompression_zp[zp_offset]);
+                            w[W_DYN_QUAN_IDX] = w[W_DYN_QUAN_IDX] - CAT(CAT(convert_, FILTER_TYPE),_rte)(decompression_zp[zp_offset]);
                         }
                     }
                 #else
@@ -1115,7 +1111,6 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                         #endif
 
                         #if COMPRESSED_WEIGHTS_INT8
-                            // ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += (convert_half(((int *)(&acc_tmp[fi]))[bi]) - (wei_zp[fi] * activation_sum[bi])) * ds * de_quantize_scale[bi];
                             ACCUM_DQ_TYPE seperate_wei_zp = ((int *)(&acc_tmp[fi]))[bi] - ((int)(wei_zp[fi]) * activation_sum[bi]);
                             ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += (convert_half)(convert_float(seperate_wei_zp) * (float)ds * (float)de_quantize_scale[bi]);
                         #else
@@ -1143,9 +1138,8 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                         #endif
 
                         #if COMPRESSED_WEIGHTS_INT8
-                            // ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += (convert_half(((int *)(&acc_tmp[fi]))[bi]) - ((half)(wei_zp[fi]) * activation_sum[bi])) * ds * de_quantize_scale[bi];
                             ACCUM_DQ_TYPE seperate_wei_zp = ((int *)(&acc_tmp[fi]))[bi] - ((int)(wei_zp[fi]) * activation_sum[bi]);
-                            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += (convert_half)(convert_float(seperate_wei_zp) * (float)ds * (float)de_quantize_scale[bi]);
+                            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += convert_half(convert_float(seperate_wei_zp) * (float)ds * (float)de_quantize_scale[bi]);
                         #else
                             ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += convert_half(((int *)(&acc_tmp[fi]))[bi]) * ds * de_quantize_scale[bi];
                         #endif

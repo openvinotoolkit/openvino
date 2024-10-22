@@ -115,10 +115,14 @@ static bool should_dynamic_quantize(const fully_connected_params& params, bool p
         params.inputs[0].GetDType() == Datatype::F16 &&
         (weight_type == WeightsType::INT4 || weight_type == WeightsType::UINT4 || weight_type == WeightsType::UINT8)) {
             if (print_log) {
-                GPU_DEBUG_TRACE_DETAIL << " Dynamic quantizing for FC : scale_group_size: " << scale_group_size << ", Dyn-quan group size: " << dynamic_quantization_group_size <<
-                    ", Type(I:" << kernel_selector::toString(params.inputs[0].GetDType()) << ", O:" << kernel_selector::toString(params.outputs[0].GetDType()) <<
-                    ", W:" << kernel_selector::toString(params.weights.GetDType()) << "), Format(W:" << kernel_selector::toString(params.weights.GetLayout()) <<
-                    ") B: " << params.inputs[0].Batch().v << ", F: " << params.inputs[0].Feature().v << ", Y: " << params.inputs[0].Y().v << std ::endl;
+                GPU_DEBUG_TRACE_DETAIL << " Dynamic quantizing for FC : scale_group_size: " << scale_group_size <<
+                    ", Dyn-quan group size: " << dynamic_quantization_group_size <<
+                    ", Type(I:" << kernel_selector::toString(params.inputs[0].GetDType()) <<
+                    ", O:" << kernel_selector::toString(params.outputs[0].GetDType()) <<
+                    ", W:" << kernel_selector::toString(params.weights.GetDType()) <<
+                    "), Format(W:" << kernel_selector::toString(params.weights.GetLayout()) <<
+                    ") B: " << params.inputs[0].Batch().v << ", F: " << params.inputs[0].Feature().v <<
+                    ", Y: " << params.inputs[0].Y().v << std ::endl;
             }
         return true;
     }
@@ -586,7 +590,8 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
 
     if (dispatchData.use_slm) {
         OPENVINO_ASSERT(dispatchData.tile_n == 2, "[GPU] Unsupported TILE_OFM size for SLM kernel configuration");
-        OPENVINO_ASSERT(weights_dt == WeightsType::INT4 || weights_dt == WeightsType::UINT4 || weights_dt == WeightsType::UINT8, "[GPU] Unsupported FC weights type for SLM kernel configuration");
+        OPENVINO_ASSERT(weights_dt == WeightsType::INT4 || weights_dt == WeightsType::UINT4 || weights_dt == WeightsType::UINT8,
+                        "[GPU] Unsupported FC weights type for SLM kernel configuration");
 
         auto lws_batches = dispatchData.lws[2];
         auto total_weights_elements = simd * dispatchData.tile_n * simd * dispatchData.tile_mk; // SIMD * TILE_OFM * SIMD * TILE_IFM
