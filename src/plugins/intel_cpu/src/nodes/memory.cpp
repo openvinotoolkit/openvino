@@ -416,6 +416,9 @@ MemoryInputBase::MemoryInputBase(const std::string id,
         context->getMemoryStatesRegister()->registerInput(this);
     }
 
+    // this important to prevent identifying it as a const when it's on a const path
+    constant = ConstantType::StrictNoConst;
+
     if (mode::read_value_assign == mode) {
         executeHook = &MemoryInputBase::assignState;
     } else if (mode::single_read_value == mode) {
