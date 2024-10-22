@@ -904,7 +904,7 @@ void MemoryInputSingle::runStatic(dnnl::stream strm) {
             stateMem->load(*result);
         }
     }
-    // it doesn't make sense to call state->commit() as long as the VariableStateSingleBuffer is used
+    getAssignedState()->commit(); // since we don't use MemoryOutput, commit must be called to change the reset state
 }
 
 void MemoryInputSingle::runDynamic(dnnl::stream strm) {
@@ -929,7 +929,7 @@ void MemoryInputSingle::runDynamic(dnnl::stream strm) {
             stateMem->load(*result);
         }
     }
-    // it doesn't make sense to call state->commit() as long as the VariableStateSingleBuffer is used
+    getAssignedState()->commit(); // since we don't use MemoryOutput, commit must be called to change the reset state
 }
 
 bool MemoryInputSingle::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
