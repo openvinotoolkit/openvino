@@ -18,7 +18,6 @@ constexpr uint32_t CRUSH_RESISTANCE_CONST_LOWER_VALUE = 0x9E3779B9;
 constexpr uint32_t CRUSH_RESISTANCE_CONST_UPPER_VALUE = 0xBB67AE85;
 constexpr uint64_t STATISTIC_MAXIMIZING_MULTIPLIER_N = 0xD2511F53;
 constexpr uint64_t STATISTIC_MAXIMIZING_MULTIPLIER_COUNTER = 0xCD9E8D57;
-constexpr uint64_t ROUNDS_NUMBER = 10llu;
 
 // Following const values are taken from the original paper (used by PyTorch):
 // https://dl.acm.org/doi/pdf/10.1145/272991.272995
@@ -287,10 +286,10 @@ void RandomUniform::preparePhiloxParams() {
     } else {
         m_threads_num = parallel_get_max_threads();
     }
-    m_thread_params.resize(m_threads_num);
+    m_philox_thread_params.resize(m_threads_num);
 
     parallel_nt(m_threads_num, [&](const int ithr, const int nthr) {
-        auto& params = m_thread_params[ithr];
+        auto& params = m_philox_thread_params[ithr];
         uint64_t start = 0lu, end = 0lu;
 
         if (m_jit_kernel) {
@@ -333,7 +332,7 @@ void RandomUniform::prepareMersenneTwisterParams() {
             m_threads_num = MERSENNE_TWISTER_MAXIMUM_THREADS_THRESHOLD;
         }
     }
-    m_thread_params.resize(m_threads_num);
+    m_mersenne_twister_thread_params.resize(m_threads_num);
 
     if (m_output_prc == element::i64) {
         m_mersenne_twister_optimization_enabled = m_min_val.i64 <= std::numeric_limits<uint32_t>::max() && m_max_val.i64 <= std::numeric_limits<uint32_t>::max();
@@ -344,7 +343,7 @@ void RandomUniform::prepareMersenneTwisterParams() {
     m_elements_consumed_per_one_output = m_output_prc.size() > 4 && !m_mersenne_twister_optimization_enabled ? 2 : 1;
 
     parallel_nt(m_threads_num, [&](const int ithr, const int nthr) {
-        auto& params = m_thread_params[ithr];
+        auto& params = m_mersenne_twister_thread_params[ithr];
         uint64_t start = 0lu, end = 0lu;
         float start_f = 0.f, end_f = 0.f;
 
@@ -371,10 +370,10 @@ void RandomUniform::prepareMersenneTwisterParams() {
         if (start > end) {
             start = end;
         }
-        params.state_shift = start; // idx in mersenne_state
-        params.work_amount = end - start; // how many times to generate 4 random numbers in one thread
-        params.dst_shift = start * m_output_prc.size();
-        params.step = m_elements_generated;
+        params.src_start_idx = start; // idx in mersenne_state
+        params.elements_to_generate = end - start; // how many times to generate 4 random numbers in one thread
+        params.dst_start_idx = start * m_output_prc.size();
+        params.elements_generated_per_execution = m_elements_generated;
     });
 }
 
@@ -543,7 +542,7 @@ std::pair<uint64_t, uint64_t> RandomUniform::computePhilox(void* out, size_t out
     if (m_jit_kernel) {
 #if defined(OPENVINO_ARCH_X86_64)
         parallel_nt(m_threads_num, [&](const int ithr, const int nthr) {
-                auto& params = m_thread_params[ithr];
+                auto& params = m_philox_thread_params[ithr];
                 if (params.work_amount == 0lu) {
                     return;
                 }
@@ -564,7 +563,7 @@ std::pair<uint64_t, uint64_t> RandomUniform::computePhilox(void* out, size_t out
 #endif // OPENVINO_ARCH_X86_64
     } else {
         auto threadBody = [&](const int ithr, const int nthr) {
-            auto& params = m_thread_params[ithr];
+            auto& params = m_philox_thread_params[ithr];
             if (params.work_amount == 0lu) {
                 return;
             }
@@ -754,22 +753,22 @@ void RandomUniform::computeMersenneTwister(void* out, size_t out_el_num) {
         for (uint64_t state_id = 0; state_id < state_regenerations_required; ++state_id) {
             next_mersenne_state(mersenne_state);
             parallel_nt(m_threads_num, [&](const int ithr, const int nthr) {
-                auto& params = m_thread_params[ithr];
-                if (params.work_amount == 0lu) {
+                auto& params = m_mersenne_twister_thread_params[ithr];
+                if (params.elements_to_generate == 0lu) {
                     return;
                 }
                 auto el_remin = out_el_num - MERSENNE_STATE_N / m_elements_generated * state_id - ithr * m_elements_generated;
 
                 kernel::random_uniform::MersenneTwisterGeneratorCallArgs args;
 
-                args.dst_ptr     = (out_u8 + state_id * MERSENNE_STATE_N * m_output_prc.size() + params.dst_shift); // incorrect
+                args.dst_ptr     = (out_u8 + state_id * MERSENNE_STATE_N * m_output_prc.size() + params.dst_start_idx); // incorrect?
                 args.state_ptr   = &mersenne_state;
                 args.min_ptr     = &m_min_val;
                 args.range_ptr   = &m_range_val;
                 args.state_id    = state_id;
-                args.state_shift = params.state_shift;
-                args.step        = params.step;
-                args.work_amount = params.work_amount;
+                args.state_shift = params.src_start_idx;
+                args.step        = params.elements_generated_per_execution;
+                args.work_amount = params.dst_start_idx;
                 args.elements_remaining = el_remin;
                 args.optimization_enabled = m_mersenne_twister_optimization_enabled;
 
@@ -781,13 +780,13 @@ void RandomUniform::computeMersenneTwister(void* out, size_t out_el_num) {
         for (uint64_t state_id = 0; state_id < state_regenerations_required; ++state_id) {
             next_mersenne_state(mersenne_state);
             auto thread_body = [&](const int ithr, const int nthr) {
-                auto& params = m_thread_params[ithr];
+                auto& params = m_mersenne_twister_thread_params[ithr];
                 
                 auto out_state_shift = state_id * MERSENNE_STATE_N * m_output_prc.size();
-                auto out_shifted_ptr = out_u8 + out_state_shift + params.dst_shift;
-                auto work_amount = static_cast<int64_t>(params.work_amount);
-                auto mersenne_state_start_idx = params.state_shift;
-                auto step = params.step;
+                auto out_shifted_ptr = out_u8 + out_state_shift + params.dst_start_idx;
+                auto work_amount = static_cast<int64_t>(params.elements_to_generate);
+                auto mersenne_state_start_idx = params.src_start_idx;
+                auto step = params.elements_generated_per_execution;
                 auto el_remain = out_el_num - MERSENNE_STATE_N / m_elements_generated * state_id - ithr * m_elements_generated;
     
                 if (work_amount == 0lu) {

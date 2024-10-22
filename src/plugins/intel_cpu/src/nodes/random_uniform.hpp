@@ -84,7 +84,7 @@ private:
 
     std::shared_ptr<kernel::JitKernelBase> m_jit_kernel;
 
-    struct ThreadParams {
+    struct PhiloxThreadParams {
         uint64_t work_amount = 0lu;
         uint64_t dst_shift = 0lu;
         uint64_t state_shift = 0lu;
@@ -93,13 +93,14 @@ private:
 
     struct MersenneTwisterThreadParams {
         uint64_t elements_to_generate = 0lu;
-        uint64_t dst_shift = 0lu;
-        uint64_t state_shift = 0lu;
-        uint64_t step = 0lu;
+        uint64_t src_start_idx = 0lu;
+        uint64_t dst_start_idx = 0lu;
+        uint64_t elements_generated_per_execution = 0lu;
     };
 
     uint64_t m_threads_num = 0lu;
-    std::vector<ThreadParams> m_thread_params;
+    std::vector<PhiloxThreadParams> m_philox_thread_params;
+    std::vector<MersenneTwisterThreadParams> m_mersenne_twister_thread_params;
 
     /////////////////////////////////////////////////////////////////////////////////
 
@@ -143,7 +144,7 @@ private:
     // Number of random elements generated per thread.
     uint64_t m_elements_generated = 0lu;
 
-    // Number of uint32s consumed to generate one output the requested type.
+    // Number of uint32s consumed to generate one output of the requested type.
     uint64_t m_elements_consumed_per_one_output = 0lu;
 
 
