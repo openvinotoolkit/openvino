@@ -28,12 +28,13 @@ namespace op {
 using namespace ov::op;
 
 OutputVector translate_stft(const NodeContext& context) {
-    // stft(input: Tensor, n_fft: int, hop_length: Optional[int] = None,
-    //      win_length: Optional[int] = None, window: Optional[Tensor] = None,
-    //      center: bool = True, pad_mode: str = 'reflect', normalized: bool = False,
-    //      onesided: Optional[bool] = None,
-    //      return_complex: Optional[bool] = None) -> Tensor:
-    num_inputs_check(context, 2, 10);
+    // schema: aten::stft(Tensor self, int n_fft, int? hop_length=None, int? win_length=None, Tensor? window=None, bool
+    // normalized=False, bool? onesided=None, bool? return_complex=None) -> Tensor
+    //
+    // Note: aten::stft doesn't have "center" and "pad_mode" attrs like torch.stft, so the number of the inputs is lower
+    // and index of any input after the "window" is smaller accordingly
+
+    num_inputs_check(context, 2, 8);
 
     auto input = context.get_input(0);
     auto n_fft = context.get_input(1);
@@ -62,33 +63,28 @@ OutputVector translate_stft(const NodeContext& context) {
         const auto one = context.mark_node(std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, 1));
         const auto one_cast = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(one, input));
         const auto zero = context.mark_node(std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{1}, 0));
-        const auto win_length_cast = context.mark_node(std::make_shared<ov::op::v0::Convert>(win_length, ov::element::i64));
+        const auto win_length_cast =
+            context.mark_node(std::make_shared<ov::op::v0::Convert>(win_length, ov::element::i64));
         const auto win_len_vec = context.mark_node(std::make_shared<ov::op::v0::Unsqueeze>(win_length_cast, zero));
         window = context.mark_node(std::make_shared<ov::op::v3::Broadcast>(one_cast, win_len_vec));
     }
 
-    bool center = true;
-    if (!context.input_is_none(5)) {
-        center = context.const_input<bool>(5);
-    }
-    PYTORCH_OP_CONVERSION_CHECK(!center, "aten::stft conversion is currently supported with center=False only.");
-
     bool normalized = false;
-    if (!context.input_is_none(7)) {
-        normalized = context.const_input<bool>(7);
+    if (!context.input_is_none(5)) {
+        normalized = context.const_input<bool>(5);
     }
     PYTORCH_OP_CONVERSION_CHECK(!normalized,
                                 "aten::stft conversion is currently supported with normalized=False only.");
 
     bool onesided = true;
-    if (!context.input_is_none(8)) {
-        onesided = context.const_input<bool>(8);
+    if (!context.input_is_none(6)) {
+        onesided = context.const_input<bool>(6);
     }
     PYTORCH_OP_CONVERSION_CHECK(onesided, "aten::stft conversion is currently supported with onesided=True only.");
 
     bool return_complex = false;
-    if (!context.input_is_none(9)) {
-        return_complex = context.const_input<bool>(9);
+    if (!context.input_is_none(7)) {
+        return_complex = context.const_input<bool>(7);
     }
     PYTORCH_OP_CONVERSION_CHECK(!return_complex,
                                 "aten::stft conversion is currently supported with return_complex=False only.");
