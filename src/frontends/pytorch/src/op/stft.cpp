@@ -62,9 +62,9 @@ OutputVector translate_stft(const NodeContext& context) {
         const auto one = context.mark_node(std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, 1));
         const auto one_cast = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(one, input));
         const auto zero = context.mark_node(std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{1}, 0));
-        const auto n_fft_cast = context.mark_node(std::make_shared<ov::op::v0::Convert>(n_fft, ov::element::i64));
-        const auto n_fft_vec = context.mark_node(std::make_shared<ov::op::v0::Unsqueeze>(n_fft_cast, zero));
-        window = context.mark_node(std::make_shared<ov::op::v3::Broadcast>(one_cast, n_fft_vec));
+        const auto win_length_cast = context.mark_node(std::make_shared<ov::op::v0::Convert>(win_length, ov::element::i64));
+        const auto win_len_vec = context.mark_node(std::make_shared<ov::op::v0::Unsqueeze>(win_length_cast, zero));
+        window = context.mark_node(std::make_shared<ov::op::v3::Broadcast>(one_cast, win_len_vec));
     }
 
     bool center = true;
