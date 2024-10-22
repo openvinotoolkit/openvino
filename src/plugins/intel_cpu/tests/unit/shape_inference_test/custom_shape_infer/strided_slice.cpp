@@ -117,7 +117,10 @@ INSTANTIATE_TEST_SUITE_P(
                       StaticShape({1, 2, 3})),
            make_tuple(unit_test::ShapeVector{{2000, 128}, {3}, {3}, {3}}, std::vector<std::vector<int32_t>>{{0, 0, 0}, {0, 128, 0}, {1, 1, 1}},
                       std::vector<int64_t>{0, 1, 1}, std::vector<int64_t>{0, 0, 1}, std::vector<int64_t>{1, 0, 0}, std::vector<int64_t>(3, 0),
-                      StaticShape({1, 128, 128}))),
+                      StaticShape({1, 128, 128})),
+           make_tuple(unit_test::ShapeVector{{1, 2, 3}, {2}, {2}, {2}}, std::vector<std::vector<int32_t>>{{0, 0}, {0, 0}, {1, 1}},
+                      std::vector<int64_t>{1, 0}, std::vector<int64_t>{1, 0}, std::vector<int64_t>{0, 1}, std::vector<int64_t>{0, 0},
+                      StaticShape({1, 1, 2, 3}))),
     StridedSliceCpuShapeInferenceTest::getTestCaseName);
 
 } // namespace cpu_shape_infer

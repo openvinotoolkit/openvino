@@ -41,7 +41,7 @@ Result StridedSliceShapeInfer::infer(
     const auto begin_size = shapeBegin[0];
 
     auto gen_new_sliced_value = [&](size_t cur_idx, size_t in_idx) -> size_t {
-        if ((in_idx >= begin_size) || (shapeIn[in_idx] == 0)) {
+        if ((cur_idx >= begin_size) || (shapeIn[in_idx] == 0)) {
             return shapeIn[in_idx];
         } else {
             int32_t begin = 0, end = 0;
