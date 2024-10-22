@@ -27,14 +27,6 @@ public:
     ACLFunction configureFunction(const ACLTensors & aclMemoryTensors) override;
 };
 
-class ACLWeightsTranspose : public ACLCommonExecutor {
-public:
-    ACLWeightsTranspose() = default;
-    void updateTensorsShapes(ACLShapes& aclMemoryShapes) override {}
-    arm_compute::Status validateTensorsInfo(const ACLInfos & aclMemoryInfos) override;
-    ACLFunction configureFunction(const ACLTensors & aclMemoryTensors) override;
-};
-
 class ACLWeightFormatGenerator : public ACLCommonExecutor {
 public:
     ACLWeightFormatGenerator(const FCAttrs& attrs,
@@ -50,19 +42,6 @@ private:
     arm_compute::FullyConnectedLayerInfo fullyConnectedLayerInfo;
     ACLFCAttrs aclfcAttrs;
     arm_compute::WeightFormat expectedWeightFormat;
-};
-
-class ACLWeightsReorder : public ACLCommonExecutor {
-public:
-    ACLWeightsReorder(arm_compute::WeightFormat inWeightFormat,
-                      arm_compute::WeightFormat outWeightFormat)
-                      : inWeightFormat(inWeightFormat), outWeightFormat(outWeightFormat) {}
-    void updateTensorsShapes(ACLShapes& aclMemoryShapes) override {}
-    arm_compute::Status validateTensorsInfo(const ACLInfos & aclMemoryInfos) override;
-    ACLFunction configureFunction(const ACLTensors & aclMemoryTensors) override;
-private:
-    arm_compute::WeightFormat inWeightFormat;
-    arm_compute::WeightFormat outWeightFormat;
 };
 
 }  // namespace acl_fc_executor
