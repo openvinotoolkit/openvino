@@ -76,7 +76,7 @@ TEST_P(StridedSliceCpuShapeInferenceTest , shape_inference_empty_const_map) {
     const auto stride = op::v0::Constant::create(element::i32, input_shapes[3].get_shape(), data[STRIDE]);
     const auto op = make_op(arg, begin, end, stride, begin_mask, end_mask, new_axis_mask, shrink_axis_mask);
     // implementation depends on some output information of the op
-    auto output_axis = output_shapes[0].to_shape().size();                                                                                                                                                                                                                                                                                       1 ↵
+    auto output_axis = output_shapes[0].to_shape().size();
     op->set_output_type(0, element::i32, std::vector<int64_t>(output_axis, -1));
     unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes);
 }
@@ -92,7 +92,7 @@ TEST_P(StridedSliceCpuShapeInferenceTest , shape_inference_in_const_map) {
     const auto stride_tensor = ov::Tensor(element::i32, input_shapes[3].get_shape(), data[STRIDE].data());
     const std::unordered_map<size_t, ov::Tensor> constant_data = {{1, begin_tensor}, {2, end_tensor}, {3, stride_tensor}};
     // implementation depends on some output information of the op
-    auto output_axis = output_shapes[0].to_shape().size();                                                                                                                                                                                                                                                                                       1 ↵
+    auto output_axis = output_shapes[0].to_shape().size();
     op->set_output_type(0, element::i32, std::vector<int64_t>(output_axis, -1));
     unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, constant_data);
 }
