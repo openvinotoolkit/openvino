@@ -63,7 +63,7 @@ jobs:
 
       - name: Cache documentation
         id: cache_sphinx_docs
-        uses: actions/cache@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9 # v4.0.2
+        uses: actions/cache@3624ceb22c1c5a301c8db4169662070a689d9ea8 # v4.1.1
         with:
           path: build/docs/_build/.doctrees
           key: sphinx-docs-cache
@@ -77,13 +77,13 @@ jobs:
           echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
 
       - name: 'Upload sphinx.log'
-        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: sphinx_build_log_${{ env.PR_NUMBER }}.log
           path: build/docs/sphinx.log
 
       - name: 'Upload docs html'
-        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: openvino_docs_html_${{ env.PR_NUMBER }}.zip
           path: build/docs/openvino_docs_html.zip
@@ -100,7 +100,7 @@ jobs:
 
       - name: 'Upload test results'
         if: failure()
-        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: openvino_docs_pytest
           path: build/docs/_artifacts/

@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2023-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,7 @@
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "partitioning/partitioning.hpp"
+#include "spatial.hpp"
 #include "weights_bank.hpp"
 
 namespace intel_npu {
@@ -46,6 +47,8 @@ private:
     // FIXME: This class has many friends..
     friend class IBaseInferRequest;
     friend class JustInferRequest;
+    friend class MemAccessSim;
+    friend class FuncMemMgr;
 
     bool compile_for_success(std::size_t id);
     bool compile_for_device(std::size_t id, const std::string& device_to_try);
@@ -73,6 +76,10 @@ private:
     void implement_properties();
 
     void finalize_weights_bank();
+
+    std::string global_mem_device() const;
+
+    std::string funcall_mem_device(const std::size_t idx) const;
 
     std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc;
     ::intel_npu::Config m_cfg;
@@ -117,20 +124,7 @@ private:
         std::optional<std::size_t> replaced_by;
 
         Subgraph::Gather host_gather;
-        struct Spatial {
-            struct Param {
-                std::size_t idx;
-                std::size_t dim;
-            };
-            std::vector<Param> params;
-            std::size_t range = 0u;
-            std::size_t nway = 0u;
-            std::size_t out_dim = 0u;
-
-            std::size_t nway_iters = 0u;
-            std::size_t tail_size = 0u;
-        };
-        std::optional<Spatial> spatial;
+        std::optional<ov::npuw::compiled::Spatial> spatial;
 
         // FIXME: This is a 1:1 copy of the ov::npuw::Subgraph structure
         // w.r.t. function calls

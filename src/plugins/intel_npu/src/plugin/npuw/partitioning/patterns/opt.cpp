@@ -149,8 +149,9 @@ DQMatMulCWi::DQMatMulCWi() {
 
         auto qcoeff_shape = matched_qcoeff->output(0).get_shape();
 
-        if (ov::element::i4 == matched_qweight->get_element_type() && qcoeff_shape[1] == 1 &&
-            !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
+        if ((ov::element::i4 == matched_qweight->get_element_type() ||
+             ov::element::i8 == matched_qweight->get_element_type()) &&
+            qcoeff_shape[1] == 1 && !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
             auto matched_node_cvtw = node_to_output.at(qcvtw).get_node_shared_ptr();
             auto matched_node_cvtm = node_to_output.at(qcvtm).get_node_shared_ptr();
             auto matched_node_muls = node_to_output.at(qmuls).get_node_shared_ptr();
@@ -335,7 +336,7 @@ DQMatMulGQ2i::DQMatMulGQ2i(Context::Ref ctx) {
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
     auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qcvtw, qcoeff});
     auto qreshp = opp::wrap_type<ov::op::v1::Reshape>({qmuls, opp::any_input()});
-    auto qcvtr = opp::wrap_type<ov::op::v0::Convert>({qreshp});
+    auto qcvtr = opp::optional<ov::op::v0::Convert>({qreshp->output(0)});
     auto qmmi = opp::any_input();
     auto qmm = opp::wrap_type<ov::op::v0::MatMul>({qmmi, qcvtr});
 
@@ -409,13 +410,18 @@ DQMatMulGQ2i::DQMatMulGQ2i(Context::Ref ctx) {
             auto rshp_ccat = std::make_shared<ov::op::v1::Reshape>(scaled, rshp_ccat_c, false);
 
             auto reduce_axis = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 1);
-            auto reduce = std::make_shared<ov::op::v1::ReduceSum>(rshp_ccat, reduce_axis, true);
+            // Make reduceSum not to keep axis because then it will convert to poolings in compiler.
+            // Otherwise reduceSum will convert to the convolution which is less efficient than poolings.
+            auto reduce = std::make_shared<ov::op::v1::ReduceSum>(rshp_ccat, reduce_axis, false);
 
             auto rshp_out_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, out_shape);
             auto rshp_out = std::make_shared<ov::op::v1::Reshape>(reduce, rshp_out_c, false);
 
-            // Convert the result to f32 to maintain the graph contracts. FIXME should be avoided
-            auto out = std::make_shared<ov::op::v0::Convert>(rshp_out, ov::element::f32);
+            // Convert the result to f32 to maintain the graph contracts if required.
+            std::shared_ptr<ov::Node> out = rshp_out;
+            if (matched_matmul->get_element_type() == ov::element::f32) {
+                out = std::make_shared<ov::op::v0::Convert>(rshp_out, ov::element::f32);
+            }
 
             // Now.. Reconnect the matmul readers to the new output (reducesum)
             for (auto&& r : matched_matmul->output(0).get_target_inputs()) {
@@ -690,11 +696,6 @@ DQParMMGQ::DQParMMGQ(Context::Ref ctx) {
             return false;
         }
 
-        if (qmmi_shape[1] != 1 && !ctx.get().is_spatial) {
-            // For non 1-token cases, do transformation if and only if and only if the block is spatial
-            return false;
-        }
-
         if (!matmul->get_transpose_a() && !matmul->get_transpose_b()) {
             ctx.get().register_parallel_matmul(node_to_output.at(qmmi), 2, Context::DQParMM{w_param, s_param, matmul});
         } else if (!matmul->get_transpose_a() && matmul->get_transpose_b()) {
@@ -752,7 +753,7 @@ void mergeParallelMatMuls(const std::shared_ptr<ov::Model>& m, Context& ctx) {
         auto new_cvt = std::make_shared<ov::op::v0::Convert>(new_w, new_s->get_element_type());
 
         std::shared_ptr<ov::Node> new_mul = std::make_shared<ov::op::v1::Multiply>(new_cvt, new_s);
-        if (new_s->get_element_type() == ov::element::f16) {
+        if ((new_s->get_element_type() == ov::element::f16) && (orig_multiply.get_element_type() == ov::element::f32)) {
             new_mul = std::make_shared<ov::op::v0::Convert>(new_mul, ov::element::f32);
         }
         auto new_w_shape = new_w->get_shape();
