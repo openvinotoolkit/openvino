@@ -16,6 +16,21 @@ classifiers = [
 ]
 requires-python = ">=3.9"
 
+dependencies = [
+    "numpy>=1.16.6,<2.1.0",
+    "openvino-telemetry>=2023.2.1",
+    "packaging"
+]
+
 [build-system]
 requires = ["setuptools>=42,<72", "wheel", "cmake"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+license-files = [
+    "readme.txt", 
+    "../../../LICENSE",
+    "../../../licensing/runtime-third-party-programs.txt",
+    "../../../licensing/onetbb_third-party-programs.txt",
+    "../../../licensing/onednn_third-party-programs.txt",
+]
