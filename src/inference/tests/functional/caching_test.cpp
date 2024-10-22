@@ -2136,7 +2136,7 @@ TEST_P(CachingTest, LoadAUTO_OneDeviceNoImportExport) {
     EXPECT_CALL(*mockPlugin, compile_model(_, _, _)).Times(m_remoteContext ? 2 : 0);
     EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _))
         .Times(!m_remoteContext ? 2 : 0);
-    EXPECT_CALL(*mockPlugin, OnCompileModelFromFile()).Times(m_type == TestLoadType::EModelName ? 2 : 0);
+    EXPECT_CALL(*mockPlugin, OnCompileModelFromFile()).Times(0);
     EXPECT_CALL(*mockPlugin, import_model(_, _, _)).Times(0);
     EXPECT_CALL(*mockPlugin, import_model(_, _)).Times(0);
     testLoad([&](ov::Core& core) {

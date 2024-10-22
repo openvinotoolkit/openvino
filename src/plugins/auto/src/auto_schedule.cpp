@@ -135,12 +135,13 @@ void AutoSchedule::init() {
                                                               ScheduleContext::Ptr& m_context) {
         m_compile_context[CPU].m_is_enabled = m_context->m_startup_fallback;
         bool is_stateful_model = false;
+        std::string cache_dir;
         if (!is_actual_cpu) {
             const auto& device = m_compile_context[ACTUALDEVICE].m_device_info.device_name;
             auto& device_config = m_compile_context[ACTUALDEVICE].m_device_info.config;
-            std::string cache_dir = device_config.count(ov::cache_dir.name())
-                                        ? device_config[ov::cache_dir.name()].as<std::string>()
-                                        : m_context->m_ov_core->get_property("", ov::cache_dir);
+            cache_dir = device_config.count(ov::cache_dir.name())
+                            ? device_config[ov::cache_dir.name()].as<std::string>()
+                            : m_context->m_ov_core->get_property("", ov::cache_dir);
 
             if (m_context->m_startup_fallback && !cache_dir.empty()) {
                 const auto properties =
@@ -158,9 +159,10 @@ void AutoSchedule::init() {
                     // not found blob file
                     if (!m_context->m_model) {
                         // passed model path
-                        std::cout << "=== blob not found and will read model here ===\n";
-                        auto m_model = m_context->m_ov_core->read_model(m_context->m_model_path, std::string{});
-                        for (auto& op : m_model->get_ops()) {
+                        LOG_DEBUG_TAG("Will read model and check if model type is stateful model here");
+                        m_context->m_model = m_context->m_ov_core->read_model(m_context->m_model_path, std::string{});
+                        m_context->m_model_path = "";
+                        for (auto& op : m_context->m_model->get_ops()) {
                             if (std::dynamic_pointer_cast<ov::op::util::AssignBase>(op) ||
                                 std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(op)) {
                                 is_stateful_model = true;
@@ -168,8 +170,11 @@ void AutoSchedule::init() {
                             }
                         }
                         if (is_stateful_model) {
-                            std::cout
-                                << "=== stateful model. will disable CPU as accelerator and runtime fallback ===\n";
+                            LOG_DEBUG_TAG(
+                                "will disable CPU as accelerator and disable runtime fallback when blob file of "
+                                "stateful model is existed"
+                                "for device %s",
+                                device.c_str());
                             m_compile_context[CPU].m_is_enabled = false;
                             m_context->m_runtime_fallback = false;
                             m_context->m_startup_fallback = false;
@@ -177,10 +182,16 @@ void AutoSchedule::init() {
                     }
                 } else {
                     // found blob file
-                    std::cout << "=== found blob and will passing model path to acutal device ===\n";
-                    LOG_DEBUG_TAG("device: %s found cached blob: %s ", device.c_str(), cached_model_path.c_str());
+                    LOG_DEBUG_TAG("device: %s found cached blob: %s. Will disable CPU as accelerator and disable "
+                                  "runtime fallback.",
+                                  device.c_str(),
+                                  cached_model_path.c_str());
                     m_compile_context[CPU].m_is_enabled = false;
                     m_context->m_startup_fallback = false;
+                    if (m_context->m_runtime_fallback)
+                        LOG_WARNING_TAG(
+                            "Should disable runtime fallback if the type of model loaded from cached blob file "
+                            "is stateful model");
                 }
             }
         }
@@ -193,10 +204,9 @@ void AutoSchedule::init() {
             m_compile_context[CPU].m_device_info = *cpu_iter;
             m_compile_context[CPU].m_device_info.config[ov::hint::performance_mode.name()] =
                 ov::hint::PerformanceMode::LATENCY;
-            if (m_compile_context[ACTUALDEVICE].m_device_info.config.count(ov::cache_dir.name()) &&
-                (m_context->m_startup_fallback || m_context->m_runtime_fallback)) {
+            if (!cache_dir.empty() && (m_context->m_startup_fallback || m_context->m_runtime_fallback)) {
                 m_compile_context[CPU].m_device_info.config[ov::cache_dir.name()] = "";
-                LOG_INFO_TAG("Clear cache dir setting for CPU accelerator");
+                LOG_INFO_TAG("Clear cache dir setting for CPU accelerator as cache is enabled");
             }
             m_compile_context[CPU].m_worker_name = "CPU_HELP";
             LOG_INFO_TAG("will load CPU for accelerator");
@@ -209,8 +219,9 @@ void AutoSchedule::init() {
         // m_compile_context[ACTUALDEVICE]
         if (is_actual_cpu || !m_context->m_startup_fallback) {
             m_compile_context[CPU].m_is_enabled = false;
+        } else {
+            customize_helper_context_from_cache_setting(is_actual_cpu, m_compile_context, m_context);
         }
-        customize_helper_context_from_cache_setting(is_actual_cpu, m_compile_context, m_context);
         // initialize the rest members of load context
         for (int i = 0; i < CONTEXTNUM; i++) {
             if (m_compile_context[i].m_is_enabled) {
