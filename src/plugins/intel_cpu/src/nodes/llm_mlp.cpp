@@ -134,6 +134,7 @@ public:
                 if (config.down_quantized) {
                     // de-quantize i32 results in-place into f32
                     auto* ptr_c = work.m_C.template ptr<float>();
+                    auto* ptr_wsum = work.w_sum_per_oc.template ptr<float>();
                     auto stride_c = work.m_C.stride(0);
                     ov::Extensions::Cpu::XARCH::llm_mlp_dequantize_i32_f32(
                         M,
@@ -144,7 +145,7 @@ public:
                         stride_c,
                         src_dq.scale,
                         src_dq.zp,
-                        work.w_sum_per_oc.template ptr<float>(),
+                        ptr_wsum,
                         w_scale + work.n0,
                         src_dq.asym);
                 }
@@ -153,11 +154,13 @@ public:
                 // (0,1) (2,3)
                 if (sync_id & 1) {
                     auto peer_ithr = (ithr & 1) ? (ithr - 1) : (ithr + 1);
-                    auto& peerC = works[peer_ithr].m_C;
+                    auto* p_peerC = works[peer_ithr].m_C.template ptr<float>();
                     // the other one has finished, we can do the reduce sum
-                    jit_reduce2cvt.call(workC.template ptr<float>(), peerC.ptr<float>(), workC.stride(0),
-                                            dstC + work.n0, strideC / sizeof(*dstC),
-                                            M, work.BN);
+                    auto* p_curC = workC.template ptr<float>();
+                    jit_reduce2cvt.call(p_curC, p_peerC,
+                                        workC.stride(0),
+                                        dstC + work.n0, strideC / sizeof(*dstC),
+                                        M, work.BN);
                 }
             }
         });
@@ -277,6 +280,7 @@ public:
                     // dequantize m_C in-place
                     ptr_c = work.m_C.template ptr<float>();
                     stride_c = work.m_C.stride(0);
+                    auto* p_wsum = work.w_sum_per_oc.template ptr<float>();
                     ov::Extensions::Cpu::XARCH::llm_mlp_dequantize_i32_f32(
                         M,
                         work.BN,
@@ -286,7 +290,7 @@ public:
                         stride_c,
                         src_dq.scale,
                         src_dq.zp,
-                        work.w_sum_per_oc.template ptr<float>(),
+                        p_wsum,
                         w_scale + work.n0,
                         src_dq.asym);
                 } else {

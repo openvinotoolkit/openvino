@@ -263,6 +263,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
                     auto stride_src = work.m_C.stride(0);
                     if (m_node->m_config.quantized) {
                         // dequantize output & convert to f32 in-place
+                        auto* p_wsum = work.w_sum_per_oc.template ptr<float>();
                         ov::Extensions::Cpu::XARCH::llm_mlp_dequantize_i32_f32(
                             BM,
                             work.BN,
@@ -272,7 +273,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
                             stride_src,
                             m_quant_act.scale,
                             m_quant_act.zp,
-                            work.w_sum_per_oc.template ptr<float>(),
+                            p_wsum,
                             w_scale[work.output_id] + work.n0,
                             asym);
                     }
