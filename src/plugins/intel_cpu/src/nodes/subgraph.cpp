@@ -81,8 +81,9 @@ public:
                            const std::vector<ptrdiff_t>& start_offset_in,
                            const std::vector<ptrdiff_t>& start_offset_out,
                            const std::shared_ptr<CPURuntimeConfig>& snippet_config,
-                           const BufferScratchpadAllocator& allocator)
-    : SubgraphExecutor(snippet_attrs, snippet, start_offset_in, start_offset_out, snippet_config, allocator) {}
+                           const BufferScratchpadAllocator& allocator,
+                           const DnnlScratchPadPtr& scratchpad)
+    : SubgraphExecutor(snippet_attrs, snippet, start_offset_in, start_offset_out, snippet_config, allocator, scratchpad) {}
 
     void exec_impl(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override  {
         const auto& callable = m_schedule->get_callable<kernel>();
@@ -124,8 +125,9 @@ public:
                                        const std::vector<ptrdiff_t>& start_offset_in,
                                        const std::vector<ptrdiff_t>& start_offset_out,
                                        const std::shared_ptr<CPURuntimeConfig>& snippet_config,
-                                       const BufferScratchpadAllocator& allocator)
-    : SubgraphExecutor(snippet_attrs, snippet, start_offset_in, start_offset_out, snippet_config, allocator) {
+                                       const BufferScratchpadAllocator& allocator,
+                                       const DnnlScratchPadPtr& scratchpad)
+    : SubgraphExecutor(snippet_attrs, snippet, start_offset_in, start_offset_out, snippet_config, allocator, scratchpad) {
         buffer_offsets = snippet_config->buffer_cluster_offsets;
         data_offsets = snippet_config->io_data_offsets;
         loop_args = snippet_config->loop_args;
@@ -790,7 +792,13 @@ void Subgraph::prepareParams() {
                 snippet->get_runtime_configurator()->set_kernel_executor_table(code_gen->get()->lowering_result.kernel_executor_table);
             }
             const auto& snippet_config = ov::as_type_ptr<CPURuntimeConfig>(snippet->update_runtime_config());
-            return std::make_shared<SubgraphDynamicSpecializedExecutor>(key.attrs, code_gen, start_offset_in, start_offset_out, snippet_config, allocator);
+            return std::make_shared<SubgraphDynamicSpecializedExecutor>(key.attrs,
+                                                                        code_gen,
+                                                                        start_offset_in,
+                                                                        start_offset_out,
+                                                                        snippet_config,
+                                                                        allocator,
+                                                                        context->getScratchPad());
         } else {
             // Static case:
             // 1. Update runtime config to get static scheduling data (io data offsets, parallel domain) which will be compiled in JIT code
@@ -801,7 +809,13 @@ void Subgraph::prepareParams() {
                                                             [&snippet_config](const SubgraphCodeGeneratorKey& key) -> std::shared_ptr<SubgraphCodeGenerator> {
                                                                 return std::make_shared<SubgraphCodeGenerator>(key.attrs, snippet_config);
                                                             });
-            return std::make_shared<SubgraphStaticExecutor>(key.attrs, code_gen_result.first, start_offset_in, start_offset_out, snippet_config, allocator);
+            return std::make_shared<SubgraphStaticExecutor>(key.attrs,
+                                                            code_gen_result.first,
+                                                            start_offset_in,
+                                                            start_offset_out,
+                                                            snippet_config,
+                                                            allocator,
+                                                            context->getScratchPad());
         }
     };
 
@@ -890,8 +904,9 @@ Subgraph::SubgraphExecutor::SubgraphExecutor(const std::shared_ptr<Subgraph::Sub
                                              const std::vector<ptrdiff_t>& start_offset_in,
                                              const std::vector<ptrdiff_t>& start_offset_out,
                                              const std::shared_ptr<CPURuntimeConfig>& snippet_config,
-                                             const BufferScratchpadAllocator& allocator)
-    : m_schedule(snippet->get()), m_start_offset_in(start_offset_in), m_start_offset_out(start_offset_out) {
+                                             const BufferScratchpadAllocator& allocator,
+                                             const DnnlScratchPadPtr& scratchpad)
+    : m_schedule(snippet->get()), m_start_offset_in(start_offset_in), m_start_offset_out(start_offset_out), m_scratchpad(scratchpad) {
     OPENVINO_ASSERT(m_schedule, "Schedule is empty!");
     OPENVINO_ASSERT(snippet_config, "Runtime Config is empty!");
     init_parallel_domain(snippet_config, m_parallel_exec_domain);
@@ -988,10 +1003,12 @@ void Subgraph::SubgraphExecutor::execute(dnnl::stream strm, std::vector<MemoryPt
 void Subgraph::SubgraphExecutor::repack_inputs(dnnl::stream strm, std::vector<MemoryPtr>& inMemPtrs) {
     OPENVINO_ASSERT(inMemPtrs.size() == m_in_requested_descs.size());
     for (size_t i = 0; i < m_in_requested_descs.size(); ++i) {
-        if (m_in_requested_descs[i]) {
-            auto repacked_memory = std::make_shared<Memory>(strm.get_engine(), m_in_requested_descs[i]);
-            repacked_memory->load(*inMemPtrs[i]);
-            inMemPtrs[i] = repacked_memory;
+        const auto& requested_desc = m_in_requested_descs[i];
+        if (requested_desc) {
+            if (!m_scratch_memory || !m_scratch_memory->getDesc().isCompatible(*requested_desc))
+                m_scratch_memory = m_scratchpad->createScratchPadMem(requested_desc);
+            m_scratch_memory->load(*inMemPtrs[i]);
+            inMemPtrs[i] = m_scratch_memory;
         }
     }
 }

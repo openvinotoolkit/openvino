@@ -126,7 +126,8 @@ public:
                      const std::vector<ptrdiff_t>& start_offset_in,
                      const std::vector<ptrdiff_t>& start_offset_out,
                      const std::shared_ptr<CPURuntimeConfig>& snippet_config,
-                     const BufferScratchpadAllocator& allocator);
+                     const BufferScratchpadAllocator& allocator,
+                     const DnnlScratchPadPtr& scratchpad);
     virtual ~SubgraphExecutor() = default;
 
     void execute(dnnl::stream strm, std::vector<MemoryPtr>& inMemPtrs, std::vector<MemoryPtr>& outMemPtrs);
@@ -171,6 +172,8 @@ private:
     void repack_inputs(dnnl::stream strm, std::vector<MemoryPtr>& inMemPtrs);
 
     std::vector<MemoryDescPtr> m_in_requested_descs = {};
+    DnnlScratchPadPtr m_scratchpad = {};
+    MemoryPtr m_scratch_memory = {};
 };
 
 }   // namespace node
