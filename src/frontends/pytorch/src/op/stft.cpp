@@ -5,11 +5,15 @@
 #include "openvino/op/stft.hpp"
 
 #include "openvino/frontend/pytorch/node_context.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/convert_like.hpp"
+#include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -29,25 +33,64 @@ OutputVector translate_stft(const NodeContext& context) {
 
     auto input = context.get_input(0);
     auto n_fft = context.get_input(1);
-    auto hop_length = context.get_input(2);  // Is optional, TODO: add defualt floor(n_fft / 4)
-    auto win_length = context.get_input(3);  // Is optional, TODO: add default as equal to n_fft
-    auto window = context.get_input(4);      // // Is optional, TODO: add default, default all ones of [n_fft] size
 
-    // Not supported:
-    // auto center = context.get_input(5); // Not supported (behave as False), default is True TODO: throw if not
-    // provided or True. auto pad = context.get_input(6);  // Not supported, because it's related to the center, ignore
-    // if Center is False auto normalized = context.get_input(7); // Not supported (behave as False), default is False
-    // auto onesided = context.get_input(8); // Not supported (behave as True), default is True for real input and
-    // window (only real supported in ov) auto return_complex = context.get_input(9); // Not supported (behave as True),
-    // default is True for real input and window (only real supported in ov)
+    ov::Output<ov::Node> hop_length;
+    if (!context.input_is_none(2)) {
+        hop_length = context.get_input(2);
+    } else {
+        // Defualt floor(n_fft / 4)
+        const auto four = std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, 4);
+        const auto four_cast = std::make_shared<ov::op::v1::ConvertLike>(four, n_fft);
+        hop_length = std::make_shared<ov::op::v1::Divide>(n_fft, four_cast);
+    }
 
-    // auto num_inputs = context.get_input_size();
+    ov::Output<ov::Node> win_length;
+    if (!context.input_is_none(3)) {
+        win_length = context.get_input(3);
+    } else {
+        win_length = n_fft;
+    }
 
+    ov::Output<ov::Node> window;
+    if (!context.input_is_none(4)) {
+        window = context.get_input(4);
+    } else {
+        const auto one = std::make_shared<ov::op::v0::Constant>(ov::element::f32, Shape{}, 1.0);
+        const auto one_cast = std::make_shared<ov::op::v1::ConvertLike>(one, input);
+        const auto n_fft_vec = std::make_shared<ov::op::v0::Unsqueeze>(one, input);
+        window = std::make_shared<ov::op::v3::Broadcast>(one_cast, n_fft_vec);
+    }
+
+    bool center = true;
+    if (!context.input_is_none(5)) {
+        center = context.const_input<bool>(5);
+    }
+    PYTORCH_OP_CONVERSION_CHECK(!center, "aten::stft conversion is currently supported with center=False only.");
+
+    bool normalized = false;
+    if (!context.input_is_none(7)) {
+        normalized = context.const_input<bool>(7);
+    }
+    PYTORCH_OP_CONVERSION_CHECK(!normalized,
+                                "aten::stft conversion is currently supported with normalized=False only.");
+
+    bool onesided = true;
+    if (!context.input_is_none(8)) {
+        onesided = context.const_input<bool>(8);
+    }
+    PYTORCH_OP_CONVERSION_CHECK(onesided, "aten::stft conversion is currently supported with onesided=True only.");
+
+    bool return_complex = false;
+    if (!context.input_is_none(9)) {
+        return_complex = context.const_input<bool>(9);
+    }
+    PYTORCH_OP_CONVERSION_CHECK(!return_complex,
+                                "aten::stft conversion is currently supported with return_complex=False only.");
+
+    // Torch stft accept input of [signal] or [bs, signal], convert always to [bs, signal] for OV.
     auto const_neg_1 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
     auto const_0 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {0}));
     auto const_1 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {1}));
-
-    // Torch stft accept input of [signal] or [bs, signal], convert always to [bs, signal] for OV.
     auto input_shape = context.mark_node(std::make_shared<v3::ShapeOf>(input, element::i32));
     auto class_probs_shape = context.mark_node(std::make_shared<v8::Gather>(input_shape, const_neg_1, const_0));
     auto inp_shape = context.mark_node(std::make_shared<v0::Concat>(OutputVector{const_neg_1, class_probs_shape}, 0));
