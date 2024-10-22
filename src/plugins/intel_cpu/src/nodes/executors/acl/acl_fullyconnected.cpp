@@ -208,13 +208,7 @@ static MemoryPtr prepareWeightMemory(const MemoryArgs &memory,
         aclfcAttrs.isWeightsRepacked = true;
     } else {
         if (!aclfcAttrs.weightsNonTransposed) {
-            auto reverse_weights_dims = memory.at(ARG_WEI)->getStaticDims();
-            std::reverse(reverse_weights_dims.begin(), reverse_weights_dims.end());
-            auto dstDesc_reverse_weights_dims = dstDesc->cloneWithNewDims(reverse_weights_dims, true);
-            auto weiDesc_reverse_weights_dims = weiDesc->cloneWithNewDims(reverse_weights_dims, true);
-            dnnlDstDesc = MemoryDescUtils::convertToDnnlMemoryDesc(dstDesc_reverse_weights_dims);
-            dnnlSrcDesc = MemoryDescUtils::convertToDnnlMemoryDesc(weiDesc_reverse_weights_dims);
-            dnnlSrcDesc = makeTransposedWeightDescriptor(dnnlSrcDesc, dnnlDstDesc, !aclfcAttrs.weightsNonTransposed);
+            dnnlDstDesc = makeTransposedWeightDescriptor(dnnlDstDesc, dnnlSrcDesc, !aclfcAttrs.weightsNonTransposed);
             aclfcAttrs.isWeightsRepacked = true;
         }
     }
@@ -301,25 +295,15 @@ bool ACLFullyConnectedExecutor::supports(const FCConfig &config) {
     return true;
 }
 
+static arm_compute::TensorShape normalizeDimsTo2D(const arm_compute::TensorShape shape) {
+    size_t norm_dim = std::accumulate(shape.begin() + 1, shape.end(), 1, std::multiplies<size_t>());
+    return arm_compute::TensorShape(shape[0], norm_dim);
+}
+
 static void updateFCTensorsShapes(ACLShapes& aclMemoryShapes) {
-    if (aclMemoryShapes[ACLArgs::ACL_WEI].num_dimensions() == 3U) {
-        aclMemoryShapes[ACLArgs::ACL_WEI] = arm_compute::TensorShape(
-                {aclMemoryShapes[ACLArgs::ACL_WEI][0] * aclMemoryShapes[ACLArgs::ACL_WEI][1],
-                 aclMemoryShapes[ACLArgs::ACL_WEI][2]});
-    }
-
-    if (one_of(aclMemoryShapes[ACLArgs::ACL_SRC_0].num_dimensions(), 3U, 4U)) {
-        aclMemoryShapes[ACLArgs::ACL_SRC_0] = arm_compute::TensorShape({
-            aclMemoryShapes[ACLArgs::ACL_WEI][0],
-            aclMemoryShapes[ACLArgs::ACL_SRC_0].total_size() / aclMemoryShapes[ACLArgs::ACL_WEI][0]});
-    }
-
-    if (one_of(aclMemoryShapes[ACLArgs::ACL_DST].num_dimensions(), 3U, 4U)) {
-        aclMemoryShapes[ACLArgs::ACL_DST] = arm_compute::TensorShape({
-            aclMemoryShapes[ACLArgs::ACL_WEI][1],
-            aclMemoryShapes[ACLArgs::ACL_SRC_0][1]});
-    }
-
+    aclMemoryShapes[ACLArgs::ACL_WEI] = normalizeDimsTo2D(aclMemoryShapes[ACLArgs::ACL_WEI]);
+    aclMemoryShapes[ACLArgs::ACL_SRC_0] = normalizeDimsTo2D(aclMemoryShapes[ACLArgs::ACL_SRC_0]);
+    aclMemoryShapes[ACLArgs::ACL_DST] = normalizeDimsTo2D(aclMemoryShapes[ACLArgs::ACL_DST]);
     std::swap(aclMemoryShapes[ACLArgs::ACL_WEI][0], aclMemoryShapes[ACLArgs::ACL_WEI][1]);
 }
 
