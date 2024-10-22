@@ -2,6 +2,7 @@ const { addon: ov } = require('openvino-node');
 
 const { cv } = require('opencv-wasm');
 const { getImageData } = require('../helpers.js');
+const imagenetClassesMap = require('../../assets/datasets/imagenet_class_index.json');
 
 // Parsing and validation of input arguments
 if (process.argv.length !== 5)
@@ -69,12 +70,14 @@ async function main(modelPath, imagePath, deviceName) {
     .sort(({ prediction: predictionA }, { prediction: predictionB }) =>
       predictionA === predictionB ? 0 : predictionA > predictionB ? -1 : 1);
 
+  const imagenetClasses = ['background', ...Object.values(imagenetClassesMap)];
+
   console.log(`Image path: ${imagePath}`);
   console.log('Top 10 results:');
-  console.log('class_id probability');
-  console.log('--------------------');
+  console.log('probability\tlabel');
+  console.log('---------------------------------');
   predictions.slice(0, 10).forEach(({ classId, prediction }) =>
-    console.log(`${classId}\t ${prediction.toFixed(7)}`),
+    console.log(`${prediction.toFixed(7)}\t${imagenetClasses[classId][1]}`),
   );
 
   console.log('\nThis sample is an API example, for any performance '
