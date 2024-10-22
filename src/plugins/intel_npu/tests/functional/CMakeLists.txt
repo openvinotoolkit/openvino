@@ -10,17 +10,25 @@ if(SUGGEST_OVERRIDE_SUPPORTED)
 endif()
 
 set(TARGET_NAME ov_npu_func_tests)
-set(EXCLUDED_FUNC_TESTS_DIR "")
-set(OPTIONAL_FUNC_TESTS_INCLUDES "")
-set(OPTIONAL_FUNC_TESTS_LIBS "")
 
-if(ENABLE_DRIVER_COMPILER_ADAPTER)
-  list(APPEND OPTIONAL_FUNC_TESTS_INCLUDES
-       "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/compiler/include")
+file(GLOB SOURCES
+   "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/backend/*.cpp"
+   "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/compiler_adapter/*.cpp"
+   "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/include/intel_npu/backend/*.hpp"
+   "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/include/intel_npu/compiler_adapter/*.hpp")
+add_library(npuUtils STATIC ${SOURCES})
+set(NPU_UTILS_LINK_LIBRARIES
+        openvino_npu_zero_result_parser
+        openvino::npu_al
+        openvino::npu_common
+        openvino::npu_logger_utils
+        openvino::runtime
+        openvino::runtime::dev
+        ze_loader)
 
-  list(APPEND OPTIONAL_FUNC_TESTS_LIBS openvino_npu_driver_compiler_adapter
-       openvino_npu_level_zero_backend openvino_npu_zero_result_parser)
-endif()
+target_compile_definitions(npuUtils PRIVATE IMPLEMENT_OPENVINO_RUNTIME_PLUGIN)
+target_link_libraries(npuUtils PRIVATE ${NPU_UTILS_LINK_LIBRARIES})
+target_include_directories(npuUtils PUBLIC "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/include/")
 
 ov_add_test_target(
   NAME
@@ -28,15 +36,17 @@ ov_add_test_target(
   ROOT
   ${CMAKE_CURRENT_SOURCE_DIR}
   EXCLUDED_SOURCE_PATHS
-  ${EXCLUDED_FUNC_TESTS_DIR}
   INCLUDES
   ${CMAKE_CURRENT_SOURCE_DIR}
-  ${OPTIONAL_FUNC_TESTS_INCLUDES}
+  "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/include/"
   "${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances"
   "${CMAKE_CURRENT_SOURCE_DIR}/behavior"
   "${CMAKE_CURRENT_SOURCE_DIR}/internal"
+  DEPENDENCIES
+  openvino_intel_npu_plugin
   LINK_LIBRARIES
-  ${OPTIONAL_FUNC_TESTS_LIBS}
+  npuUtils
+  openvino_npu_zero_result_parser
   openvino::func_test_utils
   openvino::funcSharedTests
   openvino::format_reader

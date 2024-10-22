@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "zero_memory.hpp"
+#include "intel_npu/backend/zero_memory.hpp"
 
+#include "intel_npu/backend/zero_utils.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
-#include "zero_utils.hpp"
 
 namespace intel_npu {
 namespace zeroMemory {

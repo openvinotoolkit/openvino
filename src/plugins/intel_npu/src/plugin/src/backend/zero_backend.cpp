@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "zero_backend.hpp"
+#include "intel_npu/backend/zero_backend.hpp"
 
 #include <vector>
 
 #include "intel_npu/al/config/common.hpp"
-#include "zero_device.hpp"
+#include "intel_npu/backend/zero_device.hpp"
 
 namespace intel_npu {
 

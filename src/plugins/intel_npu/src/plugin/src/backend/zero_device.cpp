@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "zero_device.hpp"
+#include "intel_npu/backend/zero_device.hpp"
 
+#include "intel_npu/backend/zero_executor.hpp"
+#include "intel_npu/backend/zero_host_tensor.hpp"
+#include "intel_npu/backend/zero_infer_request.hpp"
+#include "intel_npu/backend/zero_remote_tensor.hpp"
+#include "intel_npu/backend/zero_utils.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
-#include "zero_executor.hpp"
-#include "zero_host_tensor.hpp"
-#include "zero_infer_request.hpp"
-#include "zero_remote_tensor.hpp"
-#include "zero_utils.hpp"
 
 using namespace intel_npu;
 

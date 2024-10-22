@@ -2,18 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "zero_infer_request.hpp"
+#include "intel_npu/backend/zero_infer_request.hpp"
 
 #include "intel_npu/al/config/common.hpp"
 #include "intel_npu/al/config/compiler.hpp"
 #include "intel_npu/al/config/runtime.hpp"
 #include "intel_npu/al/prefix.hpp"
+#include "intel_npu/backend/zero_memory.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/runtime/intel_npu/remote_properties.hpp"
 #include "openvino/runtime/make_tensor.hpp"
-#include "zero_memory.hpp"
 
 using namespace intel_npu;
 

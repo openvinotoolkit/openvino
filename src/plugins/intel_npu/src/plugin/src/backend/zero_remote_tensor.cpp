@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "zero_remote_tensor.hpp"
+#include "intel_npu/backend/zero_remote_tensor.hpp"
 
 #include <ze_api.h>
 
 #include "intel_npu/al/config/common.hpp"
+#include "intel_npu/backend/zero_utils.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "openvino/core/type/element_iterator.hpp"
-#include "zero_utils.hpp"
 
 using namespace ov::intel_npu;
 

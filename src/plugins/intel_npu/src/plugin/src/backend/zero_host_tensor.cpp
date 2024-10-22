@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "zero_host_tensor.hpp"
+#include "intel_npu/backend/zero_host_tensor.hpp"
 
 #include "openvino/runtime/intel_npu/remote_properties.hpp"
 

@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "zero_pipeline.hpp"
+#include "intel_npu/backend/zero_pipeline.hpp"
 
 #include <ze_api.h>
 #include <ze_graph_ext.h>
 
 #include "intel_npu/al/prefix.hpp"
+#include "intel_npu/backend/zero_types.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
-#include "zero_types.hpp"
 
 namespace intel_npu {
 

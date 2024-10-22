@@ -2,16 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "driver_compiler_adapter.hpp"
+#include "intel_npu/compiler_adapter/driver_compiler_adapter.hpp"
 
-#include "graph_transformations.hpp"
+#include <ze_intel_npu_uuid.h>
+
 #include "intel_npu/al/config/common.hpp"
+#include "intel_npu/backend/zero_backend.hpp"
+#include "intel_npu/backend/zero_init.hpp"
+#include "intel_npu/compiler_adapter/graph_transformations.hpp"
+#include "intel_npu/compiler_adapter/zero_compiler_in_driver.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
-#include "ze_intel_npu_uuid.h"
-#include "zero_backend.hpp"
-#include "zero_compiler_in_driver.hpp"
-#include "zero_init.hpp"
 
 namespace intel_npu {
 namespace driverCompilerAdapter {

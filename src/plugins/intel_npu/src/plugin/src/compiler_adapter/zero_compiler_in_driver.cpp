@@ -2,17 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "zero_compiler_in_driver.hpp"
+#include "intel_npu/compiler_adapter/zero_compiler_in_driver.hpp"
 
 #include <regex>
 #include <string_view>
 
-#include "graph_transformations.hpp"
 #include "intel_npu/al/config/common.hpp"
 #include "intel_npu/al/config/compiler.hpp"
 #include "intel_npu/al/config/runtime.hpp"
 #include "intel_npu/al/prefix.hpp"
 #include "intel_npu/common/itt.hpp"
+#include "intel_npu/compiler_adapter/graph_transformations.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
 #include "openvino/core/model.hpp"
 

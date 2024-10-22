@@ -8,7 +8,7 @@
 #include "common/functions.h"
 #include "common/npu_test_env_cfg.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
-#include "graph_transformations.hpp"
+#include "intel_npu/compiler_adapter/graph_transformations.hpp"
 #include "intel_npu/al/config/common.hpp"
 #include "openvino/opsets/opset11.hpp"
 

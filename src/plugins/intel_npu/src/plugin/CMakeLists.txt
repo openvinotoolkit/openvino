@@ -3,6 +3,8 @@
 #
 
 file(GLOB SOURCES "src/*.cpp" "include/*.hpp")
+file(GLOB BACKEND_SOURCES "src/backend/*.cpp" "include/intel_npu/backend/*.hpp")
+file(GLOB COMPILER_ADAPTER_SOURCES "src/compiler_adapter/*.cpp" "include/intel_npu/compiler_adapter/*.hpp")
 file(GLOB_RECURSE NPUW_SOURCES "npuw/*.cpp" "npuw/*.hpp")
 
 set(NPU_PLUGIN_TARGET "openvino_intel_npu_plugin")
@@ -15,28 +17,16 @@ set(TARGET_NAME ${NPU_PLUGIN_TARGET})
 
 ov_add_plugin(NAME ${NPU_PLUGIN_TARGET}
     DEVICE_NAME ${NPU_DEVICE_NAME}
-    SOURCES ${SOURCES} ${NPUW_SOURCES}
+    SOURCES ${SOURCES} ${BACKEND_SOURCES} ${COMPILER_ADAPTER_SOURCES} ${NPUW_SOURCES}
     VERSION_DEFINES_FOR ${NPU_PLUGIN_ENGINE_SOURCE_FILE}
+)
+
+ov_build_target_faster(${TARGET_NAME}
+    PCH PRIVATE "src/compiler_adapter/precomp.hpp"
 )
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
-
-if(ENABLE_DRIVER_COMPILER_ADAPTER)
-    target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_DRIVER_COMPILER_ADAPTER)
-    target_link_libraries(${TARGET_NAME}
-        PRIVATE
-            openvino_npu_driver_compiler_adapter
-    )
-endif()
-
-if(ENABLE_ZEROAPI_BACKEND)
-    target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_ZEROAPI_BACKEND)
-    target_link_libraries(${TARGET_NAME}
-        PRIVATE
-            openvino_npu_level_zero_backend
-    )
-endif()
 
 if(ENABLE_IMD_BACKEND)
     target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_IMD_BACKEND)
@@ -48,11 +38,13 @@ endif()
 
 target_link_libraries(${TARGET_NAME}
     PRIVATE
+        openvino_npu_zero_result_parser
         openvino::npu_al
         openvino::npu_common
         openvino::npu_logger_utils
         openvino::runtime
         openvino::runtime::dev
+        ze_loader
 )
 
 target_include_directories(${TARGET_NAME}
@@ -61,12 +53,42 @@ target_include_directories(${TARGET_NAME}
     PRIVATE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/>
 )
-if(ENABLE_ZEROAPI_BACKEND)
-    target_include_directories(${TARGET_NAME}
-        SYSTEM PRIVATE
-            $<TARGET_PROPERTY:LevelZero::LevelZero,INTERFACE_INCLUDE_DIRECTORIES>
-            $<TARGET_PROPERTY:LevelZero::NPUExt,INTERFACE_INCLUDE_DIRECTORIES>
-    )
+
+target_include_directories(${TARGET_NAME}
+    SYSTEM PRIVATE
+        $<TARGET_PROPERTY:LevelZero::LevelZero,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:LevelZero::NPUExt,INTERFACE_INCLUDE_DIRECTORIES>
+)
+
+#
+# targets install
+#
+ov_install_static_lib(${TARGET_NAME} ${NPU_INTERNAL_COMPONENT})
+
+if(TARGET ze_loader)
+    if(NOT BUILD_SHARED_LIBS)
+        # Support link of static runtime in case system does not have ze_loader
+        install(TARGETS ze_loader EXPORT OpenVINOTargets
+            RUNTIME DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT ${NPU_PLUGIN_COMPONENT}
+            ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${NPU_PLUGIN_COMPONENT}
+            LIBRARY DESTINATION ${OV_CPACK_LIBRARYDIR} COMPONENT ${NPU_PLUGIN_COMPONENT})
+
+        install(TARGETS utils EXPORT OpenVINOTargets
+            RUNTIME DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT ${NPU_PLUGIN_COMPONENT}
+            ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${NPU_PLUGIN_COMPONENT}
+            LIBRARY DESTINATION ${OV_CPACK_LIBRARYDIR} COMPONENT ${NPU_PLUGIN_COMPONENT})
+
+        # export to local tree to build against static build tree
+        export(TARGETS ze_loader NAMESPACE openvino::
+            APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
+
+        export(TARGETS utils NAMESPACE openvino::
+            APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
+    endif()
+
+    # Support tests to run with ze_loader
+    install(TARGETS ze_loader
+        LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
 endif()
 
 cross_compiled_file(${TARGET_NAME}

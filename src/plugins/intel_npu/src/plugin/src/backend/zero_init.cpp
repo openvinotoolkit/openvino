@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "zero_init.hpp"
+#include "intel_npu/backend/zero_init.hpp"
 
+#include <ze_api.h>
+#include <ze_command_queue_npu_ext.h>
+
+#include "intel_npu/backend/zero_utils.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
-#include "ze_api.h"
-#include "ze_command_queue_npu_ext.h"
-#include "zero_utils.hpp"
 
 #ifdef _WIN32
 namespace {

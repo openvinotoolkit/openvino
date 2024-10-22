@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "zero_profiling.hpp"
+#include "intel_npu/backend/zero_profiling.hpp"
 
 #include <ze_graph_profiling_ext.h>
 
 #include "intel_npu/al/config/compiler.hpp"
 #include "intel_npu/al/profiling.hpp"
+#include "intel_npu/backend/zero_profiling.hpp"
+#include "intel_npu/backend/zero_utils.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
-#include "zero_profiling.hpp"
-#include "zero_utils.hpp"
 
 namespace intel_npu {
 namespace zeroProfiling {
