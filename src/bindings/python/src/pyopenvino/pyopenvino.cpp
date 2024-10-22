@@ -173,15 +173,16 @@ PYBIND11_MODULE(_pyopenvino, m) {
 
     m.def(
         "save_model",
-        [](std::shared_ptr<ov::Model>& model,
-           const py::object& xml_path,
-           bool compress_to_fp16) {
-           if (model == nullptr) {
-               throw py::attribute_error("'model' argument is required and cannot be None.");
-           }
-            ov::save_model(model,
-                          Common::utils::convert_path_to_string(xml_path),
-                          compress_to_fp16);
+        [](py::object& ie_api_model, const py::object& xml_path, bool compress_to_fp16) {
+            if (!py::isinstance(ie_api_model, py::module_::import("openvino.runtime").attr("Model"))) {
+                throw py::attribute_error("'model' argument has to be openvino.runtime.ie_api.Model.");
+            }
+            const auto model = ie_api_model.attr("_Model__model").cast<std::shared_ptr<ov::Model>>();
+            if (model == nullptr) {
+                throw py::attribute_error("Invalid openvino.runtime.ie_api.Model instance. "
+                                          "Make sure it is not used outside of its context.");
+            }
+            ov::save_model(model, Common::utils::convert_path_to_string(xml_path), compress_to_fp16);
         },
         py::arg("model"),
         py::arg("output_model"),

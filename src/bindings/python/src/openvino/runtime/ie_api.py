@@ -21,24 +21,28 @@ from openvino.runtime.utils.data_helpers import (
     _data_dispatch,
     tensor_from_file,
 )
-
-
-class Model(ModelBase):
+    
+    
+class Model:
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         if args and not kwargs:
             if isinstance(args[0], ModelBase):
-                super().__init__(args[0])
+                self.__model = ModelBase(args[0])
             elif isinstance(args[0], Node):
-                super().__init__(*args)
+                self.__model = ModelBase(*args)
             else:
-                super().__init__(*args)
+                self.__model = ModelBase(*args)
         if args and kwargs:
-            super().__init__(*args, **kwargs)
+            self.__model = ModelBase(*args, **kwargs)
         if kwargs and not args:
-            super().__init__(**kwargs)
+            self.__model = ModelBase(**kwargs)
 
+    def __getattr__(self, name):
+        if hasattr(self.__model, name):
+            return getattr(self.__model, name)
+    
     def clone(self) -> "Model":
-        return Model(super().clone())
+        return Model(self.__model.clone())
 
     def __deepcopy__(self, memo: Dict) -> "Model":
         """Returns a deepcopy of Model.
@@ -46,7 +50,14 @@ class Model(ModelBase):
         :return: A copy of Model.
         :rtype: openvino.runtime.Model
         """
-        return Model(super().clone())
+        return Model(self.__model.clone())
+    
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        del self.__model
+        self.__model = None
 
 
 class InferRequest(_InferRequestWrapper):

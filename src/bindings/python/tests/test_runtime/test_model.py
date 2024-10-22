@@ -8,6 +8,7 @@ import pytest
 import math
 from contextlib import nullcontext as does_not_raise
 from copy import copy
+import tempfile
 
 import openvino.runtime.opset13 as ops
 from openvino import (
@@ -811,3 +812,21 @@ def test_copy_failed():
     with pytest.raises(TypeError) as e:
         copy(model)
     assert "Cannot copy 'openvino.runtime.Model. Please, use deepcopy instead." in str(e.value)
+
+
+def test_model_with_statement():
+    add_model = generate_add_model()
+
+    with tempfile.TemporaryDirectory() as model_save_dir:
+        save_model(add_model, f"{model_save_dir}/model.xml")
+
+        with Core().read_model(f"{model_save_dir}/model.xml") as model:
+            assert add_model.friendly_name == model.friendly_name
+
+        assert model.friendly_name == None #Model.__model is set to None
+        with pytest.raises(AttributeError):
+            save_model(model, f"{model_save_dir}/model.xml")
+            
+    with add_model as model:
+        pass
+    assert add_model.friendly_name == None
