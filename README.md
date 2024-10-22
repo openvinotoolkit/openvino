@@ -8,6 +8,12 @@
 [![PyPI Downloads](https://static.pepy.tech/badge/openvino)](https://pepy.tech/project/openvino)
 [![Anaconda Downloads](https://anaconda.org/conda-forge/libopenvino/badges/downloads.svg)](https://anaconda.org/conda-forge/openvino/files)
 [![brew Downloads](https://img.shields.io/homebrew/installs/dy/openvino)](https://formulae.brew.sh/formula/openvino)
+
+<a href="https://scan.coverity.com/projects/openvino">
+  <img alt="Coverity Scan Build Status"
+       src="https://scan.coverity.com/projects/21921/badge.svg"/>
+</a>
+
  </div>
 
 Welcome to OpenVINO™, an open-source software toolkit for optimizing and deploying deep learning models.
