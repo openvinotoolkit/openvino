@@ -926,11 +926,9 @@ MemStatePtr MemoryInputSingle::makeState() const {
         state_name = state_name.substr(0, suffix_idx);
     }
 
-    // TODO: change to single buffer
-    return std::make_shared<VariableStateDoubleBuffer>(state_name,
-        std::make_shared<Memory>(eng, mem_desc),
-        std::make_shared<Memory>(eng, mem_desc),
-        original_desc);
+    return std::make_shared<VariableStateSingleBuffer>(state_name,
+                                                       std::make_shared<Memory>(eng, mem_desc),
+                                                       original_desc);
 }
 
 void MemoryInputSingle::runStatic(dnnl::stream strm) {
@@ -944,6 +942,7 @@ void MemoryInputSingle::runStatic(dnnl::stream strm) {
             stateMem->load(*result);
         }
     }
+    // it doesn't make sense to call state->commit() as long as the VariableStateSingleBuffer is used
 }
 
 void MemoryInputSingle::runDynamic(dnnl::stream strm) {
@@ -968,6 +967,7 @@ void MemoryInputSingle::runDynamic(dnnl::stream strm) {
             stateMem->load(*result);
         }
     }
+    // it doesn't make sense to call state->commit() as long as the VariableStateSingleBuffer is used
 }
 
 bool MemoryInputSingle::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
