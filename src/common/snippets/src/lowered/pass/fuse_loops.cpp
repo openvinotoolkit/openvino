@@ -359,10 +359,6 @@ bool FuseLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
                         if (current_loop_id == lower_loop_id)
                             continue;
 
-                        if (node_name == "PowerStatic_4096") {
-                            std::cout << "start check fuse_lower_into_current child()" << std::endl;
-                        }
-
                         if (fuse_lower_into_current(linear_ir, loop_manager, output_port.expr_port, current_loop_id, lower_loop_id,
                                                     current_loop_begin_pos, current_loop_end_pos)) {
                             std::cout << "fuse_lower_into_current ok" << std::endl;
