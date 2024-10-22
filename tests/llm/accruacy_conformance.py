@@ -26,7 +26,7 @@ METRIC_OF_INTEREST = "similarity"
 
 REFERENCES = {
     "llama": {"INT8": 0.95, "INT4": 0.95},
-    "qwen2": {"INT8": 0.70, "INT4": 0.70},
+    "qwen2": {"INT8": 0.77, "INT4": 0.77},
 }
 ACCURACY_THRESHOLDS = {
     "INT8": 0.05,
