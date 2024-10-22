@@ -761,8 +761,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         _logger.debug("Successfully read %zu bytes into blob.", graphSize);
 
         auto storedMeta = read_metadata_from(blob);
-        auto currentMeta = Metadata<CURRENT_METAVERSION_MAJOR, CURRENT_METAVERSION_MINOR>();
-        if (!currentMeta.isCompatible(*storedMeta)) {
+        if (!storedMeta->isCompatible()) {
             OPENVINO_THROW("Incompatible blob metadata version!");
         }
 

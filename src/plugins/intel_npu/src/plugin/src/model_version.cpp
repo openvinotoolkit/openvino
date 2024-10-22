@@ -17,16 +17,13 @@ OpenvinoVersion::OpenvinoVersion(const std::string& version) {
 }
 
 void OpenvinoVersion::read(std::istream& stream) {
-    // compare here ov version?
     stream.read(reinterpret_cast<char*>(&size), sizeof(size));
     stream.read(&version[0], size);
 }
 
 Metadata<1, 0>::Metadata() : version{1, 0}, ovVersion{ov::get_openvino_version().buildNumber} {}
 
-std::stringstream Metadata<1, 0>::data() const {
-    std::stringstream stream;
-
+void Metadata<1, 0>::write(std::ostream& stream) {
     stream.write(DELIMITER.data(), DELIMITER.size());
 
     stream.write(reinterpret_cast<const char*>(&version.major), sizeof(version.major));
@@ -34,13 +31,6 @@ std::stringstream Metadata<1, 0>::data() const {
 
     stream.write(reinterpret_cast<const char*>(&ovVersion.size), sizeof(ovVersion.size));
     stream.write(ovVersion.version.c_str(), ovVersion.version.size());
-
-    return stream;
-}
-
-void Metadata<1, 0>::write(std::ostream& stream) {
-    std::stringstream metaData = data();  // maybe we find a better name
-    stream << metaData.rdbuf();
 }
 
 void Metadata<1, 0>::read(std::istream& stream) {
@@ -58,12 +48,11 @@ std::unique_ptr<MetadataBase> createMetadata(int major, int minor) {
     }
 }
 
-bool Metadata<1, 0>::isCompatible(const MetadataBase& other) const {
-    const auto* otherMeta = dynamic_cast<const Metadata<1, 0>*>(&other);
-    if (otherMeta) {
-        return version.major == otherMeta->version.major && ovVersion.version == otherMeta->ovVersion.version;
+bool Metadata<1, 0>::isCompatible() {
+    if (version.major != CURRENT_METAVERSION_MAJOR) {
+        return false;
     }
-    return false;
+    return ovVersion.version == ov::get_openvino_version().buildNumber;
 }
 
 std::unique_ptr<MetadataBase> read_metadata_from(std::vector<uint8_t>& blob) {

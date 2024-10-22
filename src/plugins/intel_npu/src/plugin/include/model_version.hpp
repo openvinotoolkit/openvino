@@ -30,9 +30,11 @@ struct OpenvinoVersion {
 };
 
 struct MetadataBase {
+    MetadataVersion version;
+
     virtual void read(std::istream& stream) = 0;
     virtual void write(std::ostream& stream) = 0;
-    virtual bool isCompatible(const MetadataBase& other) const = 0;
+    virtual bool isCompatible() = 0;
     virtual ~MetadataBase() = default;
 };
 
@@ -46,13 +48,11 @@ struct Metadata<1, 0> : public MetadataBase {
 
     Metadata();
 
-    std::stringstream data() const;
-
     void write(std::ostream& stream) override;
 
     void read(std::istream& stream) override;
 
-    bool isCompatible(const MetadataBase& other) const override;
+    bool isCompatible() override;
 };
 
 std::unique_ptr<MetadataBase> createMetadata(int major, int minor);

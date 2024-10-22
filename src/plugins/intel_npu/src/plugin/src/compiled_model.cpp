@@ -148,7 +148,7 @@ void CompiledModel::export_model(std::ostream& stream) const {
     meta.write(stream);
     // should we move this inside meta.write()?
     size_t blobSizeBeforeVersioning = blob.size();
-    stream.write(reinterpret_cast<const char*>(&blobSizeBeforeVersioning), sizeof(size_t));
+    stream.write(reinterpret_cast<const char*>(&blobSizeBeforeVersioning), sizeof(blobSizeBeforeVersioning));
 
     std::stringstream str;
     str << "Blob size: " << blob.size() << ", hash: " << std::hex << hash(blob);
