@@ -123,7 +123,7 @@ static constexpr ov::Property<std::size_t> min_size{"NPUW_ONLINE_MIN_SIZE"};
  * Used to control fusion term criteria in online partitioning.
  * Only compatible with online partitioning.
  * Possible values: Integer > 0.
- * Default value: 10.
+ * Default value: 5.
  */
 static constexpr ov::Property<std::size_t> keep_blocks{"NPUW_ONLINE_KEEP_BLOCKS"};
 
