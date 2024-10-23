@@ -750,8 +750,7 @@ void ov::npuw::JustInferRequest::unpack_closure(std::size_t idx, RqPtr request) 
 
         const auto closure_param_id = comp_model_desc.param_base + cidx;
         auto& iport = func_desc.compiled_model->inputs()[closure_param_id];
-        const auto& clparam = request->get_tensor(iport);
-        if (closure.get_element_type() != clparam->get_element_type()) {
+        if (closure.get_element_type() != iport.get_element_type()) {
             // Remember where the unpack is required
             closure_unpack_required.push_back(cidx);
         } else {
