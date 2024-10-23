@@ -89,15 +89,6 @@ OutputVector translate_stft(const NodeContext& context) {
     PYTORCH_OP_CONVERSION_CHECK(!return_complex,
                                 "aten::stft conversion is currently supported with return_complex=False only.");
 
-    // Torch stft accept input of [signal] or [bs, signal], convert always to [bs, signal] for OV.
-    auto const_neg_1 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
-    auto const_0 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {0}));
-    auto const_1 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {1}));
-    auto input_shape = context.mark_node(std::make_shared<v3::ShapeOf>(input, element::i32));
-    auto signal_shape = context.mark_node(std::make_shared<v8::Gather>(input_shape, const_neg_1, const_0));
-    auto inp_shape = context.mark_node(std::make_shared<v0::Concat>(OutputVector{const_neg_1, signal_shape}, 0));
-    input = context.mark_node(std::make_shared<v1::Reshape>(input, inp_shape, false));
-
     // Perform STFT
     constexpr bool transpose_frames = true;
     auto stft = context.mark_node(std::make_shared<v15::STFT>(input, window, n_fft, hop_length, transpose_frames));
