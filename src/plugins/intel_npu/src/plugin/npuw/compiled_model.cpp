@@ -433,13 +433,10 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 
 void ov::npuw::CompiledModel::finalize_weights_bank() {
     LOG_INFO("Finalizing weights bank...");
+    LOG_BLOCK();
     // Register lazy tensors
     for (std::size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
         auto& comp_model_desc = m_compiled_submodels[idx];
-        comp_model_desc.closure.clear();
-        comp_model_desc.scales.clear();
-        comp_model_desc.zerops.clear();
-        comp_model_desc.lazy_closure.clear();
 
         // Skip optimized out and non-functions
         if (!comp_model_desc.compiled_model && !comp_model_desc.replaced_by) {
@@ -448,6 +445,7 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
 
         const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
         auto& func_desc = m_compiled_submodels[real_idx];
+
         for (std::size_t tidx = 0; tidx < comp_model_desc.lazy_closure.size(); ++tidx) {
             if (comp_model_desc.closure[tidx]) {
                 continue;  // host-side closure
@@ -477,15 +475,54 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
                 comp_model_desc.is_remote[tidx] = false;
                 continue;
             }
-            auto& lt = comp_model_desc.lazy_closure[tidx];
+            const auto& lt = comp_model_desc.lazy_closure[tidx];
             comp_model_desc.closure[tidx] = m_weights_bank->get(lt, *func_desc.device_it);
             // FIXME: find a more reliable way to do so
             comp_model_desc.is_remote[tidx] = m_weights_bank->is_remote(lt);
+        }
+    }
 
-            // Need to store all via copy, then drop all, including these (or not store these intially)
-            // if (comp_model_desc.is_remote[tidx]) {
-            //     lt.drop_if_const();
-            // }
+    drop_remote_weights();
+
+    LOG_INFO("Done.");
+}
+
+void ov::npuw::CompiledModel::drop_remote_weights() {
+    LOG_INFO("Dropping remotely allocated weights...");
+
+    for (size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
+        auto& comp_model_desc = m_compiled_submodels[idx];
+
+        // Skip optimized out and non-functions
+        if (!comp_model_desc.compiled_model && !comp_model_desc.replaced_by) {
+            continue;
+        }
+
+        const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
+        auto& func_desc = m_compiled_submodels[real_idx];
+
+        // OpenVINO allocates a single buffer for all weights. We want to reduce CPU memory footprint
+        // via dropping remotely allocated weights. To do so we would need to drop all the Constants
+        // in the model. Dropping remotely allocated is fine since we already have remote memory
+        // but for the host-side we would need to copy them to get ownership on our terms
+        // and not via Constant.
+        for (std::size_t tidx = 0; tidx < comp_model_desc.lazy_closure.size(); ++tidx) {
+            if (comp_model_desc.closure[tidx]) {
+                // host-side closure - already own, do nothing
+                continue;
+            }
+            
+            if (comp_model_desc.is_remote[tidx]) {
+                // Just drop the Constant
+                comp_model_desc.lazy_closure[tidx].drop_if_const();
+            } else {
+                // Get ownership and drop the Constant
+                const auto& curr_tensor = comp_model_desc.closure[tidx];
+                auto own_tensor = ov::Tensor(curr_tensor.get_element_type(), curr_tensor.get_shape());
+                curr_tensor.copy_to(own_tensor);
+                comp_model_desc.closure[tidx] = curr_tensor;
+                comp_model_desc.lazy_closure[tidx].drop_if_const();
+            }
         }
     }
 
