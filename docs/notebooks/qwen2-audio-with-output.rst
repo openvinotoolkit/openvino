@@ -32,20 +32,20 @@ techniques like weights compression using
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ #### Table of
 contents:
 
--  `Prerequisites <#Prerequisites>`__
--  `Convert and Optimize model <#Convert-and-Optimize-model>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Convert and Optimize model <#convert-and-optimize-model>`__
 
    -  `Compress model weights to
-      4-bit <#Compress-model-weights-to-4-bit>`__
+      4-bit <#compress-model-weights-to-4-bit>`__
 
 -  `Prepare model inference
-   pipeline <#Prepare-model-inference-pipeline>`__
--  `Run model inference <#Run-model-inference>`__
+   pipeline <#prepare-model-inference-pipeline>`__
+-  `Run model inference <#run-model-inference>`__
 
-   -  `Voice chat <#Voice-chat>`__
-   -  `Audio analysis <#Audio-analysis>`__
+   -  `Voice chat <#voice-chat>`__
+   -  `Audio analysis <#audio-analysis>`__
 
--  `Interactive Demo <#Interactive-Demo>`__
+-  `Interactive Demo <#interactive-demo>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -60,7 +60,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -90,7 +90,7 @@ Prerequisites
 Convert and Optimize model
 --------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Qwen2Audio is PyTorch model. OpenVINO supports PyTorch models via
 conversion to OpenVINO Intermediate Representation (IR). `OpenVINO model
@@ -161,7 +161,7 @@ To sum up above, model consists of 4 parts:
 Compress model weights to 4-bit
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__ For reducing memory
+For reducing memory
 consumption, weights compression optimization can be applied using
 `NNCF <https://github.com/openvinotoolkit/nncf>`__.
 
@@ -357,9 +357,9 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
 
 
 
@@ -372,14 +372,14 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 Prepare model inference pipeline
 --------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 As discussed, the model comprises Image Encoder and LLM (with separated
 text embedding part) that generates answer. In
 ``ov_qwen2_audio_helper.py`` we defined inference class
 ``OVQwen2AudioForConditionalGeneration`` that will represent generation
 cycle, It is based on `HuggingFace Transformers
-``GenerationMixin`` <https://huggingface.co/docs/transformers/main_classes/text_generation>`__
+GenerationMixin <https://huggingface.co/docs/transformers/main_classes/text_generation>`__
 and looks similar to `Optimum
 Intel <https://huggingface.co/docs/optimum/intel/index>`__
 ``OVModelForCausalLM`` that is used for LLM inference.
@@ -415,7 +415,7 @@ Intel <https://huggingface.co/docs/optimum/intel/index>`__
 Run model inference
 -------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -444,7 +444,7 @@ Run model inference
 Voice chat
 ~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -498,7 +498,7 @@ Voice chat
 Audio analysis
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -563,7 +563,7 @@ Audio analysis
 Interactive Demo
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -595,7 +595,7 @@ Interactive Demo
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 

@@ -23,33 +23,34 @@ stateful transformation on LLM part and model optimization techniques
 like weights compression and quantization using
 `NNCF <https://github.com/openvinotoolkit/nncf>`__
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#Prerequisites>`__
--  `Download PyTorch model <#Download-PyTorch-model>`__
+**Table of contents:**
+
+
+-  `Prerequisites <#prerequisites>`__
+-  `Download PyTorch model <#download-pytorch-model>`__
 -  `Convert model to OpenVINO Intermediate
-   Representation <#Convert-model-to-OpenVINO-Intermediate-Representation>`__
+   Representation <#convert-model-to-openvino-intermediate-representation>`__
 
-   -  `Image Encoder <#Image-Encoder>`__
-   -  `Text Embedding <#Text-Embedding>`__
-   -  `Language Model <#Language-Model>`__
+   -  `Image Encoder <#image-encoder>`__
+   -  `Text Embedding <#text-embedding>`__
+   -  `Language Model <#language-model>`__
 
 -  `Compress Language Model Weights to 4
-   bits <#Compress-Language-Model-Weights-to-4-bits>`__
+   bits <#compress-language-model-weights-to-4-bits>`__
 -  `Quantize Image Encoder to 8
-   bits <#Quantize-Image-Encoder-to-8-bits>`__
+   bits <#quantize-image-encoder-to-8-bits>`__
 
-   -  `Prepare datasets <#Prepare-datasets>`__
-   -  `Perform quantization <#Perform-quantization>`__
+   -  `Prepare datasets <#prepare-datasets>`__
+   -  `Perform quantization <#perform-quantization>`__
 
 -  `Prepare model inference
-   pipeline <#Prepare-model-inference-pipeline>`__
--  `Run OpenVINO model inference <#Run-OpenVINO-model-inference>`__
+   pipeline <#prepare-model-inference-pipeline>`__
+-  `Run OpenVINO model inference <#run-openvino-model-inference>`__
 
-   -  `Select device <#Select-device>`__
+   -  `Select device <#select-device>`__
 
--  `Interactive demo <#Interactive-demo>`__
+-  `Interactive demo <#interactive-demo>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -64,7 +65,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -91,7 +92,7 @@ Prerequisites
 Download PyTorch model
 ----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -135,7 +136,7 @@ Download PyTorch model
 Convert model to OpenVINO Intermediate Representation
 -----------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 OpenVINO supports PyTorch models via conversion to OpenVINO Intermediate
 Representation (IR). `OpenVINO model conversion
@@ -197,7 +198,7 @@ Let’s convert each model part.
 Image Encoder
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Image Encoder is represented in LLaVA by pretrained CLIP model.
 
@@ -229,7 +230,7 @@ Image Encoder is represented in LLaVA by pretrained CLIP model.
 Text Embedding
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 In LLMs, input embedding is a part of language model, but for LLaVA the
 first step hidden state produced by this model part should be integrated
@@ -256,7 +257,7 @@ use it separately.
 Language Model
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Language Model is responsible for generation answer in LLaVA. This part
 is very similar to standard LLM for text generation. Our model uses
@@ -509,7 +510,7 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/running-inference
 Compress Language Model Weights to 4 bits
 -----------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For reducing memory consumption, weights compression optimization can be
 applied using `NNCF <https://github.com/openvinotoolkit/nncf>`__. Weight
@@ -599,7 +600,7 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 Quantize Image Encoder to 8 bits
 --------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The goal of this part of tutorial is to demonstrate how to speed up the
 image encoder by applying 8-bit post-training quantization from
@@ -655,7 +656,7 @@ inference faster. The optimization process contains the following steps:
 Prepare datasets
 ~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The `Conceptual
 Captions <https://ai.google.com/research/ConceptualCaptions/>`__ dataset
@@ -755,7 +756,7 @@ model.
 Perform quantization
 ~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Create a quantized model from the pre-trained model.
 
@@ -791,7 +792,7 @@ Create a quantized model from the pre-trained model.
 Prepare model inference pipeline
 --------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 |image0|
 
@@ -1169,12 +1170,12 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
 Run OpenVINO model inference
 ----------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select device for language model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -1200,7 +1201,7 @@ Select device for language model
 Select device for image encoder
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -1307,7 +1308,7 @@ Select device for image encoder
 Interactive demo
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 

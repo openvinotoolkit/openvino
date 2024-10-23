@@ -18,24 +18,25 @@ to apply stateful transformation on LLM part and model optimization
 techniques like weights compression using
 `NNCF <https://github.com/openvinotoolkit/nncf>`__
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#Prerequisites>`__
+**Table of contents:**
+
+
+-  `Prerequisites <#prerequisites>`__
 -  `Convert model to OpenVINO Intermediate
-   Representation <#Convert-model-to-OpenVINO-Intermediate-Representation>`__
+   Representation <#convert-model-to-openvino-intermediate-representation>`__
 
    -  `Compress Language Model Weights to 4
-      bits <#Compress-Language-Model-Weights-to-4-bits>`__
+      bits <#compress-language-model-weights-to-4-bits>`__
 
 -  `Prepare model inference
-   pipeline <#Prepare-model-inference-pipeline>`__
--  `Run OpenVINO model inference <#Run-OpenVINO-model-inference>`__
+   pipeline <#prepare-model-inference-pipeline>`__
+-  `Run OpenVINO model inference <#run-openvino-model-inference>`__
 
-   -  `Select device <#Select-device>`__
-   -  `Select language model variant <#Select-language-model-variant>`__
+   -  `Select device <#select-device>`__
+   -  `Select language model variant <#select-language-model-variant>`__
 
--  `Interactive demo <#Interactive-demo>`__
+-  `Interactive demo <#interactive-demo>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -50,7 +51,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -87,7 +88,7 @@ Prerequisites
 Convert model to OpenVINO Intermediate Representation
 -----------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 OpenVINO supports PyTorch models via conversion to OpenVINO Intermediate
 Representation (IR). `OpenVINO model conversion
@@ -449,7 +450,7 @@ Let’s convert each model part.
 Compress Language Model Weights to 4 bits
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For reducing memory consumption, weights compression optimization can be
 applied using `NNCF <https://github.com/openvinotoolkit/nncf>`__.
@@ -561,16 +562,16 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
 
 
 
 Prepare model inference pipeline
 --------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 |image0|
 
@@ -578,7 +579,7 @@ As discussed, the model comprises Image Encoder and LLM (with separated
 text embedding part) that generates answer. In ``minicpm_helper.py`` we
 defined LLM inference class ``OvModelForCausalLMWithEmb`` that will
 represent generation cycle, It is based on `HuggingFace Transformers
-``GenerationMixin`` <https://huggingface.co/docs/transformers/main_classes/text_generation>`__
+GenerationMixin <https://huggingface.co/docs/transformers/main_classes/text_generation>`__
 and looks similar to `Optimum
 Intel <https://huggingface.co/docs/optimum/intel/index>`__
 ``OVModelForCausalLM``\ that is used for LLM inference with only
@@ -601,12 +602,12 @@ including image processing and answer generation using LLM.
 Run OpenVINO model inference
 ----------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select device
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -628,7 +629,7 @@ Select device
 Select language model variant
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -713,7 +714,7 @@ Select language model variant
 Interactive demo
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -738,7 +739,7 @@ Interactive demo
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="600" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 

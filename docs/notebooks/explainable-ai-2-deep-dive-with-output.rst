@@ -1,7 +1,7 @@
 OpenVINO™ Explainable AI Toolkit (2/3): Deep Dive
 =================================================
 
-.. container:: alert alert-block alert-danger
+.. warning::
 
    Important note: This notebook requires python >= 3.10. Please make
    sure that your environment fulfill to this requirement before running
@@ -12,11 +12,11 @@ Explainable AI
 (XAI) <https://github.com/openvinotoolkit/openvino_xai/>`__:
 
 1. `OpenVINO™ Explainable AI Toolkit (1/3):
-   Basic <../explainable-ai-1-basic/README.md>`__
+   Basic <explainable-ai-1-basic-with-output.html>`__
 2. `OpenVINO™ Explainable AI Toolkit (2/3): Deep
-   Dive <../explainable-ai-2-deep-dive/README.md>`__
+   Dive <explainable-ai-2-deep-dive-with-output.html>`__
 3. `OpenVINO™ Explainable AI Toolkit (3/3): Saliency map
-   interpretation <../explainable-ai-3-map-interpretation/README.md>`__
+   interpretation <explainable-ai-3-map-interpretation-with-output.html>`__
 
 `OpenVINO™ Explainable AI
 (XAI) <https://github.com/openvinotoolkit/openvino_xai/>`__ provides a
@@ -44,43 +44,44 @@ By using the OpenVINO XAI ``Explainer``, we can visualize why the model
 gives such responses, meaning on which areas it focused before
 predicting a particular label.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#Prerequisites>`__
+**Table of contents:**
 
-   -  `Install requirements <#Install-requirements>`__
-   -  `Imports <#Imports>`__
-   -  `Download IR model <#Download-IR-model>`__
-   -  `Load the Image <#Load-the-Image>`__
+
+-  `Prerequisites <#prerequisites>`__
+
+   -  `Install requirements <#install-requirements>`__
+   -  `Imports <#imports>`__
+   -  `Download IR model <#download-ir-model>`__
+   -  `Load the Image <#load-the-image>`__
    -  `Preprocess image for
-      MobileNet <#Preprocess-image-for-MobileNet>`__
+      MobileNet <#preprocess-image-for-mobilenet>`__
 
--  `Basic usage: ``Explainer`` in ``AUTO``
-   mode <#Basic-usage:-Explainer-in-AUTO-mode>`__
+-  `Basic usage: Explainer in AUTO
+   mode <#basic-usage-explainer-in-auto-mode>`__
 
-   -  `Create ``Explainer`` object <#Create-Explainer-object>`__
-   -  `Generate ``explanation`` <#Generate-explanation>`__
-   -  `Visualize saliency maps <#Visualize-saliency-maps>`__
-   -  `Save saliency maps <#Save-saliency-maps>`__
+   -  `Create Explainer object <#create-explainer-object>`__
+   -  `Generate explanation <#generate-explanation>`__
+   -  `Visualize saliency maps <#visualize-saliency-maps>`__
+   -  `Save saliency maps <#save-saliency-maps>`__
    -  `Generate saliency maps for all
-      classes <#Generate-saliency-maps-for-all-classes>`__
+      classes <#generate-saliency-maps-for-all-classes>`__
 
 -  `Pre- and post-process
-   functions <#Pre--and-post-process-functions>`__
--  `Visualization Parameters <#Visualization-Parameters>`__
--  ```Explainer`` in ``WHITEBOX`` mode <#Explainer-in-WHITEBOX-mode>`__
+   functions <#pre--and-post-process-functions>`__
+-  `Visualization Parameters <#visualization-parameters>`__
+-  `Explainer in WHITEBOX mode <#explainer-in-whitebox-mode>`__
 
-   -  `ReciproCAM XAI method <#ReciproCAM-XAI-method>`__
-   -  `Insert XAI branch <#Insert-XAI-branch>`__
-   -  `Insertion-related parameters <#Insertion-related-parameters>`__
+   -  `ReciproCAM XAI method <#reciprocam-xai-method>`__
+   -  `Insert XAI branch <#insert-xai-branch>`__
+   -  `Insertion-related parameters <#insertion-related-parameters>`__
 
--  ```Explainer`` in ``BLACKBOX`` mode <#Explainer-in-BLACKBOX-mode>`__
--  `Advanced <#Advanced>`__
+-  `Explainer in BLACKBOX mode <#explainer-in-blackbox-mode>`__
+-  `Advanced <#advanced>`__
 
    -  `Import ImageNet label names and add them to saliency
-      maps <#Import-ImageNet-label-names-and-add-them-to-saliency-maps>`__
-   -  `Activation map XAI method <#Activation-map-XAI-method>`__
+      maps <#import-imagenet-label-names-and-add-them-to-saliency-maps>`__
+   -  `Activation map XAI method <#activation-map-xai-method>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -95,12 +96,12 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Install requirements
 ~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -123,7 +124,7 @@ Install requirements
 Imports
 ~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -153,7 +154,7 @@ Imports
 Download IR model
 ~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 In this notebook for demonstration purposes we’ll use an already
 converted to IR model from OpenVINO storage.
@@ -184,7 +185,7 @@ converted to IR model from OpenVINO storage.
 Load the Image
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -213,13 +214,13 @@ Load the Image
 
 
 
-.. image:: explainable-ai-2-deep-dive-with-output_files%5Cexplainable-ai-2-deep-dive-with-output_11_2.png
+.. image:: explainable-ai-2-deep-dive-with-output_files/explainable-ai-2-deep-dive-with-output_11_2.png
 
 
 Preprocess image for MobileNet
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -231,7 +232,7 @@ Preprocess image for MobileNet
 Basic usage: ``Explainer`` in ``AUTO`` mode
 -------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The easiest way to generate saliency maps is to use ``Explainer`` in
 ``ExplainMode.AUTO`` mode (``AUTO`` mode is used by default).
@@ -239,8 +240,8 @@ The easiest way to generate saliency maps is to use ``Explainer`` in
 Under the hood of ``AUTO`` mode, ``Explainer`` will first try to run the
 ``WHITEBOX`` mode. If ``WHITEBOX`` fails, it will then run the
 ``BLACKBOX`` mode as a fallback option. See more details about
-`WHITEBOX <#Explainer-in-WHITEBOX-mode>`__ and
-`BLACKBOX <#Explainer-in-BLACKBOX-mode>`__ modes below.
+`WHITEBOX <#explainer-in-whitebox-mode>`__ and
+`BLACKBOX <#explainer-in-blackbox-mode>`__ modes below.
 
 Generating saliency maps involves model inference. The explainer will
 perform model inference, but to do so, it requires ``preprocess_fn`` and
@@ -253,13 +254,13 @@ identity function. We expect that current example will successfully use
 mode, only for ``BLACKBOX``).
 
 To learn more about pre- and post-process functions, refer to the `pre-
-and post-process functions <#Pre--and-post-process-functions>`__
+and post-process functions <#pre--and-post-process-functions>`__
 section.
 
 Create ``Explainer`` object
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -280,7 +281,7 @@ Create ``Explainer`` object
 Generate ``explanation``
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The predicted class for this model-image pair is
 ``flat-coated_retriever`` with class index ``206``. So here and further
@@ -303,7 +304,7 @@ we will check saliency maps for this index.
 Visualize saliency maps
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -325,13 +326,13 @@ Visualize saliency maps
     
 
 
-.. image:: explainable-ai-2-deep-dive-with-output_files%5Cexplainable-ai-2-deep-dive-with-output_22_1.png
+.. image:: explainable-ai-2-deep-dive-with-output_files/explainable-ai-2-deep-dive-with-output_22_1.png
 
 
 Save saliency maps
 ~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -355,13 +356,13 @@ Save saliency maps
 
 
 
-.. image:: explainable-ai-2-deep-dive-with-output_files%5Cexplainable-ai-2-deep-dive-with-output_25_1.png
+.. image:: explainable-ai-2-deep-dive-with-output_files/explainable-ai-2-deep-dive-with-output_25_1.png
 
 
 Generate saliency maps for all classes
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To obtain saliency maps for all classes, set ``targets`` to ``None`` or
 ``-1``.
@@ -384,7 +385,7 @@ To obtain saliency maps for all classes, set ``targets`` to ``None`` or
 Pre- and post-process functions
 -------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The explainer can apply pre-processing internally during model
 inference, allowing you to provide a raw image as input to the
@@ -443,7 +444,7 @@ required, which accepts the raw IR model output and returns ``logits``
 Visualization Parameters
 ------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 -  resize (True by default): If True, resize saliency map to the input
    image size.
@@ -486,7 +487,7 @@ Visualization Parameters
     
 
 
-.. image:: explainable-ai-2-deep-dive-with-output_files%5Cexplainable-ai-2-deep-dive-with-output_34_1.png
+.. image:: explainable-ai-2-deep-dive-with-output_files/explainable-ai-2-deep-dive-with-output_34_1.png
 
 
 .. code:: ipython3
@@ -505,7 +506,7 @@ Visualization Parameters
 
 
 
-.. image:: explainable-ai-2-deep-dive-with-output_files%5Cexplainable-ai-2-deep-dive-with-output_35_0.png
+.. image:: explainable-ai-2-deep-dive-with-output_files/explainable-ai-2-deep-dive-with-output_35_0.png
 
 
 .. code:: ipython3
@@ -525,18 +526,18 @@ Visualization Parameters
 
 
 
-.. image:: explainable-ai-2-deep-dive-with-output_files%5Cexplainable-ai-2-deep-dive-with-output_36_0.png
+.. image:: explainable-ai-2-deep-dive-with-output_files/explainable-ai-2-deep-dive-with-output_36_0.png
 
 
 ``Explainer`` in ``WHITEBOX`` mode
 ----------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 ``ReciproCAM`` XAI method
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 ``Explainer`` in ``WHITEBOX`` mode treats the model as a white box and
 performs its inner modifications. ``Explainer`` inserts extra XAI nodes
@@ -574,7 +575,7 @@ It works quickly and precisely, requiring only one model inference.
 Insert XAI branch
 ~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 It’s possible to update the model with an XAI branch using the
 ``insert_xai`` functional API.
@@ -614,7 +615,7 @@ See documentation for more details.
 Insertion-related parameters
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 If automatic search for correct node fails, you can set up a correct
 node manually with ``target_layer`` argument. For classification, it’s
@@ -656,7 +657,7 @@ further postprocessing.
 ``Explainer`` in ``BLACKBOX`` mode
 ----------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 ``Explainer`` in ``BLACKBOX`` mode treats the model as a black box
 without altering its internal structure. Therefore, this method will
@@ -714,7 +715,7 @@ saliency score.
 
 
 
-.. image:: explainable-ai-2-deep-dive-with-output_files%5Cexplainable-ai-2-deep-dive-with-output_49_0.png
+.. image:: explainable-ai-2-deep-dive-with-output_files/explainable-ai-2-deep-dive-with-output_49_0.png
 
 
 RISE (Randomized Input Sampling for Explanation of Black-box Models)
@@ -756,18 +757,18 @@ used to generate the fine-grained saliency map.
 
 
 
-.. image:: explainable-ai-2-deep-dive-with-output_files%5Cexplainable-ai-2-deep-dive-with-output_52_0.png
+.. image:: explainable-ai-2-deep-dive-with-output_files/explainable-ai-2-deep-dive-with-output_52_0.png
 
 
 Advanced
 --------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Import ImageNet label names and add them to saliency maps
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 If ``label_names`` are not provided to the explainer call, the saved
 saliency map will have the predicted class index, not the label name.
@@ -863,7 +864,7 @@ saliency maps with label name on it:
 Activation map XAI method
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The Activation Map method shows a general attention map without respect
 to specific classes. It can be useful for understanding which areas the
@@ -896,5 +897,5 @@ saliency maps for each class, the activation map is returned as
     
 
 
-.. image:: explainable-ai-2-deep-dive-with-output_files%5Cexplainable-ai-2-deep-dive-with-output_63_1.png
+.. image:: explainable-ai-2-deep-dive-with-output_files/explainable-ai-2-deep-dive-with-output_63_1.png
 

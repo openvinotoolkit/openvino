@@ -8,14 +8,15 @@ running multiple times.
 
 |image0|
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
 
--  `Showing Info Available Devices <#Showing-Info-Available-Devices>`__
--  `Configure Inference Pipeline <#Configure-Inference-Pipeline>`__
--  `Convert model using Optimum <#Convert-model-using-Optimum>`__
+**Table of contents:**
+
+
+-  `Showing Info Available Devices <#showing-info-available-devices>`__
+-  `Configure Inference Pipeline <#configure-inference-pipeline>`__
+-  `Convert model using Optimum <#convert-model-using-optimum>`__
 -  `Run model using
-   OVStableDiffusionPipeline <#Run-model-using-OVStableDiffusionPipeline>`__
+   OVStableDiffusionPipeline <#run-model-using-ovstablediffusionpipeline>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -64,7 +65,7 @@ OpenVINO’s integration into Optimum.
 Showing Info Available Devices
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The ``available_devices`` property shows the available devices in your
 system. The “FULL_DEVICE_NAME” option to ``ie.get_property()`` shows the
@@ -98,7 +99,7 @@ If you just have either an iGPU or dGPU that will be assigned to
 Configure Inference Pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select device from dropdown list for running inference using OpenVINO.
 
@@ -129,7 +130,7 @@ Select device from dropdown list for running inference using OpenVINO.
 Convert model using Optimum
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -144,7 +145,7 @@ Convert model using Optimum
 Run model using ``OVStableDiffusionPipeline``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 

@@ -42,35 +42,36 @@ need a Jupyter server to start. For details, please refer to
 `Installation
 Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#Prerequisites>`__
--  `Load PyTorch model <#Load-PyTorch-model>`__
+**Table of contents:**
 
-   -  `Run PyTorch model inference <#Run-PyTorch-model-inference>`__
+
+-  `Prerequisites <#prerequisites>`__
+-  `Load PyTorch model <#load-pytorch-model>`__
+
+   -  `Run PyTorch model inference <#run-pytorch-model-inference>`__
 
 -  `Download and convert model to OpenVINO IR via Optimum Intel
-   CLI <#Download-and-convert-model-to-OpenVINO-IR-via-Optimum-Intel-CLI>`__
+   CLI <#download-and-convert-model-to-openvino-ir-via-optimum-intel-cli>`__
 -  `Run inference OpenVINO model with
-   WhisperPipeline <#Run-inference-OpenVINO-model-with-WhisperPipeline>`__
+   WhisperPipeline <#run-inference-openvino-model-with-whisperpipeline>`__
 -  `Compare performance PyTorch vs
-   OpenVINO <#Compare-performance-PyTorch-vs-OpenVINO>`__
--  `Quantization <#Quantization>`__
+   OpenVINO <#compare-performance-pytorch-vs-openvino>`__
+-  `Quantization <#quantization>`__
 
-   -  `Prepare calibration datasets <#Prepare-calibration-datasets>`__
+   -  `Prepare calibration datasets <#prepare-calibration-datasets>`__
    -  `Quantize Whisper encoder and decoder
-      models <#Quantize-Whisper-encoder-and-decoder-models>`__
-   -  `Run quantized model inference <#Run-quantized-model-inference>`__
+      models <#quantize-whisper-encoder-and-decoder-models>`__
+   -  `Run quantized model inference <#run-quantized-model-inference>`__
    -  `Compare performance and accuracy of the original and quantized
-      models <#Compare-performance-and-accuracy-of-the-original-and-quantized-models>`__
+      models <#compare-performance-and-accuracy-of-the-original-and-quantized-models>`__
 
--  `Interactive demo <#Interactive-demo>`__
+-  `Interactive demo <#interactive-demo>`__
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -94,7 +95,7 @@ Prerequisites
 Load PyTorch model
 ------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The ``AutoModelForSpeechSeq2Seq.from_pretrained`` method is used for the
 initialization of PyTorch Whisper model using the transformers library.
@@ -197,7 +198,7 @@ arbitrary length.
 Run PyTorch model inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The ``pipeline`` expects audio data in numpy array format. We will use
 ``.wav`` file and convert it numpy array format for that purpose.
@@ -351,7 +352,7 @@ be found in the `paper <https://cdn.openai.com/papers/whisper.pdf>`__.
 Download and convert model to OpenVINO IR via Optimum Intel CLI
 ---------------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Listed Whisper model are available for downloading via the `HuggingFace
 hub <https://huggingface.co/openai>`__. We will use optimum-cli
@@ -398,7 +399,7 @@ documentation <https://huggingface.co/docs/optimum/intel/inference#export>`__.
 Run inference OpenVINO model with WhisperPipeline
 -------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To simplify user experience we will use `OpenVINO Generate
 API <https://github.com/openvinotoolkit/openvino.genai/blob/master/samples/python/whisper_speech_recognition/README.md>`__.
@@ -554,7 +555,7 @@ format.
 Compare performance PyTorch vs OpenVINO
 ---------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -611,7 +612,7 @@ Compare performance PyTorch vs OpenVINO
 Quantization
 ------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding the quantization layers into the
@@ -700,7 +701,7 @@ interface for ``automatic-speech-recognition``.
 Prepare calibration datasets
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 First step is to prepare calibration datasets for quantization. Since we
 quantize whisper encoder and decoder separately, we need to prepare a
@@ -747,7 +748,7 @@ improves quantization quality.
 Quantize Whisper encoder and decoder models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Below we run the ``quantize`` function which calls ``nncf.quantize`` on
 Whisper encoder and decoder-with-past models. We don’t quantize
@@ -831,7 +832,7 @@ negligible.
 Run quantized model inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Let’s compare the transcription results for original and quantized
 models.
@@ -869,7 +870,7 @@ models.
 Compare performance and accuracy of the original and quantized models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Finally, we compare original and quantized Whisper models from accuracy
 and performance stand-points.
@@ -941,7 +942,7 @@ for Word Error Rate.
 Interactive demo
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We are also providing an interactive demo using the Gradio interface,
 where you can test model capabilities on your own audio data (using the

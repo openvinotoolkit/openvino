@@ -26,15 +26,16 @@ Here is Wav2Lip pipeline overview:
 
    wav2lip_pipeline
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#Prerequisites>`__
+**Table of contents:**
+
+
+-  `Prerequisites <#prerequisites>`__
 -  `Convert the model to OpenVINO
-   IR <#Convert-the-model-to-OpenVINO-IR>`__
+   IR <#convert-the-model-to-openvino-ir>`__
 -  `Compiling models and prepare
-   pipeline <#Compiling-models-and-prepare-pipeline>`__
--  `Interactive inference <#Interactive-inference>`__
+   pipeline <#compiling-models-and-prepare-pipeline>`__
+-  `Interactive inference <#interactive-inference>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -49,7 +50,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -146,7 +147,7 @@ Download example files.
 Convert the model to OpenVINO IR
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 You don’t need to download checkpoints and load models, just call the
 helper function ``download_and_convert_models``. It takes care about it
@@ -211,7 +212,7 @@ and will convert both model in OpenVINO format.
 Compiling models and prepare pipeline
 -------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select device from dropdown list for running inference using OpenVINO.
 
@@ -437,7 +438,7 @@ The generated video:
 Interactive inference
 ---------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -463,7 +464,7 @@ Interactive inference
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 

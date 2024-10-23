@@ -14,25 +14,27 @@ of 42, meaning that it is possible to encode a 1024x1024 image to 24x24,
 while maintaining crisp reconstructions. The text-conditional model is
 then trained in the highly compressed latent space.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#Prerequisites>`__
--  `Load the original model <#Load-the-original-model>`__
+**Table of contents:**
 
-   -  `Infer the original model <#Infer-the-original-model>`__
+
+-  `Prerequisites <#prerequisites>`__
+-  `Load the original model <#load-the-original-model>`__
+
+   -  `Infer the original model <#infer-the-original-model>`__
 
 -  `Convert the model to OpenVINO
-   IR <#Convert-the-model-to-OpenVINO-IR>`__
+   IR <#convert-the-model-to-openvino-ir>`__
 
-   -  `Prior pipeline <#Prior-pipeline>`__
-   -  `Decoder pipeline <#Decoder-pipeline>`__
+   -  `Prior pipeline <#prior-pipeline>`__
+   -  `Decoder pipeline <#decoder-pipeline>`__
 
--  `Select inference device <#Select-inference-device>`__
--  `Building the pipeline <#Building-the-pipeline>`__
--  `Inference <#Inference>`__
--  `Interactive inference <#Interactive-inference>`__ ### Installation
-   Instructions
+-  `Select inference device <#select-inference-device>`__
+-  `Building the pipeline <#building-the-pipeline>`__
+-  `Inference <#inference>`__
+-  `Interactive inference <#interactive-inference>`__ 
+   
+
 
 This is a self-contained example that relies solely on its own code.
 
@@ -44,7 +46,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -67,7 +69,7 @@ Prerequisites
 Load and run the original pipeline
 ----------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -153,7 +155,7 @@ it, turn it.
 Convert the model to OpenVINO IR
 --------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Stable Cascade has 2 components: - Prior stage ``prior``: create
 low-dimensional latent space representation of the image using
@@ -211,7 +213,7 @@ to 8-bit to reduce model size.
 Prior pipeline
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 This pipeline consists of text encoder and prior diffusion model. From
 here, we always use fixed shapes in conversion by using an
@@ -280,9 +282,9 @@ here, we always use fixed shapes in conversion by using an
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
 
 
 
@@ -329,16 +331,16 @@ here, we always use fixed shapes in conversion by using an
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
 
 
 
 Decoder pipeline
 ~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Decoder pipeline consists of 3 parts: decoder, text encoder and VQGAN.
 
@@ -377,9 +379,9 @@ Decoder pipeline consists of 3 parts: decoder, text encoder and VQGAN.
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
 
 
 
@@ -419,9 +421,9 @@ Decoder pipeline consists of 3 parts: decoder, text encoder and VQGAN.
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
 
 
 
@@ -466,16 +468,16 @@ Decoder pipeline consists of 3 parts: decoder, text encoder and VQGAN.
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
 
 
 
 Select inference device
 -----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select device from dropdown list for running inference using OpenVINO.
 
@@ -506,7 +508,7 @@ Select device from dropdown list for running inference using OpenVINO.
 Building the pipeline
 ---------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Let’s create callable wrapper classes for compiled models to allow
 interaction with original pipelines. Note that all of wrapper classes
@@ -596,7 +598,7 @@ And insert wrappers instances in the pipeline:
 Inference
 ---------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -640,7 +642,7 @@ Inference
 Interactive inference
 ---------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -700,7 +702,7 @@ Interactive inference
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 

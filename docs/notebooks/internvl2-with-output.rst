@@ -23,21 +23,22 @@ apply stateful transformation on LLM part and model optimization
 techniques like weights compression using
 `NNCF <https://github.com/openvinotoolkit/nncf>`__
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#Prerequisites>`__
--  `Select model <#Select-model>`__
--  `Convert and Optimize model <#Convert-and-Optimize-model>`__
+**Table of contents:**
+
+
+-  `Prerequisites <#prerequisites>`__
+-  `Select model <#select-model>`__
+-  `Convert and Optimize model <#convert-and-optimize-model>`__
 
    -  `Compress model weights to
-      4-bit <#Compress-model-weights-to-4-bit>`__
+      4-bit <#compress-model-weights-to-4-bit>`__
 
--  `Select inference device <#Select-inference-device>`__
+-  `Select inference device <#select-inference-device>`__
 -  `Prepare model inference
-   pipeline <#Prepare-model-inference-pipeline>`__
--  `Run model inference <#Run-model-inference>`__
--  `Interactive demo <#Interactive-demo>`__
+   pipeline <#prepare-model-inference-pipeline>`__
+-  `Run model inference <#run-model-inference>`__
+-  `Interactive demo <#interactive-demo>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -52,7 +53,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -90,7 +91,7 @@ Prerequisites
 Select model
 ------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 There are multiple InternVL2 models available in `models
 collection <https://huggingface.co/collections/OpenGVLab/internvl-20-667d3961ab5eb12c7ed1463e>`__.
@@ -134,7 +135,7 @@ using widget bellow:
 Convert and Optimize model
 --------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 InternVL2 is PyTorch model. OpenVINO supports PyTorch models via
 conversion to OpenVINO Intermediate Representation (IR). `OpenVINO model
@@ -203,7 +204,7 @@ To sum up above, model consists of 4 parts:
 Compress model weights to 4-bit
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__ For reducing memory
+For reducing memory
 consumption, weights compression optimization can be applied using
 `NNCF <https://github.com/openvinotoolkit/nncf>`__.
 
@@ -338,9 +339,9 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
 
 
 
@@ -386,9 +387,9 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
 
 
 
@@ -401,7 +402,7 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 Select inference device
 -----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -423,13 +424,13 @@ Select inference device
 Prepare model inference pipeline
 --------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 As discussed, the model comprises Image Encoder and LLM (with separated
 text embedding part) that generates answer. In ``internvl2_helper.py``
 we defined LLM inference class ``OvModelForCausalLMWithEmb`` that will
 represent generation cycle, It is based on `HuggingFace Transformers
-``GenerationMixin`` <https://huggingface.co/docs/transformers/main_classes/text_generation>`__
+GenerationMixin <https://huggingface.co/docs/transformers/main_classes/text_generation>`__
 and looks similar to `Optimum
 Intel <https://huggingface.co/docs/optimum/intel/index>`__
 ``OVModelForCausalLM`` that is used for LLM inference with only
@@ -455,7 +456,7 @@ LLM.
 Run model inference
 -------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Our interface is fully compatible with Transformers interface for
 InternVL2, you can try any of represented here `usage
@@ -535,7 +536,7 @@ Let’s check model capabilities in answering questions about image:
 Interactive demo
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -559,7 +560,7 @@ Interactive demo
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="600" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 

@@ -28,17 +28,18 @@ devices. It consists of the following steps:
 -  Convert models to OpenVINO Intermediate Representation.
 -  Inference using only OpenVINO’s IR models.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
 
--  `Pre-requisites <#Pre-requisites>`__
--  `Imports and settings <#Imports-and-settings>`__
+**Table of contents:**
+
+
+-  `Pre-requisites <#pre-requisites>`__
+-  `Imports and settings <#imports-and-settings>`__
 -  `Convert Modes to OpenVINO Intermediate
-   Representation <#Convert-Modes-to-OpenVINO-Intermediate-Representation>`__
+   Representation <#convert-modes-to-openvino-intermediate-representation>`__
 
-   -  `Convert Prior Encoder. <#Convert-Prior-Encoder.>`__
-   -  `Convert ``SpeakerEncoder`` <#Convert-SpeakerEncoder>`__
-   -  `Convert Decoder <#Convert-Decoder>`__
+   -  `Convert Prior Encoder. <#convert-prior-encoder->`__
+   -  `Convert SpeakerEncoder <#convert-speakerencoder>`__
+   -  `Convert Decoder <#convert-decoder>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -53,7 +54,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Pre-requisites
 --------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 This steps can be done manually or will be performed automatically
 during the execution of the notebook, but in minimum necessary scope. 1.
@@ -185,7 +186,7 @@ Check if FreeVC is installed and append its path to ``sys.path``
 Imports and settings
 --------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -295,7 +296,7 @@ Result audio files should be available in ‘outputs/freevc’
 Convert Modes to OpenVINO Intermediate Representation
 =====================================================
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Convert each model to OpenVINO IR, with FP16 precision. The
 ``ov.convert_model`` function accepts the original PyTorch model object
@@ -310,7 +311,7 @@ conversion, see this
 Convert Prior Encoder.
 ~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 First we convert WavLM model, as a part of Convert Prior Encoder to
 OpenVINO’s IR format. We keep the original name of the model in code:
@@ -392,7 +393,7 @@ Select device from dropdown list for running inference using OpenVINO
 Convert ``SpeakerEncoder``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -552,7 +553,7 @@ Then compile model.
 Convert Decoder
 ~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 In the same way export ``SynthesizerTrn`` model, that implements decoder
 function to OpenVINO IR format.
@@ -752,9 +753,9 @@ inference. Use rate corresponding to the value of
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 
 
 .. code:: ipython3

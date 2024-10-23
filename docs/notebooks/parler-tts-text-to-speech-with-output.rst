@@ -32,17 +32,19 @@ entirely on found data.
 
 `HuggingFace page <https://huggingface.co/parler-tts>`__
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#Prerequisites>`__
+**Table of contents:**
+
+
+-  `Prerequisites <#prerequisites>`__
 -  `Load the original model and
-   inference <#Load-the-original-model-and-inference>`__
+   inference <#load-the-original-model-and-inference>`__
 -  `Convert the model to OpenVINO
-   IR <#Convert-the-model-to-OpenVINO-IR>`__
--  `Compiling models and inference <#Compiling-models-and-inference>`__
--  `Interactive inference <#Interactive-inference>`__ ### Installation
-   Instructions
+   IR <#convert-the-model-to-openvino-ir>`__
+-  `Compiling models and inference <#compiling-models-and-inference>`__
+-  `Interactive inference <#interactive-inference>`__ 
+   
+
 
 This is a self-contained example that relies solely on its own code.
 
@@ -56,7 +58,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -87,7 +89,7 @@ Prerequisites
 Load the original model and inference
 -------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -148,7 +150,7 @@ Load the original model and inference
 Convert the model to OpenVINO IR
 --------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Let’s define the conversion function for PyTorch modules. We use
 ``ov.convert_model`` function to obtain OpenVINO Intermediate
@@ -282,7 +284,7 @@ stage the model produces tokens during several runs.
 Compiling models and inference
 ------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select device from dropdown list for running inference using OpenVINO.
 
@@ -418,7 +420,7 @@ and run inference.
 Interactive inference
 ---------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -470,9 +472,9 @@ Interactive inference
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 
 
 .. code:: ipython3

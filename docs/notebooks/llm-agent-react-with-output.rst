@@ -24,23 +24,24 @@ request.
 This example will demonstrate how to create a native agent with
 OpenVINO.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#Prerequisites>`__
--  `Create LLM as agent <#Create-LLM-as-agent>`__
+**Table of contents:**
 
-   -  `Download model <#Select-model>`__
+
+-  `Prerequisites <#prerequisites>`__
+-  `Create LLM as agent <#create-llm-as-agent>`__
+
+   -  `Download model <#select-model>`__
    -  `Select inference device for
-      LLM <#Select-inference-device-for-LLM>`__
+      LLM <#select-inference-device-for-llm>`__
    -  `Instantiate LLM using Optimum
-      Intel <#Instantiate-LLM-using-Optimum-Intel>`__
-   -  `Create text generation method <#Create-text-generation-method>`__
+      Intel <#instantiate-llm-using-optimum-intel>`__
+   -  `Create text generation method <#create-text-generation-method>`__
 
--  `Create prompt template <#Create-prompt-template>`__
--  `Create parser <#Create-parers>`__
--  `Create tools calling <#Create-tool-calling>`__
--  `Run agent <#Run-agent>`__
+-  `Create prompt template <#create-prompt-template>`__
+-  `Create parser <#create-parers>`__
+-  `Create tools calling <#create-tool-calling>`__
+-  `Run agent <#run-agent>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -55,7 +56,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -89,12 +90,12 @@ Prerequisites
 Create LLM as agent
 -------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Download LLM
 ~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To run LLM locally, we have to download the model in the first step. It
 is possible to `export your
@@ -154,7 +155,7 @@ Vietnamese, Thai, Arabic, and more. For more details, please refer to
 Select inference device for LLM
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -181,7 +182,7 @@ Select inference device for LLM
 Instantiate LLM using Optimum Intel
 -----------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Optimum Intel can be used to load optimized models from the `Hugging
 Face Hub <https://huggingface.co/docs/optimum/intel/hf.co/models>`__ and
@@ -248,7 +249,7 @@ guide <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html>`__
 Create text generation method
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 In this example, we would like to stream the output text though
 ``TextStreamer``, and stop text generation before ``Observation``
@@ -306,7 +307,7 @@ received from tool calling..
 Create prompt template
 ----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 A prompt for a language model is a set of instructions or input provided
 by a user to guide the model’s response, helping it understand the
@@ -404,7 +405,7 @@ information and conversation history into the prompt template.
 Create parser
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 A Parser is used to convert raw output of LLM to the input arguments of
 tools.
@@ -430,7 +431,7 @@ tools.
 Create tools calling
 --------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 In this examples, we will create 2 customized tools for
 ``image generation`` and ``weather qurey``. A detailed description of
@@ -530,7 +531,7 @@ execute them according to the output of LLM.
 Run agent
 ---------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 

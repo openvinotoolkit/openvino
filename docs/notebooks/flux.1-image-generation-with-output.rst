@@ -19,15 +19,16 @@ using OpenVINO.
    **Note**: Some demonstrated models can require at least 32GB RAM for
    conversion and running.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#Prerequisites>`__
--  `Select model <#Select-model>`__
--  `Convert model with OpenVINO <#Convert-model-with-OpenVINO>`__
--  `Compress model weights <#Compress-model-weights>`__
--  `Run OpenVINO model inference <#Run-OpenVINO-model-inference>`__
--  `Interactive demo <#Interactive-demo>`__
+**Table of contents:**
+
+
+-  `Prerequisites <#prerequisites>`__
+-  `Select model <#select-model>`__
+-  `Convert model with OpenVINO <#convert-model-with-openvino>`__
+-  `Compress model weights <#compress-model-weights>`__
+-  `Run OpenVINO model inference <#run-openvino-model-inference>`__
+-  `Interactive demo <#interactive-demo>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -42,7 +43,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -70,7 +71,7 @@ Prerequisites
 Select model
 ------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To strike a balance between accessibility and model capabilities, FLUX.1
 comes in three variants: FLUX.1-pro, FLUX.1-dev and FLUX.1-schnell: \*
@@ -128,7 +129,7 @@ FLUX.1-dev version using widget bellow.
 
 
    **Note**: run Flux.1-dev model with notebook, you will need to accept
-   license agreement. You must be a registered user in 🤗 Hugging Face
+   license agreement. You must be a registered user in Hugging Face
    Hub. Please visit `HuggingFace model
    card <https://huggingface.co/black-forest-labs/FLUX.1-dev>`__,
    carefully read terms of usage and click accept button. You will need
@@ -153,7 +154,7 @@ FLUX.1-dev version using widget bellow.
 Convert model with OpenVINO
 ---------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Starting from 2023.0 release, OpenVINO supports PyTorch models directly
 via Model Conversion API. ``ov.convert_model`` function accepts instance
@@ -169,7 +170,7 @@ The pipeline consists of four important parts:
 -  Autoencoder (VAE) for decoding latent space to image.
 
 We will use ``convert_flux`` helper function defined in
-`flux_helper.py <./flux_helper.py>`__ that create original PyTorch model
+`flux_helper.py <flux_helper.py-with-output.html>`__ that create original PyTorch model
 and convert each part of pipeline using ``ov.convert_model``.
 
 .. code:: ipython3
@@ -203,7 +204,7 @@ and convert each part of pipeline using ``ov.convert_model``.
 Compress model weights
 ----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For reducing model memory consumption we will use weights compression.
 The `Weights
@@ -276,7 +277,7 @@ compression.
 Run OpenVINO model inference
 ----------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 ``OVFluxPipeline`` class defined in ``flux_helper.py`` provides
 convenient way for running model. It accepts directory with converted
@@ -364,14 +365,14 @@ model and inference device as arguments.
 
 
 
-.. image:: flux.1-image-generation-with-output_files%5Cflux.1-image-generation-with-output_20_1.png
+.. image:: flux.1-image-generation-with-output_files/flux.1-image-generation-with-output_20_1.png
 
 
 
 Interactive demo
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 

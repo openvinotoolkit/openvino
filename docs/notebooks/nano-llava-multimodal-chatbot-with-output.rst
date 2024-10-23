@@ -10,28 +10,29 @@ this tutorial, we consider how to convert and run nanoLLaVA model using
 OpenVINO. Additionally, we will optimize model using
 `NNCF <https://github.com/openvinotoolkit/nncf>`__
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#Prerequisites>`__
--  `Select Model <#Select-Model>`__
--  `Download PyTorch model <#Download-PyTorch-model>`__
--  `Convert and Optimize model <#Convert-and-Optimize-model>`__
+**Table of contents:**
+
+
+-  `Prerequisites <#prerequisites>`__
+-  `Select Model <#select-model>`__
+-  `Download PyTorch model <#download-pytorch-model>`__
+-  `Convert and Optimize model <#convert-and-optimize-model>`__
 
    -  `Convert model to OpenVINO IR
-      format <#Convert-model-to-OpenVINO-IR-format>`__
+      format <#convert-model-to-openvino-ir-format>`__
    -  `Compress Model weights to 4 and 8 bits using
-      NNCF <#Compress-Model-weights-to-4-and-8-bits-using-NNCF>`__
-   -  `Image Encoder <#Image-Encoder>`__
-   -  `Language Model <#Language-Model>`__
+      NNCF <#compress-model-weights-to-4-and-8-bits-using-nncf>`__
+   -  `Image Encoder <#image-encoder>`__
+   -  `Language Model <#language-model>`__
 
 -  `Prepare model inference
-   pipeline <#Prepare-model-inference-pipeline>`__
--  `Run OpenVINO Model Inference <#Run-OpenVINO-Model-Inference>`__
+   pipeline <#prepare-model-inference-pipeline>`__
+-  `Run OpenVINO Model Inference <#run-openvino-model-inference>`__
 
-   -  `Select device <#Select-device>`__
+   -  `Select device <#select-device>`__
 
--  `Interactive demo <#Interactive-demo>`__
+-  `Interactive demo <#interactive-demo>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -46,7 +47,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -73,9 +74,9 @@ Prerequisites
 
     from pathlib import Path
     import requests
-    
+
     helper_file = Path("ov_nano_llava_helper.py")
-    
+
     if not helper_file.exists():
         r = requests.get(
             url=f"https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/nano-llava-multimodal-chatbot/{helper_file.name}"
@@ -85,27 +86,28 @@ Prerequisites
 Select Model
 ------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
 
-The tutorial supports the following models from Phi-3 model family: -
-`nanoLLaVA <https://huggingface.co/qnguyen3/nanoLLaVA>`__ -
-`nanoLLaVA-1.5 <https://huggingface.co/qnguyen3/nanoLLaVA-1.5>`__
+
+The tutorial supports the following models from Phi-3 model family:
+
+- `nanoLLaVA <https://huggingface.co/qnguyen3/nanoLLaVA>`__
+- `nanoLLaVA-1.5 <https://huggingface.co/qnguyen3/nanoLLaVA-1.5>`__
 
 You can select one from the provided options below.
 
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     model_ids = ["qnguyen3/nanoLLaVA", "qnguyen3/nanoLLaVA-1.5"]
-    
+
     model_dropdown = widgets.Dropdown(
         options=model_ids,
         value=model_ids[0],
         description="Model:",
         disabled=False,
     )
-    
+
     model_dropdown
 
 
@@ -120,16 +122,16 @@ You can select one from the provided options below.
 Download PyTorch model
 ----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     from ov_nano_llava_helper import download_original_model, converted_model_exists, copy_model_files
-    
+
     model_id = model_dropdown.value
     model_dir = Path(model_id.split("/")[-1])
     ov_model_dir = Path("ov_" + model_dir.name) / "FP16"
-    
+
     if not converted_model_exists(ov_model_dir):
         download_original_model(model_id, model_dir)
 
@@ -161,7 +163,7 @@ Download PyTorch model
 Convert and Optimize model
 --------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Our model conversion and optimization consist of following steps: 1.
 Convert model to OpenVINO format and save it on disk. 2. Compress model
@@ -172,14 +174,14 @@ Let’s consider each step deeply.
 Convert model to OpenVINO IR format
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 NanoLLaVA implementation is based on `HuggingFace
 Transformers <https://huggingface.co/docs/transformers/index>`__
 library. For convenience, we will use OpenVINO integration with
-HuggingFace Optimum. 🤗 `Optimum
+HuggingFace Optimum. `Optimum
 Intel <https://huggingface.co/docs/optimum/intel/index>`__ is the
-interface between the 🤗 Transformers and Diffusers libraries and the
+interface between the Transformers and Diffusers libraries and the
 different tools and libraries provided by Intel to accelerate end-to-end
 pipelines on Intel architectures.
 
@@ -589,13 +591,13 @@ documentation <https://huggingface.co/docs/optimum/intel/openvino/export#export-
         self.add_extension(str(_ext_path))  # Core.add_extension doesn't support Path object
     RuntimeError: Exception from src/inference/src/cpp/core.cpp:158:
     Cannot add extension. Cannot find entry point to the extension library. This error happened: Cannot load library '/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino_tokenizers/lib/libopenvino_tokenizers.so': /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino_tokenizers/lib/libopenvino_tokenizers.so: undefined symbol: _ZNK2ov4Node17can_constant_foldERKSt6vectorINS_6OutputIS0_EESaIS3_EE
-    
+
 
 
 Compress Model weights to 4 and 8 bits using NNCF
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For reducing memory consumption, weights compression optimization can be
 applied using `NNCF <https://github.com/openvinotoolkit/nncf>`__. Weight
@@ -639,14 +641,14 @@ compression instead of INT8 weight compression.
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     compression_mode = widgets.Dropdown(
         options=["INT4", "INT8"],
         value="INT4",
         description="Compression mode:",
         disabled=False,
     )
-    
+
     compression_mode
 
 
@@ -662,16 +664,16 @@ compression instead of INT8 weight compression.
 
     import nncf
     import openvino as ov
-    
+
     core = ov.Core()
-    
+
     if compression_mode.value == "INT4":
         ov_compressed_model_dir = ov_model_dir.parent / "INT4"
         llava_wc_parameters = dict(mode=nncf.CompressWeightsMode.INT4_ASYM, group_size=128, ratio=0.8)
     else:
         ov_compressed_model_dir = ov_model_dir.parent / "INT8"
         llava_wc_parameters = dict(mode=nncf.CompressWeightsMode.INT8)
-    
+
     image_encoder_wc_parameters = dict(mode=nncf.CompressWeightsMode.INT8)
 
 
@@ -683,7 +685,7 @@ compression instead of INT8 weight compression.
 Image Encoder
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Image Encoder is represented in nanoLLaVA by pretrained SigLIP model.
 Image encoder is responsible for encoding input images into embedding
@@ -693,7 +695,7 @@ image encoder model.
 .. code:: ipython3
 
     import gc
-    
+
     compressed_vision_encoder_path = ov_compressed_model_dir / "openvino_vision_embeddings_model.xml"
     vision_encoder_path = ov_model_dir / "openvino_vision_embeddings_model.xml"
     if not compressed_vision_encoder_path.exists():
@@ -732,16 +734,16 @@ image encoder model.
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
 
 
 
 Language Model
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Language Model is responsible for generation answer in LLaVA. This part
 is very similar to standard LLM for text generation. Our model uses
@@ -752,7 +754,7 @@ LLM.
 
     compressed_llm_path = ov_compressed_model_dir / "openvino_language_model.xml"
     llm_path = ov_model_dir / "openvino_language_model.xml"
-    
+
     if not compressed_llm_path.exists():
         ov_llm = core.read_model(llm_path)
         ov_compressed_llm = nncf.compress_weights(ov_llm, **llava_wc_parameters)
@@ -760,7 +762,7 @@ LLM.
         del ov_compressed_llm
         del ov_llm
         gc.collect()
-    
+
     copy_model_files(ov_model_dir, ov_compressed_model_dir)
 
 
@@ -771,9 +773,9 @@ LLM.
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
 
 
 
@@ -796,16 +798,16 @@ LLM.
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
 
 
 
 Prepare model inference pipeline
 --------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 OpenVINO integration with Optimum Intel provides ready-to-use API for
 model inference that can be used for smooth integration with
@@ -824,26 +826,26 @@ Intel can be found in
 Run OpenVINO Model Inference
 ----------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select device
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     import requests
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
     open("notebook_utils.py", "w").write(r.text)
-    
+
     from notebook_utils import device_widget
-    
+
     device = device_widget("CPU", exclude=["NPU"])
-    
+
     device
 
 
@@ -865,14 +867,14 @@ can use the same tokenizer and image processor that provided with model.
 
     from optimum.intel.openvino import OVModelForVisualCausalLM
     from transformers import AutoConfig, AutoTokenizer, AutoProcessor, TextStreamer
-    
+
     # prepare tokenizer
     tokenizer = AutoTokenizer.from_pretrained(ov_compressed_model_dir, trust_remote_code=True)
-    
+
     # prepare image processor
     config = AutoConfig.from_pretrained(ov_compressed_model_dir, trust_remote_code=True)
     processor = AutoProcessor.from_pretrained(config.mm_vision_tower)
-    
+
     # initialize OpenVINO model inference class
     ov_model = OVModelForVisualCausalLM.from_pretrained(ov_compressed_model_dir, device=device.value, trust_remote_code=True)
 
@@ -880,22 +882,22 @@ can use the same tokenizer and image processor that provided with model.
 
     from ov_nano_llava_helper import process_images, process_text_input
     from PIL import Image
-    
+
     prompt = "Describe this image in detail"
-    
+
     messages = [{"role": "user", "content": f"<image>\n{prompt}"}]
     text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
     url = "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/8bf7d9f2-018a-4498-bec4-55f17c273ecc"
     image = Image.open(requests.get(url, stream=True).raw)
     image_tensor = process_images(image, None, processor)
     input_ids, attention_mask = process_text_input(text, tokenizer)
-    
+
     streamer = TextStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
-    
+
     display(image)
     print(f"Question:\n{prompt}")
     print("Answer:")
-    
+
     output_ids = ov_model.generate(input_ids, attention_mask=attention_mask, images=image_tensor, max_new_tokens=128, use_cache=True, streamer=streamer)
 
 
@@ -920,15 +922,15 @@ can use the same tokenizer and image processor that provided with model.
 Interactive demo
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     from transformers import TextIteratorStreamer, StoppingCriteria
     from threading import Thread
     import torch
-    
-    
+
+
     class KeywordsStoppingCriteria(StoppingCriteria):
         def __init__(self, keywords, tokenizer, input_ids):
             self.keywords = keywords
@@ -943,7 +945,7 @@ Interactive demo
                 self.keyword_ids.append(torch.tensor(cur_keyword_ids))
             self.tokenizer = tokenizer
             self.start_len = input_ids.shape[1]
-    
+
         def call_for_batch(self, output_ids: torch.LongTensor, scores: torch.FloatTensor, **kwargs) -> bool:
             offset = min(output_ids.shape[1] - self.start_len, self.max_keyword_len)
             self.keyword_ids = [keyword_id.to(output_ids.device) for keyword_id in self.keyword_ids]
@@ -956,14 +958,14 @@ Interactive demo
                 if keyword in outputs:
                     return True
             return False
-    
+
         def __call__(self, output_ids: torch.LongTensor, scores: torch.FloatTensor, **kwargs) -> bool:
             outputs = []
             for i in range(output_ids.shape[0]):
                 outputs.append(self.call_for_batch(output_ids[i].unsqueeze(0), scores))
             return all(outputs)
-    
-    
+
+
     def bot_streaming(message, history):
         messages = []
         if message["files"]:
@@ -972,7 +974,7 @@ Interactive demo
             for _, hist in enumerate(history):
                 if isinstance(hist[0], tuple):
                     image = hist[0][0]
-    
+
         if len(history) > 0 and image is not None:
             messages.append({"role": "user", "content": f"<image>\n{history[1][0]}"})
             messages.append({"role": "assistant", "content": history[1][1]})
@@ -993,7 +995,7 @@ Interactive demo
             messages.append({"role": "user", "content": f"<image>\n{message['text']}"})
         elif len(history) == 0 and image is None:
             messages.append({"role": "user", "content": message["text"]})
-    
+
         print(messages)
         image = Image.open(image).convert("RGB")
         text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
@@ -1014,7 +1016,7 @@ Interactive demo
         )
         thread = Thread(target=ov_model.generate, kwargs=generation_kwargs)
         thread.start()
-    
+
         buffer = ""
         for new_text in streamer:
             buffer += new_text
@@ -1026,11 +1028,11 @@ Interactive demo
     if not Path("gradio_helper.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/nano-llava-multimodal-chatbot/gradio_helper.py")
         open("gradio_helper.py", "w").write(r.text)
-    
+
     from gradio_helper import make_demo
-    
+
     demo = make_demo(fn=bot_streaming)
-    
+
     try:
         demo.launch(debug=False)
     except Exception:
@@ -1043,12 +1045,12 @@ Interactive demo
 .. parsed-literal::
 
     Running on local URL:  http://127.0.0.1:7860
-    
+
     To create a public link, set `share=True` in `launch()`.
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 

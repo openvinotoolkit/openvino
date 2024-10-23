@@ -22,16 +22,17 @@ segmentation, to scene semantic parsing. It is highly efficient and
 effective, showing strong performance on par or even better than state
 of the art.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
 
--  `Imports <#Imports>`__
--  `Prepare the Model <#Prepare-the-Model>`__
--  `Data Processing Module <#Data-Processing-Module>`__
--  `Visualize the original 3D data <#Visualize-the-original-3D-data>`__
--  `Run inference <#Run-inference>`__
+**Table of contents:**
 
-   -  `Select inference device <#Select-inference-device>`__
+
+-  `Imports <#imports>`__
+-  `Prepare the Model <#prepare-the-model>`__
+-  `Data Processing Module <#data-processing-module>`__
+-  `Visualize the original 3D data <#visualize-the-original-3d-data>`__
+-  `Run inference <#run-inference>`__
+
+   -  `Select inference device <#select-inference-device>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -56,7 +57,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Imports
 -------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -79,10 +80,10 @@ Imports
 Prepare the Model
 -----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Download the pre-trained PointNet ONNX model. This pre-trained model is
-provided by ```axinc-ai`` <https://github.com/axinc-ai>`__, and you can
+provided by `axinc-ai <https://github.com/axinc-ai>`__, and you can
 find more point clouds examples
 `here <https://github.com/axinc-ai/ailia-models/tree/master/point_segmentation>`__.
 
@@ -127,7 +128,7 @@ API, see this
 Data Processing Module
 ----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -184,7 +185,7 @@ Data Processing Module
 Visualize the original 3D data
 ------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The point cloud data can be downloaded from
 `ShapeNet <https://shapenet.cs.stanford.edu/ericyi/shapenetcore_partanno_segmentation_benchmark_v0.zip>`__,
@@ -229,7 +230,7 @@ chair for example.
 Run inference
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Run inference and visualize the results of 3D segmentation. - The input
 data is a point cloud with ``1 batch size``\ ，\ ``3 axis value`` (x, y,
@@ -260,7 +261,7 @@ each input point.
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 

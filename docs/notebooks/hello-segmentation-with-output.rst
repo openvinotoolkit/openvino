@@ -10,17 +10,18 @@ Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__ is used.
 ADAS stands for Advanced Driver Assistance Services. The model
 recognizes four classes: background, road, curb and mark.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
 
--  `Imports <#Imports>`__
--  `Download model weights <#Download-model-weights>`__
--  `Select inference device <#Select-inference-device>`__
--  `Load the Model <#Load-the-Model>`__
--  `Load an Image <#Load-an-Image>`__
--  `Do Inference <#Do-Inference>`__
--  `Prepare Data for Visualization <#Prepare-Data-for-Visualization>`__
--  `Visualize data <#Visualize-data>`__
+**Table of contents:**
+
+
+-  `Imports <#imports>`__
+-  `Download model weights <#download-model-weights>`__
+-  `Select inference device <#select-inference-device>`__
+-  `Load the Model <#load-the-model>`__
+-  `Load an Image <#load-an-image>`__
+-  `Do Inference <#do-inference>`__
+-  `Prepare Data for Visualization <#prepare-data-for-visualization>`__
+-  `Visualize data <#visualize-data>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -46,7 +47,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Imports
 -------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -69,7 +70,7 @@ Imports
 Download model weights
 ----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -112,7 +113,7 @@ Download model weights
 Select inference device
 -----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -133,7 +134,7 @@ select device from dropdown list for running inference using OpenVINO
 Load the Model
 --------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -148,7 +149,7 @@ Load the Model
 Load an Image
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__ A sample image from the
+A sample image from the
 `Mapillary Vistas <https://www.mapillary.com/dataset/vistas>`__ dataset
 is provided.
 
@@ -198,7 +199,7 @@ is provided.
 Do Inference
 ------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -225,7 +226,7 @@ Do Inference
 Prepare Data for Visualization
 ------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -245,7 +246,7 @@ Prepare Data for Visualization
 Visualize data
 --------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 

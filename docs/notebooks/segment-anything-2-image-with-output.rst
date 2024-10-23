@@ -1,7 +1,7 @@
 Object masks from prompts with SAM2 and OpenVINO for Images
 ===========================================================
 
-.. container:: alert alert-block alert-danger
+.. warning::
 
    Important note: This notebook requires python >= 3.10. Please make
    sure that your environment fulfill to this requirement before running
@@ -17,46 +17,47 @@ need a Jupyter server to start. For details, please refer to
 `Installation
 Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#Prerequisites>`__
--  `Image prediction <#Image-prediction>`__
--  `Prepare image <#Prepare-image>`__
+**Table of contents:**
+
+
+-  `Prerequisites <#prerequisites>`__
+-  `Image prediction <#image-prediction>`__
+-  `Prepare image <#prepare-image>`__
 -  `Download and inference PyTorch
-   model <#Download-and-inference-PyTorch-model>`__
+   model <#download-and-inference-pytorch-model>`__
 -  `Convert model to OpenVINO Intermediate
-   Representation <#Convert-model-to-OpenVINO-Intermediate-Representation>`__
+   Representation <#convert-model-to-openvino-intermediate-representation>`__
 
-   -  `Image Encoder <#Image-Encoder>`__
-   -  `Mask predictor <#Mask-predictor>`__
+   -  `Image Encoder <#image-encoder>`__
+   -  `Mask predictor <#mask-predictor>`__
 
 -  `Run OpenVINO model in interactive segmentation
-   mode <#Run-OpenVINO-model-in-interactive-segmentation-mode>`__
+   mode <#run-openvino-model-in-interactive-segmentation-mode>`__
 
-   -  `Example Image <#Example-Image>`__
+   -  `Example Image <#example-image>`__
    -  `Preprocessing and visualization
-      utilities <#Preprocessing-and-visualization-utilities>`__
-   -  `Image encoding <#Image-encoding>`__
-   -  `Example point input <#Example-point-input>`__
-   -  `Example with multiple points <#Example-with-multiple-points>`__
+      utilities <#preprocessing-and-visualization-utilities>`__
+   -  `Image encoding <#image-encoding>`__
+   -  `Example point input <#example-point-input>`__
+   -  `Example with multiple points <#example-with-multiple-points>`__
    -  `Example box and point input with negative
-      label <#Example-box-and-point-input-with-negative-label>`__
+      label <#example-box-and-point-input-with-negative-label>`__
 
 -  `Interactive segmentation with
-   Gradio <#Interactive-segmentation-with-Gradio>`__
+   Gradio <#interactive-segmentation-with-gradio>`__
 -  `Run OpenVINO model in automatic mask generation
-   mode <#Run-OpenVINO-model-in-automatic-mask-generation-mode>`__
+   mode <#run-openvino-model-in-automatic-mask-generation-mode>`__
 -  `Optimize encoder using NNCF Post-training Quantization
-   API <#Optimize-encoder-using-NNCF-Post-training-Quantization-API>`__
+   API <#optimize-encoder-using-nncf-post-training-quantization-api>`__
 
-   -  `Prepare a calibration dataset <#Prepare-a-calibration-dataset>`__
+   -  `Prepare a calibration dataset <#prepare-a-calibration-dataset>`__
    -  `Run quantization and serialize OpenVINO IR
-      model <#Run-quantization-and-serialize-OpenVINO-IR-model>`__
+      model <#run-quantization-and-serialize-openvino-ir-model>`__
    -  `Validate Quantized Model
-      Inference <#Validate-Quantized-Model-Inference>`__
+      Inference <#validate-quantized-model-inference>`__
    -  `Compare Performance of the Original and Quantized
-      Models <#Compare-Performance-of-the-Original-and-Quantized-Models>`__
+      Models <#compare-performance-of-the-original-and-quantized-models>`__
 
 Segmentation - identifying which image pixels belong to an object - is a
 core task in computer vision and is used in a broad array of
@@ -107,16 +108,16 @@ original
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     import platform
-    
-    
+
+
     %pip install -q "gradio>=4.13,<4.41.0" "fastapi==0.112.4" "openvino>=2024.4.0" "nncf>=2.13" "torch>=2.3.1" "torchvision>=0.18.1" opencv-python tqdm numpy  --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install "iopath>=0.1.10" "pillow>=9.4.0"  "hydra-core>=1.3.2"
-    
+
     if platform.system() != "Windows":
         %pip install -q "matplotlib>=3.4"
     else:
@@ -159,13 +160,13 @@ Prerequisites
 
     import requests
     from pathlib import Path
-    
+
     if not Path("notebook_utils.py").exists():
         r = requests.get(
             url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
         )
         open("notebook_utils.py", "w").write(r.text)
-    
+
     from notebook_utils import download_file
 
 Clone and install segment-anything-2
@@ -174,14 +175,14 @@ Clone and install segment-anything-2
 
     import sys
     import os
-    
+
     sam2_dir = Path("sam2")
-    
+
     if not sam2_dir.exists():
         exit_code = os.system("git clone https://github.com/facebookresearch/sam2.git")
         if exit_code != 0:
             raise Exception("Failed to clone the repository!")
-    
+
     if str(sam2_dir.resolve()) not in sys.path:
         # append to sys.path so that modules from the repo could be imported
         sys.path.insert(0, str(sam2_dir.resolve()))
@@ -212,7 +213,7 @@ Clone and install segment-anything-2
 .. code:: ipython3
 
     ov_sam2_helper_file_name = "ov_sam2_helper.py"
-    
+
     if not Path(ov_sam2_helper_file_name).exists():
         r = requests.get(
             url=f"https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/sam2-image-segmentation/{ov_sam2_helper_file_name}",
@@ -222,21 +223,21 @@ Clone and install segment-anything-2
 Image prediction
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Prepare image
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     import numpy as np
     import matplotlib.pyplot as plt
     from PIL import Image
-    
+
     download_file("https://raw.githubusercontent.com/facebookresearch/segment-anything/main/notebooks/images/truck.jpg")
-    
+
     image = Image.open("truck.jpg")
     image = np.array(image.convert("RGB"))
 
@@ -262,7 +263,7 @@ Prepare image
 Download and inference PyTorch model
 ------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 There are several `Segment Anything V2
 Models <https://github.com/facebookresearch/segment-anything-2?tab=readme-ov-file#model-description>`__
@@ -281,7 +282,7 @@ of other SAM2 models could be found
 .. code:: ipython3
 
     from sam2.sam2_image_predictor import SAM2ImagePredictor
-    
+
     predictor = SAM2ImagePredictor.from_pretrained("facebook/sam2-hiera-large", device="cpu")
 
 .. code:: ipython3
@@ -292,7 +293,7 @@ of other SAM2 models could be found
 .. code:: ipython3
 
     from ov_sam2_helper import show_points
-    
+
     plt.figure(figsize=(10, 10))
     plt.imshow(image)
     show_points(input_point, input_label, plt.gca())
@@ -307,13 +308,13 @@ of other SAM2 models could be found
 .. code:: ipython3
 
     predictor.set_image(image)
-    
+
     masks, scores, logits = predictor.predict(point_coords=input_point, point_labels=input_label, multimask_output=False)
 
 .. code:: ipython3
 
     from ov_sam2_helper import show_masks
-    
+
     show_masks(image, masks, point_coords=input_point, input_labels=input_label)
 
 
@@ -328,7 +329,7 @@ of other SAM2 models could be found
 Convert model to OpenVINO Intermediate Representation
 -----------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We split model on 2 independent parts: image_encoder and mask_predictor,
 where mask_predictor is combination of Prompt Encoder and Mask Decoder.
@@ -336,15 +337,15 @@ where mask_predictor is combination of Prompt Encoder and Mask Decoder.
 .. code:: ipython3
 
     import openvino as ov
-    
+
     core = ov.Core()
 
 .. code:: ipython3
 
     from notebook_utils import device_widget
-    
+
     device = device_widget()
-    
+
     device
 
 
@@ -359,7 +360,7 @@ where mask_predictor is combination of Prompt Encoder and Mask Decoder.
 Image Encoder
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The image encoder is only run once for the entire interaction and its
 role is to provide unconditioned tokens (feature embeddings)
@@ -380,13 +381,13 @@ To learn more about conversion of Image Encoder, please, see
     import warnings
     import torch
     from ov_sam2_helper import SamImageEncoderModel
-    
+
     ov_encoder_path = Path("ov_image_encoder.xml")
     if not ov_encoder_path.exists():
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=torch.jit.TracerWarning)
             warnings.filterwarnings("ignore", category=UserWarning)
-    
+
             image_encoder = SamImageEncoderModel(predictor)
             ov_encoder_model = ov.convert_model(
                 image_encoder,
@@ -404,13 +405,14 @@ To learn more about conversion of Image Encoder, please, see
 Mask predictor
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
 
-Mask prediction will be includes two models: \* **Prompt Encoder** -
-Encoder for segmentation condition. As a condition can be used points,
-boxes or segmentation mask. \* **Mask Decoder** - The mask decoder
-efficiently maps the image embedding, prompt embeddings, and an output
-token to a mask.
+
+Mask prediction will be includes two models:
+
+* **Prompt Encoder** - Encoder for segmentation condition. As a condition can be used points,
+  boxes or segmentation mask.
+* **Mask Decoder** - The mask decoder efficiently maps the image embedding, prompt embeddings, and an output
+  token to a mask.
 
 Combined prompt encoder and mask decoder model has following list of
 inputs:
@@ -451,16 +453,16 @@ can find more details about conversion of Mask Predictor in
 .. code:: ipython3
 
     from ov_sam2_helper import SamImageMaskPredictionModel
-    
-    
+
+
     ov_mask_predictor_path = Path("ov_mask_predictor.xml")
     if not ov_mask_predictor_path.exists():
         exportable_model = SamImageMaskPredictionModel(predictor.model, multimask_output=False)
         embed_dim = predictor.model.sam_prompt_encoder.embed_dim
         embed_size = predictor.model.sam_prompt_encoder.image_embedding_size
-    
+
         hf_sizes = predictor._bb_feat_sizes
-    
+
         dummy_inputs = {
             "image_embeddings": torch.randn(1, embed_dim, *embed_size, dtype=torch.float),
             "high_res_feats_256": torch.randn(1, 32, *hf_sizes[0], dtype=torch.float),
@@ -483,19 +485,19 @@ can find more details about conversion of Mask Predictor in
 Run OpenVINO model in interactive segmentation mode
 ---------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Example Image
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     import numpy as np
     import cv2
     import matplotlib.pyplot as plt
-    
+
     download_file("https://raw.githubusercontent.com/facebookresearch/segment-anything/main/notebooks/images/truck.jpg")
     image = cv2.imread("truck.jpg")
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
@@ -521,7 +523,7 @@ Example Image
 Preprocessing and visualization utilities
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To prepare input for Image Encoder we should:
 
@@ -539,13 +541,13 @@ These steps are applicable to all available models
 .. code:: ipython3
 
     from ov_sam2_helper import ResizeLongestSide, preprocess_image, postprocess_masks
-    
+
     resizer = ResizeLongestSide(1024)
 
 Image encoding
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To start work with image, we should preprocess it and obtain image
 embeddings using ``ov_encoder``. We will use the same image for all
@@ -562,7 +564,7 @@ Now, we can try to provide different prompts for mask generation
 Example point input
 ~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 In this example we select one point. The green star symbol show its
 location on the image below.
@@ -571,7 +573,7 @@ location on the image below.
 
     input_point = np.array([[500, 375]])
     input_label = np.array([1])
-    
+
     plt.figure(figsize=(10, 10))
     plt.imshow(image)
     show_points(input_point, input_label, plt.gca())
@@ -610,10 +612,10 @@ object).
 .. code:: ipython3
 
     results = ov_predictor(inputs)
-    
+
     masks = results[ov_predictor.output(0)]
     masks = postprocess_masks(masks, image.shape[:-1], resizer)
-    
+
     masks = masks > 0.0
 
 .. code:: ipython3
@@ -624,7 +626,7 @@ object).
 .. code:: ipython3
 
     from ov_sam2_helper import show_mask
-    
+
     plt.figure(figsize=(10, 10))
     plt.imshow(image)
     show_mask(masks, plt.gca())
@@ -640,7 +642,7 @@ object).
 Example with multiple points
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 in this example, we provide additional point for cover larger object
 area.
@@ -671,7 +673,7 @@ Transform the points as in the previous example.
 
     coord = np.concatenate([input_point, np.array([[0.0, 0.0]])], axis=0)[None, :, :]
     label = np.concatenate([input_label, np.array([-1])], axis=0)[None, :].astype(np.float32)
-    
+
     coord = resizer.apply_coords(coord, image.shape[:2]).astype(np.float32)
 
 Package inputs, then predict and threshold the mask.
@@ -685,9 +687,9 @@ Package inputs, then predict and threshold the mask.
         "point_coords": coord,
         "point_labels": label,
     }
-    
+
     results = ov_predictor(inputs)
-    
+
     masks = results[ov_predictor.output(0)]
     masks = postprocess_masks(masks, image.shape[:-1], resizer)
     masks = masks > 0.0
@@ -711,7 +713,7 @@ Great! Looks like now, predicted mask cover whole truck.
 Example box and point input with negative label
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 In this example we define input prompt using bounding box and point
 inside it.The bounding box represented as set of points of its left
@@ -727,7 +729,7 @@ point should be excluded from mask.
 .. code:: ipython3
 
     from ov_sam2_helper import show_box
-    
+
     plt.figure(figsize=(10, 10))
     plt.imshow(image)
     show_box(input_box, plt.gca())
@@ -748,10 +750,10 @@ padding point since the input includes a box input.
 
     box_coords = input_box.reshape(2, 2)
     box_labels = np.array([2, 3])
-    
+
     coord = np.concatenate([input_point, box_coords], axis=0)[None, :, :]
     label = np.concatenate([input_label, box_labels], axis=0)[None, :].astype(np.float32)
-    
+
     coord = resizer.apply_coords(coord, image.shape[:2]).astype(np.float32)
 
 Package inputs, then predict and threshold the mask.
@@ -765,9 +767,9 @@ Package inputs, then predict and threshold the mask.
         "point_coords": coord,
         "point_labels": label,
     }
-    
+
     results = ov_predictor(inputs)
-    
+
     masks = results[ov_predictor.output(0)]
     masks = postprocess_masks(masks, image.shape[:-1], resizer)
     masks = masks > 0.0
@@ -790,7 +792,7 @@ Package inputs, then predict and threshold the mask.
 Interactive segmentation with Gradio
 ------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now, you can try SAM on own image. Upload image to input window and
 click on desired point, model predict segment based on your image and
@@ -805,7 +807,7 @@ point.
             self._img_embeddings = None
             self._high_res_features_256 = None
             self._high_res_features_128 = None
-    
+
         def set_image(self, img: np.ndarray):
             if self._img_embeddings is not None:
                 del self._img_embeddings
@@ -816,7 +818,7 @@ point.
             self._high_res_features_256 = encoding_results[ov_encoder.output(1)]
             self._high_res_features_128 = encoding_results[ov_encoder.output(2)]
             return img
-    
+
         def get_mask(self, points, img):
             coord = np.array(points)
             coord = np.concatenate([coord, np.array([[0, 0]])], axis=0)
@@ -832,17 +834,17 @@ point.
                 "point_coords": coord,
                 "point_labels": label,
             }
-    
+
             results = self.predictor(inputs)
             masks = results[ov_predictor.output(0)]
             masks = postprocess_masks(masks, img.shape[:-1], resizer)
-    
+
             masks = masks > 0.0
             mask = masks[0]
             mask = np.transpose(mask, (1, 2, 0))
             return mask
-    
-    
+
+
     segmenter = Segmenter(ov_encoder, ov_predictor)
 
 .. code:: ipython3
@@ -850,11 +852,11 @@ point.
     if not Path("gradio_helper.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/segment-anything/gradio_helper.py")
         open("gradio_helper.py", "w").write(r.text)
-    
+
     from gradio_helper import make_demo
-    
+
     demo = make_demo(segmenter)
-    
+
     try:
         demo.launch()
     except Exception:
@@ -867,14 +869,14 @@ point.
 .. parsed-literal::
 
     Running on local URL:  http://127.0.0.1:7860
-    
+
     To create a public link, set `share=True` in `launch()`.
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 
 
 .. code:: ipython3
@@ -885,7 +887,7 @@ point.
 Run OpenVINO model in automatic mask generation mode
 ----------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Since SAM2 can efficiently process prompts, masks for the entire image
 can be generated by sampling a large number of prompts over an image.
@@ -900,7 +902,7 @@ postprocessing masks to remove small disconnected regions and holes.
 .. code:: ipython3
 
     mask_generation_helper_file_name = "automatic_mask_generation_helper.py"
-    
+
     if not Path(mask_generation_helper_file_name).exists():
         r = requests.get(
             url=f"https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/segment-anything/{mask_generation_helper_file_name}",
@@ -910,7 +912,7 @@ postprocessing masks to remove small disconnected regions and holes.
 .. code:: ipython3
 
     from automatic_mask_generation_helper import AutomaticMaskGenerationHelper
-    
+
     mask_generator_helper = AutomaticMaskGenerationHelper(resizer, ov_predictor, ov_encoder)
 
 There are several tunable parameters in automatic mask generation that
@@ -952,10 +954,10 @@ is a dictionary containing various data about the mask. These keys are:
 
     import PIL
     from automatic_mask_generation_helper import draw_anns
-    
+
     out = draw_anns(image, prediction)
     cv2.imwrite("result.png", out[:, :, ::-1])
-    
+
     PIL.Image.open("result.png")
 
 
@@ -974,7 +976,7 @@ is a dictionary containing various data about the mask. These keys are:
 Optimize encoder using NNCF Post-training Quantization API
 ----------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ provides a suite of
 advanced algorithms for Neural Networks inference optimization in
@@ -994,7 +996,7 @@ The optimization process contains the following steps:
 .. code:: ipython3
 
     from notebook_utils import quantization_widget
-    
+
     to_quantize = quantization_widget(False)
     to_quantize
 
@@ -1011,19 +1013,19 @@ The optimization process contains the following steps:
 
     # Fetch `skip_kernel_extension` module
     skip_kernel_extension_file_name = "skip_kernel_extension.py"
-    
+
     if not Path(skip_kernel_extension_file_name).exists():
         r = requests.get(
             url=f"https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/{skip_kernel_extension_file_name}",
         )
         open(skip_kernel_extension_file_name, "w").write(r.text)
-    
+
     %load_ext skip_kernel_extension
 
 Prepare a calibration dataset
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Download COCO dataset. Since the dataset is used to calibrate the
 model’s parameter instead of fine-tuning it, we don’t need to download
@@ -1032,14 +1034,14 @@ the label files.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     from zipfile import ZipFile
-    
+
     DATA_URL = "https://ultralytics.com/assets/coco128.zip"
     OUT_DIR = Path(".")
-    
+
     download_file(DATA_URL, directory=OUT_DIR, show_progress=True)
-    
+
     if not (OUT_DIR / "coco128/images/train2017").exists():
         with ZipFile("coco128.zip", "r") as zip_ref:
             zip_ref.extractall(OUT_DIR)
@@ -1051,24 +1053,24 @@ calibration dataset. For PyTorch, we can pass an instance of the
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     import torch.utils.data as data
-    
-    
+
+
     class COCOLoader(data.Dataset):
         def __init__(self, images_path):
             self.images = list(Path(images_path).iterdir())
-    
+
         def __getitem__(self, index):
             image_path = self.images[index]
             image = cv2.imread(str(image_path))
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             return image
-    
+
         def __len__(self):
             return len(self.images)
-    
-    
+
+
     coco_dataset = COCOLoader(OUT_DIR / "coco128/images/train2017")
     calibration_loader = torch.utils.data.DataLoader(coco_dataset)
 
@@ -1078,11 +1080,11 @@ dataset and returns data that can be passed to the model for inference.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
-    
+
+
     import nncf
-    
-    
+
+
     def transform_fn(image_data):
         """
         Quantization transform function. Extracts and preprocess input data from dataloader item for quantization.
@@ -1094,14 +1096,14 @@ dataset and returns data that can be passed to the model for inference.
         image = image_data.numpy()
         processed_image = preprocess_image(np.squeeze(image), resizer)
         return processed_image
-    
-    
+
+
     calibration_dataset = nncf.Dataset(calibration_loader, transform_fn)
 
 Run quantization and serialize OpenVINO IR model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The ``nncf.quantize`` function provides an interface for model
 quantization. It requires an instance of the OpenVINO Model and
@@ -1125,7 +1127,7 @@ activations.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     model = core.read_model(ov_encoder_path)
     quantized_model = nncf.quantize(
         model,
@@ -1142,21 +1144,21 @@ activations.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     ov.save_model(quantized_model, ov_encoder_path_int8)
 
 Validate Quantized Model Inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We can reuse the previous code to validate the output of ``INT8`` model.
 
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
-    
+
+
     # Load INT8 model and run pipeline again
     ov_encoder_model_int8 = core.read_model(ov_encoder_path_int8)
     ov_encoder_int8 = core.compile_model(ov_encoder_model_int8, device.value)
@@ -1164,12 +1166,12 @@ We can reuse the previous code to validate the output of ``INT8`` model.
     image_embeddings = encoding_results[ov_encoder_int8.output(0)]
     high_res_256 = encoding_results[ov_encoder_int8.output(1)]
     high_res_128 = encoding_results[ov_encoder_int8.output(2)]
-    
+
     input_point = np.array([[500, 375]])
     input_label = np.array([1])
     coord = np.concatenate([input_point, np.array([[0.0, 0.0]])], axis=0)[None, :, :]
     label = np.concatenate([input_label, np.array([-1])], axis=0)[None, :].astype(np.float32)
-    
+
     coord = resizer.apply_coords(coord, image.shape[:2]).astype(np.float32)
     inputs = {
         "image_embeddings": image_embeddings,
@@ -1179,7 +1181,7 @@ We can reuse the previous code to validate the output of ``INT8`` model.
         "point_labels": label,
     }
     results = ov_predictor(inputs)
-    
+
     masks = results[ov_predictor.output(0)]
     masks = postprocess_masks(masks, image.shape[:-1], resizer)
     masks = masks > 0.0
@@ -1195,10 +1197,10 @@ Run ``INT8`` model in automatic mask generation mode
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
-    
+
+
     mask_generator_helper_int8 = AutomaticMaskGenerationHelper(resizer, ov_predictor, ov_encoder_int8)
-    
+
     prediction = mask_generator_helper_int8.automatic_mask_generation(image)
     out = draw_anns(image, prediction)
     cv2.imwrite("result_int8.png", out[:, :, ::-1])
@@ -1207,7 +1209,7 @@ Run ``INT8`` model in automatic mask generation mode
 Compare Performance of the Original and Quantized Models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Finally, use the OpenVINO `Benchmark
 Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__

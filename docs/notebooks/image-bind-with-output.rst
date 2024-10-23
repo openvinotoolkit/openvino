@@ -67,49 +67,50 @@ represented on the image below:
 In this tutorial, we consider how to use ImageBind for multimodal
 zero-shot classification.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#Prerequisites>`__
--  `Instantiate PyTorch model <#Instantiate-PyTorch-model>`__
--  `Prepare input data <#Prepare-input-data>`__
+**Table of contents:**
+
+
+-  `Prerequisites <#prerequisites>`__
+-  `Instantiate PyTorch model <#instantiate-pytorch-model>`__
+-  `Prepare input data <#prepare-input-data>`__
 -  `Convert Model to OpenVINO Intermediate Representation (IR)
-   format <#Convert-Model-to-OpenVINO-Intermediate-Representation-(IR)-format>`__
+   format <#convert-model-to-openvino-intermediate-representation-ir-format>`__
 
-   -  `Select inference device <#Select-inference-device>`__
+   -  `Select inference device <#select-inference-device>`__
 
 -  `Zero-shot classification using ImageBind and
-   OpenVINO <#Zero-shot-classification-using-ImageBind-and-OpenVINO>`__
+   OpenVINO <#zero-shot-classification-using-imagebind-and-openvino>`__
 
-   -  `Text-Image classification <#Text-Image-classification>`__
-   -  `Text-Audio classification <#Text-Audio-classification>`__
-   -  `Image-Audio classification <#Image-Audio-classification>`__
+   -  `Text-Image classification <#text-image-classification>`__
+   -  `Text-Audio classification <#text-audio-classification>`__
+   -  `Image-Audio classification <#image-audio-classification>`__
 
 -  `Post-Training Quantization of ImageBind model with
-   NNCF <#Post-Training-Quantization-of-ImageBind-model-with-NNCF>`__
+   NNCF <#post-training-quantization-of-imagebind-model-with-nncf>`__
 
-   -  `Prepare datasets <#Prepare-datasets>`__
-   -  `Apply quantization <#Apply-quantization>`__
+   -  `Prepare datasets <#prepare-datasets>`__
+   -  `Apply quantization <#apply-quantization>`__
 
       -  `Quantize ImageBind model for vision
-         modality. <#Quantize-ImageBind-model-for-vision-modality.>`__
+         modality. <#quantize-imagebind-model-for-vision-modality->`__
       -  `Quantize ImageBind model for text
-         modality <#Quantize-ImageBind-model-for-text-modality>`__
+         modality <#quantize-imagebind-model-for-text-modality>`__
       -  `Quantize ImageBind model for audio
-         modality <#Quantize-ImageBind-model-for-audio-modality>`__
+         modality <#quantize-imagebind-model-for-audio-modality>`__
 
    -  `Compare results for the OpenVINO FP16 model and the quantized
-      model <#Compare-results-for-the-OpenVINO-FP16-model-and-the-quantized-model>`__
+      model <#compare-results-for-the-openvino-fp16-model-and-the-quantized-model>`__
 
-      -  `Select inference device <#Select-inference-device>`__
+      -  `Select inference device <#select-inference-device>`__
 
-   -  `Compare File Size <#Compare-File-Size>`__
+   -  `Compare File Size <#compare-file-size>`__
    -  `Compare inference time of the FP16 IR and quantized
-      models <#Compare-inference-time-of-the-FP16-IR-and-quantized-models>`__
+      models <#compare-inference-time-of-the-fp16-ir-and-quantized-models>`__
 
-      -  `Vision model <#Vision-model>`__
-      -  `Text model <#Text-model>`__
-      -  `Audio model <#Audio-model>`__
+      -  `Vision model <#vision-model>`__
+      -  `Text model <#text-model>`__
+      -  `Audio model <#audio-model>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -124,7 +125,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -153,7 +154,7 @@ Prerequisites
 Instantiate PyTorch model
 -------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To start work with the model, we should instantiate the PyTorch model
 class. ``imagebind_model.imagebind_huge(pretrained=True)`` downloads
@@ -180,7 +181,7 @@ card <https://github.com/facebookresearch/ImageBind/blob/main/model_card.md>`__.
 Prepare input data
 ------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 ImageBind works with data across 6 different modalities. Each of them
 requires its steps for preprocessing. ``data`` module is responsible for
@@ -222,7 +223,7 @@ data reading and preprocessing for each modality.
 Convert Model to OpenVINO Intermediate Representation (IR) format
 -----------------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 OpenVINO supports PyTorch through Model Conversion API. You will use
 `model conversion Python
@@ -258,7 +259,7 @@ embeddings.
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -312,7 +313,7 @@ select device from dropdown list for running inference using OpenVINO
 Zero-shot classification using ImageBind and OpenVINO
 -----------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 In zero-shot classification, a piece of data is embedded and fed to the
 model to retrieve a label that corresponds with the contents of the
@@ -376,7 +377,7 @@ they represent the same object.
 Text-Image classification
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -392,7 +393,7 @@ Text-Image classification
 Text-Audio classification
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -408,7 +409,7 @@ Text-Audio classification
 Image-Audio classification
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -530,7 +531,7 @@ Putting all together, we can match text, image, and sound for our data.
 Post-Training Quantization of ImageBind model with NNCF
 -------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The goal of this part of tutorial is to demonstrate how to speed up the
 model by applying 8-bit post-training quantization from
@@ -552,7 +553,7 @@ data examples. 4. Compare model size of converted and quantized models.
 Prepare datasets
 ~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The `Conceptual
 Captions <https://ai.google.com/research/ConceptualCaptions/>`__ dataset
@@ -652,7 +653,7 @@ quantize image and text models.
         vision_data, text_data = collect_vision_text_data(dataloader, opt_init_steps)
         return vision_data, text_data
 
-The ```ESC-50`` <https://github.com/karolpiczak/ESC-50>`__ dataset is
+The `ESC-50 <https://github.com/karolpiczak/ESC-50>`__ dataset is
 used to quantize the audio modality of the ImageBind model. Dataset is a
 labeled collection of 2000 environmental audio recordings suitable for
 benchmarking methods of environmental sound classification. The dataset
@@ -709,7 +710,7 @@ consists of 5-second-long recordings organized into 50 semantic classes.
 Apply quantization
 ~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -742,7 +743,7 @@ Apply quantization
 Quantize ImageBind model for vision modality.
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
    **NOTE**: Quantization is time and memory consuming operation.
    Running quantization code below may take a long time.
@@ -759,7 +760,7 @@ Quantize ImageBind model for vision modality.
 Quantize ImageBind model for text modality
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -770,7 +771,7 @@ Quantize ImageBind model for text modality
 Quantize ImageBind model for audio modality
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -787,7 +788,7 @@ in the NNCF repository for more information.
 Compare results for the OpenVINO FP16 model and the quantized model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Compare the probability matrices for ``FP16`` and ``INT8`` models.
 
@@ -816,7 +817,7 @@ Compare the probability matrices for ``FP16`` and ``INT8`` models.
 Select inference device
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -911,7 +912,7 @@ select device from dropdown list for running inference using OpenVINO
 Compare File Size
 ~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -947,7 +948,7 @@ Compare File Size
 Compare inference time of the FP16 IR and quantized models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To measure the inference performance of the ``FP16`` and ``INT8``
 models, we use median inference time on calibration dataset. So we can
@@ -977,7 +978,7 @@ approximately estimate the speed up of the dynamic quantized models.
 Vision model
 ^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -994,7 +995,7 @@ Vision model
 Text model
 ^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -1011,7 +1012,7 @@ Text model
 Audio model
 ^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 

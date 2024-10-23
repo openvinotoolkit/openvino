@@ -18,39 +18,40 @@ model. - Download and prepare a dataset. - Validate the original model.
 optimization pipeline. - Compare performance of the FP32 and quantized
 models. - Other optimization possibilities with OpenVINO api - Live demo
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
 
--  `Get PyTorch model <#Get-PyTorch-model>`__
+**Table of contents:**
 
-   -  `Prerequisites <#Prerequisites>`__
 
--  `Instantiate model <#Instantiate-model>`__
+-  `Get PyTorch model <#get-pytorch-model>`__
 
-   -  `Convert model to OpenVINO IR <#Convert-model-to-OpenVINO-IR>`__
-   -  `Verify model inference <#Verify-model-inference>`__
-   -  `Select inference device <#Select-inference-device>`__
-   -  `Test on single image <#Test-on-single-image>`__
+   -  `Prerequisites <#prerequisites>`__
+
+-  `Instantiate model <#instantiate-model>`__
+
+   -  `Convert model to OpenVINO IR <#convert-model-to-openvino-ir>`__
+   -  `Verify model inference <#verify-model-inference>`__
+   -  `Select inference device <#select-inference-device>`__
+   -  `Test on single image <#test-on-single-image>`__
 
 -  `Optimize model using NNCF Post-training Quantization
-   API <#Optimize-model-using-NNCF-Post-training-Quantization-API>`__
+   API <#optimize-model-using-nncf-post-training-quantization-api>`__
 
    -  `Validate Quantized model
-      inference <#Validate-Quantized-model-inference>`__
+      inference <#validate-quantized-model-inference>`__
 
 -  `Compare the Original and Quantized
-   Models <#Compare-the-Original-and-Quantized-Models>`__
+   Models <#compare-the-original-and-quantized-models>`__
 
    -  `Compare performance object detection
-      models <#Compare-performance-object-detection-models>`__
+      models <#compare-performance-object-detection-models>`__
 
--  `Next steps <#Next-steps>`__
+-  `Next steps <#next-steps>`__
 
-   -  `Async inference pipeline <#Async-inference-pipeline>`__
+   -  `Async inference pipeline <#async-inference-pipeline>`__
 
--  `Live demo <#Live-demo>`__
+-  `Live demo <#live-demo>`__
 
-   -  `Run Live Object Detection <#Run-Live-Object-Detection>`__
+   -  `Run Live Object Detection <#run-live-object-detection>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -65,10 +66,10 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Get PyTorch model
 -----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Generally, PyTorch models represent an instance of the
-```torch.nn.Module`` <https://pytorch.org/docs/stable/generated/torch.nn.Module.html>`__
+`torch.nn.Module <https://pytorch.org/docs/stable/generated/torch.nn.Module.html>`__
 class, initialized by a state dictionary with model weights. We will use
 the YOLOv11 nano model (also known as ``yolo11n``) pre-trained on a COCO
 dataset, which is available in this
@@ -86,7 +87,7 @@ to do these steps manually.
 Prerequisites
 ^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Install necessary packages.
 
@@ -147,7 +148,7 @@ Import required utility functions. The lower cell will download the
 Instantiate model
 -----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 There are `several
 models <https://docs.ultralytics.com/tasks/detect/>`__ available in the
@@ -225,7 +226,7 @@ Let us consider the examples:
 Convert model to OpenVINO IR
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Ultralytics provides API for convenient model exporting to different
 formats including OpenVINO IR. ``model.export`` is responsible for model
@@ -259,7 +260,7 @@ preserve dynamic shapes in the model.
 Verify model inference
 ~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We can reuse the base model pipeline for pre- and postprocessing just
 replacing the inference method where we will use the IR model for
@@ -268,7 +269,7 @@ inference.
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select device from dropdown list for running inference using OpenVINO
 
@@ -290,7 +291,7 @@ Select device from dropdown list for running inference using OpenVINO
 Test on single image
 ~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now, once we have defined preprocessing and postprocessing steps, we are
 ready to check model prediction for object detection.
@@ -342,7 +343,7 @@ ready to check model prediction for object detection.
 Optimize model using NNCF Post-training Quantization API
 --------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ provides a suite of
 advanced algorithms for Neural Networks inference optimization in
@@ -572,9 +573,9 @@ point precision, using the ``ignored_scope`` parameter.
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
 
 
 
@@ -585,9 +586,9 @@ point precision, using the ``ignored_scope`` parameter.
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
 
 
 
@@ -599,7 +600,7 @@ point precision, using the ``ignored_scope`` parameter.
 Validate Quantized model inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 ``nncf.quantize`` returns the OpenVINO Model class instance, which is
 suitable for loading on a device for making predictions. ``INT8`` model
@@ -655,12 +656,12 @@ on the image.
 Compare the Original and Quantized Models
 -----------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Compare performance object detection models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Finally, use the OpenVINO `Benchmark
 Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__
@@ -866,14 +867,14 @@ models.
 Next steps
 ----------
 
-`back to top ⬆️ <#Table-of-contents:>`__ This section contains
+This section contains
 suggestions on how to additionally improve the performance of your
 application using OpenVINO.
 
 Async inference pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__ The key advantage of the Async
+The key advantage of the Async
 API is that when a device is busy with inference, the application can
 perform other tasks in parallel (for example, populating inputs or
 scheduling other requests) rather than wait for the current inference to
@@ -883,7 +884,7 @@ openvino, refer to `Async API tutorial <async-api-with-output.html>`__
 Live demo
 ---------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The following code runs model inference on a video:
 
@@ -1005,7 +1006,7 @@ The following code runs model inference on a video:
 Run Live Object Detection
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Use a webcam as the video input. By default, the primary webcam is set
 with \ ``source=0``. If you have multiple webcams, each one will be

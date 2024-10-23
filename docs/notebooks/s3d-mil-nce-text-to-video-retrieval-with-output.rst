@@ -25,23 +25,25 @@ inference.
 
 The tutorial consists of the following steps:
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#Prerequisites>`__
--  `The original inference <#The-original-inference>`__
+**Table of contents:**
+
+
+-  `Prerequisites <#prerequisites>`__
+-  `The original inference <#the-original-inference>`__
 -  `Convert the model to OpenVINO
-   IR <#Convert-the-model-to-OpenVINO-IR>`__
--  `Compiling models <#Compiling-models>`__
--  `Inference <#Inference>`__
+   IR <#convert-the-model-to-openvino-ir>`__
+-  `Compiling models <#compiling-models>`__
+-  `Inference <#inference>`__
 -  `Optimize model using NNCF Post-training Quantization
-   API <#Optimize-model-using-NNCF-Post-training-Quantization-API>`__
+   API <#optimize-model-using-nncf-post-training-quantization-api>`__
 
-   -  `Prepare dataset <#Prepare-dataset>`__
-   -  `Perform model quantization <#Perform-model-quantization>`__
+   -  `Prepare dataset <#prepare-dataset>`__
+   -  `Perform model quantization <#perform-model-quantization>`__
 
--  `Run quantized model inference <#Run-quantized-model-inference>`__
-   ### Installation Instructions
+-  `Run quantized model inference <#run-quantized-model-inference>`__
+    
+
 
 This is a self-contained example that relies solely on its own code.
 
@@ -53,7 +55,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -210,7 +212,7 @@ Below we will define auxiliary functions
 The original inference
 ----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -247,7 +249,7 @@ The original inference
 Convert the model to OpenVINO IR
 --------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__ OpenVINO supports TensorFlow
+OpenVINO supports TensorFlow
 models via conversion into Intermediate Representation (IR) format. We
 need to provide a model object, input data for model tracing to
 ``ov.convert_model`` function to obtain OpenVINO ``ov.Model`` object
@@ -269,7 +271,7 @@ instance. Model can be saved on disk for next deployment using
 Compiling models
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Only CPU is supported for this model due to strings as input.
 
@@ -282,7 +284,7 @@ Only CPU is supported for this model due to strings as input.
 Inference
 ---------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -323,7 +325,7 @@ Inference
 Optimize model using NNCF Post-training Quantization API
 --------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ provides a suite of
 advanced algorithms for Neural Networks inference optimization in
@@ -338,7 +340,7 @@ process contains the following steps:
 Prepare dataset
 ~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 This model doesn’t require a big dataset for calibration. We will use
 only example videos for this purpose. NNCF provides ``nncf.Dataset``
@@ -361,7 +363,7 @@ preparing input data in model expected format.
 Perform model quantization
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The ``nncf.quantize`` function provides an interface for model
 quantization. It requires an instance of the OpenVINO Model and
@@ -389,17 +391,17 @@ preset, ignored scope etc.) can be provided.
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
     
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
     
 
 
@@ -410,17 +412,17 @@ preset, ignored scope etc.) can be provided.
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
     
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
     
 
 
@@ -436,17 +438,17 @@ preset, ignored scope etc.) can be provided.
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
     
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
     
 
 
@@ -457,24 +459,24 @@ preset, ignored scope etc.) can be provided.
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+
+
     
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
     
 
 
 Run quantized model inference
 -----------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 There are no changes in model usage after applying quantization. Let’s
 check the model work on the previously used example.

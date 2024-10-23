@@ -39,31 +39,32 @@ Zoo <https://huggingface.co/collections/llava-hf/llava-15-65f762d5b6941db5c2ba07
 -  Prepare OpenVINO GenAI inference pipeline
 -  Run OpenVINO model
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
 
--  `About model <#About-model>`__
--  `Prerequisites <#Prerequisites>`__
--  `Convert and Optimize Model <#Convert-and-Optimize-Model>`__
+**Table of contents:**
+
+
+-  `About model <#about-model>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Convert and Optimize Model <#convert-and-optimize-model>`__
 
    -  `Convert model to OpenVINO IR format using Optimum
-      CLI <#Convert-model-to-OpenVINO-IR-format-using-Optimum-CLI>`__
+      CLI <#convert-model-to-openvino-ir-format-using-optimum-cli>`__
    -  `Compress Model weights to 4 and 8 bits using
-      NNCF <#Compress-Model-weights-to-4-and-8-bits-using-NNCF>`__
+      NNCF <#compress-model-weights-to-4-and-8-bits-using-nncf>`__
 
 -  `Prepare OpenVINO GenAI inference
-   pipeline <#Prepare-OpenVINO-GenAI-inference-pipeline>`__
+   pipeline <#prepare-openvino-genai-inference-pipeline>`__
 
-   -  `Select inference device <#Select-inference-device>`__
-   -  `Select model variant <#Select-model-variant>`__
-   -  `Load OpenVINO model <#Load-OpenVINO-model>`__
+   -  `Select inference device <#select-inference-device>`__
+   -  `Select model variant <#select-model-variant>`__
+   -  `Load OpenVINO model <#load-openvino-model>`__
 
--  `Run model inference <#Run-model-inference>`__
+-  `Run model inference <#run-model-inference>`__
 
-   -  `Prepare input data <#Prepare-input-data>`__
-   -  `Test model inference <#Test-model-inference>`__
+   -  `Prepare input data <#prepare-input-data>`__
+   -  `Test model inference <#test-model-inference>`__
 
--  `Interactive demo <#Interactive-demo>`__
+-  `Interactive demo <#interactive-demo>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -78,7 +79,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 About model
 -----------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 LLaVA connects pre-trained `CLIP
 ViT-L/14 <https://openai.com/research/clip>`__ visual encoder and large
@@ -110,7 +111,7 @@ web-page <https://llava-vl.github.io/>`__,
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Install required dependencies
 
@@ -124,7 +125,7 @@ Install required dependencies
 Convert and Optimize Model
 --------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Our model conversion and optimization consist of following steps: 1.
 Download original PyTorch model. 2. Convert model to OpenVINO format. 3.
@@ -135,13 +136,13 @@ Let’s consider each step more deeply.
 Convert model to OpenVINO IR format using Optimum CLI
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 OpenVINO supports PyTorch models via conversion to OpenVINO Intermediate
 Representation format. For convenience, we will use OpenVINO integration
-with HuggingFace Optimum. 🤗 `Optimum
+with HuggingFace Optimum. `Optimum
 Intel <https://huggingface.co/docs/optimum/intel/index>`__ is the
-interface between the 🤗 Transformers and Diffusers libraries and the
+interface between the Transformers and Diffusers libraries and the
 different tools and libraries provided by Intel to accelerate end-to-end
 pipelines on Intel architectures.
 
@@ -182,7 +183,7 @@ documentation <https://huggingface.co/docs/optimum/intel/openvino/export#export-
 Compress Model weights to 4 and 8 bits using NNCF
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For reducing memory consumption, weights compression optimization can be
 applied using `NNCF <https://github.com/openvinotoolkit/nncf>`__. Weight
@@ -287,7 +288,7 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 Prepare OpenVINO GenAI inference pipeline
 -----------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 `OpenVINO™ GenAI <https://github.com/openvinotoolkit/openvino.genai>`__
 is a library of the most popular Generative AI model pipelines,
@@ -318,7 +319,7 @@ conversation about provided images content.
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select device from dropdown list for running inference using OpenVINO.
 
@@ -349,7 +350,7 @@ Select device from dropdown list for running inference using OpenVINO.
 Select model variant
 ~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -381,7 +382,7 @@ Select model variant
 Load OpenVINO model
 ~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For pipeline initialization we should provide path to model directory
 and inference device.
@@ -393,7 +394,7 @@ and inference device.
 Run model inference
 -------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now, when we have model and defined generation pipeline, we can run
 model inference.
@@ -401,7 +402,7 @@ model inference.
 Prepare input data
 ~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For preparing input data, ``VLMPipeline`` use tokenizer and image
 processor inside, we just need to convert image to input OpenVINO tensor
@@ -462,7 +463,7 @@ one of the most critical aspects of a smooth experience.
 Test model inference
 ~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -487,7 +488,7 @@ Test model inference
 Interactive demo
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 

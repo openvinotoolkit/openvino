@@ -47,47 +47,48 @@ LoRA, OpenVINO and quantization with
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__. Let us get
 “controlling”!
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
 
--  `Background <#Background>`__
+**Table of contents:**
 
-   -  `Stable Diffusion <#Stable-Diffusion>`__
-   -  `ControlNet <#ControlNet>`__
+
+-  `Background <#background>`__
+
+   -  `Stable Diffusion <#stable-diffusion>`__
+   -  `ControlNet <#controlnet>`__
    -  `Low-Rank Adaptation of Large Language Models
-      (LoRA) <#Low-Rank-Adaptation-of-Large-Language-Models-(LoRA)>`__
+      (LoRA) <#low-rank-adaptation-of-large-language-models-lora>`__
 
--  `Prerequisites <#Prerequisites>`__
+-  `Prerequisites <#prerequisites>`__
 -  `Load Original Diffusers pipeline and prepare models for
-   conversion <#Load-Original-Diffusers-pipeline-and-prepare-models-for-conversion>`__
--  `Condition Image <#Condition-Image>`__
+   conversion <#load-original-diffusers-pipeline-and-prepare-models-for-conversion>`__
+-  `Condition Image <#condition-image>`__
 -  `Convert models to OpenVINO Intermediate representation (IR)
-   format <#Convert-models-to-OpenVINO-Intermediate-representation-(IR)-format>`__
+   format <#convert-models-to-openvino-intermediate-representation-ir-format>`__
 
-   -  `ControlNet conversion <#ControlNet-conversion>`__
-   -  `U-Net <#U-Net>`__
-   -  `Text Encoder <#Text-Encoder>`__
-   -  `VAE Decoder conversion <#VAE-Decoder-conversion>`__
+   -  `ControlNet conversion <#controlnet-conversion>`__
+   -  `U-Net <#u-net>`__
+   -  `Text Encoder <#text-encoder>`__
+   -  `VAE Decoder conversion <#vae-decoder-conversion>`__
 
--  `Prepare Inference pipeline <#Prepare-Inference-pipeline>`__
+-  `Prepare Inference pipeline <#prepare-inference-pipeline>`__
 
    -  `Prepare tokenizer and
-      LCMScheduler <#Prepare-tokenizer-and-LCMScheduler>`__
+      LCMScheduler <#prepare-tokenizer-and-lcmscheduler>`__
    -  `Select inference device for Stable Diffusion
-      pipeline <#Select-inference-device-for-Stable-Diffusion-pipeline>`__
+      pipeline <#select-inference-device-for-stable-diffusion-pipeline>`__
 
 -  `Running Text-to-Image Generation with ControlNet Conditioning and
-   OpenVINO <#Running-Text-to-Image-Generation-with-ControlNet-Conditioning-and-OpenVINO>`__
--  `Quantization <#Quantization>`__
+   OpenVINO <#running-text-to-image-generation-with-controlnet-conditioning-and-openvino>`__
+-  `Quantization <#quantization>`__
 
-   -  `Prepare calibration datasets <#Prepare-calibration-datasets>`__
-   -  `Run quantization <#Run-quantization>`__
+   -  `Prepare calibration datasets <#prepare-calibration-datasets>`__
+   -  `Run quantization <#run-quantization>`__
    -  `Compare inference time of the FP16 and INT8
-      models <#Compare-inference-time-of-the-FP16-and-INT8-models>`__
+      models <#compare-inference-time-of-the-fp16-and-int8-models>`__
 
-      -  `Compare model file sizes <#Compare-model-file-sizes>`__
+      -  `Compare model file sizes <#compare-model-file-sizes>`__
 
--  `Interactive Demo <#Interactive-Demo>`__
+-  `Interactive Demo <#interactive-demo>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -102,12 +103,12 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Background
 ----------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Stable Diffusion
 ~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 `Stable Diffusion <https://github.com/CompVis/stable-diffusion>`__ is a
 text-to-image latent diffusion model created by researchers and
@@ -148,7 +149,7 @@ OpenVINO, see the following
 ControlNet
 ~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__ ControlNet is a neural network
+ControlNet is a neural network
 structure to control diffusion models by adding extra conditions. Using
 this new framework, we can capture a scene, structure, object, or
 subject pose from an inputted image, and then transfer that quality to
@@ -191,7 +192,7 @@ the final image.
 Low-Rank Adaptation of Large Language Models (LoRA)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 `Low-Rank Adaptation of Large Language Models
 (LoRA) <https://arxiv.org/abs/2106.09685>`__ is a training method that
@@ -228,7 +229,7 @@ and `blog post <https://huggingface.co/blog/peft>`__.
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Install required packages
 
@@ -259,17 +260,17 @@ Prepare PyTorch models
 Load Original Diffusers pipeline and prepare models for conversion
 ------------------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For working with Stable Diffusion and ControlNet models, we will use
 Hugging Face `Diffusers <https://github.com/huggingface/diffusers>`__
 library. To experiment with ControlNet, Diffusers exposes the
-```StableDiffusionControlNetPipeline`` <https://huggingface.co/docs/diffusers/main/en/api/pipelines/stable_diffusion/controlnet>`__
+`StableDiffusionControlNetPipeline <https://huggingface.co/docs/diffusers/main/en/api/pipelines/stable_diffusion/controlnet>`__
 similar to the `other Diffusers
 pipelines <https://huggingface.co/docs/diffusers/api/pipelines/overview>`__.
 Central to the ``StableDiffusionControlNetPipeline`` is the
 ``controlnet`` argument which enables providing a particularly trained
-```ControlNetModel`` <https://huggingface.co/docs/diffusers/main/en/api/models#diffusers.ControlNetModel>`__
+`ControlNetModel <https://huggingface.co/docs/diffusers/main/en/api/models#diffusers.ControlNetModel>`__
 instance while keeping the pre-trained diffusion model weights the same.
 
 The code below demonstrates how to create
@@ -328,7 +329,7 @@ ControlNet model 3. Load LoRA weights to the pipeline using
 Condition Image
 ---------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The process of extracting specific information from the input image is
 called an annotation. ControlNet comes pre-packaged with compatibility
@@ -440,7 +441,7 @@ color-coded image.
 Convert models to OpenVINO Intermediate representation (IR) format
 ------------------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Starting from 2023.0 release, OpenVINO supports PyTorch models
 conversion directly. We need to provide a model object, input data for
@@ -461,7 +462,7 @@ Let us convert each part:
 ControlNet conversion
 ~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The ControlNet model accepts the same inputs like UNet in Stable
 Diffusion pipeline and additional condition sample - skeleton key points
@@ -579,7 +580,7 @@ blocks, which serves additional context for the UNet model.
 U-Net
 ~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The process of U-Net model conversion remains the same, like for
 original Stable Diffusion model, but with respect to the new inputs
@@ -675,7 +676,7 @@ generated by ControlNet.
 Text Encoder
 ~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The text-encoder is responsible for transforming the input prompt, for
 example, “a photo of an astronaut riding a horse” into an embedding
@@ -744,7 +745,7 @@ hidden states.
 VAE Decoder conversion
 ~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The VAE model has two parts, an encoder, and a decoder. The encoder is
 used to convert the image into a low-dimensional latent representation,
@@ -812,11 +813,11 @@ diffusion
 Prepare Inference pipeline
 --------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We already deeply discussed how the ControlNet-guided pipeline works on
 example pose-controlled generation in `controlnet
-notebook <../controlnet-stable-diffusion>`__. In our current example,
+notebook <controlnet-stable-diffusion-with-output.html>`__. In our current example,
 the pipeline remains without changes. Similarly to Diffusers
 ``StableDiffusionControlNetPipeline``, we define our own
 ``OVControlNetStableDiffusionPipeline`` inference pipeline based on
@@ -1204,7 +1205,7 @@ OpenVINO.
 Prepare tokenizer and LCMScheduler
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Tokenizer and scheduler are also important parts of the diffusion
 pipeline. The tokenizer is responsible for preprocessing user-provided
@@ -1240,7 +1241,7 @@ the original pipeline scheduler with
 Select inference device for Stable Diffusion pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -1286,7 +1287,7 @@ select device from dropdown list for running inference using OpenVINO
 Running Text-to-Image Generation with ControlNet Conditioning and OpenVINO
 --------------------------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now, we are ready to start generation. For improving the generation
 process, we also introduce an opportunity to provide a
@@ -1350,7 +1351,7 @@ Let’s see model in action
 Quantization
 ------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding quantization layers into model
@@ -1402,10 +1403,10 @@ Let’s load ``skip magic`` extension to skip quantization if
 Prepare calibration datasets
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We use a portion of
-```fusing/instructpix2pix-1000-samples`` <https://huggingface.co/datasets/fusing/instructpix2pix-1000-samples>`__
+`fusing/instructpix2pix-1000-samples <https://huggingface.co/datasets/fusing/instructpix2pix-1000-samples>`__
 dataset from Hugging Face as calibration data for ControlNet and UNet.
 
 To collect intermediate model inputs for calibration we should customize
@@ -1501,7 +1502,7 @@ the last ControlNet input is a preprocessed ``control_image``.
 Run quantization
 ~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Create a quantized model from the pre-trained converted OpenVINO model.
 ``FastBiasCorrection`` algorithm is disabled due to minimal accuracy
@@ -1588,7 +1589,7 @@ the same input data.
 Compare inference time of the FP16 and INT8 models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To measure the inference performance of the ``FP16`` and ``INT8``
 pipelines, we use median inference time on calibration subset.
@@ -1640,7 +1641,7 @@ pipelines, we use median inference time on calibration subset.
 Compare model file sizes
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -1683,7 +1684,7 @@ Compare model file sizes
 Interactive Demo
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now, you can test model on own images. Please, provide image into
 ``Input Image`` window and prompts for generation and click ``Run``
