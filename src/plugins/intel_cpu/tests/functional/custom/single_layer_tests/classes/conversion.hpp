@@ -39,8 +39,8 @@ protected:
 namespace Conversion {
 const std::vector<InputShape>& inShapes_4D_static();
 const std::vector<InputShape>& inShapes_4D_dynamic();
-const std::vector<InputShape>& inShapes_7D_static();
-const std::vector<InputShape>& inShapes_7D_dynamic();
+const std::vector<InputShape>& inShapes_5D_static();
+const std::vector<InputShape>& inShapes_5D_dynamic();
 const std::vector<ov::element::Type>& precisions();
 }  // namespace Conversion
 }  // namespace test
