@@ -143,7 +143,7 @@ Import required utility functions. The lower cell will download the
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization/data/intel_rnb.jpg')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization/data/intel_rnb.jpg')
 
 
 
@@ -214,14 +214,14 @@ Let us consider the examples:
 
 .. parsed-literal::
 
-    100%|██████████| 5.97M/5.97M [00:00<00:00, 25.1MB/s]
+    100%|██████████| 5.97M/5.97M [00:00<00:00, 25.3MB/s]
 
 
 .. parsed-literal::
 
     
-    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization/data/intel_rnb.jpg: 480x640 1 person, 56.4ms
-    Speed: 1.9ms preprocess, 56.4ms inference, 0.9ms postprocess per image at shape (1, 3, 480, 640)
+    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization/data/intel_rnb.jpg: 480x640 1 person, 59.6ms
+    Speed: 2.1ms preprocess, 59.6ms inference, 0.9ms postprocess per image at shape (1, 3, 480, 640)
 
 
 
@@ -250,15 +250,15 @@ preserve dynamic shapes in the model.
 
 .. parsed-literal::
 
-    Ultralytics 8.3.0 🚀 Python-3.8.10 torch-2.3.1+cpu CPU (Intel Core(TM) i9-10920X 3.50GHz)
+    Ultralytics 8.3.0 🚀 Python-3.8.10 torch-2.4.1+cpu CPU (Intel Core(TM) i9-10920X 3.50GHz)
     
     PyTorch: starting from 'yolo11n-pose.pt' with input shape (1, 3, 640, 640) BCHW and output shape(s) (1, 56, 8400) (6.0 MB)
     
-    OpenVINO: starting export with openvino 2024.5.0-16913-890f2e12c98...
-    OpenVINO: export success ✅ 1.9s, saved as 'yolo11n-pose_openvino_model/' (6.0 MB)
+    OpenVINO: starting export with openvino 2024.5.0-16993-9c432a3641a...
+    OpenVINO: export success ✅ 2.0s, saved as 'yolo11n-pose_openvino_model/' (6.0 MB)
     
-    Export complete (2.2s)
-    Results saved to /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization
+    Export complete (2.1s)
+    Results saved to /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization
     Predict:         yolo predict task=pose model=yolo11n-pose_openvino_model imgsz=640 half 
     Validate:        yolo val task=pose model=yolo11n-pose_openvino_model imgsz=640 data=/ultralytics/ultralytics/cfg/datasets/coco-pose.yaml half 
     Visualize:       https://netron.app
@@ -334,12 +334,12 @@ ready to check model prediction.
 
 .. parsed-literal::
 
-    Ultralytics 8.3.0 🚀 Python-3.8.10 torch-2.3.1+cpu CPU (Intel Core(TM) i9-10920X 3.50GHz)
+    Ultralytics 8.3.0 🚀 Python-3.8.10 torch-2.4.1+cpu CPU (Intel Core(TM) i9-10920X 3.50GHz)
     Loading yolo11n-pose_openvino_model for OpenVINO inference...
     Using OpenVINO LATENCY mode for batch=1 inference...
     
-    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization/data/intel_rnb.jpg: 640x640 1 person, 21.5ms
-    Speed: 2.5ms preprocess, 21.5ms inference, 0.9ms postprocess per image at shape (1, 3, 640, 640)
+    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization/data/intel_rnb.jpg: 640x640 1 person, 19.9ms
+    Speed: 2.3ms preprocess, 19.9ms inference, 0.9ms postprocess per image at shape (1, 3, 640, 640)
 
 
 
@@ -682,12 +682,12 @@ on the image.
 
 .. parsed-literal::
 
-    Ultralytics 8.3.0 🚀 Python-3.8.10 torch-2.3.1+cpu CPU (Intel Core(TM) i9-10920X 3.50GHz)
+    Ultralytics 8.3.0 🚀 Python-3.8.10 torch-2.4.1+cpu CPU (Intel Core(TM) i9-10920X 3.50GHz)
     Loading yolo11n-pose_openvino_model for OpenVINO inference...
     Using OpenVINO LATENCY mode for batch=1 inference...
     
-    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization/data/intel_rnb.jpg: 640x640 1 person, 31.0ms
-    Speed: 2.1ms preprocess, 31.0ms inference, 1.0ms postprocess per image at shape (1, 3, 640, 640)
+    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization/data/intel_rnb.jpg: 640x640 1 person, 28.0ms
+    Speed: 2.0ms preprocess, 28.0ms inference, 1.1ms postprocess per image at shape (1, 3, 640, 640)
 
 
 
@@ -737,18 +737,18 @@ models.
     [Step 2/11] Loading OpenVINO Runtime
     [ WARNING ] Default duration 120 seconds is used for unknown device AUTO
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.5.0-16913-890f2e12c98
+    [ INFO ] Build ................................. 2024.5.0-16993-9c432a3641a
     [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2024.5.0-16913-890f2e12c98
+    [ INFO ] Build ................................. 2024.5.0-16993-9c432a3641a
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 19.80 ms
+    [ INFO ] Read model took 19.55 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     x (node: x) : f32 / [...] / [?,3,?,?]
@@ -757,14 +757,14 @@ models.
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [ INFO ] Reshaping model: 'x': [1,3,640,640]
-    [ INFO ] Reshape model took 5.17 ms
+    [ INFO ] Reshape model took 8.54 ms
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
     [ INFO ]     x (node: x) : u8 / [N,C,H,W] / [1,3,640,640]
     [ INFO ] Model outputs:
     [ INFO ]     ***NO_NAME*** (node: __module.model.23/aten::cat/Concat_9) : f32 / [...] / [1,56,8400]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 338.05 ms
+    [ INFO ] Compile model took 329.35 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -801,17 +801,17 @@ models.
     [ INFO ] Fill input 'x' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 120000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 33.00 ms
+    [ INFO ] First inference took 33.67 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            17292 iterations
-    [ INFO ] Duration:         120045.86 ms
+    [ INFO ] Count:            17280 iterations
+    [ INFO ] Duration:         120049.75 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        40.71 ms
-    [ INFO ]    Average:       41.52 ms
-    [ INFO ]    Min:           29.33 ms
-    [ INFO ]    Max:           102.50 ms
-    [ INFO ] Throughput:   144.04 FPS
+    [ INFO ]    Median:        40.74 ms
+    [ INFO ]    Average:       41.55 ms
+    [ INFO ]    Min:           24.20 ms
+    [ INFO ]    Max:           98.48 ms
+    [ INFO ] Throughput:   143.94 FPS
 
 
 .. code:: ipython3
@@ -827,18 +827,18 @@ models.
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.5.0-16913-890f2e12c98
+    [ INFO ] Build ................................. 2024.5.0-16993-9c432a3641a
     [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2024.5.0-16913-890f2e12c98
+    [ INFO ] Build ................................. 2024.5.0-16993-9c432a3641a
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 29.03 ms
+    [ INFO ] Read model took 28.39 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     x (node: x) : f32 / [...] / [1,3,640,640]
@@ -854,7 +854,7 @@ models.
     [ INFO ] Model outputs:
     [ INFO ]     ***NO_NAME*** (node: __module.model.23/aten::cat/Concat_9) : f32 / [...] / [1,56,8400]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 558.98 ms
+    [ INFO ] Compile model took 556.59 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -891,17 +891,17 @@ models.
     [ INFO ] Fill input 'x' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 31.29 ms
+    [ INFO ] First inference took 30.44 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            5184 iterations
-    [ INFO ] Duration:         15060.72 ms
+    [ INFO ] Count:            5160 iterations
+    [ INFO ] Duration:         15031.11 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        34.51 ms
-    [ INFO ]    Average:       34.67 ms
-    [ INFO ]    Min:           21.44 ms
-    [ INFO ]    Max:           51.10 ms
-    [ INFO ] Throughput:   344.21 FPS
+    [ INFO ]    Median:        34.62 ms
+    [ INFO ]    Average:       34.76 ms
+    [ INFO ]    Min:           25.46 ms
+    [ INFO ]    Max:           51.89 ms
+    [ INFO ] Throughput:   343.29 FPS
 
 
 Compare accuracy of the Original and Quantized Models

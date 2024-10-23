@@ -198,7 +198,7 @@ Prerequisites
 .. code:: ipython3
 
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "torch>=2.1" "torchvision"
-    %pip install -q "diffusers>=0.14.0" "transformers>=4.30.2" "controlnet-aux>=0.0.6" "gradio>=3.36" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "diffusers>=0.14.0" "matplotlib>=3.4" "transformers>=4.30.2" "controlnet-aux>=0.0.6" "gradio>=3.36" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "openvino>=2023.1.0" "datasets>=2.14.6" "nncf>=2.7.0"
     
     import requests

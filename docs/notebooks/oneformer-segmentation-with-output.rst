@@ -63,14 +63,7 @@ Install required libraries
 
 .. code:: ipython3
 
-    import platform
-    
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "transformers>=4.26.0" "openvino>=2023.1.0" "nncf>=2.7.0" "gradio>=4.19" "torch>=2.1" scipy ipywidgets Pillow tqdm
-    
-    if platform.system() != "Windows":
-        %pip install -q "matplotlib>=3.4"
-    else:
-        %pip install -q "matplotlib>=3.4,<3.7"
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "transformers>=4.26.0" "openvino>=2023.1.0" "nncf>=2.7.0" "gradio>=4.19" "torch>=2.1" "matplotlib>=3.4" scipy ipywidgets Pillow tqdm
 
 Prepare the environment
 -----------------------

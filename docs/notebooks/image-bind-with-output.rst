@@ -131,7 +131,7 @@ Prerequisites
 
     import platform
     
-    %pip install -q "torch>=2.0.1" "torchvision>=0.15.2,<0.17.0" "torchaudio>=2.0.2" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "torch>=2.0.1" "torchvision>=0.15.2,<0.17.0" "torchaudio>=2.0.2" "matplotlib>=3.4" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q datasets regex librosa soundfile pytorchvideo ftfy "timm>=0.6.7" einops fvcore "openvino>=2024.0.0" "nncf>=2.9.0" numpy scipy --extra-index-url https://download.pytorch.org/whl/cpu
     
     

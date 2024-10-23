@@ -57,12 +57,11 @@ low-confident prediction, and wrong prediction.
 
    -  `Select inference device <#select-inference-device>`__
    -  `Load the Model <#load-the-model>`__
-   -  `Define preprocess_fn and
-      postprocess_fn <#define-preprocess_fn-and-postprocess_fn>`__
+   -  `Define preprocess_fn <#define-preprocess_fn>`__
 
 -  `Explain <#explain>`__
 
-   -  `Create explainer <#create-explainer>`__
+   -  `Create Explainer object <#create-explainer-object>`__
    -  `Import ImageNet label names <#import-imagenet-label-names>`__
    -  `Explain using ImageNet labels <#explain-using-imagenet-labels>`__
 
@@ -110,7 +109,11 @@ Install requirements
     
     # Install openvino package
     %pip install -q "openvino>=2024.2.0" opencv-python tqdm
-    %pip install -q --no-deps "openvino-xai>=1.0.0"
+    
+    # Install openvino xai package
+    %pip install -q --no-deps "openvino-xai>=1.1.0"
+    %pip install -q -U "numpy==1.*"
+    %pip install -q scipy
     
     if platform.system() != "Windows":
         %pip install -q "matplotlib>=3.4"
@@ -184,12 +187,6 @@ classify since they’re all dog breeds.
     
     image_folder_path = data_folder / "imagewoof320" / "imagewoof320"
 
-
-.. parsed-literal::
-
-    Dataset is already downloaded to artifacts and extracted.
-    
-
 .. code:: ipython3
 
     # Create list of images to explain
@@ -236,12 +233,6 @@ scaling and normalization with certain values.
     else:
         print(f"{model_name} already downloaded to {base_artifacts_dir}")
 
-
-.. parsed-literal::
-
-    mobilenetv3_large_100.ra_in1k already downloaded to artifacts
-    
-
 Prepare model to run inference
 ------------------------------
 
@@ -260,15 +251,6 @@ select device from dropdown list for running inference using OpenVINO
     
     device
 
-
-
-
-.. parsed-literal::
-
-    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
-
-
-
 Load the Model
 ~~~~~~~~~~~~~~
 
@@ -281,17 +263,17 @@ Load the Model
     model = core.read_model(model=model_xml_path)
     compiled_model = core.compile_model(model=model, device_name=device.value)
 
-Define preprocess_fn and postprocess_fn
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Define ``preprocess_fn``
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 
 
-To run model inference, you need to define functions to preprocess data
-and postprocess the results based on the model’s implementation. Since
-the used model is originally from `timm
-storage <https://github.com/huggingface/pytorch-image-models>`__, we
-need to apply specific timm preprocessing, including normalization and
-scaling with certain values.
+This notebook using ``WHITEBOX`` mode for model explanation - it is
+required to define function to preprocess data (the alternative is to
+preprocess input data). Since the used model is originally from `timm
+storage <https://github.com/huggingface/pytorch-image-models>`__, it is
+required to apply specific timm preprocessing, including normalization
+and scaling with certain values.
 
 .. code:: ipython3
 
@@ -312,40 +294,22 @@ scaling with certain values.
         # Add batch dimension
         x = np.expand_dims(x, 0)
         return x
-    
-    
-    def postprocess_fn(x: np.ndarray) -> np.ndarray:
-        """
-        Process model prediction
-        """
-        prediction_processed = softmax(x)
-        # Remove batch dimention
-        return prediction_processed[0]
-    
-    
-    def softmax(x):
-        """Compute softmax values of x."""
-        e_x = np.exp(x - np.max(x))
-        return e_x / e_x.sum()
 
 Explain
 -------
 
 
 
-Create explainer
-~~~~~~~~~~~~~~~~
+Create ``Explainer`` object
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
 
-The ``explainer`` can internally apply pre-processing during model
-inference, allowing raw images as input.
-
-To enable this, define ``preprocess_fn`` and provide it to the explainer
-constructor. In cases where we pass multiple unprocessed images, as done
-in this notebook, we need to define ``preprocess_fn``.
-
-If it’s not defined, it is assumed that the input is preprocessed.
+The ``Explainer`` object can internally apply pre-processing during
+model inference, allowing raw images as input. To enable this, define
+``preprocess_fn`` and provide it to the explainer constructor. If
+``preprocess_fn`` is not defined, it is assumed that the input is
+preprocessed.
 
 .. code:: ipython3
 
@@ -375,11 +339,10 @@ Import ImageNet label names
 
 If ``label_names`` are not provided to the explainer call, the saved
 saliency map will have the predicted class index, not the name. For
-example, ``image_name_target_167.jpg`` instead of
-``image_name_target_English_foxhound.jpg``.
+example, ``167.jpg`` instead of ``English_foxhound.jpg``.
 
-To conveniently view label names in saliency maps, we provide ImageNet
-label names information to the explanation call.
+To conveniently view label names in saliency maps, we prepare and
+provide ImageNet label names information to the explanation call.
 
 .. code:: ipython3
 
@@ -430,10 +393,10 @@ to the explainer.
             targets=[
                 "flat-coated_retriever",
                 "Samoyed",
-            ],  # Also label indices [206, 258] are possible as target
+            ],  # also label indices [206, 258] are possible as target
             label_names=imagenet_labels,
         )
-        explanation.save(output, Path(image_path).stem)
+        explanation.save(output, f"{Path(image_path).stem}_")  # pass prefix name with underscore
 
 Below in ``base_artifacts_dir / "saliency_maps" / "multiple_images"``
 you can see saved saliency maps:
@@ -447,8 +410,8 @@ you can see saved saliency maps:
 
 .. parsed-literal::
 
-    artifacts/saliency_maps/multiple_images/n02105641_2491_target_flat-coated_retriever.jpg
-    artifacts/saliency_maps/multiple_images/n02105641_2491_target_Samoyed.jpg
+    artifacts/saliency_maps/multiple_images/n02088364_5768_Samoyed.jpg
+    artifacts/saliency_maps/multiple_images/n02088364_5768_flat-coated_retriever.jpg
     
 
 Notable use cases in ImageWoof dataset
@@ -544,6 +507,20 @@ The cell below contains paths to images with those respective use cases:
             print(f"Predicted class {imagenet_labels[index]}, index {index}, probability: {score:.2f}")
     
         return result_infer, result_idxs, result_scores
+    
+    
+    def postprocess_fn(x: np.ndarray) -> np.ndarray:
+        """
+        Process model prediction
+        """
+        prediction_processed = softmax(x)
+        return prediction_processed[0]  # remove batch dimension
+    
+    
+    def softmax(x):
+        """Compute softmax values of x."""
+        e_x = np.exp(x - np.max(x))
+        return e_x / e_x.sum()
 
 Explain for each use case
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -573,22 +550,22 @@ Explain for each use case
     
             explanation = explainer(
                 image,
-                targets=result_idxs,  # Return saliency maps for predicted classes
+                targets=result_idxs,  # return saliency maps for predicted classes
                 label_names=imagenet_labels,
                 overlay=True,
             )
     
-            # Save saliency maps, use detailed implementation instead of `explanation.save`
-            # to return predicted scores for saliency maps as well
+            saliency_map_name_prefix = f"{image_name}_{gt_info}_pr_"
+            saliency_map_name_postfix = "_"
+            confidence_scores = {}
             for idx, score in zip(result_idxs, result_scores):
-                target_name = imagenet_labels[idx]
-                cv2.imwrite(
-                    os.path.join(
-                        output / use_case,
-                        f"{image_name}_{gt_info}_pr_{target_name}_{score:.2f}.jpg",
-                    ),
-                    img=explanation.saliency_map[idx],
-                )
+                confidence_scores[idx] = score
+            explanation.save(
+                dir_path=(output / use_case),
+                prefix=saliency_map_name_prefix,
+                postfix=saliency_map_name_postfix,
+                confidence_scores=confidence_scores,
+            )
 
 
 .. parsed-literal::
@@ -628,30 +605,30 @@ Explain for each use case
 
     
      True_positive_high_confidence
-    n02111889_17737_gt_Samoyed_0.94_pr_Samoyed_0.94
-    n02099601_6505_gt_golden retriever_0.88_pr_golden_retriever_0.88
     n02088364_2019_gt_beagle_0.97_pr_beagle_0.97
+    n02099601_6505_gt_golden retriever_0.88_pr_golden_retriever_0.88
     n02105641_817_gt_Old English sheepdog_0.96_pr_Old_English_sheepdog_0.96
+    n02111889_17737_gt_Samoyed_0.94_pr_Samoyed_0.94
     
      True_positive_low_confidence
-    n02086240_1422_gt_Shih-Tzu_0.18_pr_Shih-Tzu_0.18
-    n02086240_3709_gt_Shih-Tzu_0.20_pr_Shih-Tzu_0.20
     n02099601_7942_gt_golden retriever_0.18_pr_golden_retriever_0.18
+    n02086240_3709_gt_Shih-Tzu_0.20_pr_Shih-Tzu_0.20
+    n02086240_1422_gt_Shih-Tzu_0.18_pr_Shih-Tzu_0.18
     n02086240_1765_gt_Shih-Tzu_0.18_pr_Shih-Tzu_0.18
     
      False_positive_high_confidence
     n02088364_12304_gt_beagle_0.01_pr_car_mirror_0.82
-    n02111889_14926_gt_Samoyed_0.03_pr_Arctic_fox_0.95
-    n02111889_1931_gt_Samoyed_0.07_pr_dogsled_0.79
-    n02115641_5752_gt_dingo_0.02_pr_Chihuahua_0.93
+    n02088364_2430_gt_beagle_0.00_pr_bannister_0.78
     n02099601_4933_gt_golden retriever_0.05_pr_bubble_0.79
     n02096294_2323_gt_Australian terrier_0.00_pr_quilt_0.80
-    n02088364_2430_gt_beagle_0.00_pr_bannister_0.78
+    n02115641_5752_gt_dingo_0.02_pr_Chihuahua_0.93
+    n02111889_1931_gt_Samoyed_0.07_pr_dogsled_0.79
     n02087394_6357_gt_Rhodesian ridgeback_0.00_pr_dalmatian_0.98
+    n02111889_14926_gt_Samoyed_0.03_pr_Arctic_fox_0.95
     
      True_positive_two_predictions
-    n02111889_374_gt_Samoyed_0.43_pr_Samoyed_0.43
     n02099601_634_gt_golden retriever_0.30_pr_golden_retriever_0.30
+    n02111889_374_gt_Samoyed_0.43_pr_Samoyed_0.43
     n02099601_634_gt_golden retriever_0.30_pr_Labrador_retriever_0.57
     n02111889_374_gt_Samoyed_0.43_pr_crib_0.39
     
@@ -693,6 +670,7 @@ of pictures, their names, and the confidence of predictions:
     
         for image_path, ax in zip(image_paths, axs):
             image_sal_map = cv2.imread(f"{use_case_output_dir}/{image_path}")
+            image_sal_map = cv2.cvtColor(image_sal_map, cv2.COLOR_BGR2RGB)
     
             image_name = Path(image_path).stem
             image_name = image_name.replace("_target", "")

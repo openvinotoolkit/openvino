@@ -181,14 +181,7 @@ following rules:
 
 .. code:: ipython3
 
-    import platform
-    
-    %pip install -q "openvino>=2023.1.0" opencv-python tqdm
-    
-    if platform.system() != "Windows":
-        %pip install -q "matplotlib>=3.4"
-    else:
-        %pip install -q "matplotlib>=3.4,<3.7"
+    %pip install -q "openvino>=2024.4.0" opencv-python tqdm "matplotlib>=3.4"
 
 .. code:: ipython3
 

@@ -58,7 +58,7 @@ This is the overall flow of the application:
 .. code:: ipython3
 
     %pip install -q "torch>=2.1" torchvision --extra-index-url "https://download.pytorch.org/whl/cpu"
-    %pip install -q "diffusers>=0.25.0" "peft>=0.6.2" "openvino>=2023.2.0" "transformers>=4.25.1" ipywidgets opencv-python pillow "nncf>=2.7.0" "gradio==3.44.1" tqdm
+    %pip install -q "diffusers>=0.25.0" "peft>=0.6.2" "openvino>=2023.2.0" "transformers>=4.25.1" "matplotlib>=3.4" ipywidgets opencv-python pillow "nncf>=2.7.0" "gradio==3.44.1" tqdm
 
 Download the model from `HuggingFace
 Paint-by-Example <https://huggingface.co/Fantasy-Studio/Paint-by-Example>`__.

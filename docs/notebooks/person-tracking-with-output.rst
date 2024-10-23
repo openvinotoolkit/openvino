@@ -128,20 +128,12 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 
 .. code:: ipython3
 
-    import platform
-
     %pip install -q "openvino-dev>=2024.0.0"
-    %pip install -q opencv-python requests scipy tqdm
-
-    if platform.system() != "Windows":
-        %pip install -q "matplotlib>=3.4"
-    else:
-        %pip install -q "matplotlib>=3.4,<3.7"
+    %pip install -q opencv-python requests scipy tqdm "matplotlib>=3.4"
 
 
 .. parsed-literal::
 
-    Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
 
@@ -372,7 +364,7 @@ Data Processing includes data preprocess and postprocess functions.
 
 - Data preprocess function is used to change the layout and shape of input
   data, according to requirement of the network input format.
-- Data postprocess function is used to extract the useful information from
+- Datapostprocess function is used to extract the useful information from
   network’s original output and visualize it.
 
 .. code:: ipython3

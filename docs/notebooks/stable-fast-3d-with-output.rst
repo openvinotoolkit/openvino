@@ -3,9 +3,10 @@ Stable Fast 3D Mesh Reconstruction and OpenVINO
 
 .. warning::
 
-   Important note: This notebook requires python >= 3.9. Please make
-   sure that your environment fulfill to this requirement before running
-   it
+   Important note: This notebook has problems with installation
+   `pynim <https://github.com/vork/PyNanoInstantMeshes/issues/2>`__
+   library on MacOS. The issue may be environment dependent and may
+   occur on other OSes.
 
 `Stable Fast 3D
 (SF3D) <https://huggingface.co/stabilityai/stable-fast-3d>`__ is a large
@@ -101,9 +102,9 @@ Prerequisites
         "rembg==2.0.57",
         "trimesh==4.4.1",
         "einops==0.7.0",
-        "omegaconf>=2.3.0",
+        "omegaconf==2.4.0.dev3",
         "jaxtyping==0.2.31",
-        "gpytoolbox==0.2.0",
+        "gpytoolbox==0.3.2",
         "open_clip_torch==2.24.0",
         "git+https://github.com/vork/PyNanoInstantMeshes.git",
         "--extra-index-url",

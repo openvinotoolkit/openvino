@@ -97,15 +97,6 @@ Install required dependencies
     "transformers>=4.43.1" \
     "onnx<=1.16.1; sys_platform=='win32'" "einops" "transformers_stream_generator" "tiktoken" "bitsandbytes"
 
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
-
 .. code:: ipython3
 
     import os
@@ -199,7 +190,15 @@ several options for model weight compression:
 
    <details>
 
+.. raw:: html
+
+   <summary>
+
 Click here to see available models options
+
+.. raw:: html
+
+   </summary>
 
 -  **tiny-llama-1b-chat** - This is the chat model finetuned on top of
    `TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T <https://huggingface.co/TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T>`__.
@@ -293,9 +292,10 @@ Click here to see available models options
    model can be found in `model
    card <https://huggingface.co/google/gemma-2b-it>`__. >\ **Note**: run
    model with demo, you will need to accept license agreement. >You must
-   be a registered user in Hugging Face Hub. Please visit `HuggingFace
-   model card <https://huggingface.co/google/gemma-2b-it>`__, carefully
-   read terms of usage and click accept button. You will need to use an
+   be a registered user in Hugging Face Hub. Please visit
+   `HuggingFace model
+   card <https://huggingface.co/google/gemma-2b-it>`__, carefully read
+   terms of usage and click accept button. You will need to use an
    access token for the code below to run. For more information on
    access tokens, refer to `this section of the
    documentation <https://huggingface.co/docs/hub/security-tokens>`__.
@@ -387,9 +387,10 @@ Click here to see available models options
    model can be found in `model
    card <https://huggingface.co/google/gemma-7b-it>`__. >\ **Note**: run
    model with demo, you will need to accept license agreement. >You must
-   be a registered user in Hugging Face Hub. Please visit `HuggingFace
-   model card <https://huggingface.co/google/gemma-7b-it>`__, carefully
-   read terms of usage and click accept button. You will need to use an
+   be a registered user in Hugging Face Hub. Please visit
+   `HuggingFace model
+   card <https://huggingface.co/google/gemma-7b-it>`__, carefully read
+   terms of usage and click accept button. You will need to use an
    access token for the code below to run. For more information on
    access tokens, refer to `this section of the
    documentation <https://huggingface.co/docs/hub/security-tokens>`__.
@@ -666,7 +667,7 @@ Click here to see available models options
 
 .. parsed-literal::
 
-    Selected model qwen2.5-0.5b-instruct with INT4 compression
+    Selected model qwen2-0.5b-instruct with INT4 compression
 
 
 Convert model using Optimum-CLI tool
@@ -674,8 +675,8 @@ Convert model using Optimum-CLI tool
 
 
 
-`Optimum Intel <https://huggingface.co/docs/optimum/intel/index>`__ is
-the interface between the
+`Optimum Intel <https://huggingface.co/docs/optimum/intel/index>`__
+is the interface between the
 `Transformers <https://huggingface.co/docs/transformers/index>`__ and
 `Diffusers <https://huggingface.co/docs/diffusers/index>`__ libraries
 and OpenVINO to accelerate end-to-end pipelines on Intel architectures.
@@ -688,7 +689,15 @@ format.
 
    <details>
 
+.. raw:: html
+
+   <summary>
+
 Click here to read more about Optimum CLI usage
+
+.. raw:: html
+
+   </summary>
 
 The command bellow demonstrates basic command for model export with
 ``optimum-cli``
@@ -722,7 +731,15 @@ with the CLI.
 
    <details>
 
+.. raw:: html
+
+   <summary>
+
 Click here to read more about weights compression with Optimum CLI
+
+.. raw:: html
+
+   </summary>
 
 Setting ``--weight-format`` to respectively fp16, int8 or int4. This
 type of optimization allows to reduce the memory footprint and inference
@@ -766,47 +783,7 @@ be additionally applied during model export with INT4 precision using
 
 .. parsed-literal::
 
-    ⌛ qwen2.5-0.5b-instruct conversion to INT4 started. It may takes some time.
-
-
-
-**Export command:**
-
-
-
-``optimum-cli export openvino --model Qwen/Qwen2.5-0.5B-Instruct --task text-generation-with-past --weight-format int4 --group-size 128 --ratio 1.0 --sym qwen2.5/INT4_compressed_weights``
-
-
-.. parsed-literal::
-
-    2024-10-08 02:53:02.359208: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-10-08 02:53:02.392956: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-10-08 02:53:02.929372: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    Framework not specified. Using pt to export the model.
-    Using framework PyTorch: 2.2.2+cpu
-    Overriding 1 configuration item(s)
-    	- use_cache -> True
-    We detected that you are passing `past_key_values` as a tuple and this is deprecated and will be removed in v4.43. Please use an appropriate `Cache` class (https://huggingface.co/docs/transformers/v4.41.3/en/internal/generation_utils#transformers.Cache)
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/optimum/exporters/openvino/model_patcher.py:496: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if sequence_length != 1:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/qwen2/modeling_qwen2.py:165: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if seq_len > self.max_seq_len_cached:
-    Set tokenizer padding side to left for `text-generation-with-past` task.
-
-
-.. parsed-literal::
-
-    INFO:nncf:Statistics of the bitwidth distribution:
-    ┍━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
-    │ Weight compression mode   │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
-    ┝━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
-    │ int8_asym                 │ 28% (1 / 169)               │ 0% (0 / 168)                           │
-    ├───────────────────────────┼─────────────────────────────┼────────────────────────────────────────┤
-    │ int4_sym                  │ 72% (168 / 169)             │ 100% (168 / 168)                       │
-    ┕━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
-    [2KApplying Weight Compression ━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% • 0:00:14 • 0:00:00
-    ✅ INT4 qwen2.5-0.5b-instruct model converted and can be found in qwen2.5/INT4_compressed_weights
+    ✅ INT4 qwen2-0.5b-instruct model already converted and can be found in qwen2/INT4_compressed_weights
 
 
 Let’s compare model size for different compression types
@@ -820,7 +797,7 @@ Let’s compare model size for different compression types
 
 .. parsed-literal::
 
-    Size of model with INT4 compressed weights is 322.44 MB
+    Size of model with INT4 compressed weights is 358.86 MB
 
 
 Select device for inference
@@ -891,10 +868,10 @@ of the available generation parameters more deeply later.
 
 .. parsed-literal::
 
-    Loading model from qwen2.5/INT4_compressed_weights
+    Loading model from qwen2/INT4_compressed_weights
 
     Input text: The Sun is yellow bacause
-     of its coloration. The Sun is blue because
+     it is made of hydrogen and oxygen atoms. The
 
 
 Run Chatbot
@@ -909,7 +886,15 @@ Now, when model created, we can setup Chatbot interface using
 
    <details>
 
+.. raw:: html
+
+   <summary>
+
 Click here to see how pipeline works
+
+.. raw:: html
+
+   </summary>
 
 The diagram below illustrates how the chatbot pipeline works
 
@@ -963,7 +948,15 @@ Advanced generation options
 
    <details>
 
+.. raw:: html
+
+   <summary>
+
 Click here to see detailed description of advanced options
+
+.. raw:: html
+
+   </summary>
 
 | There are several parameters that can control text generation quality,
   \* ``Temperature`` is a parameter used to control the level of
@@ -1036,26 +1029,12 @@ Click here to see detailed description of advanced options
     demo = make_demo(pipe, model_configuration, model_id, lang.value)
 
     try:
-        demo.launch(debug=False)
+        demo.launch(debug=True)
     except Exception:
-        demo.launch(debug=False, share=True)
+        demo.launch(debug=True, share=True)
     # If you are launching remotely, specify server_name and server_port
     # EXAMPLE: `demo.launch(server_name='your server name', server_port='server port in int')`
     # To learn more please refer to the Gradio docs: https://gradio.app/docs/
-
-
-.. parsed-literal::
-
-    Running on local URL:  http://127.0.0.1:7860
-
-    To create a public link, set `share=True` in `launch()`.
-
-
-
-
-
-
-
 
 .. code:: ipython3
 
