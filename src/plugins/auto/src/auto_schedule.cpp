@@ -160,9 +160,8 @@ void AutoSchedule::init() {
                     if (!m_context->m_model) {
                         // passed model path
                         LOG_DEBUG_TAG("Will read model and check if model type is stateful model here");
-                        m_context->m_model = m_context->m_ov_core->read_model(m_context->m_model_path, std::string{});
-                        m_context->m_model_path = "";
-                        for (auto& op : m_context->m_model->get_ops()) {
+                        auto m_model = m_context->m_ov_core->read_model(m_context->m_model_path, std::string{});
+                        for (auto& op : m_model->get_ops()) {
                             if (std::dynamic_pointer_cast<ov::op::util::AssignBase>(op) ||
                                 std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(op)) {
                                 is_stateful_model = true;
@@ -172,7 +171,7 @@ void AutoSchedule::init() {
                         if (is_stateful_model) {
                             LOG_DEBUG_TAG(
                                 "will disable CPU as accelerator and disable runtime fallback when blob file of "
-                                "stateful model is existed"
+                                "stateful model is existed "
                                 "for device %s",
                                 device.c_str());
                             m_compile_context[CPU].m_is_enabled = false;
