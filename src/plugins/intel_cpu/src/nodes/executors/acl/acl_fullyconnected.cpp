@@ -85,7 +85,7 @@ static ov::optional<MemoryPtr> convertWeightPrecision(MemoryPtr input, MemoryPtr
                 weightPrecision, input->getSize() / input->getDesc().getPrecision().size());
 
     return ov::optional<MemoryPtr>(std::make_shared<Memory>(output->getPrimitive().get_engine(),
-                                                            std::move(output->getDesc().cloneWithNewPrecision(weightPrecision)),
+                                                            output->getDesc().cloneWithNewPrecision(weightPrecision),
                                                             tmpBuff.data()));
 }
 
