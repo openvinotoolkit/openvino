@@ -42,7 +42,7 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     /// \return Turns off constant folding for RandomUniform operation.
-    bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values) override;
+    bool can_constant_fold(const OutputVector& inputs_values) const override;
 
     /// \return The output tensor type.
     const ov::element::Type& get_out_type() const;
