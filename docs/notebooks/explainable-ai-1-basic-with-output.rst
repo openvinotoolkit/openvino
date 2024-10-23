@@ -1,7 +1,7 @@
 OpenVINO™ Explainable AI Toolkit (1/3): Basic
 =============================================
 
-.. warning::
+.. container:: alert alert-block alert-danger
 
    Important note: This notebook requires python >= 3.10. Please make
    sure that your environment fulfill to this requirement before running
@@ -12,11 +12,11 @@ Explainable AI
 (XAI) <https://github.com/openvinotoolkit/openvino_xai/>`__:
 
 1. `OpenVINO™ Explainable AI Toolkit (1/3):
-   Basic <explainable-ai-1-basic-with-output.html>`__
+   Basic <../explainable-ai-1-basic/README.md>`__
 2. `OpenVINO™ Explainable AI Toolkit (2/3): Deep
-   Dive <explainable-ai-2-deep-dive-with-output.html>`__
+   Dive <../explainable-ai-2-deep-dive/README.md>`__
 3. `OpenVINO™ Explainable AI Toolkit (3/3): Saliency map
-   interpretation <explainable-ai-3-map-interpretation-with-output.html>`__
+   interpretation <../explainable-ai-3-map-interpretation/README.md>`__
 
 It covers the basic introduction to
 `XAI <https://github.com/openvinotoolkit/openvino_xai/>`__ toolkit and
@@ -42,20 +42,18 @@ from `Open Model
 Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__ is used in
 this tutorial.
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-**Table of contents:**
-
-
--  `Imports <#imports>`__
+-  `Imports <#Imports>`__
 -  `Download the Model and data
-   samples <#download-the-model-and-data-samples>`__
--  `Load the Model <#load-the-model>`__
--  `Select inference device <#select-inference-device>`__
--  `Load an Image <#load-an-image>`__
--  `Do Inference <#do-inference>`__
--  `Create Explainer <#create-explainer>`__
--  `Do Explanation <#do-explanation>`__  
-
+   samples <#Download-the-Model-and-data-samples>`__
+-  `Load the Model <#Load-the-Model>`__
+-  `Select inference device <#Select-inference-device>`__
+-  `Load an Image <#Load-an-Image>`__
+-  `Do Inference <#Do-Inference>`__
+-  `Create Explainer <#Create-Explainer>`__
+-  `Do Explanation <#Do-Explanation>`__ ### Installation Instructions
 
 This is a self-contained example that relies solely on its own code.
 
@@ -72,7 +70,9 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
     %pip install -q "openvino>=2024.2.0" opencv-python tqdm
     
     # Install openvino xai package
-    %pip install -q --no-deps  "openvino-xai>=1.0.0"
+    %pip install -q --no-deps "openvino-xai>=1.1.0"
+    %pip install -q -U "numpy==1.*"
+    %pip install -q scipy
     
     if platform.system() != "Windows":
         %pip install -q "matplotlib>=3.4"
@@ -82,7 +82,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Imports
 -------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -108,7 +108,7 @@ Imports
 Download the Model and data samples
 -----------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -128,16 +128,10 @@ Download the Model and data samples
     else:
         print(f"{model_name} already downloaded to {base_artifacts_dir}")
 
-
-.. parsed-literal::
-
-    v3-small_224_1.0_float already downloaded to artifacts
-    
-
 Select inference device
 -----------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -146,19 +140,10 @@ select device from dropdown list for running inference using OpenVINO
     device = device_widget()
     device
 
-
-
-
-.. parsed-literal::
-
-    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
-
-
-
 Load the Model
 --------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -169,7 +154,7 @@ Load the Model
 Load an Image
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -187,7 +172,7 @@ Load an Image
     
     # Reshape to model input shape.
     input_image = np.expand_dims(input_image, 0)
-    plt.imshow(image);
+    plt.imshow(image)
 
 
 .. parsed-literal::
@@ -196,13 +181,21 @@ Load an Image
     
 
 
-.. image:: explainable-ai-1-basic-with-output_files/explainable-ai-1-basic-with-output_11_1.png
+
+.. parsed-literal::
+
+    <matplotlib.image.AxesImage at 0x7f4c102acfd0>
+
+
+
+
+.. image:: explainable-ai-1-basic-with-output_files%5Cexplainable-ai-1-basic-with-output_11_2.png
 
 
 Do Inference
 ------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -217,12 +210,6 @@ Do Inference
     )
     
     imagenet_classes = imagenet_filename.read_text().splitlines()
-
-
-.. parsed-literal::
-
-    'data/imagenet_2012.txt' already exists.
-    
 
 .. code:: ipython3
 
@@ -245,7 +232,7 @@ Do Inference
 Create Explainer
 ----------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -266,7 +253,7 @@ Create Explainer
 Do Explanation
 --------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Explainer generates explanation which contains saliency maps ({target:
 saliency_map}). For classification, targets are indices of the classes.
@@ -276,23 +263,22 @@ saliency_map}). For classification, targets are indices of the classes.
     explanation = explainer(
         data=input_image,
         targets=result_index,  # can be a single target or a container of targets
-        overlay=True,  # saliency map overlay over the input image, defaults to False
+        label_names=imagenet_classes,  # optional, list of label names
+        overlay=True,  # saliency map overlays over the input image, defaults to False
     )
-    plt.imshow(explanation.saliency_map[result_index])
-    plt.title(f"Saliency map of the {result_index} class.")
+    explanation.plot()
 
 
 
-
-.. parsed-literal::
-
-    Text(0.5, 1.0, 'Saliency map of the 206 class.')
+.. image:: explainable-ai-1-basic-with-output_files%5Cexplainable-ai-1-basic-with-output_19_0.png
 
 
-
-
-.. image:: explainable-ai-1-basic-with-output_files/explainable-ai-1-basic-with-output_19_1.png
-
+Note: by default, overlay is applied over the image in the ``data``
+argument. In this case, ``data`` was preprocessed (e.g. resized to
+224x224), but still recognizable by human. In order for the overlay to
+applied over the original image, provide original image with
+``original_image`` argument (please refer to `OpenVINO™ Explainable AI
+Toolkit (2/3): Deep Dive <../explainable-ai-2-deep-dive/README.md>`__).
 
 Above saliency map can help to answer the question: “Which part of the
 image mostly contributes to the model predicted class: (206, ‘n02099267

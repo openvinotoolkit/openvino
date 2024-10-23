@@ -102,37 +102,35 @@ additional part demonstrates how to run optimization with
 
    </table >
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-**Table of contents:**
-
-
--  `Prerequisites <#prerequisites>`__
--  `Load the original model <#load-the-original-model>`__
+-  `Prerequisites <#Prerequisites>`__
+-  `Load the original model <#Load-the-original-model>`__
 -  `Convert the model to OpenVINO
-   IR <#convert-the-model-to-openvino-ir>`__
+   IR <#Convert-the-model-to-OpenVINO-IR>`__
 
-   -  `Convert CLIP text encoder <#convert-clip-text-encoder>`__
-   -  `Convert CLIP image encoder <#convert-clip-image-encoder>`__
-   -  `Convert AE encoder <#convert-ae-encoder>`__
-   -  `Convert Diffusion U-Net model <#convert-diffusion-u-net-model>`__
-   -  `Convert AE decoder <#convert-ae-decoder>`__
+   -  `Convert CLIP text encoder <#Convert-CLIP-text-encoder>`__
+   -  `Convert CLIP image encoder <#Convert-CLIP-image-encoder>`__
+   -  `Convert AE encoder <#Convert-AE-encoder>`__
+   -  `Convert Diffusion U-Net model <#Convert-Diffusion-U-Net-model>`__
+   -  `Convert AE decoder <#Convert-AE-decoder>`__
 
--  `Compiling models <#compiling-models>`__
--  `Building the pipeline <#building-the-pipeline>`__
+-  `Compiling models <#Compiling-models>`__
+-  `Building the pipeline <#Building-the-pipeline>`__
 -  `Run OpenVINO pipeline
-   inference <#run-openvino-pipeline-inference>`__
--  `Quantization <#quantization>`__
+   inference <#Run-OpenVINO-pipeline-inference>`__
+-  `Quantization <#Quantization>`__
 
-   -  `Prepare calibration dataset <#prepare-calibration-dataset>`__
-   -  `Run Quantization <#run-quantization>`__
-   -  `Run Weights Compression <#run-weights-compression>`__
-   -  `Compare model file sizes <#compare-model-file-sizes>`__
+   -  `Prepare calibration dataset <#Prepare-calibration-dataset>`__
+   -  `Run Quantization <#Run-Quantization>`__
+   -  `Run Weights Compression <#Run-Weights-Compression>`__
+   -  `Compare model file sizes <#Compare-model-file-sizes>`__
    -  `Compare inference time of the FP32 and INT8
-      pipelines <#compare-inference-time-of-the-fp32-and-int8-pipelines>`__
+      pipelines <#Compare-inference-time-of-the-FP32-and-INT8-pipelines>`__
 
--  `Interactive inference <#interactive-inference>`__ 
-   
-
+-  `Interactive inference <#Interactive-inference>`__ ### Installation
+   Instructions
 
 This is a self-contained example that relies solely on its own code.
 
@@ -144,7 +142,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -189,10 +187,10 @@ Prerequisites
     remote: Counting objects: 100% (153/153), done.[K
     remote: Compressing objects: 100% (99/99), done.[K
     remote: Total 335 (delta 97), reused 54 (delta 54), pack-reused 182 (from 1)[K
-    Receiving objects: 100% (335/335), 72.41 MiB | 19.06 MiB/s, done.
+    Receiving objects: 100% (335/335), 72.41 MiB | 22.40 MiB/s, done.
     Resolving deltas: 100% (123/123), done.
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/notebooks/dynamicrafter-animating-images/dynamicrafter
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/notebooks/dynamicrafter-animating-images
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/notebooks/dynamicrafter-animating-images/dynamicrafter
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/notebooks/dynamicrafter-animating-images
 
 
 
@@ -206,7 +204,7 @@ Prerequisites
 Load and run the original pipeline
 ----------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 We will use model for 256x256 resolution as example. Also, models for
 320x512 and 576x1024 are
@@ -282,7 +280,7 @@ We will use model for 256x256 resolution as example. Also, models for
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/huggingface_hub/file_download.py:1204: UserWarning: `local_dir_use_symlinks` parameter is deprecated and will be ignored. The process to download files to a local folder has been updated and do not rely on symlinks anymore. You only need to pass a destination folder as`local_dir`.
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/huggingface_hub/file_download.py:834: UserWarning: `local_dir_use_symlinks` parameter is deprecated and will be ignored. The process to download files to a local folder has been updated and do not rely on symlinks anymore. You only need to pass a destination folder as`local_dir`.
     For more details, check out https://huggingface.co/docs/huggingface_hub/main/en/guides/download#download-files-to-local-folder.
       warnings.warn(
 
@@ -296,13 +294,23 @@ We will use model for 256x256 resolution as example. Also, models for
 .. parsed-literal::
 
     AE working on z of shape (1, 4, 32, 32) = 4096 dimensions.
+
+
+.. parsed-literal::
+
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/timm/models/layers/__init__.py:48: FutureWarning: Importing from timm.models.layers is deprecated, please import via timm.layers
+      warnings.warn(f"Importing from {__name__} is deprecated, please import via timm.layers", FutureWarning)
+
+
+.. parsed-literal::
+
     >>> model checkpoint loaded.
 
 
 Convert the model to OpenVINO IR
 --------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Let’s define the conversion function for PyTorch modules. We use
 ``ov.convert_model`` function to obtain OpenVINO Intermediate
@@ -345,7 +353,7 @@ Let’s convert models from the pipeline one by one.
 Convert CLIP text encoder
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -377,7 +385,7 @@ Convert CLIP text encoder
 Convert CLIP image encoder
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 ``FrozenOpenCLIPImageEmbedderV2`` model accepts images of various
 resolutions.
 
@@ -399,50 +407,50 @@ resolutions.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/utils/image.py:226: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/utils/image.py:226: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if input.numel() == 0:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/geometry/transform/affwarp.py:573: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/geometry/transform/affwarp.py:573: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if size == input_size:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/geometry/transform/affwarp.py:579: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/geometry/transform/affwarp.py:579: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       antialias = antialias and (max(factors) > 1)
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/geometry/transform/affwarp.py:581: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/geometry/transform/affwarp.py:581: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if antialias:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/geometry/transform/affwarp.py:584: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/geometry/transform/affwarp.py:584: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       sigmas = (max((factors[0] - 1.0) / 2.0, 0.001), max((factors[1] - 1.0) / 2.0, 0.001))
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/geometry/transform/affwarp.py:589: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/geometry/transform/affwarp.py:589: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       ks = int(max(2.0 * 2 * sigmas[0], 3)), int(max(2.0 * 2 * sigmas[1], 3))
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/geometry/transform/affwarp.py:589: TracerWarning: Converting a tensor to a Python integer might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/geometry/transform/affwarp.py:589: TracerWarning: Converting a tensor to a Python integer might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       ks = int(max(2.0 * 2 * sigmas[0], 3)), int(max(2.0 * 2 * sigmas[1], 3))
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/filters/gaussian.py:55: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/filters/gaussian.py:55: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
       sigma = tensor([sigma], device=input.device, dtype=input.dtype)
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/filters/gaussian.py:55: TracerWarning: Converting a tensor to a Python float might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/filters/gaussian.py:55: TracerWarning: Converting a tensor to a Python float might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       sigma = tensor([sigma], device=input.device, dtype=input.dtype)
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/core/check.py:78: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/core/check.py:78: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if x_shape_to_check[i] != dim:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/filters/kernels.py:92: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/filters/kernels.py:92: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
       mean = tensor([[mean]], device=sigma.device, dtype=sigma.dtype)
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/enhance/normalize.py:101: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/enhance/normalize.py:101: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if len(mean.shape) == 0 or mean.shape[0] == 1:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/enhance/normalize.py:103: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/enhance/normalize.py:103: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if len(std.shape) == 0 or std.shape[0] == 1:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/enhance/normalize.py:107: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/enhance/normalize.py:107: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if mean.shape and mean.shape[0] != 1:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/enhance/normalize.py:108: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/enhance/normalize.py:108: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if mean.shape[0] != data.shape[1] and mean.shape[:2] != data.shape[:2]:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/enhance/normalize.py:112: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/enhance/normalize.py:112: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if std.shape and std.shape[0] != 1:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/enhance/normalize.py:113: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/enhance/normalize.py:113: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if std.shape[0] != data.shape[1] and std.shape[:2] != data.shape[:2]:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/enhance/normalize.py:116: TracerWarning: torch.as_tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/enhance/normalize.py:116: TracerWarning: torch.as_tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
       mean = torch.as_tensor(mean, device=data.device, dtype=data.dtype)
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/enhance/normalize.py:117: TracerWarning: torch.as_tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/enhance/normalize.py:117: TracerWarning: torch.as_tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
       std = torch.as_tensor(std, device=data.device, dtype=data.dtype)
 
 
 Convert AE encoder
 ~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -464,14 +472,14 @@ Convert AE encoder
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/notebooks/dynamicrafter-animating-images/dynamicrafter/lvdm/modules/networks/ae_modules.py:67: TracerWarning: Converting a tensor to a Python integer might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/notebooks/dynamicrafter-animating-images/dynamicrafter/lvdm/modules/networks/ae_modules.py:67: TracerWarning: Converting a tensor to a Python integer might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       w_ = w_ * (int(c)**(-0.5))
 
 
 Convert Diffusion U-Net model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -508,22 +516,22 @@ Convert Diffusion U-Net model
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/notebooks/dynamicrafter-animating-images/dynamicrafter/lvdm/modules/networks/openaimodel3d.py:556: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/notebooks/dynamicrafter-animating-images/dynamicrafter/lvdm/modules/networks/openaimodel3d.py:556: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if l_context == 77 + t*16: ## !!! HARD CODE here
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/notebooks/dynamicrafter-animating-images/dynamicrafter/lvdm/modules/networks/openaimodel3d.py:205: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/notebooks/dynamicrafter-animating-images/dynamicrafter/lvdm/modules/networks/openaimodel3d.py:205: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if batch_size:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/notebooks/dynamicrafter-animating-images/dynamicrafter/lvdm/modules/networks/openaimodel3d.py:232: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/notebooks/dynamicrafter-animating-images/dynamicrafter/lvdm/modules/networks/openaimodel3d.py:232: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if self.use_temporal_conv and batch_size:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/notebooks/dynamicrafter-animating-images/dynamicrafter/lvdm/modules/networks/openaimodel3d.py:76: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/notebooks/dynamicrafter-animating-images/dynamicrafter/lvdm/modules/networks/openaimodel3d.py:76: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert x.shape[1] == self.channels
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/notebooks/dynamicrafter-animating-images/dynamicrafter/lvdm/modules/networks/openaimodel3d.py:99: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/notebooks/dynamicrafter-animating-images/dynamicrafter/lvdm/modules/networks/openaimodel3d.py:99: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert x.shape[1] == self.channels
 
 
 Convert AE decoder
 ~~~~~~~~~~~~~~~~~~
 
-``Decoder`` receives a
+`back to top ⬆️ <#Table-of-contents:>`__ ``Decoder`` receives a
 ``bfloat16`` tensor. numpy doesn’t support this type. To avoid problems
 with the conversion lets replace ``decode`` method to convert bfloat16
 to float32.
@@ -562,7 +570,7 @@ to float32.
 Compiling models
 ----------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Select device from dropdown list for running inference using OpenVINO.
 
@@ -601,7 +609,7 @@ Select device from dropdown list for running inference using OpenVINO.
 Building the pipeline
 ---------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Let’s create callable wrapper classes for compiled models to allow
 interaction with original pipelines. Note that all of wrapper classes
@@ -702,7 +710,7 @@ And insert wrappers instances in the pipeline:
 Run OpenVINO pipeline inference
 -------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -903,14 +911,14 @@ Run OpenVINO pipeline inference
 .. parsed-literal::
 
     Seed set to 234
-    /tmp/ipykernel_79693/2451984876.py:25: UserWarning: The given NumPy array is not writable, and PyTorch does not support non-writable tensors. This means writing to this tensor will result in undefined behavior. You may want to copy the array to protect its data or make it writable before converting it to a tensor. This type of warning will be suppressed for the rest of this program. (Triggered internally at ../torch/csrc/utils/tensor_numpy.cpp:206.)
+    /tmp/ipykernel_2590985/2451984876.py:25: UserWarning: The given NumPy array is not writable, and PyTorch does not support non-writable tensors. This means writing to this tensor will result in undefined behavior. You may want to copy the array to protect its data or make it writable before converting it to a tensor. This type of warning will be suppressed for the rest of this program. (Triggered internally at ../torch/csrc/utils/tensor_numpy.cpp:206.)
       img_tensor = torch.from_numpy(image).permute(2, 0, 1).float().to(model.device)
 
 
 .. parsed-literal::
 
-    start: man fishing in a boat at sunset 2024-10-08 00:11:25
-    Saved in man_fishing_in_a_boat_at_sunset.mp4. Time used: 194.23 seconds
+    start: man fishing in a boat at sunset 2024-10-22 23:16:18
+    Saved in man_fishing_in_a_boat_at_sunset.mp4. Time used: 196.25 seconds
 
 
 .. code:: ipython3
@@ -941,7 +949,7 @@ Run OpenVINO pipeline inference
 Quantization
 ------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding quantization layers into model
@@ -1005,10 +1013,10 @@ Let’s load ``skip magic`` extension to skip quantization if
 Prepare calibration dataset
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 We use a portion of
-`jovianzm/Pexels-400k <https://huggingface.co/datasets/jovianzm/Pexels-400k>`__
+```jovianzm/Pexels-400k`` <https://huggingface.co/datasets/jovianzm/Pexels-400k>`__
 dataset from Hugging Face as calibration data.
 
 .. code:: ipython3
@@ -1122,7 +1130,7 @@ To collect intermediate model inputs for calibration we should customize
 Run Quantization
 ~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Quantization of the first and last ``Convolution`` layers impacts the
 generation results. We recommend using ``IgnoredScope`` to keep accuracy
@@ -1162,10 +1170,10 @@ quantization time.
 
 .. parsed-literal::
 
-    2024-10-08 00:40:44.424263: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-10-08 00:40:44.462873: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-10-22 23:45:51.693284: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-10-22 23:45:51.735392: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-10-08 00:40:45.077046: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-10-22 23:45:52.354791: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 
@@ -1177,7 +1185,7 @@ quantization time.
 Run Weights Compression
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Quantizing of the remaining components of the pipeline does not
 significantly improve inference performance but can lead to a
@@ -1218,9 +1226,9 @@ applied to footprint reduction.
 
 
 
+.. raw:: html
 
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
@@ -1241,9 +1249,9 @@ applied to footprint reduction.
 
 
 
+.. raw:: html
 
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
@@ -1264,9 +1272,9 @@ applied to footprint reduction.
 
 
 
+.. raw:: html
 
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
@@ -1287,9 +1295,9 @@ applied to footprint reduction.
 
 
 
+.. raw:: html
 
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
@@ -1347,8 +1355,8 @@ Let’s run the optimized pipeline
 
 .. parsed-literal::
 
-    start: man fishing in a boat at sunset 2024-10-08 01:40:46
-    Saved in man_fishing_in_a_boat_at_sunset.mp4. Time used: 98.42 seconds
+    start: man fishing in a boat at sunset 2024-10-23 00:47:13
+    Saved in man_fishing_in_a_boat_at_sunset.mp4. Time used: 98.40 seconds
 
 
 .. code:: ipython3
@@ -1377,7 +1385,7 @@ Let’s run the optimized pipeline
 Compare model file sizes
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -1404,7 +1412,7 @@ Compare model file sizes
 Compare inference time of the FP32 and INT8 models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To measure the inference performance of the ``FP32`` and ``INT8``
 models, we use median inference time on calibration subset.
@@ -1453,15 +1461,15 @@ models, we use median inference time on calibration subset.
 
 .. parsed-literal::
 
-    FP32 latency: 193.245
-    INT8 latency: 97.168
-    Performance speed up: 1.989
+    FP32 latency: 195.358
+    INT8 latency: 97.265
+    Performance speed up: 2.009
 
 
 Interactive inference
 ---------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Please select below whether you would like to use the quantized models
 to launch the interactive demo.
@@ -1523,7 +1531,7 @@ to launch the interactive demo.
 
 
 
+.. raw:: html
 
-
-
+    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 

@@ -39,27 +39,26 @@ The notebook contains the following steps:
 3. Run Inference pipeline with OpenVINO.
 4. Run Interactive demo for Tiny-SD model
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-**Table of contents:**
-
-
--  `Prerequisites <#prerequisites>`__
--  `Create PyTorch Models pipeline <#create-pytorch-models-pipeline>`__
+-  `Prerequisites <#Prerequisites>`__
+-  `Create PyTorch Models pipeline <#Create-PyTorch-Models-pipeline>`__
 -  `Convert models to OpenVINO Intermediate representation
-   format <#convert-models-to-openvino-intermediate-representation-format>`__
+   format <#Convert-models-to-OpenVINO-Intermediate-representation-format>`__
 
-   -  `Text Encoder <#text-encoder>`__
-   -  `U-net <#u-net>`__
-   -  `VAE <#vae>`__
+   -  `Text Encoder <#Text-Encoder>`__
+   -  `U-net <#U-net>`__
+   -  `VAE <#VAE>`__
 
--  `Prepare Inference Pipeline <#prepare-inference-pipeline>`__
--  `Configure Inference Pipeline <#configure-inference-pipeline>`__
+-  `Prepare Inference Pipeline <#Prepare-Inference-Pipeline>`__
+-  `Configure Inference Pipeline <#Configure-Inference-Pipeline>`__
 
    -  `Calibrate UNet for GPU
-      inference <#calibrate-unet-for-gpu-inference>`__
-   -  `Text-to-Image generation <#text-to-image-generation>`__
-   -  `Image-to-Image generation <#image-to-image-generation>`__
-   -  `Interactive Demo <#interactive-demo>`__
+      inference <#Calibrate-UNet-for-GPU-inference>`__
+   -  `Text-to-Image generation <#Text-to-Image-generation>`__
+   -  `Image-to-Image generation <#Image-to-Image-generation>`__
+   -  `Interactive Demo <#Interactive-Demo>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -74,7 +73,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Install required dependencies
 
@@ -85,7 +84,7 @@ Install required dependencies
 Create PyTorch Models pipeline
 ------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 ``StableDiffusionPipeline`` is an end-to-end inference pipeline that you
 can use to generate images from text with just a few lines of code.
@@ -113,7 +112,7 @@ First, load the pre-trained weights of all components of the model.
 Convert models to OpenVINO Intermediate representation format
 -------------------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 OpenVINO supports PyTorch through conversion to OpenVINO Intermediate
 Representation (IR) format. To take the advantage of OpenVINO
@@ -144,7 +143,7 @@ Let us convert each part.
 Text Encoder
 ~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The text-encoder is responsible for transforming the input prompt, for
 example, “a photo of an astronaut riding a horse” into an embedding
@@ -208,7 +207,7 @@ hidden states.
 U-net
 ~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 U-net model has three inputs:
 
@@ -270,7 +269,7 @@ Model predicts the ``sample`` state for the next step.
 VAE
 ~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The VAE model has two parts, an encoder and a decoder. The encoder is
 used to convert the image into a low dimensional latent representation,
@@ -374,7 +373,7 @@ of the pipeline, it will be better to convert them to separate models.
 Prepare Inference Pipeline
 --------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Putting it all together, let us now take a closer look at how the model
 works in inference by illustrating the logical flow.
@@ -784,7 +783,7 @@ of the variational auto encoder.
 Configure Inference Pipeline
 ----------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 First, you should create instances of OpenVINO Model.
 
@@ -827,7 +826,7 @@ Select device from dropdown list for running inference using OpenVINO.
 Calibrate UNet for GPU inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 On a GPU device a model is executed in FP16 precision. For Tiny-SD UNet
 model there known to be accuracy issues caused by this. Therefore, a
@@ -902,7 +901,7 @@ Let us define them and put all components together
 Text-to-Image generation
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Now, let’s see model in action
 
@@ -973,7 +972,7 @@ Nice. As you can see, the picture has quite a high definition 🔥.
 Image-to-Image generation
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 One of the most amazing features of Stable Diffusion model is the
 ability to condition image generation from an existing image or sketch.
@@ -1085,7 +1084,7 @@ found in this
 Interactive Demo
 ~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 

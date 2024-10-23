@@ -23,22 +23,21 @@ apply stateful transformation on LLM part and model optimization
 techniques like weights compression using
 `NNCF <https://github.com/openvinotoolkit/nncf>`__
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-**Table of contents:**
-
-
--  `Prerequisites <#prerequisites>`__
--  `Select model <#select-model>`__
--  `Convert and Optimize model <#convert-and-optimize-model>`__
+-  `Prerequisites <#Prerequisites>`__
+-  `Select model <#Select-model>`__
+-  `Convert and Optimize model <#Convert-and-Optimize-model>`__
 
    -  `Compress model weights to
-      4-bit <#compress-model-weights-to-4-bit>`__
+      4-bit <#Compress-model-weights-to-4-bit>`__
 
--  `Select inference device <#select-inference-device>`__
+-  `Select inference device <#Select-inference-device>`__
 -  `Prepare model inference
-   pipeline <#prepare-model-inference-pipeline>`__
--  `Run model inference <#run-model-inference>`__
--  `Interactive demo <#interactive-demo>`__
+   pipeline <#Prepare-model-inference-pipeline>`__
+-  `Run model inference <#Run-model-inference>`__
+-  `Interactive demo <#Interactive-demo>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -53,7 +52,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -91,7 +90,7 @@ Prerequisites
 Select model
 ------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 There are multiple InternVL2 models available in `models
 collection <https://huggingface.co/collections/OpenGVLab/internvl-20-667d3961ab5eb12c7ed1463e>`__.
@@ -135,7 +134,7 @@ using widget bellow:
 Convert and Optimize model
 --------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 InternVL2 is PyTorch model. OpenVINO supports PyTorch models via
 conversion to OpenVINO Intermediate Representation (IR). `OpenVINO model
@@ -204,7 +203,7 @@ To sum up above, model consists of 4 parts:
 Compress model weights to 4-bit
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-For reducing memory
+`back to top ⬆️ <#Table-of-contents:>`__ For reducing memory
 consumption, weights compression optimization can be applied using
 `NNCF <https://github.com/openvinotoolkit/nncf>`__.
 
@@ -275,6 +274,16 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 
     ⌛ OpenGVLab/InternVL2-1B conversion started. Be patient, it may takes some time.
     ⌛ Load Original model
+
+
+.. parsed-literal::
+
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/timm/models/layers/__init__.py:48: FutureWarning: Importing from timm.models.layers is deprecated, please import via timm.layers
+      warnings.warn(f"Importing from {__name__} is deprecated, please import via timm.layers", FutureWarning)
+
+
+.. parsed-literal::
+
     FlashAttention2 is not installed.
     ✅ Original model successfully loaded
     ⌛ Convert Input embedding model
@@ -285,7 +294,7 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4713: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4713: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
       warnings.warn(
     /opt/home/k8sworker/.cache/huggingface/modules/transformers_modules/OpenGVLab/InternVL2-1B/a84c71e158b16180df4fd1c5fe963fdf54b2cd43/modeling_internvl_chat.py:195: TracerWarning: Converting a tensor to a Python integer might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       h = w = int(vit_embeds.shape[1] ** 0.5)
@@ -304,10 +313,10 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 
 .. parsed-literal::
 
-    2024-10-08 02:33:31.955265: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-10-08 02:33:31.994462: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-10-23 01:27:20.642555: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-10-23 01:27:20.681421: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-10-08 02:33:32.596223: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-10-23 01:27:21.329023: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. parsed-literal::
@@ -329,9 +338,9 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 
 
 
+.. raw:: html
 
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
@@ -346,13 +355,13 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 .. parsed-literal::
 
     We detected that you are passing `past_key_values` as a tuple and this is deprecated and will be removed in v4.43. Please use an appropriate `Cache` class (https://huggingface.co/docs/transformers/v4.41.3/en/internal/generation_utils#transformers.Cache)
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/qwen2/modeling_qwen2.py:100: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/qwen2/modeling_qwen2.py:100: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if sequence_length != 1:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/qwen2/modeling_qwen2.py:165: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/qwen2/modeling_qwen2.py:165: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if seq_len > self.max_seq_len_cached:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/qwen2/modeling_qwen2.py:324: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/qwen2/modeling_qwen2.py:324: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if attn_weights.size() != (bsz, self.num_heads, q_len, kv_seq_len):
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/qwen2/modeling_qwen2.py:339: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/qwen2/modeling_qwen2.py:339: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if attn_output.size() != (bsz, self.num_heads, q_len, self.head_dim):
 
 
@@ -377,9 +386,9 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 
 
 
+.. raw:: html
 
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
@@ -392,7 +401,7 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 Select inference device
 -----------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -414,13 +423,13 @@ Select inference device
 Prepare model inference pipeline
 --------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 As discussed, the model comprises Image Encoder and LLM (with separated
 text embedding part) that generates answer. In ``internvl2_helper.py``
 we defined LLM inference class ``OvModelForCausalLMWithEmb`` that will
 represent generation cycle, It is based on `HuggingFace Transformers
-GenerationMixin <https://huggingface.co/docs/transformers/main_classes/text_generation>`__
+``GenerationMixin`` <https://huggingface.co/docs/transformers/main_classes/text_generation>`__
 and looks similar to `Optimum
 Intel <https://huggingface.co/docs/optimum/intel/index>`__
 ``OVModelForCausalLM`` that is used for LLM inference with only
@@ -446,7 +455,7 @@ LLM.
 Run model inference
 -------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Our interface is fully compatible with Transformers interface for
 InternVL2, you can try any of represented here `usage
@@ -521,12 +530,12 @@ Let’s check model capabilities in answering questions about image:
 
 .. parsed-literal::
 
-    The image displays a young red panda cub. This cute creature has a striking mix of dark reds and whites on its fur, with a striking white underbelly and back. The cub is sitting and peering forward with a curious expression. It appears to be peering through a wooden partition, and a piece of bamboo is visible in the bottom-left corner of the image. The background includes green foliage, suggesting a natural habitat for the cub. This cub is cute and looks like it's enjoying
+    The image depicts a red panda, a large feline with a distinctive, reddish-brown coat and white face and chest. It is peeking over what appears to be a wooden platform or platform made for panda viewing in captivity. The background is filled with greenery, indicating that the photo was likely taken in a conservatory or wildlife park where penguins or seabirds are displayed.
 
 Interactive demo
 ----------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -550,7 +559,7 @@ Interactive demo
 
 
 
+.. raw:: html
 
-
-
+    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="600" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 

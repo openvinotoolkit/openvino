@@ -19,30 +19,29 @@ speedup generation process we will use
 
 .. |ip-adapter-pipe.png| image:: https://huggingface.co/h94/IP-Adapter/resolve/main/fig1.png
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-**Table of contents:**
+-  `Prerequisites <#Prerequisites>`__
+-  `Prepare Diffusers pipeline <#Prepare-Diffusers-pipeline>`__
+-  `Convert PyTorch models <#Convert-PyTorch-models>`__
 
-
--  `Prerequisites <#prerequisites>`__
--  `Prepare Diffusers pipeline <#prepare-diffusers-pipeline>`__
--  `Convert PyTorch models <#convert-pytorch-models>`__
-
-   -  `Image Encoder <#image-encoder>`__
-   -  `U-net <#u-net>`__
-   -  `VAE Encoder and Decoder <#vae-encoder-and-decoder>`__
-   -  `Text Encoder <#text-encoder>`__
+   -  `Image Encoder <#Image-Encoder>`__
+   -  `U-net <#U-net>`__
+   -  `VAE Encoder and Decoder <#VAE-Encoder-and-Decoder>`__
+   -  `Text Encoder <#Text-Encoder>`__
 
 -  `Prepare OpenVINO inference
-   pipeline <#prepare-openvino-inference-pipeline>`__
--  `Run model inference <#run-model-inference>`__
+   pipeline <#Prepare-OpenVINO-inference-pipeline>`__
+-  `Run model inference <#Run-model-inference>`__
 
-   -  `Select inference device <#select-inference-device>`__
-   -  `Generation image variation <#generation-image-variation>`__
+   -  `Select inference device <#Select-inference-device>`__
+   -  `Generation image variation <#Generation-image-variation>`__
    -  `Generation conditioned by image and
-      text <#generation-conditioned-by-image-and-text>`__
-   -  `Generation image blending <#generation-image-blending>`__
+      text <#Generation-conditioned-by-image-and-text>`__
+   -  `Generation image blending <#Generation-image-blending>`__
 
--  `Interactive demo <#interactive-demo>`__
+-  `Interactive demo <#Interactive-demo>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -57,7 +56,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -74,9 +73,9 @@ Prerequisites
 .. parsed-literal::
 
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    botocore 1.35.23 requires urllib3<1.27,>=1.25.4; python_version < "3.10", but you have urllib3 2.2.3 which is incompatible.
-    tensorflow 2.12.0 requires protobuf!=4.21.0,!=4.21.1,!=4.21.2,!=4.21.3,!=4.21.4,!=4.21.5,<5.0.0dev,>=3.20.3, but you have protobuf 5.28.2 which is incompatible.
-    wandb 0.15.4 requires protobuf!=4.21.0,<5,>=3.12.0; python_version < "3.9" and sys_platform == "linux", but you have protobuf 5.28.2 which is incompatible.
+    botocore 1.35.36 requires urllib3<1.27,>=1.25.4; python_version < "3.10", but you have urllib3 2.2.3 which is incompatible.
+    tensorflow 2.12.0 requires protobuf!=4.21.0,!=4.21.1,!=4.21.2,!=4.21.3,!=4.21.4,!=4.21.5,<5.0.0dev,>=3.20.3, but you have protobuf 5.28.3 which is incompatible.
+    wandb 0.15.4 requires protobuf!=4.21.0,<5,>=3.12.0; python_version < "3.9" and sys_platform == "linux", but you have protobuf 5.28.3 which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
 
@@ -84,13 +83,13 @@ Prerequisites
 Prepare Diffusers pipeline
 --------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 First of all, we should collect all components of our pipeline together.
 To work with Stable Diffusion, we will use HuggingFace
 `Diffusers <https://github.com/huggingface/diffusers>`__ library. To
 experiment with Stable Diffusion models, Diffusers exposes the
-`StableDiffusionPipeline <https://huggingface.co/docs/diffusers/using-diffusers/conditional_image_generation>`__
+```StableDiffusionPipeline`` <https://huggingface.co/docs/diffusers/using-diffusers/conditional_image_generation>`__
 similar to the `other Diffusers
 pipelines <https://huggingface.co/docs/diffusers/api/pipelines/overview>`__.
 Additionally, the pipeline supports load adapters that extend Stable
@@ -197,10 +196,10 @@ Additionally, LCM requires using LCMScheduler for efficient generation.
 
 .. parsed-literal::
 
-    2024-10-08 06:29:01.866248: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-10-08 06:29:01.901609: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-10-23 05:07:50.575524: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-10-23 05:07:50.610025: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-10-08 06:29:02.468216: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-10-23 05:07:51.160950: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 
@@ -211,15 +210,14 @@ Additionally, LCM requires using LCMScheduler for efficient generation.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/clip/feature_extraction_clip.py:28: FutureWarning: The class CLIPFeatureExtractor is deprecated and will be removed in version 5 of Transformers. Please use CLIPImageProcessor instead.
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/clip/feature_extraction_clip.py:28: FutureWarning: The class CLIPFeatureExtractor is deprecated and will be removed in version 5 of Transformers. Please use CLIPImageProcessor instead.
       warnings.warn(
-    The installed version of bitsandbytes was compiled without GPU support. 8-bit optimizers, 8-bit multiplication, and GPU quantization are unavailable.
 
 
 Convert PyTorch models
 ----------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Starting from 2023.0 release, OpenVINO supports PyTorch models directly
 via Model Conversion API. ``ov.convert_model`` function accepts instance
@@ -240,11 +238,11 @@ Let us convert each part:
 Image Encoder
 ~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 IP-Adapter relies on an image encoder to generate the image features.
 Usually
-`CLIPVisionModelWithProjection <https://huggingface.co/docs/transformers/main/en/model_doc/clip#transformers.CLIPVisionModelWithProjection>`__
+```CLIPVisionModelWithProjection`` <https://huggingface.co/docs/transformers/main/en/model_doc/clip#transformers.CLIPVisionModelWithProjection>`__
 is used as Image Encoder. For preprocessing input image, Image Encoder
 uses ``CLIPImageProcessor`` named feature extractor in pipeline. The
 image encoder accept resized and normalized image processed by feature
@@ -294,14 +292,14 @@ extractor as input and returns image embeddings.
 .. parsed-literal::
 
     [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4779: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4779: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
       warnings.warn(
 
 
 U-net
 ~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 U-Net model gradually denoises latent image representation guided by
 text encoder hidden state.
@@ -356,24 +354,24 @@ Model predicts the ``sample`` state for the next step.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/unets/unet_2d_condition.py:1110: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/unets/unet_2d_condition.py:1111: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if dim % default_overall_up_factor != 0:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/embeddings.py:1692: FutureWarning: You have passed a tensor as `image_embeds`.This is deprecated and will be removed in a future release. Please make sure to update your script to pass `image_embeds` as a list of tensors to suppress this warning.
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/embeddings.py:1801: FutureWarning: You have passed a tensor as `image_embeds`.This is deprecated and will be removed in a future release. Please make sure to update your script to pass `image_embeds` as a list of tensors to suppress this warning.
       deprecate("image_embeds not a list", "1.0.0", deprecation_message, standard_warn=False)
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/downsampling.py:136: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/downsampling.py:136: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert hidden_states.shape[1] == self.channels
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/downsampling.py:145: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/downsampling.py:145: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert hidden_states.shape[1] == self.channels
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/upsampling.py:146: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/upsampling.py:147: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert hidden_states.shape[1] == self.channels
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/upsampling.py:162: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/upsampling.py:162: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if hidden_states.shape[0] >= 64:
 
 
 VAE Encoder and Decoder
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The VAE model has two parts, an encoder and a decoder. The encoder is
 used to convert the image into a low dimensional latent representation,
@@ -444,23 +442,23 @@ image in pipeline, we can discuss it in inference examples.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/jit/_trace.py:1303: TracerWarning: Trace had nondeterministic nodes. Did you forget call .eval() on your model? Nodes:
-    	%2494 : Float(1, 4, 64, 64, strides=[16384, 4096, 64, 1], requires_grad=0, device=cpu) = aten::randn(%2488, %2489, %2490, %2491, %2492, %2493) # /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/utils/torch_utils.py:81:0
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/jit/_trace.py:1303: TracerWarning: Trace had nondeterministic nodes. Did you forget call .eval() on your model? Nodes:
+    	%2506 : Float(1, 4, 64, 64, strides=[16384, 4096, 64, 1], requires_grad=0, device=cpu) = aten::randn(%2500, %2501, %2502, %2503, %2504, %2505) # /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/utils/torch_utils.py:81:0
     This may cause errors in trace checking. To disable trace checking, pass check_trace=False to torch.jit.trace()
       _check_trace(
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/jit/_trace.py:1303: TracerWarning: Output nr 1. of the traced function does not match the corresponding output of the Python function. Detailed error:
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/jit/_trace.py:1303: TracerWarning: Output nr 1. of the traced function does not match the corresponding output of the Python function. Detailed error:
     Tensor-likes are not close!
     
-    Mismatched elements: 10406 / 16384 (63.5%)
-    Greatest absolute difference: 0.0015301704406738281 at index (0, 2, 63, 63) (up to 1e-05 allowed)
-    Greatest relative difference: 0.006733886813099823 at index (0, 3, 63, 59) (up to 1e-05 allowed)
+    Mismatched elements: 10395 / 16384 (63.4%)
+    Greatest absolute difference: 0.0018606185913085938 at index (0, 1, 63, 63) (up to 1e-05 allowed)
+    Greatest relative difference: 0.005050937208143127 at index (0, 3, 63, 59) (up to 1e-05 allowed)
       _check_trace(
 
 
 Text Encoder
 ~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The text-encoder is responsible for transforming the input prompt, for
 example, “a photo of an astronaut riding a horse” into an embedding
@@ -499,16 +497,16 @@ hidden states.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:88: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:88: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if input_shape[-1] > 1 or self.sliding_window is not None:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:164: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:164: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if past_key_values_length > 0:
 
 
 Prepare OpenVINO inference pipeline
 -----------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 As shown on diagram below, the only difference between original Stable
 Diffusion pipeline and IP-Adapter Stable Diffusion pipeline only in
@@ -966,14 +964,14 @@ encoder (VAE).
 Run model inference
 -------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Now let’s configure our pipeline and take a look on generation results.
 
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Select inference device from dropdown list.
 
@@ -1038,7 +1036,7 @@ Select inference device from dropdown list.
 Generation image variation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 If we stay input text prompt empty and provide only ip-adapter image, we
 can get variation of the same image.
@@ -1116,7 +1114,7 @@ can get variation of the same image.
 Generation conditioned by image and text
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 IP-Adapter allows you to use both image and text to condition the image
 generation process. Both IP-Adapter image and text prompt serve as
@@ -1155,7 +1153,7 @@ extension for each other, for example we can use a text prompt to add
 Generation image blending
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 IP-Adapter also works great with Image-to-Image translation. It helps to
 achieve image blending effect.
@@ -1194,7 +1192,7 @@ achieve image blending effect.
 Interactive demo
 ----------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Now, you can try model using own images and text prompts.
 
@@ -1228,7 +1226,7 @@ Now, you can try model using own images and text prompts.
 
 
 
+.. raw:: html
 
-
-
+    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 

@@ -16,32 +16,30 @@ additional part demonstrates how to run optimization with
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ to speed up
 pipeline.
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-**Table of contents:**
-
-
--  `Prerequisites <#prerequisites>`__
+-  `Prerequisites <#Prerequisites>`__
 -  `Convert Stable Diffusion Pipeline models to
-   OpenVINO <#convert-stable-diffusion-pipeline-models-to-openvino>`__
+   OpenVINO <#Convert-Stable-Diffusion-Pipeline-models-to-OpenVINO>`__
 
-   -  `Convert text encoder <#convert-text-encoder>`__
-   -  `Convert diffusion model <#convert-diffusion-model>`__
-   -  `Convert decoder <#convert-decoder>`__
+   -  `Convert text encoder <#Convert-text-encoder>`__
+   -  `Convert diffusion model <#Convert-diffusion-model>`__
+   -  `Convert decoder <#Convert-decoder>`__
 
 -  `Stable Diffusion Pipeline with
-   OpenVINO <#stable-diffusion-pipeline-with-openvino>`__
--  `Quantization <#quantization>`__
+   OpenVINO <#Stable-Diffusion-Pipeline-with-OpenVINO>`__
+-  `Quantization <#Quantization>`__
 
-   -  `Prepare calibration dataset <#prepare-calibration-dataset>`__
-   -  `Run Quantization <#run-quantization>`__
-   -  `Run Weight Compression <#run-weight-compression>`__
-   -  `Compare model file sizes <#compare-model-file-sizes>`__
+   -  `Prepare calibration dataset <#Prepare-calibration-dataset>`__
+   -  `Run Quantization <#Run-Quantization>`__
+   -  `Run Weight Compression <#Run-Weight-Compression>`__
+   -  `Compare model file sizes <#Compare-model-file-sizes>`__
    -  `Compare inference time of the FP16 and INT8
-      pipelines <#compare-inference-time-of-the-fp16-and-int8-pipelines>`__
+      pipelines <#Compare-inference-time-of-the-FP16-and-INT8-pipelines>`__
 
--  `Interactive Demo <#interactive-demo>`__ 
-   
-
+-  `Interactive Demo <#Interactive-Demo>`__ ### Installation
+   Instructions
 
 This is a self-contained example that relies solely on its own code.
 
@@ -53,7 +51,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 ~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -73,7 +71,7 @@ Prerequisites
 Convert Stable Diffusion Pipeline models to OpenVINO
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Stable Diffusion consists of three parts:
 
@@ -129,7 +127,7 @@ Create KerasCV Stable Diffusion pipeline
 Convert text encoder
 ^^^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Text encoder has 2 inputs: ``tokens`` and ``positions``. Specify inputs
 shapes and provide example data for model tracing.
@@ -157,7 +155,7 @@ shapes and provide example data for model tracing.
 Convert diffusion model
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Diffusion model has 3 inputs ``latent``, ``timestep_embedding`` and
 ``context``. Specify inputs shapes and provide example data for model
@@ -188,7 +186,7 @@ tracing.
 Convert decoder
 ^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Decoder has 1 input for image latents. Specify input shapes and provide
 example data for model tracing.
@@ -214,7 +212,7 @@ example data for model tracing.
 Stable Diffusion Pipeline with OpenVINO
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Let’s take `KerasCV pipeline
 implementation <https://github.com/keras-team/keras-cv/tree/master/keras_cv/models/stable_diffusion>`__
@@ -489,13 +487,13 @@ Create and run Stable Diffusion pipeline using OpenVINO models.
     
 
 
-.. image:: stable-diffusion-keras-cv-with-output_files/stable-diffusion-keras-cv-with-output_23_1.png
+.. image:: stable-diffusion-keras-cv-with-output_files%5Cstable-diffusion-keras-cv-with-output_23_1.png
 
 
 Quantization
 ~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding quantization layers into model
@@ -568,7 +566,7 @@ improve model inference speed.
 Prepare calibration dataset
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 We use a portion of
 `conceptual_captions <https://huggingface.co/datasets/google-research-datasets/conceptual_captions>`__
@@ -652,7 +650,7 @@ model inputs for UNet optimization we should customize
 Run Quantization
 ^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -746,17 +744,17 @@ Run Quantization
 
 
 
+.. raw:: html
 
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
     
 
 
 
+.. raw:: html
 
-
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
     
 
 
@@ -1007,17 +1005,17 @@ Run Quantization
 
 
 
+.. raw:: html
 
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
     
 
 
 
+.. raw:: html
 
-
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
     
 
 
@@ -1028,24 +1026,24 @@ Run Quantization
 
 
 
+.. raw:: html
 
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
     
 
 
 
+.. raw:: html
 
-
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
     
 
 
 Run Weight Compression
 ^^^^^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Quantizing of the ``text encoder`` and ``decoder`` does not
 significantly improve inference performance but can lead to a
@@ -1085,17 +1083,17 @@ applied to footprint reduction.
 
 
 
+.. raw:: html
 
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
     
 
 
 
+.. raw:: html
 
-
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
     
 
 
@@ -1117,17 +1115,17 @@ applied to footprint reduction.
 
 
 
+.. raw:: html
 
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
     
 
 
 
+.. raw:: html
 
-
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
     
 
 
@@ -1203,13 +1201,13 @@ pipelines.
 
 
 
-.. image:: stable-diffusion-keras-cv-with-output_files/stable-diffusion-keras-cv-with-output_38_0.png
+.. image:: stable-diffusion-keras-cv-with-output_files%5Cstable-diffusion-keras-cv-with-output_38_0.png
 
 
 Compare model file sizes
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -1234,7 +1232,7 @@ Compare model file sizes
 Compare inference time of the FP16 and INT8 pipelines
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To measure the inference performance of the ``FP16`` and ``INT8``
 pipelines, we use median inference time on calibration subset.
@@ -1294,7 +1292,7 @@ pipelines, we use median inference time on calibration subset.
 Interactive Demo
 ~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Please select below whether you would like to use the quantized model to
 launch the interactive demo.

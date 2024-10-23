@@ -23,29 +23,28 @@ You have the flexibility to run this tutorial notebook in its entirety
 or selectively execute specific sections, as each section operates
 independently.
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-**Table of contents:**
+-  `Install required packages <#Install-required-packages>`__
+-  `Image classification <#Image-classification>`__
 
-
--  `Install required packages <#install-required-packages>`__
--  `Image classification <#image-classification>`__
-
-   -  `Import libraries <#import-libraries>`__
-   -  `Download the classifier <#download-the-classifier>`__
+   -  `Import libraries <#Import-libraries>`__
+   -  `Download the classifier <#Download-the-classifier>`__
    -  `Download a single image to try the model
-      on <#download-a-single-image-to-try-the-model-on>`__
-   -  `Convert model to OpenVINO IR <#convert-model-to-openvino-ir>`__
-   -  `Select inference device <#select-inference-device>`__
-   -  `Inference <#inference>`__
+      on <#Download-a-single-image-to-try-the-model-on>`__
+   -  `Convert model to OpenVINO IR <#Convert-model-to-OpenVINO-IR>`__
+   -  `Select inference device <#Select-inference-device>`__
+   -  `Inference <#Inference>`__
 
--  `Image style transfer <#image-style-transfer>`__
+-  `Image style transfer <#Image-style-transfer>`__
 
-   -  `Install required packages <#install-required-packages>`__
-   -  `Load the model <#load-the-model>`__
+   -  `Install required packages <#Install-required-packages>`__
+   -  `Load the model <#Load-the-model>`__
    -  `Convert the model to OpenVINO
-      IR <#convert-the-model-to-openvino-ir>`__
-   -  `Select inference device <#select-inference-device>`__
-   -  `Inference <#inference>`__
+      IR <#Convert-the-model-to-OpenVINO-IR>`__
+   -  `Select inference device <#Select-inference-device>`__
+   -  `Inference <#Inference>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -65,7 +64,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Install required packages
 -------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -99,7 +98,7 @@ Install required packages
 Image classification
 --------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 We will use the `MobileNet_v2 <https://arxiv.org/abs/1704.04861>`__
 image classification model from `TensorFlow Hub <https://tfhub.dev/>`__.
@@ -122,7 +121,7 @@ Hub <https://tfhub.dev/google/imagenet/mobilenet_v2_100_224/classification/5>`__
 Import libraries
 ~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -159,7 +158,7 @@ Import libraries
 Download the classifier
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-Select a MobileNetV2
+`back to top ⬆️ <#Table-of-contents:>`__ Select a MobileNetV2
 pre-trained model `from TensorFlow
 Hub <https://tfhub.dev/google/imagenet/mobilenet_v2_100_224/classification/5>`__
 and wrap it as a Keras layer with ``hub.KerasLayer``.
@@ -171,7 +170,7 @@ and wrap it as a Keras layer with ``hub.KerasLayer``.
 Download a single image to try the model on
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The input ``images`` are
+`back to top ⬆️ <#Table-of-contents:>`__ The input ``images`` are
 expected to have color values in the range [0,1], following the `common
 image input
 conventions <https://www.tensorflow.org/hub/common_signatures/images#input>`__.
@@ -216,7 +215,7 @@ Normalize the image to [0,1] range.
 Convert model to OpenVINO IR
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 We will convert the loaded model to OpenVINO IR using
 ``ov.convert_model`` function. We pass the model object to it, no
@@ -234,7 +233,7 @@ additional arguments required. Then, we save the model to disk using
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -271,7 +270,7 @@ select device from dropdown list for running inference using OpenVINO
 Inference
 ~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Add a batch dimension (with ``np.newaxis``) and pass the image to the
 model:
@@ -332,7 +331,7 @@ dataset labels to decode the predictions:
 Image style transfer
 --------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 We will use `arbitrary image stylization
 model <https://arxiv.org/abs/1705.06830>`__ from `TensorFlow
@@ -392,7 +391,7 @@ Hub <https://tfhub.dev/google/magenta/arbitrary-image-stylization-v1-256/2>`__.
 Load the model
 ~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 We load the model from TensorFlow Hub using ``hub.KerasLayer``. Since
 the model has multiple inputs (content image and style image), we need
@@ -412,7 +411,7 @@ function.
 Convert the model to OpenVINO IR
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 We convert the loaded model to OpenVINO IR using ``ov.convert_model``
 function. We pass our model to the function, no additional arguments
@@ -429,7 +428,7 @@ needed. After converting, we save the model to disk using
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -453,7 +452,7 @@ select device from dropdown list for running inference using OpenVINO
 Inference
 ~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 

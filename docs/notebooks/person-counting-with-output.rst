@@ -18,15 +18,14 @@ traffic flow control in public spaces and commercial settings.
    server, the webcam will not work. However, you can still do inference
    on a video.
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-**Table of contents:**
-
-
--  `Install pre-requisites <#install-pre-requisites>`__
--  `Download Model <#download-model>`__
--  `Inference function <#inference-function>`__
--  `Run live demo <#run-live-demo>`__
--  `Select inference device <#select-inference-device>`__
+-  `Install pre-requisites <#Install-pre-requisites>`__
+-  `Download Model <#Download-Model>`__
+-  `Inference function <#Inference-function>`__
+-  `Run live demo <#Run-live-demo>`__
+-  `Select inference device <#Select-inference-device>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -41,7 +40,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Install pre-requisites
 ----------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -54,7 +53,7 @@ Download Model
 
 Download and convert YOLOV8 to OpenVINO Intermediate Representation
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -88,7 +87,7 @@ Download and convert YOLOV8 to OpenVINO Intermediate Representation
 Inference function
 ------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -208,7 +207,7 @@ Inference function
 Run live demo
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -225,7 +224,7 @@ Run live demo
 Select inference device
 -----------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -260,7 +259,7 @@ Select inference device
 
 
 
-.. image:: person-counting-with-output_files/person-counting-with-output_14_0.png
+.. image:: person-counting-with-output_files%5Cperson-counting-with-output_14_0.png
 
 
 .. parsed-literal::

@@ -23,46 +23,45 @@ This tutorial include following steps:
 -  Comparing results on one picture.
 -  Comparing performance.
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-**Table of contents:**
+-  `Settings <#Settings>`__
+-  `Imports <#Imports>`__
 
-
--  `Settings <#settings>`__
--  `Imports <#imports>`__
-
-   -  `Setup image and device <#setup-image-and-device>`__
-   -  `Downloading the model <#downloading-the-model>`__
-   -  `Create core <#create-core>`__
+   -  `Setup image and device <#Setup-image-and-device>`__
+   -  `Downloading the model <#Downloading-the-model>`__
+   -  `Create core <#Create-core>`__
    -  `Check the original parameters of
-      image <#check-the-original-parameters-of-image>`__
+      image <#Check-the-original-parameters-of-image>`__
 
 -  `Setup preprocessing steps with Preprocessing API and perform
-   inference <#setup-preprocessing-steps-with-preprocessing-api-and-perform-inference>`__
+   inference <#Setup-preprocessing-steps-with-Preprocessing-API-and-perform-inference>`__
 
    -  `Convert model to OpenVINO IR with model conversion
-      API <#convert-model-to-openvino-ir-with-model-conversion-api>`__
-   -  `Create PrePostProcessor
-      Object <#create-prepostprocessor-object>`__
-   -  `Declare User’s Data Format <#declare-users-data-format>`__
-   -  `Declaring Model Layout <#declaring-model-layout>`__
-   -  `Preprocessing Steps <#preprocessing-steps>`__
+      API <#Convert-model-to-OpenVINO-IR-with-model-conversion-API>`__
+   -  `Create ``PrePostProcessor``
+      Object <#Create-PrePostProcessor-Object>`__
+   -  `Declare User’s Data Format <#Declare-User’s-Data-Format>`__
+   -  `Declaring Model Layout <#Declaring-Model-Layout>`__
+   -  `Preprocessing Steps <#Preprocessing-Steps>`__
    -  `Integrating Steps into a
-      Model <#integrating-steps-into-a-model>`__
+      Model <#Integrating-Steps-into-a-Model>`__
 
 -  `Load model and perform
-   inference <#load-model-and-perform-inference>`__
+   inference <#Load-model-and-perform-inference>`__
 -  `Fit image manually and perform
-   inference <#fit-image-manually-and-perform-inference>`__
+   inference <#Fit-image-manually-and-perform-inference>`__
 
-   -  `Load the model <#load-the-model>`__
+   -  `Load the model <#Load-the-model>`__
    -  `Load image and fit it to model
-      input <#load-image-and-fit-it-to-model-input>`__
-   -  `Perform inference <#perform-inference>`__
+      input <#Load-image-and-fit-it-to-model-input>`__
+   -  `Perform inference <#Perform-inference>`__
 
--  `Compare results <#compare-results>`__
+-  `Compare results <#Compare-results>`__
 
-   -  `Compare results on one image <#compare-results-on-one-image>`__
-   -  `Compare performance <#compare-performance>`__
+   -  `Compare results on one image <#Compare-results-on-one-image>`__
+   -  `Compare performance <#Compare-performance>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -77,18 +76,12 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Settings
 --------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
-    import platform
-    
     # Install openvino package
-    %pip install -q "openvino>=2023.1.0" opencv-python tqdm
-    if platform.system() != "Windows":
-        %pip install -q "matplotlib>=3.4"
-    else:
-        %pip install -q "matplotlib>=3.4,<3.7"
+    %pip install -q "openvino>=2023.1.0" opencv-python tqdm "matplotlib>=3.4"
     
     %pip install -q "tensorflow-macos>=2.5; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version > '3.8'" # macOS M1 and M2
     %pip install -q "tensorflow>=2.5; sys_platform == 'darwin' and platform_machine != 'arm64' and python_version > '3.8'" # macOS x86
@@ -103,13 +96,12 @@ Settings
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
 
 
 Imports
 -------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -139,7 +131,7 @@ Imports
 Setup image and device
 ~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -176,7 +168,7 @@ Setup image and device
 Downloading the model
 ~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 This tutorial uses the
 `InceptionResNetV2 <https://www.tensorflow.org/api_docs/python/tf/keras/applications/inception_resnet_v2>`__.
@@ -228,7 +220,7 @@ and save it to the disk.
 Create core
 ~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -237,7 +229,7 @@ Create core
 Check the original parameters of image
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -260,7 +252,7 @@ Check the original parameters of image
 Setup preprocessing steps with Preprocessing API and perform inference
 ----------------------------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Intuitively, preprocessing API consists of the following parts:
 
@@ -288,7 +280,7 @@ Pre-processing support following operations (please, see more details
 Convert model to OpenVINO IR with model conversion API
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The options for preprocessing are not required.
 
@@ -308,10 +300,10 @@ The options for preprocessing are not required.
 Create ``PrePostProcessor`` Object
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The
-`PrePostProcessor() <https://docs.openvino.ai/2024/api/c_cpp_api/classov_1_1preprocess_1_1_pre_post_processor.html>`__
+```PrePostProcessor()`` <https://docs.openvino.ai/2024/api/c_cpp_api/classov_1_1preprocess_1_1_pre_post_processor.html>`__
 class enables specifying the preprocessing and postprocessing steps for
 a model.
 
@@ -324,7 +316,7 @@ a model.
 Declare User’s Data Format
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To address particular input of a model/preprocessor, use the
 ``PrePostProcessor.input(input_name)`` method. If the model has only one
@@ -360,14 +352,14 @@ for mean/scale normalization.
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.InputTensorInfo at 0x7f70c0c3dc70>
+    <openvino._pyopenvino.preprocess.InputTensorInfo at 0x7f786c780e70>
 
 
 
 Declaring Model Layout
 ~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Model input already has information about precision and shape.
 Preprocessing API is not intended to modify this. The only thing that
@@ -391,14 +383,14 @@ may be specified is input data
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.InputModelInfo at 0x7f70a4d64630>
+    <openvino._pyopenvino.preprocess.InputModelInfo at 0x7f786c7809b0>
 
 
 
 Preprocessing Steps
 ~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Now, the sequence of preprocessing steps can be defined. For more
 information about preprocessing steps, see
@@ -411,7 +403,7 @@ Perform the following:
    dynamic size, for example, ``{?, 3, ?, ?}`` resize will not know how
    to resize the picture. Therefore, in this case, target height/ width
    should be specified. For more details, see also the
-   `PreProcessSteps.resize() <https://docs.openvino.ai/2024/api/ie_python_api/_autosummary/openvino.preprocess.PreProcessSteps.html#openvino.preprocess.PreProcessSteps.resize>`__.
+   ```PreProcessSteps.resize()`` <https://docs.openvino.ai/2024/api/ie_python_api/_autosummary/openvino.preprocess.PreProcessSteps.html#openvino.preprocess.PreProcessSteps.resize>`__.
 -  Subtract mean from each channel.
 -  Divide each pixel data to appropriate scale value.
 
@@ -429,14 +421,14 @@ then such conversion will be added explicitly.
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.PreProcessSteps at 0x7f71146e21b0>
+    <openvino._pyopenvino.preprocess.PreProcessSteps at 0x7f786c780b70>
 
 
 
 Integrating Steps into a Model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Once the preprocessing steps have been finished, the model can be
 finally built. It is possible to display ``PrePostProcessor``
@@ -464,7 +456,7 @@ configuration for debugging purposes.
 Load model and perform inference
 --------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -484,12 +476,12 @@ Load model and perform inference
 Fit image manually and perform inference
 ----------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Load the model
 ~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -499,7 +491,7 @@ Load the model
 Load image and fit it to model input
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -535,7 +527,7 @@ Load image and fit it to model input
 Perform inference
 ~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -546,12 +538,12 @@ Perform inference
 Compare results
 ---------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Compare results on one image
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -615,7 +607,7 @@ Compare results on one image
 Compare performance
 ~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -643,6 +635,6 @@ Compare performance
 
 .. parsed-literal::
 
-    IR model in OpenVINO Runtime/CPU with manual image preprocessing: 0.0148 seconds per image, FPS: 67.77
-    IR model in OpenVINO Runtime/CPU with preprocessing API: 0.0142 seconds per image, FPS: 70.46
+    IR model in OpenVINO Runtime/CPU with manual image preprocessing: 0.0154 seconds per image, FPS: 65.10
+    IR model in OpenVINO Runtime/CPU with preprocessing API: 0.0142 seconds per image, FPS: 70.53
 

@@ -21,23 +21,22 @@ not handwriting. \* The model has trained itself to ignore
 advertisements. \* Languages with very different character sets may not
 work well.
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-**Table of contents:**
-
-
--  `Fetch test image <#fetch-test-image>`__
--  `Run PyTorch inference <#run-pytorch-inference>`__
+-  `Fetch test image <#Fetch-test-image>`__
+-  `Run PyTorch inference <#Run-PyTorch-inference>`__
 -  `Convert model to OpenVINO Intermediate Representation (IR)
-   format <#convert-model-to-openvino-intermediate-representation-ir-format>`__
--  `Run OpenVINO model <#run-openvino-model>`__
+   format <#Convert-model-to-OpenVINO-Intermediate-Representation-(IR)-format>`__
+-  `Run OpenVINO model <#Run-OpenVINO-model>`__
 -  `Apply post-training quantization using
-   NNCF <#apply-post-training-quantization-using-nncf>`__
+   NNCF <#Apply-post-training-quantization-using-NNCF>`__
 
-   -  `Prepare dataset <#prepare-dataset>`__
-   -  `Quantize model <#quantize-model>`__
+   -  `Prepare dataset <#Prepare-dataset>`__
+   -  `Quantize model <#Quantize-model>`__
 
--  `Run quantized OpenVINO model <#run-quantized-openvino-model>`__
--  `Interactive inference <#interactive-inference>`__
+-  `Run quantized OpenVINO model <#Run-quantized-OpenVINO-model>`__
+-  `Interactive inference <#Interactive-inference>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -55,7 +54,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Fetch test image
 ----------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 We will use an image from a randomly sampled subset of
 `DocLayNet <https://github.com/DS4SD/DocLayNet>`__ dataset.
@@ -85,14 +84,14 @@ We will use an image from a randomly sampled subset of
 
 
 
-.. image:: surya-line-level-text-detection-with-output_files/surya-line-level-text-detection-with-output_3_0.png
+.. image:: surya-line-level-text-detection-with-output_files%5Csurya-line-level-text-detection-with-output_3_0.png
 
 
 
 Run PyTorch inference
 ---------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To perform line-level text detection we will use ``load_model`` and
 ``load_processor`` functions from ``surya`` package. We will also use
@@ -166,13 +165,13 @@ To perform line-level text detection we will use ``load_model`` and
     
 
 
-.. image:: surya-line-level-text-detection-with-output_files/surya-line-level-text-detection-with-output_6_6.png
+.. image:: surya-line-level-text-detection-with-output_files%5Csurya-line-level-text-detection-with-output_6_6.png
 
 
 Convert model to OpenVINO Intermediate Representation (IR) format
 -----------------------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 For best results with OpenVINO, it is recommended to convert the model
 to OpenVINO IR format. OpenVINO supports PyTorch via Model conversion
@@ -217,7 +216,7 @@ input.
 Run OpenVINO model
 ------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Select device from dropdown list for running inference using OpenVINO
 
@@ -290,13 +289,13 @@ wrappers for OpenVINO model with interface required by
     
 
 
-.. image:: surya-line-level-text-detection-with-output_files/surya-line-level-text-detection-with-output_13_1.png
+.. image:: surya-line-level-text-detection-with-output_files%5Csurya-line-level-text-detection-with-output_13_1.png
 
 
 Apply post-training quantization using NNCF
 -------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding the quantization layers into the
@@ -361,7 +360,7 @@ Free resources before quantization.
 Prepare dataset
 ~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 We create calibration dataset with randomly sampled set of images from
 `DocLayNet <https://github.com/DS4SD/DocLayNet>`__.
@@ -406,7 +405,7 @@ We create calibration dataset with randomly sampled set of images from
 Quantize model
 ~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Create a quantized model from the ``FP16`` model.
 
@@ -439,9 +438,9 @@ Create a quantized model from the ``FP16`` model.
 
 
 
+.. raw:: html
 
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
     
 
 
@@ -452,16 +451,16 @@ Create a quantized model from the ``FP16`` model.
 
 
 
+.. raw:: html
 
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
     
 
 
 Run quantized OpenVINO model
 ----------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Now we ready to detect lines with ``int8`` OpenVINO model.
 
@@ -485,13 +484,13 @@ Now we ready to detect lines with ``int8`` OpenVINO model.
     
 
 
-.. image:: surya-line-level-text-detection-with-output_files/surya-line-level-text-detection-with-output_24_1.png
+.. image:: surya-line-level-text-detection-with-output_files%5Csurya-line-level-text-detection-with-output_24_1.png
 
 
 Interactive inference
 ---------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Now, it is your turn! Feel free to upload an image, using the file
 upload window.
@@ -564,9 +563,9 @@ Below you can select which model to run: original or quantized.
     
 
 
+.. raw:: html
 
-
-
+    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="1000" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 
 
 .. code:: ipython3

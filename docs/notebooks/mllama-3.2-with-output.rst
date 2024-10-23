@@ -20,21 +20,20 @@ using OpenVINO. More details about model can be found in `model
 card <https://github.com/meta-llama/llama-models/blob/main/models/llama3_2/MODEL_CARD_VISION.md>`__,
 and original `repo <https://github.com/meta-llama/llama-models>`__.
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-**Table of contents:**
-
-
--  `Prerequisites <#prerequisites>`__
--  `Convert model <#convert-model>`__
--  `Select inference device <#select-inference-device>`__
--  `Optimize model using NNCF <#optimize-model-using-nncf>`__
+-  `Prerequisites <#Prerequisites>`__
+-  `Convert model <#Convert-model>`__
+-  `Select inference device <#Select-inference-device>`__
+-  `Optimize model using NNCF <#Optimize-model-using-NNCF>`__
 
    -  `Compress Language model weights in
-      4bits <#compress-language-model-weights-in-4bits>`__
-   -  `Optimize Vision model <#optimize-vision-model>`__
+      4bits <#Compress-Language-model-weights-in-4bits>`__
+   -  `Optimize Vision model <#Optimize-Vision-model>`__
 
--  `Model Inference <#model-inference>`__
--  `Interactive demo <#interactive-demo>`__
+-  `Model Inference <#Model-Inference>`__
+-  `Interactive demo <#Interactive-demo>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -49,7 +48,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -85,7 +84,7 @@ Prerequisites
 Convert model
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 OpenVINO supports PyTorch models via conversion to OpenVINO Intermediate
 Representation (IR). `OpenVINO model conversion
@@ -179,7 +178,7 @@ Let’s convert each model part.
 ..
 
    **Note**: run model with notebook, you will need to accept license
-   agreement. You must be a registered user in Hugging Face Hub.
+   agreement. You must be a registered user in 🤗 Hugging Face Hub.
    Please visit `HuggingFace model
    card <https://huggingface.co/meta-llama/Llama-3.2-11B-Vision-Instruct>`__,
    carefully read terms of usage and click accept button. You will need
@@ -278,7 +277,7 @@ Let’s convert each model part.
 Select inference device
 -----------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -300,12 +299,12 @@ Select inference device
 Optimize model using NNCF
 -------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Compress Language model weights in 4bits
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 For reducing memory consumption, weights compression optimization can be
 applied using `NNCF <https://github.com/openvinotoolkit/nncf>`__.
@@ -405,7 +404,7 @@ compression using widget bellow
 Optimize Vision model
 ~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 While weight compression is the great tool for large language models
 memory footprint reduction, for smaller size models like Image Encoder,
@@ -488,7 +487,7 @@ quantization dataset 2. Perform model quantization using
 Model Inference
 ---------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Now, we are ready to test model inference.
 ``OVOVMLlamaForConditionalGeneration`` defined in
@@ -580,7 +579,7 @@ blog <https://blog.openvino.ai/blog-posts/large-language-model-graph-customizati
 Interactive demo
 ----------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 

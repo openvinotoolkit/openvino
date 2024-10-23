@@ -28,28 +28,27 @@ Additionally, you can also upload a video file.
    server, the webcam will not work but you can run inference, using a
    video file.
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-**Table of contents:**
+-  `Preparation <#Preparation>`__
 
+   -  `Install requirements <#Install-requirements>`__
+   -  `Imports <#Imports>`__
 
--  `Preparation <#preparation>`__
+-  `The Model <#The-Model>`__
 
-   -  `Install requirements <#install-requirements>`__
-   -  `Imports <#imports>`__
-
--  `The Model <#the-model>`__
-
-   -  `Download the Model <#download-the-model>`__
+   -  `Download the Model <#Download-the-Model>`__
    -  `Convert ONNX Model to OpenVINO IR
-      Format <#convert-onnx-model-to-openvino-ir-format>`__
-   -  `Load the Model <#load-the-model>`__
-   -  `Preprocess the image <#preprocess-the-image>`__
+      Format <#Convert-ONNX-Model-to-OpenVINO-IR-Format>`__
+   -  `Load the Model <#Load-the-Model>`__
+   -  `Preprocess the image <#Preprocess-the-image>`__
    -  `Helper function to postprocess the stylized
-      image <#helper-function-to-postprocess-the-stylized-image>`__
-   -  `Main Processing Function <#main-processing-function>`__
-   -  `Run Style Transfer <#run-style-transfer>`__
+      image <#Helper-function-to-postprocess-the-stylized-image>`__
+   -  `Main Processing Function <#Main-Processing-Function>`__
+   -  `Run Style Transfer <#Run-Style-Transfer>`__
 
--  `References <#references>`__
+-  `References <#References>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -64,12 +63,12 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Preparation
 -----------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Install requirements
 ~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -103,7 +102,7 @@ Install requirements
 Imports
 ~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -156,12 +155,12 @@ Pointilism to do the style transfer.
 The Model
 ---------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Download the Model
 ~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The style transfer model, selected in the previous step, will be
 downloaded to ``model_path`` if you have not already downloaded it. The
@@ -193,14 +192,14 @@ OpenVINO Intermediate Representation (IR) with ``FP16`` precision.
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/notebooks/style-transfer-webcam/model/mosaic-9.onnx')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/notebooks/style-transfer-webcam/model/mosaic-9.onnx')
 
 
 
 Convert ONNX Model to OpenVINO IR Format
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 In the next step, you will convert the ONNX model to OpenVINO IR format
 with ``FP16`` precision. While ONNX models are directly supported by
@@ -229,7 +228,7 @@ this step.
 Load the Model
 ~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Both the ONNX model(s) and converted IR model(s) are stored in the
 ``model`` directory.
@@ -312,7 +311,7 @@ respectively. For *fast-neural-style-mosaic-onnx*, there is 1 input and
 Preprocess the image
 ~~~~~~~~~~~~~~~~~~~~
 
-Preprocess the input image
+`back to top ⬆️ <#Table-of-contents:>`__ Preprocess the input image
 before running the model. Prepare the dimensions and channel order for
 the image to match the original image with the input tensor
 
@@ -342,7 +341,7 @@ the image to match the original image with the input tensor
 Helper function to postprocess the stylized image
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The converted IR model outputs a NumPy ``float32`` array of the `(1, 3,
 224,
@@ -371,7 +370,7 @@ shape .
 Main Processing Function
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The style transfer function can be run in different operating modes,
 either using a webcam or a video file.
@@ -482,7 +481,7 @@ either using a webcam or a video file.
 Run Style Transfer
 ~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Now, try to apply the style transfer model using video from your webcam
 or video file. By default, the primary webcam is set with ``source=0``.
@@ -524,7 +523,7 @@ OpenCV <https://docs.opencv.org/4.5.1/dd/d43/tutorial_py_video_display.html>`__
 References
 ----------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 1. `ONNX Model Zoo <https://github.com/onnx/models>`__
 2. `Fast Neural Style

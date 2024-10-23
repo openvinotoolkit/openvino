@@ -15,22 +15,20 @@ single inference, pix2pix-turbo achieves comparable by quality results
 with recent works such as ControlNet for Sketch2Photo and Edge2Image for
 50 steps.
 
-|image0|
+.. image:: https://github.com/GaParmar/img2img-turbo/raw/main/assets/gen_variations.jpg
 
 In this tutorial you will learn how to turn sketches to images using
 `Pix2Pix-Turbo <https://github.com/GaParmar/img2img-turbo>`__ and
-OpenVINO.
+OpenVINO. #### Table of contents:
 
-**Table of contents:**
-
--  `Prerequisites <#prerequisites>`__
--  `Load PyTorch model <#load-pytorch-model>`__
+-  `Prerequisites <#Prerequisites>`__
+-  `Load PyTorch model <#Load-PyTorch-model>`__
 -  `Convert PyTorch model to Openvino Intermediate Representation
-   format <#convert-pytorch-model-to-openvino-intermediate-representation-format>`__
--  `Select inference device <#select-inference-device>`__
--  `Compile model <#compile-model>`__
--  `Run model inference <#run-model-inference>`__
--  `Interactive demo <#interactive-demo>`__
+   format <#Convert-PyTorch-model-to-Openvino-Intermediate-Representation-format>`__
+-  `Select inference device <#Select-inference-device>`__
+-  `Compile model <#Compile-model>`__
+-  `Run model inference <#Run-model-inference>`__
+-  `Interactive demo <#Interactive-demo>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -42,12 +40,10 @@ need a Jupyter server to start. For details, please refer to
 `Installation
 Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
-.. |image0| image:: https://github.com/GaParmar/img2img-turbo/raw/main/assets/gen_variations.jpg
-
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Clone `model repository <https://github.com/GaParmar/img2img-turbo>`__
 and install required packages.
@@ -56,40 +52,32 @@ and install required packages.
 
     %pip install -q "openvino>=2024.1.0" "torch>=2.1" torchvision "diffusers==0.25.1" "peft>=0.6.2" transformers tqdm pillow opencv-python "gradio==3.43.1" --extra-index-url https://download.pytorch.org/whl/cpu
 
-
-.. parsed-literal::
-
-    ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    modelscope-studio 0.5.0 requires gradio<5.0,>=4.0, but you have gradio 3.43.1 which is incompatible.
-    Note: you may need to restart the kernel to use updated packages.
-
-
 .. code:: ipython3
 
     from pathlib import Path
-
+    
     repo_dir = Path("img2img-turbo")
-
+    
     if not repo_dir.exists():
         !git clone https://github.com/GaParmar/img2img-turbo.git
-
+    
     pix2pix_turbo_py_path = repo_dir / "src/pix2pix_turbo.py"
     model_py_path = repo_dir / "src/model.py"
     orig_pix2pix_turbo_path = pix2pix_turbo_py_path.parent / ("orig_" + pix2pix_turbo_py_path.name)
     orig_model_py_path = model_py_path.parent / ("orig_" + model_py_path.name)
-
+    
     if not orig_pix2pix_turbo_path.exists():
         pix2pix_turbo_py_path.rename(orig_pix2pix_turbo_path)
-
+    
         with orig_pix2pix_turbo_path.open("r") as f:
             data = f.read()
             data = data.replace("cuda", "cpu")
             with pix2pix_turbo_py_path.open("w") as out_f:
                 out_f.write(data)
-
+    
     if not orig_model_py_path.exists():
         model_py_path.rename(orig_model_py_path)
-
+    
         with orig_model_py_path.open("r") as f:
             data = f.read()
             data = data.replace("cuda", "cpu")
@@ -97,23 +85,10 @@ and install required packages.
                 out_f.write(data)
     %cd $repo_dir
 
-
-.. parsed-literal::
-
-    Cloning into 'img2img-turbo'...
-    remote: Enumerating objects: 233, done.[K
-    remote: Counting objects: 100% (103/103), done.[K
-    remote: Compressing objects: 100% (45/45), done.[K
-    remote: Total 233 (delta 75), reused 64 (delta 58), pack-reused 130 (from 1)[K
-    Receiving objects: 100% (233/233), 31.90 MiB | 22.01 MiB/s, done.
-    Resolving deltas: 100% (112/112), done.
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/notebooks/sketch-to-image-pix2pix-turbo/img2img-turbo
-
-
 Load PyTorch model
 ------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Pix2Pix-turbo architecture illustrated on the diagram below. Model
 combines three separate modules in the original latent diffusion models
@@ -139,18 +114,18 @@ diagram indicate trainable layers. Semi-transparent layers are frozen.
     from diffusers.utils.peft_utils import set_weights_and_activate_adapters
     from peft import LoraConfig
     import types
-
+    
     from src.model import make_1step_sched
     from src.pix2pix_turbo import TwinConv
-
+    
     tokenizer = AutoTokenizer.from_pretrained("stabilityai/sd-turbo", subfolder="tokenizer")
-
-
+    
+    
     def tokenize_prompt(prompt):
         caption_tokens = tokenizer(prompt, max_length=tokenizer.model_max_length, padding="max_length", truncation=True, return_tensors="pt").input_ids
         return caption_tokens
-
-
+    
+    
     def _vae_encoder_fwd(self, sample):
         sample = self.conv_in(sample)
         l_blocks = []
@@ -165,8 +140,8 @@ diagram indicate trainable layers. Semi-transparent layers are frozen.
         sample = self.conv_out(sample)
         current_down_blocks = l_blocks
         return sample, current_down_blocks
-
-
+    
+    
     def _vae_decoder_fwd(self, sample, incoming_skip_acts, latent_embeds=None):
         sample = self.conv_in(sample)
         upscale_dtype = next(iter(self.up_blocks.parameters())).dtype
@@ -192,45 +167,45 @@ diagram indicate trainable layers. Semi-transparent layers are frozen.
         sample = self.conv_act(sample)
         sample = self.conv_out(sample)
         return sample
-
-
+    
+    
     def vae_encode(self, x: torch.FloatTensor):
         """
         Encode a batch of images into latents.
-
+    
         Args:
             x (`torch.FloatTensor`): Input batch of images.
-
+    
         Returns:
             The latent representations of the encoded images. If `return_dict` is True, a
             [`~models.autoencoder_kl.AutoencoderKLOutput`] is returned, otherwise a plain `tuple` is returned.
         """
         h, down_blocks = self.encoder(x)
-
+    
         moments = self.quant_conv(h)
         posterior = DiagonalGaussianDistribution(moments)
-
+    
         return (posterior, down_blocks)
-
-
+    
+    
     def vae_decode(self, z: torch.FloatTensor, skip_acts):
         decoded = self._decode(z, skip_acts)[0]
         return (decoded,)
-
-
+    
+    
     def vae__decode(self, z: torch.FloatTensor, skip_acts):
         z = self.post_quant_conv(z)
         dec = self.decoder(z, skip_acts)
-
+    
         return (dec,)
-
-
+    
+    
     class Pix2PixTurbo(torch.nn.Module):
         def __init__(self, pretrained_name=None, pretrained_path=None, ckpt_folder="checkpoints", lora_rank_unet=8, lora_rank_vae=4):
             super().__init__()
             self.text_encoder = CLIPTextModel.from_pretrained("stabilityai/sd-turbo", subfolder="text_encoder", variant="fp16").cpu()
             self.sched = make_1step_sched()
-
+    
             vae = AutoencoderKL.from_pretrained("stabilityai/sd-turbo", subfolder="vae", variant="fp16")
             vae.encoder.forward = types.MethodType(_vae_encoder_fwd, vae.encoder)
             vae.decoder.forward = types.MethodType(_vae_decoder_fwd, vae.decoder)
@@ -245,7 +220,7 @@ diagram indicate trainable layers. Semi-transparent layers are frozen.
             vae.decoder.ignore_skip = False
             unet = UNet2DConditionModel.from_pretrained("stabilityai/sd-turbo", subfolder="unet", variant="fp16")
             ckpt_folder = Path(ckpt_folder)
-
+    
             if pretrained_name == "edge_to_image":
                 url = "https://www.cs.cmu.edu/~img2img-turbo/models/edge_to_image_loras.pkl"
                 ckpt_folder.mkdir(exist_ok=True)
@@ -278,7 +253,7 @@ diagram indicate trainable layers. Semi-transparent layers are frozen.
                 for k in sd["state_dict_unet"]:
                     _sd_unet[k] = sd["state_dict_unet"][k]
                 unet.load_state_dict(_sd_unet)
-
+    
             elif pretrained_name == "sketch_to_image_stochastic":
                 # download from url
                 url = "https://www.cs.cmu.edu/~img2img-turbo/models/sketch_to_image_stochastic_lora.pkl"
@@ -310,14 +285,14 @@ diagram indicate trainable layers. Semi-transparent layers are frozen.
                     if k not in _sd_vae:
                         continue
                     _sd_vae[k] = sd["state_dict_vae"][k]
-
+    
                 vae.load_state_dict(_sd_vae)
                 unet.add_adapter(unet_lora_config)
                 _sd_unet = unet.state_dict()
                 for k in sd["state_dict_unet"]:
                     _sd_unet[k] = sd["state_dict_unet"][k]
                 unet.load_state_dict(_sd_unet)
-
+    
             elif pretrained_path is not None:
                 sd = torch.load(pretrained_path, map_location="cpu")
                 unet_lora_config = LoraConfig(r=sd["rank_unet"], init_lora_weights="gaussian", target_modules=sd["unet_lora_target_modules"])
@@ -332,7 +307,7 @@ diagram indicate trainable layers. Semi-transparent layers are frozen.
                 for k in sd["state_dict_unet"]:
                     _sd_unet[k] = sd["state_dict_unet"][k]
                 unet.load_state_dict(_sd_unet)
-
+    
             # unet.enable_xformers_memory_efficient_attention()
             unet.to("cpu")
             vae.to("cpu")
@@ -340,14 +315,14 @@ diagram indicate trainable layers. Semi-transparent layers are frozen.
             self.vae.decoder.gamma = 1
             self.timesteps = torch.tensor([999], device="cpu").long()
             self.text_encoder.requires_grad_(False)
-
+    
         def set_r(self, r):
             self.unet.set_adapters(["default"], weights=[r])
             set_weights_and_activate_adapters(self.vae, ["vae_skip"], [r])
             self.r = r
             self.unet.conv_in.r = r
             self.vae.decoder.gamma = r
-
+    
         def forward(self, c_t, prompt_tokens, noise_map):
             caption_enc = self.text_encoder(prompt_tokens)[0]
             # scale the lora weights based on the r value
@@ -355,7 +330,7 @@ diagram indicate trainable layers. Semi-transparent layers are frozen.
             encoded_control = sample.sample() * self.vae.config.scaling_factor
             # combine the input and noise
             unet_input = encoded_control * self.r + noise_map * (1 - self.r)
-
+    
             unet_output = self.unet(
                 unet_input,
                 self.timesteps,
@@ -365,61 +340,46 @@ diagram indicate trainable layers. Semi-transparent layers are frozen.
             output_image = (self.vae.decode(x_denoised / self.vae.config.scaling_factor, current_down_blocks)[0]).clamp(-1, 1)
             return output_image
 
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
-      torch.utils._pytree._register_pytree_node(
-
-
 .. code:: ipython3
 
     ov_model_path = Path("model/pix2pix-turbo.xml")
-
+    
     pt_model = None
-
+    
     if not ov_model_path.exists():
         pt_model = Pix2PixTurbo("sketch_to_image_stochastic")
         pt_model.set_r(0.4)
         pt_model.eval()
 
 
+
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/huggingface_hub/file_download.py:1142: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+    model.fp16.safetensors:   0%|          | 0.00/681M [00:00<?, ?B/s]
+
+
+.. parsed-literal::
+
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/huggingface_hub/file_download.py:1132: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
       warnings.warn(
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
-      torch.utils._pytree._register_pytree_node(
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/huggingface_hub/file_download.py:1142: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
-      warnings.warn(
+    
 
 
 .. parsed-literal::
 
-    Downloading checkpoint to checkpoints/sketch_to_image_stochastic_lora.pkl
+    diffusion_pytorch_model.fp16.safetensors:   0%|          | 0.00/167M [00:00<?, ?B/s]
 
-
-.. parsed-literal::
-
-    100%|██████████| 525M/525M [10:33<00:00, 828kiB/s]
-    /tmp/ipykernel_146017/851614037.py:173: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
-      sd = torch.load(p_ckpt, map_location="cpu")
 
 
 .. parsed-literal::
 
-    Downloaded successfully to checkpoints/sketch_to_image_stochastic_lora.pkl
-
-
-.. parsed-literal::
-
-    The installed version of bitsandbytes was compiled without GPU support. 8-bit optimizers, 8-bit multiplication, and GPU quantization are unavailable.
+    diffusion_pytorch_model.fp16.safetensors:   0%|          | 0.00/1.73G [00:00<?, ?B/s]
 
 
 Convert PyTorch model to Openvino Intermediate Representation format
 --------------------------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Starting from OpenVINO 2023.0 release, OpenVINO supports direct PyTorch
 models conversion to `OpenVINO Intermediate Representation (IR)
@@ -436,7 +396,7 @@ on disk using ``ov.save_model`` in compressed to FP16 format.
 
     import gc
     import openvino as ov
-
+    
     if not ov_model_path.exists():
         example_input = [torch.ones((1, 3, 512, 512)), torch.ones([1, 77], dtype=torch.int64), torch.ones([1, 4, 64, 64])]
         with torch.no_grad():
@@ -448,48 +408,19 @@ on disk using ``ov.save_model`` in compressed to FP16 format.
         torch.jit._state._clear_class_state()
     del pt_model
     gc.collect();
-
+    
     # uncomment these lines if you want cleenup download pytorch model checkpoints
-
+    
     # import shutil
-
+    
     # checkpoints_dir = Path("checkpoints")
     # for file in checkpoints_dir.glob("*"):
     #     shutil.rmtree(file, ignore_errors=True)
 
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4779: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
-      warnings.warn(
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:88: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if input_shape[-1] > 1 or self.sliding_window is not None:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:164: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if past_key_values_length > 0:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/downsampling.py:135: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      assert hidden_states.shape[1] == self.channels
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/downsampling.py:144: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      assert hidden_states.shape[1] == self.channels
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/unet_2d_condition.py:915: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if dim % default_overall_up_factor != 0:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/upsampling.py:149: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      assert hidden_states.shape[1] == self.channels
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/upsampling.py:165: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if hidden_states.shape[0] >= 64:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/schedulers/scheduling_ddpm.py:433: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if model_output.shape[1] == sample.shape[1] * 2 and self.variance_type in ["learned", "learned_range"]:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/schedulers/scheduling_ddpm.py:440: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      alpha_prod_t_prev = self.alphas_cumprod[prev_t] if prev_t >= 0 else self.one
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/schedulers/scheduling_ddpm.py:479: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if t > 0:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/schedulers/scheduling_ddpm.py:330: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      alpha_prod_t_prev = self.alphas_cumprod[prev_t] if prev_t >= 0 else self.one
-
-
 Select inference device
 -----------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -497,11 +428,11 @@ Select inference device
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
     open("notebook_utils.py", "w").write(r.text)
-
+    
     from notebook_utils import device_widget
-
+    
     device = device_widget()
-
+    
     device
 
 
@@ -509,26 +440,26 @@ Select inference device
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+    Dropdown(description='Device:', index=3, options=('CPU', 'GPU.0', 'GPU.1', 'AUTO'), value='AUTO')
 
 
 
 Compile model
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
     import openvino as ov
-
+    
     core = ov.Core()
     compiled_model = core.compile_model(ov_model_path, device.value)
 
 Run model inference
 -------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Now, let’s try model in action and turn simple cat sketch into
 professional artwork.
@@ -536,22 +467,22 @@ professional artwork.
 .. code:: ipython3
 
     from diffusers.utils import load_image
-
+    
     sketch_image = load_image("https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/f964a51d-34e8-411a-98f4-5f97a28f56b0")
-
+    
     sketch_image
 
 
 
 
-.. image:: sketch-to-image-pix2pix-turbo-with-output_files/sketch-to-image-pix2pix-turbo-with-output_14_0.png
+.. image:: sketch-to-image-pix2pix-turbo-with-output_files%5Csketch-to-image-pix2pix-turbo-with-output_14_0.png
 
 
 
 .. code:: ipython3
 
     import torchvision.transforms.functional as F
-
+    
     torch.manual_seed(145)
     c_t = torch.unsqueeze(F.to_tensor(sketch_image) > 0.5, 0)
     noise = torch.randn((1, 4, 512 // 8, 512 // 8))
@@ -560,7 +491,7 @@ professional artwork.
 
     prompt_template = "anime artwork {prompt} . anime style, key visual, vibrant, studio anime,  highly detailed"
     prompt = prompt_template.replace("{prompt}", "fluffy  magic cat")
-
+    
     prompt_tokens = tokenize_prompt(prompt)
 
 .. code:: ipython3
@@ -571,7 +502,7 @@ professional artwork.
 
     from PIL import Image
     import numpy as np
-
+    
     image_tensor = (result[0] * 0.5 + 0.5) * 255
     image = np.transpose(image_tensor, (1, 2, 0)).astype(np.uint8)
     Image.fromarray(image)
@@ -579,14 +510,14 @@ professional artwork.
 
 
 
-.. image:: sketch-to-image-pix2pix-turbo-with-output_files/sketch-to-image-pix2pix-turbo-with-output_18_0.png
+.. image:: sketch-to-image-pix2pix-turbo-with-output_files%5Csketch-to-image-pix2pix-turbo-with-output_18_0.png
 
 
 
 Interactive demo
 ----------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 In this section, you can try model on own paintings.
 
@@ -600,15 +531,15 @@ Download results using download button
     import base64
     from io import BytesIO
     import gradio as gr
-
-
+    
+    
     def pil_image_to_data_uri(img, format="PNG"):
         buffered = BytesIO()
         img.save(buffered, format=format)
         img_str = base64.b64encode(buffered.getvalue()).decode()
         return f"data:image/{format.lower()};base64,{img_str}"
-
-
+    
+    
     def run(image, prompt, prompt_template, style_name, seed):
         print(f"prompt: {prompt}")
         print("sketch updated")
@@ -640,47 +571,22 @@ Download results using download button
 
     # Go back to the sketch-to-image-pix2pix-turbo notebook directory
     %cd ..
-
+    
     if not Path("gradio_helper.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/sketch-to-image-pix2pix-turbo/gradio_helper.py")
         open("gradio_helper.py", "w").write(r.text)
-
+    
     from gradio_helper import make_demo
-
+    
     demo = make_demo(fn=run)
-
+    
     try:
-        demo.queue().launch(debug=False)
+        demo.queue().launch(debug=True)
     except Exception:
-        demo.queue().launch(debug=False, share=True)
+        demo.queue().launch(debug=True, share=True)
     # If you are launching remotely, specify server_name and server_port
     # EXAMPLE: `demo.launch(server_name='your server name', server_port='server port in int')`
     # To learn more please refer to the Gradio docs: https://gradio.app/docs/
-
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/notebooks/sketch-to-image-pix2pix-turbo/gradio_helper.py:225: GradioDeprecationWarning: 'scale' value should be an integer. Using 0.4 will cause issues.
-      with gr.Column(elem_id="column_process", min_width=50, scale=0.4):
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/gradio/utils.py:776: UserWarning: Expected 1 arguments for function <function make_demo.<locals>.<lambda> at 0x7f3300040ee0>, received 0.
-      warnings.warn(
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/gradio/utils.py:780: UserWarning: Expected at least 1 arguments for function <function make_demo.<locals>.<lambda> at 0x7f3300040ee0>, received 0.
-      warnings.warn(
-
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/notebooks/sketch-to-image-pix2pix-turbo
-    Running on local URL:  http://127.0.0.1:7860
-
-    To create a public link, set `share=True` in `launch()`.
-
-
-
-
-
-
-
 
 .. code:: ipython3
 

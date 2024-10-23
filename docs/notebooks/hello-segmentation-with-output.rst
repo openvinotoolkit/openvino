@@ -10,18 +10,17 @@ Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__ is used.
 ADAS stands for Advanced Driver Assistance Services. The model
 recognizes four classes: background, road, curb and mark.
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-**Table of contents:**
-
-
--  `Imports <#imports>`__
--  `Download model weights <#download-model-weights>`__
--  `Select inference device <#select-inference-device>`__
--  `Load the Model <#load-the-model>`__
--  `Load an Image <#load-an-image>`__
--  `Do Inference <#do-inference>`__
--  `Prepare Data for Visualization <#prepare-data-for-visualization>`__
--  `Visualize data <#visualize-data>`__
+-  `Imports <#Imports>`__
+-  `Download model weights <#Download-model-weights>`__
+-  `Select inference device <#Select-inference-device>`__
+-  `Load the Model <#Load-the-Model>`__
+-  `Load an Image <#Load-an-Image>`__
+-  `Do Inference <#Do-Inference>`__
+-  `Prepare Data for Visualization <#Prepare-Data-for-Visualization>`__
+-  `Visualize data <#Visualize-data>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -35,27 +34,19 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 
 .. code:: ipython3
 
-    import platform
-    
     # Install required packages
-    %pip install -q "openvino>=2023.1.0" opencv-python tqdm
-    
-    if platform.system() != "Windows":
-        %pip install -q "matplotlib>=3.4"
-    else:
-        %pip install -q "matplotlib>=3.4,<3.7"
+    %pip install -q "openvino>=2023.1.0" opencv-python tqdm "matplotlib>=3.4"
 
 
 .. parsed-literal::
 
-    Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
 
 
 Imports
 -------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -78,7 +69,7 @@ Imports
 Download model weights
 ----------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -121,7 +112,7 @@ Download model weights
 Select inference device
 -----------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -142,7 +133,7 @@ select device from dropdown list for running inference using OpenVINO
 Load the Model
 --------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -157,7 +148,7 @@ Load the Model
 Load an Image
 -------------
 
-A sample image from the
+`back to top ⬆️ <#Table-of-contents:>`__ A sample image from the
 `Mapillary Vistas <https://www.mapillary.com/dataset/vistas>`__ dataset
 is provided.
 
@@ -196,7 +187,7 @@ is provided.
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f8630302df0>
+    <matplotlib.image.AxesImage at 0x7fc760583df0>
 
 
 
@@ -207,7 +198,7 @@ is provided.
 Do Inference
 ------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -223,7 +214,7 @@ Do Inference
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f861873c6d0>
+    <matplotlib.image.AxesImage at 0x7fc7601f27c0>
 
 
 
@@ -234,7 +225,7 @@ Do Inference
 Prepare Data for Visualization
 ------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -254,7 +245,7 @@ Prepare Data for Visualization
 Visualize data
 --------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 

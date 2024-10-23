@@ -14,30 +14,29 @@ designed to streamline tokenizer conversion for seamless integration
 into your projects. It supports Python and C++ environments and is
 compatible with all major platforms: Linux, Windows, and MacOS.
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-**Table of contents:**
-
-
--  `Tokenization Basics <#tokenization-basics>`__
--  `Acquiring OpenVINO Tokenizers <#acquiring-openvino-tokenizers>`__
+-  `Tokenization Basics <#Tokenization-Basics>`__
+-  `Acquiring OpenVINO Tokenizers <#Acquiring-OpenVINO-Tokenizers>`__
 
    -  `Convert Tokenizer from HuggingFace Hub with CLI
-      Tool <#convert-tokenizer-from_huggingface-hub-with-cli-tool>`__
+      Tool <#Convert-Tokenizer-from_HuggingFace-Hub-with-CLI-Tool>`__
    -  `Convert Tokenizer from HuggingFace Hub with Python
-      API <#convert-tokenizer-from-huggingface-hub-with-python-api>`__
+      API <#Convert-Tokenizer-from-HuggingFace-Hub-with-Python-API>`__
 
 -  `Text Generation Pipeline with OpenVINO
-   Tokenizers <#text-generation-pipeline-with-openvino-tokenizers>`__
+   Tokenizers <#Text-Generation-Pipeline-with-OpenVINO-Tokenizers>`__
 -  `Text Generation Pipeline with OpenVINO GenAI and OpenVINO
    Tokenizers <#text-generation-pipeline-with-openvino-genai-and-openvino-tokenizers>`__
--  `Merge Tokenizer into a Model <#merge-tokenizer-into-a-model>`__
--  `Conclusion <#conclusion>`__
--  `Links <#links>`__
+-  `Merge Tokenizer into a Model <#Merge-Tokenizer-into-a-Model>`__
+-  `Conclusion <#Conclusion>`__
+-  `Links <#Links>`__
 
 Tokenization Basics
 -------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 One does not simply put text into a neural network, only numbers. The
 process of transforming text into a sequence of numbers is called
@@ -84,8 +83,7 @@ Some tasks only need a tokenizer, like text classification, named entity
 recognition, question answering, and feature extraction. On the other
 hand, for tasks such as text generation, chat, translation, and
 abstractive summarization, both a tokenizer and a detokenizer are
-required.  
-
+required. ### Installation Instructions
 
 This is a self-contained example that relies solely on its own code.
 
@@ -97,7 +95,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Acquiring OpenVINO Tokenizers
 -----------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 OpenVINO Tokenizers Python library allows you to convert HuggingFace
 tokenizers into OpenVINO models. To install all required dependencies
@@ -120,7 +118,7 @@ use ``pip install openvino-tokenizers[transformers]``.
 Convert Tokenizer from HuggingFace Hub with CLI Tool
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The first way is to use the CLI utility, bundled with OpenVINO
 Tokenizers. Use ``--with-detokenizer`` flag to add the detokenizer model
@@ -154,7 +152,7 @@ other OpenVINO model.
 Convert Tokenizer from HuggingFace Hub with Python API
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The other method is to pass HuggingFace ``hf_tokenizer`` object to
 ``convert_tokenizer`` function:
@@ -261,7 +259,7 @@ one:
 Text Generation Pipeline with OpenVINO Tokenizers
 -------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Let’s build a text generation pipeline with OpenVINO Tokenizers and
 minimal dependencies. To obtain an OpenVINO model we will use the
@@ -386,7 +384,7 @@ distinct and separate state.
 Text Generation Pipeline with OpenVINO GenAI and OpenVINO Tokenizers
 --------------------------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 `OpenVINO GenAI <https://github.com/openvinotoolkit/openvino.genai>`__
 is a flavor of OpenVINO, aiming to simplify running inference of
@@ -445,7 +443,7 @@ We will use the same model and tokenizer downloaded in previous steps.
 Merge Tokenizer into a Model
 ----------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Packages like ``tensorflow-text`` offer the convenience of integrating
 text processing directly into the model, streamlining both distribution
@@ -528,7 +526,7 @@ model has only one input for text input prompt.
 Conclusion
 ----------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The OpenVINO Tokenizers integrate text processing operations into the
 OpenVINO ecosystem. Enabling the conversion of HuggingFace tokenizers
@@ -540,7 +538,7 @@ helps to streamline model usage and deployment.
 Links
 -----
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 -  `Installation instructions for different
    environments <https://github.com/openvinotoolkit/openvino_tokenizers?tab=readme-ov-file#installation>`__

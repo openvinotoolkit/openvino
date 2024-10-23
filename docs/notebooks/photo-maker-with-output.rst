@@ -18,33 +18,32 @@ report <https://arxiv.org/pdf/2312.04461.pdf>`__.
 This notebook explores how to speed up PhotoMaker pipeline using
 OpenVINO.
 
-
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `PhotoMaker pipeline
-   introduction <#photomaker-pipeline-introduction>`__
--  `Prerequisites <#prerequisites>`__
+   introduction <#PhotoMaker-pipeline-introduction>`__
+-  `Prerequisites <#Prerequisites>`__
 -  `Load original pipeline and prepare models for
-   conversion <#load-original-pipeline-and-prepare-models-for-conversion>`__
+   conversion <#Load-original-pipeline-and-prepare-models-for-conversion>`__
 -  `Convert models to OpenVINO Intermediate representation (IR)
-   format <#convert-models-to-openvino-intermediate-representation-ir-format>`__
+   format <#Convert-models-to-OpenVINO-Intermediate-representation-(IR)-format>`__
 
-   -  `ID Encoder <#id-encoder>`__
-   -  `Text Encoder <#text-encoder>`__
-   -  `U-Net <#u-net>`__
-   -  `VAE Decoder <#vae-decoder>`__
+   -  `ID Encoder <#ID-Encoder>`__
+   -  `Text Encoder <#Text-Encoder>`__
+   -  `U-Net <#U-Net>`__
+   -  `VAE Decoder <#VAE-Decoder>`__
 
--  `Prepare Inference pipeline <#prepare-inference-pipeline>`__
+-  `Prepare Inference pipeline <#Prepare-Inference-pipeline>`__
 
    -  `Select inference device for Stable Diffusion
-      pipeline <#select-inference-device-for-stable-diffusion-pipeline>`__
+      pipeline <#Select-inference-device-for-Stable-Diffusion-pipeline>`__
    -  `Compile models and create their Wrappers for
-      inference <#compile-models-and-create-their-wrappers-for-inference>`__
+      inference <#Compile-models-and-create-their-Wrappers-for-inference>`__
 
 -  `Running Text-to-Image Generation with
-   OpenVINO <#running-text-to-image-generation-with-openvino>`__
--  `Interactive Demo <#interactive-demo>`__
+   OpenVINO <#Running-Text-to-Image-Generation-with-OpenVINO>`__
+-  `Interactive Demo <#Interactive-Demo>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -59,7 +58,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 PhotoMaker pipeline introduction
 --------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 For the proposed PhotoMaker, we first obtain the text embedding and
 image embeddings from ``text encoder(s)`` and ``image(ID) encoder``,
@@ -76,7 +75,7 @@ new ID during inference.
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Clone PhotoMaker repository
 
@@ -98,9 +97,9 @@ Clone PhotoMaker repository
     remote: Counting objects: 100% (148/148), done.[K
     remote: Compressing objects: 100% (95/95), done.[K
     remote: Total 303 (delta 130), reused 53 (delta 53), pack-reused 155 (from 1)[K
-    Receiving objects: 100% (303/303), 10.23 MiB | 22.02 MiB/s, done.
+    Receiving objects: 100% (303/303), 10.23 MiB | 29.77 MiB/s, done.
     Resolving deltas: 100% (162/162), done.
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/notebooks/photo-maker/PhotoMaker
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/notebooks/photo-maker/PhotoMaker
     Note: switching to '1e78aa6514c11a84ef1be27b56c7c72d6c70f8fc'.
     
     You are in 'detached HEAD' state. You can look around, make experimental
@@ -119,7 +118,7 @@ Clone PhotoMaker repository
     Turn off this advice by setting config variable advice.detachedHead to false
     
     HEAD is now at 1e78aa6 Update README.md
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/notebooks/photo-maker
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/notebooks/photo-maker
 
 
 Install required packages
@@ -134,7 +133,6 @@ Install required packages
 
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
     descript-audiotools 0.7.2 requires protobuf<3.20,>=3.9.2, but you have protobuf 3.20.3 which is incompatible.
-    mobileclip 0.1.0 requires torch==1.13.1, but you have torch 2.2.2+cpu which is incompatible.
     mobileclip 0.1.0 requires torchvision==0.14.1, but you have torchvision 0.17.2+cpu which is incompatible.
     paddleclas 2.5.2 requires gast==0.3.3, but you have gast 0.4.0 which is incompatible.
     paddleclas 2.5.2 requires opencv-python==4.6.0.66, but you have opencv-python 4.10.0.84 which is incompatible.
@@ -159,7 +157,7 @@ Prepare PyTorch models
 Load original pipeline and prepare models for conversion
 --------------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 For exporting each PyTorch model, we will download the ``ID encoder``
 weight, ``LoRa`` weight from HuggingFace hub, then using the
@@ -200,10 +198,10 @@ PhotoMaker to generate the original PhotoMaker pipeline.
 
 .. parsed-literal::
 
-    2024-10-08 03:26:26.755777: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-10-08 03:26:26.790097: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-10-23 02:19:25.748160: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-10-23 02:19:25.783265: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-10-08 03:26:27.482079: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-10-23 02:19:26.449413: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. code:: ipython3
@@ -224,22 +222,13 @@ PhotoMaker to generate the original PhotoMaker pipeline.
 .. parsed-literal::
 
     Loading PhotoMaker components [1] id_encoder from [/opt/home/k8sworker/.cache/huggingface/hub/models--TencentARC--PhotoMaker/snapshots/f68f8e6309bf213d28d68230abff0ccc92de9f30]...
-
-
-.. parsed-literal::
-
-    The installed version of bitsandbytes was compiled without GPU support. 8-bit optimizers, 8-bit multiplication, and GPU quantization are unavailable.
-
-
-.. parsed-literal::
-
     Loading PhotoMaker components [2] lora_weights from [/opt/home/k8sworker/.cache/huggingface/hub/models--TencentARC--PhotoMaker/snapshots/f68f8e6309bf213d28d68230abff0ccc92de9f30]
 
 
 Convert models to OpenVINO Intermediate representation (IR) format
 ------------------------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Starting from 2023.0 release, OpenVINO supports PyTorch models
 conversion directly. We need to provide a model object, input data for
@@ -353,7 +342,7 @@ documentation <https://docs.openvino.ai/2023.3/weight_compression.html>`__.
 ID Encoder
 ~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 PhotoMaker merged image encoder and fuse module to create an ID Encoder.
 It will used to generate image embeddings to update text encoder’s
@@ -401,20 +390,20 @@ output(text embeddings) which will be the input for U-Net model.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4664: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4664: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
       warnings.warn(
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/notebooks/photo-maker/PhotoMaker/photomaker/model.py:84: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/notebooks/photo-maker/PhotoMaker/photomaker/model.py:84: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert class_tokens_mask.sum() == stacked_id_embeds.shape[0], f"{class_tokens_mask.sum()} != {stacked_id_embeds.shape[0]}"
 
 
 .. parsed-literal::
 
     INFO:nncf:Statistics of the bitwidth distribution:
-    ┍━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
-    │ Weight compression mode   │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
-    ┝━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
-    │ int8_asym                 │ 100% (151 / 151)            │ 100% (151 / 151)                       │
-    ┕━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
+    ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
+    │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
+    ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
+    │              8 │ 100% (151 / 151)            │ 100% (151 / 151)                       │
+    ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
 
 
 
@@ -424,16 +413,16 @@ output(text embeddings) which will be the input for U-Net model.
 
 
 
+.. raw:: html
 
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 Text Encoder
 ~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The text-encoder is responsible for transforming the input prompt, for
 example, “a photo of an astronaut riding a horse” into an embedding
@@ -478,20 +467,20 @@ sequence of latent text embeddings.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:86: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:86: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if input_shape[-1] > 1 or self.sliding_window is not None:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:162: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:162: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if past_key_values_length > 0:
 
 
 .. parsed-literal::
 
     INFO:nncf:Statistics of the bitwidth distribution:
-    ┍━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
-    │ Weight compression mode   │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
-    ┝━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
-    │ int8_asym                 │ 100% (73 / 73)              │ 100% (73 / 73)                         │
-    ┕━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
+    ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
+    │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
+    ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
+    │              8 │ 100% (73 / 73)              │ 100% (73 / 73)                         │
+    ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
 
 
 
@@ -501,20 +490,20 @@ sequence of latent text embeddings.
 
 
 
+.. raw:: html
 
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 .. parsed-literal::
 
     INFO:nncf:Statistics of the bitwidth distribution:
-    ┍━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
-    │ Weight compression mode   │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
-    ┝━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
-    │ int8_asym                 │ 100% (194 / 194)            │ 100% (194 / 194)                       │
-    ┕━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
+    ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
+    │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
+    ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
+    │              8 │ 100% (194 / 194)            │ 100% (194 / 194)                       │
+    ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
 
 
 
@@ -524,16 +513,16 @@ sequence of latent text embeddings.
 
 
 
+.. raw:: html
 
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 U-Net
 ~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The process of U-Net model conversion remains the same, like for
 original Stable Diffusion XL model.
@@ -584,26 +573,26 @@ original Stable Diffusion XL model.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/unets/unet_2d_condition.py:1103: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/unets/unet_2d_condition.py:1103: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if dim % default_overall_up_factor != 0:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/downsampling.py:136: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/downsampling.py:136: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert hidden_states.shape[1] == self.channels
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/downsampling.py:145: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/downsampling.py:145: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert hidden_states.shape[1] == self.channels
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/upsampling.py:146: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/upsampling.py:146: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert hidden_states.shape[1] == self.channels
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/upsampling.py:162: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/upsampling.py:162: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if hidden_states.shape[0] >= 64:
 
 
 .. parsed-literal::
 
     INFO:nncf:Statistics of the bitwidth distribution:
-    ┍━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
-    │ Weight compression mode   │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
-    ┝━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
-    │ int8_asym                 │ 100% (794 / 794)            │ 100% (794 / 794)                       │
-    ┕━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
+    ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
+    │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
+    ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
+    │              8 │ 100% (794 / 794)            │ 100% (794 / 794)                       │
+    ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
 
 
 
@@ -613,16 +602,16 @@ original Stable Diffusion XL model.
 
 
 
+.. raw:: html
 
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 VAE Decoder
 ~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The VAE model has two parts, an encoder and a decoder. The encoder is
 used to convert the image into a low dimensional latent representation,
@@ -659,11 +648,11 @@ VAE decoder.
 .. parsed-literal::
 
     INFO:nncf:Statistics of the bitwidth distribution:
-    ┍━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
-    │ Weight compression mode   │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
-    ┝━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
-    │ int8_asym                 │ 100% (40 / 40)              │ 100% (40 / 40)                         │
-    ┕━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
+    ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
+    │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
+    ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
+    │              8 │ 100% (40 / 40)              │ 100% (40 / 40)                         │
+    ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
 
 
 
@@ -673,16 +662,16 @@ VAE decoder.
 
 
 
+.. raw:: html
 
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 Prepare Inference pipeline
 --------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 In this example, we will reuse ``PhotoMakerStableDiffusionXLPipeline``
 pipeline to generate the image with OpenVINO, so each model’s object in
@@ -691,7 +680,7 @@ this pipeline should be replaced with new OpenVINO model object.
 Select inference device for Stable Diffusion pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -720,7 +709,7 @@ Select inference device for Stable Diffusion pipeline
 Compile models and create their Wrappers for inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To access original PhotoMaker workflow, we have to create a new wrapper
 for each OpenVINO compiled model. For matching original pipeline, part
@@ -728,7 +717,7 @@ of OpenVINO model wrapper’s attributes should be reused from original
 model objects and inference output must be converted from numpy to
 ``torch.tensor``.
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -844,7 +833,7 @@ models
 Running Text-to-Image Generation with OpenVINO
 ----------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -936,7 +925,7 @@ Running Text-to-Image Generation with OpenVINO
 Interactive Demo
 ----------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -999,9 +988,9 @@ Interactive Demo
 
 
 
+.. raw:: html
 
-
-
+    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 
 
 .. code:: ipython3

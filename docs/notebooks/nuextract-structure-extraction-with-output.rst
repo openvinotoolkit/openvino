@@ -45,25 +45,24 @@ The tutorial consists of the following steps:
    API <https://github.com/openvinotoolkit/openvino.genai>`__
 -  Launch interactive Gradio demo with structure extraction pipeline
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-**Table of contents:**
-
-
--  `Prerequisites <#prerequisites>`__
--  `Select model for inference <#select-model-for-inference>`__
+-  `Prerequisites <#Prerequisites>`__
+-  `Select model for inference <#Select-model-for-inference>`__
 -  `Download and convert model to OpenVINO IR via Optimum Intel
-   CLI <#download-and-convert-model-to-openvino-ir-via-optimum-intel-cli>`__
--  `Compress model weights <#compress-model-weights>`__
+   CLI <#Download-and-convert-model-to-OpenVINO-IR-via-Optimum-Intel-CLI>`__
+-  `Compress model weights <#Compress-model-weights>`__
 
    -  `Weights Compression using Optimum Intel
       CLI <#weights-compression-using-optimum-intel-cli>`__
 
 -  `Select device for inference and model
-   variant <#select-device-for-inference-and-model-variant>`__
+   variant <#Select-device-for-inference-and-model-variant>`__
 -  `Create a structure extraction inference
-   pipeline <#create-a-structure-extraction-inference-pipeline>`__
+   pipeline <#Create-a-structure-extraction-inference-pipeline>`__
 -  `Run interactive structure extraction demo with
-   Gradio <#run-interactive-structure-extraction-demo-with-gradio>`__
+   Gradio <#Run-interactive-structure-extraction-demo-with-Gradio>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -78,7 +77,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -121,7 +120,7 @@ Prerequisites
 Select model for inference
 --------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The tutorial supports different models, you can select one from the
 provided options to compare the quality of open source solutions.
@@ -185,7 +184,7 @@ dataset for information extraction.
 Download and convert model to OpenVINO IR via Optimum Intel CLI
 ---------------------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Listed model are available for downloading via the `HuggingFace
 hub <https://huggingface.co/models>`__. We will use optimum-cli
@@ -213,7 +212,7 @@ documentation <https://huggingface.co/docs/optimum/intel/inference#export>`__.
 Compress model weights
 ----------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The Weights Compression algorithm is aimed at compressing the weights of
 the models and can be used to optimize the model footprint and
@@ -225,14 +224,14 @@ performance even more but introduces a minor drop in prediction quality.
 Weights Compression using Optimum Intel CLI
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Optimum Intel supports weight compression via NNCF out of the box. For
 8-bit compression we pass ``--weight-format int8`` to ``optimum-cli``
 command line. For 4 bit compression we provide ``--weight-format int4``
 and some other options containing number of bits and other compression
 parameters. An example of this approach usage you can find in
-`llm-chatbot notebook <llm-chatbot-with-output.html>`__
+`llm-chatbot notebook <../llm-chatbot>`__
 
    **Note**: This tutorial involves conversion model for FP16 and
    INT4/INT8 weights compression scenarios. It may be memory and
@@ -315,7 +314,7 @@ Let’s compare model size for different compression types
 Select device for inference and model variant
 ---------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
    **Note**: There may be no speedup for INT4/INT8 compressed models on
    dGPU.
@@ -340,7 +339,7 @@ Select device for inference and model variant
 Create a structure extraction inference pipeline
 ------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Firstly we will prepare input prompt for NuExtract model by introducing
 ``prepare_input()`` function. This function combines the main text, a
@@ -462,7 +461,7 @@ schema format:
 Run interactive structure extraction demo with Gradio
 -----------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 

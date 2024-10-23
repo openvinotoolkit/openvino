@@ -18,7 +18,7 @@ two consecutive stages: all-instance segmentation and prompt-guided
 selection.
 
 In the first stage,
-`YOLOv8-seg <https://docs.ultralytics.com/tasks/segment/>`__ is used
+```YOLOv8-seg`` <https://docs.ultralytics.com/tasks/segment/>`__ is used
 to produce segmentation masks for all instances in the image. In the
 second stage, FastSAM outputs the region-of-interest corresponding to
 the prompt.
@@ -28,32 +28,31 @@ the prompt.
 
    pipeline
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-**Table of contents:**
+-  `Prerequisites <#Prerequisites>`__
 
+   -  `Install requirements <#Install-requirements>`__
+   -  `Imports <#Imports>`__
 
--  `Prerequisites <#prerequisites>`__
-
-   -  `Install requirements <#install-requirements>`__
-   -  `Imports <#imports>`__
-
--  `FastSAM in Ultralytics <#fastsam-in-ultralytics>`__
+-  `FastSAM in Ultralytics <#FastSAM-in-Ultralytics>`__
 -  `Convert the model to OpenVINO Intermediate representation (IR)
-   format <#convert-the-model-to-openvino-intermediate-representation-ir-format>`__
+   format <#Convert-the-model-to-OpenVINO-Intermediate-representation-(IR)-format>`__
 -  `Embedding the converted models into the original
-   pipeline <#embedding-the-converted-models-into-the-original-pipeline>`__
+   pipeline <#Embedding-the-converted-models-into-the-original-pipeline>`__
 
-   -  `Select inference device <#select-inference-device>`__
+   -  `Select inference device <#Select-inference-device>`__
    -  `Adapt OpenVINO models to the original
-      pipeline <#adapt-openvino-models-to-the-original-pipeline>`__
+      pipeline <#Adapt-OpenVINO-models-to-the-original-pipeline>`__
 
 -  `Optimize the model using NNCF Post-training Quantization
-   API <#optimize-the-model-using-nncf-post-training-quantization-api>`__
+   API <#Optimize-the-model-using-NNCF-Post-training-Quantization-API>`__
 
    -  `Compare the performance of the Original and Quantized
-      Models <#compare-the-performance-of-the-original-and-quantized-models>`__
+      Models <#Compare-the-performance-of-the-Original-and-Quantized-Models>`__
 
--  `Try out the converted pipeline <#try-out-the-converted-pipeline>`__
+-  `Try out the converted pipeline <#Try-out-the-converted-pipeline>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -68,17 +67,17 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Install requirements
 ~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
-    %pip install -q "ultralytics==8.2.24" "onnx<1.16.2" tqdm --extra-index-url https://download.pytorch.org/whl/cpu
-    %pip install -q "openvino-dev>=2024.0.0"
+    %pip install -q "ultralytics==8.2.24" "matplotlib>=3.4" "onnx<1.16.2" tqdm --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "openvino>=2024.4.0"
     %pip install -q "nncf>=2.9.0"
     %pip install -q "gradio>=4.13"
 
@@ -96,7 +95,7 @@ Install requirements
 Imports
 ~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -130,7 +129,7 @@ Imports
 FastSAM in Ultralytics
 ----------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To work with `Fast Segment Anything
 Model <https://github.com/CASIA-IVA-Lab/FastSAM>`__ by
@@ -158,7 +157,7 @@ model and generate a segmentation map.
 
 .. parsed-literal::
 
-    100%|██████████| 138M/138M [00:02<00:00, 67.6MB/s]
+    100%|██████████| 138M/138M [00:02<00:00, 56.5MB/s]
 
 
 
@@ -170,8 +169,8 @@ model and generate a segmentation map.
 .. parsed-literal::
 
     
-    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/notebooks/fast-segment-anything/coco_bike.jpg: 768x1024 37 objects, 612.7ms
-    Speed: 3.0ms preprocess, 612.7ms inference, 794.5ms postprocess per image at shape (1, 3, 768, 1024)
+    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/notebooks/fast-segment-anything/coco_bike.jpg: 768x1024 37 objects, 662.7ms
+    Speed: 3.8ms preprocess, 662.7ms inference, 766.0ms postprocess per image at shape (1, 3, 768, 1024)
 
 
 The model returns segmentation maps for all the objects on the image.
@@ -191,7 +190,7 @@ Observe the results below.
 Convert the model to OpenVINO Intermediate representation (IR) format
 ---------------------------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The Ultralytics Model export API enables conversion of PyTorch models to
 OpenVINO IR format. Under the hood it utilizes the
@@ -214,10 +213,10 @@ tracing. The FastSAM model itself is based on YOLOv8 model.
     PyTorch: starting from 'FastSAM-x.pt' with input shape (1, 3, 1024, 1024) BCHW and output shape(s) ((1, 37, 21504), (1, 32, 256, 256)) (138.3 MB)
     
     OpenVINO: starting export with openvino 2024.4.0-16579-c3152d32c9c-releases/2024/4...
-    OpenVINO: export success ✅ 6.0s, saved as 'FastSAM-x_openvino_model/' (276.1 MB)
+    OpenVINO: export success ✅ 6.2s, saved as 'FastSAM-x_openvino_model/' (276.1 MB)
     
-    Export complete (9.0s)
-    Results saved to /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/notebooks/fast-segment-anything
+    Export complete (9.2s)
+    Results saved to /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/notebooks/fast-segment-anything
     Predict:         yolo predict task=segment model=FastSAM-x_openvino_model imgsz=1024  
     Validate:        yolo val task=segment model=FastSAM-x_openvino_model imgsz=1024 data=ultralytics/datasets/sa.yaml  
     Visualize:       https://netron.app
@@ -226,7 +225,7 @@ tracing. The FastSAM model itself is based on YOLOv8 model.
 Embedding the converted models into the original pipeline
 ---------------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 OpenVINO™ Runtime Python API is used to compile the model in OpenVINO IR
 format. The
@@ -242,7 +241,7 @@ used to compile the model.
 Select inference device
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Select device that will be used to do models inference using OpenVINO
 from the dropdown list:
@@ -265,7 +264,7 @@ from the dropdown list:
 Adapt OpenVINO models to the original pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Here we create wrapper classes for the OpenVINO model that we want to
 embed in the original inference pipeline. Here are some of the things to
@@ -321,8 +320,8 @@ pipeline.
 .. parsed-literal::
 
     
-    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/notebooks/fast-segment-anything/coco_bike.jpg: 1024x1024 42 objects, 498.1ms
-    Speed: 5.7ms preprocess, 498.1ms inference, 31.2ms postprocess per image at shape (1, 3, 1024, 1024)
+    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/notebooks/fast-segment-anything/coco_bike.jpg: 1024x1024 42 objects, 558.8ms
+    Speed: 5.7ms preprocess, 558.8ms inference, 34.6ms postprocess per image at shape (1, 3, 1024, 1024)
 
 
 One can observe the converted model outputs in the next cell, they is
@@ -342,7 +341,7 @@ the same as of the original model.
 Optimize the model using NNCF Post-training Quantization API
 ------------------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ provides a suite of
 advanced algorithms for Neural Networks inference optimization in
@@ -391,7 +390,7 @@ The quantization algorithm is based on `The YOLOv8 quantization
 example <https://github.com/openvinotoolkit/nncf/tree/develop/examples/post_training_quantization/openvino/yolov8>`__
 in the NNCF repo, refer there for more details. Moreover, you can check
 out other quantization tutorials in the `OV notebooks
-repo <-with-output.html>`__.
+repo <../yolov8-optimization/>`__.
 
    **Note**: Model post-training quantization is time-consuming process.
    Be patient, it can take several minutes depending on your hardware.
@@ -560,9 +559,9 @@ repo <-with-output.html>`__.
 
 
 
+.. raw:: html
 
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
@@ -573,16 +572,16 @@ repo <-with-output.html>`__.
 
 
 
+.. raw:: html
 
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 Compare the performance of the Original and Quantized Models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Finally, we iterate both the OV model and the quantized model over the
 calibration dataset to measure the performance.
@@ -615,8 +614,8 @@ calibration dataset to measure the performance.
 
 .. parsed-literal::
 
-    Segmented in 70 seconds.
-    Resulting in 1.83 fps
+    Segmented in 69 seconds.
+    Resulting in 1.86 fps
 
 
 .. code:: ipython3
@@ -643,15 +642,15 @@ calibration dataset to measure the performance.
 
 .. parsed-literal::
 
-    Segmented in 21 seconds
-    Resulting in 6.1 fps
-    That is 3.33 times faster!
+    Segmented in 23 seconds
+    Resulting in 5.57 fps
+    That is 3.0 times faster!
 
 
 Try out the converted pipeline
 ------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The demo app below is created using `Gradio
 package <https://www.gradio.app/docs/interface>`__.
@@ -888,7 +887,7 @@ based on user input.
 
 
 
+.. raw:: html
 
-
-
+    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 

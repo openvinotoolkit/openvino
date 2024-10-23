@@ -24,27 +24,26 @@ of increased latency, however.
 
 .. |image0| image:: https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/transformers/model_doc/oneformer_architecture.png
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-**Table of contents:**
-
-
--  `Install required libraries <#install-required-libraries>`__
--  `Prepare the environment <#prepare-the-environment>`__
+-  `Install required libraries <#Install-required-libraries>`__
+-  `Prepare the environment <#Prepare-the-environment>`__
 -  `Load OneFormer fine-tuned on COCO for universal
-   segmentation <#load-oneformer-fine-tuned-on-coco-for-universal-segmentation>`__
+   segmentation <#Load-OneFormer-fine-tuned-on-COCO-for-universal-segmentation>`__
 -  `Convert the model to OpenVINO IR
-   format <#convert-the-model-to-openvino-ir-format>`__
--  `Select inference device <#select-inference-device>`__
--  `Choose a segmentation task <#choose-a-segmentation-task>`__
--  `Inference <#inference>`__
--  `Quantization <#quantization>`__
+   format <#Convert-the-model-to-OpenVINO-IR-format>`__
+-  `Select inference device <#Select-inference-device>`__
+-  `Choose a segmentation task <#Choose-a-segmentation-task>`__
+-  `Inference <#Inference>`__
+-  `Quantization <#Quantization>`__
 
-   -  `Preparing calibration dataset <#preparing-calibration-dataset>`__
-   -  `Run quantization <#run-quantization>`__
+   -  `Preparing calibration dataset <#Preparing-calibration-dataset>`__
+   -  `Run quantization <#Run-quantization>`__
    -  `Compare model size and
-      performance <#compare-model-size-and-performance>`__
+      performance <#Compare-model-size-and-performance>`__
 
--  `Interactive Demo <#interactive-demo>`__
+-  `Interactive Demo <#Interactive-Demo>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -59,23 +58,16 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Install required libraries
 --------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
-    import platform
-    
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "transformers>=4.26.0" "openvino>=2023.1.0" "nncf>=2.7.0" "gradio>=4.19" "torch>=2.1" scipy ipywidgets Pillow tqdm
-    
-    if platform.system() != "Windows":
-        %pip install -q "matplotlib>=3.4"
-    else:
-        %pip install -q "matplotlib>=3.4,<3.7"
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "transformers>=4.26.0" "openvino>=2023.1.0" "nncf>=2.7.0" "gradio>=4.19" "torch>=2.1" "matplotlib>=3.4" scipy ipywidgets Pillow tqdm
 
 Prepare the environment
 -----------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Import all required packages and set paths for models and constant
 variables.
@@ -116,7 +108,7 @@ variables.
 Load OneFormer fine-tuned on COCO for universal segmentation
 ------------------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Here we use the ``from_pretrained`` method of
 ``OneFormerForUniversalSegmentation`` to load the `HuggingFace OneFormer
@@ -147,7 +139,7 @@ images and post-process model outputs for visualization.
 Convert the model to OpenVINO IR format
 ---------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Convert the PyTorch model to IR format to take advantage of OpenVINO
 optimization tools and features. The ``openvino.convert_model`` python
@@ -174,7 +166,7 @@ should provide PyTorch model instance and example input to
 Select inference device
 -----------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Select device from dropdown list for running inference using OpenVINO
 
@@ -368,7 +360,7 @@ the inference results.
 Choose a segmentation task
 --------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -389,7 +381,7 @@ Choose a segmentation task
 Inference
 ---------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -421,7 +413,7 @@ Inference
 Quantization
 ------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding quantization layers into model
@@ -476,7 +468,7 @@ not selected
 Preparing calibration dataset
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 We use images from
 `COCO128 <https://www.kaggle.com/datasets/ultralytics/coco128>`__
@@ -544,7 +536,7 @@ dataset as calibration samples.
 Run quantization
 ~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Below we call ``nncf.quantize()`` in order to apply quantization to
 OneFormer model.
@@ -626,7 +618,7 @@ Let’s see quantized model prediction next to original model prediction.
 Compare model size and performance
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Below we compare original and quantized model footprint and inference
 speed.
@@ -695,7 +687,7 @@ speed.
 Interactive Demo
 ----------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 

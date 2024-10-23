@@ -1,11 +1,12 @@
 Stable Fast 3D Mesh Reconstruction and OpenVINO
 ===============================================
 
-.. warning::
+.. container:: alert alert-block alert-danger
 
-   Important note: This notebook requires python >= 3.9. Please make
-   sure that your environment fulfill to this requirement before running
-   it
+   Important note: This notebook has problems with installation
+   `pynim <https://github.com/vork/PyNanoInstantMeshes/issues/2>`__
+   library on MacOS. The issue may be environment dependent and may
+   occur on other OSes.
 
 `Stable Fast 3D
 (SF3D) <https://huggingface.co/stabilityai/stable-fast-3d>`__ is a large
@@ -47,17 +48,16 @@ The authors compare their results with TripoSR:
    artifacts from marching cubes. Lastly, our material property
    prediction allows us to express a variety of different surface types.
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-**Table of contents:**
-
-
--  `Prerequisites <#prerequisites>`__
--  `Get the original model <#get-the-original-model>`__
+-  `Prerequisites <#Prerequisites>`__
+-  `Get the original model <#Get-the-original-model>`__
 -  `Convert the model to OpenVINO
-   IR <#convert-the-model-to-openvino-ir>`__
+   IR <#Convert-the-model-to-OpenVINO-IR>`__
 -  `Compiling models and prepare
-   pipeline <#compiling-models-and-prepare-pipeline>`__
--  `Interactive inference <#interactive-inference>`__
+   pipeline <#Compiling-models-and-prepare-pipeline>`__
+-  `Interactive inference <#Interactive-inference>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -72,7 +72,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -101,9 +101,9 @@ Prerequisites
         "rembg==2.0.57",
         "trimesh==4.4.1",
         "einops==0.7.0",
-        "omegaconf>=2.3.0",
+        "omegaconf==2.4.0.dev3",
         "jaxtyping==0.2.31",
-        "gpytoolbox==0.2.0",
+        "gpytoolbox==0.3.2",
         "open_clip_torch==2.24.0",
         "git+https://github.com/vork/PyNanoInstantMeshes.git",
         "--extra-index-url",
@@ -142,7 +142,7 @@ Get the original model
 Convert the model to OpenVINO IR
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 SF3D is PyTorch model. OpenVINO supports PyTorch models via conversion
 to OpenVINO Intermediate Representation (IR). `OpenVINO model conversion
@@ -257,7 +257,7 @@ As illustrated in SF3D Overview image, SF3D has 5 main components:
 Compiling models and prepare pipeline
 -------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Select device from dropdown list for running inference using OpenVINO.
 
@@ -295,7 +295,7 @@ device and directories with converted models as arguments.
 Interactive inference
 ---------------------
 
-It’s taken from the original
+`back to top ⬆️ <#Table-of-contents:>`__ It’s taken from the original
 ``gradio_app.py``, but the model is replaced with the one defined above.
 
 .. code:: ipython3

@@ -13,17 +13,16 @@ created, refer to the `TensorFlow to
 OpenVINO <tensorflow-classification-to-openvino-with-output.html>`__
 tutorial.
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-**Table of contents:**
-
-
--  `Imports <#imports>`__
+-  `Imports <#Imports>`__
 -  `Download the Model and data
-   samples <#download-the-model-and-data-samples>`__
--  `Select inference device <#select-inference-device>`__
--  `Load the Model <#load-the-model>`__
--  `Load an Image <#load-an-image>`__
--  `Do Inference <#do-inference>`__
+   samples <#Download-the-Model-and-data-samples>`__
+-  `Select inference device <#Select-inference-device>`__
+-  `Load the Model <#Load-the-Model>`__
+-  `Load an Image <#Load-an-Image>`__
+-  `Do Inference <#Do-Inference>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -37,29 +36,19 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 
 .. code:: ipython3
 
-    import platform
-    
-    # Install openvino package
-    %pip install -q "openvino>=2023.1.0" opencv-python tqdm
-    
-    if platform.system() != "Windows":
-        %pip install -q "matplotlib>=3.4"
-    else:
-        %pip install -q "matplotlib>=3.4,<3.7"
-    
-
+    # Install required packages
+    %pip install -q "openvino>=2023.1.0" opencv-python tqdm "matplotlib>=3.4"
 
 
 .. parsed-literal::
 
-    Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
 
 
 Imports
 -------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -84,7 +73,7 @@ Imports
 Download the Model and data samples
 -----------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -120,7 +109,7 @@ Download the Model and data samples
 Select inference device
 -----------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -142,7 +131,7 @@ select device from dropdown list for running inference using OpenVINO
 Load the Model
 --------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -155,7 +144,7 @@ Load the Model
 Load an Image
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -189,7 +178,7 @@ Load an Image
 Do Inference
 ------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 

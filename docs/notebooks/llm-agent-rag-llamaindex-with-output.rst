@@ -43,23 +43,22 @@ manner.
 This example will demonstrate using RAG engines as a tool in an agent
 with OpenVINO and LlamaIndex.
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-**Table of contents:**
+-  `Prerequisites <#Prerequisites>`__
+-  `Download models <#Download-models>`__
 
+   -  `Download LLM <#Download-LLM>`__
+   -  `Download Embedding model <#Download-Embedding-model>`__
 
--  `Prerequisites <#prerequisites>`__
--  `Download models <#download-models>`__
+-  `Create models <#Create-models>`__
 
-   -  `Download LLM <#download-llm>`__
-   -  `Download Embedding model <#download-embedding-model>`__
+   -  `Create OpenVINO LLM <#Create-OpenVINO-LLM>`__
+   -  `Create OpenVINO Embedding <#Create-OpenVINO-Embedding>`__
 
--  `Create models <#create-models>`__
-
-   -  `Create OpenVINO LLM <#create-openvino-llm>`__
-   -  `Create OpenVINO Embedding <#create-openvino-embedding>`__
-
--  `Create tools <#create-tools>`__
--  `Run Agentic RAG <#run-agentic-rag>`__
+-  `Create tools <#Create-tools>`__
+-  `Run Agentic RAG <#Run-Agentic-RAG>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -74,7 +73,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Install required dependencies
 
@@ -136,12 +135,12 @@ Install required dependencies
 Download models
 ---------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Download LLM
 ~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To run LLM locally, we have to download the model in the first step. It
 is possible to `export your
@@ -170,7 +169,7 @@ on common industry benchmarks. More details about model can be found in
 website <https://llama.meta.com>`__ and `model
 card <https://huggingface.co/meta-llama/Meta-Llama-3.1-8B-Instruct>`__.
 >\ **Note**: run model with demo, you will need to accept license
-agreement. >You must be a registered user in Hugging Face Hub. Please
+agreement. >You must be a registered user in 🤗 Hugging Face Hub. Please
 visit `HuggingFace model
 card <https://huggingface.co/meta-llama/Meta-Llama-3.1-8B-Instruct>`__,
 carefully read terms of usage and click accept button. You will need to
@@ -233,7 +232,7 @@ code:
 Download Embedding model
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Embedding model is another key component in RAG pipeline. It takes text
 as input, and return a long list of numbers used to capture the
@@ -254,12 +253,12 @@ example.
 Create models
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Create OpenVINO LLM
 ~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Select device for LLM model inference
 
@@ -315,7 +314,7 @@ inference on it.
 Create OpenVINO Embedding
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Select device for embedding model inference
 
@@ -335,7 +334,7 @@ Select device for embedding model inference
 
 
 A Hugging Face embedding model can be supported by OpenVINO through
-`OpenVINOEmbeddings <https://docs.llamaindex.ai/en/stable/examples/embeddings/openvino/>`__
+```OpenVINOEmbeddings`` <https://docs.llamaindex.ai/en/stable/examples/embeddings/openvino/>`__
 class of LlamaIndex.
 
 .. code:: ipython3
@@ -353,7 +352,7 @@ class of LlamaIndex.
 Create tools
 ------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 In this examples, we will create 2 customized tools for ``multiply`` and
 ``add``.
@@ -383,7 +382,7 @@ To demonstrate using RAG engines as a tool in an agent, we’re going to
 create a very simple RAG query engine as one of the tools.
 
    **Note**: For a full RAG pipeline with OpenVINO, you can check the
-   `RAG notebooks <llm-rag-llamaindex-with-output.html>`__
+   `RAG notebooks <../llm-rag-llamaindex>`__
 
 .. code:: ipython3
 
@@ -418,7 +417,7 @@ extracted so we didn’t need to add it):
 Run Agentic RAG
 ---------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 We modify our agent by adding this engine to our array of tools (we also
 remove the llm parameter, since it’s now provided by settings):

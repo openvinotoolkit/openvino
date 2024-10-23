@@ -18,25 +18,24 @@ to apply stateful transformation on LLM part and model optimization
 techniques like weights compression using
 `NNCF <https://github.com/openvinotoolkit/nncf>`__
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-**Table of contents:**
-
-
--  `Prerequisites <#prerequisites>`__
+-  `Prerequisites <#Prerequisites>`__
 -  `Convert model to OpenVINO Intermediate
-   Representation <#convert-model-to-openvino-intermediate-representation>`__
+   Representation <#Convert-model-to-OpenVINO-Intermediate-Representation>`__
 
    -  `Compress Language Model Weights to 4
-      bits <#compress-language-model-weights-to-4-bits>`__
+      bits <#Compress-Language-Model-Weights-to-4-bits>`__
 
 -  `Prepare model inference
-   pipeline <#prepare-model-inference-pipeline>`__
--  `Run OpenVINO model inference <#run-openvino-model-inference>`__
+   pipeline <#Prepare-model-inference-pipeline>`__
+-  `Run OpenVINO model inference <#Run-OpenVINO-model-inference>`__
 
-   -  `Select device <#select-device>`__
-   -  `Select language model variant <#select-language-model-variant>`__
+   -  `Select device <#Select-device>`__
+   -  `Select language model variant <#Select-language-model-variant>`__
 
--  `Interactive demo <#interactive-demo>`__
+-  `Interactive demo <#Interactive-demo>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -51,7 +50,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -88,7 +87,7 @@ Prerequisites
 Convert model to OpenVINO Intermediate Representation
 -----------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 OpenVINO supports PyTorch models via conversion to OpenVINO Intermediate
 Representation (IR). `OpenVINO model conversion
@@ -205,10 +204,10 @@ Let’s convert each model part.
 
 .. parsed-literal::
 
-    2024-10-08 02:54:38.009287: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-10-08 02:54:38.043246: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-10-23 01:47:25.606377: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-10-23 01:47:25.640217: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-10-08 02:54:38.562064: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-10-23 01:47:26.161344: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. code:: ipython3
@@ -233,13 +232,7 @@ Let’s convert each model part.
 
 .. parsed-literal::
 
-    config.json:   0%|          | 0.00/1.36k [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    .gitattributes:   0%|          | 0.00/1.64k [00:00<?, ?B/s]
+    image_processing_minicpmv.py:   0%|          | 0.00/16.6k [00:00<?, ?B/s]
 
 
 
@@ -251,7 +244,7 @@ Let’s convert each model part.
 
 .. parsed-literal::
 
-    image_processing_minicpmv.py:   0%|          | 0.00/16.6k [00:00<?, ?B/s]
+    .gitattributes:   0%|          | 0.00/1.64k [00:00<?, ?B/s]
 
 
 
@@ -263,7 +256,7 @@ Let’s convert each model part.
 
 .. parsed-literal::
 
-    generation_config.json:   0%|          | 0.00/121 [00:00<?, ?B/s]
+    config.json:   0%|          | 0.00/1.36k [00:00<?, ?B/s]
 
 
 
@@ -281,25 +274,31 @@ Let’s convert each model part.
 
 .. parsed-literal::
 
+    generation_config.json:   0%|          | 0.00/121 [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
     merges.txt:   0%|          | 0.00/1.67M [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    model-00001-of-00004.safetensors:   0%|          | 0.00/4.87G [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    model.safetensors.index.json:   0%|          | 0.00/66.8k [00:00<?, ?B/s]
+    model-00003-of-00004.safetensors:   0%|          | 0.00/4.33G [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
     model-00002-of-00004.safetensors:   0%|          | 0.00/4.93G [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    model.safetensors.index.json:   0%|          | 0.00/66.8k [00:00<?, ?B/s]
 
 
 
@@ -317,13 +316,13 @@ Let’s convert each model part.
 
 .. parsed-literal::
 
-    model-00004-of-00004.safetensors:   0%|          | 0.00/2.06G [00:00<?, ?B/s]
+    model-00001-of-00004.safetensors:   0%|          | 0.00/4.87G [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    model-00003-of-00004.safetensors:   0%|          | 0.00/4.33G [00:00<?, ?B/s]
+    model-00004-of-00004.safetensors:   0%|          | 0.00/2.06G [00:00<?, ?B/s]
 
 
 
@@ -347,13 +346,13 @@ Let’s convert each model part.
 
 .. parsed-literal::
 
-    special_tokens_map.json:   0%|          | 0.00/3.56k [00:00<?, ?B/s]
+    tokenizer_config.json:   0%|          | 0.00/5.64k [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    tokenizer.json:   0%|          | 0.00/7.03M [00:00<?, ?B/s]
+    special_tokens_map.json:   0%|          | 0.00/3.56k [00:00<?, ?B/s]
 
 
 
@@ -365,7 +364,7 @@ Let’s convert each model part.
 
 .. parsed-literal::
 
-    tokenizer_config.json:   0%|          | 0.00/5.64k [00:00<?, ?B/s]
+    tokenizer.json:   0%|          | 0.00/7.03M [00:00<?, ?B/s]
 
 
 
@@ -387,7 +386,7 @@ Let’s convert each model part.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/auto/image_processing_auto.py:513: FutureWarning: The image_processor_class argument is deprecated and will be removed in v4.42. Please use `slow_image_processor_class`, or `fast_image_processor_class` instead
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/auto/image_processing_auto.py:513: FutureWarning: The image_processor_class argument is deprecated and will be removed in v4.42. Please use `slow_image_processor_class`, or `fast_image_processor_class` instead
       warnings.warn(
 
 
@@ -410,12 +409,12 @@ Let’s convert each model part.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4713: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4713: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
       warnings.warn(
     We detected that you are passing `past_key_values` as a tuple and this is deprecated and will be removed in v4.43. Please use an appropriate `Cache` class (https://huggingface.co/docs/transformers/v4.41.3/en/internal/generation_utils#transformers.Cache)
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/qwen2/modeling_qwen2.py:100: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/qwen2/modeling_qwen2.py:100: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if sequence_length != 1:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/qwen2/modeling_qwen2.py:165: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/qwen2/modeling_qwen2.py:165: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if seq_len > self.max_seq_len_cached:
 
 
@@ -450,7 +449,7 @@ Let’s convert each model part.
 Compress Language Model Weights to 4 bits
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 For reducing memory consumption, weights compression optimization can be
 applied using `NNCF <https://github.com/openvinotoolkit/nncf>`__.
@@ -548,11 +547,11 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 
     INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
     INFO:nncf:Statistics of the bitwidth distribution:
-    ┍━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
-    │ Weight compression mode   │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
-    ┝━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
-    │ int4_sym                  │ 100% (197 / 197)            │ 100% (197 / 197)                       │
-    ┕━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
+    ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
+    │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
+    ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
+    │              4 │ 100% (197 / 197)            │ 100% (197 / 197)                       │
+    ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
 
 
 
@@ -562,16 +561,16 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 
 
 
+.. raw:: html
 
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 Prepare model inference pipeline
 --------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 |image0|
 
@@ -579,7 +578,7 @@ As discussed, the model comprises Image Encoder and LLM (with separated
 text embedding part) that generates answer. In ``minicpm_helper.py`` we
 defined LLM inference class ``OvModelForCausalLMWithEmb`` that will
 represent generation cycle, It is based on `HuggingFace Transformers
-GenerationMixin <https://huggingface.co/docs/transformers/main_classes/text_generation>`__
+``GenerationMixin`` <https://huggingface.co/docs/transformers/main_classes/text_generation>`__
 and looks similar to `Optimum
 Intel <https://huggingface.co/docs/optimum/intel/index>`__
 ``OVModelForCausalLM``\ that is used for LLM inference with only
@@ -602,12 +601,12 @@ including image processing and answer generation using LLM.
 Run OpenVINO model inference
 ----------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Select device
 ~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -629,7 +628,7 @@ Select device
 Select language model variant
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -661,7 +660,7 @@ Select language model variant
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/auto/image_processing_auto.py:513: FutureWarning: The image_processor_class argument is deprecated and will be removed in v4.42. Please use `slow_image_processor_class`, or `fast_image_processor_class` instead
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/auto/image_processing_auto.py:513: FutureWarning: The image_processor_class argument is deprecated and will be removed in v4.42. Please use `slow_image_processor_class`, or `fast_image_processor_class` instead
       warnings.warn(
 
 
@@ -714,7 +713,7 @@ Select language model variant
 Interactive demo
 ----------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -739,7 +738,7 @@ Interactive demo
 
 
 
+.. raw:: html
 
-
-
+    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="600" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 

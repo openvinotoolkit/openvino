@@ -19,35 +19,34 @@ Zoo <https://github.com/openvinotoolkit/open_model_zoo>`__. For more
 information, refer to the
 `model-tools <model-tools-with-output.html>`__ tutorial.
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-**Table of contents:**
+-  `Imports <#Imports>`__
+-  `Settings <#Settings>`__
+-  `Download Models <#Download-Models>`__
+-  `Convert Models <#Convert-Models>`__
+-  `Select inference device <#Select-inference-device>`__
+-  `Object Detection <#Object-Detection>`__
 
+   -  `Load a Detection Model <#Load-a-Detection-Model>`__
+   -  `Load an Image <#Load-an-Image>`__
+   -  `Do Inference <#Do-Inference>`__
+   -  `Get Detection Results <#Get-Detection-Results>`__
 
--  `Imports <#imports>`__
--  `Settings <#settings>`__
--  `Download Models <#download-models>`__
--  `Convert Models <#convert-models>`__
--  `Select inference device <#select-inference-device>`__
--  `Object Detection <#object-detection>`__
+-  `Text Recognition <#Text-Recognition>`__
 
-   -  `Load a Detection Model <#load-a-detection-model>`__
-   -  `Load an Image <#load-an-image>`__
-   -  `Do Inference <#do-inference>`__
-   -  `Get Detection Results <#get-detection-results>`__
+   -  `Load Text Recognition Model <#Load-Text-Recognition-Model>`__
+   -  `Do Inference <#Do-Inference>`__
 
--  `Text Recognition <#text-recognition>`__
-
-   -  `Load Text Recognition Model <#load-text-recognition-model>`__
-   -  `Do Inference <#do-inference>`__
-
--  `Show Results <#show-results>`__
+-  `Show Results <#Show-Results>`__
 
    -  `Show Detected Text Boxes and OCR Results for the
-      Image <#show-detected-text-boxes-and-ocr-results-for-the-image>`__
+      Image <#Show-Detected-Text-Boxes-and-OCR-Results-for-the-Image>`__
    -  `Show the OCR Result per Bounding
-      Box <#show-the-ocr-result-per-bounding-box>`__
+      Box <#Show-the-OCR-Result-per-Bounding-Box>`__
    -  `Print Annotations in Plain Text
-      Format <#print-annotations-in-plain-text-format>`__
+      Format <#Print-Annotations-in-Plain-Text-Format>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -61,31 +60,22 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 
 .. code:: ipython3
 
-    import platform
-    
     # Install openvino-dev package
-    %pip install -q "openvino-dev>=2024.0.0"  "onnx<1.16.2" torch torchvision pillow opencv-python --extra-index-url https://download.pytorch.org/whl/cpu
-    
-    if platform.system() != "Windows":
-        %pip install -q "matplotlib>=3.4"
-    else:
-        %pip install -q "matplotlib>=3.4,<3.7"
+    %pip install -q "openvino-dev>=2024.0.0"  "onnx<1.16.2" torch torchvision pillow opencv-python "matplotlib>=3.4" --extra-index-url https://download.pytorch.org/whl/cpu
 
 
 .. parsed-literal::
 
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    mobileclip 0.1.0 requires torch==1.13.1, but you have torch 2.2.2+cpu which is incompatible.
     mobileclip 0.1.0 requires torchvision==0.14.1, but you have torchvision 0.17.2+cpu which is incompatible.
     torchaudio 2.4.1+cpu requires torch==2.4.1, but you have torch 2.2.2+cpu which is incompatible.
-    Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
 
 
 Imports
 -------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -111,7 +101,7 @@ Imports
 Settings
 --------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -127,7 +117,7 @@ Settings
 Download Models
 ---------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The next cells will run Model Downloader to download the detection and
 recognition models. If the models have been downloaded before, they will
@@ -349,7 +339,7 @@ text-recognition-resnet-fc.
 Convert Models
 --------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The downloaded detection model is an Intel model, which is already in
 OpenVINO Intermediate Representation (OpenVINO IR) format. The text
@@ -381,12 +371,12 @@ Converting text-recognition-resnet-fc…
 .. parsed-literal::
 
     ========== Converting text-recognition-resnet-fc to ONNX
-    Conversion to ONNX command: /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/bin/python -- /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/omz_tools/internal_scripts/pytorch_to_onnx.py --model-path=/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/omz_tools/models/public/text-recognition-resnet-fc --model-path=model/public/text-recognition-resnet-fc --model-name=get_model --import-module=model '--model-param=file_config=r"model/public/text-recognition-resnet-fc/vedastr/configs/resnet_fc.py"' '--model-param=weights=r"model/public/text-recognition-resnet-fc/vedastr/ckpt/resnet_fc.pth"' --input-shape=1,1,32,100 --input-names=input --output-names=output --output-file=model/public/text-recognition-resnet-fc/resnet_fc.onnx
+    Conversion to ONNX command: /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/bin/python -- /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/omz_tools/internal_scripts/pytorch_to_onnx.py --model-path=/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/omz_tools/models/public/text-recognition-resnet-fc --model-path=model/public/text-recognition-resnet-fc --model-name=get_model --import-module=model '--model-param=file_config=r"model/public/text-recognition-resnet-fc/vedastr/configs/resnet_fc.py"' '--model-param=weights=r"model/public/text-recognition-resnet-fc/vedastr/ckpt/resnet_fc.pth"' --input-shape=1,1,32,100 --input-names=input --output-names=output --output-file=model/public/text-recognition-resnet-fc/resnet_fc.onnx
     
     ONNX check passed successfully.
     
     ========== Converting text-recognition-resnet-fc to IR (FP16)
-    Conversion command: /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/bin/python -- /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/bin/mo --framework=onnx --output_dir=model/public/text-recognition-resnet-fc/FP16 --model_name=text-recognition-resnet-fc --input=input '--mean_values=input[127.5]' '--scale_values=input[127.5]' --output=output --input_model=model/public/text-recognition-resnet-fc/resnet_fc.onnx '--layout=input(NCHW)' '--input_shape=[1, 1, 32, 100]' --compress_to_fp16=True
+    Conversion command: /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/bin/python -- /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/bin/mo --framework=onnx --output_dir=model/public/text-recognition-resnet-fc/FP16 --model_name=text-recognition-resnet-fc --input=input '--mean_values=input[127.5]' '--scale_values=input[127.5]' --output=output --input_model=model/public/text-recognition-resnet-fc/resnet_fc.onnx '--layout=input(NCHW)' '--input_shape=[1, 1, 32, 100]' --compress_to_fp16=True
     
     [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
     In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
@@ -394,15 +384,15 @@ Converting text-recognition-resnet-fc…
     [ INFO ] Generated IR will be compressed to FP16. If you get lower accuracy, please consider disabling compression explicitly by adding argument --compress_to_fp16=False.
     Find more information about compression to FP16 at https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_FP16_Compression.html
     [ SUCCESS ] Generated IR version 11 model.
-    [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/notebooks/optical-character-recognition/model/public/text-recognition-resnet-fc/FP16/text-recognition-resnet-fc.xml
-    [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/notebooks/optical-character-recognition/model/public/text-recognition-resnet-fc/FP16/text-recognition-resnet-fc.bin
+    [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/notebooks/optical-character-recognition/model/public/text-recognition-resnet-fc/FP16/text-recognition-resnet-fc.xml
+    [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/notebooks/optical-character-recognition/model/public/text-recognition-resnet-fc/FP16/text-recognition-resnet-fc.bin
     
 
 
 Select inference device
 -----------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -424,7 +414,7 @@ select device from dropdown list for running inference using OpenVINO
 Object Detection
 ----------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Load a detection model, load an image, do inference and get the
 detection inference result.
@@ -432,7 +422,7 @@ detection inference result.
 Load a Detection Model
 ~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -444,7 +434,7 @@ Load a Detection Model
 Load an Image
 ~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -472,7 +462,7 @@ Load an Image
 Do Inference
 ~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Text boxes are detected in the images and returned as blobs of data in
 the shape of ``[100, 5]``. Each description of detection has the
@@ -489,7 +479,7 @@ the shape of ``[100, 5]``. Each description of detection has the
 Get Detection Results
 ~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -555,7 +545,7 @@ Get Detection Results
 Text Recognition
 ----------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Load the text recognition model and do inference on the detected boxes
 from the detection model.
@@ -563,7 +553,7 @@ from the detection model.
 Load Text Recognition Model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -580,7 +570,7 @@ Load Text Recognition Model
 Do Inference
 ~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -628,12 +618,12 @@ Do Inference
 Show Results
 ------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Show Detected Text Boxes and OCR Results for the Image
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Visualize the result by drawing boxes around recognized text and showing
 the OCR result from the text recognition model.
@@ -651,7 +641,7 @@ the OCR result from the text recognition model.
 Show the OCR Result per Bounding Box
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Depending on the image, the OCR result may not be readable in the image
 with boxes, as displayed in the cell above. Use the code below to
@@ -714,7 +704,7 @@ robert
 Print Annotations in Plain Text Format
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Print annotations for detected text based on their position in the input
 image, starting from the upper left corner.

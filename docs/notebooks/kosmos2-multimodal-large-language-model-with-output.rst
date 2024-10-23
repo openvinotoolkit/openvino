@@ -33,35 +33,33 @@ more accurate, informational, and comprehensive answers.
 
    image
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-**Table of contents:**
-
-
--  `Install requirements <#install-requirements>`__
--  `Original model inference <#original-model-inference>`__
+-  `Install requirements <#Install-requirements>`__
+-  `Original model inference <#Original-model-inference>`__
 -  `Convert models to OpenVINO Intermediate representation (IR)
-   format <#convert-models-to-openvino-intermediate-representation-ir-format>`__
+   format <#Convert-models-to-OpenVINO-Intermediate-representation-(IR)-format>`__
 
-   -  `Convert the vision model <#convert-the-vision-model>`__
+   -  `Convert the vision model <#Convert-the-vision-model>`__
    -  `Convert Image To Text Projection
-      model <#convert-image-to-text-projection-model>`__
-   -  `Convert Text model <#convert-text-model>`__
+      model <#Convert-Image-To-Text-Projection-model>`__
+   -  `Convert Text model <#Convert-Text-model>`__
 
 -  `Compiling models and prepare
-   pipeline <#compiling-models-and-prepare-pipeline>`__
--  `Inference <#inference>`__
--  `Quantization <#quantization>`__
+   pipeline <#Compiling-models-and-prepare-pipeline>`__
+-  `Inference <#Inference>`__
+-  `Quantization <#Quantization>`__
 
-   -  `Prepare calibration datasets <#prepare-calibration-datasets>`__
-   -  `Run quantization <#run-quantization>`__
-   -  `Run Weights Compression <#run-weights-compression>`__
-   -  `Compare model file sizes <#compare-model-file-sizes>`__
+   -  `Prepare calibration datasets <#Prepare-calibration-datasets>`__
+   -  `Run quantization <#Run-quantization>`__
+   -  `Run Weights Compression <#Run-Weights-Compression>`__
+   -  `Compare model file sizes <#Compare-model-file-sizes>`__
    -  `Compare inference time of the FP32 and optimized
-      pipelines <#compare-inference-time-of-the-fp32-and-optimized-pipelines>`__
+      pipelines <#Compare-inference-time-of-the-FP32-and-optimized-pipelines>`__
 
--  `Interactive inference <#interactive-inference>`__ 
-   
-
+-  `Interactive inference <#Interactive-inference>`__ ### Installation
+   Instructions
 
 This is a self-contained example that relies solely on its own code.
 
@@ -73,19 +71,19 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Install requirements
 --------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
     %pip install --upgrade pip
     %pip install -q "openvino>=2024.0.0" "nncf>=2.11.0" "datasets>=2.20.0"
-    %pip install -q "transformers>=4.35" Pillow "gradio>=4.19" opencv-python
+    %pip install -q "transformers>=4.35" Pillow "gradio>=4.19" opencv-python "matplotlib>=3.4"
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu torch torchvision
 
 
 .. parsed-literal::
 
-    Requirement already satisfied: pip in /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (24.2)
+    Requirement already satisfied: pip in /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (24.2)
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
@@ -95,7 +93,7 @@ Install requirements
 Original model inference
 ------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Let’s take the `original
 example <https://huggingface.co/microsoft/kosmos-2-patch14-224>`__
@@ -152,10 +150,10 @@ example <https://huggingface.co/microsoft/kosmos-2-patch14-224>`__
 
 .. parsed-literal::
 
-    2024-10-08 02:37:47.151795: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-10-08 02:37:47.185561: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-10-23 01:31:37.373532: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-10-23 01:31:37.408388: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-10-08 02:37:47.732267: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-10-23 01:31:37.931462: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. parsed-literal::
@@ -299,7 +297,7 @@ draw their bounding bboxes on the image:
 Convert models to OpenVINO Intermediate representation (IR) format
 ------------------------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The original model includes 3 models: vision model
 ``Kosmos2VisionModel``, ``Kosmos2ImageToTextProjection`` that is the
@@ -357,7 +355,7 @@ file.
 Convert the vision model
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Vision model accept ``pixel_values`` and returns ``image_embeds``.
 
@@ -374,18 +372,18 @@ Vision model accept ``pixel_values`` and returns ``image_embeds``.
 .. parsed-literal::
 
     [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4713: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4713: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
       warnings.warn(
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/kosmos2/modeling_kosmos2.py:465: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/kosmos2/modeling_kosmos2.py:465: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if attn_weights.size() != (bsz * self.num_heads, tgt_len, src_len):
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/kosmos2/modeling_kosmos2.py:505: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/kosmos2/modeling_kosmos2.py:505: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if attn_output.size() != (bsz * self.num_heads, tgt_len, self.head_dim):
 
 
 Convert Image To Text Projection model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -406,14 +404,14 @@ Convert Image To Text Projection model
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/jit/_trace.py:165: UserWarning: The .grad attribute of a Tensor that is not a leaf Tensor is being accessed. Its .grad attribute won't be populated during autograd.backward(). If you indeed want the .grad field to be populated for a non-leaf Tensor, use .retain_grad() on the non-leaf Tensor. If you access the non-leaf Tensor by mistake, make sure you access the leaf Tensor instead. See github.com/pytorch/pytorch/pull/30531 for more informations. (Triggered internally at aten/src/ATen/core/TensorBody.h:489.)
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/jit/_trace.py:165: UserWarning: The .grad attribute of a Tensor that is not a leaf Tensor is being accessed. Its .grad attribute won't be populated during autograd.backward(). If you indeed want the .grad field to be populated for a non-leaf Tensor, use .retain_grad() on the non-leaf Tensor. If you access the non-leaf Tensor by mistake, make sure you access the leaf Tensor instead. See github.com/pytorch/pytorch/pull/30531 for more informations. (Triggered internally at aten/src/ATen/core/TensorBody.h:489.)
       if a.grad is not None:
 
 
 Convert Text model
 ~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The Text Model performs in generation pipeline and we can separate it
 into two stage. In the first stage the model transforms ``image_embeds``
@@ -541,20 +539,20 @@ generated text by ``AutoProcessor``.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/kosmos2/modeling_kosmos2.py:804: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/kosmos2/modeling_kosmos2.py:804: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if max_pos > self.weights.size(0):
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/kosmos2/modeling_kosmos2.py:1113: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/kosmos2/modeling_kosmos2.py:1113: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if input_shape[-1] > 1:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/kosmos2/modeling_kosmos2.py:920: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/kosmos2/modeling_kosmos2.py:920: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if attention_mask.size() != (batch_size, 1, seq_length, src_len):
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/kosmos2/modeling_kosmos2.py:1206: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/kosmos2/modeling_kosmos2.py:1206: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if past_key_values_length > 0:
 
 
 Compiling models and prepare pipeline
 -------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Select device that will be used to do models inference using OpenVINO
 from the dropdown list:
@@ -846,7 +844,7 @@ return ``torch.Tensor``\ s instead of ``np.array``\ s.
 Inference
 ---------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -898,7 +896,7 @@ Inference
 Quantization
 ------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding quantization layers into model
@@ -949,10 +947,10 @@ Let’s load ``skip magic`` extension to skip quantization if
 Prepare calibration datasets
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 We use a portion of
-`KoalaAI/StockImages-CC0 <https://huggingface.co/datasets/KoalaAI/StockImages-CC0>`__
+```KoalaAI/StockImages-CC0`` <https://huggingface.co/datasets/KoalaAI/StockImages-CC0>`__
 dataset from Hugging Face as calibration data.
 
 .. code:: ipython3
@@ -1021,7 +1019,7 @@ To collect intermediate model inputs for calibration we should customize
 Run Quantization
 ~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -1052,22 +1050,9 @@ Run Quantization
 
 
 
+.. raw:: html
 
-
-
-
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-
-
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
@@ -1078,9 +1063,9 @@ Run Quantization
 
 
 
+.. raw:: html
 
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
@@ -1091,9 +1076,22 @@ Run Quantization
 
 
 
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
+
+.. parsed-literal::
+
+    Output()
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
@@ -1119,22 +1117,9 @@ Run Quantization
 
 
 
+.. raw:: html
 
-
-
-
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-
-
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
@@ -1145,9 +1130,9 @@ Run Quantization
 
 
 
+.. raw:: html
 
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
@@ -1158,16 +1143,29 @@ Run Quantization
 
 
 
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
+
+.. parsed-literal::
+
+    Output()
+
+
+
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 Run Weights Compression
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Quantizing of the Text Model does not significantly improve inference
 performance but can lead to a substantial degradation of accuracy. The
@@ -1209,9 +1207,9 @@ weight compression will be applied to footprint reduction.
 
 
 
+.. raw:: html
 
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
@@ -1234,9 +1232,9 @@ weight compression will be applied to footprint reduction.
 
 
 
+.. raw:: html
 
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
@@ -1314,7 +1312,7 @@ pipelines.
 Compare model file sizes
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -1340,7 +1338,7 @@ Compare model file sizes
 Compare inference time of the FP32 and optimized pipelines
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To measure the inference performance of the ``FP32`` and optimized
 pipelines, we use mean inference time on 7 samples.
@@ -1389,15 +1387,15 @@ pipelines, we use mean inference time on 7 samples.
 
 .. parsed-literal::
 
-    FP32 pipeline: 2.691 seconds
-    Optimized pipeline: 1.193 seconds
-    Performance speed-up: 2.257
+    FP32 pipeline: 2.696 seconds
+    Optimized pipeline: 1.137 seconds
+    Performance speed-up: 2.372
 
 
 Interactive inference
 ---------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Please select below whether you would like to use the quantized models
 to launch the interactive demo.
@@ -1479,9 +1477,9 @@ to launch the interactive demo.
 
 
 
+.. raw:: html
 
-
-
+    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 
 
 .. code:: ipython3

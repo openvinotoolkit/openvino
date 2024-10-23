@@ -18,7 +18,7 @@ accuracy.
 
 Previously, we already discussed how to build an instruction-following
 pipeline using OpenVINO, please check out `this
-tutorial <llm-question-answering-with-output.html>`__ for
+tutorial <../llm-question-answering/llm-question-answering.ipynb>`__ for
 reference. In this tutorial, we consider how to use the power of
 OpenVINO for running Large Language Models for chat. We will use a
 pre-trained model from the `Hugging Face
@@ -52,38 +52,37 @@ need a Jupyter server to start. For details, please refer to
 `Installation
 Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-**Table of contents:**
-
-
--  `Prerequisites <#prerequisites>`__
--  `Select model for inference <#select-model-for-inference>`__
+-  `Prerequisites <#Prerequisites>`__
+-  `Select model for inference <#Select-model-for-inference>`__
 -  `Convert model using Optimum-CLI
-   tool <#convert-model-using-optimum-cli-tool>`__
+   tool <#Convert-model-using-Optimum-CLI-tool>`__
 
    -  `Weights Compression using
-      Optimum-CLI <#weights-compression-using-optimum-cli>`__
+      Optimum-CLI <#Weights-Compression-using-Optimum-CLI>`__
 
--  `Select device for inference <#select-device-for-inference>`__
+-  `Select device for inference <#Select-device-for-inference>`__
 -  `Instantiate pipeline with OpenVINO Generate
-   API <#instantiate-pipeline-with-openvino-generate-api>`__
--  `Run Chatbot <#run-chatbot>`__
+   API <#Instantiate-pipeline-with-OpenVINO-Generate-API>`__
+-  `Run Chatbot <#Run-Chatbot>`__
 
-   -  `Advanced generation options <#advanced-generation-options>`__
+   -  `Advanced generation options <#Advanced-generation-options>`__
 
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Install required dependencies
 
 .. code:: ipython3
 
     import os
-
+    
     os.environ["GIT_CLONE_PROTECTION_ACTIVE"] = "false"
-
+    
     %pip install -Uq pip
     %pip uninstall -q -y optimum optimum-intel
     %pip install -q -U "openvino>=2024.3.0" openvino-tokenizers[transformers] openvino-genai
@@ -97,27 +96,18 @@ Install required dependencies
     "transformers>=4.43.1" \
     "onnx<=1.16.1; sys_platform=='win32'" "einops" "transformers_stream_generator" "tiktoken" "bitsandbytes"
 
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
-
 .. code:: ipython3
 
     import os
     from pathlib import Path
     import requests
     import shutil
-
+    
     # fetch model configuration
-
+    
     config_shared_path = Path("../../utils/llm_config.py")
     config_dst_path = Path("llm_config.py")
-
+    
     if not config_dst_path.exists():
         if config_shared_path.exists():
             try:
@@ -136,7 +126,7 @@ Install required dependencies
             r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/llm_config.py")
             with open("llm_config.py", "w", encoding="utf-8") as f:
                 f.write(r.text)
-
+    
     if not Path("notebook_utils.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py")
         open("notebook_utils.py", "w").write(r.text)
@@ -144,7 +134,7 @@ Install required dependencies
 Select model for inference
 --------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The tutorial supports different models, you can select one from the
 provided options to compare the quality of open source LLM solutions.
@@ -199,7 +189,15 @@ several options for model weight compression:
 
    <details>
 
+.. raw:: html
+
+   <summary>
+
 Click here to see available models options
+
+.. raw:: html
+
+   </summary>
 
 -  **tiny-llama-1b-chat** - This is the chat model finetuned on top of
    `TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T <https://huggingface.co/TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T>`__.
@@ -227,7 +225,7 @@ Click here to see available models options
    in `model
    card <https://huggingface.co/meta-llama/Llama-3.2-1B-Instruct>`__
    >\ **Note**: run model with demo, you will need to accept license
-   agreement. >You must be a registered user in Hugging Face Hub.
+   agreement. >You must be a registered user in 🤗 Hugging Face Hub.
    Please visit `HuggingFace model
    card <https://huggingface.co/meta-llama/Llama-3.2-1B-Instruct>`__,
    carefully read terms of usage and click accept button. You will need
@@ -239,7 +237,7 @@ Click here to see available models options
 
 .. code:: python
 
-       # login to huggingfacehub to get access to pretrained model
+       # login to huggingfacehub to get access to pretrained model 
 
 
        from huggingface_hub import notebook_login, whoami
@@ -259,7 +257,7 @@ Click here to see available models options
    in `model
    card <https://huggingface.co/meta-llama/Llama-3.2-3B-Instruct>`__
    >\ **Note**: run model with demo, you will need to accept license
-   agreement. >You must be a registered user in Hugging Face Hub.
+   agreement. >You must be a registered user in 🤗 Hugging Face Hub.
    Please visit `HuggingFace model
    card <https://huggingface.co/meta-llama/Llama-3.2-3B-Instruct>`__,
    carefully read terms of usage and click accept button. You will need
@@ -271,7 +269,7 @@ Click here to see available models options
 
 .. code:: python
 
-       # login to huggingfacehub to get access to pretrained model
+       # login to huggingfacehub to get access to pretrained model 
 
 
        from huggingface_hub import notebook_login, whoami
@@ -293,9 +291,10 @@ Click here to see available models options
    model can be found in `model
    card <https://huggingface.co/google/gemma-2b-it>`__. >\ **Note**: run
    model with demo, you will need to accept license agreement. >You must
-   be a registered user in Hugging Face Hub. Please visit `HuggingFace
-   model card <https://huggingface.co/google/gemma-2b-it>`__, carefully
-   read terms of usage and click accept button. You will need to use an
+   be a registered user in 🤗 Hugging Face Hub. Please visit
+   `HuggingFace model
+   card <https://huggingface.co/google/gemma-2b-it>`__, carefully read
+   terms of usage and click accept button. You will need to use an
    access token for the code below to run. For more information on
    access tokens, refer to `this section of the
    documentation <https://huggingface.co/docs/hub/security-tokens>`__.
@@ -304,7 +303,7 @@ Click here to see available models options
 
 .. code:: python
 
-       # login to huggingfacehub to get access to pretrained model
+       # login to huggingfacehub to get access to pretrained model 
 
 
        from huggingface_hub import notebook_login, whoami
@@ -326,7 +325,7 @@ Click here to see available models options
    of 2B parameters model. More details about model can be found in
    `model card <https://huggingface.co/google/gemma-2-2b-it>`__.
    >\ **Note**: run model with demo, you will need to accept license
-   agreement. >You must be a registered user in Hugging Face Hub.
+   agreement. >You must be a registered user in 🤗 Hugging Face Hub.
    Please visit `HuggingFace model
    card <https://huggingface.co/google/gemma-2-2b-it>`__, carefully read
    terms of usage and click accept button. You will need to use an
@@ -338,7 +337,7 @@ Click here to see available models options
 
 .. code:: python
 
-       # login to huggingfacehub to get access to pretrained model
+       # login to huggingfacehub to get access to pretrained model 
 
 
        from huggingface_hub import notebook_login, whoami
@@ -387,9 +386,10 @@ Click here to see available models options
    model can be found in `model
    card <https://huggingface.co/google/gemma-7b-it>`__. >\ **Note**: run
    model with demo, you will need to accept license agreement. >You must
-   be a registered user in Hugging Face Hub. Please visit `HuggingFace
-   model card <https://huggingface.co/google/gemma-7b-it>`__, carefully
-   read terms of usage and click accept button. You will need to use an
+   be a registered user in 🤗 Hugging Face Hub. Please visit
+   `HuggingFace model
+   card <https://huggingface.co/google/gemma-7b-it>`__, carefully read
+   terms of usage and click accept button. You will need to use an
    access token for the code below to run. For more information on
    access tokens, refer to `this section of the
    documentation <https://huggingface.co/docs/hub/security-tokens>`__.
@@ -398,7 +398,7 @@ Click here to see available models options
 
 .. code:: python
 
-       # login to huggingfacehub to get access to pretrained model
+       # login to huggingfacehub to get access to pretrained model 
 
        from huggingface_hub import notebook_login, whoami
 
@@ -419,7 +419,7 @@ Click here to see available models options
    of 9B parameters model. More details about model can be found in
    `model card <https://huggingface.co/google/gemma-2-9b-it>`__.
    >\ **Note**: run model with demo, you will need to accept license
-   agreement. >You must be a registered user in Hugging Face Hub.
+   agreement. >You must be a registered user in 🤗 Hugging Face Hub.
    Please visit `HuggingFace model
    card <https://huggingface.co/google/gemma-2-2b-it>`__, carefully read
    terms of usage and click accept button. You will need to use an
@@ -431,7 +431,7 @@ Click here to see available models options
 
 .. code:: python
 
-       # login to huggingfacehub to get access to pretrained model
+       # login to huggingfacehub to get access to pretrained model 
 
 
        from huggingface_hub import notebook_login, whoami
@@ -453,7 +453,7 @@ Click here to see available models options
    `HuggingFace model
    card <https://huggingface.co/meta-llama/Llama-2-7b-chat-hf>`__.
    >\ **Note**: run model with demo, you will need to accept license
-   agreement. >You must be a registered user in Hugging Face Hub.
+   agreement. >You must be a registered user in 🤗 Hugging Face Hub.
    Please visit `HuggingFace model
    card <https://huggingface.co/meta-llama/Llama-2-7b-chat-hf>`__,
    carefully read terms of usage and click accept button. You will need
@@ -465,7 +465,7 @@ Click here to see available models options
 
 .. code:: python
 
-       # login to huggingfacehub to get access to pretrained model
+       # login to huggingfacehub to get access to pretrained model 
 
        from huggingface_hub import notebook_login, whoami
 
@@ -487,7 +487,7 @@ Click here to see available models options
    website <https://llama.meta.com/llama3>`__ and `model
    card <https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct>`__.
    >\ **Note**: run model with demo, you will need to accept license
-   agreement. >You must be a registered user in Hugging Face Hub.
+   agreement. >You must be a registered user in 🤗 Hugging Face Hub.
    Please visit `HuggingFace model
    card <https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct>`__,
    carefully read terms of usage and click accept button. You will need
@@ -499,7 +499,7 @@ Click here to see available models options
 
 .. code:: python
 
-       # login to huggingfacehub to get access to pretrained model
+       # login to huggingfacehub to get access to pretrained model 
 
        from huggingface_hub import notebook_login, whoami
 
@@ -518,7 +518,7 @@ Click here to see available models options
    website <https://llama.meta.com>`__ and `model
    card <https://huggingface.co/meta-llama/Meta-Llama-3.1-8B-Instruct>`__.
    >\ **Note**: run model with demo, you will need to accept license
-   agreement. >You must be a registered user in Hugging Face Hub.
+   agreement. >You must be a registered user in 🤗 Hugging Face Hub.
    Please visit `HuggingFace model
    card <https://huggingface.co/meta-llama/Meta-Llama-3.1-8B-Instruct>`__,
    carefully read terms of usage and click accept button. You will need
@@ -530,7 +530,7 @@ Click here to see available models options
 
 .. code:: python
 
-       # login to huggingfacehub to get access to pretrained model
+       # login to huggingfacehub to get access to pretrained model 
 
        from huggingface_hub import notebook_login, whoami
 
@@ -643,9 +643,9 @@ Click here to see available models options
 .. code:: ipython3
 
     from llm_config import get_llm_selection_widget
-
+    
     form, lang, model_id_widget, compression_variant, use_preconverted = get_llm_selection_widget()
-
+    
     form
 
 
@@ -666,16 +666,16 @@ Click here to see available models options
 
 .. parsed-literal::
 
-    Selected model qwen2.5-0.5b-instruct with INT4 compression
-
+    Selected model qwen2-0.5b-instruct with INT4 compression
+    
 
 Convert model using Optimum-CLI tool
 ------------------------------------
 
+`back to top ⬆️ <#Table-of-contents:>`__
 
-
-`Optimum Intel <https://huggingface.co/docs/optimum/intel/index>`__ is
-the interface between the
+🤗 `Optimum Intel <https://huggingface.co/docs/optimum/intel/index>`__
+is the interface between the 🤗
 `Transformers <https://huggingface.co/docs/transformers/index>`__ and
 `Diffusers <https://huggingface.co/docs/diffusers/index>`__ libraries
 and OpenVINO to accelerate end-to-end pipelines on Intel architectures.
@@ -688,7 +688,15 @@ format.
 
    <details>
 
+.. raw:: html
+
+   <summary>
+
 Click here to read more about Optimum CLI usage
+
+.. raw:: html
+
+   </summary>
 
 The command bellow demonstrates basic command for model export with
 ``optimum-cli``
@@ -712,7 +720,7 @@ remote code, ``--trust-remote-code`` flag additionally should be passed.
 Weights Compression using Optimum-CLI
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 You can also apply fp16, 8-bit or 4-bit weight compression on the
 Linear, Convolutional and Embedding layers when exporting your model
@@ -722,7 +730,15 @@ with the CLI.
 
    <details>
 
+.. raw:: html
+
+   <summary>
+
 Click here to read more about weights compression with Optimum CLI
+
+.. raw:: html
+
+   </summary>
 
 Setting ``--weight-format`` to respectively fp16, int8 or int4. This
 type of optimization allows to reduce the memory footprint and inference
@@ -732,13 +748,12 @@ to make it
 `symmetric <https://github.com/openvinotoolkit/nncf/blob/develop/docs/compression_algorithms/Quantization.md#symmetric-quantization>`__
 you can add ``--sym``.
 
-For INT4 quantization you can also specify the following arguments :
-
-- The ``--group-size`` parameter will define the group size to use for
-  quantization, -1 it will results in per-column quantization.
-- The ``--ratio`` parameter controls the ratio between 4-bit and 8-bit
-  quantization. If set to 0.9, it means that 90% of the layers will be
-  quantized to int4 while 10% will be quantized to int8.
+For INT4 quantization you can also specify the following arguments : -
+The ``--group-size`` parameter will define the group size to use for
+quantization, -1 it will results in per-column quantization. - The
+``--ratio`` parameter controls the ratio between 4-bit and 8-bit
+quantization. If set to 0.9, it means that 90% of the layers will be
+quantized to int4 while 10% will be quantized to int8.
 
 Smaller group_size and ratio values usually improve accuracy at the
 sacrifice of the model size and inference latency. You can enable AWQ to
@@ -760,80 +775,40 @@ be additionally applied during model export with INT4 precision using
 .. code:: ipython3
 
     from llm_config import convert_and_compress_model
-
+    
     model_dir = convert_and_compress_model(model_id, model_configuration, compression_variant.value, use_preconverted.value)
 
 
 .. parsed-literal::
 
-    ⌛ qwen2.5-0.5b-instruct conversion to INT4 started. It may takes some time.
-
-
-
-**Export command:**
-
-
-
-``optimum-cli export openvino --model Qwen/Qwen2.5-0.5B-Instruct --task text-generation-with-past --weight-format int4 --group-size 128 --ratio 1.0 --sym qwen2.5/INT4_compressed_weights``
-
-
-.. parsed-literal::
-
-    2024-10-08 02:53:02.359208: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-10-08 02:53:02.392956: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-10-08 02:53:02.929372: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    Framework not specified. Using pt to export the model.
-    Using framework PyTorch: 2.2.2+cpu
-    Overriding 1 configuration item(s)
-    	- use_cache -> True
-    We detected that you are passing `past_key_values` as a tuple and this is deprecated and will be removed in v4.43. Please use an appropriate `Cache` class (https://huggingface.co/docs/transformers/v4.41.3/en/internal/generation_utils#transformers.Cache)
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/optimum/exporters/openvino/model_patcher.py:496: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if sequence_length != 1:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/qwen2/modeling_qwen2.py:165: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if seq_len > self.max_seq_len_cached:
-    Set tokenizer padding side to left for `text-generation-with-past` task.
-
-
-.. parsed-literal::
-
-    INFO:nncf:Statistics of the bitwidth distribution:
-    ┍━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
-    │ Weight compression mode   │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
-    ┝━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
-    │ int8_asym                 │ 28% (1 / 169)               │ 0% (0 / 168)                           │
-    ├───────────────────────────┼─────────────────────────────┼────────────────────────────────────────┤
-    │ int4_sym                  │ 72% (168 / 169)             │ 100% (168 / 168)                       │
-    ┕━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
-    [2KApplying Weight Compression ━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% • 0:00:14 • 0:00:00
-    ✅ INT4 qwen2.5-0.5b-instruct model converted and can be found in qwen2.5/INT4_compressed_weights
-
+    ✅ INT4 qwen2-0.5b-instruct model already converted and can be found in qwen2/INT4_compressed_weights
+    
 
 Let’s compare model size for different compression types
 
 .. code:: ipython3
 
     from llm_config import compare_model_size
-
+    
     compare_model_size(model_dir)
 
 
 .. parsed-literal::
 
-    Size of model with INT4 compressed weights is 322.44 MB
-
+    Size of model with INT4 compressed weights is 358.86 MB
+    
 
 Select device for inference
 ---------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
     from notebook_utils import device_widget
-
+    
     device = device_widget(default="CPU", exclude=["NPU"])
-
+    
     device
 
 
@@ -851,7 +826,7 @@ variant of model weights and inference device
 Instantiate pipeline with OpenVINO Generate API
 -----------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 `OpenVINO Generate
 API <https://github.com/openvinotoolkit/openvino.genai/blob/master/src/README.md>`__
@@ -876,14 +851,14 @@ of the available generation parameters more deeply later.
 .. code:: ipython3
 
     from openvino_genai import LLMPipeline
-
+    
     print(f"Loading model from {model_dir}\n")
-
-
+    
+    
     pipe = LLMPipeline(str(model_dir), device.value)
-
+    
     generation_config = pipe.get_generation_config()
-
+    
     input_prompt = "The Sun is yellow bacause"
     print(f"Input text: {input_prompt}")
     print(pipe.generate(input_prompt, max_new_tokens=10))
@@ -891,16 +866,16 @@ of the available generation parameters more deeply later.
 
 .. parsed-literal::
 
-    Loading model from qwen2.5/INT4_compressed_weights
-
+    Loading model from qwen2/INT4_compressed_weights
+    
     Input text: The Sun is yellow bacause
-     of its coloration. The Sun is blue because
-
+     it is made of hydrogen and oxygen atoms. The
+    
 
 Run Chatbot
 -----------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Now, when model created, we can setup Chatbot interface using
 `Gradio <https://www.gradio.app/>`__.
@@ -909,7 +884,15 @@ Now, when model created, we can setup Chatbot interface using
 
    <details>
 
+.. raw:: html
+
+   <summary>
+
 Click here to see how pipeline works
+
+.. raw:: html
+
+   </summary>
 
 The diagram below illustrates how the chatbot pipeline works
 
@@ -957,13 +940,21 @@ Guide <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html>`__
 Advanced generation options
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. raw:: html
 
    <details>
 
+.. raw:: html
+
+   <summary>
+
 Click here to see detailed description of advanced options
+
+.. raw:: html
+
+   </summary>
 
 | There are several parameters that can control text generation quality,
   \* ``Temperature`` is a parameter used to control the level of
@@ -1030,32 +1021,18 @@ Click here to see detailed description of advanced options
     if not Path("gradio_helper_genai.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/llm-chatbot/gradio_helper_genai.py")
         open("gradio_helper_genai.py", "w").write(r.text)
-
+    
     from gradio_helper_genai import make_demo
-
+    
     demo = make_demo(pipe, model_configuration, model_id, lang.value)
-
+    
     try:
-        demo.launch(debug=False)
+        demo.launch(debug=True)
     except Exception:
-        demo.launch(debug=False, share=True)
+        demo.launch(debug=True, share=True)
     # If you are launching remotely, specify server_name and server_port
     # EXAMPLE: `demo.launch(server_name='your server name', server_port='server port in int')`
     # To learn more please refer to the Gradio docs: https://gradio.app/docs/
-
-
-.. parsed-literal::
-
-    Running on local URL:  http://127.0.0.1:7860
-
-    To create a public link, set `share=True` in `launch()`.
-
-
-
-
-
-
-
 
 .. code:: ipython3
 

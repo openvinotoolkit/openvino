@@ -19,31 +19,28 @@ The tutorial consists of the following steps:
 -  Run model inference with OpenVINO
 -  Prepare and run optimization pipeline
 -  Compare performance of the FP32 and quantized models.
--  Run optimized model inference on video
+-  Run optimized model inference on video #### Table of contents:
 
-
-**Table of contents:**
-
--  `Prerequisites <#prerequisites>`__
--  `Get PyTorch model <#get-pytorch-model>`__
+-  `Prerequisites <#Prerequisites>`__
+-  `Get PyTorch model <#Get-PyTorch-model>`__
 -  `Convert PyTorch model to OpenVINO
-   IR <#convert-pytorch-model-to-openvino-ir>`__
--  `Verify model inference <#verify-model-inference>`__
+   IR <#Convert-PyTorch-model-to-OpenVINO-IR>`__
+-  `Verify model inference <#Verify-model-inference>`__
 
-   -  `Preprocessing <#preprocessing>`__
-   -  `Postprocessing <#postprocessing>`__
-   -  `Select inference device <#select-inference-device>`__
+   -  `Preprocessing <#Preprocessing>`__
+   -  `Postprocessing <#Postprocessing>`__
+   -  `Select inference device <#Select-inference-device>`__
 
 -  `Optimize model using NNCF Post-training Quantization
-   API <#optimize-model-using-nncf-post-training-quantization-api>`__
+   API <#Optimize-model-using-NNCF-Post-training-Quantization-API>`__
 
-   -  `Prepare dataset <#prepare-dataset>`__
-   -  `Perform model quantization <#perform-model-quantization>`__
+   -  `Prepare dataset <#Prepare-dataset>`__
+   -  `Perform model quantization <#Perform-model-quantization>`__
 
--  `Run quantized model inference <#run-quantized-model-inference>`__
+-  `Run quantized model inference <#Run-quantized-model-inference>`__
 -  `Compare Performance of the Original and Quantized
-   Models <#compare-performance-of-the-original-and-quantized-models>`__
--  `Run Live Object Detection <#run-live-object-detection>`__
+   Models <#Compare-Performance-of-the-Original-and-Quantized-Models>`__
+-  `Run Live Object Detection <#Run-Live-Object-Detection>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -58,38 +55,32 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
+`back to top ⬆️ <#Table-of-contents:>`__ ## Prerequisites
+
 .. code:: ipython3
 
-    import platform
-
-    %pip install -q "openvino>=2023.3.0" "nncf>=2.8.1" "opencv-python" "seaborn" "pandas" "scikit-learn" "torch" "torchvision" "tqdm"  --extra-index-url https://download.pytorch.org/whl/cpu
-
-    if platform.system() != "Windows":
-        %pip install -q "matplotlib>=3.4"
-    else:
-        %pip install -q "matplotlib>=3.4,<3.7"
+    %pip install -q "openvino>=2023.3.0" "nncf>=2.8.1" "opencv-python" "matplotlib>=3.4" "seaborn" "pandas" "scikit-learn" "torch" "torchvision" "tqdm"  --extra-index-url https://download.pytorch.org/whl/cpu
 
 
 .. parsed-literal::
 
-    Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
 
 
 .. code:: ipython3
 
     from pathlib import Path
-
+    
     # Fetch `notebook_utils` module
     import requests
-
+    
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
-
+    
     open("notebook_utils.py", "w").write(r.text)
     from notebook_utils import download_file, VideoPlayer, device_widget
-
+    
     if not Path("yolov9").exists():
         !git clone https://github.com/WongKinYiu/yolov9
     %cd yolov9
@@ -100,18 +91,18 @@ Prerequisites
     Cloning into 'yolov9'...
     remote: Enumerating objects: 781, done.[K
     remote: Total 781 (delta 0), reused 0 (delta 0), pack-reused 781 (from 1)[K
-    Receiving objects: 100% (781/781), 3.27 MiB | 10.53 MiB/s, done.
-    Resolving deltas: 100% (330/330), done.
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/notebooks/yolov9-optimization/yolov9
+    Receiving objects: 100% (781/781), 3.27 MiB | 19.93 MiB/s, done.
+    Resolving deltas: 100% (331/331), done.
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/notebooks/yolov9-optimization/yolov9
 
 
 Get PyTorch model
 -----------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Generally, PyTorch models represent an instance of the
-`torch.nn.Module <https://pytorch.org/docs/stable/generated/torch.nn.Module.html>`__
+```torch.nn.Module`` <https://pytorch.org/docs/stable/generated/torch.nn.Module.html>`__
 class, initialized by a state dictionary with model weights. We will use
 the ``gelan-c`` (light-weight version of yolov9) model pre-trained on a
 COCO dataset, which is available in this
@@ -126,7 +117,7 @@ applicable for other models from YOLO V9 family.
     MODEL_DIR = Path("model/")
     MODEL_DIR.mkdir(exist_ok=True)
     DATA_DIR.mkdir(exist_ok=True)
-
+    
     download_file(MODEL_LINK, directory=MODEL_DIR, show_progress=True)
 
 
@@ -140,14 +131,14 @@ applicable for other models from YOLO V9 family.
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/notebooks/yolov9-optimization/yolov9/model/gelan-c.pt')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/notebooks/yolov9-optimization/yolov9/model/gelan-c.pt')
 
 
 
 Convert PyTorch model to OpenVINO IR
 ------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 OpenVINO supports PyTorch model conversion via Model Conversion API.
 ``ov.convert_model`` function accepts model object and example input for
@@ -163,26 +154,26 @@ using ``ov.save_model``.
     import openvino as ov
     from models.yolo import Detect, DualDDetect
     from utils.general import yaml_save, yaml_load
-
+    
     weights = MODEL_DIR / "gelan-c.pt"
     ov_model_path = MODEL_DIR / weights.name.replace(".pt", "_openvino_model") / weights.name.replace(".pt", ".xml")
-
+    
     if not ov_model_path.exists():
         model = attempt_load(weights, device="cpu", inplace=True, fuse=True)
         metadata = {"stride": int(max(model.stride)), "names": model.names}
-
+    
         model.eval()
         for k, m in model.named_modules():
             if isinstance(m, (Detect, DualDDetect)):
                 m.inplace = False
                 m.dynamic = True
                 m.export = True
-
+    
         example_input = torch.zeros((1, 3, 640, 640))
         model(example_input)
-
+    
         ov_model = ov.convert_model(model, example_input=example_input)
-
+    
         # specify input and output names for compatibility with yolov9 repo interface
         ov_model.outputs[0].get_tensor().set_names({"output0"})
         ov_model.inputs[0].get_tensor().set_names({"images"})
@@ -195,16 +186,18 @@ using ``ov.save_model``.
 
 .. parsed-literal::
 
-    Fusing layers...
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/notebooks/yolov9-optimization/yolov9/models/experimental.py:243: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+      ckpt = torch.load(attempt_download(w), map_location='cpu')  # load
+    Fusing layers... 
     Model summary: 387 layers, 25288768 parameters, 0 gradients, 102.1 GFLOPs
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/notebooks/yolov9-optimization/yolov9/models/yolo.py:108: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/notebooks/yolov9-optimization/yolov9/models/yolo.py:108: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       elif self.dynamic or self.shape != shape:
 
 
 Verify model inference
 ----------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To test model work, we create inference pipeline similar to
 ``detect.py``. The pipeline consists of preprocessing step, inference of
@@ -213,7 +206,7 @@ OpenVINO model, and results post-processing to get bounding boxes.
 Preprocessing
 ~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Model input is a tensor with the ``[1, 3, 640, 640]`` shape in
 ``N, C, H, W`` format, where
@@ -236,16 +229,16 @@ To keep specific shape, preprocessing automatically enables padding.
     import torch
     from PIL import Image
     from utils.augmentations import letterbox
-
+    
     image_url = "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/7b6af406-4ccb-4ded-a13d-62b7c0e42e96"
     download_file(image_url, directory=DATA_DIR, filename="test_image.jpg", show_progress=True)
-
-
+    
+    
     def preprocess_image(img0: np.ndarray):
         """
         Preprocess image according to YOLOv9 input requirements.
         Takes image in np.array format, resizes it to specific size using letterbox resize, converts color space from BGR (default in OpenCV) to RGB and changes data layout from HWC to CHW.
-
+    
         Parameters:
           img0 (np.ndarray): image for preprocessing
         Returns:
@@ -254,18 +247,18 @@ To keep specific shape, preprocessing automatically enables padding.
         """
         # resize
         img = letterbox(img0, auto=False)[0]
-
+    
         # Convert
         img = img.transpose(2, 0, 1)
         img = np.ascontiguousarray(img)
         return img, img0
-
-
+    
+    
     def prepare_input_tensor(image: np.ndarray):
         """
         Converts preprocessed image to tensor format according to YOLOv9 input requirements.
         Takes image in np.array format with unit8 data in [0, 255] range and converts it to torch.Tensor object with float data in [0, 1] range
-
+    
         Parameters:
           image (np.ndarray): image for conversion to tensor
         Returns:
@@ -273,12 +266,12 @@ To keep specific shape, preprocessing automatically enables padding.
         """
         input_tensor = image.astype(np.float32)  # uint8 to fp16/32
         input_tensor /= 255.0  # 0 - 255 to 0.0 - 1.0
-
+    
         if input_tensor.ndim == 3:
             input_tensor = np.expand_dims(input_tensor, 0)
         return input_tensor
-
-
+    
+    
     NAMES = metadata["names"]
 
 
@@ -291,7 +284,7 @@ To keep specific shape, preprocessing automatically enables padding.
 Postprocessing
 ~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Model output contains detection boxes candidates. It is a tensor with
 the ``[1,25200,85]`` shape in the ``B, N, 85`` format, where:
@@ -314,11 +307,11 @@ algorithm and rescale boxes coordinates to original image size.
 .. code:: ipython3
 
     from utils.plots import Annotator, colors
-
+    
     from typing import List, Tuple
     from utils.general import scale_boxes, non_max_suppression
-
-
+    
+    
     def detect(
         model: ov.Model,
         image_path: Path,
@@ -350,8 +343,8 @@ algorithm and rescale boxes coordinates to original image size.
         predictions = torch.from_numpy(model(input_tensor)[0])
         pred = non_max_suppression(predictions, conf_thres, iou_thres, classes=classes, agnostic=agnostic_nms)
         return pred, orig_img, input_tensor.shape
-
-
+    
+    
     def draw_boxes(
         predictions: np.ndarray,
         input_shape: Tuple[int],
@@ -370,11 +363,11 @@ algorithm and rescale boxes coordinates to original image size.
         """
         if not len(predictions):
             return image
-
+    
         annotator = Annotator(image, line_width=1, example=str(names))
         # Rescale boxes from input size to original image size
         predictions[:, :4] = scale_boxes(input_shape[2:], predictions[:, :4], image.shape).round()
-
+    
         # Write results
         for *xyxy, conf, cls in reversed(predictions):
             label = f"{names[int(cls)]} {conf:.2f}"
@@ -390,14 +383,14 @@ algorithm and rescale boxes coordinates to original image size.
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
     device = device_widget()
-
+    
     device
 
 
@@ -433,7 +426,7 @@ select device from dropdown list for running inference using OpenVINO
 Optimize model using NNCF Post-training Quantization API
 --------------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ provides a suite of
 advanced algorithms for Neural Networks inference optimization in
@@ -448,7 +441,7 @@ YOLOv9. The optimization process contains the following steps:
 Prepare dataset
 ~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The code below downloads COCO dataset and prepares a dataloader that is
 used to evaluate the yolov9 model accuracy. We reuse its subset for
@@ -457,16 +450,16 @@ quantization.
 .. code:: ipython3
 
     from zipfile import ZipFile
-
-
+    
+    
     DATA_URL = "http://images.cocodataset.org/zips/val2017.zip"
     LABELS_URL = "https://github.com/ultralytics/yolov5/releases/download/v1.0/coco2017labels-segments.zip"
-
+    
     OUT_DIR = Path(".")
-
+    
     download_file(DATA_URL, directory=OUT_DIR, show_progress=True)
     download_file(LABELS_URL, directory=OUT_DIR, show_progress=True)
-
+    
     if not (OUT_DIR / "coco/labels").exists():
         with ZipFile("coco2017labels-segments.zip", "r") as zip_ref:
             zip_ref.extractall(OUT_DIR)
@@ -492,12 +485,12 @@ quantization.
     import yaml
     from utils.dataloaders import create_dataloader
     from utils.general import colorstr
-
+    
     # read dataset config
     DATA_CONFIG = "data/coco.yaml"
     with open(DATA_CONFIG) as f:
         data = yaml.load(f, Loader=yaml.SafeLoader)
-
+    
     # Dataloader
     TASK = "val"  # path to train/val/test images
     Option = namedtuple("Options", ["single_cls"])  # imitation of commandline provided options for single class evaluation
@@ -527,8 +520,8 @@ expected format.
 .. code:: ipython3
 
     import nncf
-
-
+    
+    
     def transform_fn(data_item):
         """
         Quantization transform function. Extracts and preprocess input data from dataloader item for quantization.
@@ -540,8 +533,8 @@ expected format.
         img = data_item[0].numpy()
         input_tensor = prepare_input_tensor(img)
         return input_tensor
-
-
+    
+    
     quantization_dataset = nncf.Dataset(dataloader, transform_fn)
 
 
@@ -553,7 +546,7 @@ expected format.
 Perform model quantization
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The ``nncf.quantize`` function provides an interface for model
 quantization. It requires an instance of the OpenVINO Model and
@@ -568,20 +561,20 @@ asymmetric quantization of activations.
 .. code:: ipython3
 
     ov_int8_model_path = MODEL_DIR / weights.name.replace(".pt", "_int8_openvino_model") / weights.name.replace(".pt", "_int8.xml")
-
+    
     if not ov_int8_model_path.exists():
         quantized_model = nncf.quantize(ov_model, quantization_dataset, preset=nncf.QuantizationPreset.MIXED)
-
+    
         ov.save_model(quantized_model, ov_int8_model_path)
         yaml_save(ov_int8_model_path.parent / weights.name.replace(".pt", "_int8.yaml"), metadata)
 
 
 .. parsed-literal::
 
-    2024-10-08 06:55:28.833031: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-10-08 06:55:28.867508: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-10-23 05:32:14.632848: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-10-23 05:32:14.668324: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-10-08 06:55:29.471960: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-10-23 05:32:15.276616: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 
@@ -591,9 +584,9 @@ asymmetric quantization of activations.
 
 
 
+.. raw:: html
 
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
@@ -604,16 +597,16 @@ asymmetric quantization of activations.
 
 
 
+.. raw:: html
 
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 Run quantized model inference
 -----------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 There are no changes in model usage after applying quantization. Let’s
 check the model work on the previously used image.
@@ -621,10 +614,10 @@ check the model work on the previously used image.
 .. code:: ipython3
 
     quantized_model = core.read_model(ov_int8_model_path)
-
+    
     if device.value != "CPU":
         quantized_model.reshape({0: [1, 3, 640, 640]})
-
+    
     compiled_model = core.compile_model(quantized_model, device.value)
 
 .. code:: ipython3
@@ -644,7 +637,7 @@ check the model work on the previously used image.
 Compare Performance of the Original and Quantized Models
 --------------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 We use the OpenVINO `Benchmark
 Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__
@@ -669,18 +662,18 @@ models.
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.5.0-16913-890f2e12c98
-    [ INFO ]
+    [ INFO ] Build ................................. 2024.5.0-16993-9c432a3641a
+    [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2024.5.0-16913-890f2e12c98
-    [ INFO ]
-    [ INFO ]
+    [ INFO ] Build ................................. 2024.5.0-16993-9c432a3641a
+    [ INFO ] 
+    [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 26.27 ms
+    [ INFO ] Read model took 26.16 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     images (node: x) : f32 / [...] / [?,3,?,?]
@@ -692,7 +685,7 @@ models.
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [ INFO ] Reshaping model: 'images': [1,3,640,640]
-    [ INFO ] Reshape model took 7.74 ms
+    [ INFO ] Reshape model took 7.97 ms
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
     [ INFO ]     images (node: x) : u8 / [N,C,H,W] / [1,3,640,640]
@@ -702,7 +695,7 @@ models.
     [ INFO ]     xi.3 (node: __module.model.22/aten::cat/Concat_1) : f32 / [...] / [1,144,40,40]
     [ INFO ]     xi (node: __module.model.22/aten::cat/Concat) : f32 / [...] / [1,144,20,20]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 487.17 ms
+    [ INFO ] Compile model took 475.37 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -736,20 +729,20 @@ models.
     [ INFO ]   PERF_COUNT: False
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'images'!. This input will be filled with random values!
-    [ INFO ] Fill input 'images' with random values
+    [ INFO ] Fill input 'images' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 173.19 ms
+    [ INFO ] First inference took 182.45 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            222 iterations
-    [ INFO ] Duration:         15646.59 ms
+    [ INFO ] Count:            228 iterations
+    [ INFO ] Duration:         15670.39 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        412.14 ms
-    [ INFO ]    Average:       418.38 ms
-    [ INFO ]    Min:           285.25 ms
-    [ INFO ]    Max:           798.40 ms
-    [ INFO ] Throughput:   14.19 FPS
+    [ INFO ]    Median:        412.82 ms
+    [ INFO ]    Average:       410.86 ms
+    [ INFO ]    Min:           309.65 ms
+    [ INFO ]    Max:           431.51 ms
+    [ INFO ] Throughput:   14.55 FPS
 
 
 .. code:: ipython3
@@ -763,18 +756,18 @@ models.
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.5.0-16913-890f2e12c98
-    [ INFO ]
+    [ INFO ] Build ................................. 2024.5.0-16993-9c432a3641a
+    [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2024.5.0-16913-890f2e12c98
-    [ INFO ]
-    [ INFO ]
+    [ INFO ] Build ................................. 2024.5.0-16993-9c432a3641a
+    [ INFO ] 
+    [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 41.47 ms
+    [ INFO ] Read model took 41.07 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     images (node: x) : f32 / [...] / [1,3,640,640]
@@ -786,7 +779,7 @@ models.
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [ INFO ] Reshaping model: 'images': [1,3,640,640]
-    [ INFO ] Reshape model took 0.04 ms
+    [ INFO ] Reshape model took 0.05 ms
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
     [ INFO ]     images (node: x) : u8 / [N,C,H,W] / [1,3,640,640]
@@ -796,7 +789,7 @@ models.
     [ INFO ]     xi.3 (node: __module.model.22/aten::cat/Concat_1) : f32 / [...] / [1,144,40,40]
     [ INFO ]     xi (node: __module.model.22/aten::cat/Concat) : f32 / [...] / [1,144,20,20]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 870.18 ms
+    [ INFO ] Compile model took 943.07 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -830,26 +823,26 @@ models.
     [ INFO ]   PERF_COUNT: False
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'images'!. This input will be filled with random values!
-    [ INFO ] Fill input 'images' with random values
+    [ INFO ] Fill input 'images' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 71.43 ms
+    [ INFO ] First inference took 64.84 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            726 iterations
-    [ INFO ] Duration:         15150.76 ms
+    [ INFO ] Count:            720 iterations
+    [ INFO ] Duration:         15158.98 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        121.03 ms
-    [ INFO ]    Average:       124.70 ms
-    [ INFO ]    Min:           65.35 ms
-    [ INFO ]    Max:           268.30 ms
-    [ INFO ] Throughput:   47.92 FPS
+    [ INFO ]    Median:        119.92 ms
+    [ INFO ]    Average:       125.90 ms
+    [ INFO ]    Min:           80.89 ms
+    [ INFO ]    Max:           277.84 ms
+    [ INFO ] Throughput:   47.50 FPS
 
 
 Run Live Object Detection
 -------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -857,8 +850,8 @@ Run Live Object Detection
     import time
     from IPython import display
     import cv2
-
-
+    
+    
     # Main processing function to run object detection.
     def run_object_detection(
         source=0,
@@ -878,7 +871,7 @@ Run Live Object Detection
             if use_popup:
                 title = "Press ESC to Exit"
                 cv2.namedWindow(winname=title, flags=cv2.WINDOW_GUI_NORMAL | cv2.WINDOW_AUTOSIZE)
-
+    
             processing_times = collections.deque()
             while True:
                 # Grab the frame.
@@ -898,20 +891,20 @@ Run Live Object Detection
                     )
                 # Get the results.
                 input_image = np.array(frame)
-
+    
                 start_time = time.time()
                 # model expects RGB image, while video capturing in BGR
                 detections, _, input_shape = detect(compiled_model, input_image[:, :, ::-1])
                 stop_time = time.time()
-
+    
                 image_with_boxes = draw_boxes(detections[0], input_shape, input_image, NAMES)
                 frame = image_with_boxes
-
+    
                 processing_times.append(stop_time - start_time)
                 # Use processing times from last 200 frames.
                 if len(processing_times) > 200:
                     processing_times.popleft()
-
+    
                 _, f_width = frame.shape[:2]
                 # Mean processing time [ms].
                 processing_time = np.mean(processing_times) * 1000
@@ -973,7 +966,7 @@ Run the object detection:
 .. code:: ipython3
 
     WEBCAM_INFERENCE = False
-
+    
     if WEBCAM_INFERENCE:
         VIDEO_SOURCE = 0  # Webcam
     else:
@@ -995,7 +988,7 @@ Run the object detection:
 .. code:: ipython3
 
     quantized_model = core.read_model(ov_int8_model_path)
-
+    
     run_object_detection(
         source=VIDEO_SOURCE,
         flip=True,

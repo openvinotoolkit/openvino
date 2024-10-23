@@ -24,23 +24,22 @@ More details about the model can be found in the
 
    image
 
-
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Clone repository and install
-   requirements <#clone-repository-and-install-requirements>`__
+   requirements <#Clone-repository-and-install-requirements>`__
 -  `Download checkpoints and load PyTorch
-   model <#download-checkpoints-and-load-pytorch-model>`__
+   model <#Download-checkpoints-and-load-PyTorch-model>`__
 -  `Convert GroundingDINO to OpenVINO IR
-   format <#convert-groundingdino-to-openvino-ir-format>`__
+   format <#Convert-GroundingDINO-to-OpenVINO-IR-format>`__
 -  `Run OpenVINO optimized
-   GroundingDINO <#run-openvino-optimized-groundingdino>`__
--  `Convert SAM to OpenVINO IR <#convert-sam-to-openvino-ir>`__
+   GroundingDINO <#Run-OpenVINO-optimized-GroundingDINO>`__
+-  `Convert SAM to OpenVINO IR <#Convert-SAM-to-OpenVINO-IR>`__
 -  `Combine GroundingDINO + SAM
-   (GroundedSAM) <#combine-groundingdino--sam-groundedsam>`__
--  `Interactive GroundedSAM <#interactive-groundedsam>`__
--  `Cleanup <#cleanup>`__
+   (GroundedSAM) <#Combine-GroundingDINO-+-SAM-(GroundedSAM)>`__
+-  `Interactive GroundedSAM <#Interactive-GroundedSAM>`__
+-  `Cleanup <#Cleanup>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -55,7 +54,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Clone repositories and install requirements
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -124,16 +123,16 @@ segmentation you can select vanilla ``SAM``.
     Cloning into 'GroundingDINO'...
     remote: Enumerating objects: 379, done.[K
     remote: Counting objects: 100% (190/190), done.[K
-    remote: Compressing objects: 100% (80/80), done.[K
-    remote: Total 379 (delta 135), reused 110 (delta 110), pack-reused 189 (from 1)[K
-    Receiving objects: 100% (379/379), 14.03 MiB | 19.90 MiB/s, done.
+    remote: Compressing objects: 100% (81/81), done.[K
+    remote: Total 379 (delta 135), reused 109 (delta 109), pack-reused 189 (from 1)[K
+    Receiving objects: 100% (379/379), 14.03 MiB | 18.28 MiB/s, done.
     Resolving deltas: 100% (194/194), done.
     Cloning into 'EfficientSAM'...
     remote: Enumerating objects: 424, done.[K
     remote: Counting objects: 100% (85/85), done.[K
     remote: Compressing objects: 100% (33/33), done.[K
     remote: Total 424 (delta 76), reused 52 (delta 52), pack-reused 339 (from 1)[K
-    Receiving objects: 100% (424/424), 262.14 MiB | 25.51 MiB/s, done.
+    Receiving objects: 100% (424/424), 262.14 MiB | 30.07 MiB/s, done.
     Resolving deltas: 100% (246/246), done.
 
 
@@ -152,7 +151,7 @@ segmentation you can select vanilla ``SAM``.
 Download checkpoints and load PyTorch models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -222,6 +221,7 @@ GroundingDINO imports
 
 .. parsed-literal::
 
+    FutureWarning: Importing from timm.models.layers is deprecated, please import via timm.layers
     UserWarning: Failed to load custom C++ ops. Running on CPU mode Only!
 
 
@@ -286,7 +286,7 @@ GroundingDINO imports
 Convert GroundingDINO to OpenVINO IR format
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -366,7 +366,7 @@ Convert GroundingDINO to OpenVINO IR format
 Run OpenVINO optimized GroundingDINO
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -506,10 +506,10 @@ class, but the inference will be done using OpenVINO optimized model.
 
 .. parsed-literal::
 
-    2024-10-08 02:28:09.725059: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-10-08 02:28:09.764729: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-10-23 01:22:04.926963: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-10-23 01:22:04.966234: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-10-08 02:28:10.354526: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-10-23 01:22:05.582957: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Convert predicted boxes to supervision box detections format
@@ -547,7 +547,7 @@ specify other objects you wish to detect.
 Convert SAM to OpenVINO IR
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 And now let’s feed those detection to ``SAM`` model. We will use
 ``EfficiendSAM`` for faster computation and to save ram, but feel free
@@ -667,7 +667,7 @@ Below is conversion of vanilla ``SAM``. This code is not used when
 Combine GroundingDINO + SAM (GroundedSAM)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 We have OpenVINO IRs for both GroundingDINO and SAM models. Lets run the
 segmentation using predictions from GroundingDINO. Same as above, use
@@ -799,7 +799,7 @@ Great! All detected horses and clouds are segmented as well.
 Interactive GroundedSAM
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Now, you can try apply grounding sam on your own images using
 interactive demo. The code below provides helper functions used in
@@ -923,15 +923,15 @@ increase threshold values in ``Advanced options``.
 
 
 
+.. raw:: html
 
-
-
+    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="1000" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 
 
 Cleanup
 ~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
