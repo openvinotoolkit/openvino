@@ -21,8 +21,8 @@ from openvino.runtime.utils.data_helpers import (
     _data_dispatch,
     tensor_from_file,
 )
-    
-    
+
+
 class Model:
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         if args and not kwargs:
@@ -40,7 +40,7 @@ class Model:
     def __getattr__(self, name):
         if hasattr(self.__model, name):
             return getattr(self.__model, name)
-    
+
     def clone(self) -> "Model":
         return Model(self.__model.clone())
 
@@ -51,7 +51,7 @@ class Model:
         :rtype: openvino.runtime.Model
         """
         return Model(self.__model.clone())
-    
+
     def __enter__(self):
         return self
 
@@ -507,6 +507,8 @@ class Core(CoreBase):
     Core instance per application.
     """
     def read_model(self, model: Union[str, bytes, object], weights: Union[object, str, bytes, Tensor] = None) -> Model:
+        if isinstance(model, Model):
+            model = model._Model__model
         if weights is not None:
             return Model(super().read_model(model, weights))
         else:
@@ -545,6 +547,8 @@ class Core(CoreBase):
         :return: A compiled model.
         :rtype: openvino.runtime.CompiledModel
         """
+        if isinstance(model, Model):
+            model = model._Model__model
         if weights is None:
             if device_name is None:
                 return CompiledModel(
@@ -563,6 +567,16 @@ class Core(CoreBase):
                 super().compile_model(model, weights, device_name, {} if config is None else config),
                 weights=weights,
             )
+
+    def query_model(
+            self,
+            model: Model,
+            device_name: str,
+            config: Optional[dict] = None,
+    ) -> dict:
+        return super().query_model(model._Model__model,
+                                   device_name,
+                                   {} if config is None else config, )
 
     def import_model(
         self,
@@ -639,4 +653,6 @@ def compile_model(
 
     """
     core = Core()
+    if isinstance(model, Model):
+        model = model._Model__model
     return core.compile_model(model, device_name, {} if config is None else config)

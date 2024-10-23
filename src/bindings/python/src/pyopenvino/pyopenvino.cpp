@@ -98,10 +98,25 @@ PYBIND11_MODULE(_pyopenvino, m) {
 
     m.def("get_version", &get_version);
     m.def("get_batch", &ov::get_batch);
-    m.def("set_batch", &ov::set_batch);
+    m.def(
+        "get_batch",
+        [](const py::object& ie_api_model) {
+            const auto model = ie_api_model.attr("_Model__model").cast<std::shared_ptr<ov::Model>>();
+            return ov::get_batch(model);
+        },
+        py::arg("model"));
     m.def(
         "set_batch",
-        [](const std::shared_ptr<ov::Model>& model, int64_t value) {
+        [](const py::object& ie_api_model, ov::Dimension value) {
+            auto model = ie_api_model.attr("_Model__model").cast<std::shared_ptr<ov::Model>>();
+            ov::set_batch(model, value);
+        },
+        py::arg("model"),
+        py::arg("dimension"));
+    m.def(
+        "set_batch",
+        [](const py::object& ie_api_model, int64_t value) {
+            auto model = ie_api_model.attr("_Model__model").cast<std::shared_ptr<ov::Model>>();
             ov::set_batch(model, ov::Dimension(value));
         },
         py::arg("model"),
@@ -109,10 +124,11 @@ PYBIND11_MODULE(_pyopenvino, m) {
 
     m.def(
         "serialize",
-        [](std::shared_ptr<ov::Model>& model,
+        [](py::object& ie_api_model,
            const py::object& xml_path,
            const py::object& bin_path,
            const std::string& version) {
+            const auto model = ie_api_model.attr("_Model__model").cast<std::shared_ptr<ov::Model>>();
             ov::serialize(model,
                           Common::utils::convert_path_to_string(xml_path),
                           Common::utils::convert_path_to_string(bin_path),
@@ -175,7 +191,7 @@ PYBIND11_MODULE(_pyopenvino, m) {
         "save_model",
         [](py::object& ie_api_model, const py::object& xml_path, bool compress_to_fp16) {
             if (!py::isinstance(ie_api_model, py::module_::import("openvino.runtime").attr("Model"))) {
-                throw py::attribute_error("'model' argument has to be openvino.runtime.ie_api.Model.");
+                throw py::attribute_error("'model' argument is required and cannot be None.");
             }
             const auto model = ie_api_model.attr("_Model__model").cast<std::shared_ptr<ov::Model>>();
             if (model == nullptr) {
