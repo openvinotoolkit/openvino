@@ -20,13 +20,18 @@ on:
         description: 'OS that is used for testing in the form of "ubuntu_20_04"'
         type: string
         required: true
+      timeout-minutes:
+        description: 'Timeout in minutes for the job'
+        type: number
+        required: false
+        default: 35
 
 permissions: read-all
 
 jobs:
   CXX_Unit_Tests:
     name: C++ unit tests
-    timeout-minutes: ${{ contains(inputs.runner, 'win') && 120 || 35 }}
+    timeout-minutes: ${{ inputs.timeout-minutes }}
     runs-on: ${{ inputs.runner }}
     container:
       image: ${{ inputs.image }}
