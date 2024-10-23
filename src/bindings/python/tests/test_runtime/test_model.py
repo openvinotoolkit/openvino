@@ -823,10 +823,10 @@ def test_model_with_statement():
         with Core().read_model(f"{model_save_dir}/model.xml") as model:
             assert add_model.friendly_name == model.friendly_name
 
-        assert model.friendly_name == None #Model.__model is set to None
+        assert model.friendly_name is None  # Model.__model is set to None
         with pytest.raises(AttributeError):
             save_model(model, f"{model_save_dir}/model.xml")
-            
+
     with add_model as model:
         pass
-    assert add_model.friendly_name == None
+    assert add_model.friendly_name is None
