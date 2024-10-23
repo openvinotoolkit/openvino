@@ -6,17 +6,9 @@
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/broadcast.hpp"
-#include "openvino/op/concat.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/divide.hpp"
-#include "openvino/op/gather.hpp"
-#include "openvino/op/if.hpp"
-#include "openvino/op/less.hpp"
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/scatter_elements_update.hpp"
-#include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
-#include "openvino/op/squeeze.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "utils.hpp"
 
