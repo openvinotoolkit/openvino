@@ -379,6 +379,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value for property key ", ov::cache_encryption_callbacks.name());
             }
+        } else if (key == ov::internal::caching_with_mmap.name()) {
         } else {
             OPENVINO_THROW("NotFound: Unsupported property ", key, " by CPU plugin.");
         }
@@ -399,6 +400,12 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             inferencePrecision = ov::element::undefined;
         }
     }
+    // enable ACL fast math in PERFORMANCE mode
+#if defined(OV_CPU_WITH_ACL)
+    if (executionMode == ov::hint::ExecutionMode::PERFORMANCE) {
+        aclFastMath = true;
+    }
+#endif
     // disable dynamic quantization and kv quantization for best accuracy
     if (executionMode == ov::hint::ExecutionMode::ACCURACY) {
         if (!fcDynamicQuantizationGroupSizeSetExplicitly) {

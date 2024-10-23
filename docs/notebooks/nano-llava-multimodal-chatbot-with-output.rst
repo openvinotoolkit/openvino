@@ -104,7 +104,7 @@ Prerequisites
 
 .. parsed-literal::
 
-    added_tokens.json:   0%|          | 0.00/80.0 [00:00<?, ?B/s]
+    merges.txt:   0%|          | 0.00/1.67M [00:00<?, ?B/s]
 
 
 
@@ -122,6 +122,12 @@ Prerequisites
 
 .. parsed-literal::
 
+    .gitattributes:   0%|          | 0.00/1.52k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
     config.json:   0%|          | 0.00/1.28k [00:00<?, ?B/s]
 
 
@@ -134,31 +140,13 @@ Prerequisites
 
 .. parsed-literal::
 
-    .gitattributes:   0%|          | 0.00/1.52k [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    merges.txt:   0%|          | 0.00/1.67M [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
     generation_config.json:   0%|          | 0.00/172 [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    vocab.json:   0%|          | 0.00/2.78M [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    tokenizer_config.json:   0%|          | 0.00/1.32k [00:00<?, ?B/s]
+    added_tokens.json:   0%|          | 0.00/80.0 [00:00<?, ?B/s]
 
 
 
@@ -170,7 +158,19 @@ Prerequisites
 
 .. parsed-literal::
 
+    tokenizer_config.json:   0%|          | 0.00/1.32k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
     special_tokens_map.json:   0%|          | 0.00/510 [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    vocab.json:   0%|          | 0.00/2.78M [00:00<?, ?B/s]
 
 
 
@@ -211,10 +211,10 @@ previous step.
 
 .. parsed-literal::
 
-    2024-09-24 01:54:43.372628: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-09-24 01:54:43.407003: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-10-08 03:11:17.270186: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-10-08 03:11:17.304136: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-09-24 01:54:43.926110: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-10-08 03:11:18.027701: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Run PyTorch Model Inference
@@ -263,8 +263,8 @@ Run PyTorch Model Inference
 
 .. parsed-literal::
 
-    This image features a cute white llama with large black eyes and pink lips, standing in the middle of a bright, lit-up fire. The llama is adorned with a tiny yellow sticker on its face, and its ears are pink and white. The llama's white fur is slightly burnt, giving it a unique and playful appearance. The llama's right and left front legs are also white, matching the rest of its body. The llama's eyes are a striking shade of pink, and its nose is black, adding to its adorable features.
-    The fire in which the llama stands is bright and orange, with a few small flames flickering, adding
+    The image features a white, fluffy lamb, likely a lama, in the midst of a fire. The lamb's fluffy fur is a mix of white and black, and it has a unique pattern of black spots on its body. The lamb's eyes are a bright shade of blue, and its ears are also white. The lamb's mouth is open, revealing pink lips, adding a playful touch to its overall appearance.
+    The lamb's face is quite detailed, with features such as a small black eye, a small nose, and a black mouth. The lamb's face is also quite expressive, with its mouth open, revealing pink lips
 
 
 Convert and Optimize model
@@ -518,11 +518,11 @@ space.
 
     Applying weight compression to image encoder
     INFO:nncf:Statistics of the bitwidth distribution:
-    ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
-    │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
-    ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
-    │              8 │ 100% (159 / 159)            │ 100% (159 / 159)                       │
-    ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
+    ┍━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
+    │ Weight compression mode   │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
+    ┝━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
+    │ int8_asym                 │ 100% (159 / 159)            │ 100% (159 / 159)                       │
+    ┕━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
 
 
 
@@ -662,13 +662,13 @@ token prediction.
 .. parsed-literal::
 
     INFO:nncf:Statistics of the bitwidth distribution:
-    ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
-    │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
-    ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
-    │              8 │ 47% (48 / 169)              │ 20% (47 / 168)                         │
-    ├────────────────┼─────────────────────────────┼────────────────────────────────────────┤
-    │              4 │ 53% (121 / 169)             │ 80% (121 / 168)                        │
-    ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
+    ┍━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
+    │ Weight compression mode   │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
+    ┝━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
+    │ int8_asym                 │ 47% (48 / 169)              │ 20% (47 / 168)                         │
+    ├───────────────────────────┼─────────────────────────────┼────────────────────────────────────────┤
+    │ int4_asym                 │ 53% (121 / 169)             │ 80% (121 / 168)                        │
+    ┕━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
 
 
 

@@ -2458,6 +2458,50 @@ def test_topk_opset11(op_name):
     assert list(node.get_output_shape(1)) == [1, 3, 3]
 
 
+def test_slice_scatter():
+    data_shape = [10, 7, 2, 13]
+    data = ov.parameter(data_shape, name="input", dtype=np.float32)
+    updates = ov.parameter([4, 7, 2, 13], name="updates", dtype=np.float32)
+    start = ov.constant(np.array([2, 0, 0], dtype=np.int32))
+    stop = ov.constant(np.array([9, 7, 2], dtype=np.int32))
+    step = ov.constant(np.array([2, 1, 1], dtype=np.int32))
+
+    node_default_axes = ov_opset15.slice_scatter(data, updates, start, stop, step)
+
+    assert node_default_axes.get_type_name() == "SliceScatter"
+    assert node_default_axes.get_output_size() == 1
+    assert node_default_axes.get_output_element_type(0) == Type.f32
+    assert node_default_axes.get_output_shape(0) == data_shape
+
+    start = ov.constant(np.array([0, 2], dtype=np.int32))
+    stop = ov.constant(np.array([2, 9], dtype=np.int32))
+    step = ov.constant(np.array([1, 2], dtype=np.int32))
+    axes = ov.constant(np.array([-2, 0], dtype=np.int32))
+
+    node = ov_opset15.slice_scatter(data, updates, start, stop, step, axes)
+
+    assert node.get_type_name() == "SliceScatter"
+    assert node.get_output_size() == 1
+    assert node.get_output_element_type(0) == Type.f32
+    assert node_default_axes.get_output_shape(0) == data_shape
+
+
+def test_stft():
+    data_shape = [4, 48]
+    data = ov.parameter(data_shape, name="input", dtype=np.float32)
+    window = ov.parameter([7], name="window", dtype=np.float32)
+    frame_size = ov.constant(np.array(11, dtype=np.int32))
+    frame_step = ov.constant(np.array(3, dtype=np.int32))
+    transpose_frames = True
+
+    op = ov_opset15.stft(data, window, frame_size, frame_step, transpose_frames)
+
+    assert op.get_type_name() == "STFT"
+    assert op.get_output_size() == 1
+    assert op.get_output_element_type(0) == Type.f32
+    assert op.get_output_shape(0) == [4, 13, 6, 2]
+
+
 def test_parameter_get_attributes():
     parameter = ov.parameter([2, 2], dtype=np.float32, name="InputData")
     parameter_attributes = parameter.get_attributes()

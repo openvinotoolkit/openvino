@@ -283,9 +283,13 @@ bool StridedSlice::evaluate_symbol(TensorSymbolVector& output_symbols) const {
            default_symbol_evaluator(this, {0}, output_symbols);
 }
 
+bool StridedSlice::can_constant_fold(const OutputVector& input_values) const {
+    return !is_const_fold_disabled();
+}
+
 bool StridedSlice::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {
     auto is_folded = Node::constant_fold(output_values, inputs_values);
-    if (!is_const_fold_disabled() && !is_folded) {
+    if (can_constant_fold(inputs_values) && !is_folded) {
         // If all ignored mask are set for all begin or end then replace this input by dummy constant
         // to avoid return false from `could_propagate` during bound evaluation (value of const will be ignored).
         auto get_indices_input = [&inputs_values](size_t port, const std::vector<int64_t>& mask) -> Output<Node> {
