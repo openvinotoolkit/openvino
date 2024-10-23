@@ -122,7 +122,7 @@ def process_coveo_meta(meta, url, link):
         namespace_element = ET.SubElement(url, namespace)
 
         for tag_name, tag_value in values.items():
-            if tag_name == 'ovcategory':
+            if tag_name == 'ovdoctype':
                 processed_link = process_link(link)
                 ET.SubElement(namespace_element, tag_name).text = processed_link
             else:
