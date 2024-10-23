@@ -55,9 +55,8 @@ In this tutorial we consider how to convert and optimize Qwen2VL model
 for creating multimodal chatbot. Additionally, we demonstrate how to
 apply stateful transformation on LLM part and model optimization
 techniques like weights compression using
-`NNCF <https://github.com/openvinotoolkit/nncf>`__
-
-**Table of contents:**
+`NNCF <https://github.com/openvinotoolkit/nncf>`__ #### Table of
+contents:
 
 -  `Prerequisites <#prerequisites>`__
 -  `Select model <#select-model>`__
@@ -105,11 +104,11 @@ Prerequisites
 
     from pathlib import Path
     import requests
-
+    
     if not Path("ov_qwen2_vl.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/qwen2-vl/ov_qwen2_vl.py")
         open("ov_qwen2_vl.py", "w").write(r.text)
-
+    
     if not Path("notebook_utils.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py")
         open("notebook_utils.py", "w").write(r.text)
@@ -127,9 +126,9 @@ using widget bellow:
 .. code:: ipython3
 
     from ov_qwen2_vl import model_selector
-
+    
     model_id = model_selector()
-
+    
     model_id
 
 
@@ -140,10 +139,10 @@ using widget bellow:
 
 .. parsed-literal::
 
-    2024-10-08 05:39:51.401499: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-10-08 05:39:51.436807: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-10-23 04:32:38.810057: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-10-23 04:32:38.845114: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-10-08 05:39:52.013737: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-10-23 04:32:39.399370: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 
@@ -287,20 +286,20 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 .. code:: ipython3
 
     from ov_qwen2_vl import convert_qwen2vl_model
-
+    
     # uncomment these lines to see model conversion code
     # convert_qwen2vl_model??
 
 .. code:: ipython3
 
     import nncf
-
+    
     compression_configuration = {
         "mode": nncf.CompressWeightsMode.INT4_ASYM,
         "group_size": 128,
         "ratio": 1.0,
     }
-
+    
     convert_qwen2vl_model(pt_model_id, model_dir, compression_configuration)
 
 
@@ -342,7 +341,7 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4779: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4779: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
       warnings.warn(
 
 
@@ -350,13 +349,13 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 
     ⌛ Weights compression with int4_asym mode started
     INFO:nncf:Statistics of the bitwidth distribution:
-    ┍━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
-    │ Weight compression mode   │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
-    ┝━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
-    │ int8_asym                 │ 1% (1 / 130)                │ 0% (0 / 129)                           │
-    ├───────────────────────────┼─────────────────────────────┼────────────────────────────────────────┤
-    │ int4_asym                 │ 99% (129 / 130)             │ 100% (129 / 129)                       │
-    ┕━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
+    ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
+    │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
+    ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
+    │              8 │ 1% (1 / 130)                │ 0% (0 / 129)                           │
+    ├────────────────┼─────────────────────────────┼────────────────────────────────────────┤
+    │              4 │ 99% (129 / 130)             │ 100% (129 / 129)                       │
+    ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
 
 
 
@@ -381,11 +380,11 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/cache_utils.py:447: TracerWarning: Using len to get tensor shape might cause the trace to be incorrect. Recommended usage would be tensor.shape[0]. Passing a tensor of different shape might lead to errors or silently give incorrect results.
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/cache_utils.py:447: TracerWarning: Using len to get tensor shape might cause the trace to be incorrect. Recommended usage would be tensor.shape[0]. Passing a tensor of different shape might lead to errors or silently give incorrect results.
       or len(self.key_cache[layer_idx]) == 0  # the layer has no cache
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/qwen2_vl/modeling_qwen2_vl.py:476: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/qwen2_vl/modeling_qwen2_vl.py:476: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if sequence_length != 1:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/cache_utils.py:432: TracerWarning: Using len to get tensor shape might cause the trace to be incorrect. Recommended usage would be tensor.shape[0]. Passing a tensor of different shape might lead to errors or silently give incorrect results.
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/cache_utils.py:432: TracerWarning: Using len to get tensor shape might cause the trace to be incorrect. Recommended usage would be tensor.shape[0]. Passing a tensor of different shape might lead to errors or silently give incorrect results.
       elif len(self.key_cache[layer_idx]) == 0:  # fills previously skipped layers; checking for tensor causes errors
 
 
@@ -394,13 +393,13 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
     ✅ Language model successfully converted
     ⌛ Weights compression with int4_asym mode started
     INFO:nncf:Statistics of the bitwidth distribution:
-    ┍━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
-    │ Weight compression mode   │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
-    ┝━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
-    │ int8_asym                 │ 15% (1 / 197)               │ 0% (0 / 196)                           │
-    ├───────────────────────────┼─────────────────────────────┼────────────────────────────────────────┤
-    │ int4_asym                 │ 85% (196 / 197)             │ 100% (196 / 196)                       │
-    ┕━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
+    ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
+    │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
+    ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
+    │              8 │ 15% (1 / 197)               │ 0% (0 / 196)                           │
+    ├────────────────┼─────────────────────────────┼────────────────────────────────────────┤
+    │              4 │ 85% (196 / 197)             │ 100% (196 / 196)                       │
+    ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
 
 
 
@@ -439,7 +438,7 @@ Intel <https://huggingface.co/docs/optimum/intel/index>`__
 .. code:: ipython3
 
     from ov_qwen2_vl import OVQwen2VLModel
-
+    
     # Uncomment below lines to see the model inference class code
     # OVQwen2VLModel??
 
@@ -451,9 +450,9 @@ Select inference device
 .. code:: ipython3
 
     from notebook_utils import device_widget
-
+    
     device = device_widget(default="AUTO", exclude=["NPU"])
-
+    
     device
 
 
@@ -480,25 +479,25 @@ Run model inference
     from transformers import AutoProcessor, AutoTokenizer
     from qwen_vl_utils import process_vision_info
     from transformers import TextStreamer
-
-
+    
+    
     min_pixels = 256 * 28 * 28
     max_pixels = 1280 * 28 * 28
     processor = AutoProcessor.from_pretrained(model_dir, min_pixels=min_pixels, max_pixels=max_pixels)
-
+    
     if processor.chat_template is None:
         tok = AutoTokenizer.from_pretrained(model_dir)
         processor.chat_template = tok.chat_template
-
+    
     example_image_url = "https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen-VL/assets/demo.jpeg"
     example_image_path = Path("demo.jpeg")
-
+    
     if not example_image_path.exists():
         Image.open(requests.get(example_image_url, stream=True).raw).save(example_image_path)
-
+    
     image = Image.open(example_image_path)
     question = "Describe this image."
-
+    
     messages = [
         {
             "role": "user",
@@ -511,7 +510,7 @@ Run model inference
             ],
         }
     ]
-
+    
     # Preparation for inference
     text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
     image_inputs, video_inputs = process_vision_info(messages)
@@ -522,12 +521,12 @@ Run model inference
         padding=True,
         return_tensors="pt",
     )
-
+    
     display(image)
     print("Question:")
     print(question)
     print("Answer:")
-
+    
     generated_ids = model.generate(**inputs, max_new_tokens=100, streamer=TextStreamer(processor.tokenizer, skip_prompt=True, skip_special_tokens=True))
 
 
@@ -566,10 +565,10 @@ click ``Submit`` to start communication.
 .. code:: ipython3
 
     from gradio_helper import make_demo
-
-
+    
+    
     demo = make_demo(model, processor)
-
+    
     try:
         demo.launch(debug=False)
     except Exception:
@@ -582,7 +581,7 @@ click ``Submit`` to start communication.
 .. parsed-literal::
 
     Running on local URL:  http://127.0.0.1:7860
-
+    
     To create a public link, set `share=True` in `launch()`.
 
 
