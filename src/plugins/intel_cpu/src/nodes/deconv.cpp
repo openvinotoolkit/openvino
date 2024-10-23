@@ -426,8 +426,10 @@ std::vector<memory::format_tag> Deconvolution::getAvailableFormatsForDims(const 
     else if (dims.getRank() == 2)
         return {memory::format_tag::nc};
     else if (dims.getRank() == 3)
-        return {memory::format_tag::tnc, memory::format_tag::ntc,
-                memory::format_tag::ncw, memory::format_tag::nCw8c, memory::format_tag::nCw16c };
+        return {memory::format_tag::ncw,
+                memory::format_tag::nCw8c,
+                memory::format_tag::nCw16c,
+                memory::format_tag::nwc};
     else if (dims.getRank() == 4)
         return {memory::format_tag::nchw, memory::format_tag::nChw8c,
                 memory::format_tag::nChw16c, memory::format_tag::nhwc };
@@ -461,18 +463,8 @@ void Deconvolution::getSupportedDescriptors() {
     outputDataType = DnnlExtensionUtils::ElementTypeToDataType(outPrecision);
     if (inputDataType == memory::data_type::bf16 || outputDataType == memory::data_type::bf16)
        inputDataType = outputDataType = memory::data_type::bf16;
-
-    if (inputDataType == memory::data_type::f16 || outputDataType == memory::data_type::f16) {
-        // TODO: remove this limitation after adding support for f16 in oneDNN MFDNN-12580
-        if (std::any_of(deconvAttrs.stride.begin(), deconvAttrs.stride.end(), [](ptrdiff_t stride) {
-                return stride != 1;
-            })) {
-            inputDataType = outputDataType = memory::data_type::f32;
-        } else {
-            inputDataType = outputDataType = memory::data_type::f16;
-        }
-    }
-
+    if (inputDataType == memory::data_type::f16 || outputDataType == memory::data_type::f16)
+       inputDataType = outputDataType = memory::data_type::f16;
     if (!fusedWith.empty()) {
         outputDataType = DnnlExtensionUtils::ElementTypeToDataType(fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0));
     }
