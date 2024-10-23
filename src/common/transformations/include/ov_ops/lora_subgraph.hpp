@@ -24,7 +24,7 @@ namespace internal {
  */
 class TRANSFORMATIONS_API LoraSubgraph : public ov::op::util::SubGraphOp {
 public:
-    OPENVINO_OP("LoraSubgraph", "ie_internal_opset");
+    OPENVINO_OP("LoraSubgraph", "ie_internal_opset", ov::op::util::SubGraphOp);
 
     LoraSubgraph() = default;
     LoraSubgraph(const OutputVector& args, const std::shared_ptr<ov::Model>& body);
