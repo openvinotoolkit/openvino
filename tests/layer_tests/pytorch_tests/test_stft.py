@@ -112,11 +112,13 @@ class TestSTFTAttrs(PytorchLayerTest):
         [16, 4, 14, None, True, "reflect", False, True, False],  # center True
         [16, 4, 14, None, True, "replicate", False, True, False],  # center True
         [16, 4, 14, None, False, "replicate", False, True, False],  # center False
-        # Unsupported cases:
+        [16, None, 16, None, False, "reflect", False, True, False], # hop_length None
+        [16, None, None, None, False, "reflect", False, True, False], # hop_length & win_length None
+        [16, 4, None, None, False, "reflect", False, True, False], # win_length None
+        ## Unsupported cases:
         [16, 4, 16, None, False, "reflect", True, True, False],  # normalized True
         [16, 4, 16, None, False, "reflect", False, False, False],  # onesided False
-        [16, 4, 16, None, False, "reflect", False,
-            True, True],  # reutrn_complex True
+        [16, 4, 16, None, False, "reflect", False, True, True],  # reutrn_complex True
     ])
     def test_stft_not_supported_attrs(self, n_fft, hop_length, win_length, default_window, center, pad_mode, normalized, onesided, return_complex, ie_device, precision, ir_version, trace_model):
         if ie_device == "GPU":
