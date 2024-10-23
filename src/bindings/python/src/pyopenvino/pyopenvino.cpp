@@ -195,7 +195,7 @@ PYBIND11_MODULE(_pyopenvino, m) {
             }
             const auto model = ie_api_model.attr("_Model__model").cast<std::shared_ptr<ov::Model>>();
             if (model == nullptr) {
-                throw py::attribute_error("Invalid openvino.runtime.ie_api.Model instance. "
+                throw py::attribute_error("Invalid openvino.Model instance. "
                                           "Make sure it is not used outside of its context.");
             }
             ov::save_model(model, Common::utils::convert_path_to_string(xml_path), compress_to_fp16);
