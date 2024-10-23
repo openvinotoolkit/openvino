@@ -6,16 +6,72 @@
 
 #include <limits>
 #include <map>
+#include <mutex>
 #include <optional>
 #include <vector>
 
 #include "base_sync_infer_request.hpp"
+#include "openvino/runtime/iplugin.hpp"
+#include "openvino/runtime/iremote_context.hpp"
+#include "openvino/runtime/make_tensor.hpp"
+#include "openvino/runtime/tensor.hpp"
+#include "spatial.hpp"
 
 namespace ov {
 namespace npuw {
 
 class CompiledModel;
 class AsyncInferRequest;
+
+using LinkFrom = std::pair<std::size_t /* Subrequest index */
+                           ,
+                           std::size_t /* Subrequest output index */
+                           >;          // FIXME: This is a third, if not fourth, definitiion of such structure
+
+using TensorPtr = ov::SoPtr<ov::ITensor>;
+
+class MemAccessSim {
+public:
+    explicit MemAccessSim(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model);
+
+    using ReadList = std::list<LinkFrom>;
+    const ReadList& read_list(std::size_t idx) const;
+
+    std::size_t remaining_reads(const LinkFrom& from);
+    void register_read(const LinkFrom& from);
+
+private:
+    std::map<LinkFrom, std::size_t> m_remaining_reads;
+    std::vector<ReadList> m_read_list;
+};
+
+class FuncMemMgr {
+    MemAccessSim m_sim;
+    std::shared_ptr<ov::npuw::CompiledModel> m_model;
+
+    void assign(const LinkFrom& from);
+
+    // Function ID -> Output port number
+    using FO = std::pair<std::size_t, std::size_t>;
+    struct Assignment {
+        TensorPtr ptr;
+        LinkFrom from;
+    };
+    std::map<FO, std::vector<Assignment>> m_memory;  // Dynamic assignment table
+    std::map<LinkFrom, TensorPtr> m_table;           // Static allocation/assignment table
+
+public:
+    explicit FuncMemMgr(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model);
+
+    using AllocFcn = std::function<TensorPtr(const ov::element::Type&, const ov::Shape&, const std::string&)>;
+    void set_alloc(AllocFcn&& fcn);
+    void assign_memory();
+
+    TensorPtr get_tensor(const LinkFrom& from);
+
+private:
+    AllocFcn m_alloc;
+};
 
 class JustInferRequest final : public IBaseInferRequest {
 public:
@@ -52,18 +108,20 @@ private:
     void function_prologue(std::size_t idx);
     void unpack_closure(std::size_t idx, RqPtr request);
 
+    void unsafe_during(std::size_t real_idx, const std::function<void()>& f);
+    void unsafe_infer(std::size_t real_idx);
     void unsafe_run_this_prep_next(std::size_t idx, bool& next_prepared_p);
 
     void connect_subrequests();
     void recreate_subrequests(std::size_t idx);
 
-    using LinkFrom = std::pair<std::size_t /* Subrequest index */
-                               ,
-                               std::size_t /* Subrequest output index */
-                               >;          // FIXME: This is a third, if not fourth, definitiion of such structure
-    using TensorPtr = ov::SoPtr<ov::ITensor>;
-    std::map<LinkFrom, TensorPtr> m_funcall_result;
+    TensorPtr allocMem(const ov::element::Type type, const ov::Shape& shape, const std::string& device);
+    TensorPtr allocOut(const ov::Output<const ov::Node>& node, const std::string& device);
 
+    FuncMemMgr m_func_mem_mgr;                       // Owns memory
+    std::map<LinkFrom, TensorPtr> m_funcall_result;  // Provides a convenient link
+
+    bool is_pipelined(std::size_t idx) const;
     bool m_use_function_pipelining = false;
     struct FuncallPipeline {
         // A "brother" subrequest for a "primary" subrequest. Initialized only
@@ -90,6 +148,11 @@ private:
         map_t global_results;  // result idx -> output idx
     };
     std::vector<GlobalIO> m_subrequests_gio;
+
+    std::unordered_set<void*> m_input_allocated;
+
+    // Represents spatial run-time info
+    runtime::spatial::Selector::Ptr m_spatial_selector;
 };
 
 }  // namespace npuw
