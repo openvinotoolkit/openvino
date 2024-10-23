@@ -508,15 +508,15 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
 #if DECOMPRESSION_SCALE_POST_OP
                     half weight = ((ACCUMULATOR_TYPE*)(&wei))[W_IDX];
                     #if TILE_OFM > 1
-                        ((ACCUMULATOR_TMP_TYPE*)(&acc_tmp[bi]))[fi] += in_val * weight;
+                        ((ACCUMULATOR_TMP_TYPE*)(&acc_tmp[bi]))[fi] += TO_ACCUMULATOR_TMP_TYPE(in_val) * TO_ACCUMULATOR_TMP_TYPE(weight);
                     #else
-                        acc_tmp[bi] += in_val * weight;
+                        acc_tmp[bi] += TO_ACCUMULATOR_TMP_TYPE(in_val) * TO_ACCUMULATOR_TMP_TYPE(weight);
                     #endif
 #else
                     #if TILE_OFM > 1
-                        ((ACCUMULATOR_TMP_TYPE*)(&acc_tmp[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[W_IDX];
+                        ((ACCUMULATOR_TMP_TYPE*)(&acc_tmp[bi]))[fi] += TO_ACCUMULATOR_TMP_TYPE(in_val) * TO_ACCUMULATOR_TMP_TYPE(((ACCUMULATOR_TYPE*)(&wei))[W_IDX]);
                     #else
-                        acc_tmp[bi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[W_IDX];
+                        acc_tmp[bi] += TO_ACCUMULATOR_TMP_TYPE(in_val) * TO_ACCUMULATOR_TMP_TYPE(((ACCUMULATOR_TYPE*)(&wei))[W_IDX]);
                     #endif
 #endif
                     }
@@ -537,10 +537,10 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                         ACCUMULATOR_TYPE ds = d_scales[fi % DECOMPRESSION_SCALE_LENGTH];
                     #endif
                     #if TILE_OFM > 1
-                    ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += TO_ACCUMULATOR_TYPE(((ACCUMULATOR_TMP_TYPE*)(&acc_tmp[bi]))[fi] * ds);
+                    ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += TO_ACCUMULATOR_TYPE(((ACCUMULATOR_TMP_TYPE*)(&acc_tmp[bi]))[fi] * TO_ACCUMULATOR_TMP_TYPE(ds));
                     acc_tmp[bi][fi] = 0;
                     #else
-                    acc[bi] += TO_ACCUMULATOR_TYPE(acc_tmp[bi] * ds);
+                    acc[bi] += TO_ACCUMULATOR_TYPE(acc_tmp[bi] * TO_ACCUMULATOR_TMP_TYPE(ds));
                     acc_tmp[bi] = 0;
                     #endif
                 }
@@ -560,9 +560,9 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                     ACCUMULATOR_TYPE ds = d_scales[fi % DECOMPRESSION_SCALE_LENGTH];
                 #endif
                 #if TILE_OFM > 1
-                ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += TO_ACCUMULATOR_TYPE(((ACCUMULATOR_TMP_TYPE*)(&acc_tmp[bi]))[fi] * ds);
+                ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += TO_ACCUMULATOR_TYPE(((ACCUMULATOR_TMP_TYPE*)(&acc_tmp[bi]))[fi] * TO_ACCUMULATOR_TMP_TYPE(ds));
                 #else
-                acc[bi] += TO_ACCUMULATOR_TYPE(acc_tmp[bi] * ds);
+                acc[bi] += TO_ACCUMULATOR_TYPE(acc_tmp[bi] * TO_ACCUMULATOR_TMP_TYPE(ds));
                 #endif
             }
         }

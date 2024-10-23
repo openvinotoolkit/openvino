@@ -184,7 +184,7 @@ inline void (FUNC_NAME)(
                     INPUT0_TYPE in_val = _sub_group_shuffle(((INPUT0_TYPE*)(&in_0[bi]))[total_k / SIMD], total_k % SIMD);
                     unroll_for (uint fi = 0; fi < TILE_OFM; ++fi) {
 #if DECOMPRESSION_SCALE_POST_OP
-                        ((ACCUMULATOR_TMP_TYPE*)(&acc_tmp[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[W_IDX];
+                        ((ACCUMULATOR_TMP_TYPE*)(&acc_tmp[bi]))[fi] += TO_ACCUMULATOR_TMP_TYPE(in_val) * TO_ACCUMULATOR_TMP_TYPE(((ACCUMULATOR_TYPE*)(&wei))[W_IDX]);
 #else
                         ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[W_IDX];
 #endif
@@ -203,7 +203,7 @@ inline void (FUNC_NAME)(
                     #else
                         ACCUMULATOR_TYPE ds = d_scales[fi % DECOMPRESSION_SCALE_LENGTH];
                     #endif
-                    ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += TO_ACCUMULATOR_TYPE(((ACCUMULATOR_TMP_TYPE*)(&acc_tmp[bi]))[fi] * ds);
+                    ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += TO_ACCUMULATOR_TYPE(((ACCUMULATOR_TMP_TYPE*)(&acc_tmp[bi]))[fi] * TO_ACCUMULATOR_TMP_TYPE(ds));
                     acc_tmp[bi][fi] = 0;
                 }
             }
@@ -221,7 +221,7 @@ inline void (FUNC_NAME)(
                 #else
                     ACCUMULATOR_TYPE ds = d_scales[fi % DECOMPRESSION_SCALE_LENGTH];
                 #endif
-                ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += TO_ACCUMULATOR_TYPE(((ACCUMULATOR_TMP_TYPE*)(&acc_tmp[bi]))[fi] * ds);
+                ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += TO_ACCUMULATOR_TYPE(((ACCUMULATOR_TMP_TYPE*)(&acc_tmp[bi]))[fi] * TO_ACCUMULATOR_TMP_TYPE(ds));
             }
         }
 #endif
