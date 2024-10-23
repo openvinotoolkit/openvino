@@ -7,9 +7,9 @@
 #include <memory>
 
 #include "accuracy/comparator.hpp"
+#include "intel_npu/npu_private_properties.hpp"
 #include "just_sync_infer_request.hpp"
 #include "logging.hpp"
-#include "npu_private_properties.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/constant_folding.hpp"
@@ -23,10 +23,9 @@
 #include "util.hpp"
 
 // required for get_properties_per_device()
-#include <intel_npu/al/config/config.hpp>
-#include <intel_npu/al/config/npuw.hpp>
-#include <npuw_private_properties.hpp>
-
+#include "intel_npu/config/config.hpp"
+#include "intel_npu/config/npuw.hpp"
+#include "intel_npu/npuw_private_properties.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"

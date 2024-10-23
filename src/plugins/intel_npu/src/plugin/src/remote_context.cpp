@@ -4,7 +4,7 @@
 
 #include "remote_context.hpp"
 
-#include "intel_npu/al/config/common.hpp"
+#include "intel_npu/config/common.hpp"
 #include "openvino/runtime/intel_npu/remote_properties.hpp"
 
 using namespace ov::intel_npu;

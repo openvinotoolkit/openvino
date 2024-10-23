@@ -4,11 +4,11 @@
 
 #include "zero_infer_request.hpp"
 
-#include "intel_npu/al/config/common.hpp"
-#include "intel_npu/al/config/compiler.hpp"
-#include "intel_npu/al/config/runtime.hpp"
-#include "intel_npu/al/itt.hpp"
-#include "intel_npu/al/prefix.hpp"
+#include "intel_npu/common/itt.hpp"
+#include "intel_npu/config/common.hpp"
+#include "intel_npu/config/compiler.hpp"
+#include "intel_npu/config/runtime.hpp"
+#include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/runtime/intel_npu/remote_properties.hpp"

@@ -3,19 +3,18 @@
 //
 #pragma once
 
+#include <gtest/gtest.h>
+
 #include <memory>
 #include <random>
 
-#include <gtest/gtest.h>
-
+#include "generators/model_generator.hpp"
+#include "intel_npu/npuw_private_properties.hpp"
+#include "mocks/mock_plugins.hpp"
+#include "mocks/register_in_ov.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/make_tensor.hpp"
-#include "npuw_private_properties.hpp"
-
-#include "mocks/mock_plugins.hpp"
-#include "mocks/register_in_ov.hpp"
-#include "generators/model_generator.hpp"
 
 namespace ov {
 namespace npuw {
@@ -60,8 +59,7 @@ ov::Tensor make_random_tensor(ov::element::Type type,
                               ov::Shape shape,
                               T rand_min = std::numeric_limits<uint8_t>::min(),
                               T rand_max = std::numeric_limits<uint8_t>::max()) {
-    size_t tensor_size =
-        std::accumulate(shape.begin(), shape.end(), std::size_t(1), std::multiplies<size_t>());
+    size_t tensor_size = std::accumulate(shape.begin(), shape.end(), std::size_t(1), std::multiplies<size_t>());
     auto tensor = ov::Tensor(type, shape);
     auto data = tensor.data<T>();
 
@@ -73,7 +71,7 @@ ov::Tensor make_random_tensor(ov::element::Type type,
     return tensor;
 }
 
-template<typename T>
+template <typename T>
 void set_random_inputs(ov::InferRequest infer_request) {
     for (const auto& input : infer_request.get_compiled_model().inputs()) {
         // TODO: Extend template header to two types.

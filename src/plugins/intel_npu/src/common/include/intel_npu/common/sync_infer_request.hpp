@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include "intel_npu/al/icompiled_model.hpp"
-#include "intel_npu/al/icompiler.hpp"
+#include "intel_npu/common/icompiled_model.hpp"
+#include "intel_npu/common/variable_state.hpp"
+#include "intel_npu/icompiler.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/iplugin.hpp"
-#include "variable_state.hpp"
 
 namespace intel_npu {
 

@@ -8,7 +8,7 @@
 #include <type_traits>
 #include <utility>
 
-#include "intel_npu/al/icompiler.hpp"
+#include "intel_npu/icompiler.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "zero_executor.hpp"

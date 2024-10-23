@@ -8,8 +8,8 @@
 #include <memory>
 #include <string>
 
+#include "intel_npu/common/remote_tensor.hpp"
 #include "openvino/runtime/intel_npu/remote_properties.hpp"
-#include "remote_tensor.hpp"
 #include "zero_init.hpp"
 
 namespace intel_npu {

@@ -11,7 +11,7 @@
 
 #include "../lazy_tensor.hpp"
 #include "../spatial.hpp"
-#include "intel_npu/al/config/config.hpp"
+#include "intel_npu/config/config.hpp"
 #include "openvino/openvino.hpp"
 
 namespace ov {

@@ -20,7 +20,6 @@ target_include_directories(
 
 target_link_libraries(
   ${TARGET_NAME}
-  PUBLIC openvino::npu_al
   PRIVATE openvino::runtime openvino::runtime::dev)
 #
 # targets install

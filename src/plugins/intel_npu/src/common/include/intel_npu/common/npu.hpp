@@ -6,13 +6,13 @@
 
 #include <cstdint>
 
-#include "intel_npu/al/config/config.hpp"
-#include "intel_npu/al/icompiled_model.hpp"
-#include "intel_npu/al/icompiler.hpp"
+#include "intel_npu/common/icompiled_model.hpp"
+#include "intel_npu/common/sync_infer_request.hpp"
+#include "intel_npu/config/config.hpp"
+#include "intel_npu/icompiler.hpp"
 #include "openvino/runtime/intel_npu/remote_properties.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "sync_infer_request.hpp"
 
 namespace intel_npu {
 

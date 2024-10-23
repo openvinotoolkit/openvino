@@ -9,8 +9,8 @@
 
 #include <mutex>
 
+#include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
-#include "npu.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "zero_init.hpp"
 #include "zero_wrappers.hpp"

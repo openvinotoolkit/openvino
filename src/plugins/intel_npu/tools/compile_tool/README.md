@@ -95,7 +95,7 @@ For example, to compile a blob for inference on Intel® Core™ Ultra NPU, run t
 ./compile_tool -m <path_to_model>/model_name.xml -d NPU.3720
 ```
 
-You can pass a config file via `-c` option which allow you to specify some public or private properties. More details in [Supported Properties](https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/intel_npu#supported-properties) and in [configs](https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/intel_npu/src/al/include/intel_npu/al/config). For example, to use a custom build of NPU Compiler instaed of the release Compiler distributed within NPU driver, create a config file with the following content:
+You can pass a config file via `-c` option which allow you to specify some public or private properties. More details in [Supported Properties](https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/intel_npu#supported-properties) and in [configs](https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/intel_npu/src/al/include/intel_npu/config). For example, to use a custom build of NPU Compiler instaed of the release Compiler distributed within NPU driver, create a config file with the following content:
 ```
 NPU_COMPILER_TYPE MLIR
 ```
