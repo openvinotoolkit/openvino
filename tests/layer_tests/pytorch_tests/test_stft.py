@@ -7,13 +7,22 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 
 class TestSTFT(PytorchLayerTest):
-    def _prepare_input(self, win_length, signal_shape, out=False, out_dtype="float32"):
+    def _prepare_input(self, win_length, signal_shape, rand_data=False, out=False, out_dtype="float32"):
         import numpy as np
 
-        signal = np.random.randn(*signal_shape).astype(out_dtype)
+        if rand_data:
+            signal = np.random.randn(*signal_shape).astype(out_dtype)
+        else:
+            num_samples = signal_shape[-1]
+            half_idx = num_samples // 2
+            t = np.linspace(0, 1, num_samples)
+            signal = np.sin(2 * np.pi * 5 * t)
+            signal[half_idx:] += np.sin(2 * np.pi * 10 * t[half_idx:])
+            signal = np.broadcast_to(signal, signal_shape).astype(out_dtype)
+
         window = np.hanning(win_length).reshape([win_length])
 
-        return (np.array(signal, dtype=out_dtype), window.astype(out_dtype))
+        return (signal, window.astype(out_dtype))
 
     def create_model(self, n_fft, hop_length, win_length):
         import torch
@@ -69,7 +78,7 @@ class TestSTFTAttrs(PytorchLayerTest):
         import numpy as np
 
         signal = np.random.randn(2, 512).astype(out_dtype)
-        return [np.array(signal, dtype=out_dtype), ]
+        return (signal,)
 
     def create_model_with_attrs(self, n_fft, hop_length, win_length, center, pad_mode, normalized, onesided, return_complex):
         import torch
