@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "device_helpers.hpp"
+#include "intel_npu/common/device_helpers.hpp"
 
 #include "openvino/core/except.hpp"
 

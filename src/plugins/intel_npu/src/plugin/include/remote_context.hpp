@@ -9,7 +9,7 @@
 #include <string>
 
 #include "backends.hpp"
-#include "intel_npu/al/config/config.hpp"
+#include "intel_npu/config/config.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 
 namespace intel_npu {
