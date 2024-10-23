@@ -47,6 +47,16 @@ static constexpr ov::Property<uint64_t, ov::PropertyMutability::RO> device_total
 
 /**
  * @brief [Only for NPU plugin]
+ * Type: uint64_t
+ * Read-only property to get maximum size the device can allocate for a model
+ *
+ * Note: Queries driver both for discrete/integrated NPU devices
+ * @ingroup ov_runtime_npu_prop_cpp_api
+ */
+static constexpr ov::Property<uint64_t, ov::PropertyMutability::RO> device_max_mem_alloc_size{"NPU_MAX_MEM_ALLOC_SIZE"};
+
+/**
+ * @brief [Only for NPU plugin]
  * Type: uint32_t
  * Read-only property to get NPU driver version (for both discrete/integrated NPU devices)
  * @ingroup ov_runtime_npu_prop_cpp_api

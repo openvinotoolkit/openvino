@@ -152,6 +152,10 @@ uint64_t ZeroDevice::getTotalMemSize() const {
     return query.total;
 }
 
+uint64_t ZeroDevice::getMaxMemAllocSize() const {
+    return device_properties.maxMemAllocSize;
+}
+
 ov::device::PCIInfo ZeroDevice::getPciInfo() const {
     return ov::device::PCIInfo{pci_properties.address.domain,
                                pci_properties.address.bus,
