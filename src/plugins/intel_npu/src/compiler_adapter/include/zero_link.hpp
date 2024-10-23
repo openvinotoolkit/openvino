@@ -146,24 +146,16 @@ private:
     std::unordered_set<std::string> queryImpl(SerializedIR serializedIR, const std::string& buildFlags) const;
 
     template <ze_graph_ext_version_t T = TableExtension, typename std::enable_if_t<NotSupportGraph2(T), bool> = true>
-    ze_result_t createGraph(SerializedIR serializedIR,
-                            const std::string& buildFlags,
-                            const uint32_t& flags,
-                            ze_graph_handle_t* graph) const;
+    void createGraph(SerializedIR serializedIR,
+                     const std::string& buildFlags,
+                     const uint32_t& flags,
+                     ze_graph_handle_t* graph) const;
 
     template <ze_graph_ext_version_t T = TableExtension, typename std::enable_if_t<!NotSupportGraph2(T), bool> = true>
-    ze_result_t createGraph(SerializedIR serializedIR,
-                            const std::string& buildFlags,
-                            const uint32_t& flags,
-                            ze_graph_handle_t* graph) const;
-
-    template <typename T = TableExtension, typename std::enable_if_t<!NotSupportLogHandle(T), bool> = true>
-    std::string getLatestBuildError() const;
-
-    template <typename T = TableExtension, typename std::enable_if_t<NotSupportLogHandle(T), bool> = true>
-    std::string getLatestBuildError() const {
-        return "";
-    }
+    void createGraph(SerializedIR serializedIR,
+                     const std::string& buildFlags,
+                     const uint32_t& flags,
+                     ze_graph_handle_t* graph) const;
 
     void initialize_graph_through_command_list(ze_graph_handle_t graphHandle, const Config& config) const;
 

@@ -105,29 +105,15 @@ void ZeroLink<TableExtension>::getNativeBinary(ze_graph_dditable_ext_curr_t& gra
     // Get blob size first
     auto result = _graphDdiTableExt.pfnGetNativeBinary(graphHandle, &blobSize, nullptr);
     blob.resize(blobSize);
-
-    OPENVINO_ASSERT(result == ZE_RESULT_SUCCESS,
-                    "Failed to compile network. L0 pfnGetNativeBinary get blob size",
-                    " result: ",
-                    ze_result_to_string(result),
-                    ", code 0x",
-                    std::hex,
-                    uint64_t(result),
-                    ". ",
-                    getLatestBuildError());
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetNativeBinary get blob size, Failed to compile network.",
+                                    result,
+                                    _graphDdiTableExt);
 
     // Get blob data
     result = _graphDdiTableExt.pfnGetNativeBinary(graphHandle, &blobSize, blob.data());
-
-    OPENVINO_ASSERT(result == ZE_RESULT_SUCCESS,
-                    "Failed to compile network. L0 pfnGetNativeBinary get blob data",
-                    " result: ",
-                    ze_result_to_string(result),
-                    ", code 0x",
-                    std::hex,
-                    uint64_t(result),
-                    ". ",
-                    getLatestBuildError());
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetNativeBinary get blob data, Failed to compile network.",
+                                    result,
+                                    _graphDdiTableExt);
 
     blobPtr = blob.data();
 }
@@ -141,16 +127,9 @@ void ZeroLink<TableExtension>::getNativeBinary(ze_graph_dditable_ext_curr_t& gra
                                                size_t& blobSize) const {
     // Get blob ptr and size
     auto result = _graphDdiTableExt.pfnGetNativeBinary2(graphHandle, &blobSize, &blobPtr);
-
-    OPENVINO_ASSERT(result == ZE_RESULT_SUCCESS,
-                    "Failed to compile network. L0 pfnGetNativeBinary get blob size",
-                    " result: ",
-                    ze_result_to_string(result),
-                    ", code 0x",
-                    std::hex,
-                    uint64_t(result),
-                    ". ",
-                    getLatestBuildError());
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetNativeBinary get blob size, Failed to compile network.",
+                                    result,
+                                    _graphDdiTableExt);
 }
 
 template <typename TableExtension>
@@ -174,16 +153,7 @@ CompiledNetwork ZeroLink<TableExtension>::getCompiledNetwork(ze_graph_handle_t g
 template <typename TableExtension>
 void ZeroLink<TableExtension>::setArgumentValue(ze_graph_handle_t graphHandle, uint32_t argi, const void* argv) const {
     auto result = _graphDdiTableExt.pfnSetArgumentValue(graphHandle, argi, argv);
-
-    OPENVINO_ASSERT(result == ZE_RESULT_SUCCESS,
-                    "Failed to set argument value",
-                    " result: ",
-                    ze_result_to_string(result),
-                    ", code 0x",
-                    std::hex,
-                    uint64_t(result),
-                    ". ",
-                    getLatestBuildError());
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("zeGraphSetArgumentValue", result, _graphDdiTableExt);
 }
 
 template <typename TableExtension>
@@ -275,6 +245,7 @@ ze_result_t ZeroLink<TableExtension>::seriazlideIRModelAndQueryNetworkCreateV1(
 
     // Create querynetwork handle
     ze_result_t result = _graphDdiTableExt.pfnQueryNetworkCreate(_context, _deviceHandle, &desc, &hGraphQueryNetwork);
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("seriazlideIRModelAndQueryNetworkCreateV1", result, _graphDdiTableExt);
 
     return result;
 }
@@ -315,15 +286,7 @@ ze_result_t ZeroLink<TableExtension>::seriazlideIRModelAndQueryNetworkCreateV2(
     // Create querynetwork handle
     _logger.debug("seriazlideIRModelAndQueryNetworkCreateV2 - performing pfnQueryNetworkCreate2");
     ze_result_t result = _graphDdiTableExt.pfnQueryNetworkCreate2(_context, _deviceHandle, &desc, &hGraphQueryNetwork);
-
-    if (ZE_RESULT_SUCCESS != result) {
-        OPENVINO_THROW("L0 seriazlideIRModelAndQueryNetworkCreateV2",
-                       " result: ",
-                       ze_result_to_string(result),
-                       ", code 0x",
-                       std::hex,
-                       uint64_t(result));
-    }
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("seriazlideIRModelAndQueryNetworkCreateV2", result, _graphDdiTableExt);
 
     return result;
 }
@@ -350,50 +313,22 @@ template <typename T, std::enable_if_t<!NotSupportQuery(T), bool>>
 std::unordered_set<std::string> ZeroLink<TableExtension>::getQueryResultFromSupportedLayers(
     ze_result_t result,
     ze_graph_query_network_handle_t& hGraphQueryNetwork) const {
-    if (ZE_RESULT_SUCCESS != result) {
-        OPENVINO_THROW("L0 getQueryResultFromSupportedLayers",
-                       " result: ",
-                       ze_result_to_string(result),
-                       ", code 0x",
-                       std::hex,
-                       uint64_t(result));
-    }
-
     // Get the size of query result
     size_t size = 0;
     result = _graphDdiTableExt.pfnQueryNetworkGetSupportedLayers(hGraphQueryNetwork, &size, nullptr);
-    if (ZE_RESULT_SUCCESS != result) {
-        _graphDdiTableExt.pfnQueryNetworkDestroy(hGraphQueryNetwork);
-        OPENVINO_THROW("L0 pfnQueryNetworkGetSupportedLayers get size of query result",
-                       " result: ",
-                       ze_result_to_string(result),
-                       ", code 0x",
-                       std::hex,
-                       uint64_t(result));
-    }
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnQueryNetworkGetSupportedLayers get size of query result",
+                                    result,
+                                    _graphDdiTableExt);
 
     // Get the result data of query
     std::vector<char> supportedLayers(size);
     result = _graphDdiTableExt.pfnQueryNetworkGetSupportedLayers(hGraphQueryNetwork, &size, supportedLayers.data());
-    if (ZE_RESULT_SUCCESS != result) {
-        _graphDdiTableExt.pfnQueryNetworkDestroy(hGraphQueryNetwork);
-        OPENVINO_THROW("L0 pfnQueryNetworkGetSupportedLayers get result data of query",
-                       " result: ",
-                       ze_result_to_string(result),
-                       ", code 0x",
-                       std::hex,
-                       uint64_t(result));
-    }
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnQueryNetworkGetSupportedLayers get result data of query",
+                                    result,
+                                    _graphDdiTableExt);
 
     result = _graphDdiTableExt.pfnQueryNetworkDestroy(hGraphQueryNetwork);
-    if (ZE_RESULT_SUCCESS != result) {
-        OPENVINO_THROW("L0 pfnQueryNetworkDestroy",
-                       " result: ",
-                       ze_result_to_string(result),
-                       ", code 0x",
-                       std::hex,
-                       uint64_t(result));
-    }
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnQueryNetworkDestroy", result, _graphDdiTableExt);
 
     return parseQueryResult(supportedLayers);
 }
@@ -408,10 +343,10 @@ std::unordered_set<std::string> ZeroLink<TableExtension>::queryResultFromSupport
 // For ext version <1.5, calling pfnCreate api in _graphDdiTableExt
 template <typename TableExtension>
 template <typename T, std::enable_if_t<NotSupportGraph2(T), bool>>
-ze_result_t ZeroLink<TableExtension>::createGraph(SerializedIR serializedIR,
-                                                  const std::string& buildFlags,
-                                                  const uint32_t& /*flags*/,
-                                                  ze_graph_handle_t* graph) const {
+void ZeroLink<TableExtension>::createGraph(SerializedIR serializedIR,
+                                           const std::string& buildFlags,
+                                           const uint32_t& /*flags*/,
+                                           ze_graph_handle_t* graph) const {
     ze_graph_desc_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
                             nullptr,
                             ZE_GRAPH_FORMAT_NGRAPH_LITE,
@@ -419,17 +354,19 @@ ze_result_t ZeroLink<TableExtension>::createGraph(SerializedIR serializedIR,
                             serializedIR.second.get(),
                             buildFlags.c_str()};
 
+    _logger.debug("createGraph - performing pfnCreate");
     // Create querynetwork handle
-    return _graphDdiTableExt.pfnCreate(_context, _deviceHandle, &desc, graph);
+    auto result = _graphDdiTableExt.pfnCreate(_context, _deviceHandle, &desc, graph);
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCreate", result, _graphDdiTableExt);
 }
 
 // For ext version >= 1.5, calling pfnCreate2 api in _graphDdiTableExt
 template <typename TableExtension>
 template <typename T, std::enable_if_t<!NotSupportGraph2(T), bool>>
-ze_result_t ZeroLink<TableExtension>::createGraph(SerializedIR serializedIR,
-                                                  const std::string& buildFlags,
-                                                  const uint32_t& flags,
-                                                  ze_graph_handle_t* graph) const {
+void ZeroLink<TableExtension>::createGraph(SerializedIR serializedIR,
+                                           const std::string& buildFlags,
+                                           const uint32_t& flags,
+                                           ze_graph_handle_t* graph) const {
     ze_graph_desc_2_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
                               nullptr,
                               ZE_GRAPH_FORMAT_NGRAPH_LITE,
@@ -441,16 +378,7 @@ ze_result_t ZeroLink<TableExtension>::createGraph(SerializedIR serializedIR,
     _logger.debug("createGraph - performing pfnCreate2");
     // Create querynetwork handle
     auto result = _graphDdiTableExt.pfnCreate2(_context, _deviceHandle, &desc, graph);
-    if (ZE_RESULT_SUCCESS != result) {
-        OPENVINO_THROW("L0 pfnCreate2",
-                       " result: ",
-                       ze_result_to_string(result),
-                       ", code 0x",
-                       std::hex,
-                       uint64_t(result));
-    }
-
-    return result;
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCreate2", result, _graphDdiTableExt);
 }
 
 template <typename TableExtension>
@@ -460,17 +388,7 @@ ze_graph_handle_t ZeroLink<TableExtension>::getGraphHandle(SerializedIR serializ
     ze_graph_handle_t graphHandle;
 
     _logger.info("compileIR Using extension version: %s", typeid(TableExtension).name());
-    auto result = createGraph(std::move(serializedIR), buildFlags, flags, &graphHandle);
-
-    OPENVINO_ASSERT(result == ZE_RESULT_SUCCESS,
-                    "Failed to compile network. L0 createGraph",
-                    " result: ",
-                    ze_result_to_string(result),
-                    ", code 0x",
-                    std::hex,
-                    uint64_t(result),
-                    ". ",
-                    getLatestBuildError());
+    createGraph(std::move(serializedIR), buildFlags, flags, &graphHandle);
 
     return graphHandle;
 }
@@ -487,16 +405,7 @@ ze_graph_handle_t ZeroLink<TableExtension>::getGraphHandle(const std::vector<uin
                             nullptr};
 
     auto result = _graphDdiTableExt.pfnCreate(_context, _deviceHandle, &desc, &graphHandle);
-
-    OPENVINO_ASSERT(result == ZE_RESULT_SUCCESS,
-                    "Failed to compile network. L0 createGraph",
-                    " result: ",
-                    ze_result_to_string(result),
-                    ", code 0x",
-                    std::hex,
-                    uint64_t(result),
-                    ". ",
-                    getLatestBuildError());
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCreate", result, _graphDdiTableExt);
 
     return graphHandle;
 }
@@ -565,14 +474,7 @@ void ZeroLink<TableExtension>::getMetadata(ze_graph_dditable_ext_curr_t& graphDd
                                            std::vector<IODescriptor>& outputs) const {
     ze_graph_argument_properties_3_t arg;
     auto result = graphDdiTableExt.pfnGetArgumentProperties3(graphHandle, index, &arg);
-    if (ZE_RESULT_SUCCESS != result) {
-        OPENVINO_THROW("L0 pfnGetArgumentProperties3",
-                       " result: ",
-                       ze_result_to_string(result),
-                       ", code 0x",
-                       std::hex,
-                       uint64_t(result));
-    }
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties3", result, _graphDdiTableExt);
 
     switch (arg.type) {
     case ZE_GRAPH_ARGUMENT_TYPE_INPUT: {
@@ -596,28 +498,14 @@ void ZeroLink<TableExtension>::getMetadata(ze_graph_dditable_ext_curr_t& graphDd
                                            std::vector<IODescriptor>& outputs) const {
     ze_graph_argument_properties_3_t arg;
     auto result = graphDdiTableExt.pfnGetArgumentProperties3(graphHandle, index, &arg);
-    if (ZE_RESULT_SUCCESS != result) {
-        OPENVINO_THROW("L0 pfnGetArgumentProperties3",
-                       " result: ",
-                       ze_result_to_string(result),
-                       ", code 0x",
-                       std::hex,
-                       uint64_t(result));
-    }
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties3", result, _graphDdiTableExt);
 
     std::optional<ze_graph_argument_metadata_t> optionalMetadata = std::nullopt;
 
     if (!isStateInputName(arg.name) && !isStateOutputName(arg.name) && !isShapeTensorName(arg.name)) {
         ze_graph_argument_metadata_t metadata;
         result = graphDdiTableExt.pfnGraphGetArgumentMetadata(graphHandle, index, &metadata);
-        if (ZE_RESULT_SUCCESS != result) {
-            OPENVINO_THROW("L0 pfnGraphGetArgumentMetadata",
-                           " result: ",
-                           ze_result_to_string(result),
-                           ", code 0x",
-                           std::hex,
-                           uint64_t(result));
-        }
+        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGraphGetArgumentMetadata", result, _graphDdiTableExt);
 
         optionalMetadata = std::optional(metadata);
     }
@@ -640,15 +528,7 @@ NetworkMetadata ZeroLink<TableExtension>::getNetworkMeta(ze_graph_handle_t graph
     ze_graph_properties_t graphProperties{};
 
     auto result = _graphDdiTableExt.pfnGetProperties(graphHandle, &graphProperties);
-
-    if (ZE_RESULT_SUCCESS != result) {
-        OPENVINO_THROW("L0 pfnGetProperties",
-                       " result: ",
-                       ze_result_to_string(result),
-                       ", code 0x",
-                       std::hex,
-                       uint64_t(result));
-    }
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetProperties", result, _graphDdiTableExt);
 
     NetworkMetadata meta;
 
@@ -663,48 +543,13 @@ NetworkMetadata ZeroLink<TableExtension>::getNetworkMeta(ze_graph_handle_t graph
 }
 
 template <typename TableExtension>
-template <typename T, typename std::enable_if_t<!NotSupportLogHandle(T), bool>>
-std::string ZeroLink<TableExtension>::getLatestBuildError() const {
-    _logger.debug("getLatestBuildError start");
-
-    // Get log size
-    uint32_t size = 0;
-    // Null graph handle to get erro log
-    auto result = _graphDdiTableExt.pfnBuildLogGetString(nullptr, &size, nullptr);
-    if (ZE_RESULT_SUCCESS != result) {
-        // The failure will not break normal execution, only warning here
-        _logger.warning("getLatestBuildError Failed to get size of latest error log!");
-        return "";
-    }
-
-    if (size <= 0) {
-        // The failure will not break normal execution, only warning here
-        _logger.warning("getLatestBuildError No error log stored in driver when error "
-                        "detected, may not be compiler issue!");
-        return "";
-    }
-
-    // Get log content
-    std::string logContent{};
-    logContent.resize(size);
-    result = _graphDdiTableExt.pfnBuildLogGetString(nullptr, &size, const_cast<char*>(logContent.data()));
-    if (ZE_RESULT_SUCCESS != result) {
-        // The failure will not break normal execution, only warning here
-        _logger.warning("getLatestBuildError size of latest error log > 0, failed to get "
-                        "content of latest error log!");
-        return "";
-    }
-    _logger.debug("getLatestBuildError end");
-    return logContent;
-}
-
-template <typename TableExtension>
 std::tuple<std::vector<ArgumentDescriptor>, std::vector<ArgumentDescriptor>> ZeroLink<TableExtension>::getIODesc(
     ze_graph_handle_t graphHandle) const {
     _logger.debug("performing pfnGetProperties");
     ze_graph_properties_t props{};
     props.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES;
-    zeroUtils::throwOnFail("pfnGetProperties", _graphDdiTableExt.pfnGetProperties(graphHandle, &props));
+    auto result = _graphDdiTableExt.pfnGetProperties(graphHandle, &props);
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetProperties", result, _graphDdiTableExt);
 
     std::vector<ArgumentDescriptor> input_descriptors;
     std::vector<ArgumentDescriptor> output_descriptors;
@@ -713,8 +558,8 @@ std::tuple<std::vector<ArgumentDescriptor>, std::vector<ArgumentDescriptor>> Zer
     for (uint32_t index = 0; index < props.numGraphArgs; ++index) {
         ze_graph_argument_properties_3_t arg3{};
         arg3.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_PROPERTIES;
-        zeroUtils::throwOnFail("pfnGetArgumentProperties3",
-                               _graphDdiTableExt.pfnGetArgumentProperties3(graphHandle, index, &arg3));
+        auto result = _graphDdiTableExt.pfnGetArgumentProperties3(graphHandle, index, &arg3);
+        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties3", result, _graphDdiTableExt);
 
         if (arg3.type == ZE_GRAPH_ARGUMENT_TYPE_INPUT) {
             input_descriptors.push_back(ArgumentDescriptor{arg3, index});

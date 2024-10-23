@@ -11,9 +11,9 @@
 #include "intel_npu/config/runtime.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
+#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "ze_intel_npu_uuid.h"
 #include "zero_device.hpp"
-#include "zero_init.hpp"
 #include "zero_link.hpp"
 
 namespace intel_npu {
@@ -37,14 +37,7 @@ DriverCompilerAdapter::DriverCompilerAdapter(const std::shared_ptr<IEngineBacken
 
     _deviceGraphProperties.stype = ZE_STRUCTURE_TYPE_DEVICE_GRAPH_PROPERTIES;
     auto result = graphDdiTableExt.pfnDeviceGetGraphProperties(deviceHandle, &_deviceGraphProperties);
-    if (ZE_RESULT_SUCCESS != result) {
-        OPENVINO_THROW("Failed to compile network. L0 pfnDeviceGetGraphProperties",
-                       " result: ",
-                       ze_result_to_string(result),
-                       ", code 0x",
-                       std::hex,
-                       uint64_t(result));
-    }
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnDeviceGetGraphProperties", result, graphDdiTableExt);
 
     std::shared_ptr<ZeroDevice> zeroDevice = nullptr;
     zeroDevice = std::dynamic_pointer_cast<ZeroDevice>(_zeroBackend->getDevice());

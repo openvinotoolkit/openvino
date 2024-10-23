@@ -5,6 +5,7 @@
 #include "plugin_compiler_adapter.hpp"
 
 #include <ze_graph_ext.h>
+#include <ze_intel_npu_uuid.h>
 
 #include <memory>
 #include <string>
@@ -19,10 +20,8 @@
 #include "intel_npu/utils/zero/zero_result.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
-#include "ze_intel_npu_uuid.h"
 #include "zero_backend.hpp"
 #include "zero_device.hpp"
-#include "zero_init.hpp"
 #include "zero_link.hpp"
 
 namespace {
