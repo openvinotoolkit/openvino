@@ -109,7 +109,7 @@ static std::string (*NULL_getTestCaseName)(const testing::TestParamInfo<std::str
 INSTANTIATE_TEST_SUITE_P(ov_plugin,
                          OVGetMetricPropsTest,
                          ::testing::Values(ov::test::utils::target_device),
-                         MARK_MANDATORY_API_FOR_HW_DEVICE(NULL_getTestCaseName));
+                         MARK_MANDATORY_API_FOR_HW_DEVICE_WITHOUT_PARAM());
 
 INSTANTIATE_TEST_SUITE_P(
         ov_plugin, OVGetMetricPropsOptionalTest,
@@ -118,7 +118,7 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(ov_plugin,
                          OVGetAvailableDevicesPropsTest,
                          ::testing::Values(ov::test::utils::target_device),
-                         MARK_MANDATORY_API_FOR_HW_DEVICE(NULL_getTestCaseName));
+                         MARK_MANDATORY_API_FOR_HW_DEVICE_WITHOUT_PARAM());
 
 //
 // OV Class GetConfig

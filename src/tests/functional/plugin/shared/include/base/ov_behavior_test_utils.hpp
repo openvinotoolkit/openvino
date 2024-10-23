@@ -36,12 +36,15 @@
         return (sw_plugin_in_target_device(ov::test::utils::target_device) ? "" : "mandatory_") + name; \
     }
 
-#define MARK_MANDATORY_API_FOR_HW_DEVICE(GET_TEST_NAME)                                                 \
+#define MARK_MANDATORY_API_FOR_HW_DEVICE_WITH_PARAM(GET_TEST_NAME)                                      \
     [](const testing::TestParamInfo<std::string>& info) {                                               \
-        std::string name = "";                                                                          \
-        if (NULL != GET_TEST_NAME)                                                                      \
-            name += GET_TEST_NAME(info);                                                                \
+        std::string name = GET_TEST_NAME(info);                                                         \
         return (sw_plugin_in_target_device(ov::test::utils::target_device) ? "" : "mandatory_") + name; \
+    }
+
+#define MARK_MANDATORY_API_FOR_HW_DEVICE_WITHOUT_PARAM()                                                \
+    [](const testing::TestParamInfo<std::string>& info) {                                               \
+        return sw_plugin_in_target_device(ov::test::utils::target_device) ? "" : "mandatory_";          \
     }
 
 namespace ov {
