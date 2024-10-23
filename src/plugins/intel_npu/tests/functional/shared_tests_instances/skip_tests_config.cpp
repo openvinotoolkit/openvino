@@ -267,6 +267,7 @@ std::vector<std::string> disabledTestPatterns() {
                 "Tests with unsupported precision", {
                 ".*InferRequestCheckTensorPrecision.*type=boolean.*",
                 ".*InferRequestCheckTensorPrecision.*type=f64.*",
+                ".*InferRequestCheckTensorPrecision.*type=bf16.*",
                 ".*InferRequestCheckTensorPrecision.*type=u1\\D.*",
                 // [Track number: E#97469]
                 ".*InferRequestCheckTensorPrecision.*type=i64.*",
