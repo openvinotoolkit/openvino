@@ -131,7 +131,8 @@ enum class Type {
     CausalMaskPreprocess,
     LLMMLP,
     QKVProjection,
-    RMS
+    RMS,
+    SearchSorted,
 };
 
 enum class Algorithm {
