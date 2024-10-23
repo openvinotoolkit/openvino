@@ -85,9 +85,9 @@ Prerequisites
 
 .. code:: ipython3
 
-    %pip install -q "transformers>=4.35" "torch>=2.1,<2.4.0" "torchvision<0.19.0" "onnx<1.16.2" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "transformers>=4.35" "torch>=2.4.1" "onnx!=1.16.2" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "git+https://github.com/huggingface/optimum-intel.git"
-    %pip install -q "openvino>=2023.2.0" datasets  "gradio>=4.0" "librosa" "soundfile"
+    %pip install -q "openvino>=2023.2.0" datasets  "gradio>=4.19" "librosa" "soundfile"
     %pip install -q "nncf>=2.6.0" "jiwer"
     
     import requests
