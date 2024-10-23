@@ -11,7 +11,8 @@
 
 #include <string_view>
 
-#include "intel_npu/al/config/runtime.hpp"
+#include "intel_npu/al/config/options.hpp"
+#include "ze_command_queue_npu_ext.h"
 
 /**
  * @brief Last version of Table of Graph Extension functions used within plugin
