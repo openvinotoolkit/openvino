@@ -952,6 +952,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
 
             // Calculate zero-point and scale only for DECOMPRESSION_SCALE_POST_OP enabled
             // Calculate weight : w = (w - dzp) * ds
+            // if DECOMPRESSION_ZP_TERM is not enabled, then dzp is ACCUMULATOR_VAL_ZERO.
             #if DECOMPRESSION_ZP_TERM
                 #if DECOMPRESSION_ZP_SCALAR
                     DQ_SLM_FILTER_UNPACKED_VEC dzp = (DQ_SLM_FILTER_UNPACKED_VEC)(DECOMPRESSION_ZP_VALUE);
@@ -976,8 +977,6 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                         }
                     }
                 #endif
-            #else
-                DQ_SLM_FILTER_UNPACKED_VEC dzp = (DQ_SLM_FILTER_UNPACKED_VEC)(ACCUMULATOR_VAL_ZERO);
             #endif
 
             #if FILTER_LOAD_BLOCK_SIZE == 2
@@ -1026,7 +1025,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
 
             weights_offset += TILE_K_OFM_PACKED * TILE_OFM_PER_OSV_SIZE * SIMD;
 
-            #if DECOMPRESSION_SCALE_POST_OP && (TILE_IFM_ELEMENTS_SIZE > DECOMPRESSION_SCALE_GROUP_SIZE)
+            #if DQ_DECOMPRESSION_SCALE_POST_OP && (TILE_IFM_ELEMENTS_SIZE > DECOMPRESSION_SCALE_GROUP_SIZE)
                 unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
                     unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
                         const uint offset_ofm = out_f + fi*SIMD + sglid;
@@ -1046,7 +1045,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
             #endif
         }  // Whole tile_k elements of each iteration : ki
 
-        #if DECOMPRESSION_SCALE_POST_OP && (TILE_IFM_ELEMENTS_SIZE <= DECOMPRESSION_SCALE_GROUP_SIZE)
+        #if DQ_DECOMPRESSION_SCALE_POST_OP && (TILE_IFM_ELEMENTS_SIZE <= DECOMPRESSION_SCALE_GROUP_SIZE)
             // Dynamic-quantizing group size set to same or smaller than scale group size
             if ((ni % NUM_LOOP_IN_DYN_QUAN_GROUP) == (NUM_LOOP_IN_DYN_QUAN_GROUP - 1)) {
                 const uint ni_offset = ((ni*TILE_IFM*SIMD) / DECOMPRESSION_SCALE_GROUP_SIZE)*DECOMPRESSION_SCALE_FEATURE_PITCH;
@@ -1175,7 +1174,7 @@ KERNEL(fc)(
 #endif
 ) {
 #if USE_SLM
-    #if DYNAMIC_QUANTIZE && (TILE_OFM == 2)
+    #if DYNAMIC_QUANTIZE
         __local int dq_wei_local_mem[SIMD * TILE_OFM * SIMD];
     #else
         __local ACCUMULATOR_TYPE wei_local_mem[TILE_IFM * SIMD * TILE_OFM * SIMD];
@@ -1317,7 +1316,7 @@ KERNEL(fc)(
         #endif
         );
     } else {
-        #if USE_SLM && DYNAMIC_QUANTIZE && (TILE_OFM == 2)
+        #if USE_SLM && DYNAMIC_QUANTIZE
             FUNC_CALL(fc_bf_tiled_kernel_dyn_quan)(
                 OPTIONAL_SHAPE_INFO_TENSOR
                 input,
@@ -1364,7 +1363,7 @@ KERNEL(fc)(
         #endif
     }
 #else
-    #if USE_SLM && DYNAMIC_QUANTIZE && (TILE_OFM == 2)
+    #if USE_SLM && DYNAMIC_QUANTIZE
         FUNC_CALL(fc_bf_tiled_kernel_dyn_quan)(
             OPTIONAL_SHAPE_INFO_TENSOR
             input,
