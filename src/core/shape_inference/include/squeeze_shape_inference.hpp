@@ -10,7 +10,7 @@
 
 namespace ov {
 namespace op {
-namespace {
+namespace util {
 /**
  * \brief Do Squeeze shape inference.
  *
@@ -117,14 +117,14 @@ std::vector<TRShape> shape_infer(const Squeeze* op, const std::vector<T>& input_
     }
     return output_shapes;
 }
-}  // namespace
+}  // namespace util
 
 namespace v0 {
 template <class T, class TRShape = result_shape_t<T>>
 std::vector<TRShape> shape_infer(const Squeeze* op,
                                  const std::vector<T>& input_shapes,
                                  const ITensorAccessor& ta = make_tensor_accessor()) {
-    return shape_infer(op, input_shapes, ta);
+    return util::shape_infer(op, input_shapes, ta);
 }
 }  // namespace v0
 
@@ -133,7 +133,7 @@ template <class T, class TRShape = result_shape_t<T>>
 std::vector<TRShape> shape_infer(const Squeeze* op,
                                  const std::vector<T>& input_shapes,
                                  const ITensorAccessor& ta = make_tensor_accessor()) {
-    return shape_infer(op, input_shapes, ta);
+    return util::shape_infer(op, input_shapes, ta);
 }
 }  // namespace v15
 }  // namespace op
