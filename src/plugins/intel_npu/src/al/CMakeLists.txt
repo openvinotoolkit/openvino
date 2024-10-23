@@ -23,8 +23,6 @@ endif()
 target_link_libraries(${TARGET_NAME}
     PUBLIC
         openvino::npu_logger_utils
-        openvino::npu_zero_utils
-        openvino::runtime
         openvino::runtime::dev
 )
 

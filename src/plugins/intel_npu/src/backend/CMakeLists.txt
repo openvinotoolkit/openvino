@@ -33,26 +33,3 @@ target_link_libraries(${TARGET_NAME}
 # targets install
 #
 ov_install_static_lib(${TARGET_NAME} ${NPU_INTERNAL_COMPONENT})
-
-if(TARGET ze_loader)
-    install(TARGETS ze_loader EXPORT OpenVINOTargets)
-
-    install(TARGETS utils EXPORT OpenVINOTargets)
-
-    install(TARGETS level-zero-ext EXPORT OpenVINOTargets)
-
-    export(TARGETS ze_loader NAMESPACE openvino::
-        APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
-
-    export(TARGETS utils NAMESPACE openvino::
-        APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
-
-    export(TARGETS level-zero-ext NAMESPACE openvino::
-        APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
-
-    # Support tests to run with ze_loader
-    install(TARGETS ze_loader
-        RUNTIME DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL
-        LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
-endif()
-

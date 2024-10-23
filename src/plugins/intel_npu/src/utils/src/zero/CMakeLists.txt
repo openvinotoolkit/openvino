@@ -34,3 +34,24 @@ ov_install_static_lib(${TARGET_NAME} ${NPU_INTERNAL_COMPONENT})
 ov_developer_package_export_targets(TARGET openvino::npu_zero_utils
                                     INSTALL_INCLUDE_DIRECTORIES
                                         $<BUILD_INTERFACE:${NPU_UTILS_SOURCE_DIR}/include>)
+
+if(TARGET ze_loader)
+    install(TARGETS ze_loader EXPORT OpenVINOTargets)
+
+    install(TARGETS utils EXPORT OpenVINOTargets)
+
+    install(TARGETS level-zero-ext EXPORT OpenVINOTargets)
+
+    export(TARGETS ze_loader NAMESPACE openvino::
+        APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
+
+    export(TARGETS utils NAMESPACE openvino::
+        APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
+
+    export(TARGETS level-zero-ext NAMESPACE openvino::
+        APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
+
+    # Support tests to run with ze_loader
+    install(TARGETS ze_loader
+        LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
+endif()
