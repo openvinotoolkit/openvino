@@ -7,9 +7,9 @@
 #pragma once
 
 #include "driver_compiler_utils.hpp"
+#include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "izero_link.hpp"
-#include "npu.hpp"
 #include "zero_backend.hpp"
 
 namespace intel_npu {

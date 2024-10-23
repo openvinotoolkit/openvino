@@ -8,9 +8,9 @@
 #include <mutex>
 #include <vector>
 
-#include "intel_npu/al/icompiler.hpp"
-#include "intel_npu/utils/zero/zero_wrappers.hpp"
+#include "intel_npu/icompiler.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
+#include "intel_npu/utils/zero/zero_wrappers.hpp"
 
 namespace intel_npu {
 class IGraph : public std::enable_shared_from_this<IGraph> {

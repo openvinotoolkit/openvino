@@ -7,8 +7,8 @@
 #include <ze_graph_ext.h>
 
 #include "cid_graph.hpp"
-#include "intel_npu/al/config/runtime.hpp"
-#include "intel_npu/al/itt.hpp"
+#include "intel_npu/common/itt.hpp"
+#include "intel_npu/config/runtime.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
 #include "ze_intel_npu_uuid.h"

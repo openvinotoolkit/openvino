@@ -7,8 +7,8 @@
 #include <regex>
 #include <string_view>
 
-#include "intel_npu/al/config/runtime.hpp"
-#include "intel_npu/al/prefix.hpp"
+#include "intel_npu/config/runtime.hpp"
+#include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
 #include "openvino/core/model.hpp"
 
@@ -699,8 +699,8 @@ std::string ZeroLink<TableExtension>::getLatestBuildError() const {
 }
 
 template <typename TableExtension>
-std::tuple<std::vector<ArgumentDescriptor>, std::vector<ArgumentDescriptor>>
-ZeroLink<TableExtension>::getIODesc(ze_graph_handle_t graphHandle) const {
+std::tuple<std::vector<ArgumentDescriptor>, std::vector<ArgumentDescriptor>> ZeroLink<TableExtension>::getIODesc(
+    ze_graph_handle_t graphHandle) const {
     _logger.debug("performing pfnGetProperties");
     ze_graph_properties_t props{};
     props.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES;

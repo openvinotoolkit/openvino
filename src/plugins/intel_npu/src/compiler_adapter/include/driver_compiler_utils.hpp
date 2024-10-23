@@ -8,7 +8,7 @@
 #include <type_traits>
 #include <utility>
 
-#include "intel_npu/al/config/config.hpp"
+#include "intel_npu/config/config.hpp"
 
 namespace intel_npu {
 

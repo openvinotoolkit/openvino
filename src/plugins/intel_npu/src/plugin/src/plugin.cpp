@@ -8,8 +8,8 @@
 
 #include "compiled_model.hpp"
 #include "driver_compiler_adapter.hpp"
-#include "igraph.hpp"
 #include "intel_npu/common/device_helpers.hpp"
+#include "intel_npu/common/igraph.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/common.hpp"
 #include "intel_npu/config/compiler.hpp"

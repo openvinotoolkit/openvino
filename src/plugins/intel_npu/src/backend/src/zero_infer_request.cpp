@@ -31,8 +31,7 @@ constexpr bool OUTPUT = false;
  * @param ioDescriptor The OpenVINO API specific I/O descriptor which shall be compared.
  * @param zeDescriptor The Level Zero specific structure used for comparison.
  */
-void check_level_zero_attributes_match(const IODescriptor& ioDescriptor,
-                                       const ArgumentDescriptor& zeDescriptor) {
+void check_level_zero_attributes_match(const IODescriptor& ioDescriptor, const ArgumentDescriptor& zeDescriptor) {
     std::string zeDescriptorName = zeDescriptor.info.name;
 
     if (isStateInputName(zeDescriptorName)) {

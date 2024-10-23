@@ -6,8 +6,9 @@
 
 #include <cstdint>
 
-#include "igraph.hpp"
 #include "intel_npu/common/icompiled_model.hpp"
+#include "intel_npu/common/igraph.hpp"
+#include "intel_npu/common/sync_infer_request.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/icompiler.hpp"
 #include "openvino/runtime/intel_npu/remote_properties.hpp"

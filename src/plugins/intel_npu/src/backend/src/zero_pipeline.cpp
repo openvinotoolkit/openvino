@@ -29,8 +29,7 @@ Pipeline::Pipeline(const Config& config,
       _command_queue(graph->get_command_queue()),
       _event_pool{initStructs->getDevice(),
                   initStructs->getContext(),
-                  numberOfCommandLists ? static_cast<uint32_t>(numberOfCommandLists) : 1
-                  },
+                  numberOfCommandLists ? static_cast<uint32_t>(numberOfCommandLists) : 1},
       _npu_profiling(std::move(npu_profiling)),
       _logger("Pipeline", _config.get<LOG_LEVEL>()) {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Zero_infer_request::Pipeline::Pipeline");

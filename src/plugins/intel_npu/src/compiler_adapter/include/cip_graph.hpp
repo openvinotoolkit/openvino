@@ -8,7 +8,7 @@
 
 #include <ze_graph_ext.h>
 
-#include "igraph.hpp"
+#include "intel_npu/common/igraph.hpp"
 #include "izero_link.hpp"
 
 namespace intel_npu {

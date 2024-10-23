@@ -4,7 +4,7 @@
 
 #include "cid_graph.hpp"
 
-#include "intel_npu/al/config/runtime.hpp"
+#include "intel_npu/config/runtime.hpp"
 
 namespace intel_npu {
 

@@ -10,13 +10,13 @@
 #include <string>
 
 #include "cip_graph.hpp"
-#include "intel_npu/al/config/compiler.hpp"
-#include "intel_npu/al/icompiler.hpp"
-#include "intel_npu/al/itt.hpp"
+#include "intel_npu/common/itt.hpp"
+#include "intel_npu/config/compiler.hpp"
+#include "intel_npu/icompiler.hpp"
+#include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
-#include "npu_private_properties.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
 #include "ze_intel_npu_uuid.h"

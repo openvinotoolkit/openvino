@@ -7,9 +7,9 @@
 #include <ze_graph_ext.h>
 
 #include "driver_compiler_utils.hpp"
-#include "igraph.hpp"
+#include "intel_npu/common/igraph.hpp"
+#include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
-#include "npu.hpp"
 
 namespace intel_npu {
 
