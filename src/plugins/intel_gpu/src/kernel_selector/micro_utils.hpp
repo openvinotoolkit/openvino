@@ -18,8 +18,7 @@
 #endif
 
 #include "gpu/intel/microkernels/package.hpp"
-#include "gpu/intel/jit/gemm/microkernel_provider.hpp"
-#include "gpu/intel/jit/gemm/gen_gemm_kernel_generator.hpp"
+#include "gpu/intel/jit/gemm/include/microkernel_provider.hpp"
 #include "gpu/intel/microkernels/shim.hpp"
 
 namespace micro {
