@@ -222,7 +222,7 @@ public:
      * @param config
      * @return NetworkDescription
      */
-    virtual std::vector<std::shared_ptr<NetworkDescription>> compileWS(const std::shared_ptr<const ov::Model>& model,
+    virtual std::vector<std::shared_ptr<NetworkDescription>> compileWS(std::shared_ptr<ov::Model>& model,
                                                                        const Config& config) const = 0;
 
     /**

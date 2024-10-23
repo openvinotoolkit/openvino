@@ -76,112 +76,6 @@
 
 using namespace intel_npu;
 
-namespace {
-
-void runModelPasses(const std::shared_ptr<ov::Model>& model) {
-    ov::pass::Manager manager;
-    manager.register_pass<ov::pass::InitNodeInfo>();
-    ov::element::TypeVector decompression_precisions{
-        ov::element::u4,
-        ov::element::i4,
-        ov::element::nf4,
-        ov::element::u8,
-        ov::element::i8,
-    };
-    manager.register_pass<ov::pass::MarkDequantizationSubgraph>(decompression_precisions, /*fold_subtract_const=*/true);
-    manager.register_pass<ov::pass::ConvertQuantizeDequantize>();
-    manager.register_pass<ov::pass::ConstantFolding>();
-    manager.register_pass<ov::pass::ConvertScatterElementsUpdate12ToScatterElementsUpdate3>();
-    manager.register_pass<ov::pass::ConvertInterpolate1ToInterpolate4>();
-    manager.register_pass<ov::pass::ConvertInterpolate11ToInterpolate4>();
-    manager.register_pass<ov::pass::ConvertTopK11ToTopK3>();
-    manager.register_pass<ov::pass::ConvertPad12ToPad1>();
-    manager.register_pass<ov::pass::ConstantFolding>();
-    // MOCTransformations contain StridedSliceOptimization transformation,
-    // so we must call SliceToStridedSlice before MOCTransformations call
-    manager.register_pass<ov::pass::SliceToStridedSlice>(true);
-    // Disable low_precision_enabled as all plugins handle low-precision sub-graph manually
-    // before CommonOptimization pipeline execution
-    manager.register_pass<ov::pass::MOCTransformations>(true, false);
-
-    auto pass_config = manager.get_pass_config();
-    pass_config->disable<ov::pass::PadFusionConvolution>();
-    pass_config->disable<ov::pass::PadFusionGroupConvolution>();
-    pass_config->disable<ov::pass::MVNFusionWithConstantsInside>();
-    pass_config->disable<ov::pass::PullThroughReduce>();
-    pass_config->disable<ov::pass::AddFakeQuantizeFusion>();
-    pass_config->disable<ov::pass::FakeQuantizeMulFusion>();
-
-    // NMS conversion passes
-    manager.register_pass<ov::pass::ConvertNMS1ToNMS9>();
-    manager.register_pass<ov::pass::ConvertNMS3ToNMS9>();
-    manager.register_pass<ov::pass::ConvertNMS4ToNMS9>();
-    manager.register_pass<ov::pass::ConvertNMS5ToNMS9>();
-
-    auto static_shape = manager.register_pass<ov::pass::GraphRewrite>();
-    static_shape->add_matcher<ov::pass::ConvertNMS9ToNMSIEInternal>();
-    static_shape->set_name("ov::pass::CommonStaticShape");
-
-    auto common_fusions = manager.register_pass<ov::pass::GraphRewrite>();
-    common_fusions->add_matcher<ov::pass::DepthToSpaceFusion>();
-    common_fusions->add_matcher<ov::pass::ShuffleChannelsFusion>(false);
-    common_fusions->add_matcher<ov::pass::SpaceToBatchFusion>();
-    common_fusions->add_matcher<ov::pass::BatchToSpaceFusion>();
-    common_fusions->add_matcher<ov::pass::TransposeToReshape>();
-    common_fusions->add_matcher<ov::pass::RMSFusion>();
-    common_fusions->set_name("ov::pass::CommonFusions");
-
-    auto decomp = manager.register_pass<ov::pass::GraphRewrite>();
-    decomp->add_matcher<ov::pass::Gelu7Downgrade>();
-    decomp->add_matcher<ov::pass::BidirectionalGRUSequenceDecomposition>();
-    decomp->add_matcher<ov::pass::BidirectionalRNNSequenceDecomposition>();
-    decomp->add_matcher<ov::pass::ConvertBroadcastToTiles>();
-    decomp->add_matcher<ov::pass::ConvertConvertLike>();
-    decomp->add_matcher<ov::pass::BatchNormDecomposition>();
-    decomp->add_matcher<ov::pass::EinsumDecomposition>();
-    decomp->add_matcher<ov::pass::DropoutWithRandomUniformReplacer>();
-    decomp->add_matcher<ov::pass::ScaledDotProductAttentionDecomposition>();
-    decomp->set_name("ov::pass::CommonDecompositions");
-
-    // CF is required after all decompositions
-    manager.register_pass<ov::pass::ConstantFolding>();
-
-    // LinOpSequenceFusion must be executed after all decompositions
-    manager.register_pass<ov::pass::LinOpSequenceFusion>();
-    manager.register_pass<ov::pass::UnrollIf>();
-
-    auto conv_fusions = manager.register_pass<ov::pass::GraphRewrite>();
-    conv_fusions->add_matcher<ov::pass::ConvolutionMultiplyFusion>();
-    conv_fusions->add_matcher<ov::pass::GroupConvolutionMultiplyFusion>();
-    conv_fusions->add_matcher<ov::pass::ConvolutionBackpropDataMultiplyFusion>();
-    conv_fusions->add_matcher<ov::pass::GroupConvolutionBackpropDataMultiplyFusion>();
-    conv_fusions->add_matcher<ov::pass::MultiplyConvolutionFusion>();
-    conv_fusions->add_matcher<ov::pass::MultiplyGroupConvolutionFusion>();
-    conv_fusions->add_matcher<ov::pass::MultiplyConvolutionBackpropDataFusion>();
-    conv_fusions->add_matcher<ov::pass::MultiplyGroupConvolutionBackpropDataFusion>();
-    conv_fusions->set_name("ov::pass::ConvFusions");
-
-    manager.register_pass<ov::pass::ConstantFolding>();
-    manager.register_pass<ov::pass::ConvertGather1ToGather7>();
-    manager.register_pass<ov::pass::ConvertGather7ToGather8>();
-    manager.register_pass<ov::pass::ConvertDeformableConv8To1>();
-    manager.register_pass<ov::pass::ConvertMaxPool14ToMaxPool8>();
-    manager.register_pass<ov::pass::ConvertMaxPool8ToMaxPool1>();
-    manager.register_pass<ov::pass::ConvertAvgPool14ToAvgPool1>();
-    manager.register_pass<ov::pass::ConvertSoftMax1ToSoftMax8>();
-    manager.register_pass<ov::pass::ConvertDetectionOutput8ToDetectionOutput1>();
-    manager.register_pass<ov::pass::ConvertShapeOf3>();
-
-    // StridesOptimization should be at the very end
-    // because we cannot insert any MaxPools since they may prevent
-    // other optimizations
-    manager.register_pass<ov::pass::StridesOptimization>();
-    manager.register_pass<ov::pass::ConvertSoftMax1ToSoftMax8>();
-    manager.run_passes(model);
-}
-
-}  // namespace
-
 ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs)
     : _initStructs(initStructs),
       _graph_ddi_table_ext(_initStructs->getGraphDdiTable()),
@@ -282,16 +176,10 @@ std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> ZeroDevice::runIni
     std::cout << "model->clone() call " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()
               << "[ms]" << std::endl;
 
-    begin = std::chrono::steady_clock::now();
-    runModelPasses(clonedModel);
-    end = std::chrono::steady_clock::now();
-    std::cout << "runModelPasses() call " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()
-              << "[ms]" << std::endl;
-
     // Match the inputs of the "init" model with the Constant nodes of the original model
     begin = std::chrono::steady_clock::now();
     size_t constantIndex = 0;
-    for (auto&& node : clonedModel->get_ordered_ops()) {
+    for (auto&& node : model->get_ordered_ops()) {
         if (!ov::is_type<ov::op::v0::Constant>(node)) {
             continue;
         }

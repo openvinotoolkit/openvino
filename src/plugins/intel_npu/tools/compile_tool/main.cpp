@@ -580,6 +580,20 @@ int main(int argc, char* argv[]) {
             std::cout << "Writing into file - " << outputName << std::endl;
             compiledModel.export_model(outputFile);
         }
+
+        // DEBUG
+        // {
+        //     std::string outputInitName = outputName.substr(0, outputName.size()-5) + "_init.blob"; 
+        //     std::ofstream outputInitFile{outputInitName, std::ios::out | std::ios::binary};
+        //     if (!outputInitFile.is_open()) {
+        //         std::cout << "Outputting file " << outputInitName << " can't be opened for writing" << std::endl;
+        //         return EXIT_FAILURE;
+        //     } else {
+        //         std::cout << "Writing into file - " << outputInitName << std::endl;
+        //         compiledModel.export_model(outputInitFile);
+        //     }
+        // }
+
         std::cout << "Done. LoadNetwork time elapsed: " << loadNetworkTimeElapsed.count() << " ms" << std::endl;
     } catch (const std::exception& error) {
         std::cerr << error.what() << std::endl;
