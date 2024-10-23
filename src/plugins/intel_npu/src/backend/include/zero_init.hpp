@@ -52,8 +52,15 @@ public:
     inline uint32_t getMutableCommandListVersion() const {
         return mutable_command_list_version;
     }
-    inline bool isExtensionSupported(std::string ext_name) const {
-        return driver_extension_properties.count(ext_name) > 0 ? true : false;
+    // Helper function to check if extension with <ext_name> exists and its newer than <version>
+    inline bool isExtensionSupported(std::string ext_name, uint32_t version) const {
+        auto iter = driver_extension_properties.find(ext_name);
+        if (iter == driver_extension_properties.end()) {
+            return false;
+        } else if (iter->second >= version) {
+            return true;
+        }
+        return false;
     }
 
 private:

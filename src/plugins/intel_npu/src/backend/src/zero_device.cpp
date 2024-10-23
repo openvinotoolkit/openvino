@@ -22,7 +22,7 @@ ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs
     device_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
 
     // Get LUID info, if supported
-    if (_initStructs->isExtensionSupported(std::string(ZE_DEVICE_LUID_EXT_NAME))) {
+    if (_initStructs->isExtensionSupported(std::string(ZE_DEVICE_LUID_EXT_NAME), ZE_MAKE_VERSION(1, 0))) {
         device_luid.stype = ZE_STRUCTURE_TYPE_DEVICE_LUID_EXT_PROPERTIES;
         device_properties.pNext = &device_luid;
     }
