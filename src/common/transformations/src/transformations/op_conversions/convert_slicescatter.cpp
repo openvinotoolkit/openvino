@@ -22,25 +22,26 @@
 ov::pass::ConvertSliceScatter::ConvertSliceScatter() {
     MATCHER_SCOPE(ConvertSliceScatter);
 
-    auto slicescatter = pattern::wrap_type<ov::op::v15::SliceScatter>();
+    const auto& slicescatter = pattern::wrap_type<ov::op::v15::SliceScatter>();
 
-    matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto slice_node = ov::as_type_ptr<ov::op::v15::SliceScatter>(m.get_match_root());
-        if (!slice_node) {
+    const matcher_pass_callback callback = [this](pattern::Matcher& m) {
+        const auto& slice_node = ov::as_type_ptr<ov::op::v15::SliceScatter>(m.get_match_root());
+        if (!slice_node || transformation_callback(slice_node)) {
             return false;
         }
         NodeRegistry node_registry;
-        auto const_0 = node_registry.make<ov::op::v0::Constant>(ov::element::i64, Shape{}, 0);
-        auto const_1 = node_registry.make<ov::op::v0::Constant>(ov::element::i64, Shape{}, 1);
-        auto const_1d_neg_1 =
+        const auto& const_0 = node_registry.make<ov::op::v0::Constant>(ov::element::i64, Shape{}, 0);
+        const auto& const_1 = node_registry.make<ov::op::v0::Constant>(ov::element::i64, Shape{}, 1);
+        const auto& const_1d_neg_1 =
             node_registry.make<ov::op::v0::Constant>(ov::element::i64, Shape{1}, std::vector<int64_t>{-1});
-        auto const_scatter_indices_shape =
+        const auto& const_scatter_indices_shape =
             node_registry.make<ov::op::v0::Constant>(ov::element::i64, Shape{2}, std::vector<int64_t>{-1, 1});
-        auto data_shape = node_registry.make<ov::op::v3::ShapeOf>(slice_node->input_value(0), ov::element::i64);
-        auto num_elements_data = node_registry.make<ov::op::v1::ReduceProd>(data_shape, const_0, false);
-        auto data_indices_flatten =
+        const auto& data_shape = node_registry.make<ov::op::v3::ShapeOf>(slice_node->input_value(0), ov::element::i64);
+        const auto& num_elements_data = node_registry.make<ov::op::v1::ReduceProd>(data_shape, const_0, false);
+        const auto& data_indices_flatten =
             node_registry.make<ov::op::v4::Range>(const_0, num_elements_data, const_1, ov::element::i64);
-        auto full_data_indices = node_registry.make<ov::op::v1::Reshape>(data_indices_flatten, data_shape, false);
+        const auto& full_data_indices =
+            node_registry.make<ov::op::v1::Reshape>(data_indices_flatten, data_shape, false);
         std::shared_ptr<ov::op::v8::Slice> slice_indices;
         if (slice_node->get_input_size() == 5) {
             slice_indices = node_registry.make<ov::op::v8::Slice>(full_data_indices,
@@ -54,23 +55,23 @@ ov::pass::ConvertSliceScatter::ConvertSliceScatter() {
                                                                   slice_node->input_value(4),
                                                                   slice_node->input_value(5));
         }
-        auto slice_indices_flatten =
+        const auto& slice_indices_flatten =
             node_registry.make<ov::op::v1::Reshape>(slice_indices, const_scatter_indices_shape, false);
-        auto updates_flatten =
+        const auto& updates_flatten =
             node_registry.make<ov::op::v1::Reshape>(slice_node->input_value(1), const_1d_neg_1, false);
-        auto data_flatten = node_registry.make<ov::op::v1::Reshape>(slice_node->input_value(0), const_1d_neg_1, false);
-        auto output_flatten =
+        const auto& data_flatten =
+            node_registry.make<ov::op::v1::Reshape>(slice_node->input_value(0), const_1d_neg_1, false);
+        const auto& output_flatten =
             node_registry.make<ov::op::v3::ScatterNDUpdate>(data_flatten, slice_indices_flatten, updates_flatten);
-        auto output = node_registry.make<ov::op::v1::Reshape>(output_flatten, data_shape, false);
+        const auto& output = node_registry.make<ov::op::v1::Reshape>(output_flatten, data_shape, false);
 
         output->set_friendly_name(slice_node->get_friendly_name());
         copy_runtime_info(slice_node, node_registry.get());
         replace_node(slice_node, output);
-        slice_node->clear_control_dependencies();
 
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(slicescatter, matcher_name);
+    const auto& m = std::make_shared<pattern::Matcher>(slicescatter, matcher_name);
     this->register_matcher(m, callback);
 }

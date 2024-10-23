@@ -15,14 +15,14 @@
 #include "transformations/utils/utils.hpp"
 namespace {
 std::shared_ptr<ov::Model> create_v15_model(ov::NodeVector inputs) {
-    const auto data = inputs.at(0);
-    const auto updates = inputs.at(1);
-    const auto start = inputs.at(2);
-    const auto stop = inputs.at(3);
-    const auto step = inputs.at(4);
+    const auto& data = inputs.at(0);
+    const auto& updates = inputs.at(1);
+    const auto& start = inputs.at(2);
+    const auto& stop = inputs.at(3);
+    const auto& step = inputs.at(4);
     ov::ParameterVector params{};
-    for (auto inp : inputs) {
-        const auto param = ov::as_type_ptr<ov::op::v0::Parameter>(inp);
+    for (const auto& inp : inputs) {
+        const auto& param = ov::as_type_ptr<ov::op::v0::Parameter>(inp);
         if (param) {
             params.push_back(param);
         }
@@ -38,40 +38,40 @@ std::shared_ptr<ov::Model> create_v15_model(ov::NodeVector inputs) {
 }
 
 std::shared_ptr<ov::Model> create_decomposed_model(ov::NodeVector inputs) {
-    const auto data = inputs.at(0);
-    const auto updates = inputs.at(1);
-    const auto start = inputs.at(2);
-    const auto stop = inputs.at(3);
-    const auto step = inputs.at(4);
+    const auto& data = inputs.at(0);
+    const auto& updates = inputs.at(1);
+    const auto& start = inputs.at(2);
+    const auto& stop = inputs.at(3);
+    const auto& step = inputs.at(4);
     ov::ParameterVector params{};
-    for (auto inp : inputs) {
-        const auto param = ov::as_type_ptr<ov::op::v0::Parameter>(inp);
+    for (const auto& inp : inputs) {
+        const auto& param = ov::as_type_ptr<ov::op::v0::Parameter>(inp);
         if (param) {
             params.push_back(param);
         }
     }
-    auto const_0 = ov::op::v0::Constant::create(ov::element::i64, {}, {0});
-    auto const_1 = ov::op::v0::Constant::create(ov::element::i64, {}, {1});
-    auto const_1d_neg_1 = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
-    auto const_scatter_indices_shape = ov::op::v0::Constant::create(ov::element::i64, {2}, {-1, 1});
-    auto data_shape = std::make_shared<ov::opset8::ShapeOf>(data, ov::element::i64);
-    auto num_elements_data = std::make_shared<ov::opset8::ReduceProd>(data_shape, const_0, false);
-    auto data_indices_flatten =
+    const auto& const_0 = ov::op::v0::Constant::create(ov::element::i64, {}, {0});
+    const auto& const_1 = ov::op::v0::Constant::create(ov::element::i64, {}, {1});
+    const auto& const_1d_neg_1 = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
+    const auto& const_scatter_indices_shape = ov::op::v0::Constant::create(ov::element::i64, {2}, {-1, 1});
+    const auto& data_shape = std::make_shared<ov::opset8::ShapeOf>(data, ov::element::i64);
+    const auto& num_elements_data = std::make_shared<ov::opset8::ReduceProd>(data_shape, const_0, false);
+    const auto& data_indices_flatten =
         std::make_shared<ov::opset8::Range>(const_0, num_elements_data, const_1, ov::element::i64);
-    auto full_data_indices = std::make_shared<ov::opset8::Reshape>(data_indices_flatten, data_shape, false);
+    const auto& full_data_indices = std::make_shared<ov::opset8::Reshape>(data_indices_flatten, data_shape, false);
     std::shared_ptr<ov::opset8::Slice> slice_indices;
     if (inputs.size() == 5) {
         slice_indices = std::make_shared<ov::opset8::Slice>(full_data_indices, start, stop, step);
     } else {
         slice_indices = std::make_shared<ov::opset8::Slice>(full_data_indices, start, stop, step, inputs.at(5));
     }
-    auto slice_indices_flatten =
+    const auto& slice_indices_flatten =
         std::make_shared<ov::opset8::Reshape>(slice_indices, const_scatter_indices_shape, false);
-    auto updates_flatten = std::make_shared<ov::opset8::Reshape>(updates, const_1d_neg_1, false);
-    auto data_flatten = std::make_shared<ov::opset8::Reshape>(data, const_1d_neg_1, false);
-    auto output_flatten =
+    const auto& updates_flatten = std::make_shared<ov::opset8::Reshape>(updates, const_1d_neg_1, false);
+    const auto& data_flatten = std::make_shared<ov::opset8::Reshape>(data, const_1d_neg_1, false);
+    const auto& output_flatten =
         std::make_shared<ov::opset8::ScatterNDUpdate>(data_flatten, slice_indices_flatten, updates_flatten);
-    auto slicescatter = std::make_shared<ov::opset8::Reshape>(output_flatten, data_shape, false);
+    const auto& slicescatter = std::make_shared<ov::opset8::Reshape>(output_flatten, data_shape, false);
     slicescatter->set_friendly_name("slicescatter15");
     return std::make_shared<ov::Model>(slicescatter->outputs(), params);
 }
