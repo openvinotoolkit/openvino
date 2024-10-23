@@ -3,18 +3,17 @@
 //
 
 #include <gtest/gtest.h>
+
 #include <iostream>
 
-#include "partitioning/online/compiler.hpp"
-#include "partitioning/online/snapshot.hpp"
-#include "partitioning/online/group.hpp"
-
-#include "intel_npu/al/config/config.hpp"
-#include "intel_npu/al/config/npuw.hpp"
-
-#include "openvino/openvino.hpp"
+#include "intel_npu/config/config.hpp"
+#include "intel_npu/config/npuw.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "openvino/openvino.hpp"
+#include "partitioning/online/compiler.hpp"
+#include "partitioning/online/group.hpp"
+#include "partitioning/online/snapshot.hpp"
 
 bool isEqualEns(ov::npuw::Ensemble& ens1, ov::npuw::Ensemble& ens2);
 bool isEqualEns(ov::npuw::Ensemble& ens1, ov::npuw::Ensemble& ens2) {
@@ -34,24 +33,20 @@ bool isEqualEns(ov::npuw::Ensemble& ens1, ov::npuw::Ensemble& ens2) {
         std::sort(g.all_layers.begin(), g.all_layers.end());
     }
 
-    std::sort(ens1.groups.begin(), ens1.groups.end(), [](const ov::npuw::Group& g1,
-                                                         const ov::npuw::Group& g2){
-                                                                return g1.all_layers.front() < g2.all_layers.front();
-                                                        });
+    std::sort(ens1.groups.begin(), ens1.groups.end(), [](const ov::npuw::Group& g1, const ov::npuw::Group& g2) {
+        return g1.all_layers.front() < g2.all_layers.front();
+    });
 
-    std::sort(ens2.groups.begin(), ens2.groups.end(), [](const ov::npuw::Group& g1,
-                                                         const ov::npuw::Group& g2){
-                                                                return g1.all_layers.front() < g2.all_layers.front();
-                                                        });
+    std::sort(ens2.groups.begin(), ens2.groups.end(), [](const ov::npuw::Group& g1, const ov::npuw::Group& g2) {
+        return g1.all_layers.front() < g2.all_layers.front();
+    });
 
     for (size_t i = 0; i < ens1.groups.size(); ++i) {
         const auto& g1 = ens1.groups.at(i);
         const auto& g2 = ens2.groups.at(i);
 
-        if (g1.avoid_list != g2.avoid_list ||
-            g1.input_layers != g2.input_layers ||
-            g1.output_layers != g2.output_layers ||
-            g1.all_layers != g2.all_layers) {
+        if (g1.avoid_list != g2.avoid_list || g1.input_layers != g2.input_layers ||
+            g1.output_layers != g2.output_layers || g1.all_layers != g2.all_layers) {
             return false;
         }
 
@@ -74,16 +69,17 @@ bool isEqualEns(ov::npuw::Ensemble& ens1, ov::npuw::Ensemble& ens2) {
         });
 
         for (auto& g : sorted_rep) {
-            std::sort(g.begin(), g.end(),
-                    [](const auto& a, const auto& b) {return *a.begin() < *b.begin();});
+            std::sort(g.begin(), g.end(), [](const auto& a, const auto& b) {
+                return *a.begin() < *b.begin();
+            });
         }
 
-        std::sort(sorted_rep.begin(), sorted_rep.end(),
-                    [](const auto& a, const auto& b) {return *a.front().begin() < *b.front().begin();});
+        std::sort(sorted_rep.begin(), sorted_rep.end(), [](const auto& a, const auto& b) {
+            return *a.front().begin() < *b.front().begin();
+        });
 
         return sorted_rep;
     };
-
 
     if (get_sorted_rep(ens1.repeated) != get_sorted_rep(ens2.repeated)) {
         return false;
@@ -97,7 +93,8 @@ public:
     ModelGenerator() = default;
 
     std::shared_ptr<ov::Model> get_model_without_repeated_blocks() {
-        std::shared_ptr<ov::op::v0::Parameter> input = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1, 1, 40});
+        std::shared_ptr<ov::op::v0::Parameter> input =
+            std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1, 1, 40});
         m_nodes.push_back(input);
         set_name(input);
 
@@ -115,7 +112,8 @@ public:
 
     std::shared_ptr<ov::Model> get_model_with_repeated_blocks() {
         // Generate head
-        std::shared_ptr<ov::op::v0::Parameter> input = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1, 1, 40});
+        std::shared_ptr<ov::op::v0::Parameter> input =
+            std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1, 1, 40});
         m_nodes.push_back(input);
         set_name(input);
 
@@ -174,24 +172,32 @@ public:
 
         // Constants
         std::vector<std::shared_ptr<ov::Node>> model_c(18, nullptr);
-        model_c[0] = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{4}, std::vector<int>{0, 2, 1, 3});
+        model_c[0] =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{4}, std::vector<int>{0, 2, 1, 3});
         model_c[1] = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int>{1});
         model_c[2] = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int>{0});
         model_c[3] = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int>{2});
         model_c[4] = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int>{0});
-        model_c[5] = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{4}, std::vector<int>{1, 1, 1, 1});
+        model_c[5] =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{4}, std::vector<int>{1, 1, 1, 1});
         model_c[6] = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int>{1});
         model_c[7] = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int>{0});
-        model_c[8] = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{4}, std::vector<int>{1, 1, 1, 1});
-        model_c[9] = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{4}, std::vector<int>{1, 1, 1, 2});
-        model_c[10] = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{4}, std::vector<int>{1, 1, 1, 1});
-        model_c[11] = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{4}, std::vector<int>{1, 1, 1, 2});
+        model_c[8] =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{4}, std::vector<int>{1, 1, 1, 1});
+        model_c[9] =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{4}, std::vector<int>{1, 1, 1, 2});
+        model_c[10] =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{4}, std::vector<int>{1, 1, 1, 1});
+        model_c[11] =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{4}, std::vector<int>{1, 1, 1, 2});
         model_c[12] = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1, 1, 1, 1});
         model_c[13] = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1, 1, 1, 1});
         model_c[14] = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1, 1, 1, 1});
         model_c[15] = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{40, 40});
-        model_c[16] = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{4}, std::vector<int>{1, 1, 4, 10});
-        model_c[17] = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, std::vector<int>{1, 1, 40});
+        model_c[16] =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{4}, std::vector<int>{1, 1, 4, 10});
+        model_c[17] =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, std::vector<int>{1, 1, 40});
 
         for (const auto& c : model_c) {
             m_nodes.push_back(c);
@@ -220,17 +226,17 @@ public:
         op[6] = std::make_shared<ov::op::v0::Floor>(op[5]);
         op[7] = std::make_shared<ov::op::v3::ScatterUpdate>(model_c[5], model_c[6], op[6], model_c[7]);
         op[8] = std::make_shared<ov::op::v1::StridedSlice>(op[2],
-                                                            model_c[8],
-                                                            op[7],
-                                                            model_c[9],
-                                                            std::vector<int64_t>{1, 1, 1, 1},
-                                                            std::vector<int64_t>{1, 1, 1, 1});
+                                                           model_c[8],
+                                                           op[7],
+                                                           model_c[9],
+                                                           std::vector<int64_t>{1, 1, 1, 1},
+                                                           std::vector<int64_t>{1, 1, 1, 1});
         op[9] = std::make_shared<ov::op::v1::StridedSlice>(op[2],
-                                                            op[7],
-                                                            model_c[10],
-                                                            model_c[11],
-                                                            std::vector<int64_t>{1, 1, 1, 1},
-                                                            std::vector<int64_t>{1, 1, 1, 1});
+                                                           op[7],
+                                                           model_c[10],
+                                                           model_c[11],
+                                                           std::vector<int64_t>{1, 1, 1, 1},
+                                                           std::vector<int64_t>{1, 1, 1, 1});
         op[10] = std::make_shared<ov::op::v1::Multiply>(op[9], convert[2]);
         op[11] = std::make_shared<ov::op::v0::Concat>(std::vector<std::shared_ptr<ov::Node>>{op[10], op[8]}, -1);
         op[12] = std::make_shared<ov::op::v1::Multiply>(model_c[13], op[11]);
@@ -262,7 +268,7 @@ TEST(OnlinePartitioningTest, Partitioning_IsTheSame_SmallModel) {
     auto opt_desc = std::make_shared<::intel_npu::OptionsDesc>();
     auto cfg = ::intel_npu::Config(opt_desc);
     ::intel_npu::registerNPUWOptions(*opt_desc);
-    std::map<std::string, std::string> cfg_map = {{ "NPUW_ONLINE_KEEP_BLOCK_SIZE", "9" }};
+    std::map<std::string, std::string> cfg_map = {{"NPUW_ONLINE_KEEP_BLOCK_SIZE", "9"}};
     cfg.update(cfg_map);
 
     auto ens = ov::npuw::online::buildPartitioning(model, cfg);
@@ -280,7 +286,7 @@ TEST(OnlinePartitioningTest, Partitioning_IsTheSame_RepeatedModel) {
     auto opt_desc = std::make_shared<::intel_npu::OptionsDesc>();
     auto cfg = ::intel_npu::Config(opt_desc);
     ::intel_npu::registerNPUWOptions(*opt_desc);
-    std::map<std::string, std::string> cfg_map = {{ "NPUW_ONLINE_KEEP_BLOCK_SIZE", "9" }};
+    std::map<std::string, std::string> cfg_map = {{"NPUW_ONLINE_KEEP_BLOCK_SIZE", "9"}};
     cfg.update(cfg_map);
 
     auto ens = ov::npuw::online::buildPartitioning(model, cfg);
@@ -343,7 +349,8 @@ TEST(OnlinePartitioningTest, Partitioning_earlyAvoids_SmallModel) {
 
     auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
     ov::npuw::online::PassContext ctx;
-    ctx.avoids = {{ov::npuw::online::PatternType::OP, "Gather", "mydevice"}, {ov::npuw::online::PatternType::OP, "MatMul", "mydevice"}};
+    ctx.avoids = {{ov::npuw::online::PatternType::OP, "Gather", "mydevice"},
+                  {ov::npuw::online::PatternType::OP, "MatMul", "mydevice"}};
     snap->setCtx(ctx);
     snap->buildGraph();
     snap->earlyAvoids();
@@ -365,7 +372,8 @@ TEST(OnlinePartitioningTest, Partitioning_earlyAvoids_RepeatedModel) {
 
     auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
     ov::npuw::online::PassContext ctx;
-    ctx.avoids = {{ov::npuw::online::PatternType::OP, "Gather", "mydevice"}, {ov::npuw::online::PatternType::OP, "MatMul", "mydevice"}};
+    ctx.avoids = {{ov::npuw::online::PatternType::OP, "Gather", "mydevice"},
+                  {ov::npuw::online::PatternType::OP, "MatMul", "mydevice"}};
     snap->setCtx(ctx);
     snap->buildGraph();
     snap->earlyAvoids();
@@ -391,7 +399,7 @@ TEST(OnlinePartitioningTest, Partitioning_collectLHF_SmallModel) {
     std::vector<std::size_t> sizes = {10, 10};
     size_t iter = 0;
 
-    snap->repeat([&]{
+    snap->repeat([&] {
         snap->collectLHF();
         EXPECT_LT(iter, sizes.size());
         EXPECT_EQ(snap->graphSize(), sizes[iter++]);
@@ -408,7 +416,7 @@ TEST(OnlinePartitioningTest, Partitioning_collectLHF_RepeatedModel) {
     std::vector<std::size_t> sizes = {82, 82};
     size_t iter = 0;
 
-    snap->repeat([&]{
+    snap->repeat([&] {
         snap->collectLHF();
         EXPECT_LT(iter, sizes.size());
         EXPECT_EQ(snap->graphSize(), sizes[iter++]);
@@ -425,7 +433,7 @@ TEST(OnlinePartitioningTest, Partitioning_fuseRemnants_SmallModel) {
     std::vector<std::size_t> sizes = {10, 10};
     size_t iter = 0;
 
-    snap->repeat([&]{
+    snap->repeat([&] {
         snap->fuseRemnants();
         EXPECT_LT(iter, sizes.size());
         EXPECT_EQ(snap->graphSize(), sizes[iter++]);
@@ -442,7 +450,7 @@ TEST(OnlinePartitioningTest, Partitioning_fuseRemnants_RepeatedModel) {
     std::vector<std::size_t> sizes = {75, 38, 19, 10};
     size_t iter = 0;
 
-    snap->repeat([&]{
+    snap->repeat([&] {
         snap->fuseRemnants();
         EXPECT_LT(iter, sizes.size());
         EXPECT_EQ(snap->graphSize(), sizes[iter++]);
@@ -459,7 +467,7 @@ TEST(OnlinePartitioningTest, Partitioning_fuseRemnantsExtended_SmallModel) {
     std::vector<std::size_t> sizes = {10, 10};
     size_t iter = 0;
 
-    snap->repeat([&]{
+    snap->repeat([&] {
         snap->fuseRemnantsExtended();
         EXPECT_LT(iter, sizes.size());
         EXPECT_EQ(snap->graphSize(), sizes[iter++]);
@@ -476,7 +484,7 @@ TEST(OnlinePartitioningTest, Partitioning_fuseRemnantsExtended_RepeatedModel) {
     std::vector<std::size_t> sizes = {10, 10};
     size_t iter = 0;
 
-    snap->repeat([&]{
+    snap->repeat([&] {
         snap->fuseRemnantsExtended();
         EXPECT_LT(iter, sizes.size());
         EXPECT_EQ(snap->graphSize(), sizes[iter++]);
@@ -493,7 +501,7 @@ TEST(OnlinePartitioningTest, Partitioning_fuseInputs_SmallModel) {
     std::vector<std::size_t> sizes = {15, 14, 14};
     size_t iter = 0;
 
-    snap->repeat([&]{
+    snap->repeat([&] {
         snap->fuseInputs();
         EXPECT_LT(iter, sizes.size());
         EXPECT_EQ(snap->graphSize(), sizes[iter++]);
@@ -510,7 +518,7 @@ TEST(OnlinePartitioningTest, Partitioning_fuseInputs_RepeatedModel) {
     std::vector<std::size_t> sizes = {148, 138, 138};
     size_t iter = 0;
 
-    snap->repeat([&]{
+    snap->repeat([&] {
         snap->fuseInputs();
         EXPECT_LT(iter, sizes.size());
         EXPECT_EQ(snap->graphSize(), sizes[iter++]);
@@ -574,7 +582,6 @@ TEST(OnlinePartitioningTest, Partitioning_Compiler_RepeatedBlocks_SmallModel) {
     auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
     snap->buildGraph();
 
-
     std::vector<std::size_t> sizes_fr = {10, 10};
     size_t iter_fr = 0;
 
@@ -599,7 +606,6 @@ TEST(OnlinePartitioningTest, Partitioning_Compiler_RepeatedBlocks_RepeatedModel)
 
     auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
     snap->buildGraph();
-
 
     std::vector<std::size_t> sizes_fr = {12, 12};
     size_t iter_fr = 0;
@@ -636,7 +642,8 @@ TEST(OnlinePartitioningTest, Partitioning_Compiler_Compute_SmallModel) {
     size_t iter_fr = 0;
 
     ov::npuw::online::PassContext ctx;
-    ctx.isolates = {{ov::npuw::online::PatternType::OP, "Transpose", "test_compute"}, {ov::npuw::online::PatternType::OP, "ScatterUpdate", "test_compute"}};
+    ctx.isolates = {{ov::npuw::online::PatternType::OP, "Transpose", "test_compute"},
+                    {ov::npuw::online::PatternType::OP, "ScatterUpdate", "test_compute"}};
     ctx.nofolds = {"test_compute"};
     snap->setCtx(ctx);
 

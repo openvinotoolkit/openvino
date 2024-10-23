@@ -149,8 +149,9 @@ DQMatMulCWi::DQMatMulCWi() {
 
         auto qcoeff_shape = matched_qcoeff->output(0).get_shape();
 
-        if (ov::element::i4 == matched_qweight->get_element_type() && qcoeff_shape[1] == 1 &&
-            !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
+        if ((ov::element::i4 == matched_qweight->get_element_type() ||
+             ov::element::i8 == matched_qweight->get_element_type()) &&
+            qcoeff_shape[1] == 1 && !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
             auto matched_node_cvtw = node_to_output.at(qcvtw).get_node_shared_ptr();
             auto matched_node_cvtm = node_to_output.at(qcvtm).get_node_shared_ptr();
             auto matched_node_muls = node_to_output.at(qmuls).get_node_shared_ptr();
@@ -692,11 +693,6 @@ DQParMMGQ::DQParMMGQ(Context::Ref ctx) {
 
         if (qmmi_shape.size() != 3 || qmmi_shape[0] != 1) {
             // Not handling such cases
-            return false;
-        }
-
-        if (qmmi_shape[1] != 1 && !ctx.get().is_spatial) {
-            // For non 1-token cases, do transformation if and only if and only if the block is spatial
             return false;
         }
 

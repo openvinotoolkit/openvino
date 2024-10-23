@@ -292,6 +292,10 @@ void Group::takeFlags(const Group::GPtr& gptr_other) {
             m_reptrack[layer].push_back(rep);
         }
     }
+    // Update weights precisions
+    for (const auto& wp : gptr_other->m_consts_precision) {
+        m_consts_precision.push_back(wp);
+    }
     // Update avoids
     for (const auto& device : gptr_other->avoidedTargets()) {
         avoid(device);
@@ -417,6 +421,14 @@ std::unordered_set<Interconnect> Group::interconnect(const Group::GPtr& gptr_pro
     return ics;
 }
 
+void Group::addWeightsPrecision(const std::vector<ov::element::Type>& prec) {
+    m_consts_precision.insert(m_consts_precision.end(), prec.begin(), prec.end());
+}
+
+const std::vector<ov::element::Type>& Group::getConstsPrecision() const {
+    return m_consts_precision;
+}
+
 std::string Group::specialTags() const {
     std::string tags = "";
 
@@ -441,6 +453,10 @@ const std::set<std::string>& Group::avoidedTargets() const {
 
 void Group::isolate(const std::string& tag) {
     m_isol_tag = tag;
+}
+
+void Group::dontIsolate() {
+    m_isol_tag = "";
 }
 
 const std::string& Group::isolatedTag() const {

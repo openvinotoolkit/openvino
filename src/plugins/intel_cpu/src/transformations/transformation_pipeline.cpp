@@ -100,7 +100,7 @@
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/transpose_sinking/ts_shape_of.hpp"
 #include "utils/ngraph_transformation.hpp"
-#include "utils/print_model.hpp"
+#include "transformations/utils/print_model.hpp"
 
 // LPT transformations
 #include "low_precision/add.hpp"
@@ -139,6 +139,7 @@
 #include "transformations/cpu_opset/common/pass/swap_convert_transpose.hpp"
 #include "transformations/cpu_opset/common/pass/causal_mask_preprocess_fusion.hpp"
 #include "transformations/cpu_opset/common/pass/stateful_sdpa_fusion.hpp"
+#include "transformations/cpu_opset/x64/pass/sdpa_fuse_transpose_reshape.hpp"
 
 // Snippets
 #include "snippets/pass/tokenization.hpp"
@@ -835,8 +836,8 @@ void Transformations::PostLpt() {
     // Execute before snippets. Otherwise FQ will be converted to Subgraph
     CPU_REGISTER_PASS_X64(postLPTPassManager, ConvertFqRnnToQuantizedRnn);
 
-    CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::RoPEFusion);
-    CPU_REGISTER_PASS_ARM64(postLPTPassManager, ov::pass::RoPEFusion);
+    CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::RoPEFusion, true);
+    CPU_REGISTER_PASS_ARM64(postLPTPassManager, ov::pass::RoPEFusion, true);
     CPU_REGISTER_PASS_X64(postLPTPassManager, CausalMaskPreprocessFusion);
 
     // MLP & QKV fusion optimizations is focused on throughput, only enabled on AMX-bf16 & LLM serving use cases.
@@ -864,6 +865,7 @@ void Transformations::PostLpt() {
 
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::transpose_sinking::TSShapeOfForward);
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, StatefulSDPAFusion);
+    CPU_REGISTER_PASS_X64(postLPTPassManager, ov::intel_cpu::SDPAFuseTransposeReshape);
     CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::RMSFusion, false);
     CPU_REGISTER_PASS_X64(postLPTPassManager, ov::intel_cpu::DecomposeRMSNorm);
     CPU_SET_CALLBACK_X64(postLPTPassManager,

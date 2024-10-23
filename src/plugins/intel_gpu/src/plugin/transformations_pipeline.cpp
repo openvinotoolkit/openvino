@@ -810,7 +810,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::ClampFP16Output>();
         manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>();
         manager.register_pass<ov::intel_gpu::MoveFCReshapeToWeights>();
-        manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>(device_info.supports_immad);
+        manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>();
 
         bool disable_horizontal_fc_fusion = false;
         GPU_DEBUG_GET_INSTANCE(debug_config);
@@ -819,10 +819,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         if (!disable_horizontal_fc_fusion)
             manager.register_pass<ov::intel_gpu::FullyConnectedHorizontalFusion>();
+
+        // ZP should not be folded for FC. But still, ZP should be folded for Gather.
+        // Therefore, run MarkDequantizationSubgraph again to fold ZP constant.
+        manager.register_pass<ov::pass::MarkDequantizationSubgraph>(supported_woq_types, true);
         if (device_info.supports_immad) {
-            // For OneDNN, ZP should not be folded for FC. But still, ZP should be folded for Gather.
-            // Therefore, run MarkDequantizationSubgraph again to fold ZP constant.
-            manager.register_pass<ov::pass::MarkDequantizationSubgraph>(supported_woq_types, true);
             if (disable_horizontal_fc_fusion)
                 manager.register_pass<ov::pass::ConstantFolding>();
         }
@@ -862,7 +863,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         const size_t zp_pad_size = device_info.supports_immad ? 16 : 32;
         manager.register_pass<ov::intel_gpu::BroadcastAndPadZeroPointBuffers>(zp_pad_size, device_info.supports_immad);
 
-        manager.register_pass<ov::pass::RoPEFusion>();
+        manager.register_pass<ov::pass::RoPEFusion>(true);
         pass_config->disable<ov::pass::RoPEFusionGPTJ>();
         pass_config->disable<ov::pass::RoPEFusionIOSlicing>();
         pass_config->disable<ov::pass::RoPEShareCosSin>();
@@ -872,7 +873,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::Validate>();
 
         auto dynamic_quantization_group_size = config.get_property(ov::hint::dynamic_quantization_group_size);
-        if (device_info.supports_immad) { // XXX: 1048576 is considered per-token
+        if (device_info.supports_immad) {
             pass_config->set_callback<ov::intel_gpu::DynamicQuantizeFullyConnected>([=](const_node_ptr& root) -> bool {
                 if (root->get_input_node_shared_ptr(0)->get_element_type() == ov::element::Type_t::f32) {
                     GPU_DEBUG_TRACE << root->get_friendly_name() << "  Dynamic quantization is turned off because input type is not supported" << std::endl;
