@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "npu.hpp"
+#include "intel_npu/common/npu.hpp"
 
-#include "intel_npu/al/itt.hpp"
+#include "intel_npu/common/itt.hpp"
 #include "openvino/util/shared_object.hpp"
 
 namespace intel_npu {

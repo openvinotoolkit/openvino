@@ -7,8 +7,8 @@
 #include <thread>
 
 #include "common.hpp"
-#include "npu_private_properties.hpp"
-#include "npuw_private_properties.hpp"
+#include "intel_npu/npu_private_properties.hpp"
+#include "intel_npu/npuw_private_properties.hpp"
 
 namespace intel_npu {
 

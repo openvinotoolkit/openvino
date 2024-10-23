@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "utils.hpp"
+
 #include <string>
 
-#include "npu_private_properties.hpp"
-#include "utils.hpp"
+#include "intel_npu/npu_private_properties.hpp"
 
 std::string getBackendName(const ov::Core& core) {
     return core.get_property("NPU", ov::intel_npu::backend_name.name()).as<std::string>();
@@ -45,7 +46,8 @@ std::vector<ov::AnyMap> getRWMandatoryPropertiesValues(std::vector<ov::AnyMap> p
                                                     ov::hint::PerformanceMode::THROUGHPUT,
                                                     ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT};
     for (auto& performanceMode : performanceModes) {
-        if (std::find(props.begin(), props.end(),
+        if (std::find(props.begin(),
+                      props.end(),
                       ov::AnyMap{{ov::hint::performance_mode.name(), ov::Any(performanceMode)}}) != props.end()) {
             continue;
         }
@@ -59,7 +61,8 @@ std::vector<ov::AnyMap> getRWMandatoryPropertiesValues(std::vector<ov::AnyMap> p
     ov::hint::ExecutionMode executionModes[] = {ov::hint::ExecutionMode::PERFORMANCE,
                                                 ov::hint::ExecutionMode::ACCURACY};
     for (auto& executionMode : executionModes) {
-        if (std::find(props.begin(), props.end(),
+        if (std::find(props.begin(),
+                      props.end(),
                       ov::AnyMap{{ov::hint::execution_mode.name(), ov::Any(executionMode)}}) != props.end()) {
             continue;
         }
@@ -68,15 +71,20 @@ std::vector<ov::AnyMap> getRWMandatoryPropertiesValues(std::vector<ov::AnyMap> p
 
     bool enableProfilingValues[] = {true, false};
     for (auto enableProfilingValue : enableProfilingValues) {
-        if (std::find(props.begin(), props.end(),
+        if (std::find(props.begin(),
+                      props.end(),
                       ov::AnyMap{{ov::enable_profiling.name(), ov::Any(enableProfilingValue)}}) != props.end()) {
             continue;
         }
         props.push_back({{ov::enable_profiling(enableProfilingValue)}});
     }
 
-    ov::log::Level logLevels[] = {ov::log::Level::NO,   ov::log::Level::ERR,   ov::log::Level::WARNING,
-                                  ov::log::Level::INFO, ov::log::Level::DEBUG, ov::log::Level::TRACE};
+    ov::log::Level logLevels[] = {ov::log::Level::NO,
+                                  ov::log::Level::ERR,
+                                  ov::log::Level::WARNING,
+                                  ov::log::Level::INFO,
+                                  ov::log::Level::DEBUG,
+                                  ov::log::Level::TRACE};
     for (auto& logLevel : logLevels) {
         if (std::find(props.begin(), props.end(), ov::AnyMap{{ov::log::level.name(), ov::Any(logLevel)}}) !=
             props.end()) {
