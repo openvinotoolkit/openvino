@@ -7,8 +7,8 @@
 #include <thread>
 
 #include "common.hpp"
-#include "npu_private_properties.hpp"
-#include "npuw_private_properties.hpp"
+#include "intel_npu/npu_private_properties.hpp"
+#include "intel_npu/npuw_private_properties.hpp"
 
 namespace intel_npu {
 
@@ -35,7 +35,7 @@ DEFINE_OPT(NPUW_ONLINE_AVOID, std::string, "", npuw::partitioning::online::avoid
 DEFINE_OPT(NPUW_ONLINE_ISOLATE, std::string, "", npuw::partitioning::online::isolate, CompileTime);
 DEFINE_OPT(NPUW_ONLINE_NO_FOLD, std::string, "", npuw::partitioning::online::nofold, CompileTime);
 DEFINE_OPT(NPUW_ONLINE_MIN_SIZE, std::size_t, 10, npuw::partitioning::online::min_size, CompileTime);
-DEFINE_OPT(NPUW_ONLINE_KEEP_BLOCKS, std::size_t, 10, npuw::partitioning::online::keep_blocks, CompileTime);
+DEFINE_OPT(NPUW_ONLINE_KEEP_BLOCKS, std::size_t, 5, npuw::partitioning::online::keep_blocks, CompileTime);
 DEFINE_OPT(NPUW_ONLINE_KEEP_BLOCK_SIZE, std::size_t, 10, npuw::partitioning::online::keep_block_size, CompileTime);
 DEFINE_OPT(NPUW_ONLINE_DUMP_PLAN, std::string, "", npuw::partitioning::online::dump_plan, CompileTime);
 DEFINE_OPT(NPUW_PLAN, std::string, "", npuw::partitioning::plan, CompileTime);
