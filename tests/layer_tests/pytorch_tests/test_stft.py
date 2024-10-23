@@ -7,10 +7,10 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 
 class TestSTFT(PytorchLayerTest):
-    def _prepare_input(self, win_length, out=False, out_dtype="float32"):
+    def _prepare_input(self, win_length, signal_shape, out=False, out_dtype="float32"):
         import numpy as np
 
-        signal = np.random.randn(2, 256).astype(out_dtype)
+        signal = np.random.randn(*signal_shape).astype(out_dtype)
         window = np.hanning(win_length).reshape([win_length])
 
         return (np.array(signal, dtype=out_dtype), window.astype(out_dtype))
@@ -47,18 +47,21 @@ class TestSTFT(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.parametrize(("trace_model"), [True, False])
+    @pytest.mark.parametrize(("signal_shape"), [(1, 256), (2, 128), (128,)])
     @pytest.mark.parametrize(("n_fft", "hop_length", "window_size"), [
         [16, 4, 16],
         [32, 32, 32],
         [32, 16, 24],
         [24, 32, 20],
-        [256, 256, 256],
+        [128, 128, 128],
     ])
-    def test_stft(self, n_fft, hop_length, window_size, ie_device, precision, ir_version, trace_model):
+    def test_stft(self, n_fft, hop_length, window_size, signal_shape, ie_device, precision, ir_version, trace_model):
         if ie_device == "GPU":
             pytest.xfail(reason="STFT op is not supported on GPU yet")
+        if signal_shape == (128,):
+            pytest.xfail(reason="STFT op is doesn't support 1D signal yet, please unsqueeze the input.")
         self._test(*self.create_model(n_fft, hop_length, window_size), ie_device, precision,
-                   ir_version, kwargs_to_prepare_input={"win_length": window_size}, trace_model=trace_model)
+                   ir_version, kwargs_to_prepare_input={"win_length": window_size, "signal_shape": signal_shape}, trace_model=trace_model)
 
 
 class TestSTFTAttrs(PytorchLayerTest):
