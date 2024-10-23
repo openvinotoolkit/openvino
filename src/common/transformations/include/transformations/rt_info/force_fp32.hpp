@@ -26,7 +26,11 @@ namespace ov {
  * @ingroup ie_runtime_attr_api
  * @brief OldApiMapElementType class represents runtime info attribute that stores legacy type
  * that is required for obtaining IR in old API.
+ *  <rt_info>
+ *      <attribute name="force_fp32" version="0" value="true" />
+ *  </rt_info>
  */
+
 class TRANSFORMATIONS_API ForceFP32 : public RuntimeAttribute {
 public:
     OPENVINO_RTTI("force_fp32", "0");

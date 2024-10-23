@@ -40,16 +40,16 @@ OutputVector translate_bilinear(const NodeContext& context) {
 
     x1 = context.mark_node(std::make_shared<ov::op::v0::Unsqueeze>(x1, un_squeeze_axis2));
 
-    std::cout << "### x0=" << x0.get_partial_shape() << ", weight=" << weight.get_partial_shape()  << ", x1=" << x1.get_partial_shape() << std::endl;
+    // std::cout << "### x0=" << x0.get_partial_shape() << ", weight=" << weight.get_partial_shape()  << ", x1=" << x1.get_partial_shape() << std::endl;
 
 
     auto multiply = context.mark_node(std::make_shared<ov::op::v1::Multiply>(x0, weight));
 
-    std::cout << "### multiply1=" << multiply->get_output_partial_shape(0) << std::endl;
+    // std::cout << "### multiply1=" << multiply->get_output_partial_shape(0) << std::endl;
     multiply = context.mark_node(std::make_shared<ov::op::v1::Multiply>(multiply, x1));
-    std::cout << "### multiply2=" << multiply->get_output_partial_shape(0) << std::endl;
+    // std::cout << "### multiply2=" << multiply->get_output_partial_shape(0) << std::endl;
     multiply = context.mark_node(std::make_shared<ov::op::v1::ReduceSum>(multiply, un_squeeze_axis3));
-    std::cout << "### ReduceSum=" << multiply->get_output_partial_shape(0) << std::endl;
+    // std::cout << "### ReduceSum=" << multiply->get_output_partial_shape(0) << std::endl;
 
     
     if (!context.input_is_none(3)) {
