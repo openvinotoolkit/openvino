@@ -9,7 +9,6 @@
 #include "intel_npu/al/config/common.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 
-
 using namespace ov::test::behavior;
 
 namespace {

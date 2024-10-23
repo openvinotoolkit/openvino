@@ -10,7 +10,6 @@
 #include "intel_npu/al/config/common.hpp"
 #include "intel_npu/al/config/config.hpp"
 
-
 namespace ov::test::utils {
 
 NpuTestEnvConfig::NpuTestEnvConfig() {

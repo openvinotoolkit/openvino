@@ -14,7 +14,7 @@
 #include "common/utils.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
-#include "npu_private_properties.hpp"
+#include "intel_npu/al/npu_private_properties.hpp"
 
 class BackendName {
 public:

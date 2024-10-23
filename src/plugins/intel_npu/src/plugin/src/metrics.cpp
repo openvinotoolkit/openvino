@@ -5,8 +5,8 @@
 // Plugin
 #include "metrics.hpp"
 
-#include "device_helpers.hpp"
-#include "npu_private_properties.hpp"
+#include "intel_npu/al/npu_private_properties.hpp"
+#include "intel_npu/common/device_helpers.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 
 namespace intel_npu {

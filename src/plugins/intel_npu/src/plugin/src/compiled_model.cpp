@@ -13,7 +13,7 @@
 #include "intel_npu/al/config/config.hpp"
 #include "intel_npu/al/config/runtime.hpp"
 #include "intel_npu/al/icompiler.hpp"
-#include "intel_npu/al/itt.hpp"
+#include "intel_npu/common/itt.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/properties.hpp"
