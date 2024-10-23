@@ -10,6 +10,7 @@
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/common/sync_infer_request.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
+#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "zero_executor.hpp"
 #include "zero_pipeline.hpp"
 #include "zero_profiling.hpp"

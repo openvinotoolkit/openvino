@@ -45,22 +45,6 @@ namespace zeroUtils {
                        ze_result_to_description(result)); \
     }
 
-static inline void throwOnFail(const std::string& step, const ze_result_t result, const std::string& hintOnError) {
-    if (ZE_RESULT_SUCCESS != result) {
-        OPENVINO_THROW("L0 ",
-                       step,
-                       " result: ",
-                       ze_result_to_string(result),
-                       ", code 0x",
-                       std::hex,
-                       uint64_t(result),
-                       " - ",
-                       ze_result_to_description(result),
-                       ". ",
-                       hintOnError);
-    }
-}
-
 static inline ze_command_queue_priority_t toZeQueuePriority(const ov::hint::Priority& val) {
     switch (val) {
     case ov::hint::Priority::LOW:
