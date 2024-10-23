@@ -122,6 +122,7 @@ public:
                  const ze_context_handle_t& context,
                  const ze_command_queue_priority_t& priority,
                  ze_command_queue_npu_dditable_ext_curr_t& command_queue_npu_dditable_ext,
+                 bool turbo,
                  const uint32_t& group_ordinal);
     CommandQueue(const CommandQueue&) = delete;
     CommandQueue(CommandQueue&&) = delete;

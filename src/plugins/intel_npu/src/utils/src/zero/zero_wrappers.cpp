@@ -125,7 +125,7 @@ CommandQueue::CommandQueue(const ze_device_handle_t& device_handle,
                            const ze_context_handle_t& context,
                            const ze_command_queue_priority_t& priority,
                            ze_command_queue_npu_dditable_ext_curr_t& command_queue_npu_dditable_ext,
-
+                           bool turbo,
                            const uint32_t& group_ordinal)
     : _context(context),
       _command_queue_npu_dditable_ext(command_queue_npu_dditable_ext),
@@ -133,15 +133,15 @@ CommandQueue::CommandQueue(const ze_device_handle_t& device_handle,
     ze_command_queue_desc_t queue_desc =
         {ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC, nullptr, group_ordinal, 0, 0, ZE_COMMAND_QUEUE_MODE_DEFAULT, priority};
 
-    // if (config.has<TURBO>()) {
-    //     if (_command_queue_npu_dditable_ext.version()) {
-    //         bool turbo = config.get<TURBO>();
-    //         ze_command_queue_desc_npu_ext_t turbo_cfg = {ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC_NPU_EXT, nullptr,
-    //         turbo}; queue_desc.pNext = &turbo_cfg;
-    //     } else {
-    //         OPENVINO_THROW("Turbo is not supported by the current driver");
-    //     }
-    // }
+    if (turbo) {
+        if (_command_queue_npu_dditable_ext.version()) {
+            ze_command_queue_desc_npu_ext_t turbo_cfg = {ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC_NPU_EXT, nullptr, turbo};
+            queue_desc.pNext = &turbo_cfg;
+        } else {
+            OPENVINO_THROW("Turbo is not supported by the current driver");
+        }
+    }
+
     THROW_ON_FAIL_FOR_LEVELZERO("zeCommandQueueCreate",
                                 zeCommandQueueCreate(_context, device_handle, &queue_desc, &_handle));
 }

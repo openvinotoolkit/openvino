@@ -185,6 +185,7 @@ void ZeroLink<TableExtension>::initialize_graph_through_command_list(ze_graph_ha
                                      _context,
                                      ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
                                      _commandQueueDdiTable,
+                                     false,
                                      _group_ordinal);
     _logger.debug("ZeroExecutor::ZeroExecutor - create fence");
     Fence fence(graph_command_queue);
@@ -573,10 +574,21 @@ std::tuple<std::vector<ArgumentDescriptor>, std::vector<ArgumentDescriptor>> Zer
 
 template <typename TableExtension>
 std::shared_ptr<CommandQueue> ZeroLink<TableExtension>::crateCommandQueue(const Config& config) const {
+    if (config.has<TURBO>()) {
+        bool turbo = config.get<TURBO>();
+        return std::make_shared<CommandQueue>(_deviceHandle,
+                                              _context,
+                                              zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
+                                              _commandQueueDdiTable,
+                                              turbo,
+                                              _group_ordinal);
+    }
+
     return std::make_shared<CommandQueue>(_deviceHandle,
                                           _context,
                                           zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
                                           _commandQueueDdiTable,
+                                          false,
                                           _group_ordinal);
 }
 
