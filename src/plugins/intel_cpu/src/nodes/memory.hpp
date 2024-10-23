@@ -7,7 +7,7 @@
 #include "input.h"
 #include "memory_state_base.h"
 #include "ov_optional.hpp"
-#include "proxy_mem_mgr.h"
+#include "proxy_mem_blk.h"
 
 #include <map>
 
@@ -204,8 +204,6 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
     void createPrimitive() override;
-    void initSupportedPrimitiveDescriptors() override;
-    void initOptimalPrimitiveDescriptor() override;
     void resolveInPlaceEdges(Edge::LOOK look) override;
 
     MemStatePtr makeState() const override;

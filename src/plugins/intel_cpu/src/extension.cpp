@@ -28,9 +28,9 @@
 #include "transformations/cpu_opset/x64/op/qkv_proj.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
-#include "transformations/snippets/common/op/load_convert.hpp"
+#include "transformations/snippets/x64/op/load_convert.hpp"
 #include "transformations/snippets/x64/op/perf_count_rdtsc.hpp"
-#include "transformations/snippets/common/op/store_convert.hpp"
+#include "transformations/snippets/x64/op/store_convert.hpp"
 
 namespace {
 
@@ -75,6 +75,7 @@ private:
     OP_EXTENSION(ov::intel_cpu::PowerStaticNode)                            \
     OP_EXTENSION(ov::intel_cpu::CausalMaskPreprocessNode)                   \
     OP_EXTENSION(ov::intel_cpu::SwishNode)                                  \
+    OP_EXTENSION(ov::intel_cpu::SDPAWithTransposeReshape)                   \
     OP_EXTENSION(ov::intel_cpu::NgramNode)                                  \
     OP_EXTENSION(ov::op::internal::GatherCompressed)                        \
     OP_EXTENSION(ov::op::internal::NonMaxSuppressionIEInternal)             \

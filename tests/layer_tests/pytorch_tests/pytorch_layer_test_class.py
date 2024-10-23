@@ -5,17 +5,18 @@ import itertools
 import warnings
 from copy import deepcopy
 import os
-
+import torch
+import pytest
+import logging
 import numpy as np
+
 from common.constants import test_device, test_precision
 from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
-
 from openvino.frontend import FrontEndManager
 from openvino.runtime import Core, Type, PartialShape
 import openvino.properties.hint as hints
-import torch
-from packaging import version
-import pytest
+
+logging.basicConfig(level=logging.DEBUG)
 
 
 def skip_check(param):
@@ -72,22 +73,21 @@ class PytorchLayerTest:
               **kwargs):
         retries = 0
         max_retries = 3
+        last_e = None
         while retries < max_retries:
             try:
                 return self._test_impl(model, ref_net, kind, ie_device, precision, ir_version, infer_timeout, dynamic_shapes, **kwargs)
             except RuntimeError as e:
-                if "builtin cannot be used as a value" in e:
-                    # This is a potentially sporadic issue
-                    print(f"An error occurred: {e}. Retrying...")
-                    retries += 1
-                else:
-                    raise
+                # This is a potentially sporadic issue
+                print(f"An error occurred: {e}. Retrying...")
+                last_e = e
+                retries += 1
         else:
-            print("Max retries reached. Function execution failed.")
+            raise RuntimeError("Max retries reached. Function execution failed.") from last_e
 
 
     def _test_impl(self, model, ref_net, kind, ie_device, precision, ir_version, infer_timeout=60, dynamic_shapes=True,
-              **kwargs):
+                   **kwargs):
         """
         :param enabled_transforms/disabled_transforms: string with idxs of transforms that should be enabled/disabled.
                                                        Example: "transform_1,transform_2"
@@ -124,13 +124,9 @@ class PytorchLayerTest:
                 from torch.export import export
 
                 em = export(model, tuple(torch_inputs))
-                if version.parse(torch.__version__) >= version.parse("2.3"):
-                    em = em.run_decompositions()
-                gm = em.module()
-                print(gm.code)
 
                 converted_model = convert_model(
-                    em, example_input=torch_inputs)
+                    em, example_input=torch_inputs, verbose=True)
                 self._resolve_input_shape_dtype(
                     converted_model, ov_inputs, dynamic_shapes)
                 smodel = model
@@ -242,7 +238,7 @@ class PytorchLayerTest:
         if not dynamic_shapes:
             input_shapes = [inp.shape for inp in ov_inputs]
             kwargs["input"] = input_shapes
-        om = convert_model(decoder, **kwargs)
+        om = convert_model(decoder, verbose=True, **kwargs)
         self._resolve_input_shape_dtype(om, ov_inputs, dynamic_shapes)
         return smodel, om
 

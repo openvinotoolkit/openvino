@@ -33,7 +33,7 @@ public:
     /// Example below show the basic usage of pass::Manager
     ///
     ///     pass::Manager manager;
-    ///     manager.register_pass<MyTransformation>(/*transformation constructor ars*/);
+    ///     manager.register_pass<MyTransformation>(/* transformation constructor args */);
     ///     manager.run_passes(f);
     ///
     /// For some purposes transformation can be registered and disabled by default.
