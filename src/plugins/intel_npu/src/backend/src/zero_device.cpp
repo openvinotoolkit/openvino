@@ -6,11 +6,11 @@
 
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
+#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "zero_executor.hpp"
 #include "zero_host_tensor.hpp"
 #include "zero_infer_request.hpp"
 #include "zero_remote_tensor.hpp"
-#include "zero_utils.hpp"
 
 using namespace intel_npu;
 
@@ -20,8 +20,8 @@ ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs
       log("ZeroDevice", Logger::global().level()) {
     log.debug("ZeroDevice::ZeroDevice init");
     device_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
-    zeroUtils::throwOnFail("zeDeviceGetProperties",
-                           zeDeviceGetProperties(_initStructs->getDevice(), &device_properties));
+    THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetProperties",
+                                zeDeviceGetProperties(_initStructs->getDevice(), &device_properties));
 
     // Query PCI information
     // Older drivers do not have this implementend. Linux driver returns NOT_IMPLEMENTED, while windows driver returns
@@ -62,7 +62,7 @@ ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs
     std::vector<ze_command_queue_group_properties_t> command_group_properties;
     uint32_t command_queue_group_count = 0;
     // Discover all command queue groups
-    zeroUtils::throwOnFail(
+    THROW_ON_FAIL_FOR_LEVELZERO(
         "zeDeviceGetCommandQueueGroupProperties",
         zeDeviceGetCommandQueueGroupProperties(_initStructs->getDevice(), &command_queue_group_count, nullptr));
 
@@ -74,10 +74,10 @@ ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs
         prop.pNext = nullptr;
     }
 
-    zeroUtils::throwOnFail("zeDeviceGetCommandQueueGroupProperties",
-                           zeDeviceGetCommandQueueGroupProperties(_initStructs->getDevice(),
-                                                                  &command_queue_group_count,
-                                                                  command_group_properties.data()));
+    THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetCommandQueueGroupProperties",
+                                zeDeviceGetCommandQueueGroupProperties(_initStructs->getDevice(),
+                                                                       &command_queue_group_count,
+                                                                       command_group_properties.data()));
 
     // Find the corresponding command queue group.
     log.debug("ZeroDevice::ZeroDevice - findGroupOrdinal");
@@ -138,17 +138,19 @@ uint32_t ZeroDevice::getMaxNumSlices() const {
 
 uint64_t ZeroDevice::getAllocMemSize() const {
     ze_graph_memory_query_t query{};
-    zeroUtils::throwOnFail(
-        "pfnQueryContextMemory",
-        _graph_ddi_table_ext.pfnQueryContextMemory(_initStructs->getContext(), ZE_GRAPH_QUERY_MEMORY_DDR, &query));
+    ze_result_t result =
+        _graph_ddi_table_ext.pfnQueryContextMemory(_initStructs->getContext(), ZE_GRAPH_QUERY_MEMORY_DDR, &query);
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnQueryContextMemory", result, _graph_ddi_table_ext);
+
     return query.allocated;
 }
 
 uint64_t ZeroDevice::getTotalMemSize() const {
     ze_graph_memory_query_t query{};
-    zeroUtils::throwOnFail(
-        "pfnQueryContextMemory",
-        _graph_ddi_table_ext.pfnQueryContextMemory(_initStructs->getContext(), ZE_GRAPH_QUERY_MEMORY_DDR, &query));
+    ze_result_t result =
+        _graph_ddi_table_ext.pfnQueryContextMemory(_initStructs->getContext(), ZE_GRAPH_QUERY_MEMORY_DDR, &query);
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnQueryContextMemory", result, _graph_ddi_table_ext);
+
     return query.total;
 }
 
