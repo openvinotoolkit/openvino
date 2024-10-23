@@ -92,6 +92,13 @@ bool ACLConvertExecutorBuilder::isSupported(const ConvertParams& convertParams,
             DEBUG_LOG("NECopy does not support source precision: ", convertParams.srcPrc.to_string());
             return false;
         }
+        // currenlty not support UNKNOWN DataLayout to avoid accuracy issues
+        auto srcDataLayout = getAclDataLayoutByMemoryDesc(srcDesc);
+        auto dstDataLayout = getAclDataLayoutByMemoryDesc(dstDesc);
+        if (srcDataLayout == DataLayout::UNKNOWN || dstDataLayout == DataLayout::UNKNOWN) {
+            DEBUG_LOG("NECopy does not support source or destination layout");
+            return false;
+        }
         if ((convertParams.srcPrc == ov::element::i8 && !one_of(convertParams.dstPrc,
                                                               ov::element::i16,
                                                               ov::element::i32,
