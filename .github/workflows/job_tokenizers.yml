@@ -39,6 +39,7 @@ jobs:
     container: ${{ fromJSON(inputs.container) }}
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
+      INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
       OPENVINO_TOKENIZERS_REPO: ${{ github.workspace }}/openvino_tokenizers
       EXTENSION_BUILD_DIR: ${{ github.workspace }}/build
 
@@ -57,6 +58,10 @@ jobs:
             .github/actions/setup_python
             .github/actions/cache
             install_build_dependencies.sh
+            
+      - name: Install OpenVINO dependencies (mac)
+        if: runner.os == 'macOS'
+        run: brew install pigz
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}
         uses: ./.github/actions/setup_python
@@ -73,26 +78,13 @@ jobs:
           path: ${{ env.OPENVINO_TOKENIZERS_REPO }}
           ref: ${{ env.TARGET_BRANCH }}
 
-      - name: Download OpenVINO package
+      - name: Download OpenVINO artifacts (wheels)
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
-          name: openvino_package
-          path: ${{ env.INSTALL_DIR }}
-
-      - name: Extract OpenVINO packages (Linux and macOS)
-        if: runner.os != 'Windows'
-        run: |
-          pushd ${INSTALL_DIR}
-            tar -I pigz -xf openvino_package.tar.gz -C ${INSTALL_DIR}
-          popd
-
-      - name: Extract OpenVINO packages (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          pushd ${{ env.INSTALL_DIR }}
-            Expand-Archive openvino_package.zip -DestinationPath "${{ env.INSTALL_DIR }}"
-          popd
-
+          pattern: openvino_[wheels]*
+          path: ${{ env.INSTALL_WHEELS_DIR }}
+          merge-multiple: true
+          
       #
       # Dependencies
       #
@@ -101,17 +93,18 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           # Find and install wheel
-          pushd ${INSTALL_DIR}/tools
-            wheel_name=$(find . -name 'openvino-*.whl')
-            python3 -m pip install $wheel_name
-          popd
+          wheel_name=$(find . -name 'openvino-*.whl')
+          python3 -m pip install $wheel_name
+        working-directory: ${{ env.INSTALL_WHEELS_DIR }}
+          
 
       - name: Install OpenVINO Python wheel (Windows)
         if: runner.os == 'Windows'
         run: |
           # Find and install wheel
-          $ovCoreWheelPath=Get-ChildItem -Path "${{ env.INSTALL_DIR }}\\tools" -Filter openvino-*.whl | % { $_.FullName }
+          $ovCoreWheelPath=Get-ChildItem -Path . -Filter openvino-*.whl | % { $_.FullName }
           python3 -m pip install "$ovCoreWheelPath"
+        working-directory: ${{ env.INSTALL_WHEELS_DIR }}
 
       #
       # Build
@@ -119,16 +112,18 @@ jobs:
 
       - name: Build tokenizers wheel (Linux and macOS)
         if: runner.os != 'Windows'
+        working-directory: ${{ env.OPENVINO_TOKENIZERS_REPO }}
         run: |
           # use OpenVINO wheel package only to build the extension
-          python -m pip wheel -v --no-deps --wheel-dir ${EXTENSION_BUILD_DIR} --find-links ${INSTALL_DIR}/tools ${OPENVINO_TOKENIZERS_REPO}
+          python -m pip wheel -v --no-deps --wheel-dir ${EXTENSION_BUILD_DIR} --find-links ${INSTALL_WHEELS_DIR} .
         env:
           CMAKE_BUILD_PARALLEL_LEVEL: '4'
 
       - name: Build tokenizers wheel (Windows)
         if: runner.os == 'Windows'
+        working-directory: ${{ env.OPENVINO_TOKENIZERS_REPO }}
         run: |
-          python3 -m pip wheel -v --no-deps --wheel-dir ${env:EXTENSION_BUILD_DIR} --find-links ${env:INSTALL_DIR}/tools ${env:OPENVINO_TOKENIZERS_REPO}
+          python3 -m pip wheel -v --no-deps --wheel-dir ${env:EXTENSION_BUILD_DIR} --find-links ${env:INSTALL_WHEELS_DIR} .
         env:
           CMAKE_BUILD_PARALLEL_LEVEL: '4'
 
@@ -138,7 +133,7 @@ jobs:
 
       - name: Upload openvino tokenizers wheel
         if: ${{ always() }}
-        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: openvino_tokenizers_wheel
           path: ${{ env.EXTENSION_BUILD_DIR }}/*.whl
