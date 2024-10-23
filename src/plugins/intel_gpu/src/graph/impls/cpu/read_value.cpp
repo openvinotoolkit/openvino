@@ -59,7 +59,7 @@ struct read_value_impl : public typed_primitive_impl<read_value> {
             if (instance.get_impl_params()->input_layouts.size() > 0) {
                 variable.get_memory()->copy_from(stream, instance.dep_memory(0), true);
             } else {
-                variable.get_memory()->fill(stream, 0);
+                variable.get_memory()->fill(stream);
             }
         }
 
