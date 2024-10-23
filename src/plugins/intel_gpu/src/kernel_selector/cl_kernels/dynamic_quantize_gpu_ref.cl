@@ -44,7 +44,7 @@ KERNEL(dynamic_quantize_gpu_ref)(
         for (x = 0; x < INPUT0_SIZE_X / 8; x++) {
             half8 val = as_half8(vload8(0, (ushort*)input + in_offset + x * 8));
             val *= scale;
-            vstore8(convert_char8(val), 0, output + out_offset + x * 8);
+            vstore8(convert_char8_rte(val), 0, output + out_offset + x * 8);
         }
         x *= 8;
         for (; x < INPUT0_SIZE_X; x++)
