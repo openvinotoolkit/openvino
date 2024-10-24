@@ -31,6 +31,9 @@ networkx<=3.3
 timm==1.0.8
 transformers~=4.44.0
 easyocr==1.7.2
+super-image==0.1.7
+# huggingface-hub required for super-image
+huggingface-hub==0.25.2
 
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch~=2.4.0
