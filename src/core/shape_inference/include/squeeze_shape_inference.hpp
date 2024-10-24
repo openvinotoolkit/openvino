@@ -10,8 +10,7 @@
 
 namespace ov {
 namespace op {
-namespace v0 {
-
+namespace util {
 /**
  * \brief Do Squeeze shape inference.
  *
@@ -21,10 +20,13 @@ namespace v0 {
  * \param input_shapes   Squeeze input shapes.
  * \param ta             Tensor accessor to constant data.
  */
-template <class T, class TRShape = result_shape_t<T>>
-std::vector<TRShape> shape_infer(const Squeeze* op,
-                                 const std::vector<T>& input_shapes,
-                                 const ITensorAccessor& ta = make_tensor_accessor()) {
+template <class T,
+          class TRShape = result_shape_t<T>,
+          class Squeeze,
+          typename = typename std::enable_if<std::is_same<Squeeze, ov::op::v0::Squeeze>::value ||
+                                                 std::is_same<Squeeze, ov::op::v15::Squeeze>::value,
+                                             bool>::type>
+std::vector<TRShape> shape_infer(const Squeeze* op, const std::vector<T>& input_shapes, const ITensorAccessor& ta) {
     using DimType = typename T::value_type;
 
     const auto number_of_inputs = input_shapes.size();
@@ -115,6 +117,24 @@ std::vector<TRShape> shape_infer(const Squeeze* op,
     }
     return output_shapes;
 }
+}  // namespace util
+
+namespace v0 {
+template <class T, class TRShape = result_shape_t<T>>
+std::vector<TRShape> shape_infer(const Squeeze* op,
+                                 const std::vector<T>& input_shapes,
+                                 const ITensorAccessor& ta = make_tensor_accessor()) {
+    return util::shape_infer(op, input_shapes, ta);
+}
 }  // namespace v0
+
+namespace v15 {
+template <class T, class TRShape = result_shape_t<T>>
+std::vector<TRShape> shape_infer(const Squeeze* op,
+                                 const std::vector<T>& input_shapes,
+                                 const ITensorAccessor& ta = make_tensor_accessor()) {
+    return util::shape_infer(op, input_shapes, ta);
+}
+}  // namespace v15
 }  // namespace op
 }  // namespace ov
