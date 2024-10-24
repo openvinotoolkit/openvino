@@ -34,6 +34,7 @@ public:
     uint32_t getGraphExtVersion() const;
     bool isBatchingSupported() const;
     bool isCommandQueueExtSupported() const;
+    bool isLUIDExtSupported() const;
     void registerOptions(OptionsDesc& options) const;
     void* getContext() const;
     std::string getCompilationPlatform(const std::string_view platform, const std::string& deviceId) const;

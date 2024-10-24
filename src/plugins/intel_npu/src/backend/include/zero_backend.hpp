@@ -27,6 +27,7 @@ public:
 
     bool isBatchingSupported() const override;
     bool isCommandQueueExtSupported() const override;
+    bool isLUIDExtSupported() const override;
 
     void* getContext() const override;
     void* getDriverHandle() const;
