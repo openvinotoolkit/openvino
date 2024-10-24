@@ -194,7 +194,7 @@ Composability of different threading runtimes
 #############################################
 
 OpenVINO is by default built with the `oneTBB <https://github.com/oneapi-src/oneTBB/>`__ threading library,
-oneTBB has a feature` worker_wait`, similar to `OpenMP <https://www.openmp.org/>`__ `busy-wait <https://gcc.gnu.org/onlinedocs/libgomp/GOMP_005fSPINCOUNT.html>`__, which makes OpenVINO inference
+oneTBB has a feature `worker_wait`, similar to `OpenMP <https://www.openmp.org/>`__ `busy-wait <https://gcc.gnu.org/onlinedocs/libgomp/GOMP_005fSPINCOUNT.html>`__, which makes OpenVINO inference
 threads wait actively for a while after a task done. The intention is to avoid CPU inactivity in the
 transition time between inference tasks. 
 
