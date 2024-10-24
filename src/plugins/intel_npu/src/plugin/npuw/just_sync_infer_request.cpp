@@ -617,11 +617,13 @@ void ov::npuw::JustInferRequest::bind_global_parameters(std::size_t idx) {
 
     // Run host-side gather, if required
     if (comp_model_desc.host_gather.dst_idx != -1) {
-        auto& dst = comp_model_desc.closure[comp_model_desc.host_gather.dst_idx - comp_model_desc.param_base];
+        const auto& gport = comp_model_desc.compiled_model->inputs()[comp_model_desc.host_gather.dst_idx];
+        const auto gather = subr->get_tensor(gport);
+
         const auto& vocab = comp_model_desc.closure[comp_model_desc.host_gather.src_idx - comp_model_desc.param_base];
         const auto& lport = comp_model_desc.compiled_model->inputs()[comp_model_desc.host_gather.idx_idx];
         const auto lookup = subr->get_tensor(lport);
-        ov::npuw::util::gather(ov::get_tensor_impl(vocab), lookup, ov::get_tensor_impl(dst));
+        ov::npuw::util::gather(ov::get_tensor_impl(vocab), lookup, gather);
     }
 
     LOG_DEBUG("Done");
@@ -749,6 +751,15 @@ void ov::npuw::JustInferRequest::unpack_closure(std::size_t idx, RqPtr request) 
         auto& closure = comp_model_desc.closure[cidx];
 
         const auto closure_param_id = comp_model_desc.param_base + cidx;
+
+        if (func_desc.host_gather.dst_idx != -1 &&
+            static_cast<uint64_t>(func_desc.host_gather.dst_idx) == closure_param_id) {
+            // No need to set/copy the host_gather's closure tensor int
+            // the subrequest - it is just a dummy. host_gather writes
+            // to the right buffer directly.
+            continue;
+        }
+
         auto& iport = func_desc.compiled_model->inputs()[closure_param_id];
         if (closure.get_element_type() != iport.get_element_type()) {
             // Remember where the unpack is required
