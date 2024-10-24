@@ -84,6 +84,10 @@ ze_graph_dditable_ext_curr_t& ZeroEngineBackend::getGraphDdiTable() const {
     return _instance->getGraphDdiTable();
 }
 
+ze_command_queue_npu_dditable_ext_curr_t& ZeroEngineBackend::getCommandQueueDdiTable() const {
+    return _instance->getCommandQueueDdiTable();
+}
+
 void ZeroEngineBackend::updateInfo(const Config& config) {
     _logger.setLevel(config.get<LOG_LEVEL>());
     if (_devices.size() > 0) {

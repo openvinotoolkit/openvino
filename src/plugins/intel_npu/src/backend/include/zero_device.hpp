@@ -7,21 +7,19 @@
 #include <ze_api.h>
 #include <ze_graph_ext.h>
 
+#include "intel_npu/common/iadapter.hpp"
 #include "intel_npu/common/icompiled_model.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
+#include "intel_npu/utils/zero/zero_types.hpp"
 #include "openvino/runtime/intel_npu/remote_properties.hpp"
 #include "zero_init.hpp"
-#include "zero_types.hpp"
 
 namespace intel_npu {
 
 class ZeroDevice : public IDevice {
 public:
     ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs);
-
-    std::shared_ptr<IExecutor> createExecutor(const std::shared_ptr<const NetworkDescription>& networkDescription,
-                                              const Config& config) override;
 
     std::string getName() const override;
     std::string getFullDeviceName() const override;
@@ -35,8 +33,10 @@ public:
     std::map<ov::element::Type, float> getGops() const override;
     ov::device::Type getDeviceType() const override;
 
+    std::shared_ptr<IAdapter> createAdapter() override;
+
     std::shared_ptr<SyncInferRequest> createInferRequest(const std::shared_ptr<const ICompiledModel>& compiledModel,
-                                                         const std::shared_ptr<IExecutor>& executor,
+                                                         const std::shared_ptr<IGraph>& graph,
                                                          const Config& config) override;
     void updateInfo(const Config& config) override {
         log.setLevel(config.get<LOG_LEVEL>());
@@ -75,8 +75,6 @@ private:
                                                       {ov::element::bf16, 0.f},
                                                       {ov::element::u8, 0.f},
                                                       {ov::element::i8, 0.f}};
-
-    uint32_t _group_ordinal;
 
     Logger log;
 };
