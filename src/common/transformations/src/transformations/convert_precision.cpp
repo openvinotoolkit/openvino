@@ -500,6 +500,7 @@ bool ov::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ov::Model>& 
         type_to_fuse[it.first] = it.second;
     }
 
+    type_to_fuse.insert(m_additional_type_to_fuse_map.begin(), m_additional_type_to_fuse_map.end());
 
     static type_to_fuse_map type_to_extend{
         {ov::op::v1::Select::get_type_info_static(), extend_select_type},
