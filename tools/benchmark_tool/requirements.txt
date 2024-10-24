@@ -1,2 +1,2 @@
--c ../constraints.txt
 numpy>=1.16.6,<2.1.0
+build<1.3
