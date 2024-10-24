@@ -23,8 +23,7 @@
 KERNEL(quantize_input)(
     const __global INPUT0_TYPE* input,
     __global DQ_TYPE* quantized_input,
-    __global INPUT0_TYPE* de_quan_scale,
-    __global INPUT0_TYPE* act_sum
+    __global INPUT0_TYPE* quan_var
 ) {
     const uint offset = get_global_id(0);
 
@@ -55,8 +54,9 @@ KERNEL(quantize_input)(
         vstore4(quantized_value[i], 0, &quantized_input[input_offset + i * 4]);
     }
 
-    de_quan_scale[offset] = quan_scale;
-    act_sum[offset] = quantized_sum;
+    // Pair of quantizing_scale and quantized activation_sum for each group
+    quan_var[offset * 2] = quan_scale;
+    quan_var[(offset * 2) + 1] = quantized_sum;
 }
 #else  // !FC_KERNEL_DYNAMIC_QUANTIZE
 
@@ -778,8 +778,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
     __global DQ_TYPE* quantized_input,
-    __global INPUT0_TYPE* scale,
-    __global INPUT0_TYPE* act_sum,
+    __global INPUT0_TYPE* quan_var,
 #if DECOMPRESSION_SCALE_TERM
     const __global DECOMPRESSION_SCALE_TYPE* decompression_scale,
 #endif
@@ -893,7 +892,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
     uint idx_sglid = (sglid * TILE_K) % TILE_IFM_ELEMENTS_SIZE;       // same index for sglid 0~7 : to tile_k direction
     uint batch_sglid = (sglid * TILE_K) / TILE_IFM_ELEMENTS_SIZE;     // 0 to 1 : to batch direction
 
-    const uint scale_pitch = TILE_IN_B_PITCH / QUANTIZE_GROUP_SIZE;
+    const uint scale_pitch = (TILE_IN_B_PITCH / QUANTIZE_GROUP_SIZE);
     MAKE_VECTOR_TYPE(int, TILE_B) acc_tmp[TILE_OFM] = { };
     __attribute__((opencl_unroll_hint(1)))
     for (uint ni = 0; ni < iterations; ++ni) {
@@ -909,12 +908,12 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
             in_offset += (TILE_IN_B_PITCH * 2);
 
             #if NUM_LOOP_IN_DYN_QUAN_GROUP == 1
+                de_quantize_scale[bi * 2] = quan_var[scale_offset * 2];
+                de_quantize_scale[bi * 2 + 1] = quan_var[scale_offset * 2 + scale_pitch * 2];
                 #if COMPRESSED_WEIGHTS_INT8
-                    activation_sum[bi * 2] = TO_ACCUM_DQ_TYPE(act_sum[scale_offset]);
-                    activation_sum[bi * 2 + 1] = TO_ACCUM_DQ_TYPE(act_sum[scale_offset + scale_pitch]);
+                    activation_sum[bi * 2] = TO_ACCUM_DQ_TYPE(quan_var[scale_offset * 2 + 1]);
+                    activation_sum[bi * 2 + 1] = TO_ACCUM_DQ_TYPE(quan_var[scale_offset * 2 + 1 + scale_pitch * 2]);
                 #endif
-                de_quantize_scale[bi * 2] = scale[scale_offset];
-                de_quantize_scale[bi * 2 + 1] = scale[scale_offset + scale_pitch];
 
                 scale_offset += (scale_pitch * 2);
             #endif
@@ -924,9 +923,9 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
             if (ni % NUM_LOOP_IN_DYN_QUAN_GROUP == 0) {
                 unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
                     #if COMPRESSED_WEIGHTS_INT8
-                        activation_sum[bi] = TO_ACCUM_DQ_TYPE(act_sum[scale_offset]);
+                        activation_sum[bi] = TO_ACCUM_DQ_TYPE(quan_var[scale_offset * 2 + 1]);
                     #endif
-                    de_quantize_scale[bi] = scale[scale_offset];
+                    de_quantize_scale[bi] = quan_var[scale_offset * 2];
                     scale_offset += scale_pitch;
                 }
             }
@@ -1252,8 +1251,7 @@ KERNEL(fc)(
 #endif
 #if DYNAMIC_QUANTIZE
     , __global DQ_TYPE* quantized_input
-    , __global INPUT0_TYPE* de_quan_scale
-    , __global INPUT0_TYPE* act_sum
+    , __global INPUT0_TYPE* quan_var
 #endif
 ) {
 #if USE_SLM
@@ -1404,8 +1402,7 @@ KERNEL(fc)(
                 OPTIONAL_SHAPE_INFO_TENSOR
                 input,
                 quantized_input,
-                de_quan_scale,
-                act_sum,
+                quan_var,
             #if DECOMPRESSION_SCALE_TERM
                 decompression_scale,
             #endif
@@ -1452,8 +1449,7 @@ KERNEL(fc)(
             OPTIONAL_SHAPE_INFO_TENSOR
             input,
             quantized_input,
-            de_quan_scale,
-            act_sum,
+            quan_var,
         #if DECOMPRESSION_SCALE_TERM
             decompression_scale,
         #endif

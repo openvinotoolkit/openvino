@@ -2977,8 +2977,8 @@ public:
 
             auto config = get_test_default_config(engine);
             config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-            ov::intel_gpu::ImplementationDesc fc_impl_desc = { format::bfyx, "fully_connected_gpu_bf_tiled", impl_types::ocl };
-            // ov::intel_gpu::ImplementationDesc fc_impl_desc = { format::bfyx, "fully_connected_gpu_bfyx_ref", impl_types::ocl };
+            // ov::intel_gpu::ImplementationDesc fc_impl_desc = { format::bfyx, "fully_connected_gpu_bf_tiled", impl_types::ocl };
+            ov::intel_gpu::ImplementationDesc fc_impl_desc = { format::bfyx, "fully_connected_gpu_bfyx_ref", impl_types::ocl };
             config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"fc_prim", fc_impl_desc} }));
             config.set_property(ov::hint::dynamic_quantization_group_size(0));
 
@@ -4165,7 +4165,15 @@ TEST_F(fully_connected_gpu_tests, compressed_int8_scale_dynamic_quantize_wzp_128
     this->test_compressed_int8_scale_dyn_quan_weight_u8(true, 320, 4096, 4096, 128, 128, true);
 }
 
-TEST_F(fully_connected_gpu_tests, compressed_int8_scale_dynamic_quantize_wzp_32_large) {
+TEST_F(fully_connected_gpu_tests, compressed_int8_scale_dynamic_quantize_wzp_32_ifm_1024) {
+    this->test_compressed_int8_scale_dyn_quan_weight_u8(true, 320, 1024, 1024, 32, 32, true);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int8_scale_dynamic_quantize_wzp_32_ifm_2048) {
+    this->test_compressed_int8_scale_dyn_quan_weight_u8(true, 320, 2048, 2048, 32, 32, true);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int8_scale_dynamic_quantize_wzp_32_ifm_4096) {
     this->test_compressed_int8_scale_dyn_quan_weight_u8(true, 320, 4096, 4096, 32, 32, true);
 }
 
