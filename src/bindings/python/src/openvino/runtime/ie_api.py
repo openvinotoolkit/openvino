@@ -2,7 +2,8 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Any, Iterable, Union, Optional, Dict
+from types import TracebackType
+from typing import Any, Iterable, Union, Optional, Dict, Type
 from pathlib import Path
 import warnings
 
@@ -37,7 +38,7 @@ class Model:
         if kwargs and not args:
             self.__model = ModelBase(**kwargs)
 
-    def __getattr__(self, name):
+    def __getattr__(self, name: str) -> Any:
         if hasattr(self.__model, name):
             return getattr(self.__model, name)
 
@@ -52,12 +53,15 @@ class Model:
         """
         return Model(self.__model.clone())
 
-    def __enter__(self):
+    def __enter__(self) -> "Model":
         return self
 
-    def __exit__(self, exc_type, exc_value, traceback):
+    def __exit__(self, exc_type: Type[BaseException], exc_value: BaseException, traceback: TracebackType) -> None:
         del self.__model
         self.__model = None
+
+    def __repr__(self) -> str:
+        return self.__model.__repr__()
 
 
 class InferRequest(_InferRequestWrapper):
