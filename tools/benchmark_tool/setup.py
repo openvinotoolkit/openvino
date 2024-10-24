@@ -11,9 +11,6 @@ $ python -m build
 from setuptools import setup, find_packages
 
 
-from os import listdir
-print(listdir("./"))
-
 with open('requirements.txt', 'r', encoding='utf-8') as f:
     raw_contents = f.readlines()
     reqs = [line.strip() for line in raw_contents]
