@@ -42,9 +42,9 @@ TEST_F(AutoFuncTests, load_cached_model_to_actual_device_and_disable_CPU_acceler
                                                  {ov::device::priorities("MOCK_GPU", "MOCK_CPU"),
                                                   ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)});
     }
-    // No cached model for actual device
-    // will cache model for both actual device and CPU plugin
-    ASSERT_EQ(ov::test::utils::listFilesWithExt(cache_path, "blob").size(), 2);
+    // No cached model created for CPU accelerator as cache is enable
+    // will only cache model for actual device
+    ASSERT_EQ(ov::test::utils::listFilesWithExt(cache_path, "blob").size(), 1);
     ov::test::utils::removeFilesWithExt(cache_path, "blob");
     {
         auto compiled_model = core.compile_model(
@@ -52,14 +52,19 @@ TEST_F(AutoFuncTests, load_cached_model_to_actual_device_and_disable_CPU_acceler
             "AUTO",
             {ov::device::priorities("MOCK_GPU"), ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)});
     }
+    // No cached model generated for CPU accelerator as cache is enable
+    // cached model exists for actual device
+    // will reuse cached model for actual device
+    ASSERT_EQ(ov::test::utils::listFilesWithExt(cache_path, "blob").size(), 1);
     {
         auto compiled_model = core.compile_model(model_cannot_batch,
                                                  "AUTO",
                                                  {ov::device::priorities("MOCK_GPU", "MOCK_CPU"),
                                                   ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)});
     }
+    // No cached model generated for CPU accelerator as cache is enable.
     // cached model exists for actual device
-    // will reuse cached model for actual device without CPU accelerating(No cached model for CPU)
+    // will reuse cached model for actual device
     ASSERT_EQ(ov::test::utils::listFilesWithExt(cache_path, "blob").size(), 1);
 
     core.set_property("MOCK_GPU", ov::device::id("test_regenerate"));
@@ -69,9 +74,10 @@ TEST_F(AutoFuncTests, load_cached_model_to_actual_device_and_disable_CPU_acceler
                                                  {ov::device::priorities("MOCK_GPU", "MOCK_CPU"),
                                                   ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)});
     }
+    // No cached model generated for CPU accelerator as cache is enable.
     // model hash id changed for actual device
-    // will cache model for both actual device and CPU as accelerator
-    ASSERT_EQ(ov::test::utils::listFilesWithExt(cache_path, "blob").size(), 3);
+    // will only cache model for actual device
+    ASSERT_EQ(ov::test::utils::listFilesWithExt(cache_path, "blob").size(), 2);
     core.set_property(ov::cache_dir(""));
 }
 
@@ -88,9 +94,9 @@ TEST_F(AutoFuncTests, load_model_path_to_actual_device_and_disable_CPU_accelerat
                                                  {ov::device::priorities("MOCK_GPU", "MOCK_CPU"),
                                                   ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)});
     }
-    // No cached model for actual device
-    // will cache model for both actual device and CPU plugin
-    ASSERT_EQ(ov::test::utils::listFilesWithExt(cache_path, "blob").size(), 2);
+    // No cached model generated for CPU accelerator as cache is enabled
+    // will only cache model for actual device
+    ASSERT_EQ(ov::test::utils::listFilesWithExt(cache_path, "blob").size(), 1);
     ov::test::utils::removeFilesWithExt(cache_path, "blob");
     {
         auto compiled_model = core.compile_model(
@@ -98,14 +104,15 @@ TEST_F(AutoFuncTests, load_model_path_to_actual_device_and_disable_CPU_accelerat
             "AUTO",
             {ov::device::priorities("MOCK_GPU"), ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)});
     }
+    // will reuse cached model for actual device with no CPU as accelerator
+    ASSERT_EQ(ov::test::utils::listFilesWithExt(cache_path, "blob").size(), 1);
     {
         auto compiled_model = core.compile_model(m_xml_path,
                                                  "AUTO",
                                                  {ov::device::priorities("MOCK_GPU", "MOCK_CPU"),
                                                   ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)});
     }
-    // cached model exists for actual device
-    // will reuse cached model for actual device without CPU accelerating(No cached model for CPU)
+    // will reuse cached model for actual device and no cached model for CPU accelerator as cache is enabled.
     ASSERT_EQ(ov::test::utils::listFilesWithExt(cache_path, "blob").size(), 1);
 
     core.set_property("MOCK_GPU", ov::device::id("test_regenerate"));
@@ -115,9 +122,9 @@ TEST_F(AutoFuncTests, load_model_path_to_actual_device_and_disable_CPU_accelerat
                                                  {ov::device::priorities("MOCK_GPU", "MOCK_CPU"),
                                                   ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)});
     }
-    // model hash id changed for actual device
-    // will cache model for both actual device and CPU as accelerator
-    ASSERT_EQ(ov::test::utils::listFilesWithExt(cache_path, "blob").size(), 3);
+    // No cached model generated for CPU accelerator as cache is enable.
+    // will cache model for actual device as model hash id changed for actual device
+    ASSERT_EQ(ov::test::utils::listFilesWithExt(cache_path, "blob").size(), 2);
     core.set_property(ov::cache_dir(""));
     ov::test::utils::removeIRFiles(m_xml_path, m_bin_path);
 }
@@ -131,9 +138,9 @@ TEST_F(AutoFuncTests, load_cached_model_to_actual_device_and_disable_CPU_acceler
                                                  {ov::device::priorities("MOCK_GPU", "MOCK_CPU"),
                                                   ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)});
     }
-    // No cached model for actual device
-    // will cache model for both actual device and CPU plugin
-    ASSERT_EQ(ov::test::utils::listFilesWithExt(cache_path, "blob").size(), 2);
+    // No cached model generated for CPU accelerator as cache is enable.
+    // will only cache model for actual device
+    ASSERT_EQ(ov::test::utils::listFilesWithExt(cache_path, "blob").size(), 1);
     ov::test::utils::removeFilesWithExt(cache_path, "blob");
     {
         auto compiled_model = core.compile_model(
@@ -149,7 +156,8 @@ TEST_F(AutoFuncTests, load_cached_model_to_actual_device_and_disable_CPU_acceler
                                                   ov::intel_auto::enable_startup_fallback(true)});
     }
     // cached model exists for actual device
-    // will reuse cached model for actual device without CPU accelerating(No cached model for CPU)
+    // No cached model generated for CPU accelerator as cache is enable.
+    // will reuse cached model for actual device
     ASSERT_EQ(ov::test::utils::listFilesWithExt(cache_path, "blob").size(), 1);
     core.set_property("MOCK_GPU", ov::device::id("test_regenerate"));
     {
@@ -160,7 +168,7 @@ TEST_F(AutoFuncTests, load_cached_model_to_actual_device_and_disable_CPU_acceler
                                                   ov::intel_auto::enable_startup_fallback(false)});
     }
     // model hash id changed for actual device
-    // will cache 2 models for actual device and no cached model for CPU
+    // will cache 2 models for actual device and no cached model for CPU as CPU accelerator is disable
     ASSERT_EQ(ov::test::utils::listFilesWithExt(cache_path, "blob").size(), 2);
     core.set_property(ov::cache_dir(""));
 }
