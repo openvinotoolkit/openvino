@@ -19,7 +19,7 @@ patchelf<=0.17.2.1
 # Frontends
 h5py>=3.1.0,<3.13.0
 docopt~=0.6.2
-paddlepaddle==2.6.0
+paddlepaddle==2.6.2
 tensorflow>=1.15.5,<2.18.0
 six~=1.16.0
 protobuf>=3.18.1,<4.0.0
