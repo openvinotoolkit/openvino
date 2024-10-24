@@ -46,50 +46,6 @@ void symbolic_set_up_for_shape(ov::PartialShape& shape) {
         d.set_symbol(std::make_shared<ov::Symbol>());
     }
 }
-
-void special_case_range_symbol_propagation(const std::shared_ptr<ov::Node>& node) {
-    /* Symbol propagation through specific Range operation
-          start    shift
-            |  \   /
-            |   Add   step == 1
-            \    /    /
-               Range
-    */
-    if (!ov::is_type<ov::op::v0::Range>(node) && !ov::is_type<ov::op::v4::Range>(node))
-        return;
-
-    auto output_shape = node->get_output_partial_shape(0);
-    if (output_shape.rank().is_dynamic() || output_shape.size() != 1)
-        return;
-
-    auto step_value = ov::util::get_constant_from_source(node->input_value(2));
-    if (!step_value || step_value->cast_vector<int64_t>()[0] != 1)
-        return;
-
-    auto start_symbols = node->get_input_tensor(0).get_value_symbol();
-    if (start_symbols.size() != 1 || start_symbols[0] == nullptr)
-        return;
-    auto start_symbol = start_symbols[0];
-
-    auto stop_node = node->input_value(1).get_node_shared_ptr();
-    if (!ov::is_type<ov::op::v1::Add>(stop_node))
-        return;
-    auto add_in0_symbols = stop_node->get_input_tensor(0).get_value_symbol();
-    if (add_in0_symbols.size() != 1 || add_in0_symbols[0] == nullptr)
-        return;
-    auto add_in0_symbol = add_in0_symbols[0];
-
-    auto add_in1_symbols = stop_node->get_input_tensor(1).get_value_symbol();
-    if (add_in1_symbols.size() != 1 || add_in1_symbols[0] == nullptr)
-        return;
-    auto add_in1_symbol = add_in1_symbols[0];
-
-    if (add_in0_symbol == start_symbol)
-        output_shape[0].set_symbol(add_in1_symbol);
-    else if (add_in1_symbol == start_symbol)
-        output_shape[0].set_symbol(add_in0_symbol);
-    node->set_output_type(0, node->get_output_element_type(0), output_shape);
-}
 }  // namespace
 
 bool ov::pass::SymbolicPropagation::run_on_model(const std::shared_ptr<ov::Model>& m) {
@@ -103,10 +59,6 @@ bool ov::pass::SymbolicPropagation::run_on_model(const std::shared_ptr<ov::Model
         op->revalidate_and_infer_types();
         // Recursively apply transformation for sub-graph based operations
         ov::op::util::process_subgraph(*this, op);
-
-        // additional symbol propagation rules must be triggered here
-        special_case_range_symbol_propagation(op);
-        // additional symbol propagation rules must be triggered here
 
         for (auto& output : op->outputs()) {
             auto shape = output.get_partial_shape();
