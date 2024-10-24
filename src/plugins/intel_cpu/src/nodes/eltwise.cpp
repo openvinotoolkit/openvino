@@ -1503,7 +1503,7 @@ public:
             fullWorkAmount *= jep.dims[i];
         }
 
-        size_t minimalConcurrency = parallel_get_max_threads();
+        m_threads_num = static_cast<size_t>(parallel_get_max_threads());
         size_t minimalJitWorkAmount = 256;
         size_t currentJitWorkAmount = jep.dims[jep.dims.size() - 1];
         int collapsedDims = 0;
@@ -1516,6 +1516,7 @@ public:
             for (size_t j = 1; j < inpDims.size(); j++) {
                 if (inpDims[j].back() != inpDims[0].back()) {
                     hasDifferentDims = true;
+                    break;
                 }
             }
 
@@ -1538,7 +1539,7 @@ public:
             }
 
             size_t nextJitWorkAmount = currentJitWorkAmount * jep.dims[jep.dims.size() - 2];
-            if (fullWorkAmount / nextJitWorkAmount >= minimalConcurrency) {
+            if (fullWorkAmount / nextJitWorkAmount >= m_threads_num) {
                 currentJitWorkAmount = nextJitWorkAmount;
                 collapsedDims++;
 
@@ -1622,8 +1623,7 @@ public:
 
         if (_pKernel->jep_.input_size == optimalTensorRank) {
             // execute Optimized 6D
-            parallel_for5d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], dims_out[4],
-                           [&](size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {
+            auto d6_loop = [&](size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {
                                auto args = jit_eltwise_call_args_indexes();
                                args.indexes[0] = i0;
                                args.indexes[1] = i1;
@@ -1632,7 +1632,11 @@ public:
                                args.indexes[4] = i4;
 
                                (*_pKernel)(&args_ptrs, &args);
-                           });
+                           };
+
+            parallel_nt_static(m_threads_num, [&](const int ithr, const int nthr) {
+                for_5d(ithr, nthr, dims_out[0], dims_out[1], dims_out[2], dims_out[3], dims_out[4], d6_loop);
+            });
         } else {
             // execute Optimized Generic
             if (_pKernel->jep_.use_runtime_ptrs) {
@@ -1642,7 +1646,7 @@ public:
                     _schedulerWorkAmount *= dims_out[i];
                 }
             }
-            parallel_nt(0, [&](const int ithr, const int nthr) {
+            parallel_nt(m_threads_num, [&](const int ithr, const int nthr) {
                 size_t start = 0, end = 0;
                 splitter(_schedulerWorkAmount, nthr, ithr, start, end);
 
@@ -1676,6 +1680,7 @@ private:
     std::unique_ptr<jit_uni_eltwise_kernel> _pKernel;
     size_t _schedulerWorkAmount = 0;
     size_t _batchDimIdx = 0;
+    size_t m_threads_num = 0lu;
 
 public:
     static const int optimalTensorRank = 6;

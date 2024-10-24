@@ -49,6 +49,7 @@ struct QKVProjection::Impl {
     MemoryPtr m_scratchMem;
     uint8_t* m_scratch_base = nullptr;
     int m_M = 0;
+    size_t m_threads_num = 0lu;
 
     WeightBuffer wbuffer;
 
@@ -59,11 +60,11 @@ struct QKVProjection::Impl {
 
         auto K = w0.size(1);
         OPENVINO_ASSERT((K % CACHE_BLK_K_SIZE) == 0);
-        auto nthr = parallel_get_max_threads();
+        m_threads_num = parallel_get_max_threads();
         auto num_blk_K = K / CACHE_BLK_K_SIZE;
         int stride = K * sizeof(ov::float16);
 
-        works.resize(nthr);
+        works.resize(m_threads_num);
 
         int cur_work_id = 0;
         auto create_works = [&](ov::float16* pw, int output_id, int N, int valid_nthr) {
@@ -97,7 +98,7 @@ struct QKVProjection::Impl {
         auto proj_size0 = static_cast<int>(w0.size(0));
         auto proj_size1 = static_cast<int>(w1.size(0));
         auto proj_size2 = static_cast<int>(w2.size(0));
-        auto n_group_workers = allocate_workers({proj_size0, proj_size1, proj_size2}, nthr);
+        auto n_group_workers = allocate_workers({proj_size0, proj_size1, proj_size2}, m_threads_num);
 
         create_works(w0.ptr<ov::float16>(), 0, proj_size0, n_group_workers[0]);
         create_works(w1.ptr<ov::float16>(), 1, proj_size1, n_group_workers[1]);
@@ -109,7 +110,7 @@ struct QKVProjection::Impl {
 
         wbuffer.alloc(works);
 
-        ov::parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
+        ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, const size_t nthr) {
             auto& work = works[ithr];
             if (work) {
                 work.setup(wbuffer.get(ithr), work.p_raw_weights, stride);
@@ -173,7 +174,7 @@ struct QKVProjection::Impl {
 
             setM(BM);
 
-            ov::parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
+            ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, const size_t nthr) {
                 auto& work = works[ithr];
                 if (work) {
                     work.run(BM, pA, strideA);
