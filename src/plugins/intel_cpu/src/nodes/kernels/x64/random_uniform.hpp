@@ -11,12 +11,18 @@
 namespace ov {
 namespace intel_cpu {
 namespace kernel {
+namespace random_uniform {
 
-struct RandomUniformCompileParams {
+struct PhiloxGeneratorCompileParams {
     element::Type out_data_type = element::f32;
 };
 
-struct RandomUniformCallArgs {
+struct MersenneTwisterGeneratorCompileParams {
+    element::Type out_data_type = element::f32;
+    bool optimized = false;
+};
+
+struct PhiloxGeneratorCallArgs {
     void* dst_ptr;
     const void* key_ptr;
     const void* counter_ptr;
@@ -26,12 +32,26 @@ struct RandomUniformCallArgs {
     uint64_t work_amount = 0lu;
 };
 
-template <dnnl::impl::cpu::x64::cpu_isa_t isa>
-class RandomUniform : public JitKernel<RandomUniformCompileParams, RandomUniformCallArgs> {
-public:
-    DECLARE_CPU_JIT_AUX_FUNCTIONS(RandomUniform)
+struct MersenneTwisterGeneratorCallArgs {
+    void* dst_ptr;
+    const void* state_ptr;
+    const void* min_ptr;
+    const void* range_ptr;
+    uint64_t state_id = 0lu;
+    uint64_t state_shift = 0lu;
+    uint64_t step = 0lu;
+    uint64_t work_amount = 0lu;
+    uint64_t elements_remaining = 0lu;
+    bool optimization_enabled = false;
+    uint32_t out_data_type = 0u;
+};
 
-    explicit RandomUniform(const RandomUniformCompileParams& jcp);
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
+class PhiloxGenerator : public JitKernel<PhiloxGeneratorCompileParams, PhiloxGeneratorCallArgs> {
+public:
+    DECLARE_CPU_JIT_AUX_FUNCTIONS(PhiloxGenerator)
+
+    explicit PhiloxGenerator(const PhiloxGeneratorCompileParams& jcp);
 
     void generate() override;
 
@@ -92,6 +112,71 @@ private:
     static constexpr uint64_t STATISTIC_MAXIMIZING_MULTIPLIER_COUNTER = 0xCD9E8D57;
 };
 
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
+class MersenneTwisterGenerator : public JitKernel<MersenneTwisterGeneratorCompileParams, MersenneTwisterGeneratorCallArgs> {
+public:
+    DECLARE_CPU_JIT_AUX_FUNCTIONS(MersenneTwisterGenerator)
+
+    explicit MersenneTwisterGenerator(const MersenneTwisterGeneratorCompileParams& jcp);
+
+    void generate() override;
+
+private:
+    using Vmm   = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::avx512_core, Xbyak::Zmm,
+                                                           isa == dnnl::impl::cpu::x64::sse41,       Xbyak::Xmm,
+                                                                                                     Xbyak::Ymm>::type;
+    using Vmask = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::avx512_core, Xbyak::Opmask,
+                                                           isa == dnnl::impl::cpu::x64::sse41,       Xbyak::Xmm,
+                                                                                                     Xbyak::Ymm>::type;
+
+    RegistersPool::Reg<Xbyak::Reg64> r64_dst;
+    RegistersPool::Reg<Xbyak::Reg64> r64_state;
+    RegistersPool::Reg<Xbyak::Reg64> r64_state_id;
+    RegistersPool::Reg<Xbyak::Reg64> r64_state_shift;
+    RegistersPool::Reg<Xbyak::Reg64> r64_step;
+    RegistersPool::Reg<Xbyak::Reg64> r64_work_amount;
+    RegistersPool::Reg<Xbyak::Reg64> r64_elements_remaining;
+
+    const Xbyak::Reg64 r64_params = Xbyak::Reg64(dnnl::impl::cpu::x64::abi_param_regs[0]);
+
+    // Vector registers for input storage.
+    RegistersPool::Reg<Vmm> v_dst;
+    RegistersPool::Reg<Vmm> v_state;
+    RegistersPool::Reg<Vmm> v_min;
+    RegistersPool::Reg<Vmm> v_range;
+
+    // Vector registers for generation.
+    RegistersPool::Reg<Vmm> v_result;
+    RegistersPool::Reg<Vmm> v_const_1;
+    RegistersPool::Reg<Vmm> v_const_2;
+
+    //Vector registers for conversion.
+    RegistersPool::Reg<Vmm> v_mask;
+    RegistersPool::Reg<Vmm> v_divisor;
+
+
+    void initVectors();
+
+    void process();
+
+    void generateRandomNumbers(const Vmm& v_dst_0, const Vmm& v_dst_1);
+
+    void convertToOutputTypeMersenne(const Vmm& v_result, const Vmm& v_min, const Vmm& v_range, const Vmm& v_dst, const Xbyak::Reg64& r64_elements_remaining);
+
+    // Mersenne Twister constants
+    static constexpr uint32_t MT_CONST_1 = 0x9D2C5680;
+    static constexpr uint32_t MT_CONST_2 = 0xEFC60000;
+    static constexpr uint32_t MT_N = 624;
+    static constexpr uint32_t MT_M = 397;
+    static constexpr uint32_t MT_U = 11;
+    static constexpr uint32_t MT_S = 7;
+    static constexpr uint32_t MT_T = 15;
+    static constexpr uint32_t MT_L = 18;
+    static constexpr uint32_t MT_4_ELEMENTS = 4;
+    static constexpr uint32_t MT_2_ELEMENTS = 2;
+};
+
+}   // namespace random_uniform
 }   // namespace kernel
 }   // namespace intel_cpu
 }   // namespace ov
