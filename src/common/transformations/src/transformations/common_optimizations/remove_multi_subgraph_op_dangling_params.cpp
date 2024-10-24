@@ -181,10 +181,10 @@ bool ov::pass::RemoveMultiSubGraphOpDanglingParamsResults::run_on_model(const st
                         if (body_in_descriptors[desc_idx]->m_body_parameter_index < body_params.size()) {
                             auto& body_param = body_params[body_in_descriptors[desc_idx]->m_body_parameter_index];
                             body_func->remove_parameter(body_param);
+                            // Move all body indexes which are after these indicated by to_remove_descriptors_indexes
+                            update_body_param_desc(body_in_descriptors,
+                                                   body_in_descriptors[desc_idx]->m_body_parameter_index);
                         }
-                        // Move all body indexes which are after these indicated by to_remove_descriptors_indexes
-                        update_body_param_desc(body_in_descriptors,
-                                               body_in_descriptors[desc_idx]->m_body_parameter_index);
                         // remove dangling input of MultiSubGraphOp which was not removed earlier
                         auto current_input_idx = body_in_descriptors[desc_idx]->m_input_index;
                         // the same input tensor can go to different input ports
