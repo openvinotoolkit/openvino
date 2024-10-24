@@ -225,7 +225,6 @@ public:
         OVClassNetworkTest::SetUp();
     }
 };
-using OVClassModelTestP = OVClassBaseTestP;
 using OVClassModelOptionalTestP = OVClassBaseTestP;
 
 class OVCompiledModelClassBaseTestP : public OVClassNetworkTest,
