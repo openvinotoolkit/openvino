@@ -246,15 +246,15 @@ jobs:
           path: ${{ env.INSTALL_DIR_JS }}
           if-no-files-found: 'error'
 
-      - name: Store artifacts to a shared drive
-        id: store_artifacts
-        if: ${{ always() }}
-        uses: ./openvino/.github/actions/store_artifacts
-        with:
-          artifacts: |
-            ${{ env.BUILD_DIR }}/openvino_package.zip
-            ${{ env.BUILD_DIR }}/openvino_tests.zip
-            ${{ env.INSTALL_WHEELS_DIR }}/wheels
-            ${{ env.MANIFEST_PATH }}
-          storage_dir: ${{ env.PRODUCT_TYPE }}
-          storage_root: ${{ env.ARTIFACTS_SHARE }}
+      # - name: Store artifacts to a shared drive
+      #   id: store_artifacts
+      #   if: ${{ always() }}
+      #   uses: ./openvino/.github/actions/store_artifacts
+      #   with:
+      #     artifacts: |
+      #       ${{ env.BUILD_DIR }}/openvino_package.zip
+      #       ${{ env.BUILD_DIR }}/openvino_tests.zip
+      #       ${{ env.INSTALL_WHEELS_DIR }}/wheels
+      #       ${{ env.MANIFEST_PATH }}
+      #     storage_dir: ${{ env.PRODUCT_TYPE }}
+      #     storage_root: ${{ env.ARTIFACTS_SHARE }}
