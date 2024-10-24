@@ -4,12 +4,12 @@
 
 #pragma once
 
+#include <graph.h>
+
 #include "input.h"
 #include "memory_state_base.h"
 #include "ov_optional.hpp"
 #include "proxy_mem_blk.h"
-
-#include <map>
 
 namespace ov {
 namespace intel_cpu {
@@ -119,6 +119,16 @@ protected:
     void assignExtMemory(const MemoryPtr& mem, const MemoryDescPtr& memDesc) override;
 };
 
+class MemoryOutputSingleStub : public MemoryOutput {
+public:
+    using MemoryOutput::MemoryOutput;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
+protected:
+    void runStatic(dnnl::stream strm) override {}
+    void runDynamic(dnnl::stream strm) override {}
+    void assignExtMemory(const MemoryPtr& mem, const MemoryDescPtr& memDesc) override;
+};
+
 class MemoryInputBase : public Input, public MemoryStateNode {
 public:
     MemoryInputBase(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
@@ -171,11 +181,15 @@ private:
 class MemoryInput : public MemoryInputBase {
 public:
     using MemoryInputBase::MemoryInputBase;
+
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
     void initOptimalPrimitiveDescriptor() override;
 
     void resolveInPlaceEdges(Edge::LOOK look) override;
+
+    void selectOptimalPrimitiveDescriptor() override;
+    void createPrimitive() override;
 
     MemStatePtr makeState() const override;
 
@@ -186,6 +200,9 @@ private:
     bool needInitGraphProcessing() const;
 
 private:
+    std::shared_ptr<ov::Model> body = nullptr;
+    ov::intel_cpu::Graph subGraph;
+
     ProxyMemoryBlockPtr memBlock = nullptr;
 };
 
@@ -217,6 +234,41 @@ private:
     std::weak_ptr<ScaledDotProductAttention> m_sdpaNode;
     int m_child_port_idx = -1;
 };
+
+class MemoryInputSingle : public MemoryInput {
+public:
+    MemoryInputSingle(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
+
+    void initOptimalPrimitiveDescriptor() override;
+
+    void resolveInPlaceEdges(Edge::LOOK look) override;
+
+    void selectOptimalPrimitiveDescriptor() override;
+    void createPrimitive() override;
+
+    MemStatePtr makeState() const override;
+    bool needShapeInfer() const override { return true; }
+
+    bool haveSubgraph() const {
+        return body != nullptr;
+    }
+    bool created() const override {
+        return getType() == Type::MemoryInputSingle;
+    }
+
+private:
+    void runStatic(dnnl::stream strm) override;
+    void runDynamic(dnnl::stream strm) override;
+    void assignStateHook() override {/*pass*/}
+    bool needInitGraphProcessing() const;
+
+private:
+    std::shared_ptr<ov::Model> body = nullptr;
+    ov::intel_cpu::Graph subGraph;
+};
+
 }   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov
