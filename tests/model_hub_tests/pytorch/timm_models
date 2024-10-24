@@ -13,7 +13,7 @@ cait_s36_384.fb_dist_in1k,None
 cait_xs24_384.fb_dist_in1k,None
 cait_xxs24_224.fb_dist_in1k,None
 cait_xxs36_224.fb_dist_in1k,None
-coat_tiny.in1k,None,xfail_export,Requested None inlined input
+coat_tiny.in1k,None
 coatnet_bn_0_rw_224.sw_in1k,None
 coatnet_nano_rw_224.sw_in1k,None
 coatnet_rmlp_1_rw2_224.sw_in12k,None
@@ -31,8 +31,8 @@ convnext_base.clip_laion2b,None
 convnext_large_mlp.clip_laion2b_augreg,None
 convnext_tiny_hnf.a2h_in1k,None
 convnextv2_base.fcmae,None
-crossvit_15_dagger_240.in1k,None,xfail_export,Unsupported on torch 2.4
-crossvit_base_240.in1k,None,xfail_export,Unsupported on torch 2.4
+crossvit_15_dagger_240.in1k,None
+crossvit_base_240.in1k,None
 cs3darknet_focus_m.c2ns_in1k,None
 cs3darknet_m.c2ns_in1k,None
 cs3darknet_x.c2ns_in1k,None
@@ -103,10 +103,10 @@ edgenext_xx_small.in1k,None
 efficientformer_l1.snap_dist_in1k,None
 efficientformer_l3.snap_dist_in1k,None
 efficientformer_l7.snap_dist_in1k,None
-efficientformerv2_l.snap_dist_in1k,None,xfail_export,Requested None inlined input
-efficientformerv2_s0.snap_dist_in1k,None,xfail_export,Requested None inlined input
-efficientformerv2_s1.snap_dist_in1k,None,xfail_export,Requested None inlined input
-efficientformerv2_s2.snap_dist_in1k,None,xfail_export,Requested None inlined input
+efficientformerv2_l.snap_dist_in1k,None
+efficientformerv2_s0.snap_dist_in1k,None
+efficientformerv2_s1.snap_dist_in1k,None
+efficientformerv2_s2.snap_dist_in1k,None
 efficientnet_b0.ra4_e3600_r224_in1k,None
 efficientnet_b1.ft_in1k,None
 efficientnet_b1_pruned.in1k,None
@@ -171,7 +171,7 @@ gcresnext50ts.ch_in1k,None
 gcvit_base.in1k,None
 gernet_s.idstcv_in1k,None
 ghostnet_100.in1k,None
-ghostnetv2_100.in1k,None,xfail_export,Requested None inlined input
+ghostnetv2_100.in1k,None
 gmixer_24_224.ra3_in1k,None
 gmlp_s16_224.ra3_in1k,None
 halo2botnet50ts_256.a1h_in1k,None
@@ -194,16 +194,16 @@ hgnetv2_b5.ssld_stage1_in22k_in1k,None
 hgnetv2_b6.ssld_stage1_in22k_in1k,None
 hiera_base_224.mae,None
 hiera_base_plus_224.mae,None
-hrnet_w18_small.gluon_in1k,None,xfail_export,Requested None inlined input
-hrnet_w18_small_v2.gluon_in1k,None,xfail_export,Requested None inlined input
-hrnet_w18_ssld.paddle_in1k,None,xfail_export,Requested None inlined input
-hrnet_w30.ms_in1k,None,xfail_export,Requested None inlined input
-hrnet_w32.ms_in1k,None,xfail_export,Requested None inlined input
-hrnet_w40.ms_in1k,None,xfail_export,Requested None inlined input
-hrnet_w44.ms_in1k,None,xfail_export,Requested None inlined input
-hrnet_w48.ms_in1k,None,xfail_export,Requested None inlined input
-hrnet_w48_ssld.paddle_in1k,None,xfail_export,Requested None inlined input
-hrnet_w64.ms_in1k,None,xfail_export,Requested None inlined input
+hrnet_w18_small.gluon_in1k,None
+hrnet_w18_small_v2.gluon_in1k,None
+hrnet_w18_ssld.paddle_in1k,None
+hrnet_w30.ms_in1k,None
+hrnet_w32.ms_in1k,None
+hrnet_w40.ms_in1k,None
+hrnet_w44.ms_in1k,None
+hrnet_w48.ms_in1k,None
+hrnet_w48_ssld.paddle_in1k,None
+hrnet_w64.ms_in1k,None
 inception_next_base.sail_in1k,None
 inception_resnet_v2.tf_ens_adv_in1k,None
 inception_v3.gluon_in1k,None
@@ -361,7 +361,7 @@ resnet34d.ra2_in1k,None
 resnet50.a1_in1k,None
 resnet50_clip.openai,None
 resnet50_clip_gap.openai,None
-resnet50_gn.a1h_in1k,None,xfail_export,Unsupported on torch 2.4
+resnet50_gn.a1h_in1k,None
 resnet50c.gluon_in1k,None
 resnet50d.a1_in1k,None
 resnet50s.gluon_in1k,None
@@ -479,7 +479,7 @@ tinynet_b.in1k,None
 tinynet_c.in1k,None
 tinynet_d.in1k,None
 tinynet_e.in1k,None
-tnt_s_patch16_224,None,xfail_export,Requested None inlined input
+tnt_s_patch16_224,None
 tresnet_m.miil_in1k,None
 tresnet_v2_l.miil_in21k,None
 twins_pcpvt_base.in1k,None
@@ -517,7 +517,7 @@ vit_huge_patch14_224.mae,None
 vit_huge_patch14_gap_224.in1k_ijepa,None
 vit_large_patch14_clip_224.datacompxl,None
 vit_large_patch14_clip_quickgelu_224.dfn2b,None
-vit_large_r50_s32_224.augreg_in21k,None,xfail_export,Unsupported on torch 2.4
+vit_large_r50_s32_224.augreg_in21k,None
 vit_little_patch16_reg1_gap_256.sbb_in12k,None
 vit_little_patch16_reg4_gap_256.sbb_in1k,None
 vit_medium_patch16_gap_240.sw_in12k,None
@@ -531,7 +531,7 @@ vit_relpos_base_patch16_clsgap_224.sw_in1k,None
 vit_relpos_base_patch32_plus_rpn_256.sw_in1k,None
 vit_relpos_medium_patch16_cls_224.sw_in1k,None
 vit_relpos_medium_patch16_rpn_224.sw_in1k,None
-vit_small_r26_s32_224.augreg_in21k,None,xfail_export,Unsupported on torch 2.4
+vit_small_r26_s32_224.augreg_in21k,None
 vit_so400m_patch14_siglip_224.webli,None
 vit_so400m_patch14_siglip_gap_224.pali_mix,None,skip,Access to model google/paligemma-3b-mix-224-jax is restricted
 vit_srelpos_small_patch16_224.sw_in1k,None
@@ -540,11 +540,11 @@ vit_wee_patch16_reg1_gap_256.sbb_in1k,None
 vit_xsmall_patch16_clip_224.tinyclip_yfcc15m,None
 vitamin_base_224.datacomp1b_clip,None,xfail,RuntimeError Error in loading state_dict for VisionTransformer
 vitamin_large2_224.datacomp1b_clip,None
-volo_d1_224.sail_in1k,None,xfail_export,Requested None inlined input for op aten.index.Tensor
-volo_d2_224.sail_in1k,None,xfail_export,Requested None inlined input for op aten.index.Tensor
-volo_d3_224.sail_in1k,None,xfail_export,Requested None inlined input for op aten.index.Tensor
-volo_d4_224.sail_in1k,None,xfail_export,Requested None inlined input for op aten.index.Tensor
-volo_d5_224.sail_in1k,None,xfail_export,Requested None inlined input for op aten.index.Tensor
+volo_d1_224.sail_in1k,None
+volo_d2_224.sail_in1k,None
+volo_d3_224.sail_in1k,None
+volo_d4_224.sail_in1k,None
+volo_d5_224.sail_in1k,None
 wide_resnet101_2.tv2_in1k,None
 wide_resnet50_2.racm_in1k,None
 xception41.tf_in1k,None
