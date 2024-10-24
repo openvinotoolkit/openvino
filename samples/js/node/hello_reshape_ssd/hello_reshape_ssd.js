@@ -75,34 +75,46 @@ async function main(modelPath, imagePath, deviceName) {
 
   //----------------- Step 7. Process output -----------------------------------
   const outputLayer = compiledModel.outputs[0];
-  const resultInfer = inferRequest.getTensor(outputLayer);
-  const predictions = Array.from(resultInfer.data);
-  const [height, width] = [originalImage.rows, originalImage.cols];
+  const output = inferRequest.getTensor(outputLayer);
 
-  const detections = setShape(predictions, [100, 7]);
-  const color = [255, 0, 0, 255];
-  const THROUGHPUT = 0.9;
+  const { data: outputData } = output;
+  const resultLayer = [];
+  const colormap = [[68, 1, 84, 255], [48, 103, 141, 255], [53, 183, 120, 255], [199, 216, 52, 255]];
 
-  detections.forEach(detection => {
-    const [classId, confidence, xmin, ymin, xmax, ymax] = detection.slice(1);
+  const size = outputData.length/4;
 
-    if (confidence < THROUGHPUT) return;
+  for (let i = 0; i < size; i++) {
+    const valueAt = (i, number) => outputData[i + number*size];
 
-    console.log(`Found: classId = ${classId}, `
-      + `confidence = ${confidence.toFixed(2)}, `
-      + `coords = (${xmin}, ${ymin}), (${xmax}, ${ymax})`,
-    );
+    const currentValues = {
+      bg: valueAt(i, 0),
+      c: valueAt(i, 1),
+      h: valueAt(i, 2),
+      w: valueAt(i, 3),
+    };
+    const values = Object.values(currentValues);
+    const maxIndex = values.indexOf(Math.max(...values));
 
-    // Draw a bounding box on a output image
-    cv.rectangle(originalImage,
-      new cv.Point(xmin*width, ymin*height),
-      new cv.Point(xmax*width, ymax*height),
-      color,
-      2,
-    );
-  });
+    resultLayer.push(maxIndex);
+  }
 
-  const resultImgData = arrayToImageData(originalImage.data, width, height);
+  const pixels = [];
+  resultLayer.forEach(i => pixels.push(...colormap[i]));
+
+  const alpha = 0.3;
+  const [B, C, H, W] = output.getShape();
+
+  const pixelsAsImageData = arrayToImageData(pixels, W, H);
+  const mask = cv.matFromImageData(pixelsAsImageData);
+
+  const originalWidth = image.cols;
+  const originalHeight = image.rows;
+
+  cv.resize(mask, mask, new cv.Size(originalWidth, originalHeight));
+
+  cv.addWeighted(mask, alpha, originalImage, 1 - alpha, 0, mask);
+
+  const resultImgData = arrayToImageData(mask.data, originalWidth, originalHeight);
   const filename = 'out.jpg';
 
   await fs.writeFile(`./${filename}`, getImageBuffer(resultImgData));

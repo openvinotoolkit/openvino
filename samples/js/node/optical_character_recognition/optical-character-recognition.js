@@ -261,7 +261,7 @@ function getTextSize(text, fontFace, fontScale) {
 /* The convertResultToImage function visualizes object detection
  results on an image by drawing bounding boxes around detected
  objects and optionally adding labels to them. */
-
+// FIXME: Simplify save, fix channel order
 function convertResultToImage(
   bgrImage,
   resizedImage,
