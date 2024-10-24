@@ -126,15 +126,6 @@ Learn how to run LLMs and GenAI with [Samples](https://github.com/openvinotoolki
 -   [LlamaIndex](https://docs.llamaindex.ai/en/stable/examples/llm/openvino/) - build context-augmented GenAI applications with the LlamaIndex framework and enhance runtime performance with OpenVINO.
 -   [LangChain](https://python.langchain.com/docs/integrations/llms/openvino/) - integrate OpenVINO with the LangChain framework to enhance runtime performance for GenAI applications.
 
-<details> <summary> More Integrations </summary>
-
--   [OpenVINO model serving with Triton Inference Server​](https://github.com/triton-inference-server/openvino_backend)
--   [OpenVINO model serving with TorchServe​](https://github.com/pytorch/serve/tree/master/examples/pt2/torch_compile_openvino)
--   [OpenVINO LLMs with Qwen-Agent​​](https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/llm-agent-functioncall/llm-agent-functioncall-qwen.ipynb)
--   [OpenVINO Natural Language Processing with Spark NLP​​​](https://medium.com/openvino-toolkit/the-need-for-speed-accelerating-nlp-inferencing-in-spark-nlp-with-openvino-runtime-327638fcec80)
-
-</details>
-
 Check out the [Awesome OpenVINO](https://github.com/openvinotoolkit/awesome-openvino) repository to discover a collection of community-made AI projects based on OpenVINO!
 
 ## Performance
@@ -180,3 +171,13 @@ By contributing to the project, you agree to the license and copyright terms the
 ---
 \* Other names and brands may be claimed as the property of others.
 
+
+
+.. code-block:: python
+
+   from nncf import Dataset
+   from nncf.data import generate_text_data
+
+   # Example: Generating synthetic dataset
+   synthetic_data = generate_text_data(model, tokenizer)
+   nncf_dataset = nncf.Dataset(synthetic_data, transform_fn)
