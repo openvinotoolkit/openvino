@@ -170,14 +170,3 @@ By contributing to the project, you agree to the license and copyright terms the
 
 ---
 \* Other names and brands may be claimed as the property of others.
-
-
-
-.. code-block:: python
-
-   from nncf import Dataset
-   from nncf.data import generate_text_data
-
-   # Example: Generating synthetic dataset
-   synthetic_data = generate_text_data(model, tokenizer)
-   nncf_dataset = nncf.Dataset(synthetic_data, transform_fn)
