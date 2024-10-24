@@ -49,12 +49,6 @@ OutputVector translate_reshape_op(const NodeContext& node) {
                     std::vector<size_t> shape_dimensions;
                     const auto& input_shape = tensor.get_partial_shape();
                     const auto& axis_shape = shape.get_shape();
-                    // std::cout << "### " << node.get_name()
-                    // << ", output_shape_str=" << output_shape_str
-                    // << ", output_shape=" << output_shape
-                    // << ", input_shape=" << input_shape
-                    // << ", axis_shape=" << axis_shape
-                    // << std::endl;
                     bool replace_with_const = true;
                     for (size_t i=0; i < axis_shape[0] && replace_with_const; i++) {
                         if (output_shape[i].is_static()) 

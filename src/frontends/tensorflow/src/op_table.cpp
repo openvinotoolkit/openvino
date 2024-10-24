@@ -165,6 +165,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Tan", CreatorFunction(translate_unary_op<v0::Tan>)},
         {"Tanh", CreatorFunction(translate_unary_op<v0::Tanh>)},
         {"Swish", CreatorFunction(translate_unary_op<v4::Swish>)},
+        {"swish_f32", CreatorFunction(translate_unary_op<v4::Swish>)},
 
         // note: BinaryOp translator declaration for each op must to be added in binary_op.cpp file
         {"Add", CreatorFunction(translate_addv2_op)},
