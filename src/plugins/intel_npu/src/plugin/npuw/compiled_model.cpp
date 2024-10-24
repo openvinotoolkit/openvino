@@ -146,6 +146,16 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         rewr.run_on_model(model);
     }
 
+    if (m_cfg.get<::intel_npu::NPUW_SLICE_OUT>()) {
+        // Add Slice before last MatMul for the prefill model
+        ov::pass::GraphRewrite rewr;
+        rewr.add_matcher<ov::npuw::patterns::opt::SliceLastMatmul>();
+        rewr.add_matcher<ov::npuw::patterns::opt::SliceLastMatmulAdd>();
+        rewr.add_matcher<ov::npuw::patterns::opt::SliceLastMatmulTranspose>();
+        rewr.add_matcher<ov::npuw::patterns::opt::SliceLastMatmulMultiply>();
+        rewr.run_on_model(model);
+    }
+
     auto partitioning = getPartitioning(model, m_cfg);
     m_total_stat.gflops = partitioning.total_gflops;
     m_total_stat.ops = partitioning.total_ops;
@@ -906,6 +916,7 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::partitioning::cwai, NPUW_CWAI),
                           BIND(npuw::partitioning::dyn_quant, NPUW_DQ),
                           BIND(npuw::partitioning::par_matmul_merge_dims, NPUW_PMM),
+                          BIND(npuw::partitioning::slice_out, NPUW_SLICE_OUT),
                           BIND(npuw::partitioning::spatial, NPUW_SPATIAL),
                           BIND(npuw::partitioning::spatial_nway, NPUW_SPATIAL_NWAY),
                           BIND(npuw::partitioning::spatial_dyn, NPUW_SPATIAL_DYN),
