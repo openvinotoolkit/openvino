@@ -3201,12 +3201,35 @@ void GraphOptimizer::DropRedundantMemoryOutput(Graph &graph) {
         if (Type::MemoryInput != node->getType()) {
             return false;
         }
+
+        CPU_GRAPH_OPTIMIZER_SCOPE(DropRedundantMemoryOutput_isSuitableMemInput);
+
+        auto memInputBase = std::dynamic_pointer_cast<MemoryNode>(node);
+        OPENVINO_ASSERT(memInputBase,
+                        "Unexpectedly wrong dynamic type of node: ",
+                        node->getName(),
+                        " of type: ",
+                        node->getTypeStr());
+
+        auto id = memInputBase->getId();
+
         NodePtr MemoryOutput = nullptr;
         auto&& childEdges = node->getChildEdgesAtPort(0);
         for (auto&& item : childEdges) {
             auto childNode = item->getChild();
 
             if (Type::MemoryOutput == childNode->getType()) {
+                auto memOutputBase = std::dynamic_pointer_cast<MemoryNode>(childNode);
+                OPENVINO_ASSERT(memInputBase,
+                                "Unexpectedly wrong dynamic type of node: ",
+                                node->getName(),
+                                " of type: ",
+                                node->getTypeStr());
+
+                if (memOutputBase->getId() != id) {
+                    return false;  // an Assign node from different Variable is attached
+                }
+
                 if (MemoryOutput && MemoryOutput != childNode) {
                     //only one child MemoryOutput is expected
                     return false;
