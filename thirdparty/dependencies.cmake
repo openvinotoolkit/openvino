@@ -335,7 +335,10 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
         # try to find newer version first (major is changed)
         # see https://protobuf.dev/support/version-support/ and
         # https://github.com/protocolbuffers/protobuf/commit/d61f75ff6db36b4f9c0765f131f8edc2f86310fa
-        find_package(Protobuf 4.22.0 QUIET CONFIG)
+        find_package(Protobuf 5.26.0 QUIET CONFIG)
+        if(NOT Protobuf_FOUND)
+            find_package(Protobuf 4.22.0 QUIET CONFIG)
+        endif()
         if(Protobuf_FOUND)
             # protobuf was found via CONFIG mode, let's save it for later usage in OpenVINOConfig.cmake static build
             set(protobuf_config CONFIG)
@@ -500,10 +503,17 @@ endif()
 #
 
 if(ENABLE_OV_ONNX_FRONTEND)
-    find_package(ONNX 1.15.0 QUIET COMPONENTS onnx onnx_proto NO_MODULE)
+    find_package(ONNX 1.16.2 QUIET COMPONENTS onnx onnx_proto NO_MODULE)
 
     if(ONNX_FOUND)
         # conan and vcpkg create imported targets 'onnx' and 'onnx_proto'
+        # newer versions of ONNX in vcpkg has ONNX:: prefix, let's create aliases
+        if(TARGET ONNX::onnx)
+            add_library(onnx ALIAS ONNX::onnx)
+        endif()
+        if(TARGET ONNX::onnx_proto)
+            add_library(onnx_proto ALIAS ONNX::onnx_proto)
+        endif()
     else()
         add_subdirectory(thirdparty/onnx)
     endif()

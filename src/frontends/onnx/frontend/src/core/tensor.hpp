@@ -65,10 +65,8 @@ public:
     enum class Type {
         undefined = TensorProto_DataType::TensorProto_DataType_UNDEFINED,
         float32 = TensorProto_DataType::TensorProto_DataType_FLOAT,
-#ifdef ONNX_VERSION_116
         uint4 = TensorProto_DataType::TensorProto_DataType_UINT4,
         int4 = TensorProto_DataType::TensorProto_DataType_INT4,
-#endif
         uint8 = TensorProto_DataType::TensorProto_DataType_UINT8,
         int8 = TensorProto_DataType::TensorProto_DataType_INT8,
         uint16 = TensorProto_DataType::TensorProto_DataType_UINT16,
@@ -146,10 +144,8 @@ public:
             return ov::element::f16;
         case TensorProto_DataType::TensorProto_DataType_DOUBLE:
             return ov::element::f64;
-#ifdef ONNX_VERSION_116
         case TensorProto_DataType::TensorProto_DataType_INT4:
             return ov::element::i4;
-#endif
         case TensorProto_DataType::TensorProto_DataType_INT8:
             return ov::element::i8;
         case TensorProto_DataType::TensorProto_DataType_INT16:
@@ -158,10 +154,8 @@ public:
             return ov::element::i32;
         case TensorProto_DataType::TensorProto_DataType_INT64:
             return ov::element::i64;
-#ifdef ONNX_VERSION_116
         case TensorProto_DataType::TensorProto_DataType_UINT4:
             return ov::element::u4;
-#endif
         case TensorProto_DataType::TensorProto_DataType_UINT8:
             return ov::element::u8;
         case TensorProto_DataType::TensorProto_DataType_UINT16:
@@ -205,10 +199,8 @@ public:
             return make_ov_constant<ov::float16>(ov::element::f16);
         case TensorProto_DataType::TensorProto_DataType_DOUBLE:
             return make_ov_constant<double>(ov::element::f64);
-#ifdef ONNX_VERSION_116
         case TensorProto_DataType::TensorProto_DataType_INT4:
             return make_ov_constant<int8_t>(ov::element::i4);
-#endif
         case TensorProto_DataType::TensorProto_DataType_INT8:
             return make_ov_constant<int8_t>(ov::element::i8);
         case TensorProto_DataType::TensorProto_DataType_INT16:
@@ -217,10 +209,8 @@ public:
             return make_ov_constant<int32_t>(ov::element::i32);
         case TensorProto_DataType::TensorProto_DataType_INT64:
             return make_ov_constant<int64_t>(ov::element::i64);
-#ifdef ONNX_VERSION_116
         case TensorProto_DataType::TensorProto_DataType_UINT4:
             return make_ov_constant<uint8_t>(ov::element::u4);
-#endif
         case TensorProto_DataType::TensorProto_DataType_UINT8:
             return make_ov_constant<uint8_t>(ov::element::u8);
         case TensorProto_DataType::TensorProto_DataType_UINT16:
@@ -238,17 +228,10 @@ public:
         case TensorProto_DataType::TensorProto_DataType_STRING:
             return make_ov_constant<std::string>(ov::element::string);
         default:
-#ifdef ONNX_VERSION_116
             ONNX_UNSUPPORTED_DATA_TYPE(
                 m_tensor_proto->data_type(),
                 "BOOL, BFLOAT16, FLOAT8E4M3FN, FLOAT8E5M2, FLOAT, FLOAT16, DOUBLE, INT4, INT8, INT16, INT32, INT64, "
                 "UINT4, UINT8, UINT16, UINT32, UINT64, STRING");
-#else
-            ONNX_UNSUPPORTED_DATA_TYPE(
-                m_tensor_proto->data_type(),
-                "BOOL, BFLOAT16, FLOAT8E4M3FN, FLOAT8E5M2, FLOAT, FLOAT16, DOUBLE, INT8, INT16, INT32, INT64, "
-                "UINT8, UINT16, UINT32, UINT64, STRING");
-#endif
         }
     }
 
