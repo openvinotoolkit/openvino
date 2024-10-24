@@ -128,9 +128,14 @@ Operating systems and developer environment
 
    .. tab-item:: Windows 10 and 11
 
+      OpenVINO Runtime requires certain C++ libraries to operate. To execute ready-made apps,
+      the libraries distributed by `Visual Studio redistributable package <https://aka.ms/vs/17/release/vc_redist.x64.exe>`__
+      are suggested. For development and compilation of OpenVINO-integrated apps, the build
+      environment components are required instead.
+
       Build environment components:
 
-      * `Microsoft Visual Studio 2019 <https://visualstudio.microsoft.com/vs/older-downloads/>`__
+      * `Microsoft Visual Studio 2019 or later <http://visualstudio.microsoft.com/downloads/>`__
       * `CMake <https://cmake.org/download/>`__ 3.16 or higher
       * `Python <http://www.python.org/downloads/>`__ 3.8-3.12
       * `Intel® HD Graphics Driver <https://downloadcenter.intel.com/product/80939/Graphics-Drivers>`__
