@@ -2583,6 +2583,8 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
             supportedPrimitiveDescriptors.emplace_back(nodeDesc);
     };
 
+    if (isChannelsFirstApplicable)
+        addDesc(supportedPrimitiveDescriptors, ChannelsFirst);
     addDesc(supportedPrimitiveDescriptors, Planar);
 
     canUseEltwiseExecPtr = !supportedPrimitiveDescriptors.empty();
