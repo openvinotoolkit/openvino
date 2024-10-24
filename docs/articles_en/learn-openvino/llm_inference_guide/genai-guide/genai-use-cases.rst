@@ -18,6 +18,122 @@ sample shows basic usage of the ``Text2ImagePipeline`` pipeline.
 
 .. tab-set::
 
+   .. tab-item:: Python
+      :sync: python
+
+      .. tab-set::
+
+         .. tab-item:: main.py
+            :name: mainpy
+
+            .. code-block:: python
+
+               import argparse
+
+               import openvino_genai
+               from PIL import Image
+               import numpy as np
+
+               class Generator(openvino_genai.Generator):
+                   def __init__(self, seed, mu=0.0, sigma=1.0):
+                       openvino_genai.Generator.__init__(self)
+                       np.random.seed(seed)
+                       self.mu = mu
+                       self.sigma = sigma
+
+                   def next(self):
+                       return np.random.normal(self.mu, self.sigma)
+
+
+               def main():
+                   parser = argparse.ArgumentParser()
+                   parser.add_argument('model_dir')
+                   parser.add_argument('prompt')
+                   args = parser.parse_args()
+
+                   device = 'CPU'  # GPU can be used as well
+                   random_generator = Generator(42)
+                   pipe = openvino_genai.Text2ImagePipeline(args.model_dir, device)
+                   image_tensor = pipe.generate(
+                       args.prompt,
+                       width=512,
+                       height=512,
+                       num_inference_steps=20,
+                       num_images_per_prompt=1,
+                       random_generator=random_generator
+                   )
+
+                   image = Image.fromarray(image_tensor.data[0])
+                   image.save("image.bmp")
+
+         .. tab-item:: LoRA.py
+            :name: lorapy
+
+            .. code-block:: python
+
+               import argparse
+
+               import openvino as ov
+               import openvino_genai
+               import numpy as np
+               import sys
+
+
+               class Generator(openvino_genai.Generator):
+                   def __init__(self, seed, mu=0.0, sigma=1.0):
+                       openvino_genai.Generator.__init__(self)
+                       np.random.seed(seed)
+                       self.mu = mu
+                       self.sigma = sigma
+
+                   def next(self):
+                       return np.random.normal(self.mu, self.sigma)
+
+
+               def image_write(path: str, image_tensor: ov.Tensor):
+                   from PIL import Image
+                   image = Image.fromarray(image_tensor.data[0])
+                   image.save(path)
+
+
+               def main():
+                   parser = argparse.ArgumentParser()
+                   parser.add_argument('models_path')
+                   parser.add_argument('prompt')
+                   args, adapters = parser.parse_known_args()
+
+                   prompt = args.prompt
+
+                   device = "CPU"  # GPU, NPU can be used as well
+                   adapter_config = openvino_genai.AdapterConfig()
+
+                   for i in range(int(len(adapters) / 2)):
+                       adapter = openvino_genai.Adapter(adapters[2 * i])
+                       alpha = float(adapters[2 * i + 1])
+                       adapter_config.add(adapter, alpha)
+
+                   pipe = openvino_genai.Text2ImagePipeline(args.models_path, device, adapters=adapter_config)
+                   print("Generating image with LoRA adapters applied, resulting image will be in lora.bmp")
+                   image = pipe.generate(prompt,
+                                         random_generator=Generator(42),
+                                         width=512,
+                                         height=896,
+                                         num_inference_steps=20)
+
+                   image_write("lora.bmp", image)
+                   print("Generating image without LoRA adapters applied, resulting image will be in baseline.bmp")
+                   image = pipe.generate(prompt,
+                                         adapters=openvino_genai.AdapterConfig(),
+                                         random_generator=Generator(42),
+                                         width=512,
+                                         height=896,
+                                         num_inference_steps=20
+                                         )
+                   image_write("baseline.bmp", image)
+
+      For more information, refer to the
+      `Python sample <https://github.com/openvinotoolkit/openvino.genai/blob/master/samples/python/text2image/README.md>`__
+
    .. tab-item:: C++
       :sync: cpp
 
@@ -117,6 +233,10 @@ sample shows basic usage of the ``Text2ImagePipeline`` pipeline.
 
       For more information, refer to the
       `C++ sample <https://github.com/openvinotoolkit/openvino.genai/blob/master/samples/cpp/text2image/README.md>`__
+
+
+
+
 
 Using GenAI in Speech Recognition
 #################################
@@ -270,9 +390,6 @@ mark a conversation session, as shown in the samples below:
                  print('\n----------')
              pipe.finish_chat()
 
-
-         if '__main__' == __name__:
-             main()
 
 
       For more information, refer to the
