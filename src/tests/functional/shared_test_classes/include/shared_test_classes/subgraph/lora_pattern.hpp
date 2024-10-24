@@ -15,6 +15,7 @@ public:
 
 protected:
     void run_test_empty_tensors();
+    void run_test_random_tensors();
 
 protected:
     static constexpr auto t4_name = "lora/MatMul.B";

@@ -59,7 +59,7 @@ void collect_variables(const std::shared_ptr<ov::Model>& ov_model,
             ov::Tensor tensor = ov::Tensor(variable->get_info().data_type, shape);
             variable_context.set_variable_value(variable, std::make_shared<ov::op::util::VariableValue>(tensor));
             auto state =
-                std::make_shared<ov::template_plugin::VariableState>(variable->get_info().variable_id,
+                std::make_shared<ov::template_plugin::VariableState>(variable->get_info(),
                                                                      variable_context.get_variable_value(variable));
             list_of_variables.emplace_back(state);
         }
