@@ -502,10 +502,12 @@ public:
         network->set_input_data("input1", input1_mem);
         network->set_input_data("input2", input2_mem);
 
-        auto inst = network->get_primitive("gemm");
-        auto impl = inst->get_impl();
-        ASSERT_TRUE(impl != nullptr);
-        ASSERT_TRUE(impl->is_dynamic());
+        if (!engine.get_device_info().supports_immad) {
+            auto inst = network->get_primitive("gemm");
+            auto impl = inst->get_impl();
+            ASSERT_TRUE(impl != nullptr);
+            ASSERT_TRUE(impl->is_dynamic());
+        }
 
         auto outputs = network->execute();
 
@@ -1246,10 +1248,12 @@ public:
         network->set_input_data("input0", input0_mem);
         network->set_input_data("input1", input1_mem);
 
-        auto inst = network->get_primitive("gemm");
-        auto impl = inst->get_impl();
-        ASSERT_TRUE(impl != nullptr);
-        ASSERT_TRUE(impl->is_dynamic() == is_input_dynamic);
+        if (!engine.get_device_info().supports_immad) {
+            auto inst = network->get_primitive("gemm");
+            auto impl = inst->get_impl();
+            ASSERT_TRUE(impl != nullptr);
+            ASSERT_TRUE(impl->is_dynamic() == is_input_dynamic);
+        }
 
         auto outputs = network->execute();
 
@@ -1533,10 +1537,12 @@ public:
         network->set_input_data("input0", input0_mem);
         network->set_input_data("input1", input1_mem);
 
-        auto inst = network->get_primitive("gemm");
-        auto impl = inst->get_impl();
-        ASSERT_TRUE(impl != nullptr);
-        ASSERT_TRUE(impl->is_dynamic() == is_input_dynamic);
+        if (!engine.get_device_info().supports_immad) {
+            auto inst = network->get_primitive("gemm");
+            auto impl = inst->get_impl();
+            ASSERT_TRUE(impl != nullptr);
+            ASSERT_TRUE(impl->is_dynamic() == is_input_dynamic);
+        }
 
         auto outputs = network->execute();
 
@@ -2853,8 +2859,10 @@ public:
 
         auto inst = network->get_primitive("gemm");
         auto impl = inst->get_impl();
-        ASSERT_TRUE(impl != nullptr);
-        ASSERT_TRUE(impl->is_dynamic());
+        if (!engine.get_device_info().supports_immad) {
+            ASSERT_TRUE(impl != nullptr);
+            ASSERT_TRUE(impl->is_dynamic());
+        }
 
         auto outputs = network->execute();
 
