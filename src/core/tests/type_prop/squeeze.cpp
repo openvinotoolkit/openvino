@@ -45,7 +45,7 @@ TYPED_TEST(SqueezelOperator, squeeze_axes_invalid_rank) {
     auto param = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3, 4});
     auto axes_node = make_shared<ov::op::v0::Constant>(element::i32, Shape{2, 1}, vector<int32_t>{0, 2});
 
-    OV_EXPECT_THROW(const auto squeeze = this->make_op(param),
+    OV_EXPECT_THROW(auto squeeze = this->make_op(param),
                     NodeValidationFailure,
                     HasSubstr("Second input (axes) should not be of rank higher than 1."));
 }
@@ -54,7 +54,7 @@ TYPED_TEST(SqueezelOperator, squeeze_incorrect_negative_axes) {
     auto param = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 4, 1, 4, 1, 8});
     auto axes_node = make_shared<ov::op::v0::Constant>(element::i64, Shape{2}, vector<int64_t>{-6, -10});
 
-    OV_EXPECT_THROW(const auto squeeze = this->make_op(param, axes_node),
+    OV_EXPECT_THROW(auto squeeze = this->make_op(param, axes_node),
                     ov::Exception,
                     HasSubstr("Axis -10 out of the tensor rank range"));
 }
