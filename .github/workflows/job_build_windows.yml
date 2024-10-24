@@ -49,6 +49,7 @@ jobs:
       ARTIFACTS_SHARE: "C:\\mount\\build-artifacts"
       MANIFEST_PATH: "${{ github.workspace }}\\manifest.yml"
       PRODUCT_TYPE: 'public_windows_vs2019_${{ inputs.build-type }}'
+      CMAKE_TOOLCHAIN_FILE: "${{ github.workspace }}\\openvino\\cmake\\toolchains\\mt.runtime.win32.toolchain.cmake"
     steps:
       - name: Clone OpenVINO
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
