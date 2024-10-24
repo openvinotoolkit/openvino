@@ -175,7 +175,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
                 });
             }
 
-            // make sure scrach is big enough
+            // make sure scratch is big enough
             auto newMemDesc = std::make_shared<CpuBlockedMemoryDesc>(ov::element::u8, Shape{allocator.size()});
             m_scratchMem = m_scrachPad->createScratchPadMem(newMemDesc);
             m_scratch_base = m_scratchMem->getDataAs<uint8_t>();
@@ -278,7 +278,6 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
                             asym);
                     }
                     // compress accumulation result into target
-                    //jit_cvt.call(src, stride_src, dst, stride_dst, BM, work.BN);
                     for (int mi = 0; mi < BM; mi++, src += stride_src, dst += stride_dst) {
                         // the prefetch distance is increased to ensure by the time store happens
                         // prefetch has done and no HW prefetcher is triggered

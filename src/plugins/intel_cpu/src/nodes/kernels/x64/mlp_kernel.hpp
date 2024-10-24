@@ -52,8 +52,9 @@ public:
     int m_prefetch_Blines;
     const TMUL_TYPE m_tmul_type;
     int m_tile_reg_ksize;
+    int m_M_hint;
 
-    MKernel(int M_hint, TMUL_TYPE tmul_type) : jit_generator("MKernel"), m_tmul_type(tmul_type) {
+    MKernel(int M_hint, TMUL_TYPE tmul_type) : jit_generator("MKernel"), m_tmul_type(tmul_type), m_M_hint(M_hint) {
         if (m_tmul_type == TMUL_TYPE::FP16 || m_tmul_type == TMUL_TYPE::BF16)
             m_tile_reg_ksize = 32;
         else
@@ -84,7 +85,16 @@ public:
         }
     }
 
-    void generate() override;
+    void generate() override {
+        if (m_M_hint <= 16) {
+            generate_1x2();
+        } else {
+            generate_2x2();
+        }
+    }
+
+    void generate_2x2();
+    void generate_1x2();
 
     //  M_hint is only a hint for prefetching, set to 0 to avoid prefetch
     void setup(int M_hint = 0) {
@@ -159,43 +169,6 @@ public:
              bool do_accumulation);
 };
 
-class MKernel_1x2 : public dnnl::impl::cpu::x64::jit_generator {
-public:
-    DECLARE_CPU_JIT_AUX_FUNCTIONS(MKernel_1x2)
-
-    using call_args = MKernel::call_args;
-
-    TMUL_TYPE m_tmul_type;
-    MKernel_1x2(TMUL_TYPE tmul_type) : jit_generator("MKernel_1x2") {
-        m_tmul_type = tmul_type;
-        create_kernel();
-    }
-
-    void tmul(const Xbyak::Tmm& x1, const Xbyak::Tmm& x2, const Xbyak::Tmm& x3) {
-        switch (m_tmul_type) {
-            case TMUL_TYPE::SSD:
-                tdpbssd(x1, x2, x3);
-            break;
-            case TMUL_TYPE::USD:
-                tdpbusd(x1, x2, x3);
-            break;
-            case TMUL_TYPE::SUD:
-                tdpbsud(x1, x2, x3);
-            break;
-            case TMUL_TYPE::UUD:
-                tdpbuud(x1, x2, x3);
-            break;
-            case TMUL_TYPE::FP16:
-                tdpfp16ps(x1, x2, x3);
-            break;
-            case TMUL_TYPE::BF16:
-                tdpbf16ps(x1, x2, x3);
-            break;
-        }
-    }
-    void generate() override;
-};
-
 struct Work {
     std::vector<MKernel::BMatrix> weights;
 
@@ -228,10 +201,10 @@ struct Work {
         return jit_amx_bf16;
     }
 
-    MKernel_1x2& get_MKernel_1x2() {
-        static MKernel_1x2 jit_amx_bf16(TMUL_TYPE::BF16);
-        static MKernel_1x2 jit_amx_f16(TMUL_TYPE::FP16);
-        static MKernel_1x2 jit_amx_i8(TMUL_TYPE::SSD);
+    MKernel& get_MKernel_1x2() {
+        static MKernel jit_amx_bf16(16, TMUL_TYPE::BF16);
+        static MKernel jit_amx_f16(16, TMUL_TYPE::FP16);
+        static MKernel jit_amx_i8(16, TMUL_TYPE::SSD);
         if (quant_i8) return jit_amx_i8;
         if (is_f16) return jit_amx_f16;
         return jit_amx_bf16;
@@ -376,7 +349,7 @@ struct Work {
                 do_accumulation = true;
             }
         } else {
-            MKernel_1x2& jit = get_MKernel_1x2();
+            auto& jit = get_MKernel_1x2();
             auto& blockB = weights[0];
             // number of blocks in N dimension (in unit of 32 columns)
             auto num_blkN = blockB.Bpair_cols;

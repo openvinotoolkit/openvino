@@ -17,7 +17,7 @@ using TileConfiger = ov::Extensions::Cpu::TileConfiger;
 namespace ov {
 namespace intel_cpu {
 
-void MKernel::generate() {
+void MKernel::generate_2x2() {
     Xbyak::Reg64 reg_A_addr = abi_param2;
     Xbyak::Reg64 reg_A_stride = abi_param3;
     Xbyak::Reg64 reg_B_addr = abi_param4;
@@ -169,7 +169,7 @@ void MKernel::tile_config_M(TileConfig& tile_cfg, int M) {
                     });
 }
 
-void MKernel_1x2::generate() {
+void MKernel::generate_1x2() {
     Xbyak::Reg64 reg_A_addr = abi_param2;
     Xbyak::Reg64 reg_A_stride = abi_param3;
     Xbyak::Reg64 reg_B_addr = abi_param4;
@@ -505,7 +505,6 @@ void MatrixDynQuantPerRow::quantize(size_t BM, ov::bfloat16* psrc, int src_strid
     parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
         size_t start{0}, end{0};
         splitter(BM, nthr, ithr, start, end);
-        //auto prof = LinuxPerf::Profile("quant", start, end);
         ov::Extensions::Cpu::XARCH::llm_mlp_quantize_bf16_i8(psrc + start * src_stride,
                                                             src_stride,
                                                             data + start * K,
@@ -523,7 +522,6 @@ void MatrixDynQuantPerRow::quantize(size_t BM, ov::float16* psrc, int src_stride
     parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
         size_t start{0}, end{0};
         splitter(BM, nthr, ithr, start, end);
-        //auto prof = LinuxPerf::Profile("quant", start, end);
         ov::Extensions::Cpu::XARCH::llm_mlp_quantize_f16_i8(psrc + start * src_stride,
                                                             src_stride,
                                                             data + start * K,
