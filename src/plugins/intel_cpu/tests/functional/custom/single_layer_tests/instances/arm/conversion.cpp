@@ -13,7 +13,7 @@ namespace Conversion {
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_7D_Dynamic, ConvertCPULayerTest,
                         ::testing::Combine(
-                                ::testing::ValuesIn(inShapes_5D_dynamic()),
+                                ::testing::ValuesIn(inShapes_7D_dynamic()),
                                 ::testing::ValuesIn(precisions()),
                                 ::testing::ValuesIn(precisions()),
                                 ::testing::Values(CPUSpecificParams({}, {}, {}, {}))),
@@ -21,7 +21,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_7D_Dynamic, ConvertCPULayerTe
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_7D_Static, ConvertCPULayerTest,
                         ::testing::Combine(
-                                ::testing::ValuesIn(inShapes_5D_static()),
+                                ::testing::ValuesIn(inShapes_7D_static()),
                                 ::testing::ValuesIn(precisions()),
                                 ::testing::ValuesIn(precisions()),
                                 ::testing::Values(CPUSpecificParams({}, {}, {}, {}))),
