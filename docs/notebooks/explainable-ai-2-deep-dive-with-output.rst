@@ -57,31 +57,31 @@ predicting a particular label.
    -  `Preprocess image for
       MobileNet <#preprocess-image-for-mobilenet>`__
 
--  `Basic usage: Auto mode
-   explainer <#basic-usage-auto-mode-explainer>`__
+-  `Basic usage: Explainer in AUTO
+   mode <#basic-usage-explainer-in-auto-mode>`__
 
-   -  `Create Explainer <#create-explainer>`__
-   -  `Do explanation <#do-explanation>`__
+   -  `Create Explainer object <#create-explainer-object>`__
+   -  `Generate explanation <#generate-explanation>`__
    -  `Visualize saliency maps <#visualize-saliency-maps>`__
    -  `Save saliency maps <#save-saliency-maps>`__
-   -  `Return saliency maps for all
-      classes <#return-saliency-maps-for-all-classes>`__
+   -  `Generate saliency maps for all
+      classes <#generate-saliency-maps-for-all-classes>`__
 
 -  `Pre- and post-process
    functions <#pre--and-post-process-functions>`__
 -  `Visualization Parameters <#visualization-parameters>`__
--  `White-box explainer <#white-box-explainer>`__
+-  `Explainer in WHITEBOX mode <#explainer-in-whitebox-mode>`__
 
-   -  `ReciproCAM explain method <#reciprocam-explain-method>`__
+   -  `ReciproCAM XAI method <#reciprocam-xai-method>`__
    -  `Insert XAI branch <#insert-xai-branch>`__
    -  `Insertion-related parameters <#insertion-related-parameters>`__
 
--  `Black-box explainer <#black-box-explainer>`__
+-  `Explainer in BLACKBOX mode <#explainer-in-blackbox-mode>`__
 -  `Advanced <#advanced>`__
 
    -  `Import ImageNet label names and add them to saliency
       maps <#import-imagenet-label-names-and-add-them-to-saliency-maps>`__
-   -  `Activation map explain method <#activation-map-explain-method>`__
+   -  `Activation map XAI method <#activation-map-xai-method>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -110,9 +110,11 @@ Install requirements
     import platform
     
     # Install openvino package
-    %pip install -q "openvino>=2024.2.0" opencv-python tqdm
+    %pip install -q "openvino>=2024.2.0" opencv-python tqdm scipy
     
-    %pip install -q --no-deps "openvino-xai>=1.0.0"
+    %pip install -q --no-deps "openvino-xai>=1.1.0"
+    %pip install -q -U "numpy==1.*"
+    %pip install -q scipy
     
     if platform.system() != "Windows":
         %pip install -q "matplotlib>=3.4"
@@ -175,11 +177,10 @@ converted to IR model from OpenVINO storage.
     else:
         print(f"{model_name} already downloaded to {base_artifacts_dir}")
 
+.. code:: ipython3
 
-.. parsed-literal::
-
-    v3-small_224_1.0_float already downloaded to artifacts
-    
+    # Create ov.Model
+    model = ov.Core().read_model(model_xml_path)
 
 Load the Image
 ~~~~~~~~~~~~~~
@@ -196,7 +197,7 @@ Load the Image
     
     # The MobileNet model expects images in RGB format.
     image = cv2.cvtColor(cv2.imread(filename=str(image_filename)), code=cv2.COLOR_BGR2RGB)
-    plt.imshow(image);
+    plt.imshow(image)
 
 
 .. parsed-literal::
@@ -205,7 +206,15 @@ Load the Image
     
 
 
-.. image:: explainable-ai-2-deep-dive-with-output_files/explainable-ai-2-deep-dive-with-output_10_1.png
+
+.. parsed-literal::
+
+    <matplotlib.image.AxesImage at 0x7f0180958940>
+
+
+
+
+.. image:: explainable-ai-2-deep-dive-with-output_files/explainable-ai-2-deep-dive-with-output_11_2.png
 
 
 Preprocess image for MobileNet
@@ -220,41 +229,41 @@ Preprocess image for MobileNet
     # Add batch dimension
     preprocessed_image = np.expand_dims(preprocessed_image, 0)
 
-Basic usage: Auto mode explainer
---------------------------------
+Basic usage: ``Explainer`` in ``AUTO`` mode
+-------------------------------------------
 
 
 
-The easiest way to run the explainer is to do it in Auto mode. Under the
-hood of Auto mode, it will first try to run the ``White-Box`` mode. If
-this fails, it will then run the ``Black-Box`` mode. See more details
-about `White-Box <#white-box-explainer>`__ and
-`Black-Box <#black-box-explainer>`__ modes below.
+The easiest way to generate saliency maps is to use ``Explainer`` in
+``ExplainMode.AUTO`` mode (``AUTO`` mode is used by default).
 
-| Generating saliency maps involves model inference. The explainer will
-  perform model inference, but to do so, it requires ``preprocess_fn``
-  and ``postprocess_fn``.
-| At this stage, we can avoid passing ``preprocess_fn`` by preprocessing
-  the data beforehand (e.g., resizing and adding a batch dimension as
-  shown above). We also don’t pass ``postprocess_fn`` here for
-  simplicity, since the White-Box mode doesn’t fail on the example
-  model.
+Under the hood of ``AUTO`` mode, ``Explainer`` will first try to run the
+``WHITEBOX`` mode. If ``WHITEBOX`` fails, it will then run the
+``BLACKBOX`` mode as a fallback option. See more details about
+`WHITEBOX <#explainer-in-whitebox-mode>`__ and
+`BLACKBOX <#explainer-in-blackbox-mode>`__ modes below.
 
-To learn more about pre- and post-process functions, refer to the `Pre-
+Generating saliency maps involves model inference. The explainer will
+perform model inference, but to do so, it requires ``preprocess_fn`` and
+``postprocess_fn``. We can avoid passing ``preprocess_fn`` by
+preprocessing (e.g., resizing and adding a batch dimension as shown
+above) the input data beforehand - by default, ``preprocess_fn`` is the
+identity function. We expect that current example will successfully use
+``WHITEBOX`` mode under the hood, therefore we don’t pass
+``postprocess_fn`` (``postprocess_fn`` is not required for ``WHITEBOX``
+mode, only for ``BLACKBOX``).
+
+To learn more about pre- and post-process functions, refer to the `pre-
 and post-process functions <#pre--and-post-process-functions>`__
 section.
 
-Create Explainer
-~~~~~~~~~~~~~~~~
+Create ``Explainer`` object
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
 
 .. code:: ipython3
 
-    # Create ov.Model
-    model = ov.Core().read_model(model_xml_path)
-    
-    # Create explainer object
     explainer = xai.Explainer(
         model=model,
         task=xai.Task.CLASSIFICATION,
@@ -269,27 +278,27 @@ Create Explainer
     INFO:openvino_xai:Explaining the model in white-box mode.
     
 
-Do explanation
-~~~~~~~~~~~~~~
+Generate ``explanation``
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 
 
-The predicted label for this image is ``flat-coated_retriever`` with
-label index ``206``. So here and further we will check saliency maps for
-this index.
+The predicted class for this model-image pair is
+``flat-coated_retriever`` with class index ``206``. So here and further
+we will check saliency maps for this index.
 
 .. code:: ipython3
 
-    # You can choose classes to generate saliency maps for.
-    # In this notebook we will check maps for predicted class 206 - flat-coated retriever
+    # You can choose class(es) to generate saliency maps for.
+    # In this notebook we will check maps for predicted class with index 206 - "flat-coated retriever"
     retriever_class_index = 206
 
 .. code:: ipython3
 
     explanation = explainer(
         preprocessed_image,
-        targets=retriever_class_index,
-        overlay=True,  # False by default
+        targets=retriever_class_index,  # can be a single target or a container of targets
+        overlay=True,  # saliency map overlay over the original image, False by default, set to True for better visual inspection
     )
 
 Visualize saliency maps
@@ -300,16 +309,14 @@ Visualize saliency maps
 .. code:: ipython3
 
     explanation: Explanation
-    # Dict[int: np.ndarray] where key - class id, value - processed saliency map e.g. 354x500x3
-    explanation.saliency_map
+    # explanation.saliency_map: Dict[int: np.ndarray]  # where key - class id, value - processed saliency map (e.g. 354 x 500 x 3 shape)
     
     # Check saved saliency maps
     print(f"Saliency maps were generated for the following classes: {explanation.targets}")
     print(f"Saliency map size: {explanation.shape}")
     
-    # Show saliency maps for retriever class
-    retriever_sal_map = explanation.saliency_map[retriever_class_index]
-    plt.imshow(retriever_sal_map);
+    # Visualize generated saliency maps for each target class (.plot() supports plotting multiple saliency maps)
+    explanation.plot()
 
 
 .. parsed-literal::
@@ -319,7 +326,7 @@ Visualize saliency maps
     
 
 
-.. image:: explainable-ai-2-deep-dive-with-output_files/explainable-ai-2-deep-dive-with-output_21_1.png
+.. image:: explainable-ai-2-deep-dive-with-output_files/explainable-ai-2-deep-dive-with-output_22_1.png
 
 
 Save saliency maps
@@ -330,38 +337,48 @@ Save saliency maps
 .. code:: ipython3
 
     # Save saliency map
-    output = base_artifacts_dir / "explain_auto"
-    explanation.save(output)
+    explanation.save(base_artifacts_dir, "explain_auto_")
 
 .. code:: ipython3
 
-    # See saved saliency maps
-    image_sal_map = cv2.imread(f"{output}/target_{retriever_class_index}.jpg")
+    # Plot saved saliency map
+    image_sal_map = cv2.imread(f"{base_artifacts_dir}/explain_auto_{retriever_class_index}.jpg")
     image_sal_map = cv2.cvtColor(image_sal_map, cv2.COLOR_BGR2RGB)
-    plt.imshow(image_sal_map);
+    plt.imshow(image_sal_map)
 
 
 
-.. image:: explainable-ai-2-deep-dive-with-output_files/explainable-ai-2-deep-dive-with-output_24_0.png
+
+.. parsed-literal::
+
+    <matplotlib.image.AxesImage at 0x7f011efc9090>
 
 
-Return saliency maps for all classes
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
+.. image:: explainable-ai-2-deep-dive-with-output_files/explainable-ai-2-deep-dive-with-output_25_1.png
+
+
+Generate saliency maps for all classes
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+To obtain saliency maps for all classes, set ``targets`` to ``None`` or
+``-1``.
 
 .. code:: ipython3
 
     explanation = explainer(preprocessed_image, targets=-1)
     
     # Check saved saliency maps
-    print(f"Saliency maps were generated for the following classes: {explanation.targets}")
+    print(f"Saliency maps were generated for the following classes: {explanation.targets[:5]} ... {explanation.targets[-5:]}")
     print(f"Saliency map size: {explanation.shape}")
 
 
 .. parsed-literal::
 
-    Saliency maps were generated for the following classes: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 256, 257, 258, 259, 260, 261, 262, 263, 264, 265, 266, 267, 268, 269, 270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289, 290, 291, 292, 293, 294, 295, 296, 297, 298, 299, 300, 301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 323, 324, 325, 326, 327, 328, 329, 330, 331, 332, 333, 334, 335, 336, 337, 338, 339, 340, 341, 342, 343, 344, 345, 346, 347, 348, 349, 350, 351, 352, 353, 354, 355, 356, 357, 358, 359, 360, 361, 362, 363, 364, 365, 366, 367, 368, 369, 370, 371, 372, 373, 374, 375, 376, 377, 378, 379, 380, 381, 382, 383, 384, 385, 386, 387, 388, 389, 390, 391, 392, 393, 394, 395, 396, 397, 398, 399, 400, 401, 402, 403, 404, 405, 406, 407, 408, 409, 410, 411, 412, 413, 414, 415, 416, 417, 418, 419, 420, 421, 422, 423, 424, 425, 426, 427, 428, 429, 430, 431, 432, 433, 434, 435, 436, 437, 438, 439, 440, 441, 442, 443, 444, 445, 446, 447, 448, 449, 450, 451, 452, 453, 454, 455, 456, 457, 458, 459, 460, 461, 462, 463, 464, 465, 466, 467, 468, 469, 470, 471, 472, 473, 474, 475, 476, 477, 478, 479, 480, 481, 482, 483, 484, 485, 486, 487, 488, 489, 490, 491, 492, 493, 494, 495, 496, 497, 498, 499, 500, 501, 502, 503, 504, 505, 506, 507, 508, 509, 510, 511, 512, 513, 514, 515, 516, 517, 518, 519, 520, 521, 522, 523, 524, 525, 526, 527, 528, 529, 530, 531, 532, 533, 534, 535, 536, 537, 538, 539, 540, 541, 542, 543, 544, 545, 546, 547, 548, 549, 550, 551, 552, 553, 554, 555, 556, 557, 558, 559, 560, 561, 562, 563, 564, 565, 566, 567, 568, 569, 570, 571, 572, 573, 574, 575, 576, 577, 578, 579, 580, 581, 582, 583, 584, 585, 586, 587, 588, 589, 590, 591, 592, 593, 594, 595, 596, 597, 598, 599, 600, 601, 602, 603, 604, 605, 606, 607, 608, 609, 610, 611, 612, 613, 614, 615, 616, 617, 618, 619, 620, 621, 622, 623, 624, 625, 626, 627, 628, 629, 630, 631, 632, 633, 634, 635, 636, 637, 638, 639, 640, 641, 642, 643, 644, 645, 646, 647, 648, 649, 650, 651, 652, 653, 654, 655, 656, 657, 658, 659, 660, 661, 662, 663, 664, 665, 666, 667, 668, 669, 670, 671, 672, 673, 674, 675, 676, 677, 678, 679, 680, 681, 682, 683, 684, 685, 686, 687, 688, 689, 690, 691, 692, 693, 694, 695, 696, 697, 698, 699, 700, 701, 702, 703, 704, 705, 706, 707, 708, 709, 710, 711, 712, 713, 714, 715, 716, 717, 718, 719, 720, 721, 722, 723, 724, 725, 726, 727, 728, 729, 730, 731, 732, 733, 734, 735, 736, 737, 738, 739, 740, 741, 742, 743, 744, 745, 746, 747, 748, 749, 750, 751, 752, 753, 754, 755, 756, 757, 758, 759, 760, 761, 762, 763, 764, 765, 766, 767, 768, 769, 770, 771, 772, 773, 774, 775, 776, 777, 778, 779, 780, 781, 782, 783, 784, 785, 786, 787, 788, 789, 790, 791, 792, 793, 794, 795, 796, 797, 798, 799, 800, 801, 802, 803, 804, 805, 806, 807, 808, 809, 810, 811, 812, 813, 814, 815, 816, 817, 818, 819, 820, 821, 822, 823, 824, 825, 826, 827, 828, 829, 830, 831, 832, 833, 834, 835, 836, 837, 838, 839, 840, 841, 842, 843, 844, 845, 846, 847, 848, 849, 850, 851, 852, 853, 854, 855, 856, 857, 858, 859, 860, 861, 862, 863, 864, 865, 866, 867, 868, 869, 870, 871, 872, 873, 874, 875, 876, 877, 878, 879, 880, 881, 882, 883, 884, 885, 886, 887, 888, 889, 890, 891, 892, 893, 894, 895, 896, 897, 898, 899, 900, 901, 902, 903, 904, 905, 906, 907, 908, 909, 910, 911, 912, 913, 914, 915, 916, 917, 918, 919, 920, 921, 922, 923, 924, 925, 926, 927, 928, 929, 930, 931, 932, 933, 934, 935, 936, 937, 938, 939, 940, 941, 942, 943, 944, 945, 946, 947, 948, 949, 950, 951, 952, 953, 954, 955, 956, 957, 958, 959, 960, 961, 962, 963, 964, 965, 966, 967, 968, 969, 970, 971, 972, 973, 974, 975, 976, 977, 978, 979, 980, 981, 982, 983, 984, 985, 986, 987, 988, 989, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999, 1000]
+    Saliency maps were generated for the following classes: [0, 1, 2, 3, 4] ... [996, 997, 998, 999, 1000]
     Saliency map size: (224, 224, 3)
     
 
@@ -379,19 +396,19 @@ constructor. By default, ``preprocess_fn`` is an identity function that
 passes the input without any changes, assuming it is preprocessed
 beforehand.
 
-In Auto mode, the explainer tries to run the White-Box mode first. If it
-fails, the corresponding exception will be raised, and the Black-Box
-mode will be enabled as a fallback.
+In ``AUTO`` mode, the explainer tries to run the ``WHITEBOX`` mode
+first. If it fails, the corresponding exception will be raised, and the
+``BLACKBOX`` mode will be enabled as a fallback.
 
-The Black-Box mode requires access to the output ``logits`` (activated
-or not). Therefore, in such cases, ``postprocess_fn`` is required, which
-accepts the raw IR model output and returns logits (see below for a
-reference).
+The ``BLACKBOX`` mode requires access to the output ``logits``
+(activated or not). Therefore, in such cases, ``postprocess_fn`` is
+required, which accepts the raw IR model output and returns ``logits``
+(see below for a reference).
 
 .. code:: ipython3
 
     def preprocess_fn(x: np.ndarray) -> np.ndarray:
-        # Implementing own pre-process function based on model's implementation
+        # Implementing pre-processing based on model's pipeline
         x = cv2.resize(src=x, dsize=(224, 224))
     
         # Add batch dimension
@@ -400,7 +417,7 @@ reference).
     
     
     def postprocess_fn(x: OVDict):
-        # Implementing own post-process function based on model's implementation
+        # Implementing post-processing function based on model's pipeline
         # Return "logits" model output
         return x[0]
 
@@ -447,7 +464,7 @@ Visualization Parameters
     # Create explainer object
     explainer = xai.Explainer(model=model, task=xai.Task.CLASSIFICATION)
     
-    # Return overlayed image
+    # Generate overlayed saliency_map
     explanation = explainer(
         preprocessed_image,
         targets=[retriever_class_index],  # target can be a single label index, label name or a list of indices/names
@@ -455,12 +472,10 @@ Visualization Parameters
         original_input_image=image,  # to apply overlay on the original image instead of preprocessed one that was used for the explainer
     )
     
-    retriever_sal_map = explanation.saliency_map[retriever_class_index]
-    plt.imshow(retriever_sal_map)
+    explanation.plot()
     
     # Save saliency map
-    output = base_artifacts_dir / "overlay"
-    explanation.save(output)
+    explanation.save(base_artifacts_dir, "overlay_")
 
 
 .. parsed-literal::
@@ -472,33 +487,31 @@ Visualization Parameters
     
 
 
-.. image:: explainable-ai-2-deep-dive-with-output_files/explainable-ai-2-deep-dive-with-output_32_1.png
+.. image:: explainable-ai-2-deep-dive-with-output_files/explainable-ai-2-deep-dive-with-output_34_1.png
 
 
 .. code:: ipython3
 
-    # Return low-resolution saliency map
+    # Generate saliency map without overlay over original image
     explanation = explainer(
         preprocessed_image,
         targets=[retriever_class_index],  # target can be a single label index, label name or a list of indices/names
         overlay=False,  # False by default
     )
     
-    retriever_sal_map = explanation.saliency_map[retriever_class_index]
-    plt.imshow(retriever_sal_map)
+    explanation.plot()
     
     # Save saliency map
-    output = base_artifacts_dir / "colormap"
-    explanation.save(output)
+    explanation.save(base_artifacts_dir, "colormap_")
 
 
 
-.. image:: explainable-ai-2-deep-dive-with-output_files/explainable-ai-2-deep-dive-with-output_33_0.png
+.. image:: explainable-ai-2-deep-dive-with-output_files/explainable-ai-2-deep-dive-with-output_35_0.png
 
 
 .. code:: ipython3
 
-    # Return low-resolution gray-scale saliency map
+    # Return low-resolution (raw) gray-scale saliency map
     explanation = explainer(
         preprocessed_image,
         targets=[retriever_class_index],  # target can be a single label index, label name or a list of indices/names
@@ -506,37 +519,37 @@ Visualization Parameters
         colormap=False,  # True by default
     )
     
-    retriever_sal_map = explanation.saliency_map[retriever_class_index]
-    plt.imshow(retriever_sal_map, cmap="gray")
+    explanation.plot()
     
     # Save saliency map
-    output = base_artifacts_dir / "grayscale"
-    explanation.save(output)
+    explanation.save(base_artifacts_dir, "grayscale_")
 
 
 
-.. image:: explainable-ai-2-deep-dive-with-output_files/explainable-ai-2-deep-dive-with-output_34_0.png
+.. image:: explainable-ai-2-deep-dive-with-output_files/explainable-ai-2-deep-dive-with-output_36_0.png
 
 
-White-Box explainer
--------------------
+``Explainer`` in ``WHITEBOX`` mode
+----------------------------------
 
 
 
-ReciproCAM explain method
+``ReciproCAM`` XAI method
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
 
-The White-Box explainer treats the model as a white box and needs to
-make inner modifications. It adds extra XAI nodes after the backbone to
-estimate which activations are important for model prediction.
+``Explainer`` in ``WHITEBOX`` mode treats the model as a white box and
+performs its inner modifications. ``Explainer`` inserts extra XAI nodes
+after the backbone to estimate which activations are important for model
+prediction.
 
 If a method is not specified, the XAI branch will be generated using the
 `ReciproCAM <https://arxiv.org/abs/2209.14074>`__ method.
 
 By default, the insertion of the XAI branch will be done automatically
-by searching for the correct node.
+by searching for the correct node - ``target_layer`` (``target_layer``
+can be specified manually).
 
 It works quickly and precisely, requiring only one model inference.
 
@@ -547,10 +560,8 @@ It works quickly and precisely, requiring only one model inference.
         model=model,
         task=xai.Task.CLASSIFICATION,
         preprocess_fn=preprocess_fn,
-        # defaults to ExplainMode.AUTO
-        explain_mode=ExplainMode.WHITEBOX,
-        # ReciproCAM is the default XAI method for CNNs
-        explain_method=xai.Method.RECIPROCAM,
+        explain_mode=ExplainMode.WHITEBOX,  # defaults to ExplainMode.AUTO
+        explain_method=xai.Method.RECIPROCAM,  # ReciproCAM is the default white-box method for CNNs
     )
 
 
@@ -586,7 +597,7 @@ environment.
         model,
         task=xai.Task.CLASSIFICATION,
         explain_method=xai.Method.RECIPROCAM,
-        target_layer="MobilenetV3/Conv_1/Conv2D",  # MobileNet V3
+        target_layer="MobilenetV3/Conv_1/Conv2D",  # optional, by default insert_xai will try to find target_layer automatically
         embed_scaling=True,
     )
 
@@ -598,23 +609,28 @@ environment.
     INFO:openvino_xai:Insertion of the XAI branch into the model was successful.
     
 
+**Note**: ``insert_xai`` supports both OpenVINO IR and PyTorch models.
+See documentation for more details.
+
 Insertion-related parameters
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
 
 If automatic search for correct node fails, you can set up a correct
-node manually with ``target_layer`` argument. For classification it’s
+node manually with ``target_layer`` argument. For classification, it’s
 the last backbone node with shape [1, num_channels, feature_map_height,
-feature_map_width]. For example, for MobileNetV3 it will be
+feature_map_width]. For example, for the used MobileNetV3 it will be
 ``MobilenetV3/Conv_1/Conv2D`` layer with [1, 576, 7, 7] output shape.
 
 To find the right ``target_layer`` for your model, check the name of the
-last convolutional layer in the backbone using ``.XML`` model.
+last convolutional node in the backbone using ``.XML`` file (optionally,
+use some graph visualization tool, such as Netron).
 
 ``embed_scaling`` **default True** (for speed purposes), this parameter
-adds normalization to the XAI branch, which results in being able to
-visualize saliency maps right away without further postprocessing.
+ensures that saliency map scaling is embedded into the graph, which
+results in being able to visualize saliency maps right away without
+further postprocessing.
 
 .. code:: ipython3
 
@@ -638,25 +654,32 @@ visualize saliency maps right away without further postprocessing.
     INFO:openvino_xai:Explaining the model in white-box mode.
     
 
-Black-Box explainer
--------------------
+``Explainer`` in ``BLACKBOX`` mode
+----------------------------------
 
 
 
-The Black-Box method treats the model as a black box without altering
-its structure. Therefore, this method will work on any model that can be
-inferred and return class probabilities as output.
-
-The `RISE <https://arxiv.org/pdf/1806.07421.pdf>`__ algorithm used in
-Black-Box mode applies random masks to hide parts of the image,
-retrieves the resulting class probabilities, and uses this information
-to calculate the “importance” of each part of the image for the final
-results. After performing thousands of inferences, a summarized saliency
-map is generated.
+``Explainer`` in ``BLACKBOX`` mode treats the model as a black box
+without altering its internal structure. Therefore, this method will
+work on any model that can be inferred and return class scores as
+output.
 
 While it is convenient to treat every model as a black box for
-explanation purposes, this algorithm may require a large number of
-inferences (defaulting to 5000) to generate a high-quality saliency map.
+explanation purposes, black-box method may require a significant number
+of inferences (AISE requires 120-500 model inferences).
+
+Given that the quality of the saliency maps usually correlates with the
+number of available inferences, we propose the following presets for the
+black-box methods: ``Preset.SPEED``, ``Preset.BALANCE``,
+``Preset.QUALITY`` (``Preset.BALANCE`` is used by default).
+
+AISE (Adaptive Input Sampling for Explanation of Black-box Models)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+AISE is used as a default black-box method. AISE formulates saliency map
+generation as a kernel density estimation (KDE) problem, and adaptively
+sample input masks using a derivative-free optimizer to maximize mask
+saliency score.
 
 .. code:: ipython3
 
@@ -673,45 +696,69 @@ inferences (defaulting to 5000) to generate a high-quality saliency map.
     explanation = explainer(
         image,
         targets=retriever_class_index,
-        # targets=-1,  # Explain all classes
         overlay=True,
-        num_masks=1000,  # kwargs of the RISE algo
     )
 
 
 .. parsed-literal::
 
     INFO:openvino_xai:Explaining the model in black-box mode.
-    Explaining in synchronous mode: 100%|██████████| 1000/1000 [00:03<00:00, 259.73it/s]
     
 
 .. code:: ipython3
 
-    # Save saliency map
-    output = base_artifacts_dir / "blackbox_explain"
-    explanation.save(output)
+    # Plot saliency map
+    explanation.plot()
     
-    # See saved saliency maps
-    image_sal_map = cv2.imread(f"{output}/target_{retriever_class_index}.jpg")
-    image_sal_map = cv2.cvtColor(image_sal_map, cv2.COLOR_BGR2RGB)
-    plt.imshow(image_sal_map);
+    # Save saliency map
+    explanation.save(base_artifacts_dir, "blackbox_aise_")
 
 
 
-.. image:: explainable-ai-2-deep-dive-with-output_files/explainable-ai-2-deep-dive-with-output_45_0.png
+.. image:: explainable-ai-2-deep-dive-with-output_files/explainable-ai-2-deep-dive-with-output_49_0.png
 
 
-For the ``Black-Box explainer``, the number of masks and cells is
-crucial for achieving good results. In the example above, it’s evident
-that the number of masks was insufficient to create a high-quality map.
+RISE (Randomized Input Sampling for Explanation of Black-box Models)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Varying the ``num_cells`` and ``num_masks`` parameters can achieve
-different goals: - To speed up the explanation, you can reduce the
-number of ``num_masks``. However, this will decrease the quality of the
-resulting saliency maps, making it suitable for large and focused
-objects. - Increasing ``num_cells`` provides a more fine-grained result,
-but it requires a larger ``num_masks`` to converge. This approach is
-more effective for classes with complex shapes.
+`RISE <https://arxiv.org/pdf/1806.07421>`__ probes a model by
+sub-sampling the input image via random masks and records its response
+to each of them. RISE creates random masks from down-scaled space
+(e.g. 7×7 grid) and adds random translation shifts for the pixel-level
+explanation with further up-sampling. Weighted sum of all sampled masks
+used to generate the fine-grained saliency map.
+
+.. code:: ipython3
+
+    # Create explainer object
+    explainer = xai.Explainer(
+        model=model,
+        task=xai.Task.CLASSIFICATION,
+        preprocess_fn=preprocess_fn,
+        postprocess_fn=postprocess_fn,
+        explain_mode=ExplainMode.BLACKBOX,  # defaults to AUTO
+        explain_method=xai.Method.RISE,  # xai.Method.AISE is used by default
+    )
+    
+    # Generate explanation
+    explanation = explainer(
+        image,
+        targets=retriever_class_index,
+        overlay=True,
+    )
+
+.. code:: ipython3
+
+    # Plot saliency map
+    explanation.plot()
+    
+    # Save saliency map
+    explanation.save(base_artifacts_dir, "blackbox_rise_")
+
+
+
+.. image:: explainable-ai-2-deep-dive-with-output_files/explainable-ai-2-deep-dive-with-output_52_0.png
+
 
 Advanced
 --------
@@ -724,9 +771,8 @@ Import ImageNet label names and add them to saliency maps
 
 
 If ``label_names`` are not provided to the explainer call, the saved
-saliency map will have the predicted class index, not the name. For
-example, ``image_name_target_206.jpg`` instead of
-``image_name_target_retriever.jpg``.
+saliency map will have the predicted class index, not the label name.
+For example, ``206.jpg`` instead of ``retriever.jpg``.
 
 To conveniently view label names in saliency maps, we provide ImageNet
 label names information to the explanation call.
@@ -781,8 +827,8 @@ label names information to the explanation call.
     # Adding ImageNet label names.
     explanation = explainer(
         image,
-        # Return saliency maps for 2 named labels
-        targets=["flat-coated_retriever", "microwave"],  # Also label indices [206, 652] are possible as target
+        # Return saliency maps for 2 named labels, possible if label_names is provided
+        targets=["flat-coated_retriever", "microwave"],  # slso label indices [206, 652] are possible as target
         label_names=imagenet_labels,
     )
 
@@ -797,8 +843,7 @@ label names information to the explanation call.
 .. code:: ipython3
 
     # Save saliency map
-    output = base_artifacts_dir / "label_names"
-    explanation.save(output)
+    explanation.save(base_artifacts_dir, "label_names_")
 
 Below in ``base_artifacts_dir / "label_names"`` you can see saved
 saliency maps with label name on it:
@@ -806,18 +851,18 @@ saliency maps with label name on it:
 .. code:: ipython3
 
     # See saliency mas saved in `output` with predicted label in image name
-    for file_name in output.glob("*"):
+    for file_name in base_artifacts_dir.glob("label_names_*"):
         print(file_name)
 
 
 .. parsed-literal::
 
-    artifacts/label_names/target_microwave.jpg
-    artifacts/label_names/target_flat-coated_retriever.jpg
+    artifacts/label_names_microwave.jpg
+    artifacts/label_names_flat-coated_retriever.jpg
     
 
-Activation map explain method
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Activation map XAI method
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
 
@@ -840,11 +885,8 @@ saliency maps for each class, the activation map is returned as
         explain_method=xai.Method.ACTIVATIONMAP,
     )
     
-    explanation = explainer(image, targets=-1, overlay=True)
-    activation_map = explanation.saliency_map["per_image_map"]
-    
-    plt.imshow(activation_map)
-    plt.show()
+    explanation = explainer(image, overlay=True)
+    explanation.plot()
 
 
 .. parsed-literal::
@@ -855,5 +897,5 @@ saliency maps for each class, the activation map is returned as
     
 
 
-.. image:: explainable-ai-2-deep-dive-with-output_files/explainable-ai-2-deep-dive-with-output_57_1.png
+.. image:: explainable-ai-2-deep-dive-with-output_files/explainable-ai-2-deep-dive-with-output_63_1.png
 

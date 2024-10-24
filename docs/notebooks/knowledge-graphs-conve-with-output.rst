@@ -233,7 +233,7 @@ Download Model Checkpoint
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/notebooks/knowledge-graphs-conve/models/conve.pt')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/notebooks/knowledge-graphs-conve/models/conve.pt')
 
 
 
@@ -395,7 +395,7 @@ typical to use metrics such as Mean Reciprocal Rank, Hits@10 etc.
 
 .. parsed-literal::
 
-    Average time taken for inference: 0.8428494135538737 ms
+    Average time taken for inference: 0.6894171237945557 ms
     Mean accuracy of the model on the test dataset: 0.875
 
 
@@ -534,7 +534,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    Average time taken for inference: 0.7553497950236002 ms
+    Average time taken for inference: 0.8764564990997314 ms
     Mean accuracy of the model on the test dataset: 0.10416666666666667
 
 
@@ -553,7 +553,7 @@ Determine the platform specific speedup obtained through OpenVINO graph optimiza
 
 .. parsed-literal::
 
-    Speedup with OpenVINO optimizations: 1.12 X
+    Speedup with OpenVINO optimizations: 0.79 X
 
 
 Benchmark the converted OpenVINO model using benchmark app
@@ -614,7 +614,7 @@ inference can also be obtained by looking at the benchmark app results.
     [ INFO ] Model outputs:
     [ INFO ]     ***NO_NAME*** (node: aten::softmax/Softmax) : f32 / [...] / [1,271]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 71.31 ms
+    [ INFO ] Compile model took 72.42 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -653,17 +653,17 @@ inference can also be obtained by looking at the benchmark app results.
     [ INFO ] Fill input 'rel' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 10000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 1.73 ms
+    [ INFO ] First inference took 1.79 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            92208 iterations
-    [ INFO ] Duration:         10001.05 ms
+    [ INFO ] Count:            94740 iterations
+    [ INFO ] Duration:         10002.15 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        1.12 ms
-    [ INFO ]    Average:       1.12 ms
-    [ INFO ]    Min:           0.82 ms
-    [ INFO ]    Max:           8.35 ms
-    [ INFO ] Throughput:   9219.83 FPS
+    [ INFO ]    Median:        1.08 ms
+    [ INFO ]    Average:       1.08 ms
+    [ INFO ]    Min:           0.74 ms
+    [ INFO ]    Max:           9.80 ms
+    [ INFO ] Throughput:   9471.96 FPS
 
 
 Conclusions

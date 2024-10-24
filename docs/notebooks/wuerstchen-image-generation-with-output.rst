@@ -230,7 +230,8 @@ parameter to generate a less memory-demanding model.
 Text encoder model has 2 inputs:
 
 - ``input_ids``: vector of tokenized input sentence. Default tokenizer vector length is 77.
-- ``attention_mask``: vector of same length as ``input_ids`` describing the attention mask.
+- ``attention_mask``: vector of same length as ``input_ids`` describing
+  the attention mask.
 
 .. code:: ipython3
 
@@ -284,7 +285,6 @@ Decoder pipeline
 Decoder pipeline consists of 3 parts: decoder, text encoder and VQGAN.
 
 Decoder model is the WuerstchenDiffNeXt UNet decoder. Inputs are:
-
 - ``x``: sample
 - ``r``: timestep
 - ``effnet``: interpolation block

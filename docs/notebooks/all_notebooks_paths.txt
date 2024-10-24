@@ -54,11 +54,12 @@ notebooks/language-quantize-bert/language-quantize-bert.ipynb
 notebooks/latent-consistency-models-image-generation/latent-consistency-models-image-generation.ipynb
 notebooks/latent-consistency-models-image-generation/latent-consistency-models-optimum-demo.ipynb
 notebooks/latent-consistency-models-image-generation/lcm-lora-controlnet.ipynb
-notebooks/llava-multimodal-chatbot/llava-multimodal-chatbot.ipynb
-notebooks/llava-multimodal-chatbot/videollava-multimodal-chatbot.ipynb
+notebooks/llava-multimodal-chatbot/llava-multimodal-chatbot-genai.ipynb
+notebooks/llava-multimodal-chatbot/llava-multimodal-chatbot-optimum.ipynb
 notebooks/llava-next-multimodal-chatbot/llava-next-multimodal-chatbot.ipynb
 notebooks/llm-agent-functioncall/llm-agent-functioncall-qwen.ipynb
 notebooks/llm-agent-react/llm-agent-rag-llamaindex.ipynb
+notebooks/llm-agent-react/llm-agent-react.ipynb
 notebooks/llm-agent-react/llm-agent-react-langchain.ipynb
 notebooks/llm-chatbot/llm-chatbot-generate-api.ipynb
 notebooks/llm-chatbot/llm-chatbot.ipynb
@@ -148,7 +149,6 @@ notebooks/tflite-selfie-segmentation/tflite-selfie-segmentation.ipynb
 notebooks/tflite-to-openvino/tflite-to-openvino.ipynb
 notebooks/tiny-sd-image-generation/tiny-sd-image-generation.ipynb
 notebooks/torchvision-zoo-to-openvino/convnext-classification.ipynb
-notebooks/triposr-3d-reconstruction/triposr-3d-reconstruction.ipynb
 notebooks/typo-detector/typo-detector.ipynb
 notebooks/vehicle-detection-and-recognition/vehicle-detection-and-recognition.ipynb
 notebooks/vision-background-removal/vision-background-removal.ipynb

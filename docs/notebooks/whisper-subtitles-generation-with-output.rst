@@ -18,8 +18,11 @@ blog <https://openai.com/blog/whisper/>`__, `model
 card <https://github.com/openai/whisper/blob/main/model-card.md>`__ and
 GitHub `repository <https://github.com/openai/whisper>`__.
 
-In this notebook, we will use Whisper with OpenVINO to generate
-subtitles in a sample video. Additionally, we will use
+In this notebook, we will use Whisper model with `OpenVINO Generate
+API <https://github.com/openvinotoolkit/openvino.genai>`__ for `Whisper
+automatic speech recognition
+scenarios <https://github.com/openvinotoolkit/openvino.genai/blob/master/samples/python/whisper_speech_recognition/README.md>`__
+to generate subtitles in a sample video. Additionally, we will use
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ improving model
 performance by INT8 quantization. Notebook contains the following steps:
 1. Download the model. 2. Instantiate the PyTorch model pipeline. 3.
@@ -75,10 +78,22 @@ Install dependencies.
 
 .. code:: ipython3
 
-    %pip install -q "openvino>=2024.1.0" "nncf>=2.10.0"
-    %pip install -q "python-ffmpeg<=1.0.16" moviepy "onnx!=1.16.2" "git+https://github.com/huggingface/optimum-intel.git" "torch>=2.1" --extra-index-url https://download.pytorch.org/whl/cpu
-    %pip install -q "yt_dlp>=2024.8.6" soundfile librosa jiwer
+    %pip install -q "nncf>=2.13.0"
+    %pip install -q --pre -U "openvino" "openvino-tokenizers" "openvino-genai" --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
+    %pip install -q "python-ffmpeg<=1.0.16" "ffmpeg" "moviepy" "onnx!=1.16.2" "git+https://github.com/huggingface/optimum-intel.git" "torch>=2.1" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q -U "yt_dlp>=2024.8.6" soundfile librosa jiwer
     %pip install -q  "gradio>=4.19"
+
+.. code:: ipython3
+
+    import requests
+    from pathlib import Path
+    
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
 
 Instantiate model
 -----------------
@@ -135,7 +150,7 @@ Whisper family.
 
 .. parsed-literal::
 
-    Dropdown(description='Model:', index=6, options=('openai/whisper-large-v3', 'openai/whisper-large-v2', 'openai…
+    Dropdown(description='Model:', index=7, options=('openai/whisper-large-v3-turbo', 'openai/whisper-large-v3', '…
 
 
 
@@ -144,45 +159,31 @@ Convert model to OpenVINO Intermediate Representation (IR) format using Optimum-
 
 
 
-The Hugging Face Optimum API is a high-level API that enables us to
-convert and quantize models from the Hugging Face Transformers library
-to the OpenVINO™ IR format. For more details, refer to the `Hugging Face
-Optimum
-documentation <https://huggingface.co/docs/optimum/intel/inference>`__.
+Listed Whisper model are available for downloading via the `HuggingFace
+hub <https://huggingface.co/openai>`__. We will use optimum-cli
+interface for exporting it into OpenVINO Intermediate Representation
+(IR) format.
 
-Optimum Intel can be used to load optimized models from the `Hugging
-Face Hub <https://huggingface.co/docs/optimum/intel/hf.co/models>`__ and
-create pipelines to run an inference with OpenVINO Runtime using Hugging
-Face APIs. The Optimum Inference models are API compatible with Hugging
-Face Transformers models. This means we just need to replace the
-``AutoModelForXxx`` class with the corresponding ``OVModelForXxx``
-class.
+Optimum CLI interface for converting models supports export to OpenVINO
+(supported starting optimum-intel 1.12 version). General command format:
 
-Below is an example of the whisper-tiny model
+.. code:: bash
 
-.. code:: diff
+   optimum-cli export openvino --model <model_id_or_path> --task <task> <output_dir>
 
-   -from transformers import AutoModelForSpeechSeq2Seq
-   +from optimum.intel.openvino import OVModelForSpeechSeq2Seq
-   from transformers import AutoTokenizer, pipeline
-
-   model_id = "openai/whisper-tiny"
-   -model = AutoModelForSpeechSeq2Seq.from_pretrained(model_id)
-   +model = OVModelForSpeechSeq2Seq.from_pretrained(model_id, export=True)
-
-Model class initialization starts with calling the ``from_pretrained``
-method. When downloading and converting the Transformers model, the
-parameter ``export=True`` should be added. We can save the converted
-model for the next usage with the ``save_pretrained`` method.
-Alternatively, model conversion can be performed using Optimum-CLI
-interface. You can find more details about Optimum-Intel and Optimum CLI
-usage in this `tutorial <hugging-face-hub-with-output.html>`__.
-The command bellow illustrates how to convert whisper using optimum cli.
+where ``--model`` argument is model id from HuggingFace Hub or local
+directory with model (saved using ``.save_pretrained`` method),
+``--task`` is one of `supported
+task <https://huggingface.co/docs/optimum/exporters/task_manager>`__
+that exported model should solve. For LLMs it will be
+``automatic-speech-recognition-with-past``. If model initialization
+requires to use remote code, ``--trust-remote-code`` flag additionally
+should be passed. Full list of supported arguments available via
+``--help`` For more details and examples of usage, please check `optimum
+documentation <https://huggingface.co/docs/optimum/intel/inference#export>`__.
 
 .. code:: ipython3
 
-    from pathlib import Path
-    
     model_dir = model_id.value.split("/")[-1]
     
     if not Path(model_dir).exists():
@@ -201,24 +202,12 @@ Whisper model.
 
    whisper_pipeline.png
 
-Preprocessing and post-processing are important in this model use.
-``transformers.AutoProcessor`` class used for initialization
-``WhisperProcessor`` is responsible for preparing audio input data for
-the PyTorch model, converting it to Mel-spectrogram and decoding
-predicted output token_ids into string using tokenizer. Tokenizers and
-Processors are distributed with models also compatible with the OpenVINO
-model.
-
-Like the original PyTorch model, the OpenVINO model is also compatible
-with HuggingFace
-`pipeline <https://huggingface.co/docs/transformers/main_classes/pipelines#transformers.AutomaticSpeechRecognitionPipeline>`__
-interface for ``automatic-speech-recognition``. Pipeline can be used for
-long audio transcription. Distil-Whisper uses a chunked algorithm to
-transcribe long-form audio files. In practice, this chunked long-form
-algorithm is 9x faster than the sequential algorithm proposed by OpenAI
-in the Whisper paper. To enable chunking, pass the chunk_length_s
-parameter to the pipeline. For Distil-Whisper, a chunk length of 15
-seconds is optimal. To activate batching, pass the argument batch_size.
+To simplify user experience we will use `OpenVINO Generate
+API <https://github.com/openvinotoolkit/openvino.genai/blob/master/samples/python/whisper_speech_recognition/README.md>`__.
+Firstly we will create pipeline with ``WhisperPipeline``. You can
+construct it straight away from the folder with the converted model. It
+will automatically load the ``model``, ``tokenizer``, ``detokenizer``
+and default ``generation configuration``.
 
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -226,12 +215,6 @@ Select inference device
 
 
 select device from dropdown list for running inference using OpenVINO
-
-.. code:: ipython3
-
-    import openvino as ov
-    
-    core = ov.Core()
 
 .. code:: ipython3
 
@@ -244,7 +227,7 @@ select device from dropdown list for running inference using OpenVINO
     
     from notebook_utils import device_widget
     
-    device = device_widget()
+    device = device_widget(default="CPU", exclude=["NPU"])
     
     device
 
@@ -253,78 +236,46 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', index=3, options=('CPU', 'GPU.0', 'GPU.1', 'AUTO'), value='AUTO')
+    Dropdown(description='Device:', options=('CPU', 'AUTO'), value='CPU')
 
 
 
 .. code:: ipython3
 
-    from optimum.intel.openvino import OVModelForSpeechSeq2Seq
-    from transformers import AutoProcessor, pipeline
+    import openvino_genai
     
-    ov_model = OVModelForSpeechSeq2Seq.from_pretrained(model_dir, device=device.value)
-    
-    processor = AutoProcessor.from_pretrained(model_dir)
-    
-    pipe = pipeline(
-        "automatic-speech-recognition",
-        model=ov_model,
-        chunk_length_s=30,
-        tokenizer=processor.tokenizer,
-        feature_extractor=processor.feature_extractor,
-    )
+    ov_pipe = openvino_genai.WhisperPipeline(str(model_dir), device=device.value)
 
 Run video transcription pipeline
 --------------------------------
 
 
 
-Now, we are ready to start transcription. We select a video from YouTube
-that we want to transcribe. Be patient, as downloading the video may
-take some time.
+Now, we are ready to start transcription. Let’s load the video first.
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    
-    VIDEO_LINK = "https://youtu.be/kgL5LBM-hFI"
-    link = widgets.Text(
-        value=VIDEO_LINK,
-        placeholder="Type link for video",
-        description="Video:",
-        disabled=False,
-    )
-    
-    link
-
-
-
-
-.. parsed-literal::
-
-    Text(value='https://youtu.be/kgL5LBM-hFI', description='Video:', placeholder='Type link for video')
-
-
-
-.. code:: ipython3
-
-    from pathlib import Path
-    import yt_dlp
-    
-    print(f"Downloading video {link.value} started")
+    from notebook_utils import download_file
     
     output_file = Path("downloaded_video.mp4")
-    ydl_ops = {"format": "best[ext=mp4]", "outtmpl": output_file.as_posix()}
-    with yt_dlp.YoutubeDL(ydl_ops) as ydl:
-        ydl.download(link.value)
     
-    print(f"Video saved to {output_file}")
+    download_file(
+        "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/Sheldon%20Cooper%20Jim%20Parsons%20at%20Intels%20Lab.mp4",
+        filename=output_file.name,
+    )
 
 
 .. parsed-literal::
 
-    Downloading video https://youtu.be/kgL5LBM-hFI started
-    Video saved to downloaded_video.mp4
+    'downloaded_video.mp4' already exists.
+
+
+
+
+.. parsed-literal::
+
+    PosixPath('/home/labuser/work/notebook/openvino_notebooks/notebooks/whisper-subtitles-generation/downloaded_video.mp4')
+
 
 
 Select the task for the model:
@@ -377,17 +328,31 @@ Select the task for the model:
         input_video.audio.write_audiofile(audio_file, verbose=False, logger=None)
         with open(audio_file, "rb") as f:
             inputs = f.read()
-        audio = ffmpeg_read(inputs, pipe.feature_extractor.sampling_rate)
+        audio = ffmpeg_read(inputs, 16000)
         return {
             "raw": audio,
-            "sampling_rate": pipe.feature_extractor.sampling_rate,
+            "sampling_rate": 16000,
         }, duration
+
+Let’s run generation method. We will put input data as ``np array``.
+Also we will specify ``task`` and ``return_timestamps=True`` options. If
+task is ``translate``, you can place ``language`` option, for example
+``<|fr|>`` for French or it would be detect automatically. We can set up
+generation parameters in different ways. We can get default config with
+``get_generation_config()``, setup parameters and put config directly to
+``generate()``. It’s also possible to specify the needed options just as
+inputs in the ``generate()`` method and we will use this way. Then we
+just run ``generate`` method and get the output in text format.
+
+``generate`` method with ``return_timestamps`` set to ``True`` will
+return ``chunks``, which contain attributes: ``text``, ``start_ts`` and
+``end_ts``
 
 .. code:: ipython3
 
     inputs, duration = get_audio(output_file)
     
-    transcription = pipe(inputs, generate_kwargs={"task": task.value}, return_timestamps=True)["chunks"]
+    transcription = ov_pipe.generate(inputs["raw"], task=task.value, return_timestamps=True).chunks
 
 .. code:: ipython3
 
@@ -419,18 +384,19 @@ Select the task for the model:
         """
         segment_lines = []
         for idx, segment in enumerate(transcription):
+            timestamp = (segment.start_ts, segment.end_ts)
             # for the case where the model could not predict an ending timestamp, which can happen if audio is cut off in the middle of a word.
-            if segment["timestamp"][1] is None:
-                segment["timestamp"] = (segment["timestamp"][0], filter_duration)
+            if segment.end_ts == -1:
+                timestamp[1] = filter_duration
     
-            if filter_duration is not None and (segment["timestamp"][0] >= math.floor(filter_duration) or segment["timestamp"][1] > math.ceil(filter_duration) + 1):
+            if filter_duration is not None and (timestamp[0] >= math.floor(filter_duration) or timestamp[1] > math.ceil(filter_duration) + 1):
                 break
             segment_lines.append(str(idx + 1) + "\n")
-            time_start = format_timestamp(segment["timestamp"][0])
-            time_end = format_timestamp(segment["timestamp"][1])
+            time_start = format_timestamp(timestamp[0])
+            time_end = format_timestamp(timestamp[1])
             time_str = f"{time_start} --> {time_end}\n"
             segment_lines.append(time_str)
-            segment_lines.append(segment["text"] + "\n\n")
+            segment_lines.append(segment.text + "\n\n")
         return segment_lines
 
 "The results will be saved in the ``downloaded_video.srt`` file. SRT is
@@ -457,7 +423,7 @@ Now let us see the results.
 
 .. parsed-literal::
 
-    Video(value=b"\x00\x00\x00\x18ftypmp42\x00\x00\x00\x00isommp42\x00\x00:'moov\x00\x00\x00lmvhd...", height='800…
+    Video(value=b'\x00\x00\x00\x18ftypmp42\x00\x00\x00\x00isommp42\x00\x00Aimoov\x00\x00\x00lmvhd...', height='800…
 
 
 
@@ -565,6 +531,42 @@ Please select below whether you would like to run Whisper quantization.
     
     %load_ext skip_kernel_extension
 
+Let’s load converted OpenVINO model format using Optimum-Intel to easily
+quantize it.
+
+Optimum Intel can be used to load optimized models from the `Hugging
+Face Hub <https://huggingface.co/docs/optimum/intel/hf.co/models>`__ or
+local folder to create pipelines to run an inference with OpenVINO
+Runtime using Hugging Face APIs. The Optimum Inference models are API
+compatible with Hugging Face Transformers models. This means we just
+need to replace the ``AutoModelForXxx`` class with the corresponding
+``OVModelForXxx`` class.
+
+Below is an example of the whisper-tiny model
+
+.. code:: diff
+
+   -from transformers import AutoModelForSpeechSeq2Seq
+   +from optimum.intel.openvino import OVModelForSpeechSeq2Seq
+   from transformers import AutoTokenizer, pipeline
+
+   model_id = "openai/whisper-tiny"
+   -model = AutoModelForSpeechSeq2Seq.from_pretrained(model_id)
+   +model = OVModelForSpeechSeq2Seq.from_pretrained(model_id, export=True)
+
+Like the original PyTorch model, the OpenVINO model is also compatible
+with HuggingFace
+`pipeline <https://huggingface.co/docs/transformers/main_classes/pipelines#transformers.AutomaticSpeechRecognitionPipeline>`__
+interface for ``automatic-speech-recognition``.
+
+.. code:: ipython3
+
+    from transformers import AutoProcessor
+    from optimum.intel.openvino import OVModelForSpeechSeq2Seq
+    
+    ov_model = OVModelForSpeechSeq2Seq.from_pretrained(model_dir, device=device.value)
+    processor = AutoProcessor.from_pretrained(model_dir)
+
 Prepare calibration datasets
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -583,6 +585,9 @@ improves quantization quality.
     %%skip not $to_quantize.value
     
     from itertools import islice
+    from tqdm.notebook import tqdm
+    from datasets import load_dataset
+    from transformers import pipeline
     from optimum.intel.openvino.quantization import InferRequestWrapper
     
     
@@ -629,28 +634,16 @@ negligible.
     import gc
     import shutil
     import nncf
-    from datasets import load_dataset
-    from tqdm.notebook import tqdm
-    
-    def extract_input_features(sample):
-        input_features = processor(
-            sample["audio"]["array"],
-            sampling_rate=sample["audio"]["sampling_rate"],
-            return_tensors="pt",
-        ).input_features
-        return input_features
+    import openvino as ov
     
     
-    
-    CALIBRATION_DATASET_SIZE = 50
+    CALIBRATION_DATASET_SIZE = 30
     quantized_model_path = Path(f"{model_dir}_quantized")
     
     
     def quantize(ov_model: OVModelForSpeechSeq2Seq, calibration_dataset_size: int):
         if not quantized_model_path.exists():
-            encoder_calibration_data, decoder_calibration_data = collect_calibration_dataset(
-                ov_model, calibration_dataset_size
-            )
+            encoder_calibration_data, decoder_calibration_data = collect_calibration_dataset(ov_model, calibration_dataset_size)
             print("Quantizing encoder")
             quantized_encoder = nncf.quantize(
                 ov_model.encoder.model,
@@ -658,7 +651,7 @@ negligible.
                 subset_size=len(encoder_calibration_data),
                 model_type=nncf.ModelType.TRANSFORMER,
                 # Smooth Quant algorithm reduces activation quantization error; optimal alpha value was obtained through grid search
-                advanced_parameters=nncf.AdvancedQuantizationParameters(smooth_quant_alpha=0.50)
+                advanced_parameters=nncf.AdvancedQuantizationParameters(smooth_quant_alpha=0.80),
             )
             ov.save_model(quantized_encoder, quantized_model_path / "openvino_encoder_model.xml")
             del quantized_encoder
@@ -672,7 +665,7 @@ negligible.
                 subset_size=len(decoder_calibration_data),
                 model_type=nncf.ModelType.TRANSFORMER,
                 # Smooth Quant algorithm reduces activation quantization error; optimal alpha value was obtained through grid search
-                advanced_parameters=nncf.AdvancedQuantizationParameters(smooth_quant_alpha=0.96)
+                advanced_parameters=nncf.AdvancedQuantizationParameters(smooth_quant_alpha=0.96),
             )
             ov.save_model(quantized_decoder_with_past, quantized_model_path / "openvino_decoder_with_past_model.xml")
             del quantized_decoder_with_past
@@ -685,218 +678,24 @@ negligible.
             shutil.copy(model_path / "generation_config.json", quantized_model_path / "generation_config.json")
             shutil.copy(model_path / "openvino_decoder_model.xml", quantized_model_path / "openvino_decoder_model.xml")
             shutil.copy(model_path / "openvino_decoder_model.bin", quantized_model_path / "openvino_decoder_model.bin")
+            shutil.copy(model_path / "openvino_tokenizer.xml", quantized_model_path / "openvino_tokenizer.xml")
+            shutil.copy(model_path / "openvino_tokenizer.bin", quantized_model_path / "openvino_tokenizer.bin")
+            shutil.copy(model_path / "openvino_detokenizer.xml", quantized_model_path / "openvino_detokenizer.xml")
+            shutil.copy(model_path / "openvino_detokenizer.bin", quantized_model_path / "openvino_detokenizer.bin")
+            shutil.copy(model_path / "tokenizer_config.json", quantized_model_path / "tokenizer_config.json")
+            shutil.copy(model_path / "tokenizer.json", quantized_model_path / "tokenizer.json")
+            shutil.copy(model_path / "vocab.json", quantized_model_path / "vocab.json")
+            shutil.copy(model_path / "preprocessor_config.json", quantized_model_path / "preprocessor_config.json")
+            shutil.copy(model_path / "special_tokens_map.json", quantized_model_path / "special_tokens_map.json")
+            shutil.copy(model_path / "normalizer.json", quantized_model_path / "normalizer.json")
+            shutil.copy(model_path / "merges.txt", quantized_model_path / "merges.txt")
+            shutil.copy(model_path / "added_tokens.json", quantized_model_path / "added_tokens.json")
     
-        quantized_ov_model = OVModelForSpeechSeq2Seq.from_pretrained(quantized_model_path, compile=False)
-        quantized_ov_model.to(device.value)
-        quantized_ov_model.compile()
-        return quantized_ov_model
+        quantized_ov_pipe = openvino_genai.WhisperPipeline(str(quantized_model_path), device=device.value)
+        return quantized_ov_pipe
     
     
-    ov_quantized_model = quantize(ov_model, CALIBRATION_DATASET_SIZE)
-
-
-
-.. parsed-literal::
-
-    Collecting calibration data:   0%|          | 0/50 [00:00<?, ?it/s]
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-.. parsed-literal::
-
-    Quantizing encoder
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-.. parsed-literal::
-
-    INFO:nncf:12 ignored nodes were found by name in the NNCFGraph
-    INFO:nncf:16 ignored nodes were found by name in the NNCFGraph
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-.. parsed-literal::
-
-    Quantizing decoder with past
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-.. parsed-literal::
-
-    INFO:nncf:24 ignored nodes were found by name in the NNCFGraph
-    INFO:nncf:24 ignored nodes were found by name in the NNCFGraph
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-.. parsed-literal::
-
-    Compiling the encoder to AUTO ...
-    Compiling the decoder to AUTO ...
-    Compiling the decoder to AUTO ...
-
+    quantized_ov_pipe = quantize(ov_model, CALIBRATION_DATASET_SIZE)
 
 Run quantized model inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -909,60 +708,11 @@ models.
 .. code:: ipython3
 
     if ov_quantized_model is not None:
-        int8_pipe = pipeline(
-            "automatic-speech-recognition",
-            model=ov_quantized_model,
-            chunk_length_s=30,
-            tokenizer=processor.tokenizer,
-            feature_extractor=processor.feature_extractor,
-        )
         inputs, duration = get_audio(output_file)
-        transcription = int8_pipe(inputs, generate_kwargs={"task": task.value}, return_timestamps=True)["chunks"]
+        transcription = quantized_ov_pipe.generate(inputs["raw"], task=task.value, return_timestamps=True).chunks
         srt_lines = prepare_srt(transcription, filter_duration=duration)
         print("".join(srt_lines))
         widgets.Video.from_file(output_file, loop=False, width=800, height=800)
-
-
-.. parsed-literal::
-
-    1
-    00:00:00,000 --> 00:00:05,000
-     What's that?
-    
-    2
-    00:00:05,000 --> 00:00:07,000
-     Oh, wow.
-    
-    3
-    00:00:09,000 --> 00:00:11,000
-     Hello humans.
-    
-    4
-    00:00:14,000 --> 00:00:15,000
-     Focus on me.
-    
-    5
-    00:00:15,000 --> 00:00:16,000
-     Focus on the guard.
-    
-    6
-    00:00:18,000 --> 00:00:20,000
-     Don't tell anyone what you're seen in here.
-    
-    7
-    00:00:22,000 --> 00:00:24,000
-     Have you seen what's in there?
-    
-    8
-    00:00:24,000 --> 00:00:25,000
-     They have intel.
-    
-    9
-    00:00:25,000 --> 00:00:27,000
-     This is where it all changes.
-    
-    
-
 
 Compare performance and accuracy of the original and quantized models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -975,9 +725,6 @@ and performance stand-points.
 To measure accuracy, we use ``1 - WER`` as a metric, where WER stands
 for Word Error Rate.
 
-When measuring inference time, we do it separately for encoder and
-decoder-with-past model forwards, and for the whole model inference too.
-
 .. code:: ipython3
 
     %%skip not $to_quantize.value
@@ -986,69 +733,34 @@ decoder-with-past model forwards, and for the whole model inference too.
     from contextlib import contextmanager
     from jiwer import wer, wer_standardize
     
-    
     TEST_DATASET_SIZE = 50
-    MEASURE_TIME = False
-    
-    @contextmanager
-    def time_measurement():
-        global MEASURE_TIME
-        try:
-            MEASURE_TIME = True
-            yield
-        finally:
-            MEASURE_TIME = False
-    
-    def time_fn(obj, fn_name, time_list):
-        original_fn = getattr(obj, fn_name)
-    
-        def wrapper(*args, **kwargs):
-            if not MEASURE_TIME:
-                return original_fn(\*args, \*\*kwargs)
-            start_time = time.perf_counter()
-            result = original_fn(\*args, \*\*kwargs)
-            end_time = time.perf_counter()
-            time_list.append(end_time - start_time)
-            return result
-    
-        setattr(obj, fn_name, wrapper)
     
     def calculate_transcription_time_and_accuracy(ov_model, test_samples):
-        encoder_infer_times = []
-        decoder_with_past_infer_times = []
         whole_infer_times = []
-        time_fn(ov_model, "generate", whole_infer_times)
-        time_fn(ov_model.encoder, "forward", encoder_infer_times)
-        time_fn(ov_model.decoder_with_past, "forward", decoder_with_past_infer_times)
     
         ground_truths = []
         predictions = []
         for data_item in tqdm(test_samples, desc="Measuring performance and accuracy"):
-            input_features = extract_input_features(data_item)
-    
-            with time_measurement():
-                predicted_ids = ov_model.generate(input_features)
-            transcription = processor.batch_decode(predicted_ids, skip_special_tokens=True)
+            start_time = time.perf_counter()
+            transcription = ov_model.generate(data_item["audio"]["array"], return_timestamps=True)
+            end_time = time.perf_counter()
+            whole_infer_times.append(end_time - start_time)
     
             ground_truths.append(data_item["text"])
-            predictions.append(transcription[0])
+            predictions.append(transcription.texts[0])
     
         word_accuracy = (1 - wer(ground_truths, predictions, reference_transform=wer_standardize,
                                  hypothesis_transform=wer_standardize)) * 100
         mean_whole_infer_time = sum(whole_infer_times)
-        mean_encoder_infer_time = sum(encoder_infer_times)
-        mean_decoder_with_time_infer_time = sum(decoder_with_past_infer_times)
-        return word_accuracy, (mean_whole_infer_time, mean_encoder_infer_time, mean_decoder_with_time_infer_time)
+        return word_accuracy, mean_whole_infer_time
     
     test_dataset = load_dataset("openslr/librispeech_asr", "clean", split="validation", streaming=True, trust_remote_code=True)
     test_dataset = test_dataset.shuffle(seed=42).take(TEST_DATASET_SIZE)
     test_samples = [sample for sample in test_dataset]
     
-    accuracy_original, times_original = calculate_transcription_time_and_accuracy(ov_model, test_samples)
-    accuracy_quantized, times_quantized = calculate_transcription_time_and_accuracy(ov_quantized_model, test_samples)
-    print(f"Encoder performance speedup: {times_original[1] / times_quantized[1]:.3f}")
-    print(f"Decoder with past performance speedup: {times_original[2] / times_quantized[2]:.3f}")
-    print(f"Whole pipeline performance speedup: {times_original[0] / times_quantized[0]:.3f}")
+    accuracy_original, times_original = calculate_transcription_time_and_accuracy(ov_pipe, test_samples)
+    accuracy_quantized, times_quantized = calculate_transcription_time_and_accuracy(quantized_ov_pipe, test_samples)
+    print(f"Whole pipeline performance speedup: {times_original / times_quantized:.3f}")
     print(f"Whisper transcription word accuracy. Original model: {accuracy_original:.2f}%. Quantized model: {accuracy_quantized:.2f}%.")
     print(f"Accuracy drop: {accuracy_original - accuracy_quantized:.2f}%.")
 
@@ -1067,11 +779,9 @@ decoder-with-past model forwards, and for the whole model inference too.
 
 .. parsed-literal::
 
-    Encoder performance speedup: 1.352
-    Decoder with past performance speedup: 1.342
-    Whole pipeline performance speedup: 1.350
-    Whisper transcription word accuracy. Original model: 81.67%. Quantized model: 83.67%.
-    Accuracy drop: -1.99%.
+    Whole pipeline performance speedup: 1.452
+    Whisper transcription word accuracy. Original model: 81.77%. Quantized model: 82.97%.
+    Accuracy drop: -1.20%.
 
 
 Interactive demo
@@ -1081,18 +791,26 @@ Interactive demo
 
 .. code:: ipython3
 
-    def transcribe(url, task, use_int8):
-        output_file = Path("downloaded_video.mp4")
-        ydl_ops = {"format": "best[ext=mp4]", "outtmpl": output_file.as_posix()}
-        with yt_dlp.YoutubeDL(ydl_ops) as ydl:
-            ydl.download(link.value)
-        inputs, duration = get_audio(output_file)
-        m_pipe = int8_pipe if use_int8 else pipe
-        transcription = m_pipe(inputs, generate_kwargs={"task": task.lower()}, return_timestamps=True)["chunks"]
+    def_config = ov_pipe.get_generation_config()
+    
+    
+    def transcribe(video_path, task, use_int8):
+        data_path = Path(video_path)
+        inputs, duration = get_audio(data_path)
+        m_pipe = quantized_ov_pipe if use_int8 else ov_pipe
+    
+        frame_num = len(inputs["raw"]) / 16000
+        if frame_num > 30:
+            config = ov_pipe.get_generation_config()
+            chink_num = math.ceil(frame_num / 30)
+            config.max_length = chink_num * def_config.max_length
+            m_pipe.set_generation_config(config)
+    
+        transcription = m_pipe.generate(inputs["raw"], task=task.lower(), return_timestamps=True).chunks
         srt_lines = prepare_srt(transcription, duration)
-        with output_file.with_suffix(".srt").open("w") as f:
+        with data_path.with_suffix(".srt").open("w") as f:
             f.writelines(srt_lines)
-        return [str(output_file), str(output_file.with_suffix(".srt"))]
+        return [str(data_path), str(data_path.with_suffix(".srt"))]
     
     
     if not Path("gradio_helper.py").exists():
@@ -1101,7 +819,7 @@ Interactive demo
     
     from gradio_helper import make_demo
     
-    demo = make_demo(fn=transcribe, quantized=ov_quantized_model is not None)
+    demo = make_demo(fn=transcribe, quantized=ov_quantized_model is not None, sample_path=output_file)
     
     try:
         demo.launch(debug=False)

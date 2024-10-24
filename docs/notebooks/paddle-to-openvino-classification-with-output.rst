@@ -63,7 +63,7 @@ Imports
     else:
         %pip install -q "paddlepaddle>=2.5.1"
     %pip install -q "paddleclas>=2.5.2" --no-deps
-    %pip install -q "prettytable" "ujson" "visualdl>=2.5.3" "faiss-cpu>=1.7.1" Pillow tqdm
+    %pip install -q "prettytable" "ujson" "visualdl>=2.5.3" "faiss-cpu>=1.7.1" Pillow tqdm "matplotlib>=3.4"
     # Install openvino package
     %pip install -q "openvino>=2023.1.0"
 
@@ -89,11 +89,11 @@ Imports
 
 .. parsed-literal::
 
-    --2024-10-08 03:19:19--  http://nz2.archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb
+    --2024-10-23 02:12:15--  http://nz2.archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb
     Resolving proxy-dmz.intel.com (proxy-dmz.intel.com)... 10.241.208.166
     Connecting to proxy-dmz.intel.com (proxy-dmz.intel.com)|10.241.208.166|:911... connected.
     Proxy request sent, awaiting response... 404 Not Found
-    2024-10-08 03:19:19 ERROR 404: Not Found.
+    2024-10-23 02:12:15 ERROR 404: Not Found.
     
     dpkg: error: cannot access archive 'libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb': No such file or directory
 
@@ -124,8 +124,8 @@ Imports
 
 .. parsed-literal::
 
-    2024-10-08 03:19:21 INFO: Loading faiss with AVX512 support.
-    2024-10-08 03:19:21 INFO: Successfully loaded faiss with AVX512 support.
+    2024-10-23 02:12:17 INFO: Loading faiss with AVX512 support.
+    2024-10-23 02:12:17 INFO: Successfully loaded faiss with AVX512 support.
 
 
 Settings
@@ -209,7 +209,7 @@ inference on that image, and then show the top three prediction results.
 
 .. parsed-literal::
 
-    [2024/10/08 03:19:44] ppcls WARNING: The current running environment does not support the use of GPU. CPU has been used instead.
+    [2024/10/23 02:12:43] ppcls WARNING: The current running environment does not support the use of GPU. CPU has been used instead.
     Labrador retriever, 0.75138
     German short-haired pointer, 0.02373
     Great Dane, 0.01848
@@ -275,7 +275,7 @@ clipping values.
 
 .. parsed-literal::
 
-    2024-10-08 03:19:45 WARNING: Clipping input data to the valid range for imshow with RGB data ([0..1] for floats or [0..255] for integers).
+    2024-10-23 02:12:44 WARNING: Clipping input data to the valid range for imshow with RGB data ([0..1] for floats or [0..255] for integers).
 
 
 .. parsed-literal::
@@ -287,7 +287,7 @@ clipping values.
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7fefd04bca90>
+    <matplotlib.image.AxesImage at 0x7f932c074fa0>
 
 
 
@@ -462,7 +462,7 @@ Note that many optimizations are possible to improve the performance.
 
 .. parsed-literal::
 
-    PaddlePaddle model on CPU: 0.0077 seconds per image, FPS: 130.66
+    PaddlePaddle model on CPU: 0.0073 seconds per image, FPS: 137.19
     
     PaddlePaddle result:
     Labrador retriever, 0.75138
@@ -523,7 +523,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    OpenVINO IR model in OpenVINO Runtime (AUTO): 0.0026 seconds per image, FPS: 380.65
+    OpenVINO IR model in OpenVINO Runtime (AUTO): 0.0026 seconds per image, FPS: 382.97
     
     OpenVINO result:
     Labrador retriever, 0.74909
