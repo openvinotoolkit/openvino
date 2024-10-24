@@ -195,7 +195,7 @@ bool convert_node_input_precision(const std::shared_ptr<ov::Node>& node,
 
 // Part of hotfix from CVS-155745 & CVS-155990
 static bool node_input_output_type_different(const std::shared_ptr<ov::Node> node, const precisions_map& precisions) {
-    for (const auto &p : precisions) {
+    for (const auto& p : precisions) {
         const auto& type_from = p.first;
 
         auto different_type_input = [&type_from](const ov::Input<Node>& input) -> bool {
@@ -208,8 +208,8 @@ static bool node_input_output_type_different(const std::shared_ptr<ov::Node> nod
 
         if (std::any_of(node->inputs().cbegin(), node->inputs().cend(), different_type_input) ||
             std::any_of(node->outputs().cbegin(), node->outputs().cend(), different_type_output)) {
-                return true;
-            }
+            return true;
+        }
     }
 
     return false;
