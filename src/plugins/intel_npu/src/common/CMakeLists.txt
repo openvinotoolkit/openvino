@@ -14,10 +14,12 @@ set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME npu_common)
 target_include_directories(${TARGET_NAME}
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<TARGET_PROPERTY:LevelZero::LevelZero,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:LevelZero::NPUExt,INTERFACE_INCLUDE_DIRECTORIES>
 )
 
 target_link_libraries(${TARGET_NAME}
-    PUBLIC
+    PRIVATE
         openvino::npu_al
         openvino::npu_logger_utils
         openvino::npu_zero_utils

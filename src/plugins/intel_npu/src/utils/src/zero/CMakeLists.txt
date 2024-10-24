@@ -24,32 +24,58 @@ target_include_directories(${TARGET_NAME}
 
 target_link_libraries(
   ${TARGET_NAME}
-  PRIVATE openvino::runtime openvino::runtime::dev ze_loader)
+  PRIVATE openvino::runtime openvino::runtime::dev)
 
 #
 # targets install
 #
-ov_install_static_lib(${TARGET_NAME} ${NPU_INTERNAL_COMPONENT})
+ov_install_static_lib(${TARGET_NAME} ${NPU_PLUGIN_COMPONENT})
 
 ov_developer_package_export_targets(TARGET openvino::npu_zero_utils
                                     INSTALL_INCLUDE_DIRECTORIES
                                         $<BUILD_INTERFACE:${NPU_UTILS_SOURCE_DIR}/include>)
 
 if(TARGET ze_loader)
-    install(TARGETS ze_loader EXPORT OpenVINOTargets)
+    if(BUILD_SHARED_LIBS)
+        ov_developer_package_export_targets(TARGET ze_loader
+                                            INSTALL_INCLUDE_DIRECTORIES
+                                                $<TARGET_PROPERTY:LevelZero::LevelZero,INTERFACE_INCLUDE_DIRECTORIES>)
 
-    install(TARGETS utils EXPORT OpenVINOTargets)
+        ov_developer_package_export_targets(TARGET utils
+                                            INSTALL_INCLUDE_DIRECTORIES
+                                                $<TARGET_PROPERTY:LevelZero::LevelZero,INTERFACE_INCLUDE_DIRECTORIES>)
 
-    install(TARGETS level-zero-ext EXPORT OpenVINOTargets)
+        ov_developer_package_export_targets(TARGET level-zero-ext
+                                            INSTALL_INCLUDE_DIRECTORIES
+                                                $<TARGET_PROPERTY:LevelZero::NPUExt,INTERFACE_INCLUDE_DIRECTORIES>)
+    endif()
 
-    export(TARGETS ze_loader NAMESPACE openvino::
-        APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
+    if(NOT BUILD_SHARED_LIBS)
+        install(TARGETS ze_loader EXPORT OpenVINOTargets
+            RUNTIME DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT ${NPU_PLUGIN_COMPONENT}
+            ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${NPU_PLUGIN_COMPONENT}
+            LIBRARY DESTINATION ${OV_CPACK_LIBRARYDIR} COMPONENT ${NPU_PLUGIN_COMPONENT})
 
-    export(TARGETS utils NAMESPACE openvino::
-        APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
+        install(TARGETS utils EXPORT OpenVINOTargets
+            RUNTIME DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT ${NPU_PLUGIN_COMPONENT}
+            ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${NPU_PLUGIN_COMPONENT}
+            LIBRARY DESTINATION ${OV_CPACK_LIBRARYDIR} COMPONENT ${NPU_PLUGIN_COMPONENT})
 
-    export(TARGETS level-zero-ext NAMESPACE openvino::
-        APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
+        install(TARGETS level-zero-ext EXPORT OpenVINOTargets
+            RUNTIME DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT ${NPU_PLUGIN_COMPONENT}
+            ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${NPU_PLUGIN_COMPONENT}
+            LIBRARY DESTINATION ${OV_CPACK_LIBRARYDIR} COMPONENT ${NPU_PLUGIN_COMPONENT})
+
+        # export to local tree to build against static build tree
+        export(TARGETS ze_loader NAMESPACE openvino::
+            APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
+
+        export(TARGETS utils NAMESPACE openvino::
+            APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
+
+        export(TARGETS level-zero-ext NAMESPACE openvino::
+            APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
+    endif()
 
     # Support tests to run with ze_loader
     install(TARGETS ze_loader

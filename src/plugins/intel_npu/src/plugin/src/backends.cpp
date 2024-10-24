@@ -103,7 +103,6 @@ NPUBackends::NPUBackends(const std::vector<AvailableBackends>& backendRegistry, 
                 const auto backend = ov::SoPtr<IEngineBackend>(std::make_shared<ZeroEngineBackend>(config));
                 registerBackend(backend, backendName);
             }
-
         } catch (const std::exception& ex) {
             _logger.warning("Got an error during backend '%s' loading : %s", backendName.c_str(), ex.what());
         } catch (...) {
