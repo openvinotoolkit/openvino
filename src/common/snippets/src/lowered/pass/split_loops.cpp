@@ -26,14 +26,14 @@ bool SplitLoops::can_be_split(const UnifiedLoopInfoPtr& loop_to_split, const Uni
     const bool equal_dim_idxes = current_dim_idx != LoopInfo::UNDEFINED_DIM_IDX && current_dim_idx == parent_dim_idx;
     const bool only_main_body = handlers.get_passes<SpecificLoopIterType::FIRST_ITER>().empty() &&
                                 handlers.get_passes<SpecificLoopIterType::LAST_ITER>().empty();
-    std::cout << "loop_to_split->get_work_amount():" << loop_to_split->get_work_amount() << std::endl;
-    std::cout << "loop_to_fuse->get_work_amount():" << loop_to_fuse->get_work_amount() << std::endl;
-    std::cout << "loop_to_split->get_increment():" << loop_to_split->get_increment() << std::endl;
-    std::cout << "loop_to_fuse->get_increment():" << loop_to_fuse->get_increment() << std::endl;
-    std::cout << "current_dim_idx:" << current_dim_idx << std::endl;
-    std::cout << "parent_dim_idx:" << parent_dim_idx << std::endl;
-    std::cout << "equal_dim_idxes:" << equal_dim_idxes << std::endl;
-    std::cout << "only_main_body:" << only_main_body << std::endl;
+    // std::cout << "loop_to_split->get_work_amount():" << loop_to_split->get_work_amount() << std::endl;
+    // std::cout << "loop_to_fuse->get_work_amount():" << loop_to_fuse->get_work_amount() << std::endl;
+    // std::cout << "loop_to_split->get_increment():" << loop_to_split->get_increment() << std::endl;
+    // std::cout << "loop_to_fuse->get_increment():" << loop_to_fuse->get_increment() << std::endl;
+    // std::cout << "current_dim_idx:" << current_dim_idx << std::endl;
+    // std::cout << "parent_dim_idx:" << parent_dim_idx << std::endl;
+    // std::cout << "equal_dim_idxes:" << equal_dim_idxes << std::endl;
+    // std::cout << "only_main_body:" << only_main_body << std::endl;
     return loop_to_split->get_work_amount() == loop_to_fuse->get_work_amount() &&
            loop_to_split->get_increment() != loop_to_fuse->get_increment() && equal_dim_idxes && only_main_body;
 }
@@ -115,8 +115,8 @@ bool SplitLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, 
                 const auto& loop_to_split = split_parent ? parent_loop : loop;
                 const auto& loop_to_fuse = !split_parent ? parent_loop : loop;
                 // We don't split loop which are not compatible with parent loop because such loops will not be fused
-                std::cout << "can_be_fused(upper_loop, lower_loop):" << FuseLoops::can_be_fused(upper_loop, lower_loop) << std::endl;
-                std::cout << "can_be_split(loop_to_split, loop_to_fuse):" << can_be_split(loop_to_split, loop_to_fuse) << std::endl;
+                // std::cout << "can_be_fused(upper_loop, lower_loop):" << FuseLoops::can_be_fused(upper_loop, lower_loop) << std::endl;
+                // std::cout << "can_be_split(loop_to_split, loop_to_fuse):" << can_be_split(loop_to_split, loop_to_fuse) << std::endl;
                 if (FuseLoops::can_be_fused(upper_loop, lower_loop) && can_be_split(loop_to_split, loop_to_fuse)) {
                     const auto& loop_to_split_id = split_parent ? parent_loop_id : loop_id;
                     // find first loop with outer loop_dim(x+1), insert after iter(before next of iter)
@@ -151,8 +151,38 @@ bool SplitLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, 
     // Ticket: 113666
     // FuseLoops pass is explicitly run here in order to avoid unnecessary computations
     // in case if loops are not split but FuseLoops is registered in pass manager after SplitLoops
-    // if (loop_was_split)
-    //     FuseLoops().run(linear_ir, begin, end);
+    if (loop_was_split)
+        FuseLoops().run(linear_ir, begin, end);
+    //
+    // for (auto expr_it = begin; expr_it != end; expr_it++) {
+    //     const auto expr = *expr_it;
+    //     const auto& node = expr->get_node();
+    //     if (node->get_friendly_name() == "Maximum_4308") {
+    //         auto loop_ids  = expr->get_loop_ids();
+    //         for (auto id : loop_ids) {
+    //             auto loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(id);
+    //             std::cout << "Maximum_4308 loop_id:" << id << std::endl;
+    //             std::cout << "loop_dim:" << loop_info->get_dim_idx() << std::endl;
+    //             std::cout << "wa:" << loop_info->get_work_amount() << std::endl;
+    //             std::cout << "inc:" << loop_info->get_increment() << std::endl;
+    //             if (loop_info->get_dim_idx() == 18446744073709551615) {
+    //                 loop_info->set_dim_idx(0);
+    //             }
+    //             auto in_ports = loop_info->get_input_ports();
+    //             for (auto in_port : in_ports) {
+    //                 auto in_port_parent = in_port.expr_port->get_connected_ports().begin()->get_expr();
+    //                 std::cout << "in_port from:" << in_port_parent->get_node()->get_friendly_name() << std::endl;
+    //             }
+
+    //             auto out_ports = loop_info->get_output_ports();
+    //             for (auto out_port : out_ports) {
+    //                 auto out_port_child = out_port.expr_port->get_connected_ports().begin()->get_expr();
+    //                 std::cout << "out_port_child to:" << out_port_child->get_node()->get_friendly_name() << std::endl;
+    //             }
+    //         }
+    //     }
+    // }
+    //
     return loop_was_split;
 }
 
@@ -168,69 +198,101 @@ size_t SplitLoops::split(LinearIR& linear_ir, size_t loop_to_split_id, size_t ou
     auto outer_loop_bounds_first = loop_bounds.first;
     auto outer_loop_bounds_second = loop_bounds.second;
     auto in_ports = inner_loop_info->get_input_ports();
-    auto& out_ports = inner_loop_info->get_output_ports();
+    auto out_ports = inner_loop_info->get_output_ports();
+    // extend outer block loop of inner most dimension to child that have no inner most loop.
+    // for example, Hsum should perform on every on M_blk*K_blk*M_in_block loops.
     if (inner_loop_info->get_dim_idx() == 0) {
         for (auto expr_it = outer_loop_bounds_first; expr_it != outer_loop_bounds_second; expr_it++) {
             auto expr = *expr_it;
             std::cout << "expr:" << expr->get_node()->get_friendly_name() << std::endl;
+            const auto& expr_loop = expr->get_loop_ids();
             if (expr->get_output_count() != 1)
-                continue;
+                break;
             auto expr_out_port = expr->get_output_port(0);
             bool check_next = true;
-            const auto& expr_loop = expr->get_loop_ids();
-            bool extend = false;
+            bool extend_global = false;
             while (check_next) {
                 if (expr->get_output_count() != 1)
                     break;
-                const auto& child_expr = expr->get_output_port_connector(0)->get_consumers().begin()->get_expr();
-                if (child_expr->get_input_count() != 1)
-                    break;
-                bool is_inside = false;
-                for (auto expr_check = outer_loop_bounds_first; expr_check != outer_loop_bounds_second; expr_check++) {
-                    if (*expr_check == child_expr) {
-                        is_inside = true;
-                        break;
+                const auto& consumers = expr->get_output_port_connector(0)->get_consumers();
+                bool extend = false;
+                for (const auto& consumer : consumers) {
+                    const auto& child_expr = consumer.get_expr();
+                    // check if child is already in outer block loop
+                    bool is_inside = false;
+                    for (auto expr_check = outer_loop_bounds_first; expr_check != outer_loop_bounds_second; expr_check++) {
+                        if (*expr_check == child_expr) {
+                            is_inside = true;
+                            break;
+                        }
                     }
-                }
-                std::cout << "is_inside:" << is_inside << std::endl;
-                if (is_inside)
-                    break;
-                const auto& child_expr_loop = child_expr->get_loop_ids();
-                // have common outer loop id, child w/o inner most loop
-                for (auto i = 0; i < std::min(expr_loop.size(), child_expr_loop.size()); i++) {
-                    if (expr_loop[i] != child_expr_loop[i]) {
-                        break;
+                    if (is_inside)
+                        continue;
+                    // child_last_loop_dim is not 0(inner most dimension)
+                    const auto& child_expr_loop = child_expr->get_loop_ids();
+                    if (child_expr_loop.size() < 1)
+                        continue;
+                    const auto& child_last_loop_dim = loop_manager->get_loop_info<UnifiedLoopInfo>(child_expr_loop.back())->get_dim_idx();
+                    if ((expr_loop.size() - child_expr_loop.size() != 1) && child_last_loop_dim == 0) {
+                        continue;
                     }
-                }
-                const auto& last_loop_dim = loop_manager->get_loop_info<UnifiedLoopInfo>(child_expr_loop.back())->get_dim_idx();
-                if ((expr_loop.size() - child_expr_loop.size() == 1) && last_loop_dim != 0) {
-                    outer_loop_bounds_second = linear_ir.find(child_expr);
+                    // check expr and child have common outer loop id
+                    bool have_common_outer_loop = true;
+                    for (auto i = 0; i < std::min(expr_loop.size(), child_expr_loop.size()); i++) {
+                        if (expr_loop[i] != child_expr_loop[i]) {
+                            have_common_outer_loop = false;
+                            break;
+                        }
+                    }
+                    if (!have_common_outer_loop)
+                        continue;
+
+                    // all inputs of child not break data dependency
+                    bool data_conflict = false;
+                    size_t in_num = child_expr->get_input_count();
+                    for (size_t i = 0; i < in_num; i++) {
+                        auto parent = child_expr->get_input_port_connector(i)->get_source().get_expr();
+                        if (parent == expr)
+                            continue;
+                        if (parent->get_exec_num() > (*outer_loop_bounds_second)->get_exec_num()) {
+                            data_conflict = true;
+                            break;
+                        }
+                    }
+                    if (data_conflict)
+                        continue;
+
+                    // can extend
+                    auto child_expr_it = linear_ir.find(child_expr);
+                    if (child_expr_it == outer_loop_bounds_second) {
+                        outer_loop_bounds_second++;   // child is outer_loop_bounds_second, just update loop_bound_end to next
+                    } else {
+                        linear_ir.move(child_expr_it, outer_loop_bounds_second); // move new expr in this loop before loop_bounds_end
+                    }
+                    std::cout << "extend child:" << child_expr->get_node()->get_friendly_name() << std::endl;
+                    expr = child_expr;
                     extend = true;
-                    std::cout << "extend........" << std::endl;
-                } else {
-                    break;
+                    extend_global = true;
+                    break;  // if one child is extend, stop other consumers. continue this branch
                 }
-                expr = child_expr;
+                if (!extend) {
+                    check_next = false;  // no child extend, stop extend deeper
+                }
             }
-            if (extend) {
+            if (extend_global) {
                 // if expr port is loop port, replace to new child output port.
                 auto loop_port = std::find_if(out_ports.begin(), out_ports.end(), [&](LoopPort loop_ports) {
                     return *loop_ports.expr_port.get() == expr_out_port;
                 });
                 if (loop_port != out_ports.end()) {
-                    inner_loop_info->replace_with_new_ports(expr_out_port, {(*outer_loop_bounds_second)->get_output_port(0)});
+                    inner_loop_info->replace_with_new_ports(expr_out_port, {(*std::prev(outer_loop_bounds_second))->get_output_port(0)});
                 }
-                // outer_loop_bounds_second is point to last expr, move to next of last
-                outer_loop_bounds_second++;
             }
-            auto expr_for_parent = *expr_it;
         }
         // extend parent
         for (auto expr_it = outer_loop_bounds_first; expr_it != outer_loop_bounds_second; expr_it++) {
             auto expr = *expr_it;
             std::cout << "expr_for_parent:" << expr->get_node()->get_friendly_name() << std::endl;
-            // if (expr->get_input_count() != 1)
-            //     continue;
             auto in_num = expr->get_input_count();
             if (in_num > 2 || in_num < 1)
                continue;
@@ -288,34 +350,6 @@ size_t SplitLoops::split(LinearIR& linear_ir, size_t loop_to_split_id, size_t ou
         }
     }
 
-    // if ((*loop_bounds.second)->get_node()->get_friendly_name() == "HorizonMax_4330" ||
-    //     (*loop_bounds.second)->get_node()->get_friendly_name() == "HorizonSum_4335") {
-    //     auto expr_port = (*outer_loop_bounds_second)->get_input_port_connector(0)->get_source();
-    //     auto loop_port = std::find_if(out_ports.begin(), out_ports.end(), [&](LoopPort loop_ports) {
-    //         return *loop_ports.expr_port.get() == expr_port;
-    //     });
-    //     if (loop_port != out_ports.end()) {
-    //         std::cout << "out_ports.erase(loop_port) HorizonMax_4330;" << std::endl;
-    //         inner_loop_info->replace_with_new_ports(expr_port, {(*loop_bounds.second)->get_output_port(0)});
-    //         // out_ports.erase(loop_port);
-    //         // LoopPort new = std::make_shared<LoopPort>((*loop_bounds.second)->get_output_port(0));
-    //         // out_ports.insert(LoopPort{(*loop_bounds.second)->get_output_port(0)});
-    //     }
-    //     outer_loop_bounds_second++;
-    // }
-    // if ((*loop_bounds.first)->get_node()->get_friendly_name() == "Fill_4328") {
-    //     outer_loop_bounds_first--;
-    //     // outer_loop_bounds_first is Fill_4327 now
-    //     auto expr_port = (*outer_loop_bounds_first)->get_output_port_connector(0)->get_consumers().begin();
-    //     auto loop_port = std::find_if(in_ports.begin(), in_ports.end(), [&](LoopPort loop_ports) {
-    //         return *loop_ports.expr_port.get() == *expr_port;
-    //     });
-    //     if (loop_port != in_ports.end()) {
-    //         std::cout << "in_ports.erase(loop_port) Fill_4327;" << std::endl;
-    //         in_ports.erase(loop_port);
-    //     }
-    //     outer_loop_bounds_first--;
-    // }
     const auto outer_loop_id = loop_manager->mark_loop(outer_loop_bounds_first, outer_loop_bounds_second, inner_loop_info->get_work_amount(),
                                                        outer_increment, inner_loop_info->get_dim_idx(),
                                                        in_ports, out_ports,
