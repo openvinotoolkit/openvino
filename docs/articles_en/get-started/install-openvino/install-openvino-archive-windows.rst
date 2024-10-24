@@ -33,13 +33,6 @@ System Requirements
       | To see if your processor includes the integrated graphics technology and supports iGPU inference, refer to:
       | `Product Specifications <https://ark.intel.com/>`__
 
-   .. tab-item:: Software
-      :sync: software
-
-      * `C++ libraries (included in Visual Studio redistributable) <https://aka.ms/vs/17/release/vc_redist.x64.exe>`__
-      * `Microsoft Visual Studio 2019 or later <http://visualstudio.microsoft.com/downloads/>`__ (for development and app compilation with OpenVINO)
-      * `CMake 3.14 or higher, 64-bit <https://cmake.org/download/>`__ (optional, only required for building sample applications)
-      * `Python 3.9 - 3.12, 64-bit <https://www.python.org/downloads/windows/>`__
 
       .. note::
 

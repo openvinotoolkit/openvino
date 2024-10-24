@@ -23,24 +23,12 @@ Install OpenVINO™ Runtime on Linux From ZYPPER Repository
       | Full requirement listing is available in:
       | :doc:`System Requirements Page <../../../about-openvino/release-notes-openvino/system-requirements>`
 
-      .. note::
-
-         OpenVINO RPM packages are compatible with and can be run on the following operating systems:
-
-         - openSUSE Tumbleweed
-
    .. tab-item:: Processor Notes
       :sync: processor-notes
 
       | To see if your processor includes the integrated graphics technology and supports iGPU inference, refer to:
       | `Product Specifications <https://ark.intel.com/>`__
 
-   .. tab-item:: Software
-      :sync: software
-
-      * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`_
-      * GCC 8.2.0
-      * `Python 3.9 - 3.12, 64-bit <https://www.python.org/downloads/>`_
 
 
 Install OpenVINO Runtime

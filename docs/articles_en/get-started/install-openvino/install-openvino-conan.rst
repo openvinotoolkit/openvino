@@ -21,7 +21,7 @@ Install OpenVINO™ Runtime from Conan Package Manager
    .. tab-item:: System Requirements
       :sync: system-requirements
 
-      | Full requirement listing is available in:
+      | Full requirement listing is available on:
       | :doc:`System Requirements Page <../../../about-openvino/release-notes-openvino/system-requirements>`
 
    .. tab-item:: Processor Notes
@@ -30,11 +30,6 @@ Install OpenVINO™ Runtime from Conan Package Manager
       | To see if your processor includes the integrated graphics technology and supports iGPU inference, refer to:
       | `Product Specifications <https://ark.intel.com/content/www/us/en/ark.html>`__
 
-   .. tab-item:: Software
-      :sync: software
-
-      | There are many ways to work with Conan Package Manager. Before you proceed, learn more about it on the
-      | `Conan distribution page <https://conan.io/downloads>`__
 
 Installing OpenVINO Runtime with Conan Package Manager
 ############################################################

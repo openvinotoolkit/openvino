@@ -29,12 +29,6 @@ Install OpenVINO™ Runtime via vcpkg
       | To see if your processor includes the integrated graphics technology and supports iGPU inference, refer to:
       | `Product Specifications <https://ark.intel.com/>`__
 
-   .. tab-item:: Software Requirements
-      :sync: software-requirements
-
-      * `vcpkg <https://vcpkg.io/en/getting-started>`__
-
-
 
 Installing OpenVINO Runtime
 ###########################

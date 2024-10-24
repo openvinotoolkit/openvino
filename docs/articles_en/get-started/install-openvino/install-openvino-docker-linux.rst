@@ -6,12 +6,8 @@ Install Intel® Distribution of OpenVINO™ Toolkit From a Docker Image
                  manually to install OpenVINO™ Runtime on Linux and Windows operating systems.
 
 This guide presents information on how to use a pre-built Docker image or create a new image
-manually, to install OpenVINO™ Runtime. The supported host operating systems for the Docker
-base image are:
-
-- Linux
-- Windows (WSL2)
-- macOS (CPU exectuion only)
+manually, to install OpenVINO™ Runtime. Full requirement listing is available on:
+:doc:`System Requirements Page <../../../about-openvino/release-notes-openvino/system-requirements>`
 
 You can get started easily with pre-built and published docker images, which are available at:
 
