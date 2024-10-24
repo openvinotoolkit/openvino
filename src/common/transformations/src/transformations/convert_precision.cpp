@@ -245,7 +245,7 @@ bool convert_function_precision(const std::shared_ptr<Model>& f,
     auto ops = f->get_ordered_ops();
     for (auto& node : ops) {
         // This is a hotfix that checks if FROM types are not different from the
-        // node's input/output element type. To be investigated more in CVS-155990
+        // node's output element type. To be investigated more in CVS-155990
         if ((skip_precision_sensitive && fp16_compression_is_disabled(node) && has_fp16_compression) ||
             !node_output_type_match(node, precisions))
             continue;
