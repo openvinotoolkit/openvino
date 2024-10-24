@@ -74,10 +74,10 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                       << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]"
                       << std::endl;
         } else {
-            _initModel = model->clone();
+            std::shared_ptr<ov::Model> initModel = model->clone();
 
             const std::vector<std::shared_ptr<NetworkDescription>> initMainNetworkDescriptions =
-                _compiler->compileWS(_initModel, config);
+                _compiler->compileWS(initModel, config);
 
             const std::shared_ptr<NetworkDescription> initNetworkDescription = initMainNetworkDescriptions[0];
             const std::shared_ptr<NetworkDescription> mainNetworkDescription = initMainNetworkDescriptions[1];
@@ -90,7 +90,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                       << std::endl;
 
             begin = std::chrono::steady_clock::now();
-            run_init(initExecutor);
+            run_init(initModel, initExecutor);
             end = std::chrono::steady_clock::now();
             std::cout << "run_init() call "
                       << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]"
@@ -195,7 +195,7 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
 void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
     const NetworkDescription* net = &*_networkPtr;
-    if(_networkInitPtr != nullptr && writeInit) {
+    if (_networkInitPtr != nullptr && writeInit) {
         net = &*_networkInitPtr;
     }
     const auto blob = _compiler->getCompiledNetwork(*net);
@@ -477,9 +477,10 @@ std::shared_ptr<IExecutor> CompiledModel::create_executor(
     return nullptr;
 }
 
-void CompiledModel::run_init(const std::shared_ptr<IExecutor>& initExecutor) {
+void CompiledModel::run_init(const std::shared_ptr<ov::Model> initModel,
+                             const std::shared_ptr<IExecutor>& initExecutor) {
     if (_device != nullptr && initExecutor != nullptr) {
-        _weightsInputs = _device->runInit(initExecutor, _initModel, get_context(), _config);
+        _weightsInputs = _device->runInit(initExecutor, initModel, get_context(), _config);
     } else {
         _logger.info("The \"Init\" schedule did not run while building the \"CompiledModel\" object");
     }

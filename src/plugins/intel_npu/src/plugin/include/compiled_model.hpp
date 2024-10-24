@@ -91,13 +91,12 @@ private:
     /**
      * @brief TODO
      */
-    void run_init(const std::shared_ptr<IExecutor>& initExecutor);
+    void run_init(const std::shared_ptr<ov::Model> initModel, const std::shared_ptr<IExecutor>& initExecutor);
 
     std::shared_ptr<const NetworkDescription> _networkPtr;
     std::shared_ptr<const NetworkDescription> _networkInitPtr;
     mutable bool writeInit = false;
     const std::shared_ptr<const ov::Model> _model;
-    std::shared_ptr<ov::Model> _initModel;
     Config _config;
     Logger _logger;
     const std::shared_ptr<IDevice> _device;
