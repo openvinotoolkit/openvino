@@ -245,6 +245,13 @@ TEST(OvSerializationTests, SerializeRawMeta) {
 					<dim>20</dim>
 				</port>
 			</input>
+			<output>
+				<port id="1" precision="U8">
+					<dim>3</dim>
+					<dim>20</dim>
+					<dim>20</dim>
+				</port>
+			</output>
 		</layer>
 	</layers>
 	<edges>
