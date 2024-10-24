@@ -960,6 +960,35 @@ std::shared_ptr<ov::Model> MHAMulAddFunction::initOriginal() const {
     return std::make_shared<ov::Model>(results, ngraphParam, "mha");
 }
 
+std::shared_ptr<ov::Model> MHAWithoutSoftmaxFunction::initOriginal() const {
+    auto in0 = std::make_shared<ov::opset1::Parameter>(precision, input_shapes[0]);
+    auto in1 = std::make_shared<ov::opset1::Parameter>(precision, input_shapes[1]);
+    auto in2 = std::make_shared<ov::opset1::Parameter>(precision, input_shapes[2]);
+    ov::ParameterVector ngraphParam = {in0, in1, in2};
+    float transA = false;
+    float transB = false;
+    const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(in0, in1, transA, transB);
+    const auto abs = std::make_shared<ov::op::v0::Abs>(matMul0);
+    const auto relu = std::make_shared<ov::op::v0::Relu>(abs);
+    const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(relu, in2, transA, transB);
+    ov::ResultVector results{std::make_shared<ov::opset1::Result>(matMul1)};
+    return std::make_shared<ov::Model>(results, ngraphParam, "mha");
+}
+
+std::shared_ptr<ov::Model> MHAWithSoftmaxFunction::initOriginal() const {
+    auto in0 = std::make_shared<ov::opset1::Parameter>(precision, input_shapes[0]);
+    auto in1 = std::make_shared<ov::opset1::Parameter>(precision, input_shapes[1]);
+    auto in2 = std::make_shared<ov::opset1::Parameter>(precision, input_shapes[2]);
+    ov::ParameterVector ngraphParam = {in0, in1, in2};
+    float transA = false;
+    float transB = false;
+    const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(in0, in1, transA, transB);
+    const auto softmax = std::make_shared<ov::op::v1::Softmax>(matMul0, 3);
+    const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(softmax, in2, transA, transB);
+    ov::ResultVector results{std::make_shared<ov::opset1::Result>(matMul1)};
+    return std::make_shared<ov::Model>(results, ngraphParam, "mha");
+}
+
 std::shared_ptr<ov::Model> MHATransposedInputFunction::initOriginal() const {
     const auto param0 = std::make_shared<ov::opset1::Parameter>(precision, input_shapes[0]);
     const auto param1 = std::make_shared<ov::opset1::Parameter>(precision, input_shapes[1]);

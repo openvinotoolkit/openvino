@@ -27,7 +27,8 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h, cpu_isa_t isa,
     const auto& brg0Prc = brgemm_node->get_input_element_type(0);
     const auto& brg1Prc = brgemm_node->get_input_element_type(1);
     const auto brgemm_type = brgemm_node->get_type();
-    BrgemmKernelConfig kernel_config(brg0Prc, brg1Prc, with_amx(brgemm_type), with_compensations(brgemm_type),
+    const auto is_c_pre_scale = brgemm_node->is_c_pre_scale();
+    BrgemmKernelConfig kernel_config(brg0Prc, brg1Prc, with_amx(brgemm_type), with_compensations(brgemm_type), is_c_pre_scale,
                                      brgemm_utils::get_primitive_isa(brg0Prc, with_amx(brgemm_type)));
     m_kernel_executor = kernel_table->register_kernel<BrgemmKernelExecutor>(expr,
                                                                             compiled_kernel_cache,
@@ -53,7 +54,11 @@ std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precision
     OV_CPU_JIT_EMITTER_ASSERT(brgemm, "get_supported_precisions() expects BrgemmCPU node");
     using brgemm_utils::BRGEMM_TYPE;
     if (brgemm->get_type() == BRGEMM_TYPE::STAND_ALONE) {
-        return {{element::f32, element::f32}};
+        if (brgemm->is_c_pre_scale()) {
+            return {{element::f32, element::f32, element::f32}};
+        } else {
+            return {{element::f32, element::f32}};
+        }
     } else if (brgemm->get_type() == BRGEMM_TYPE::REPACKING_ONLY) {
         std::set<std::vector<element::Type>> supported_types = {{element::u8, element::i8},
                                                                 {element::bf16, element::bf16},

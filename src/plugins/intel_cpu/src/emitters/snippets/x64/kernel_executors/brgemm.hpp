@@ -14,10 +14,41 @@
 
 namespace ov {
 namespace intel_cpu {
+
+struct jit_c_pre_scale_params {
+    ov::element::Type data_prc;
+    ov::element::Type scale_prc;
+};
+
+struct jit_c_pre_scale_call_args {
+    const void *data_ptr;
+    const void *scale_ptr;
+    size_t work_amount_M;
+    size_t work_amount_N;
+};
+
+struct jit_c_pre_scale_kernel {
+    void (*ker_)(const jit_c_pre_scale_call_args *);
+
+    void operator()(const jit_c_pre_scale_call_args *args) {
+        assert(ker_);
+        ker_(args);
+    }
+
+    explicit jit_c_pre_scale_kernel(jit_c_pre_scale_params jcp) : ker_(nullptr), jcp_(jcp) {}
+    virtual ~jit_c_pre_scale_kernel() {}
+
+    virtual void create_ker() = 0;
+
+    jit_c_pre_scale_params jcp_;
+};
+#define GET_OFF_BRGEMM_C_PRE_SCALE_ARGS(field) offsetof(jit_c_pre_scale_call_args, field)
+
 struct BrgemmKernelConfig : public snippets::KernelExecutorBase::GenericConfig {
 public:
     BrgemmKernelConfig(const element::Type& in0_dtype, const element::Type& in1_dtype,
-                       bool is_with_amx, bool is_with_comp, dnnl::impl::cpu::x64::cpu_isa_t primitive_isa);
+                       bool is_with_amx, bool is_with_comp, bool is_c_pre_scale,
+                       dnnl::impl::cpu::x64::cpu_isa_t primitive_isa);
     BrgemmKernelConfig() = delete;
     bool is_completed() const override;
     size_t hash() const override { return m_hash; }
@@ -35,6 +66,7 @@ public:
     dnnl::impl::cpu::x64::cpu_isa_t get_isa() const { return m_static_params->isa; }
     bool is_with_amx() const {return m_static_params->is_with_amx; }
     bool is_with_comp() const { return m_static_params->is_with_comp; }
+    bool is_c_pre_scale() const { return m_static_params->is_c_pre_scale; }
     float get_beta() const { return m_beta; }
 
     dnnl_dim_t get_M() const { return m_M; }
@@ -57,10 +89,11 @@ public:
 private:
     struct StaticParams {
         StaticParams(const element::Type& in0_dtype, const element::Type& in1_dtype,
-                     bool is_with_amx, bool is_with_comp, dnnl::impl::cpu::x64::cpu_isa_t primitive_isa);
+                     bool is_with_amx, bool is_with_comp, bool is_c_pre_scale, dnnl::impl::cpu::x64::cpu_isa_t primitive_isa);
         const dnnl_data_type_t dt_in0 {dnnl_f32}, dt_in1 {dnnl_f32};
         const bool is_with_amx {false};
         const bool is_with_comp {false};
+        const bool is_c_pre_scale {false};
         const dnnl::impl::cpu::x64::cpu_isa_t isa {dnnl::impl::cpu::x64::isa_undef};
         const size_t hash {0};
         bool operator==(const StaticParams& rhs) const;
@@ -81,6 +114,9 @@ struct BrgemmCompiledKernel {
     // Note: Palette is treated as a part of a kernel because it is initialized during the kernel compilation stage.
     //       Each kernel need to store the pallet it was compiled with.
     char palette[64] = {};
+    // We need C = A * B + scale * C in flash attention case.
+    // As brgemm kernel doesn't support pre scale on C, this kernel is used for it.
+    std::unique_ptr<jit_c_pre_scale_kernel> c_pre_scale_kernel = nullptr;
 };
 
 class BrgemmKernelExecutor : public CPUKernelExecutor<BrgemmKernelConfig, BrgemmCompiledKernel> {
@@ -89,6 +125,7 @@ public:
         const void* A = nullptr;
         const void* B = nullptr;
         void* C = nullptr;
+        void* C_pre_scale = nullptr;
         void* scratch = nullptr;
         amx_tile_config_t* amx_tile_config = nullptr;
     };

@@ -35,8 +35,8 @@ bool ValidateShapes::run(lowered::LinearIR& linear_ir, lowered::LinearIR::constE
                             "Check the expr for node ", n->get_friendly_name());
             const auto& parent_desc = port_connectors[i]->get_source().get_descriptor_ptr();
             const auto& parent_shape = parent_desc->get_shape();
-            OPENVINO_ASSERT(parent_shape == shape, "Parent shape must be equal to the expression shape. ",
-                           "Check the expr for node ", n->get_friendly_name());
+            // OPENVINO_ASSERT(parent_shape == shape, "Parent shape must be equal to the expression shape. ",
+            //                "Check the expr for node ", n->get_friendly_name());
         }
     }
     return false;

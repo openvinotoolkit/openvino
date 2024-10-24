@@ -43,6 +43,9 @@ LinearIR::LinearIR(const std::shared_ptr<ov::Model>& model,
         if (const auto& scalar = as_type_ptr<op::Scalar>(n)) {
             insertion_pos = std::next(last_param);
         }
+        if (const auto& buffer = as_type_ptr<op::Buffer>(n)) {
+            insertion_pos = std::next(last_param);
+        }
 
         register_expression(expr, true, 0);
         const auto& it = m_expressions.insert(insertion_pos, expr);

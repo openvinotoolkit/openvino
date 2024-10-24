@@ -94,6 +94,7 @@ bool ReduceDecomposition::run(LinearIR& linear_ir, LinearIR::constExprIt begin, 
             loop_info->register_pass_to_handler<SpecificLoopIterType::LAST_ITER, SetFillOffset>(tail_size);
         }
         const auto horizon = insert_horizon_node(expr_it, accumulation.second, reduce_type_info);
+        ov::copy_runtime_info(reduce, horizon.second);
 
         // Transfer original ExpressionPorts
         replace_input_port_connectors({fill.first->get()->get_input_port(0)}, reduce_expr->get_input_port_connector(0));

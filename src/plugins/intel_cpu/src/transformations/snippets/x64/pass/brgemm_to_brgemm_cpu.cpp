@@ -76,8 +76,17 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
         std::shared_ptr<BrgemmCPU> brgemm_cpu = nullptr;
         std::shared_ptr<BrgemmCopyB> brgemm_repacking = nullptr;
         if (stand_alone(brgemm_type)) {
-            brgemm_cpu = std::make_shared<BrgemmCPU>(brgemm->input_value(0), brgemm->input_value(1), brgemm_type,
+            if (!brgemm->with_c_pre_ops) {
+                brgemm_cpu = std::make_shared<BrgemmCPU>(brgemm->input_value(0), brgemm->input_value(1), brgemm_type,
                                                      offset_a, offset_b, offset_c, layout_a, layout_b, layout_c);
+            } else {
+                const auto& brgemm_in2_desc = PortDescriptorUtils::get_port_descriptor_ptr(brgemm->input(2));
+                const auto& layout_c_scale = brgemm_in2_desc->get_layout();
+                const auto offset_c_scale = brgemm->get_offset_c_scale();
+                brgemm_cpu = std::make_shared<BrgemmCPU>(brgemm->input_value(0), brgemm->input_value(1), brgemm_type, brgemm->input_value(2),
+                                                     offset_a, offset_b, offset_c_scale, offset_c,
+                                                     layout_a, layout_b, layout_c, layout_c_scale);
+            }
         } else {
             const auto copy_b_type = with_compensations(brgemm_type) ? brgemm_type : brgemm_utils::BRGEMM_TYPE::REPACKING_ONLY;
             brgemm_repacking = std::make_shared<BrgemmCopyB>(brgemm->input_value(1), element_type_a, copy_b_type, offset_b, 0, 0, layout_b);

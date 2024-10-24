@@ -13,6 +13,7 @@
 #include "snippets/pass/convert_power_to_powerstatic.hpp"
 #include "snippets/pass/transpose_decomposition.hpp"
 #include "snippets/pass/softmax_decomposition.hpp"
+#include "snippets/pass/flash_attention_transformation.hpp"
 #include "snippets/pass/matmul_to_brgemm.hpp"
 #include "snippets/pass/fuse_transpose_brgemm.hpp"
 #include "snippets/pass/canonicalization.hpp"
@@ -415,6 +416,7 @@ void Subgraph::data_flow_transformations(const BlockedShapeVector& blocked_input
         manager.register_pass<snippets::pass::MatMulToBrgemm>();
         manager.register_pass<snippets::pass::FuseTransposeBrgemm>();
         manager.register_pass<snippets::pass::TransposeDecomposition>();
+        manager.register_pass<snippets::pass::FlashAttentionTransformation>();
         manager.register_pass<snippets::pass::SoftmaxDecomposition>();
         manager.register_pass<snippets::pass::GNDecomposition>();
     }
@@ -429,6 +431,14 @@ void Subgraph::data_flow_transformations(const BlockedShapeVector& blocked_input
 
     manager.register_positioned_passes(backend_passes);
     manager.run_passes(body_ptr());
+
+    std::cout << "data_flow_transformations e" << std::endl;
+
+    ov::pass::Manager mgr;
+    std::string xmlo = "original.xml";
+    std::string bino = "original.bin";
+    mgr.register_pass<ov::pass::Serialize>(xmlo, bino);
+    mgr.run_passes(body_ptr());
 }
 
 void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, size_t min_kernel_work_amount,
@@ -439,10 +449,10 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::control_flow_transformations")
 
     OV_ITT_TASK_CHAIN(CONTROL_FLOW, ov::pass::itt::domains::SnippetsTransform, "Snippets::op::control_flow_transformations", "::convert_body_to_linear_ir")
-
+    std::cout << "convert_body_to_linear_ir s" << std::endl;
     convert_body_to_linear_ir(min_parallel_work_amount, min_kernel_work_amount, shape_infer_factory);
     OPENVINO_ASSERT(m_linear_ir, "LinearIR has not been inited for control flow transformations!");
-
+    std::cout << "convert_body_to_linear_ir e" << std::endl;
     OV_ITT_TASK_NEXT(CONTROL_FLOW, "::control_flow_transformations")
 
     // Domain optimization must be the first pass, because all other transformations may depend on PortDescriptor shapes
