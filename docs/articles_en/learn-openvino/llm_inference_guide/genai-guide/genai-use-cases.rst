@@ -28,8 +28,6 @@ sample shows basic usage of the ``Text2ImagePipeline`` pipeline.
 
             .. code-block:: python
 
-               import argparse
-
                import openvino_genai
                from PIL import Image
                import numpy as np
@@ -45,17 +43,12 @@ sample shows basic usage of the ``Text2ImagePipeline`` pipeline.
                        return np.random.normal(self.mu, self.sigma)
 
 
-               def main():
-                   parser = argparse.ArgumentParser()
-                   parser.add_argument('model_dir')
-                   parser.add_argument('prompt')
-                   args = parser.parse_args()
-
+               def infer(model_dir: str, prompt: str):
                    device = 'CPU'  # GPU can be used as well
                    random_generator = Generator(42)
-                   pipe = openvino_genai.Text2ImagePipeline(args.model_dir, device)
+                   pipe = openvino_genai.Text2ImagePipeline(model_dir, device)
                    image_tensor = pipe.generate(
-                       args.prompt,
+                       prompt,
                        width=512,
                        height=512,
                        num_inference_steps=20,
@@ -70,8 +63,6 @@ sample shows basic usage of the ``Text2ImagePipeline`` pipeline.
             :name: lorapy
 
             .. code-block:: python
-
-               import argparse
 
                import openvino as ov
                import openvino_genai
@@ -96,13 +87,8 @@ sample shows basic usage of the ``Text2ImagePipeline`` pipeline.
                    image.save(path)
 
 
-               def main():
-                   parser = argparse.ArgumentParser()
-                   parser.add_argument('models_path')
-                   parser.add_argument('prompt')
-                   args, adapters = parser.parse_known_args()
-
-                   prompt = args.prompt
+               def infer(models_path: str, prompt: str):
+                   prompt = "cyberpunk cityscape like Tokyo New York with tall buildings at dusk golden hour cinematic lighting"
 
                    device = "CPU"  # GPU, NPU can be used as well
                    adapter_config = openvino_genai.AdapterConfig()
@@ -112,7 +98,7 @@ sample shows basic usage of the ``Text2ImagePipeline`` pipeline.
                        alpha = float(adapters[2 * i + 1])
                        adapter_config.add(adapter, alpha)
 
-                   pipe = openvino_genai.Text2ImagePipeline(args.models_path, device, adapters=adapter_config)
+                   pipe = openvino_genai.Text2ImagePipeline(models_path, device, adapters=adapter_config)
                    print("Generating image with LoRA adapters applied, resulting image will be in lora.bmp")
                    image = pipe.generate(prompt,
                                          random_generator=Generator(42),
@@ -360,7 +346,6 @@ mark a conversation session, as shown in the samples below:
 
       .. code-block:: python
 
-         import argparse
          import openvino_genai
 
 
@@ -369,13 +354,9 @@ mark a conversation session, as shown in the samples below:
              return False
 
 
-         def main():
-             parser = argparse.ArgumentParser()
-             parser.add_argument('model_dir')
-             args = parser.parse_args()
-
+         def infer(model_dir: str):
              device = 'CPU'  # GPU can be used as well.
-             pipe = openvino_genai.LLMPipeline(args.model_dir, device)
+             pipe = openvino_genai.LLMPipeline(model_dir, device)
 
              config = openvino_genai.GenerationConfig()
              config.max_new_tokens = 100
