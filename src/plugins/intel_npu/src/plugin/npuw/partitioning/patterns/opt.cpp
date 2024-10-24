@@ -1295,20 +1295,21 @@ SliceLastMatmul::SliceLastMatmul() {
 
         auto matched_out_matmul = node_to_output.at(matmul);
 
-        if (matched_out_matmul.get_node()->input(0).get_partial_shape().rank().get_length() == 3) {
-            auto start =
-                std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1});
-            auto stop =
-                std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-2});
-            auto step =
-                std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1});
-            auto axis = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{1});
+        auto shape = matched_out_matmul.get_node()->input(0).get_shape();
 
-            auto slice = std::make_shared<ov::op::v8::Slice>(matched_out_matmul.get_node()->input_value(0),
-                                                             start,
-                                                             stop,
-                                                             step,
-                                                             axis);
+        if (shape.size() == 3 && shape[1] > 1) {
+            auto start = std::make_shared<ov::op::v0::Constant>(ov::element::i32,
+                                                                ov::Shape{3},
+                                                                std::vector<int32_t>{0, int32_t(shape[1] - 1), 0});
+            auto stop =
+                std::make_shared<ov::op::v0::Constant>(ov::element::i32,
+                                                       ov::Shape{3},
+                                                       std::vector<int32_t>{1, int32_t(shape[1]), int32_t(shape[2])});
+            auto step =
+                std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, std::vector<int32_t>{1, 1, 1});
+
+            auto slice =
+                std::make_shared<ov::op::v8::Slice>(matched_out_matmul.get_node()->input_value(0), start, stop, step);
 
             matched_out_matmul.get_node()->input(0).replace_source_output(slice);
 
@@ -1330,20 +1331,21 @@ SliceLastMatmulAdd::SliceLastMatmulAdd() {
 
         auto matched_out_matmul = node_to_output.at(matmul);
 
-        if (matched_out_matmul.get_node()->input(0).get_partial_shape().rank().get_length() == 3) {
-            auto start =
-                std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1});
-            auto stop =
-                std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-2});
-            auto step =
-                std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1});
-            auto axis = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{1});
+        auto shape = matched_out_matmul.get_node()->input(0).get_shape();
 
-            auto slice = std::make_shared<ov::op::v8::Slice>(matched_out_matmul.get_node()->input_value(0),
-                                                             start,
-                                                             stop,
-                                                             step,
-                                                             axis);
+        if (shape.size() == 3 && shape[1] > 1) {
+            auto start = std::make_shared<ov::op::v0::Constant>(ov::element::i32,
+                                                                ov::Shape{3},
+                                                                std::vector<int32_t>{0, int32_t(shape[1] - 1), 0});
+            auto stop =
+                std::make_shared<ov::op::v0::Constant>(ov::element::i32,
+                                                       ov::Shape{3},
+                                                       std::vector<int32_t>{1, int32_t(shape[1]), int32_t(shape[2])});
+            auto step =
+                std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, std::vector<int32_t>{1, 1, 1});
+
+            auto slice =
+                std::make_shared<ov::op::v8::Slice>(matched_out_matmul.get_node()->input_value(0), start, stop, step);
 
             matched_out_matmul.get_node()->input(0).replace_source_output(slice);
 
@@ -1365,20 +1367,21 @@ SliceLastMatmulTranspose::SliceLastMatmulTranspose() {
 
         auto matched_out_matmul = node_to_output.at(matmul);
 
-        if (matched_out_matmul.get_node()->input(0).get_partial_shape().rank().get_length() == 3) {
-            auto start =
-                std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1});
-            auto stop =
-                std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-2});
-            auto step =
-                std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1});
-            auto axis = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{1});
+        auto shape = matched_out_matmul.get_node()->input(0).get_shape();
 
-            auto slice = std::make_shared<ov::op::v8::Slice>(matched_out_matmul.get_node()->input_value(0),
-                                                             start,
-                                                             stop,
-                                                             step,
-                                                             axis);
+        if (shape.size() == 3 && shape[1] > 1) {
+            auto start = std::make_shared<ov::op::v0::Constant>(ov::element::i32,
+                                                                ov::Shape{3},
+                                                                std::vector<int32_t>{0, int32_t(shape[1] - 1), 0});
+            auto stop =
+                std::make_shared<ov::op::v0::Constant>(ov::element::i32,
+                                                       ov::Shape{3},
+                                                       std::vector<int32_t>{1, int32_t(shape[1]), int32_t(shape[2])});
+            auto step =
+                std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, std::vector<int32_t>{1, 1, 1});
+
+            auto slice =
+                std::make_shared<ov::op::v8::Slice>(matched_out_matmul.get_node()->input_value(0), start, stop, step);
 
             matched_out_matmul.get_node()->input(0).replace_source_output(slice);
 
@@ -1402,20 +1405,21 @@ SliceLastMatmulMultiply::SliceLastMatmulMultiply() {
 
         auto matched_out_matmul = node_to_output.at(matmul);
 
-        if (matched_out_matmul.get_node()->input(0).get_partial_shape().rank().get_length() == 3) {
-            auto start =
-                std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1});
-            auto stop =
-                std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-2});
-            auto step =
-                std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1});
-            auto axis = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{1});
+        auto shape = matched_out_matmul.get_node()->input(0).get_shape();
 
-            auto slice = std::make_shared<ov::op::v8::Slice>(matched_out_matmul.get_node()->input_value(0),
-                                                             start,
-                                                             stop,
-                                                             step,
-                                                             axis);
+        if (shape.size() == 3 && shape[1] > 1) {
+            auto start = std::make_shared<ov::op::v0::Constant>(ov::element::i32,
+                                                                ov::Shape{3},
+                                                                std::vector<int32_t>{0, int32_t(shape[1] - 1), 0});
+            auto stop =
+                std::make_shared<ov::op::v0::Constant>(ov::element::i32,
+                                                       ov::Shape{3},
+                                                       std::vector<int32_t>{1, int32_t(shape[1]), int32_t(shape[2])});
+            auto step =
+                std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, std::vector<int32_t>{1, 1, 1});
+
+            auto slice =
+                std::make_shared<ov::op::v8::Slice>(matched_out_matmul.get_node()->input_value(0), start, stop, step);
 
             matched_out_matmul.get_node()->input(0).replace_source_output(slice);
 

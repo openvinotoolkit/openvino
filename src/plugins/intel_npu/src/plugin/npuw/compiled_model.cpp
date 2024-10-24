@@ -144,12 +144,16 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherAsymCW>();
         rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherSymCW>();
         rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherSymGQ>();
-        rewr.add_matcher<ov::npuw::patterns::opt::SliceLastMatmul>();
-        rewr.add_matcher<ov::npuw::patterns::opt::SliceLastMatmulAdd>();
-        rewr.add_matcher<ov::npuw::patterns::opt::SliceLastMatmulTranspose>();
-        rewr.add_matcher<ov::npuw::patterns::opt::SliceLastMatmulMultiply>();
         rewr.run_on_model(model);
     }
+
+    // Add Slice before last MatMul for the prefill model
+    ov::pass::GraphRewrite rewr;
+    rewr.add_matcher<ov::npuw::patterns::opt::SliceLastMatmul>();
+    rewr.add_matcher<ov::npuw::patterns::opt::SliceLastMatmulAdd>();
+    rewr.add_matcher<ov::npuw::patterns::opt::SliceLastMatmulTranspose>();
+    rewr.add_matcher<ov::npuw::patterns::opt::SliceLastMatmulMultiply>();
+    rewr.run_on_model(model);
 
     auto partitioning = getPartitioning(model, m_cfg);
     m_total_stat.gflops = partitioning.total_gflops;
