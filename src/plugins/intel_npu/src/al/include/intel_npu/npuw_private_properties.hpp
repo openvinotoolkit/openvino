@@ -196,6 +196,14 @@ static constexpr ov::Property<std::string> par_matmul_merge_dims{"NPUW_PMM"};
 
 /**
  * @brief
+ * Type: bool.
+ * Add Slice before the last MatMul reducing output's dimention.
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> slice_out{"NPUW_SLICE_OUT"};
+
+/**
+ * @brief
  * Type: boolean.
  * Enable spatial execution for selected subgraphs. Requires COMPUTE isolation.
  * Default value: false

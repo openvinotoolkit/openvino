@@ -149,6 +149,27 @@ public:
     CompressDictMatMulf32(Context::Ref ctx);
 };
 
+// Slice last Matmul
+class SliceLastMatmul : public ov::pass::MatcherPass {
+public:
+    SliceLastMatmul();
+};
+
+class SliceLastMatmulAdd : public ov::pass::MatcherPass {
+public:
+    SliceLastMatmulAdd();
+};
+
+class SliceLastMatmulTranspose : public ov::pass::MatcherPass {
+public:
+    SliceLastMatmulTranspose();
+};
+
+class SliceLastMatmulMultiply : public ov::pass::MatcherPass {
+public:
+    SliceLastMatmulMultiply();
+};
+
 }  // namespace opt
 }  // namespace patterns
 }  // namespace npuw
