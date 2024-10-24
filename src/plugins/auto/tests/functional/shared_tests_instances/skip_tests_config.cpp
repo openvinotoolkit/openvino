@@ -36,6 +36,5 @@ std::vector<std::string> disabledTestPatterns() {
     // very time-consuming test
     retVector.emplace_back(R"(.*OVInferConsistencyTest.*)");
 #endif
-
     return retVector;
 }
