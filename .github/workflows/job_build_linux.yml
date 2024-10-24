@@ -265,7 +265,7 @@ jobs:
           if-no-files-found: 'error'
           
       - name: Upload openvino wheels
-        if: ${{ inputs.os != 'debian_10' && inputs.arch != 'arm' }}
+        if: ${{ !cancelled() && inputs.os != 'debian_10' && inputs.arch != 'arm' }}
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: openvino_wheels
