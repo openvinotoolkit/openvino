@@ -135,8 +135,8 @@ void RandomUniformLayerTestCPU::SetUp() {
 
     if (m_global_seed != 0lu || m_operational_seed != 0lu) {
         // When seeds are non-zero, generator output should be exactly the same
-        // abs_threshold = 1e-5f;
-        // rel_threshold = 1e-5f;
+        // but due to some rounding errors, these thresholds are still necessary
+        // albeit the number of these 'rounding errors' is minimal (1 in 1000)
         abs_threshold = 1e-6;
         rel_threshold = 1e-3;
     }
@@ -202,17 +202,11 @@ fill_data(tensor.data<ov::element_type_traits<P>::value_type>(), S, L); break;
 
 void RandomUniformLayerTestCPU::compare(const std::vector<ov::Tensor>& expected, const std::vector<ov::Tensor>& actual) {
     if (m_global_seed != 0 || m_operational_seed != 0) {
-        std::cout << "baseCompare"  << std::endl;
-
-        // When seeds are non-zero match, generator output should be exactly the same
         SubgraphBaseTest::compare(expected, actual);
         return;
     }
-    std::cout << "rndCompare"  << std::endl;
-
     // When both seed values are equal to zero, RandomUniform should generate non-deterministic sequence.
     // In this case will use Mean and Variance metrics.
-
 #define CASE(X) case X : rndUCompare<ov::element_type_traits<X>::value_type>(expected[0], actual[0]); break;
 
     switch (expected[0].get_element_type()) {

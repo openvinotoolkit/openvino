@@ -76,7 +76,7 @@ private:
     OutputType m_min_val;
     OutputType m_max_val;
     OutputType m_range_val;
-    AlgorithmType m_algo = PHILOX;
+    AlgorithmType m_algo = STL;
 
     /////////////////////////////////////////////////////////////////////////////////
 
@@ -99,6 +99,7 @@ private:
     };
 
     uint64_t m_threads_num = 0lu;
+
     std::vector<PhiloxThreadParams> m_philox_thread_params;
     std::vector<MersenneTwisterThreadParams> m_mersenne_twister_thread_params;
 
@@ -134,9 +135,9 @@ private:
     static constexpr uint64_t MERSENNE_TWISTER_PARALLEL_EXECUTION_THRESHOLD = 1000lu;
 
     // Each sub-run of Mersenne Twister generates 624-sized state of 32 bit numbers, no parallelization.
-    // Then 4 of these numbers are consumed to generate output data, which can be parallelized.
-    // Therefore, the maximum number of threads is 624 / 4 = 156
-    static constexpr uint64_t MERSENNE_TWISTER_MAXIMUM_THREADS_THRESHOLD = 156lu;
+    // Then a pair of 32 bit numbers are consumed to generate output data, which can be parallelized.
+    // Therefore, the maximum number of threads is 624 / 2 = 312
+    static constexpr uint64_t MERSENNE_TWISTER_MAXIMUM_THREADS_THRESHOLD = 312lu;
 
     // PyTorch reduces the execution time when generating 64-bit numbers when the range is below max value of uint32_t
     bool m_mersenne_twister_optimization_enabled = false;

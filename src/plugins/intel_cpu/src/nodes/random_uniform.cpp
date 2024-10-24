@@ -344,35 +344,24 @@ void RandomUniform::prepareMersenneTwisterParams() {
 
     parallel_nt(m_threads_num, [&](const int ithr, const int nthr) {
         auto& params = m_mersenne_twister_thread_params[ithr];
-        uint64_t start = 0lu, end = 0lu;
-        float start_f = 0.f, end_f = 0.f;
 
-        if (m_jit_kernel) {
-#if defined(OPENVINO_ARCH_X86_64)
-            const auto block_size = (m_jit_kernel->getVectorLen() / m_output_prc.size()) * 2;
-            const auto blocks_num = (m_out_el_num + block_size - 1) / block_size;
-            const auto blocks_per_thr = (blocks_num + nthr - 1) / nthr;
+        auto start_f = ithr * thread_offset;
+        auto end_f = (ithr + 1) * thread_offset;
 
-            start = ithr * blocks_per_thr * block_size;
-            end = (ithr + 1) * blocks_per_thr * block_size;
-#endif // OPENVINO_ARCH_X86_64
-        } else {
-            start_f = ithr * thread_offset;
-            end_f = (ithr + 1) * thread_offset;
-
-            start = std::floor(start_f);
-            end = std::floor(end_f);  
-        }
+        auto start = static_cast<uint64_t>(std::floor(start_f));
+        auto end = static_cast<uint64_t>(std::floor(end_f));  
 
         if (end > m_out_el_num) {
             end = m_out_el_num;
         }
+
         if (start > end) {
             start = end;
         }
-        params.src_start_idx = start; // idx in mersenne_state
-        params.elements_to_generate = end - start; // how many times to generate 4 random numbers in one thread
+
+        params.src_start_idx = start;
         params.dst_start_idx = start * m_output_prc.size();
+        params.elements_to_generate = end - start;
         params.elements_generated_per_execution = m_elements_generated;
     });
 }
