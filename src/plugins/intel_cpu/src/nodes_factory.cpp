@@ -90,6 +90,7 @@
 #include "nodes/rope.h"
 #include "nodes/scaled_attn.h"
 #include "nodes/scatter_update.h"
+#include "nodes/search_sorted.h"
 #include "nodes/string_tensor_pack.h"
 #include "nodes/string_tensor_unpack.h"
 #include "nodes/shapeof.h"
@@ -217,6 +218,7 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(Subgraph, Type::Subgraph);
     INTEL_CPU_NODE(Composite, Type::SubModel);
     INTEL_CPU_NODE(ScaledDotProductAttention, Type::ScaledDotProductAttention);
+    INTEL_CPU_NODE(SearchSorted, Type::SearchSorted);
 #if defined(OPENVINO_ARCH_X86_64)
     INTEL_CPU_NODE(FakeQuantize, Type::FakeQuantize);
     INTEL_CPU_NODE(GridSample, Type::GridSample);

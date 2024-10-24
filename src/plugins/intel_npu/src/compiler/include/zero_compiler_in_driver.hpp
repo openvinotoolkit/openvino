@@ -18,9 +18,6 @@ namespace driverCompilerAdapter {
 
 using SerializedIR = std::pair<size_t, std::shared_ptr<uint8_t>>;
 
-#define NotSupportLogHandle(T) \
-    (std::is_same<T, ze_graph_dditable_ext_1_2_t>::value || std::is_same<T, ze_graph_dditable_ext_1_3_t>::value)
-
 #define NotSupportQuery(T) (std::is_same<T, ze_graph_dditable_ext_1_2_t>::value)
 
 // ext version == 1.3 && 1.4, support API (pfnQueryNetworkCreate, pfnQueryNetworkDestroy,
@@ -185,14 +182,6 @@ private:
                             const std::string& buildFlags,
                             const uint32_t& flags,
                             ze_graph_handle_t* graph) const;
-
-    template <typename T = TableExtension, typename std::enable_if_t<!NotSupportLogHandle(T), bool> = true>
-    std::string getLatestBuildError() const;
-
-    template <typename T = TableExtension, typename std::enable_if_t<NotSupportLogHandle(T), bool> = true>
-    std::string getLatestBuildError() const {
-        return "";
-    }
 
 private:
     ze_driver_handle_t _driverHandle = nullptr;
