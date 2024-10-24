@@ -55,7 +55,6 @@ TEST_P(AutoSetLogLevel, setLogLevelFromConfig) {
     std::string log_level;
     ov::AnyMap config;
     std::tie(log_level, config) = this->GetParam();
-
     plugin->set_device_name("AUTO");
     plugin->compile_model(model, config);
     int a = 0;

@@ -93,4 +93,3 @@ jobs:
             contains(needs.*.result, 'cancelled')
           }}
         run: exit 1
-      
