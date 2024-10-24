@@ -14,10 +14,10 @@ from torch_utils import TestTorchConvertModel
 def filter_timm(timm_list: list) -> list:
     unique_models = dict()
     filtered_list = []
-    ignore_list = ["base", "atto", "femto", "xxtiny", "xxsmall", "xxs", "pico",
-                   "xtiny", "xmall", "xs", "nano", "tiny", "s", "mini", "small",
-                   "lite", "medium", "m", "big", "large", "l", "xlarge", "xl",
-                   "huge", "xxlarge", "gigantic", "giant", "enormous"]
+    ignore_list = ["base", "zepto", "atto", "femto", "xxtiny", "xxsmall", "xxs",
+                   "pico", "xtiny", "xmall", "xs", "nano", "tiny", "s", "mini",
+                   "small", "lite", "medium", "m", "big", "large", "l", "xlarge",
+                   "xl", "huge", "xxlarge", "gigantic", "giant", "enormous"]
     ignore_set = set(ignore_list)
     for name in sorted(timm_list):
         if "x_" in name:
@@ -88,8 +88,8 @@ class TestTimmConvertModel(TestTorchConvertModel):
             'skip', 'xfail', 'xfail_trace', 'xfail_export'], f"Incorrect test case for {name}"
         if mark == 'skip':
             pytest.skip(reason)
-        elif mark in ['xfail', f'xfail_{mode}']:
-            pytest.xfail(reason)
+        elif mark not in ['xfail', f'xfail_{mode}']:
+            pytest.skip(reason)
         self.run(name, None, ie_device)
 
     @pytest.mark.nightly
