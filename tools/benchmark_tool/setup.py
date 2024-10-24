@@ -6,7 +6,7 @@
 """
 Use this script to create a wheel with OpenVINO™ Python* tools:
 
-$ python -m build
+$ python -m pip wheel .
 """
 from setuptools import setup, find_packages
 
