@@ -91,6 +91,17 @@ IDevice::Uuid Metrics::GetDeviceUuid(const std::string& specifiedDeviceName) con
     return IDevice::Uuid{};
 }
 
+ov::device::LUID Metrics::GetDeviceLUID(const std::string& specifiedDeviceName) const {
+    const auto devName = getDeviceName(specifiedDeviceName);
+    auto device = _backends->getDevice(devName);
+    if (device) {
+        return device->getLUID();
+    }
+    return ov::device::LUID{{
+        0,
+    }};
+}
+
 std::vector<ov::PropertyName> Metrics::GetCachingProperties() const {
     return _cachingProperties;
 }
