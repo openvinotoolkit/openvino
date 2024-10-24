@@ -27,12 +27,11 @@ bool ACLConvertExecutor::init(const ConvertParams& convertParams,
     if (!isCopyOp && dstPrecision == DataType::S8) {
         dstPrecision = DataType::QASYMM8_SIGNED;
     }
-    auto srcDims = srcDesc->getShape().getStaticDims();
-    auto dstDims = dstDesc->getShape().getStaticDims();
-    auto srcDataLayout = getAclDataLayoutByMemoryDesc(srcDesc);
-    auto dstDataLayout = getAclDataLayoutByMemoryDesc(dstDesc);
-    auto srcTensorInfo = TensorInfo(shapeCast(collapse_dims_to_max_rank(srcDims)), 1, srcPrecision, srcDataLayout);
-    auto dstTensorInfo = TensorInfo(shapeCast(collapse_dims_to_max_rank(dstDims)), 1, dstPrecision, dstDataLayout);
+    // Use 1D TensorInfo, since UNKNOWN DataLayout may have accuracy issues
+    auto srcDims1D = convertParams.size;
+    auto dstDims1D = convertParams.size;
+    auto srcTensorInfo = TensorInfo(TensorShape(srcDims1D), 1, srcPrecision);
+    auto dstTensorInfo = TensorInfo(TensorShape(dstDims1D), 1, dstPrecision);
     if (isCopyOp) {
         Status s = NECopy::validate(&srcTensorInfo, &dstTensorInfo);
         if (!s) {
@@ -90,13 +89,6 @@ bool ACLConvertExecutorBuilder::isSupported(const ConvertParams& convertParams,
                     ov::element::i32,
                     ov::element::f32)) {
             DEBUG_LOG("NECopy does not support source precision: ", convertParams.srcPrc.to_string());
-            return false;
-        }
-        // currenlty not support UNKNOWN DataLayout to avoid accuracy issues
-        auto srcDataLayout = getAclDataLayoutByMemoryDesc(srcDesc);
-        auto dstDataLayout = getAclDataLayoutByMemoryDesc(dstDesc);
-        if (srcDataLayout == DataLayout::UNKNOWN || dstDataLayout == DataLayout::UNKNOWN) {
-            DEBUG_LOG("NECopy does not support source or destination layout");
             return false;
         }
         if ((convertParams.srcPrc == ov::element::i8 && !one_of(convertParams.dstPrc,
