@@ -28,6 +28,7 @@ void intel_npu::registerNPUWOptions(OptionsDesc& desc) {
     desc.add<NPUW_CWAI>();
     desc.add<NPUW_DQ>();
     desc.add<NPUW_PMM>();
+    desc.add<NPUW_SLICE_OUT>();
     desc.add<NPUW_SPATIAL>();
     desc.add<NPUW_SPATIAL_NWAY>();
     desc.add<NPUW_SPATIAL_DYN>();
