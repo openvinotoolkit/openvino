@@ -86,7 +86,7 @@ static void CreateLSTMCellOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v4
     assert(!inputs[5].pid.empty());
     if (p.use_new_shape_infer()) {
         auto prim =  cldnn::lstm_cell(layerName+".out0", inputs[0], inputs[1], inputs[2], inputs[3], inputs[4], inputs[5], \
-         cldnn::input_info(), "", "", clip, activations, \
+         cldnn::input_info(), "", "", clip, false, activations, \
                                             activation_params, cldnn::lstm_weights_order::fizo, direction, cldnn::padding(), \
             static_cast<int>(op->get_output_size()));
         p.add_primitive(*op, prim);
@@ -104,7 +104,7 @@ static void CreateLSTMCellOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v4
     p.add_primitive(*op, mutable_prim_1);
 
     p.add_primitive(*op, cldnn::lstm_cell(layerName + ".out0", inputs[0], inputs[1], inputs[2], inputs[3], inputs[4], inputs[5], \
-    cldnn::input_info(), layerName + "_md_write1", "", clip, activations, \
+    cldnn::input_info(), layerName + "_md_write1", "", clip, false, activations, \
                                         activation_params, cldnn::lstm_weights_order::fizo));
 
     p.add_primitive(*op, cldnn::mutable_data(layerName + ".out1", {cldnn::input_info(layerName + ".out0")}, shared_memory));
@@ -128,7 +128,7 @@ static void CreateLSTMSequenceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
     if (p.use_new_shape_infer()) {
         cldnn::lstm_seq prim(layerName, inputs[0], inputs[1], \
             inputs[2], inputs[4], inputs[5], inputs[6], inputs[3], "", "", \
-            clip, activations, activation_params, cldnn::lstm_weights_order::fizo, direction, cldnn::padding(), \
+            clip, false, activations, activation_params, cldnn::lstm_weights_order::fizo, direction, cldnn::padding(), \
             static_cast<int>(op->get_output_size()));
         prim.output_data_types = get_output_data_types(op);
         p.add_primitive(*op, prim);
@@ -151,7 +151,7 @@ static void CreateLSTMSequenceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
     p.add_primitive(*op, mutable_prim_2);
     cldnn::lstm_seq prim(lstm_seq_id + ".out0", inputs[0], inputs[1], \
         inputs[2], inputs[4], inputs[5], inputs[6], inputs[3], mutable_id_1, mutable_id_2, \
-        clip, activations, activation_params, cldnn::lstm_weights_order::fizo, direction);
+        clip, false, activations, activation_params, cldnn::lstm_weights_order::fizo, direction);
     p.add_primitive(*op, prim);
     p.add_primitive(*op, cldnn::mutable_data(lstm_seq_id + ".out1", {cldnn::input_info(lstm_seq_id + ".out0")}, shared_memories.front()));
     p.add_primitive(*op, cldnn::mutable_data(lstm_seq_id + ".out2", {cldnn::input_info(lstm_seq_id + ".out0")}, shared_memories.back()));

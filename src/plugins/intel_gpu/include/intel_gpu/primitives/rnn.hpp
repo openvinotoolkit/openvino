@@ -41,6 +41,7 @@ struct RNNParams : public primitive_base<PType> {
               const primitive_id& out1_prim_id = "",
               const primitive_id& out2_prim_id = "",
               const float clip = 0,
+              bool input_forget = false,
               const std::vector<activation_func>& activations = {activation_func::logistic,
                                                                 activation_func::hyperbolic_tan,
                                                                 activation_func::hyperbolic_tan},
@@ -49,33 +50,31 @@ struct RNNParams : public primitive_base<PType> {
               const uint32_t direction = 0,
               const padding& output_padding = padding(),
               const int num_outputs = 1)
-              : primitive_base<PType>(id, {x, initial_hidden_state, initial_cell_state, W, R, B}),
-                id(id),
-                x(x),
-                initial_hidden_state(initial_hidden_state),
-                initial_cell_state(initial_cell_state),
-                W(W),
-                R(R),
-                B(B),
-                seq_lenghts(seq_lenghts),
-                out1_prim_id(out1_prim_id),
-                out2_prim_id(out2_prim_id),
-                clip(clip),
-                activations(activations),
-                activation_params(activation_params),
-                offset_order(offset_order),
-                direction(direction),
-                output_padding(output_padding),
-                num_outputs(num_outputs) {
-                if (!seq_lenghts.pid.empty()) {
-                    primitive_base<PType>::input.push_back(seq_lenghts);
-                }
-                if (!out1_prim_id.empty()) {
-                    primitive_base<PType>::input.push_back(out1_prim_id);
-                }
-                if (!out2_prim_id.empty()) {
-                    primitive_base<PType>::input.push_back(out2_prim_id);
-                }
+        : primitive_base<PType>(id, {x}, num_outputs, {optional_data_type()}, {output_padding}),
+        id(id),
+        x(x),
+        initial_hidden_state(initial_hidden_state),
+        initial_cell_state(initial_cell_state),
+        W(W),
+        R(R),
+        B(B),
+        seq_lenghts(seq_lenghts),
+        out1_prim_id(out1_prim_id),
+        out2_prim_id(out2_prim_id),
+        clip(clip),
+        input_forget(input_forget),
+        activations(activations),
+        activation_params(activation_params),
+        offset_order(offset_order),
+        direction(direction),
+        output_padding(output_padding),
+        num_outputs(num_outputs) {
+        std::vector<std::string> pids{initial_hidden_state.pid, initial_cell_state.pid, W.pid, R.pid, B.pid, seq_lenghts.pid, out1_prim_id, out2_prim_id};
+        for (auto pid : pids) {
+            if (!pid.empty()) {
+                primitive_base<PType>::input.push_back(pid);
+            }
+        }
     }
 
     primitive_id id;
@@ -90,6 +89,7 @@ struct RNNParams : public primitive_base<PType> {
     primitive_id out2_prim_id;
     /// @brief Cell clip threshold T. It is applied to the input of activations [-T, T]. No clip is applied if it is not specified.
     float clip;
+    bool input_forget;
     /// @brief A list of 3 activation functions for the input, output, forget, cell, and hidden.
     std::vector<activation_func> activations;
     /// @brief Optional scaling values used by some activation functions. The values are consumed in the order of activation functions.
