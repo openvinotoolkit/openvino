@@ -97,7 +97,6 @@ class TestMatMulU4Weights(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_fx_backend
-    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("group_size", [2, 4])
     def test_matmul_u4(self, group_size, ie_device, precision, ir_version):
         self._test(
@@ -159,7 +158,6 @@ class TestMatMulI4Weights(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_fx_backend
-    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("group_size", [2, 4])
     def test_matmul_i4(self, group_size, ie_device, precision, ir_version):
         self._test(
