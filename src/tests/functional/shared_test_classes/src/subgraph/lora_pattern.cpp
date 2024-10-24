@@ -79,7 +79,6 @@ void LoraPatternBase::run_test_random_tensors() {
         if (!(i & 0x1)) { //every even call
             // generate and set state tensors
             for (auto&& item : states) {
-                auto&& states = inferRequest.query_state();
                 auto&& refStates = inferRequestRef.query_state();
                 using ov::test::utils::InputGenerateData;
                 const auto& shape = stateShapes.at(item.get_name());
