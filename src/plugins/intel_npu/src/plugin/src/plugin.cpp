@@ -692,7 +692,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     }
 
     auto original_model = model->clone();
-    auto compiler = getCompiler(localConfig);
+    auto compiler = getCompiler(device, localConfig);
 
     OV_ITT_TASK_NEXT(PLUGIN_COMPILE_MODEL, "compile");
     std::shared_ptr<intel_npu::IGraph> graph;
@@ -764,7 +764,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     std::shared_ptr<ov::ICompiledModel> compiledModel;
 
     try {
-        auto compiler = getCompiler(localConfig);
+        auto compiler = getCompiler(device, localConfig);
 
         auto graphSize = getFileSize(stream);
 
@@ -813,7 +813,9 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     const auto platform = _backends->getCompilationPlatform(localConfig.get<PLATFORM>(), localConfig.get<DEVICE_ID>());
     localConfig.update({{ov::intel_npu::platform.name(), platform}});
 
-    auto compiler = getCompiler(localConfig);
+    auto device = _backends->getDevice(localConfig.get<DEVICE_ID>());
+
+    auto compiler = getCompiler(device, localConfig);
     ov::SupportedOpsMap supportedOpsMap;
     try {
         supportedOpsMap = compiler->query(model, localConfig);
@@ -826,7 +828,8 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     return supportedOpsMap;
 }
 
-std::unique_ptr<ICompilerAdapter> Plugin::getCompiler(const Config& config) const {
+std::unique_ptr<ICompilerAdapter> Plugin::getCompiler(const std::shared_ptr<IDevice>& device,
+                                                      const Config& config) const {
     auto compilerType = config.get<COMPILER_TYPE>();
     _logger.debug("performing createCompiler");
 
@@ -837,13 +840,13 @@ std::unique_ptr<ICompilerAdapter> Plugin::getCompiler(const Config& config) cons
             return std::make_unique<PluginCompilerAdapter>(nullptr);
         }
 
-        return std::make_unique<PluginCompilerAdapter>(_backends->getIEngineBackend()._ptr);
+        return std::make_unique<PluginCompilerAdapter>(device);
 
     case ov::intel_npu::CompilerType::DRIVER:
         if (_backends->getBackendName() != "LEVEL0") {
             OPENVINO_THROW("NPU Compiler Adapter must be used with LEVEL0 backend");
         }
-        return std::make_unique<DriverCompilerAdapter>(_backends->getIEngineBackend()._ptr);
+        return std::make_unique<DriverCompilerAdapter>(device);
     default:
         OPENVINO_THROW("Invalid NPU_COMPILER_TYPE");
     }

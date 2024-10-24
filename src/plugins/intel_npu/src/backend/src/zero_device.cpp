@@ -7,6 +7,7 @@
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
+#include "zero_adapter.hpp"
 #include "zero_host_tensor.hpp"
 #include "zero_infer_request.hpp"
 #include "zero_remote_tensor.hpp"
@@ -168,6 +169,32 @@ std::map<ov::element::Type, float> ZeroDevice::getGops() const {
 
 ov::device::Type ZeroDevice::getDeviceType() const {
     return ov::device::Type::INTEGRATED;
+}
+
+std::shared_ptr<IAdapter> ZeroDevice::createAdapter() {
+    switch (_initStructs->getGraphDdiTable().version()) {
+    case ZE_GRAPH_EXT_VERSION_1_3:
+        return std::make_shared<ZeroAdapter<ze_graph_dditable_ext_1_3_t>>(_initStructs);
+        break;
+    case ZE_GRAPH_EXT_VERSION_1_4:
+        return std::make_shared<ZeroAdapter<ze_graph_dditable_ext_1_4_t>>(_initStructs);
+        break;
+    case ZE_GRAPH_EXT_VERSION_1_5:
+        return std::make_shared<ZeroAdapter<ze_graph_dditable_ext_1_5_t>>(_initStructs);
+        break;
+    case ZE_GRAPH_EXT_VERSION_1_6:
+        return std::make_shared<ZeroAdapter<ze_graph_dditable_ext_1_6_t>>(_initStructs);
+        break;
+    case ZE_GRAPH_EXT_VERSION_1_7:
+        return std::make_shared<ZeroAdapter<ze_graph_dditable_ext_1_7_t>>(_initStructs);
+        break;
+    case ZE_GRAPH_EXT_VERSION_1_8:
+        return std::make_shared<ZeroAdapter<ze_graph_dditable_ext_1_8_t>>(_initStructs);
+        break;
+    default:
+        return std::make_shared<ZeroAdapter<ze_graph_dditable_ext_1_2_t>>(_initStructs);
+        break;
+    }
 }
 
 std::shared_ptr<SyncInferRequest> ZeroDevice::createInferRequest(

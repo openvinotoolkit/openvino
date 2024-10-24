@@ -5,120 +5,30 @@
 #include "driver_compiler_adapter.hpp"
 
 #include <ze_graph_ext.h>
+#include <ze_intel_npu_uuid.h>
 
 #include "cid_graph.hpp"
+#include "driver_compiler_utils.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/runtime.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
-#include "ze_intel_npu_uuid.h"
-#include "zero_adapter.hpp"
-#include "zero_backend.hpp"
 
 namespace intel_npu {
 
-DriverCompilerAdapter::DriverCompilerAdapter(const std::shared_ptr<IEngineBackend>& iEngineBackend)
-    : _logger("DriverCompilerAdapter", Logger::global().level()) {
+DriverCompilerAdapter::DriverCompilerAdapter(const std::shared_ptr<IDevice>& device)
+    : _adapter(device->createAdapter()),
+      _logger("DriverCompilerAdapter", Logger::global().level()) {
     _logger.debug("initialize DriverCompilerAdapter start");
-
-    auto zeroBackend = std::dynamic_pointer_cast<ZeroEngineBackend>(iEngineBackend);
-    if (!zeroBackend) {
-        OPENVINO_THROW("DriverCompilerAdapter init failed to cast zeroBackend, zeroBackend is a nullptr");
-    }
-
-    ze_context_handle_t zeContext = static_cast<ze_context_handle_t>(zeroBackend->getContext());
-    ze_driver_handle_t driverHandle = static_cast<ze_driver_handle_t>(zeroBackend->getDriverHandle());
-    ze_device_handle_t deviceHandle = static_cast<ze_device_handle_t>(zeroBackend->getDeviceHandle());
-    ze_graph_dditable_ext_curr_t& graphDdiTableExt = zeroBackend->getGraphDdiTable();
-    ze_command_queue_npu_dditable_ext_curr_t& commandQueueDdiTable = zeroBackend->getCommandQueueDdiTable();
-
-    uint32_t graphExtVersion = graphDdiTableExt.version();
-
-    _deviceGraphProperties.stype = ZE_STRUCTURE_TYPE_DEVICE_GRAPH_PROPERTIES;
-    auto result = graphDdiTableExt.pfnDeviceGetGraphProperties(deviceHandle, &_deviceGraphProperties);
-    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnDeviceGetGraphProperties", result, graphDdiTableExt);
-
-    ze_device_properties_t deviceProperties = {};
-    deviceProperties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
-    THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetProperties", zeDeviceGetProperties(deviceHandle, &deviceProperties));
-    auto groupOrdinal = zeroUtils::findGroupOrdinal(deviceHandle, deviceProperties);
-    if (driverHandle == nullptr) {
-        OPENVINO_THROW("DriverCompilerAdapter failed to get properties about Driver");
-    }
-
-    _logger.info("DriverCompilerAdapter creating adapter using graphExtVersion");
-
-    switch (graphExtVersion) {
-    case ZE_GRAPH_EXT_VERSION_1_3:
-        _zeroAdapter = std::make_shared<ZeroAdapter<ze_graph_dditable_ext_1_3_t>>(driverHandle,
-                                                                                  deviceHandle,
-                                                                                  zeContext,
-                                                                                  graphDdiTableExt,
-                                                                                  commandQueueDdiTable,
-                                                                                  groupOrdinal);
-        break;
-    case ZE_GRAPH_EXT_VERSION_1_4:
-        _zeroAdapter = std::make_shared<ZeroAdapter<ze_graph_dditable_ext_1_4_t>>(driverHandle,
-                                                                                  deviceHandle,
-                                                                                  zeContext,
-                                                                                  graphDdiTableExt,
-                                                                                  commandQueueDdiTable,
-                                                                                  groupOrdinal);
-        break;
-    case ZE_GRAPH_EXT_VERSION_1_5:
-        _zeroAdapter = std::make_shared<ZeroAdapter<ze_graph_dditable_ext_1_5_t>>(driverHandle,
-                                                                                  deviceHandle,
-                                                                                  zeContext,
-                                                                                  graphDdiTableExt,
-                                                                                  commandQueueDdiTable,
-                                                                                  groupOrdinal);
-        break;
-    case ZE_GRAPH_EXT_VERSION_1_6:
-        _zeroAdapter = std::make_shared<ZeroAdapter<ze_graph_dditable_ext_1_6_t>>(driverHandle,
-                                                                                  deviceHandle,
-                                                                                  zeContext,
-                                                                                  graphDdiTableExt,
-                                                                                  commandQueueDdiTable,
-                                                                                  groupOrdinal);
-        break;
-    case ZE_GRAPH_EXT_VERSION_1_7:
-        _zeroAdapter = std::make_shared<ZeroAdapter<ze_graph_dditable_ext_1_7_t>>(driverHandle,
-                                                                                  deviceHandle,
-                                                                                  zeContext,
-                                                                                  graphDdiTableExt,
-                                                                                  commandQueueDdiTable,
-                                                                                  groupOrdinal);
-        break;
-    case ZE_GRAPH_EXT_VERSION_1_8:
-        _zeroAdapter = std::make_shared<ZeroAdapter<ze_graph_dditable_ext_1_8_t>>(driverHandle,
-                                                                                  deviceHandle,
-                                                                                  zeContext,
-                                                                                  graphDdiTableExt,
-                                                                                  commandQueueDdiTable,
-                                                                                  groupOrdinal);
-        break;
-    default:
-        _zeroAdapter = std::make_shared<ZeroAdapter<ze_graph_dditable_ext_1_2_t>>(driverHandle,
-                                                                                  deviceHandle,
-                                                                                  zeContext,
-                                                                                  graphDdiTableExt,
-                                                                                  commandQueueDdiTable,
-                                                                                  groupOrdinal);
-        break;
-    }
-
-    _logger.info("initialize DriverCompilerAdapter complete, using graphExtVersion: %d.%d",
-                 ZE_MAJOR_VERSION(graphExtVersion),
-                 ZE_MINOR_VERSION(graphExtVersion));
 }
 
 std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<const ov::Model>& model,
                                                        const Config& config) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "compile");
 
-    const ze_graph_compiler_version_info_t& compilerVersion = _deviceGraphProperties.compilerVersion;
-    const auto maxOpsetVersion = _deviceGraphProperties.maxOVOpsetVersionSupported;
+    const ze_graph_compiler_version_info_t& compilerVersion = _adapter->getDeviceGraphProperties().compilerVersion;
+    const auto maxOpsetVersion = _adapter->getDeviceGraphProperties().maxOVOpsetVersionSupported;
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
 
     _logger.debug("serialize IR");
@@ -142,35 +52,35 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
     }
 
     _logger.debug("compile start");
-    ze_graph_handle_t graphHandle = _zeroAdapter->getGraphHandle(std::move(serializedIR), buildFlags, flags);
+    ze_graph_handle_t graphHandle = _adapter->getGraphHandle(std::move(serializedIR), buildFlags, flags);
     _logger.debug("compile end");
 
     OV_ITT_TASK_NEXT(COMPILE_BLOB, "getNetworkMeta");
-    auto networkMeta = _zeroAdapter->getNetworkMeta(graphHandle);
+    auto networkMeta = _adapter->getNetworkMeta(graphHandle);
     networkMeta.name = model->get_friendly_name();
 
-    return std::make_shared<CidGraph>(_zeroAdapter, graphHandle, std::move(networkMeta), config);
+    return std::make_shared<CidGraph>(_adapter, graphHandle, std::move(networkMeta), config);
 }
 
 std::shared_ptr<IGraph> DriverCompilerAdapter::parse(const std::vector<uint8_t>& network, const Config& config) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "parse");
 
     _logger.debug("parse start");
-    ze_graph_handle_t graphHandle = _zeroAdapter->getGraphHandle(network);
+    ze_graph_handle_t graphHandle = _adapter->getGraphHandle(network);
     _logger.debug("parse end");
 
     OV_ITT_TASK_NEXT(PARSE_BLOB, "getNetworkMeta");
-    auto networkMeta = _zeroAdapter->getNetworkMeta(graphHandle);
+    auto networkMeta = _adapter->getNetworkMeta(graphHandle);
 
-    return std::make_shared<CidGraph>(_zeroAdapter, graphHandle, std::move(networkMeta), config);
+    return std::make_shared<CidGraph>(_adapter, graphHandle, std::move(networkMeta), config);
 }
 
 ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,
                                                  const Config& config) const {
     OV_ITT_TASK_CHAIN(query_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "query");
 
-    const ze_graph_compiler_version_info_t& compilerVersion = _deviceGraphProperties.compilerVersion;
-    const auto maxOpsetVersion = _deviceGraphProperties.maxOVOpsetVersionSupported;
+    const ze_graph_compiler_version_info_t& compilerVersion = _adapter->getDeviceGraphProperties().compilerVersion;
+    const auto maxOpsetVersion = _adapter->getDeviceGraphProperties().maxOVOpsetVersionSupported;
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
 
     _logger.debug("serialize IR");
@@ -184,7 +94,7 @@ ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov:
     const std::string deviceName = "NPU";
 
     try {
-        const auto supportedLayers = _zeroAdapter->queryResultFromSupportedLayers(std::move(serializedIR), buildFlags);
+        const auto supportedLayers = _adapter->queryResultFromSupportedLayers(std::move(serializedIR), buildFlags);
         for (auto&& layerName : supportedLayers) {
             result.emplace(layerName, deviceName);
         }

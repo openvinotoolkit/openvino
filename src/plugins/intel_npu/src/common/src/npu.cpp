@@ -75,6 +75,10 @@ std::map<ov::element::Type, float> IDevice::getGops() const {
     OPENVINO_THROW("Get DEVICE_GOPS is not supported");
 }
 
+std::shared_ptr<IAdapter> IDevice::createAdapter() {
+    OPENVINO_THROW("Create Adapter is not supported");
+}
+
 ov::SoPtr<ov::IRemoteTensor> IDevice::createRemoteTensor(std::shared_ptr<ov::IRemoteContext>,
                                                          const ov::element::Type&,
                                                          const ov::Shape&,

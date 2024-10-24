@@ -6,19 +6,18 @@
 
 #include <ze_graph_ext.h>
 
-#include "driver_compiler_utils.hpp"
 #include "intel_npu/common/igraph.hpp"
-#include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
 
 namespace intel_npu {
 
-class IZeroAdapter {
+class IAdapter {
 public:
-    virtual std::unordered_set<std::string> queryResultFromSupportedLayers(SerializedIR serializedIR,
-                                                                           const std::string& buildFlags) const = 0;
+    virtual std::unordered_set<std::string> queryResultFromSupportedLayers(
+        std::pair<size_t, std::shared_ptr<uint8_t>> serializedIR,
+        const std::string& buildFlags) const = 0;
 
-    virtual ze_graph_handle_t getGraphHandle(SerializedIR serializedIR,
+    virtual ze_graph_handle_t getGraphHandle(std::pair<size_t, std::shared_ptr<uint8_t>> serializedIR,
                                              const std::string& buildFlags,
                                              const uint32_t& flags) const = 0;
 
@@ -39,7 +38,9 @@ public:
 
     virtual std::shared_ptr<CommandQueue> crateCommandQueue(const Config& config) const = 0;
 
-    virtual ~IZeroAdapter() = default;
+    virtual ze_device_graph_properties_t getDeviceGraphProperties() const = 0;
+
+    virtual ~IAdapter() = default;
 };
 
 }  // namespace intel_npu

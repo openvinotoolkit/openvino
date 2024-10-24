@@ -53,7 +53,7 @@ public:
                                     const ov::AnyMap& properties) const override;
 
 private:
-    std::unique_ptr<ICompilerAdapter> getCompiler(const Config& config) const;
+    std::unique_ptr<ICompilerAdapter> getCompiler(const std::shared_ptr<IDevice>& device, const Config& config) const;
 
     std::shared_ptr<NPUBackends> _backends;
 

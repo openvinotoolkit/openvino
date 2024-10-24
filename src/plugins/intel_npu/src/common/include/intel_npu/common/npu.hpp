@@ -6,6 +6,7 @@
 
 #include <cstdint>
 
+#include "intel_npu/common/iadapter.hpp"
 #include "intel_npu/common/icompiled_model.hpp"
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/common/sync_infer_request.hpp"
@@ -82,6 +83,8 @@ public:
     virtual ov::device::PCIInfo getPciInfo() const;
     virtual ov::device::Type getDeviceType() const;
     virtual std::map<ov::element::Type, float> getGops() const;
+
+    virtual std::shared_ptr<IAdapter> createAdapter();
 
     virtual std::shared_ptr<SyncInferRequest> createInferRequest(
         const std::shared_ptr<const ICompiledModel>& compiledModel,

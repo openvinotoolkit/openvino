@@ -21,8 +21,6 @@
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
-#include "zero_adapter.hpp"
-#include "zero_backend.hpp"
 
 namespace {
 std::shared_ptr<void> loadLibrary(const std::string& libpath) {
@@ -55,7 +53,7 @@ ov::SoPtr<intel_npu::ICompiler> loadCompiler(const std::string& libpath) {
 
 namespace intel_npu {
 
-PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<IEngineBackend>& iEngineBackend)
+PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<IDevice>& device)
     : _logger("PluginCompilerAdapter", Logger::global().level()) {
     _logger.debug("initialize PluginCompilerAdapter start");
 
@@ -64,96 +62,9 @@ PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<IEngineBacken
     auto libPath = ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(), baseName + OV_BUILD_POSTFIX);
     _compiler = loadCompiler(libPath);
 
-    if (iEngineBackend == nullptr) {
-        return;
+    if (device != nullptr) {
+        _adapter = device->createAdapter();
     }
-
-    auto zeroBackend = std::dynamic_pointer_cast<ZeroEngineBackend>(iEngineBackend);
-    if (zeroBackend == nullptr) {
-        return;
-    }
-
-    ze_context_handle_t zeContext = static_cast<ze_context_handle_t>(zeroBackend->getContext());
-    ze_driver_handle_t driverHandle = static_cast<ze_driver_handle_t>(zeroBackend->getDriverHandle());
-    ze_device_handle_t deviceHandle = static_cast<ze_device_handle_t>(zeroBackend->getDeviceHandle());
-    ze_graph_dditable_ext_curr_t& graphDdiTableExt = zeroBackend->getGraphDdiTable();
-    ze_command_queue_npu_dditable_ext_curr_t& commandQueueDdiTable = zeroBackend->getCommandQueueDdiTable();
-
-    uint32_t graphExtVersion = graphDdiTableExt.version();
-
-    if (driverHandle == nullptr) {
-        OPENVINO_THROW("PluginCompilerAdapter failed to get properties about Driver");
-    }
-
-    ze_device_properties_t deviceProperties = {};
-    deviceProperties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
-    THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetProperties", zeDeviceGetProperties(deviceHandle, &deviceProperties));
-    auto groupOrdinal = zeroUtils::findGroupOrdinal(deviceHandle, deviceProperties);
-
-    _logger.info("PluginCompilerAdapter creating adapter using graphExtVersion");
-
-    switch (graphExtVersion) {
-    case ZE_GRAPH_EXT_VERSION_1_3:
-        _zeroAdapter = std::make_shared<ZeroAdapter<ze_graph_dditable_ext_1_3_t>>(driverHandle,
-                                                                                  deviceHandle,
-                                                                                  zeContext,
-                                                                                  graphDdiTableExt,
-                                                                                  commandQueueDdiTable,
-                                                                                  groupOrdinal);
-        break;
-    case ZE_GRAPH_EXT_VERSION_1_4:
-        _zeroAdapter = std::make_shared<ZeroAdapter<ze_graph_dditable_ext_1_4_t>>(driverHandle,
-                                                                                  deviceHandle,
-                                                                                  zeContext,
-                                                                                  graphDdiTableExt,
-                                                                                  commandQueueDdiTable,
-                                                                                  groupOrdinal);
-        break;
-    case ZE_GRAPH_EXT_VERSION_1_5:
-        _zeroAdapter = std::make_shared<ZeroAdapter<ze_graph_dditable_ext_1_5_t>>(driverHandle,
-                                                                                  deviceHandle,
-                                                                                  zeContext,
-                                                                                  graphDdiTableExt,
-                                                                                  commandQueueDdiTable,
-                                                                                  groupOrdinal);
-        break;
-    case ZE_GRAPH_EXT_VERSION_1_6:
-        _zeroAdapter = std::make_shared<ZeroAdapter<ze_graph_dditable_ext_1_6_t>>(driverHandle,
-                                                                                  deviceHandle,
-                                                                                  zeContext,
-                                                                                  graphDdiTableExt,
-                                                                                  commandQueueDdiTable,
-                                                                                  groupOrdinal);
-        break;
-    case ZE_GRAPH_EXT_VERSION_1_7:
-        _zeroAdapter = std::make_shared<ZeroAdapter<ze_graph_dditable_ext_1_7_t>>(driverHandle,
-                                                                                  deviceHandle,
-                                                                                  zeContext,
-                                                                                  graphDdiTableExt,
-                                                                                  commandQueueDdiTable,
-                                                                                  groupOrdinal);
-        break;
-    case ZE_GRAPH_EXT_VERSION_1_8:
-        _zeroAdapter = std::make_shared<ZeroAdapter<ze_graph_dditable_ext_1_8_t>>(driverHandle,
-                                                                                  deviceHandle,
-                                                                                  zeContext,
-                                                                                  graphDdiTableExt,
-                                                                                  commandQueueDdiTable,
-                                                                                  groupOrdinal);
-        break;
-    default:
-        _zeroAdapter = std::make_shared<ZeroAdapter<ze_graph_dditable_ext_1_2_t>>(driverHandle,
-                                                                                  deviceHandle,
-                                                                                  zeContext,
-                                                                                  graphDdiTableExt,
-                                                                                  commandQueueDdiTable,
-                                                                                  groupOrdinal);
-        break;
-    }
-
-    _logger.info("initialize PluginCompilerAdapter complete, using graphExtVersion: %d.%d",
-                 ZE_MAJOR_VERSION(graphExtVersion),
-                 ZE_MINOR_VERSION(graphExtVersion));
 }
 
 std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<const ov::Model>& model,
@@ -165,11 +76,11 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
     _logger.debug("compile end");
 
     ze_graph_handle_t graphHandle = nullptr;
-    if (_zeroAdapter) {
-        graphHandle = _zeroAdapter->getGraphHandle(networkDesc.compiledNetwork);
+    if (_adapter) {
+        graphHandle = _adapter->getGraphHandle(networkDesc.compiledNetwork);
     }
 
-    auto graph = std::make_shared<CipGraph>(_zeroAdapter,
+    auto graph = std::make_shared<CipGraph>(_adapter,
                                             _compiler,
                                             graphHandle,
                                             std::move(networkDesc.metadata),
@@ -187,11 +98,11 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(const std::vector<uint8_t>&
     _logger.debug("parse end");
 
     ze_graph_handle_t graphHandle = nullptr;
-    if (_zeroAdapter) {
-        graphHandle = _zeroAdapter->getGraphHandle(network);
+    if (_adapter) {
+        graphHandle = _adapter->getGraphHandle(network);
     }
 
-    return std::make_shared<CipGraph>(_zeroAdapter, _compiler, graphHandle, std::move(networkMeta), network, config);
+    return std::make_shared<CipGraph>(_adapter, _compiler, graphHandle, std::move(networkMeta), network, config);
 }
 
 ov::SupportedOpsMap PluginCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,

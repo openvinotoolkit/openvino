@@ -7,6 +7,7 @@
 #include <ze_api.h>
 #include <ze_graph_ext.h>
 
+#include "intel_npu/common/iadapter.hpp"
 #include "intel_npu/common/icompiled_model.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
@@ -31,6 +32,8 @@ public:
     ov::device::PCIInfo getPciInfo() const override;
     std::map<ov::element::Type, float> getGops() const override;
     ov::device::Type getDeviceType() const override;
+
+    std::shared_ptr<IAdapter> createAdapter() override;
 
     std::shared_ptr<SyncInferRequest> createInferRequest(const std::shared_ptr<const ICompiledModel>& compiledModel,
                                                          const std::shared_ptr<IGraph>& graph,
