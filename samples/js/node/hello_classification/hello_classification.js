@@ -1,7 +1,6 @@
 const { addon: ov } = require('openvino-node');
 
-const { cv } = require('opencv-wasm');
-const { getImageData } = require('../helpers.js');
+const Image = require('../image.js');
 const imagenetClassesMap = require('../../assets/datasets/imagenet_class_index.json');
 
 // Parsing and validation of input arguments
@@ -32,21 +31,12 @@ async function main(modelPath, imagePath, deviceName) {
 
   //----------------- Step 3. Set up input -------------------------------------
   // Read input image
-  const imgData = await getImageData(imagePath);
-
-  // Use opencv-wasm to preprocess image.
-  const originalImage = cv.matFromImageData(imgData);
-  const image = new cv.Mat();
-  // The MobileNet model expects images in RGB format.
-  cv.cvtColor(originalImage, image, cv.COLOR_RGBA2RGB);
-
-  const tensorData = new Float32Array(image.data);
-  const shape = [1, image.rows, image.cols, 3];
-  const inputTensor = new ov.Tensor(ov.element.f32, shape, tensorData);
+  const img = await Image.load(imagePath);
+  const inputTensor = img.toTensor();
 
   //----------------- Step 4. Apply preprocessing ------------------------------
   const _ppp = new ov.preprocess.PrePostProcessor(model);
-  _ppp.input().tensor().setShape(shape).setLayout('NHWC');
+  _ppp.input().tensor().setElementType(ov.element.u8).setShape(inputTensor.getShape()).setLayout('NHWC');
   _ppp.input().preprocess().resize(ov.preprocess.resizeAlgorithm.RESIZE_LINEAR);
   _ppp.input().model().setLayout('NHWC');
   _ppp.output().tensor().setElementType(ov.element.f32);
