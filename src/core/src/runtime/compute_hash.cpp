@@ -821,6 +821,7 @@ void ComputeHash<isa>::fold_to_64(const Vmm& v_dst) {
 #endif  // OV_CORE_USE_XBYAK_JIT
 
 size_t compute_hash(const void* src, size_t size) {
+    std::cout << "    compute_hash " << size << std::endl;
 #ifdef OV_CORE_USE_XBYAK_JIT
     if (Generator::mayiuse(avx2)) {
         uint64_t result = 0lu;
