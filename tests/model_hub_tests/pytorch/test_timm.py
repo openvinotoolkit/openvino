@@ -88,8 +88,8 @@ class TestTimmConvertModel(TestTorchConvertModel):
             'skip', 'xfail', 'xfail_trace', 'xfail_export'], f"Incorrect test case for {name}"
         if mark == 'skip':
             pytest.skip(reason)
-        elif mark not in ['xfail', f'xfail_{mode}']:
-            pytest.skip(reason)
+        elif mark in ['xfail', f'xfail_{mode}']:
+            pytest.xfail(reason)
         self.run(name, None, ie_device)
 
     @pytest.mark.nightly
