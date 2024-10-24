@@ -91,7 +91,8 @@ void regclass_graph_op_Loop(py::module m) {
 
     cls.def(
         "set_function",
-        [](const std::shared_ptr<ov::op::v5::Loop>& self, const std::shared_ptr<ov::Model>& func) {
+        [](const std::shared_ptr<ov::op::v5::Loop>& self, const py::object& ie_api_model) {
+            const auto func = ie_api_model.attr("_Model__model").cast<std::shared_ptr<ov::Model>>();
             self->set_function(func);
         },
         py::arg("func"));
