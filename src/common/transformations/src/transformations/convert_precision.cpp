@@ -194,20 +194,22 @@ bool convert_node_input_precision(const std::shared_ptr<ov::Node>& node,
 }
 
 // Part of hotfix from CVS-155745 & CVS-155990
-static bool node_input_output_type_different(const std::shared_ptr<ov::Node> node, const precisions_map& precisions) {
+// The function checks if a node's outputs element
+// type present in FROM types in precisions_map.
+bool node_output_type_match(const std::shared_ptr<ov::Node> node, const precisions_map& precisions) {
     for (const auto& p : precisions) {
         const auto& type_from = p.first;
 
-        auto different_type_input = [&type_from](const ov::Input<Node>& input) -> bool {
-            return input.get_element_type() != type_from;
-        };
+        bool all_match = true;
 
-        auto different_type_output = [&type_from](const ov::Output<Node>& output) -> bool {
-            return output.get_element_type() != type_from;
-        };
+        for (const auto& output : node->outputs()) {
+            if (output.get_element_type() != type_from) {
+                all_match = false;
+                break;
+            }
+        }
 
-        if (std::any_of(node->inputs().cbegin(), node->inputs().cend(), different_type_input) ||
-            std::any_of(node->outputs().cbegin(), node->outputs().cend(), different_type_output)) {
+        if (all_match) {
             return true;
         }
     }
@@ -245,7 +247,7 @@ bool convert_function_precision(const std::shared_ptr<Model>& f,
         // This is a hotfix that checks if FROM types are not different from the
         // node's input/output element type. To be investigated more in CVS-155990
         if ((skip_precision_sensitive && fp16_compression_is_disabled(node) && has_fp16_compression) ||
-            node_input_output_type_different(node, precisions))
+            !node_output_type_match(node, precisions))
             continue;
         is_changed = convert_node_input_precision(node, precisions, type_to_extend) || is_changed;
     }
