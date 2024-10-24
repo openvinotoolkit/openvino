@@ -205,6 +205,8 @@ void clean_batch_properties(const std::string& deviceName, ov::AnyMap& config, c
         }
     }
 }
+
+constexpr bool rw_only = true;
 }  // namespace
 
 bool ov::is_config_applicable(const std::string& user_device_name, const std::string& subprop_device_name) {
@@ -544,8 +546,8 @@ void ov::CoreImpl::register_plugins_in_registry(const std::string& xml_config_fi
     }
 }
 
-ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
-    OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::LoadTime, "CoreImpl::get_plugin");
+ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName, bool on_create_filter_config) const {
+    OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::LoadTime, "CoreImpl::get_plugin::supported_config");
 
     auto deviceName = pluginName;
     if (deviceName == ov::DEFAULT_DEVICE_NAME)
@@ -690,13 +692,17 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
                         ov::DeviceIDParser parser(pluginDesc.first);
                         if (pluginDesc.first.find(deviceName) != std::string::npos && !parser.get_device_id().empty()) {
                             pluginDesc.second.defaultConfig[deviceKey] = parser.get_device_id();
-                            plugin.set_property(pluginDesc.second.defaultConfig);
+                            plugin.set_property(
+                                on_create_filter_config
+                                    ? get_hw_plugin_properties_or_forward(plugin, pluginDesc.second.defaultConfig)
+                                    : pluginDesc.second.defaultConfig);
                         }
                     }
                 }
 
-                // set global device-id independent settings to plugin
-                plugin.set_property(desc.defaultConfig);
+                plugin.set_property(on_create_filter_config
+                                        ? get_hw_plugin_properties_or_forward(plugin, desc.defaultConfig)
+                                        : desc.defaultConfig);
             });
         }
 
@@ -728,6 +734,12 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
     }
 }
 
+ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
+    OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::LoadTime, "CoreImpl::get_plugin");
+    constexpr auto on_plugin_create_filter_config = false;
+    return get_plugin(pluginName, on_plugin_create_filter_config);
+}
+
 ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<const ov::Model>& model_,
                                                           const std::string& device_name,
                                                           const ov::AnyMap& config) const {
@@ -738,7 +750,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     auto model = apply_auto_batching(model_, deviceName, config_with_batch);
 
     auto parsed = parseDeviceNameIntoConfig(deviceName, config_with_batch, is_proxy_device(device_name));
-    auto plugin = get_plugin(parsed._deviceName);
+    auto plugin = get_plugin(parsed._deviceName, !is_virtual_device(parsed._deviceName));
     ov::SoPtr<ov::ICompiledModel> res;
     auto cacheManager = coreConfig.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
     // Skip caching for proxy plugin. HW plugin will load network from the cache
@@ -749,12 +761,12 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
         res = load_model_from_cache(cacheContent, plugin, parsed._config, ov::SoPtr<ov::IRemoteContext>{}, [&]() {
             return compile_model_and_cache(plugin,
                                            model,
-                                           parsed._config,
+                                           get_hw_plugin_properties_or_forward(plugin, parsed._config),
                                            ov::SoPtr<ov::IRemoteContext>{},
                                            cacheContent);
         });
     } else {
-        res = plugin.compile_model(model, parsed._config);
+        res = plugin.compile_model(model, get_hw_plugin_properties_or_forward(plugin, parsed._config));
     }
     return res;
 }
@@ -771,7 +783,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     auto model = apply_auto_batching(model_, deviceName, config_with_batch);
 
     auto parsed = parseDeviceNameIntoConfig(deviceName, config_with_batch, is_proxy_device(deviceName));
-    auto plugin = get_plugin(parsed._deviceName);
+    auto plugin = get_plugin(parsed._deviceName, !is_virtual_device(parsed._deviceName));
     ov::SoPtr<ov::ICompiledModel> res;
     auto cacheManager = coreConfig.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
     // Skip caching for proxy plugin. HW plugin will load network from the cache
@@ -780,10 +792,14 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
         cacheContent.blobId = ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         res = load_model_from_cache(cacheContent, plugin, parsed._config, context, [&]() {
-            return compile_model_and_cache(plugin, model, parsed._config, context, cacheContent);
+            return compile_model_and_cache(plugin,
+                                           model,
+                                           get_hw_plugin_properties_or_forward(plugin, parsed._config),
+                                           context,
+                                           cacheContent);
         });
     } else {
-        res = plugin.compile_model(model, context, parsed._config);
+        res = plugin.compile_model(model, context, get_hw_plugin_properties_or_forward(plugin, parsed._config));
     }
     return res;
 }
@@ -794,11 +810,10 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::LoadTime, "Core::compile_model::Path");
     auto parsed = parseDeviceNameIntoConfig(device_name, config);
     // in case of compile_model(file_name), we need to clear-up core-level properties
-    auto plugin = get_plugin(parsed._deviceName);
+    auto plugin = get_plugin(parsed._deviceName, !is_virtual_device(parsed._deviceName));
     ov::SoPtr<ov::ICompiledModel> compiled_model;
 
     auto cacheManager = coreConfig.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
-
     if (cacheManager && device_supports_model_caching(plugin) && !is_proxy_device(plugin)) {
         // Skip caching for proxy plugin. HW plugin will load network from the cache
         CacheContent cacheContent{cacheManager, model_path};
@@ -807,10 +822,14 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
         compiled_model =
             load_model_from_cache(cacheContent, plugin, parsed._config, ov::SoPtr<ov::IRemoteContext>{}, [&]() {
                 auto model = read_model(model_path, std::string{});
-                return compile_model_and_cache(plugin, model, parsed._config, {}, cacheContent);
+                return compile_model_and_cache(plugin,
+                                               model,
+                                               get_hw_plugin_properties_or_forward(plugin, parsed._config),
+                                               {},
+                                               cacheContent);
             });
     } else {
-        compiled_model = plugin.compile_model(model_path, parsed._config);
+        compiled_model = plugin.compile_model(model_path, get_hw_plugin_properties_or_forward(plugin, parsed._config));
     }
     return compiled_model;
 }
@@ -822,7 +841,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
     OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::compile_model::from_memory");
     auto parsed = parseDeviceNameIntoConfig(device_name, config);
     // in case of compile_model(file_name), we need to clear-up core-level properties
-    auto plugin = get_plugin(parsed._deviceName);
+    auto plugin = get_plugin(parsed._deviceName, !is_virtual_device(parsed._deviceName));
     ov::SoPtr<ov::ICompiledModel> compiled_model;
 
     auto cacheManager = coreConfig.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
@@ -837,13 +856,13 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
                 auto model = read_model(model_str, weights);
                 return compile_model_and_cache(plugin,
                                                model,
-                                               parsed._config,
+                                               get_hw_plugin_properties_or_forward(plugin, parsed._config),
                                                ov::SoPtr<ov::IRemoteContext>{},
                                                cacheContent);
             });
     } else {
         auto model = read_model(model_str, weights);
-        compiled_model = plugin.compile_model(model, parsed._config);
+        compiled_model = plugin.compile_model(model, get_hw_plugin_properties_or_forward(plugin, parsed._config));
     }
     return compiled_model;
 }
@@ -934,28 +953,11 @@ ov::SoPtr<ov::IRemoteContext> ov::CoreImpl::create_context(const std::string& de
     return get_plugin(parsed._deviceName).create_context(parsed._config);
 }
 
-ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& full_device_name,
-                                                const ov::AnyMap& user_properties,
-                                                const bool keep_core_property) const {
-    if (is_virtual_device(full_device_name)) {
-        // Considerations:
-        // 1. in case of virtual devices all the magic will happen on the level when
-        // virtual device calls ICore::get_supported_property for real HW devices
-        // so, for now we can return user properties almost as is without any
-        // filtering / flattening
-        // 2. The only exception here: while common properties like ov::num::streams or
-        // ov::hint::performance_mode are shared across all the devices, the
-        // ov::device::priority cannot be shared, because it's specific for current virtual
-        // plugin. So, we need to remove ov::device::priorities from the list, because it's
-        // supposed to be set for current virtual plugin and cannot be propagated down
-        ov::AnyMap return_properties = user_properties;
-        auto device_priorities_it = return_properties.find(ov::device::priorities.name());
-        if (device_priorities_it != return_properties.end()) {
-            return_properties.erase(device_priorities_it);
-        }
-
-        return return_properties;
-    }
+ov::AnyMap ov::CoreImpl::get_supported_property(const Plugin& plugin,
+                                                const ov::AnyMap& config,
+                                                bool keep_core,
+                                                bool rw_only) const {
+    const auto& full_device_name = plugin.get_name();
 
     static const std::vector<std::string> core_level_properties = {
         ov::cache_dir.name(),
@@ -965,21 +967,20 @@ ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& full_device_n
         ov::hint::allow_auto_batching.name(),
     };
 
-    const auto flattened = ov::parseDeviceNameIntoConfig(full_device_name, user_properties, true);
-    const std::string& device_name = flattened._deviceName;
+    const auto flattened = ov::parseDeviceNameIntoConfig(full_device_name, config, true);
     const auto& flattened_config = flattened._config;
 
     // virtual plugins should bypass core-level properties to HW plugins
     // so, we need to report them as supported
     std::vector<std::string> supported_config_keys;
-    if (keep_core_property) {
+    if (keep_core) {
         supported_config_keys = core_level_properties;
     }
 
     // try to search against OV API 2.0' mutable supported_properties
     try {
-        for (auto&& property : ICore::get_property(device_name, ov::supported_properties, {})) {
-            if (property.is_mutable()) {
+        for (auto&& property : plugin.get_property(ov::supported_properties)) {
+            if (!rw_only || property.is_mutable()) {
                 supported_config_keys.emplace_back(std::move(property));
             }
         }
@@ -988,8 +989,8 @@ ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& full_device_n
 
     // try to search against internal supported_properties
     try {
-        for (auto&& property : ICore::get_property(device_name, ov::internal::supported_properties, {})) {
-            if (property.is_mutable()) {
+        for (auto&& property : plugin.get_property(ov::internal::supported_properties)) {
+            if (!rw_only || property.is_mutable()) {
                 supported_config_keys.emplace_back(std::move(property));
             }
         }
@@ -1005,6 +1006,40 @@ ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& full_device_n
     }
 
     return supported_config;
+}
+
+ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& full_device_name,
+                                                const ov::AnyMap& user_properties,
+                                                const bool keep_core_property) const {
+    if (is_virtual_device(full_device_name)) {
+        // Considerations:
+        // 1. in case of virtual devices all the magic will happen on the level when
+        // virtual device calls ICore::get_supported_property for real HW devices
+        // so, for now we can return user properties almost as is without any
+        // filtering / flattening
+        // 2. The only exception here: while common properties like ov::num::streams or
+        // ov::hint::performance_mode are shared across all the devices, the
+        // ov::device::priority cannot be shared, because it's specific for current virtual
+        // plugin. So, we need to remove ov::device::priorities from the list, because it's
+        // supposed to be set for current virtual plugin and cannot be propagated down
+        auto return_properties = user_properties;
+        auto device_priorities_it = return_properties.find(ov::device::priorities.name());
+        if (device_priorities_it != return_properties.end()) {
+            return_properties.erase(device_priorities_it);
+        }
+        return return_properties;
+    } else {
+        const auto parsed = ov::parseDeviceNameIntoConfig(full_device_name);
+        return get_supported_property(get_plugin(parsed._deviceName), user_properties, keep_core_property, rw_only);
+    }
+}
+
+ov::AnyMap ov::CoreImpl::get_hw_plugin_properties_or_forward(const Plugin& plugin, const AnyMap& config) const {
+    constexpr auto keep_core = false;
+    const auto& device_name = plugin.get_name();
+    const auto forward_config = is_virtual_device(device_name) || is_proxy_device(device_name);
+
+    return forward_config ? config : get_supported_property(plugin, config, keep_core, !rw_only);
 }
 
 ov::SoPtr<ov::IRemoteContext> ov::CoreImpl::get_default_context(const std::string& device_name) const {

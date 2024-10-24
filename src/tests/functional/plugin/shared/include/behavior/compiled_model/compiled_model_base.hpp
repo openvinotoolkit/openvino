@@ -628,14 +628,8 @@ TEST_P(OVCompiledModelBaseTest, canLoadCorrectNetworkToGetExecutableWithIncorrec
     for (const auto& confItem : configuration) {
         config.emplace(confItem.first, confItem.second);
     }
-    bool is_meta_devices = target_device.find("AUTO") != std::string::npos ||
-                           target_device.find("MULTI") != std::string::npos ||
-                           target_device.find("HETERO") != std::string::npos;
-    if (is_meta_devices) {
-        EXPECT_NO_THROW(auto execNet = core->compile_model(function, target_device, config));
-    } else {
-        EXPECT_ANY_THROW(auto execNet = core->compile_model(function, target_device, config));
-    }
+
+    OV_ASSERT_NO_THROW(std::ignore = core->compile_model(function, target_device, config));
 }
 
 typedef std::tuple<ov::element::Type,  // Type to convert

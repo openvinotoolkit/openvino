@@ -183,6 +183,12 @@ private:
     }
     void add_extensions_unsafe(const std::vector<ov::Extension::Ptr>& extensions) const;
 
+    Plugin get_plugin(const std::string& pluginName, bool on_create_filter_config) const;
+
+    AnyMap get_supported_property(const Plugin& plugin, const AnyMap& config, bool keep_core, bool rw_only) const;
+
+    AnyMap get_hw_plugin_properties_or_forward(const Plugin& plugin, const AnyMap& config) const;
+
 public:
     CoreImpl();
 
@@ -291,7 +297,9 @@ public:
 
     ov::SoPtr<ov::IRemoteContext> create_context(const std::string& device_name, const AnyMap& args) const override;
 
-    ov::AnyMap get_supported_property(const std::string& device_name, const ov::AnyMap& config, const bool keep_core_property = true) const override;
+    ov::AnyMap get_supported_property(const std::string& device_name,
+                                      const ov::AnyMap& config,
+                                      const bool keep_core_property = true) const override;
 
     ov::SoPtr<ov::IRemoteContext> get_default_context(const std::string& device_name) const override;
 
