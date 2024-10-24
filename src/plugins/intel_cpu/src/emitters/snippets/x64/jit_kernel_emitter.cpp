@@ -180,16 +180,16 @@ void jit_kernel_static_emitter::init_data_pointers(const std::vector<Xbyak::Reg6
             h->mov(data_ptr_regs[i], h->ptr[reg_runtime_params + GET_OFF(dst_ptrs) + (i - num_inputs) * sizeof(void*)]);
         init_ptr_with_offset(data_ptr_regs[i], data_offsets[i], reg_tmp);
     }
-    // a rare case when num_params is maximal, so we have no spare gprs
-    // * Static case: we can use reg_runtime_params as the last reg_tmp for the last iteration (and corrupt it), since
-    //     it won't be used anymore
-    // * Dynamic case: we will need reg_runtime_params to pass runtime args to LoopScheduler, so we have to
-    //     push a reg on the stack, and restore it value afterward
+    // A rare case when num_params is maximal, so we have no spare gprs
+    // Note that we need to push-pop runtime params because some kernels might need them even in the static case
+    // (e.g. brgemm emitter for amx tile configuration access)
     if (last_iter_explicitly) {
+        h->push(reg_runtime_params);
         h->mov(data_ptr_regs[i], h->ptr[reg_runtime_params + GET_OFF(dst_ptrs) + (i - num_inputs) * sizeof(void*)]);
         reg_tmp = reg_runtime_params;
         // can corrupt reg_runtime_params, since we won't use it anymore
         init_ptr_with_offset(data_ptr_regs[i], data_offsets[i], reg_tmp);
+        h->pop(reg_runtime_params);
     }
 }
 

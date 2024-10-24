@@ -44,6 +44,7 @@ protected:
      * @param linear_ir LinearIR
      */
     void init_tensor_rank(const ov::snippets::lowered::LinearIRCPtr& linear_ir) const override;
+    void initialization(const ov::snippets::lowered::LinearIRCPtr& linear_ir) override;
     /**
      * @brief Calculate Loop parameters of Loop emitters and update these values in CPURuntimeConfig
      * @param linear_ir LinearIR
@@ -51,6 +52,20 @@ protected:
     void update_loop_args(const ov::snippets::lowered::LinearIRCPtr& linear_ir) const;
 
     static const size_t rank6D;
+
+    class BrgemmCopyBLoopPortsAdjuster {
+    public:
+        BrgemmCopyBLoopPortsAdjuster() = default;
+        BrgemmCopyBLoopPortsAdjuster(const ov::snippets::lowered::LinearIRCPtr& linear_ir,
+                                     ov::intel_cpu::CPURuntimeConfigurator *configurator);
+
+        void optimize();
+
+    private:
+        using UniLoopInfoPtr = std::shared_ptr<snippets::lowered::UnifiedLoopInfo>;
+        using ExpLoopInfoPtr = std::shared_ptr<snippets::lowered::ExpandedLoopInfo>;
+        std::unordered_map<UniLoopInfoPtr, std::vector<ExpLoopInfoPtr>> m_affected_uni2exp_map;
+    } loopPortsAdjuster;
 };
 
 }   // namespace intel_cpu
