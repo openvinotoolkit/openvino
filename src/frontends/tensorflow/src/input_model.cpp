@@ -201,7 +201,8 @@ void InputModel::InputModelTFImpl::load_places() {
             // in case PlaceholderWithDefault we put created TensorPlace only to m_default_places container
             // so that we know its shape and type for a case of custom input
             // by default, PlaceholderWithDefault is replaced by Constant with the default value
-            auto pshape = ov::PartialShape::dynamic();
+            // auto pshape = ov::PartialShape::dynamic();
+            auto pshape = ov::PartialShape();
             auto shape_any = node_decoder->get_attribute("shape");
             if (shape_any.is<ov::PartialShape>()) {
                 // sometimes shape attribute can be absent in the graph
