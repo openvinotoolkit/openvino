@@ -93,7 +93,7 @@ struct sdpa_configuration {
     bool is_paged_attention = false;
     int64_t paged_attention_aligned_seq_len = -1;
     int64_t paged_attention_block_size = 0;
-    bool has_scale_val = false;
+    bool has_const_scale_val = false;
     float scale_val = 0.f;
 };
 

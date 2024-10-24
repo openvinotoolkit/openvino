@@ -37,8 +37,11 @@ KERNEL(pa_sdpa_opt)(
 #if MULTI_TOKENS_PROCESSING
     const __global INPUT6_TYPE* subsequence_begins,
 #endif
+#if HAS_SCALE_INPUT
+    const __global SCALE_INPUT_TYPE* scale,
+#endif
 #if HAS_ALIBI
-    const __global INPUT7_TYPE* alibi_slopes,
+    const __global ALIBI_INPUT_TYPE* alibi_slopes,
 #endif
     __global OUTPUT_TYPE* output,
     __global SOFTMAX_ACCUMULATOR_TYPE* exp_sums,
@@ -117,6 +120,8 @@ KERNEL(pa_sdpa_opt)(
         // Apply scale value directly to the query input to improve accuracy in case of a high range of input data
 #ifdef SCALE_VAL
         q_val = TO_INPUT0_TYPE(SCALE_VAL) * q_val;
+#else
+        q_val = *scale * q_val;
 #endif
 
         slm_query[query_idx_local] = q_val;
@@ -133,6 +138,8 @@ KERNEL(pa_sdpa_opt)(
             // Apply scale value directly to the query input to improve accuracy in case of a high range of input data
 #ifdef SCALE_VAL
             q_val[i] = TO_INPUT0_TYPE(SCALE_VAL) * q_val[i];
+#else
+            q_val[i] = *scale * q_val[i];
 #endif
         }
 #endif

@@ -122,6 +122,10 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
                              instance.value_memory_ptr(),
                              instance.subsequence_begins_memory_ptr() };
 
+            if (!desc->scale_val.has_value()) {
+                args.inputs.push_back(instance.input_memory_ptr(9));
+            }
+
             if (desc->has_alibi) {
                 args.inputs.push_back(instance.alibi_memory_ptr());
             }
@@ -142,6 +146,10 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
                     // Multi tokens kernel version has additional subsequence_begins_memory memory
                     // dependency
                     args.inputs.push_back(instance.subsequence_begins_memory_ptr());
+                }
+
+                if (!desc->scale_val.has_value()) {
+                    args.inputs.push_back(instance.input_memory_ptr(9));
                 }
 
                 if (desc->has_alibi) {
@@ -343,8 +351,10 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         config.paged_attention_block_size = static_cast<int64_t>(paged_attention::block_size);
 
         if (desc->scale_val.has_value()) {
-            config.has_scale_val = true;
+            config.has_const_scale_val = true;
             config.scale_val = desc->scale_val.value();
+        } else {
+            config.has_const_scale_val = false;
         }
 
         if (desc->heads_num != desc->kv_heads_num) {
@@ -409,16 +419,22 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
     }
 
     static sdpa_kernel_params_t get_sdpa_kernel_params(const kernel_impl_params& impl_param, const PagedAttentionStage& stage, bool is_dynamic = false) {
+        const auto desc = impl_param.typed_desc<paged_attention>();
         auto params = get_default_params<sdpa_kernel_params_t>(impl_param, is_dynamic);
 
         const auto& query_layout = impl_param.get_input_layout(0);
         const auto& key_layout = impl_param.get_input_layout(1);
         const auto& value_layout = impl_param.get_input_layout(2);
         const auto& subsequence_begins_layout = impl_param.get_input_layout(6);
+        const auto& scale_layout = impl_param.get_input_layout(9);
         const auto& alibi_layout = impl_param.get_input_layout(11);
         const auto has_alibi = alibi_layout.count() > 0;
+        const auto has_scale_input = !desc->scale_val.has_value();
 
         auto inputs_number = 4;
+        if (has_scale_input)
+            inputs_number++;
+
         if (has_alibi)
             inputs_number++;
 
@@ -428,6 +444,9 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         params.inputs[input_idx++] = convert_data_tensor(key_layout);
         params.inputs[input_idx++] = convert_data_tensor(value_layout);
         params.inputs[input_idx++] = convert_data_tensor(subsequence_begins_layout);
+
+        if (has_scale_input)
+            params.inputs[input_idx++] = convert_data_tensor(scale_layout);
 
         if (has_alibi)
             params.inputs[input_idx++] = convert_data_tensor(alibi_layout);
@@ -446,8 +465,12 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
             {0, out_offsets_map.at(0)},
         };
 
+        input_idx = 4;
+        if (has_scale_input)
+            in_tensor_to_offset_map.insert({input_idx++, in_offsets_map.at(9)});
+
         if (has_alibi)
-            in_tensor_to_offset_map.insert({4, in_offsets_map.at(11)});
+            in_tensor_to_offset_map.insert({input_idx++, in_offsets_map.at(11)});
 
         if ((stage == PagedAttentionStage::PREFILL || stage == PagedAttentionStage::MIXED) && !is_dynamic)
             params.conf.paged_attention_aligned_seq_len = get_aligned_seq_len(impl_param, stage);
@@ -458,6 +481,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
     }
 
     static pa_sdpa_kernel_params_t get_pa_sdpa_params(const kernel_impl_params& impl_param, const PagedAttentionStage& stage, bool is_dynamic = false) {
+        const auto desc = impl_param.typed_desc<paged_attention>();
         auto params = get_default_params<pa_sdpa_kernel_params_t>(impl_param, is_dynamic);
 
         const auto& query_layout = impl_param.get_input_layout(0);
@@ -467,10 +491,15 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         const auto& block_indices_layout = impl_param.get_input_layout(7);
         const auto& block_indices_begins_layout = impl_param.get_input_layout(8);
         const auto& subsequence_begins_layout = impl_param.get_input_layout(6);
+        const auto& scale_layout = impl_param.get_input_layout(9);
         const auto& alibi_layout = impl_param.get_input_layout(11);
         const auto has_alibi = alibi_layout.count() > 0;
+        const auto has_scale_input = !desc->scale_val.has_value();
 
         auto inputs_number = 7;
+        if (has_scale_input)
+            inputs_number++;
+
         if (has_alibi)
             inputs_number++;
 
@@ -484,6 +513,9 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         params.inputs[input_idx++] = convert_data_tensor(block_indices_begins_layout);
         params.inputs[input_idx++] = convert_data_tensor(subsequence_begins_layout);
         params.conf = get_sdpa_configuration(impl_param);
+
+        if (has_scale_input)
+            params.inputs[input_idx++] = convert_data_tensor(scale_layout);
 
         if (has_alibi)
             params.inputs[input_idx++] = convert_data_tensor(alibi_layout);
@@ -513,8 +545,12 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
             {0, out_offsets_map.at(0)},
         };
 
+        input_idx = 7;
+        if (has_scale_input)
+            in_tensor_to_offset_map.insert({input_idx++, in_offsets_map.at(9)});
+
         if (has_alibi)
-            in_tensor_to_offset_map.insert({7, in_offsets_map.at(11)});
+            in_tensor_to_offset_map.insert({input_idx++, in_offsets_map.at(11)});
 
         params.set_dynamic_shape_offsets(in_tensor_to_offset_map, out_tensor_to_offset_map);
 

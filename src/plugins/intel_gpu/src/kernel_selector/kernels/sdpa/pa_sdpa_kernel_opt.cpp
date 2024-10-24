@@ -176,11 +176,19 @@ JitConstants PagedAttentionSDPAKernelOpt::GetJitConstants(const pa_sdpa_params& 
     auto sdpa_stage = kernel_idx == KernelsTypes::FINALIZATION || kernel_idx == KernelsTypes::FINALIZATION_MULTI_TOKENS ? 1 : 0;
     jit.AddConstant(MakeJitConstant("SDPA_STAGE_" + std::to_string(sdpa_stage), 1));
 
-    if (config.has_scale_val)
+    if (config.has_const_scale_val) {
         jit.AddConstant(MakeJitConstant("SCALE_VAL", config.scale_val));
+    } else {
+        const size_t scale_input_idx = 7;
+        jit.AddConstant(MakeJitConstant("HAS_SCALE_INPUT", 1));
+        jit.Merge(MakeTypeJitConstants(params.inputs[scale_input_idx].GetDType(), "SCALE_INPUT"));
+    }
 
-    if (params.conf.has_alibi_input)
+    if (params.conf.has_alibi_input) {
+        const size_t alibi_input_idx = config.has_const_scale_val ? 7 : 8;
         jit.AddConstant(MakeJitConstant("HAS_ALIBI", 1));
+        jit.Merge(MakeTypeJitConstants(params.inputs[alibi_input_idx].GetDType(), "ALIBI_INPUT"));
+    }
 
     if (kernel_idx == KernelsTypes::MULTI_TOKENS || kernel_idx == KernelsTypes::FINALIZATION_MULTI_TOKENS)
         jit.AddConstant(MakeJitConstant("MULTI_TOKENS_PROCESSING", 1));
