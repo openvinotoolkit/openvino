@@ -4,9 +4,10 @@ Model Accuracy
 
 
 The following two tables present the absolute accuracy drop calculated as the accuracy difference
-between OV-accuracy and the original frame work accuracy for FP32, and the same for INT8, BF16 and
-FP16 representations of a model on three platform architectures. The third table presents the GenAI model accuracies as absolute accuracy values. Please also refer to notes below
-the table for more information.
+between OV-accuracy and the original framework accuracy for FP32, and the same for INT8, BF16,
+and FP16 representations of a model on three platform architectures. The third table presents
+the GenAI model accuracies as absolute accuracy values. Refer to notes below the table for more
+information.
 
 * A - Intel® Core™ i9-9000K (AVX2), INT8 and FP32
 * B - Intel® Xeon® 6338, (VNNI), INT8 and FP32

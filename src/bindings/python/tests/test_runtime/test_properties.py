@@ -266,6 +266,11 @@ def test_properties_ro(ov_property_ro, expected_value):
         ),
         (props.force_tbb_terminate, "FORCE_TBB_TERMINATE", ((True, True), (False, False))),
         (props.enable_mmap, "ENABLE_MMAP", ((True, True), (False, False))),
+        (
+            props.weights_path,
+            "WEIGHTS_PATH",
+            (("./model.bin", "./model.bin"),),
+        ),
         (hints.inference_precision, "INFERENCE_PRECISION_HINT", ((Type.f32, Type.f32),)),
         (
             hints.model_priority,
