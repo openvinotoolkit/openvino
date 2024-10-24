@@ -23,8 +23,8 @@
 #include "openvino/op/power.hpp"
 #include "openvino/op/tanh.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "transformations/utils/utils.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
+#include "transformations/utils/utils.hpp"
 
 ov::pass::GeluFusionWithErfOne::GeluFusionWithErfOne() {
     MATCHER_SCOPE(GeluFusionWithErfOne);
@@ -289,7 +289,6 @@ ov::pass::GeluFusionWithTanh::GeluFusionWithTanh() {
     // (x * 0.5) * (1 + tanh)
     auto mul_2_2 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input, mul_2_constant});
     auto mul_3_2 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({add_1, mul_2_2});
-
 
     auto mul_3 = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{mul_3_1, mul_3_2});
 
