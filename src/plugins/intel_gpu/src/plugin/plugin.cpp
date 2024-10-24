@@ -160,14 +160,15 @@ Plugin::Plugin() {
     // Set common info for compiled_model_runtime_properties
     auto& ov_version = ov::get_openvino_version();
     m_compiled_model_runtime_properties["OV_VERSION"] = ov_version.buildNumber;
+    dnnl::set_primitive_cache_capacity(1024);
 }
 
 Plugin::~Plugin() {
     // reset oneDNN cache to clean up cached primitives
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    auto capacity = dnnl::get_primitive_cache_capacity();
+    //auto capacity = dnnl::get_primitive_cache_capacity();
     dnnl::set_primitive_cache_capacity(0);
-    dnnl::set_primitive_cache_capacity(capacity);
+    //dnnl::set_primitive_cache_capacity(capacity);
 #endif
 }
 
@@ -813,8 +814,20 @@ uint32_t Plugin::get_optimal_batch_size(const ov::AnyMap& options) const {
     return batch;
 }
 
+class Pluginsentry {
+public:
+    Pluginsentry() {
+        //dnnl::set_primitive_cache_capacity(1024);
+    }
+
+    ~Pluginsentry() {
+        dnnl::set_primitive_cache_capacity(2048);
+    }
+};
+
 }  // namespace intel_gpu
 }  // namespace ov
 
+static ov::intel_gpu::Pluginsentry sentry;
 static const ov::Version version = { CI_BUILD_NUMBER, "Intel GPU plugin" };
 OV_DEFINE_PLUGIN_CREATE_FUNCTION(ov::intel_gpu::Plugin, version)
