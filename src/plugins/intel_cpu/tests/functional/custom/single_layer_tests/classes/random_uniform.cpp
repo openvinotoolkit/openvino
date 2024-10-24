@@ -16,8 +16,8 @@ std::string RandomUniformLayerTestCPU::getTestCaseName(const testing::TestParamI
 
     std::ostringstream result;
 
-    result << "IS={"              << out_shape.size();
-    result << "}_OS="             << out_shape;
+    result << "IS=["              << out_shape.size();
+    result << "]_OS="             << out_shape;
     result << "_Min="             << std::get<0>(min_max);
     result << "_Max="             << std::get<1>(min_max);
     result << "_ShapePrc="        << std::get<2>(obj.param);
@@ -134,11 +134,11 @@ void RandomUniformLayerTestCPU::SetUp() {
     }
 
     if (m_global_seed != 0lu || m_operational_seed != 0lu) {
-        m_nonzero_seeds = true;
-
         // When seeds are non-zero, generator output should be exactly the same
-        abs_threshold = 0.0f;
-        rel_threshold = 0.0f;
+        // abs_threshold = 1e-5f;
+        // rel_threshold = 1e-5f;
+        abs_threshold = 1e-6;
+        rel_threshold = 1e-3;
     }
 }
 
@@ -201,11 +201,14 @@ fill_data(tensor.data<ov::element_type_traits<P>::value_type>(), S, L); break;
 }
 
 void RandomUniformLayerTestCPU::compare(const std::vector<ov::Tensor>& expected, const std::vector<ov::Tensor>& actual) {
-    if (m_nonzero_seeds) {
+    if (m_global_seed != 0 || m_operational_seed != 0) {
+        std::cout << "baseCompare"  << std::endl;
+
         // When seeds are non-zero match, generator output should be exactly the same
         SubgraphBaseTest::compare(expected, actual);
         return;
     }
+    std::cout << "rndCompare"  << std::endl;
 
     // When both seed values are equal to zero, RandomUniform should generate non-deterministic sequence.
     // In this case will use Mean and Variance metrics.

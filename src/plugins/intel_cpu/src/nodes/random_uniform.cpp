@@ -397,6 +397,7 @@ void RandomUniform::prepareGeneratorKernel() {
     }
 
     if (m_jit_kernel) {
+        std::cout << "Kernel" << std::endl;
         if (auto selected_pd = getSelectedPrimitiveDescriptor()) {
             using namespace dnnl::impl::cpu;
             if (m_jit_kernel->getIsa() == x64::avx512_core) {
@@ -407,6 +408,8 @@ void RandomUniform::prepareGeneratorKernel() {
                 selected_pd->setImplementationType(jit_sse42);
             }
         }
+    } else {
+        std::cout << "No kernel" << std::endl;
     }
 #endif // OPENVINO_ARCH_X86_64
 }
@@ -795,14 +798,14 @@ void RandomUniform::computeMersenneTwister(void* out, size_t out_el_num) {
 
                 uint32_t random_numbers[4];
 
-#define EXEC_CASE(P)                                                                                                    \
-                case element::P: {                                                                                      \
+#define EXEC_CASE(P)                                                                                                                      \
+                case element::P: {                                                                                                        \
                     auto output_with_type_ptr = reinterpret_cast<element_type_traits<element::P>::value_type *>(out_shifted_ptr);         \
-                    for (auto work_id = 0; work_id < work_amount; work_id++, output_with_type_ptr += step) {                      \
-                        runMersenneTwister(random_numbers, mersenne_state, mersenne_state_start_idx, work_id);          \
-                        convertToOutputTypeMersenne(random_numbers, m_min_val.P, m_range_val.P, output_with_type_ptr,             \
-                                                    el_remain, m_mersenne_twister_optimization_enabled);                \
-                    }                                                                                                   \
+                    for (auto work_id = 0; work_id < work_amount; work_id++, output_with_type_ptr += step) {                              \
+                        runMersenneTwister(random_numbers, mersenne_state, mersenne_state_start_idx, work_id);                            \
+                        convertToOutputTypeMersenne(random_numbers, m_min_val.P, m_range_val.P, output_with_type_ptr,                     \
+                                                    el_remain, m_mersenne_twister_optimization_enabled);                                  \
+                    }                                                                                                                     \
                 } break;
 
                 switch (m_output_prc) {
