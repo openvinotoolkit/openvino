@@ -293,8 +293,17 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
     size_t output_f = bf_size.second;
 
     auto batch_size = params.is_shape_agnostic ? Align(output_b, tparams.tile_b) : output_b;
-    if (batch_size % (tparams.tile_b * tparams.dispatch_bsv) != 0)
-        return false;
+    // If batch size is prime number, still can apply tile execution to avoid poor performance.
+    if (batch_size % (tparams.tile_b * tparams.dispatch_bsv) != 0) {
+        if ((tparams.dispatch_bsv != 1) || batch_size == 1)
+            return false;
+        size_t tile = simd;
+        while (batch_size % tile != 0)
+            tile--;
+        if (tile > 1)
+            return false;
+    }
+
     if (CeilDiv(output_f, tparams.tile_ofm * simd) % tparams.dispatch_fsv != 0)
         return false;
 
@@ -375,6 +384,9 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
 
     if (params.weights.GetDType() == WeightsType::UINT4 || params.weights.GetDType() == WeightsType::INT4) {
         if (!params.is_shape_agnostic && batch == 1) {
+            if (should_dynamic_quantize(params))
+                return selector.Default(tune_params(1, 2, 4, 2, 1, 1, 1, EXE_MODE_DEFAULT));
+
             // Tuning for Meteor Lake
             if (is_weight_vertical(params, output_f)) {
                 if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2) {
@@ -616,7 +628,7 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     // Validated perf gain, Dynamic quantize force enable SCALE_POST_OP for char type multiplication
     if (should_dynamic_quantize(params)) {
         jit.AddConstant(MakeJitConstant("DYNAMIC_QUANTIZE", 1));
-        jit.AddConstant(MakeJitConstant("DECOMPRESSION_SCALE_POST_OP", 1));
+        jit.AddConstant(MakeJitConstant("DQ_DECOMPRESSION_SCALE_POST_OP", 1));
         jit.AddConstant(MakeJitConstant("DQ_TYPE", "char"));
         jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", quantize_grp_size));
     } else {
