@@ -24,14 +24,49 @@ bool axes_has_and_set_bound(const Node& op) {
 }  // namespace
 }  // namespace validate
 
-namespace v0 {
-Squeeze::Squeeze() : Op() {}
+namespace util {
+// SqueezeBase::SqueezeBase() : Op() {}
 
-Squeeze::Squeeze(const Output<Node>& data, const Output<Node>& axes) : Op({data, axes}) {
+SqueezeBase::SqueezeBase(const Output<Node>& data, const Output<Node>& axes) : Op({data, axes}) {
     constructor_validate_and_infer_types();
 }
 
-Squeeze::Squeeze(const Output<Node>& data) : Op({data}) {
+SqueezeBase::SqueezeBase(const Output<Node>& data) : Op({data}) {
+    constructor_validate_and_infer_types();
+}
+
+bool SqueezeBase::can_constant_fold(const OutputVector& inputs_values) const {
+    return get_output_partial_shape(0).is_static() && !is_const_fold_disabled();
+}
+
+bool SqueezeBase::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {
+    OV_OP_SCOPE(util_SqueezeBase_constant_fold);
+    if (!can_constant_fold(inputs_values)) {
+        return false;
+    }
+
+    if (auto data_const = std::dynamic_pointer_cast<v0::Constant>(inputs_values[0].get_node_shared_ptr())) {
+        const auto& shape = get_output_shape(0);
+        output_values[0] = std::make_shared<v0::Constant>(*data_const, shape);
+        return true;
+    }
+    return false;
+}
+
+bool SqueezeBase::is_dynamic() const {
+    return get_output_partial_shape(0).is_dynamic();
+}
+
+}  // namespace util
+
+namespace v0 {
+Squeeze::Squeeze() : util::SqueezeBase() {}
+
+Squeeze::Squeeze(const Output<Node>& data, const Output<Node>& axes) : util::SqueezeBase(data, axes) {
+    constructor_validate_and_infer_types();
+}
+
+Squeeze::Squeeze(const Output<Node>& data) : util::SqueezeBase(data) {
     constructor_validate_and_infer_types();
 }
 
@@ -105,39 +140,18 @@ bool Squeeze::evaluate_symbol(TensorSymbolVector& output_symbols) const {
     return validate::axes_has_and_set_bound(*this) && ov::util::default_symbol_evaluator(this, output_symbols);
 }
 
-bool Squeeze::can_constant_fold(const OutputVector& inputs_values) const {
-    return get_output_partial_shape(0).is_static() && !is_const_fold_disabled();
-}
-
-bool Squeeze::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {
-    OV_OP_SCOPE(v0_Squeeze_constant_fold);
-    if (!can_constant_fold(inputs_values)) {
-        return false;
-    }
-
-    if (auto data_const = std::dynamic_pointer_cast<Constant>(inputs_values[0].get_node_shared_ptr())) {
-        const auto& shape = get_output_shape(0);
-        output_values[0] = std::make_shared<Constant>(*data_const, shape);
-        return true;
-    }
-    return false;
-}
-
-bool Squeeze::is_dynamic() const {
-    return get_output_partial_shape(0).is_dynamic();
-}
 
 }  // namespace v0
 
 namespace v15 {
-Squeeze::Squeeze() : Op() {}
+Squeeze::Squeeze() : util::SqueezeBase() {}
 
-Squeeze::Squeeze(const Output<Node>& data) : Op({data}) {
+Squeeze::Squeeze(const Output<Node>& data) : util::SqueezeBase(data) {
     constructor_validate_and_infer_types();
 }
 
 Squeeze::Squeeze(const Output<Node>& data, const Output<Node>& axes, const bool allow_axis_skip)
-    : Op({data, axes}),
+    : util::SqueezeBase(data, axes),
       m_allow_axis_skip{allow_axis_skip} {
     constructor_validate_and_infer_types();
 }
@@ -210,24 +224,6 @@ bool Squeeze::evaluate_upper(TensorVector& output_values) const {
 
 bool Squeeze::evaluate_symbol(TensorSymbolVector& output_symbols) const {
     return validate::axes_has_and_set_bound(*this) && ov::util::default_symbol_evaluator(this, output_symbols);
-}
-
-bool Squeeze::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {
-    OV_OP_SCOPE(v15_Squeeze_constant_fold);
-    if (get_output_partial_shape(0).is_dynamic() || is_const_fold_disabled()) {
-        return false;
-    }
-
-    if (auto data_const = std::dynamic_pointer_cast<opset1::Constant>(inputs_values[0].get_node_shared_ptr())) {
-        const auto& shape = get_output_shape(0);
-        output_values[0] = std::make_shared<v0::Constant>(*data_const, shape);
-        return true;
-    }
-    return false;
-}
-
-bool Squeeze::is_dynamic() const {
-    return get_output_partial_shape(0).is_dynamic();
 }
 
 bool Squeeze::visit_attributes(AttributeVisitor& visitor) {
