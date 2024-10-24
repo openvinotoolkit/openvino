@@ -86,7 +86,13 @@ bool mark_shape_of_subgraphs::can_mark_node(const program_node& node) {
         return false;
     }
 
-    return true;
+    auto available_impl_types = node.type()->get_available_impl_types(node);
+    auto cpu_impl_found = available_impl_types.find(impl_types::cpu) != available_impl_types.end();
+
+    if (cpu_impl_found)
+        return true;
+
+    return false;
 }
 
 void mark_shape_of_subgraphs::mark_node(program_node& node) {
