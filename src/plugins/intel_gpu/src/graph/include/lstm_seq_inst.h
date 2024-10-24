@@ -17,15 +17,15 @@ public:
     using parent::parent;
 
     program_node& input() const { return get_dependency(0); }
-    lstm_weights_order offset_order() const { return get_primitive()->params.offset_order; }
+    lstm_weights_order offset_order() const { return get_primitive()->offset_order; }
     float clip() const {
-        float clip_val = get_primitive()->params.clip;
+        float clip_val = get_primitive()->clip;
         OPENVINO_ASSERT(clip_val >= 0, "Clip value < 0");
         return clip_val;
     }
-    int32_t direction() const { return get_primitive()->params.direction; }
+    int32_t direction() const { return get_primitive()->direction; }
     std::vector<activation_func> activations() const {
-        return get_primitive()->params.activations;
+        return get_primitive()->activations;
     }
     bool permute_inserted = false;
 };
@@ -45,15 +45,15 @@ public:
 
 public:
     typed_primitive_inst(network& network, lstm_seq_node const& node);
-    lstm_weights_order offset_order() const { return get_typed_desc<lstm_seq>()->params.offset_order; }
+    lstm_weights_order offset_order() const { return get_typed_desc<lstm_seq>()->offset_order; }
     float clip() const {
-        float clip_val = get_typed_desc<lstm_seq>()->params.clip;
+        float clip_val = get_typed_desc<lstm_seq>()->clip;
         if (clip_val < 0)
             throw std::range_error("Clip value < 0");
         return clip_val;
     }
-    uint32_t direction() const { return get_typed_desc<lstm_seq>()->params.direction; }
-    bool has_cell() const { return !get_typed_desc<lstm_seq>()->params.initial_cell_state.pid.empty(); }
+    uint32_t direction() const { return get_typed_desc<lstm_seq>()->direction; }
+    bool has_cell() const { return !get_typed_desc<lstm_seq>()->initial_cell_state.pid.empty(); }
 };
 
 using lstm_seq_inst = typed_primitive_inst<lstm_seq>;

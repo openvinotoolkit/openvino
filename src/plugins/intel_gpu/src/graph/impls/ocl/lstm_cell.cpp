@@ -50,24 +50,24 @@ public:
             params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
         }
 
-        if (!primitive->params.activations.empty()) {
-            auto a_sz = primitive->params.activations.size();
-            auto param_sz = primitive->params.activation_params.size();
+        if (!primitive->activations.empty()) {
+            auto a_sz = primitive->activations.size();
+            auto param_sz = primitive->activation_params.size();
             OPENVINO_ASSERT(param_sz == 0 || a_sz == param_sz, "[GPU] Unexpected activation params count in lstm_cell impl: ", param_sz);
             for (size_t i = 0; i < a_sz; i++) {
-                params.activations.emplace_back(get_kernel_selector_activation_param(primitive->params.activations[i]),
-                                                         param_sz ? primitive->params.activation_params[i].a : 0.0f,
-                                                         param_sz ? primitive->params.activation_params[i].b : 0.0f);
+                params.activations.emplace_back(get_kernel_selector_activation_param(primitive->activations[i]),
+                                                         param_sz ? primitive->activation_params[i].a : 0.0f,
+                                                         param_sz ? primitive->activation_params[i].b : 0.0f);
             }
         }
 
-        if (primitive->params.clip > 0.0f) {
-            params.activations.emplace_back(get_kernel_selector_activation_param(activation_func::clamp), -primitive->params.clip, primitive->params.clip);
+        if (primitive->clip > 0.0f) {
+            params.activations.emplace_back(get_kernel_selector_activation_param(activation_func::clamp), -primitive->clip, primitive->clip);
         }
 
-        params.SetOffsetOrder(static_cast<int32_t>(primitive->params.offset_order));
-        params.clip = primitive->params.clip;
-        params.direction = primitive->params.direction;
+        params.SetOffsetOrder(static_cast<int32_t>(primitive->offset_order));
+        params.clip = primitive->clip;
+        params.direction = primitive->direction;
         //Legacy multi-output
         params.outputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));
 

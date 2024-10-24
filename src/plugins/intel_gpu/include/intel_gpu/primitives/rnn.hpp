@@ -26,8 +26,9 @@ enum class lstm_weights_order {
     fizo
 };
 
-struct RNNParams{
-    RNNParams() = default;
+template <typename PType>
+struct RNNParams : public primitive_base<PType> {
+    RNNParams() : primitive_base<PType>("", {}) {}
     RNNParams(const RNNParams&) = default;
     RNNParams(const primitive_id& id,
               const input_info& x,
@@ -48,7 +49,8 @@ struct RNNParams{
               const uint32_t direction = 0,
               const padding& output_padding = padding(),
               const int num_outputs = 1)
-              : id(id),
+              : primitive_base<PType>(id, {x, initial_hidden_state, initial_cell_state, W, R, B}),
+                id(id),
                 x(x),
                 initial_hidden_state(initial_hidden_state),
                 initial_cell_state(initial_cell_state),
@@ -64,7 +66,17 @@ struct RNNParams{
                 offset_order(offset_order),
                 direction(direction),
                 output_padding(output_padding),
-                num_outputs(num_outputs) {}
+                num_outputs(num_outputs) {
+                if (!seq_lenghts.pid.empty()) {
+                    primitive_base<PType>::input.push_back(seq_lenghts);
+                }
+                if (!out1_prim_id.empty()) {
+                    primitive_base<PType>::input.push_back(out1_prim_id);
+                }
+                if (!out2_prim_id.empty()) {
+                    primitive_base<PType>::input.push_back(out2_prim_id);
+                }
+    }
 
     primitive_id id;
     input_info x;
@@ -89,8 +101,9 @@ struct RNNParams{
     padding output_padding;
     int num_outputs;
 
-    size_t hash() const {
-        size_t seed = hash_combine(3, id);
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, id);
         seed = hash_combine(seed, x.pid);
         seed = hash_combine(seed, initial_hidden_state.pid);
         seed = hash_combine(seed, initial_cell_state.pid);
@@ -112,14 +125,18 @@ struct RNNParams{
         return seed;
     }
 
-    bool operator==(const RNNParams& rhs) const {
-        bool act_params_eq = activation_params.size() == rhs.activation_params.size();
+    bool operator==(const primitive& rhs) const override {
+        if (!primitive::compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const PType>(rhs);
+        bool act_params_eq = activation_params.size() == rhs_casted.activation_params.size();
         for (size_t i = 0; i < activation_params.size(); ++i) {
-            act_params_eq &= activation_params[i].a == rhs.activation_params[i].a &&
-                             activation_params[i].b == rhs.activation_params[i].b;
+            act_params_eq &= activation_params[i].a == rhs_casted.activation_params[i].a &&
+                             activation_params[i].b == rhs_casted.activation_params[i].b;
         }
 
-        #define cmp_fields(name) name == rhs.name
+        #define cmp_fields(name) name == rhs_casted.name
         return act_params_eq &&
                cmp_fields(id) &&
                cmp_fields(x) &&
@@ -140,7 +157,7 @@ struct RNNParams{
         #undef cmp_fields
     }
 
-    void save(BinaryOutputBuffer& ob) const {
+    void save(BinaryOutputBuffer& ob) const override {
         ob << id;
         ob << x;
         ob << initial_hidden_state;
@@ -179,56 +196,19 @@ struct RNNParams{
         ib >> output_padding;
         ib >> num_outputs;
     }
-
-    std::vector<input_info> get_inputs() const {
-        return filter_empty_id( {x, initial_hidden_state, initial_cell_state, W, R, B, seq_lenghts, input_info(out1_prim_id), input_info(out2_prim_id)});
-    }
-
-protected:
-    std::vector<input_info> filter_empty_id(const std::vector<input_info> inputs_info) const {
-        std::vector<input_info> out;
-        for (const auto& input_info : inputs_info) {
-            if (!input_info.pid.empty()) {
-                out.emplace_back(input_info);
-            }
-        }
-        return out;
-    }
 };
 
-struct lstm_seq : public primitive_base<lstm_seq> {
+struct lstm_seq : public RNNParams<lstm_seq> {
     CLDNN_DECLARE_PRIMITIVE(lstm_seq)
-    lstm_seq() : primitive_base("", {}) {}
-
     using vec_activation = std::vector<activation_func>;
     using vec_activation_param = std::vector<activation_additional_params>;
-    lstm_seq(const RNNParams& p): primitive_base(p.id, p.get_inputs(), p.num_outputs, \
-        {optional_data_type()}, {p.output_padding}), params(p), weights(params.W), bias(params.B) {}
-    RNNParams params;
-    input_info weights;
-    input_info bias;
-    size_t hash() const override {
-        size_t seed = primitive::hash();
-        seed = hash_combine(seed, params.hash());
-        return seed;
+    using RNNParams::RNNParams;
+    lstm_seq() : RNNParams() {
+        weights = W.pid;
+        input = x.pid;
     }
-
-    bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
-            return false;
-        auto rhs_casted = downcast<const lstm_seq>(rhs);
-        return params == rhs_casted.params && output_data_types == rhs_casted.output_data_types;
-    }
-
-    void save(BinaryOutputBuffer& ob) const override {
-        primitive_base<lstm_seq>::save(ob);
-        params.save(ob);
-    }
-
-    void load(BinaryInputBuffer& ib) override {
-        primitive_base<lstm_seq>::load(ib);
-        params.load(ib);
-    }
+    lstm_seq(const lstm_seq&) = default;
+    primitive_id input;
+    primitive_id weights;
 };
-
 } //namespace cldnn
