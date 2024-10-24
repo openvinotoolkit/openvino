@@ -244,11 +244,6 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
             return std::move(orig_impl_param);
         }
 
-        if (orig_impl_param.dev_type == cldnn::device_type::integrated_gpu &&
-            batch_size <= 91 && input_shape.back() >= 512) {
-            return std::move(orig_impl_param);
-        }
-
         size_t fake_align_base = 8;
         if (orig_impl_param.dev_type == cldnn::device_type::integrated_gpu) {
             auto weights_layout_dt = orig_impl_param.weights_layout.value().data_type;
