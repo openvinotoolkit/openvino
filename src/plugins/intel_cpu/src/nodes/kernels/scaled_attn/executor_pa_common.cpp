@@ -114,6 +114,32 @@ void JitMatMulVecAMX::generate() {
 
 #endif
 
+#ifdef OPENVINO_ARCH_ARM64
+
+void JitMatMulVecAARCH64::generate() {
+    const int kStep = 32;
+    if ((m_head_size % 32) != 0)
+        throw std::runtime_error("head size is not multiple of 32");
+    if ((m_block_size % 16) != 0)
+        throw std::runtime_error("block size is not multiple of 16");
+
+    auto num_B_tiles = m_head_size / kStep;
+    if (num_B_tiles > 6)
+        throw std::runtime_error("number of B tiles is bigger than 6");
+
+    for (int m = 0; m < m_block_size; m += 16) {
+        float32x4_t acc = vdupq_n_f32(0.0f); 
+        for (int i = 0; i < num_B_tiles; i++) {
+            float32x4_t A = vld1q_f32(ptrA + i * 4);
+            float32x4_t B = vld1q_f32(ptrB + i * 4); 
+            acc = vmlaq_f32(acc, A, B);
+        }
+        vst1q_f32(ptrC + m * sizeof(float), acc); 
+    }
+}
+
+#endif
+
 }  // namespace Cpu
 }  // namespace Extensions
 }  // namespace ov
