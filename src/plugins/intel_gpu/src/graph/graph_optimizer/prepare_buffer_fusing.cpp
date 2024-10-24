@@ -11,6 +11,7 @@
 #include "crop_inst.h"
 #include "eltwise_inst.h"
 #include "gemm_inst.h"
+#include "reorder_inst.h"
 #include "read_value_inst.h"
 #include "reshape_inst.h"
 #include "permute_inst.h"
