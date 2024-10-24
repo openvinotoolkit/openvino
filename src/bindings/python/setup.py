@@ -44,12 +44,12 @@ elif machine == "riscv64":
 # The following variables can be defined in environment or .env file
 SCRIPT_DIR = Path(__file__).resolve().parents[0]
 WORKING_DIR = Path.cwd()
-BUILD_BASE = f"{WORKING_DIR}/build_{PYTHON_VERSION}"
-OPENVINO_SOURCE_DIR = SCRIPT_DIR.parents[3]
-OPENVINO_BINARY_DIR = os.getenv("OPENVINO_BINARY_DIR")
+BUILD_BASE = f"build_{PYTHON_VERSION}"
+OPENVINO_SOURCE_DIR = SCRIPT_DIR.parents[2]
+OPENVINO_BINARY_DIR = os.getenv("OPENVINO_BINARY_DIR", f'{OPENVINO_SOURCE_DIR}/build_wheel')
 OPENVINO_PYTHON_BINARY_DIR = os.getenv("OPENVINO_PYTHON_BINARY_DIR", "python_build")
 CONFIG = os.getenv("BUILD_TYPE", "Release")
-OV_RUNTIME_LIBS_DIR = os.getenv("OV_RUNTIME_LIBS_DIR", f"runtime/{LIBS_DIR}/{ARCH}/{CONFIG}")
+OV_RUNTIME_LIBS_DIR = os.getenv("OV_RUNTIME_LIBS_DIR", f"runtime/{LIBS_DIR}/{ARCH}")
 TBB_LIBS_DIR = os.getenv("TBB_LIBS_DIR", f"runtime/3rdparty/tbb/{LIBS_DIR}")
 PUGIXML_LIBS_DIR = os.getenv("PUGIXML_LIBS_DIR", f"runtime/3rdparty/pugixml/{LIBS_DIR}")
 PY_PACKAGES_DIR = os.getenv("PY_PACKAGES_DIR", "python")
@@ -297,7 +297,7 @@ class CustomBuild(build):
             # perform installation steps if we are not given a full path
             if not os.path.isabs(install_dir):
                 # install_dir is just a sub-dir after install prefix, let's make a full path
-                comp_data["install_dir"] = os.path.join(prefix, install_dir)
+                # comp_data["install_dir"] = os.path.join(prefix, install_dir)
 
                 # even perform a build in case of binary directory does not exist
                 binary_dir = binary_dir if os.path.isabs(binary_dir) else os.path.join(self.build_temp, binary_dir)
@@ -351,7 +351,6 @@ class CustomBuild(build):
             (dst / path_rel.parent).mkdir(exist_ok=True, parents=True)
             copyfile(path, dst / path_rel)
 
-
 class PrepareLibs(build_clib):
     """Prepares prebuilt libraries.
 
@@ -371,7 +370,7 @@ class PrepareLibs(build_clib):
     def post_install(self, install_cfg):
         """Install prebuilt libraries to the temp directories, set rpath."""
         for comp, comp_data in install_cfg.items():
-            install_dir = comp_data.get("install_dir")
+            install_dir = os.path.join(comp_data.get("prefix"), comp_data.get("install_dir"))
 
             # we need to resolve symlinks before setting rpath to avoid doing it multiple times
             install_dir_path = Path(install_dir)
@@ -457,6 +456,7 @@ class PrepareLibs(build_clib):
 
         for src_dir in src_dirs:
             # copy so / dylib files to WHEEL_LIBS_INSTALL_DIR (clibs) inside python package
+            self.announce(f"copy_package_libs: src_dir: {src_dir}", level=log.INFO)
             for file_path in Path(src_dir).rglob("*"):
                 file_name = os.path.basename(file_path)
                 if file_path.is_symlink():
@@ -465,12 +465,13 @@ class PrepareLibs(build_clib):
                 if file_path.is_file() and not is_blacklisted(file_name, blacklist_patterns):
                     dst_file = os.path.join(package_clibs_dir, file_name)
                     copyfile(file_path, dst_file)
-                    self.announce(f"Copy {file_path} to {dst_file}", level=3)
+                    self.announce(f"Copy {file_path} to {dst_file}", level=log.INFO)
 
         if Path(package_clibs_dir).exists():
             self.announce(f"Adding {WHEEL_LIBS_PACKAGE} package", level=3)
             packages.append(WHEEL_LIBS_PACKAGE)
             package_data.update({WHEEL_LIBS_PACKAGE: ["*"]})
+
 
     def copy_package_data(self, src_dirs):
         """Collect package data files from preinstalled dirs and put to the subpackage."""
@@ -723,18 +724,12 @@ def get_description(desc_file_path):
     return description
 
 
-def get_install_requires(requirements_file_path):
-    """Read dependencies from requirements.txt."""
-    with open(requirements_file_path, "r", encoding="utf-8") as fstream:
-        install_requirements = fstream.read()
-    return install_requirements
-
-
 def get_install_dirs_list(install_cfg):
     """Collect all available directories with clibs or python extensions."""
     install_dirs = []
     for comp_info in install_cfg.values():
         full_install_dir = os.path.join(comp_info.get("prefix"), comp_info.get("install_dir"))
+        print(f"get_install_dirs_list: prefix: {comp_info.get('prefix')}, install_dir: {comp_info.get('install_dir')}")
         if full_install_dir not in install_dirs:
             install_dirs.append(full_install_dir)
     return install_dirs
@@ -775,6 +770,8 @@ def concat_files(input_files, output_file):
 
 OPENVINO_VERSION = WHEEL_VERSION = os.getenv("WHEEL_VERSION", "0.0.0")
 PACKAGE_DIR = get_package_dir(PY_INSTALL_CFG)
+print(f"PACKAGE_DIR: {PACKAGE_DIR}")
+print(f"OPENVINO_SOURCE_DIR: {OPENVINO_SOURCE_DIR}")
 # need to create package dir, because since https://github.com/pypa/wheel/commit/e43f2fcb296c2ac63e8bac2549ab596ab79accd0
 # egg_info command works in this folder, because it's being created automatically
 os.makedirs(PACKAGE_DIR, exist_ok=True)
@@ -799,11 +796,6 @@ setup(
     name="openvino",
     version=WHEEL_VERSION,
     build=os.getenv("WHEEL_BUILD", "000"),
-    author_email="openvino@intel.com",
-    license="OSI Approved :: Apache Software License",
-    author="Intel(R) Corporation",
-    description="OpenVINO(TM) Runtime",
-    install_requires=get_install_requires(SCRIPT_DIR.parents[0] / "requirements.txt"),
     long_description=get_description(long_description_md),
     long_description_content_type="text/markdown",
     download_url="https://github.com/openvinotoolkit/openvino/releases",
