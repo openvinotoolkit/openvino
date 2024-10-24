@@ -724,13 +724,6 @@ def get_description(desc_file_path):
     return description
 
 
-def get_install_requires(requirements_file_path):
-    """Read dependencies from requirements.txt."""
-    with open(requirements_file_path, "r", encoding="utf-8") as fstream:
-        install_requirements = fstream.read()
-    return install_requirements
-
-
 def get_install_dirs_list(install_cfg):
     """Collect all available directories with clibs or python extensions."""
     install_dirs = []
@@ -803,7 +796,6 @@ setup(
     name="openvino",
     version=WHEEL_VERSION,
     build=os.getenv("WHEEL_BUILD", "000"),
-    # install_requires=get_install_requires(SCRIPT_DIR.parents[0] / "requirements.txt"),
     long_description=get_description(long_description_md),
     long_description_content_type="text/markdown",
     download_url="https://github.com/openvinotoolkit/openvino/releases",
