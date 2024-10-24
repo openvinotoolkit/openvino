@@ -12,6 +12,7 @@
 #include "checkpoint_utils.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/frontend/exception.hpp"
+#include "openvino/util/file_util.hpp"
 #include "ov_tensorflow/saved_tensor_slice.pb.h"
 #include "ov_tensorflow/tensor_shape.pb.h"
 #include "ov_tensorflow/types.pb.h"
@@ -33,7 +34,7 @@ struct VariableInfo {
 // reads checkpoints of v1 version
 // it parses value, shape and type for Variable nodes
 class CheckpointV1Reader {
-    const std::string m_checkpoints;
+    const ov::util::Path m_checkpoints;
     // a map from Variable name to its informations
     std::unordered_map<std::string, VariableInfo> m_variables_info_map;
     // a vector of streams for shards, where shard is one checkpoint file
