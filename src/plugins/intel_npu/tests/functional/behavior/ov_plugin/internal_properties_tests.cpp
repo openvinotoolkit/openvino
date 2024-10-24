@@ -6,7 +6,7 @@
 #include "overload/ov_plugin/internal_properties_tests.hpp"
 
 #include "common/npu_test_env_cfg.hpp"
-#include "npu_private_properties.hpp"
+#include "intel_npu/npu_private_properties.hpp"
 
 namespace ov::test::behavior {
 
