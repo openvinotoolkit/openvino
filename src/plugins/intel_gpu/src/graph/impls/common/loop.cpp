@@ -198,9 +198,7 @@ struct loop_impl : typed_primitive_impl<loop> {
         // If there are concatenated_input_mem_mappings or backedge_memory_mappings we need to wait for
         // previous tasks before accessing memory in get_sliced_mem() and setup_iteration() functions
         if (!concatenated_input_mem_mappings.empty() || !backedge_memory_mappings.empty()) {
-            for (auto& e : events) {
-                e->wait();
-            }
+            stream.wait_for_events(events);
         }
 
         // Set sliced input data

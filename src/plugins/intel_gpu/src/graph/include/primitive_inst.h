@@ -232,7 +232,11 @@ public:
 
     memory::ptr shape_info_memory_ptr() const { return _shape_info_memory; }
 
-    event::ptr execute(const std::vector<event::ptr>& events);
+    void add_dep_events(const std::vector<event::ptr>& events);
+    void add_dep_event(event::ptr ev);
+    void set_out_event(event::ptr&& ev);
+
+    void execute();
     void init_kernels(const kernels_cache& kernels_cache) {
         _impl->init_kernels(kernels_cache, *_impl_params);
     }
@@ -242,8 +246,6 @@ public:
     void validate() const {
         OPENVINO_ASSERT(_impl != nullptr || is_dynamic(), "[GPU] Invalid impl object for ", id(), " primitive");
     }
-    bool output_changed() const { return _output_changed; }
-    void reset_output_change() { _output_changed = false; }
 
     bool shape_changed() const { return _shape_changed; }
     bool mem_changed() const { return _mem_changed; }
@@ -328,6 +330,8 @@ public:
     kernel_impl_params get_fake_aligned_params_if_possible(kernel_impl_params const& orig_impl_param);
     bool all_dependencies_cpu_impl() const;
 
+    void reset_events();
+
 protected:
     primitive_inst(network& network, program_node const& node, bool allocate_memory);
 
@@ -378,7 +382,6 @@ protected:
     // Buffer to store actual shapes of dynamic tensor which is automatically asigned as 1st argument to shape agnostic kernels
     memory::ptr _shape_info_memory = nullptr;
 
-    bool _output_changed;  // todo: implement output reuse if neither of inputs has changed
     bool _shape_changed = false;
     bool _mem_changed = false;
     bool _has_valid_input =
@@ -417,13 +420,13 @@ protected:
     virtual void on_execute() {}
 
     virtual void update_shape();
-    virtual event::ptr update_weights();
+    virtual void update_weights();
 
     void fill_shape_info_data(const layout& runtime_layout, const layout& node_layout, int32_t* shape_info_ptr, size_t& offset);
     bool use_async_compilation();
     // if primitive_inst doesn't replace impl to new impl(static impl with opt kerenl or dynamic impl), return false
     bool update_impl(bool use_async_compilation);
-    event::ptr realloc_if_needed();
+    void realloc_if_needed();
 
     cldnn::network::ptr get_unfused_subgraph();
 

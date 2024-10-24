@@ -50,7 +50,6 @@ event::ptr input_layout_inst::set_data(memory::ptr mem) {
     if (mem->is_allocated_by(engine) || mem->get_layout().count() == 0) {
         OPENVINO_ASSERT(!_outputs.empty(), "[GPU] Can't set data for empty input memory");
         _outputs[0] = mem;
-        ev = stream.create_user_event(true);
     } else {
         if (_outputs.empty() || !_outputs[0]) {
             _outputs.resize(1);
@@ -64,7 +63,6 @@ event::ptr input_layout_inst::set_data(memory::ptr mem) {
         ev = _outputs[0]->copy_from(stream, src.data(), false);
     }
     _has_valid_input = true;
-    _output_changed = true;
     return ev;
 }
 

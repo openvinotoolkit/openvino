@@ -48,6 +48,9 @@ struct kernel_impl_params final {
     std::shared_ptr<dnnl::primitive_attr> attrs_onednn;
 #endif // ENABLE_ONEDNN_FOR_GPU
 
+    std::vector<event::ptr> dep_events = {};
+    event::ptr out_event = nullptr;
+
     optional_layout weights_layout = optional_layout();
 
     optional_layout bias_layout = optional_layout();
