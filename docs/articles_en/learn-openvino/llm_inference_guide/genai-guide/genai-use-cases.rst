@@ -32,11 +32,11 @@ sample shows basic usage of the ``Text2ImagePipeline`` pipeline.
 
                #include "imwrite.hpp"
 
-               int32_t main(int32_t argc, char* argv[]) {
+               int32_t main(int32_t argc, char* argv[]) try {
                    OPENVINO_ASSERT(argc == 3, "Usage: ", argv[0], " <MODEL_DIR> '<PROMPT>'");
 
                    const std::string models_path = argv[1], prompt = argv[2];
-                   const std::string device = "CPU";  // GPU, NPU can be used as well.
+                   const std::string device = "CPU";  // GPU, NPU can be used as well
 
                    ov::genai::Text2ImagePipeline pipe(models_path, device);
                    ov::Tensor image = pipe.generate(prompt,
@@ -45,10 +45,19 @@ sample shows basic usage of the ``Text2ImagePipeline`` pipeline.
                        ov::genai::num_inference_steps(20),
                        ov::genai::num_images_per_prompt(1));
 
-                   // Saves images with a `num_images_per_prompt` name pattern.
                    imwrite("image_%d.bmp", image, true);
 
                    return EXIT_SUCCESS;
+               } catch (const std::exception& error) {
+                   try {
+                       std::cerr << error.what() << '\n';
+                   } catch (const std::ios_base::failure&) {}
+                   return EXIT_FAILURE;
+               } catch (...) {
+                   try {
+                       std::cerr << "Non-exception object thrown\n";
+                   } catch (const std::ios_base::failure&) {}
+                   return EXIT_FAILURE;
                }
 
          .. tab-item:: LoRA.cpp
@@ -60,21 +69,19 @@ sample shows basic usage of the ``Text2ImagePipeline`` pipeline.
 
                #include "imwrite.hpp"
 
-               int32_t main(int32_t argc, char* argv[]) {
+               int32_t main(int32_t argc, char* argv[]) try {
                    OPENVINO_ASSERT(argc >= 3 && (argc - 3) % 2 == 0, "Usage: ", argv[0], " <MODEL_DIR> '<PROMPT>' [<LORA_SAFETENSORS> <ALPHA> ...]]");
 
                    const std::string models_path = argv[1], prompt = argv[2];
-                   const std::string device = "CPU";  // GPU, NPU can be used as well.
+                   const std::string device = "CPU";  // GPU, NPU can be used as well
 
                    ov::genai::AdapterConfig adapter_config;
-                   // Applying Multiple LoRA adapters simultaneously is supported. Parse them all and the corresponding alphas from cmd parameters:
                    for(size_t i = 0; i < (argc - 3)/2; ++i) {
                        ov::genai::Adapter adapter(argv[3 + 2*i]);
                        float alpha = std::atof(argv[3 + 2*i + 1]);
                        adapter_config.add(adapter, alpha);
                    }
 
-                   // LoRA adapters passed to the constructor will be activated by default in the next generation.
                    ov::genai::Text2ImagePipeline pipe(models_path, device, ov::genai::adapters(adapter_config));
 
                    std::cout << "Generating image with LoRA adapters applied, resulting image will be in lora.bmp\n";
@@ -87,7 +94,7 @@ sample shows basic usage of the ``Text2ImagePipeline`` pipeline.
 
                    std::cout << "Generating image without LoRA adapters applied, resulting image will be in baseline.bmp\n";
                    image = pipe.generate(prompt,
-                       ov::genai::adapters(),  // Passing adapters as generation overrides set in the constructor; adapters() means no adapters.
+                       ov::genai::adapters(),
                        ov::genai::random_generator(std::make_shared<ov::genai::CppStdGenerator>(42)),
                        ov::genai::width(512),
                        ov::genai::height(896),
@@ -95,6 +102,16 @@ sample shows basic usage of the ``Text2ImagePipeline`` pipeline.
                    imwrite("baseline.bmp", image, true);
 
                    return EXIT_SUCCESS;
+               } catch (const std::exception& error) {
+                   try {
+                       std::cerr << error.what() << '\n';
+                   } catch (const std::ios_base::failure&) {}
+                   return EXIT_FAILURE;
+               } catch (...) {
+                   try {
+                       std::cerr << "Non-exception object thrown\n";
+                   } catch (const std::ios_base::failure&) {}
+                   return EXIT_FAILURE;
                }
 
 
@@ -116,7 +133,6 @@ and use audio files in WAV format at a sampling rate of 16 kHz as input.
 
       .. code-block:: python
 
-         import argparse
          import openvino_genai
          import librosa
 
@@ -126,15 +142,9 @@ and use audio files in WAV format at a sampling rate of 16 kHz as input.
              return raw_speech.tolist()
 
 
-         def main():
-             parser = argparse.ArgumentParser()
-             parser.add_argument("model_dir")
-             parser.add_argument("wav_file_path")
-             args = parser.parse_args()
-
-             raw_speech = read_wav(args.wav_file_path)
-
-             pipe = openvino_genai.WhisperPipeline(args.model_dir)
+         def infer(model_dir: str, wav_file_path: str):
+             raw_speech = read_wav(wav_file_path)
+             pipe = openvino_genai.WhisperPipeline(model_dir)
 
              def streamer(word: str) -> bool:
                  print(word, end="")
@@ -143,7 +153,6 @@ and use audio files in WAV format at a sampling rate of 16 kHz as input.
              result = pipe.generate(
                  raw_speech,
                  max_new_tokens=100,
-                 # The 'task' and 'language' parameters are supported for multilingual models only.
                  language="<|en|>",
                  task="transcribe",
                  return_timestamps=True,
@@ -151,7 +160,6 @@ and use audio files in WAV format at a sampling rate of 16 kHz as input.
              )
 
              print()
-
              for chunk in result.chunks:
                  print(f"timestamps: [{chunk.start_ts}, {chunk.end_ts}] text: {chunk.text}")
 
@@ -164,21 +172,24 @@ and use audio files in WAV format at a sampling rate of 16 kHz as input.
 
       .. code-block:: cpp
 
-         int main(int argc, char* argv[]) {
+         #include "audio_utils.hpp"
+         #include "openvino/genai/whisper_pipeline.hpp"
+
+         int main(int argc, char* argv[]) try {
              if (3 > argc) {
                  throw std::runtime_error(std::string{"Usage: "} + argv[0] + " <MODEL_DIR> \"<WAV_FILE_PATH>\"");
              }
 
-             std::string model_path = argv[1];
+             std::filesystem::path models_path = argv[1];
              std::string wav_file_path = argv[2];
+             std::string device = "CPU"; // GPU can be used as well
+
+             ov::genai::WhisperPipeline pipeline(models_path, device);
 
              ov::genai::RawSpeechInput raw_speech = utils::audio::read_wav(wav_file_path);
 
-             ov::genai::WhisperPipeline pipeline{model_path};
-
-             ov::genai::WhisperGenerationConfig config{model_path + "/generation_config.json"};
+             ov::genai::WhisperGenerationConfig config(models_path / "generation_config.json");
              config.max_new_tokens = 100;
-             // 'task' and 'language' parameters are supported for multilingual models only
              config.language = "<|en|>";
              config.task = "transcribe";
              config.return_timestamps = true;
@@ -195,6 +206,19 @@ and use audio files in WAV format at a sampling rate of 16 kHz as input.
              for (auto& chunk : *result.chunks) {
                  std::cout << "timestamps: [" << chunk.start_ts << ", " << chunk.end_ts << "] text: " << chunk.text << "\n";
              }
+
+         } catch (const std::exception& error) {
+             try {
+                 std::cerr << error.what() << '\n';
+             } catch (const std::ios_base::failure&) {
+             }
+             return EXIT_FAILURE;
+         } catch (...) {
+             try {
+                 std::cerr << "Non-exception object thrown\n";
+             } catch (const std::ios_base::failure&) {
+             }
+             return EXIT_FAILURE;
          }
 
 
@@ -222,8 +246,6 @@ mark a conversation session, as shown in the samples below:
 
          def streamer(subword):
              print(subword, end='', flush=True)
-             # The return flag corresponds to whether generation should be stopped or not.
-             # False means continue generation.
              return False
 
 
@@ -263,22 +285,20 @@ mark a conversation session, as shown in the samples below:
 
          #include "openvino/genai/llm_pipeline.hpp"
 
-         int main(int argc, char* argv[]) {
+         int main(int argc, char* argv[]) try {
              if (2 != argc) {
                  throw std::runtime_error(std::string{"Usage: "} + argv[0] + " <MODEL_DIR>");
              }
              std::string prompt;
-             std::string model_path = argv[1];
+             std::string models_path = argv[1];
 
              std::string device = "CPU";  // GPU, NPU can be used as well
-             ov::genai::LLMPipeline pipe(model_path, device);
+             ov::genai::LLMPipeline pipe(models_path, device);
 
              ov::genai::GenerationConfig config;
              config.max_new_tokens = 100;
              std::function<bool(std::string)> streamer = [](std::string word) {
                  std::cout << word << std::flush;
-                 // Return flag corresponds whether generation should be stopped.
-                 // false means continue generation.
                  return false;
              };
 
@@ -290,6 +310,16 @@ mark a conversation session, as shown in the samples below:
                      "question:\n";
              }
              pipe.finish_chat();
+         } catch (const std::exception& error) {
+             try {
+                 std::cerr << error.what() << '\n';
+             } catch (const std::ios_base::failure&) {}
+             return EXIT_FAILURE;
+         } catch (...) {
+             try {
+                 std::cerr << "Non-exception object thrown\n";
+             } catch (const std::ios_base::failure&) {}
+             return EXIT_FAILURE;
          }
 
 
