@@ -1076,7 +1076,7 @@ void ROIAlign::executeSpecified() {
             int bufSize = rnd_up(C, 16);
             size_t threadsNum = parallel_get_max_threads();
             workingBuf.resize(bufSize * threadsNum, 0.f);
-            parallel_for3d(realRois, pooledH, pooledW, [&](int n, int yBinInd, int xBinInd) {
+            auto rhw_loop = [&](int n, int yBinInd, int xBinInd) {
                 int numSamplesROI = numSamples[n];
                 // each sample have 4 values for srcAddressList and weight
                 size_t binOffset = numSamplesROI * BLIParamsNum * pooledW * yBinInd + numSamplesROI * BLIParamsNum * xBinInd;
@@ -1095,6 +1095,10 @@ void ROIAlign::executeSpecified() {
                 arg.dst = static_cast<void*>(&dst[dstOffset]);
                 arg.src_stride = lastBlockDim * W * H; // only valid for blk, nspc generate inside
                 (*roi_align_kernel)(&arg);
+            };
+
+            parallel_nt_static(threadsNum, [&](const int ithr, const int nthr) {
+                for_3d(ithr, nthr, realRois, pooledH, pooledW, rhw_loop);
             });
         } else {
             // one lane for one sample generation, then pooling all samples.

@@ -2742,12 +2742,12 @@ inline void Reduce::reduce_kernel_post_process(uint8_t *out_ptr) {
             (*reduce_post_kernel)(&arg);
         });
     } else if (layout == ReduceLayoutType::reduce_nspc) {
-        size_t num_threads = static_cast<size_t>(parallel_get_max_threads());
+        const size_t num_threads = static_cast<size_t>(parallel_get_max_threads());
         size_t OP = OB * OC >= num_threads ? OB * OC : OB * OC * OD;
         if (OP < num_threads && OW > blk_size)
             OP *= OH;
         size_t work_amount = OB * OC * OD * OH * OW / OP;
-        parallel_for(OP, [&](size_t op) {
+        auto op_loop = [&](size_t op) {
             const uint8_t *in_p = in_ptr + op * work_amount * intermediate_data_size;
             uint8_t *out_p = out_ptr + op * work_amount * dst_data_size;
             auto arg = jit_reduce_post_call_args();
@@ -2759,6 +2759,10 @@ inline void Reduce::reduce_kernel_post_process(uint8_t *out_ptr) {
             arg.divisor = &divisor;
             arg.post_op_data = static_cast<const void **>(postOpsDataPtrs.data());
             (*reduce_post_kernel)(&arg);
+        };
+
+        parallel_nt_static(num_threads, [&](const int ithr, const int nthr) {
+            for_1d(ithr, nthr, OP, op_loop);
         });
     } else {
         size_t OCB = div_up(OC, blk_size);

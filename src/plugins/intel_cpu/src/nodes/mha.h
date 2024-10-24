@@ -238,6 +238,8 @@ private:
     std::unique_ptr<jit_uni_mul_add_softmax_kernel> mulAddSoftmaxKernel;
     std::unique_ptr<jit_uni_convert_reorder_kernel> convertReorderKernel;
     std::unique_ptr<jit_uni_convert_transpose_kernel> convertTransposeKernel;
+
+    size_t m_threads_num = 0lu;
 };
 
 }   // namespace node

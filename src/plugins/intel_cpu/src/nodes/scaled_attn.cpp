@@ -217,6 +217,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
     size_t wsp_size_per_thread = 0;
     using tag = dnnl::memory::format_tag;
     using dt = dnnl::memory::data_type;
+    size_t m_threads_num = 0lu;
     struct brgemmKey {
         size_t M;
         size_t N;
@@ -315,21 +316,21 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
 
         wv_gemm_ptr = wv_result.first;
 
-        size_t nthr = static_cast<size_t>(parallel_get_max_threads());
+        m_threads_num = static_cast<size_t>(parallel_get_max_threads());
 
         // wsp is used to compute beta when K is blocked
         wsp_size_per_thread = wv_gemm_ptr->get_wsp_size();
-        wsp.resize(nthr * wsp_size_per_thread);
+        wsp.resize(m_threads_num * wsp_size_per_thread);
 
         // allocate scratch a/b, notice get_scratch_a_size/get_scratch_b_size returns in bytes
         size_t data_size = sizeof(T);
-        qk_scratch_a.resize<T>({nthr, qk_gemm_ptr->get_scratch_a_size() / data_size});
-        wv_scratch_a.resize<T>({nthr, wv_gemm_ptr->get_scratch_a_size() / data_size});
+        qk_scratch_a.resize<T>({m_threads_num, qk_gemm_ptr->get_scratch_a_size() / data_size});
+        wv_scratch_a.resize<T>({m_threads_num, wv_gemm_ptr->get_scratch_a_size() / data_size});
 
         qk_scratch_b.resize<T>({B, Hk, qk_gemm_ptr->get_scratch_b_size() / data_size});
         wv_scratch_b.resize<T>({B, Hk, wv_gemm_ptr->get_scratch_b_size() / data_size});
         const size_t m_block_size = qk_gemm_ptr->get_mblk_size();
-        weight_score.resize<float>({static_cast<size_t>(parallel_get_max_threads()), H, m_block_size, kv_len});
+        weight_score.resize<float>({m_threads_num, H, m_block_size, kv_len});
         if (has_out_transpose) {
             fp32_out.resize<float>({B, q_len, H, head_size_v});
         } else {
@@ -367,7 +368,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         });
 
         // attention
-        parallel_for3d(B, H, m_blocks, [&](size_t ithr, size_t b, size_t h, size_t m_blk) {
+        auto bhb_loop = [&](size_t ithr, size_t b, size_t h, size_t m_blk) {
             auto m_start = m_blk * m_block_size;
             auto m_end = std::min(m_start + m_block_size, q_len);
             auto m_cnt = m_end - m_start;
@@ -456,6 +457,10 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                                          1);
                 }
             }
+        };
+
+        parallel_nt_static(m_threads_num, [&](const int ithr, const int nthr) {
+            for_3d(ithr, nthr, B, H, m_blocks, bhb_loop);
         });
     }
 
@@ -652,12 +657,14 @@ struct MHAKernel<ScaledDotProductAttention::KT_MLAS, float> {
     size_t m_block_size;
     // buffer to hold qk temp
     std::vector<PlainTensor> qk_buffers;
+    size_t m_threads_num = 0lu;
 
     MHAKernel() = delete;
     explicit MHAKernel(GraphContext::CPtr ctx): context(ctx) {
         m_block_size = 4;
         select_nfltmax_at_0 = false;
-        qk_buffers.resize(parallel_get_max_threads());
+        m_threads_num = parallel_get_max_threads();
+        qk_buffers.resize(m_threads_num);
     }
 
     PlainTensor causal_mask;
@@ -699,7 +706,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_MLAS, float> {
 
         auto m_blocks = (q_len + m_block_size - 1) / m_block_size;
 
-        parallel_for3d(B, H, m_blocks, [&](size_t b, size_t h, size_t m_blk) {
+        auto bhb_loop = [&](size_t b, size_t h, size_t m_blk) {
             auto thread_id = parallel_get_thread_num();
             if (thread_id < 0)
                 OPENVINO_THROW("The calling thread isn't initialized!");
@@ -801,6 +808,10 @@ struct MHAKernel<ScaledDotProductAttention::KT_MLAS, float> {
                        has_out_transpose ? &output_emb.at<float>({b, m_start, h * head_size_v}) : &output_emb.at<float>({b, h, m_start}),
                        has_out_transpose ? output_emb.stride(1) : output_emb.stride(2),
                        1);
+        };
+
+        parallel_nt_static(m_threads_num, [&](const int ithr, const int nthr) {
+            for_3d(ithr, nthr, B, H, m_blocks, bhb_loop);
         });
     }
 };

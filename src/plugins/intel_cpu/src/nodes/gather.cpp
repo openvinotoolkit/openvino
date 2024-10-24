@@ -253,6 +253,7 @@ void Gather::createPrimitive() {
     if (isInPlace()) {
         return;
     }
+    m_threads_num = parallel_get_max_threads();
 #if defined(OPENVINO_ARCH_X86_64)
     uint64_t idxElPerVec = 1;
     if (!isDynamicNode()) {
@@ -294,11 +295,10 @@ void Gather::createPrimitive() {
 
             if (!isDynamicNode()) {
                 const uint64_t dataElPerVec = jitKernel->getDataElPerVec();
-                const uint64_t nthr = parallel_get_max_threads();
-                const uint64_t wpt = ((totalWork / dataElPerVec) / nthr + 1) * dataElPerVec;
-                execParamsPerThread.resize(nthr);
+                const uint64_t wpt = ((totalWork / dataElPerVec) / m_threads_num + 1) * dataElPerVec;
+                execParamsPerThread.resize(m_threads_num);
 
-                parallel_nt(nthr, [&](const int ithr, const int nthr) {
+                parallel_nt(m_threads_num, [&](const int ithr, const int nthr) {
                     const uint64_t dstStart = std::min(wpt * ithr, totalWork);
                     const uint64_t dstEnd = std::min(wpt * (ithr + 1), totalWork);
 
@@ -469,7 +469,7 @@ void Gather::execute(dnnl::stream strm) {
             (*jitKernel)(&arg);
         };
 
-        parallel_nt(0, threadBody);
+        parallel_nt(m_threads_num, threadBody);
 
         return;
     }
@@ -543,7 +543,7 @@ void Gather::executeDynamicImpl(dnnl::stream strm) {
             (*jitKernel)(&arg);
         };
 
-        parallel_nt(0, threadBody);
+        parallel_nt(m_threads_num, threadBody);
 
         return;
     }
