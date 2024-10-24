@@ -168,15 +168,21 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
         return exts;
     };
 
-    auto create_input_model = [&]() -> std::shared_ptr<InputModel> {
+    auto create_input_model = [&](std::string weights_path) -> std::shared_ptr<InputModel> {
         if (provided_model_stream) {
-            return std::make_shared<InputModel>(*provided_model_stream, weights, create_extensions_map());
+            return std::make_shared<InputModel>(*provided_model_stream,
+                                                weights,
+                                                create_extensions_map(),
+                                                std::move(weights_path));
         } else if (local_model_stream.is_open()) {
-            auto input_model = std::make_shared<InputModel>(local_model_stream, weights, create_extensions_map());
+            auto input_model = std::make_shared<InputModel>(local_model_stream,
+                                                            weights,
+                                                            create_extensions_map(),
+                                                            std::move(weights_path));
             local_model_stream.close();
             return input_model;
         } else if (model_buf) {
-            return std::make_shared<InputModel>(model_buf, weights, create_extensions_map());
+            return std::make_shared<InputModel>(model_buf, weights, create_extensions_map(), std::move(weights_path));
         }
         return nullptr;
     };
@@ -278,7 +284,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
         }
     }
 
-    return create_input_model();
+    return create_input_model(ov::util::path_to_string(weights_path));
 }
 
 std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& model) const {
