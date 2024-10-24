@@ -96,6 +96,7 @@ TEST_P(range_si_test, shape_infer) {
 
 INSTANTIATE_TEST_SUITE_P(smoke, range_si_test,
     testing::ValuesIn(std::vector<range_si_test_params>{
+        {ov::PartialShape{}, ov::PartialShape{39}, data_types::f32, {0.0f, 1.0f, 0.025641024f}},
         {ov::PartialShape{}, ov::PartialShape{7}, data_types::i32, {2, 23, 3}},
         {ov::PartialShape{}, ov::PartialShape{7}, data_types::i8,  {2, 23, 3}},
         {ov::PartialShape{}, ov::PartialShape{7}, data_types::u8,  {2, 23, 3}},
