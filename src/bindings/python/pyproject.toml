@@ -34,3 +34,11 @@ license-files = [
     "../../../licensing/onetbb_third-party-programs.txt",
     "../../../licensing/onednn_third-party-programs.txt",
 ]
+
+[tool.cibuildwheel]
+before-all = "uname -a"
+build = "cp311*manylinux_x86_64*"
+build-frontend = { name = "pip", args = ["--verbose", "--no-deps", "--extra-index-url=https://storage.openvinotoolkit.org/simple/wheels/nightly"] } 
+environment = { http_proxy = "http://proxy-dmz.intel.com:911", https_proxy = "http://proxy-dmz.intel.com:912" }
+repair-wheel-command = ""
+archs = ["x86_64"]
