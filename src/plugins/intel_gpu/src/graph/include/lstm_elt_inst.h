@@ -18,7 +18,7 @@ public:
 
     program_node& input() const { return get_dependency(0); }
     program_node& cell() const { return get_dependency(1); }
-    bool cell_term() const { return !get_primitive()->cell.empty(); }
+    bool cell_term() const { return !get_primitive()->initial_cell_state.pid.empty(); }
     lstm_weights_order offset_order() const { return get_primitive()->offset_order; }
     float clip() const {
         float clip_val = get_primitive()->clip;
@@ -47,7 +47,7 @@ public:
     typed_primitive_inst(network& network, lstm_elt_node const& node);
 
     memory::ptr cell_memory() const { return dep_memory_ptr(1); }
-    bool cell_term() const { return !get_typed_desc<lstm_elt>()->cell.empty(); }
+    bool cell_term() const { return !get_typed_desc<lstm_elt>()->initial_cell_state.pid.empty(); }
     lstm_weights_order offset_order() const { return get_typed_desc<lstm_elt>()->offset_order; }
     float clip() const {
         float clip_val = get_typed_desc<lstm_elt>()->clip;

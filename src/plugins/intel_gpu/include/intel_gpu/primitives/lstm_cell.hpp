@@ -13,13 +13,12 @@
 
 namespace cldnn {
 
-struct lstm_elt : public RNNParams<lstm_elt> {
-    CLDNN_DECLARE_PRIMITIVE(lstm_elt)
+struct lstm_cell : public RNNParams<lstm_cell> {
+    CLDNN_DECLARE_PRIMITIVE(lstm_cell)
     using vec_activation = std::vector<activation_func>;
     using vec_activation_param = std::vector<activation_additional_params>;
     using RNNParams::RNNParams;
-    lstm_elt() : RNNParams() {}
-    lstm_elt(const lstm_elt&) = default;
-    bool input_forget;
+    lstm_cell(const lstm_cell&) = default;
+    lstm_cell() : RNNParams() {}
 };
-} // namespace cldnn
+}  // namespace cldnn

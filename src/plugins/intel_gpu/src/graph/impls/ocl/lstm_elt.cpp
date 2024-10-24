@@ -38,7 +38,7 @@ public:
         const auto& primitive = impl_param.typed_desc<lstm_elt>();
         auto params = get_default_params<kernel_selector::lstm_elt_params>(impl_param);
 
-        if (!primitive->cell.empty()) {
+        if (!primitive->initial_cell_state.pid.empty()) {
             const auto& cell_idx = 1;
             const auto& cell_layout = impl_param.input_layouts[cell_idx];
             params.SetCell(convert_data_tensor(cell_layout));

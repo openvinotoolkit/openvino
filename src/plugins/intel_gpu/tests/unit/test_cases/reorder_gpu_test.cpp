@@ -103,8 +103,6 @@ static void compare_bfyx2blocked_with_ref(const std::string& kernel_name,
     network_ref->set_input_data("input", input);
 
     auto outputs_ref = network_ref->execute();
-    cldnn::event::ptr e1 = outputs_ref.at("reorder").get_event();
-    e1->wait();
 
     // run on optimized kernel
     ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
@@ -116,8 +114,6 @@ static void compare_bfyx2blocked_with_ref(const std::string& kernel_name,
     network->set_input_data("input", input);
 
     auto outputs = network->execute();
-    cldnn::event::ptr e2 = outputs.at("reorder").get_event();
-    e2->wait();
 
     // compare output_ref and output_opt.
     if (output_data_type == data_types::i8)
@@ -1917,10 +1913,8 @@ TEST(reorder_gpu_opt, non_trivial_remove_redundant)
     auto outputs = net.execute();
     auto executed_primitives = net.get_executed_primitives();
 
-    if (engine.get_device_info().supports_immad) {
-        // Currently, oneDNN only supports in_order_queue
-        return;
-    }
+    if (config.get_property(ov::intel_gpu::queue_type) != QueueTypes::out_of_order)
+        GTEST_SKIP();
 
     ASSERT_TRUE(executed_primitives.count("in") == 1);
     ASSERT_TRUE(executed_primitives.at("in") != outputs.at("r1").get_event());

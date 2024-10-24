@@ -1463,7 +1463,6 @@ TEST_P(conv_fp32_multi_eltwise_concat, basic) {
     );
     ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "", impl_types::ocl };
     cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
-
     tolerance = default_tolerance(output_type);
     execute(p);
 }

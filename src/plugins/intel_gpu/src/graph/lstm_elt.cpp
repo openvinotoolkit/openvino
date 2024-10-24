@@ -60,7 +60,7 @@ template std::vector<layout> lstm_elt_inst::calc_output_layouts<ov::PartialShape
 std::string lstm_elt_inst::to_string(lstm_elt_node const& node) {
     auto desc = node.get_primitive();
     auto node_info = node.desc_to_json();
-    auto cell_id = desc->cell;
+    auto cell_id = desc->initial_cell_state.pid;
 
     std::stringstream primitive_description;
 
