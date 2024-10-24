@@ -37,10 +37,5 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*OVInferConsistencyTest.*)");
 #endif
 
-#if defined(WIN32) && !defined(NDEBUG)
-    // issue 155400
-    retVector.emplace_back(R"(.*OVCheckSetSupportedRWMetricsPropsTests.*LOG_LEVEL.*)");
-#endif
-
     return retVector;
 }

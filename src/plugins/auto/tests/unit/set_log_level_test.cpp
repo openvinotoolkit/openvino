@@ -55,9 +55,7 @@ TEST_P(AutoSetLogLevel, setLogLevelFromConfig) {
     std::string log_level;
     ov::AnyMap config;
     std::tie(log_level, config) = this->GetParam();
-#if defined(WIN32) && !defined(NDEBUG)
-    GTEST_SKIP() << "Skipping on Windows in Debug mode due to Issue 155400.";
-#endif
+
     plugin->set_device_name("AUTO");
     plugin->compile_model(model, config);
     int a = 0;
