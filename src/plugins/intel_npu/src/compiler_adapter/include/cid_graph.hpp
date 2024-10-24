@@ -9,13 +9,13 @@
 #include <ze_graph_ext.h>
 
 #include "intel_npu/common/igraph.hpp"
-#include "izero_link.hpp"
+#include "izero_adapter.hpp"
 
 namespace intel_npu {
 
 class CidGraph final : public IGraph {
 public:
-    CidGraph(const std::shared_ptr<IZeroLink>& zeroLink,
+    CidGraph(const std::shared_ptr<IZeroAdapter>& zeroAdapter,
              ze_graph_handle_t graphHandle,
              NetworkMetadata metadata,
              const Config& config);
@@ -31,7 +31,7 @@ public:
     ~CidGraph() override;
 
 private:
-    std::shared_ptr<IZeroLink> _zeroLink;
+    std::shared_ptr<IZeroAdapter> _zeroAdapter;
 
     const Config _config;
     Logger _logger;

@@ -162,10 +162,6 @@ void CompiledModel::configure_stream_executors() {
     _resultExecutor = ov::threading::executor_manager()->get_executor(executorId);
 }
 
-const NetworkMetadata& CompiledModel::get_network_metadata() const {
-    return _graph->get_metadata();
-}
-
 void CompiledModel::initialize_properties() {
     const auto pluginSupportedProperties =
         get_plugin()->get_property(ov::supported_properties.name(), {}).as<std::vector<ov::PropertyName>>();

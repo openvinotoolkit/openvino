@@ -8,14 +8,14 @@
 
 namespace intel_npu {
 
-CipGraph::CipGraph(const std::shared_ptr<IZeroLink>& zeroLink,
+CipGraph::CipGraph(const std::shared_ptr<IZeroAdapter>& zeroAdapter,
                    const ov::SoPtr<ICompiler>& compiler,
                    ze_graph_handle_t graphHandle,
                    NetworkMetadata metadata,
                    const std::vector<uint8_t> compiledNetwork,
                    const Config& config)
     : IGraph(graphHandle, std::move(metadata)),
-      _zeroLink(zeroLink),
+      _zeroAdapter(zeroAdapter),
       _compiler(compiler),
       _compiledNetwork(std::move(compiledNetwork)),
       _config(config),
@@ -36,24 +36,24 @@ std::vector<ov::ProfilingInfo> CipGraph::process_profiling_output(const std::vec
 }
 
 void CipGraph::set_argument_value(uint32_t argi, const void* argv) const {
-    if (_zeroLink == nullptr) {
+    if (_zeroAdapter == nullptr) {
         OPENVINO_THROW("Zero compiler adapter wasn't initialized");
     }
-    _zeroLink->setArgumentValue(_handle, argi, argv);
+    _zeroAdapter->setArgumentValue(_handle, argi, argv);
 }
 
 void CipGraph::initialize() {
-    if (_zeroLink) {
+    if (_zeroAdapter) {
         _logger.debug("Graph initialize start");
 
-        std::tie(_input_descriptors, _output_descriptors) = _zeroLink->getIODesc(_handle);
-        _command_queue = _zeroLink->crateCommandQueue(_config);
+        std::tie(_input_descriptors, _output_descriptors) = _zeroAdapter->getIODesc(_handle);
+        _command_queue = _zeroAdapter->crateCommandQueue(_config);
 
         if (_config.has<WORKLOAD_TYPE>()) {
             setWorkloadType(_config.get<WORKLOAD_TYPE>());
         }
 
-        _zeroLink->graphInitialie(_handle, _config);
+        _zeroAdapter->graphInitialie(_handle, _config);
 
         _logger.debug("Graph initialize finish");
     }
@@ -61,7 +61,7 @@ void CipGraph::initialize() {
 
 CipGraph::~CipGraph() {
     if (_handle != nullptr) {
-        auto result = _zeroLink->release(_handle);
+        auto result = _zeroAdapter->release(_handle);
 
         if (ZE_RESULT_SUCCESS == result) {
             _handle = nullptr;

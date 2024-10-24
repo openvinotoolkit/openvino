@@ -5,6 +5,7 @@
 #pragma once
 
 #include "intel_npu/common/icompiled_model.hpp"
+#include "intel_npu/common/igraph.hpp"
 #include "intel_npu/common/variable_state.hpp"
 #include "intel_npu/icompiler.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
@@ -22,7 +23,9 @@ namespace intel_npu {
  */
 class SyncInferRequest : public ov::IInferRequest {
 public:
-    explicit SyncInferRequest(const std::shared_ptr<const ICompiledModel>& compiledModel, const Config& config);
+    explicit SyncInferRequest(const std::shared_ptr<const ICompiledModel>& compiledModel,
+                              const std::shared_ptr<IGraph>& graph,
+                              const Config& config);
 
     /**
      * @brief Gets an input/output tensor for inference.

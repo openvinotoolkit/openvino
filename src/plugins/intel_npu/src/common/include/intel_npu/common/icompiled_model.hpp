@@ -19,8 +19,6 @@ public:
 
     virtual const Config& get_config() const = 0;
 
-    virtual const NetworkMetadata& get_network_metadata() const = 0;
-
 protected:
     std::shared_ptr<const ICompiledModel> shared_from_this() const {
         return std::dynamic_pointer_cast<const ICompiledModel>(ov::ICompiledModel::shared_from_this());

@@ -63,31 +63,6 @@ ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs
         device_gops[ov::element::i8] = gops;
         device_gops[ov::element::f16] = 0.5f * gops;
     }
-
-    std::vector<ze_command_queue_group_properties_t> command_group_properties;
-    uint32_t command_queue_group_count = 0;
-    // Discover all command queue groups
-    THROW_ON_FAIL_FOR_LEVELZERO(
-        "zeDeviceGetCommandQueueGroupProperties",
-        zeDeviceGetCommandQueueGroupProperties(_initStructs->getDevice(), &command_queue_group_count, nullptr));
-
-    log.debug("ZeroDevice::ZeroDevice - resize command_queue_group_count");
-    command_group_properties.resize(command_queue_group_count);
-
-    for (auto& prop : command_group_properties) {
-        prop.stype = ZE_STRUCTURE_TYPE_COMMAND_QUEUE_GROUP_PROPERTIES;
-        prop.pNext = nullptr;
-    }
-
-    THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetCommandQueueGroupProperties",
-                                zeDeviceGetCommandQueueGroupProperties(_initStructs->getDevice(),
-                                                                       &command_queue_group_count,
-                                                                       command_group_properties.data()));
-
-    // Find the corresponding command queue group.
-    log.debug("ZeroDevice::ZeroDevice - findGroupOrdinal");
-    _group_ordinal = zeroUtils::findGroupOrdinal(command_group_properties, device_properties);
-    log.debug("ZeroDevice::ZeroDevice - init completed");
 }
 
 std::string ZeroDevice::getName() const {
@@ -195,15 +170,11 @@ ov::device::Type ZeroDevice::getDeviceType() const {
     return ov::device::Type::INTEGRATED;
 }
 
-uint32_t ZeroDevice::getGroupOrdinal() const {
-    return _group_ordinal;
-}
-
 std::shared_ptr<SyncInferRequest> ZeroDevice::createInferRequest(
     const std::shared_ptr<const ICompiledModel>& compiledModel,
     const std::shared_ptr<IGraph>& graph,
     const Config& config) {
-    return std::make_shared<ZeroInferRequest>(_initStructs, compiledModel, graph, config, _group_ordinal);
+    return std::make_shared<ZeroInferRequest>(_initStructs, compiledModel, graph, config);
 }
 
 ov::SoPtr<ov::IRemoteTensor> ZeroDevice::createRemoteTensor(std::shared_ptr<ov::IRemoteContext> context,

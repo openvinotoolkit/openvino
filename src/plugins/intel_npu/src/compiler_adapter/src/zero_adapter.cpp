@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "zero_link.hpp"
+#include "zero_adapter.hpp"
 
 #include <regex>
 #include <string_view>
 
 #include "intel_npu/config/runtime.hpp"
 #include "intel_npu/prefix.hpp"
+#include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
 #include "openvino/core/model.hpp"
 
@@ -62,27 +63,27 @@ ov::element::Type_t toOVElementType(const ze_graph_argument_precision_t zeElemen
 namespace intel_npu {
 
 template <typename TableExtension>
-ZeroLink<TableExtension>::ZeroLink(ze_driver_handle_t driverHandle,
-                                   ze_device_handle_t deviceHandle,
-                                   ze_context_handle_t zeContext,
-                                   ze_graph_dditable_ext_curr_t& graph_ddi_table_ext,
-                                   ze_command_queue_npu_dditable_ext_curr_t& commandQueueDdiTable,
-                                   uint32_t group_ordinal)
+ZeroAdapter<TableExtension>::ZeroAdapter(ze_driver_handle_t driverHandle,
+                                         ze_device_handle_t deviceHandle,
+                                         ze_context_handle_t zeContext,
+                                         ze_graph_dditable_ext_curr_t& graph_ddi_table_ext,
+                                         ze_command_queue_npu_dditable_ext_curr_t& commandQueueDdiTable,
+                                         uint32_t group_ordinal)
     : _driverHandle(driverHandle),
       _deviceHandle(deviceHandle),
       _context(zeContext),
       _graphDdiTableExt(graph_ddi_table_ext),
       _commandQueueDdiTable(commandQueueDdiTable),
       _group_ordinal(group_ordinal),
-      _logger("ZeroLink", Logger::global().level()) {}
+      _logger("ZeroAdapter", Logger::global().level()) {}
 
 template <typename TableExtension>
-ZeroLink<TableExtension>::~ZeroLink() {
-    _logger.debug("ZeroLink obj destroyed");
+ZeroAdapter<TableExtension>::~ZeroAdapter() {
+    _logger.debug("ZeroAdapter obj destroyed");
 }
 
 template <typename TableExtension>
-_ze_result_t ZeroLink<TableExtension>::release(ze_graph_handle_t graphHandle) {
+_ze_result_t ZeroAdapter<TableExtension>::release(ze_graph_handle_t graphHandle) {
     _logger.debug("release - pfnDestroy graphHandle");
     auto result = _graphDdiTableExt.pfnDestroy(graphHandle);
 
@@ -97,11 +98,11 @@ _ze_result_t ZeroLink<TableExtension>::release(ze_graph_handle_t graphHandle) {
 
 template <typename TableExtension>
 template <typename T, std::enable_if_t<UseCopyForNativeBinary(T), bool>>
-void ZeroLink<TableExtension>::getNativeBinary(ze_graph_dditable_ext_curr_t& graphDdiTableExt,
-                                               ze_graph_handle_t graphHandle,
-                                               std::vector<uint8_t>& blob,
-                                               const uint8_t*& blobPtr,
-                                               size_t& blobSize) const {
+void ZeroAdapter<TableExtension>::getNativeBinary(ze_graph_dditable_ext_curr_t& graphDdiTableExt,
+                                                  ze_graph_handle_t graphHandle,
+                                                  std::vector<uint8_t>& blob,
+                                                  const uint8_t*& blobPtr,
+                                                  size_t& blobSize) const {
     // Get blob size first
     auto result = _graphDdiTableExt.pfnGetNativeBinary(graphHandle, &blobSize, nullptr);
     blob.resize(blobSize);
@@ -120,11 +121,11 @@ void ZeroLink<TableExtension>::getNativeBinary(ze_graph_dditable_ext_curr_t& gra
 
 template <typename TableExtension>
 template <typename T, std::enable_if_t<!UseCopyForNativeBinary(T), bool>>
-void ZeroLink<TableExtension>::getNativeBinary(ze_graph_dditable_ext_curr_t& graphDdiTableExt,
-                                               ze_graph_handle_t graphHandle,
-                                               std::vector<uint8_t>& /* unusedBlob */,
-                                               const uint8_t*& blobPtr,
-                                               size_t& blobSize) const {
+void ZeroAdapter<TableExtension>::getNativeBinary(ze_graph_dditable_ext_curr_t& graphDdiTableExt,
+                                                  ze_graph_handle_t graphHandle,
+                                                  std::vector<uint8_t>& /* unusedBlob */,
+                                                  const uint8_t*& blobPtr,
+                                                  size_t& blobSize) const {
     // Get blob ptr and size
     auto result = _graphDdiTableExt.pfnGetNativeBinary2(graphHandle, &blobSize, &blobPtr);
     THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetNativeBinary get blob size, Failed to compile network.",
@@ -133,12 +134,12 @@ void ZeroLink<TableExtension>::getNativeBinary(ze_graph_dditable_ext_curr_t& gra
 }
 
 template <typename TableExtension>
-CompiledNetwork ZeroLink<TableExtension>::getCompiledNetwork(ze_graph_handle_t graphHandle) {
+CompiledNetwork ZeroAdapter<TableExtension>::getCompiledNetwork(ze_graph_handle_t graphHandle) {
     if (graphHandle == nullptr) {
         OPENVINO_THROW("Graph handle is null");
     }
 
-    _logger.info("ZeroLink getCompiledNetwork get blob from graphHandle");
+    _logger.info("ZeroAdapter getCompiledNetwork get blob from graphHandle");
 
     const uint8_t* blobPtr = nullptr;
     size_t blobSize = -1;
@@ -146,18 +147,20 @@ CompiledNetwork ZeroLink<TableExtension>::getCompiledNetwork(ze_graph_handle_t g
 
     getNativeBinary(_graphDdiTableExt, graphHandle, blob, blobPtr, blobSize);
 
-    _logger.info("ZeroLink getCompiledNetwork returning blob");
+    _logger.info("ZeroAdapter getCompiledNetwork returning blob");
     return CompiledNetwork(blobPtr, blobSize, std::move(blob));
 }
 
 template <typename TableExtension>
-void ZeroLink<TableExtension>::setArgumentValue(ze_graph_handle_t graphHandle, uint32_t argi, const void* argv) const {
+void ZeroAdapter<TableExtension>::setArgumentValue(ze_graph_handle_t graphHandle,
+                                                   uint32_t argi,
+                                                   const void* argv) const {
     auto result = _graphDdiTableExt.pfnSetArgumentValue(graphHandle, argi, argv);
     THROW_ON_FAIL_FOR_LEVELZERO_EXT("zeGraphSetArgumentValue", result, _graphDdiTableExt);
 }
 
 template <typename TableExtension>
-void ZeroLink<TableExtension>::graphInitialie(ze_graph_handle_t graphHandle, const Config& config) const {
+void ZeroAdapter<TableExtension>::graphInitialie(ze_graph_handle_t graphHandle, const Config& config) const {
     if (_graphDdiTableExt.version() < ZE_GRAPH_EXT_VERSION_1_8) {
         initialize_graph_through_command_list(graphHandle, config);
     } else {
@@ -176,8 +179,8 @@ void ZeroLink<TableExtension>::graphInitialie(ze_graph_handle_t graphHandle, con
 }
 
 template <typename TableExtension>
-void ZeroLink<TableExtension>::initialize_graph_through_command_list(ze_graph_handle_t graphHandle,
-                                                                     const Config& config) const {
+void ZeroAdapter<TableExtension>::initialize_graph_through_command_list(ze_graph_handle_t graphHandle,
+                                                                        const Config& config) const {
     _logger.debug("ZeroExecutor::ZeroExecutor init start - create graph_command_list");
     CommandList graph_command_list(_deviceHandle, _context, _graphDdiTableExt, _group_ordinal);
     _logger.debug("ZeroExecutor::ZeroExecutor - create graph_command_queue");
@@ -224,7 +227,7 @@ static std::unordered_set<std::string> parseQueryResult(std::vector<char>& data)
 // For ext version < 1.3, query is unsupported, return empty result and add debug log here
 template <typename TableExtension>
 template <typename T, std::enable_if_t<NotSupportQuery(T), bool>>
-std::unordered_set<std::string> ZeroLink<TableExtension>::queryImpl(SerializedIR, const std::string&) const {
+std::unordered_set<std::string> ZeroAdapter<TableExtension>::queryImpl(SerializedIR, const std::string&) const {
     _logger.info("queryImpl - Driver version is less than 1.3, queryNetwork is unsupported.");
     return std::unordered_set<std::string>();
 }
@@ -232,7 +235,7 @@ std::unordered_set<std::string> ZeroLink<TableExtension>::queryImpl(SerializedIR
 // For ext version == 1.3 && == 1.4
 template <typename TableExtension>
 template <typename T, std::enable_if_t<SupportAPIGraphQueryNetworkV1(T), bool>>
-ze_result_t ZeroLink<TableExtension>::seriazlideIRModelAndQueryNetworkCreateV1(
+ze_result_t ZeroAdapter<TableExtension>::seriazlideIRModelAndQueryNetworkCreateV1(
     SerializedIR serializedIR,
     const std::string& buildFlags,
     const ze_device_handle_t& _deviceHandle,
@@ -254,8 +257,8 @@ ze_result_t ZeroLink<TableExtension>::seriazlideIRModelAndQueryNetworkCreateV1(
 // For ext version == 1.3 && == 1.4, query is supported, calling querynetwork api in _graphDdiTableExt
 template <typename TableExtension>
 template <typename T, std::enable_if_t<SupportAPIGraphQueryNetworkV1(T), bool>>
-std::unordered_set<std::string> ZeroLink<TableExtension>::queryImpl(SerializedIR serializedIR,
-                                                                    const std::string& buildFlags) const {
+std::unordered_set<std::string> ZeroAdapter<TableExtension>::queryImpl(SerializedIR serializedIR,
+                                                                       const std::string& buildFlags) const {
     _logger.info("queryImpl - Calling queryNetwork of 1.3 version.");
 
     ze_graph_query_network_handle_t hGraphQueryNetwork = nullptr;
@@ -271,7 +274,7 @@ std::unordered_set<std::string> ZeroLink<TableExtension>::queryImpl(SerializedIR
 // For ext version >= 1.5
 template <typename TableExtension>
 template <typename T, std::enable_if_t<SupportAPIGraphQueryNetworkV2(T), bool>>
-ze_result_t ZeroLink<TableExtension>::seriazlideIRModelAndQueryNetworkCreateV2(
+ze_result_t ZeroAdapter<TableExtension>::seriazlideIRModelAndQueryNetworkCreateV2(
     SerializedIR serializedIR,
     const std::string& buildFlags,
     const ze_device_handle_t& _deviceHandle,
@@ -295,8 +298,8 @@ ze_result_t ZeroLink<TableExtension>::seriazlideIRModelAndQueryNetworkCreateV2(
 // For ext version >= 1.5
 template <typename TableExtension>
 template <typename T, std::enable_if_t<SupportAPIGraphQueryNetworkV2(T), bool>>
-std::unordered_set<std::string> ZeroLink<TableExtension>::queryImpl(SerializedIR serializedIR,
-                                                                    const std::string& buildFlags) const {
+std::unordered_set<std::string> ZeroAdapter<TableExtension>::queryImpl(SerializedIR serializedIR,
+                                                                       const std::string& buildFlags) const {
     _logger.debug("queryImpl - Calling queryNetwork of 1.5 version.");
 
     ze_graph_query_network_handle_t hGraphQueryNetwork = nullptr;
@@ -311,7 +314,7 @@ std::unordered_set<std::string> ZeroLink<TableExtension>::queryImpl(SerializedIR
 
 template <typename TableExtension>
 template <typename T, std::enable_if_t<!NotSupportQuery(T), bool>>
-std::unordered_set<std::string> ZeroLink<TableExtension>::getQueryResultFromSupportedLayers(
+std::unordered_set<std::string> ZeroAdapter<TableExtension>::getQueryResultFromSupportedLayers(
     ze_result_t result,
     ze_graph_query_network_handle_t& hGraphQueryNetwork) const {
     // Get the size of query result
@@ -335,7 +338,7 @@ std::unordered_set<std::string> ZeroLink<TableExtension>::getQueryResultFromSupp
 }
 
 template <typename TableExtension>
-std::unordered_set<std::string> ZeroLink<TableExtension>::queryResultFromSupportedLayers(
+std::unordered_set<std::string> ZeroAdapter<TableExtension>::queryResultFromSupportedLayers(
     SerializedIR serializedIR,
     const std::string& buildFlags) const {
     return queryImpl(std::move(serializedIR), buildFlags);
@@ -344,10 +347,10 @@ std::unordered_set<std::string> ZeroLink<TableExtension>::queryResultFromSupport
 // For ext version <1.5, calling pfnCreate api in _graphDdiTableExt
 template <typename TableExtension>
 template <typename T, std::enable_if_t<NotSupportGraph2(T), bool>>
-void ZeroLink<TableExtension>::createGraph(SerializedIR serializedIR,
-                                           const std::string& buildFlags,
-                                           const uint32_t& /*flags*/,
-                                           ze_graph_handle_t* graph) const {
+void ZeroAdapter<TableExtension>::createGraph(SerializedIR serializedIR,
+                                              const std::string& buildFlags,
+                                              const uint32_t& /*flags*/,
+                                              ze_graph_handle_t* graph) const {
     ze_graph_desc_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
                             nullptr,
                             ZE_GRAPH_FORMAT_NGRAPH_LITE,
@@ -364,10 +367,10 @@ void ZeroLink<TableExtension>::createGraph(SerializedIR serializedIR,
 // For ext version >= 1.5, calling pfnCreate2 api in _graphDdiTableExt
 template <typename TableExtension>
 template <typename T, std::enable_if_t<!NotSupportGraph2(T), bool>>
-void ZeroLink<TableExtension>::createGraph(SerializedIR serializedIR,
-                                           const std::string& buildFlags,
-                                           const uint32_t& flags,
-                                           ze_graph_handle_t* graph) const {
+void ZeroAdapter<TableExtension>::createGraph(SerializedIR serializedIR,
+                                              const std::string& buildFlags,
+                                              const uint32_t& flags,
+                                              ze_graph_handle_t* graph) const {
     ze_graph_desc_2_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
                               nullptr,
                               ZE_GRAPH_FORMAT_NGRAPH_LITE,
@@ -383,9 +386,9 @@ void ZeroLink<TableExtension>::createGraph(SerializedIR serializedIR,
 }
 
 template <typename TableExtension>
-ze_graph_handle_t ZeroLink<TableExtension>::getGraphHandle(SerializedIR serializedIR,
-                                                           const std::string& buildFlags,
-                                                           const uint32_t& flags) const {
+ze_graph_handle_t ZeroAdapter<TableExtension>::getGraphHandle(SerializedIR serializedIR,
+                                                              const std::string& buildFlags,
+                                                              const uint32_t& flags) const {
     ze_graph_handle_t graphHandle;
 
     _logger.info("compileIR Using extension version: %s", typeid(TableExtension).name());
@@ -395,7 +398,7 @@ ze_graph_handle_t ZeroLink<TableExtension>::getGraphHandle(SerializedIR serializ
 }
 
 template <typename TableExtension>
-ze_graph_handle_t ZeroLink<TableExtension>::getGraphHandle(const std::vector<uint8_t>& network) const {
+ze_graph_handle_t ZeroAdapter<TableExtension>::getGraphHandle(const std::vector<uint8_t>& network) const {
     ze_graph_handle_t graphHandle;
 
     ze_graph_desc_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
@@ -468,11 +471,11 @@ static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
 
 template <typename TableExtension>
 template <typename T, std::enable_if_t<NotSupportArgumentMetadata(T), bool>>
-void ZeroLink<TableExtension>::getMetadata(ze_graph_dditable_ext_curr_t& graphDdiTableExt,
-                                           ze_graph_handle_t graphHandle,
-                                           uint32_t index,
-                                           std::vector<IODescriptor>& inputs,
-                                           std::vector<IODescriptor>& outputs) const {
+void ZeroAdapter<TableExtension>::getMetadata(ze_graph_dditable_ext_curr_t& graphDdiTableExt,
+                                              ze_graph_handle_t graphHandle,
+                                              uint32_t index,
+                                              std::vector<IODescriptor>& inputs,
+                                              std::vector<IODescriptor>& outputs) const {
     ze_graph_argument_properties_3_t arg;
     auto result = graphDdiTableExt.pfnGetArgumentProperties3(graphHandle, index, &arg);
     THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties3", result, _graphDdiTableExt);
@@ -492,11 +495,11 @@ void ZeroLink<TableExtension>::getMetadata(ze_graph_dditable_ext_curr_t& graphDd
 
 template <typename TableExtension>
 template <typename T, std::enable_if_t<!NotSupportArgumentMetadata(T), bool>>
-void ZeroLink<TableExtension>::getMetadata(ze_graph_dditable_ext_curr_t& graphDdiTableExt,
-                                           ze_graph_handle_t graphHandle,
-                                           uint32_t index,
-                                           std::vector<IODescriptor>& inputs,
-                                           std::vector<IODescriptor>& outputs) const {
+void ZeroAdapter<TableExtension>::getMetadata(ze_graph_dditable_ext_curr_t& graphDdiTableExt,
+                                              ze_graph_handle_t graphHandle,
+                                              uint32_t index,
+                                              std::vector<IODescriptor>& inputs,
+                                              std::vector<IODescriptor>& outputs) const {
     ze_graph_argument_properties_3_t arg;
     auto result = graphDdiTableExt.pfnGetArgumentProperties3(graphHandle, index, &arg);
     THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties3", result, _graphDdiTableExt);
@@ -525,7 +528,7 @@ void ZeroLink<TableExtension>::getMetadata(ze_graph_dditable_ext_curr_t& graphDd
 }
 
 template <typename TableExtension>
-NetworkMetadata ZeroLink<TableExtension>::getNetworkMeta(ze_graph_handle_t graphHandle) const {
+NetworkMetadata ZeroAdapter<TableExtension>::getNetworkMeta(ze_graph_handle_t graphHandle) const {
     ze_graph_properties_t graphProperties{};
 
     auto result = _graphDdiTableExt.pfnGetProperties(graphHandle, &graphProperties);
@@ -544,7 +547,7 @@ NetworkMetadata ZeroLink<TableExtension>::getNetworkMeta(ze_graph_handle_t graph
 }
 
 template <typename TableExtension>
-std::tuple<std::vector<ArgumentDescriptor>, std::vector<ArgumentDescriptor>> ZeroLink<TableExtension>::getIODesc(
+std::tuple<std::vector<ArgumentDescriptor>, std::vector<ArgumentDescriptor>> ZeroAdapter<TableExtension>::getIODesc(
     ze_graph_handle_t graphHandle) const {
     _logger.debug("performing pfnGetProperties");
     ze_graph_properties_t props{};
@@ -573,7 +576,7 @@ std::tuple<std::vector<ArgumentDescriptor>, std::vector<ArgumentDescriptor>> Zer
 }
 
 template <typename TableExtension>
-std::shared_ptr<CommandQueue> ZeroLink<TableExtension>::crateCommandQueue(const Config& config) const {
+std::shared_ptr<CommandQueue> ZeroAdapter<TableExtension>::crateCommandQueue(const Config& config) const {
     if (config.has<TURBO>()) {
         bool turbo = config.get<TURBO>();
         return std::make_shared<CommandQueue>(_deviceHandle,
@@ -592,12 +595,12 @@ std::shared_ptr<CommandQueue> ZeroLink<TableExtension>::crateCommandQueue(const 
                                           _group_ordinal);
 }
 
-template class ZeroLink<ze_graph_dditable_ext_1_2_t>;
-template class ZeroLink<ze_graph_dditable_ext_1_3_t>;
-template class ZeroLink<ze_graph_dditable_ext_1_4_t>;
-template class ZeroLink<ze_graph_dditable_ext_1_5_t>;
-template class ZeroLink<ze_graph_dditable_ext_1_6_t>;
-template class ZeroLink<ze_graph_dditable_ext_1_7_t>;
-template class ZeroLink<ze_graph_dditable_ext_1_8_t>;
+template class ZeroAdapter<ze_graph_dditable_ext_1_2_t>;
+template class ZeroAdapter<ze_graph_dditable_ext_1_3_t>;
+template class ZeroAdapter<ze_graph_dditable_ext_1_4_t>;
+template class ZeroAdapter<ze_graph_dditable_ext_1_5_t>;
+template class ZeroAdapter<ze_graph_dditable_ext_1_6_t>;
+template class ZeroAdapter<ze_graph_dditable_ext_1_7_t>;
+template class ZeroAdapter<ze_graph_dditable_ext_1_8_t>;
 
 }  // namespace intel_npu

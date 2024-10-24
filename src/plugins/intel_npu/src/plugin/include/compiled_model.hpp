@@ -53,8 +53,6 @@ public:
 
     ov::Any get_property(const std::string& name) const override;
 
-    const NetworkMetadata& get_network_metadata() const override;
-
     const Config& get_config() const override;
 
 private:

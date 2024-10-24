@@ -9,8 +9,7 @@
 #include "driver_compiler_utils.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
-#include "izero_link.hpp"
-#include "zero_backend.hpp"
+#include "izero_adapter.hpp"
 
 namespace intel_npu {
 
@@ -25,8 +24,7 @@ public:
     ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
 
 private:
-    std::shared_ptr<ZeroEngineBackend> _zeroBackend;
-    std::shared_ptr<IZeroLink> _zeroLink;
+    std::shared_ptr<IZeroAdapter> _zeroAdapter;
 
     ze_device_graph_properties_t _deviceGraphProperties = {};
 

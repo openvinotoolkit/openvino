@@ -158,12 +158,10 @@ std::optional<size_t> ZeroInferRequest::get_batch_size(const NetworkMetadata& me
 ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
                                    const std::shared_ptr<const ICompiledModel>& compiledModel,
                                    const std::shared_ptr<IGraph>& graph,
-                                   const Config& config,
-                                   uint32_t group_ordinal)
-    : SyncInferRequest(compiledModel, config),
+                                   const Config& config)
+    : SyncInferRequest(compiledModel, graph, config),
       _initStructs(initStructs),
       _graph(graph),
-      _group_ordinal(group_ordinal),
       _config(config),
       _logger("ZeroInferRequest", config.get<LOG_LEVEL>()),
       _levelZeroInputTensors(_metadata.inputs.size(), std::vector<std::shared_ptr<ov::ITensor>>(1, nullptr)),
@@ -277,9 +275,14 @@ void ZeroInferRequest::create_pipeline() {
                                      _levelZeroOutputTensors.at(outputIndex)->get_byte_size()});
     }
 
-    _logger.debug("ZeroInferRequest::create_pipeline - constructing pipeline");
-    // Construct pipeline
+    // Find the corresponding command queue group.
+    _logger.debug("ZeroDevice::ZeroDevice - findGroupOrdinal");
+    auto groupOrdinal = zeroUtils::findGroupOrdinal(_initStructs->getDevice(), _properties);
+    _logger.debug("ZeroDevice::ZeroDevice - init completed");
 
+    _logger.debug("ZeroInferRequest::create_pipeline - constructing pipeline");
+
+    // Construct pipeline
     _pipeline = std::make_unique<Pipeline>(_config,
                                            _initStructs,
                                            _graph,
@@ -289,7 +292,7 @@ void ZeroInferRequest::create_pipeline() {
                                            _inputTensorsData,
                                            _outputTensorsData,
                                            _numberOfCommandLists,
-                                           _group_ordinal);
+                                           groupOrdinal);
 
     _logger.debug("ZeroInferRequest::create_pipeline - SyncInferRequest completed");
 }

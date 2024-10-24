@@ -8,7 +8,7 @@
 
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
-#include "izero_link.hpp"
+#include "izero_adapter.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
 namespace intel_npu {
@@ -24,7 +24,7 @@ public:
     ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
 
 private:
-    std::shared_ptr<IZeroLink> _zeroLink;
+    std::shared_ptr<IZeroAdapter> _zeroAdapter;
     ov::SoPtr<ICompiler> _compiler;
 
     Logger _logger;

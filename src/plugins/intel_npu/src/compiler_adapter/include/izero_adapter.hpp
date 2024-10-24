@@ -13,7 +13,7 @@
 
 namespace intel_npu {
 
-class IZeroLink {
+class IZeroAdapter {
 public:
     virtual std::unordered_set<std::string> queryResultFromSupportedLayers(SerializedIR serializedIR,
                                                                            const std::string& buildFlags) const = 0;
@@ -39,7 +39,7 @@ public:
 
     virtual std::shared_ptr<CommandQueue> crateCommandQueue(const Config& config) const = 0;
 
-    virtual ~IZeroLink() = default;
+    virtual ~IZeroAdapter() = default;
 };
 
 }  // namespace intel_npu

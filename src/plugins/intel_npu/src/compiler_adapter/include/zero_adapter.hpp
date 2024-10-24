@@ -9,9 +9,8 @@
 #include <utility>
 
 #include "intel_npu/utils/logger/logger.hpp"
-#include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_types.hpp"
-#include "izero_link.hpp"
+#include "izero_adapter.hpp"
 
 namespace intel_npu {
 
@@ -43,17 +42,17 @@ namespace intel_npu {
  * Adapter to use CiD through ZeroAPI
  */
 template <ze_graph_ext_version_t TableExtension>
-class ZeroLink final : public IZeroLink {
+class ZeroAdapter final : public IZeroAdapter {
 public:
-    ZeroLink(ze_driver_handle_t driverHandle,
-             ze_device_handle_t deviceHandle,
-             ze_context_handle_t zeContext,
-             ze_graph_dditable_ext_curr_t& graph_ddi_table_ext,
-             ze_command_queue_npu_dditable_ext_curr_t& _commandQueueDdiTable,
-             uint32_t group_ordinal);
-    ZeroLink(const ZeroLink&) = delete;
-    ZeroLink& operator=(const ZeroLink&) = delete;
-    ~ZeroLink();
+    ZeroAdapter(ze_driver_handle_t driverHandle,
+                ze_device_handle_t deviceHandle,
+                ze_context_handle_t zeContext,
+                ze_graph_dditable_ext_curr_t& graph_ddi_table_ext,
+                ze_command_queue_npu_dditable_ext_curr_t& _commandQueueDdiTable,
+                uint32_t group_ordinal);
+    ZeroAdapter(const ZeroAdapter&) = delete;
+    ZeroAdapter& operator=(const ZeroAdapter&) = delete;
+    ~ZeroAdapter();
 
     std::unordered_set<std::string> queryResultFromSupportedLayers(SerializedIR serializedIR,
                                                                    const std::string& buildFlags) const override;
