@@ -2,6 +2,7 @@
   "name": "openvino-node-demo",
   "version": "1.0.0",
   "license": "Apache-2.0",
+  "type": "commonjs",
   "devDependencies": {
     "args": "^5.0.3",
     "canvas": "^2.11.2",
@@ -12,7 +13,8 @@
     "openvino-node": "^2024.4.0"
   },
   "scripts": {
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "postinstall": "node ./fetch-samples-assets.js"
   },
   "engines": {
     "node": ">=21.0.0"

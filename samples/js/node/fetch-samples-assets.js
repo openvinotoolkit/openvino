@@ -47,7 +47,11 @@ const datasets = [
 ];
 const datasetsDir = __dirname + '/../assets/datasets';
 
-main();
+try {
+  main();
+} catch(error) {
+  console.error('Error Occurred', error);
+}
 
 async function main() {
   await downloadAssets(models, modelsDir);
