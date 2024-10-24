@@ -72,7 +72,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
             continue;
 
         val[i] *= scale;
-        VSTORE_N(CONVERT_CHAR_N(val[i]), 0, output + offset + ((local_id * iteration + i) * block_size));
+        VSTORE_N(CAT(CONVERT_CHAR_N, _rte)(val[i]), 0, output + offset + ((local_id * iteration + i) * block_size));
     }
 
     if (sglid == 0 && local_id == 0)

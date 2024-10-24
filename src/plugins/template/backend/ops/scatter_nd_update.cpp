@@ -17,17 +17,17 @@ bool evaluate(const std::shared_ptr<ov::op::v3::ScatterNDUpdate>& op,
                                                    inputs[1].data<const int32_t>(),
                                                    inputs[2].data<const T>(),
                                                    outputs[0].data<T>(),
-                                                   op->get_input_shape(0),
-                                                   op->get_input_shape(1),
-                                                   op->get_input_shape(2));
+                                                   inputs[0].get_shape(),
+                                                   inputs[1].get_shape(),
+                                                   inputs[2].get_shape());
     } else if (idxType == ov::element::i64) {
         ov::reference::scatterNdUpdate<T, int64_t>(inputs[0].data<const T>(),
                                                    inputs[1].data<const int64_t>(),
                                                    inputs[2].data<const T>(),
                                                    outputs[0].data<T>(),
-                                                   op->get_input_shape(0),
-                                                   op->get_input_shape(1),
-                                                   op->get_input_shape(2));
+                                                   inputs[0].get_shape(),
+                                                   inputs[1].get_shape(),
+                                                   inputs[2].get_shape());
     } else {
         OPENVINO_THROW("ScatterNDUpdate layer support only i32 and i64 'indices' input precision!");
     }
