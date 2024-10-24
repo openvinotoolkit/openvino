@@ -17,3 +17,4 @@ from openvino.runtime.opset15.ops import bitwise_left_shift
 from openvino.runtime.opset15.ops import bitwise_right_shift
 from openvino.runtime.opset15.ops import slice_scatter
 from openvino.runtime.opset15.ops import stft
+from openvino.runtime.opset15.ops import search_sorted
