@@ -217,6 +217,16 @@ protected:
 
         config.is_causal = desc->is_causal;
 
+        if (desc->is_kv_compressed) {
+            const auto& group_sizes = desc->quantization_config.group_sizes;
+            const auto non_compressed_dims = std::count(group_sizes.begin(), group_sizes.end(), 1);
+
+            config.per_head_quantization = (group_sizes.size() - non_compressed_dims) == 1;
+            config.is_kv_compressed = desc->is_kv_compressed;
+            config.use_asymmetric_quantization = desc->quantization_config.is_asymmetric_quantization();
+            config.combine_scales_and_zp = desc->combine_scales_and_zp;
+        }
+
         return config;
     }
 
@@ -228,6 +238,15 @@ public:
         auto data_inputs_num = impl_param.input_layouts.size();
         if (has_indirect_inputs(impl_param))
             data_inputs_num--;
+
+        auto has_zp_input_buffers = false;
+        if (desc->is_kv_compressed) {
+            data_inputs_num -= 2; // key and value compression scales are handled separately
+
+            has_zp_input_buffers = desc->quantization_config.is_asymmetric_quantization() && !desc->combine_scales_and_zp;
+            if (has_zp_input_buffers)
+                data_inputs_num -= 2; // key and value compression zp are handled separately
+        }
 
         params.inputs.resize(data_inputs_num);
         for (size_t i = 0; i < data_inputs_num; i++) {
@@ -246,15 +265,41 @@ public:
             params.indirect_axis = desc->indirect_axis;
         }
 
-        params.set_dynamic_shape_offsets();
+        if (desc->is_kv_compressed) {
+            params.key_cache_comp_scale = convert_data_tensor(impl_param.get_input_layout(data_inputs_num));
+            params.value_cache_comp_scale = convert_data_tensor(impl_param.get_input_layout(data_inputs_num + 1));
 
-        // Need to adjust sdpa kernel offset to consider beam table input
-        if (has_indirect_inputs(impl_param)) {
-            auto out_offset = params.outputs[0].get_dynamic_shape_offset();
-            if (indirect)
-                params.beam_table.SetDynamicShapeOffset(out_offset);
+            if (has_zp_input_buffers) {
+                params.key_cache_comp_zp = convert_data_tensor(impl_param.get_input_layout(data_inputs_num + 2));
+                params.value_cache_comp_zp = convert_data_tensor(impl_param.get_input_layout(data_inputs_num + 3));
+            }
+        }
 
-            params.outputs[0].SetDynamicShapeOffset(out_offset + kernel_selector::DataTensor::max_rank());
+        const auto& in_offsets_map = impl_param.in_port_to_shape_info_offset;
+        std::map<size_t, size_t> in_tensor_to_offset_map;
+        for (size_t i = 0; i < data_inputs_num; i++) {
+            in_tensor_to_offset_map[i] = in_offsets_map.at(i);
+        }
+
+        const auto& out_offsets_map = impl_param.out_port_to_shape_info_offset;
+        std::map<size_t, size_t> out_tensor_to_offset_map = {
+            {0, out_offsets_map.at(0)},
+        };
+
+        params.set_dynamic_shape_offsets(in_tensor_to_offset_map, out_tensor_to_offset_map);
+
+        if (desc->is_kv_compressed) {
+            params.key_cache_comp_scale.SetDynamicShapeOffset(in_offsets_map.at(data_inputs_num));
+            params.value_cache_comp_scale.SetDynamicShapeOffset(in_offsets_map.at(data_inputs_num + 1));
+
+            if (has_zp_input_buffers) {
+                params.key_cache_comp_zp.SetDynamicShapeOffset(in_offsets_map.at(data_inputs_num + 2));
+                params.value_cache_comp_zp.SetDynamicShapeOffset(in_offsets_map.at(data_inputs_num + 3));
+            }
+        }
+
+        if (indirect && has_indirect_inputs(impl_param)) {
+            params.beam_table.SetDynamicShapeOffset(get_beam_table_id(desc));
         }
 
         return params;
@@ -300,6 +345,7 @@ attach_scaled_dot_product_attention_impl::attach_scaled_dot_product_attention_im
     auto types = {
         data_types::f32,
         data_types::f16,
+        data_types::i8,
     };
 
     auto formats = {

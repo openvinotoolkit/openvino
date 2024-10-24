@@ -237,7 +237,7 @@ public:
     }
 
     void merge_output_padding(padding const& padd, size_t idx = 0) {
-        set_output_padding(padding::max(padd, output_layouts[idx].data_padding));
+        set_output_padding(padding::max(padd, output_layouts[idx].data_padding), idx);
     }
 
     // only calculated output layout (for external usage), does not modify/use cached output layout nor invalidate users

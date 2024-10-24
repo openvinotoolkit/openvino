@@ -11,32 +11,60 @@ namespace ov {
 namespace op {
 namespace internal {
 
+struct QuantizationConfig {
+    enum class QuantizationType { Symmetric, Asymmetric };
+
+    QuantizationType type = QuantizationType::Symmetric;
+    element::Type quantization_dt = element::undefined;
+    element::Type scale_dt = element::undefined;
+    element::Type zp_dt = element::undefined;
+    std::vector<uint64_t> group_sizes = {};
+
+    bool operator==(const QuantizationConfig& rhs) const {
+        return type == rhs.type && quantization_dt == rhs.quantization_dt && scale_dt == rhs.scale_dt &&
+               zp_dt == rhs.zp_dt && group_sizes == rhs.group_sizes;
+    }
+
+    bool is_asymmetric_quantization() const {
+        return type == QuantizationType::Asymmetric;
+    }
+};
+
 /// \brief Operator performing Dynamic Quantize
 class TRANSFORMATIONS_API DynamicQuantize : public ov::op::Op {
 public:
-    OPENVINO_OP("DynamicQuantize", "gpu_opset");
-
+    OPENVINO_OP("DynamicQuantize", "ie_internal_opset");
     DynamicQuantize() = default;
     /// \brief Constructs an DynamicQuantize operation.
     ///
     /// \param data Input tensor with data
-    /// \param group_sizes Group sizes for dynamic quantization
-    /// \param dt_scale Data type for scale output
-    DynamicQuantize(const Output<Node>& data, std::vector<uint64_t> group_sizes, element::Type dt_scale);
+    /// \param config Dynamic quantization configuration
+    DynamicQuantize(const Output<Node>& data, const QuantizationConfig& config);
 
     void validate_and_infer_types() override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
+
     const std::vector<uint64_t>& get_group_sizes() const {
-        return m_group_sizes;
-    };
+        return m_config.group_sizes;
+    }
+
+    QuantizationConfig::QuantizationType get_quantization_type() const {
+        return m_config.type;
+    }
+
+    QuantizationConfig get_quantization_config() const {
+        return m_config;
+    }
+
     static std::vector<ov::PartialShape> shape_infer(const DynamicQuantize* op,
                                                      const std::vector<ov::PartialShape>& input_shapes,
-                                                     const std::vector<uint64_t>& group_sizes);
+                                                     const QuantizationConfig& config);
 
-private:
-    std::vector<uint64_t> m_group_sizes;
-    element::Type m_dt_scale;
+protected:
+    DynamicQuantize(const Output<Node>& data, const QuantizationConfig& config, size_t outputs_number);
+
+    QuantizationConfig m_config;
 };
 
 }  // namespace internal

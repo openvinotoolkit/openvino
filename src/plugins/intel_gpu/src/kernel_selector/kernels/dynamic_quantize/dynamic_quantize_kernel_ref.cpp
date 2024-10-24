@@ -26,6 +26,39 @@ JitConstants DynamicQuantizeKernelRef::GetJitConstants(const dynamic_quantize_pa
 
     jit.Merge(GetTensorFriendlyWorkGroupsJit(params.outputs[0]));
 
+    bool rearrange_scales = false;
+    const auto& scales_output_order = params.scales_output_order;
+    if (!scales_output_order.empty()) {
+        for (size_t i = 0; i < scales_output_order.size(); i++) {
+            if (i != scales_output_order[i]) {
+                rearrange_scales = true;
+                break;
+            }
+        }
+    }
+
+    if (rearrange_scales) {
+        const std::array<char, 4> default_dim_order = {'b', 'f', 'y', 'x'};
+
+        std::stringstream ss;
+        for (size_t i = 0; i < scales_output_order.size(); i++) {
+            ss << default_dim_order[scales_output_order[i]];
+
+            if (i + 1 != scales_output_order.size())
+                ss << ", ";
+        }
+
+        jit.AddConstant(MakeJitConstant("SCALES_OUTPUT_ORDER", ss.str()));
+    }
+
+    jit.AddConstant(MakeJitConstant("ASYMMETRIC_QUANTIZATION", params.use_asymmetric_quantization));
+    jit.AddConstant(MakeJitConstant("GROUP_SCALES_WITH_ZP", params.combine_scales_and_zp));
+
+    const auto& group_sizes = params.group_sizes;
+    for (size_t i = 0; i < group_sizes.size(); i++) {
+        jit.AddConstant(MakeJitConstant("GROUP_SIZE_DIM" + std::to_string(i), group_sizes[i]));
+    }
+
     return jit;
 }
 
@@ -34,7 +67,14 @@ CommonDispatchData DynamicQuantizeKernelRef::SetDefault(const dynamic_quantize_p
     CommonDispatchData dispatchData;
 
     OPENVINO_ASSERT(params.outputs[0].GetLayout() == DataLayout::bfyx, "It supports only 4d tensor");
-    dispatchData.gws = {params.outputs[0].Batch().v * params.outputs[0].Feature().v, 1, 1};
+
+    const auto& group_sizes = params.group_sizes;
+    auto batch_size = group_sizes[0] == 1 ? params.outputs[0].Batch().v : 1;
+    auto feature_size = group_sizes[1] == 1 ? params.outputs[0].Feature().v : 1;
+    auto y_size = group_sizes[2] == 1 ? params.outputs[0].Y().v : 1;
+    auto x_size = group_sizes[3] == 1 ? params.outputs[0].X().v : 1;
+
+    dispatchData.gws = {batch_size * feature_size, y_size, x_size};
     dispatchData.lws = {1, 1, 1};
 
     return dispatchData;
@@ -92,6 +132,10 @@ KernelsPriority DynamicQuantizeKernelRef::GetKernelsPriority(const Params& /*par
 
 bool DynamicQuantizeKernelRef::Validate(const Params& params) const {
     if (!KernelBaseOpenCL::Validate(params))
+        return false;
+
+    const auto& prim_params = static_cast<const dynamic_quantize_params&>(params);
+    if (prim_params.group_sizes.size() != 4)
         return false;
 
     return true;

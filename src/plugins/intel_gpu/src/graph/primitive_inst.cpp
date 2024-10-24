@@ -40,6 +40,7 @@
 #include "graph_optimizer/prepare_buffer_fusing.h"
 
 #include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/multi_tensor_variable_state.hpp"
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/graph/serialization/set_serializer.hpp"
 #include "intel_gpu/runtime/engine.hpp"
@@ -294,30 +295,54 @@ void primitive_inst::update_shape() {
         auto prim = get_node().as<read_value>().get_primitive();
         const auto& variable_id = prim->variable_id;
         auto& variable = get_network().get_variable(variable_id);
+
+        auto update_state_layout = [&](ov::intel_gpu::VariableStateBase& variable, layout new_layout, size_t layout_idx) {
+            // If variable is not set and we have an initializer - use it's shape as shape of variable
+            if (!variable.is_set() && _impl_params->input_layouts.size() > layout_idx) {
+                new_layout = _impl_params->get_input_layout(layout_idx);
+            }
+
+            // If we still have a dynamic dimension, which basiclly means that we don't have an initializer, then replace dynamic dims with 0
+            if (new_layout.is_dynamic()) {
+                auto pshape = new_layout.get_partial_shape();
+                for (auto& d : pshape) {
+                    if (d.is_dynamic()) {
+                        d = 0;
+                    }
+                }
+                new_layout.set_partial_shape(pshape);
+            }
+
+            variable.set_layout(new_layout);
+
+            if (_impl_params->state_layouts[layout_idx] != new_layout) {
+                _impl_params->state_layouts[layout_idx] = new_layout;
+                GPU_DEBUG_TRACE_DETAIL << "Update " << layout_idx << " layout: " << new_layout.to_short_string() << "\n";
+                input_shape_changed = true;
+            }
+        };
+
+        if (_impl_params->state_layouts.empty())
+            _impl_params->state_layouts.resize(1);
+
         // Initial variable shape is taken from variable itself
         auto new_layout = variable.get_layout();
+        update_state_layout(variable, new_layout, 0);
 
-        // If variable is not set and we have an initializer - use it's shape as shape of variable
-        if (!variable.is_set() && _impl_params->input_layouts.size() == 1) {
-            new_layout = _impl_params->get_input_layout(0);
-        }
+        if (prim->num_outputs > 1) {
+            if (auto compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
+                _impl_params->state_layouts.resize(compressed_cache_variable->has_zp_state() ? 3 : 2);
 
-        // If we still have a dynamic dimension, which basiclly means that we don't have an initializer, then replace dynamic dims with 0
-        if (new_layout.is_dynamic()) {
-            auto pshape = new_layout.get_partial_shape();
-            for (auto& d : pshape) {
-                if (d.is_dynamic()) {
-                    d = 0;
+                auto scales_state = compressed_cache_variable->get_compression_scale_state();
+                auto new_scales_layout = compressed_cache_variable->get_compression_scale_state()->get_layout();
+                update_state_layout(*scales_state, new_scales_layout, 1);
+
+                if (compressed_cache_variable->has_zp_state()) {
+                    auto scales_state = compressed_cache_variable->get_compression_zp_state();
+                    auto new_zp_layout = compressed_cache_variable->get_compression_zp_state()->get_layout();
+                    update_state_layout(*scales_state, new_zp_layout, 2);
                 }
             }
-            new_layout.set_partial_shape(pshape);
-        }
-
-        variable.set_layout(new_layout);
-
-        if (!_impl_params->state_layout.has_value() || _impl_params->state_layout.value() != new_layout) {
-            _impl_params->state_layout = new_layout;
-            input_shape_changed = true;
         }
     }
 
@@ -462,6 +487,14 @@ void primitive_inst::update_shape() {
         auto& variable = get_network().get_variable(desc->variable_id);
         // Custom output layout update as update_output_layout handles paddings incorrectly for optimized out read_value + kv_cache pattern
         _impl_params->output_layouts[0] = variable.get_layout();
+
+        if (auto compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
+            _impl_params->output_layouts[1] = compressed_cache_variable->get_compression_scale_state()->get_layout();
+
+            if (compressed_cache_variable->has_zp_state()) {
+               _impl_params->output_layouts[2] = compressed_cache_variable->get_compression_zp_state()->get_layout();
+            }
+        }
     }
 
     if (get_node().is_type<kv_cache>()) {
@@ -544,6 +577,15 @@ event::ptr primitive_inst::realloc_if_needed() {
                                     << ", variable layout " << variable.get_layout().to_short_string() << ")" << std::endl;
 
                 _outputs[0] = variable.get_memory();
+
+                if (auto compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
+                    _outputs[2] = compressed_cache_variable->get_compression_scale_state()->get_memory();
+
+                    if (compressed_cache_variable->has_zp_state()) {
+                        _outputs[3] = compressed_cache_variable->get_compression_zp_state()->get_memory();
+                    }
+                }
+
                 // To record shape predictor
                 for (size_t j = 0; j < _impl_params->output_layouts.size(); ++j)
                     sp.predict_preallocation_shape(id(), _impl_params->output_layouts[j], true, j);
@@ -563,11 +605,27 @@ event::ptr primitive_inst::realloc_if_needed() {
             GPU_DEBUG_TRACE_DETAIL << id() << ": Update variable (ptr: " << variable.get_memory()->buffer_ptr()
                                    << ", actual_size:" << variable.get_actual_mem_size() << " bytes"
                                    << ", variable layout:" << variable.get_layout().to_short_string() << ")" << std::endl;
+
+            if (auto compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
+                compressed_cache_variable->get_compression_scale_state()->set_layout(_impl_params->output_layouts[1]);
+
+                if (compressed_cache_variable->has_zp_state()) {
+                    compressed_cache_variable->get_compression_zp_state()->set_layout(_impl_params->output_layouts[2]);
+                }
+            }
         }
         // For nodes that can be optimized, variable memory is used as output memory
         // so there is no need for output memory reallocation
         if (can_be_optimized()) {
             _max_output_layout_count[0] = variable.get_actual_mem_size() / dt_sizes_in_B[0];
+
+            if (auto compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
+                const size_t scale_idx = _node->is_type<read_value>() ? 1 : 2; // kv_cache or read_value
+                _max_output_layout_count[scale_idx] = compressed_cache_variable->get_compression_scale_state()->get_actual_mem_size() / dt_sizes_in_B[1];
+                if (compressed_cache_variable->has_zp_state()) {
+                    _max_output_layout_count[scale_idx + 1] = compressed_cache_variable->get_compression_zp_state()->get_actual_mem_size() / dt_sizes_in_B[2];
+                }
+            }
             GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("can_be_optimized");
             return ev;
         }
@@ -646,7 +704,12 @@ event::ptr primitive_inst::realloc_if_needed() {
 
                 // dynamic quantization is only applied to activation of FC
                 if (get_node().is_type<dynamic_quantize>()) {
-                    auto dyn_quan_scale_layout = dynamic_quantize_inst::__calc_output_layouts<ov::PartialShape>(updated_layouts[dep_idx], 0);
+                    const auto& desc = get_node().as<dynamic_quantize>().get_primitive();
+                    auto dyn_quan_scale_layout =
+                        dynamic_quantize_inst::__calc_output_layouts<ov::PartialShape>(updated_layouts[dep_idx],
+                                                                                       desc->quantization_config,
+                                                                                       desc->scales_zp_output_order,
+                                                                                       desc->combine_scales_and_zp);
                     GPU_DEBUG_TRACE_DETAIL << "update layout of dynamic quantize scale parameter layout "
                                         << dyn_quan_scale_layout[1].to_short_string() << std::endl;
                     updated_params.output_layouts[1] = dyn_quan_scale_layout[1];
@@ -671,13 +734,24 @@ event::ptr primitive_inst::realloc_if_needed() {
 
     // update layout to ensure that it repsects paddings for correct allocation size
     if (_node_output_layout.data_padding.is_dynamic()) {
-        auto current_dims = updated_layouts[0].get_padded_dims();
+        auto update_padding = [](layout& orig_layout) {
+            auto current_dims = orig_layout.get_padded_dims();
 
-        std::vector<size_t> current_buf_shape;
-        current_buf_shape.reserve(current_dims.size());
-        std::transform(current_dims.begin(), current_dims.end(),
-                    std::back_inserter(current_buf_shape), [](const tensor::value_type& el) { return static_cast<size_t>(el); });
-        updated_layouts[0] = layout(ov::PartialShape(current_buf_shape), updated_layouts[0].data_type, updated_layouts[0].format);
+            std::vector<size_t> current_buf_shape;
+            current_buf_shape.reserve(current_dims.size());
+            std::transform(current_dims.begin(), current_dims.end(),
+                        std::back_inserter(current_buf_shape), [](const tensor::value_type& el) { return static_cast<size_t>(el); });
+            orig_layout = layout(ov::PartialShape(current_buf_shape), orig_layout.data_type, orig_layout.format);
+        };
+
+        update_padding(updated_layouts[0]);
+
+        // Update scales and zero points buffers paddings, skipping beam_table
+        if (_node->is_type<kv_cache>()) {
+            for (size_t i = 2; i < updated_layouts.size(); ++i) {
+                update_padding(updated_layouts[i]);
+            }
+        }
     }
 
     int32_t tmp_prealloc_count = get_prealloc_iter_num();
@@ -690,13 +764,14 @@ event::ptr primitive_inst::realloc_if_needed() {
     for (size_t i = 0; i < updated_layouts.size(); ++i) {
         bool reclaim = 0;
         size_t required_buffer_size = 0;
-        if (_node->is_type<kv_cache>() && i == 0) {
+        if (_node->is_type<kv_cache>() && i != 1) {
             // Relax reclaiming condition for kv cache
             const auto& desc = _node->as<kv_cache>().get_primitive();
             auto prealloc_shape = updated_layouts[i].get_shape();
             const auto shape_rank = prealloc_shape.size();
-            auto seq_axis =
-                static_cast<int32_t>(desc->concat_axis >= 0 ? desc->concat_axis : shape_rank + desc->concat_axis);
+            const auto seq_axis = i == 0 ? kv_cache_inst::get_sequence_axis(desc->concat_axis, shape_rank)
+                                         : kv_cache_inst::get_scale_zp_sequence_axis();
+
             prealloc_shape[seq_axis] += tmp_prealloc_count;
             required_buffer_size = std::accumulate(prealloc_shape.begin(), prealloc_shape.end(), size_t(1), std::multiplies<size_t>());
         } else {
@@ -723,11 +798,12 @@ event::ptr primitive_inst::realloc_if_needed() {
     for (size_t i = 0; i < actual_layouts.size(); ++i) {
         bool can_reuse_buffer = (_outputs[i] && updated_layouts[i].get_linear_size() <= _max_output_layout_count[i]);
         std::pair<bool, ov::Shape> prealloc_info;
-        if (_node->is_type<kv_cache>() && i == 0) {
+        if (_node->is_type<kv_cache>() && i != 1) {
             const auto& desc = _node->as<kv_cache>().get_primitive();
-            auto shape_rank = updated_layouts[i].get_shape().size();
-            auto seq_axis =
-                static_cast<int32_t>(desc->concat_axis >= 0 ? desc->concat_axis : shape_rank + desc->concat_axis);
+            const auto shape_rank = updated_layouts[i].get_shape().size();
+            const auto seq_axis = i == 0 ? kv_cache_inst::get_sequence_axis(desc->concat_axis, shape_rank)
+                                         : kv_cache_inst::get_scale_zp_sequence_axis();
+
             prealloc_info = sp.predict_preallocation_shape(id(), updated_layouts[i], false, i, tmp_prealloc_count, seq_axis);
         } else {
             prealloc_info = sp.predict_preallocation_shape(id(), updated_layouts[i], can_reuse_buffer, i, tmp_prealloc_count);
@@ -743,19 +819,21 @@ event::ptr primitive_inst::realloc_if_needed() {
             GPU_DEBUG_TRACE_DETAIL << id() << ": reuse previously allocated output buffer[" << i << "] - "
                                    << actual_layouts[i].get_linear_size() << "/" << _max_output_layout_count[i]
                                    << std::endl;
-            if (_node->is_type<kv_cache>() && (i == 0)) {
+            if (_node->is_type<kv_cache>() && i != 1) {
                 // kv_cache has already assigned memory.
                 // No need to reinterpret output memory but need to update padding
                 const auto& desc = _node->as<kv_cache>().get_primitive();
                 auto& present_layout = _impl_params->output_layouts[i];
                 const auto present_layout_rank = present_layout.get_partial_shape().size();
-                const auto sequence_axis = kv_cache_inst::get_sequence_axis(desc->concat_axis, present_layout_rank);
+                const auto sequence_axis = i == 0 ? kv_cache_inst::get_sequence_axis(desc->concat_axis, present_layout_rank)
+                                                  : kv_cache_inst::get_scale_zp_sequence_axis();;
+
                 auto max_pad = kv_cache_inst::get_max_pad(present_layout,
                                                           _max_output_layout_count[i],
                                                           sequence_axis,
-                                                          "present_layout");
+                                                          i == 0 ? "present_layout" : "present_scales_layout");
                 kv_cache_inst::update_pad(present_layout, max_pad, sequence_axis);
-                GPU_DEBUG_TRACE_DETAIL << _impl_params->output_layouts[i].to_string() << std::endl;
+                GPU_DEBUG_TRACE_DETAIL << i << ". " << _impl_params->output_layouts[i].to_string() << std::endl;
                 set_shape_change();
             } else {
                 _outputs[i] = _network.get_engine().reinterpret_buffer(*_outputs[i], actual_layouts[i]);
@@ -816,6 +894,26 @@ event::ptr primitive_inst::realloc_if_needed() {
                                                       sequence_axis,
                                                       "present_layout");
             if (max_pad > 0) {
+                if (auto compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
+                    auto present_scales_layout = _impl_params->output_layouts[2];
+                    const auto sequence_axis = kv_cache_inst::get_scale_zp_sequence_axis();;
+
+                    // In case of compressed KV-cache, calling update_impl for each iteration
+                    // because of scales layout [batch, num_heads, seq_len, head_size], which requires proper
+                    // dynamic padding updates
+                    axis_is_outer_most = false;
+                    kv_cache_inst::update_pad(present_scales_layout, max_pad, sequence_axis);
+
+                    _impl_params->output_layouts[2] = present_scales_layout;
+                    compressed_cache_variable->get_compression_scale_state()->set_memory(_outputs[2], present_scales_layout);
+                    if (compressed_cache_variable->has_zp_state()) {
+                        auto present_zp_layout = present_scales_layout;
+
+                        _impl_params->output_layouts[3] = present_scales_layout;
+                        compressed_cache_variable->get_compression_zp_state()->set_memory(_outputs[3], present_zp_layout);
+                    }
+                }
+
                 kv_cache_inst::update_pad(present_layout, max_pad, sequence_axis);
                 if (!axis_is_outer_most) {
                     GPU_DEBUG_TRACE_DETAIL << id() << ": Update impl with new output padding" << std::endl;
@@ -836,12 +934,32 @@ event::ptr primitive_inst::realloc_if_needed() {
                                        << "'s layout with allocated kv cache output: " << present_layout.to_short_string()
                                        << " (is_set  = " << variable.is_set() << ") " << std::endl;
                 variable.set_memory(_outputs[0], present_layout);
+
+                if (auto compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
+                    auto present_scales_layout = _impl_params->output_layouts[2];
+
+                    compressed_cache_variable->get_compression_scale_state()->set_memory(_outputs[2], present_scales_layout);
+                    if (compressed_cache_variable->has_zp_state()) {
+                        auto present_zp_layout = present_scales_layout;
+                        compressed_cache_variable->get_compression_zp_state()->set_memory(_outputs[3], present_zp_layout);
+                    }
+                }
             }
         } else {
             GPU_DEBUG_TRACE_DETAIL << id() << ": Update variable " << variable.get_name()
                                    << "'s layout with allocated kv cache output: " << present_layout.to_short_string()
                                    << " (is_set  = " << variable.is_set() << ") " << std::endl;
             variable.set_layout(present_layout);
+
+            if (auto compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
+                auto present_scales_layout = _impl_params->output_layouts[2];
+
+                compressed_cache_variable->get_compression_scale_state()->set_layout(present_scales_layout);
+                if (compressed_cache_variable->has_zp_state()) {
+                    auto present_zp_layout = present_scales_layout;
+                    compressed_cache_variable->get_compression_zp_state()->set_layout(present_zp_layout);
+                }
+            }
         }
     }
 
@@ -1017,8 +1135,8 @@ bool primitive_inst::update_impl(bool use_async_compilation) {
 }
 
 void primitive_inst::update_paddings() {
-    auto reset_pad = [](kernel_impl_params& params, const program_node* node) {
-        params.output_layouts[0].data_padding = node->get_output_layout(0).data_padding;
+    auto reset_pad = [](kernel_impl_params& params, const program_node* node, size_t idx = 0) {
+        params.output_layouts[idx].data_padding = node->get_output_layout(idx).data_padding;
     };
     if (_node->is_type<read_value>() || _node->is_type<kv_cache>()) {
         auto variable_id = _node->is_type<read_value>() ? (_node->as<read_value>().get_primitive()->variable_id)
@@ -1030,6 +1148,15 @@ void primitive_inst::update_paddings() {
             primitive_inst* inst = this;
             while (inst) {
                 reset_pad(*inst->_impl_params, inst->_node);
+                if (inst == this) {
+                    if (auto compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
+                        const size_t scale_idx = _node->is_type<read_value>() ? 1 : 2;
+                        reset_pad(*inst->_impl_params, inst->_node, scale_idx);
+                        if (compressed_cache_variable->has_zp_state()) {
+                            reset_pad(*inst->_impl_params, inst->_node, scale_idx + 1);
+                        }
+                    }
+                }
                 auto& users = inst->_node->get_users();
                 if (users.size() == 1 && users.front()->get_output_layout(0).data_padding.is_dynamic()) {
                     inst = inst->get_user_insts().front();
@@ -1155,11 +1282,42 @@ void primitive_inst::do_runtime_in_place_kv_cache() {
         GPU_DEBUG_TRACE_DETAIL << "[do runtime_in_place_kv_cache] " << id() << " Updated present_layout's pad : " << present_layout.to_string() << std::endl;
         auto& variable = get_network().get_variable(desc->variable_info.variable_id);
         variable.set_layout(present_layout);
+
+        if (desc->compressed) {
+            auto compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable);
+            auto& present_scales_layout = _impl_params->output_layouts[2];
+            const auto sequence_axis = kv_cache_inst::get_scale_zp_sequence_axis();
+            kv_cache_inst::update_pad(present_scales_layout, max_pad - new_seq_len, sequence_axis);
+            GPU_DEBUG_TRACE_DETAIL << "[do runtime_in_place_kv_cache] " << id()
+                                   << " Updated present_scale_layout's pad : " << present_scales_layout.to_string() << std::endl;
+
+            compressed_cache_variable->get_compression_scale_state()->set_layout(present_scales_layout);
+            if (desc->get_compression_zp_inputs_num() > 0) {
+                auto& present_zp_layout = _impl_params->output_layouts[3];
+                kv_cache_inst::update_pad(present_zp_layout, max_pad - new_seq_len, sequence_axis);
+                GPU_DEBUG_TRACE_DETAIL << "[do runtime_in_place_kv_cache] " << id()
+                                       << " Updated present_zp_layout's pad : " << present_scales_layout.to_string() << std::endl;
+
+                compressed_cache_variable->get_compression_zp_state()->set_layout(present_scales_layout);
+            }
+        }
+
         GPU_DEBUG_TRACE_DETAIL << "[do_runtime_in_place_kv_cache] " << id() << "Updated variable with present_layout"
                                << variable.get_layout().to_string() << " is_set  = " << variable.is_set() << std::endl;
         if (past_layout.data_padding._upper_size[sequence_axis] > 0 && variable.is_set()) {
             kv_cache_inst::update_pad(past_layout, max_pad, sequence_axis);
             _impl_params->_can_be_optimized = true;
+
+            if (desc->compressed) {
+                auto& past_scale_layout = _impl_params->input_layouts[3];
+                const auto sequence_axis = kv_cache_inst::get_scale_zp_sequence_axis();
+                kv_cache_inst::update_pad(past_scale_layout, max_pad, sequence_axis);
+
+                if (desc->get_compression_zp_inputs_num() > 0) {
+                    auto& past_zp_layout = _impl_params->input_layouts[4];
+                    kv_cache_inst::update_pad(past_zp_layout, max_pad, sequence_axis);
+                }
+            }
             GPU_DEBUG_TRACE_DETAIL << "[do_runtime_in_place_kv_cache] " << id() << " Updated past layout's pad : " << past_layout.to_string() << std::endl;
         }
     }

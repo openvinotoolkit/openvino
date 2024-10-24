@@ -26,6 +26,7 @@ struct Params {
     bool with_mask;
     bool with_scale;
     bool causal;
+    bool compressed;
     size_t batch;
     ov::element::Type model_element_type;
     size_t num_iter;
@@ -46,6 +47,9 @@ public:
         ov::AnyMap properties = {ov::hint::inference_precision(ov::element::f16),
                                  ov::intel_gpu::hint::enable_sdpa_optimization(true)};
 
+        if (p.compressed)
+            properties.emplace(ov::hint::kv_cache_precision(ov::element::i8));
+
         const size_t n_heads = 16;
         const size_t n_features = 64;
         const size_t context_size = 7;
@@ -58,6 +62,7 @@ public:
         const bool causal = p.causal;
         const bool with_mask = p.with_mask;
         const bool with_scale = p.with_scale;
+        const bool compressed = p.compressed;
 
         auto model = tests::make_llm_kv_cache_sdpa_pattern(ov::Dimension::dynamic(),
                                                            n_heads,
@@ -284,14 +289,17 @@ public:
                 compare_tensors({ref_results[0]}, {sdpa_out});
             }
 
-            auto variables = infer_request.query_state();
-            std::vector<ov::Tensor> states;
-            for (auto& variable : variables) {
-                auto state = variable.get_state();
-                ASSERT_EQ(state.get_element_type(), element_type);
-                states.push_back(state);
+            if (!compressed) {
+                auto variables = infer_request.query_state();
+                std::vector<ov::Tensor> states;
+                for (auto& variable : variables) {
+                    auto state = variable.get_state();
+                    ASSERT_EQ(state.get_element_type(), element_type);
+                    states.push_back(state);
+                }
+                compare_tensors({ref_k_cache, ref_v_cache}, states);
             }
-            compare_tensors({ref_k_cache, ref_v_cache}, states);
+
             infer_request.reset_state();
         }
     }
@@ -310,6 +318,7 @@ public:
         result << "mask=" << p.with_mask << "_";
         result << "scale=" << p.with_scale << "_";
         result << "causal=" << p.causal << "_";
+        result << "compressed=" << p.compressed << "";
         return result.str();
     }
 };
@@ -324,11 +333,17 @@ std::vector<Params> get_test_params() {
     const bool with_mask = true;
     const bool with_scale = true;
     const bool causal = true;
+    const bool compressed = true;
 
-    p.push_back({with_rearrange, !with_mask, !with_scale, !causal, 1, ov::element::Type_t::f16, 10, 1, 1, {0, 1, 2, 3}});
-    p.push_back({with_rearrange, with_mask, !with_scale, !causal, 1, ov::element::Type_t::f16, 10, 4, 1, {0, 1, 2, 3}});
-    p.push_back({with_rearrange, with_mask, !with_scale, !causal, 1, ov::element::Type_t::f16, 10, 4, 1, {0, 2, 1, 3}});
-    p.push_back({!with_rearrange, with_mask, !with_scale, !causal, 1, ov::element::Type_t::f16, 10, 4, 1, {0, 2, 1, 3}});
+    p.push_back({with_rearrange, !with_mask, !with_scale, !causal, !compressed, 1, ov::element::Type_t::f16, 10, 1, 1, {0, 1, 2, 3}});
+    p.push_back({with_rearrange, with_mask, !with_scale, !causal, !compressed, 1, ov::element::Type_t::f16, 10, 4, 1, {0, 1, 2, 3}});
+    p.push_back({with_rearrange, with_mask, !with_scale, !causal, !compressed, 1, ov::element::Type_t::f16, 10, 4, 1, {0, 2, 1, 3}});
+    p.push_back({!with_rearrange, with_mask, !with_scale, !causal, !compressed, 1, ov::element::Type_t::f16, 10, 4, 1, {0, 2, 1, 3}});
+
+    // Compressed
+    p.push_back({with_rearrange, with_mask, !with_scale, !causal, compressed, 1, ov::element::Type_t::f16, 10, 1, 1, {0, 1, 2, 3}});
+    p.push_back({with_rearrange, with_mask, !with_scale, !causal, compressed, 1, ov::element::Type_t::f16, 10, 4, 1, {0, 2, 1, 3}});
+    p.push_back({with_rearrange, with_mask, !with_scale, !causal, compressed, 1, ov::element::Type_t::f16, 10, 4, 1, {0, 1, 2, 3}});
     return p;
 }
 

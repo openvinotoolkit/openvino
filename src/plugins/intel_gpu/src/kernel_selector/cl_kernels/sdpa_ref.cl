@@ -112,6 +112,15 @@ inline uint FUNC(get_bt_index_value)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uin
 #endif
 
 #define APPLY_SCALE_TO_QUERY 1
+#define HAS_KV_CACHE_ZP_INPUT USE_ASYMMETRIC_QUANTIZATION && !COMBINE_SCALES_AND_ZP
+
+#if IS_KV_COMPRESSED
+#if COMPRESSED_PER_HEAD
+    #define GET_COMPRESSION_INDEX(INPUT, b, f, y, x) GET_DATA_INDEX(INPUT, (b), (f), (y), (0));
+#else
+    #define GET_COMPRESSION_INDEX(INPUT, b, f, y, x) GET_DATA_INDEX(INPUT, (b), (0), (y), (0));
+#endif
+#endif
 
 KERNEL(sdpa_ref)(
     OPTIONAL_SHAPE_INFO_ARG
@@ -125,6 +134,14 @@ KERNEL(sdpa_ref)(
     const __global INPUT4_TYPE* scale,
 #endif
     __global OUTPUT_TYPE* output,
+#if IS_KV_COMPRESSED
+    const __global KEY_COMPRESSION_SCALE_TYPE* key_scale,
+    const __global VALUE_COMPRESSION_SCALE_TYPE* val_scale,
+#if HAS_KV_CACHE_ZP_INPUT
+    const __global KEY_COMPRESSION_ZP_TYPE* key_zp,
+    const __global VALUE_COMPRESSION_ZP_TYPE* val_zp,
+#endif
+#endif
 #ifdef BEAM_TABLE_TYPE
     const __global BEAM_TABLE_TYPE* beam_table,
 #endif
@@ -162,7 +179,24 @@ KERNEL(sdpa_ref)(
 #else
                 INPUT0_TYPE q_val = query_input[query_offset];
 #endif
-                INPUT1_TYPE k_val = key_input[key_offset];
+
+                INPUT1_TYPE k_val_packed = key_input[key_offset];
+#if IS_KV_COMPRESSED
+                const uint comp_offset = GET_COMPRESSION_INDEX(KEY_COMPRESSION_SCALE, b_idx, b1 / BROADCAST_GROUP_SIZE, s, 0);
+                KEY_COMPRESSION_SCALE_TYPE comp_scale = key_scale[comp_offset];
+
+#if USE_ASYMMETRIC_QUANTIZATION && HAS_KV_CACHE_ZP_INPUT
+                KEY_COMPRESSION_SCALE_TYPE comp_zp = key_zp[comp_offset];
+#elif USE_ASYMMETRIC_QUANTIZATION
+                VALUE_COMPRESSION_SCALE_TYPE comp_zp = key_scale[comp_offset + 1];
+#else
+                KEY_COMPRESSION_SCALE_TYPE comp_zp = 0;
+#endif
+                KEY_COMPRESSION_SCALE_TYPE k_val = ((k_val_packed - comp_zp) * comp_scale);
+
+#else
+                INPUT1_TYPE k_val = k_val_packed;
+#endif
                 acc += q_val * k_val;
             }
 
@@ -236,7 +270,24 @@ KERNEL(sdpa_ref)(
 #endif
         uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1, 0, 0, s, head_size_idx);
 
-        acc += tmp_buf[tmp_buf_offset] * value_input[value_offset];
+        const INPUT2_TYPE value_packed = value_input[value_offset];
+#if IS_KV_COMPRESSED
+        const uint comp_offset = GET_COMPRESSION_INDEX(VALUE_COMPRESSION_SCALE, b_idx, b1 / BROADCAST_GROUP_SIZE, s, 0);
+        VALUE_COMPRESSION_SCALE_TYPE comp_scale = val_scale[comp_offset];
+
+#if USE_ASYMMETRIC_QUANTIZATION && HAS_KV_CACHE_ZP_INPUT
+        VALUE_COMPRESSION_SCALE_TYPE comp_zp = val_zp[comp_offset];
+#elif USE_ASYMMETRIC_QUANTIZATION
+        VALUE_COMPRESSION_SCALE_TYPE comp_zp = val_scale[comp_offset + 1];
+#else
+        VALUE_COMPRESSION_SCALE_TYPE comp_zp = 0;
+#endif
+        VALUE_COMPRESSION_SCALE_TYPE value = ((value_packed - comp_zp) * comp_scale);
+#else
+        INPUT2_TYPE value = value_packed;
+#endif
+
+        acc += tmp_buf[tmp_buf_offset] * value;
     }
 
     uint output_offset = OUTPUT_GET_INDEX(b0, b1, target_seq_idx, head_size_idx);
