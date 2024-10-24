@@ -24,7 +24,7 @@ System Requirements
    .. tab-item:: System Requirements
       :sync: system-requirements
 
-      | Full requirement listing is available in:
+      | Full requirement listing is available on:
       | :doc:`System Requirements Page <../../../about-openvino/release-notes-openvino/system-requirements>`
 
    .. tab-item:: Processor Notes
@@ -33,16 +33,11 @@ System Requirements
       | To see if your processor includes the integrated graphics technology and supports iGPU inference, refer to:
       | `Product Specifications <https://ark.intel.com/>`__
 
-   .. tab-item:: Software
-      :sync: software
-
-      * `Microsoft Visual Studio 2019 with MSBuild <https://visualstudio.microsoft.com/vs/older-downloads/>`__ or `Microsoft Visual Studio 2022 <http://visualstudio.microsoft.com/  downloads/>`__
-      * `CMake 3.14 or higher, 64-bit <https://cmake.org/download/>`__ (optional, only required for building sample applications)
-      * `Python 3.9 - 3.12, 64-bit <https://www.python.org/downloads/windows/>`__
 
       .. note::
 
-         To install Microsoft Visual Studio 2019, follow the `Microsoft Visual Studio installation guide <https://docs.microsoft.com/en-us/visualstudio/install/install-visual-studio?view=vs-2019>`__. You can choose to download the Community version. During installation in the **Workloads** tab, choose **Desktop development with C++**.
+         To install Microsoft Visual Studio, follow the `Microsoft Visual Studio installation guide <https://docs.microsoft.com/en-us/visualstudio/install/install-visual-studio?view=vs-2019>`__.
+         You can choose to download the Community version. During installation in the **Workloads** tab, choose **Desktop development with C++**.
 
       .. note::
 

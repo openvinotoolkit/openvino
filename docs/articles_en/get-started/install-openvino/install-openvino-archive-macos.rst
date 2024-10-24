@@ -17,21 +17,10 @@ Install OpenVINO™ Runtime on macOS from an Archive File
    * is only supported for CPU Plugin
 
 
-.. tab-set::
+**System Requirements**
 
-   .. tab-item:: System Requirements
-      :sync: system-requirements
-
-      | Full requirement listing is available in:
-      | :doc:`System Requirements Page <../../../about-openvino/release-notes-openvino/system-requirements>`
-
-   .. tab-item:: Software Requirements
-      :sync: software-requirements
-
-      * `CMake 3.13 or higher <https://cmake.org/download/>`__ (choose "macOS 10.13 or later"). Add ``/Applications/CMake.app/Contents/bin`` to path (for default install).
-      * `Python 3.9 - 3.12 <https://www.python.org/downloads/mac-osx/>`__ (choose 3.9 - 3.12). Install and add to path.
-      * Apple Xcode Command Line Tools. In the terminal, run ``xcode-select --install`` from any directory
-      * (Optional) Apple Xcode IDE (not required for OpenVINO™, but useful for development)
+Full requirement listing is available on:
+:doc:`System Requirements Page <../../../about-openvino/release-notes-openvino/system-requirements>`
 
 
 Installing OpenVINO Runtime
