@@ -286,7 +286,7 @@ void BrgemmKernelExecutor::update_config(const ov::snippets::lowered::Expression
     OV_CPU_JIT_EMITTER_ASSERT(brgemm_node, "Got invalid node type in update_config");
     // In case of data repacking LDB is chosen in accordance with repacking buffer size
     if (with_repacking(brgemm_node->get_type()))
-        LDB = brgemm_utils::repacking::compute_out_leading_dim(N, brgemm_node->get_input_element_type(1));
+        LDB = brgemm_utils::repacking::compute_out_leading_dim(LDB, brgemm_node->get_input_element_type(1));
 
     config.update(DIM_CAST(M), DIM_CAST(N), DIM_CAST(K), LDA, LDB, LDC, beta);
 }
@@ -303,6 +303,7 @@ void BrgemmKernelExecutor::execute(const BrgemmKernelExecutor* executor, call_ar
     }
 
     cpu::x64::brgemm_kernel_params_t brgemm_p;
+    size_t is_with_comp = config.get_beta() == 0 && config.is_with_comp();
 
     brgemm_p.batch = nullptr;  // default value
     brgemm_p.ptr_A = args->A;
@@ -311,8 +312,8 @@ void BrgemmKernelExecutor::execute(const BrgemmKernelExecutor* executor, call_ar
     brgemm_p.ptr_D = args->C;
     brgemm_p.ptr_buf = args->scratch;
     brgemm_p.ptr_bias = nullptr;
-    brgemm_p.do_post_ops = static_cast<size_t>(config.is_with_comp());
-    brgemm_p.do_apply_comp = static_cast<size_t>(config.is_with_comp());
+    brgemm_p.do_post_ops = is_with_comp;
+    brgemm_p.do_apply_comp = is_with_comp;
     brgemm_p.skip_accm = 0;
     brgemm_p.BS = 1;  // default value
     OV_CPU_JIT_EMITTER_ASSERT(kernel->compiled_kernel, "has nullptr kernel");
