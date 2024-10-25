@@ -176,6 +176,7 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
 
     const auto& from_shape = from->get_shape();
     const auto& scale_shape = scale->get_shape();
+    const auto& zerop_shape = zerop->get_shape();
 
     if (type_from == ov::element::u4) {
         if (scale_shape.size() == 3 && scale_shape[0] == from_shape[0] && scale_shape[1] == 1 &&
@@ -197,15 +198,15 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
         if (scale_shape.size() == 3 && scale_shape[1] == 1 && scale_shape[2] == 1) {
             // Special case for broadcasting vocab by 2 dimensions
             // FIXME: all this logic probably should be in some specific unpack or another util function
-            ov::Tensor wraped_from(from->get_element_type(), ov::Shape{from_shape[0], from_shape[1] * from_shape[2]});
-            const auto& zerop_shape = zerop->get_shape();
+            ov::Tensor wraped_from(from->get_element_type(),
+                                   ov::Shape{from_shape[0], from_shape[1] * from_shape[2]},
+                                   from->data());
             ov::Tensor wraped_zerop(zerop->get_element_type(),
-                                    ov::Shape{zerop_shape[0], zerop_shape[1] * zerop_shape[2]});
+                                    ov::Shape{zerop_shape[0], zerop_shape[1] * zerop_shape[2]},
+                                    zerop->data());
             ov::Tensor wraped_scale(scale->get_element_type(),
-                                    ov::Shape{scale_shape[0], scale_shape[1] * scale_shape[2]});
-            ov::npuw::util::merge_last_two_dims(from, ov::get_tensor_impl(wraped_from));
-            ov::npuw::util::merge_last_two_dims(zerop, ov::get_tensor_impl(wraped_zerop));
-            ov::npuw::util::merge_last_two_dims(scale, ov::get_tensor_impl(wraped_scale));
+                                    ov::Shape{scale_shape[0], scale_shape[1] * scale_shape[2]},
+                                    scale->data());
 
             ov::npuw::util::XARCH::unpack_u8f16(ov::get_tensor_impl(wraped_from),
                                                 ov::get_tensor_impl(wraped_zerop),
@@ -248,27 +249,6 @@ void ov::npuw::util::gather(const ov::SoPtr<ov::ITensor>& src,
         auto srcRowIdx = pIdx[r];
         auto pSrcRow = pSrc + src_shape[1] * srcRowIdx * src_type.size();
         std::copy_n(pSrcRow, src_shape[1] * src_type.size(), pDst);
-        pDst += dst_shape[2] * dst_type.size();
-    }
-}
-
-void ov::npuw::util::merge_last_two_dims(const ov::SoPtr<ov::ITensor>& src, const ov::SoPtr<ov::ITensor>& dst) {
-    const auto& src_type = src->get_element_type();
-    const auto& dst_type = dst->get_element_type();
-    NPUW_ASSERT(src_type == dst_type);
-    NPUW_ASSERT(src_type != ov::element::i4 && src_type != ov::element::u4);
-    const auto& src_shape = src->get_shape();
-    const auto& dst_shape = dst->get_shape();
-    NPUW_ASSERT(src_shape.size() == 3);
-    NPUW_ASSERT(dst_shape.size() == 2);
-    NPUW_ASSERT(src_shape[0] == dst_shape[0]);
-    NPUW_ASSERT(src_shape[1] * src_shape[2] == dst_shape[1]);
-
-    const uint8_t* pSrc = static_cast<uint8_t*>(src->data());
-    uint8_t* pDst = static_cast<uint8_t*>(dst->data());
-    for (std::size_t r = 0; r < dst_shape[0]; ++r) {
-        auto pSrcRow = pSrc + r * src_shape[1] * src_shape[2] * src_type.size();
-        std::copy_n(pSrcRow, src_shape[1] * src_shape[2] * src_type.size(), pDst);
         pDst += dst_shape[2] * dst_type.size();
     }
 }
