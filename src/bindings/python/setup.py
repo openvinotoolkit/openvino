@@ -45,7 +45,7 @@ elif machine == "riscv64":
 SCRIPT_DIR = Path(__file__).resolve().parents[0]
 WORKING_DIR = Path.cwd()
 BUILD_BASE = f"build_{PYTHON_VERSION}"
-OPENVINO_SOURCE_DIR = SCRIPT_DIR.parents[2]
+OPENVINO_SOURCE_DIR = os.getenv("OPENVINO_SOURCE_DIR", SCRIPT_DIR.parents[2])
 OPENVINO_BINARY_DIR = os.getenv("OPENVINO_BINARY_DIR", f'{OPENVINO_SOURCE_DIR}/build_wheel')
 OPENVINO_PYTHON_BINARY_DIR = os.getenv("OPENVINO_PYTHON_BINARY_DIR", "python_build")
 CONFIG = os.getenv("BUILD_TYPE", "Release")
@@ -781,8 +781,8 @@ package_data: typing.Dict[str, list] = {}
 ext_modules = find_prebuilt_extensions(get_install_dirs_list(PY_INSTALL_CFG))
 entry_points = find_entry_points(PY_INSTALL_CFG)
 
-long_description_md = OPENVINO_SOURCE_DIR / "docs" / "dev" / "pypi_publish" / "pypi-openvino-rt.md"
-md_files = [long_description_md, OPENVINO_SOURCE_DIR / "docs" / "dev" / "pypi_publish" / "pre-release-note.md"]
+long_description_md = Path(OPENVINO_SOURCE_DIR) / "docs" / "dev" / "pypi_publish" / "pypi-openvino-rt.md"
+md_files = [long_description_md, Path(OPENVINO_SOURCE_DIR) / "docs" / "dev" / "pypi_publish" / "pre-release-note.md"]
 docs_url = "https://docs.openvino.ai/2023.0/index.html"
 
 if os.getenv("CI_BUILD_DEV_TAG"):
