@@ -59,6 +59,9 @@ void TransformationTestsF::SetUp() {
 }
 
 void TransformationTestsF::TearDown() {
+    if (test_skipped) {
+        return;
+    }
     OPENVINO_ASSERT(model != nullptr, "Test Model is not initialized.");
 
     std::shared_ptr<ov::Model> cloned_function;
