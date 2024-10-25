@@ -87,19 +87,7 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
         // Reverse DFS ReadValue, find all suitable nodes and move them to subgraph_nodes.
         reverse_dfs(readvalue->get_input_node_shared_ptr(0));
 
-        // Find ReadValue corresponding Assign node.
-        std::shared_ptr<ov::op::v6::Assign> corresponding_assign = nullptr;
-        for (const auto& child : readvalue->get_output_target_inputs(0)) {
-            auto assign = as_type_ptr<ov::opset6::Assign>(child.get_node()->shared_from_this());
-            if (assign) {
-                if (assign->get_variable_id() == readvalue->get_variable_id()) {
-                    corresponding_assign = assign;
-                    break;
-                }
-            }
-        }
-
-        if (inputs.size() == 0 || corresponding_assign == nullptr || subgraph_nodes.size() == 0) {
+        if (inputs.size() == 0 || subgraph_nodes.size() == 0) {
             return false;
         }
 
