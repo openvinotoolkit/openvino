@@ -200,13 +200,16 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
             // FIXME: all this logic probably should be in some specific unpack or another util function
             ov::Tensor wraped_from(from->get_element_type(),
                                    ov::Shape{from_shape[0], from_shape[1] * from_shape[2]},
-                                   from->data());
+                                   from->data(),
+                                   from->get_strides());
             ov::Tensor wraped_zerop(zerop->get_element_type(),
                                     ov::Shape{zerop_shape[0], zerop_shape[1] * zerop_shape[2]},
-                                    zerop->data());
+                                    zerop->data(),
+                                    zerop->get_strides());
             ov::Tensor wraped_scale(scale->get_element_type(),
                                     ov::Shape{scale_shape[0], scale_shape[1] * scale_shape[2]},
-                                    scale->data());
+                                    scale->data(),
+                                    scale->get_strides());
 
             ov::npuw::util::XARCH::unpack_u8f16(ov::get_tensor_impl(wraped_from),
                                                 ov::get_tensor_impl(wraped_zerop),

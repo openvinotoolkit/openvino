@@ -974,7 +974,6 @@ DQUnpackDictGatherCWu::DQUnpackDictGatherCWu(Context::Ref ctx) {
         auto matched_qcoeff = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qcoeff);
 
         // Strip down the DQ subgraph, replace the original Q-ed closure tensor with unpacked fp16
-        // add reshape somewhere
         auto new_wi = ctx.get().unpack(matched_qweight, matched_qzerop, matched_qcoeff, ov::element::f16);
         auto w_shape = matched_node_qweight->get_shape();
         auto new_w_shape = new_wi->get_shape();
