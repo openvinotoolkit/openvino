@@ -63,6 +63,7 @@
 #include "transformations/op_conversions/convert_scatter_nd_update15_downgrade.hpp"
 #include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
 #include "transformations/op_conversions/convert_shuffle_channels3.hpp"
+#include "transformations/op_conversions/convert_slicescatter.hpp"
 #include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
 #include "transformations/op_conversions/convert_space_to_batch.hpp"
 #include "transformations/op_conversions/convert_space_to_depth.hpp"
@@ -100,7 +101,7 @@
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/transpose_sinking/ts_shape_of.hpp"
 #include "utils/ngraph_transformation.hpp"
-#include "utils/print_model.hpp"
+#include "transformations/utils/print_model.hpp"
 
 // LPT transformations
 #include "low_precision/add.hpp"
@@ -656,6 +657,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::HSwishDecomposition);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::MatMulConstTransposesExtraction);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertScatterNDUpdate15ToScatterNDUpdate3);
+    CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertSliceScatter);
     CPU_DISABLE_PASS_X64(manager, ov::pass::HSigmoidDecomposition);
 
     CPU_DISABLE_PASS_X64(manager, ov::pass::ReduceL1Decomposition);
@@ -840,28 +842,42 @@ void Transformations::PostLpt() {
     CPU_REGISTER_PASS_ARM64(postLPTPassManager, ov::pass::RoPEFusion, true);
     CPU_REGISTER_PASS_X64(postLPTPassManager, CausalMaskPreprocessFusion);
 
+#if defined(OPENVINO_ARCH_X86_64)
     // MLP & QKV fusion optimizations is focused on throughput, only enabled on AMX-bf16 & LLM serving use cases.
-    auto can_use_amx_bf16 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) && (config.inferencePrecision == element::bf16);
-    if (can_use_amx_bf16) {
+    auto can_use_amx_bf16_int8 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) && (config.inferencePrecision == element::bf16);
+    auto can_use_amx_fp16 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16) && (config.inferencePrecision == element::f16);
+
+    if (can_use_amx_bf16_int8 || can_use_amx_fp16) {
+        const auto fcDynamicQuantizationGroupSize = config.fcDynamicQuantizationGroupSize;
         CPU_REGISTER_PASS_X64(postLPTPassManager, MLPFusion);
         CPU_SET_CALLBACK_X64(postLPTPassManager,
-            [](const_node_ptr &node) -> bool {
+            [fcDynamicQuantizationGroupSize](const_node_ptr &node) -> bool {
                 std::string errorMsg;
-                return node::LLMMLP::isSupportedOperation(node, errorMsg);
+                return node::LLMMLP::isSupportedOperation(node, errorMsg, fcDynamicQuantizationGroupSize);
             },
             MLPFusion);
 
         size_t concurrency = config.streamExecutorConfig.get_threads_per_stream();
         if (concurrency == 0)
             concurrency = parallel_get_max_threads();
+
         CPU_REGISTER_PASS_X64(postLPTPassManager, QKVProjFusion);
         CPU_SET_CALLBACK_X64(postLPTPassManager,
-            [concurrency](const_node_ptr &node) -> bool {
+            [=](const_node_ptr &node) -> bool {
                 std::string errorMsg;
-                return node::QKVProjection::isSupportedOperation(node, errorMsg, concurrency);
+                return node::QKVProjection::isSupportedOperation(node, errorMsg, concurrency, fcDynamicQuantizationGroupSize);
             },
             QKVProjFusion);
+
+        CPU_REGISTER_PASS_X64(postLPTPassManager, QKVProjFusion2);
+        CPU_SET_CALLBACK_X64(postLPTPassManager,
+            [=](const_node_ptr &node) -> bool {
+                std::string errorMsg;
+                return node::QKVProjection::isSupportedOperation(node, errorMsg, concurrency, fcDynamicQuantizationGroupSize);
+            },
+            QKVProjFusion2);
     }
+#endif // OPENVINO_ARCH_X86_64
 
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::transpose_sinking::TSShapeOfForward);
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, StatefulSDPAFusion);
