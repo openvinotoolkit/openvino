@@ -43,12 +43,16 @@ public:
     }
     void execute(const MemoryArgs& memory) override;
     bool update(const MemoryArgs& memory) override;
+    arm_compute::TensorInfo& getTensorInfo(ACLArgs index) {
+        return *aclMemoryInfos[index].get();
+    }
     ~ACLCommonExecutor();
 
 protected:
     ACLTensorAttrs aclTensorAttrs;
 private:
     ACLTensors aclMemoryTensors;
+    ACLInfos aclMemoryInfos;
     ACLFunction iFunction = nullptr;
 };
 
