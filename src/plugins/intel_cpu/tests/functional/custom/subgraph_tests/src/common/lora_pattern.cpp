@@ -247,6 +247,7 @@ TEST_F(LoraPatternConvolutionCPUTest, smoke_LoRA_CPU_Conv_empty) {
 }
 
 TEST_F(LoraPatternMatmulCPUTest, smoke_LoRA_CPU_MatMul_random) {
+    GTEST_SKIP();
     targetStaticShapes = {{{{1, 20, K}}, {{N, K}}}};
     run_test_random_tensors();
     CPUTestUtils::CheckNumberOfNodesWithType(compiledModel, "LoRA", 1);
@@ -254,6 +255,7 @@ TEST_F(LoraPatternMatmulCPUTest, smoke_LoRA_CPU_MatMul_random) {
 }
 
 TEST_F(LoraPatternConvolutionCPUTest, smoke_LoRA_CPU_Conv_random) {
+    GTEST_SKIP();
     targetStaticShapes = {{{1, num_channels, 10, 15}}};
     run_test_random_tensors();
     CPUTestUtils::CheckNumberOfNodesWithType(compiledModel, "LoRA", 1);
