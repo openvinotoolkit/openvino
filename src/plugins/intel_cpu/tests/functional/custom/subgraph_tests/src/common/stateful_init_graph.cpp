@@ -8,16 +8,19 @@
 
 using namespace ov::test;
 using namespace CPUTestUtils;
-
-using InitGraphStatefulModelTestParams = std::vector<InputShape>;
-
+using InitGraphStatefulModelTestParams = std::tuple<std::vector<InputShape>,  // input shapes
+                                                    bool                      // ReadValue Assgin Direct pair or not
+                                                    >;
 class InitGraphStatefulModelBase : virtual public ov::test::SubgraphBaseTest,
                                    public testing::WithParamInterface<InitGraphStatefulModelTestParams>,
                                    public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<InitGraphStatefulModelTestParams>& obj) {
         std::ostringstream result;
-        std::vector<InputShape> inputShapes = obj.param;
+
+        std::vector<InputShape> inputShapes;
+        bool directPair;
+        std::tie(inputShapes, directPair) = obj.param;
 
         result << "IS=";
         for (const auto& shape : inputShapes) {
@@ -33,6 +36,7 @@ public:
             }
             result << ")";
         }
+        result << "_DirectPair=" << ov::test::utils::bool2str(directPair);
         result << ")";
 
         return result.str();
@@ -130,12 +134,16 @@ protected:
 //          |
 //        Result
 
-class InitGraphStatefulModelDirectPair : public InitGraphStatefulModelBase {
+class InitGraphStatefulModel : public InitGraphStatefulModelBase {
 public:
     void SetUp() override {
         targetDevice = utils::DEVICE_CPU;
-        auto& InputShapes = this->GetParam();
-        init_input_shapes(InputShapes);
+
+        std::vector<InputShape> inputShapes;
+        bool directPair;
+        std::tie(inputShapes, directPair) = this->GetParam();
+
+        init_input_shapes(inputShapes);
         ov::ParameterVector input_params;
         for (auto&& shape : inputDynamicShapes) {
             input_params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrc, shape));
@@ -157,9 +165,9 @@ public:
             ov::op::util::VariableInfo{{inputDynamicShapes[1][0], inputDynamicShapes[2][1]}, netPrc, variable_name});
 
         auto read = std::make_shared<ov::op::v6::ReadValue>(mm_0, variable);
-        auto add_0 = std::make_shared<ov::op::v1::Add>(input_params[0], read);
+        std::shared_ptr<ov::Node> add_0 = std::make_shared<ov::op::v1::Add>(input_params[0], read);
         add_0->set_friendly_name("add_0");
-        auto assign = std::make_shared<ov::op::v6::Assign>(read, variable);
+        auto assign = std::make_shared<ov::op::v6::Assign>(directPair ? read : add_0, variable);
         auto res = std::make_shared<ov::op::v0::Result>(add_0);
         function = std::make_shared<ov::Model>(ov::ResultVector({res}), ov::SinkVector({assign}), input_params);
     }
@@ -199,8 +207,12 @@ class InitGraphStatefulModelInplace : public InitGraphStatefulModelBase {
 public:
     void SetUp() override {
         targetDevice = utils::DEVICE_CPU;
-        auto& InputShapes = this->GetParam();
-        init_input_shapes(InputShapes);
+
+        std::vector<InputShape> inputShapes;
+        bool directPair;
+        std::tie(inputShapes, directPair) = this->GetParam();
+
+        init_input_shapes(inputShapes);
         ov::ParameterVector input_params;
         for (auto&& shape : inputDynamicShapes) {
             input_params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrc, shape));
@@ -232,9 +244,10 @@ public:
             ov::op::util::VariableInfo{{inputDynamicShapes[0]}, netPrc, variable_name});
 
         auto read = std::make_shared<ov::op::v6::ReadValue>(conv1, variable);
-        auto assign = std::make_shared<ov::op::v6::Assign>(read, variable);
 
         auto conv2 = createConv(read, ov::Shape({1, 1, 2, 2}), "conv2");
+
+        auto assign = std::make_shared<ov::op::v6::Assign>(directPair ? read : conv2, variable);
 
         auto res = std::make_shared<ov::op::v0::Result>(conv2);
         function = std::make_shared<ov::Model>(ov::ResultVector({res}), ov::SinkVector({assign}), input_params);
@@ -253,7 +266,7 @@ public:
     }
 };
 
-TEST_P(InitGraphStatefulModelDirectPair, CompareWithRefs) {
+TEST_P(InitGraphStatefulModel, CompareWithRefs) {
     run();
 }
 TEST_P(InitGraphStatefulModelInplace, CompareWithRefs) {
@@ -276,10 +289,16 @@ const std::vector<std::vector<InputShape>> inputShapes = {
     }
 };
 
+const std::vector<bool> readValueAssginDirectPair = {true, false};
+
+const auto testParams_smoke = ::testing::Combine(
+    ::testing::ValuesIn(inputShapes),
+    ::testing::ValuesIn(readValueAssginDirectPair));
+
 INSTANTIATE_TEST_SUITE_P(smoke_StatefulInitGraph,
-                         InitGraphStatefulModelDirectPair,
-                         ::testing::ValuesIn(inputShapes),
-                         InitGraphStatefulModelDirectPair::getTestCaseName);
+                         InitGraphStatefulModel,
+                         testParams_smoke,
+                         InitGraphStatefulModel::getTestCaseName);
 
 }  // namespace
 
@@ -291,9 +310,13 @@ const std::vector<std::vector<InputShape>> inputShapes2 = {
     }
 };
 
+const auto testParams2_smoke = ::testing::Combine(
+    ::testing::ValuesIn(inputShapes2),
+    ::testing::ValuesIn(readValueAssginDirectPair));
+
 INSTANTIATE_TEST_SUITE_P(smoke_StatefulInitGraph,
                          InitGraphStatefulModelInplace,
-                         ::testing::ValuesIn(inputShapes2),
+                         testParams2_smoke,
                          InitGraphStatefulModelInplace::getTestCaseName);
 
 }  // namespace
