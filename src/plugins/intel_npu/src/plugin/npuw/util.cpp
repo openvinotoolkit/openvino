@@ -17,7 +17,7 @@
 #include "openvino/runtime/make_tensor.hpp"  // get_tensor_impl
 #include "util_xarch.hpp"
 
-bool ov::npuw::util::is_set(const std::size_t sub_idx, const std::string& opt, const std::size_t last_idx) {
+bool ov::npuw::util::is_set(const std::size_t sub_idx, const std::string& opt, const std::size_t end_idx) {
     if (opt.empty() || opt == "NO") {
         return false;
     }
@@ -29,7 +29,7 @@ bool ov::npuw::util::is_set(const std::size_t sub_idx, const std::string& opt, c
     std::size_t last_pos = str.find("last");
     if (last_pos != std::string::npos) {
         str.erase(last_pos, 4);
-        if (last_idx != SIZE_MAX && sub_idx == last_idx) {
+        if (end_idx != SIZE_MAX && sub_idx == end_idx - 1) {
             return true;
         }
     }

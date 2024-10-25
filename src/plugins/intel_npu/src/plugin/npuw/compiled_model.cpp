@@ -257,7 +257,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     // - dump the subgraphs, if necessary
     std::map<std::string, std::size_t> compiledFunctions;
     m_compiled_submodels.resize(orderedSubgraphs.size());
-    const std::size_t last_sub_idx = orderedSubgraphs.size() - 1;
+    const std::size_t end_sub_idx = orderedSubgraphs.size();
 
     const std::string dump_sub_opt = m_cfg.get<::intel_npu::NPUW_DUMP_SUBS>();
 
@@ -325,7 +325,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             fill_empty_tensor_names(m_compiled_submodels[real_id].model);
         }
 
-        if (ov::npuw::util::is_set(id, dump_sub_opt, last_sub_idx)) {
+        if (ov::npuw::util::is_set(id, dump_sub_opt, end_sub_idx)) {
             LOG_INFO("Dumping Subgraph[" << id << "]");
             LOG_BLOCK();
             if (real_id != id) {
@@ -347,7 +347,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     std::size_t last_pos = fsd_opt.find("last");
     if (last_pos != std::string::npos) {
         fsd_opt.erase(last_pos, 4);
-        fsd_opt.insert(last_pos, std::to_string(last_sub_idx));
+        fsd_opt.insert(last_pos, std::to_string(end_sub_idx));
     }
 
     forced_sub_devices = ::intel_npu ::OptionParser<std::map<std::size_t, std::string>>::parse(fsd_opt);
@@ -703,9 +703,9 @@ ov::SoPtr<ov::ICompiledModel> ov::npuw::CompiledModel::compile_submodel(const st
 
 void ov::npuw::CompiledModel::dump_on_fail(std::size_t id, const std::string& device_to_try, const char* extra) {
     const std::string dof_opt = m_cfg.get<::intel_npu::NPUW_DUMP_SUBS_ON_FAIL>();
-    const std::size_t last_idx = m_compiled_submodels.size() - 1;
+    const std::size_t end_idx = m_compiled_submodels.size();
 
-    if (ov::npuw::util::is_set(id, dof_opt, last_idx)) {
+    if (ov::npuw::util::is_set(id, dof_opt, end_idx)) {
         ov::npuw::dump_failure(m_compiled_submodels[id].model, device_to_try, extra);
     }
 }

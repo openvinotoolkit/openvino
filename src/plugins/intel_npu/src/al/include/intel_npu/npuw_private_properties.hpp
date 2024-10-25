@@ -324,7 +324,7 @@ static constexpr ov::Property<bool> full{"NPUW_DUMP_FULL"};
  * Dump the specified subgraph(s) in OpenVINO IR form in the current directory.
  * Possible values: Comma-separated list of subgraph indices or "YES" for all
  * subgraphs, "NO" or just empty value to turn option off. Keyword "last" can
- * be used for dumping last subgraph without specifying it by specific indice.
+ * be used for dumping last subgraph without specifying it by specific index.
  * E.g. "0,1" or "0,1,last" or "YES".
  * Default value: empty.
  */
