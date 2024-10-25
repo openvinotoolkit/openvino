@@ -58,10 +58,12 @@ protected:
         constexpr int infer_count = 6lu;
 
         std::unordered_map<std::string, ov::Shape> stateShapes;
+        std::unordered_map<std::string, ov::Shape> initStateShapes;
 
         auto&& states = inferRequest.query_state();
         for (auto&& state : states) {
             auto shape = state.get_state().get_shape();
+            initStateShapes.insert({state.get_name(), shape});
             std::for_each(shape.begin(), shape.end(), [=](ov::Shape::value_type& x) {
                 if (0 == x) {
                     x = lora_order;
@@ -80,7 +82,8 @@ protected:
                 }
 
                 for (auto&& item : inferRequestRef.query_state()) {
-                    item.reset();
+                    // Template plugin doesn't support reset state for dynamic shape states
+                    item.get_state().set_shape(initStateShapes.at(item.get_name()));
                 }
             } else if (!(i & 0x1)) {  // every even call
                 // generate and set state tensors
