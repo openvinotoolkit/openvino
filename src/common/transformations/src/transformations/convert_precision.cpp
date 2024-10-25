@@ -193,30 +193,6 @@ bool convert_node_input_precision(const std::shared_ptr<ov::Node>& node,
     return false;
 }
 
-// Part of hotfix from CVS-155745 & CVS-155990
-// The function checks if a node's outputs element
-// type present in FROM types in precisions_map.
-bool node_output_type_match(const std::shared_ptr<ov::Node> node, const precisions_map& precisions) {
-    for (const auto& p : precisions) {
-        const auto& type_from = p.first;
-
-        bool all_match = true;
-
-        for (const auto& output : node->outputs()) {
-            if (output.get_element_type() != type_from) {
-                all_match = false;
-                break;
-            }
-        }
-
-        if (all_match) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
 bool convert_function_precision(const std::shared_ptr<Model>& f,
                                 const type_to_fuse_map& type_to_fuse,
                                 const type_to_fuse_map& type_to_extend,
@@ -244,10 +220,7 @@ bool convert_function_precision(const std::shared_ptr<Model>& f,
     // otherwise we insert Convert operation.
     auto ops = f->get_ordered_ops();
     for (auto& node : ops) {
-        // This is a hotfix that checks if FROM types are not different from the
-        // node's output element type. To be investigated more in CVS-155990
-        if ((skip_precision_sensitive && fp16_compression_is_disabled(node) && has_fp16_compression) ||
-            !node_output_type_match(node, precisions))
+        if ((skip_precision_sensitive && fp16_compression_is_disabled(node) && has_fp16_compression))
             continue;
         is_changed = convert_node_input_precision(node, precisions, type_to_extend) || is_changed;
     }
@@ -1027,12 +1000,14 @@ bool extend_select_type(const std::shared_ptr<ov::Node>& node, const precisions_
         type_relaxed->set_origin_input_type(ov::element::boolean, 0);
         return true;
     } else if (auto casted = ov::as_type_ptr<ov::op::v1::Select>(node)) {
-        auto relaxed_op =
-            std::make_shared<op::TypeRelaxed<ov::op::v1::Select>>(*casted,
-                                                                  ov::element::TypeVector{ov::element::boolean},
-                                                                  ov::element::TypeVector{});
-        replace_node(node, relaxed_op);
-        return true;
+        if (casted->input(0).get_element_type() != ov::element::boolean) {
+            auto relaxed_op =
+                std::make_shared<op::TypeRelaxed<ov::op::v1::Select>>(*casted,
+                                                                      ov::element::TypeVector{ov::element::boolean},
+                                                                      ov::element::TypeVector{});
+            replace_node(node, relaxed_op);
+            return true;
+        }
     }
     return false;
 }
