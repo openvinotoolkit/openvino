@@ -16,15 +16,23 @@ The software was validated on the following devices:
 - Python 3.10 for OpenVINO Runtime Python API
 
 ## How to build
+Currently, there are three ways to build OpenVINO Runtime for 64-bit RISC-V platforms:
+
+1. **Recommended**. The build with vectorized (using RVV instructions) primitives for limited scope of operations from [`SHL`](https://github.com/XUANTIE-RV/csi-nn2) using [`xuantie-gnu-toolchain`](https://github.com/XUANTIE-RV/). This method provides the best performance available at the moment.
+2. The build without optimized primitives using [`riscv-gnu-toolchain`](https://github.com/riscv-collab/riscv-gnu-toolchain.git).
+3. The build without optimized primitives using installed Linux packages.
+
+### Steps
+
 0. Prerequisite:
-- For target with RVV - build `xuantie-gnu-toolchain` and `qemu`:
+- For target with vectorized primitives from `SHL` - build `xuantie-gnu-toolchain` and `qemu`:
    ```sh
    git clone https://github.com/XUANTIE-RV/xuantie-gnu-toolchain.git
    cd xuantie-gnu-toolchain
    ./configure --prefix=<xuantie_install_path>
    make linux build-qemu -j$(nproc)
    ```
-- For target without RVV using `riscv-gnu-toolchain`:
+- For target without optimized primitives using `riscv-gnu-toolchain`:
    ```sh
    git clone https://github.com/riscv-collab/riscv-gnu-toolchain.git
    cd riscv-gnu-toolchain
@@ -32,7 +40,7 @@ The software was validated on the following devices:
    make linux build-qemu -j$(nproc)
    ```
    > **NOTE**: The `build-qemu` target is optional, as it is used to build the `qemu` simulator. However, it is recommended to build the `qemu` simulator, since it is much more convenient to validate the software on your host than on your devices. More information can be seen [here](https://github.com/riscv-collab/riscv-gnu-toolchain).
-- For target without RVV using installed linux-packages:
+- For target without optimized primitives using installed Linux packages:
    ```sh
    apt-get update
    apt-get install -y  gcc-riscv64-linux-gnu g++-riscv64-linux-gnu binutils-riscv64-linux-gnu
@@ -56,7 +64,7 @@ The software was validated on the following devices:
    ``` 
 
 4. To cross compile OpenVINO Runtime for RISC-V devices, run `cmake` with specified `CMAKE_TOOLCHAIN_FILE` and `RISCV_TOOLCHAIN_ROOT` (the last one is needed only for build using GNU toolchain).
-- For target with RVV:
+- For target with vectorized primitives from `SHL`:
    ```sh
    cmake .. \
      -DCMAKE_BUILD_TYPE=Release \
@@ -64,8 +72,8 @@ The software was validated on the following devices:
      -DCMAKE_TOOLCHAIN_FILE=../cmake/toolchains/<toolchain_file> \
      -DRISCV_TOOLCHAIN_ROOT=<xuantie_install_path>
    ```
-   > **NOTE**: To build OpenVINO Runtime for different versions of RVV, you just need to specify corresponding toolchain files. For exmaple, you can replace `<toolchain_file>` with `riscv64-071-thead-gnu.toolchain.cmake` for RVV 0.7.1 and `riscv64-100-thead-gnu.toolchain.cmake` for RVV 1.0 respectively.
-- For target without RVV using `riscv-gnu-toolchain`:
+   > **NOTE**: To build OpenVINO Runtime for different versions of RVV, you just need to specify corresponding toolchain files. For example, you can replace `<toolchain_file>` with `riscv64-071-xuantie-gnu.toolchain.cmake` for RVV 0.7.1 and `riscv64-100-xuantie-gnu.toolchain.cmake` for RVV 1.0 respectively.
+- For target without optimized primitives using `riscv-gnu-toolchain`:
    ```sh
    cmake .. \
      -DCMAKE_BUILD_TYPE=Release \
@@ -74,7 +82,7 @@ The software was validated on the following devices:
      -DRISCV_TOOLCHAIN_ROOT=/opt/riscv
    ```
    > **NOTE**: The `riscv-gnu-toolchain` is build as there are essential files used for cross compilation under `/opt/riscv/sysroot`. The latest stable versions of Clang or GCC both support compiling source code into RISC-V instructions, so it is acceptable to choose your preferable compilers by specifying `-DCMAKE_C_COMPILER` and `CMAKE_CXX_COMPILER`. But remember to add the key `-DCMAKE_SYSROOT=/opt/riscv/sysroot`, otherwise many fundamental headers and libs could not be found during cross compilation. 
-- For target without RVV using installed linux-packages:
+- For target without optimized primitives using installed Linux packages:
    ```sh
    cmake .. \
      -DCMAKE_BUILD_TYPE=Release \
