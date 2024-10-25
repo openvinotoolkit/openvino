@@ -4,8 +4,6 @@
 
 #include "stft.h"
 
-#include "nodes/common/cpu_memcpy.h"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/stft.hpp"
@@ -54,17 +52,17 @@ void STFT::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    const auto& dataPrecision = getOriginalInputPrecisionAtPort(DATA_IDX);
-    if (!dataPrecision.is_real()) {
-        OPENVINO_THROW("STFT has unsupported 'data' input precision: ", dataPrecision.get_type_name());
+    auto dataPrecision = getOriginalInputPrecisionAtPort(DATA_IDX);
+    if (!one_of(dataPrecision, ov::element::f32)) {
+        dataPrecision = ov::element::f32;
     }
 
-    std::vector<PortConfigurator> configurators({{LayoutType::ncsp, ov::element::f32},
-                                                 {LayoutType::ncsp, ov::element::f32},
+    std::vector<PortConfigurator> configurators({{LayoutType::ncsp, dataPrecision},
+                                                 {LayoutType::ncsp, dataPrecision},
                                                  {LayoutType::ncsp, ov::element::i32},
                                                  {LayoutType::ncsp, ov::element::i32}});
 
-    addSupportedPrimDesc(configurators, {{LayoutType::ncsp, ov::element::f32}}, impl_desc_type::ref_any);
+    addSupportedPrimDesc(configurators, {{LayoutType::ncsp, dataPrecision}}, impl_desc_type::ref_any);
 }
 
 bool STFT::needPrepareParams() const {
