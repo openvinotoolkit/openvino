@@ -35,7 +35,7 @@ This topic provides a complete list of available sets of operations supported in
     :header-rows: 1
 
     * - OpenVINO™ Version
-      - Released Operations Set
+      - Operation Set
     * - 2024.5
       - :doc:`opset15 <available-opsets/opset15>`
     * - 2024.0
