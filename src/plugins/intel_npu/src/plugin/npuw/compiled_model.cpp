@@ -246,8 +246,6 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     }  // for(ordered_subgraphs)
     // NOTE(dm): there's a better way to do it, like we do in G-API backends.
 
-    m_update_required = m_cfg.get<::intel_npu::NPUW_FOLD>();
-
     // Store mapping between manually splitted inputs/outputs
     // to connect tensors between compiled submodels
     m_submodels_input_to_prev_output = partitioning.input_to_prev_output;
