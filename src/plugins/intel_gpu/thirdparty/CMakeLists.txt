@@ -121,7 +121,6 @@ if(ENABLE_ONEDNN_FOR_GPU)
                 "-DDNNL_BUILD_EXAMPLES=OFF"
                 "-DDNNL_BLAS_VENDOR=NONE"
                 "-DDNNL_LIBRARY_TYPE=STATIC"
-                "-DDNNL_WITH_XE3=TRUE"
                 "-DDNNL_EXPERIMENTAL_PROFILING=ON"
                 "-DONEDNN_BUILD_GRAPH=OFF"
                 # specifically for Conan, because it overrides CMAKE_PREFIX_PATH and oneDNN's FindOpenCL.cmake is ignored
