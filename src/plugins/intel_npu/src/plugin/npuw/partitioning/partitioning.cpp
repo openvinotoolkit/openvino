@@ -8,7 +8,7 @@
 
 #include "../logging.hpp"
 #include "../util.hpp"
-#include "intel_npu/al/config/npuw.hpp"
+#include "intel_npu/config/npuw.hpp"
 #include "online/compiler.hpp"
 #include "online/utils/utils.hpp"  // getMetaDesc
 #include "openvino/core/parallel.hpp"
@@ -111,7 +111,7 @@ ov::npuw::Ensemble load_groups(const std::shared_ptr<ov::Model>& model, const st
 
     std::ifstream ifs(path_to_plan);
     if (!ifs) {
-        LOG_ERROR("Couldn't open " << ::intel_npu::NPUW_PLAN().key() << "pointing to " << path_to_plan << "!");
+        LOG_ERROR("Couldn't open " << ::intel_npu::NPUW_PLAN().key() << " pointing to " << path_to_plan << "!");
         return {};
     }
 
@@ -276,6 +276,7 @@ private:
         if (!ov::is_type<ov::op::v0::Constant>(node_ptr)) {
             OPENVINO_THROW("NPUW: trying to get a unique name of a non-Constant node");
         }
+        // FIXME: cache this
         return node_ptr->get_friendly_name() + " with meta " + ov::npuw::online::util::getMetaDesc(node_ptr) +
                " with output " + (*node_ptr->output(0).get_target_inputs().begin()).get_node()->description();
     }
@@ -344,6 +345,10 @@ void Partitioner::identifySubgraphs() {
         node_id_cache[node_ptr->get_friendly_name()] = node_ptr;
     }
     LOG_INFO("Caching done: " << node_id_cache.size() << " layers.");
+
+    // Accumulate knowledge about known OV layers when walking
+    // over a topologically-sorted list.
+    std::unordered_set<NodeSPtr> nodes_known_now;
 
     // FIXME: Need to do some sanity checks here. What if partitioning
     // has been generated for another variation of this model?
@@ -458,16 +463,19 @@ void Partitioner::identifySubgraphs() {
                     continue;
                 } else if ((ov::is_type<ov::op::v8::Slice>(input_node) ||
                             ov::is_type<ov::op::v0::Convert>(input_node)) &&
+                           !nodes_known_now.count(input_node) &&
                            ov::op::util::is_parameter(input_node->input(0).get_source_output().get_node_shared_ptr())) {
                     // So the situation is:
-                    // - a group has an input layer
+                    //  - a group has an input layer
                     //  - which reads from a Slice or Convert
                     //  - which reads from a Parameter
+                    //  - not a part of any prior group
                     // This happens when an offline plan is used with a kvcache
                     // model extended with slices to maintain zero-copy (LLM case)
                     auto extra_param = input_node->input(0).get_source_output().get_node_shared_ptr();
                     input_mapping[input_node] = extra_param;
                     extra_params.insert(extra_param);
+                    LOG_DEBUG("Registered extra param " << extra_param);
                 } else {
                     // Ok, this input is connected to some other node's output
                     // Replace this connection with a link to a newly created Parameter
@@ -671,7 +679,8 @@ void Partitioner::identifySubgraphs() {
             }
         }
         this_group_idx++;  // FIXME: indexed() is better!
-    }                      // for (partitions)
+        nodes_known_now.insert(group_nodes.begin(), group_nodes.end());
+    }  // for (partitions)
 
     // Return what we've got here
     std::vector<Subgraph>& result = P.subgraphs;
@@ -1387,14 +1396,16 @@ void Partitioner::matchParameters(const std::string& func_name) {
             this_model_nodes.insert(node_ptr.get());
         }
         for (auto&& node : call->get_ordered_ops()) {
+            using ov::npuw::util::at::_;
+
             if (ov::op::util::is_parameter(node)) {
                 PKey pkey;
                 for (auto&& iport : node->output(0).get_target_inputs()) {
                     if (this_model_nodes.count(iport.get_node()) > 0) {
                         LOG_DEBUG("Register link " << iport.get_node()->get_friendly_name() << " : "
                                                    << iport.get_index());
-                        pkey.insert(
-                            PReader{layer_to_prototype.at(iport.get_node()->get_friendly_name()), iport.get_index()});
+                        pkey.insert(PReader{_(layer_to_prototype).at(iport.get_node()->get_friendly_name()),
+                                            iport.get_index()});
                     }
                 }
                 LOG_DEBUG("Find orig parameter for " << node);
@@ -1595,7 +1606,7 @@ void Partitioner::identifySpatialRange(ov::npuw::Function& f) {
     const auto& f_params = f._model->get_parameters();
     NPUW_ASSERT(f_params.size() > 0);
 
-    using S = ov::npuw::Function::Spatial;
+    using S = ov::npuw::function::Spatial;
     S spatial;
     spatial._range = f_result_0_shape[1];
     spatial._out_dim = 1;  // the only case we're looking into now
@@ -2150,7 +2161,7 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
     // Try to load the partitioning plan...
     const std::string file_path = cfg.get<::intel_npu::NPUW_PLAN>();
     if (file_path.empty()) {
-        LOG_WARN("No " << ::intel_npu::NPUW_PLAN().key() << " property is provided! Using online partitioning.");
+        LOG_INFO("No " << ::intel_npu::NPUW_PLAN().key() << " property is provided! Using online partitioning.");
         ens = ov::npuw::online::buildPartitioning(model, cfg);
     } else {
         ens = load_groups(model, file_path);

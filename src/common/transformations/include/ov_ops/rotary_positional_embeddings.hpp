@@ -27,6 +27,8 @@ public:
         bool is_interleaved = false;   // interleaved mode, implies trans0213 happens after RoPE
         size_t rotary_ndims = 0;       // dimensions to be embedded (d in the description)
         bool is_chatglm = false;       // chatglm is special which overrides other setting
+        bool support_2d_rope = false;  // 2d rope mode, Support 2 dimentional rope which is independant of batch and
+                                       // each head. change input order to [batch, head_cnt, 4608] to support 2d rope
         bool is_qwen = false;          // Qwen is special which overrides other setting
         size_t head_cnt = 0;
         size_t head_size = 0;

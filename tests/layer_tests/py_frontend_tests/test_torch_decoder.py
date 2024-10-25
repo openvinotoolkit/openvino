@@ -4,6 +4,7 @@
 
 import torch
 import pytest
+from packaging import version
 
 
 class AtenDiv(torch.nn.Module):
@@ -667,3 +668,21 @@ def test_pytorch_decoder_can_convert_scripted_function():
     scripted = torch.jit.script(f)
     model = convert_model(scripted, input=[Type.f32, Type.f32])
     assert model is not None
+
+
+@pytest.mark.precommit
+@pytest.mark.skipif(version.parse(torch.__version__) < version.parse("2.4.0"),
+                    reason="Unsupported on torch<2.4.0")
+def test_pytorch_fx_decoder_extracts_signature():
+    from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+
+    class TestModel(torch.nn.Module):
+        def forward(self, a, b):
+            return a["x"] + a["y"] + b
+
+    example = ({"x": torch.tensor(1), "y": torch.tensor(2)}, torch.tensor(3))
+    em = torch.export.export(TestModel(), example)
+    nc_decoder = TorchFXPythonDecoder(em.module())
+    assert nc_decoder.get_input_signature_name(0) == "a"
+    assert nc_decoder.get_input_signature_name(1) == "b"
+    assert nc_decoder._input_signature == ["a", "b"]

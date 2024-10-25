@@ -7,9 +7,9 @@
 #include <memory>
 
 #include "accuracy/comparator.hpp"
+#include "intel_npu/npu_private_properties.hpp"
 #include "just_sync_infer_request.hpp"
 #include "logging.hpp"
-#include "npu_private_properties.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/constant_folding.hpp"
@@ -23,10 +23,9 @@
 #include "util.hpp"
 
 // required for get_properties_per_device()
-#include <intel_npu/al/config/config.hpp>
-#include <intel_npu/al/config/npuw.hpp>
-#include <npuw_private_properties.hpp>
-
+#include "intel_npu/config/config.hpp"
+#include "intel_npu/config/npuw.hpp"
+#include "intel_npu/npuw_private_properties.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -144,6 +143,16 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherAsymCW>();
         rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherSymCW>();
         rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherSymGQ>();
+        rewr.run_on_model(model);
+    }
+
+    if (m_cfg.get<::intel_npu::NPUW_SLICE_OUT>()) {
+        // Add Slice before last MatMul for the prefill model
+        ov::pass::GraphRewrite rewr;
+        rewr.add_matcher<ov::npuw::patterns::opt::SliceLastMatmul>();
+        rewr.add_matcher<ov::npuw::patterns::opt::SliceLastMatmulAdd>();
+        rewr.add_matcher<ov::npuw::patterns::opt::SliceLastMatmulTranspose>();
+        rewr.add_matcher<ov::npuw::patterns::opt::SliceLastMatmulMultiply>();
         rewr.run_on_model(model);
     }
 
@@ -283,18 +292,8 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 
                 // Fill in the spatial information, if it is present
                 if (fcn_template._spatial) {
-                    using S = CompiledModelDesc::Spatial;
-                    S s;
-                    s.range = fcn_template._spatial->_range;
-                    s.nway = fcn_template._spatial->_slice;
-                    s.out_dim = fcn_template._spatial->_out_dim;
-                    s.nway_iters = s.range / s.nway;
-                    s.tail_size = s.range % s.nway;
-                    for (auto&& input : fcn_template._spatial->_inputs) {
-                        std::size_t p_idx = fcn_template._model->get_parameter_index(input.param);
-                        s.params.push_back(S::Param{p_idx, input.dim});
-                    }
-                    m_compiled_submodels[id].spatial = std::move(s);
+                    m_compiled_submodels[id].spatial =
+                        compiled::Spatial(fcn_template._spatial.value(), fcn_template._model);
                 }
                 LOG_INFO("Subgraph[" << id << "] is a function body for " << subgraph._funcall);
             } else {
@@ -442,13 +441,14 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 }
 
 void ov::npuw::CompiledModel::finalize_weights_bank() {
+    LOG_INFO("Finalizing weights bank...");
     // Register lazy tensors
     for (std::size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
         auto& comp_model_desc = m_compiled_submodels[idx];
 
         // Skip optimized out and non-functions
         if (!comp_model_desc.compiled_model && !comp_model_desc.replaced_by) {
-            return;
+            continue;
         }
 
         const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
@@ -489,6 +489,40 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
             comp_model_desc.is_remote[tidx] = m_weights_bank->is_remote(lt);
         }
     }
+
+    LOG_INFO("Done.");
+}
+
+std::string ov::npuw::CompiledModel::global_mem_device() const {
+    // Force globally set device if set
+    const std::string device_alloc = m_cfg.get<::intel_npu::NPUW_WEIGHTS_BANK_ALLOC>();
+    if (!device_alloc.empty()) {
+        return device_alloc;
+    }
+
+    // Check if there is at least 1 NPU submodel
+    for (std::size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
+        auto& comp_model_desc = m_compiled_submodels[idx];
+        if (!comp_model_desc.compiled_model) {
+            continue;
+        }
+        if (ov::npuw::util::starts_with(*comp_model_desc.device_it, "NPU")) {
+            return "NPU";
+        }
+    }
+
+    return "CPU";
+}
+
+std::string ov::npuw::CompiledModel::funcall_mem_device(const std::size_t idx) const {
+    // Force globally set device if set
+    const std::string device_alloc = m_cfg.get<::intel_npu::NPUW_WEIGHTS_BANK_ALLOC>();
+    if (!device_alloc.empty()) {
+        return device_alloc;
+    }
+
+    auto& comp_model_desc = m_compiled_submodels[idx];
+    return *comp_model_desc.device_it;
 }
 
 void ov::npuw::CompiledModel::remove_long_output_names(const std::shared_ptr<ov::Model>& model) {
@@ -882,8 +916,10 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::partitioning::cwai, NPUW_CWAI),
                           BIND(npuw::partitioning::dyn_quant, NPUW_DQ),
                           BIND(npuw::partitioning::par_matmul_merge_dims, NPUW_PMM),
+                          BIND(npuw::partitioning::slice_out, NPUW_SLICE_OUT),
                           BIND(npuw::partitioning::spatial, NPUW_SPATIAL),
-                          BIND(npuw::partitioning::spatial, NPUW_SPATIAL_NWAY),
+                          BIND(npuw::partitioning::spatial_nway, NPUW_SPATIAL_NWAY),
+                          BIND(npuw::partitioning::spatial_dyn, NPUW_SPATIAL_DYN),
                           BIND(npuw::partitioning::host_gather, NPUW_HOST_GATHER),
                           BIND(npuw::partitioning::funcall_for_all, NPUW_FUNCALL_FOR_ALL),
                           BIND(npuw::partitioning::dcoff_type, NPUW_DCOFF_TYPE),

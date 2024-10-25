@@ -10,7 +10,8 @@
 #include <vector>
 
 #include "../lazy_tensor.hpp"
-#include "intel_npu/al/config/config.hpp"
+#include "../spatial.hpp"
+#include "intel_npu/config/config.hpp"
 #include "openvino/openvino.hpp"
 
 namespace ov {
@@ -70,20 +71,7 @@ struct Function {
     // NOTE: it seems it is required only for `matchRepeatedSubgraphs()'
     std::map<std::pair<std::string, std::size_t>, std::size_t> _param_mapping;
 
-    // Spatial information. So far assume spatial execution in 1 dimension only
-    struct Spatial {
-        using PPtr = std::shared_ptr<ov::op::v0::Parameter>;
-        struct Param {
-            PPtr param;
-            std::size_t dim;
-        };
-        std::size_t _range = 0u;    // Range over which spatial execution is organized, e.g. 1024
-        std::size_t _slice = 0u;    // A submission size for a single execution, e.g. 128
-        std::size_t _out_dim = 0u;  // Assume it is the same dim for all Results
-        std::vector<Param> _inputs;
-    };
-    using SpatialOpt = std::optional<Spatial>;
-    SpatialOpt _spatial;
+    std::optional<ov::npuw::function::Spatial> _spatial;
 };
 
 struct Group {
