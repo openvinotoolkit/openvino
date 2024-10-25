@@ -6,18 +6,7 @@
 
 #include "../../logging.hpp"
 #include "../../util.hpp"
-#include "openvino/op/add.hpp"
-#include "openvino/op/broadcast.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/gather.hpp"
-#include "openvino/op/matmul.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/reduce_sum.hpp"
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/slice.hpp"
-#include "openvino/op/split.hpp"
-#include "openvino/op/subtract.hpp"
+#include "openvino/op/ops.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/pattern/op/label.hpp"  // any_input
 #include "openvino/pass/pattern/op/optional.hpp"
@@ -149,8 +138,9 @@ DQMatMulCWi::DQMatMulCWi() {
 
         auto qcoeff_shape = matched_qcoeff->output(0).get_shape();
 
-        if (ov::element::i4 == matched_qweight->get_element_type() && qcoeff_shape[1] == 1 &&
-            !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
+        if ((ov::element::i4 == matched_qweight->get_element_type() ||
+             ov::element::i8 == matched_qweight->get_element_type()) &&
+            qcoeff_shape[1] == 1 && !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
             auto matched_node_cvtw = node_to_output.at(qcvtw).get_node_shared_ptr();
             auto matched_node_cvtm = node_to_output.at(qcvtm).get_node_shared_ptr();
             auto matched_node_muls = node_to_output.at(qmuls).get_node_shared_ptr();
@@ -1293,6 +1283,151 @@ CompressDictMatMulf32::CompressDictMatMulf32(Context::Ref ctx) {
         return false;  // root has changed (yet)
     };
     register_matcher(std::make_shared<opp::Matcher>(res, "OptCompressDictMatMulf32"), std::move(callback));
+}
+
+SliceLastMatmul::SliceLastMatmul() {
+    auto matmul = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), opp::any_input()});
+    auto res = opp::wrap_type<ov::op::v0::Result>({matmul});
+
+    // Note: Use [=] to make sure the above objects stay alive in the callback
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+
+        auto matched_out_matmul = node_to_output.at(matmul);
+
+        auto shape = matched_out_matmul.get_node()->input(0).get_shape();
+
+        if (shape.size() == 3 && shape[1] > 1) {
+            auto start = std::make_shared<ov::op::v0::Constant>(ov::element::i32,
+                                                                ov::Shape{3},
+                                                                std::vector<int32_t>{0, int32_t(shape[1] - 1), 0});
+            auto stop =
+                std::make_shared<ov::op::v0::Constant>(ov::element::i32,
+                                                       ov::Shape{3},
+                                                       std::vector<int32_t>{1, int32_t(shape[1]), int32_t(shape[2])});
+            auto step =
+                std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, std::vector<int32_t>{1, 1, 1});
+
+            auto slice =
+                std::make_shared<ov::op::v8::Slice>(matched_out_matmul.get_node()->input_value(0), start, stop, step);
+
+            matched_out_matmul.get_node()->input(0).replace_source_output(slice);
+
+            return true;  // root was changed
+        }
+        return false;  // root hasn't changed
+    };
+    register_matcher(std::make_shared<opp::Matcher>(res, "SliceLastMatmul"), std::move(callback));
+}
+
+SliceLastMatmulAdd::SliceLastMatmulAdd() {
+    auto matmul = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), opp::any_input()});
+    auto add = opp::wrap_type<ov::op::v1::Add>({matmul, opp::any_input()});
+    auto res = opp::wrap_type<ov::op::v0::Result>({add});
+
+    // Note: Use [=] to make sure the above objects stay alive in the callback
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+
+        auto matched_out_matmul = node_to_output.at(matmul);
+
+        auto shape = matched_out_matmul.get_node()->input(0).get_shape();
+
+        if (shape.size() == 3 && shape[1] > 1) {
+            auto start = std::make_shared<ov::op::v0::Constant>(ov::element::i32,
+                                                                ov::Shape{3},
+                                                                std::vector<int32_t>{0, int32_t(shape[1] - 1), 0});
+            auto stop =
+                std::make_shared<ov::op::v0::Constant>(ov::element::i32,
+                                                       ov::Shape{3},
+                                                       std::vector<int32_t>{1, int32_t(shape[1]), int32_t(shape[2])});
+            auto step =
+                std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, std::vector<int32_t>{1, 1, 1});
+
+            auto slice =
+                std::make_shared<ov::op::v8::Slice>(matched_out_matmul.get_node()->input_value(0), start, stop, step);
+
+            matched_out_matmul.get_node()->input(0).replace_source_output(slice);
+
+            return true;  // root was changed
+        }
+        return false;  // root hasn't changed
+    };
+    register_matcher(std::make_shared<opp::Matcher>(res, "SliceLastMatmulAdd"), std::move(callback));
+}
+
+SliceLastMatmulTranspose::SliceLastMatmulTranspose() {
+    auto matmul = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), opp::any_input()});
+    auto add = opp::wrap_type<ov::op::v1::Transpose>({matmul, opp::any_input()});
+    auto res = opp::wrap_type<ov::op::v0::Result>({matmul});
+
+    // Note: Use [=] to make sure the above objects stay alive in the callback
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+
+        auto matched_out_matmul = node_to_output.at(matmul);
+
+        auto shape = matched_out_matmul.get_node()->input(0).get_shape();
+
+        if (shape.size() == 3 && shape[1] > 1) {
+            auto start = std::make_shared<ov::op::v0::Constant>(ov::element::i32,
+                                                                ov::Shape{3},
+                                                                std::vector<int32_t>{0, int32_t(shape[1] - 1), 0});
+            auto stop =
+                std::make_shared<ov::op::v0::Constant>(ov::element::i32,
+                                                       ov::Shape{3},
+                                                       std::vector<int32_t>{1, int32_t(shape[1]), int32_t(shape[2])});
+            auto step =
+                std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, std::vector<int32_t>{1, 1, 1});
+
+            auto slice =
+                std::make_shared<ov::op::v8::Slice>(matched_out_matmul.get_node()->input_value(0), start, stop, step);
+
+            matched_out_matmul.get_node()->input(0).replace_source_output(slice);
+
+            return true;  // root was changed
+        }
+        return false;  // root hasn't changed
+    };
+    register_matcher(std::make_shared<opp::Matcher>(res, "SliceLastMatmulTranspose"), std::move(callback));
+}
+
+SliceLastMatmulMultiply::SliceLastMatmulMultiply() {
+    auto matmul = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), opp::any_input()});
+    auto div = opp::wrap_type<ov::op::v1::Divide>({matmul, opp::any_input()});
+    auto tanh = opp::wrap_type<ov::op::v0::Tanh>({div});
+    auto multiply = opp::wrap_type<ov::op::v1::Multiply>({tanh, opp::any_input()});
+    auto res = opp::wrap_type<ov::op::v0::Result>({multiply});
+
+    // Note: Use [=] to make sure the above objects stay alive in the callback
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+
+        auto matched_out_matmul = node_to_output.at(matmul);
+
+        auto shape = matched_out_matmul.get_node()->input(0).get_shape();
+
+        if (shape.size() == 3 && shape[1] > 1) {
+            auto start = std::make_shared<ov::op::v0::Constant>(ov::element::i32,
+                                                                ov::Shape{3},
+                                                                std::vector<int32_t>{0, int32_t(shape[1] - 1), 0});
+            auto stop =
+                std::make_shared<ov::op::v0::Constant>(ov::element::i32,
+                                                       ov::Shape{3},
+                                                       std::vector<int32_t>{1, int32_t(shape[1]), int32_t(shape[2])});
+            auto step =
+                std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, std::vector<int32_t>{1, 1, 1});
+
+            auto slice =
+                std::make_shared<ov::op::v8::Slice>(matched_out_matmul.get_node()->input_value(0), start, stop, step);
+
+            matched_out_matmul.get_node()->input(0).replace_source_output(slice);
+
+            return true;  // root was changed
+        }
+        return false;  // root hasn't changed
+    };
+    register_matcher(std::make_shared<opp::Matcher>(res, "SliceLastMatmulMultiply"), std::move(callback));
 }
 
 }  // namespace opt

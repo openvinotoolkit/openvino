@@ -10,8 +10,8 @@
 #include "../../logging.hpp"
 #include "../../util.hpp"
 #include "group.hpp"
-#include "intel_npu/al/config/config.hpp"
-#include "intel_npu/al/config/npuw.hpp"
+#include "intel_npu/config/config.hpp"
+#include "intel_npu/config/npuw.hpp"
 #include "pugixml.hpp"
 #include "snapshot.hpp"
 
@@ -73,8 +73,6 @@ std::vector<Avoid> getAvoids(::intel_npu::Config& cfg) {
 
     std::string avoids_opt = cfg.getString<::intel_npu::NPUW_ONLINE_AVOID>();
     if (avoids_opt.empty()) {
-        LOG_VERB(::intel_npu::NPUW_ONLINE_AVOID().key()
-                 << " property is not set. NPU device will be prioritized for every subgraph.");
         return {};
     }
 
