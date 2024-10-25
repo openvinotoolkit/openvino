@@ -36,7 +36,7 @@ System Requirements
 
       .. note::
 
-         To install Microsoft Visual Studio, follow the `Microsoft Visual Studio installation guide <https://docs.microsoft.com/en-us/visualstudio/install/install-visual-studio?view=vs-2019>`__.
+         To install Microsoft Visual Studio, follow the `Microsoft Visual Studio installation guide <https://docs.microsoft.com/en-us/visualstudio/install/install-visual-studio?view=vs-2022>`__.
          You can choose to download the Community version. During installation in the **Workloads** tab, choose **Desktop development with C++**.
 
       .. note::

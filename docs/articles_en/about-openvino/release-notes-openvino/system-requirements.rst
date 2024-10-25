@@ -184,37 +184,38 @@ OpenVINO Distributions
             * `Python 3.9 - 3.12, 64-bit <https://www.python.org/downloads/>`__
             * GCC:
 
-            .. tab-set::
+              .. tab-set::
 
-               .. tab-item:: Ubuntu 20.04
-                  :sync: ubuntu-20
+                 .. tab-item:: Ubuntu
+                    :sync: ubuntu
 
-                  * GCC 9.3.0
+                    * GCC 9.3.0 (for Ubuntu 20.04), GCC 11.3.0 (for Ubuntu 22.04) or GCC 13.2.0 (for Ubuntu 24.04)
 
-               .. tab-item:: RHEL 8
-                  :sync: rhel-8
+                 .. tab-item:: RHEL 8
+                    :sync: rhel-8
 
-                  * GCC 8.4.1
+                    * GCC 8.4.1
 
-               .. tab-item:: CentOS 7
-                  :sync: centos-7
+                 .. tab-item:: CentOS 7
+                    :sync: centos-7
 
-                  * GCC 8.3.1
-                    Use the following instructions to install it:
+                    * GCC 8.3.1
 
-                  Install GCC 8.3.1 via devtoolset-8
+                      Use the following instructions to install it:
 
-                  .. code-block:: sh
+                      Install GCC 8.3.1 via devtoolset-8
 
-                     sudo yum update -y && sudo yum install -y centos-release-scl epel-release
-                     sudo yum install -y devtoolset-8
+                      .. code-block:: sh
 
-                  Enable devtoolset-8 and check current gcc version
+                         sudo yum update -y && sudo yum install -y centos-release-scl epel-release
+                         sudo yum install -y devtoolset-8
 
-                  .. code-block:: sh
+                      Enable devtoolset-8 and check current gcc version
 
-                     source /opt/rh/devtoolset-8/enable
-                     gcc -v
+                      .. code-block:: sh
+
+                         source /opt/rh/devtoolset-8/enable
+                         gcc -v
 
          .. tab-item:: macOS
             :name: archive-win-sysreq
@@ -227,7 +228,7 @@ OpenVINO Distributions
          .. tab-item:: Windows
             :name: archive-win-sysreq
 
-            * `C++ libraries (included in Visual Studio redistributable) <https://aka.ms/vs/17/release/vc_redist.x64.exe>`__
+            * `C++ libraries (included in Visual Studio redistributable) <https://aka.ms/vs/17/release/vc_redist.x64.exe>`__ (a core dependency for OpenVINO Runtime)
             * `Microsoft Visual Studio 2019 or later <http://visualstudio.microsoft.com/downloads/>`__ (for development and app compilation with OpenVINO)
             * `CMake 3.14 or higher, 64-bit <https://cmake.org/download/>`__ (optional, only required for building sample applications)
             * `Python 3.9 - 3.12, 64-bit <https://www.python.org/downloads/windows/>`__
@@ -241,7 +242,7 @@ OpenVINO Distributions
             :sync: linux
 
             * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`__
-            * GCC 7.5.0 (for Ubuntu 18.04), GCC 9.3.0 (for Ubuntu 20.04) or GCC 11.3.0 (for Ubuntu 22.04)
+            * GCC 9.3.0 (for Ubuntu 20.04), GCC 11.3.0 (for Ubuntu 22.04) or GCC 13.2.0 (for Ubuntu 24.04)
             * `Python 3.9 - 3.12, 64-bit <https://www.python.org/downloads/>`__
 
    .. tab-item:: Homebrew
@@ -254,7 +255,7 @@ OpenVINO Distributions
 
             * `Homebrew <https://brew.sh/>`_
             * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`__
-            * GCC 7.5.0 (for Ubuntu 18.04), GCC 9.3.0 (for Ubuntu 20.04) or GCC 11.3.0 (for Ubuntu 22.04)
+            * GCC 9.3.0 (for Ubuntu 20.04), GCC 11.3.0 (for Ubuntu 22.04) or GCC 13.2.0 (for Ubuntu 24.04)
             * `Python 3.9 - 3.12, 64-bit <https://www.python.org/downloads/>`__
 
          .. tab-item:: macOS
@@ -351,7 +352,7 @@ OpenVINO Distributions
             Software:
 
             * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`_
-            * GCC 8.2.0
+            * GCC 8.4.1
             * `Python 3.9 - 3.12, 64-bit <https://www.python.org/downloads/>`_
 
    .. tab-item:: ZYPPER
