@@ -14,7 +14,7 @@
 #include "common/utils.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
-#include "npu_private_properties.hpp"
+#include "intel_npu/npu_private_properties.hpp"
 
 class BackendName {
 public:
@@ -267,6 +267,7 @@ std::vector<std::string> disabledTestPatterns() {
                 "Tests with unsupported precision", {
                 ".*InferRequestCheckTensorPrecision.*type=boolean.*",
                 ".*InferRequestCheckTensorPrecision.*type=f64.*",
+                ".*InferRequestCheckTensorPrecision.*type=bf16.*",
                 ".*InferRequestCheckTensorPrecision.*type=u1\\D.*",
                 // [Track number: E#97469]
                 ".*InferRequestCheckTensorPrecision.*type=i64.*",
@@ -702,18 +703,9 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*OVCompiledModelPropertiesDefaultSupportedTests.CanCompileWithDefaultValueFromPlugin.*"
         });
 
-        // [Tracking number: E#116494]
         _skipRegistry.addPatterns(
-                "NPU plugin doesn't implement `set_tensors` function", {
-                ".*OVInferRequestBatchedTests.SetInputTensorsBase.*",
-                ".*OVInferRequestBatchedTests.SetInputTensorsAsync.*",
-                ".*OVInferRequestBatchedTests.SetInputTensors_override_with_set.*",
-                ".*OVInferRequestBatchedTests.SetInputTensorsBase_Caching.*",
-                ".*OVInferRequestBatchedTests.SetInputTensors_Multiple_Infer.*",
+                "NPU plugin doesn't support infer dynamic", {
                 ".*OVInferRequestBatchedTests.SetInputTensors_Can_Infer_Dynamic.*",
-                ".*OVInferRequestBatchedTests.SetInputTensors_Get_Tensor_Not_Allowed.*",
-                ".*OVInferRequestBatchedTests.SetInputTensors_Correct_all.*",
-                ".*OVInferRequestBatchedTests.SetInputTensors_Cache_CheckDeepCopy.*"
         });
 
         // [Tracking number: E#118381]

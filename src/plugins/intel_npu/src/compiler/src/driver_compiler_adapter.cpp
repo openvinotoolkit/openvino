@@ -5,7 +5,7 @@
 #include "driver_compiler_adapter.hpp"
 
 #include "graph_transformations.hpp"
-#include "intel_npu/al/config/common.hpp"
+#include "intel_npu/config/common.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
 #include "ze_intel_npu_uuid.h"
@@ -66,6 +66,12 @@ LevelZeroCompilerAdapter::LevelZeroCompilerAdapter(std::shared_ptr<IEngineBacken
         break;
     case ZE_GRAPH_EXT_VERSION_1_7:
         apiAdapter = std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_7_t>>(driverHandle,
+                                                                                              deviceHandle,
+                                                                                              zeContext,
+                                                                                              graph_ddi_table_ext);
+        break;
+    case ZE_GRAPH_EXT_VERSION_1_8:
+        apiAdapter = std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_8_t>>(driverHandle,
                                                                                               deviceHandle,
                                                                                               zeContext,
                                                                                               graph_ddi_table_ext);

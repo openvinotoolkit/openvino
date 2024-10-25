@@ -116,6 +116,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"GroupConvolutionBackpropData", Type::Deconvolution},
         {"StridedSlice", Type::StridedSlice},
         {"Slice", Type::StridedSlice},
+        {"SliceScatter", Type::StridedSlice},
         {"Tile", Type::Tile},
         {"ROIAlign", Type::ROIAlign},
         {"ROIAlignRotated", Type::ROIAlignRotated},
@@ -244,6 +245,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"Ngram", Type::Ngram},
         {"ScaledDotProductAttention", Type::ScaledDotProductAttention},
         {"ScaledDotProductAttentionWithKVCache", Type::ScaledDotProductAttention},
+        {"SDPAWithTransposeReshape", Type::ScaledDotProductAttention},
         {"PagedAttentionExtension", Type::PagedAttention},
         {"RoPE", Type::RoPE},
         {"GatherCompressed", Type::Gather},
@@ -252,7 +254,8 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"EmbeddingBagOffsets", Type::EmbeddingBagOffsets},
         {"LLMMLP", Type::LLMMLP},
         {"QKVProjection", Type::QKVProjection},
-        {"RMS", Type::RMS}
+        {"RMS", Type::RMS},
+        {"SearchSorted", Type::SearchSorted}
     };
     return type_to_name_tbl;
 }
@@ -383,6 +386,7 @@ std::string NameFromType(const Type type) {
         CASE(LLMMLP);
         CASE(QKVProjection);
         CASE(RMS);
+        CASE(SearchSorted);
         CASE(Unknown);
     }
 #undef CASE

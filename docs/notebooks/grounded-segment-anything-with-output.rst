@@ -64,6 +64,7 @@ Clone repositories and install requirements
 
 .. parsed-literal::
 
+    WARNING: supervision 0.24.0 does not provide the extra 'desktop'
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -123,16 +124,16 @@ segmentation you can select vanilla ``SAM``.
     Cloning into 'GroundingDINO'...
     remote: Enumerating objects: 379, done.[K
     remote: Counting objects: 100% (190/190), done.[K
-    remote: Compressing objects: 100% (80/80), done.[K
-    remote: Total 379 (delta 135), reused 110 (delta 110), pack-reused 189 (from 1)[K
-    Receiving objects: 100% (379/379), 14.03 MiB | 16.82 MiB/s, done.
+    remote: Compressing objects: 100% (81/81), done.[K
+    remote: Total 379 (delta 135), reused 109 (delta 109), pack-reused 189 (from 1)[K
+    Receiving objects: 100% (379/379), 14.03 MiB | 18.28 MiB/s, done.
     Resolving deltas: 100% (194/194), done.
     Cloning into 'EfficientSAM'...
     remote: Enumerating objects: 424, done.[K
     remote: Counting objects: 100% (85/85), done.[K
     remote: Compressing objects: 100% (33/33), done.[K
     remote: Total 424 (delta 76), reused 52 (delta 52), pack-reused 339 (from 1)[K
-    Receiving objects: 100% (424/424), 262.14 MiB | 26.81 MiB/s, done.
+    Receiving objects: 100% (424/424), 262.14 MiB | 30.07 MiB/s, done.
     Resolving deltas: 100% (246/246), done.
 
 
@@ -221,6 +222,7 @@ GroundingDINO imports
 
 .. parsed-literal::
 
+    FutureWarning: Importing from timm.models.layers is deprecated, please import via timm.layers
     UserWarning: Failed to load custom C++ ops. Running on CPU mode Only!
 
 
@@ -259,15 +261,6 @@ GroundingDINO imports
 .. parsed-literal::
 
     final text_encoder_type: bert-base-uncased
-
-
-.. parsed-literal::
-
-    FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
-
-
-.. parsed-literal::
-
     final text_encoder_type: bert-base-uncased
 
 
@@ -514,10 +507,10 @@ class, but the inference will be done using OpenVINO optimized model.
 
 .. parsed-literal::
 
-    2024-09-24 01:11:42.692032: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-09-24 01:11:42.732257: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-10-23 01:22:04.926963: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-10-23 01:22:04.966234: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-09-24 01:11:43.332245: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-10-23 01:22:05.582957: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Convert predicted boxes to supervision box detections format

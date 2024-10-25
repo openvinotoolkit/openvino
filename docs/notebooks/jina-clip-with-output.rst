@@ -77,7 +77,7 @@ Prerequisites
 .. code:: ipython3
 
     %pip install -q "openvino>=2024.2.0" "datasets>=2.20" "nncf>=2.11.0"
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "gradio>=4.19" "pillow" "einops" "timm" "transformers[torch]>=4.39" "torch>=2.1"
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "gradio>=4.19" "pillow" "einops" "timm" "transformers[torch]>=4.39" "torch>=2.1" "matplotlib>=3.4"
 
 
 .. parsed-literal::
@@ -106,10 +106,12 @@ weights, using ``from_pretrained`` method.
 
 .. parsed-literal::
 
-    2024-09-24 01:18:13.320635: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-09-24 01:18:13.354964: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-10-23 01:28:42.177313: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-10-23 01:28:42.211816: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-09-24 01:18:14.016738: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-10-23 01:28:42.875342: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/timm/models/layers/__init__.py:48: FutureWarning: Importing from timm.models.layers is deprecated, please import via timm.layers
+      warnings.warn(f"Importing from {__name__} is deprecated, please import via timm.layers", FutureWarning)
 
 
 Prepare input data
@@ -299,7 +301,7 @@ loading on device using ``core.complie_model``.
 .. parsed-literal::
 
     WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4713: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4713: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
       warnings.warn(
     /opt/home/k8sworker/.cache/huggingface/modules/transformers_modules/jinaai/jina-bert-flash-implementation/b78d1595de294f13ffe7b19d6cd63892a6e4e7a4/mha.py:333: TracerWarning: Converting a tensor to a Python float might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       softmax_scale = self.softmax_scale or 1.0 / math.sqrt(q.shape[-1])
@@ -318,7 +320,7 @@ loading on device using ``core.complie_model``.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/.cache/huggingface/modules/transformers_modules/jinaai/jina-clip-implementation/952897b38094b9f6a47b3d9a1d8239523e374098/eva_model.py:468: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/.cache/huggingface/modules/transformers_modules/jinaai/jina-clip-implementation/96e41b892fe647a3c45bf921352f147184024aef/eva_model.py:468: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert H == self.img_size[0] and W == self.img_size[1], (
 
 
@@ -818,8 +820,8 @@ approximately estimate the speed up of the dynamic quantized models.
 
 .. parsed-literal::
 
-    Performance speed up for text model: 1.551
-    Performance speed up for vision model: 1.431
+    Performance speed up for text model: 1.560
+    Performance speed up for vision model: 1.435
 
 
 Gradio demo

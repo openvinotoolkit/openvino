@@ -63,6 +63,7 @@
 #include "transformations/op_conversions/convert_scatter_nd_update15_downgrade.hpp"
 #include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
 #include "transformations/op_conversions/convert_shuffle_channels3.hpp"
+#include "transformations/op_conversions/convert_slicescatter.hpp"
 #include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
 #include "transformations/op_conversions/convert_space_to_batch.hpp"
 #include "transformations/op_conversions/convert_space_to_depth.hpp"
@@ -100,7 +101,7 @@
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/transpose_sinking/ts_shape_of.hpp"
 #include "utils/ngraph_transformation.hpp"
-#include "utils/print_model.hpp"
+#include "transformations/utils/print_model.hpp"
 
 // LPT transformations
 #include "low_precision/add.hpp"
@@ -139,6 +140,7 @@
 #include "transformations/cpu_opset/common/pass/swap_convert_transpose.hpp"
 #include "transformations/cpu_opset/common/pass/causal_mask_preprocess_fusion.hpp"
 #include "transformations/cpu_opset/common/pass/stateful_sdpa_fusion.hpp"
+#include "transformations/cpu_opset/x64/pass/sdpa_fuse_transpose_reshape.hpp"
 
 // Snippets
 #include "snippets/pass/tokenization.hpp"
@@ -235,6 +237,17 @@ bool Transformations::fuse_type_to_fq(const std::shared_ptr<ov::Node>& node, con
         input.replace_source_output(convert_after);
     }
 
+    return true;
+}
+
+bool Transformations::fuse_type_to_pa(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions) {
+    auto pa = ov::as_type_ptr<ov::op::PagedAttentionExtension>(node);
+    if (!pa)
+        return false;
+    // PagedAttentionExtension's 2nd output type should be kept f32.
+    // The reason is that the pagedattention node in CPU plugin hardcodes 2nd output type as f32.
+    // So, set f32 to the 2nd output type, which can avoid extra data type conversion during transformation.
+    pa->set_out_type(1, ov::element::f32);
     return true;
 }
 
@@ -391,7 +404,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
         type_to_fuse_map fuse_map = {{ov::opset1::FakeQuantize::get_type_info_static(), fuse_type_to_fq}};
 #else
-        type_to_fuse_map fuse_map = {};
+        type_to_fuse_map fuse_map = {{ov::op::PagedAttentionExtension::get_type_info_static(), fuse_type_to_pa}};
 #endif
         const bool keep_precision_sensitive_in_fp32 = true;
         CPU_REGISTER_PASS_COMMON(manager,
@@ -644,6 +657,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::HSwishDecomposition);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::MatMulConstTransposesExtraction);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertScatterNDUpdate15ToScatterNDUpdate3);
+    CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertSliceScatter);
     CPU_DISABLE_PASS_X64(manager, ov::pass::HSigmoidDecomposition);
 
     CPU_DISABLE_PASS_X64(manager, ov::pass::ReduceL1Decomposition);
@@ -824,8 +838,8 @@ void Transformations::PostLpt() {
     // Execute before snippets. Otherwise FQ will be converted to Subgraph
     CPU_REGISTER_PASS_X64(postLPTPassManager, ConvertFqRnnToQuantizedRnn);
 
-    CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::RoPEFusion);
-    CPU_REGISTER_PASS_ARM64(postLPTPassManager, ov::pass::RoPEFusion);
+    CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::RoPEFusion, true);
+    CPU_REGISTER_PASS_ARM64(postLPTPassManager, ov::pass::RoPEFusion, true);
     CPU_REGISTER_PASS_X64(postLPTPassManager, CausalMaskPreprocessFusion);
 
     // MLP & QKV fusion optimizations is focused on throughput, only enabled on AMX-bf16 & LLM serving use cases.
@@ -853,6 +867,7 @@ void Transformations::PostLpt() {
 
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::transpose_sinking::TSShapeOfForward);
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, StatefulSDPAFusion);
+    CPU_REGISTER_PASS_X64(postLPTPassManager, ov::intel_cpu::SDPAFuseTransposeReshape);
     CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::RMSFusion, false);
     CPU_REGISTER_PASS_X64(postLPTPassManager, ov::intel_cpu::DecomposeRMSNorm);
     CPU_SET_CALLBACK_X64(postLPTPassManager,
@@ -936,13 +951,7 @@ void Transformations::MainSnippets(void) {
 #endif
         CPU_DISABLE_PASS_COMMON(snippetsManager, snippets::pass::TokenizeFCSnippets);
     }
-    CPU_REGISTER_PASS_X64(snippetsManager, snippets::pass::SnippetsTokenization, tokenization_config);
-    // [126738] Remove precision constraint when Convert emitters are implemented on arm platform
-    // The redundant "if defined", used to WA error of "empty controlled statement found" should also be removed then.
-#if defined(OPENVINO_ARCH_ARM64)
-    if (config.inferencePrecision == ov::element::f32)
-        CPU_REGISTER_PASS_ARM(snippetsManager, snippets::pass::SnippetsTokenization, tokenization_config);
-#endif
+    CPU_REGISTER_PASS_COMMON(snippetsManager, snippets::pass::SnippetsTokenization, tokenization_config);
 
     // - MHA has BRGEMM that is supported only on AVX512 platforms
     // - CPU Plugin Subgraph supports only f32, bf16 (and quantized) BRGEMM

@@ -2197,7 +2197,21 @@ std::string FusedOpsCodeGenerator::GetJitLoad(const FusedOpsConfiguration& conf,
 
             if (vec_size > 1) {
                 return block_read;
-            } else if (input_tensor.LogicalSize() > 1) {
+            }
+
+            bool multiple_elements = false;
+            // For dynamic shape input tensor, check any one of static dimension has more than one element.
+            if (input_tensor.is_dynamic()) {
+                for (auto dim : input_tensor.GetDims()) {
+                    auto v = dim.v;
+                    if (v > 1) {
+                        multiple_elements = true;
+                        break;
+                    }
+                }
+            }
+
+            if (input_tensor.LogicalSize() > 1 || multiple_elements) {
                 // Currently we assume that in such scenario we can safely load sub_group_size elements from the pointer
                 return Broadcast(block_read, input_dt, vec_size);
             } else {

@@ -596,6 +596,14 @@ bool keep_weights_reorder_shape_consistent(cldnn::layout& layout, const dnnl::me
     // Check whether they have same values and orders.
     if (filtered_target_dims == filtered_desc_dims) {
         layout.set_partial_shape(desc_dims);
+        if (layout.get_rank() != desc_dims.size()) {
+            if (cldnn::format::is_default_format(layout.format)) {
+                layout.format = cldnn::format::get_default_format(desc_dims.size());
+            } else {
+                // TO-DO: Consider that weight format is not default format
+                return false;
+            }
+        }
         return true;
     } else {
         return false;

@@ -81,30 +81,17 @@ Settings
 
 .. code:: ipython3
 
-    import platform
-    
     # Install openvino package
-    %pip install -q "openvino>=2023.1.0" opencv-python tqdm
-    if platform.system() != "Windows":
-        %pip install -q "matplotlib>=3.4"
-    else:
-        %pip install -q "matplotlib>=3.4,<3.7"
+    %pip install -q "openvino>=2023.1.0" opencv-python tqdm "matplotlib>=3.4"
     
     %pip install -q "tensorflow-macos>=2.5; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version > '3.8'" # macOS M1 and M2
-    %pip install -q "tensorflow-macos>=2.5,<=2.12.0; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version <= '3.8'" # macOS M1 and M2
     %pip install -q "tensorflow>=2.5; sys_platform == 'darwin' and platform_machine != 'arm64' and python_version > '3.8'" # macOS x86
-    %pip install -q "tensorflow>=2.5,<=2.12.0; sys_platform == 'darwin' and platform_machine != 'arm64' and python_version <= '3.8'" # macOS x86
     %pip install -q "tensorflow>=2.5; sys_platform != 'darwin' and python_version > '3.8'"
-    %pip install -q "tensorflow>=2.5; sys_platform != 'darwin' and python_version <= '3.8'"
     %pip install -q tf_keras tensorflow_hub
 
 
 .. parsed-literal::
 
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
@@ -366,7 +353,7 @@ for mean/scale normalization.
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.InputTensorInfo at 0x7fbb39d78930>
+    <openvino._pyopenvino.preprocess.InputTensorInfo at 0x7f786c780e70>
 
 
 
@@ -397,7 +384,7 @@ may be specified is input data
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.InputModelInfo at 0x7fbbd475f4f0>
+    <openvino._pyopenvino.preprocess.InputModelInfo at 0x7f786c7809b0>
 
 
 
@@ -435,7 +422,7 @@ then such conversion will be added explicitly.
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.PreProcessSteps at 0x7fbda078ef70>
+    <openvino._pyopenvino.preprocess.PreProcessSteps at 0x7f786c780b70>
 
 
 
@@ -649,6 +636,6 @@ Compare performance
 
 .. parsed-literal::
 
-    IR model in OpenVINO Runtime/CPU with manual image preprocessing: 0.0146 seconds per image, FPS: 68.47
-    IR model in OpenVINO Runtime/CPU with preprocessing API: 0.0140 seconds per image, FPS: 71.20
+    IR model in OpenVINO Runtime/CPU with manual image preprocessing: 0.0154 seconds per image, FPS: 65.10
+    IR model in OpenVINO Runtime/CPU with preprocessing API: 0.0142 seconds per image, FPS: 70.53
 
