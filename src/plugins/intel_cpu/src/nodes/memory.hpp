@@ -118,17 +118,6 @@ protected:
     void runDynamic(dnnl::stream strm) override;
     void assignExtMemory(const MemoryPtr& mem, const MemoryDescPtr& memDesc) override;
 };
-
-class MemoryOutputSingleStub : public MemoryOutput {
-public:
-    using MemoryOutput::MemoryOutput;
-    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
-protected:
-    void runStatic(dnnl::stream strm) override {}
-    void runDynamic(dnnl::stream strm) override {}
-    void assignExtMemory(const MemoryPtr& mem, const MemoryDescPtr& memDesc) override;
-};
-
 class MemoryInputBase : public Input, public MemoryStateNode {
 public:
     enum class mode {

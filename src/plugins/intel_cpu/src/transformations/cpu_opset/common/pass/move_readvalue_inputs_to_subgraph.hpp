@@ -18,7 +18,7 @@ namespace intel_cpu {
  *        |                                                             |
  *     ReadValue                                            ------->  ReadValueWithSubgraph(Subgraph is inside)
  *        |     \                                                       |          \
- *     Assign   others                                                Others      MemoryOutputSingleStub
+ *     Assign   others                                                Assign       others
  */
 
 class MoveReadValueInputsToSubgraph : public ov::pass::MatcherPass {

@@ -364,14 +364,6 @@ void MemoryOutputStub::assignExtMemory(const MemoryPtr& mem, const MemoryDescPtr
     //nothing to do
 }
 
-bool MemoryOutputSingleStub::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
-    return MemoryOutputBase::isSupportedOperation(op, errorMessage);
-}
-
-void MemoryOutputSingleStub::assignExtMemory(const MemoryPtr& mem, const MemoryDescPtr& memDesc) {
-    return MemoryOutput::assignExtMemory(mem, memDesc);
-}
-
 bool MemoryInputBase::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (!one_of(op->get_type_info(),
