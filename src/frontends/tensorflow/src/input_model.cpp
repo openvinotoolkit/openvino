@@ -201,8 +201,7 @@ void InputModel::InputModelTFImpl::load_places() {
             // in case PlaceholderWithDefault we put created TensorPlace only to m_default_places container
             // so that we know its shape and type for a case of custom input
             // by default, PlaceholderWithDefault is replaced by Constant with the default value
-            // auto pshape = ov::PartialShape::dynamic();
-            auto pshape = ov::PartialShape();
+            auto pshape = ov::PartialShape::dynamic();
             auto shape_any = node_decoder->get_attribute("shape");
             if (shape_any.is<ov::PartialShape>()) {
                 // sometimes shape attribute can be absent in the graph
@@ -212,7 +211,7 @@ void InputModel::InputModelTFImpl::load_places() {
                 OPENVINO_DEBUG("TensorFlow Frontend: Placeholder ", op_name, " does not have 'shape' attribute");
             }
             auto output_shapes_any = node_decoder->get_attribute("_output_shapes");
-            if (pshape.rank().is_static() && pshape.rank().get_length() == 0 &&
+            if ( (pshape.rank().is_dynamic() || (pshape.rank().is_static() && pshape.rank().get_length() == 0)) &&
                 output_shapes_any.is<std::vector<ov::PartialShape>>()) {
                 // we know some cases when Placeholder operation has empty scalar `shape` attribute value
                 // and non-empty `_output_shapes` attribute value.
