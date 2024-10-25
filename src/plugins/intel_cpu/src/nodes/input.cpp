@@ -480,7 +480,11 @@ void Input::selectOptimalPrimitiveDescriptor() {
     supportedPrimitiveDescriptors.clear();
 
     // and just use parent memory descriptor for Output node to avoid reorders insertion
-    NodeConfig config({PortConfig(getParentOutputMemDesc(getParentEdgeAt(0)), BlockedMemoryDesc::FULL_MASK, 0)}, {});
+    std::vector<PortConfig> inConfs;
+    for (size_t i = 0; i < getParentEdges().size(); i++) {
+        inConfs.push_back({PortConfig(getParentOutputMemDesc(getParentEdgeAt(i)), BlockedMemoryDesc::FULL_MASK, 0)});
+    }
+    NodeConfig config(inConfs, {});
 
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
     selectPrimitiveDescriptorByIndex(0);

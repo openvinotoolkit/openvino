@@ -19,10 +19,11 @@ public:
         m_state = get_tensor_impl(variable_value->get_state());
     }
     void set_state(const ov::SoPtr<ov::ITensor>& state) override {
-        OPENVINO_ASSERT(state->get_shape() == m_state->get_shape(), "Wrong tensor shape.");
+        m_state->set_shape(state->get_shape());
         OPENVINO_ASSERT(state->get_element_type() == m_state->get_element_type(), "Wrong tensor type.");
         OPENVINO_ASSERT(state->get_byte_size() == m_state->get_byte_size(), "Blob size of tensors are not equal.");
         std::memcpy(m_state->data(), state->data(), state->get_byte_size());
+        m_variable_value->set_reset(false);
     }
 
     void reset() override {

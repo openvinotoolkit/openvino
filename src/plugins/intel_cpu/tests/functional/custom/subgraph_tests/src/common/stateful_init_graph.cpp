@@ -118,13 +118,13 @@ protected:
 
 // ReadValue Assign direct pair
 //
-//             Param_1   input_2
+//             input_1   input_2
 //                |        |
 //              Add_1     /
 //                \      /
 //                 MatMul
 //                   |
-//   Param_0     ReadValue ..........
+//   input_0     ReadValue ..........
 //       \      /       \           .
 //         Add_0      Assign ........
 //          |

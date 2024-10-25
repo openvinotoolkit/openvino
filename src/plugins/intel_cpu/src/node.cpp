@@ -733,6 +733,9 @@ void Node::updateDynamicParams() {
                     " with name: ",
                     getName());
     try {
+        if (getName() == "MatMul_7") {
+            std::cout << "debug to MatMul_7------------>" << std::endl;
+        }
         if (isExecutable()) {
             if (needPrepareParams()) {
                 OPENVINO_ASSERT(inputShapesDefined(),

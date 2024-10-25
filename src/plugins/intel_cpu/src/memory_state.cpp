@@ -195,6 +195,10 @@ MemoryPtr VariableStateSingleBuffer::internal_state_mem() const {
     return m_internal_mem;
 }
 
+void VariableStateSingleBuffer::commit_impl() {
+    // nothing to do
+}
+
 VariableStateKVcache::VariableStateKVcache(
     const std::string& name,
     const MemoryDescPtr& external_desc,

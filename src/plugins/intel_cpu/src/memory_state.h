@@ -106,7 +106,7 @@ public:
 
 private:
     void reset_impl() override;
-    void commit_impl() override {};
+    void commit_impl() override;
 
     MemoryPtr internal_state_mem() const override;
 
