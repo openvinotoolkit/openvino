@@ -18,6 +18,7 @@ endif()
 #
 
 if(ENABLE_INTEL_NPU_PROTOPIPE)
+    set(YAML_BUILD_SHARED_LIBS OFF)
     add_subdirectory(yaml-cpp EXCLUDE_FROM_ALL)
     # NB: Suppress warnings in yaml-cpp
     if(SUGGEST_OVERRIDE_SUPPORTED)
