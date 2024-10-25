@@ -255,7 +255,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"LLMMLP", Type::LLMMLP},
         {"QKVProjection", Type::QKVProjection},
         {"RMS", Type::RMS},
-        {"SearchSorted", Type::SearchSorted}
+        {"SearchSorted", Type::SearchSorted},
         {"LoraSubgraph", Type::LoRA}
     };
     return type_to_name_tbl;
