@@ -595,7 +595,15 @@ void regclass_graph_PrePostProcessor(py::module m) {
         },
         py::arg("output_index"));
 
-    proc.def("build", &ov::preprocess::PrePostProcessor::build, py::call_guard<py::gil_scoped_release>());
+    proc.def("build", [](ov::preprocess::PrePostProcessor& self) {
+        std::shared_ptr<ov::Model> model;
+        {
+            py::gil_scoped_release release;
+            model = self.build();
+        }
+        py::type model_class = py::module_::import("openvino.runtime").attr("Model");
+        return model_class(py::cast(model));
+    });
 
     proc.def("__str__", [](const ov::preprocess::PrePostProcessor& self) -> std::string {
         std::stringstream ss;
