@@ -53,6 +53,8 @@ void unpack(const ov::SoPtr<ov::ITensor>& from,
 
 void gather(const ov::SoPtr<ov::ITensor>& src, const ov::SoPtr<ov::ITensor>& idx, const ov::SoPtr<ov::ITensor>& dst);
 
+void merge_last_two_dims(const ov::SoPtr<ov::ITensor>& src, const ov::SoPtr<ov::ITensor>& dst);
+
 using View = std::vector<std::size_t>;
 ov::SoPtr<ov::ITensor> view(const ov::SoPtr<ov::ITensor>& src, const View& from, const View& to);
 

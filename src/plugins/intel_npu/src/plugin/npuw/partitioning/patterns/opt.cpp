@@ -59,11 +59,21 @@ Context::PPtr Context::concat(ov::ParameterVector&& v, std::size_t dim) {
 }
 
 Context::PPtr Context::unpack(Context::PPtr w, Context::PPtr z, Context::PPtr s, ov::element::Type type) {
-    // FIXME: Assume CW only
-    NPUW_ASSERT(w->get_shape().size() == 2);
-    NPUW_ASSERT(z->get_shape().size() == 2);
-    NPUW_ASSERT(s->get_shape().size() == 2);
-    auto new_param = std::make_shared<ov::op::v0::Parameter>(type, w->get_shape());
+    const auto& w_shape = w->get_shape();
+    const auto& s_shape = s->get_shape();
+
+    Context::PPtr new_param;
+    if (w_shape.size() == 3 && s_shape.size() == 3) {
+        // Assume already reshaped tensor (as it does with unpack)
+        ov::Shape new_shape = {w_shape[0], w_shape[1] * w_shape[2]};
+        new_param = std::make_shared<ov::op::v0::Parameter>(type, new_shape);
+    } else if (w_shape.size() == 2 && s_shape.size() == 2) {
+        new_param = std::make_shared<ov::op::v0::Parameter>(type, w_shape);
+    } else {
+        NPUW_ASSERT(false && "Yet unsupported combination");
+    }
+
+    NPUW_ASSERT(new_param);
     params_to_unpack[new_param] = {w, z, s};
     return new_param;
 }
@@ -964,10 +974,20 @@ DQUnpackDictGatherCWu::DQUnpackDictGatherCWu(Context::Ref ctx) {
         auto matched_qcoeff = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qcoeff);
 
         // Strip down the DQ subgraph, replace the original Q-ed closure tensor with unpacked fp16
+        // add reshape somewhere
         auto new_wi = ctx.get().unpack(matched_qweight, matched_qzerop, matched_qcoeff, ov::element::f16);
-        auto gather_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 0);
-        auto new_g = std::make_shared<ov::op::v8::Gather>(new_wi, matched_out_ids, gather_c);
+        auto w_shape = matched_node_qweight->get_shape();
+        auto new_w_shape = new_wi->get_shape();
+        std::shared_ptr<ov::op::v1::Reshape> opt_reshape = nullptr;
+        if (new_w_shape.size() == 2 && w_shape.size() == 3) {
+            NPUW_ASSERT(new_w_shape[0] == w_shape[0] && w_shape[1] * w_shape[2] == new_w_shape[1]);
+            auto new_const = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, w_shape);
+            opt_reshape = std::make_shared<ov::op::v1::Reshape>(new_wi, new_const, false);
+        }
 
+        auto gather_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 0);
+        auto new_g = opt_reshape ? std::make_shared<ov::op::v8::Gather>(opt_reshape, matched_out_ids, gather_c)
+                                 : std::make_shared<ov::op::v8::Gather>(new_wi, matched_out_ids, gather_c);
         matched_node_cvt->input(0).replace_source_output(new_g);
 
         return true;  // root has changed
@@ -1012,7 +1032,7 @@ DQUnpackDictGatherGQi::DQUnpackDictGatherGQi(Context::Ref ctx) {
 
         return true;  // root has changed
     };
-    register_matcher(std::make_shared<opp::Matcher>(qcvtm, "DQDictGatherCWu"), std::move(callback));
+    register_matcher(std::make_shared<opp::Matcher>(qcvtm, "DQDictGatherGQu"), std::move(callback));
 }
 
 // Identify the case* where the FP16/32 vocab tensor is gathered with
