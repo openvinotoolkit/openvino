@@ -27,7 +27,7 @@ OPENVINO_OP("Squeeze", "util");
 public:
     // void validate_and_infer_types() override;
     // bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
-    // bool has_evaluate() const override;
+    bool has_evaluate() const override;
     bool evaluate_lower(TensorVector& outputs) const override;
     bool evaluate_upper(TensorVector& outputs) const override;
     bool evaluate_symbol(TensorSymbolVector& output_symbols) const override;
@@ -57,7 +57,6 @@ public:
 
     void validate_and_infer_types() override;
     bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
-    bool has_evaluate() const override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
@@ -83,7 +82,6 @@ public:
 
     void validate_and_infer_types() override;
     bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
-    bool has_evaluate() const override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 

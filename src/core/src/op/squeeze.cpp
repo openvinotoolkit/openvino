@@ -35,6 +35,27 @@ SqueezeBase::SqueezeBase(const Output<Node>& data) : Op({data}) {
     constructor_validate_and_infer_types();
 }
 
+bool SqueezeBase::has_evaluate() const {
+    OV_OP_SCOPE(util_SqueezeBase_has_evaluate);
+    const auto validate_axes_type = [](const element::Type& et) -> bool {
+        switch (et) {
+        case element::i8:
+        case element::i16:
+        case element::i32:
+        case element::i64:
+        case element::u8:
+        case element::u16:
+        case element::u32:
+        case element::u64:
+            return true;
+        default:
+            return false;
+        }
+    };
+
+    return (get_input_size() < 2) || validate_axes_type(get_input_element_type(1));
+}
+
 bool SqueezeBase::evaluate_lower(TensorVector& output_values) const {
     OV_OP_SCOPE(util_SqueezeBase_evaluate_lower);
     return validate::axes_has_and_set_bound(*this) && default_lower_bound_evaluator(this, output_values);
@@ -119,27 +140,6 @@ bool Squeeze::evaluate(TensorVector& outputs, const TensorVector& inputs) const 
     return true;
 }
 
-bool Squeeze::has_evaluate() const {
-    OV_OP_SCOPE(v0_Squeeze_has_evaluate);
-    const auto validate_axes_type = [](const element::Type& et) -> bool {
-        switch (et) {
-        case element::i8:
-        case element::i16:
-        case element::i32:
-        case element::i64:
-        case element::u8:
-        case element::u16:
-        case element::u32:
-        case element::u64:
-            return true;
-        default:
-            return false;
-        }
-    };
-
-    return (get_input_size() < 2) || validate_axes_type(get_input_element_type(1));
-}
-
 }  // namespace v0
 
 namespace v15 {
@@ -188,27 +188,6 @@ bool Squeeze::evaluate(TensorVector& outputs, const TensorVector& inputs) const 
 
     std::memcpy(outputs[0].data(), inputs[0].data(), outputs[0].get_byte_size());
     return true;
-}
-
-bool Squeeze::has_evaluate() const {
-    OV_OP_SCOPE(v15_Squeeze_has_evaluate);
-    const auto validate_axes_type = [](const element::Type& et) -> bool {
-        switch (et) {
-        case element::i8:
-        case element::i16:
-        case element::i32:
-        case element::i64:
-        case element::u8:
-        case element::u16:
-        case element::u32:
-        case element::u64:
-            return true;
-        default:
-            return false;
-        }
-    };
-
-    return (get_input_size() < 2) || validate_axes_type(get_input_element_type(1));
 }
 
 bool Squeeze::visit_attributes(AttributeVisitor& visitor) {
