@@ -345,6 +345,10 @@ struct convert<OpenVINOParams> {
             params.output_model_layout = node["oml"].as<LayerVariantAttr<std::string>>();
         }
 
+        if (node["shape"]) {
+            params.shape = node["shape"].as<LayerVariantAttr<std::vector<int64_t>>> ();
+        }
+
         if (node["config"]) {
             params.config = node["config"].as<std::map<std::string, std::string>>();
         }
@@ -474,7 +478,6 @@ struct convert<InferOp> {
         if (node["input_data"]) {
             op.input_data = node["input_data"].as<LayerVariantAttr<std::string>>();
         }
-
         if (node["output_data"]) {
             op.output_data = node["output_data"].as<LayerVariantAttr<std::string>>();
         }
