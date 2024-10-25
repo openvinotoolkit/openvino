@@ -50,7 +50,7 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
         bool compressed_case = fc_prim->compressed_weights &&
                                one_of(in0_dt, {data_types::f16, data_types::f32, data_types::i8}) &&
                                one_of(wei_dt, {data_types::u8, data_types::i8, data_types::u4, data_types::i4}) &&
-                               one_of(out_dt, {data_types::f16, data_types::f32});
+                               one_of(out_dt, {data_types::f16, data_types::f32, data_types::u8, data_types::i8});
         if (!f16f16_case && !f32f32_case && !u8s8_case && !compressed_case)
             return false;
 
