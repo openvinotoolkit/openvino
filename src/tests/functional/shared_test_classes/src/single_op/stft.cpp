@@ -12,7 +12,6 @@ namespace test {
 
 std::string STFTLayerTest::getTestCaseName(const testing::TestParamInfo<STFTParams>& obj) {
     std::ostringstream result;
-    using namespace std;
     std::vector<InputShape> data_shapes;
     int64_t frame_size;          // frame size value
     int64_t frame_step;          // frame step value
