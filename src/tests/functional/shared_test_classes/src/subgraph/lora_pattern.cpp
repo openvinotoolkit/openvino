@@ -58,7 +58,7 @@ void LoraPatternBase::run_test_random_tensors() {
     }
 
     constexpr size_t lora_order = 25lu;
-    constexpr size_t infer_count = 6lu;
+    constexpr int infer_count = 6lu;
 
     std::unordered_map<std::string, ov::Shape> stateShapes;
 
@@ -73,7 +73,7 @@ void LoraPatternBase::run_test_random_tensors() {
         stateShapes.insert({state.get_name(), std::move(shape)});
     }
 
-    for (size_t i = 0; i < infer_count; ++i) {
+    for (int i = 0; i < infer_count; ++i) {
         // set states
 
         if (!(i & 0x1)) { //every even call

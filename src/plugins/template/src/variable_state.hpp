@@ -4,10 +4,10 @@
 
 #pragma once
 
+#include "openvino/op/util/variable.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/ivariable_state.hpp"
 #include "openvino/runtime/so_ptr.hpp"
-#include "openvino/op/util/variable.hpp"
 
 namespace ov {
 namespace template_plugin {
@@ -39,8 +39,8 @@ public:
     ~VariableState() override = default;
 
 private:
-    PartialShape m_data_shape; //original shape
-    element::Type m_data_type; //original type
+    PartialShape m_data_shape;  // original shape
+    element::Type m_data_type;  // original type
     std::shared_ptr<op::util::VariableValue> m_variable_value;
 };
 }  // namespace template_plugin
