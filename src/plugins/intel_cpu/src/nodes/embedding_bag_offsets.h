@@ -20,6 +20,7 @@ public:
     void execute(dnnl::stream strm) override;
     bool created() const override;
 
+    bool canBeSkipped() const override;
     bool isExecutable() const override;
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 

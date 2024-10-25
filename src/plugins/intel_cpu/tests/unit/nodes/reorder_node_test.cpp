@@ -14,6 +14,7 @@
 #include <dnnl.hpp>
 
 #include "common_test_utils/common_utils.hpp"
+#include "memory_control.hpp"
 #include "nodes/input.h"
 
 using namespace ov::intel_cpu;
@@ -108,7 +109,9 @@ public:
         conf.rtCacheCapacity = 100;
         auto context = std::make_shared<GraphContext>(conf,
                                                       std::make_shared<WeightsSharing>(),
-                                                      false);
+                                                      false,
+                                                      networkMemoryControl->createMemoryControlUnit(),
+                                                      networkMemoryControl);
         const dnnl::engine cpuEngine = context->getEngine();
 
         inputNode = std::make_shared<ov::intel_cpu::node::Input>(inputDesc.clone(),
@@ -152,6 +155,7 @@ protected:
     std::shared_ptr<ov::intel_cpu::Edge> parentEdge;
     std::shared_ptr<ov::intel_cpu::Edge> childEdge;
     ov::element::Type prec;
+    std::shared_ptr<NetworkMemoryControl> networkMemoryControl = std::make_shared<NetworkMemoryControl>();
 };
 
 }// namespace ReorderCPUTest

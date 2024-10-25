@@ -5,6 +5,7 @@
 
 #include "dummy_node.hpp"
 #include "graph.h"
+#include "memory_control.hpp"
 #include "nodes/input.h"
 #include "nodes/concat.h"
 #include "openvino/op/concat.hpp"
@@ -43,7 +44,12 @@ TEST(ResolveEdgeConflictsCPUTest, smoke_Run_ResolveEdgeConflicts) {
     */
     Config conf;
     conf.rtCacheCapacity = 100;
-    auto context = std::make_shared<GraphContext>(conf, nullptr, false);
+    std::shared_ptr<NetworkMemoryControl> networkMemoryControl = std::make_shared<NetworkMemoryControl>();
+    auto context = std::make_shared<GraphContext>(conf,
+                                                  nullptr,
+                                                  false,
+                                                  networkMemoryControl->createMemoryControlUnit(),
+                                                  networkMemoryControl);
     const dnnl::engine cpuEngine = context->getEngine();
 
     std::unique_ptr<Graph> graph = std::unique_ptr<Graph>(new Graph());
@@ -104,7 +110,8 @@ TEST(ResolveEdgeConflictsCPUTest2, smoke_Run_ResolveEdgeConflicts2) {
     */
     Config conf;
     conf.rtCacheCapacity = 100;
-    auto context = std::make_shared<GraphContext>(conf, nullptr, false);
+    std::shared_ptr<NetworkMemoryControl> networkMemoryControl = std::make_shared<NetworkMemoryControl>();
+    auto context = std::make_shared<GraphContext>(conf, nullptr, false, networkMemoryControl->createMemoryControlUnit(), networkMemoryControl);
 
     std::unique_ptr<Graph> graph = std::unique_ptr<Graph>(new Graph());
 

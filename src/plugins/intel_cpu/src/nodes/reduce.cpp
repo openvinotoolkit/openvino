@@ -2088,6 +2088,10 @@ void Reduce::initSupportedPrimitiveDescriptors() {
     }
 }
 
+bool Reduce::canBeSkipped() const {
+    return getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(REDUCE_DATA);
+}
+
 bool Reduce::isExecutable() const {
     return !isInputTensorAtPortEmpty(REDUCE_DATA);
 }

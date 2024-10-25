@@ -94,6 +94,7 @@ public:
     void prepareParams() override;
     void executeDynamicImpl(dnnl::stream strm) override;
 
+    bool canBeSkipped() const override;
     bool isExecutable() const override;
 
     enum class NormEpsMode {

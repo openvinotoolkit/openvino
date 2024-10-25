@@ -19,6 +19,7 @@
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
 #include "openvino/runtime/threading/cpu_message.hpp"
+#include "memory_control.hpp"
 
 using OvString = ov::element_type_traits<ov::element::string>::value_type;
 
@@ -134,6 +135,15 @@ void SyncInferRequest::infer() {
     }
 
     push_input_data();
+
+    MemoryControl* network_memory_control = m_graph->getGraphContext()->getMemoryControl();
+    if (!network_memory_control) {
+        OPENVINO_THROW("Memory control unit is not initilized for graph: ", m_graph->GetName());
+    }
+
+    if (!network_memory_control->allocated()) {
+        network_memory_control->allocateMemory();
+    }
 
     m_graph->Infer(this);
 

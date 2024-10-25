@@ -52,6 +52,7 @@ public:
     struct Box {
         /** Execution order index of first use. The data will be produced here. */
         int start;
+        // intel_cpu::GlobalExecutionIndex start;
 
         /**
          * The execution order index of last use. After that data will be released.
@@ -59,6 +60,7 @@ public:
          * end of execution.
          */
         int finish;
+        // intel_cpu::GlobalExecutionIndex finish;
 
         /** Size of data. In abstract unit of measure (byte, simd, cache line, ...) */
         int64_t size;

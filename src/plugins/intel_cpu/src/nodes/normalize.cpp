@@ -912,6 +912,10 @@ void NormalizeL2::createPrimitive() {
     }
 }
 
+bool NormalizeL2::canBeSkipped() const {
+    return getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(0);
+}
+
 bool NormalizeL2::isExecutable() const {
     return !isInputTensorAtPortEmpty(0);
 }

@@ -923,6 +923,10 @@ bool Gather::created() const {
     return getType() == Type::Gather;
 }
 
+bool Gather::canBeSkipped() const {
+    return isInPlace() || Node::canBeSkipped();
+}
+
 bool Gather::isExecutable() const {
     return !isInPlace() && Node::isExecutable();
 }

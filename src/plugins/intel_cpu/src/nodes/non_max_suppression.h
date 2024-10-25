@@ -50,6 +50,7 @@ public:
         int suppress_begin_index;
     };
 
+    bool canBeSkipped() const override;
     bool isExecutable() const override;
 
     bool needShapeInfer() const override { return false; }

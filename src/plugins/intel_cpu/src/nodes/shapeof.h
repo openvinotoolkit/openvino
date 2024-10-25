@@ -23,10 +23,11 @@ public:
     void initOptimalPrimitiveDescriptor() override;
     void execute(dnnl::stream strm) override;
     bool created() const override;
-    bool needPrepareParams() const override {return false;};
+    bool needPrepareParams() const override { return false; }
     void executeDynamicImpl(dnnl::stream strm) override { execute(strm); }
 
-    bool isExecutable() const override;
+    bool canBeSkipped() const override { return false; };
+    bool isExecutable() const override { return true; }
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 

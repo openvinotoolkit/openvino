@@ -138,7 +138,7 @@ void Reshape::execute(dnnl::stream strm) {
     }
 }
 
-bool Reshape::isExecutable() const {
+bool Reshape::canBeSkipped() const {
     bool inPlaceEnabled = false;
     if (auto prim_desc = getSelectedPrimitiveDescriptor()) {
         auto& config = prim_desc->getConfig();
@@ -147,7 +147,11 @@ bool Reshape::isExecutable() const {
             inPlaceEnabled = true;
         }
     }
-    return !inPlaceEnabled;
+    return inPlaceEnabled;
+}
+
+bool Reshape::isExecutable() const {
+    return !canBeSkipped();
 }
 
 bool Reshape::created() const {

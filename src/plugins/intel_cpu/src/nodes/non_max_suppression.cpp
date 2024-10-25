@@ -900,6 +900,10 @@ void NonMaxSuppression::checkOutput(const Shape& shape, const std::string& name,
         THROW_CPU_NODE_ERR("has unsupported '", name, "' output 2nd dimension size: ", dim2str(shape.getDims()[1]));
 }
 
+bool NonMaxSuppression::canBeSkipped() const {
+    return !isDynamicNode() && Node::canBeSkipped();
+}
+
 bool NonMaxSuppression::isExecutable() const {
     return isDynamicNode() || Node::isExecutable();
 }

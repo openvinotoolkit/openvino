@@ -6,6 +6,7 @@
 
 #include <common/utils.hpp>
 #include <oneapi/dnnl/dnnl.hpp>
+#include "allocation_context.hpp"
 #include "cpu_memory.h"
 #include "cpu_shape.h"
 #include "cpu_types.h"
@@ -42,6 +43,7 @@ namespace intel_cpu {
 using NodePtr = std::shared_ptr<Node>;
 using NodeConstPtr = std::shared_ptr<const Node>;
 using NodeWeakPtr = std::weak_ptr<Node>;
+
 
 class PortConfigurator {
 public:
@@ -109,6 +111,34 @@ public:
 
     void setExecutorFactory(ExecutorFactoryLegacyPtr factory) {
         executorFactory = factory;
+    }
+
+    bool hasZeroInputDims() const {
+        const auto& inputConfigs = getConfig().inConfs;
+
+        return std::any_of(inputConfigs.begin(), inputConfigs.end(), [](const PortConfig& portConfig) {
+            return portConfig.hasZeroDims();
+        });
+    }
+
+    bool hasZeroInputDimsAtPort(size_t portIdx) const {
+        const auto& inputConfigs = getConfig().inConfs;
+        OPENVINO_ASSERT("Attempt to get NodeDesc input configuration for port " , portIdx, ". Number of inputs is ", inputConfigs.size());
+        return inputConfigs[portIdx].hasZeroDims();
+    }
+
+    bool hasZeroOutputDims() const {
+        const auto& outputConfigs = getConfig().outConfs;
+
+        return std::any_of(outputConfigs.begin(), outputConfigs.end(), [](const PortConfig& portConfig) {
+            return portConfig.hasZeroDims();
+        });
+    }
+
+    bool hasZeroOutputDimsAtPort(size_t portIdx) const {
+        const auto& outputConfigs = getConfig().outConfs;
+        OPENVINO_ASSERT("Attempt to get NodeDesc output configuration for port " , portIdx, ". Number of outputs is ", outputConfigs.size());
+        return outputConfigs[portIdx].hasZeroDims();
     }
 
 private:
@@ -265,6 +295,9 @@ public:
 
     bool isInPlace() const;
 
+    virtual bool canBeSkipped() const {
+        return getSelectedPrimitiveDescriptor()->hasZeroInputDims();
+    }
     // must be called only after Graph::ResolveEdgeConflicts()
     virtual bool isExecutable() const {
         return !hasEmptyInputTensors();
@@ -278,6 +311,7 @@ public:
     ConstantType getConstantType() const;
     void updateConstantType();
     bool isConstant();
+    bool isConstantInput();
 
     // return type int supports return -1 in overloading when channel axis doesn't exist
     virtual int getFusingAxis() const {
@@ -481,6 +515,11 @@ public:
 
     int getExecIndex() const {
         return execIndex;
+    }
+
+    virtual int registerToAllocationContext(int offset, AllocationContext& context) {
+        (void) context;
+        return offset + 1;
     }
 
     const std::string & getTypeStr() const {

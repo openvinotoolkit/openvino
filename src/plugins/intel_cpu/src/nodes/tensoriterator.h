@@ -111,6 +111,7 @@ public:
     void createPrimitive() override;
     bool created() const override;
     void execute(dnnl::stream strm) override;
+    bool canBeSkipped() const override { return false; }
     bool isExecutable() const override { return true; }
 
 protected:

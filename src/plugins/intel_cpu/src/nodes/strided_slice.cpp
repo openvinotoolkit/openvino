@@ -287,6 +287,11 @@ void StridedSlice::initSupportedPrimitiveDescriptors() {
     }
 }
 
+bool StridedSlice::canBeSkipped() const {
+    return getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(0) ||
+        getSelectedPrimitiveDescriptor()->hasZeroOutputDimsAtPort(0);
+}
+
 bool StridedSlice::isExecutable() const {
     return !isInputTensorAtPortEmpty(0) && !isOutputTensorAtPortEmpty(0);
 }

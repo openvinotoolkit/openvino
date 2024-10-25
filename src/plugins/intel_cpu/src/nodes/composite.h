@@ -4,7 +4,9 @@
 
 #pragma once
 
+#include <cstddef>
 #include <memory>
+#include <numeric>
 
 #include "graph.h"
 #include "node.h"
@@ -31,6 +33,10 @@ public:
         return false;
     }
 
+    bool canBeSkipped() const override {
+        return false;
+    }
+
     bool isExecutable() const override {
         return true;
     }
@@ -40,6 +46,8 @@ public:
     void createPrimitive() override;
     void execute(dnnl::stream) override;
     void executeDynamicImpl(dnnl::stream strm) override;
+
+    int registerToAllocationContext(int offset, AllocationContext& context) override;
 
     const Graph& graph() const {
         return m_graph;

@@ -520,6 +520,10 @@ bool RandomUniform::needShapeInfer() const {
     return !m_const_inputs[SHAPE];
 }
 
+bool RandomUniform::canBeSkipped() const {
+    return getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(SHAPE);
+}
+
 bool RandomUniform::isExecutable() const {
     return !isInputTensorAtPortEmpty(SHAPE);
 }

@@ -50,6 +50,7 @@ public:
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
+    bool canBeSkipped() const override;
     bool isExecutable() const override;
     void executeDynamicImpl(dnnl::stream strm) override;
     void prepareParams() override;

@@ -26,6 +26,7 @@ public:
         return false;
     }
 
+    bool canBeSkipped() const override;
     bool isExecutable() const override;
     bool needShapeInfer() const override;
 

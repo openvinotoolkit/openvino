@@ -243,7 +243,6 @@ void serializeToXML(const Graph &graph, const std::string& path) {
 
 void serializeToCout(const Graph &graph) {
     for (const auto& node : graph.GetNodes()) {
-        std::cout << "name: " << node->getName() << " [ ";
         auto nodeDesc = node->getSelectedPrimitiveDescriptor();
         if (nodeDesc) {
             auto& inConfs = nodeDesc->getConfig().inConfs;

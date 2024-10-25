@@ -6,6 +6,9 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdlib>
+#include <iostream>
+#include <iterator>
 #include <limits>
 #include <map>
 #include <memory>
@@ -16,11 +19,14 @@
 #include <utility>
 #include <vector>
 
+#include "allocation_context.hpp"
 #include "edge.h"
+#include "graph_context.h"
 #include "graph_dumper.h"
 #include "graph_optimizer.h"
 #include "infer_request.h"
 #include "itt.h"
+#include "memory_control.hpp"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "node.h"
@@ -64,7 +70,7 @@ template<typename NET>
 void Graph::CreateGraph(NET &model, const GraphContext::CPtr context) {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "CreateGraph");
 
-    Init(model, context);
+    Init(model, std::make_shared<GraphContext>(context->disableMemoryReuse()));
 
     Activate();
 }
@@ -76,7 +82,7 @@ void Graph::CreateGraph(const std::vector<NodePtr>& graphNodes,
     if (IsReady())
         ForgetGraphData();
 
-    m_context = context;
+    m_context = std::make_shared<GraphContext>(context->disableMemoryReuse());
     m_stream = dnnl::stream(getEngine());
 
     this->_name = std::move(name);
@@ -277,7 +283,9 @@ static std::tuple<std::vector<NodePtr>, std::vector<size_t>> ExtractExecutableNo
     std::vector<NodePtr> executableGraphNodes;
     for (size_t i = 0; i < graphNodes.size(); i++) {
         const auto& graphNode = graphNodes[i];
-        if ((!graphNode->isConstant() && CPU_DEBUG_CAPS_ALWAYS_TRUE(graphNode->isExecutable())) || // non-constant executable or
+        // if ((!graphNode->isConstant() && CPU_DEBUG_CAPS_ALWAYS_TRUE(!graphNode->canBeSkipped())) || // non-constant executable or
+        // if ((!graphNode->isConstant()) || // non-constant executable or
+        if ((!graphNode->isConstant() && !graphNode->canBeSkipped()) || // non-constant executable or
             (graphNode->isDynamicNode() && !one_of(graphNode->getType(), Type::Input, Type::Output))) { // dynamic, except inputs / outputs
             /* @todo
              * Revise implementation.
@@ -350,16 +358,22 @@ static void UseExternalOutputMemory(const std::map<std::size_t, NodePtr>& output
 }
 
 void Graph::Activate(const std::vector<MemoryPtr>& externalInputMemory,
-                               const std::vector<MemoryPtr>& externalOutputMemory) {
-    OPENVINO_ASSERT(status == Status::Initialized, "Invalid graph status");
+                     const std::vector<MemoryPtr>& externalOutputMemory) {
+    // OPENVINO_ASSERT(status == Status::Initialized, "Invalid graph status");
 
-    const bool hasDynNodes = ProcessDynNodes();
-    const auto syncNodesInds = hasDynNodes ? IdentifySyncPoints(graphNodes) : std::vector<size_t>{};
+    // const bool hasDynNodes = ProcessDynNodes();
+    // const auto syncNodesInds = hasDynNodes ? IdentifySyncPoints(graphNodes) : std::vector<size_t>{};
 
     UseExternalInputMemory(inputNodesMap, externalInputMemory);
     UseExternalOutputMemory(outputNodesMap, externalOutputMemory);
 
-    Allocate(syncNodesInds);
+    // std::tie(m_executableGraphNodes, m_executableSyncNodesInds) = ExtractExecutableNodesAndSyncPoints(syncNodesInds, graphNodes);
+
+    // status = hasDynNodes ? (parallel_get_max_threads() > 1 ? Status::ReadyDynamic : Status::ReadyDynamicSeq)
+    //     : Status::ReadyStatic;
+
+    // CPU_DEBUG_CAP_ENABLE(serialize(*this));
+    Allocate();
 
     CreatePrimitivesAndExecConstants();
 
@@ -369,22 +383,6 @@ void Graph::Activate(const std::vector<MemoryPtr>& externalInputMemory,
     }
 #endif
 
-    std::tie(m_executableGraphNodes, m_executableSyncNodesInds) = ExtractExecutableNodesAndSyncPoints(syncNodesInds, graphNodes);
-
-    if (hasDynNodes) {
-        status = Status::ReadyDynamic;
-        // Here we use the following heuristic: if the number of sync nodes is less than 10 times of the number of exec
-        // nodes, it does make sense to use Sequential dynamic shapes processing due to the high overheads on context
-        // switching when the dynamic shapes are being processed in parallel and there are a lot of sync points. Also
-        // this rule works for short graphs (usually subgraphs) when the amount of nodes is to low to process them in
-        // parallel.
-        const auto exec2sync = m_executableGraphNodes.size() / m_executableSyncNodesInds.size();
-        if (exec2sync < 10 || parallel_get_max_threads() < 2) {
-            status = Status::ReadyDynamicSeq;
-        }
-    } else {
-        status = Status::ReadyStatic;
-    }
     CPU_DEBUG_CAP_ENABLE(serialize(*this));
 }
 
@@ -713,88 +711,344 @@ void Graph::ResolveComplexInplaceConflicts() {
     }
 }
 
-static inline bool isConstOutput(EdgePtr edge) {
-    return edge->getParent()->isConstant() && !edge->getChild()->isConstant();
-}
-
-void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
-    edgeClusters edge_clusters = MemoryControl::findEdgeClusters(graphEdges);
-
-    size_t remaining_edge_clusters_count = edge_clusters.size();
-
-    // Resolve special cases:
-    for (size_t i = 0; i < remaining_edge_clusters_count;) {
-        auto &cluster = edge_clusters[i];
-        bool erase = false;
-        for (auto &edge : cluster) {
-            // Remove already allocated edges from the mem reuse algo
-            if (edge->getStatus() == Edge::Status::Allocated) {
-                erase = true;
-                break;
-            }
-
-            // Special allocation for string tensors
-            if (edge->getDesc().getPrecision() == element::string && edge->getStatus() == Edge::Status::NeedAllocation) {
-                StringMemory::StringMemoryBlockPtr memBlcok;
-                if (edge->getParent()->isConstant()) {
-                    if (edge->getParent()->getType() == Type::Input) {
-                        auto constNode = static_cast<node::Input *>(edge->getParent().get());
-                        edge->reuse(std::const_pointer_cast<IMemory>(constNode->getMemoryPtr()));
-                    } else {
-                        edge->externalAllocate(m_context->getWeightsCache());
-                    }
-                    auto stringMemory = dynamic_cast<StringMemory *>(edge->getMemoryPtr().get());
-                    OPENVINO_ASSERT(stringMemory, "[CPU] Edge between nodes '",
-                            edge->getParent()->getName(), "' and '", edge->getChild()->getName(), "' must have StringMemory.");
-                    memBlcok = stringMemory->getStringMemoryBlockPtr();
-                } else {
-                    auto memory = std::make_shared<StringMemory>(getEngine(), edge->getDesc());
-                    edge->reuse(memory);
-                    memBlcok = memory->getStringMemoryBlockPtr();
-                }
-                for (auto& edge_c : cluster) {
-                    if (edge_c == edge) {
-                        continue;
-                    }
-                    OPENVINO_ASSERT(edge_c->getDesc().getPrecision() == element::string, "All edges in the cluster must be string.");
-                    if (edge_c->getStatus() == Edge::Status::NotAllocated) {
-                        auto memory = std::make_shared<StringMemory>(getEngine(), edge_c->getDesc(), memBlcok);
-                        edge_c->reuse(memory);
-                    } else {
-                        OPENVINO_THROW("[CPU] String tensors allocation in the cluster. Edge between nodes '", edge_c->getParent()->getName(), "' and '",
-                            edge_c->getChild()->getName(), "' has an unexpected status: ", static_cast<int>(edge_c->getStatus()));
-                    }
-                }
-                erase = true;
-                continue;
-            }
-
-            // Special allocation for constants
-            if (edge->getStatus() != Edge::Status::NeedAllocation || !edge->getParent()->isConstant()) {
-                continue;
-            }
+/**
+ * Partition the \clusters of Edges, by moving and allocating at the same time
+ * the clusters which cannot be handled as part of generic memory solver algorithm.
+ * Such clusters meet one of the following criteria:
+ * - base edge of a cluster is already Allocated
+ * - base edge of a cluster is a "ov::element::string" type of edge
+ * - base edge of a cluster is a Constant edge
+ *
+ * @return a remaining number of clusters to process (left partition)
+ */
+static size_t AllocateStringsAndConstants(EdgeClusters& clusters,
+                                          const GraphContext::CPtr context) {
+    auto allocateStringMemory = [context](const EdgePtr& edge) {
+        if (edge->getParent()->isConstant()) {
             if (edge->getParent()->getType() == Type::Input) {
-                auto constNode = std::static_pointer_cast<node::Input>(edge->getParent());
+                auto constNode = static_cast<node::Input *>(edge->getParent().get());
                 edge->reuse(std::const_pointer_cast<IMemory>(constNode->getMemoryPtr()));
             } else {
-                edge->externalAllocate(m_context->getWeightsCache());
+                edge->externalAllocate(context->getWeightsCache());
             }
-            erase = true;
+            auto stringMemory = dynamic_cast<StringMemory *>(edge->getMemoryPtr().get());
+            OPENVINO_ASSERT(stringMemory, "[CPU] Edge between nodes '",
+                            edge->getParent()->getName(), "' and '", edge->getChild()->getName(), "' must have StringMemory.");
+            return stringMemory->getStringMemoryBlockPtr();
         }
 
-        if (erase) {
-            std::swap(edge_clusters[i], edge_clusters[remaining_edge_clusters_count - 1]);
-            --remaining_edge_clusters_count;
+        auto memory = std::make_shared<StringMemory>(context->getEngine(), edge->getDesc());
+        edge->reuse(memory);
+        return memory->getStringMemoryBlockPtr();
+    };
+
+    auto allocateConstantEdge = [context](const EdgePtr& edge) {
+        // std::cout << "Allocating constant edge: " << edge->name() << " wc: " << context->getWeightsCache() << "\n";
+        if (edge->getParent()->getType() == Type::Input) {
+            auto constNode = std::static_pointer_cast<node::Input>(edge->getParent());
+            edge->reuse(std::const_pointer_cast<IMemory>(constNode->getMemoryPtr()));
         } else {
-            ++i;
+            edge->externalAllocate(context->getWeightsCache());
+        }
+    };
+
+    auto endOfNotAllocatedPartition =
+        std::partition(clusters.begin(), clusters.end(),
+                       [&allocateStringMemory, &allocateConstantEdge, &context](const EdgeCluster& cluster) {
+                           if (cluster.empty()) return false;
+
+                           auto baseEdgeIt = std::find_if(cluster.begin(), cluster.end(), [](const EdgePtr& edge) {
+                               return one_of(edge->getStatus(), Edge::Status::Allocated, Edge::Status::NeedAllocation);
+                           });
+
+                           OPENVINO_ASSERT(baseEdgeIt != cluster.end(), "Unexpected cluster state");
+
+                           // const auto& baseEdge = cluster.front();
+                           const auto& baseEdge = *baseEdgeIt;
+                           // Skip already allocated cluster
+                           if (baseEdge->getStatus() == Edge::Status::Allocated) {
+                               return false;
+                           }
+
+                           // std::cout << "Processing string/const for base edge: " << baseEdge->name() << "\n";
+
+                           // Skip if the baseEdge does not require allocation
+                           if (baseEdge->getStatus() != Edge::Status::NeedAllocation) {
+                               return true;
+                           }
+
+                           // Allocate a string cluster
+                           if (baseEdge->getDesc().getPrecision() == element::string) {
+                               OPENVINO_ASSERT(std::all_of(cluster.begin(), cluster.end(),
+                                                           [](const EdgePtr& edge) {
+                                                               return edge->getDesc().getPrecision() == element::string;
+                                                           }), "All edges in the cluster must be string.");
+                               auto memBlock = allocateStringMemory(baseEdge);
+                               for (auto &edge : cluster) {
+                                   if (edge->getStatus() == Edge::Status::NotAllocated) {
+                                       edge->reuse(std::make_shared<StringMemory>(context->getEngine(), edge->getDesc(), memBlock));
+                                   }
+                               }
+                               return false;
+                           }
+
+                           // Allocate a constant cluster
+                           if (baseEdge->getParent()->isConstant()) {
+                               // @todo can we add some meaningful assert here?
+                               for (auto &edge : cluster) {
+                                   if (edge->getParent()->isConstant() && edge->getStatus() == Edge::Status::NeedAllocation) {
+                                       allocateConstantEdge(edge);
+                                   }
+                               }
+                               return false;
+                           }
+
+                           return true;
+                       });
+
+    return std::distance(clusters.begin(), endOfNotAllocatedPartition);
+}
+
+static void AllocateBaseEdges(const EdgeClusters& edgeClusters,
+                              const MemoryControl::MemorySolution& memorySolution) {
+    // attach all the not yet allocated edges to the memory control
+    for (auto&& item : memorySolution) {
+        int count = 0;
+        // std::cout << "Processing cluster: " << item.first << "\n";
+        for (auto&& edge : edgeClusters[item.first]) {
+            // std::cout << "Processing edge: " << edge->name() << "\n";
+            if (edge->getStatus() == Edge::Status::NeedAllocation) {
+                // std::cout << "Allocating edge: " << edge->name() << "\n";
+
+                edge->allocate(item.second);
+
+                // TODO: WA for some test (like strided_slice_test) which use tensors with
+                //       shapes {0}. And it is implicitly converted into {1} tensor.
+                //       Zeroing of input data allow pass tests.
+                if (edge->getParent()->getType() == Type::Input && edge->getMemory().getDesc().hasDefinedMaxSize())
+                    edge->getMemoryPtr()->nullify();
+
+                count++;
+            }
+        }
+        OPENVINO_ASSERT(count == 1, "Expected exactly one allocation. Actual number of allocations: ", count);
+    }
+}
+
+static void AllocatedReferencingEdges(const EdgeClusters& clusters) {
+    for (auto& cluster : clusters) {
+        for (auto& edge : cluster) {
+            if (edge->getStatus() != Edge::Status::NotAllocated) {
+                continue;
+            }
+
+            std::vector<EdgePtr> edges_to_process;
+            edges_to_process.push_back(edge);
+            for (auto next_edge = edge->getSharedEdge(std::nothrow);
+                next_edge;
+                next_edge = next_edge->getSharedEdge(std::nothrow)) {
+                edges_to_process.push_back(next_edge);
+            }
+
+            std::for_each(edges_to_process.rbegin(), edges_to_process.rend(), [](const EdgePtr& edge) {
+                // std::cout << "Processing edge: " << edge->name() << "\n";
+                if (edge->getStatus() == Edge::Status::NotAllocated) {
+                    if (edge->inPlace(Edge::LOOK_DOWN)) {
+                        edge->getChild()->resolveInPlaceEdges(Edge::LOOK_DOWN);
+                    } else if (edge->inPlace(Edge::LOOK_UP)) {
+                        edge->getParent()->resolveInPlaceEdges(Edge::LOOK_UP);
+                    } else {
+                        auto sharedEdge = edge->getSharedEdge();
+                        auto sharedEdgeParent = sharedEdge->getParent();
+                        // std::cout << "Allocating edge: " << edge->name() << " Using shared edge: " << sharedEdge->name() << "\n";
+                        edge->allocate(sharedEdge->getMemoryPtr()->getMemoryBlock());
+                        DEBUG_LOG(*edge, " sharedEdge with ", *sharedEdge);
+                    }
+                }
+            });
+        }
+    }
+}
+
+std::vector<size_t> Graph::CreateExecutionGraph() {
+    const bool hasDynNodes = ProcessDynNodes();
+    auto syncNodesInds = hasDynNodes ? IdentifySyncPoints(graphNodes) : std::vector<size_t>{};
+
+    std::tie(m_executableGraphNodes, m_executableSyncNodesInds) =
+        ExtractExecutableNodesAndSyncPoints(syncNodesInds, graphNodes);
+
+    status = hasDynNodes ? (parallel_get_max_threads() > 1 ? Status::ReadyDynamic : Status::ReadyDynamicSeq)
+                         : Status::ReadyStatic;
+
+    if (hasDynNodes) {
+        status = Status::ReadyDynamic;
+        // Here we use the following heuristic: if the number of sync nodes is less than 10 times of the number of exec
+        // nodes, it does make sense to use Sequential dynamic shapes processing due to the high overheads on context
+        // switching when the dynamic shapes are being processed in parallel and there are a lot of sync points. Also
+        // this rule works for short graphs (usually subgraphs) when the amount of nodes is to low to process them in
+        // parallel.
+        const auto exec2sync = m_executableGraphNodes.size() / m_executableSyncNodesInds.size();
+        if (exec2sync < 10 || parallel_get_max_threads() < 2) {
+            status = Status::ReadyDynamicSeq;
+        }
+    } else {
+        status = Status::ReadyStatic;
+    }
+
+    return syncNodesInds;
+}
+
+static void ResolveInOutInPlaceEdgesLegacy(const std::vector<EdgePtr>& edges) {
+    for (const auto& edge : edges) {
+        // std::cout << edge->name() << "\n";
+        if (edge->getStatus() == Edge::Status::Uninitialized) {
+            if (edge->getParent()->getParentEdges().empty() &&
+                one_of(edge->getParent()->getType(), Type::Input, Type::MemoryInput) &&
+                edge->inPlace(Edge::LOOK_UP)) {
+                edge->getParent()->resolveInPlaceEdges(Edge::LOOK_UP);
+            } else if (edge->getChild()->getChildEdges().empty() &&
+                one_of(edge->getChild()->getType(), Type::Output, Type::MemoryOutput) &&
+                edge->inPlace(Edge::LOOK_DOWN)) {
+                edge->getChild()->resolveInPlaceEdges(Edge::LOOK_DOWN);
+            }
+        }
+    }
+}
+
+static void ResolveInOutInPlaceEdges(const std::vector<EdgePtr>& edges) {
+    for (const auto& edge : edges) {
+        if (edge->getStatus() == Edge::Status::Uninitialized) {
+            if (edge->getParent()->getParentEdges().empty() &&
+                one_of(edge->getParent()->getType(), Type::MemoryInput) &&
+                edge->inPlace(Edge::LOOK_UP)) {
+                edge->getParent()->resolveInPlaceEdges(Edge::LOOK_UP);
+            } else if (edge->getChild()->getChildEdges().empty() &&
+                one_of(edge->getChild()->getType(), Type::MemoryOutput) &&
+                edge->inPlace(Edge::LOOK_DOWN)) {
+                edge->getChild()->resolveInPlaceEdges(Edge::LOOK_DOWN);
+            }
+        }
+    }
+}
+
+int Graph::RegisterToAllocationContext(int offset, AllocationContext& context) {
+    auto syncNodesInds = CreateExecutionGraph();
+
+    ResolveInOutInPlaceEdges(graphEdges);
+
+    // nodes are expected to be topologically sorted
+    for (size_t execIndex = 0, j = 0; execIndex < graphNodes.size(); execIndex++) {
+        const auto& node = graphNodes[execIndex];
+        const auto inputExecIndex = execIndex + offset;
+        // an offset is the number of nodes in the internal graph minus the current node (-1)
+        offset = node->registerToAllocationContext(inputExecIndex, context) - 1;
+        const auto outputExecIndex = execIndex + offset;
+        context.execIndex[node] = {inputExecIndex, outputExecIndex};
+
+        if (j < syncNodesInds.size() && syncNodesInds[j] == execIndex) {
+            context.syncPoints.push_back(inputExecIndex);
+            j++;
         }
     }
 
-    // Markup the memory regions
-    std::vector<MemoryRegion> memoryRegions;
-    memoryRegions.reserve(remaining_edge_clusters_count);
+    context.edges.insert(context.edges.end(), graphEdges.begin(), graphEdges.end());
 
-    for (size_t i = 0; i < remaining_edge_clusters_count; ++i) {
+    return offset;
+}
+
+AllocationContext Graph::CreateAllocationContext(bool global) {
+    AllocationContext allocationContext;
+
+    if (global) {
+        RegisterToAllocationContext(0, allocationContext);
+    } else { // local allocation context. Used for the nodes with inner graph which are not updated yet
+        ResolveInOutInPlaceEdgesLegacy(graphEdges);
+
+        auto syncNodesInds = CreateExecutionGraph();
+
+        for (size_t i = 0; i < graphNodes.size(); i++) {
+            const auto& node = graphNodes[i];
+            allocationContext.execIndex[node] = {i, i};
+        }
+
+        allocationContext.edges = graphEdges;
+        allocationContext.syncPoints = syncNodesInds;
+    }
+
+    return allocationContext;
+}
+
+static void InitEdgeStatus(const std::vector<EdgePtr>& edges) {
+    for (auto& edge : edges) edge->init();
+}
+
+static void ValidateEdgeStatus(const std::vector<EdgePtr>& edges) {
+    for (auto& edge : edges) edge->validate();
+}
+
+/**
+ * Forms clusters of edges.
+ * An edge cluster is a collection of edges, so:
+ * - base edge is an edge with a Memory which other edges point to by means of inplace logic
+ * - first edge of a cluster is a base edge with a status either NeedAllocation or Allocated
+ * - rest of the edges in a cluster are NotAllocated ones, since they point to their base edge
+ */
+static EdgeClusters FormEdgeClusters(const std::vector<EdgePtr>& graphEdges) {
+    typedef std::unordered_map<EdgePtr, size_t> EdgeClusterIdxMap;
+    EdgeClusters edgeClusters;
+    EdgeClusterIdxMap edgeClusterIndices;
+
+    for (auto& edge : graphEdges) {
+        if (edgeClusterIndices.count(edge))
+            continue; // edge is visited
+
+        size_t clusterIdx = edgeClusters.size();
+        EdgePtr lastSharedEdge = nullptr;
+
+        // find cluster index
+        for (auto shared_edge = edge->getSharedEdge(std::nothrow); shared_edge;
+             shared_edge = shared_edge->getSharedEdge(std::nothrow)) {
+            auto shared_edge_it = edgeClusterIndices.find(shared_edge);
+            if (shared_edge_it != edgeClusterIndices.end()) {
+                clusterIdx = shared_edge_it->second;
+                lastSharedEdge = shared_edge;
+                break;
+            }
+        }
+
+        if (clusterIdx == edgeClusters.size())
+            edgeClusters.emplace_back(EdgeCluster{edge});
+
+        // use recursive approach to ensure that the base edge is placed as a first entry of a cluster
+        std::function<void(EdgePtr)> addToCluster;
+        addToCluster = [&addToCluster, &edgeClusterIndices, &clusterIdx, &edgeClusters, &lastSharedEdge](EdgePtr edge) {
+            if (edge == lastSharedEdge)
+                return;
+
+            addToCluster(edge->getSharedEdge(std::nothrow));
+
+            edgeClusterIndices.emplace(edge, clusterIdx);
+            edgeClusters[clusterIdx].push_back(edge);
+        };
+
+        addToCluster(edge);
+    }
+
+    return edgeClusters;
+}
+
+static MemoryRegions FormMemoryRegions(const EdgeClusters& clusters,
+                                       size_t remaining,
+                                       const GlobalExecutionIndex& globalExecIndex) {
+    auto isConstOutput = [](EdgePtr edge) {
+        return edge->getParent()->isConstant() && !edge->getChild()->isConstant();
+    };
+
+    // Markup the memory regions
+    MemoryRegions memoryRegions;
+    memoryRegions.reserve(remaining);
+
+    for (size_t i = 0; i < remaining; ++i) {
         MemoryRegion reg = {std::numeric_limits<int>::max(),
                             0,
                             0,
@@ -804,9 +1058,18 @@ void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
 
         int64_t boxSize = 0;
         bool isConst = false, isOutput = false, isInput = false;
-        for (auto &edge : edge_clusters[i]) {
-            int e_start = edge->getParent()->getExecIndex();
-            int e_finish = edge->getChild()->getExecIndex();
+        // std::cout << "Form memory region for cluster: " << i << "\n";
+        for (auto &edge : clusters[i]) {
+            const auto& parent = edge->getParent();
+            const auto& child = edge->getChild();
+
+            // std::cout << "[" << globalExecIndex.at(parent).second << " - " << globalExecIndex.at(child).first << "]"
+            //           << edge->name()
+            //           << "\n";
+
+            int e_start = globalExecIndex.at(parent).second;
+            int e_finish = globalExecIndex.at(child).first;
+            // int e_finish = edge->getChild()->getExecIndex();
 
             auto&& desc = edge->getDesc();
 
@@ -829,8 +1092,8 @@ void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
             reg.alloc_type = allocType;
 
             isConst  |= isConstOutput(edge);
-            isOutput |= edge->getChild()->getType() == Type::Output;
-            isInput  |= edge->getParent()->getType() == Type::Input;
+            isOutput |= child->getType() == Type::Output;
+            isInput  |= parent->getType() == Type::Input;
         }
 
         reg.size = boxSize;
@@ -850,25 +1113,33 @@ void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
         memoryRegions.push_back(reg);
     }
 
-    // special processing of the dynamic output edges
-    auto it = std::remove_if(memoryRegions.begin(), memoryRegions.end(), [&](const MemoryRegion& region) {
+    return memoryRegions;
+}
+
+static OutputMemoryBlocks FilterOutDynamicOutputEdges(MemoryRegions& memoryRegions,
+                                                      const EdgeClusters& clusters,
+                                                      const std::map<std::size_t, NodePtr>& outputNodes) {
+    OutputMemoryBlocks outputMemBlocks;
+    memoryRegions.erase(std::remove_if(memoryRegions.begin(), memoryRegions.end(), [&](const MemoryRegion& region) {
         if (region.size >= 0 || !one_of(region.type, MemoryRegion::RegionType::OUTPUT, MemoryRegion::RegionType::IO)) {
             return false;
         }
         bool result = false;
-        for (auto& edge : edge_clusters[region.id]) {
+        for (auto& edge : clusters[region.id]) {
             auto child = edge->getChild();
             if (child->getType() == Type::Output && edge->getStatus() == Edge::Status::NeedAllocation) {
                 auto proxyMemBlock = std::make_shared<ProxyMemoryBlock>();
-                DEBUG_LOG("ProxyMemoryBlock ", proxyMemBlock, " ", this);
+                DEBUG_LOG("ProxyMemoryBlock ", proxyMemBlock);
+                // std::cout << "Allocating output edge: " << edge->name() << "\n";
                 edge->allocate(proxyMemBlock);
 
                 // Store the output memory blocks.
                 // So that, the infer requests can be able to access them.
+                // @todo Can we just get them from outputNodesMap instead?
                 int count = 0;
-                for (auto& output : outputNodesMap) {
+                for (auto& output : outputNodes) {
                     if (output.second == child) {
-                        outputNodesMemBlocksMap[output.first] = proxyMemBlock;
+                        outputMemBlocks[output.first] = proxyMemBlock;
                         count++;
                     }
                 }
@@ -878,97 +1149,85 @@ void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
             }
         }
         return result;
-    });
+    }), memoryRegions.end());
 
-    memoryRegions.erase(it, memoryRegions.end());
-
-    //Set up the memory control subsystem.
-    this->m_pMemoryControl = &(getGraphContext()->getNetworkMemoryControl()->createMemoryControlUnit(syncNodesInds));
-    auto memoryBlocks = m_pMemoryControl->insert(memoryRegions);
-
-    // attach all the not yet allocated edges to the memory contol
-    for (auto&& item : memoryBlocks) {
-        int count = 0;
-        for (auto&& edge : edge_clusters[item.first]) {
-            if (edge->getStatus() == Edge::Status::NeedAllocation) {
-                edge->allocate(item.second);
-
-                // TODO: WA for some test (like strided_slice_test) which use tensors with
-                //       shapes {0}. And it is implicitly converted into {1} tensor.
-                //       Zeroing of input data allow pass tests.
-                if (edge->getParent()->type == Type::Input && edge->hasDefinedMaxSize())
-                    edge->getMemoryPtr()->nullify();
-
-                count++;
-            }
-        }
-        OPENVINO_ASSERT(count == 1);
-    }
-
-    m_pMemoryControl->allocateMemory();
-
-    // Resolve all other edges with status NotAllocated and in-place
-    for (auto& cluster : edge_clusters) {
-        for (auto& edge : cluster) {
-            if (edge->getStatus() != Edge::Status::NotAllocated) {
-                continue;
-            }
-            std::vector<EdgePtr> edges_to_process;
-            edges_to_process.push_back(edge);
-            for (auto next_edge = edge->getSharedEdge(std::nothrow);
-                next_edge;
-                next_edge = next_edge->getSharedEdge(std::nothrow)) {
-                edges_to_process.push_back(next_edge);
-            }
-            std::for_each(edges_to_process.rbegin(), edges_to_process.rend(), [](const EdgePtr& edge) {
-                if (edge->getStatus() == Edge::Status::NotAllocated) {
-                    if (edge->inPlace(Edge::LOOK_DOWN)) {
-                        edge->getChild()->resolveInPlaceEdges(Edge::LOOK_DOWN);
-                    } else if (edge->inPlace(Edge::LOOK_UP)) {
-                        edge->getParent()->resolveInPlaceEdges(Edge::LOOK_UP);
-                    } else {
-                        auto sharedEdge = edge->getSharedEdge();
-                        auto sharedEdgeParent = sharedEdge->getParent();
-                        edge->allocate(sharedEdge->getMemoryPtr()->getMemoryBlock());
-                        DEBUG_LOG(*edge, " sharedEdge with ", *sharedEdge);
-                    }
-                }
-            });
-        }
-    }
+    return outputMemBlocks;
 }
 
-void Graph::Allocate(const std::vector<size_t>& syncNodesInds) {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::Allocate");
+/**
+ * Solve memory reuse
+ * Ideally only MemorySolution should be returned
+ * For now we have to additionally return:
+ * 1) EdgeClusters - to propagate the solution through the graph
+ * 2) OutputMemoryBlocks - to allow memory sharing between graph and infer request
+ */
+static std::tuple<MemoryControl::MemorySolution, EdgeClusters, OutputMemoryBlocks>
+SolveMemoryReuse(MemoryControl* memoryControl,
+                 const AllocationContext& allocationContext,
+                 const GraphContext::CPtr graphContext,
+                 const std::map<std::size_t, NodePtr>& outputNodesMap) {
+    const auto& edges = allocationContext.edges;
 
-    //resolve inplace dead end nodes
-    for (const auto& edge : graphEdges) {
-        if (edge->getStatus() == Edge::Status::Uninitialized) {
-            if (edge->getParent()->getParentEdges().empty() &&
-                one_of(edge->getParent()->getType(), Type::Input, Type::MemoryInput) &&
-                edge->inPlace(Edge::LOOK_UP)) {
-                edge->getParent()->resolveInPlaceEdges(Edge::LOOK_UP);
-            } else if (edge->getChild()->getChildEdges().empty() &&
-                one_of(edge->getChild()->getType(), Type::Output, Type::MemoryOutput) &&
-                edge->inPlace(Edge::LOOK_DOWN)) {
-                edge->getChild()->resolveInPlaceEdges(Edge::LOOK_DOWN);
-            }
-        }
-    }
+    auto edgeClusters = FormEdgeClusters(edges);
 
-    // resolve edges. Define which will be a view on others
-    //   NeedAllocation - real blob
-    //   NotAllocated - view on other blob, peer or in-place
-    for (auto& edge : graphEdges) edge->init();
+    const size_t remainingEdgeClustersCount = AllocateStringsAndConstants(edgeClusters, graphContext);
 
-    // Allocate memory space for all edges marked with NeedAllocation
-    AllocateWithReuse(syncNodesInds);
+    auto memoryRegions = FormMemoryRegions(edgeClusters,
+                                           remainingEdgeClustersCount,
+                                           allocationContext.execIndex);
 
-    // Check all getters. Should work.
-    for (auto& edge : graphEdges) edge->validate();
+    auto outputNodesMemBlocks = FilterOutDynamicOutputEdges(memoryRegions,
+                                                            edgeClusters,
+                                                            outputNodesMap);
+
+    memoryControl->insert(memoryRegions, allocationContext.syncPoints);
+    auto memoryBlocks = memoryControl->solve();
+
+    return std::make_tuple(memoryBlocks, edgeClusters, outputNodesMemBlocks);
 }
 
-bool Graph::ProcessDynNodes() {
+void Graph::Allocate() {
+    const auto globalAllocation = m_context->memoryReuseGlobal();
+    // Set up the memory control subsystem.
+    auto memoryControl = globalAllocation ? m_context->getMemoryControl() : m_context->getNetworkMemoryControl()->createMemoryControlUnit();
+
+    // memory is already allocated globally
+    if (memoryControl->allocated()) {
+        return;
+    }
+
+    auto allocationContext = CreateAllocationContext(globalAllocation);
+
+    for (const auto& entry : allocationContext.execIndex) {
+        OPENVINO_ASSERT(entry.second.first >= 0);
+        OPENVINO_ASSERT(entry.second.second >= 0);
+    }
+
+    const auto& edges = allocationContext.edges;
+    InitEdgeStatus(edges);
+
+    MemoryControl::MemorySolution solution;
+    EdgeClusters edgeClusters;
+    std::tie(solution, edgeClusters, m_outputNodesMemBlocks) = SolveMemoryReuse(memoryControl, allocationContext, m_context, outputNodesMap);
+
+    // std::cout << "### Global edges:" << "\n";
+    // for (const auto& edge : edges) {
+    //     const auto& parent = edge->getParent();
+    //     const auto& child = edge->getChild();
+    //     std::cout << "[" << allocationContext.execIndex[parent].second << " - " << allocationContext.execIndex[child].first << "]"
+    //               << edge->name()
+    //               << "\n";
+    // }
+
+    AllocateBaseEdges(edgeClusters, solution);
+
+    memoryControl->allocateMemory();
+
+    AllocatedReferencingEdges(edgeClusters);
+    ValidateEdgeStatus(edges);
+}
+
+bool Graph::ProcessDynNodes() const {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::ProcessDynNodes");
 
     const bool containsDynamicNodes = std::any_of(graphNodes.begin(), graphNodes.end(), [](const NodePtr& node) {
@@ -1394,14 +1653,6 @@ static int GetNumaNodeId(const GraphContext::CPtr& context) {
 void Graph::Infer(SyncInferRequest* request) {
     DEBUG_LOG("Infer graph: ", GetName(), ". Status: ", static_cast<int>(status));
     const int numaId = GetNumaNodeId(m_context);
-
-    if (!m_pMemoryControl) {
-        OPENVINO_THROW("Memory control unit is not initilized in graph: ", GetName());
-    }
-
-    if (!m_pMemoryControl->allocated()) {
-        m_pMemoryControl->allocateMemory();
-    }
 
     switch (status) {
     case Status::ReadyDynamic:

@@ -5,12 +5,15 @@
 #pragma once
 
 #include "edge.h"
+#include "graph.h"
+#include "node.h"
+#include "proxy_mem_blk.h"
 
 namespace ov {
 namespace intel_cpu {
 
-using edgeCluster = std::unordered_set<EdgePtr>;
-using edgeClusters = std::vector<edgeCluster>;
+using EdgeCluster = std::vector<EdgePtr>;
+using EdgeClusters = std::vector<EdgeCluster>;
 
 struct MemoryRegion {
     int start;     // Execution order index of first use.
@@ -22,17 +25,20 @@ struct MemoryRegion {
     enum class AllocType : uint8_t { POD, STRING, UNKNOWN } alloc_type;
 };
 
+using MemoryRegions = std::vector<MemoryRegion>;
+
 class MemoryControl {
 public:
     class RegionHandler;
 
     using RegionHandlerPtr = std::shared_ptr<RegionHandler>;
-    using MemoryBlockMap = std::unordered_map<decltype(MemoryRegion::id), MemoryBlockPtr>;
+    using MemorySolution = std::unordered_map<decltype(MemoryRegion::id), MemoryBlockPtr>;
 
 public:
-    static edgeClusters findEdgeClusters(const std::vector<EdgePtr>& graphEdges);
+    void insert(const MemoryRegions& regions,
+                const std::vector<size_t>& syncInds);
 
-    MemoryBlockMap insert(const std::vector<MemoryRegion>& regions);
+    MemorySolution solve();
 
     bool allocated() const {
         return m_allocated;
@@ -42,13 +48,12 @@ public:
     void releaseMemory();
 
 private:
-    explicit MemoryControl(std::vector<size_t> syncInds);
-    void insert(const MemoryRegion& region);
+    explicit MemoryControl();
+    void insert(const MemoryRegion& region, const std::vector<size_t>& syncInds);
 
     friend class NetworkMemoryControl;
 
 private:
-    std::vector<size_t> m_syncInds;
     std::vector<RegionHandlerPtr> m_handlers;
     bool m_allocated = false;
 };
@@ -56,7 +61,8 @@ private:
 class NetworkMemoryControl {
 public:
     NetworkMemoryControl() = default;
-    MemoryControl& createMemoryControlUnit(std::vector<size_t> syncInds);
+    // @todo return std::reference_wrapper instead?
+    MemoryControl* createMemoryControlUnit();
 
     void allocateMemory();
     void releaseMemory();

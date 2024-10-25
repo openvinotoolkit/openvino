@@ -21,6 +21,12 @@ public:
     bool created() const override {
         return getType() == Type::ScaledDotProductAttention;
     }
+
+    bool canBeSkipped() const override {
+        return getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(0) ||
+               getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(1) ||
+               getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(2);
+    }
     // pastkv may have zero dimension
     bool isExecutable() const override {
         return !isInputTensorAtPortEmpty(0) && !isInputTensorAtPortEmpty(1) && !isInputTensorAtPortEmpty(2);

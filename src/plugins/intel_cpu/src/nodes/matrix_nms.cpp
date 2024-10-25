@@ -287,6 +287,10 @@ void MatrixNms::prepareParams() {
     }
 }
 
+bool MatrixNms::canBeSkipped() const {
+    return !isDynamicNode() && Node::canBeSkipped();
+}
+
 bool MatrixNms::isExecutable() const {
     return isDynamicNode() || Node::isExecutable();
 }

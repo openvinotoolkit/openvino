@@ -216,6 +216,10 @@ void Bucketize::prepareParams() {
         std::accumulate(input_tensor_dims.begin(), input_tensor_dims.end(), size_t(1), std::multiplies<size_t>());
 }
 
+bool Bucketize::canBeSkipped() const {
+    return getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(0);
+}
+
 bool Bucketize::isExecutable() const {
     return !isInputTensorAtPortEmpty(0);
 }

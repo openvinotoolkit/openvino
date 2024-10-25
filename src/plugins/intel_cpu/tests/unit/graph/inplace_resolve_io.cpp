@@ -6,6 +6,7 @@
 #include "dummy_node.hpp"
 #include "graph.h"
 
+#include "memory_control.hpp"
 #include "nodes/input.h"
 #include "nodes/concat.h"
 #include "nodes/rnn.h"
@@ -42,7 +43,11 @@ public:
     std::shared_ptr<Graph> create_graph(const std::vector<ov::PartialShape>& input_shapes, const size_t num_consumers = 1) {
         Config conf;
         conf.rtCacheCapacity = 100;
-        const auto context = std::make_shared<const GraphContext>(conf, nullptr, false);
+        const auto context = std::make_shared<const GraphContext>(conf,
+                                                                  nullptr,
+                                                                  false,
+                                                                  networkMemoryControl->createMemoryControlUnit(),
+                                                                  networkMemoryControl);
 
         std::shared_ptr<Graph> graph = std::shared_ptr<Graph>(new Graph());
 
@@ -88,6 +93,7 @@ private:
     std::vector<NodePtr> nodes;
     std::vector<EdgePtr> edges;
     std::unordered_set<NodePtr> nodesSet;
+    std::shared_ptr<NetworkMemoryControl> networkMemoryControl = std::make_shared<NetworkMemoryControl>();
 };
 
 class RNNConcatCPUTest : public InplaceResolveIOCPUTestBase {

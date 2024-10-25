@@ -64,6 +64,8 @@ public:
 
     void execute(dnnl::stream strm) override final; // NOLINT
     void executeDynamicImpl(dnnl::stream strm) override final; // NOLINT
+
+    bool canBeSkipped() const override final; // NOLINT
     bool isExecutable() const override final; // NOLINT
 
     void registerInputNode(MemoryInputBase* node);
@@ -142,6 +144,7 @@ public:
     void executeDynamicImpl(dnnl::stream strm) override final; // NOLINT
     bool needShapeInfer() const override { return false; }
     bool needPrepareParams() const override { return false; }
+    bool canBeSkipped() const override final; // NOLINT
     bool isExecutable() const override final; // NOLINT
 
     void registerOutputNode(MemoryOutputBase* node);

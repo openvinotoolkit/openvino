@@ -9,6 +9,7 @@
 #include "common_test_utils/node_builders/constant.hpp"
 #include "dummy_node.hpp"
 #include "graph.h"
+#include "memory_control.hpp"
 #include "nodes/input.h"
 #include "nodes/reorder.h"
 #include "nodes/reshape.h"
@@ -76,7 +77,7 @@ protected:
                         "MergeTransposeReorderCPUTest doesn't support shape", shape,
                         ". Only 4D and 3D shapes are supported");
         Config conf;
-        m_context = std::make_shared<GraphContext>(conf, nullptr, false);
+        m_context = std::make_shared<GraphContext>(conf, nullptr, false, networkMemoryControl->createMemoryControlUnit(), networkMemoryControl);
         const auto replication_result = CreateModelAndReplicate(shape,
                                                                 params.firstNodeLayout,
                                                                 params.firstNodeInplaceDirection,
@@ -173,6 +174,7 @@ protected:
 
     std::shared_ptr<GraphContext> m_context;
     std::unique_ptr<Graph> m_graph;
+    std::shared_ptr<NetworkMemoryControl> networkMemoryControl = std::make_shared<NetworkMemoryControl>();
 };  // class MergeTransposeReorderCPUTest
 
 /*
@@ -335,7 +337,8 @@ TEST(MergeTransposeReorder, smoke_InplaceConflict) {
     */
     Config conf;
     conf.rtCacheCapacity = 100;
-    auto context = std::make_shared<GraphContext>(conf, nullptr, false);
+    std::shared_ptr<NetworkMemoryControl> networkMemoryControl = std::make_shared<NetworkMemoryControl>();
+    auto context = std::make_shared<GraphContext>(conf, nullptr, false, networkMemoryControl->createMemoryControlUnit(), networkMemoryControl);
 
     std::unique_ptr<Graph> graph = std::unique_ptr<Graph>(new Graph());
 

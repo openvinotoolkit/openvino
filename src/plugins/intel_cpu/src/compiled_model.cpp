@@ -4,6 +4,7 @@
 
 #include "compiled_model.h"
 #include "async_infer_request.h"
+#include "graph.h"
 #include "infer_request.h"
 #include "itt.h"
 #include "low_precision/low_precision.hpp"
@@ -19,6 +20,7 @@
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/runtime/threading/cpu_message.hpp"
 #include "utils/serialize.hpp"
+#include "memory_control.hpp"
 
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include <cstring>
@@ -52,7 +54,8 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
       m_cfg{cfg},
       m_name{model->get_name()},
       m_loaded_from_cache(loaded_from_cache),
-      m_sub_memory_manager(sub_memory_manager) {
+      m_sub_memory_manager(sub_memory_manager),
+      m_networkMemoryControl(std::make_shared<NetworkMemoryControl>()) {
     m_mutex = std::make_shared<std::mutex>();
     const auto& core = m_plugin->get_core();
     if (!core)
@@ -155,17 +158,24 @@ CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
                 GraphContext::Ptr ctx;
                 {
                     std::lock_guard<std::mutex> lock{*m_mutex.get()};
+                    MemoryControl* memoryControl = m_networkMemoryControl->createMemoryControlUnit();
                     auto isQuantizedFlag = (m_cfg.lpTransformsMode == Config::On) &&
                                            ov::pass::low_precision::LowPrecision::isFunctionQuantized(m_model);
-
                     ctx = std::make_shared<GraphContext>(m_cfg,
                                                          m_socketWeights[socketId],
                                                          isQuantizedFlag,
+                                                         memoryControl,
+                                                         m_networkMemoryControl,
                                                          streamsExecutor,
-                                                         m_sub_memory_manager);
+                                                         m_sub_memory_manager,
+                                                         true);
                 }
+
                 const std::shared_ptr<const ov::Model> model = m_model;
-                graphLock._graph.CreateGraph(model, ctx);
+                // @todo propagate input / output memory descriptors
+                graphLock._graph.Init(model, ctx);
+                // @todo pass input / output memory
+                graphLock._graph.Activate();
             } catch (...) {
                 exception = std::current_exception();
             }
@@ -346,7 +356,7 @@ void CompiledModel::release_memory() {
     for (auto&& graph : m_graphs) {
         GraphGuard::Lock graph_lock{graph};
         auto ctx = graph_lock._graph.getGraphContext();
-        ctx->getNetworkMemoryControl()->releaseMemory();
+        m_networkMemoryControl->releaseMemory();
     }
 }
 

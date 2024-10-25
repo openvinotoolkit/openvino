@@ -125,8 +125,12 @@ void Transpose::initSupportedPrimitiveDescriptors() {
     }
 }
 
+bool Transpose::canBeSkipped() const {
+    return isOptimized || getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(0);
+}
+
 bool Transpose::isExecutable() const {
-    return !isInputTensorAtPortEmpty(0) && !isOptimized;
+    return !isOptimized && !isInputTensorAtPortEmpty(0);
 }
 
 bool Transpose::needPrepareParams() const {

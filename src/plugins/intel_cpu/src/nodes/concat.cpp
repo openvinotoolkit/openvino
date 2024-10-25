@@ -29,6 +29,10 @@ namespace {
     constexpr size_t channelAxis = 1lu;
 }
 
+bool Concat::canBeSkipped() const {
+    return isInPlace() || getSelectedPrimitiveDescriptor()->hasZeroOutputDims();
+}
+
 bool Concat::isExecutable() const {
     return !isInPlace() && !hasEmptyOutputTensors();
 }

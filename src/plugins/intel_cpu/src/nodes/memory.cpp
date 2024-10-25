@@ -220,6 +220,10 @@ void MemoryOutputBase::assignState(MemStatePtr newState) {
     assignExtMemory(state->output_mem(), state->internal_desc());
 }
 
+bool MemoryOutputBase::canBeSkipped() const {
+    return false;
+}
+
 bool MemoryOutputBase::isExecutable() const {
     return true;
 }
@@ -469,6 +473,10 @@ void MemoryInputBase::registerOutputNode(MemoryOutputBase* node) {
 
 void MemoryInputBase::deregisterSibling(MemoryOutputBase* node) {
     if (node == outputNode) { outputNode = nullptr; }
+}
+
+bool MemoryInputBase::canBeSkipped() const {
+    return false;
 }
 
 bool MemoryInputBase::isExecutable() const {

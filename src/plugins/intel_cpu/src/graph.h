@@ -4,17 +4,17 @@
 
 #pragma once
 
+#include "allocation_context.hpp"
 #include "config.h"
 #include "cpu_memory.h"
 #include "nodes/input.h"
-#include "openvino/core/node_vector.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 #include "node.h"
 #include "edge.h"
 #include "graph_context.h"
-#include "memory_control.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 
+#include <algorithm>
 #include <map>
 #include <memory>
 #include <string>
@@ -30,6 +30,8 @@ class SyncInferRequest;
 namespace node {
 class MemoryStateNode;
 } // namespace node
+
+using OutputMemoryBlocks = std::unordered_map<std::size_t, ProxyMemoryBlockPtr>;
 
 class Graph {
 public:
@@ -65,9 +67,23 @@ public:
         return m_context->getConfig();
     }
 
+    /**
+     * Obsolete way of creating graph
+     * To enable layout propagation and global memory reuse
+     * two stage creation should be used instead:
+     * - Init()
+     * - Allocate()
+     */
     template<typename NET>
     void CreateGraph(NET &model, const GraphContext::CPtr context);
 
+    /**
+     * Obsolete way of creating graph
+     * To enable layout propagation and global memory reuse
+     * two stage creation should be used instead:
+     * - Init()
+     * - Allocate()
+     */
     void CreateGraph(const std::vector<NodePtr> &graphNodes,
                      const std::vector<EdgePtr> &graphEdges,
                      const GraphContext::CPtr context,
@@ -75,6 +91,9 @@ public:
 
     void PushInputData(const std::size_t& index, const ov::SoPtr<ITensor>& input);
     void PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& output);
+    // @todo pass as part of one of the graph configuration stages
+    // void SetGlobalExecutionIndex() {
+    // }
 
     // Returns Output nodes memory descriptors
     VecMemoryDescs getOutputMemoryDescriptors() const;
@@ -213,12 +232,39 @@ public:
 
     /**
      * Activate execution graph using \p externalInputMemory and \p externalOutputMemory
+     * 'globalAllocation' is a temporary flag indicating that the current graph is participaing in
+     * global memory reuse (together with all inner / outer graphs).
+     * The flag should be dropped after all the nodes with inner graphs participate in
+     * global memory reuse by default
      */
     void Activate(const std::vector<MemoryPtr>& externalInputMemory = {},
-                            const std::vector<MemoryPtr>& externalOutputMemory = {});
+                  const std::vector<MemoryPtr>& externalOutputMemory = {});
+
+    void Allocate();
+
+    AllocationContext CreateAllocationContext(bool global);
+
+    /**
+     * Register the graph in the global allocation context by transforming
+     * local execution data into the global one:
+     * 1) Local execution indices are transformed into global ones, represented by input and output execution index
+     *    where output execution index is an index of the last node of the inner graph
+     * 2) Local sync node indices are transformed into global ones using global input execution index
+     * 3) Local edges are added to the global list of edges
+     *
+     * Example graph with subgraphs:
+     * 0 -> 1 -> 2 -> 3 [0 -> 1 -> 2] -> 4 [0 -> 1] -> 5
+     *
+     * Virtually flatten:
+     * 0(0) -> 1(1) -> 2(2) -> 3(5) [3 -> 4 -> 5] -> 6(7) [6 -> 7] -> 8
+     *
+     * This is basically an equivalent to the actually flatten graph:
+     * 0 -> 1 -> 2 -> [3 -> 4 -> 5] -> [6 -> 7] -> 8
+     */
+    int RegisterToAllocationContext(int offset, AllocationContext& context);
 
     const std::unordered_map<std::size_t, ProxyMemoryBlockPtr>& getOutputNodesMemBlocksMap() const {
-        return outputNodesMemBlocksMap;
+        return m_outputNodesMemBlocks;
     }
 
 protected:
@@ -256,10 +302,10 @@ protected:
     void InitOptimalPrimitiveDescriptors();
     void ResolveEdgeConflicts();
     void ResolveComplexInplaceConflicts();
-    bool ProcessDynNodes();
-    void Allocate(const std::vector<size_t>& syncNodesInds);
-    void AllocateWithReuse(const std::vector<size_t>& syncNodesInds);
+    bool ProcessDynNodes() const;
+    void AllocateWithReuse(const std::vector<size_t>& syncNodesInds, GlobalExecutionIndex globalExecIndex);
     void CreatePrimitivesAndExecConstants() const;
+    std::vector<size_t> CreateExecutionGraph();
 
     /**
      * Execute a given \p node within \p request using \p numaId
@@ -300,7 +346,7 @@ private:
     std::map<std::size_t, NodePtr> inputNodesMap;
     std::map<std::size_t, NodePtr> outputNodesMap;
 
-    std::unordered_map<std::size_t, ProxyMemoryBlockPtr> outputNodesMemBlocksMap;
+    OutputMemoryBlocks m_outputNodesMemBlocks;
 
     // these node pointers (from graphNodes) are to avoid regular checking for
     // constantness of nodes in Infer methods and calls of
@@ -310,8 +356,6 @@ private:
 
     GraphContext::CPtr m_context;
     dnnl::stream m_stream;
-
-    MemoryControl* m_pMemoryControl = nullptr;
 };
 
 using GraphPtr = std::shared_ptr<Graph>;

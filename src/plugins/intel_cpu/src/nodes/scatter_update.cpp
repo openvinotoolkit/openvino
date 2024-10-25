@@ -53,6 +53,10 @@ bool ScatterUpdate::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
     return true;
 }
 
+bool ScatterUpdate::canBeSkipped() const {
+    return getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(DATA_ID);
+}
+
 bool ScatterUpdate::isExecutable() const {
     return !isInputTensorAtPortEmpty(DATA_ID);
 }

@@ -28,11 +28,11 @@ public:
          int pr_port = 0, int ch_port = 0);
 
     enum class Status {
-        Uninitialized,
-        NeedAllocation,
-        NotAllocated,
-        Allocated,
-        Validated
+        Uninitialized,  // base edge is unknown yet
+        NeedAllocation, // edge is the base edge
+        NotAllocated,   // edge is a referencing edge
+        Allocated,      // edge memory is allocated
+        Validated       // edge is validated
     };
 
     enum class ReorderStatus {
@@ -82,6 +82,7 @@ public:
     }
 
     std::string name() const;
+    const MemoryDesc& getDesc() const;
 
 private:
     std::weak_ptr<Node> parent;
@@ -99,7 +100,6 @@ private:
     PortDescBaseCPtr getInputPortDesc() const;
     PortDescBaseCPtr getOutputPortDesc() const;
 
-    const MemoryDesc& getDesc() const;
     bool enforceReorder();
 
     void collectConsumers(std::vector<std::shared_ptr<Node>>& result) const;

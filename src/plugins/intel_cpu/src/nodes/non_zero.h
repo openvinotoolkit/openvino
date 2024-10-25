@@ -29,6 +29,7 @@ public:
     void executeDynamicImpl(dnnl::stream strm) override;
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
+    bool canBeSkipped() const override { return false; }
     bool isExecutable() const override { return true; }
 
 private:

@@ -1152,6 +1152,10 @@ bool Node::isConstant() {
     return getConstantType() == ConstantType::Const;
 }
 
+bool Node::isConstantInput() {
+    return isConstant() && getType() == Type::Input;
+}
+
 void Node::updateConstantType() {
     if (constant == ConstantType::StrictNoConst)
         return;
