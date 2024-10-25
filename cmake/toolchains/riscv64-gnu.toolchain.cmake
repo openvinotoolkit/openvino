@@ -26,9 +26,6 @@ set(CMAKE_OBJDUMP ${RISCV_TOOLCHAIN_ROOT}/bin/riscv64-unknown-linux-gnu-objdump)
 set(CMAKE_READELF ${RISCV_TOOLCHAIN_ROOT}/bin/riscv64-unknown-linux-gnu-readelf)
 set(PKG_CONFIG_EXECUTABLE "NOT-FOUND" CACHE PATH "Path to RISC-V pkg-config")
 
-# Don't run the linker on compiler check
-set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
-
 set(CMAKE_SHARED_LINKER_FLAGS_INIT "-L${CMAKE_SYSROOT}/lib")
 set(CMAKE_EXE_LINKER_FLAGS_INIT "-L${CMAKE_SYSROOT}/lib")
 set(CMAKE_MODULE_LINKER_FLAGS_INIT "-L${CMAKE_SYSROOT}/lib")
