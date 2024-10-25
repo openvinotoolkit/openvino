@@ -7,8 +7,8 @@
 #include <fstream>
 #include <memory>
 
-#include "device_helpers.hpp"
-#include "intel_npu/al/config/common.hpp"
+#include "intel_npu/common/device_helpers.hpp"
+#include "intel_npu/config/common.hpp"
 
 #if defined(ENABLE_ZEROAPI_BACKEND)
 #    include "zero_backend.hpp"
@@ -111,7 +111,7 @@ NPUBackends::NPUBackends(const std::vector<AvailableBackends>& backendRegistry, 
         } catch (const std::exception& ex) {
             _logger.warning("Got an error during backend '%s' loading : %s", backendName.c_str(), ex.what());
         } catch (...) {
-            _logger.error("Got an unknown error during backend '%s' loading", backendName.c_str());
+            _logger.warning("Got an unknown error during backend '%s' loading", backendName.c_str());
         }
     }
 
@@ -127,7 +127,8 @@ NPUBackends::NPUBackends(const std::vector<AvailableBackends>& backendRegistry, 
     if (_backend != nullptr) {
         _logger.info("Use '%s' backend for inference", _backend->getName().c_str());
     } else {
-        _logger.error("Cannot find backend for inference. Make sure the device is available.");
+        _logger.warning("None of the backends were initialized successfully."
+                        "Only offline compilation can be done!");
     }
 }
 
@@ -170,6 +171,14 @@ bool NPUBackends::isBatchingSupported() const {
 bool NPUBackends::isCommandQueueExtSupported() const {
     if (_backend != nullptr) {
         return _backend->isCommandQueueExtSupported();
+    }
+
+    return false;
+}
+
+bool NPUBackends::isLUIDExtSupported() const {
+    if (_backend != nullptr) {
+        return _backend->isLUIDExtSupported();
     }
 
     return false;

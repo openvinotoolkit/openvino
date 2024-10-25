@@ -21,6 +21,18 @@ add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 add_library(openvino::reference ALIAS ${TARGET_NAME})
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME reference)
 
+if(ENABLE_AVX2)
+    ov_avx2_optimization_flags(avx2_flags)
+
+    set(OV_REFERENCE_X86_AVX2_SRC
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/op/convert_x86_intrinsics.cpp
+    )
+    set_source_files_properties(${OV_REFERENCE_X86_AVX2_SRC} PROPERTIES COMPILE_OPTIONS "${avx2_flags}"
+                                                                        SKIP_UNITY_BUILD_INCLUSION ON
+                                                                        SKIP_PRECOMPILE_HEADERS ON)
+    target_compile_definitions(${TARGET_NAME} PRIVATE HAVE_AVX2)
+endif()
+
 ov_build_target_faster(${TARGET_NAME}
     UNITY
     PCH PRIVATE "src/precomp.hpp")
@@ -37,9 +49,6 @@ target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${REF_IMPL_INCLUDE_DIR}>
     $<BUILD_INTERFACE:${OV_CORE_DEV_API_PATH}>
     $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>)
-
-target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
-    $<BUILD_INTERFACE:$<$<TARGET_EXISTS:xbyak::xbyak>:$<TARGET_PROPERTY:xbyak::xbyak,INTERFACE_INCLUDE_DIRECTORIES>>>)
 
 find_package(Threads REQUIRED)
 target_link_libraries(${TARGET_NAME} PRIVATE Threads::Threads openvino::core::dev)

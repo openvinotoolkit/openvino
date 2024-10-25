@@ -55,7 +55,7 @@ static size_t get_dynamic_quantize_group_size(const fully_connected_params& para
     auto dynamic_quantization_group_size = params.dynamic_quantization_group_size;
 
     GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->dynamic_quantize_group_size) {
+    GPU_DEBUG_IF(debug_config->dynamic_quantize_group_size != debug_config->DYNAMIC_QUANTIZE_GROUP_SIZE_NOT_SET) {
         dynamic_quantization_group_size = debug_config->dynamic_quantize_group_size;
 
         // Specify which Fully-connected layer would be dynamic-quantized
@@ -293,8 +293,17 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
     size_t output_f = bf_size.second;
 
     auto batch_size = params.is_shape_agnostic ? Align(output_b, tparams.tile_b) : output_b;
-    if (batch_size % (tparams.tile_b * tparams.dispatch_bsv) != 0)
-        return false;
+    // If batch size is prime number, still can apply tile execution to avoid poor performance.
+    if (batch_size % (tparams.tile_b * tparams.dispatch_bsv) != 0) {
+        if ((tparams.dispatch_bsv != 1) || batch_size == 1)
+            return false;
+        size_t tile = simd;
+        while (batch_size % tile != 0)
+            tile--;
+        if (tile > 1)
+            return false;
+    }
+
     if (CeilDiv(output_f, tparams.tile_ofm * simd) % tparams.dispatch_fsv != 0)
         return false;
 
@@ -375,6 +384,9 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
 
     if (params.weights.GetDType() == WeightsType::UINT4 || params.weights.GetDType() == WeightsType::INT4) {
         if (!params.is_shape_agnostic && batch == 1) {
+            if (should_dynamic_quantize(params))
+                return selector.Default(tune_params(1, 2, 4, 2, 1, 1, 1, EXE_MODE_DEFAULT));
+
             // Tuning for Meteor Lake
             if (is_weight_vertical(params, output_f)) {
                 if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2) {
@@ -534,6 +546,7 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     size_t tile_k_ofm_packed = tile_k_ofm;
     size_t quantize_grp_size = get_dynamic_quantize_group_size(params);
 
+    bool add_decompress_scale_post_op = false;
     WeightsType weights_dt = params.weights.GetDType();
     if (weights_dt == WeightsType::UINT4 || weights_dt == WeightsType::INT4) {
         tile_k_ofm_packed /= 2;
@@ -542,7 +555,7 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
         const size_t scale_group_size = params.weights.IFM().v / params.decompression_scale.Feature().v;
         // Do not use SCALE_POST_OP for SLM kernel, since it demonstrates worse performance
         if (scale_group_size % simd == 0 && !dispatchData.use_slm)
-            jit.AddConstant(MakeJitConstant("DECOMPRESSION_SCALE_POST_OP", 1));
+            add_decompress_scale_post_op = true;
     }
     if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2) {
         jit.AddConstant(MakeJitConstant("W_IDX", "fi * TILE_K + kii"));
@@ -615,10 +628,12 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     // Validated perf gain, Dynamic quantize force enable SCALE_POST_OP for char type multiplication
     if (should_dynamic_quantize(params)) {
         jit.AddConstant(MakeJitConstant("DYNAMIC_QUANTIZE", 1));
-        jit.AddConstant(MakeJitConstant("DECOMPRESSION_SCALE_POST_OP", 1));
+        jit.AddConstant(MakeJitConstant("DQ_DECOMPRESSION_SCALE_POST_OP", 1));
         jit.AddConstant(MakeJitConstant("DQ_TYPE", "char"));
         jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", quantize_grp_size));
     } else {
+        if (add_decompress_scale_post_op)
+            jit.AddConstant(MakeJitConstant("DECOMPRESSION_SCALE_POST_OP", 1));
         jit.AddConstant(MakeJitConstant("DYNAMIC_QUANTIZE", 0));
         jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", min_quantize_grp_size));
     }
@@ -781,8 +796,7 @@ KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &pa
     auto output_f = get_output_aligned_bf_size(fc_params, false).second;
 
     WeightsLayout weights_layout = WeightsLayout::os_iyx_osv16;
-    // TODO: Update may also be required to fc_bf_tiled_kernel_dyn_quan kernel to support os_is_yx_osv64_isv2 format as needed
-    if (!should_dynamic_quantize(fc_params) && fc_params.compressed && fc_params.inputs[0].GetDType() == Datatype::F16
+    if (fc_params.compressed && fc_params.inputs[0].GetDType() == Datatype::F16
         && (fc_params.weights.GetLayout() == WeightsLayout::oiyx || fc_params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2)
         && (fc_params.weights.GetDType() == WeightsType::INT4 || fc_params.weights.GetDType() == WeightsType::UINT4)
         && is_weight_horizontal(fc_params, output_f)) {

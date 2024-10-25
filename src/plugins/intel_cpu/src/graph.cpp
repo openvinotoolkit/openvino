@@ -44,6 +44,7 @@
 #include <oneapi/dnnl/dnnl.hpp>
 #include "common/primitive_desc_iface.hpp"
 
+#include "openvino/runtime/exception.hpp"
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
 #include "openvino/core/parallel.hpp"
 
@@ -194,8 +195,8 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &model,
         const auto port = unusedOutput.get_index();
         const auto nodeName = std::string("stub_") + std::to_string(unusedOutput.get_index()) + "_" + parentNode->getName();
         const NodePtr outNode = std::make_shared<node::Input>(parentNode->outputShapes[port],
-                                                                        parentNode->getOriginalOutputPrecisionAtPort(port),
-                                                                        nodeName, "Result", m_context);
+                                                              parentNode->getOriginalOutputPrecisionAtPort(port),
+                                                              nodeName, "Result", m_context);
         CreateEdge(parentNode, outNode, port, 0);
         AddNode(outNode);
     }
@@ -1278,6 +1279,14 @@ public:
         m_completion.store(false);
         auto startCounter = m_prepareCounter.load();
 
+        // Allow nested parallel execution.
+        // Some nodes use parallelism inside function updateDynParams, but OMP has one nested level here,
+        // so nested routines can only be executed in single thread.
+        auto origin_nested_levels = get_max_nested_levels();
+        if (origin_nested_levels < 2) {
+            set_max_nested_levels(2);
+        }
+
         #pragma omp parallel
         #pragma omp sections
         {
@@ -1289,6 +1298,10 @@ public:
             {
                 updateShapes(startCounter, stopIndx);
             }
+        }
+
+        if (origin_nested_levels != 2) {
+            set_max_nested_levels(origin_nested_levels);
         }
     }
 };
@@ -1318,6 +1331,8 @@ inline void Graph::ExecuteNodeWithCatch(const NodePtr& node, SyncInferRequest* r
 
     try {
         ExecuteNode(node, request, numaId);
+    } catch (const ov::Cancelled&) {
+        throw;
     } catch (const std::exception& exp) {
         OPENVINO_THROW(*node, exp.what());
     }

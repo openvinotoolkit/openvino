@@ -9,8 +9,8 @@
 
 #include <mutex>
 
+#include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
-#include "npu.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "zero_init.hpp"
 #include "zero_wrappers.hpp"
@@ -61,6 +61,8 @@ public:
     }
 
 private:
+    void initialize_graph_through_command_list() const;
+
     const Config _config;
     Logger _logger;
 
@@ -72,7 +74,6 @@ private:
     const uint32_t _group_ordinal;
 
     ze_graph_handle_t _graph = nullptr;
-    ze_graph_properties_t _props{};
 
     std::vector<ArgumentDescriptor> _input_descriptors;
     std::vector<ArgumentDescriptor> _output_descriptors;

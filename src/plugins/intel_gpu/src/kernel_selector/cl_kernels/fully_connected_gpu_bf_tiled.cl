@@ -809,7 +809,20 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
     uint input_offset = out_b * TILE_IN_B_PITCH + INPUT0_OFFSET;
 #endif
 
+#if FILTER_LAYOUT_OS_IS_YX_OSV64_ISV2
+    const int power_of_two_for_simd = 5;
+    const int power_of_two_for_osv = 6;
+    const uint osv64_weight_base = (( (int) (out_f >> power_of_two_for_osv) ) << power_of_two_for_osv);
+    const uint osv_weight_stride = (INPUT_ELEMENTS_COUNT >> 1);
+    const uint out_f_offset = (int)((out_f >> power_of_two_for_simd) & 0x1) << power_of_two_for_simd;
+    // out_f(32)  : 0  * osv_weight_stride + 32;
+    // out_f(64)  : 64 * osv_weight_stride + 0;
+    // out_f(128) : 64 * osv_weight_stride + 32;
+    // ...
+    uint weights_offset =  osv64_weight_base * osv_weight_stride + out_f_offset;
+#else
     uint weights_offset = out_f * (INPUT_ELEMENTS_COUNT / 2);
+#endif
 
     ACCUMULATOR_VEC_TYPE    acc[TILE_B] = { };
 
@@ -905,7 +918,11 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
 
         __local int* char_slm_weight = (__local int*)wei_local_mem;
 
+        #if FILTER_LAYOUT_OS_IS_YX_OSV64_ISV2
+        uint weights_idx = weights_offset + local_id * SIMD * FILTER_LOAD_ITERS * FILTER_LOAD_BLOCK_SIZE * 2;
+        #else
         uint weights_idx = weights_offset + local_id * SIMD * FILTER_LOAD_ITERS * FILTER_ACTUAL_LOAD_BLOCK_SIZE;
+        #endif
         uint wei_local_idx = local_id * SIMD * FILTER_LOAD_ITERS * (FILTER_LOAD_BLOCK_SIZE/2) + sglid * 2;
 
         // DECOMPRESSION_SCALE_POST_OP SHOULD be enabled for dynamic quantize FC : scale is ACCUMULATOR_VAL_ONE
@@ -917,6 +934,17 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                 // loaded weights 'wei_packed' of os_iyx_osv16 format have continuous values along TILE_K. So no need to transpose while unpacking
                 dq_wei_unpacked.s0123 = UNPACK_INT4(DQ_TYPE, *((INT4_PACKED_TYPE_PRELOAD*)&wei_packed0));
                 dq_wei_unpacked.s4567 = UNPACK_INT4(DQ_TYPE, *((INT4_PACKED_TYPE_PRELOAD*)&wei_packed1));
+            #elif FILTER_LAYOUT_OS_IS_YX_OSV64_ISV2
+                SLM_FILTER_PACKED_VEC wei_packed0 = BLOCK_READN(FILTER_TYPE, FILTER_ACTUAL_LOAD_BLOCK_SIZE, weights, weights_idx);
+                SLM_FILTER_PACKED_VEC wei_packed1 = BLOCK_READN(FILTER_TYPE, FILTER_ACTUAL_LOAD_BLOCK_SIZE, weights, (weights_idx + (FILTER_LOAD_BLOCK_SIZE * SIMD)));
+                DQ_SLM_FILTER_UNPACKED_VEC dq_wei_unpacked;
+                DQ_SLM_FILTER_UNPACKED_VEC dq_wei_unpacked_tmp;
+                dq_wei_unpacked_tmp.s0123 = UNPACK_INT4(DQ_TYPE, *((INT4_PACKED_TYPE_PRELOAD*)&wei_packed0));
+                dq_wei_unpacked_tmp.s4567 = UNPACK_INT4(DQ_TYPE, *((INT4_PACKED_TYPE_PRELOAD*)&wei_packed1));
+                dq_wei_unpacked.s01 = dq_wei_unpacked_tmp.s01;
+                dq_wei_unpacked.s23 = dq_wei_unpacked_tmp.s45;
+                dq_wei_unpacked.s45 = dq_wei_unpacked_tmp.s23;
+                dq_wei_unpacked.s67 = dq_wei_unpacked_tmp.s67;
             #else
                 SLM_FILTER_PACKED_VEC wei_packed = BLOCK_READN(FILTER_TYPE, FILTER_LOAD_BLOCK_SIZE, weights, weights_idx);
                 DQ_SLM_FILTER_UNPACKED_VEC dq_wei_unpacked = UNPACK_TRANSPOSED_INT4(DQ_TYPE, *((INT4_PACKED_TYPE_PRELOAD *)&wei_packed));
@@ -924,6 +952,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
 
             // Calculate zero-point and scale only for DECOMPRESSION_SCALE_POST_OP enabled
             // Calculate weight : w = (w - dzp) * ds
+            // if DECOMPRESSION_ZP_TERM is not enabled, then dzp is ACCUMULATOR_VAL_ZERO.
             #if DECOMPRESSION_ZP_TERM
                 #if DECOMPRESSION_ZP_SCALAR
                     DQ_SLM_FILTER_UNPACKED_VEC dzp = (DQ_SLM_FILTER_UNPACKED_VEC)(DECOMPRESSION_ZP_VALUE);
@@ -948,8 +977,6 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                         }
                     }
                 #endif
-            #else
-                DQ_SLM_FILTER_UNPACKED_VEC dzp = (DQ_SLM_FILTER_UNPACKED_VEC)(ACCUMULATOR_VAL_ZERO);
             #endif
 
             #if FILTER_LOAD_BLOCK_SIZE == 2
@@ -996,13 +1023,9 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                 acc_tmp[1][bi] = imad_SW(acc_tmp[1][bi], input_val, second_weight);
             }
 
-            #if FILTER_LAYOUT_OS_IYX_OSV16 && TILE_OFM == 2
-                weights_offset += (TILE_K_OFM_PACKED/2) * SIMD;
-            #else
-                weights_offset += TILE_K_OFM_PACKED * SIMD;
-            #endif
+            weights_offset += TILE_K_OFM_PACKED * TILE_OFM_PER_OSV_SIZE * SIMD;
 
-            #if DECOMPRESSION_SCALE_POST_OP && (TILE_IFM_ELEMENTS_SIZE > DECOMPRESSION_SCALE_GROUP_SIZE)
+            #if DQ_DECOMPRESSION_SCALE_POST_OP && (TILE_IFM_ELEMENTS_SIZE > DECOMPRESSION_SCALE_GROUP_SIZE)
                 unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
                     unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
                         const uint offset_ofm = out_f + fi*SIMD + sglid;
@@ -1022,7 +1045,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
             #endif
         }  // Whole tile_k elements of each iteration : ki
 
-        #if DECOMPRESSION_SCALE_POST_OP && (TILE_IFM_ELEMENTS_SIZE <= DECOMPRESSION_SCALE_GROUP_SIZE)
+        #if DQ_DECOMPRESSION_SCALE_POST_OP && (TILE_IFM_ELEMENTS_SIZE <= DECOMPRESSION_SCALE_GROUP_SIZE)
             // Dynamic-quantizing group size set to same or smaller than scale group size
             if ((ni % NUM_LOOP_IN_DYN_QUAN_GROUP) == (NUM_LOOP_IN_DYN_QUAN_GROUP - 1)) {
                 const uint ni_offset = ((ni*TILE_IFM*SIMD) / DECOMPRESSION_SCALE_GROUP_SIZE)*DECOMPRESSION_SCALE_FEATURE_PITCH;
@@ -1151,7 +1174,7 @@ KERNEL(fc)(
 #endif
 ) {
 #if USE_SLM
-    #if DYNAMIC_QUANTIZE && (TILE_OFM == 2)
+    #if DYNAMIC_QUANTIZE
         __local int dq_wei_local_mem[SIMD * TILE_OFM * SIMD];
     #else
         __local ACCUMULATOR_TYPE wei_local_mem[TILE_IFM * SIMD * TILE_OFM * SIMD];
@@ -1293,7 +1316,7 @@ KERNEL(fc)(
         #endif
         );
     } else {
-        #if USE_SLM && DYNAMIC_QUANTIZE && (TILE_OFM == 2)
+        #if USE_SLM && DYNAMIC_QUANTIZE
             FUNC_CALL(fc_bf_tiled_kernel_dyn_quan)(
                 OPTIONAL_SHAPE_INFO_TENSOR
                 input,
@@ -1340,7 +1363,7 @@ KERNEL(fc)(
         #endif
     }
 #else
-    #if USE_SLM && DYNAMIC_QUANTIZE && (TILE_OFM == 2)
+    #if USE_SLM && DYNAMIC_QUANTIZE
         FUNC_CALL(fc_bf_tiled_kernel_dyn_quan)(
             OPTIONAL_SHAPE_INFO_TENSOR
             input,

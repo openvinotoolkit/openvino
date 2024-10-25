@@ -34,9 +34,12 @@ namespace {
 inline bool can_use_usm_host(const cldnn::engine& engine) {
     auto can_use_usm = engine.use_unified_shared_memory();
 
-    if (engine.get_device_info().gfx_ver.major == 12 && engine.get_device_info().gfx_ver.minor == 60) {
-        // WA: Disable USM host memory for infer request`s tensors for PVC as
-        // it has performance issues in case of host <-> device data transfers inside kernels
+    const auto& device_info = engine.get_device_info();
+    if ((device_info.gfx_ver.major == 12 && device_info.gfx_ver.minor == 60) ||
+        (device_info.gfx_ver.major >= 20 && device_info.dev_type == cldnn::device_type::discrete_gpu)) {
+        // WA: Disable USM host memory for infer request`s tensors for PVC and subsequent dGPUs, as kernel access
+        // to system memory is slower than using an explicit memcpy (Host <-> Device) call with the copy engine
+        // Driver tickets with additional details: 6155, 10054
         GPU_DEBUG_TRACE << "Do not use usm_host for performance issue" << std::endl;
         can_use_usm = false;
     }
@@ -544,7 +547,7 @@ TensorWrapper SyncInferRequest::create_or_share_device_tensor(const TensorWrappe
 
     bool can_share = !is_convert_required(user_tensor->get_element_type(), element_type) && can_use_usm_host(engine) && !generic_remote_tensor;
 
-    if (usm_host_tensor && can_share) {
+    if (usm_host_tensor && can_share && m_context == usm_host_tensor->get_impl()->get_context()) {
         return { usm_host_tensor->get_impl(), user_tensor_wrapper.owner };
     } else if (usm_host_raw_ptr && can_share) {
         return { std::make_shared<RemoteTensorImpl>(m_context,
@@ -724,7 +727,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
     auto usm_host_ptr = std::dynamic_pointer_cast<USMHostTensor>(user_tensor);
     bool is_generic_remote = iremote_tensor_ptr != nullptr && remote_tensor_impl_ptr == nullptr;
     bool is_remote_tensor_impl = remote_tensor_impl_ptr != nullptr;
-    bool is_usm_host_tensor = usm_host_ptr != nullptr;
+    bool is_usm_host_tensor = usm_host_ptr != nullptr && usm_host_ptr->get_impl()->get_context() == m_context;
 
     GPU_DEBUG_TRACE_DETAIL << "Prepare input for " << internal_name
                            << " (is_remote_tensor_impl ? " << is_remote_tensor_impl

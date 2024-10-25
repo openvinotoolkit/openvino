@@ -8,8 +8,8 @@
 #include <memory>
 #include <string>
 
+#include "intel_npu/common/remote_tensor.hpp"
 #include "openvino/runtime/intel_npu/remote_properties.hpp"
-#include "remote_tensor.hpp"
 #include "zero_init.hpp"
 
 namespace intel_npu {
@@ -45,7 +45,7 @@ private:
     void* _mem = nullptr;
     void* _data = nullptr;
 
-    bool _external_memory_support = true;
+    bool _external_memory_support = false;
 };
 
 }  // namespace intel_npu
