@@ -23,12 +23,25 @@
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/reference/convert.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
+#include "openvino/runtime/compute_hash.hpp"
 #include "openvino/runtime/string_aligned_buffer.hpp"
 #include "openvino/util/file_util.hpp"
 #include "pugixml.hpp"
 #include "transformations/hash.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
+
+namespace ov {
+class OstreamHashWrapperBin final : public std::streambuf {
+    uint64_t m_res = 0lu;
+
+public:
+    uint64_t getResult() const {
+        return m_res;
+    }
+    std::streamsize xsputn(const char* s, std::streamsize n) override;
+};
+}  // namespace ov
 
 namespace {  // helpers
 template <typename Container>
@@ -69,23 +82,6 @@ std::string translate_type_name(const std::string& name) {
     return name;
 }
 
-size_t hash_combine(const void* v, int64_t size) {
-    constexpr auto cel_size = sizeof(size_t);
-    auto seed = static_cast<size_t>(size);
-    const auto data = static_cast<const size_t*>(v);
-    const auto d_end = std::next(data, size / cel_size);
-    // The constant value used as a magic number has been
-    // traditionally used e.g. in boost library's hash_combine.
-    // It happens to be derived from the golden ratio.
-    for (auto d = data; d != d_end; ++d) {
-        seed ^= *d + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-    }
-    size_t last_bytes{0};
-    std::memcpy(&last_bytes, d_end, size % cel_size);
-    seed ^= last_bytes + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-    return seed;
-}
-
 class ConstantWriter {
 public:
     using FilePosition = int64_t;
@@ -95,16 +91,18 @@ public:
     ConstantWriter(std::ostream& bin_data, bool enable_compression = true)
         : m_binary_output(bin_data),
           m_enable_compression(enable_compression),
-          m_blob_offset(bin_data.tellp()) {}
+          m_blob_offset(bin_data.tellp()) {
+        m_write_hash_value = (dynamic_cast<ov::OstreamHashWrapperBin*>(bin_data.rdbuf())) ? true : false;
+    }
 
     FilePosition write(const char* ptr,
                        size_t size,
-                       size_t* new_size,
+                       size_t& new_size,
                        bool compress_to_fp16 = false,
                        ov::element::Type src_type = ov::element::dynamic) {
         const FilePosition write_pos = m_binary_output.tellp();
         const auto offset = write_pos - m_blob_offset;
-        *new_size = size;
+        new_size = size;
 
         if (!m_enable_compression) {
             if (!compress_to_fp16) {
@@ -112,7 +110,7 @@ public:
             } else {
                 OPENVINO_ASSERT(size % src_type.size() == 0);
                 auto fp16_buffer = compress_data_to_fp16(ptr, size, src_type, new_size);
-                m_binary_output.write(fp16_buffer.get(), *new_size);
+                m_binary_output.write(fp16_buffer.get(), new_size);
             }
             return offset;
         } else {
@@ -132,18 +130,24 @@ public:
             // the same hash for {2, 2} and {0, 128} arrays.
             // But even strong hashing algorithms sometimes give collisions.
             // Therefore we always have to compare values when finding a match in the hash multimap.
-            const HashValue hash = hash_combine(ptr_to_write, *new_size);
+            const HashValue hash = ov::runtime::compute_hash(ptr_to_write, new_size);
+
             auto found = m_hash_to_file_positions.find(hash);
             // iterate over all matches of the key in the multimap
             while (found != m_hash_to_file_positions.end()) {
-                if (memcmp(ptr, found->second.second, size) == 0)
+                if (memcmp(ptr, found->second.second, size) == 0) {
                     return found->second.first;
+                }
                 found++;
             }
             // Since fp16_compressed data will be disposed at exit point and since we cannot reread it from the ostream,
             // we store pointer to the original uncompressed blob.
             m_hash_to_file_positions.insert({hash, {offset, static_cast<void const*>(ptr)}});
-            m_binary_output.write(ptr_to_write, *new_size);
+            if (m_write_hash_value) {
+                m_binary_output.write(reinterpret_cast<const char*>(&hash), sizeof(uint64_t));
+            } else {
+                m_binary_output.write(ptr_to_write, new_size);
+            }
         }
         return offset;
     }
@@ -152,17 +156,17 @@ private:
     static std::unique_ptr<char[]> compress_data_to_fp16(const char* ptr,
                                                          size_t size,
                                                          ov::element::Type src_type,
-                                                         size_t* compressed_size) {
+                                                         size_t& compressed_size) {
         auto num_src_elements = size / src_type.size();
-        *compressed_size = num_src_elements * ov::element::f16.size();
+        compressed_size = num_src_elements * ov::element::f16.size();
         if (src_type == ov::element::f32) {
-            auto new_ptr = std::unique_ptr<char[]>(new char[*compressed_size]);
+            auto new_ptr = std::unique_ptr<char[]>(new char[compressed_size]);
             auto dst_data = reinterpret_cast<ov::float16*>(new_ptr.get());
             auto src_data = reinterpret_cast<const float*>(ptr);
             ov::reference::convert_from_f32_to_f16_with_clamp(src_data, dst_data, num_src_elements);
             return new_ptr;
         } else if (src_type == ov::element::f64) {
-            auto new_ptr = std::unique_ptr<char[]>(new char[*compressed_size]);
+            auto new_ptr = std::unique_ptr<char[]>(new char[compressed_size]);
             auto dst_data = reinterpret_cast<ov::float16*>(new_ptr.get());
             auto src_data = reinterpret_cast<const double*>(ptr);
 
@@ -188,6 +192,7 @@ private:
     ConstWritePositions m_hash_to_file_positions;
     std::ostream& m_binary_output;
     bool m_enable_compression;
+    bool m_write_hash_value = false;
     FilePosition m_blob_offset;  // blob offset inside output stream
 };
 
@@ -531,7 +536,7 @@ public:
 
                 int64_t offset = m_constant_write_handler.write(reinterpret_cast<const char*>(header_ptr.get()),
                                                                 header_size,
-                                                                &inter_size,
+                                                                inter_size,
                                                                 m_compress_to_fp16,
                                                                 m_output_element_type);
                 new_size += inter_size;
@@ -554,7 +559,7 @@ public:
 
                     m_constant_write_handler.write(raw_string_ptr,
                                                    raw_string_size,
-                                                   &inter_size,
+                                                   inter_size,
                                                    m_compress_to_fp16,
                                                    m_output_element_type);
                     new_size += inter_size;
@@ -568,7 +573,7 @@ public:
                 size_t new_size;
                 int64_t offset = m_constant_write_handler.write(static_cast<const char*>(a->get()->get_ptr()),
                                                                 size,
-                                                                &new_size,
+                                                                new_size,
                                                                 m_compress_to_fp16,
                                                                 m_output_element_type);
 
@@ -1168,7 +1173,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
     pugi::xml_node rt_info_node = netXml.append_child("rt_info");
     for (const auto& it : model.get_rt_info()) {
         // Skip IR version
-        if (it.first == "version")
+        if (it.first == "version" || it.first == "__weights_path")
             continue;
         serialize_rt_info(rt_info_node, it.first, it.second);
     }
@@ -1393,10 +1398,19 @@ bool pass::StreamSerialize::run_on_model(const std::shared_ptr<ov::Model>& model
 /// -------- Hash calculation pass -------------
 
 namespace {
-template <typename T>
-static uint64_t hash_combine(uint64_t seed, const T& a) {
-    // Hash combine formula from boost
-    return seed ^ (std::hash<T>()(a) + 0x9e3779b9 + (seed << 6) + (seed >> 2));
+// Hash combine formula from boost for uint64_t.
+inline uint64_t hash_combine(uint64_t h, uint64_t k) {
+    constexpr uint64_t m = 0xc6a4a7935bd1e995;
+    constexpr int r = 47;
+
+    k *= m;
+    k ^= k >> r;
+    k *= m;
+
+    h ^= k;
+    h *= m;
+
+    return h + 0xe6546b64;
 }
 
 class OstreamHashWrapper final : public std::streambuf {
@@ -1408,28 +1422,23 @@ public:
     }
 
     std::streamsize xsputn(const char* s, std::streamsize n) override {
-        // Reinterpret data as uint32_t and accumulate in uint64_t to avoid overflow fluctuations in parallel_sum.
-        auto* int_sum = reinterpret_cast<const uint32_t*>(s);
-        const uint64_t n32 = n / sizeof(uint32_t);
-
-        m_res += parallel_sum(n32, uint64_t(0lu), [&](size_t k) -> uint32_t {
-            return int_sum[k];
-        });
-
-        const uint64_t rest = n % sizeof(uint32_t);
-        for (uint64_t i = 0lu; i < rest; i++) {
-            m_res += s[n - rest + i];
-        }
+        uint64_t h = ov::runtime::compute_hash(s, n);
+        m_res = hash_combine(m_res, h);
 
         return n;
     }
 };
 }  // namespace
 
+std::streamsize OstreamHashWrapperBin::xsputn(const char* s, std::streamsize n) {
+    m_res = hash_combine(m_res, *reinterpret_cast<const uint64_t*>(s));
+    return n;
+}
+
 bool pass::Hash::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(Hash);
     OstreamHashWrapper xmlHash;
-    OstreamHashWrapper binHash;
+    OstreamHashWrapperBin binHash;
     std::ostream xml(&xmlHash);
     std::ostream bin(&binHash);
 

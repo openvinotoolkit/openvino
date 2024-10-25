@@ -14,8 +14,9 @@ running multiple times.
 
 -  `Showing Info Available Devices <#showing-info-available-devices>`__
 -  `Configure Inference Pipeline <#configure-inference-pipeline>`__
--  `Using full precision model in choice device with
-   OVStableDiffusionPipeline <#using-full-precision-model-in-choice-device-with-ovstablediffusionpipeline>`__
+-  `Convert model using Optimum <#convert-model-using-optimum>`__
+-  `Run model using
+   OVStableDiffusionPipeline <#run-model-using-ovstablediffusionpipeline>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -39,7 +40,7 @@ this
 
 .. code:: ipython3
 
-    %pip install -q "optimum-intel[openvino,diffusers]@git+https://github.com/huggingface/optimum-intel.git" "ipywidgets" "transformers>=4.33.0" "torch>=2.1" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "git+https://github.com/huggingface/optimum-intel.git" "diffusers>=0.25.0" "openvino>=2024.4.0" "ipywidgets" "transformers>=4.33.0" "torch>=2.1" --extra-index-url https://download.pytorch.org/whl/cpu
 
 Stable Diffusion pipeline should brings 6 elements together, a text
 encoder model with a tokenizer, a UNet model with and scheduler, and an
@@ -126,8 +127,23 @@ Select device from dropdown list for running inference using OpenVINO.
 
 
 
-Using full precision model in choice device with ``OVStableDiffusionPipeline``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Convert model using Optimum
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+.. code:: ipython3
+
+    from pathlib import Path
+    
+    name = "stabilityai/stable-diffusion-2-1-base"
+    model_dir = Path(name.split("/")[-1])
+    
+    if not model_dir.exists():
+        !optimum-cli export openvino -m {name} {model_dir}
+
+Run model using ``OVStableDiffusionPipeline``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
 
@@ -135,11 +151,10 @@ Using full precision model in choice device with ``OVStableDiffusionPipeline``
 
     from optimum.intel.openvino import OVStableDiffusionPipeline
     
-    # download the pre-converted SD v2.1 model from Hugging Face Hub
-    name = "helenai/stabilityai-stable-diffusion-2-1-base-ov"
-    ov_pipe = OVStableDiffusionPipeline.from_pretrained(name, compile=False)
+    # download and converted SD v2.1 model from Hugging Face Hub
+    
+    ov_pipe = OVStableDiffusionPipeline.from_pretrained(model_dir, compile=False, device=device.value)
     ov_pipe.reshape(batch_size=1, height=512, width=512, num_images_per_prompt=1)
-    ov_pipe.to(device.value)
     ov_pipe.compile()
 
 .. code:: ipython3
@@ -161,7 +176,7 @@ Using full precision model in choice device with ``OVStableDiffusionPipeline``
 
 
 
-.. image:: stable-diffusion-v2-optimum-demo-with-output_files/stable-diffusion-v2-optimum-demo-with-output_11_1.png
+.. image:: stable-diffusion-v2-optimum-demo-with-output_files/stable-diffusion-v2-optimum-demo-with-output_13_1.png
 
 
 

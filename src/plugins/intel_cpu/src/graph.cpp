@@ -44,6 +44,7 @@
 #include <oneapi/dnnl/dnnl.hpp>
 #include "common/primitive_desc_iface.hpp"
 
+#include "openvino/runtime/exception.hpp"
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
 #include "openvino/core/parallel.hpp"
 
@@ -1330,6 +1331,8 @@ inline void Graph::ExecuteNodeWithCatch(const NodePtr& node, SyncInferRequest* r
 
     try {
         ExecuteNode(node, request, numaId);
+    } catch (const ov::Cancelled&) {
+        throw;
     } catch (const std::exception& exp) {
         OPENVINO_THROW(*node, exp.what());
     }
@@ -1685,7 +1688,9 @@ void Graph::EnforceInferencePrecision() {
                         Type::MatMul,         // bert nets
                         Type::ROIPooling,     // object detection nets
                         Type::Interpolate,    // super resolution nets
-                        Type::PagedAttention))// page attention
+                        Type::PagedAttention, // page attention
+                        Type::QKVProjection,
+                        Type::LLMMLP))
                     continue;   // stop at significant nodes
             } else if (inferPrec == ov::element::f16) {
                 /* list of node types that must be forced to be executed in FP16 precision
