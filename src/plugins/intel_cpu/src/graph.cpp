@@ -1688,7 +1688,9 @@ void Graph::EnforceInferencePrecision() {
                         Type::MatMul,         // bert nets
                         Type::ROIPooling,     // object detection nets
                         Type::Interpolate,    // super resolution nets
-                        Type::PagedAttention))// page attention
+                        Type::PagedAttention, // page attention
+                        Type::QKVProjection,
+                        Type::LLMMLP))
                     continue;   // stop at significant nodes
             } else if (inferPrec == ov::element::f16) {
                 /* list of node types that must be forced to be executed in FP16 precision
