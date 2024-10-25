@@ -170,6 +170,7 @@ from openvino.runtime.opset5.ops import round
 from openvino.runtime.opset13.ops import scaled_dot_product_attention
 from openvino.runtime.opset12.ops import scatter_elements_update
 from openvino.runtime.opset3.ops import scatter_update
+from openvino.runtime.opset15.ops import search_sorted
 from openvino.runtime.opset1.ops import select
 from openvino.runtime.opset1.ops import selu
 from openvino.runtime.opset3.ops import shape_of

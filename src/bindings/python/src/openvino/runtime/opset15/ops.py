@@ -327,3 +327,24 @@ def stft(
     """
     inputs = as_nodes(data, window, frame_size, frame_step, name=name)
     return _get_node_factory_opset15().create("STFT", inputs)
+
+
+@nameable_op
+def search_sorted(
+    sorted_sequence: NodeInput,
+    values: NodeInput,
+    right_mode: bool = False,
+    name: Optional[str] = None,
+) -> Node:
+    """Return a node which generates SearchSorted operation.
+
+    :param sorted_sequence: The node providing sorted sequence to search in.
+    :param values: The node providing searched values.
+    :param right_mode: If set to False, return the first suitable index that is found for given value.
+                       If set to True, return the last such index. Defaults to False.
+    :param name: The optional name for the created output node.
+    :return: The new node performing SearchSorted operation.
+    """
+    inputs = as_nodes(sorted_sequence, values, name=name)
+    attributes = {"right_mode": right_mode}
+    return _get_node_factory_opset15().create("SearchSorted", inputs, attributes)
