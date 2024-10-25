@@ -104,6 +104,7 @@ INSTANTIATE_TEST_SUITE_P(
     type_prop_stft_shape,
     TypePropSTFTTestP,
     testing::Values(
+        std::make_tuple(PartialShape{1, 16}, PartialShape{16}, 16, 16, true, PartialShape{1, 9, 1, 2}),
         std::make_tuple(PartialShape{1, 48}, PartialShape{16}, 16, 16, true, PartialShape{1, 9, 3, 2}),
         std::make_tuple(PartialShape{1, 48}, PartialShape{16}, 16, 16, false, PartialShape{1, 3, 9, 2}),
         std::make_tuple(PartialShape{2, 48}, PartialShape{8}, 16, 4, true, PartialShape{2, 9, 9, 2}),

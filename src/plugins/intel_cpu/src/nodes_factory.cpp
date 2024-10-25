@@ -99,6 +99,7 @@
 #include "nodes/space_to_batch.h"
 #include "nodes/space_to_depth.h"
 #include "nodes/split.h"
+#include "nodes/stft.h"
 #include "nodes/strided_slice.h"
 #include "nodes/subgraph.h"
 #include "nodes/tensoriterator.h"
@@ -214,6 +215,7 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(RegionYolo, Type::RegionYolo);
     INTEL_CPU_NODE(DFT, Type::DFT);
     INTEL_CPU_NODE(RDFT, Type::RDFT);
+    INTEL_CPU_NODE(STFT, Type::STFT);
     INTEL_CPU_NODE(ExtractImagePatches, Type::ExtractImagePatches);
     INTEL_CPU_NODE(Subgraph, Type::Subgraph);
     INTEL_CPU_NODE(Composite, Type::SubModel);
