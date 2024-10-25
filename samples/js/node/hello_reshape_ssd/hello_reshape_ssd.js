@@ -1,13 +1,5 @@
 const { addon: ov } = require('openvino-node');
-
-const fs = require('node:fs/promises');
-const { cv } = require('opencv-wasm');
-const {
-  setShape,
-  getImageData,
-  getImageBuffer,
-  arrayToImageData,
-} = require('../helpers.js');
+const Image = require('../image.js');
 
 // Parsing and validation of input arguments
 if (process.argv.length !== 5)
@@ -38,24 +30,15 @@ async function main(modelPath, imagePath, deviceName) {
 
   //----------------- Step 3. Set up input -------------------------------------
   // Read input image
-  const imgData = await getImageData(imagePath);
-
-  // Use opencv-wasm to preprocess image.
-  const originalImage = cv.matFromImageData(imgData);
-  const image = new cv.Mat();
-  // The MobileNet model expects images in RGB format.
-  cv.cvtColor(originalImage, image, cv.COLOR_RGBA2RGB);
-
-  const tensorData = new Uint8Array(image.data);
-  const shape = [1, image.rows, image.cols, 3];
-  const inputTensor = new ov.Tensor(ov.element.u8, shape, tensorData);
+  const img = await Image.load(imagePath);
+  const inputTensor = img.toTensor();
 
   //----------------- Step 4. Apply preprocessing ------------------------------
   const _ppp = new ov.preprocess.PrePostProcessor(model);
   _ppp.input().preprocess().resize(ov.preprocess.resizeAlgorithm.RESIZE_LINEAR);
 
   _ppp.input().tensor()
-    .setShape(shape)
+    .setShape(inputTensor.getShape())
     .setElementType(ov.element.u8)
     .setLayout('NHWC');
 
@@ -70,22 +53,18 @@ async function main(modelPath, imagePath, deviceName) {
   //---------------- Step 6. Create infer request and do inference synchronously
   console.log('Starting inference in synchronous mode');
   const inferRequest = compiledModel.createInferRequest();
-  inferRequest.setInputTensor(inputTensor);
-  inferRequest.infer();
+  const outputs = inferRequest.infer([inputTensor]);
 
   //----------------- Step 7. Process output -----------------------------------
   const outputLayer = compiledModel.outputs[0];
-  const output = inferRequest.getTensor(outputLayer);
-
-  const { data: outputData } = output;
+  const _output = outputs[outputLayer];
+  const output = Float32Array.from(_output.data);
   const resultLayer = [];
   const colormap = [[68, 1, 84, 255], [48, 103, 141, 255], [53, 183, 120, 255], [199, 216, 52, 255]];
-
-  const size = outputData.length/4;
+  const size = output.length/4;
 
   for (let i = 0; i < size; i++) {
-    const valueAt = (i, number) => outputData[i + number*size];
-
+    const valueAt = (i, number) => output[i + number*size];
     const currentValues = {
       bg: valueAt(i, 0),
       c: valueAt(i, 1),
@@ -101,26 +80,16 @@ async function main(modelPath, imagePath, deviceName) {
   const pixels = [];
   resultLayer.forEach(i => pixels.push(...colormap[i]));
 
-  const alpha = 0.3;
-  const [B, C, H, W] = output.getShape();
-
-  const pixelsAsImageData = arrayToImageData(pixels, W, H);
-  const mask = cv.matFromImageData(pixelsAsImageData);
-
-  const originalWidth = image.cols;
-  const originalHeight = image.rows;
-
-  cv.resize(mask, mask, new cv.Size(originalWidth, originalHeight));
-
-  cv.addWeighted(mask, alpha, originalImage, 1 - alpha, 0, mask);
-
-  const resultImgData = arrayToImageData(mask.data, originalWidth, originalHeight);
+  // const alpha = 0.3;
   const filename = 'out.jpg';
+  const [_, C, H, W] = _output.getShape();
 
-  await fs.writeFile(`./${filename}`, getImageBuffer(resultImgData));
+  const mask = Image.fromArray(pixels, W, H);
+  const resizedMask = mask.resize(img.width, img.height);
+  const merged = Image.merge(img, resizedMask);
 
   try {
-    await fs.readFile(filename);
+    await merged.save(filename);
     console.log('Image out.jpg was created!');
   } catch(err) {
     console.log(`Image ${filename} was not created. Check your permissions.`);
