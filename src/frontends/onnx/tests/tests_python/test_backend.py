@@ -57,6 +57,7 @@ from tests import (
     xfail_issue_113506,
     skip_dynamic_model,
     xfail_issue_119896,
+    skip_issue_119896,
     xfail_issue_119900,
     xfail_issue_119903,
     xfail_issue_119906,
@@ -246,7 +247,11 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_maxunpool_export_with_output_shape_cpu",
         "OnnxBackendNodeModelTest.test_maxunpool_export_without_output_shape_cpu",
     ),
-    (xfail_issue_38724, "OnnxBackendNodeModelTest.test_resize_tf_crop_and_resize_cpu"),
+    (
+        xfail_issue_38724,
+        "OnnxBackendNodeModelTest.test_resize_tf_crop_and_resize_cpu",
+        "OnnxBackendNodeModelTest.test_resize_tf_crop_and_resize_extrapolation_value_cpu"
+    ),
     (
         xfail_issue_33606,
         "OnnxBackendNodeModelTest.test_det_2d_cpu",
@@ -454,6 +459,7 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_resize_upsample_sizes_nearest_axes_2_3_cpu",
         "OnnxBackendNodeModelTest.test_resize_upsample_sizes_nearest_axes_3_2_cpu",
         "OnnxBackendNodeModelTest.test_resize_upsample_sizes_nearest_not_larger_cpu",
+        "OnnxBackendNodeModelTest.test_resize_upsample_sizes_nearest_not_smaller_cpu",
     ),
     (
         xfail_issue_99970,
@@ -519,6 +525,13 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_quantizelinear_e5m2_cpu",
         "OnnxBackendNodeModelTest.test_dequantizelinear_e4m3fn_float16_cpu",
         "OnnxBackendNodeModelTest.test_dequantizelinear_e4m3fn_zero_point_cpu",
+    ),
+    (
+        skip_issue_119896,
+        "OnnxBackendNodeModelTest.test_cast_no_saturate_FLOAT16_to_FLOAT8E4M3FN_cpu",
+        "OnnxBackendNodeModelTest.test_cast_no_saturate_FLOAT16_to_FLOAT8E5M2_cpu",
+        "OnnxBackendNodeModelTest.test_cast_no_saturate_FLOAT_to_FLOAT8E4M3FN_cpu",
+        "OnnxBackendNodeModelTest.test_cast_no_saturate_FLOAT_to_FLOAT8E5M2_cpu",
     ),
     (
         xfail_issue_119900,
@@ -626,6 +639,7 @@ tests_expected_to_fail = [
         skip_misalignment,
         "OnnxBackendNodeModelTest.test_gelu_default_2_expanded_cpu",
         "OnnxBackendNodeModelTest.test_reduce_log_sum_exp_empty_set_expanded_cpu",
+        "OnnxBackendNodeModelTest.test_reduce_max_empty_set_cpu",
         "OnnxBackendNodeModelTest.test_group_normalization_epsilon_cpu",
         "OnnxBackendNodeModelTest.test_group_normalization_example_cpu",
         "OnnxBackendNodeModelTest.test_qlinearmatmul_3D_int8_float16_cpu",
