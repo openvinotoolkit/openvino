@@ -8,18 +8,19 @@
 
 #include "compiled_model.hpp"
 #include "compiler.hpp"
-#include "device_helpers.hpp"
-#include "intel_npu/al/config/common.hpp"
-#include "intel_npu/al/config/compiler.hpp"
-#include "intel_npu/al/config/npuw.hpp"
-#include "intel_npu/al/config/runtime.hpp"
-#include "intel_npu/al/itt.hpp"
+#include "intel_npu/common/device_helpers.hpp"
+#include "intel_npu/common/itt.hpp"
+#include "intel_npu/config/common.hpp"
+#include "intel_npu/config/compiler.hpp"
+#include "intel_npu/config/npuw.hpp"
+#include "intel_npu/config/runtime.hpp"
 #include "npuw/compiled_model.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "remote_context.hpp"
+
 
 using namespace intel_npu;
 
@@ -353,6 +354,13 @@ Plugin::Plugin()
               const auto specifiedDeviceName = get_specified_device_name(config);
               auto devUuid = _metrics->GetDeviceUuid(specifiedDeviceName);
               return decltype(ov::device::uuid)::value_type{devUuid};
+          }}},
+        {ov::device::luid.name(),
+         {_backends->isLUIDExtSupported(),
+          ov::PropertyMutability::RO,
+          [&](const Config& config) {
+              const auto specifiedDeviceName = get_specified_device_name(config);
+              return _metrics->GetDeviceLUID(specifiedDeviceName);
           }}},
         // Add FULL_DEVICE_NAME and DEVICE_ARCHITECTURE in supported
         // properties list only in case of non-empty device list (#1424144d)

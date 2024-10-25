@@ -7,8 +7,8 @@
 #include <map>
 #include <memory>
 
+#include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
-#include "npu.hpp"
 #include "zero_init.hpp"
 
 namespace intel_npu {
@@ -27,6 +27,7 @@ public:
 
     bool isBatchingSupported() const override;
     bool isCommandQueueExtSupported() const override;
+    bool isLUIDExtSupported() const override;
 
     void* getContext() const override;
     void* getDriverHandle() const;
