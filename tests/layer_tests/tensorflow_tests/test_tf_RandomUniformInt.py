@@ -44,7 +44,7 @@ class TestRandomUniformInt(CommonTFLayerTest):
     def test_random_uniform_int(self, shape_value, shape_type, minval_type, minval_value, maxval_value, seed, seed2,
                                 ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
         if minval_type == np.int64:
-            pytest.skip('Incorrect specification of RandomUniform for np.int64 output type')
+            pytest.skip('156027: Incorrect specification of RandomUniform for np.int64 output type')
         self._test(*self.create_tf_random_uniform_int_net(shape_value, shape_type, minval_type,
                                                           minval_value, maxval_value, seed, seed2),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
