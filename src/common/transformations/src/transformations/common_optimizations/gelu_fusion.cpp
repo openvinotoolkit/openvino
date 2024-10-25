@@ -13,6 +13,7 @@
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
+
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
@@ -22,8 +23,10 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/power.hpp"
 #include "openvino/op/tanh.hpp"
+
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
+
 #include "transformations/utils/utils.hpp"
 
 ov::pass::GeluFusionWithErfOne::GeluFusionWithErfOne() {
@@ -326,24 +329,15 @@ ov::pass::GeluFusionWithTanh::GeluFusionWithTanh() {
 
         gelu->set_friendly_name(m.get_match_root()->get_friendly_name());
 
-        ov::copy_runtime_info(
-            {
-                pattern_to_output.at(pow).get_node_shared_ptr(),
-                pattern_to_output.at(mul_0).get_node_shared_ptr(),
-                pattern_to_output.at(mul_1).get_node_shared_ptr(),
-                pattern_to_output.at(tanh).get_node_shared_ptr(),
-                pattern_to_output.at(add_0).get_node_shared_ptr(),
-                pattern_to_output.at(add_1).get_node_shared_ptr(),
-            },
-            gelu);
-        if (pattern_to_output.find(mul_2_1) != pattern_to_output.end())
-            ov::copy_runtime_info({pattern_to_output.at(mul_2_1).get_node_shared_ptr()}, gelu);
-        if (pattern_to_output.find(mul_2_2) != pattern_to_output.end())
-            ov::copy_runtime_info({pattern_to_output.at(mul_2_2).get_node_shared_ptr()}, gelu);
-        if (pattern_to_output.find(mul_3_1) != pattern_to_output.end())
-            ov::copy_runtime_info({pattern_to_output.at(mul_3_1).get_node_shared_ptr()}, gelu);
-        if (pattern_to_output.find(mul_3_2) != pattern_to_output.end())
-            ov::copy_runtime_info({pattern_to_output.at(mul_3_2).get_node_shared_ptr()}, gelu);
+        std::vector<std::shared_ptr<ov::Node>> pattern_nodes =
+            {pow, mul_0, mul_1, tanh, add_0, add_1, mul_2_1, mul_2_2, mul_3_1, mul_3_2};
+        std::vector<std::shared_ptr<ov::Node>> cp_rt_info_nodes;
+        for (const auto& pattern_node : pattern_nodes) {
+            if (pattern_to_output.count(pattern_node)) {
+                cp_rt_info_nodes.push_back(pattern_node);
+            }
+        }
+        ov::copy_runtime_info(cp_rt_info_nodes, gelu);
 
         ov::replace_node(m.get_match_root(), gelu);
         return true;
