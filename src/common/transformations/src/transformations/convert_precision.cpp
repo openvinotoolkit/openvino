@@ -220,7 +220,7 @@ bool convert_function_precision(const std::shared_ptr<Model>& f,
     // otherwise we insert Convert operation.
     auto ops = f->get_ordered_ops();
     for (auto& node : ops) {
-        if ((skip_precision_sensitive && fp16_compression_is_disabled(node) && has_fp16_compression))
+        if (skip_precision_sensitive && fp16_compression_is_disabled(node) && has_fp16_compression)
             continue;
         is_changed = convert_node_input_precision(node, precisions, type_to_extend) || is_changed;
     }
@@ -1000,7 +1000,7 @@ bool extend_select_type(const std::shared_ptr<ov::Node>& node, const precisions_
         type_relaxed->set_origin_input_type(ov::element::boolean, 0);
         return true;
     } else if (auto casted = ov::as_type_ptr<ov::op::v1::Select>(node)) {
-        if (casted->input(0).get_element_type() != ov::element::boolean) {
+        if (casted->get_input_source_output(0).get_element_type() != ov::element::boolean) {
             auto relaxed_op =
                 std::make_shared<op::TypeRelaxed<ov::op::v1::Select>>(*casted,
                                                                       ov::element::TypeVector{ov::element::boolean},
