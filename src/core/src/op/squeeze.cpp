@@ -35,6 +35,20 @@ SqueezeBase::SqueezeBase(const Output<Node>& data) : Op({data}) {
     constructor_validate_and_infer_types();
 }
 
+bool SqueezeBase::evaluate_lower(TensorVector& output_values) const {
+    OV_OP_SCOPE(util_SqueezeBase_evaluate_lower);
+    return validate::axes_has_and_set_bound(*this) && default_lower_bound_evaluator(this, output_values);
+}
+
+bool SqueezeBase::evaluate_upper(TensorVector& output_values) const {
+    OV_OP_SCOPE(util_SqueezeBase_evaluate_upper);
+    return validate::axes_has_and_set_bound(*this) && default_upper_bound_evaluator(this, output_values);
+}
+
+bool SqueezeBase::evaluate_symbol(TensorSymbolVector& output_symbols) const {
+    return validate::axes_has_and_set_bound(*this) && ov::util::default_symbol_evaluator(this, output_symbols);
+}
+
 bool SqueezeBase::can_constant_fold(const OutputVector& inputs_values) const {
     return get_output_partial_shape(0).is_static() && !is_const_fold_disabled();
 }
@@ -126,21 +140,6 @@ bool Squeeze::has_evaluate() const {
     return (get_input_size() < 2) || validate_axes_type(get_input_element_type(1));
 }
 
-bool Squeeze::evaluate_lower(TensorVector& output_values) const {
-    OV_OP_SCOPE(v0_Squeeze_evaluate_lower);
-    return validate::axes_has_and_set_bound(*this) && default_lower_bound_evaluator(this, output_values);
-}
-
-bool Squeeze::evaluate_upper(TensorVector& output_values) const {
-    OV_OP_SCOPE(v0_Squeeze_evaluate_upper);
-    return validate::axes_has_and_set_bound(*this) && default_upper_bound_evaluator(this, output_values);
-}
-
-bool Squeeze::evaluate_symbol(TensorSymbolVector& output_symbols) const {
-    return validate::axes_has_and_set_bound(*this) && ov::util::default_symbol_evaluator(this, output_symbols);
-}
-
-
 }  // namespace v0
 
 namespace v15 {
@@ -210,20 +209,6 @@ bool Squeeze::has_evaluate() const {
     };
 
     return (get_input_size() < 2) || validate_axes_type(get_input_element_type(1));
-}
-
-bool Squeeze::evaluate_lower(TensorVector& output_values) const {
-    OV_OP_SCOPE(v15_Squeeze_evaluate_lower);
-    return validate::axes_has_and_set_bound(*this) && default_lower_bound_evaluator(this, output_values);
-}
-
-bool Squeeze::evaluate_upper(TensorVector& output_values) const {
-    OV_OP_SCOPE(v15_Squeeze_evaluate_upper);
-    return validate::axes_has_and_set_bound(*this) && default_upper_bound_evaluator(this, output_values);
-}
-
-bool Squeeze::evaluate_symbol(TensorSymbolVector& output_symbols) const {
-    return validate::axes_has_and_set_bound(*this) && ov::util::default_symbol_evaluator(this, output_symbols);
 }
 
 bool Squeeze::visit_attributes(AttributeVisitor& visitor) {

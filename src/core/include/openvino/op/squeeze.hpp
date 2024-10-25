@@ -28,9 +28,9 @@ public:
     // void validate_and_infer_types() override;
     // bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     // bool has_evaluate() const override;
-    // bool evaluate_lower(TensorVector& outputs) const override;
-    // bool evaluate_upper(TensorVector& outputs) const override;
-    // bool evaluate_symbol(TensorSymbolVector& output_symbols) const override;
+    bool evaluate_lower(TensorVector& outputs) const override;
+    bool evaluate_upper(TensorVector& outputs) const override;
+    bool evaluate_symbol(TensorSymbolVector& output_symbols) const override;
     bool can_constant_fold(const OutputVector& inputs_values) const override;
     bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values) override;
 
@@ -58,9 +58,6 @@ public:
     void validate_and_infer_types() override;
     bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
-    bool evaluate_lower(TensorVector& outputs) const override;
-    bool evaluate_upper(TensorVector& outputs) const override;
-    bool evaluate_symbol(TensorSymbolVector& output_symbols) const override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
@@ -87,9 +84,6 @@ public:
     void validate_and_infer_types() override;
     bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
-    bool evaluate_lower(TensorVector& outputs) const override;
-    bool evaluate_upper(TensorVector& outputs) const override;
-    bool evaluate_symbol(TensorSymbolVector& output_symbols) const override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
