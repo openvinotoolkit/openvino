@@ -47,7 +47,7 @@ torch.manual_seed(0)
 
 
 class TestTimmConvertModel(TestTorchConvertModel):
-    @retry(3, exceptions=(OSError,), delay=1)
+    @retry(3, exceptions=(OSError,), delay=5)
     def load_model(self, model_name, model_link):
         m = timm.create_model(model_name, pretrained=True)
         cfg = timm.get_pretrained_cfg(model_name)
