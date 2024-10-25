@@ -72,7 +72,7 @@ private:
     std::pair<uint64_t, uint64_t> m_state {0lu, 0lu};
 
     VectorDims m_out_shape = {};
-    uint64_t m_out_el_num = 1lu;
+    uint64_t m_output_elements_count = 1lu;
     OutputType m_min_val;
     OutputType m_max_val;
     OutputType m_range_val;
@@ -92,13 +92,12 @@ private:
     };
 
     struct MersenneTwisterThreadParams {
-        uint64_t elements_to_generate = 0lu;
+        uint64_t state_work = 0lu;
         uint64_t src_start_idx = 0lu;
         uint64_t dst_start_idx = 0lu;
-        uint64_t elements_generated_per_execution = 0lu;
     };
 
-    uint64_t m_threads_num = 0lu;
+    int32_t m_threads_num = 0;
 
     std::vector<PhiloxThreadParams> m_philox_thread_params;
     std::vector<MersenneTwisterThreadParams> m_mersenne_twister_thread_params;
@@ -107,15 +106,15 @@ private:
 
     ///// PHILOX /////
 
+    // Output elements number threshold to execute on one thread.
+    static constexpr uint64_t PHILOX_PARALLEL_EXECUTION_THRESHOLD = 1000lu;
+
     // Determines how many sequence elements of RNG sequence are skipped between runs.
     // 256 is chosen for parity with Tensorflow.
     static constexpr uint64_t SKIP_CONST = 256lu;
 
     // Philox algorithm returns 4 elements of RNG sequence per each invocation
     static constexpr uint64_t PHILOX_GROUP_SIZE = 4lu;
-
-    // Output elements number threshold to execute on one thread.
-    static constexpr uint64_t PHILOX_PARALLEL_EXECUTION_THRESHOLD = 1000lu;
 
     // Used to parallelize state generation
     uint64_t m_skip_count = 0lu;
@@ -128,26 +127,10 @@ private:
 
     ///// MERSENNE TWISTER /////
 
-    // Mersenne Twister algorithm standardized to return 4 elements of RNG sequence per each invocation
-    static constexpr uint64_t MERSENNE_TWISTER_GROUP_SIZE = 4lu;
-
-    // Output elements number threshold to execute on one thread.
-    static constexpr uint64_t MERSENNE_TWISTER_PARALLEL_EXECUTION_THRESHOLD = 1000lu;
-
-    // Each sub-run of Mersenne Twister generates 624-sized state of 32 bit numbers, no parallelization.
-    // Then a pair of 32 bit numbers are consumed to generate output data, which can be parallelized.
-    // Therefore, the maximum number of threads is 624 / 2 = 312
-    static constexpr uint64_t MERSENNE_TWISTER_MAXIMUM_THREADS_THRESHOLD = 312lu;
-
     // PyTorch reduces the execution time when generating 64-bit numbers when the range is below max value of uint32_t
-    bool m_mersenne_twister_optimization_enabled = false;
-
-    // Number of random elements generated per thread.
-    uint64_t m_elements_generated = 0lu;
-
-    // Number of uint32s consumed to generate one output of the requested type.
-    uint64_t m_elements_consumed_per_one_output = 0lu;
-
+    // To reduce variable use, value of 'true' denotes the case in which for every uint32_t a single random value is generated
+    // for any dtype. Therefore, value of 'false' occurs only when dtype is int64 AND the range is above uint32_t.
+    bool m_mersenne_twister_optimization_enabled = true;
 
     void prepareMersenneTwisterParams();
 

@@ -37,13 +37,8 @@ struct MersenneTwisterGeneratorCallArgs {
     const void* state_ptr;
     const void* min_ptr;
     const void* range_ptr;
-    uint64_t state_id = 0lu;
-    uint64_t state_shift = 0lu;
-    uint64_t step = 0lu;
     uint64_t work_amount = 0lu;
     uint64_t elements_remaining = 0lu;
-    bool optimization_enabled = false;
-    uint32_t out_data_type = 0u;
 };
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>

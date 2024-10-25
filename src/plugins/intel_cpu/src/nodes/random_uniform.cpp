@@ -140,10 +140,10 @@ bool RandomUniform::needPrepareParams() const {
 
 void RandomUniform::prepareParams() {
     m_out_shape = getDstMemoryAtPort(0)->getShape().getStaticDims();
-    m_out_el_num = std::accumulate(m_out_shape.begin(), m_out_shape.end(), 1lu, std::multiplies<Dim>());
+    m_output_elements_count = std::accumulate(m_out_shape.begin(), m_out_shape.end(), 1lu, std::multiplies<Dim>());
 
     if (m_algo == PHILOX) {
-        m_skip_count = m_out_el_num * SKIP_CONST;
+        m_skip_count = m_output_elements_count * SKIP_CONST;
         preparePhiloxParams();
     } else if (m_algo == MERSENNE_TWISTER) {
         prepareMersenneTwisterParams();
@@ -165,11 +165,11 @@ void RandomUniform::execute(dnnl::stream strm) {
     auto data = getDstDataAtPort(0);
 
     if (m_algo == PHILOX) {
-        m_state = computePhilox(data, m_out_el_num, m_state);
+        m_state = computePhilox(data, m_output_elements_count, m_state);
     } else if (m_algo == MERSENNE_TWISTER) {
-        computeMersenneTwister(data, m_out_el_num);
+        computeMersenneTwister(data, m_output_elements_count);
     } else if (m_algo == STL) {
-        computeStl(data, m_out_el_num);
+        computeStl(data, m_output_elements_count);
     } else {
         THROW_CPU_NODE_ERR("does not support the selected algorithm.");
     }
@@ -281,7 +281,7 @@ void RandomUniform::initEdgeValues(OutputType& dst, const void* src, const eleme
 }
 
 void RandomUniform::preparePhiloxParams() {
-    if (m_out_el_num < PHILOX_PARALLEL_EXECUTION_THRESHOLD) {
+    if (m_output_elements_count < PHILOX_PARALLEL_EXECUTION_THRESHOLD) {
         m_threads_num = 1;
     } else {
         m_threads_num = parallel_get_max_threads();
@@ -295,14 +295,14 @@ void RandomUniform::preparePhiloxParams() {
         if (m_jit_kernel) {
 #if defined(OPENVINO_ARCH_X86_64)
             const auto block_size = (m_jit_kernel->getVectorLen() / m_output_prc.size()) * 2;
-            const auto blocks_num = (m_out_el_num + block_size - 1) / block_size;
+            const auto blocks_num = (m_output_elements_count + block_size - 1) / block_size;
             const auto blocks_per_thr = (blocks_num + nthr - 1) / nthr;
 
             start = ithr * blocks_per_thr * block_size;
             end = (ithr + 1) * blocks_per_thr * block_size;
 #endif // OPENVINO_ARCH_X86_64
         } else {
-            const auto groups_num = (m_out_el_num + PHILOX_GROUP_SIZE - 1) / PHILOX_GROUP_SIZE;
+            const auto groups_num = (m_output_elements_count + PHILOX_GROUP_SIZE - 1) / PHILOX_GROUP_SIZE;
             const auto groups_per_thr = (groups_num + nthr - 1) / nthr;
 
             start = ithr * groups_per_thr * PHILOX_GROUP_SIZE;
@@ -311,8 +311,8 @@ void RandomUniform::preparePhiloxParams() {
             params.step = m_output_prc.size() > 4 ? 2 : 4;
         }
 
-        if (end > m_out_el_num) {
-            end = m_out_el_num;
+        if (end > m_output_elements_count) {
+            end = m_output_elements_count;
         }
         if (start > end) {
             start = end;
@@ -324,45 +324,55 @@ void RandomUniform::preparePhiloxParams() {
 }
 
 void RandomUniform::prepareMersenneTwisterParams() {
-    if (m_out_el_num < MERSENNE_TWISTER_PARALLEL_EXECUTION_THRESHOLD) {
-        m_threads_num = 1;
+    
+    m_threads_num = parallel_get_max_threads();
+    int32_t uint_storage_capacity_per_thread = 1;
+    if (m_jit_kernel) {
+#if defined(OPENVINO_ARCH_X86_64)
+        uint_storage_capacity_per_thread = m_jit_kernel->getVectorLen() / 4;
+        const auto maximum_jit_threads = MERSENNE_STATE_N / uint_storage_capacity_per_thread;
+        m_threads_num = std::min(m_threads_num, maximum_jit_threads);
+#endif
     } else {
-        m_threads_num = parallel_get_max_threads();
-        if (m_threads_num > MERSENNE_TWISTER_MAXIMUM_THREADS_THRESHOLD) {
-            m_threads_num = MERSENNE_TWISTER_MAXIMUM_THREADS_THRESHOLD;
-        }
+        // Each thread processes a pair of uints, generating either 1 or 2 outputs
+        uint_storage_capacity_per_thread = 2;
+        const auto maximum_threads = MERSENNE_STATE_N / uint_storage_capacity_per_thread;
+        m_threads_num = std::min(m_threads_num, maximum_threads);
     }
     m_mersenne_twister_thread_params.resize(m_threads_num);
+    m_mersenne_twister_optimization_enabled = !(m_output_prc == element::i64 && (m_max_val.i64 - m_min_val.i64) > std::numeric_limits<uint32_t>::max());
+    
+    const auto thread_offset = static_cast<float>(MERSENNE_STATE_N) / static_cast<float>(m_threads_num) / uint_storage_capacity_per_thread;
+    const auto byte_offset =  m_output_prc.size() * (m_mersenne_twister_optimization_enabled ? 1 : 2);
+    
 
-    if (m_output_prc == element::i64) {
-        m_mersenne_twister_optimization_enabled = m_min_val.i64 <= std::numeric_limits<uint32_t>::max() && m_max_val.i64 <= std::numeric_limits<uint32_t>::max();
-    }
-
-    const auto thread_offset = static_cast<float>(MERSENNE_STATE_N) / static_cast<float>(m_threads_num);
-    m_elements_generated = m_output_prc.size() > 4 && !m_mersenne_twister_optimization_enabled ? 2 : 4;
-    m_elements_consumed_per_one_output = m_output_prc.size() > 4 && !m_mersenne_twister_optimization_enabled ? 2 : 1;
-
-    parallel_nt(m_threads_num, [&](const int ithr, const int nthr) {
+    parallel_nt(m_threads_num, [&](int ithr, int nthr) {
         auto& params = m_mersenne_twister_thread_params[ithr];
 
-        auto start_f = ithr * thread_offset;
-        auto end_f = (ithr + 1) * thread_offset;
+        auto approx_start = thread_offset * static_cast<float>(ithr);
+        auto approx_end = thread_offset * (static_cast<float>(ithr) + 1);
 
-        auto start = static_cast<uint64_t>(std::floor(start_f));
-        auto end = static_cast<uint64_t>(std::floor(end_f));  
+        auto state_start = static_cast<uint64_t>(std::floor(approx_start)) * static_cast<uint64_t>(uint_storage_capacity_per_thread);
+        auto state_end = static_cast<uint64_t>(std::floor(approx_end)) * static_cast<uint64_t>(uint_storage_capacity_per_thread);
+        auto state_work = (state_end - state_start) / uint_storage_capacity_per_thread;
 
-        if (end > m_out_el_num) {
-            end = m_out_el_num;
+        if (state_end > m_output_elements_count || ithr == nthr - 1) {
+            state_end = m_output_elements_count;
         }
 
-        if (start > end) {
-            start = end;
+        if (state_start > state_end) {
+            state_start = state_end;
         }
 
-        params.src_start_idx = start;
-        params.dst_start_idx = start * m_output_prc.size();
-        params.elements_to_generate = end - start;
-        params.elements_generated_per_execution = m_elements_generated;
+        // Destination index is computed in bytes, therefore the state index 
+        // has to be divided by the byte size of dtype.
+        // in addition, when optimization is off, 2 values are consumed to create
+        // one output value, so the state index has to be divided by 2
+        auto destination_start = state_start / byte_offset;
+
+        params.src_start_idx = state_start;
+        params.dst_start_idx = destination_start;
+        params.state_work = state_work;
     });
 }
 
@@ -517,7 +527,7 @@ inline void convertToOutputTypePhilox(const uint32_t* in,
 
 }  // namespace
 
-std::pair<uint64_t, uint64_t> RandomUniform::computePhilox(void* out, size_t out_el_num, const std::pair<uint64_t, uint64_t>& prev_state) {
+std::pair<uint64_t, uint64_t> RandomUniform::computePhilox(void* out, size_t output_elements_count, const std::pair<uint64_t, uint64_t>& prev_state) {
     // When both seed values are equal to zero RandomUniform should generate non-deterministic sequence.
     if (m_global_seed == 0lu && m_op_seed == 0lu) {
         std::srand(static_cast<unsigned int>(std::time(nullptr)));
@@ -526,7 +536,6 @@ std::pair<uint64_t, uint64_t> RandomUniform::computePhilox(void* out, size_t out
 
     uint64_t n_state = prev_state.first;
     uint64_t counter_state = prev_state.second;
-
     uint64_t counter = counter_state > 0 ? counter_state : m_op_seed;
 
     auto out_u8 = reinterpret_cast<uint8_t*>(out);
@@ -605,51 +614,35 @@ std::pair<uint64_t, uint64_t> RandomUniform::computePhilox(void* out, size_t out
 
 namespace {
 
-static constexpr size_t SIZE_FOUR = 4;
-static constexpr size_t SIZE_TWO = 2;
-
 uint32_t twist(uint32_t u, uint32_t v) {
     return (((u & 0x80000000) | (v & 0x7fffffff)) >> 1) ^ (v & 1 ? 0x9908b0df : 0);
 }
 
-inline void next_mersenne_state(uint32_t* mersenne_state) {
-    auto* current_state_ptr = mersenne_state;
+inline void next_mersenne_state(uint32_t* mersenne_state_ptr) {
+    auto* current_state_ptr = mersenne_state_ptr;
     for (int j = MERSENNE_STATE_N - MERSENNE_STATE_M + 1; --j; current_state_ptr++) {
         *current_state_ptr = current_state_ptr[MERSENNE_STATE_M] ^ twist(current_state_ptr[0], current_state_ptr[1]);
     }
 
-    for (int j = MERSENNE_STATE_M; --j; mersenne_state++) {
+    for (int j = MERSENNE_STATE_M; --j; mersenne_state_ptr++) {
         *current_state_ptr = current_state_ptr[MERSENNE_STATE_M - MERSENNE_STATE_N] ^ twist(current_state_ptr[0], current_state_ptr[1]);
     }
 
-    *current_state_ptr = current_state_ptr[MERSENNE_STATE_M - MERSENNE_STATE_N] ^ twist(current_state_ptr[0], mersenne_state[0]);
+    *current_state_ptr = current_state_ptr[MERSENNE_STATE_M - MERSENNE_STATE_N] ^ twist(current_state_ptr[0], mersenne_state_ptr[0]);
 }
 
-void runMersenneTwister(uint32_t* random_numbers, uint32_t* mersenne_state, uint64_t mersenne_state_start_idx, uint64_t work_id) {
-    // Unwarped loop for optimal performance, standardized to 4 random uint32s.
-    random_numbers[0] = mersenne_state[mersenne_state_start_idx + 4 * work_id];
+void runMersenneTwister(uint32_t* random_numbers, uint32_t* state_ptr) {
+    random_numbers[0] = state_ptr[0];
     random_numbers[0] ^= (random_numbers[0] >> 11);
     random_numbers[0] ^= (random_numbers[0] << 7) & 0x9d2c5680;
     random_numbers[0] ^= (random_numbers[0] << 15) & 0xefc60000;
     random_numbers[0] ^= (random_numbers[0] >> 18);
 
-    random_numbers[1] = mersenne_state[mersenne_state_start_idx + 4 * work_id + 1];
+    random_numbers[1] = state_ptr[1];
     random_numbers[1] ^= (random_numbers[1] >> 11);
     random_numbers[1] ^= (random_numbers[1] << 7) & 0x9d2c5680;
     random_numbers[1] ^= (random_numbers[1] << 15) & 0xefc60000;
     random_numbers[1] ^= (random_numbers[1] >> 18);
-
-    random_numbers[2] = mersenne_state[mersenne_state_start_idx + 4 * work_id + 2];
-    random_numbers[2] ^= (random_numbers[2] >> 11);
-    random_numbers[2] ^= (random_numbers[2] << 7) & 0x9d2c5680;
-    random_numbers[2] ^= (random_numbers[2] << 15) & 0xefc60000;
-    random_numbers[2] ^= (random_numbers[2] >> 18);
-
-    random_numbers[3] = mersenne_state[mersenne_state_start_idx + 4 * work_id + 3];
-    random_numbers[3] ^= (random_numbers[3] >> 11);
-    random_numbers[3] ^= (random_numbers[3] << 7) & 0x9d2c5680;
-    random_numbers[3] ^= (random_numbers[3] << 15) & 0xefc60000;
-    random_numbers[3] ^= (random_numbers[3] >> 18);
 }
 
 inline void convertToOutputTypeMersenne(const uint32_t* in,
@@ -661,7 +654,7 @@ inline void convertToOutputTypeMersenne(const uint32_t* in,
     const auto mask = static_cast<uint32_t>((uint64_t(1) << std::numeric_limits<float>::digits) - 1);
     const auto divisor = static_cast<float>(1) / (uint64_t(1) << std::numeric_limits<float>::digits);
 
-    for (size_t i = 0lu; i < std::min(SIZE_FOUR, elements_remaining); i++) {
+    for (size_t i = 0lu; i < std::min(2ul, elements_remaining); i++) {
         const float ret = (in[i] & mask) * divisor;
         out[i] = ret * range + min;
     }
@@ -676,7 +669,7 @@ inline void convertToOutputTypeMersenne(const uint32_t* in,
     const auto mask = static_cast<uint32_t>((uint64_t(1) << std::numeric_limits<float16>::digits) - 1);
     const auto divisor = static_cast<float>(1) / (uint64_t(1) << std::numeric_limits<float16>::digits);
 
-    for (size_t i = 0lu; i < std::min(SIZE_FOUR, elements_remaining); i++) {
+    for (size_t i = 0lu; i < std::min(2ul, elements_remaining); i++) {
         const float ret = (in[i] & mask) * divisor;
         out[i] = ret * range + min;
     }
@@ -691,7 +684,7 @@ inline void convertToOutputTypeMersenne(const uint32_t* in,
     const auto mask = static_cast<uint32_t>((1UL << 8) - 1);
     const auto divisor = static_cast<float>(1) / (1UL << 8);
 
-    for (size_t i = 0lu; i < std::min(SIZE_FOUR, elements_remaining); i++) {
+    for (size_t i = 0lu; i < std::min(2ul, elements_remaining); i++) {
         const float ret = (in[i] & mask) * divisor;
         out[i] = ret * range + min;
     }
@@ -703,7 +696,7 @@ inline void convertToOutputTypeMersenne(const uint32_t* in,
                                 int32_t* out,
                                 size_t elements_remaining,
                                 bool optimization_enabled) {
-    for (size_t i = 0lu; i < std::min(SIZE_FOUR, elements_remaining); i++) {
+    for (size_t i = 0lu; i < std::min(2ul, elements_remaining); i++) {
         out[i] = static_cast<int32_t>(in[i] % range + min);
     }
 }
@@ -715,85 +708,76 @@ inline void convertToOutputTypeMersenne(const uint32_t* in,
                                 size_t elements_remaining,
                                 bool optimization_enabled) {
     if (optimization_enabled) {
-        for (size_t i = 0lu; i < std::min(SIZE_FOUR, elements_remaining); i++) {
+        for (size_t i = 0lu; i < std::min(2ul, elements_remaining); i++) {
             out[i] = static_cast<int32_t>(in[i] % range + min);
         }
     } else {
-        for (size_t i = 0lu; i < std::min(SIZE_TWO, elements_remaining); i++) {
-            out[i] = static_cast<int64_t>(((static_cast<uint64_t>(in[i * 2]) << 32) + in[i * 2 + 1]) % range + min);
-        }       
+        // Guaranteed to be one element since optimization_enabled is false
+        out[0] = static_cast<int64_t>(((static_cast<uint64_t>(in[0]) << 32) + in[1]) % range + min);    
     }
 }
 } // namespace
 
-void RandomUniform::computeMersenneTwister(void* out, size_t out_el_num) {
+void RandomUniform::computeMersenneTwister(void* out, size_t output_elements_count) {
     // When both seed values are equal to zero RandomUniform should generate non-deterministic sequence.
     if (m_global_seed == 0lu && m_op_seed == 0lu) {
         std::srand(static_cast<unsigned int>(std::time(nullptr)));
         m_global_seed = std::rand();
     }
 
-    auto out_u8 = reinterpret_cast<uint8_t*>(out);
-    uint32_t mersenne_state[MERSENNE_STATE_N];
+    const auto elements_generated = m_mersenne_twister_optimization_enabled ? 2 : 1;
+    const auto elements_consumed_per_one_output = m_mersenne_twister_optimization_enabled ? 1 : 2;
+    const auto outputs_generated_per_state = MERSENNE_STATE_N / elements_consumed_per_one_output;
+    const auto state_regenerations_required = static_cast<uint64_t>(std::ceil(static_cast<float>(output_elements_count) / static_cast<float>(outputs_generated_per_state)));
+    const auto byte_offset = MERSENNE_STATE_N * m_output_prc.size();
 
-    // m_elements_generated will always be an even number
-    const auto outputs_generated_per_state = MERSENNE_STATE_N / m_elements_generated;
-    const auto state_regenerations_required = static_cast<uint64_t>(std::ceil(static_cast<float>(out_el_num) / static_cast<float>(outputs_generated_per_state)));
+    uint32_t mersenne_state_ptr[MERSENNE_STATE_N];
+    auto output_byte_ptr = reinterpret_cast<uint8_t*>(out);
 
     if (m_jit_kernel) {
 #if defined(OPENVINO_ARCH_X86_64)
-        for (uint64_t state_id = 0; state_id < state_regenerations_required; ++state_id) {
-            next_mersenne_state(mersenne_state);
+        for (uint64_t i = 0; i < state_regenerations_required; ++i) {
+            next_mersenne_state(mersenne_state_ptr);
             parallel_nt(m_threads_num, [&](const int ithr, const int nthr) {
                 auto& params = m_mersenne_twister_thread_params[ithr];
-                if (params.elements_to_generate == 0lu) {
+                if (params.state_work == 0lu) {
                     return;
                 }
-                auto el_remin = out_el_num - MERSENNE_STATE_N / m_elements_generated * state_id - ithr * m_elements_generated;
 
                 kernel::random_uniform::MersenneTwisterGeneratorCallArgs args;
-
-                args.dst_ptr     = (out_u8 + state_id * MERSENNE_STATE_N * m_output_prc.size() + params.dst_start_idx); // incorrect?
-                args.state_ptr   = &mersenne_state;
+                args.state_ptr   = mersenne_state_ptr + params.src_start_idx;
+                args.dst_ptr     = output_byte_ptr + params.dst_start_idx + i * byte_offset;
                 args.min_ptr     = &m_min_val;
                 args.range_ptr   = &m_range_val;
-                args.state_id    = state_id;
-                args.state_shift = params.src_start_idx;
-                args.step        = params.elements_generated_per_execution;
-                args.work_amount = params.dst_start_idx;
-                args.elements_remaining = el_remin;
-                args.optimization_enabled = m_mersenne_twister_optimization_enabled;
+                args.work_amount = params.state_work; // how many times is needed to access the mersenne state, given that each access fills up the vmm
+                args.elements_remaining = output_elements_count - outputs_generated_per_state * i - elements_generated * ithr;
 
                 (*m_jit_kernel)(&args);
             });
         }
 #endif // OPENVINO_ARCH_X86_64
     } else {
-        for (uint64_t state_id = 0; state_id < state_regenerations_required; ++state_id) {
-            next_mersenne_state(mersenne_state);
-            auto thread_body = [&](const int ithr, const int nthr) {
+        for (uint64_t i = 0; i < state_regenerations_required; ++i) {
+            next_mersenne_state(mersenne_state_ptr);
+            parallel_nt(m_threads_num, [&](const int ithr, const int nthr) {
                 auto& params = m_mersenne_twister_thread_params[ithr];
-                
-                auto out_state_shift = state_id * MERSENNE_STATE_N * m_output_prc.size();
-                auto out_shifted_ptr = out_u8 + out_state_shift + params.dst_start_idx;
-                auto work_amount = static_cast<int64_t>(params.elements_to_generate);
-                auto mersenne_state_start_idx = params.src_start_idx;
-                auto step = params.elements_generated_per_execution;
-                auto el_remain = out_el_num - MERSENNE_STATE_N / m_elements_generated * state_id - ithr * m_elements_generated;
-    
-                if (work_amount == 0lu) {
+                if (params.state_work == 0lu) {
                     return;
                 }
 
-                uint32_t random_numbers[4];
+                uint32_t random_numbers[2];
+                auto state_ptr = &mersenne_state_ptr[params.src_start_idx];
+                auto dst_ptr = &output_byte_ptr[params.dst_start_idx + i * byte_offset];
+                auto work_amount = static_cast<int64_t>(params.state_work);
+                auto elements_remaining = output_elements_count - outputs_generated_per_state * i - elements_generated * ithr;
 
 #define EXEC_CASE(P)                                                                                                                      \
                 case element::P: {                                                                                                        \
-                    auto output_with_type_ptr = reinterpret_cast<element_type_traits<element::P>::value_type *>(out_shifted_ptr);         \
-                    for (auto work_id = 0; work_id < work_amount; work_id++, output_with_type_ptr += step) {                              \
-                        runMersenneTwister(random_numbers, mersenne_state, mersenne_state_start_idx, work_id);                            \
-                        convertToOutputTypeMersenne(random_numbers, m_min_val.P, m_range_val.P, output_with_type_ptr,                     \
-                                                    el_remain, m_mersenne_twister_optimization_enabled);                                  \
+                    auto dst_dtype_ptr = reinterpret_cast<element_type_traits<element::P>::value_type *>(dst_ptr);                        \
+                    for (auto j = 0; j < work_amount; j++, dst_dtype_ptr += elements_generated) {                                         \
+                        runMersenneTwister(random_numbers, state_ptr);                                                                    \
+                        convertToOutputTypeMersenne(random_numbers, m_min_val.P, m_range_val.P, dst_dtype_ptr,                            \
+                                                    elements_remaining, m_mersenne_twister_optimization_enabled);                         \
                     }                                                                                                                     \
                 } break;
 
@@ -805,11 +789,10 @@ void RandomUniform::computeMersenneTwister(void* out, size_t out_el_num) {
                     EXEC_CASE(i64)
                     default: THROW_CPU_NODE_ERR("Unsupported type of RandomUniform: ", m_output_prc.to_string());
                 }
-#undef EXEC_CASE
-            };
-            parallel_nt(m_threads_num, thread_body);
+            });
         }
     }
+#undef EXEC_CASE
 }
 
 ////////////// STL algo ///////////////
