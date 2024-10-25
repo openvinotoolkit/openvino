@@ -11,6 +11,7 @@
 
 #include "scaled_dot_product_attention_shape_inference.hpp"
 #include "intel_gpu/op/sdpa.hpp"
+#include "ov_ops/dynamic_quantize.hpp"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(scaled_dot_product_attention)

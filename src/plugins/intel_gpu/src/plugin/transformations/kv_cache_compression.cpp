@@ -8,9 +8,9 @@
 #include "intel_gpu/op/indirect_sdpa.hpp"
 #include "intel_gpu/op/read_value.hpp"
 #include "intel_gpu/op/read_values.hpp"
-#include "intel_gpu/op/dynamic_quantize.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include "ov_ops/dynamic_quantize.hpp"
 
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/rt_info.hpp"
@@ -44,10 +44,13 @@ std::vector<ov::op::util::VariableInfo> get_variable_infos(const ov::op::util::V
     // Add initial data variable info
     infos.push_back(data_variable_info);
 
+
     // Infer DQ shapes
-    ov::intel_gpu::op::DynamicQuantize dq;
+    auto output_storage_type = combine_scales_and_zp ? ov::op::internal::DynamicQuantize::OutputStorageType::InterleavedScalesZP
+                                                     : ov::op::internal::DynamicQuantize::OutputStorageType::Planar;
+    ov::op::internal::DynamicQuantize dq;
     auto dq_shapes =
-        ov::intel_gpu::op::DynamicQuantize::shape_infer(&dq, {data_variable_info.data_shape}, config, scales_zp_output_order, combine_scales_and_zp);
+        ov::op::internal::DynamicQuantize::shape_infer(&dq, {data_variable_info.data_shape}, config, output_storage_type, scales_zp_output_order);
 
     const auto variable_id = data_variable_info.variable_id;
     const auto scale_shape = dq_shapes[1];
@@ -79,10 +82,12 @@ std::shared_ptr<ov::intel_gpu::op::ReadValues>
     if (past_rv_node->get_input_size() == 0) {
         new_past_rv_node = std::make_shared<ov::intel_gpu::op::ReadValues>(past_rv_node->get_variable(), variable_infos);
     } else {
-        auto initializer_dq = std::make_shared<ov::intel_gpu::op::DynamicQuantize>(past_rv_node->get_input_node_shared_ptr(0),
-                                                                                   config,
-                                                                                   scales_zp_output_order,
-                                                                                   combine_scales_and_zp);
+        auto output_storage_type = combine_scales_and_zp ? ov::op::internal::DynamicQuantize::OutputStorageType::InterleavedScalesZP
+                                                         : ov::op::internal::DynamicQuantize::OutputStorageType::Planar;
+        auto initializer_dq = std::make_shared<ov::op::internal::DynamicQuantize>(past_rv_node->get_input_node_shared_ptr(0),
+                                                                                  config,
+                                                                                  output_storage_type,
+                                                                                  scales_zp_output_order);
         initializer_dq->set_friendly_name(past_rv_node->get_input_node_shared_ptr(0)->get_friendly_name() + "_dyn_quan");
         ov::copy_runtime_info(past_rv_node->get_input_node_shared_ptr(0), initializer_dq);
 

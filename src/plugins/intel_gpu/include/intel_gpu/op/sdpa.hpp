@@ -8,7 +8,7 @@
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/op/op.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
-#include "intel_gpu/op/dynamic_quantize.hpp"
+#include "ov_ops/dynamic_quantize.hpp"
 
 namespace ov {
 namespace intel_gpu {

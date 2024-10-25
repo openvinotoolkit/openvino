@@ -294,5 +294,4 @@ REGISTER_FACTORY(internal, SDPA);
 REGISTER_FACTORY(internal, IndirectSDPA);
 REGISTER_FACTORY(internal, RoPE);
 REGISTER_FACTORY(internal, DynamicQuantize);
-REGISTER_FACTORY(internal, DynamicQuantizeExtended);
 REGISTER_FACTORY(internal, PagedAttentionExtension);

@@ -7,7 +7,7 @@
 #include "openvino/op/op.hpp"
 #include "openvino/op/util/variable.hpp"
 #include "openvino/op/util/variable_extension.hpp"
-#include "intel_gpu/op/dynamic_quantize.hpp"
+#include "ov_ops/dynamic_quantize.hpp"
 
 namespace ov {
 namespace intel_gpu {

@@ -259,6 +259,7 @@ TEST_F(TransformationTestsF, KVCacheCompressionWithInitializers) {
         dq_config.scale_dt = ov::element::f16;
         dq_config.zp_dt = ov::element::f16;
         dq_config.group_sizes = { 1, 1, 1, UINT64_MAX };
+        auto output_storage_type = ov::op::internal::DynamicQuantize::OutputStorageType::InterleavedScalesZP;
 
         auto query = std::make_shared<ov::op::v0::Parameter>(element_type, input_shape);
         auto beam_idx = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{1});
@@ -270,7 +271,7 @@ TEST_F(TransformationTestsF, KVCacheCompressionWithInitializers) {
         auto key_variable = std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{{1, 32, -1, 80}, ov::element::f16, "v0"});
 
         auto key_initializer_dq =
-            std::make_shared<ov::intel_gpu::op::DynamicQuantize>(key_variable_initializer, dq_config, scales_zp_output_order, combine_scales_and_zp);
+            std::make_shared<ov::op::internal::DynamicQuantize>(key_variable_initializer, dq_config, output_storage_type, scales_zp_output_order);
         auto key_past_initializers = ov::OutputVector{ key_initializer_dq->output(0), key_initializer_dq->output(1) };
         auto key_past_compressed = std::make_shared<ov::intel_gpu::op::ReadValues>(key_past_initializers, key_variable, key_past_variable_infos);
         auto key_cache_inputs = ov::OutputVector{ key_past_compressed->output(0), key_current, beam_idx, key_past_compressed->output(1) };
@@ -290,7 +291,7 @@ TEST_F(TransformationTestsF, KVCacheCompressionWithInitializers) {
         auto value_variable = std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{{1, 32, -1, 80}, ov::element::f16, "v1"});
 
         auto value_initializer_dq =
-            std::make_shared<ov::intel_gpu::op::DynamicQuantize>(value_variable_initializer, dq_config, scales_zp_output_order, combine_scales_and_zp);
+            std::make_shared<ov::op::internal::DynamicQuantize>(value_variable_initializer, dq_config, output_storage_type, scales_zp_output_order);
         auto value_past_initializers = ov::OutputVector{ value_initializer_dq->output(0), value_initializer_dq->output(1) };
         auto value_past_compressed = std::make_shared<ov::intel_gpu::op::ReadValues>(value_past_initializers, value_variable, value_past_variable_infos);
         auto value_cache_inputs = ov::OutputVector{ value_past_compressed->output(0), value_current, beam_idx, value_past_compressed->output(1) };

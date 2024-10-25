@@ -34,12 +34,24 @@ struct QuantizationConfig {
 class TRANSFORMATIONS_API DynamicQuantize : public ov::op::Op {
 public:
     OPENVINO_OP("DynamicQuantize", "ie_internal_opset");
+
+    /**
+     * @brief Configuration for how Activations, Scales and Zero Points will be stored in output buffers:
+     * - Planar: Activations, Scales, and Zero Points are stored in independent buffers.
+     * - InterleavedScalesZP: Activations are stored in an independent buffer, while Scales and Zero Points (if any) are
+     *   combined in a separate buffer.
+     */
+    enum class OutputStorageType { Planar, InterleavedScalesZP, /* InterleavedActivationsScalesZP */ };
+
     DynamicQuantize() = default;
     /// \brief Constructs an DynamicQuantize operation.
     ///
     /// \param data Input tensor with data
     /// \param config Dynamic quantization configuration
-    DynamicQuantize(const Output<Node>& data, const QuantizationConfig& config);
+    DynamicQuantize(const Output<Node>& data,
+                    const QuantizationConfig& config,
+                    const OutputStorageType& output_storage = OutputStorageType::Planar,
+                    const std::vector<uint64_t>& scales_zp_output_order = {});
 
     void validate_and_infer_types() override;
 
@@ -57,13 +69,24 @@ public:
         return m_config;
     }
 
-    static std::vector<ov::PartialShape> shape_infer(const DynamicQuantize* op,
-                                                     const std::vector<ov::PartialShape>& input_shapes,
-                                                     const QuantizationConfig& config);
+    OutputStorageType get_output_storage_type() const {
+        return m_output_storage_type;
+    }
+
+    const std::vector<uint64_t>& get_scales_zp_output_order() const {
+        return m_scales_zp_output_order;
+    }
+
+    static std::vector<ov::PartialShape> shape_infer(
+        const DynamicQuantize* op,
+        const std::vector<ov::PartialShape>& input_shapes,
+        const QuantizationConfig& config,
+        const OutputStorageType& output_storage = OutputStorageType::Planar,
+        const std::vector<uint64_t>& scales_zp_output_order = {});
 
 protected:
-    DynamicQuantize(const Output<Node>& data, const QuantizationConfig& config, size_t outputs_number);
-
+    OutputStorageType m_output_storage_type;
+    std::vector<uint64_t> m_scales_zp_output_order;
     QuantizationConfig m_config;
 };
 

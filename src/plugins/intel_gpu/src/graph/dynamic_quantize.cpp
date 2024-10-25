@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/op/dynamic_quantize.hpp"
+#include "ov_ops/dynamic_quantize.hpp"
 #include "dynamic_quantize_inst.h"
 
 #include "primitive_type_base.h"
@@ -26,14 +26,16 @@ std::vector<layout> dynamic_quantize_inst::__calc_output_layouts(const layout &a
                                                                  const dynamic_quantize::QuantizationConfig& config,
                                                                  const std::vector<uint64_t>& scales_zp_output_order,
                                                                  const bool combine_scales_and_zp) {
-    ov::intel_gpu::op::DynamicQuantize op;
+    ov::op::internal::DynamicQuantize op;
     auto output_format = act_layout.format;
 
     std::vector<ShapeType> input_shapes = {
         act_layout.get<ShapeType>(),
     };
 
-    auto output_shapes = ov::intel_gpu::op::DynamicQuantize::shape_infer(&op, input_shapes, config, scales_zp_output_order, combine_scales_and_zp);
+    auto output_storage_type = combine_scales_and_zp ? ov::op::internal::DynamicQuantize::OutputStorageType::InterleavedScalesZP
+                                                     : ov::op::internal::DynamicQuantize::OutputStorageType::Planar;
+    auto output_shapes = ov::op::internal::DynamicQuantize::shape_infer(&op, input_shapes, config, output_storage_type, scales_zp_output_order);
 
     std::vector<layout> output_layouts = { layout(output_shapes[0], config.quantization_dt, output_format),
                                            layout(output_shapes[1], config.scale_dt, output_format) };

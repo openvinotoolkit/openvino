@@ -161,9 +161,12 @@ std::vector<ov::PartialShape> shape_infer(const KVCache* op,
     std::vector<ov::PartialShape> out_shapes = shape_infer(op, input_shapes);
 
     if (op->get_output_size() >= 3) {
-        ov::intel_gpu::op::DynamicQuantize op;
+        ov::op::internal::DynamicQuantize op;
+
+        auto output_storage_type = combine_scales_and_zp ? ov::op::internal::DynamicQuantize::OutputStorageType::InterleavedScalesZP
+                                                         : ov::op::internal::DynamicQuantize::OutputStorageType::Planar;
         auto quantized_data_shapes =
-            ov::intel_gpu::op::DynamicQuantize::shape_infer(&op, { input_shapes[1] }, config, scales_zp_output_order, combine_scales_and_zp);
+            ov::op::internal::DynamicQuantize::shape_infer(&op, { input_shapes[1] }, config, output_storage_type, scales_zp_output_order);
 
         const auto scales_concat_axis = 2;
         ov::PartialShape compression_scale_shape = input_shapes[3];
