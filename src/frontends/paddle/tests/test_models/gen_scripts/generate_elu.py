@@ -37,7 +37,6 @@ def elu(name: str, x, alpha=None, data_type='float32'):
 
 def main():
     data_type = 'float32'
-    data = np.array([1, 2, 5]).astype(data_type)
     data = np.random.randn(2, 3, 4).astype('float32')
     elu("elu", data)
 
