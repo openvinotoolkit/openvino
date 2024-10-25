@@ -7,7 +7,7 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 
 class TestSTFT(PytorchLayerTest):
-    def _prepare_input(self, win_length, signal_shape, rand_data=False, out=False, out_dtype="float32"):
+    def _prepare_input(self, win_length, signal_shape, rand_data=False, out_dtype="float32"):
         import numpy as np
 
         if rand_data:
