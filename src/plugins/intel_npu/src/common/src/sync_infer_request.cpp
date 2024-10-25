@@ -19,11 +19,9 @@ constexpr size_t BATCH_AXIS = 0;
 
 namespace intel_npu {
 
-SyncInferRequest::SyncInferRequest(const std::shared_ptr<const ICompiledModel>& compiledModel,
-                                   const std::shared_ptr<IGraph>& graph,
-                                   const Config& config)
+SyncInferRequest::SyncInferRequest(const std::shared_ptr<const ICompiledModel>& compiledModel, const Config& config)
     : _compiledModel(compiledModel),
-      _metadata(graph->get_metadata()),
+      _metadata(compiledModel->get_graph()->get_metadata()),
       _logger("SyncInferRequest", config.get<LOG_LEVEL>()),
       _userInputTensors(_metadata.inputs.size(), std::vector<ov::SoPtr<ov::ITensor>>(1, {nullptr})),
       _userOutputTensors(_metadata.outputs.size(), {nullptr}) {

@@ -79,5 +79,6 @@ if(TARGET ze_loader)
 
     # Support tests to run with ze_loader
     install(TARGETS ze_loader
+        RUNTIME DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL
         LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
 endif()

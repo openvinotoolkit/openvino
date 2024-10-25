@@ -8,21 +8,21 @@
 
 #include <ze_graph_ext.h>
 
-#include "intel_npu/common/iadapter.hpp"
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/icompiler.hpp"
+#include "izero_adapter.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
 namespace intel_npu {
 
-class CipGraph final : public IGraph {
+class PluginGraph final : public IGraph {
 public:
-    CipGraph(const std::shared_ptr<IAdapter>& adapter,
-             const ov::SoPtr<ICompiler>& compiler,
-             ze_graph_handle_t graphHandle,
-             NetworkMetadata metadata,
-             std::vector<uint8_t> compiledNetwork,
-             const Config& config);
+    PluginGraph(const std::shared_ptr<IZeroAdapter>& adapter,
+                const ov::SoPtr<ICompiler>& compiler,
+                ze_graph_handle_t graphHandle,
+                NetworkMetadata metadata,
+                std::vector<uint8_t> compiledNetwork,
+                const Config& config);
 
     CompiledNetwork export_blob() const override;
 
@@ -32,10 +32,10 @@ public:
 
     void initialize() override;
 
-    ~CipGraph() override;
+    ~PluginGraph() override;
 
 private:
-    std::shared_ptr<IAdapter> _adapter;
+    std::shared_ptr<IZeroAdapter> _adapter;
     const ov::SoPtr<ICompiler> _compiler;
     std::vector<uint8_t> _compiledNetwork;
 

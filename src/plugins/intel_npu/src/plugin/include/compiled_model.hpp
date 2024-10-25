@@ -7,7 +7,6 @@
 #include <optional>
 
 #include "intel_npu/common/icompiled_model.hpp"
-#include "intel_npu/common/igraph.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -52,6 +51,8 @@ public:
     void set_property(const ov::AnyMap& properties) override;
 
     ov::Any get_property(const std::string& name) const override;
+
+    const std::shared_ptr<IGraph>& get_graph() const override;
 
     const Config& get_config() const override;
 

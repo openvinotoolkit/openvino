@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "graph_transformations.hpp"
+#include "ir_serializer.hpp"
 
 #include <cstdint>
 #include <istream>

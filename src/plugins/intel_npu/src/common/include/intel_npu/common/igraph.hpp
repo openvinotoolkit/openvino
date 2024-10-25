@@ -13,6 +13,33 @@
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
 
 namespace intel_npu {
+
+/**
+ * @struct CompiledNetwork
+ * @brief Custom container for compiled network, used for export
+ * @var CompiledNetwork::data
+ * Pointer to the address of compiled network
+ * @var CompiledNetwork:size
+ * Size of the compiled network
+ * @var CompiledNetwork::ownedStorage
+ * Plugin owned compiled network storage that is required in case of a driver that
+ * doesn't support graph extension 1.7, as in this case plugin must create a copy of the compiled network.
+ * @note It's unsafe to store either data or size outside of the compiled network object as its destructor
+ * would release the owning container
+ */
+
+struct CompiledNetwork {
+    const uint8_t* data;
+    size_t size;
+    CompiledNetwork(const uint8_t* data, size_t size, std::vector<uint8_t> storage)
+        : data(data),
+          size(size),
+          ownedStorage(std::move(storage)) {}
+
+private:
+    std::vector<uint8_t> ownedStorage;
+};
+
 class IGraph : public std::enable_shared_from_this<IGraph> {
 public:
     IGraph(ze_graph_handle_t handle, NetworkMetadata metadata) : _handle(handle), _metadata(std::move(metadata)) {}
@@ -51,7 +78,7 @@ public:
         return _command_queue;
     }
 
-    void setWorkloadType(const ov::WorkloadType workloadType) const {
+    void set_workload_type(const ov::WorkloadType workloadType) const {
         ze_command_queue_workload_type_t zeWorkloadType;
         switch (workloadType) {
         case ov::WorkloadType::DEFAULT:
@@ -67,12 +94,8 @@ public:
         _command_queue->setWorkloadType(zeWorkloadType);
     }
 
-    void mutexLock() {
-        _mutex.lock();
-    }
-
-    void mutexUnlock() {
-        _mutex.unlock();
+    std::mutex& get_mutex() {
+        return _mutex;
     }
 
 protected:
@@ -84,6 +107,8 @@ protected:
 
     std::shared_ptr<CommandQueue> _command_queue;
 
+    // Used to protect zero pipeline creation in the graph. The pipeline should be created only once per graph when the
+    // first inference starts running
     std::mutex _mutex;
 };
 

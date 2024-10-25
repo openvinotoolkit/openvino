@@ -157,11 +157,10 @@ std::optional<size_t> ZeroInferRequest::get_batch_size(const NetworkMetadata& me
 //------------------------------------------------------------------------------
 ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
                                    const std::shared_ptr<const ICompiledModel>& compiledModel,
-                                   const std::shared_ptr<IGraph>& graph,
                                    const Config& config)
-    : SyncInferRequest(compiledModel, graph, config),
+    : SyncInferRequest(compiledModel, config),
       _initStructs(initStructs),
-      _graph(graph),
+      _graph(compiledModel->get_graph()),
       _config(config),
       _logger("ZeroInferRequest", config.get<LOG_LEVEL>()),
       _levelZeroInputTensors(_metadata.inputs.size(), std::vector<std::shared_ptr<ov::ITensor>>(1, nullptr)),
@@ -541,14 +540,16 @@ void ZeroInferRequest::infer_async() {
     _logger.debug("InferRequest::infer_async started");
     OV_ITT_TASK_CHAIN(ZERO_INFER, itt::domains::LevelZeroBackend, "infer_async", "start");
 
-    _graph->mutexLock();
-    if (!_pipelineIsCreated) {
-        OV_ITT_TASK_NEXT(ZERO_INFER, "create_pipeline");
-        create_pipeline();
+    {
+        std::lock_guard<std::mutex> lock(_graph->get_mutex());
 
-        _pipelineIsCreated = true;
+        if (!_pipelineIsCreated) {
+            OV_ITT_TASK_NEXT(ZERO_INFER, "create_pipeline");
+            create_pipeline();
+
+            _pipelineIsCreated = true;
+        }
     }
-    _graph->mutexUnlock();
 
     size_t inputIndex = 0;
     for (const auto& userTensor : _userInputTensors) {

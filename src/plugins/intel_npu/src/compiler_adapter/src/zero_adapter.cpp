@@ -63,15 +63,17 @@ ov::element::Type_t toOVElementType(const ze_graph_argument_precision_t zeElemen
 namespace intel_npu {
 
 template <typename TableExtension>
-ZeroAdapter<TableExtension>::ZeroAdapter(const std::shared_ptr<ZeroInitStructsHolder>& initStructs)
-    : _initStructs(initStructs),
-      _logger("ZeroAdapter", Logger::global().level()) {
-    ze_device_properties_t deviceProperties = {};
-    deviceProperties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
-    THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetProperties",
-                                zeDeviceGetProperties(_initStructs->getDevice(), &deviceProperties));
-    _groupOrdinal = zeroUtils::findGroupOrdinal(_initStructs->getDevice(), deviceProperties);
-}
+ZeroAdapter<TableExtension>::ZeroAdapter(ze_device_handle_t deviceHandle,
+                                         ze_context_handle_t zeContext,
+                                         ze_graph_dditable_ext_curr_t& graphDdiTableExt,
+                                         ze_command_queue_npu_dditable_ext_curr_t& commandQueueDdiTableExt,
+                                         uint32_t groupOrdinal)
+    : _zeContext(zeContext),
+      _deviceHandle(deviceHandle),
+      _graphDdiTableExt(graphDdiTableExt),
+      _commandQueueDdiTableExt(commandQueueDdiTableExt),
+      _groupOrdinal(groupOrdinal),
+      _logger("ZeroAdapter", Logger::global().level()) {}
 
 template <typename TableExtension>
 ZeroAdapter<TableExtension>::~ZeroAdapter() {
@@ -81,7 +83,7 @@ ZeroAdapter<TableExtension>::~ZeroAdapter() {
 template <typename TableExtension>
 _ze_result_t ZeroAdapter<TableExtension>::release(ze_graph_handle_t graphHandle) {
     _logger.debug("release - pfnDestroy graphHandle");
-    auto result = _initStructs->getGraphDdiTable().pfnDestroy(graphHandle);
+    auto result = _graphDdiTableExt.pfnDestroy(graphHandle);
 
     if (ZE_RESULT_SUCCESS != result) {
         _logger.error("failed to release graph handle. L0 pfnDestroy result: %s, code %#X",
@@ -99,17 +101,17 @@ void ZeroAdapter<TableExtension>::getNativeBinary(ze_graph_handle_t graphHandle,
                                                   const uint8_t*& blobPtr,
                                                   size_t& blobSize) const {
     // Get blob size first
-    auto result = _initStructs->getGraphDdiTable().pfnGetNativeBinary(graphHandle, &blobSize, nullptr);
+    auto result = _graphDdiTableExt.pfnGetNativeBinary(graphHandle, &blobSize, nullptr);
     blob.resize(blobSize);
     THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetNativeBinary get blob size, Failed to compile network.",
                                     result,
-                                    _initStructs->getGraphDdiTable());
+                                    _graphDdiTableExt);
 
     // Get blob data
-    result = _initStructs->getGraphDdiTable().pfnGetNativeBinary(graphHandle, &blobSize, blob.data());
+    result = _graphDdiTableExt.pfnGetNativeBinary(graphHandle, &blobSize, blob.data());
     THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetNativeBinary get blob data, Failed to compile network.",
                                     result,
-                                    _initStructs->getGraphDdiTable());
+                                    _graphDdiTableExt);
 
     blobPtr = blob.data();
 }
@@ -121,10 +123,10 @@ void ZeroAdapter<TableExtension>::getNativeBinary(ze_graph_handle_t graphHandle,
                                                   const uint8_t*& blobPtr,
                                                   size_t& blobSize) const {
     // Get blob ptr and size
-    auto result = _initStructs->getGraphDdiTable().pfnGetNativeBinary2(graphHandle, &blobSize, &blobPtr);
+    auto result = _graphDdiTableExt.pfnGetNativeBinary2(graphHandle, &blobSize, &blobPtr);
     THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetNativeBinary get blob size, Failed to compile network.",
                                     result,
-                                    _initStructs->getGraphDdiTable());
+                                    _graphDdiTableExt);
 }
 
 template <typename TableExtension>
@@ -149,21 +151,21 @@ template <typename TableExtension>
 void ZeroAdapter<TableExtension>::setArgumentValue(ze_graph_handle_t graphHandle,
                                                    uint32_t argi,
                                                    const void* argv) const {
-    auto result = _initStructs->getGraphDdiTable().pfnSetArgumentValue(graphHandle, argi, argv);
-    THROW_ON_FAIL_FOR_LEVELZERO_EXT("zeGraphSetArgumentValue", result, _initStructs->getGraphDdiTable());
+    auto result = _graphDdiTableExt.pfnSetArgumentValue(graphHandle, argi, argv);
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("zeGraphSetArgumentValue", result, _graphDdiTableExt);
 }
 
 template <typename TableExtension>
-void ZeroAdapter<TableExtension>::graphInitialie(ze_graph_handle_t graphHandle, const Config& config) const {
-    if (_initStructs->getGraphDdiTable().version() < ZE_GRAPH_EXT_VERSION_1_8) {
+void ZeroAdapter<TableExtension>::graphInitialize(ze_graph_handle_t graphHandle, const Config& config) const {
+    if (_graphDdiTableExt.version() < ZE_GRAPH_EXT_VERSION_1_8) {
         initialize_graph_through_command_list(graphHandle, config);
     } else {
         ze_graph_properties_2_t properties = {};
         properties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES;
-        _initStructs->getGraphDdiTable().pfnGetProperties2(graphHandle, &properties);
+        _graphDdiTableExt.pfnGetProperties2(graphHandle, &properties);
 
         if (properties.initStageRequired & ZE_GRAPH_STAGE_INITIALIZE) {
-            _initStructs->getGraphDdiTable().pfnGraphInitialize(graphHandle);
+            _graphDdiTableExt.pfnGraphInitialize(graphHandle);
         }
 
         if (properties.initStageRequired & ZE_GRAPH_STAGE_COMMAND_LIST_INITIALIZE) {
@@ -176,15 +178,12 @@ template <typename TableExtension>
 void ZeroAdapter<TableExtension>::initialize_graph_through_command_list(ze_graph_handle_t graphHandle,
                                                                         const Config& config) const {
     _logger.debug("ZeroExecutor::ZeroExecutor init start - create graph_command_list");
-    CommandList graph_command_list(_initStructs->getDevice(),
-                                   _initStructs->getContext(),
-                                   _initStructs->getGraphDdiTable(),
-                                   _groupOrdinal);
+    CommandList graph_command_list(_deviceHandle, _zeContext, _graphDdiTableExt, _groupOrdinal);
     _logger.debug("ZeroExecutor::ZeroExecutor - create graph_command_queue");
-    CommandQueue graph_command_queue(_initStructs->getDevice(),
-                                     _initStructs->getContext(),
+    CommandQueue graph_command_queue(_deviceHandle,
+                                     _zeContext,
                                      ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
-                                     _initStructs->getCommandQueueDdiTable(),
+                                     _commandQueueDdiTableExt,
                                      false,
                                      _groupOrdinal);
     _logger.debug("ZeroExecutor::ZeroExecutor - create fence");
@@ -245,18 +244,13 @@ ze_result_t ZeroAdapter<TableExtension>::seriazlideIRModelAndQueryNetworkCreateV
                             buildFlags.c_str()};
 
     // Create querynetwork handle
-    ze_result_t result = _initStructs->getGraphDdiTable().pfnQueryNetworkCreate(_initStructs->getContext(),
-                                                                                _initStructs->getDevice(),
-                                                                                &desc,
-                                                                                &hGraphQueryNetwork);
-    THROW_ON_FAIL_FOR_LEVELZERO_EXT("seriazlideIRModelAndQueryNetworkCreateV1",
-                                    result,
-                                    _initStructs->getGraphDdiTable());
+    ze_result_t result = _graphDdiTableExt.pfnQueryNetworkCreate(_zeContext, _deviceHandle, &desc, &hGraphQueryNetwork);
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("seriazlideIRModelAndQueryNetworkCreateV1", result, _graphDdiTableExt);
 
     return result;
 }
 
-// For ext version == 1.3 && == 1.4, query is supported, calling querynetwork api in _initStructs->getGraphDdiTable()
+// For ext version == 1.3 && == 1.4, query is supported, calling querynetwork api in _graphDdiTableExt
 template <typename TableExtension>
 template <typename T, std::enable_if_t<SupportAPIGraphQueryNetworkV1(T), bool>>
 std::unordered_set<std::string> ZeroAdapter<TableExtension>::queryImpl(
@@ -288,13 +282,9 @@ ze_result_t ZeroAdapter<TableExtension>::seriazlideIRModelAndQueryNetworkCreateV
 
     // Create querynetwork handle
     _logger.debug("seriazlideIRModelAndQueryNetworkCreateV2 - performing pfnQueryNetworkCreate2");
-    ze_result_t result = _initStructs->getGraphDdiTable().pfnQueryNetworkCreate2(_initStructs->getContext(),
-                                                                                 _initStructs->getDevice(),
-                                                                                 &desc,
-                                                                                 &hGraphQueryNetwork);
-    THROW_ON_FAIL_FOR_LEVELZERO_EXT("seriazlideIRModelAndQueryNetworkCreateV2",
-                                    result,
-                                    _initStructs->getGraphDdiTable());
+    ze_result_t result =
+        _graphDdiTableExt.pfnQueryNetworkCreate2(_zeContext, _deviceHandle, &desc, &hGraphQueryNetwork);
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("seriazlideIRModelAndQueryNetworkCreateV2", result, _graphDdiTableExt);
 
     return result;
 }
@@ -321,22 +311,20 @@ std::unordered_set<std::string> ZeroAdapter<TableExtension>::getQueryResultFromS
     ze_graph_query_network_handle_t& hGraphQueryNetwork) const {
     // Get the size of query result
     size_t size = 0;
-    result = _initStructs->getGraphDdiTable().pfnQueryNetworkGetSupportedLayers(hGraphQueryNetwork, &size, nullptr);
+    result = _graphDdiTableExt.pfnQueryNetworkGetSupportedLayers(hGraphQueryNetwork, &size, nullptr);
     THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnQueryNetworkGetSupportedLayers get size of query result",
                                     result,
-                                    _initStructs->getGraphDdiTable());
+                                    _graphDdiTableExt);
 
     // Get the result data of query
     std::vector<char> supportedLayers(size);
-    result = _initStructs->getGraphDdiTable().pfnQueryNetworkGetSupportedLayers(hGraphQueryNetwork,
-                                                                                &size,
-                                                                                supportedLayers.data());
+    result = _graphDdiTableExt.pfnQueryNetworkGetSupportedLayers(hGraphQueryNetwork, &size, supportedLayers.data());
     THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnQueryNetworkGetSupportedLayers get result data of query",
                                     result,
-                                    _initStructs->getGraphDdiTable());
+                                    _graphDdiTableExt);
 
-    result = _initStructs->getGraphDdiTable().pfnQueryNetworkDestroy(hGraphQueryNetwork);
-    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnQueryNetworkDestroy", result, _initStructs->getGraphDdiTable());
+    result = _graphDdiTableExt.pfnQueryNetworkDestroy(hGraphQueryNetwork);
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnQueryNetworkDestroy", result, _graphDdiTableExt);
 
     return parseQueryResult(supportedLayers);
 }
@@ -348,7 +336,7 @@ std::unordered_set<std::string> ZeroAdapter<TableExtension>::queryResultFromSupp
     return queryImpl(std::move(serializedIR), buildFlags);
 }
 
-// For ext version <1.5, calling pfnCreate api in _initStructs->getGraphDdiTable()
+// For ext version <1.5, calling pfnCreate api in _graphDdiTableExt
 template <typename TableExtension>
 template <typename T, std::enable_if_t<NotSupportGraph2(T), bool>>
 void ZeroAdapter<TableExtension>::createGraph(std::pair<size_t, std::shared_ptr<uint8_t>> serializedIR,
@@ -364,12 +352,11 @@ void ZeroAdapter<TableExtension>::createGraph(std::pair<size_t, std::shared_ptr<
 
     _logger.debug("createGraph - performing pfnCreate");
     // Create querynetwork handle
-    auto result =
-        _initStructs->getGraphDdiTable().pfnCreate(_initStructs->getContext(), _initStructs->getDevice(), &desc, graph);
-    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCreate", result, _initStructs->getGraphDdiTable());
+    auto result = _graphDdiTableExt.pfnCreate(_zeContext, _deviceHandle, &desc, graph);
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCreate", result, _graphDdiTableExt);
 }
 
-// For ext version >= 1.5, calling pfnCreate2 api in _initStructs->getGraphDdiTable()
+// For ext version >= 1.5, calling pfnCreate2 api in _graphDdiTableExt
 template <typename TableExtension>
 template <typename T, std::enable_if_t<!NotSupportGraph2(T), bool>>
 void ZeroAdapter<TableExtension>::createGraph(std::pair<size_t, std::shared_ptr<uint8_t>> serializedIR,
@@ -386,11 +373,8 @@ void ZeroAdapter<TableExtension>::createGraph(std::pair<size_t, std::shared_ptr<
 
     _logger.debug("createGraph - performing pfnCreate2");
     // Create querynetwork handle
-    auto result = _initStructs->getGraphDdiTable().pfnCreate2(_initStructs->getContext(),
-                                                              _initStructs->getDevice(),
-                                                              &desc,
-                                                              graph);
-    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCreate2", result, _initStructs->getGraphDdiTable());
+    auto result = _graphDdiTableExt.pfnCreate2(_zeContext, _deviceHandle, &desc, graph);
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCreate2", result, _graphDdiTableExt);
 }
 
 template <typename TableExtension>
@@ -416,11 +400,8 @@ ze_graph_handle_t ZeroAdapter<TableExtension>::getGraphHandle(const std::vector<
                             network.data(),
                             nullptr};
 
-    auto result = _initStructs->getGraphDdiTable().pfnCreate(_initStructs->getContext(),
-                                                             _initStructs->getDevice(),
-                                                             &desc,
-                                                             &graphHandle);
-    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCreate", result, _initStructs->getGraphDdiTable());
+    auto result = _graphDdiTableExt.pfnCreate(_zeContext, _deviceHandle, &desc, &graphHandle);
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCreate", result, _graphDdiTableExt);
 
     return graphHandle;
 }
@@ -487,8 +468,8 @@ void ZeroAdapter<TableExtension>::getMetadata(ze_graph_handle_t graphHandle,
                                               std::vector<IODescriptor>& inputs,
                                               std::vector<IODescriptor>& outputs) const {
     ze_graph_argument_properties_3_t arg;
-    auto result = _initStructs->getGraphDdiTable().pfnGetArgumentProperties3(graphHandle, index, &arg);
-    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties3", result, _initStructs->getGraphDdiTable());
+    auto result = _graphDdiTableExt.pfnGetArgumentProperties3(graphHandle, index, &arg);
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties3", result, _graphDdiTableExt);
 
     switch (arg.type) {
     case ZE_GRAPH_ARGUMENT_TYPE_INPUT: {
@@ -510,15 +491,15 @@ void ZeroAdapter<TableExtension>::getMetadata(ze_graph_handle_t graphHandle,
                                               std::vector<IODescriptor>& inputs,
                                               std::vector<IODescriptor>& outputs) const {
     ze_graph_argument_properties_3_t arg;
-    auto result = _initStructs->getGraphDdiTable().pfnGetArgumentProperties3(graphHandle, index, &arg);
-    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties3", result, _initStructs->getGraphDdiTable());
+    auto result = _graphDdiTableExt.pfnGetArgumentProperties3(graphHandle, index, &arg);
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties3", result, _graphDdiTableExt);
 
     std::optional<ze_graph_argument_metadata_t> optionalMetadata = std::nullopt;
 
     if (!isStateInputName(arg.name) && !isStateOutputName(arg.name) && !isShapeTensorName(arg.name)) {
         ze_graph_argument_metadata_t metadata;
-        result = _initStructs->getGraphDdiTable().pfnGraphGetArgumentMetadata(graphHandle, index, &metadata);
-        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGraphGetArgumentMetadata", result, _initStructs->getGraphDdiTable());
+        result = _graphDdiTableExt.pfnGraphGetArgumentMetadata(graphHandle, index, &metadata);
+        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGraphGetArgumentMetadata", result, _graphDdiTableExt);
 
         optionalMetadata = std::optional(metadata);
     }
@@ -540,8 +521,8 @@ template <typename TableExtension>
 NetworkMetadata ZeroAdapter<TableExtension>::getNetworkMeta(ze_graph_handle_t graphHandle) const {
     ze_graph_properties_t graphProperties{};
 
-    auto result = _initStructs->getGraphDdiTable().pfnGetProperties(graphHandle, &graphProperties);
-    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetProperties", result, _initStructs->getGraphDdiTable());
+    auto result = _graphDdiTableExt.pfnGetProperties(graphHandle, &graphProperties);
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetProperties", result, _graphDdiTableExt);
 
     NetworkMetadata meta;
 
@@ -561,8 +542,8 @@ std::tuple<std::vector<ArgumentDescriptor>, std::vector<ArgumentDescriptor>> Zer
     _logger.debug("performing pfnGetProperties");
     ze_graph_properties_t props{};
     props.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES;
-    auto result = _initStructs->getGraphDdiTable().pfnGetProperties(graphHandle, &props);
-    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetProperties", result, _initStructs->getGraphDdiTable());
+    auto result = _graphDdiTableExt.pfnGetProperties(graphHandle, &props);
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetProperties", result, _graphDdiTableExt);
 
     std::vector<ArgumentDescriptor> input_descriptors;
     std::vector<ArgumentDescriptor> output_descriptors;
@@ -571,8 +552,8 @@ std::tuple<std::vector<ArgumentDescriptor>, std::vector<ArgumentDescriptor>> Zer
     for (uint32_t index = 0; index < props.numGraphArgs; ++index) {
         ze_graph_argument_properties_3_t arg3{};
         arg3.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_PROPERTIES;
-        auto result = _initStructs->getGraphDdiTable().pfnGetArgumentProperties3(graphHandle, index, &arg3);
-        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties3", result, _initStructs->getGraphDdiTable());
+        auto result = _graphDdiTableExt.pfnGetArgumentProperties3(graphHandle, index, &arg3);
+        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties3", result, _graphDdiTableExt);
 
         if (arg3.type == ZE_GRAPH_ARGUMENT_TYPE_INPUT) {
             input_descriptors.push_back(ArgumentDescriptor{arg3, index});
@@ -588,31 +569,20 @@ template <typename TableExtension>
 std::shared_ptr<CommandQueue> ZeroAdapter<TableExtension>::crateCommandQueue(const Config& config) const {
     if (config.has<TURBO>()) {
         bool turbo = config.get<TURBO>();
-        return std::make_shared<CommandQueue>(_initStructs->getDevice(),
-                                              _initStructs->getContext(),
+        return std::make_shared<CommandQueue>(_deviceHandle,
+                                              _zeContext,
                                               zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
-                                              _initStructs->getCommandQueueDdiTable(),
+                                              _commandQueueDdiTableExt,
                                               turbo,
                                               _groupOrdinal);
     }
 
-    return std::make_shared<CommandQueue>(_initStructs->getDevice(),
-                                          _initStructs->getContext(),
+    return std::make_shared<CommandQueue>(_deviceHandle,
+                                          _zeContext,
                                           zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
-                                          _initStructs->getCommandQueueDdiTable(),
+                                          _commandQueueDdiTableExt,
                                           false,
                                           _groupOrdinal);
-}
-
-template <typename TableExtension>
-ze_device_graph_properties_t ZeroAdapter<TableExtension>::getDeviceGraphProperties() const {
-    ze_device_graph_properties_t deviceGraphProperties = {};
-    deviceGraphProperties.stype = ZE_STRUCTURE_TYPE_DEVICE_GRAPH_PROPERTIES;
-    auto result =
-        _initStructs->getGraphDdiTable().pfnDeviceGetGraphProperties(_initStructs->getDevice(), &deviceGraphProperties);
-    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnDeviceGetGraphProperties", result, _initStructs->getGraphDdiTable());
-
-    return deviceGraphProperties;
 }
 
 template class ZeroAdapter<ze_graph_dditable_ext_1_2_t>;

@@ -13,7 +13,6 @@
 #include "intel_npu/config/compiler.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/runtime.hpp"
-#include "intel_npu/icompiler.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -69,7 +68,7 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
     }
 
     const std::shared_ptr<SyncInferRequest>& syncInferRequest =
-        _device->createInferRequest(shared_from_this(), _graph, _config);
+        _device->createInferRequest(shared_from_this(), _config);
     syncInferRequest->initialize_states();
 
     return std::make_shared<AsyncInferRequest>(syncInferRequest,
@@ -123,7 +122,7 @@ void CompiledModel::set_property(const ov::AnyMap& properties) {
     _config.update(config);
     if (config.find(ov::workload_type.name()) != config.end()) {
         const auto workloadType = properties.at(ov::workload_type.name()).as<ov::WorkloadType>();
-        _graph->setWorkloadType(workloadType);
+        _graph->set_workload_type(workloadType);
     }
 }
 
@@ -134,6 +133,10 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     }
 
     OPENVINO_THROW("Unsupported property ", name);
+}
+
+const std::shared_ptr<IGraph>& CompiledModel::get_graph() const {
+    return _graph;
 }
 
 const Config& CompiledModel::get_config() const {

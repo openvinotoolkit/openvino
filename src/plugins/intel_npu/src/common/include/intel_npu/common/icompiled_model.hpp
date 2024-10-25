@@ -7,8 +7,8 @@
 #include <memory>
 #include <vector>
 
+#include "intel_npu/common/igraph.hpp"
 #include "intel_npu/config/common.hpp"
-#include "intel_npu/icompiler.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 
 namespace intel_npu {
@@ -16,6 +16,8 @@ namespace intel_npu {
 class ICompiledModel : public ov::ICompiledModel {
 public:
     using ov::ICompiledModel::ICompiledModel;
+
+    virtual const std::shared_ptr<IGraph>& get_graph() const = 0;
 
     virtual const Config& get_config() const = 0;
 

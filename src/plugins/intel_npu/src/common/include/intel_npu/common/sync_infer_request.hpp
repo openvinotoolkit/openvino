@@ -23,9 +23,7 @@ namespace intel_npu {
  */
 class SyncInferRequest : public ov::IInferRequest {
 public:
-    explicit SyncInferRequest(const std::shared_ptr<const ICompiledModel>& compiledModel,
-                              const std::shared_ptr<IGraph>& graph,
-                              const Config& config);
+    explicit SyncInferRequest(const std::shared_ptr<const ICompiledModel>& compiledModel, const Config& config);
 
     /**
      * @brief Gets an input/output tensor for inference.

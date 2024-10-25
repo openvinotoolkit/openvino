@@ -8,17 +8,17 @@
 
 #include <ze_graph_ext.h>
 
-#include "intel_npu/common/iadapter.hpp"
 #include "intel_npu/common/igraph.hpp"
+#include "izero_adapter.hpp"
 
 namespace intel_npu {
 
-class CidGraph final : public IGraph {
+class DriverGraph final : public IGraph {
 public:
-    CidGraph(const std::shared_ptr<IAdapter>& adapter,
-             ze_graph_handle_t graphHandle,
-             NetworkMetadata metadata,
-             const Config& config);
+    DriverGraph(const std::shared_ptr<IZeroAdapter>& adapter,
+                ze_graph_handle_t graphHandle,
+                NetworkMetadata metadata,
+                const Config& config);
 
     CompiledNetwork export_blob() const override;
 
@@ -28,10 +28,10 @@ public:
 
     void initialize() override;
 
-    ~CidGraph() override;
+    ~DriverGraph() override;
 
 private:
-    std::shared_ptr<IAdapter> _adapter;
+    std::shared_ptr<IZeroAdapter> _adapter;
 
     const Config _config;
     Logger _logger;

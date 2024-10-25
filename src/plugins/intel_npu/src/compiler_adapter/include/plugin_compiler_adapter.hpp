@@ -6,16 +6,16 @@
 
 #pragma once
 
-#include "intel_npu/common/iadapter.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
+#include "izero_adapter.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
 namespace intel_npu {
 
 class PluginCompilerAdapter final : public ICompilerAdapter {
 public:
-    PluginCompilerAdapter(const std::shared_ptr<IDevice>& device);
+    PluginCompilerAdapter(const std::shared_ptr<IEngineBackend>& iEngineBackend);
 
     std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
 
@@ -24,7 +24,7 @@ public:
     ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
 
 private:
-    std::shared_ptr<IAdapter> _adapter;
+    std::shared_ptr<IZeroAdapter> _zeroAdapter;
     ov::SoPtr<ICompiler> _compiler;
 
     Logger _logger;

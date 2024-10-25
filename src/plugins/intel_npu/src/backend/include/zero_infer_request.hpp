@@ -22,7 +22,6 @@ class ZeroInferRequest final : public SyncInferRequest {
 public:
     explicit ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
                               const std::shared_ptr<const ICompiledModel>& compiledModel,
-                              const std::shared_ptr<IGraph>& graph,
                               const Config& config);
 
     ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override;

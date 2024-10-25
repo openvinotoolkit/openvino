@@ -2,16 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#pragma once
+
 #include <ze_api.h>
 #include <ze_graph_ext.h>
 
 #include <type_traits>
 #include <utility>
 
-#include "intel_npu/common/iadapter.hpp"
+#include "intel_npu/icompiler.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_types.hpp"
-#include "zero_init.hpp"
+#include "izero_adapter.hpp"
 
 namespace intel_npu {
 
@@ -43,9 +45,13 @@ namespace intel_npu {
  * Adapter to use CiD through ZeroAPI
  */
 template <ze_graph_ext_version_t TableExtension>
-class ZeroAdapter final : public IAdapter {
+class ZeroAdapter final : public IZeroAdapter {
 public:
-    ZeroAdapter(const std::shared_ptr<ZeroInitStructsHolder>& initStructs);
+    ZeroAdapter(ze_device_handle_t deviceHandle,
+                ze_context_handle_t zeContext,
+                ze_graph_dditable_ext_curr_t& graphDdiTableExt,
+                ze_command_queue_npu_dditable_ext_curr_t& commandQueueDdiTableExt,
+                uint32_t groupOrdinal);
     ZeroAdapter(const ZeroAdapter&) = delete;
     ZeroAdapter& operator=(const ZeroAdapter&) = delete;
     ~ZeroAdapter();
@@ -72,14 +78,12 @@ public:
 
     void setArgumentValue(ze_graph_handle_t graphHandle, uint32_t argi_, const void* argv) const override;
 
-    void graphInitialie(ze_graph_handle_t graphHandle, const Config& config) const override;
+    void graphInitialize(ze_graph_handle_t graphHandle, const Config& config) const override;
 
     std::tuple<std::vector<ArgumentDescriptor>, std::vector<ArgumentDescriptor>> getIODesc(
         ze_graph_handle_t graphHandle) const override;
 
     std::shared_ptr<CommandQueue> crateCommandQueue(const Config& config) const override;
-
-    ze_device_graph_properties_t getDeviceGraphProperties() const override;
 
 private:
     template <ze_graph_ext_version_t T = TableExtension,
@@ -154,8 +158,10 @@ private:
 
     void initialize_graph_through_command_list(ze_graph_handle_t graphHandle, const Config& config) const;
 
-    std::shared_ptr<ZeroInitStructsHolder> _initStructs;
-
+    ze_context_handle_t _zeContext = nullptr;
+    ze_device_handle_t _deviceHandle = nullptr;
+    ze_graph_dditable_ext_curr_t& _graphDdiTableExt;
+    ze_command_queue_npu_dditable_ext_curr_t& _commandQueueDdiTableExt;
     uint32_t _groupOrdinal;
 
     Logger _logger;
