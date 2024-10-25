@@ -1106,7 +1106,7 @@ HostGatherDQ::HostGatherDQ(Context::Ref ctx) {
         const auto& matched_out_qweight = node_to_output.at(qweight);
         auto qweight_type = matched_out_qweight.get_element_type();
 
-        if (out_len >= 2048 && qweight_type == ov::element::i4 || qweight_type == ov::element::i8) {
+        if (out_len >= 2048 && (qweight_type == ov::element::i4 || qweight_type == ov::element::i8)) {
             auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
             auto matched_node_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
             auto matched_node_ids = node_to_output.at(pids).get_node_shared_ptr();
