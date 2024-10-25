@@ -54,17 +54,18 @@ std::vector<TRShape> shape_infer(const STFT* op,
     const auto& frame_size_val = (*frame_size)[0];
     const auto& frame_step_val = (*frame_step)[0];
 
-    NODE_SHAPE_INFER_CHECK(
-        op,
-        input_shapes,
+    const bool is_frame_size_in_range =
         0 < frame_size_val &&
-            (signal_shape[1].is_static() ? static_cast<TDimVal>(frame_size_val) <= signal_shape[1].get_length()
-                                         : frame_size_val <= signal_shape[1].get_interval().get_max_val()),
-        "Provided frame size is ",
-        frame_size_val,
-        " but must be in range [1, ",
-        signal_shape[1],
-        "].");
+        (signal_shape[1].is_static() ? static_cast<TDimVal>(frame_size_val) <= signal_shape[1].get_length()
+                                     : frame_size_val <= signal_shape[1].get_interval().get_max_val());
+    NODE_SHAPE_INFER_CHECK(op,
+                           input_shapes,
+                           is_frame_size_in_range,
+                           "Provided frame size is ",
+                           frame_size_val,
+                           " but must be in range [1, ",
+                           signal_shape[1],
+                           "].");
 
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
@@ -73,14 +74,15 @@ std::vector<TRShape> shape_infer(const STFT* op,
                            frame_step_val,
                            " but must be greater than zero.");
 
-    NODE_SHAPE_INFER_CHECK(
-        op,
-        input_shapes,
+    const bool is_win_shape_correct =
         window_shape.is_dynamic() || (TDimVal{0} < window_shape[0].get_length() &&
-                                      window_shape[0].get_length() <= static_cast<TDimVal>(frame_size_val)),
-        "Window input dimension must be in range [1, ",
-        frame_size_val,
-        "].");
+                                      window_shape[0].get_length() <= static_cast<TDimVal>(frame_size_val));
+    NODE_SHAPE_INFER_CHECK(op,
+                           input_shapes,
+                           is_win_shape_correct,
+                           "Window input dimension must be in range [1, ",
+                           frame_size_val,
+                           "].");
 
     const auto& batch_dim = signal_shape[0];
     const TDim frame_size_dim = static_cast<TDim>(frame_size_val);

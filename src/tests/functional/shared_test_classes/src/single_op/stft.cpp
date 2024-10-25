@@ -12,17 +12,14 @@ namespace test {
 
 std::string STFTLayerTest::getTestCaseName(const testing::TestParamInfo<STFTParams>& obj) {
     std::ostringstream result;
-    using namespace std;
-    std::vector<InputShape> data_shapes;
-    int64_t frame_size;          // frame size value
-    int64_t frame_step;          // frame step value
-    bool transpose_frames;       // transpose_frames
-    ElementType data_type;       // data type
-    ElementType step_size_type;  // size/step type
-    utils::InputLayerType param_type;
-    ov::test::TargetDevice dev;
-    std::tie(data_shapes, frame_size, frame_step, transpose_frames, data_type, step_size_type, param_type, dev) =
-        obj.param;
+    const std::vector<InputShape>& data_shapes = std::get<0>(obj.param);
+    const int64_t frame_size = std::get<1>(obj.param);
+    const int64_t frame_step = std::get<2>(obj.param);
+    const bool transpose_frames = std::get<3>(obj.param);
+    const ElementType& data_type = std::get<4>(obj.param);
+    const ElementType& step_size_type = std::get<5>(obj.param);
+    const utils::InputLayerType& param_type = std::get<6>(obj.param);
+    const ov::test::TargetDevice& dev = std::get<7>(obj.param);
 
     for (size_t s = 0lu; s < 2; s++) {
         const auto& shape_item = data_shapes[s];
