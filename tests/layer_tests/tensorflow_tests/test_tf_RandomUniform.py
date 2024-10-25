@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import platform
+
 import numpy as np
 import pytest
 import tensorflow as tf
@@ -41,6 +43,9 @@ class TestRandomUniform(CommonTFLayerTest):
                             use_legacy_frontend):
         if dtype == np.float16 or dtype == np.float64:
             pytest.skip('156027: Incorrect specification of RandomUniform for float16 and float64 output type')
+        if platform.machine() in ["aarch64", "arm64", "ARM64"]:
+            pytest.skip("156055: accuracy error on ARM")
+
         self._test(*self.create_tf_random_uniform_net(shape_value, shape_type, dtype, seed, seed2),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)
