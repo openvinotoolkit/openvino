@@ -177,7 +177,7 @@ struct RNNParams : public primitive_base<PType> {
         ob << num_outputs;
     }
 
-    void load(BinaryInputBuffer& ib) {
+    void load(BinaryInputBuffer& ib) override{
         ib >> id;
         ib >> x;
         ib >> initial_hidden_state;
