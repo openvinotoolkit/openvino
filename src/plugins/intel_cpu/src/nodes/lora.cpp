@@ -54,9 +54,8 @@ void LoRA::selectOptimalPrimitiveDescriptor() {
     }
 
     std::vector<Input::OutputConfig> graphOutputConfig;
-    for (size_t i = 0; i < getParentEdges().size(); i++) {
-        graphOutputConfig.emplace_back(node::Input::OutputConfig{true, true});
-    }
+    // enforce the same memory descriptor on the output as on the input to allow inPlace memory
+    graphOutputConfig.emplace_back(node::Input::OutputConfig{inConfs.front().getMemDesc(), true});
 
     // configure the inner graph to get the information about output memory descriptors
     m_graph.Init(m_body, context, graphInputConfig, graphOutputConfig);
@@ -64,16 +63,16 @@ void LoRA::selectOptimalPrimitiveDescriptor() {
     // for the output descriptors, use the configuration of the graph's output nodes
     auto outputDescriptors = m_graph.getOutputMemoryDescriptors();
 
-    std::vector<PortConfig> outConfs;
     const auto& desc = outputDescriptors.front();
 
-    outConfs.emplace_back(desc);
-
-    if (desc->isCompatible(*(inConfs.front().getMemDesc()))) {
-        outConfs.at(0).inPlace(0); // use the memory from the first input inPlace
-    } else {
-        THROW_CPU_NODE_ERR("Unexpected input/output descriptor mismatch"); //FIXME: add enforcing the output descriptor
+    if (!desc->isCompatible(*(inConfs.front().getMemDesc()))) {
+        // just a sanity check
+        THROW_CPU_NODE_ERR("Unexpected input/output descriptor mismatch");
     }
+
+    std::vector<PortConfig> outConfs;
+    outConfs.emplace_back(desc);
+    outConfs.front().inPlace(0); // use the memory from the first input inPlace
 
     const NodeConfig config(inConfs, outConfs);
 
