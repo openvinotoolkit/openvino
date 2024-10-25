@@ -2505,7 +2505,7 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
     }
 
     // 1. If we have static impl in the cache - use it
-    if (use_async_compilation && inst.get_impl() && inst.get_impl()->is_dynamic()) {
+    if (use_async_compilation && ((inst.get_impl() && inst.get_impl()->is_dynamic()) || inst.shape_changed())) {
         auto cached_impl = m_static_impls_cache.get(updated_params);
         if (cached_impl) {
             return cached_impl->clone();
