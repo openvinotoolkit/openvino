@@ -8,7 +8,6 @@ import logging
 import os
 from functools import partial
 from hashlib import sha256
-import warnings
 
 import torch
 from torch._dynamo.backends.common import fake_tensor_unsupported, aot_autograd
@@ -67,8 +66,7 @@ try:
     if version.parse(torch.__version__) < version.parse("2.5.0"):
         register_backend(compiler_fn=openvino, name="openvino")
 except ImportError:
-    warnings.warn("The 'packaging' module is required but not installed")
-    pass
+    logger.warning("The 'packaging' module is required but not installed")
 
 
 def fx_openvino(subgraph, example_inputs, options=None):
