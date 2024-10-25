@@ -65,6 +65,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         // CUSTOM
         // DELEGATE
         {"DENSIFY", translate_identity_op},
+        {"DECODEJPEG", translate_decodejpeg_op},
         {"DEPTH_TO_SPACE", DEQUANTIZE_INPUTS(translate_depth_to_space_op)},
         {"DEPTHWISE_CONV_2D", DEQUANTIZE_INPUTS(depthwise_conv2d)},
         {"DEQUANTIZE", DEQUANTIZE_INPUTS(dequantize)},

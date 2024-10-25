@@ -1,0 +1,19 @@
+// Copyright (C) 2018-2024 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/random_uniform.hpp"
+#include "openvino/op/util/attr_types.hpp"
+#include "openvino/runtime/tensor.hpp"
+#include "openvino/reference/utils/img.hpp"
+
+namespace ov {
+namespace reference {
+
+int decodeimg(const Tensor& input, Tensor& out, img::ImageConfig* config);
+}  // namespace reference
+}  // namespace ov

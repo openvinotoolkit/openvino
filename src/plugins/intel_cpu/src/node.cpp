@@ -24,6 +24,7 @@
 #include "utils/debug_capabilities.h"
 #include "utils/ngraph_utils.hpp"
 #include "utils/rt_info/memory_formats_attribute.hpp"
+#include "transformations/rt_info/force_fp32.hpp"
 #include <openvino/opsets/opset1.hpp>
 
 #include <dnnl_types.h>
@@ -159,6 +160,10 @@ Node::Node(const std::shared_ptr<ov::Node>& op,
     const auto it = rtInfo.find("enforceBF16evenForGraphTail");
     if (it != rtInfo.end()) {
         enforceBF16evenForGraphTail = it->second.as<bool>();
+    }
+    const auto it_force_fp32 = rtInfo.find(ForceFP32::get_type_info_static());
+    if (it_force_fp32 != rtInfo.end()) {
+        enforceFP32 = it_force_fp32->second.as<ForceFP32>().value;
     }
     if (ov::fp16_compression_is_disabled(op))
         keepOriginalPrecision = true;

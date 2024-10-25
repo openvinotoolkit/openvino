@@ -1,0 +1,100 @@
+// Copyright (C) 2018-2024 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+/**
+ * \brief Format reader abstract class implementation
+ * \file format_reader.h
+ */
+#pragma once
+
+#include <iostream>
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "openvino/runtime/tensor.hpp"
+
+namespace ov {
+namespace reference {
+namespace img {
+/**
+ * \class FormatReader
+ * \brief This is an abstract class for reading input data
+ */
+
+struct ImageConfig {
+    uint8_t jpeg_dct_method = 1u; //JDCT_IFAST
+    uint8_t jpeg_fancy_upscaling = 1u; 
+    uint8_t jpeg_scale_denom = 0u;
+};
+
+class images {
+protected:
+    /// \brief height
+    size_t _height = 0;
+    /// \brief width
+    size_t _width = 0;
+    size_t _channel = 0;
+    /// \brief data
+    // std::shared_ptr<unsigned char> _data;
+    /// \brief shape - data shape
+    std::vector<size_t> _shape;
+
+    const uint8_t* _data;
+    size_t _length;
+    size_t _offset;
+
+public:
+    images() {}
+
+    virtual ~images() = default;
+
+    /**
+     * \brief Get width
+     * @return width
+     */
+    size_t width() const {
+        return _width;
+    }
+
+    /**
+     * \brief Get height
+     * @return height
+     */
+    size_t height() const {
+        return _height;
+    }
+
+    /**
+     * \brief Get full shape vector
+     * @return vector of size_t values determining data shape
+     */
+    std::vector<size_t> shape() const {
+        return _shape;
+    }
+
+    virtual bool isSupported(const uint8_t* content, size_t img_length, ImageConfig* config) = 0;
+
+    virtual void cleanUp() = 0;
+
+    /**
+     * \brief Get input data ptr
+     * @return shared pointer with input data
+     * @In case of using OpenCV, parameters width and height will be used for image resizing
+     */
+    virtual int getData(Tensor& output) = 0;
+
+    /**
+     * \brief Get size
+     * @return size
+     */
+    virtual size_t size() const = 0;
+
+    virtual int readData(void* buf, size_t size);
+};
+
+std::shared_ptr<images> ParserImages(const uint8_t* content, size_t img_length, ImageConfig* config);
+}  // namespace img
+}  // namespace reference
+}  // namespace ov

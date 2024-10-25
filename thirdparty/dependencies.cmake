@@ -140,10 +140,26 @@ if(ENABLE_INTEL_GPU)
 endif()
 
 #
+# image decoders
+#
+
+if(ENABLE_JPEG)
+    add_subdirectory(thirdparty/jpeg EXCLUDE_FROM_ALL)
+endif()
+
+if(ENABLE_PNG)
+    add_subdirectory(thirdparty/png EXCLUDE_FROM_ALL)
+endif()
+
+if(ENABLE_GIF)
+    add_subdirectory(thirdparty/gif EXCLUDE_FROM_ALL)
+endif()
+
+#
 # zlib
 #
 
-if(ENABLE_SAMPLES OR ENABLE_TESTS)
+if(ENABLE_SAMPLES OR ENABLE_TESTS OR PNG_FOUND)
     add_subdirectory(thirdparty/zlib EXCLUDE_FROM_ALL)
 endif()
 

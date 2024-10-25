@@ -61,7 +61,15 @@ inline void parallel_set_num_threads(int) {
     return;
 }
 inline int parallel_get_env_threads() {
-    return 0;
+    int env_cores = 0;
+    if (getenv("TBB_NUM_THREADS") != nullptr) {
+        try {
+            env_cores = std::stoi(getenv("TBB_NUM_THREADS"));
+        } catch (const std::exception&) {
+            env_cores = 0;
+        }
+    }
+    return env_cores;
 }
 #    if OV_THREAD == OV_THREAD_TBB
 #        define PARTITIONING , tbb::static_partitioner()

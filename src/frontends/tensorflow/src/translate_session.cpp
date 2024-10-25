@@ -82,7 +82,7 @@ void adjust_saved_model_names(ov::Output<ov::Node>& ov_output,
     // 2. find a set of clean-up names and aligned with the model signature
     const auto& tensor_names = ov_output.get_names();
     std::unordered_set<std::string> cleanup_names;
-    bool signature_passed = true;
+    bool signature_passed = false;
     if (is_input_tensor) {
         if (saved_model_input_names) {
             for (const auto& tensor_name : tensor_names) {
@@ -450,6 +450,12 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
         if (const auto& input_var = model_tf->get_variable(input_place)) {
             (*ov_tensors_map)[input_name] = {NamedOutput(input_var->output(0))};
         } else {
+            //Add by sgui for string input from TF models
+            if (input_type == element::string) {
+                input_type = element::u8;
+                if (input_shape == ov::PartialShape::dynamic())
+                    input_shape = ov::PartialShape({1, -1});
+            }
             auto param = std::make_shared<ov::op::v0::Parameter>(input_type, input_shape);
             param->set_friendly_name(input_name);
             set_out_name(input_name, param);

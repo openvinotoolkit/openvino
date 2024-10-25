@@ -111,6 +111,11 @@ TSSplitForward::TSSplitForward() {
         if (!GetSplitAxis(split_axis_constant, main_node->input_value(0).get_partial_shape().rank(), split_axis)) {
             return false;
         }
+         
+        auto new_parent_shape = main_node->input_value(0).get_node()->input_value(0).get_node()->get_output_partial_shape(0);
+        if ( !new_parent_shape.rank().is_static() ) {
+            return false;
+        }
 
         sink_forward::RemoveInputNode(main_node, /* input_idx */ 0);
         const auto transpose_axis_order = transpose_info.transpose_const->get_axis_vector_val();

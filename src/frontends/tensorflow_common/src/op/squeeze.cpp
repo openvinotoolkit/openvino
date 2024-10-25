@@ -31,6 +31,10 @@ OutputVector translate_squeeze_op(const NodeContext& node) {
         // check deprecated name
         axis = node.get_attribute<std::vector<int64_t>>("squeeze_dims", {});
     }
+
+    //TODO: sgui used for DecodeImg... need to fit more condition.
+    if (axis.size()==0)
+        axis.push_back(0);
     auto axis_const = make_shared<v0::Constant>(element::i32, Shape{axis.size()}, axis);
 
     if (complex_type_mark) {
