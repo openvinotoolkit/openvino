@@ -6,5 +6,4 @@ pyenchant
 defusedxml
 requests
 pytest
-py
 fastjsonschema
