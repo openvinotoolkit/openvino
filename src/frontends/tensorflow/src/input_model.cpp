@@ -211,7 +211,7 @@ void InputModel::InputModelTFImpl::load_places() {
                 OPENVINO_DEBUG("TensorFlow Frontend: Placeholder ", op_name, " does not have 'shape' attribute");
             }
             auto output_shapes_any = node_decoder->get_attribute("_output_shapes");
-            if (pshape.rank().is_static() && pshape.rank().get_length() == 0 &&
+            if ((pshape.rank().is_dynamic() || pshape.rank().get_length() == 0) &&
                 output_shapes_any.is<std::vector<ov::PartialShape>>()) {
                 // we know some cases when Placeholder operation has empty scalar `shape` attribute value
                 // and non-empty `_output_shapes` attribute value.
