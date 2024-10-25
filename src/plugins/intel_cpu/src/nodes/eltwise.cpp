@@ -244,7 +244,6 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
         OV_CASE(Algorithm::EltwiseAbs, jit_dnnl_aux_emitter),
         OV_CASE(Algorithm::EltwiseSqrt, jit_dnnl_aux_emitter),
         OV_CASE(Algorithm::EltwiseSoftRelu, jit_dnnl_aux_emitter),
-        OV_CASE(Algorithm::EltwiseExp, jit_dnnl_aux_emitter),
         OV_CASE(Algorithm::EltwiseClamp, jit_dnnl_aux_emitter),
         OV_CASE(Algorithm::EltwiseSwish, jit_dnnl_aux_emitter),
         OV_CASE(Algorithm::EltwiseHswish, jit_dnnl_aux_emitter),
@@ -262,6 +261,7 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
         OV_CASE(Algorithm::EltwiseMod, jit_mod_emitter),
         OV_CASE(Algorithm::EltwiseMaximum, jit_maximum_emitter),
         OV_CASE(Algorithm::EltwiseMinimum, jit_minimum_emitter),
+        OV_CASE(Algorithm::EltwiseExp, jit_exp_emitter),
         OV_CASE(Algorithm::EltwiseSquaredDifference, jit_squared_difference_emitter),
         OV_CASE(Algorithm::EltwisePowerDynamic, jit_power_dynamic_emitter),
         OV_CASE(Algorithm::EltwiseEqual, jit_equal_emitter),
@@ -623,7 +623,6 @@ private:
         OV_CASE(Algorithm::EltwiseAbs, jit_dnnl_aux_emitter),
         OV_CASE(Algorithm::EltwiseSqrt, jit_dnnl_aux_emitter),
         OV_CASE(Algorithm::EltwiseSoftRelu, jit_dnnl_aux_emitter),
-        OV_CASE(Algorithm::EltwiseExp, jit_dnnl_aux_emitter),
         OV_CASE(Algorithm::EltwiseClamp, jit_dnnl_aux_emitter),
         OV_CASE(Algorithm::EltwiseSwish, jit_dnnl_aux_emitter),
         OV_CASE(Algorithm::EltwiseHswish, jit_dnnl_aux_emitter),
@@ -641,6 +640,7 @@ private:
         OV_CASE(Algorithm::EltwiseMod, jit_mod_emitter),
         OV_CASE(Algorithm::EltwiseMaximum, jit_maximum_emitter),
         OV_CASE(Algorithm::EltwiseMinimum, jit_minimum_emitter),
+        OV_CASE(Algorithm::EltwiseExp, jit_exp_emitter),
         OV_CASE(Algorithm::EltwiseSquaredDifference, jit_squared_difference_emitter),
         OV_CASE(Algorithm::EltwisePowerDynamic, jit_power_dynamic_emitter),
         OV_CASE(Algorithm::EltwiseEqual, jit_equal_emitter),
@@ -1213,7 +1213,6 @@ const std::map<const ov::DiscreteTypeInfo, Eltwise::Initializer>& Eltwise::getIn
         }},
         {ov::op::v0::Exp::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
             node.algorithm = Algorithm::EltwiseExp;
-            node.onednnAlgorithm = dnnl::algorithm::eltwise_exp;
         }},
         {SwishNode::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
             auto swishOp = getNgraphOpAs<SwishNode>(op);
@@ -1873,7 +1872,6 @@ public:
                     case Algorithm::EltwiseAbs:
                     case Algorithm::EltwiseSqrt:
                     case Algorithm::EltwiseSoftRelu:
-                    case Algorithm::EltwiseExp:
                     case Algorithm::EltwiseClamp:
                     case Algorithm::EltwiseSwish:
                     case Algorithm::EltwiseHswish:
@@ -1893,6 +1891,7 @@ public:
                     case Algorithm::EltwiseMod:               *dst_ptr_f = src_f[0] - truncf(src_f[0] / src_f[1]) * src_f[1]; break;
                     case Algorithm::EltwiseMaximum:           *dst_ptr_f = std::max(src_f[0], src_f[1]); break;
                     case Algorithm::EltwiseMinimum:           *dst_ptr_f = std::min(src_f[0], src_f[1]); break;
+                    case Algorithm::EltwiseExp:               *dst_ptr_f = expf(src_f[0]); break;
                     case Algorithm::EltwiseSquaredDifference: *dst_ptr_f = powf((src_f[0] - src_f[1]), 2.f); break;
                     case Algorithm::EltwisePowerDynamic:      *dst_ptr_f = powf(src_f[0], src_f[1]); break;
                     case Algorithm::EltwiseEqual:             *dst_ptr_f = src_f[0] == src_f[1]; break;
@@ -2584,6 +2583,8 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
             supportedPrimitiveDescriptors.emplace_back(nodeDesc);
     };
 
+    if (isChannelsFirstApplicable)
+        addDesc(supportedPrimitiveDescriptors, ChannelsFirst);
     addDesc(supportedPrimitiveDescriptors, Planar);
 
     canUseEltwiseExecPtr = !supportedPrimitiveDescriptors.empty();

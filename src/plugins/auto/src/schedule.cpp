@@ -275,8 +275,9 @@ Schedule::~Schedule() {
             }
             size_t count = req_all_start_times.size();
             OPENVINO_ASSERT(count == req_all_end_times.size());
-            std::chrono::duration<double, std::milli> first_infer_durtation =
-                req_all_end_times.front() - req_all_start_times.front();
+            std::chrono::duration<double, std::milli> first_infer_duration =
+                (count != 0) ? req_all_end_times.front() - req_all_start_times.front()
+                             : std::chrono::duration<double, std::milli>(0.0);
             req_all_start_times.sort(std::less<Time>());
             req_all_end_times.sort(std::less<Time>());
             {
@@ -294,7 +295,7 @@ Schedule::~Schedule() {
                 if (n >= 1) {
                     LOG_INFO_TAG("%s: first inference time:%lf ms",
                                  worker_request.first.c_str(),
-                                 first_infer_durtation.count());
+                                 first_infer_duration.count());
                     LOG_INFO_TAG("%s:infer:%ld", worker_request.first.c_str(), count);
                     std::chrono::duration<double, std::milli> durtation =
                         req_all_end_times.back() - time;
