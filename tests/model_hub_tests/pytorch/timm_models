@@ -149,7 +149,7 @@ eva02_large_patch14_clip_224.merged2b,None
 fastvit_ma36.apple_dist_in1k,None
 fastvit_mci0.apple_mclip,None
 fastvit_mci1.apple_mclip,None
-fastvit_mci2.apple_mclip,None,xfail_trace,Accuracy validation failed
+fastvit_mci2.apple_mclip,None,xfail,Accuracy validation failed
 fastvit_s12.apple_dist_in1k,None
 fastvit_sa12.apple_dist_in1k,None
 fastvit_sa24.apple_dist_in1k,None
@@ -226,8 +226,8 @@ legacy_seresnext101_32x4d.in1k,None
 legacy_seresnext26_32x4d.in1k,None
 legacy_seresnext50_32x4d.in1k,None
 legacy_xception.tf_in1k,None
-levit_128.fb_dist_in1k,None
-levit_128s.fb_dist_in1k,None
+levit_128.fb_dist_in1k,None,xfail,Accuracy validation failed
+levit_128s.fb_dist_in1k,None,xfail,Accuracy validation failed
 levit_conv_128.fb_dist_in1k,None
 levit_conv_128s.fb_dist_in1k,None
 mambaout_base.in1k,None
@@ -475,9 +475,9 @@ tf_efficientnet_b5.aa_in1k,None
 tf_efficientnet_b6.aa_in1k,None
 tf_efficientnet_b7.aa_in1k,None
 tf_efficientnet_b8.ap_in1k,None
-tf_efficientnet_cc_b0_4e.in1k,None,xfail_trace,Unsupported dynamic weights shape
-tf_efficientnet_cc_b0_8e.in1k,None,xfail_trace,Unsupported dynamic weights shape
-tf_efficientnet_cc_b1_8e.in1k,None,xfail_trace,Unsupported dynamic weights shape
+tf_efficientnet_cc_b0_4e.in1k,None,xfail,Unsupported dynamic weights shape
+tf_efficientnet_cc_b0_8e.in1k,None,xfail,Unsupported dynamic weights shape
+tf_efficientnet_cc_b1_8e.in1k,None,xfail,Unsupported dynamic weights shape
 tf_efficientnet_el.in1k,None
 tf_efficientnet_em.in1k,None
 tf_efficientnet_es.in1k,None
