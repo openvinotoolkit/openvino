@@ -7,42 +7,10 @@
 #include <functional>
 #include <utility>
 
-#include "openvino/op/op.hpp"
+#include "openvino/op/util/squeeze_base.hpp"
 
 namespace ov {
 namespace op {
-namespace util {
-/// \brief Squeeze operation.
-///
-/// \ingroup ov_ops_cpp_api
-class OPENVINO_API SqueezeBase : public Op {
-    //TODO: prevent external SqueezeBase object creation
-
-public:
-OPENVINO_OP("Squeeze", "util");
-    SqueezeBase() = default;
-    SqueezeBase(const Output<Node>& data, const Output<Node>& axes);
-    SqueezeBase(const Output<Node>& data);
-
-public:
-    // void validate_and_infer_types() override;
-    // bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
-    bool has_evaluate() const override;
-    bool evaluate_lower(TensorVector& outputs) const override;
-    bool evaluate_upper(TensorVector& outputs) const override;
-    bool evaluate_symbol(TensorSymbolVector& output_symbols) const override;
-    bool can_constant_fold(const OutputVector& inputs_values) const override;
-    bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values) override;
-
-    // std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
-
-    bool is_dynamic() const override;
-
-private:
-    // Output<Node> get_default_axes_input() const;
-};
-}  // namespace util
-
 namespace v0 {
 /// \brief Squeeze operation.
 ///
@@ -52,8 +20,15 @@ public:
     OPENVINO_OP("Squeeze", "opset1");
 
     Squeeze();
-    Squeeze(const Output<Node>& data, const Output<Node>& axes);
+    /// \brief Constructs a squeeze v0 operation.
+    ///
+    /// \param data Input tensor with data
     Squeeze(const Output<Node>& data);
+    /// \brief Constructs a squeeze v0 operation.
+    ///
+    /// \param data Input tensor with data
+    /// \param axis The axis along which to squeeze the input tensor.
+    Squeeze(const Output<Node>& data, const Output<Node>& axes);
 
     void validate_and_infer_types() override;
     bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
@@ -66,14 +41,19 @@ private:
 }  // namespace v0
 
 namespace v15 {
+/// \brief Squeeze operation.
+///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Squeeze : public util::SqueezeBase {
 public:
     OPENVINO_OP("Squeeze", "opset15");
 
     Squeeze();
+    /// \brief Constructs a squeeze v15 operation.
+    ///
+    /// \param data Input tensor with data
     Squeeze(const Output<Node>& data);
-
-    /// \brief Constructs a squeeze operation.
+    /// \brief Constructs a squeeze v15 operation.
     ///
     /// \param data Input tensor with data
     /// \param axis The axis along which to squeeze the input tensor.
