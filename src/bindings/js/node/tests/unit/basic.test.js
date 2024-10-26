@@ -39,28 +39,54 @@ describe('ov basic tests.', () => {
     assert.ok(devices.includes('CPU'));
   });
 
-  describe('ov.saveModel()', () => {
-    it('saveModel(model:Model, path:string, compressToFp16:bool=true)', () => {
-      const xmlPath = `${outDir}${modelLike[0].getName()}_fp16.xml`;
-      assert.doesNotThrow(() => ov.saveModelSync(modelLike[0], xmlPath, true));
+  describe('ov.saveModelSync()', () => {
+    it('saveModelSync(model, path, compressToFp16=true)', () => {
+      const xmlPath = `${outDir}${model.getName()}_fp16.xml`;
+      assert.doesNotThrow(() => ov.saveModelSync(model, xmlPath, true));
 
       const savedModel = core.readModelSync(xmlPath);
-      assert.doesNotThrow(() => compareModels(modelLike[0], savedModel));
+      assert.doesNotThrow(() => compareModels(model, savedModel));
     });
 
-    it('saveModel(model:Model, path:string, compressToFp16:bool)', () => {
-      const xmlPath = `${outDir}${modelLike[0].getName()}_fp32.xml`;
-      assert.doesNotThrow(() => ov.saveModelSync(modelLike[0], xmlPath));
+    it('saveModelSync(model, path, compressToFp16)', () => {
+      const xmlPath = `${outDir}${model.getName()}_fp32.xml`;
+      assert.doesNotThrow(() => ov.saveModelSync(model, xmlPath));
 
       const savedModel = core.readModelSync(xmlPath);
-      assert.doesNotThrow(() => compareModels(modelLike[0], savedModel));
+      assert.doesNotThrow(() => compareModels(model, savedModel));
     });
-    it('saveModel(model:Model, path:string, compressToFp16:bool=false)', () => {
-      const xmlPath = `${outDir}${modelLike[0].getName()}_fp32.xml`;
-      assert.doesNotThrow(() => ov.saveModelSync(modelLike[0], xmlPath, false));
+    it('saveModelSync(model, path, compressToFp16=false)', () => {
+      const xmlPath = `${outDir}${model.getName()}_fp32.xml`;
+      assert.doesNotThrow(() => ov.saveModelSync(model, xmlPath, false));
 
       const savedModel = core.readModelSync(xmlPath);
-      assert.doesNotThrow(() => compareModels(modelLike[0], savedModel));
+      assert.doesNotThrow(() => compareModels(model, savedModel));
+    });
+
+    it('saveModelSync(model) throws', () => {
+      const expectedMsg = (
+        '\'saveModelSync\' method called with incorrect parameters.\n' +
+        'Provided signature: (object) \n' +
+        'Allowed signatures:\n' +
+        '- (Model, string)\n' +
+        '- (Model, string, boolean)\n'
+      ).replace(/[()]/g, '\\$&');
+
+      assert.throws(
+        () => ov.saveModelSync(model),
+        new RegExp(expectedMsg));
+    });
+
+    it('saveModelSync(model, path) throws with incorrect path', () => {
+      const expectedMsg = (
+        'Path for xml file doesn\'t ' +
+        'contains file name with \'xml\' extension'
+      ).replace(/[()]/g, '\\$&');
+
+      const noXmlPath = `${outDir}${model.getName()}_fp32`;
+      assert.throws(
+        () => ov.saveModelSync(model, noXmlPath),
+        new RegExp(expectedMsg));
     });
   });
 

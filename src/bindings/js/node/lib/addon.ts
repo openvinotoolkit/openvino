@@ -683,7 +683,8 @@ export interface NodeAddon {
    * that usually applied in model conversion flow provided by mo tool.
    * Particularly, floating point weights are compressed to FP16,
    * debug information in model nodes are cleaned up, etc.
-   * @param model The model which will be converted to IR representation and saved.
+   * @param model The model which will be
+   * converted to IR representation and saved.
    * @param path The path for saving the model.
    * @param compressToFp16 Whether to compress
    * floating point weights to FP16. Default is set to `true`.
