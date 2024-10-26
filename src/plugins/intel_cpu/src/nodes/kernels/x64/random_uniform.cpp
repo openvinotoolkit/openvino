@@ -669,7 +669,6 @@ template <>
 void MersenneTwisterGenerator<x64::avx512_core>::initVectors() {
     const auto r64_aux = getReg64();
     const auto r32_aux = Xbyak::Reg32(r64_aux.getIdx());
-    const auto r16_aux = Xbyak::Reg16(r64_aux.getIdx());
 
     v_min = getVmm();
     v_range = getVmm();
