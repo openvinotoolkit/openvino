@@ -648,12 +648,15 @@ void MersenneTwisterGenerator<isa>::generate() {
     r64_work_amount = getReg64();
     r64_elements_remaining = getReg64();
     r64_storage_capacity = getReg64();
+    r64_storage_capacity_half = getReg64();
 
     mov(r64_dst,  ptr[r64_params + GET_MERSENNE_OFFSET(dst_ptr)]);
     mov(r64_state, ptr[r64_params + GET_MERSENNE_OFFSET(state_ptr)]);
     mov(r64_work_amount, ptr[r64_params + GET_MERSENNE_OFFSET(work_amount)]);
     mov(r64_elements_remaining, ptr[r64_params + GET_MERSENNE_OFFSET(elements_remaining)]);
     mov(r64_storage_capacity, getVectorLen() / 4); // might be crashing?
+    mov(r64_storage_capacity_half, getVectorLen() / 4 / 2); // might be crashing?
+
 
     initVectors();
     process();
@@ -864,9 +867,7 @@ void MersenneTwisterGenerator<isa>::generateRandomNumbers(const Vmm& v_result, c
 
 template <>
 void MersenneTwisterGenerator<x64::avx512_core>::convertToOutputTypeMersenne(const Vmm& v_result, const Vmm& v_min, const Vmm& v_range, const Xbyak::Reg64& r64_dst, const Xbyak::Reg64& r64_elements_remaining) {
-    const auto r64_counter = getReg64();
-
-    Xbyak::Label loop, end;
+    Xbyak::Label end;
     const auto k_rest_mask = getMask();
 
     if (m_jcp.out_data_type == element::f64) {
@@ -898,13 +899,13 @@ void MersenneTwisterGenerator<x64::avx512_core>::convertToOutputTypeMersenne(con
         jle(end);
         fillRestWorkMask(k_rest_mask, r64_elements_remaining);
         vmovdqu64(ptr[r64_dst] | k_rest_mask, low);
-        sub(r64_elements_remaining, r64_storage_capacity);
+        sub(r64_elements_remaining, r64_storage_capacity_half);
 
         cmp(r64_elements_remaining, 0);
         jle(end);
         fillRestWorkMask(k_rest_mask, r64_elements_remaining);
         vmovdqu64(ptr[r64_dst] | k_rest_mask, high);
-        sub(r64_elements_remaining, r64_storage_capacity);
+        sub(r64_elements_remaining, r64_storage_capacity_half);
 
         L(end);
     } else if (m_jcp.out_data_type == element::f32) {
@@ -970,72 +971,51 @@ void MersenneTwisterGenerator<x64::avx512_core>::convertToOutputTypeMersenne(con
         vaddps(v_result, v_result, v_min);
 
         // Store result
-        mov(r64_counter, 0);
-        L(loop);
-        {
-            for (int i = 0; i < 16; ++i) {
-                cmp(r64_counter, r64_elements_remaining);
-                jge(end);
-
-                vpextrd(ptr[r64_dst + r64_counter * sizeof(int32_t)], v_result, i);
-                inc(r64_counter);
-            }
-
-            jmp(loop);
-        }
-        L(end);
+        cmp(r64_elements_remaining, 0);
+        jle(end);
+        fillRestWorkMask(k_rest_mask, r64_elements_remaining);
+        vmovdqu32(ptr[r64_dst] | k_rest_mask, v_result);
+        sub(r64_elements_remaining, r64_storage_capacity);
     } else if (m_jcp.out_data_type == element::i64 && m_jcp.optimized) {
-        // Handle optimized i64 data type
-        // Apply mask and divisor
-        vpandq(v_result, v_result, v_mask);
-        vcvtdq2pd(v_result, v_result);
-        vmulpd(v_result, v_result, v_divisor);
-
         // Scale and shift
-        vmulpd(v_result, v_result, v_range);
-        vaddpd(v_result, v_result, v_min);
+        const Vmm low = getVmm();
+        const Vmm high = getVmm();
+
+        vmulps(v_result, v_result, v_range);
+        vaddps(v_result, v_result, v_min);
+
+        vextractf64x4(low, v_result, 0);
+        vextractf64x4(high, v_result, 1);
+
+        vpmovzxdq(low, low);
+        vpmovzxdq(high, high);
 
         // Store result
-        mov(r64_counter, 0);
-        L(loop);
-        {
-            for (int i = 0; i < 8; ++i) {
-                cmp(r64_counter, r64_elements_remaining);
-                jge(end);
+        cmp(r64_elements_remaining, 0);
+        jle(end);
+        fillRestWorkMask(k_rest_mask, r64_elements_remaining);
+        vmovdqu64(ptr[r64_dst] | k_rest_mask, low);
+        sub(r64_elements_remaining, r64_storage_capacity_half);
 
-                vextractf64x4(ptr[r64_dst + r64_counter * sizeof(int64_t)], v_result, i);
-                inc(r64_counter);
-            }
+        cmp(r64_elements_remaining, 0);
+        jle(end);
+        fillRestWorkMask(k_rest_mask, r64_elements_remaining);
+        vmovdqu64(ptr[r64_dst] | k_rest_mask, high);
+        sub(r64_elements_remaining, r64_storage_capacity_half);
 
-            jmp(loop);
-        }
         L(end);
     } else if (m_jcp.out_data_type == element::i64 && !m_jcp.optimized) {
-        // Handle non-optimized i64 data type
-        // Apply mask and divisor
-        vpandq(v_result, v_result, v_mask);
-        vcvtdq2pd(v_result, v_result);
-        vmulpd(v_result, v_result, v_divisor);
-
         // Scale and shift
+        // Treat 32 bit as 64 bit, automatically concatenating them
         vmulpd(v_result, v_result, v_range);
         vaddpd(v_result, v_result, v_min);
 
         // Store result
-        mov(r64_counter, 0);
-        L(loop);
-        {
-            for (int i = 0; i < 8; ++i) {
-                cmp(r64_counter, r64_elements_remaining);
-                jge(end);
-
-                vextractf64x4(ptr[r64_dst + r64_counter * sizeof(int64_t)], v_result, i);
-                inc(r64_counter);
-            }
-
-            jmp(loop);
-        }
-        L(end);
+        cmp(r64_elements_remaining, 0);
+        jle(end);
+        fillRestWorkMask(k_rest_mask, r64_elements_remaining);
+        vmovdqu64(ptr[r64_dst] | k_rest_mask, v_result);
+        sub(r64_elements_remaining, r64_storage_capacity_half);
     } else {
         OPENVINO_THROW("RandomUniform kernel does not support precision ", m_jcp.out_data_type, " for ", x64::get_isa_info());
     }
