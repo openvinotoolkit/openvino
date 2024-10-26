@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "default_opset.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/frontend/paddle/visibility.hpp"
-#include "default_opset.hpp"
 
 namespace ov {
 namespace frontend {
