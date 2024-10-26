@@ -138,6 +138,7 @@ private:
     RegistersPool::Reg<Vmm> v_range;
 
     // Vector registers for generation.
+    RegistersPool::Reg<Vmm> v_aux;
     RegistersPool::Reg<Vmm> v_const_1;
     RegistersPool::Reg<Vmm> v_const_2;
 
@@ -154,7 +155,7 @@ private:
 
     void generateRandomNumbers(const Vmm& v_dst_0, const Vmm& v_dst_1);
 
-    void convertToOutputTypeMersenne(const Vmm& v_result, const Vmm& v_min, const Vmm& v_range, const Vmm& v_dst, const Xbyak::Reg64& r64_elements_remaining);
+    void convertToOutputTypeMersenne(const Vmm& v_result, const Vmm& v_min, const Vmm& v_range, const Xbyak::Reg64& r64_dst, const Xbyak::Reg64& r64_elements_remaining);
 
     // Mersenne Twister constants
     static constexpr uint32_t MT_CONST_1 = 0x9D2C5680;
