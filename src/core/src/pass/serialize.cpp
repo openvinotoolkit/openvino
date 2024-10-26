@@ -1173,7 +1173,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
     pugi::xml_node rt_info_node = netXml.append_child("rt_info");
     for (const auto& it : model.get_rt_info()) {
         // Skip IR version
-        if (it.first == "version")
+        if (it.first == "version" || it.first == "__weights_path")
             continue;
         serialize_rt_info(rt_info_node, it.first, it.second);
     }
