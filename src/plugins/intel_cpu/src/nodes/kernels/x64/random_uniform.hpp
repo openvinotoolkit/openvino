@@ -126,9 +126,6 @@ private:
 
     RegistersPool::Reg<Xbyak::Reg64> r64_dst;
     RegistersPool::Reg<Xbyak::Reg64> r64_state;
-    RegistersPool::Reg<Xbyak::Reg64> r64_state_id;
-    RegistersPool::Reg<Xbyak::Reg64> r64_state_shift;
-    RegistersPool::Reg<Xbyak::Reg64> r64_step;
     RegistersPool::Reg<Xbyak::Reg64> r64_work_amount;
     RegistersPool::Reg<Xbyak::Reg64> r64_elements_remaining;
 
@@ -141,7 +138,6 @@ private:
     RegistersPool::Reg<Vmm> v_range;
 
     // Vector registers for generation.
-    RegistersPool::Reg<Vmm> v_result;
     RegistersPool::Reg<Vmm> v_const_1;
     RegistersPool::Reg<Vmm> v_const_2;
 
@@ -149,6 +145,8 @@ private:
     RegistersPool::Reg<Vmm> v_mask;
     RegistersPool::Reg<Vmm> v_divisor;
 
+    // Output vector register
+    RegistersPool::Reg<Vmm> v_result;
 
     void initVectors();
 
