@@ -778,7 +778,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
     __global DQ_TYPE* quantized_input,
-    __global INPUT0_TYPE* quan_var,
+    __global INPUT0_TYPE* quan_var,  // pair of params for each quantizing group : scale, activation_sum
 #if DECOMPRESSION_SCALE_TERM
     const __global DECOMPRESSION_SCALE_TYPE* decompression_scale,
 #endif
@@ -846,10 +846,17 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
     // Dynamic Quantize
     MAKE_VECTOR_TYPE(DQ_TYPE, INPUT_LOAD_SIZE)      tiled_input_0[HALF_TILE_B] = { };   // Load 4 linear inputs for packing
     PACKED_DQ_TYPE                                  packed_in_0[HALF_TILE_B] = { };     // Packing char4 inputs to 1 integer
+    // Modified type ACCUM_DQ_TYPE to INPUT0_TYPE
     INPUT0_TYPE                                     de_quantize_scale[TILE_B];
+    // INPUT0_TYPE                                     de_quantize_scale;
 
     #if COMPRESSED_WEIGHTS_INT8
-        ACCUM_DQ_TYPE activation_sum[TILE_B] = { };
+        // Modified types to reduce reg spill
+        // ACCUM_DQ_TYPE activation_sum[TILE_B] = { };
+        // Use sub_group_shuffle for scale and activation_sum
+        INPUT0_TYPE activation_sum[TILE_B] = { };
+
+        // INPUT0_TYPE activation_sum;
     #endif
 
     #if COMPRESSED_WEIGHTS && DECOMPRESSION_SCALE_GROUPS_NUM == 1
@@ -911,10 +918,11 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                 de_quantize_scale[bi * 2] = quan_var[scale_offset * 2];
                 de_quantize_scale[bi * 2 + 1] = quan_var[scale_offset * 2 + scale_pitch * 2];
                 #if COMPRESSED_WEIGHTS_INT8
-                    activation_sum[bi * 2] = TO_ACCUM_DQ_TYPE(quan_var[scale_offset * 2 + 1]);
-                    activation_sum[bi * 2 + 1] = TO_ACCUM_DQ_TYPE(quan_var[scale_offset * 2 + 1 + scale_pitch * 2]);
+                    // Need additional accumulation of quantized activation along the dyn-quan group
+                    //  to use i8 multiplier for int8 weight
+                    activation_sum[bi * 2] = quan_var[scale_offset * 2 + 1];
+                    activation_sum[bi * 2 + 1] = quan_var[scale_offset * 2 + 1 + scale_pitch * 2];
                 #endif
-
                 scale_offset += (scale_pitch * 2);
             #endif
         }
@@ -922,15 +930,40 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
         #if NUM_LOOP_IN_DYN_QUAN_GROUP > 1
             if (ni % NUM_LOOP_IN_DYN_QUAN_GROUP == 0) {
                 unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
-                    #if COMPRESSED_WEIGHTS_INT8
-                        activation_sum[bi] = TO_ACCUM_DQ_TYPE(quan_var[scale_offset * 2 + 1]);
-                    #endif
                     de_quantize_scale[bi] = quan_var[scale_offset * 2];
+                    #if COMPRESSED_WEIGHTS_INT8
+                        activation_sum[bi] = quan_var[scale_offset * 2 + 1];
+                    #endif
                     scale_offset += scale_pitch;
                 }
             }
         #endif
 
+        // Split loading of quan_var into each work-time and use sub_group_shuffle
+        {
+            // uint scale_offset = (input_offset / QUANTIZE_GROUP_SIZE) + (scale_pitch * idx_sglid);
+            // #if NUM_LOOP_IN_DYN_QUAN_GROUP == 1
+            //     if (batch_sglid == 0) {
+            //         de_quantize_scale = quan_var[scale_offset * 2];
+            //     } else if (batch_sglid == 1) {
+            //         #if COMPRESSED_WEIGHTS_INT8
+            //             activation_sum = quan_var[scale_offset * 2 + 1];
+            //         #endif
+            //     }
+            // #elif NUM_LOOP_IN_DYN_QUAN_GROUP > 1
+            //     if (ni % NUM_LOOP_IN_DYN_QUAN_GROUP == 0) {
+            //         if (batch_sglid == 0) {
+            //             de_quantize_scale = quan_var[scale_offset * 2];
+            //         } else if (batch_sglid == 1) {
+            //             #if COMPRESSED_WEIGHTS_INT8
+            //                 activation_sum = quan_var[scale_offset * 2 + 1];
+            //             #endif
+            //         }
+            //     }
+            // #else
+            //     #error "FC bf_tiled kernel: Unexpected NUM_LOOP_IN_DYN_QUAN_GROUP"
+            // #endif
+        }
 
         input_offset += TILE_IFM_ELEMENTS_SIZE;
 
@@ -1024,7 +1057,6 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                 #endif
             #endif
 
-            // Need additional accumulation of activation along the group size
             #if COMPRESSED_WEIGHTS_INT8
                 unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
                     #if DECOMPRESSION_ZP_SCALAR
@@ -1110,10 +1142,17 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                         #endif
 
                         #if COMPRESSED_WEIGHTS_INT8
-                            ACCUM_DQ_TYPE seperate_wei_zp = ((int *)(&acc_tmp[fi]))[bi] - ((int)(wei_zp[fi]) * activation_sum[bi]);
+                            ACCUM_DQ_TYPE seperate_wei_zp = ((int *)(&acc_tmp[fi]))[bi] - ((float)(wei_zp[fi]) * (convert_float)(activation_sum[bi]));
                             ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += (convert_half)(convert_float(seperate_wei_zp) * (float)ds * (float)de_quantize_scale[bi]);
+
+                            // ACCUM_DQ_TYPE seperate_wei_zp = ((int *)(&acc_tmp[fi]))[bi] - convert_int_rte(wei_zp[fi] * _sub_group_shuffle(activation_sum, bi + 8));
+                            // ACCUM_DQ_TYPE seperate_wei_zp = ((int *)(&acc_tmp[fi]))[bi] - convert_int_rte(wei_zp[fi] * _sub_group_shuffle(activation_sum[bi], bi + 8));
+                            // ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += (convert_half)(CAT(convert_, float)(seperate_wei_zp) * ds * _sub_group_shuffle(de_quantize_scale[bi], bi));
                         #else
                             ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += convert_half(((int *)(&acc_tmp[fi]))[bi]) * ds * de_quantize_scale[bi];
+
+                            // ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += convert_half(((int *)(&acc_tmp[fi]))[bi]) * ds * _sub_group_shuffle(de_quantize_scale, bi);
+                            // ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += convert_half(((int *)(&acc_tmp[fi]))[bi]) * ds * _sub_group_shuffle(de_quantize_scale[bi], bi);
                         #endif
                         acc_tmp[fi][bi] = 0;
                     }
@@ -1137,10 +1176,15 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                         #endif
 
                         #if COMPRESSED_WEIGHTS_INT8
-                            ACCUM_DQ_TYPE seperate_wei_zp = ((int *)(&acc_tmp[fi]))[bi] - ((int)(wei_zp[fi]) * activation_sum[bi]);
-                            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += convert_half(convert_float(seperate_wei_zp) * (float)ds * (float)de_quantize_scale[bi]);
+                            ACCUM_DQ_TYPE seperate_wei_zp = ((int *)(&acc_tmp[fi]))[bi] - ((float)(wei_zp[fi]) * (convert_float)(activation_sum[bi]));
+                            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += (convert_half)(convert_float(seperate_wei_zp) * (float)ds * (float)de_quantize_scale[bi]);
+
+                            // ACCUM_DQ_TYPE seperate_wei_zp = ((int *)(&acc_tmp[fi]))[bi] - ((float)wei_zp[fi] * (convert_float)(_sub_group_shuffle(activation_sum, bi + 8)));
+                            // ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += (convert_half)(convert_float(seperate_wei_zp) * (float)ds * (float)_sub_group_shuffle(de_quantize_scale, bi));
                         #else
                             ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += convert_half(((int *)(&acc_tmp[fi]))[bi]) * ds * de_quantize_scale[bi];
+
+                            // ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += convert_half(((int *)(&acc_tmp[fi]))[bi]) * ds * _sub_group_shuffle(de_quantize_scale, bi);
                         #endif
                         acc_tmp[fi][bi] = 0;
                     }
