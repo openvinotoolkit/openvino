@@ -685,8 +685,8 @@ void MersenneTwisterGenerator<x64::avx512_core>::initVectors() {
 
     // Initialize constants based on the requested data type
     if (m_jcp.out_data_type == element::f64) {
-        BROADCAST_CONSTANT(vpbroadcastq, v_mask, r64_aux, (1 << std::numeric_limits<double>::digits) - 1)
-        BROADCAST_CONSTANT(vpbroadcastq, v_divisor, r64_aux, 1.0f / (1 << std::numeric_limits<double>::digits))
+        BROADCAST_CONSTANT(vpbroadcastq, v_mask, r64_aux, (uint64_t(1) << std::numeric_limits<double>::digits) - 1)
+        BROADCAST_CONSTANT(vpbroadcastq, v_divisor, r64_aux, 1.0f / (uint64_t(1) << std::numeric_limits<double>::digits))
         BROADCAST_MERSENNE_PARAM(vpbroadcastq, v_range,     r64_aux, range_ptr)
         BROADCAST_MERSENNE_PARAM(vpbroadcastq, v_min,       r64_aux, min_ptr)
     } else if (m_jcp.out_data_type == element::f32) {
@@ -735,37 +735,45 @@ void MersenneTwisterGenerator<isa>::initVectors() {
     v_const_1 = getVmm();
     v_const_2 = getVmm();
 
-
     // Initialize state
     uni_vmovdqu(v_state, ptr[r64_state]);   // 256 bit (32 uint32s) for Ymm, 128-bit (16 uint32s) for Xmm
 
     // Initialize constants.
     INIT_8_ELEM_T_ARR(mersenne_constant_1, MT_CONST_1, r64_aux, uint32_t);
-    uni_vmovups(v_const_1, ptr[r64_aux]);
+    uni_vpbroadcastd(v_const_1, ptr[r64_aux]);
 
     INIT_8_ELEM_T_ARR(mersenne_constant_2, MT_CONST_2, r64_aux, uint32_t);
-    uni_vmovups(v_const_2, ptr[r64_aux]);
+    uni_vpbroadcastd(v_const_2, ptr[r64_aux]);
 
     if (m_jcp.out_data_type == element::f32) {
         v_mask = getVmm();
         v_divisor = getVmm();
 
-        mov(r32_aux, (1 << std::numeric_limits<float>::digits) - 1);
-        uni_vpbroadcastd(v_mask, r32_aux);
+        INIT_8_ELEM_T_ARR(mask, (1 << std::numeric_limits<float>::digits) - 1, r64_aux, float);
+        uni_vpbroadcastd(v_mask, ptr[r64_aux]);
 
-        mov(r32_aux, 1.0f / (1 << std::numeric_limits<float>::digits));
-        uni_vpbroadcastd(v_divisor, r32_aux);
+        INIT_8_ELEM_T_ARR(divisor, 1.0f / (1 << std::numeric_limits<float>::digits), r64_aux, float);
+        uni_vpbroadcastd(v_divisor, ptr[r64_aux]);
 
-        mov(r64_aux, ptr[r64_params + GET_PHILOX_OFFSET(range_ptr)]);
+        // const auto xmm_aux = Xbyak::Xmm();
+        // mov(r32_aux, (1 << std::numeric_limits<float>::digits) - 1);
+        // movd(xmm_aux, r32_aux);
+        // uni_vpbroadcastd(v_mask, xmm_aux);
+
+        // mov(r32_aux, 1.0f / (1 << std::numeric_limits<float>::digits));
+        // movd(xmm_aux, r32_aux);
+        // uni_vpbroadcastd(v_divisor, xmm_aux);
+
+        mov(r64_aux, ptr[r64_params + GET_MERSENNE_OFFSET(range_ptr)]);
         uni_vpbroadcastd(v_range, ptr[r64_aux]);
 
-        mov(r64_aux, ptr[r64_params + GET_PHILOX_OFFSET(min_ptr)]);
+        mov(r64_aux, ptr[r64_params + GET_MERSENNE_OFFSET(min_ptr)]);
         uni_vpbroadcastd(v_min, ptr[r64_aux]);
     } else if (m_jcp.out_data_type == element::i32) {
-        mov(r64_aux, ptr[r64_params + GET_PHILOX_OFFSET(range_ptr)]);
+        mov(r64_aux, ptr[r64_params + GET_MERSENNE_OFFSET(range_ptr)]);
         uni_vpbroadcastd(v_range, ptr[r64_aux]);
 
-        mov(r64_aux, ptr[r64_params + GET_PHILOX_OFFSET(min_ptr)]);
+        mov(r64_aux, ptr[r64_params + GET_MERSENNE_OFFSET(min_ptr)]);
         uni_vpbroadcastd(v_min, ptr[r64_aux]);
     } else {
         OPENVINO_THROW("RandomUniform kernel does not support precision ", m_jcp.out_data_type, " for ", x64::get_isa_info());
