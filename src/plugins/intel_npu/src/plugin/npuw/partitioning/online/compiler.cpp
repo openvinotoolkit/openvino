@@ -26,7 +26,8 @@ static const std::map<std::string, std::string> ISOL_PRESETS = {{"COMPUTE",
                                                                  "P:DQMatMulGQu4/compute,P:DQMatMulCWu4/compute,"
                                                                  "P:DQMatMulGQi4/compute,P:DQMatMulCWi4/compute,"
                                                                  "P:VocabMatMul/compute,"
-                                                                 "P:RMSNorm/compute"}};
+                                                                 "P:RMSNorm/compute,"
+                                                                 "P:SDPA/gqa"}};
 }
 
 // For missing declaration warning
@@ -362,6 +363,7 @@ class Compiler {
         m_snapshot->repeatedBlocks([&]() {
             // This callback is called when repeatingBlocks algorithm thinks it is done
             m_snapshot->stripTag("compute");
+            m_snapshot->stripTag("gqa");
         });
         m_snapshot->repeat([&] {
             m_snapshot->fuseRemnantsExtended();

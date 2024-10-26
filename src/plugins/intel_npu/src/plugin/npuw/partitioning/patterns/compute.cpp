@@ -327,6 +327,21 @@ RMSNorm::RMSNorm(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, co
     register_matcher(std::make_shared<opp::Matcher>(multiply2, "TagRMSNorm"), std::move(callback));
 }
 
+SDPA::SDPA(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag) {
+    auto sdpa = opp::wrap_type<ov::op::v13::ScaledDotProductAttention>({opp::any_input(), opp::any_input(), opp::any_input(), opp::any_input()});
+    auto node_to_gptr = snapshot->getNodeToGroupMap();
+
+    // Note: Use [=] to make sure the above objects stay alive in the callback
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+        auto matched_sdpa = node_to_output.at(sdpa).get_node_shared_ptr();
+        node_to_gptr->at(matched_sdpa)->isolate(isol_tag);
+        return false;  // root hasn't changed
+    };
+    register_matcher(std::make_shared<opp::Matcher>(sdpa, "TagSDPA"), std::move(callback));
+}
+
+
 }  // namespace compute
 }  // namespace patterns
 }  // namespace npuw

@@ -484,6 +484,9 @@ void Snapshot::earlyRegroup() {
             } else if (isolate.pattern == "VocabMatMul") {
                 rewr.add_matcher<ov::npuw::patterns::compute::VocabMatMul>(shared_from_this(), isolate.tag);
                 handle_patterns = true;
+            } else if (isolate.pattern == "SDPA") {
+                rewr.add_matcher<ov::npuw::patterns::compute::SDPA>(shared_from_this(), isolate.tag);
+                handle_patterns = true;
             } else {
                 LOG_WARN("OPENVINO_NPUW_ISOLATE: unsupported pattern " << isolate.pattern << " is skipped!");
             }

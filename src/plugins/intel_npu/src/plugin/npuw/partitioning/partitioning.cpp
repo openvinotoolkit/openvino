@@ -14,6 +14,7 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/slice.hpp"
+#include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/validate.hpp"
 #include "openvino/runtime/make_tensor.hpp"
@@ -1557,7 +1558,7 @@ void Partitioner::createFunction(FunctionPipeline& func_ggg) {
 }
 
 void Partitioner::identifySpatialRange(ov::npuw::Function& f) {
-    NPUW_ASSERT(f._tag == "compute");
+    NPUW_ASSERT(f._tag == "compute" || f._tag == "gqa");
 
     // NB: The current logic must be changed. Here we assume we only
     // apply this change to "compute" subgraphs which we identify
@@ -1581,44 +1582,70 @@ void Partitioner::identifySpatialRange(ov::npuw::Function& f) {
     const auto& f_result_0 = f_results.front();
     const auto& f_result_0_shape = f_result_0->get_shape();
 
-    if (f_result_0_shape.size() != 3) {
-        return;  // NB: this is the only case we enable now
-    }
-
-    if (f_result_0_shape[1] <= 1) {
-        return;  // NB: this is the only spatial dim we enable now
-    }
-
-    for (auto&& f_result_i : f_results) {
-        // Yes, it will also compare r[0] vs r[0]
-        const auto& f_result_i_shape = f_result_i->get_shape();
-        if (f_result_0_shape.size() != f_result_i_shape.size()) {
-            return;  // Do nothing
-        }
-
-        if (f_result_0_shape[1] != f_result_i_shape[1]) {
-            return;  // Do nothing
-        }
-    }
-
-    // Now, find the parameters with the same spatial dim
-    // NB: again, this is a very weak feature to look for
     const auto& f_params = f._model->get_parameters();
     NPUW_ASSERT(f_params.size() > 0);
 
     using S = ov::npuw::function::Spatial;
     S spatial;
-    spatial._range = f_result_0_shape[1];
-    spatial._out_dim = 1;  // the only case we're looking into now
+    if (f._tag == "compute") {
+        if (f_result_0_shape.size() != 3) {
+            return;  // NB: this is the only case we enable now
+        }
+        if (f_result_0_shape[1] <= 1) {
+            return;  // NB: this is the only spatial dim we enable now
+        }
+        for (auto&& f_result_i : f_results) {
+            // Yes, it will also compare r[0] vs r[0]
+            const auto& f_result_i_shape = f_result_i->get_shape();
+            if (f_result_0_shape.size() != f_result_i_shape.size()) {
+                return;  // Do nothing
+            }
+            if (f_result_0_shape[1] != f_result_i_shape[1]) {
+                return;  // Do nothing
+            }
+        }
+        spatial._range = f_result_0_shape[1];
+        spatial._out_dim = 1;
 
-    for (std::size_t i = 0u; i < f._param_offset; i++) {
-        const auto& f_param = f_params[i];
-        const auto& f_param_dims = f_param->get_shape();
+        // Now, find the parameters with the same spatial dim
+        // NB: again, this is a very weak feature to look for
+        for (std::size_t i = 0u; i < f._param_offset; i++) {
+            const auto& f_param = f_params[i];
+            const auto& f_param_dims = f_param->get_shape();
 
-        auto spatial_dim_iter = std::find(f_param_dims.begin(), f_param_dims.end(), spatial._range);
-        if (spatial_dim_iter != f_param_dims.end()) {
-            std::size_t spatial_dim_idx = std::distance(f_param_dims.begin(), spatial_dim_iter);
-            spatial._inputs.push_back(S::Param{f_param, spatial_dim_idx});
+            auto spatial_dim_iter = std::find(f_param_dims.begin(), f_param_dims.end(), spatial._range);
+            if (spatial_dim_iter != f_param_dims.end()) {
+                std::size_t spatial_dim_idx = std::distance(f_param_dims.begin(), spatial_dim_iter);
+                spatial._inputs.push_back(S::Param{f_param, spatial_dim_idx});
+            }
+        }
+    } else if (f._tag == "gqa") {
+        spatial._range = f_result_0_shape[2];
+        spatial._out_dim = 2;
+
+        std::cout << "SDPA CASE: " << spatial._range << std::endl;
+
+        // Now, find the parameters with the same spatial dim - for SDPA
+        // NB: again, this is a very weak feature to look for
+        for (std::size_t i = 0u; i < f._param_offset; i++) {
+            const auto& f_param = f_params[i];
+
+            auto this_param_readers = f_param->output(0).get_target_inputs();
+            if (this_param_readers.size() > 1u) {
+                // Unknown case - exiting
+                std::cout << "More readers than we expect" << std::endl;
+                return;
+            }
+            auto &reader_port = *this_param_readers.begin();
+            if (!ov::is_type<ov::op::v13::ScaledDotProductAttention>(reader_port.get_node())) {
+                std::cout << "Not a node we expect: " << reader_port.get_node()->get_friendly_name() << std::endl;
+                // Unknown case - exiting
+                return;
+            }
+            if (reader_port.get_index() == 0 || reader_port.get_index() == 3) {
+                std::cout << "Register spatial Parameter " << f_param << std::endl;
+                spatial._inputs.push_back(S::Param{f_param, 2});
+            }
         }
     }
 
@@ -1715,7 +1742,7 @@ void Partitioner::spatial(const std::string& func_name) {
     // Identify the spatial dimension for this function
     // Works only for Compute case.
     // FIXME: Replace this string identification with smt better
-    if (!cfg.get<::intel_npu::NPUW_SPATIAL>() || f._tag != "compute") {
+    if (!cfg.get<::intel_npu::NPUW_SPATIAL>() || (f._tag != "compute" && f._tag != "gqa")) {
         LOG_VERB("No spatial optimizations will be done to  " << func_name << " in model " << model->get_friendly_name()
                                                               << "...");
         return;
