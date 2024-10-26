@@ -4,6 +4,8 @@
 
 #include "random_uniform.hpp"
 
+#include <immintrin.h>
+
 using namespace dnnl::impl::cpu;
 
 namespace ov {
@@ -645,11 +647,13 @@ void MersenneTwisterGenerator<isa>::generate() {
     r64_state = getReg64();
     r64_work_amount = getReg64();
     r64_elements_remaining = getReg64();
+    r64_storage_capacity = getReg64();
 
     mov(r64_dst,  ptr[r64_params + GET_MERSENNE_OFFSET(dst_ptr)]);
     mov(r64_state, ptr[r64_params + GET_MERSENNE_OFFSET(state_ptr)]);
     mov(r64_work_amount, ptr[r64_params + GET_MERSENNE_OFFSET(work_amount)]);
     mov(r64_elements_remaining, ptr[r64_params + GET_MERSENNE_OFFSET(elements_remaining)]);
+    mov(r64_storage_capacity, getVectorLen() / 4); // might be crashing?
 
     initVectors();
     process();
@@ -662,7 +666,7 @@ template <>
 void MersenneTwisterGenerator<x64::avx512_core>::initVectors() {
     const auto r64_aux = getReg64();
     const auto r32_aux = Xbyak::Reg32(r64_aux.getIdx());
-    const auto r16_aux = Xbyak::Reg32(r64_aux.getIdx());
+    const auto r16_aux = Xbyak::Reg16(r64_aux.getIdx());
 
     v_min = getVmm();
     v_range = getVmm();
@@ -693,13 +697,16 @@ void MersenneTwisterGenerator<x64::avx512_core>::initVectors() {
         BROADCAST_MERSENNE_PARAM(vpbroadcastd, v_range,     r64_aux, range_ptr)
         BROADCAST_MERSENNE_PARAM(vpbroadcastd, v_min,       r64_aux, min_ptr)
     } else if (m_jcp.out_data_type == element::f16 && x64::mayiuse(x64::avx512_core_fp16)) {
-        BROADCAST_CONSTANT(vpbroadcastw, v_mask, r16_aux, (1 << std::numeric_limits<float16>::digits) - 1)
-        BROADCAST_CONSTANT(vpbroadcastw, v_divisor, r16_aux, 1.0f / (1 << std::numeric_limits<float16>::digits))
+        BROADCAST_CONSTANT(vpbroadcastd, v_mask, r32_aux, (1 << std::numeric_limits<float16>::digits) - 1)
+        BROADCAST_CONSTANT(vpbroadcastd, v_divisor, r32_aux, 1.0f / (1 << std::numeric_limits<float16>::digits))
         BROADCAST_MERSENNE_PARAM(vpbroadcastw, v_range,     r64_aux, range_ptr)
         BROADCAST_MERSENNE_PARAM(vpbroadcastw, v_min,       r64_aux, min_ptr)
+        // Pad with zeros as we don't need this many values stored (must match the amount of uint32s)
+        vpsrld(v_range, v_range, 16);
+        vpsrld(v_min, v_min, 16);
     } else if (m_jcp.out_data_type == element::bf16 && x64::mayiuse(x64::avx512_core_bf16)) {
-        BROADCAST_CONSTANT(vpbroadcastw, v_mask, r16_aux, (1 << 8) - 1)
-        BROADCAST_CONSTANT(vpbroadcastw, v_divisor, r16_aux, 1.0f / (1 << 8))
+        BROADCAST_CONSTANT(vpbroadcastd, v_mask, r32_aux, (1 << 8) - 1)
+        BROADCAST_CONSTANT(vpbroadcastd, v_divisor, r32_aux, 1.0f / (1 << 8))
         BROADCAST_MERSENNE_PARAM(vpbroadcastw, v_range,     r64_aux, range_ptr)
         BROADCAST_MERSENNE_PARAM(vpbroadcastw, v_min,       r64_aux, min_ptr)
 
@@ -707,9 +714,9 @@ void MersenneTwisterGenerator<x64::avx512_core>::initVectors() {
         const auto ymm_range = Xbyak::Ymm(v_range.getIdx());
         const auto ymm_min = Xbyak::Ymm(v_min.getIdx());
         vpmovzxwd(v_range, ymm_range);
-        uni_vpslld(v_range, v_range, 16);
+        vpslld(v_range, v_range, 16);
         vpmovzxwd(v_min, ymm_min);
-        uni_vpslld(v_min, v_min, 16);
+        vpslld(v_min, v_min, 16);
     } else if (m_jcp.out_data_type == element::i64) {
         BROADCAST_MERSENNE_PARAM(vpbroadcastq, v_range, r64_aux, range_ptr)
         BROADCAST_MERSENNE_PARAM(vpbroadcastq, v_min,   r64_aux, min_ptr)
@@ -855,112 +862,297 @@ void MersenneTwisterGenerator<isa>::generateRandomNumbers(const Vmm& v_result, c
     vpxor(v_result, v_result, v_aux);   // x ^= tmp
 }
 
+template <>
+void MersenneTwisterGenerator<x64::avx512_core>::convertToOutputTypeMersenne(const Vmm& v_result, const Vmm& v_min, const Vmm& v_range, const Xbyak::Reg64& r64_dst, const Xbyak::Reg64& r64_elements_remaining) {
+    const auto r64_counter = getReg64();
+
+    Xbyak::Label loop, end;
+    const auto k_rest_mask = getMask();
+
+    if (m_jcp.out_data_type == element::f64) {
+        const Vmm low = getVmm();
+        const Vmm high = getVmm();
+
+        vextractf64x4(low, v_result, 0);
+        vextractf64x4(high, v_result, 1);
+
+        vcvtps2pd(low, low);
+        vcvtps2pd(high, high);
+
+        // Apply mask and divisor
+        vpandq(low, low, v_mask);
+        vmulpd(low, low, v_divisor);
+
+        vpandq(high, high, v_mask);
+        vmulpd(high, high, v_divisor);
+
+        // Scale and shift
+        vmulpd(low, low, v_range);
+        vaddpd(low, low, v_min);
+
+        vmulpd(high, high, v_range);
+        vaddpd(high, high, v_min);
+
+        // Store result
+        cmp(r64_elements_remaining, 0);
+        jle(end);
+        fillRestWorkMask(k_rest_mask, r64_elements_remaining);
+        vmovdqu64(ptr[r64_dst] | k_rest_mask, low);
+        sub(r64_elements_remaining, r64_storage_capacity);
+
+        cmp(r64_elements_remaining, 0);
+        jle(end);
+        fillRestWorkMask(k_rest_mask, r64_elements_remaining);
+        vmovdqu64(ptr[r64_dst] | k_rest_mask, high);
+        sub(r64_elements_remaining, r64_storage_capacity);
+
+        L(end);
+    } else if (m_jcp.out_data_type == element::f32) {
+        // Apply mask and divisor
+        vpandd(v_result, v_result, v_mask);
+        vcvtdq2ps(v_result, v_result);
+        vmulps(v_result, v_result, v_divisor);
+
+        // Scale and shift
+        vmulps(v_result, v_result, v_range);
+        vaddps(v_result, v_result, v_min);
+
+        // Store result
+        cmp(r64_elements_remaining, 0);
+        jle(end);
+        fillRestWorkMask(k_rest_mask, r64_elements_remaining);
+        vmovdqu32(ptr[r64_dst] | k_rest_mask, v_result);
+        sub(r64_elements_remaining, r64_storage_capacity);
+
+        L(end);
+    } else if (m_jcp.out_data_type == element::f16) {
+        // Apply mask and divisor
+        vpandd(v_result, v_result, v_mask);
+        vcvtdq2ps(v_result, v_result);
+        vmulps(v_result, v_result, v_divisor);
+        
+        vcvtps2ph(v_result, v_result, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+
+        // Scale and shift
+        vmulph(v_result, v_result, v_range);
+        vaddph(v_result, v_result, v_min);
+
+        // Store result
+        cmp(r64_elements_remaining, 0);
+        jle(end);
+        fillRestWorkMask(k_rest_mask, r64_elements_remaining);
+        vmovdqu16(ptr[r64_dst] | k_rest_mask, v_result);
+        sub(r64_elements_remaining, r64_storage_capacity);
+
+        L(end);
+    } else if (m_jcp.out_data_type == element::bf16) {
+        // Apply mask and divisor
+        vpandd(v_result, v_result, v_mask);
+        vmulps(v_result, v_result, v_divisor);
+
+        // Scale and shift
+        vmulps(v_result, v_result, v_range);
+        vaddps(v_result, v_result, v_min);
+
+        vcvtneps2bf16(v_result, v_result);
+
+        // Store result
+        cmp(r64_elements_remaining, 0);
+        jle(end);
+        fillRestWorkMask(k_rest_mask, r64_elements_remaining);
+        vmovdqu16(ptr[r64_dst] | k_rest_mask, v_result);
+        sub(r64_elements_remaining, r64_storage_capacity);
+
+        L(end);
+    } else if (m_jcp.out_data_type == element::i32) {
+        // Scale and shift
+        vmulps(v_result, v_result, v_range);
+        vaddps(v_result, v_result, v_min);
+
+        // Store result
+        mov(r64_counter, 0);
+        L(loop);
+        {
+            for (int i = 0; i < 16; ++i) {
+                cmp(r64_counter, r64_elements_remaining);
+                jge(end);
+
+                vpextrd(ptr[r64_dst + r64_counter * sizeof(int32_t)], v_result, i);
+                inc(r64_counter);
+            }
+
+            jmp(loop);
+        }
+        L(end);
+    } else if (m_jcp.out_data_type == element::i64 && m_jcp.optimized) {
+        // Handle optimized i64 data type
+        // Apply mask and divisor
+        vpandq(v_result, v_result, v_mask);
+        vcvtdq2pd(v_result, v_result);
+        vmulpd(v_result, v_result, v_divisor);
+
+        // Scale and shift
+        vmulpd(v_result, v_result, v_range);
+        vaddpd(v_result, v_result, v_min);
+
+        // Store result
+        mov(r64_counter, 0);
+        L(loop);
+        {
+            for (int i = 0; i < 8; ++i) {
+                cmp(r64_counter, r64_elements_remaining);
+                jge(end);
+
+                vextractf64x4(ptr[r64_dst + r64_counter * sizeof(int64_t)], v_result, i);
+                inc(r64_counter);
+            }
+
+            jmp(loop);
+        }
+        L(end);
+    } else if (m_jcp.out_data_type == element::i64 && !m_jcp.optimized) {
+        // Handle non-optimized i64 data type
+        // Apply mask and divisor
+        vpandq(v_result, v_result, v_mask);
+        vcvtdq2pd(v_result, v_result);
+        vmulpd(v_result, v_result, v_divisor);
+
+        // Scale and shift
+        vmulpd(v_result, v_result, v_range);
+        vaddpd(v_result, v_result, v_min);
+
+        // Store result
+        mov(r64_counter, 0);
+        L(loop);
+        {
+            for (int i = 0; i < 8; ++i) {
+                cmp(r64_counter, r64_elements_remaining);
+                jge(end);
+
+                vextractf64x4(ptr[r64_dst + r64_counter * sizeof(int64_t)], v_result, i);
+                inc(r64_counter);
+            }
+
+            jmp(loop);
+        }
+        L(end);
+    } else {
+        OPENVINO_THROW("RandomUniform kernel does not support precision ", m_jcp.out_data_type, " for ", x64::get_isa_info());
+    }
+}
+
+template <>
+void MersenneTwisterGenerator<x64::avx2>::convertToOutputTypeMersenne(const Vmm& v_result, const Vmm& v_min, const Vmm& v_range, const Xbyak::Reg64& r64_dst, const Xbyak::Reg64& r64_elements_remaining) {
+    const auto r64_counter = getReg64();
+
+    Xbyak::Label loop, end;
+
+    if (m_jcp.out_data_type == element::f32) {
+        // Apply mask and divisor
+        vpand(v_result, v_result, v_mask);
+        vcvtdq2ps(v_result, v_result);
+        vmulps(v_result, v_divisor);
+
+        // Scale and shift
+        vmulps(v_result, v_range);
+        vaddps(v_result, v_min);
+
+        // Store result
+        mov(r64_counter, 0);
+        L(loop);
+        {
+            for(int32_t i = 0; i < 8; ++i) {
+                cmp(r64_counter, r64_elements_remaining);
+                jge(end);
+
+                vpextrd(ptr[r64_dst + r64_counter * sizeof(int32_t)], v_result, i);
+                inc(r64_counter);
+            }
+
+            inc(r64_counter);
+            jmp(loop);
+        }
+        L(end);
+    } else if (m_jcp.out_data_type == element::i32) {
+        // Scale and shift
+        vmulps(v_result, v_range);
+        vaddps(v_result, v_min);
+
+        // Store result
+        mov(r64_counter, 0);
+        L(loop);
+        {
+            for(int32_t i = 0; i < 8; ++i) {
+                cmp(r64_counter, r64_elements_remaining);
+                jge(end);
+
+                vpextrd(ptr[r64_dst + r64_counter * sizeof(int32_t)], v_result, i);
+                inc(r64_counter);
+            }
+
+            inc(r64_counter);
+            jmp(loop);
+        }
+        L(end);
+    } else {
+        OPENVINO_THROW("RandomUniform kernel does not support precision ", m_jcp.out_data_type, " for ", x64::get_isa_info());
+    }
+}
+
 template <x64::cpu_isa_t isa>
 void MersenneTwisterGenerator<isa>::convertToOutputTypeMersenne(const Vmm& v_result, const Vmm& v_min, const Vmm& v_range, const Xbyak::Reg64& r64_dst, const Xbyak::Reg64& r64_elements_remaining) {
-    // using namespace Xbyak;
+    const auto r64_counter = getReg64();
 
-    // const auto r64_aux = getReg64();
-    // const auto r64_aux_2 = getReg64();
+    Xbyak::Label loop, end;
 
-    // const auto r32_aux = Xbyak::Reg32(r64_aux.getIdx());
-    // const auto r32_aux_2 = Xbyak::Reg32(r64_aux_2.getIdx());
+    if (m_jcp.out_data_type == element::f32) {
+        // Apply mask and divisor
+        pand(v_result, v_mask);
+        cvtdq2ps(v_result, v_result);
+        mulps(v_result, v_divisor);
 
+        // Scale and shift
+        mulps(v_result, v_range);
+        addps(v_result, v_min);
 
-    // if (m_jcp.out_data_type == element::f32) {
-    //     // Apply mask and divisor
-    //     pand(v_result, v_mask);
-    //     cvtdq2ps(v_result, v_result);
-    //     mulps(v_result, v_divisor);
+        // Store result
+        mov(r64_counter, 0);
+        L(loop);
+        {
+            cmp(r64_counter, r64_elements_remaining);
+            jge(end);
+            cmp(r64_counter, r64_storage_capacity);
+            jge(end);
 
-    //     // Scale and shift
-    //     mulps(v_result, v_range);
-    //     addps(v_result, v_min);
+            store(ptr[r64_dst + r64_counter * sizeof(int)], v_result, r64_counter, m_jcp.out_data_type.size());
 
-    //     // Store result
-    //     movdqu(ptr[r64_dst], v_result);
-    // } else if (m_jcp.out_data_type == element::f16) {
-    //     // Apply mask and divisor
-    //     pand(v_result, v_mask);
-    //     cvtdq2ps(v_result, v_result);
-    //     mulps(v_result, v_divisor);
+            inc(r64_counter);
+            jmp(loop);
+        }
+        L(end);
+    } else if (m_jcp.out_data_type == element::i32) {
+        // Scale and shift
+        mulps(v_result, v_range);
+        addps(v_result, v_min);
 
-    //     // Scale and shift
-    //     mulps(v_result, v_range);
-    //     addps(v_result, v_min);
+        // Store result
+        mov(r64_counter, 0);
+        L(loop);
+        {
+            cmp(r64_counter, r64_elements_remaining);
+            jge(end);
+            cmp(r64_counter, r64_storage_capacity);
+            jge(end);
 
-    //     // Convert to float16 and store result
-    //     vcvtps2ph(v_result, v_result, _op_mxcsr);
-    //     movdqu(ptr[r64_dst], v_result);
-    // } else if (m_jcp.out_data_type == element::bf16) {
-    //     // Apply mask and divisor
-    //     pand(v_result, v_mask);
-    //     cvtdq2ps(v_result, v_result);
-    //     mulps(v_result, v_divisor);
+            store(ptr[r64_dst + r64_counter * sizeof(int)], v_result, r64_counter, m_jcp.out_data_type.size());
 
-    //     // Scale and shift
-    //     mulps(v_result, v_range);
-    //     addps(v_result, v_min);
-
-    //     // Convert to bfloat16 and store result
-    //     vcvtneps2bf16(v_result, v_result); // vector convert nearest_even_rounding_mode packed_single to bf16
-    //     movdqu(ptr[r64_dst], v_result);
-    // } else if (m_jcp.out_data_type == element::i32) {
-    //     // Convert to int32 and store result
-    //     movdqu(ptr[r64_dst], v_result);
-    // } else if (m_jcp.out_data_type == element::i64) {
-    //     if (m_jcp.optimized) {
-    //         // Move the lower 32 bits of v_result to r32_aux
-    //         movd(r32_aux, v_result);
-            
-    //         // Move the lower 32 bits of v_range to r32_aux_2
-    //         movd(r32_aux_2, v_range);
-            
-    //         // Perform the modulo operation
-    //         xor_(rdx, rdx); // Clear RDX (set it to zero)
-    //         mov(rax, r32_aux); // Move r32_aux to RAX for division
-    //         div(r32_aux_2); // Divide RAX by r32_aux_2, quotient in RAX, remainder in RDX
-            
-    //         // Move the remainder (result % range) to r32_aux
-    //         mov(r32_aux, rdx);
-            
-    //         // Add v_min to r32_aux
-    //         movd(r32_aux_2, v_min);
-    //         add(r32_aux, r32_aux_2);
-            
-    //         // Store the result in the destination pointer
-    //         mov(ptr[r64_dst], r32_aux);
-    //     } else {
-    //         // Extract the first two 32-bit values from v_result
-    //         movd(r32_aux, v_result); // Move the lower 32 bits of v_result[0] to r32_aux
-    //         pextrd(r32_aux_2, v_result, 1); // Extract the second 32-bit value (v_result[1]) to r32_aux_2
-
-    //         // Combine the two 32-bit values into a 64-bit integer
-    //         mov(r64_aux, r32_aux); // Move r32_aux to the lower 32 bits of r64_aux
-    //         shl(r64_aux, 32); // Shift r64_aux left by 32 bits
-    //         mov(r64_aux_2, r32_aux_2); // Move r32_aux_2 to r64_aux_2
-    //         or_(r64_aux, r64_aux_2); // Combine with r64_aux_2 to form a 64-bit integer
-
-    //         // Prepare for division
-    //         xor_(rdx, rdx); // Clear RDX (set it to zero)
-    //         mov(rax, r64_aux); // Move the combined 64-bit value to RAX
-
-    //         // Perform the division
-    //         mov(r64_aux_2, qword[v_range]); // Move the range value to r64_aux_2
-    //         div(r64_aux_2); // Divide RAX by r64_aux_2, quotient in RAX, remainder in RDX
-
-    //         // Move the remainder to r64_aux
-    //         mov(r64_aux, rdx); // Move the remainder (result % range) to r64_aux
-
-    //         // Add the minimum value
-    //         mov(r64_aux_2, qword[v_min]); // Move the minimum value to r64_aux_2
-    //         add(r64_aux, r64_aux_2); // Add r64_aux_2 to r64_aux
-
-    //         // Store the result in the destination pointer
-    //         mov(qword[r64_dst], r64_aux); // Move the final result to the memory location pointed by r64_dst
-    //     }
-    // } else {
-    //     OPENVINO_THROW("RandomUniform kernel does not support precision ", m_jcp.out_data_type, " for ", x64::get_isa_info());
-    // }
+            inc(r64_counter);
+            jmp(loop);
+        }
+        L(end);
+    } else {
+        OPENVINO_THROW("RandomUniform kernel does not support precision ", m_jcp.out_data_type, " for ", x64::get_isa_info());
+    }
 }
 
 template class PhiloxGenerator<x64::avx512_core>;

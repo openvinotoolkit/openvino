@@ -128,6 +128,8 @@ private:
     RegistersPool::Reg<Xbyak::Reg64> r64_state;
     RegistersPool::Reg<Xbyak::Reg64> r64_work_amount;
     RegistersPool::Reg<Xbyak::Reg64> r64_elements_remaining;
+    RegistersPool::Reg<Xbyak::Reg64> r64_storage_capacity;
+
 
     const Xbyak::Reg64 r64_params = Xbyak::Reg64(dnnl::impl::cpu::x64::abi_param_regs[0]);
 
