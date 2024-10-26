@@ -677,13 +677,18 @@ export interface NodeAddon {
   };
 
   /**
-   * It saves model in a specified path.
-   * @param [model] Model that will be saved.
-   * @param [path] Path for saving the model.
-   * @param [compressToFp16] [OPTIONAL] Whether to compress the model
-   * to float16. Default is set to `true`.
+   * It saves a model into IR files (xml and bin).
+   * Floating point weights are compressed to FP16 by default.
+   * This method saves a model to IR applying all necessary transformations
+   * that usually applied in model conversion flow provided by mo tool.
+   * Particularly, floating point weights are compressed to FP16,
+   * debug information in model nodes are cleaned up, etc.
+   * @param model The model which will be converted to IR representation and saved.
+   * @param path The path for saving the model.
+   * @param compressToFp16 Whether to compress
+   * floating point weights to FP16. Default is set to `true`.
    */
-  saveModel(model:Model, path:string, compressToFp16?:boolean) : void;
+  saveModelSync(model: Model, path: string, compressToFp16?: boolean) : void;
 
   element: typeof element;
 }
