@@ -5,7 +5,12 @@
 const { addon: ov } = require('../..');
 const assert = require('assert');
 const { describe, it, before, beforeEach } = require('node:test');
-const { testModels, compareModels, getModelPath, isModelAvailable } = require('./utils.js');
+const {
+  testModels,
+  compareModels,
+  getModelPath,
+  isModelAvailable,
+} = require('./utils.js');
 const epsilon = 0.5;
 const outDir = 'tests/unit/out/';
 

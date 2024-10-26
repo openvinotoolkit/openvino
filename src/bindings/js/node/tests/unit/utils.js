@@ -34,7 +34,7 @@ function compareModels(model1, model2) {
   if (model1.getFriendlyName() !== model2.getFriendlyName()) {
     differences.push('Friendly names of models are not equal ' +
         `model_one: ${model1.getFriendlyName()},` +
-        `model_two: ${model2.getFriendlyName()}`)
+        `model_two: ${model2.getFriendlyName()}`);
   }
 
   if (model1.inputs.length !== model2.inputs.length) {
@@ -46,7 +46,7 @@ function compareModels(model1, model2) {
   if (model1.outputs.length !== model2.outputs.length) {
     differences.push('Number of models\' outputs are not equal ' +
         `model_one: ${model1.outputs.length}, ` +
-        `model_two: ${model2.outputs.length}`)
+        `model_two: ${model2.outputs.length}`);
   }
 
   if (differences.length) {
