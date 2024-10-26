@@ -22,7 +22,8 @@ NamedOutputs eye(const NodeContext& node) {
     if (dtype == ov::element::i32 || dtype == ov::element::i64) {
         out_node = std::make_shared<default_opset::Eye>(row_node, col_node, diagonal_index_node, dtype);
     } else {
-        const auto& eye_node = std::make_shared<default_opset::Eye>(row_node, col_node, diagonal_index_node, ov::element::i32);
+        const auto& eye_node =
+            std::make_shared<default_opset::Eye>(row_node, col_node, diagonal_index_node, ov::element::i32);
         out_node = std::make_shared<default_opset::Convert>(eye_node, dtype);
     }
 
