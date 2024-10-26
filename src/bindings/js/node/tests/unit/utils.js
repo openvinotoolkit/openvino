@@ -2,7 +2,6 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-const { addon: ov } = require('../..');
 const path = require('path');
 const fs = require('node:fs/promises');
 const {
@@ -30,26 +29,28 @@ module.exports = {
   testModels,
 };
 
-function compareModels(model1, model2, compareNames=true) {
-  let msg = '';
-  if (compareNames && model1.getFriendlyName() !== model2.getFriendlyName()) {
-    msg += 'Friendly names of models are not equal ';
-    msg += `model_one: ${model1.getFriendlyName()}, 
-           model_two: ${model2.getFriendlyName()}`;
+function compareModels(model1, model2) {
+  const differences = [];
+  if (model1.getFriendlyName() !== model2.getFriendlyName()) {
+    differences.push('Friendly names of models are not equal ' +
+        `model_one: ${model1.getFriendlyName()},` +
+        `model_two: ${model2.getFriendlyName()}`)
   }
 
   if (model1.inputs.length !== model2.inputs.length) {
-    msg += 'Number of models\' inputs are not equal ';
-    msg += `model_one: ${model1.inputs.length}, `;
-    msg += `model_two: ${model2.inputs.length}`;
-    throw new Error(msg);
+    differences.push('Number of models\' inputs are not equal ' +
+    `model_one: ${model1.inputs.length}, ` +
+    `model_two: ${model2.inputs.length}`);
   }
 
   if (model1.outputs.length !== model2.outputs.length) {
-    msg += 'Number of models\' outputs are not equal ';
-    msg += `model_one: ${model1.outputs.length}, 
-           model_two: ${model2.outputs.length}`;
-    throw new Error(msg);
+    differences.push('Number of models\' outputs are not equal ' +
+        `model_one: ${model1.outputs.length}, ` +
+        `model_two: ${model2.outputs.length}`)
+  }
+
+  if (differences.length) {
+    throw new Error(differences.join('\n'));
   }
 }
 
