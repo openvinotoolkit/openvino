@@ -18,7 +18,6 @@ struct AddonData {
     Napi::FunctionReference partial_shape;
     Napi::FunctionReference ppp;
     Napi::FunctionReference tensor;
-    Napi::FunctionReference save_model;
 };
 
 void init_class(Napi::Env env,
@@ -31,11 +30,8 @@ template <typename Callable>
 void init_function(Napi::Env env,
                    Napi::Object exports,
                    std::string func_name,
-                   Callable func,
-                   Napi::FunctionReference& reference) {
-
+                   Callable func) {
     const auto& napi_func = Napi::Function::New(env, func, func_name);
-    reference = Napi::Persistent(napi_func);
 
     exports.Set(func_name, napi_func);
 }
@@ -45,4 +41,4 @@ Napi::Object init_module(Napi::Env env, Napi::Object exports);
 /**
      * @brief Saves model in a specified path.
 */
-Napi::Value save_model(const Napi::CallbackInfo& info);
+Napi::Value save_model_sync(const Napi::CallbackInfo& info);

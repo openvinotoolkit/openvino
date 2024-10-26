@@ -30,7 +30,7 @@ void init_class(Napi::Env env,
     exports.Set(class_name, prototype);
 }
 
-Napi::Value save_model(const Napi::CallbackInfo& info) {
+Napi::Value save_model_sync(const Napi::CallbackInfo& info) {
     std::vector<std::string> allowed_signatures;
     try {
         if (ov::js::validate<ModelWrap, Napi::String>(info, allowed_signatures)) {
@@ -45,7 +45,7 @@ Napi::Value save_model(const Napi::CallbackInfo& info) {
             const auto compress_to_fp16 = info[2].ToBoolean();
             ov::save_model(m->get_model(), path, compress_to_fp16);
         } else {
-            OPENVINO_THROW("'saveModel'", ov::js::get_parameters_error_msg(info, allowed_signatures));
+            OPENVINO_THROW("'saveModelSync'", ov::js::get_parameters_error_msg(info, allowed_signatures));
         }
     } catch (const std::exception& e) {
         reportError(info.Env(), e.what());
@@ -68,7 +68,7 @@ Napi::Object init_module(Napi::Env env, Napi::Object exports) {
     init_class(env, exports, "ConstOutput", &Output<const ov::Node>::get_class, addon_data->const_output);
     init_class(env, exports, "PartialShape", &PartialShapeWrap::get_class, addon_data->partial_shape);
 
-    init_function(env, exports, "saveModel", save_model, addon_data->save_model);
+    init_function(env, exports, "saveModelSync", save_model_sync);
 
     preprocess::init(env, exports);
     element::init(env, exports);
