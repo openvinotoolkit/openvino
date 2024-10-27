@@ -334,7 +334,7 @@ ov::pass::GeluFusionWithTanh::GeluFusionWithTanh() {
         std::vector<std::shared_ptr<ov::Node>> cp_rt_info_nodes;
         for (const auto& pattern_node : pattern_nodes) {
             if (pattern_to_output.count(pattern_node)) {
-                cp_rt_info_nodes.push_back(pattern_node);
+                cp_rt_info_nodes.push_back(pattern_to_output.at(pattern_node).get_node_shared_ptr());
             }
         }
         ov::copy_runtime_info(cp_rt_info_nodes, gelu);
