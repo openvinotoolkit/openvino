@@ -46,17 +46,23 @@ KERNEL(quantize_input)(
     }
 
     half quan_scale = (half)max_value / 127;
-    half quantized_sum = 0;
+    #if COMPRESSED_WEIGHTS_INT8
+        half quantized_sum = 0;
+    #endif
     for (uint i = 0 ; i < quantize_block ; ++i) {
         half4 buff = input_0[i] / (half4)quan_scale;
         quantized_value[i] = CAT(CAT(convert_, MAKE_VECTOR_TYPE(DQ_TYPE, INPUT_LOAD_SIZE)), _rte)(buff);
-        quantized_sum += (buff[0] + buff[1] + buff[2] + buff[3]);
+        #if COMPRESSED_WEIGHTS_INT8
+            quantized_sum += (buff[0] + buff[1] + buff[2] + buff[3]);
+        #endif
         vstore4(quantized_value[i], 0, &quantized_input[input_offset + i * 4]);
     }
 
     // Pair of quantizing_scale and quantized activation_sum for each group
     quan_var[offset * 2] = quan_scale;
-    quan_var[(offset * 2) + 1] = quantized_sum;
+    #if COMPRESSED_WEIGHTS_INT8
+        quan_var[(offset * 2) + 1] = quantized_sum;
+    #endif
 }
 #else  // !FC_KERNEL_DYNAMIC_QUANTIZE
 
@@ -846,17 +852,10 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
     // Dynamic Quantize
     MAKE_VECTOR_TYPE(DQ_TYPE, INPUT_LOAD_SIZE)      tiled_input_0[HALF_TILE_B] = { };   // Load 4 linear inputs for packing
     PACKED_DQ_TYPE                                  packed_in_0[HALF_TILE_B] = { };     // Packing char4 inputs to 1 integer
-    // Modified type ACCUM_DQ_TYPE to INPUT0_TYPE
     INPUT0_TYPE                                     de_quantize_scale[TILE_B];
-    // INPUT0_TYPE                                     de_quantize_scale;
 
     #if COMPRESSED_WEIGHTS_INT8
-        // Modified types to reduce reg spill
-        // ACCUM_DQ_TYPE activation_sum[TILE_B] = { };
-        // Use sub_group_shuffle for scale and activation_sum
         INPUT0_TYPE activation_sum[TILE_B] = { };
-
-        // INPUT0_TYPE activation_sum;
     #endif
 
     #if COMPRESSED_WEIGHTS && DECOMPRESSION_SCALE_GROUPS_NUM == 1
@@ -938,32 +937,6 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                 }
             }
         #endif
-
-        // Split loading of quan_var into each work-time and use sub_group_shuffle
-        {
-            // uint scale_offset = (input_offset / QUANTIZE_GROUP_SIZE) + (scale_pitch * idx_sglid);
-            // #if NUM_LOOP_IN_DYN_QUAN_GROUP == 1
-            //     if (batch_sglid == 0) {
-            //         de_quantize_scale = quan_var[scale_offset * 2];
-            //     } else if (batch_sglid == 1) {
-            //         #if COMPRESSED_WEIGHTS_INT8
-            //             activation_sum = quan_var[scale_offset * 2 + 1];
-            //         #endif
-            //     }
-            // #elif NUM_LOOP_IN_DYN_QUAN_GROUP > 1
-            //     if (ni % NUM_LOOP_IN_DYN_QUAN_GROUP == 0) {
-            //         if (batch_sglid == 0) {
-            //             de_quantize_scale = quan_var[scale_offset * 2];
-            //         } else if (batch_sglid == 1) {
-            //             #if COMPRESSED_WEIGHTS_INT8
-            //                 activation_sum = quan_var[scale_offset * 2 + 1];
-            //             #endif
-            //         }
-            //     }
-            // #else
-            //     #error "FC bf_tiled kernel: Unexpected NUM_LOOP_IN_DYN_QUAN_GROUP"
-            // #endif
-        }
 
         input_offset += TILE_IFM_ELEMENTS_SIZE;
 
@@ -1144,15 +1117,8 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                         #if COMPRESSED_WEIGHTS_INT8
                             ACCUM_DQ_TYPE seperate_wei_zp = ((int *)(&acc_tmp[fi]))[bi] - ((float)(wei_zp[fi]) * (convert_float)(activation_sum[bi]));
                             ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += (convert_half)(convert_float(seperate_wei_zp) * (float)ds * (float)de_quantize_scale[bi]);
-
-                            // ACCUM_DQ_TYPE seperate_wei_zp = ((int *)(&acc_tmp[fi]))[bi] - convert_int_rte(wei_zp[fi] * _sub_group_shuffle(activation_sum, bi + 8));
-                            // ACCUM_DQ_TYPE seperate_wei_zp = ((int *)(&acc_tmp[fi]))[bi] - convert_int_rte(wei_zp[fi] * _sub_group_shuffle(activation_sum[bi], bi + 8));
-                            // ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += (convert_half)(CAT(convert_, float)(seperate_wei_zp) * ds * _sub_group_shuffle(de_quantize_scale[bi], bi));
                         #else
                             ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += convert_half(((int *)(&acc_tmp[fi]))[bi]) * ds * de_quantize_scale[bi];
-
-                            // ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += convert_half(((int *)(&acc_tmp[fi]))[bi]) * ds * _sub_group_shuffle(de_quantize_scale, bi);
-                            // ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += convert_half(((int *)(&acc_tmp[fi]))[bi]) * ds * _sub_group_shuffle(de_quantize_scale[bi], bi);
                         #endif
                         acc_tmp[fi][bi] = 0;
                     }
@@ -1178,13 +1144,8 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                         #if COMPRESSED_WEIGHTS_INT8
                             ACCUM_DQ_TYPE seperate_wei_zp = ((int *)(&acc_tmp[fi]))[bi] - ((float)(wei_zp[fi]) * (convert_float)(activation_sum[bi]));
                             ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += (convert_half)(convert_float(seperate_wei_zp) * (float)ds * (float)de_quantize_scale[bi]);
-
-                            // ACCUM_DQ_TYPE seperate_wei_zp = ((int *)(&acc_tmp[fi]))[bi] - ((float)wei_zp[fi] * (convert_float)(_sub_group_shuffle(activation_sum, bi + 8)));
-                            // ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += (convert_half)(convert_float(seperate_wei_zp) * (float)ds * (float)_sub_group_shuffle(de_quantize_scale, bi));
                         #else
                             ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += convert_half(((int *)(&acc_tmp[fi]))[bi]) * ds * de_quantize_scale[bi];
-
-                            // ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += convert_half(((int *)(&acc_tmp[fi]))[bi]) * ds * _sub_group_shuffle(de_quantize_scale, bi);
                         #endif
                         acc_tmp[fi][bi] = 0;
                     }
