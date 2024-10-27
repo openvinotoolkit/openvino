@@ -13,8 +13,13 @@
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/swish.hpp"
+#include "openvino/op/gelu.hpp"
 #include "openvino/op/sin.hpp"
 #include "openvino/op/cos.hpp"
+#include "openvino/op/power.hpp"
+#include "openvino/op/sqrt.hpp"
+#include "openvino/op/softmax.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/add.hpp"
@@ -27,7 +32,7 @@
 #include "transformations/utils/utils.hpp"
 
 float get_scale_factor(float scale_factor) {
-    const float default_scale_factor = 256.f;
+    const float default_scale_factor = 10.f;
 
     // scale_factor = (scale_factor < 1) ? default_scale_factor : scale_factor;
 
@@ -54,9 +59,6 @@ bool ov::pass::StaticScalingModel::run_on_model(const std::shared_ptr<ov::Model>
     std::shared_ptr<ov::Node> inverse_scale_const_f32 = std::make_shared<ov::op::v0::Constant>(ov::element::f32, scale_const_shape, inverse_scale_value);
 
     for (auto& node : f->get_ordered_ops()) {
-        if (node->get_friendly_name().compare("__module.transformer_blocks.0.norm1_context.linear/ov_ext::linear/MatMul") == 0)
-            std::cout << "!" << std::endl;
-
         auto parameter_node = std::dynamic_pointer_cast<ov::op::v0::Parameter>(node);
         if (parameter_node &&
             (parameter_node->get_element_type() == ov::element::f16 ||
@@ -119,6 +121,17 @@ bool ov::pass::StaticScalingModel::run_on_model(const std::shared_ptr<ov::Model>
             continue;
         }
 
+        auto result = std::dynamic_pointer_cast<ov::op::v0::Result>(node);
+        if (result && num_scaled_down_inputs == 1) {
+            auto dep = node->input(0);
+            std::shared_ptr<ov::Node> scale_const = (dep.get_element_type() == ov::element::f16) ?
+                                                    scale_const_f16 : scale_const_f32;
+            auto scale_up = std::make_shared<ov::op::v1::Multiply>(dep.get_source_output(), scale_const->output(0));
+            dep.replace_source_output(scale_up->output(0));
+            std::cout << "result scale_up " << scale_up->input(0).get_source_output().get_node_shared_ptr()->get_friendly_name() << " --> "
+                    << node->get_friendly_name() << std::endl;
+        }
+
         //    input0         input1            input0         input1
         // (scaled_down)  (normalized       (scaled_down)  (normalized
         //                 or const)                        or const)
@@ -139,6 +152,18 @@ bool ov::pass::StaticScalingModel::run_on_model(const std::shared_ptr<ov::Model>
                             << node->get_friendly_name() << std::endl;
                 }
             }
+        }
+
+        auto multiply = std::dynamic_pointer_cast<ov::op::v1::Multiply>(node);
+        auto matmul = std::dynamic_pointer_cast<ov::op::v0::MatMul>(node);
+        if ((multiply || matmul) && num_scaled_down_inputs == 2) {
+            auto dep = node->input(1);
+            std::shared_ptr<ov::Node> scale_const = (dep.get_element_type() == ov::element::f16) ?
+                                                    scale_const_f16 : scale_const_f32;
+            auto scale_up = std::make_shared<ov::op::v1::Multiply>(dep.get_source_output(), scale_const->output(0));
+            dep.replace_source_output(scale_up->output(0));
+            std::cout << "scale_up " << scale_up->input(0).get_source_output().get_node_shared_ptr()->get_friendly_name() << " --> "
+                    << node->get_friendly_name() << std::endl;
         }
 
         auto sdpa = std::dynamic_pointer_cast<ov::op::v13::ScaledDotProductAttention>(node);
@@ -167,22 +192,40 @@ bool ov::pass::StaticScalingModel::run_on_model(const std::shared_ptr<ov::Model>
 
         // input(scaled_down) -- activation
         // ==>
-        // input(scaled_down) -- multiply(scale_up) -- activation -- multiply(scale_down)
+        // input(scaled_down) -- convert(precision_up) -- multiply(scale_up) -- activation -- multiply(scale_down) -- convert(precision_down)
         auto sin = std::dynamic_pointer_cast<ov::op::v0::Sin>(node);
         auto cos = std::dynamic_pointer_cast<ov::op::v0::Cos>(node);
         auto swish = std::dynamic_pointer_cast<ov::op::v4::Swish>(node);
-        if ((sin || cos || swish) && num_scaled_down_inputs == 1) {
-            std::shared_ptr<ov::Node> scale_const = (node->get_input_element_type(0) == ov::element::f16) ? scale_const_f16 : scale_const_f32;
-            auto scale_up = std::make_shared<ov::op::v1::Multiply>(node->get_input_source_output(0),
-                                                                   scale_const->output(0));
-            node->input(0).replace_source_output(scale_up->output(0));
+        auto power = std::dynamic_pointer_cast<ov::op::v1::Power>(node);
+        auto sqrt = std::dynamic_pointer_cast<ov::op::v0::Sqrt>(node);
+        auto gelu = std::dynamic_pointer_cast<ov::op::v7::Gelu>(node);
+        auto softmax = std::dynamic_pointer_cast<ov::op::v8::Softmax>(node);
+        if ((sin || cos || swish || power || sqrt || gelu || softmax) && num_scaled_down_inputs == 1) {
+            auto input_prec = node->get_input_element_type(0);
+            auto output_prec = node->get_output_element_type(0);
 
-            std::shared_ptr<ov::Node> inverse_scale_const = (node->get_output_element_type(0) == ov::element::f16) ?
-                                                            inverse_scale_const_f16 : inverse_scale_const_f32;
+            ov::Output<ov::Node> input_src;
+            if (input_prec == ov::element::f16) {
+                auto precision_up = std::make_shared<ov::op::v0::Convert>(node->get_input_source_output(0), ov::element::f32);
+                input_src = precision_up->output(0);
+            } else {
+                input_src = node->get_input_source_output(0);
+            }
+            auto scale_up = std::make_shared<ov::op::v1::Multiply>(input_src,
+                                                                   scale_const_f32->output(0));
+            node->input(0).replace_source_output(scale_up->output(0));
+            node->revalidate_and_infer_types();
+
             auto scale_down = std::make_shared<ov::op::v1::Multiply>(node->output(0),
-                                                                     inverse_scale_const->output(0));
+                                                                     inverse_scale_const_f32->output(0));
             ov::replace_node(node, scale_down);
             scaled_down_subgraph.insert(scale_down->get_friendly_name());
+
+            if (output_prec == ov::element::f16) {
+                auto precision_down = std::make_shared<ov::op::v0::Convert>(scale_down->output(0), ov::element::f16);
+                ov::replace_node(scale_down, precision_down);
+                scaled_down_subgraph.insert(precision_down->get_friendly_name());
+            }
             std::cout << "scale activation " << node->get_friendly_name() << std::endl;
         }
 
