@@ -92,9 +92,10 @@ private:
     };
 
     struct MersenneTwisterThreadParams {
-        uint64_t state_work = 0lu;
         uint64_t src_start_idx = 0lu;
         uint64_t dst_start_idx = 0lu;
+        uint64_t state_accesses_count = 0lu;
+        int64_t elements_to_generate = 0lu;
     };
 
     int32_t m_threads_num = 0;
@@ -131,6 +132,8 @@ private:
     // To reduce variable use, value of 'true' denotes the case in which for every uint32_t a single random value is generated
     // for any dtype. Therefore, value of 'false' occurs only when dtype is int64 AND the range is above uint32_t.
     bool m_mersenne_twister_optimization_enabled = true;
+
+    int32_t m_uint_storage_capacity_per_thread = 1;
 
     void prepareMersenneTwisterParams();
 

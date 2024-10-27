@@ -37,8 +37,10 @@ struct MersenneTwisterGeneratorCallArgs {
     const void* state_ptr;
     const void* min_ptr;
     const void* range_ptr;
-    uint64_t work_amount = 0lu;
-    uint64_t elements_remaining = 0lu;
+    uint64_t output_idx = 0;
+    uint64_t max_output_idx = 0;
+    uint64_t state_accesses_count = 0lu;
+    int64_t elements_to_generate = 0lu;
 };
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
@@ -126,12 +128,11 @@ private:
 
     RegistersPool::Reg<Xbyak::Reg64> r64_dst;
     RegistersPool::Reg<Xbyak::Reg64> r64_state;
-    RegistersPool::Reg<Xbyak::Reg64> r64_work_amount;
-    RegistersPool::Reg<Xbyak::Reg64> r64_elements_remaining;
+    RegistersPool::Reg<Xbyak::Reg64> r64_state_accesses_count;
+    RegistersPool::Reg<Xbyak::Reg64> r64_elements_to_generate;
     RegistersPool::Reg<Xbyak::Reg64> r64_storage_capacity;
-    RegistersPool::Reg<Xbyak::Reg64> r64_storage_capacity_half;
-
-
+    RegistersPool::Reg<Xbyak::Reg64> r64_output_idx;
+    RegistersPool::Reg<Xbyak::Reg64> r64_max_output_idx;
 
     const Xbyak::Reg64 r64_params = Xbyak::Reg64(dnnl::impl::cpu::x64::abi_param_regs[0]);
 
@@ -143,8 +144,8 @@ private:
 
     // Vector registers for generation.
     RegistersPool::Reg<Vmm> v_aux;
-    RegistersPool::Reg<Vmm> v_const_1;
-    RegistersPool::Reg<Vmm> v_const_2;
+    RegistersPool::Reg<Vmm> v_const_1; // for MT_CONST_1
+    RegistersPool::Reg<Vmm> v_const_2; // for MT_CONST_2
 
     //Vector registers for conversion.
     RegistersPool::Reg<Vmm> v_mask;
@@ -157,21 +158,13 @@ private:
 
     void process();
 
-    void generateRandomNumbers(const Vmm& v_dst_0, const Vmm& v_dst_1);
+    void generateRandomNumbers();
 
-    void convertToOutputTypeMersenne(const Vmm& v_result, const Vmm& v_min, const Vmm& v_range, const Xbyak::Reg64& r64_dst, const Xbyak::Reg64& r64_elements_remaining);
+    void convertToOutputTypeMersenne();
 
     // Mersenne Twister constants
     static constexpr uint32_t MT_CONST_1 = 0x9D2C5680;
     static constexpr uint32_t MT_CONST_2 = 0xEFC60000;
-    static constexpr uint32_t MT_N = 624;
-    static constexpr uint32_t MT_M = 397;
-    static constexpr uint32_t MT_U = 11;
-    static constexpr uint32_t MT_S = 7;
-    static constexpr uint32_t MT_T = 15;
-    static constexpr uint32_t MT_L = 18;
-    static constexpr uint32_t MT_4_ELEMENTS = 4;
-    static constexpr uint32_t MT_2_ELEMENTS = 2;
 };
 
 }   // namespace random_uniform
