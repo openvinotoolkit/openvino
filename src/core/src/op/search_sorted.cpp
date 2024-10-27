@@ -18,34 +18,11 @@ SearchSorted::SearchSorted(const Output<Node>& sorted_sequence, const Output<Nod
     constructor_validate_and_infer_types();
 }
 
-bool SearchSorted::validate() const {
-    NODE_VALIDATION_CHECK(this, get_input_size() == 2);
-    NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(0) == get_input_element_type(1),
-                          "Sorted sequence and values must have the same element type.");
-
-    const auto& sorted_shape = get_input_partial_shape(0);
-    const auto& values_shape = get_input_partial_shape(1);
-
-    if (sorted_shape.rank().is_static() && values_shape.rank().is_static() && sorted_shape.rank().get_length() > 1) {
-        NODE_VALIDATION_CHECK(this,
-                              sorted_shape.rank().get_length() == values_shape.rank().get_length(),
-                              "Sorted sequence and values have different ranks.");
-
-        for (int64_t i = 0; i < sorted_shape.rank().get_length() - 1; ++i) {
-            NODE_VALIDATION_CHECK(this,
-                                  sorted_shape[i].compatible(values_shape[i]),
-                                  "Sorted sequence and values has different ",
-                                  i,
-                                  " dimension.");
-        }
-    }
-
-    return true;
-}
-
 void SearchSorted::validate_and_infer_types() {
     OV_OP_SCOPE(v15_SearchSorted_validate_and_infer_types);
+    NODE_VALIDATION_CHECK(this,
+                          get_input_element_type(0).compatible(get_input_element_type(1)),
+                          "Sorted sequence and values must have the same element type.");
     const auto& output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
     set_output_type(0, ov::element::i64, output_shapes[0]);
 }

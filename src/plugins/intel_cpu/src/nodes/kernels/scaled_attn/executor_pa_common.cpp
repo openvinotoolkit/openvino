@@ -10,6 +10,7 @@
 #include <type_traits>
 
 #include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "openvino/core/parallel.hpp"
 #include "executor_pa_common.hpp"
 #include "utils/plain_tensor.hpp"
@@ -57,7 +58,8 @@ void TileConfiger::generate() {
     ret();
 }
 
-JitMatMulVecAMX::JitMatMulVecAMX(int head_size, int block_size) : jit_generator(jit_name()), m_head_size(head_size), m_block_size(block_size) {
+JitMatMulVecAMX::JitMatMulVecAMX(int head_size, int block_size, ov::element::Type amx_prec) :
+    jit_generator(jit_name()), m_head_size(head_size), m_block_size(block_size), m_amx_prec(amx_prec) {
     create_kernel();
     m_tile_cfg.reset(1,
                      0,
@@ -98,7 +100,11 @@ void JitMatMulVecAMX::generate() {
         tilezero(tmmC);
         for (int i = 0; i < num_B_tiles; i++) {
             tileloadd(tmmA, ptr[reg_k_addr + reg_stride_A + i * 64]);
-            tdpbf16ps(tmmC, tmmA, Xbyak::Tmm(tmmB0.getIdx() + i));
+            if (m_amx_prec == ov::element::bf16) {
+                tdpbf16ps(tmmC, tmmA, Xbyak::Tmm(tmmB0.getIdx() + i));
+            } else if (m_amx_prec == ov::element::f16) {
+                tdpfp16ps(tmmC, tmmA, Xbyak::Tmm(tmmB0.getIdx() + i));
+            }
         }
         tilestored(ptr[reg_dst_addr + reg_stride_BC + m * sizeof(float)], tmmC);
         add(reg_k_addr, m_head_size * 2 * 16);

@@ -44,6 +44,7 @@
 #include <oneapi/dnnl/dnnl.hpp>
 #include "common/primitive_desc_iface.hpp"
 
+#include "openvino/runtime/exception.hpp"
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
 #include "openvino/core/parallel.hpp"
 
@@ -194,8 +195,8 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &model,
         const auto port = unusedOutput.get_index();
         const auto nodeName = std::string("stub_") + std::to_string(unusedOutput.get_index()) + "_" + parentNode->getName();
         const NodePtr outNode = std::make_shared<node::Input>(parentNode->outputShapes[port],
-                                                                        parentNode->getOriginalOutputPrecisionAtPort(port),
-                                                                        nodeName, "Result", m_context);
+                                                              parentNode->getOriginalOutputPrecisionAtPort(port),
+                                                              nodeName, "Result", m_context);
         CreateEdge(parentNode, outNode, port, 0);
         AddNode(outNode);
     }
@@ -1330,6 +1331,8 @@ inline void Graph::ExecuteNodeWithCatch(const NodePtr& node, SyncInferRequest* r
 
     try {
         ExecuteNode(node, request, numaId);
+    } catch (const ov::Cancelled&) {
+        throw;
     } catch (const std::exception& exp) {
         OPENVINO_THROW(*node, exp.what());
     }
@@ -1685,7 +1688,9 @@ void Graph::EnforceInferencePrecision() {
                         Type::MatMul,         // bert nets
                         Type::ROIPooling,     // object detection nets
                         Type::Interpolate,    // super resolution nets
-                        Type::PagedAttention))// page attention
+                        Type::PagedAttention, // page attention
+                        Type::QKVProjection,
+                        Type::LLMMLP))
                     continue;   // stop at significant nodes
             } else if (inferPrec == ov::element::f16) {
                 /* list of node types that must be forced to be executed in FP16 precision
