@@ -132,7 +132,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         to_override_all_outputs = False
         if argv.output:
             _outputs = fe_output_user_data_repack(input_model, argv.output, moc_front_end.get_name())
-            assert len(_outputs) == 0, "output argument is not supported for PyTroch"
+            assert len(_outputs) == 0, "`output` argument is not supported for PyTorch"
         if to_override_all_inputs and to_override_all_outputs:
             input_model.extract_subgraph(iplaces, oplaces)
         elif to_override_all_inputs:
