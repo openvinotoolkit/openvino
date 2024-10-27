@@ -651,7 +651,7 @@ void MersenneTwisterGenerator<isa>::generate() {
     r64_elements_to_generate = getReg64();
     r64_state_accesses_count = getReg64();
 
-    mov(r64_storage_capacity, getVectorLen() / 4);
+    mov(r64_storage_capacity, vlen / 4);
     mov(r64_dst,  ptr[r64_params + GET_MERSENNE_OFFSET(dst_ptr)]);
     mov(r64_state, ptr[r64_params + GET_MERSENNE_OFFSET(state_ptr)]);
     mov(r64_output_idx, ptr[r64_params + GET_MERSENNE_OFFSET(output_idx)]);
@@ -785,8 +785,8 @@ void MersenneTwisterGenerator<isa>::process() {
 
         // Update pointers and necessary counters
         dec(r64_state_accesses_count);
-        add(r64_dst, r64_storage_capacity);
-        add(r64_state, r64_storage_capacity);
+        add(r64_dst, vlen);
+        add(r64_state, vlen);
         add(r64_output_idx, r64_storage_capacity);
         sub(r64_elements_to_generate, r64_storage_capacity);
 
@@ -958,63 +958,25 @@ void MersenneTwisterGenerator<x64::avx2>::convertToOutputTypeMersenne() {
         vaddps(v_result, v_min);
 
         // Store result
-        mov(r64_counter, 0);
-        L(loop);
-        {
-            cmp(r64_counter, r64_elements_to_generate);
-            jge(end);
-            cmp(r64_counter, r64_storage_capacity);
-            jge(end);
-
-            imul(r64_aux, r64_counter, m_jcp.out_data_type.size());
-            add(r64_aux, r64_dst);
-
-            store(ptr[r64_aux], v_result, r64_counter, m_jcp.out_data_type.size());
-
-            inc(r64_counter);
-            jmp(loop);
-        }
-        L(end);
+        store(ptr[r64_aux], v_result, r64_elements_to_generate, m_jcp.out_data_type.size());
     } else if (m_jcp.out_data_type == element::i32) {
         // Compute modulo
         // Quotient
-        // vcvtdq2ps(v_aux, v_result);
-        // vdivps(v_aux, v_aux, v_range);
-        // vcvtps2dq(v_aux, v_aux);
+        vcvtdq2ps(v_aux, v_result);
+        vdivps(v_aux, v_aux, v_range);
+        vcvtps2dq(v_aux, v_aux);
 
-        // // Aprroximation
-        // vpmulld(v_aux, v_aux, v_range);
+        // Aprroximation
+        vpmulld(v_aux, v_aux, v_range);
 
-        // // Scale and shift
-        // vpsubd(v_result, v_result, v_aux);
-        // vaddps(v_result, v_min);
+        // Scale and shift
+        vpsubd(v_result, v_result, v_aux);
+        vaddps(v_result, v_min);
 
         // Store result
-        mov(r64_counter, 0);
-        L(loop);
-        {
-            cmp(r64_counter, r64_elements_to_generate);
-            jge(end);
-            cmp(r64_counter, r64_storage_capacity);
-            jge(end);
+        store(ptr[r64_aux], v_result, r64_elements_to_generate, m_jcp.out_data_type.size());
 
-            imul(r64_aux, r64_counter, m_jcp.out_data_type.size());
-            add(r64_aux, r64_dst);
 
-            store(ptr[r64_aux], v_result, r64_counter, m_jcp.out_data_type.size());
-
-            // for(int32_t i = 0; i < 8; ++i) {
-            //     cmp(r64_counter, r64_elements_to_generate);
-            //     jge(end);
-
-            //     vpextrd(ptr[r64_dst + r64_counter * sizeof(int32_t)], v_result, i);
-            //     inc(r64_counter);
-            // }
-
-            inc(r64_counter);
-            jmp(loop);
-        }
-        L(end);
     } else {
         OPENVINO_THROW("RandomUniform kernel does not support precision ", m_jcp.out_data_type, " for ", x64::get_isa_info());
     }
@@ -1038,23 +1000,7 @@ void MersenneTwisterGenerator<isa>::convertToOutputTypeMersenne() {
         addps(v_result, v_min);
 
         // Store result
-        mov(r64_counter, 0);
-        L(loop);
-        {
-            cmp(r64_counter, r64_elements_to_generate);
-            jge(end);
-            cmp(r64_counter, r64_storage_capacity);
-            jge(end);
-
-            imul(r64_aux, r64_counter, m_jcp.out_data_type.size());
-            add(r64_aux, r64_dst);
-
-            store(ptr[r64_aux], v_result, r64_counter, m_jcp.out_data_type.size());
-
-            inc(r64_counter);
-            jmp(loop);
-        }
-        L(end);
+        store(ptr[r64_aux], v_result, r64_elements_to_generate, m_jcp.out_data_type.size());
     } else if (m_jcp.out_data_type == element::i32) {
 
         // Compute modulo
@@ -1071,23 +1017,7 @@ void MersenneTwisterGenerator<isa>::convertToOutputTypeMersenne() {
         addps(v_result, v_min);
 
         // Store result
-        mov(r64_counter, 0);
-        L(loop);
-        {
-            cmp(r64_counter, r64_elements_to_generate);
-            jge(end);
-            cmp(r64_counter, r64_storage_capacity);
-            jge(end);
-
-            imul(r64_aux, r64_counter, m_jcp.out_data_type.size());
-            add(r64_aux, r64_dst);
-
-            store(ptr[r64_aux], v_result, r64_counter, m_jcp.out_data_type.size());
-
-            inc(r64_counter);
-            jmp(loop);
-        }
-        L(end);
+        store(ptr[r64_aux], v_result, r64_elements_to_generate, m_jcp.out_data_type.size());
     } else {
         OPENVINO_THROW("RandomUniform kernel does not support precision ", m_jcp.out_data_type, " for ", x64::get_isa_info());
     }
