@@ -1181,6 +1181,19 @@ def create_pytorch_module_with_nested_dict_input(tmp_dir):
         )}
 
 
+def create_pytorch_module_with_output(tmp_dir):
+    class PTModel(torch.nn.Module):
+        def forward(self, a, b):
+            return a + b
+
+    net = PTModel()
+    return net, None, {
+        "example_input": (
+            torch.tensor([5, 6], dtype=torch.float32),
+            torch.tensor([5, 6], dtype=torch.float32),
+        ), "output": "some_name"}
+
+
 class TestMoConvertPyTorch(CommonMOConvertTest):
     test_data = [
         'create_pytorch_nn_module_case1',
@@ -1254,6 +1267,23 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
             test_params.update(mo_params)
         self._test_by_ref_graph(temp_dir, test_params,
                                 graph_ref, compare_tensor_names=False)
+
+    @pytest.mark.parametrize("create_model,exception", [
+        ('create_pytorch_module_with_output', AssertionError)
+    ])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_mo_import_from_memory_negative(self, create_model, exception,
+                                            ie_device, precision, ir_version,
+                                            temp_dir, use_legacy_frontend):
+        fw_model, graph_ref, mo_params = eval(create_model)(temp_dir)
+
+        test_params = {'input_model': fw_model}
+        if mo_params is not None:
+            test_params.update(mo_params)
+        with pytest.raises(exception):
+            self._test_by_ref_graph(temp_dir, test_params,
+                                    graph_ref, compare_tensor_names=False)
 
 
 def create_pt_model_with_custom_op():
