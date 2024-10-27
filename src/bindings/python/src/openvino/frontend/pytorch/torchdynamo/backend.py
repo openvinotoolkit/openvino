@@ -49,17 +49,25 @@ logger.setLevel(logging.WARNING)
 
 openvino_options = {}
 
-@register_backend
+
 @fake_tensor_unsupported
 def openvino(subgraph, example_inputs, options=None):
-    if (_get_aot_autograd(options)):
+    if _get_aot_autograd(options):
         global openvino_options
         openvino_options = options
         decompositions = _get_decompositions(options) + get_inf_decomposition_list() + get_aot_decomposition_list()
-        return aot_autograd(fw_compiler=fx_openvino,
-                            bw_compiler=fx_openvino,
-                            decompositions=get_decompositions(decompositions))(subgraph, example_inputs)
+        return aot_autograd(fw_compiler=fx_openvino, bw_compiler=fx_openvino, decompositions=get_decompositions(decompositions))(subgraph, example_inputs)
     return fx_openvino(subgraph, example_inputs, options)
+
+
+try:
+    from packaging import version
+
+    if version.parse(torch.__version__) < version.parse("2.5.0"):
+        register_backend(compiler_fn=openvino, name="openvino")
+except ImportError:
+    logger.warning("The 'packaging' module is required but not installed")
+
 
 def fx_openvino(subgraph, example_inputs, options=None):
     try:
@@ -70,7 +78,7 @@ def fx_openvino(subgraph, example_inputs, options=None):
         openvino_model_caching = _get_model_caching(options)
         if openvino_model_caching is not None and openvino_model_caching:
             # Create a hash to be used for caching
-            model_hash_str = sha256(subgraph.code.encode('utf-8')).hexdigest()
+            model_hash_str = sha256(subgraph.code.encode("utf-8")).hexdigest()
             executor_parameters = {"model_hash_str": model_hash_str}
             # Check if the model was fully supported and already cached
             example_inputs.reverse()
@@ -79,15 +87,17 @@ def fx_openvino(subgraph, example_inputs, options=None):
             if os.path.isfile(maybe_fs_cached_name + ".xml") and os.path.isfile(maybe_fs_cached_name + ".bin"):
                 # Model is fully supported and already cached. Run the cached OV model directly.
                 compiled_model = openvino_compile_cached_model(maybe_fs_cached_name, options, *example_inputs)
+
                 def _call(*args):
                     res = execute_cached(compiled_model, *args)
                     return res
+
                 return _call
         if inputs_reversed:
             example_inputs.reverse()
 
         preserved_arg_indices = []
-        if (_get_aot_autograd(options)):
+        if _get_aot_autograd(options):
             if tracing_context := torch._guards.TracingContext.try_get():
                 fw_metadata = tracing_context.fw_metadata
                 params_flat = tracing_context.params_flat
@@ -97,6 +107,7 @@ def fx_openvino(subgraph, example_inputs, options=None):
             model = subgraph
         else:
             from torch._subclasses.fake_tensor import FakeTensorMode
+
             decompositions = _get_decompositions(options) + get_inf_decomposition_list()
             with FakeTensorMode(allow_non_fake_inputs=True):
                 model = make_fx(subgraph, decomposition_table=get_decompositions(decompositions))(*example_inputs)
@@ -106,26 +117,27 @@ def fx_openvino(subgraph, example_inputs, options=None):
         partitioner = Partitioner(options)
         compiled_model = partitioner.make_partitions(model, options)
 
-        if executor_parameters is not None and 'model_hash_str' in executor_parameters:
+        if executor_parameters is not None and "model_hash_str" in executor_parameters:
             # Check if the model is fully supported.
             fully_supported = partitioner.check_fully_supported(compiled_model)
             if fully_supported:
                 executor_parameters["model_hash_str"] += "_fs"
 
         def _call(*args):
-            if(_get_aot_autograd(options)):
+            if _get_aot_autograd(options):
                 args_list = args[0]
                 args_new = [args_list[i] for i in preserved_arg_indices]
                 args = args_new
-            res = execute(compiled_model, *args, executor="openvino",
-                          executor_parameters=executor_parameters, options=options)
+            res = execute(compiled_model, *args, executor="openvino", executor_parameters=executor_parameters, options=options)
             return res
-        if(_get_aot_autograd(options)):
-            _call._boxed_call = True # type: ignore[attr-defined]
+
+        if _get_aot_autograd(options):
+            _call._boxed_call = True  # type: ignore[attr-defined]
         return _call
     except Exception as e:
         logger.debug(f"Failed in OpenVINO execution: {e}")
         return compile_fx(subgraph, example_inputs)
+
 
 def reset():
     clear_caches()
