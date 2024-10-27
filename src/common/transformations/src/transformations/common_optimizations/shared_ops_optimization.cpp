@@ -103,8 +103,11 @@ bool nodes_are_equal(const std::shared_ptr<Node>& lhs, const std::shared_ptr<Nod
 
 bool shared_node_optimization(const shared_ptr<Model>& model) {
     bool rewritten = false;
-
-    for (const auto& op : model->get_ordered_ops()) {
+    std::unordered_map<std::shared_ptr<ov::Node>, size_t> index_map;
+    const auto& order = model->get_ordered_ops();
+    for (size_t i = 0; i < order.size(); ++i)
+        index_map[order[i]] = i;
+    for (const auto& op : order) {
         // Recursively apply transformation for sub-graph based operations
         if (auto multi_subgraph_op = dynamic_pointer_cast<op::util::MultiSubGraphOp>(op)) {
             for (const auto& sub_graph : multi_subgraph_op->get_functions()) {
@@ -124,6 +127,13 @@ bool shared_node_optimization(const shared_ptr<Model>& model) {
                 auto& shared_nodes = item.second;
                 if (shared_nodes.size() < 2)
                     continue;
+                // sort shared_nodes so that root would be the earliest in the topological order
+                // it is critical for continuous application of this optimization
+                std::sort(shared_nodes.begin(),
+                          shared_nodes.end(),
+                          [&index_map](const std::shared_ptr<ov::Node>& a, const std::shared_ptr<ov::Node>& b) {
+                              return index_map[a] < index_map[b];
+                          });
 
                 std::vector<bool> visited_nodes(shared_nodes.size(), false);
                 for (size_t i = 0; i < visited_nodes.size(); ++i) {

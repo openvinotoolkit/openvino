@@ -656,6 +656,14 @@ inline MASK_VECTOR_TYPE FUNC(load_attn_mask)(OPTIONAL_SHAPE_INFO_ARG
     return mask_vec;
 }
 
+#if IS_PAGED_ATTENTION && HAS_ALIBI
+#if HAS_SCALE_INPUT
+#define ALIBI_TYPE INPUT5_TYPE
+#else
+#define ALIBI_TYPE INPUT4_TYPE
+#endif
+#endif
+
 REQD_SUB_GROUP_SIZE(SUBGROUP_SIZE)
 KERNEL(sdpa_opt)(
     OPTIONAL_SHAPE_INFO_ARG
@@ -664,15 +672,15 @@ KERNEL(sdpa_opt)(
     const __global INPUT2_TYPE* value_input,
 #if IS_PAGED_ATTENTION
     const __global INPUT3_TYPE* subsequence_begins,
-#if HAS_ALIBI
-    const __global INPUT4_TYPE* alibi_slopes,
-#endif
 #endif
 #if HAS_ATTN_MASK_INPUT
     const __global INPUT3_TYPE* attn_mask,
 #endif
 #if HAS_SCALE_INPUT
     const __global INPUT4_TYPE* scale,
+#endif
+#if IS_PAGED_ATTENTION && HAS_ALIBI
+    const __global ALIBI_TYPE* alibi_slopes,
 #endif
     __global OUTPUT_TYPE* output,
 #ifdef BEAM_TABLE_TYPE

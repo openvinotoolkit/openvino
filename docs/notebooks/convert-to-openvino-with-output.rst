@@ -39,15 +39,12 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 .. code:: ipython3
 
     # Required imports. Please execute this cell first.
-    %pip install --upgrade pip
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu \
-    "openvino-dev>=2024.0.0" "requests" "tqdm" "transformers>=4.31" "onnx<1.16.2" "torch>=2.1" "torchvision" "tensorflow_hub" "tensorflow"
+    "openvino>=2024.4.0" "requests" "tqdm" "transformers>=4.31" "onnx!=1.16.2" "torch>=2.1" "torchvision" "tensorflow_hub" "tensorflow"
 
 
 .. parsed-literal::
 
-    Requirement already satisfied: pip in /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (24.2)
-    Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -192,11 +189,11 @@ NLP model from Hugging Face and export it in ONNX format:
 
 .. parsed-literal::
 
-    2024-10-07 23:35:08.862114: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-10-07 23:35:08.907564: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-10-22 22:40:21.522113: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-10-22 22:40:21.555890: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-10-07 23:35:09.444317: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/distilbert/modeling_distilbert.py:215: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
+    2024-10-22 22:40:22.084160: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/distilbert/modeling_distilbert.py:215: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
       mask, torch.tensor(torch.finfo(scores.dtype).min)
 
 
@@ -673,7 +670,7 @@ frameworks conversion guides.
 
 .. parsed-literal::
 
-    2024-10-07 23:35:26.468759: W tensorflow/core/common_runtime/gpu/gpu_device.cc:1956] Cannot dlopen some GPU libraries. Please make sure the missing libraries mentioned above are installed properly if you would like to use GPU. Follow the guide at https://www.tensorflow.org/install/gpu for how to download and setup the required libraries for your platform.
+    2024-10-22 22:40:40.138322: W tensorflow/core/common_runtime/gpu/gpu_device.cc:1956] Cannot dlopen some GPU libraries. Please make sure the missing libraries mentioned above are installed properly if you would like to use GPU. Follow the guide at https://www.tensorflow.org/install/gpu for how to download and setup the required libraries for your platform.
     Skipping registering GPU devices...
 
 
@@ -724,28 +721,12 @@ Resnet50 model that was exported to the ONNX format:
     prep.input("input.1").model().set_layout(ov.Layout("nchw"))
     ov_model = prep.build()
 
-.. code:: ipython3
+.. code:: python
 
-    # Legacy Model Optimizer API
-    from openvino.tools import mo
-    
-    ov_model = mo.convert_model(ONNX_CV_MODEL_PATH, layout="nchw")
+   # Legacy Model Optimizer API
+   from openvino.tools import mo
 
-
-.. parsed-literal::
-
-    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
-    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
-    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
-
-
-.. parsed-literal::
-
-    huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
-    To disable this warning, you can either:
-    	- Avoid using `tokenizers` before the fork if possible
-    	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
-
+   ov_model = mo.convert_model(ONNX_CV_MODEL_PATH, layout="nchw")
 
 Changing Model Layout
 ^^^^^^^^^^^^^^^^^^^^^
@@ -772,26 +753,17 @@ and the layout of an original model:
     prep.input("input.1").model().set_layout(ov.Layout("nchw"))
     ov_model = prep.build()
 
-.. code:: ipython3
+Legacy Model Optimizer API
+==========================
 
-    # Legacy Model Optimizer API
-    from openvino.tools import mo
-    
-    ov_model = mo.convert_model(ONNX_CV_MODEL_PATH, layout="nchw->nhwc")
-    
-    # alternatively use source_layout and target_layout parameters
-    ov_model = mo.convert_model(ONNX_CV_MODEL_PATH, source_layout="nchw", target_layout="nhwc")
+.. code:: python
 
+   from openvino.tools import mo
 
-.. parsed-literal::
+   ov_model = mo.convert_model(ONNX_CV_MODEL_PATH, layout="nchw->nhwc")
 
-    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
-    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
-    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
-    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
-    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
-    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
-
+   # alternatively use source_layout and target_layout parameters
+   ov_model = mo.convert_model(ONNX_CV_MODEL_PATH, source_layout="nchw", target_layout="nhwc")
 
 Specifying Mean and Scale Values
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -819,25 +791,18 @@ more examples.
     
     ov_model = prep.build()
 
-.. code:: ipython3
+.. code:: python
 
-    # Legacy Model Optimizer API
-    from openvino.tools import mo
-    
-    
-    ov_model = mo.convert_model(
-        ONNX_CV_MODEL_PATH,
-        mean_values=[255 * x for x in [0.485, 0.456, 0.406]],
-        scale_values=[255 * x for x in [0.229, 0.224, 0.225]],
-    )
+   # Legacy Model Optimizer API
+
+   from openvino.tools import mo
 
 
-.. parsed-literal::
-
-    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
-    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
-    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
-
+   ov_model = mo.convert_model(
+       ONNX_CV_MODEL_PATH,
+       mean_values=[255 * x for x in [0.485, 0.456, 0.406]],
+       scale_values=[255 * x for x in [0.229, 0.224, 0.225]],
+   )
 
 Reversing Input Channels
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -862,20 +827,12 @@ the color channels before inference.
     prep.input("input.1").preprocess().reverse_channels()
     ov_model = prep.build()
 
-.. code:: ipython3
+.. code:: python
 
-    # Legacy Model Optimizer API
-    from openvino.tools import mo
-    
-    ov_model = mo.convert_model(ONNX_CV_MODEL_PATH, reverse_input_channels=True)
+   # Legacy Model Optimizer API
+   from openvino.tools import mo
 
-
-.. parsed-literal::
-
-    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
-    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
-    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
-
+   ov_model = mo.convert_model(ONNX_CV_MODEL_PATH, reverse_input_channels=True)
 
 Cutting Off Parts of a Model
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^

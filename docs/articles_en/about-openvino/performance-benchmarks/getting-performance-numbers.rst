@@ -41,7 +41,7 @@ dedicated only to measuring performance.
 
    The benchmark setup for OVMS consists of four main parts:
 
-   .. image:: ../assets/images/performance_benchmarks_ovms_02.png
+   .. image:: ../../assets/images/performance_benchmarks_ovms_02.png
       :alt: OVMS Benchmark Setup Diagram
 
    * **OpenVINO™ Model Server** is launched as a docker container on the server platform and it
