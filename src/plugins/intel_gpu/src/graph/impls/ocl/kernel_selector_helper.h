@@ -301,7 +301,7 @@ inline void update_shapes(kernel_selector::Params& p, const kernel_impl_params& 
         fd.output_tensor = convert_data_tensor(fused_prim.output_layout);
         fd.tensors.clear();
         for (size_t i = fd.dep_idx_start; i < fd.dep_idx_start + fd.dep_size; i++) {
-            fd.tensors.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
+            fd.AddTensor(convert_data_tensor(impl_param.get_input_layout(i)));
         }
     }
 }

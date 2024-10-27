@@ -14,6 +14,7 @@
 #include <vector>
 #include <utility>
 #include <bitset>
+#include <mutex>
 
 namespace kernel_selector {
 using DataTensor = Tensor::DataTensor;
@@ -627,6 +628,7 @@ struct dep_info {
 //     - fused_operation_desc contains a bunch of methods to generate variable/pointer names, type conversions, data loads
 struct fused_operation_desc {
     std::shared_ptr<fuse_params> op_params;
+    std::shared_ptr<std::mutex> mutex_ptr = std::make_shared<std::mutex>();
     int32_t dep_idx_start;
     size_t dep_size;
     MultiDataTensor tensors;
@@ -646,6 +648,10 @@ struct fused_operation_desc {
     }
     bool has_outer_dep() {
         return dep_idx_start != -1;
+    }
+    void AddTensor(const DataTensor& data_tensor) {
+        std::lock_guard<std::mutex> lock(*mutex_ptr);
+        tensors.push_back(data_tensor);
     }
 };
 
