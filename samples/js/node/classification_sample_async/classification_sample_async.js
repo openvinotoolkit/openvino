@@ -1,21 +1,27 @@
 const { addon: ov } = require('openvino-node');
 
 const args = require('args');
-const { cv } = require('opencv-wasm');
-const { getImageData } = require('../helpers.js');
+const Image = require('../image.js');
 
-args.options([{
-  name: 'img',
-  defaultValue: [],
-}, {
-  name: 'model',
-}, {
-  name: 'device',
-}]);
-const { model: modelPath, device: deviceName, img: images } =
-  args.parse(process.argv);
+args.options([
+  {
+    name: 'img',
+    defaultValue: [],
+  },
+  {
+    name: 'model',
+  },
+  {
+    name: 'device',
+  },
+]);
+const {
+  model: modelPath,
+  device: deviceName,
+  img: imgPaths
+} = args.parse(process.argv);
 
-main(modelPath, images, deviceName);
+main(modelPath, imgPaths, deviceName);
 
 function completionCallback(result, imagePath) {
   const predictions = Array.from(result.data)
@@ -33,7 +39,7 @@ function completionCallback(result, imagePath) {
   console.log();
 }
 
-async function main(modelPath, images, deviceName) {
+async function main(modelPath, imgPaths, deviceName) {
   //----------- Step 1. Initialize OpenVINO Runtime Core -----------------------
   console.log('Creating OpenVINO Runtime Core');
   const core = new ov.Core();
@@ -42,8 +48,6 @@ async function main(modelPath, images, deviceName) {
   console.log(`Reading the model: ${modelPath}`);
   // (.xml and .bin files) or (.onnx file)
   const model = await core.readModel(modelPath);
-  const [h, w] = model.inputs[0].shape.slice(-2);
-  const tensorShape = [1, h, w, 3];
 
   if (model.inputs.length !== 1)
     throw new Error('Sample supports only single input topologies');
@@ -52,27 +56,21 @@ async function main(modelPath, images, deviceName) {
     throw new Error('Sample supports only single output topologies');
 
   //----------- Step 3. Set up input -------------------------------------------
-  // Read input image
-  const imagesData = [];
+  const inputTensors = [];
+  const [_, w, h] = model.inputs[0].getShape();
 
-  for (const imagePath of images)
-    imagesData.push(await getImageData(imagePath));
+  // Read input image, resize it to the model's input size and convert it to a tensor.
+  for (const path of imgPaths) {
+    const img = await Image.load(path);
+    const resized = img.resize(w, h);
 
-  const preprocessedImages = imagesData.map((imgData) => {
-    // Use opencv-wasm to preprocess image.
-    const originalImage = cv.matFromImageData(imgData);
-    const image = new cv.Mat();
-    // The MobileNet model expects images in RGB format.
-    cv.cvtColor(originalImage, image, cv.COLOR_RGBA2RGB);
-    cv.resize(image, image, new cv.Size(w, h));
-
-    return new Uint8Array(image.data);
-  });
+    inputTensors.push(resized.toTensor());
+  }
 
   //----------- Step 4. Apply preprocessing ------------------------------------
   const _ppp = new ov.preprocess.PrePostProcessor(model);
   _ppp.input().tensor().setLayout('NHWC').setElementType(ov.element.u8);
-  _ppp.input().model().setLayout('NCHW');
+  _ppp.input().model().setLayout('NHWC');
   _ppp.output().tensor().setElementType(ov.element.f32);
   _ppp.build();
 
@@ -86,14 +84,11 @@ async function main(modelPath, images, deviceName) {
 
   // Create infer request
   const inferRequest = compiledModel.createInferRequest();
-
-  const promises = preprocessedImages.map((tensorData, i) => {
-    const inferPromise = inferRequest.inferAsync([
-      new ov.Tensor(ov.element.u8, tensorShape, tensorData)
-    ]);
+  const promises = inputTensors.map((tensor, i) => {
+    const inferPromise = inferRequest.inferAsync([tensor]);
 
     inferPromise.then(result =>
-      completionCallback(result[outputName], images[i]));
+      completionCallback(result[outputName], imgPaths[i]));
 
     return inferPromise;
   });
