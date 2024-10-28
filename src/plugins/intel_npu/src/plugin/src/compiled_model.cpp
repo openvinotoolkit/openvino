@@ -8,12 +8,12 @@
 #include <string_view>
 
 #include "async_infer_request.hpp"
-#include "intel_npu/al/config/common.hpp"
-#include "intel_npu/al/config/compiler.hpp"
-#include "intel_npu/al/config/config.hpp"
-#include "intel_npu/al/config/runtime.hpp"
-#include "intel_npu/al/icompiler.hpp"
-#include "intel_npu/al/itt.hpp"
+#include "intel_npu/common/itt.hpp"
+#include "intel_npu/config/common.hpp"
+#include "intel_npu/config/compiler.hpp"
+#include "intel_npu/config/config.hpp"
+#include "intel_npu/config/runtime.hpp"
+#include "intel_npu/icompiler.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -24,6 +24,9 @@
 namespace {
 
 constexpr std::string_view NO_EXECUTOR_FOR_INFERENCE =
+    "Can't create infer request due to create executor failed! Only exports can be made.";
+
+constexpr std::string_view NO_EXECUTOR_FOR_INFERENCE_NODEVICE =
     "Can't create infer request!\n"
     "Please make sure that the device is available. Only exports can be made.";
 
@@ -118,8 +121,14 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
     if (_executorPtr == nullptr && _device != nullptr) {
         _executorPtr = _device->createExecutor(_networkPtr, _config);
     }
+
     if (_executorPtr == nullptr) {
-        OPENVINO_THROW(NO_EXECUTOR_FOR_INFERENCE);
+        if (_device != nullptr) {
+            OPENVINO_THROW(NO_EXECUTOR_FOR_INFERENCE);
+        } else {
+            _logger.error("Can not find device!");
+            OPENVINO_THROW(NO_EXECUTOR_FOR_INFERENCE_NODEVICE);
+        }
     }
 
     const std::shared_ptr<SyncInferRequest>& syncInferRequest =

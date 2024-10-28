@@ -114,6 +114,7 @@ public:
     bool evaluate_upper(TensorVector& outputs) const override;
     bool evaluate_symbol(TensorSymbolVector& output_symbols) const override;
     bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values) override;
+    bool can_constant_fold(const OutputVector& inputs_values) const override;
 
 private:
     AxisSet convert_mask_to_axis_set(const std::vector<int64_t>& mask) const;

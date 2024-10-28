@@ -69,7 +69,8 @@ public:
 
     bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
-    bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values) override {
+
+    bool can_constant_fold(const OutputVector& inputs_values) const override {
         return false;
     }
 
