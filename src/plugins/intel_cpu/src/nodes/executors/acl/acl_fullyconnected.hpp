@@ -13,6 +13,7 @@ namespace intel_cpu {
 struct ACLFCAttrs {
     ov::element::Type inputPrecision;
     bool isConvertedWeights = false;
+    bool isWeightsRepacked = false;
     bool weightsNonTransposed;
 };
 
@@ -21,14 +22,6 @@ namespace acl_fc_executor {
 class ACLWeightsConverter : public ACLCommonExecutor {
 public:
     ACLWeightsConverter() = default;
-    void updateTensorsShapes(ACLShapes& aclMemoryShapes) override {}
-    arm_compute::Status validateTensorsInfo(const ACLInfos & aclMemoryInfos) override;
-    ACLFunction configureFunction(const ACLTensors & aclMemoryTensors) override;
-};
-
-class ACLWeightsTranspose : public ACLCommonExecutor {
-public:
-    ACLWeightsTranspose() = default;
     void updateTensorsShapes(ACLShapes& aclMemoryShapes) override {}
     arm_compute::Status validateTensorsInfo(const ACLInfos & aclMemoryInfos) override;
     ACLFunction configureFunction(const ACLTensors & aclMemoryTensors) override;
@@ -47,22 +40,8 @@ public:
     }
 private:
     arm_compute::FullyConnectedLayerInfo fullyConnectedLayerInfo;
-    arm_compute::WeightsInfo weightsInfo;
     ACLFCAttrs aclfcAttrs;
     arm_compute::WeightFormat expectedWeightFormat;
-};
-
-class ACLWeightsReorder : public ACLCommonExecutor {
-public:
-    ACLWeightsReorder(arm_compute::WeightFormat inWeightFormat,
-                      arm_compute::WeightFormat outWeightFormat)
-                      : inWeightFormat(inWeightFormat), outWeightFormat(outWeightFormat) {}
-    void updateTensorsShapes(ACLShapes& aclMemoryShapes) override {}
-    arm_compute::Status validateTensorsInfo(const ACLInfos & aclMemoryInfos) override;
-    ACLFunction configureFunction(const ACLTensors & aclMemoryTensors) override;
-private:
-    arm_compute::WeightFormat inWeightFormat;
-    arm_compute::WeightFormat outWeightFormat;
 };
 
 }  // namespace acl_fc_executor
@@ -84,9 +63,10 @@ public:
 
 private:
     arm_compute::FullyConnectedLayerInfo fullyConnectedLayerInfo;
-    arm_compute::WeightsInfo weightsInfo;
+    arm_compute::WeightFormat expectedWeightFormat;
     MemoryCPtr packedWeights;
     ACLFCAttrs aclfcAttrs;
+    arm_compute::TensorInfo weiTensorInfo;
 };
 
 using ACLFullyConnectedExecutorPtr = std::shared_ptr<ACLFullyConnectedExecutor>;

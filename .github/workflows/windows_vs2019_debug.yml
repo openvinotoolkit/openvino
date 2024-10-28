@@ -2,6 +2,7 @@ name: Windows (VS 2019, Python 3.11, Debug)
 on:
   workflow_dispatch:
   merge_group:
+  pull_request:
   push:
     branches:
       - master
@@ -52,10 +53,21 @@ jobs:
     if: "!needs.smart_ci.outputs.skip_workflow"
     uses: ./.github/workflows/job_build_windows.yml
     with:
-      runner: 'aks-win-16-cores-32gb'
+      runner: 'aks-win-32-cores-128gb'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       build-type: 'Debug'
       target-branch: ${{ needs.smart_ci.outputs.target_branch }}
+      cmake-options: |-
+        -G "Ninja" `
+        -DENABLE_PYTHON=OFF `
+        -DENABLE_CPPLINT=OFF `
+        -DBUILD_SHARED_LIBS=ON `
+        -DENABLE_TESTS=ON `
+        -DCMAKE_COMPILE_WARNING_AS_ERROR=ON `
+        -DENABLE_STRICT_DEPENDENCIES=OFF `
+        -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON `
+        -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" `
+        -DOPENVINO_EXTRA_MODULES="${env:OPENVINO_CONTRIB_REPO }}/modules/custom_operations;${env:OPENVINO_CONTRIB_REPO}/modules/java_api"
 
   CXX_Unit_Tests:
     name: C++ unit tests
@@ -65,7 +77,9 @@ jobs:
       runner: 'aks-win-4-cores-8gb'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       os: 'windows_2019'
-
+      build-type: 'Debug'
+      timeout-minutes: 60
+      
   Overall_Status:
     name: ci/gha_overall_status_windows_debug
     needs: [ Smart_CI, Build, CXX_Unit_Tests ]
