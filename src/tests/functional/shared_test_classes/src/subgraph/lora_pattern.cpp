@@ -62,21 +62,25 @@ void LoraPatternBase::run_test_random_tensors() {
 
     std::unordered_map<std::string, ov::Shape> stateShapes;
 
-    auto&& states = inferRequest.query_state();
-    for (auto&& state : states) {
-        auto shape = state.get_state().get_shape();
-        std::for_each(shape.begin(), shape.end(), [=](ov::Shape::value_type& x) {
-            if (0 == x) {
+    auto&& vars = function->get_variables();
+
+    for (auto&& var : vars) {
+        auto var_info = var->get_info();
+        auto var_shape = var_info.data_shape;
+
+        std::for_each(var_shape.begin(), var_shape.end(), [=](ov::PartialShape::value_type& x) {
+            if (x.is_dynamic()) {
                 x = lora_order;
             }
         });
-        stateShapes.insert({state.get_name(), std::move(shape)});
+        stateShapes.insert({var_info.variable_id, var_shape.to_shape()});
     }
 
     for (int i = 0; i < infer_count; ++i) {
         // set states
 
-        if (!(i & 0x1)) { //every even call
+        auto&& states = inferRequest.query_state();
+        if (!(i & 0x1)) { // every even call
             // generate and set state tensors
             for (auto&& item : states) {
                 auto&& refStates = inferRequestRef.query_state();
