@@ -17,6 +17,7 @@ namespace op {
 using namespace ov::op;
 
 OutputVector translate_lerp(const NodeContext& context) {
+    // Tensor = aten::lerp(%lhs.1, %rhs.1, %self.weight)
     num_inputs_check(context, 3, 3);
     Output<Node> start;
     Output<Node> end;
