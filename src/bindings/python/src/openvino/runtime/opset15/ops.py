@@ -353,8 +353,8 @@ def search_sorted(
 @nameable_op
 def squeeze(
     data: NodeInput,
-    axes: NodeInput,
-    allow_axis_skip: bool = True,
+    axes: Optional[NodeInput],
+    allow_axis_skip: Optional[bool],
     name: Optional[str] = None,
 ) -> Node:
     """Perform squeeze operation on input tensor.
