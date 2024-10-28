@@ -494,6 +494,25 @@ kernel_impl_params primitive_inst::get_fake_aligned_params_if_possible(kernel_im
     return updated_params;
 }
 
+// Check if all dependencies and its predecessors are CPU or constant
+static bool check_all_deps_cpu(const primitive_inst* inst) {
+    return std::all_of(inst->dependencies().begin(), inst->dependencies().end(),
+        [&](const std::pair<const primitive_inst*, int32_t>& dep) {
+            if (dep.first->is_constant() ||
+                (dep.first->get_impl() != nullptr && dep.first->get_impl()->is_cpu())) {
+                return true;
+            }
+            // Check if the dependency can be optimized
+            if (dep.first->can_be_optimized()) {
+                return check_all_deps_cpu(dep.first);
+            }
+            return false;
+        });
+}
+
+bool primitive_inst::all_dependencies_cpu_impl() const {
+    return check_all_deps_cpu(this);
+}
 
 event::ptr primitive_inst::realloc_if_needed() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("realloc_if_needed: " + id()));
