@@ -385,12 +385,6 @@ void Graph::Activate(const std::vector<MemoryPtr>& externalInputMemory,
     } else {
         status = Status::ReadyStatic;
     }
-
-    // std::cout << "Graph '" << GetName() << "' has status : "
-    //           << (status == Status::ReadyStatic ? "ReadyStatic"
-    //                                             : (status == Status::ReadyDynamic ? "ReadyDynamic" : "ReadyDynamicSeq"))
-    //           << std::endl;
-
     CPU_DEBUG_CAP_ENABLE(serialize(*this));
 }
 
