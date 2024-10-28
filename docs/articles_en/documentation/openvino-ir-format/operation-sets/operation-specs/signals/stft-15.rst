@@ -59,27 +59,109 @@ Short Time Fourier Transformation for real-valued input (STFT)
 * *T_INT*: ``int64`` or ``int32``.
 
 
-**Example**:
+**Examples**:
+
+*Example 1D signal, transpose_frames=false: *
 
 .. code-block:: xml
    :force:
 
     <layer ... type="STFT" ... >
+        <data transpose_frames="false"/>
         <input>
             <port id="0">
-                <dim>2</dim>
-                <dim>48</dim>
+                <dim>56</dim>
             </port>
             <port id="1">
-                <dim>8</dim>
+                <dim>7</dim>
             </port>
-            <port id="2"></port>
-            <port id="3"></port>
+            <port id="2"></port> <!-- value: 11 -->
+            <port id="3"></port> <!-- value: 3 -->
         <output>
             <port id="2">
+                <dim>16</dim>
+                <dim>6</dim>
                 <dim>2</dim>
-                <dim>9</dim>
-                <dim>9</dim>
+            </port>
+        </output>
+    </layer>
+
+
+*Example 1D signal, transpose_frames=true: *
+
+.. code-block:: xml
+   :force:
+
+    <layer ... type="STFT" ... >
+        <data transpose_frames="true"/>
+        <input>
+            <port id="0">
+                <dim>56</dim>
+            </port>
+            <port id="1">
+                <dim>7</dim>
+            </port>
+            <port id="2"></port> <!-- value: 11 -->
+            <port id="3"></port> <!-- value: 3 -->
+        <output>
+            <port id="2">
+                <dim>6</dim>
+                <dim>16</dim>
+                <dim>2</dim>
+            </port>
+        </output>
+    </layer>
+
+*Example 2D signal, transpose_frames=false: *
+
+.. code-block:: xml
+   :force:
+
+    <layer ... type="STFT" ... >
+        <data transpose_frames="false"/>
+        <input>
+            <port id="0">
+                <dim>3</dim>
+                <dim>56</dim>
+            </port>
+            <port id="1">
+                <dim>7</dim>
+            </port>
+            <port id="2"></port> <!-- value: 11 -->
+            <port id="3"></port> <!-- value: 3 -->
+        <output>
+            <port id="2">
+                <dim>3</dim>
+                <dim>16</dim>
+                <dim>6</dim>
+                <dim>2</dim>
+            </port>
+        </output>
+    </layer>
+
+
+*Example 2D signal, transpose_frames=true: *
+
+.. code-block:: xml
+   :force:
+
+    <layer ... type="STFT" ... >
+        <data transpose_frames="true"/>
+        <input>
+            <port id="0">
+                <dim>3</dim>
+                <dim>56</dim>
+            </port>
+            <port id="1">
+                <dim>7</dim>
+            </port>
+            <port id="2"></port> <!-- value: 11 -->
+            <port id="3"></port> <!-- value: 3 -->
+        <output>
+            <port id="2">
+                <dim>3</dim>
+                <dim>6</dim>
+                <dim>16</dim>
                 <dim>2</dim>
             </port>
         </output>
