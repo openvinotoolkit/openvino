@@ -51,6 +51,17 @@ static std::pair<size_t, size_t> get_output_aligned_bf_size(const fully_connecte
     return {output_b, output_f};
 }
 
+static bool is_weight_dyn_quantizable(const fully_connected_params& params) {
+    auto weight_type = params.weights.GetDType();
+    if (weight_type == WeightsType::INT4 || weight_type == WeightsType::UINT4)
+        return true;
+    // UINT8 weight type is supported by FC dyn-quantize(with SLM).
+    if (weight_type == WeightsType::UINT8)
+        return true;
+
+    return false;
+}
+
 // DYNAMIC_QUANTIZE
 static size_t get_dynamic_quantize_group_size(const fully_connected_params& params) {
     auto dynamic_quantization_group_size = params.dynamic_quantization_group_size;
@@ -108,12 +119,10 @@ static bool should_dynamic_quantize(const fully_connected_params& params, bool p
     auto input_b = threads.first;
     auto input_f = threads.second;
 
-    auto weight_type = params.weights.GetDType();
     const size_t scale_group_size = params.weights.IFM().v / params.decompression_scale.Feature().v;
     if ((scale_group_size % simd == 0) && (input_f % dynamic_quantization_group_size == 0) &&
         (params.is_shape_agnostic || (params.inputs[0].Batch().v > 1 && input_b > min_slm_size)) &&
-        params.inputs[0].GetDType() == Datatype::F16 &&
-        (weight_type == WeightsType::INT4 || weight_type == WeightsType::UINT4 || weight_type == WeightsType::UINT8)) {
+        params.inputs[0].GetDType() == Datatype::F16 && is_weight_dyn_quantizable(params)) {
             if (print_log) {
                 GPU_DEBUG_TRACE_DETAIL << " Dynamic quantizing for FC : scale_group_size: " << scale_group_size <<
                     ", Dyn-quan group size: " << dynamic_quantization_group_size <<
@@ -315,23 +324,21 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
     if (tparams.tile_ofm * simd > 64)
         return false;
 
-    bool is_i4_u4_u8 = (params.weights.GetDType() == WeightsType::INT4 || params.weights.GetDType() == WeightsType::UINT4 ||
-                        params.weights.GetDType() == WeightsType::UINT8);
+    bool is_dyn_quantable_type = is_weight_dyn_quantizable(params);
     if (tparams.kernel_type == FullyConnected_bf_tiled::KernelType::SLM) {
         const auto required_batch_alignment = 64;
         if (!params.is_shape_agnostic && (!IsAligned(output_b, required_batch_alignment) || output_b < min_slm_size))
             return false;
 
         const auto required_tile_b = 8;
-        if ((tparams.tile_b != required_tile_b) && !is_i4_u4_u8)
+        if ((tparams.tile_b != required_tile_b) && !is_dyn_quantable_type)
             return false;
 
         const auto required_tile_ofm = 2;
         if (tparams.tile_ofm != required_tile_ofm)
             return false;
 
-        if (params.weights.GetDType() != WeightsType::INT4 && params.weights.GetDType() != WeightsType::UINT4 &&
-            params.weights.GetDType() != WeightsType::UINT8)
+        if (!is_dyn_quantable_type)
             return false;
 
         if (params.engineInfo.deviceType != dev_type::integrated_gpu)
@@ -343,7 +350,7 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
 
         return true;
     }
-    if (params.compressed && is_i4_u4_u8) {
+    if (params.compressed && is_dyn_quantable_type) {
         if (!(tparams.tile_ofm == 2 || tparams.tile_ofm == 4))
             return false;
         if (tparams.tile_ofm == 4 && tparams.outer_ofm == 2 && !is_suitable_outer_ofm(params, output_f))
@@ -386,7 +393,8 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
         max_tile_ofm *= 2;
 
     if (params.weights.GetDType() == WeightsType::UINT4 || params.weights.GetDType() == WeightsType::INT4 ||
-        (params.weights.GetDType() == WeightsType::UINT8 && should_dynamic_quantize(params))) {
+        (is_weight_dyn_quantizable(params) && should_dynamic_quantize(params))) {
+        // Only 4bit weight type is fully optimized to use SLM. In default kernel, SLM is not applied to 8bit weight.
         if (!params.is_shape_agnostic && batch == 1) {
             // Tuning for Meteor Lake
             if (is_weight_vertical(params, output_f)) {
@@ -582,8 +590,7 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
 
     if (dispatchData.use_slm) {
         OPENVINO_ASSERT(dispatchData.tile_n == 2, "[GPU] Unsupported TILE_OFM size for SLM kernel configuration");
-        OPENVINO_ASSERT(weights_dt == WeightsType::INT4 || weights_dt == WeightsType::UINT4 || weights_dt == WeightsType::UINT8,
-                        "[GPU] Unsupported FC weights type for SLM kernel configuration");
+        OPENVINO_ASSERT(is_weight_dyn_quantizable(params), "[GPU] Unsupported FC weights type for SLM kernel configuration");
 
         auto lws_batches = dispatchData.lws[2];
         auto total_weights_elements = simd * dispatchData.tile_n * simd * dispatchData.tile_mk; // SIMD * TILE_OFM * SIMD * TILE_IFM
@@ -665,9 +672,7 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     }
 
     auto max_tile_b_size = dispatchData.tile_m;
-    if (params.compressed &&
-        params.is_shape_agnostic &&
-        (weights_dt == WeightsType::UINT4 || weights_dt == WeightsType::INT4 || weights_dt == WeightsType::UINT8))
+    if (params.compressed && params.is_shape_agnostic && is_weight_dyn_quantizable(params))
         max_tile_b_size = std::max(max_tile_b_size, (uint32_t)8);
 
     jit.Merge(MakeConstantLoopUnrollJitConstants(max_tile_b_size));
