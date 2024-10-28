@@ -7,9 +7,9 @@
 #include "gmock/gmock.h"
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/partial_shape.hpp"
-#include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/unsqueeze.hpp"
 
