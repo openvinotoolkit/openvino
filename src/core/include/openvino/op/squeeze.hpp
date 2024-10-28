@@ -27,7 +27,7 @@ public:
     /// \brief Constructs a squeeze v0 operation.
     ///
     /// \param data Input tensor with data
-    /// \param axis The axis along which to squeeze the input tensor.
+    /// \param axes The axes along which to squeeze the input tensor.
     Squeeze(const Output<Node>& data, const Output<Node>& axes);
 
     void validate_and_infer_types() override;
@@ -56,7 +56,7 @@ public:
     /// \brief Constructs a squeeze v15 operation.
     ///
     /// \param data Input tensor with data
-    /// \param axis The axis along which to squeeze the input tensor.
+    /// \param axes The axes along which to squeeze the input tensor.
     /// \param allow_axis_skip Shape inference result dynamic rank if selected axis has 1 in range of its dynamic
     Squeeze(const Output<Node>& data, const Output<Node>& axes, const bool allow_axis_skip = false);
 
