@@ -64,9 +64,8 @@ std::vector<TRShape> shape_infer(const STFT* op,
 
     const TDim& signal_dim = is_signal_1D ? signal_shape[0] : signal_shape[1];
     const bool is_frame_size_in_range =
-        0 < frame_size_val &&
-        (signal_dim.is_static() ? static_cast<TDimVal>(frame_size_val) <= signal_dim.get_length()
-                                     : frame_size_val <= signal_dim.get_interval().get_max_val());
+        0 < frame_size_val && (signal_dim.is_static() ? static_cast<TDimVal>(frame_size_val) <= signal_dim.get_length()
+                                                      : frame_size_val <= signal_dim.get_interval().get_max_val());
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
                            is_frame_size_in_range,
