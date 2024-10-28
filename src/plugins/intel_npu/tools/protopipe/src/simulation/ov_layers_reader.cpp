@@ -162,15 +162,17 @@ InOutLayers OpenVINOLayersReader::Impl::readFromModel(const std::string& model_p
         auto &shapeMap = std::get<AttrMap<std::vector<uint64_t>>>(params.shape);
         std::vector<ov::Dimension> dims;
         for (auto& shape : shapeMap) {
-            for (auto& dim : shape.second) {
-                dims.push_back(dim);
-            }
-        partial_shapes[shape.first] = dims;
+            for (auto& dim : shape.second) { dims.emplace_back(dim); }
+            partial_shapes[shape.first] = dims;
         }
-    } else { //SeNe ToDo
-
+        model->reshape(partial_shapes);
+    } else if (std::holds_alternative<std::vector<uint64_t>>(params.shape)) {
+        std::vector<uint64_t> vecDims = std::get<std::vector<uint64_t>>(params.shape);
+        ov::PartialShape dims;
+        for (auto& dim : vecDims) { dims.emplace_back(dim); }
+        model->reshape(dims);
     }
-    model->reshape(partial_shapes);
+    
     auto input_layers = ovToLayersInfo(model->inputs());
     auto output_layers = ovToLayersInfo(model->outputs());
 
