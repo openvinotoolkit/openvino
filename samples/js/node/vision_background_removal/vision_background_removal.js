@@ -85,7 +85,7 @@ async function main(
   // Resize the result mask to the original image size and save it
   const { width, height } = originalImg;
   const resizedMaskImg = await maskImg.resize(originalImg.width, originalImg.height);
-  const maskImagePath = './mask.jpg';
+  const maskImagePath = './out_mask.jpg';
   await resizedMaskImg.save(maskImagePath);
   console.log(`The mask image was saved to '${maskImagePath}'`);
 
@@ -105,7 +105,7 @@ async function main(
   const resultImg = Image.merge(removedBgImg, removedFgImg);
 
   // Save the final image
-  const outputImagePath = './background_changed_image.jpg';
+  const outputImagePath = './out_bgr_changed_image.jpg';
   await resultImg.save(outputImagePath);
   console.log(`The result image was saved to '${outputImagePath}'`);
   console.log('The background was successfully changed');
