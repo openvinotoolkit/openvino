@@ -780,8 +780,7 @@ void RandomUniform::computeMersenneTwister(void* out, size_t output_elements_cou
                 args.elements_to_generate   = static_cast<int64_t>(
                                                 std::min(
                                                     static_cast<uint64_t>(m_uint_storage_capacity_per_thread) * args.state_accesses_count,
-                                                    args.max_output_idx - args.output_idx
-                                                ));
+                                                    args.max_output_idx - args.output_idx));
 
                 if (args.output_idx >= args.max_output_idx) {
                     return;
@@ -816,8 +815,7 @@ void RandomUniform::computeMersenneTwister(void* out, size_t output_elements_cou
                 auto elements_to_generate   = static_cast<int64_t>(
                                                 std::min(
                                                     static_cast<uint64_t>(m_uint_storage_capacity_per_thread) * state_accesses_count,
-                                                    max_output_idx - output_idx
-                                                ));
+                                                    max_output_idx - output_idx));
 
                 if (output_idx == max_output_idx) {
                     return;
