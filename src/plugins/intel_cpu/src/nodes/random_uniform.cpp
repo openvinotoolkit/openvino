@@ -624,7 +624,6 @@ inline void initial_mersenne_state(uint32_t* mersenne_state_ptr, uint64_t global
     for (uint32_t j = 1; j < MERSENNE_STATE_N; ++j) {
         mersenne_state_ptr[j] = (1812433253 * (mersenne_state_ptr[j - 1] ^ (mersenne_state_ptr[j - 1] >> 30)) + j);
     }
-    
 }
 
 inline void next_mersenne_state(uint32_t* mersenne_state_ptr) {
