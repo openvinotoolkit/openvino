@@ -793,12 +793,12 @@ void MersenneTwisterGenerator<isa>::process() {
         // add(r64_output_idx, r64_storage_capacity);
 
         // Check if done all work
-        cmp(r64_counter, r64_state_accesses_count);
-        je(end, T_NEAR);
+        // cmp(r64_counter, r64_state_accesses_count);
+        // je(end, T_NEAR);
 
-        // Check for tail
-        cmp(r64_output_idx, r64_max_output_idx);
-        jge(end, T_NEAR);
+        // // Check for tail
+        // cmp(r64_output_idx, r64_max_output_idx);
+        // jge(end, T_NEAR);
 
     //     jmp(loop);
     }
@@ -839,6 +839,8 @@ template <>
 void MersenneTwisterGenerator<x64::avx512_core>::convertToOutputTypeMersenne() {
     if (m_jcp.out_data_type == element::f32) {
         // Apply mask and divisor
+        // No need to do int32's voodoo with double since mask ensures
+        // that most significant bit is 0
         vpand(v_result, v_result, v_mask);
         vcvtdq2ps(v_result, v_result);
         vmulps(v_result, v_divisor);
@@ -851,9 +853,10 @@ void MersenneTwisterGenerator<x64::avx512_core>::convertToOutputTypeMersenne() {
         vpandd(v_result, v_result, v_mask);
         vcvtdq2ps(v_result, v_result);
         vmulps(v_result, v_result, v_divisor);
-        
+
         vcvtps2ph(v_result, v_result, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
 
+        // View only half as v_result shrunk from 32->16 conversion
         auto ymm_result = Xbyak::Ymm(v_result);
         auto ymm_range = Xbyak::Ymm(v_range);
         auto ymm_min = Xbyak::Ymm(v_min);
@@ -867,6 +870,7 @@ void MersenneTwisterGenerator<x64::avx512_core>::convertToOutputTypeMersenne() {
         vcvtdq2ps(v_result, v_result);
         vmulps(v_result, v_result, v_divisor);
 
+        // Pseudoconvert to f32 by bitshift
         vpslld(v_range, v_range, 16);
         vpslld(v_min, v_min, 16);
 
@@ -876,18 +880,96 @@ void MersenneTwisterGenerator<x64::avx512_core>::convertToOutputTypeMersenne() {
 
         vcvtneps2bf16(v_result, v_result);
     } else if (m_jcp.out_data_type == element::i32) {
-        // Compute modulo
-        // Quotient
-        vcvtdq2ps(v_aux, v_result);
-        vdivps(v_aux, v_aux, v_range);
-        vcvtps2dq(v_aux, v_aux);
+        // Note: 
+        //   - prefix x sigifies using bottom half of Zmm (Ymm)
+        //   - prefix v sigifies using full length of Xmm
+        // Code taken from the convert of AVX2, kept names for consistency
 
-        // Aprroximation
-        vmulps(v_aux, v_aux, v_range);
+        // Split result before converting 32 -> 64 to fit new bits
+        const auto v_result_high_double = getVmm();
+        const auto v_result_low_double = getVmm();
+        const auto v_range_double = getVmm();
 
-        // Scale and shift
-        vpsubd(v_result, v_result, v_aux);
-        vaddps(v_result, v_min);
+        const auto x_result_high_double = Xbyak::Ymm(v_result_high_double.getIdx());
+        const auto x_result_low_double = Xbyak::Ymm(v_result_low_double.getIdx());
+        const auto x_range_double = Xbyak::Ymm(v_range_double.getIdx());
+
+        vextracti32x8(x_result_high_double, v_result, 1);
+        vextracti32x8(x_result_low_double, v_result, 0);
+        vextracti32x8(x_range_double, v_range, 0);
+
+        // Extract the most significant bit (MSB) using bitshift
+        const auto v_msb_high_double = getVmm();
+        const auto v_msb_low_double = getVmm();
+        const auto x_msb_high_double = Xbyak::Ymm(v_msb_high_double.getIdx());
+        const auto x_msb_low_double = Xbyak::Ymm(v_msb_low_double.getIdx());
+
+        vpsrld(x_msb_high_double, x_result_high_double, 31);
+        vpsrld(x_msb_low_double, x_result_low_double, 31);
+
+        // Remove most significant digit from result by bitshift
+        // One left (removes msb)
+        vpslld(x_result_high_double, x_result_high_double, 1);
+        vpslld(x_result_low_double, x_result_low_double, 1);
+
+        // One right (shifts back, sets 0 at the front)
+        vpsrld(x_result_high_double, x_result_high_double, 1);
+        vpsrld(x_result_low_double, x_result_low_double, 1);
+
+        // Create a double value of 2^31 for the most significant digit instead of -1
+        const auto r64_multiplier_double = getReg64();
+        const auto v_multiplier_double = getVmm();
+        const auto x_multiplier_double = Xbyak::Ymm(v_multiplier_double.getIdx());
+
+        mov(r64_multiplier_double,  0x41E0000000000000); // 2^31 in IEEE 754 double format
+        vmovq(x_multiplier_double, r64_multiplier_double);
+        vbroadcastsd(v_multiplier_double, x_multiplier_double);
+
+        // Convert most significant digit to double (either 0 or 1)
+        vcvtdq2pd(v_msb_high_double, x_msb_high_double);
+        vcvtdq2pd(v_msb_low_double, x_msb_low_double);
+
+        // Multiply (0/1) * 2^31
+        vmulpd(v_msb_high_double, v_msb_high_double, v_multiplier_double);
+        vmulpd(v_msb_low_double, v_msb_low_double, v_multiplier_double);
+
+        // Convert uint32_t to double for accuracy
+        vcvtdq2pd(v_result_high_double, x_result_high_double);
+        vcvtdq2pd(v_result_low_double, x_result_low_double);
+        vcvtdq2pd(v_range_double, x_range_double); 
+
+        // Add sign as 2^31 if was present, correctly converting uint32_t to double
+        vaddpd(v_result_high_double, v_result_high_double, v_msb_high_double);
+        vaddpd(v_result_low_double, v_result_low_double, v_msb_low_double);
+
+        // Compute approximate division
+        const auto v_aprox_result_high_double = getVmm();
+        const auto v_aprox_result_low_double = getVmm();
+        vdivpd(v_aprox_result_high_double, v_result_high_double, v_range_double);  // value / range = (aux = aux / aux2)
+        vdivpd(v_aprox_result_low_double, v_result_low_double, v_range_double);    // value / range = (aux = aux / aux2)
+
+        // Floor the result to nearest int (biggest multiple of divisor)
+        vroundpd(v_aprox_result_high_double, v_aprox_result_high_double, _MM_FROUND_TO_NEG_INF | _MM_FROUND_NO_EXC);
+        vroundpd(v_aprox_result_low_double, v_aprox_result_low_double, _MM_FROUND_TO_NEG_INF | _MM_FROUND_NO_EXC);
+
+        // Compute closest divisible value by multiplying back
+        vmulpd(v_aprox_result_high_double, v_aprox_result_high_double, v_range_double); // aux = floor(double(result) / double(range)) * double(range)
+        vmulpd(v_aprox_result_low_double, v_aprox_result_low_double, v_range_double); // aux = floor(double(result) / double(range)) * double(range)
+
+        // Compute remainder by subtracting approximation from the original 
+        vsubpd(v_result_high_double, v_result_high_double, v_aprox_result_high_double);
+        vsubpd(v_result_low_double, v_result_low_double, v_aprox_result_low_double);
+
+        // // Convert 64 -> 32, always possible as 0 < result < range
+        vcvtpd2dq(x_result_high_double, v_result_high_double); // value - closest_div_value = remainder (modulo)
+        vcvtpd2dq(x_result_low_double, v_result_low_double); // value - closest_div_value = remainder (modulo)
+
+        // // Concatenate them back, now result holds all remainders (modulos)
+        vinserti32x8(v_result, v_result, x_result_high_double, 1);
+        vinserti32x8(v_result, v_result, x_result_low_double, 0);
+
+        // Add minimum
+        vpaddd(v_result, v_result, v_min); // remainder + min
     } else if (m_jcp.out_data_type == element::i64 && m_jcp.optimized) {
         // Same as in Philox - in scope of i64 enabling
         OPENVINO_THROW("RandomUniform kernel does not support precision ", m_jcp.out_data_type, " for ", x64::get_isa_info());
@@ -903,6 +985,8 @@ template <>
 void MersenneTwisterGenerator<x64::avx2>::convertToOutputTypeMersenne() {
     if (m_jcp.out_data_type == element::f32) {
         // Apply mask and divisor
+        // No need to do int32's voodoo with double since mask ensures
+        // that most significant bit is 0
         vpand(v_result, v_result, v_mask);
         vcvtdq2ps(v_result, v_result);
         vmulps(v_result, v_divisor);
@@ -1003,10 +1087,14 @@ void MersenneTwisterGenerator<x64::avx2>::convertToOutputTypeMersenne() {
 
 template <x64::cpu_isa_t isa> // Works for SSE41
 void MersenneTwisterGenerator<isa>::convertToOutputTypeMersenne() {
+// template <> // Works for SSE41
+// void MersenneTwisterGenerator<x64::sse41>::convertToOutputTypeMersenne() {
     const auto r64_aux = getReg64();
 
     if (m_jcp.out_data_type == element::f32) {
         // Apply mask and divisor
+        // No need to do int32's voodoo with double since mask ensures
+        // that most significant bit is 0
         pand(v_result, v_mask);
         cvtdq2ps(v_result, v_result);
         mulps(v_result, v_divisor);
@@ -1014,26 +1102,107 @@ void MersenneTwisterGenerator<isa>::convertToOutputTypeMersenne() {
         // Scale and shift
         mulps(v_result, v_range);
         addps(v_result, v_min);
-
-        // Store result
-        store(ptr[r64_dst], v_result, r64_elements_to_generate, m_jcp.out_data_type.size());
     } else if (m_jcp.out_data_type == element::i32) {
+        // Note: 
+        //   - prefix x sigifies using bottom half of Xmm
+        //   - prefix v sigifies using full length of Xmm
+        // Code taken from the convert of AVX2, kept names for consistency
 
-        // Compute modulo
-        // Quotient
-        cvtdq2ps(v_aux, v_result);
-        divps(v_aux, v_range);
-        cvtps2dq(v_aux, v_aux);
+        // Split result before converting 32 -> 64 to fit new bits
+        const auto x_result_high_double = getReg64();
+        const auto x_result_low_double = getReg64();
+        const auto x_range_double = getReg64();
 
-        // Aprroximation
-        mulps(v_aux, v_range);
+        pextrq(x_result_high_double, v_result, 1);
+        pextrq(x_result_low_double, v_result, 0);
+        pextrq(x_range_double, v_range, 0);
 
-        // Scale and shift
-        psubd(v_result, v_aux);
-        addps(v_result, v_min);
+        // Extract the most significant bit (MSB) using bitshift
+        const auto v_msb_high_double = getVmm();
+        const auto v_msb_low_double = getVmm();
+        const auto x_msb_high_double = getVmm();
+        const auto x_msb_low_double = getVmm();
 
-        // Store result
-        store(ptr[r64_dst], v_result, r64_elements_to_generate, m_jcp.out_data_type.size());
+        movq(x_msb_high_double, x_result_high_double);
+        movq(x_msb_low_double, x_result_low_double);
+
+        psrld(x_msb_high_double, 31);
+        psrld(x_msb_low_double, 31);
+
+        // Remove most significant digit from result by bitshift
+        // One left (removes msb), one right (shifts back, sets 0 at the front)
+        const auto x_result_aux = getVmm();
+
+        movq(x_result_aux, x_result_high_double);
+        psllq(x_result_aux, 1);
+        psrlq(x_result_aux, 1);
+        movq(x_result_high_double, x_result_aux);
+
+        movq(x_result_aux, x_result_low_double);
+        psllq(x_result_aux, 1);
+        psrlq(x_result_aux, 1);
+        movq(x_result_low_double, x_result_aux);
+
+        // Create a double value of 2^31 for the most significant digit instead of -1
+        const auto r64_multiplier_double = getReg64();
+        const auto v_multiplier_double = getVmm();
+
+        mov(r64_multiplier_double,  0x41E0000000000000); // 2^31 in IEEE 754 double format
+        movq(v_multiplier_double, r64_multiplier_double);
+        pshufd(v_multiplier_double, v_multiplier_double, 0x44);
+
+        // Convert most significant digit to double (either 0 or 1)
+        cvtdq2pd(v_msb_high_double, x_msb_high_double);
+        cvtdq2pd(v_msb_low_double, x_msb_low_double);
+
+        // Multiply (0/1) * 2^31
+        mulpd(v_msb_high_double, v_multiplier_double);
+        mulpd(v_msb_low_double, v_multiplier_double);
+
+        // Convert uint32_t to double for accuracy
+        const auto v_result_high_double = getVmm();
+        const auto v_result_low_double = getVmm();
+        const auto v_range_double = getVmm();
+
+        cvtdq2pd(v_result_high_double, x_result_high_double);
+        cvtdq2pd(v_result_low_double, x_result_low_double);
+        cvtdq2pd(v_range_double, x_range_double); 
+
+        // Add sign as 2^31 if was present, correctly converting uint32_t to double
+        addpd(v_result_high_double, v_msb_high_double);
+        addpd(v_result_low_double, v_msb_low_double);
+
+        // Compute approximate division
+        const auto v_aprox_result_high_double = getVmm();
+        const auto v_aprox_result_low_double = getVmm();
+
+        movaps(v_aprox_result_high_double, v_result_high_double);
+        movaps(v_aprox_result_low_double, v_result_low_double);
+        divpd(v_aprox_result_high_double, v_range_double);  // value / range = (aux = aux / aux2)
+        divpd(v_aprox_result_low_double, v_range_double);    // value / range = (aux = aux / aux2)
+
+        // Floor the result to nearest int (biggest multiple of divisor)
+        roundpd(v_aprox_result_high_double, v_aprox_result_high_double, _MM_FROUND_TO_NEG_INF | _MM_FROUND_NO_EXC);
+        roundpd(v_aprox_result_low_double, v_aprox_result_low_double, _MM_FROUND_TO_NEG_INF | _MM_FROUND_NO_EXC);
+
+        // Compute closest divisible value by multiplying back
+        mulpd(v_aprox_result_high_double, v_range_double); // aux = floor(double(result) / double(range)) * double(range)
+        mulpd(v_aprox_result_low_double, v_range_double); // aux = floor(double(result) / double(range)) * double(range)
+
+        // Compute remainder by subtracting approximation from the original 
+        subpd(v_result_high_double, v_aprox_result_high_double);
+        subpd(v_result_low_double, v_aprox_result_low_double);
+
+        // Convert 64 -> 32, always possible as 0 < result < range
+        cvtpd2dq(v_result_high_double, v_result_high_double); // value - closest_div_value = remainder (modulo)
+        cvtpd2dq(v_result_low_double, v_result_low_double); // value - closest_div_value = remainder (modulo)
+
+        // Concatenate them back, now result holds all remainders (modulos)
+        pinsrq(v_result, v_result_high_double, 1);
+        pinsrq(v_result, v_result_low_double, 0);
+
+        // Add minimum
+        paddd(v_result, v_min); // remainder + min
     } else {
         OPENVINO_THROW("RandomUniform kernel does not support precision ", m_jcp.out_data_type, " for ", x64::get_isa_info());
     }
@@ -1053,9 +1222,9 @@ void MersenneTwisterGenerator<x64::avx512_core>::storeResults() {
         fillRestWorkMask(v_rest_mask, r64_elements_to_generate);
         vmovdqu32(ptr[r64_dst] | v_rest_mask, v_result);
 
-        add(r64_dst, vlen);
-        add(r64_state, vlen);
-        sub(r64_elements_to_generate, r64_storage_capacity);
+        // add(r64_dst, vlen);
+        // add(r64_state, vlen);
+        // sub(r64_elements_to_generate, r64_storage_capacity);
     } else if (m_jcp.out_data_type.size() == sizeof(uint16_t)) {
         mov(r64_aux, r64_elements_to_generate);
         cmp(r64_aux, r64_storage_capacity);
@@ -1066,9 +1235,9 @@ void MersenneTwisterGenerator<x64::avx512_core>::storeResults() {
         fillRestWorkMask(v_rest_mask, r64_elements_to_generate);
         vmovdqu16(ptr[r64_dst] | v_rest_mask, ymm_result);
 
-        add(r64_state, vlen);
-        add(r64_dst, vlen / 2);
-        sub(r64_elements_to_generate, r64_storage_capacity);
+        // add(r64_state, vlen);
+        // add(r64_dst, vlen / 2);
+        // sub(r64_elements_to_generate, r64_storage_capacity);
     } else if (m_jcp.out_data_type.size() == sizeof(uint64_t)) {
         // i64 enablement
         OPENVINO_THROW("RandomUniform kernel does not support precision ", m_jcp.out_data_type, " for ", x64::get_isa_info());
@@ -1116,9 +1285,9 @@ void MersenneTwisterGenerator<isa>::storeResults() {
         cmovg(r64_aux, r64_storage_capacity);
         store(ptr[r64_dst], v_result, r64_aux, m_jcp.out_data_type.size());
 
-        add(r64_dst, vlen);
-        add(r64_state, vlen);
-        sub(r64_elements_to_generate, r64_storage_capacity);
+        // add(r64_dst, vlen);
+        // add(r64_state, vlen);
+        // sub(r64_elements_to_generate, r64_storage_capacity);
     } else if (m_jcp.out_data_type.size() == sizeof(uint16_t)) {
         // SSE41 does not support 16 bit value transfer
         OPENVINO_THROW("RandomUniform kernel does not support precision ", m_jcp.out_data_type, " for ", x64::get_isa_info());
