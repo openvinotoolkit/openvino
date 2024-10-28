@@ -15,37 +15,17 @@
 
 namespace intel_npu {
 
-/**
- * @struct CompiledNetwork
- * @brief Custom container for compiled network, used for export
- * @var CompiledNetwork::data
- * Pointer to the address of compiled network
- * @var CompiledNetwork:size
- * Size of the compiled network
- * @var CompiledNetwork::ownedStorage
- * Plugin owned compiled network storage that is required in case of a driver that
- * doesn't support graph extension 1.7, as in this case plugin must create a copy of the compiled network.
- * @note It's unsafe to store either data or size outside of the compiled network object as its destructor
- * would release the owning container
- */
-
-struct CompiledNetwork {
-    const uint8_t* data;
-    size_t size;
-    CompiledNetwork(const uint8_t* data, size_t size, std::vector<uint8_t> storage)
-        : data(data),
-          size(size),
-          ownedStorage(std::move(storage)) {}
-
-private:
-    std::vector<uint8_t> ownedStorage;
-};
-
 class IGraph : public std::enable_shared_from_this<IGraph> {
 public:
-    IGraph(ze_graph_handle_t handle, NetworkMetadata metadata) : _handle(handle), _metadata(std::move(metadata)) {}
+    IGraph(ze_graph_handle_t handle, NetworkMetadata metadata, std::optional<std::vector<uint8_t>> blob)
+        : _handle(handle),
+          _metadata(std::move(metadata)) {
+        if (blob.has_value()) {
+            _blob = std::move(*blob);
+        }
+    }
 
-    virtual CompiledNetwork export_blob() const = 0;
+    virtual void export_blob(std::ostream& stream) const = 0;
 
     virtual std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
                                                                     const Config& config) const = 0;
@@ -116,6 +96,8 @@ protected:
     // Used to protect zero pipeline creation in the graph. The pipeline should be created only once per graph when the
     // first inference starts running
     std::mutex _mutex;
+
+    std::vector<uint8_t> _blob;
 };
 
 }  // namespace intel_npu

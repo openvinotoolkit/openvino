@@ -21,9 +21,9 @@ public:
                 ze_graph_handle_t graphHandle,
                 NetworkMetadata metadata,
                 const Config& config,
-                std::optional<std::vector<uint8_t>> network = std::nullopt);
+                std::optional<std::vector<uint8_t>> blob);
 
-    CompiledNetwork export_blob() const override;
+    void export_blob(std::ostream& stream) const override;
 
     std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
                                                             const Config& config) const override;
@@ -39,9 +39,6 @@ private:
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
 
     Logger _logger;
-
-    // We need to keep the compiled network inside the plugin when the model is imported.
-    std::vector<uint8_t> _networkStorage;
 };
 
 }  // namespace intel_npu

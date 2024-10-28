@@ -227,7 +227,12 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
     auto networkMeta = _zeGraphExt->getNetworkMeta(graphHandle);
     networkMeta.name = model->get_friendly_name();
 
-    return std::make_shared<DriverGraph>(_zeGraphExt, _zeroInitStruct, graphHandle, std::move(networkMeta), config);
+    return std::make_shared<DriverGraph>(_zeGraphExt,
+                                         _zeroInitStruct,
+                                         graphHandle,
+                                         std::move(networkMeta),
+                                         config,
+                                         std::nullopt);
 }
 
 std::shared_ptr<IGraph> DriverCompilerAdapter::parse(std::vector<uint8_t> network, const Config& config) const {

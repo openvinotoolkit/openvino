@@ -14,13 +14,12 @@ PluginGraph::PluginGraph(const std::shared_ptr<ZeGraphExtWrappersInterface>& zeG
                          const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                          ze_graph_handle_t graphHandle,
                          NetworkMetadata metadata,
-                         const std::vector<uint8_t> compiledNetwork,
+                         const std::vector<uint8_t> blob,
                          const Config& config)
-    : IGraph(graphHandle, std::move(metadata)),
+    : IGraph(graphHandle, std::move(metadata), std::optional<std::vector<uint8_t>>(std::move(blob))),
       _zeGraphExt(zeGraphExt),
-      _compiler(compiler),
       _zeroInitStruct(zeroInitStruct),
-      _compiledNetwork(std::move(compiledNetwork)),
+      _compiler(compiler),
       _logger("PluginGraph", config.get<LOG_LEVEL>()) {
     if (config.get<CREATE_EXECUTOR>()) {
         initialize(config);
@@ -29,13 +28,29 @@ PluginGraph::PluginGraph(const std::shared_ptr<ZeGraphExtWrappersInterface>& zeG
     }
 }
 
-CompiledNetwork PluginGraph::export_blob() const {
-    return CompiledNetwork(_compiledNetwork.data(), _compiledNetwork.size(), _compiledNetwork);
+void PluginGraph::export_blob(std::ostream& stream) const {
+    stream.write(reinterpret_cast<const char*>(_blob.data()), _blob.size());
+
+    if (!stream) {
+        _logger.error("Write blob to stream failed. Blob is broken!");
+    } else {
+        if (_logger.level() >= ov::log::Level::INFO) {
+            std::uint32_t result = 1171117u;
+            for (const uint8_t* it = _blob.data(); it != _blob.data() + _blob.size(); ++it) {
+                result = ((result << 7) + result) + static_cast<uint32_t>(*it);
+            }
+
+            std::stringstream str;
+            str << "Blob size: " << _blob.size() << ", hash: " << std::hex << result;
+            _logger.info(str.str().c_str());
+        }
+        _logger.info("Write blob to stream successfully.");
+    }
 }
 
 std::vector<ov::ProfilingInfo> PluginGraph::process_profiling_output(const std::vector<uint8_t>& profData,
                                                                      const Config& config) const {
-    return _compiler->process_profiling_output(profData, _compiledNetwork, config);
+    return _compiler->process_profiling_output(profData, _blob, config);
 }
 
 void PluginGraph::set_argument_value(uint32_t argi, const void* argv) const {

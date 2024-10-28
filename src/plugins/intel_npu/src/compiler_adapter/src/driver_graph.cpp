@@ -14,15 +14,11 @@ DriverGraph::DriverGraph(const std::shared_ptr<ZeGraphExtWrappersInterface>& zeG
                          ze_graph_handle_t graphHandle,
                          NetworkMetadata metadata,
                          const Config& config,
-                         std::optional<std::vector<uint8_t>> network)
-    : IGraph(graphHandle, std::move(metadata)),
+                         std::optional<std::vector<uint8_t>> blob)
+    : IGraph(graphHandle, std::move(metadata), blob),
       _zeGraphExt(zeGraphExt),
       _zeroInitStruct(zeroInitStruct),
       _logger("DriverGraph", config.get<LOG_LEVEL>()) {
-    if (network.has_value()) {
-        _networkStorage = std::move(*network);
-    }
-
     if (config.get<CREATE_EXECUTOR>()) {
         initialize(config);
     } else {
@@ -30,15 +26,30 @@ DriverGraph::DriverGraph(const std::shared_ptr<ZeGraphExtWrappersInterface>& zeG
     }
 }
 
-CompiledNetwork DriverGraph::export_blob() const {
+void DriverGraph::export_blob(std::ostream& stream) const {
     const uint8_t* blobPtr = nullptr;
     size_t blobSize = -1;
     std::vector<uint8_t> blob;
 
     _zeGraphExt->getGraphBinary(_handle, blob, blobPtr, blobSize);
 
-    _logger.info("DriverGraph returning blob");
-    return CompiledNetwork(blobPtr, blobSize, std::move(blob));
+    stream.write(reinterpret_cast<const char*>(blobPtr), blobSize);
+
+    if (!stream) {
+        _logger.error("Write blob to stream failed. Blob is broken!");
+    } else {
+        if (_logger.level() >= ov::log::Level::INFO) {
+            std::uint32_t result = 1171117u;
+            for (const uint8_t* it = blobPtr; it != blobPtr + blobSize; ++it) {
+                result = ((result << 7) + result) + static_cast<uint32_t>(*it);
+            }
+
+            std::stringstream str;
+            str << "Blob size: " << blobSize << ", hash: " << std::hex << result;
+            _logger.info(str.str().c_str());
+        }
+        _logger.info("Write blob to stream successfully.");
+    }
 }
 
 std::vector<ov::ProfilingInfo> DriverGraph::process_profiling_output(const std::vector<uint8_t>& profData,

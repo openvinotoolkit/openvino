@@ -20,18 +20,6 @@
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "transformations/utils/utils.hpp"
 
-namespace {
-
-std::uint32_t hash(const intel_npu::CompiledNetwork& blob) {
-    std::uint32_t result = 1171117u;
-    for (const uint8_t* it = blob.data; it != blob.data + blob.size; ++it) {
-        result = ((result << 7) + result) + static_cast<uint32_t>(*it);
-    }
-    return result;
-}
-
-}  // namespace
-
 namespace intel_npu {
 
 using intel_npu::envVarStrToBool;
@@ -85,19 +73,7 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
 
 void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
-    const auto blob = _graph->export_blob();
-    stream.write(reinterpret_cast<const char*>(blob.data), blob.size);
-
-    if (!stream) {
-        _logger.error("Write blob to stream failed. Blob is broken!");
-    } else {
-        if (_logger.level() >= ov::log::Level::INFO) {
-            std::stringstream str;
-            str << "Blob size: " << blob.size << ", hash: " << std::hex << hash(blob);
-            _logger.info(str.str().c_str());
-        }
-        _logger.info("Write blob to stream successfully.");
-    }
+    _graph->export_blob(stream);
 }
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {

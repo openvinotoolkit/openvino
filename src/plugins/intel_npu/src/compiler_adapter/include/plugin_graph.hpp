@@ -23,10 +23,10 @@ public:
                 const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                 ze_graph_handle_t graphHandle,
                 NetworkMetadata metadata,
-                std::vector<uint8_t> compiledNetwork,
+                std::vector<uint8_t> blob,
                 const Config& config);
 
-    CompiledNetwork export_blob() const override;
+    void export_blob(std::ostream& stream) const override;
 
     std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
                                                             const Config& config) const override;
@@ -42,8 +42,6 @@ private:
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
 
     const ov::SoPtr<ICompiler> _compiler;
-
-    std::vector<uint8_t> _compiledNetwork;
 
     Logger _logger;
 };
