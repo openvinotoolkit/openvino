@@ -71,6 +71,7 @@
     "buildPath" : "../../../../../build/",
     "cachePath" : "{workPath}/slider_cache/",
     "logPath" : "{workPath}/log/",
+    "clearLogsAposteriori" : false,
     "workPath" : "will be defined in runtime",
     "linWorkPath" : "/tmp/commit_slider_tool",
     "winWorkPath" : "%tmp%\\commit_slider",

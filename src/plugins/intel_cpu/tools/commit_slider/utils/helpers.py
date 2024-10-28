@@ -299,7 +299,7 @@ def fetchAppOutput(cfg, commit):
                 {"src": cfg["appPath"], "dst": "appPath"},
                 {"src": sys.executable, "dst": "py"}
                 ]:
-            appCmd = CfgManager.multistepStrFormat(
+            appCmd = CfgManager.singlestepStrFormat(
                 appCmd,
                 item["dst"],
                 item["src"]
@@ -495,8 +495,8 @@ def returnToActualVersion(cfg):
 def setupLogger(name, logPath, logFileName, level=log.INFO):
     if not os.path.exists(logPath):
         os.makedirs(logPath)
-    logFileName = logPath + logFileName
-    with open(logFileName, "w"):  # clear old log
+    logFileName = os.path.join(logPath, logFileName)
+    with open(logFileName, "w+"):  # clear old log
         pass
     handler = log.FileHandler(logFileName)
     formatter = log.Formatter("%(asctime)s %(levelname)s %(message)s")
@@ -691,7 +691,7 @@ def applySubstitutionRules(cfg: map, rules: list, commit: str=None):
         dstPos = formatJSON(
             dstPos,
             lambda content:
-            CfgManager.multistepStrFormat(
+            CfgManager.singlestepStrFormat(
                 content,
                 rule["placeholder"],
                 getMapValueByShortHash(srcPos, commit)\

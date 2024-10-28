@@ -154,6 +154,8 @@ def getActualCommit(td: TestData):
 
     # prepare config
     cfg = formatJSON(td.testCfg, td.formatConfig)
+    cfg['logPath'] = td.logPath
+    cfg['clearLogsAposteriori'] = td.clearLogsAposteriori
     testCfg = "test_cfg.json"
 
     with open(testCfg, "w+") as customCfg:
@@ -171,8 +173,8 @@ def getActualCommit(td: TestData):
     # clear temp data
     [shutil.rmtree(dir) for dir in [
             td.repoName,
-            td.cachePath,
-            td.logPath]]
+            td.cachePath
+            ]]
     os.remove(testCfg)
 
     return foundCommit, rejectReason
@@ -223,8 +225,8 @@ def requireBinarySearchData(td: TestData, rsc: map):
 
     [setattr(td, key, td.commonRsc[key]) for key in [
         'repoStructure', 'cachePath', 'logPath',
-        'mainFile', 'repoPath'
-    ]]
+        'clearLogsAposteriori', 'mainFile', 'repoPath'
+    ] if not hasattr(td, key)]
     td.patternPrefix = td.commonRsc['patchGeneratorPrefix']
     td.patternPostfix = td.commonRsc['patchGeneratorPostfix']
     td.pattern = "{pre}(.+?){post}".format(

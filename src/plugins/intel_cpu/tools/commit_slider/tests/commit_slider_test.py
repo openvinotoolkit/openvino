@@ -13,7 +13,7 @@ from test_data import FirstBadVersionData, FirstValidVersionData,\
     BmStableData, BmValidatorSteppedBreakData, BmValidatorSteppedBreakData2,\
     BenchmarkAppDataUnstable, BenchmarkAppDataStable, BenchmarkAppNoDegradationData,\
     BenchmarkAppUnstableDevData, BenchmarkAppWrongPathData, BenchmarkAppPathFoundData,\
-    BenchmarkFirstFixedAppData, AcModeData, BenchmarkMetricData
+    BenchmarkFirstFixedAppData, AcModeData, BenchmarkMetricData, CustomizedLogData
 
 
 class CommitSliderTest(TestCase):
@@ -29,6 +29,13 @@ class CommitSliderTest(TestCase):
     def testFirstBadVersion(self):
         breakCommit, updatedData = getExpectedCommit(
             FirstBadVersionData())
+        actualCommit, _ = getActualCommit(updatedData)
+        self.assertEqual(breakCommit, actualCommit)
+
+    @skip_commit_slider_devtest
+    def testCustomizedLog(self):
+        breakCommit, updatedData = getExpectedCommit(
+            CustomizedLogData())
         actualCommit, _ = getActualCommit(updatedData)
         self.assertEqual(breakCommit, actualCommit)
 

@@ -3,6 +3,7 @@
 
 from enum import Enum
 import json
+from utils.cfg_manager import CfgManager
 
 class TestData():
     __test__ = False
@@ -21,14 +22,14 @@ class TestData():
 
     def formatConfig(self, content):
         # redefine for non trivial cases
-        return content.format(
-            appCmd="./{}".format(self.repoName),
-            appPath="tests/{}/build".format(self.repoName),
-            buildPath="tests/{}/build".format(self.repoName),
-            gitPath="tests/{}".format(self.repoName),
-            start=self.start,
-            end=self.end
-        )
+        return CfgManager.multistepStrFormat(content, [
+            {'p' : 'appCmd', 's' : "./{}".format(self.repoName)},
+            {'p' : 'appPath', 's' : "tests/{}/build".format(self.repoName)},
+            {'p' : 'buildPath', 's' : "tests/{}/build".format(self.repoName)},
+            {'p' : 'gitPath', 's' : "tests/{}".format(self.repoName)},
+            {'p' : 'start', 's' : self.start},
+            {'p' : 'end', 's' : self.end}
+        ])
     
     @staticmethod
     def checkTestSet():
@@ -66,7 +67,8 @@ class TestData():
         BmPathFound = 11,
         BmFirstFixed = 12,
         BmLatencyMetric = 13,
-        ACModeData = 14
+        ACModeData = 14,
+        CustomizedLog = 15
 
     def requireTestData(self, reqLambda):
         # mapping json to test data holder
@@ -84,6 +86,19 @@ class FirstBadVersionData(TestData):
 
     def getTestName(self):
         return "FirstBadVersion"
+
+    def __init__(self):
+        from test_util import requireBinarySearchData
+        self.requireTestData(
+            requireBinarySearchData
+        )
+
+class CustomizedLogData(TestData):
+    def getTestCase():
+        return TestData.TestCase.CustomizedLog
+
+    def getTestName(self):
+        return "CustomizedLog"
 
     def __init__(self):
         from test_util import requireBinarySearchData

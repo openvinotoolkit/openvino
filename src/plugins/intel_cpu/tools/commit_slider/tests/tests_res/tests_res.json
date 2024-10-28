@@ -2,7 +2,8 @@
     "binarySearchRes": {
         "repoPath": "./",
         "cachePath": "../slider_cache",
-        "logPath": "../log",
+        "logPath" : "{workPath}/log/",
+        "clearLogsAposteriori" : true,
         "patchGeneratorPrefix": "const char \\*patchGenerator = R\"V0G0N\\(",
         "patchGeneratorPostfix": "\\)V0G0N\";",
         "mainFile": "main.cpp",
@@ -22,6 +23,26 @@
             "appCmd" : "{appCmd}",
             "appPath": "{appPath}",
             "gitPath" : "{gitPath}",
+            "buildPath" : "{buildPath}",
+            "verboseOutput": false,
+            "runConfig" : {
+                "commitList" : {
+                    "getCommitListCmd" : "git log {start}..{end} --boundary --pretty=\"%h\""
+                },
+                "mode" : "checkOutput",
+                "traversal" : "firstFailedVersion",
+                "stopPattern" : "(.)*failed(.)*"
+            }
+        }
+    },
+    "CustomizedLog": {
+        "repoName": "firstBadVersion",
+        "patchedFile": "tests_res/fbv_main.cpp",
+        "testCfg": {
+            "appCmd" : "{appCmd}",
+            "appPath": "{appPath}",
+            "gitPath" : "{gitPath}",
+            "logPath" : "{workPath}/sub_log/",
             "buildPath" : "{buildPath}",
             "verboseOutput": false,
             "runConfig" : {

@@ -10,11 +10,17 @@ class CfgManager():
         self.cfg = cfg
 
     @staticmethod
-    def multistepStrFormat(input: str, placeholder: str, substitution: str):
+    def singlestepStrFormat(input: str, placeholder: str, substitution: str):
         return input.replace(
             '{}{}{}'.format('{', placeholder, '}'),
             substitution
         )
+
+    @staticmethod
+    def multistepStrFormat(input: str, placeholderSubstPairArr):
+        for ps in placeholderSubstPairArr:
+            input = CfgManager.singlestepStrFormat(input, ps['p'], ps['s'])
+        return input
 
     def applyTemplate(self):
         if not "template" in self.cfg:
@@ -54,7 +60,7 @@ class CfgManager():
             tmpJSON["runConfig"]["stopPattern"] = tmpl["errorPattern"]
             tmpJSON["dlbConfig"]["commonPath"] = tmpl["precommitPath"]
             tmpJSON["cachedPathConfig"]["commonPath"] = tmpl["precommitPath"]
-            tmpJSON["appCmd"] = CfgManager.multistepStrFormat(
+            tmpJSON["appCmd"] = CfgManager.singlestepStrFormat(
                 tmpJSON["appCmd"],
                 tmpl["appCmd"],
                 "testCmd"

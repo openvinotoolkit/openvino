@@ -68,7 +68,8 @@ else:
     tempLogPath = cfgData["logPath"].format(workPath=workPath)
     permLogPath = cfgData["logPath"].format(workPath=curPath)
     safeClearDir(permLogPath, cfgData)
-    copy_tree(tempLogPath, permLogPath)
+    if not cfgData['clearLogsAposteriori']:
+        copy_tree(tempLogPath, permLogPath)
 
     tempCachePath = cfgData["cachePath"].format(workPath=workPath)
     permCachePath = cfgData["cachePath"].format(workPath=curPath)
