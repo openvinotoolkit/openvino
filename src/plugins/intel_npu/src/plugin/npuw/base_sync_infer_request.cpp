@@ -5,7 +5,7 @@
 #include "base_sync_infer_request.hpp"
 
 #include "compiled_model.hpp"
-#include "intel_npu/al/config/npuw.hpp"
+#include "intel_npu/config/npuw.hpp"
 #include "logging.hpp"
 #include "util.hpp"
 
@@ -211,7 +211,8 @@ void ov::npuw::IBaseInferRequest::infer() {
 
 void ov::npuw::IBaseInferRequest::dump_input_tensors(std::size_t idx) {
     const std::string dump_ios_opt = m_npuw_model->m_cfg.get<::intel_npu::NPUW_DUMP_IO>();
-    if (!ov::npuw::util::is_set(idx, dump_ios_opt)) {
+    const std::size_t end_idx = m_npuw_model->m_compiled_submodels.size();
+    if (!ov::npuw::util::is_set(idx, dump_ios_opt, end_idx)) {
         return;
     }
 
@@ -288,7 +289,8 @@ void ov::npuw::IBaseInferRequest::dump_input_tensors(std::size_t idx) {
 
 void ov::npuw::IBaseInferRequest::dump_output_tensors(std::size_t idx) {
     const std::string dump_ios_opt = m_npuw_model->m_cfg.get<::intel_npu::NPUW_DUMP_IO>();
-    if (!ov::npuw::util::is_set(idx, dump_ios_opt)) {
+    const std::size_t end_idx = m_npuw_model->m_compiled_submodels.size();
+    if (!ov::npuw::util::is_set(idx, dump_ios_opt, end_idx)) {
         return;
     }
 

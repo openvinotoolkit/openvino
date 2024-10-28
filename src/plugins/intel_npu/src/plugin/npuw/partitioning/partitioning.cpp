@@ -8,7 +8,7 @@
 
 #include "../logging.hpp"
 #include "../util.hpp"
-#include "intel_npu/al/config/npuw.hpp"
+#include "intel_npu/config/npuw.hpp"
 #include "online/compiler.hpp"
 #include "online/utils/utils.hpp"  // getMetaDesc
 #include "openvino/core/parallel.hpp"
@@ -1892,6 +1892,12 @@ void Partitioner::optimize(const std::string& func_name) {
                 auto new_elem_type = params_to_gather.pnew->get_element_type();
                 const auto& new_shape = params_to_gather.pnew->get_shape();
                 // Note: no allocation needed for this tensor - set to _closure and dummy in _lazy_closure
+                // FIXME: It turns out this tensor will be completely unused.
+                // It will just sit in the memory to do nothing.
+                // Most likely it may stay empty since we need a 1:1 matching between
+                // closure tensors and parameters (minus base).
+                // Based on our logic (when tensors get transferred from lazy tensors via bank
+                // to the closure), this tensor should be non-empty to avoid this process.
                 funcall.get()._closure.push_back(ov::Tensor(new_elem_type, new_shape));
                 funcall.get()._lazy_closure.push_back(LazyTensor(TransformType::THIS, ov::Tensor()));
             }

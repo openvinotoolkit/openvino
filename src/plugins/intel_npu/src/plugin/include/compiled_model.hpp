@@ -6,9 +6,9 @@
 
 #include <optional>
 
-#include "intel_npu/al/icompiled_model.hpp"
+#include "intel_npu/common/icompiled_model.hpp"
+#include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
-#include "npu.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
 namespace intel_npu {

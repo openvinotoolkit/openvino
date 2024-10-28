@@ -7,9 +7,9 @@
 #include <ze_api.h>
 #include <ze_graph_ext.h>
 
-#include "intel_npu/al/icompiled_model.hpp"
+#include "intel_npu/common/icompiled_model.hpp"
+#include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
-#include "npu.hpp"
 #include "openvino/runtime/intel_npu/remote_properties.hpp"
 #include "zero_init.hpp"
 #include "zero_types.hpp"
@@ -26,6 +26,7 @@ public:
     std::string getName() const override;
     std::string getFullDeviceName() const override;
     Uuid getUuid() const override;
+    ov::device::LUID getLUID() const override;
     uint32_t getSubDevId() const override;
     uint32_t getMaxNumSlices() const override;
     uint64_t getAllocMemSize() const override;
@@ -66,6 +67,8 @@ private:
     ze_device_properties_t device_properties = {};
 
     ze_pci_ext_properties_t pci_properties = {};
+
+    ze_device_luid_ext_properties_t device_luid = {};
 
     std::map<ov::element::Type, float> device_gops = {{ov::element::f32, 0.f},
                                                       {ov::element::f16, 0.f},
