@@ -326,7 +326,6 @@ void RandomUniform::preparePhiloxParams() {
 void RandomUniform::prepareMersenneTwisterParams() {
     m_threads_num = parallel_get_max_threads();
 
-    std::cout << "Max threads: " << m_threads_num << std::endl;
     if (m_jit_kernel) {
 #if defined(OPENVINO_ARCH_X86_64)
         // m_jit_kernel->getVectorLen() either 64, 32 or 16 for Zmm, Ymm, Xmm respectively
@@ -395,7 +394,6 @@ void RandomUniform::prepareGeneratorKernel() {
     }
 
     if (m_jit_kernel) {
-        std::cout << "Kernel" << std::endl;
         if (auto selected_pd = getSelectedPrimitiveDescriptor()) {
             using namespace dnnl::impl::cpu;
             if (m_jit_kernel->getIsa() == x64::avx512_core) {
@@ -406,8 +404,6 @@ void RandomUniform::prepareGeneratorKernel() {
                 selected_pd->setImplementationType(jit_sse42);
             }
         }
-    } else {
-        std::cout << "No kernel" << std::endl;
     }
 #endif // OPENVINO_ARCH_X86_64
 }
@@ -764,10 +760,6 @@ void RandomUniform::computeMersenneTwister(void* out, size_t output_elements_cou
 
     if (m_jit_kernel) {
 #if defined(OPENVINO_ARCH_X86_64)
-        std::cout << "Threads: " << m_threads_num << std::endl;
-        std::cout << "Min: " << m_min_val.f32 << std::endl;
-        std::cout << "Range: " << m_range_val.f32 << std::endl;
-
         for (uint64_t i = 0; i < state_regenerations_required; ++i) {
             next_mersenne_state(mersenne_state_ptr);
 
