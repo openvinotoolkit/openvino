@@ -121,6 +121,7 @@ OP_CONVERTER(translate_inverse);
 OP_CONVERTER(translate_is_nonzero);
 OP_CONVERTER(translate_layer_norm);
 OP_CONVERTER(translate_len);
+OP_CONVERTER(translate_lerp);
 OP_CONVERTER(translate_linalg_cross);
 OP_CONVERTER(translate_linalg_norm);
 OP_CONVERTER(translate_linalg_matrix_norm);
@@ -508,6 +509,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::le", op::translate_1to1_match_2_inputs_align_types<opset10::LessEqual>},
         {"aten::leaky_relu", op::translate_1to1_match_2_inputs<opset10::PRelu>},
         {"aten::len", op::translate_len},
+        {"aten::lerp", op::translate_lerp},
         // lift op is torchscript specific op responsible for tensors coping with guarantee of new memory allocation
         {"aten::lift", op::skip_node},
         {"aten::lift_fresh", op::skip_node},
