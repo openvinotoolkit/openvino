@@ -8,8 +8,9 @@
 
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
-#include "izero_adapter.hpp"
 #include "openvino/runtime/so_ptr.hpp"
+#include "ze_graph_ext_wrapper_interface.hpp"
+#include "zero_init.hpp"
 
 namespace intel_npu {
 
@@ -24,7 +25,9 @@ public:
     ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
 
 private:
-    std::shared_ptr<IZeroAdapter> _zeroAdapter;
+    std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
+
+    std::shared_ptr<ZeGraphExtWrappersInterface> _zeGraphExt;
     ov::SoPtr<ICompiler> _compiler;
 
     Logger _logger;

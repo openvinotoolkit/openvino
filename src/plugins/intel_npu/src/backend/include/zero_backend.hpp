@@ -29,16 +29,14 @@ public:
     bool isCommandQueueExtSupported() const override;
     bool isLUIDExtSupported() const override;
 
+    const std::shared_ptr<ZeroInitStructsHolder>& getInitStruct() const;
+
     void* getContext() const override;
-    void* getDriverHandle() const;
-    void* getDeviceHandle() const;
-    ze_graph_dditable_ext_curr_t& getGraphDdiTable() const;
-    ze_command_queue_npu_dditable_ext_curr_t& getCommandQueueDdiTable() const;
 
     void updateInfo(const Config& config) override;
 
 private:
-    std::shared_ptr<ZeroInitStructsHolder> _instance;
+    std::shared_ptr<ZeroInitStructsHolder> _initStruct;
 
     std::map<std::string, std::shared_ptr<IDevice>> _devices{};
     Logger _logger;

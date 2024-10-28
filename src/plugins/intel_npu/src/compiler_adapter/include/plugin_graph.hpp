@@ -10,15 +10,17 @@
 
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/icompiler.hpp"
-#include "izero_adapter.hpp"
 #include "openvino/runtime/so_ptr.hpp"
+#include "ze_graph_ext_wrapper_interface.hpp"
+#include "zero_init.hpp"
 
 namespace intel_npu {
 
 class PluginGraph final : public IGraph {
 public:
-    PluginGraph(const std::shared_ptr<IZeroAdapter>& adapter,
+    PluginGraph(const std::shared_ptr<ZeGraphExtWrappersInterface>& zeGraphExt,
                 const ov::SoPtr<ICompiler>& compiler,
+                const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                 ze_graph_handle_t graphHandle,
                 NetworkMetadata metadata,
                 std::vector<uint8_t> compiledNetwork,
@@ -36,8 +38,11 @@ public:
     ~PluginGraph() override;
 
 private:
-    std::shared_ptr<IZeroAdapter> _adapter;
+    std::shared_ptr<ZeGraphExtWrappersInterface> _zeGraphExt;
+    std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
+
     const ov::SoPtr<ICompiler> _compiler;
+
     std::vector<uint8_t> _compiledNetwork;
 
     Logger _logger;

@@ -12,7 +12,6 @@
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 
-
 #ifdef _WIN32
 namespace {
 constexpr uint32_t WIN_DRIVER_NO_MCL_SUPPORT = 2688;

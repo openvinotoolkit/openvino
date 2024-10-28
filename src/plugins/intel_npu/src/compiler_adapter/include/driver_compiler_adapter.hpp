@@ -15,7 +15,8 @@
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
-#include "izero_adapter.hpp"
+#include "ze_graph_ext_wrapper_interface.hpp"
+#include "zero_init.hpp"
 
 namespace intel_npu {
 
@@ -52,7 +53,8 @@ private:
 
     std::string serializeConfig(const Config& config, ze_graph_compiler_version_info_t compilerVersion) const;
 
-    std::shared_ptr<IZeroAdapter> _zeroAdapter;
+    std::shared_ptr<ZeGraphExtWrappersInterface> _zeGraphExt;
+    std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
 
     ze_device_graph_properties_t _deviceGraphProperties = {};
 

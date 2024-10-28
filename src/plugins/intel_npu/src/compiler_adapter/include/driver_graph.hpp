@@ -9,13 +9,15 @@
 #include <ze_graph_ext.h>
 
 #include "intel_npu/common/igraph.hpp"
-#include "izero_adapter.hpp"
+#include "ze_graph_ext_wrapper_interface.hpp"
+#include "zero_init.hpp"
 
 namespace intel_npu {
 
 class DriverGraph final : public IGraph {
 public:
-    DriverGraph(const std::shared_ptr<IZeroAdapter>& adapter,
+    DriverGraph(const std::shared_ptr<ZeGraphExtWrappersInterface>& zeGraphExt,
+                const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                 ze_graph_handle_t graphHandle,
                 NetworkMetadata metadata,
                 const Config& config,
@@ -33,7 +35,8 @@ public:
     ~DriverGraph() override;
 
 private:
-    std::shared_ptr<IZeroAdapter> _adapter;
+    std::shared_ptr<ZeGraphExtWrappersInterface> _zeGraphExt;
+    std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
 
     Logger _logger;
 

@@ -9,15 +9,17 @@
 
 namespace intel_npu {
 
-PluginGraph::PluginGraph(const std::shared_ptr<IZeroAdapter>& adapter,
+PluginGraph::PluginGraph(const std::shared_ptr<ZeGraphExtWrappersInterface>& zeGraphExt,
                          const ov::SoPtr<ICompiler>& compiler,
+                         const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                          ze_graph_handle_t graphHandle,
                          NetworkMetadata metadata,
                          const std::vector<uint8_t> compiledNetwork,
                          const Config& config)
     : IGraph(graphHandle, std::move(metadata)),
-      _adapter(adapter),
+      _zeGraphExt(zeGraphExt),
       _compiler(compiler),
+      _zeroInitStruct(zeroInitStruct),
       _compiledNetwork(std::move(compiledNetwork)),
       _logger("PluginGraph", config.get<LOG_LEVEL>()) {
     if (config.get<CREATE_EXECUTOR>()) {
@@ -37,24 +39,64 @@ std::vector<ov::ProfilingInfo> PluginGraph::process_profiling_output(const std::
 }
 
 void PluginGraph::set_argument_value(uint32_t argi, const void* argv) const {
-    if (_adapter == nullptr) {
+    if (_zeGraphExt == nullptr) {
         OPENVINO_THROW("Zero compiler adapter wasn't initialized");
     }
-    _adapter->setArgumentValue(_handle, argi, argv);
+    _zeGraphExt->setGraphArgumentValue(_handle, argi, argv);
 }
 
 void PluginGraph::initialize(const Config& config) {
-    if (_adapter) {
+    if (_zeGraphExt) {
         _logger.debug("Graph initialize start");
 
-        std::tie(_input_descriptors, _output_descriptors) = _adapter->getIODesc(_handle);
-        _command_queue = _adapter->crateCommandQueue(config);
+        _logger.debug("performing pfnGetProperties");
+        ze_graph_properties_t props{};
+        props.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES;
+        auto result = _zeroInitStruct->getGraphDdiTable().pfnGetProperties(_handle, &props);
+        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetProperties", result, _zeroInitStruct->getGraphDdiTable());
+
+        _logger.debug("performing pfnGetArgumentProperties3");
+        for (uint32_t index = 0; index < props.numGraphArgs; ++index) {
+            ze_graph_argument_properties_3_t arg3{};
+            arg3.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_PROPERTIES;
+            auto result = _zeroInitStruct->getGraphDdiTable().pfnGetArgumentProperties3(_handle, index, &arg3);
+            THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties3", result, _zeroInitStruct->getGraphDdiTable());
+
+            if (arg3.type == ZE_GRAPH_ARGUMENT_TYPE_INPUT) {
+                _input_descriptors.push_back(ArgumentDescriptor{arg3, index});
+            } else {
+                _output_descriptors.push_back(ArgumentDescriptor{arg3, index});
+            }
+        }
+
+        ze_device_properties_t deviceProperties = {};
+        deviceProperties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
+        THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetProperties",
+                                    zeDeviceGetProperties(_zeroInitStruct->getDevice(), &deviceProperties));
+        auto groupOrdinal = zeroUtils::findGroupOrdinal(_zeroInitStruct->getDevice(), deviceProperties);
+
+        if (config.has<TURBO>()) {
+            bool turbo = config.get<TURBO>();
+            _command_queue = std::make_shared<CommandQueue>(_zeroInitStruct->getDevice(),
+                                                            _zeroInitStruct->getContext(),
+                                                            zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
+                                                            _zeroInitStruct->getCommandQueueDdiTable(),
+                                                            turbo,
+                                                            groupOrdinal);
+        }
+
+        _command_queue = std::make_shared<CommandQueue>(_zeroInitStruct->getDevice(),
+                                                        _zeroInitStruct->getContext(),
+                                                        zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
+                                                        _zeroInitStruct->getCommandQueueDdiTable(),
+                                                        false,
+                                                        groupOrdinal);
 
         if (config.has<WORKLOAD_TYPE>()) {
             set_workload_type(config.get<WORKLOAD_TYPE>());
         }
 
-        _adapter->graphInitialize(_handle, config);
+        _zeGraphExt->initializeGraph(_handle, config);
 
         _logger.debug("Graph initialize finish");
     }
@@ -62,7 +104,7 @@ void PluginGraph::initialize(const Config& config) {
 
 PluginGraph::~PluginGraph() {
     if (_handle != nullptr) {
-        auto result = _adapter->release(_handle);
+        auto result = _zeGraphExt->destroyGraph(_handle);
 
         if (ZE_RESULT_SUCCESS == result) {
             _handle = nullptr;
