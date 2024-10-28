@@ -65,14 +65,12 @@ void LoRA::selectOptimalPrimitiveDescriptor() {
 
     const auto& desc = outputDescriptors.front();
 
-    if (!desc->isCompatible(*(inConfs.front().getMemDesc()))) {
-        // just a sanity check
-        THROW_CPU_NODE_ERR("Unexpected input/output descriptor mismatch");
-    }
+    // just a sanity check
+    CPU_NODE_ASSERT(desc->isCompatible(*(inConfs.front().getMemDesc())), "Unexpected input/output descriptor mismatch");
 
     std::vector<PortConfig> outConfs;
-    outConfs.emplace_back(desc);
-    outConfs.front().inPlace(0); // use the memory from the first input inPlace
+
+    outConfs.emplace_back(desc, BlockedMemoryDesc::FULL_MASK, 0); // use the memory from the first input inPlace
 
     const NodeConfig config(inConfs, outConfs);
 
@@ -84,7 +82,7 @@ void LoRA::selectOptimalPrimitiveDescriptor() {
 
 // @todo add ascii diagram for memory mapping / reuse
 void LoRA::createPrimitive() {
-    OPENVINO_ASSERT(getOriginalInputsNumber() == m_graph.GetInputNodesMap().size(),
+    CPU_NODE_ASSERT(getOriginalInputsNumber() == m_graph.GetInputNodesMap().size(),
                     "Number of node inputs must be equal the number of inner graph's inputs");
 
     std::vector<MemoryPtr> inputMemory;
@@ -92,7 +90,7 @@ void LoRA::createPrimitive() {
         inputMemory.emplace_back(getSrcMemoryAtPort(i));
     }
 
-    OPENVINO_ASSERT(getOriginalOutputsNumber() == m_graph.GetOutputNodesMap().size(),
+    CPU_NODE_ASSERT(getOriginalOutputsNumber() == m_graph.GetOutputNodesMap().size(),
                     "Number of node outputs must be equal the number of inner graph's outputs");
 
     std::vector<MemoryPtr> outputMemory{getDstMemoryAtPort(0)};
