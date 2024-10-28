@@ -1032,21 +1032,25 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
 
             #if COMPRESSED_WEIGHTS_INT8
                 unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
-                    #if DECOMPRESSION_ZP_SCALAR
-                        wei_zp[fi] = (TO_ACCUMULATOR_TYPE)(DECOMPRESSION_ZP_VALUE);
-                    #elif DECOMPRESSION_ZP_GROUPS_NUM > 1
-                        #if FILTER_LOAD_BLOCK_SIZE % DECOMPRESSION_ZP_GROUP_SIZE != 0
-                            #error "FC bf_tiled kernel: Not support DECOMPRESSION_ZP_GROUPS_NUM > 1"
-                        #endif
+                    #if DECOMPRESSION_ZP_TERM
+                        #if DECOMPRESSION_ZP_SCALAR
+                            wei_zp[fi] = (TO_ACCUMULATOR_TYPE)(DECOMPRESSION_ZP_VALUE);
+                        #elif DECOMPRESSION_ZP_GROUPS_NUM > 1
+                            #if FILTER_LOAD_BLOCK_SIZE % DECOMPRESSION_ZP_GROUP_SIZE != 0
+                                #error "FC bf_tiled kernel: Not support DECOMPRESSION_ZP_GROUPS_NUM > 1"
+                            #endif
 
-                        const uint ni_offset = ni * TILE_IFM * SIMD + local_id * FILTER_LOAD_ITERS * FILTER_LOAD_BLOCK_SIZE;
-                        const uint offset_ofm = out_f + fi*SIMD + sglid;
-                        const uint offset_ifm = ni_offset + load_iter * FILTER_LOAD_BLOCK_SIZE;
-                        const uint zp_offset = (offset_ofm % DECOMPRESSION_ZP_BATCH_NUM) * DECOMPRESSION_ZP_BATCH_PITCH +
-                                                (offset_ifm / DECOMPRESSION_ZP_GROUP_SIZE) * DECOMPRESSION_ZP_FEATURE_PITCH;
-                        wei_zp[fi] = TO_ACCUMULATOR_TYPE(decompression_zp[zp_offset]);
+                            const uint ni_offset = ni * TILE_IFM * SIMD + local_id * FILTER_LOAD_ITERS * FILTER_LOAD_BLOCK_SIZE;
+                            const uint offset_ofm = out_f + fi*SIMD + sglid;
+                            const uint offset_ifm = ni_offset + load_iter * FILTER_LOAD_BLOCK_SIZE;
+                            const uint zp_offset = (offset_ofm % DECOMPRESSION_ZP_BATCH_NUM) * DECOMPRESSION_ZP_BATCH_PITCH +
+                                                    (offset_ifm / DECOMPRESSION_ZP_GROUP_SIZE) * DECOMPRESSION_ZP_FEATURE_PITCH;
+                            wei_zp[fi] = TO_ACCUMULATOR_TYPE(decompression_zp[zp_offset]);
+                        #else
+                            wei_zp[fi] = TO_ACCUMULATOR_TYPE(d_zps[fi % DECOMPRESSION_ZP_LENGTH]);
+                        #endif
                     #else
-                        wei_zp[fi] = TO_ACCUMULATOR_TYPE(d_zps[fi % DECOMPRESSION_ZP_LENGTH]);
+                        wei_zp[fi] = ACCUMULATOR_VAL_ZERO;
                     #endif
                 }
             #endif

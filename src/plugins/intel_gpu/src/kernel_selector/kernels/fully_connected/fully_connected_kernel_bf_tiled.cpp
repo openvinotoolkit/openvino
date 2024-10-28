@@ -427,10 +427,6 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
     } else if (params.compressed && params.engineInfo.supports_immad) {
         return selector.Default(tune_params(1, 1, 1, 4, 1, 1, 1, EXE_MODE_DEFAULT));
     } else if (params.is_shape_agnostic) {
-        // [TEST]
-        // if (should_dynamic_quantize(params))
-        //     return selector.Default(tune_params(8,  std::min(max_tile_ofm, 2u), 2, 4, 1, 1, 1, EXE_MODE_AGE_BASED));
-
         // Use special tuning params for Gen12HP dGPUs, since these parameters demonstrate higher performance
         // due to better HW utilization (reduced TILE_OFM parameter) and better assembler kernel's code
         // generation (extended TILE_K parameter) for both FP16 and FP32 data types
@@ -448,10 +444,6 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
                 selector.Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 1, 1, 1, 1, EXE_MODE_AGE_BASED));
         }
     } else {
-        // // [TEST]
-        // if (should_dynamic_quantize(params))
-        //     return selector.Default(tune_params(8,  std::min(max_tile_ofm, 2u), 2, 4, 1, 1, 1, EXE_MODE_AGE_BASED));
-
         if (dtype == Datatype::F16) {
             // tune_params(tile_b, tile_ofm, tile_ifm, tile_k, outer_ofm, dispatch_bsv, dispatch_fsv, exec_options)
             selector.Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 2, 1, 16, 2, EXE_MODE_AGE_BASED))
