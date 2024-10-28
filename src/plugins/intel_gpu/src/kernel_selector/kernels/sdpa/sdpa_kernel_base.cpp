@@ -4,6 +4,7 @@
 
 #include "sdpa_kernel_base.h"
 #include "kernel_selector_utils.h"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
 namespace kernel_selector {
 
@@ -73,12 +74,29 @@ JitConstants SDPAKernelBase::GetJitConstants(const sdpa_params& params) const {
         jit.AddConstant(MakeJitConstant("DO_BROADCAST_KEY_VALUE", GetBroadcastInputStr(params.inputs[0].GetDims().size(),
                                                                                        params.conf.broadcast_axis,
                                                                                        params.conf.group_size)));
+    } else {
+        jit.AddConstant(MakeJitConstant("BROADCAST_GROUP_SIZE", 1));
     }
 
     jit.AddConstant(MakeJitConstant("IS_CAUSAL", params.conf.is_causal));
     if (!params.conf.is_paged_attention) {
         jit.AddConstant(MakeJitConstant("HAS_ATTN_MASK_INPUT", params.inputs.size() > 3));
         jit.AddConstant(MakeJitConstant("HAS_SCALE_INPUT", params.inputs.size() > 4));
+    }
+
+    jit.AddConstant(MakeJitConstant("IS_KV_COMPRESSED", params.conf.is_kv_compressed));
+
+    if (params.conf.is_kv_compressed) {
+        jit.AddConstant(MakeJitConstant("USE_ASYMMETRIC_QUANTIZATION", params.conf.use_asymmetric_quantization));
+        jit.AddConstant(MakeJitConstant("COMBINE_SCALES_AND_ZP", params.conf.combine_scales_and_zp));
+        jit.AddConstant(MakeJitConstant("COMPRESSED_PER_HEAD", params.conf.per_head_quantization));
+        jit.AddConstant(MakeJitConstant("KEY_COMPRESSION_SCALE", params.key_cache_comp_scale));
+        jit.AddConstant(MakeJitConstant("VALUE_COMPRESSION_SCALE", params.value_cache_comp_scale));
+
+        if (params.conf.use_asymmetric_quantization && !params.conf.combine_scales_and_zp) {
+            jit.AddConstant(MakeJitConstant("KEY_COMPRESSION_ZP", params.key_cache_comp_zp));
+            jit.AddConstant(MakeJitConstant("VALUE_COMPRESSION_ZP", params.value_cache_comp_zp));
+        }
     }
 
     auto is_default_order = [](const std::vector<int64_t>& order) {

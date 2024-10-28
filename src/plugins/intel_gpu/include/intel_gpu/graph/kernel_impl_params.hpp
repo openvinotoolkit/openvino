@@ -53,7 +53,7 @@ struct kernel_impl_params final {
     optional_layout weights_zero_points_layout = optional_layout();
     optional_layout activations_zero_points_layout = optional_layout();
     optional_layout compensation_layout = optional_layout();
-    optional_layout state_layout = optional_layout();
+    std::vector<layout> state_layouts;
 
     std::map<size_t, memory::ptr> memory_deps = {};
     size_t primary_input_idx = 0;
