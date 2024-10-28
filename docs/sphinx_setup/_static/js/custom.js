@@ -412,20 +412,19 @@ document.addEventListener('DOMContentLoaded', function () {
         if (searchInterfaceSa) {
             let ver = getCurrentVersion();
             if (ver) {
-                searchInterfaceSa.innerHTML = searchInterfaceSa.innerHTML.replace('search.html', '/' + ver + '/search.html#f-ovversion=' + ver);
+                searchInterfaceSa.innerHTML = searchInterfaceSa.innerHTML.replace('search.html', '/' + ver + '/search.html#cf-ovversion=' + ver);
             }
             await searchInterfaceSa.initialize({
                 accessToken: "xx1f2aebd3-4307-4632-aeea-17c13378b237",
-                organizationId: "intelcorporationnonproduction2ybdyblf7",
-                organizationEndpoints: await searchInterface.getOrganizationEndpoints('intelcorporationnonproduction2ybdyblf7')
+                organizationId: "intelcorporationproductione78n25s6"
             });
             searchInterfaceSa.executeFirstSearch();
         }
         if (searchInterface) {
             await searchInterface.initialize({
                 accessToken: "xx1f2aebd3-4307-4632-aeea-17c13378b237",
-                organizationId: "intelcorporationnonproduction2ybdyblf7",
-                organizationEndpoints: await searchInterface.getOrganizationEndpoints('intelcorporationnonproduction2ybdyblf7')
+                organizationId: "intelcorporationproductione78n25s6",
+                organizationEndpoints: await searchInterface.getOrganizationEndpoints('intelcorporationproductione78n25s6')
             });
             searchInterface.executeFirstSearch();
         }
