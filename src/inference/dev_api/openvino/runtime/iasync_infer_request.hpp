@@ -233,9 +233,9 @@ private:
             state = m_state;
             switch (m_state) {
             case InferState::BUSY:
-                ov::Busy::create("Infer Request is busy");
+                ov::Busy::create(std::string("Infer Request is busy") + std::to_string(reinterpret_cast<uintptr_t>(this)));
             case InferState::CANCELLED:
-                ov::Cancelled::create("Infer Request was canceled");
+                ov::Cancelled::create((std::string("Infer Request was canceled") + std::to_string(reinterpret_cast<uintptr_t>(this));
             case InferState::IDLE: {
                 m_futures.erase(std::remove_if(std::begin(m_futures),
                                                std::end(m_futures),

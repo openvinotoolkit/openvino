@@ -29,8 +29,10 @@ ov::npuw::IBaseInferRequest::RqPtrs ov::npuw::IBaseInferRequest::create_infer_re
     rqs.reserve(nireq);
 
     // See explanation in the class definition
+    NPUW_ASSERT(get_request_id_for_submodel(id) == id);
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[id];
-    NPUW_ASSERT(comp_model_desc.replaced_by.value_or(id) == id);
+    size_t compiled_model_id = comp_model_desc.replaced_by.value_or(id);
+    auto& comp_model_desc_replaced_by = m_npuw_model->m_compiled_submodels[compiled_model_id];
 
     bool successful = false;
     bool can_try_again = true;
@@ -41,7 +43,7 @@ ov::npuw::IBaseInferRequest::RqPtrs ov::npuw::IBaseInferRequest::create_infer_re
         try {
             // FIXME: As the model may recompile, reference
             // shouldn't be lifted from the loop
-            auto& comp_model = comp_model_desc.compiled_model;
+            auto& comp_model = comp_model_desc_replaced_by.compiled_model;
             rqs.clear();
             for (std::size_t i = 0u; i < nireq; i++) {
                 rqs.emplace_back(comp_model->create_infer_request(), comp_model._so);
@@ -56,7 +58,7 @@ ov::npuw::IBaseInferRequest::RqPtrs ov::npuw::IBaseInferRequest::create_infer_re
         }
         if (should_recompile) {
             LOG_INFO("- Trying next device...");
-            comp_model_desc.device_it++;
+            comp_model_desc_replaced_by.device_it++;
             can_try_again = m_npuw_model->compile_for_success(id);
             if (can_try_again) {
                 if (recompiled)
@@ -215,8 +217,9 @@ void ov::npuw::IBaseInferRequest::dump_input_tensors(std::size_t idx) {
         return;
     }
 
-    auto real_idx = m_npuw_model->m_compiled_submodels[idx].replaced_by.value_or(idx);
-    const auto& comp_submodel_desc = m_npuw_model->m_compiled_submodels[real_idx];
+    auto request_idx = get_request_id_for_submodel(idx);
+    auto model_idx = m_npuw_model->m_compiled_submodels[idx].replaced_by.value_or(idx);
+    const auto& comp_submodel_desc = m_npuw_model->m_compiled_submodels[model_idx];
     const auto& comp_submodel = comp_submodel_desc.compiled_model;
 
     // Note: keep using the absolute `idx` for identififaction and printing
@@ -234,7 +237,7 @@ void ov::npuw::IBaseInferRequest::dump_input_tensors(std::size_t idx) {
         std::vector<std::string> in_base_names;
         for (std::size_t i = 0u; i < num_inputs; i++) {
             const auto& port = comp_submodel->inputs()[i];
-            const auto& tnsr = m_subrequests[real_idx]->get_tensor(port);
+            const auto& tnsr = m_subrequests[request_idx]->get_tensor(port);
             std::string in_base_name = comp_submodel_path + "_input_" + ov::npuw::util::fmt(i, num_inputs);
             ov::npuw::dump_tensor(tnsr, in_base_name);
             in_base_names.push_back(std::move(in_base_name));
@@ -255,7 +258,7 @@ void ov::npuw::IBaseInferRequest::dump_input_tensors(std::size_t idx) {
                 continue;
             }
             const auto& port = comp_submodel->inputs()[i];
-            const auto& tnsr = m_subrequests[real_idx]->get_tensor(port);
+            const auto& tnsr = m_subrequests[request_idx]->get_tensor(port);
             std::string in_base_name = comp_submodel_path + "_input_" + ov::npuw::util::fmt(i, num_inputs);
             ov::npuw::dump_tensor(tnsr, in_base_name);
             in_base_names_nonspat.push_back(std::move(in_base_name));
@@ -274,7 +277,7 @@ void ov::npuw::IBaseInferRequest::dump_input_tensors(std::size_t idx) {
                                            "_d" + ov::npuw::util::fmt(p.dim, 10) + "_" +
                                            ov::npuw::util::fmt(offset, s.range);
 
-                const auto& tnsr = m_spatial_io[real_idx].inputs.at(p.idx);
+                const auto& tnsr = m_spatial_io[model_idx].inputs.at(p.idx);
                 const auto& view = ov::npuw::util::view(tnsr, p.dim, offset, this_len);
 
                 ov::npuw::dump_tensor(view, in_base_name);
@@ -292,8 +295,9 @@ void ov::npuw::IBaseInferRequest::dump_output_tensors(std::size_t idx) {
         return;
     }
 
-    auto real_idx = m_npuw_model->m_compiled_submodels[idx].replaced_by.value_or(idx);
-    const auto& comp_submodel_desc = m_npuw_model->m_compiled_submodels[real_idx];
+    auto request_idx = get_request_id_for_submodel(idx);
+    auto model_idx = m_npuw_model->m_compiled_submodels[idx].replaced_by.value_or(idx);
+    const auto& comp_submodel_desc = m_npuw_model->m_compiled_submodels[model_idx];
     const auto& comp_submodel = comp_submodel_desc.compiled_model;
 
     // Note: keep using the absolute `idx` for identififaction and printing
@@ -310,7 +314,7 @@ void ov::npuw::IBaseInferRequest::dump_output_tensors(std::size_t idx) {
         std::vector<std::string> out_base_names;
         for (std::size_t i = 0u; i < num_outputs; i++) {
             const auto& port = comp_submodel->outputs()[i];
-            const auto& tnsr = m_subrequests[real_idx]->get_tensor(port);
+            const auto& tnsr = m_subrequests[request_idx]->get_tensor(port);
             std::string out_base_name = comp_submodel_path + "_output_" + ov::npuw::util::fmt(i, num_outputs);
             ov::npuw::dump_tensor(tnsr, out_base_name);
             out_base_names.push_back(std::move(out_base_name));
@@ -327,7 +331,7 @@ void ov::npuw::IBaseInferRequest::dump_output_tensors(std::size_t idx) {
                 std::string out_base_name = comp_submodel_path + "_output_" + ov::npuw::util::fmt(i, num_outputs) +
                                             "_d" + ov::npuw::util::fmt(s.out_dim, 10) + "_" +
                                             ov::npuw::util::fmt(offset, s.range);
-                const auto& tnsr = m_spatial_io[real_idx].outputs.at(i);
+                const auto& tnsr = m_spatial_io[model_idx].outputs.at(i);
                 const auto& view = ov::npuw::util::view(tnsr, s.out_dim, offset, this_len);
 
                 ov::npuw::dump_tensor(view, out_base_name);
@@ -379,13 +383,23 @@ bool ov::npuw::IBaseInferRequest::needs_copy(std::size_t idx, std::size_t cidx) 
     if (!needs_copy(idx)) {
         return false;
     }
-    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
+    auto &comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
     if (comp_model_desc.is_remote[cidx]) {
         // FIXME: Test if the tensor device and the request device are
         // the same or compatible!
         return false;
     }
     return true;
+}
+
+std::size_t ov::npuw::IBaseInferRequest::get_request_id_for_submodel(std::size_t idx) const {
+    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
+
+    if (!comp_model_desc.replaced_by) {
+        return idx;
+    }
+    const auto real_idx = comp_model_desc.replaced_by.value();
+    return real_idx;
 }
 
 std::size_t ov::npuw::IBaseInferRequest::next(std::size_t idx_base) const {

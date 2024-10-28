@@ -95,12 +95,10 @@ private:
     bool supports_async_pipeline() const override;
 
     void update_subrequest_links(std::size_t idx) override;
+    std::size_t get_request_id_for_submodel(std::size_t idx) const override;
 
     ////////////////////////////////////
     // now own API
-
-    // FIXME: probably this one should go to the base class too
-    RqPtr get_real_subrequest(std::size_t idx);
 
     void bind_global_parameters(std::size_t idx);
     void bind_global_results(std::size_t idx);
@@ -110,6 +108,8 @@ private:
 
     void unsafe_during(std::size_t real_idx, const std::function<void()>& f);
     void unsafe_infer(std::size_t real_idx);
+    void async_run_this(std::size_t idx);
+
     void unsafe_run_this_prep_next(std::size_t idx, bool& next_prepared_p);
 
     void connect_subrequests();
@@ -123,6 +123,8 @@ private:
 
     bool is_pipelined(std::size_t idx) const;
     bool m_use_function_pipelining = false;
+    // flags driven programming
+    bool m_bind_ireqs = false;
     struct FuncallPipeline {
         // A "brother" subrequest for a "primary" subrequest. Initialized only
         // for function bodies (replaced_by == idx)

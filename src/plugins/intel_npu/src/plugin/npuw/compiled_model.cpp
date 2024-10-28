@@ -359,10 +359,6 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                 m_compiled_submodels[real_id].devices_to_avoid.insert(std::move(d));
             }
         }
-
-        m_compiled_submodels[id].device_it =
-            id != real_id ? m_compiled_submodels[real_id].device_it : m_dev_list.cbegin();
-
         if (forced_sub_devices.count(id)) {
             std::string forced_device = forced_sub_devices[id];
             auto forced_dev_it = std::find(m_dev_list.begin(), m_dev_list.end(), forced_device);
@@ -403,6 +399,29 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         }
     };  // compile
 
+    //TODO: preinit all device iterators - how this work is deviced forcedly set for uncompiled models
+    for (size_t idx = 0; idx != m_compiled_submodels.size(); idx++) {
+        // TODO: unify this from base_infer_request
+        const std::size_t real_id = m_compiled_submodels[idx].replaced_by.value_or(idx);
+        m_compiled_submodels[idx].device_it =
+                idx == real_id ? m_dev_list.cbegin() : m_dev_list.cend();
+    }
+
+    for (size_t idx = 0; idx != m_compiled_submodels.size(); idx++) {
+        std::string devicename;
+        if (m_compiled_submodels[idx].device_it == m_dev_list.cend()) {
+            devicename = "m_dev_list.cend()";
+        }
+
+        if (m_compiled_submodels[idx].device_it == m_dev_list.cbegin() && m_dev_list.empty()) {
+            devicename = "m_dev_list.cbegin()";
+        }
+        if (devicename.empty()) {
+            devicename = *m_compiled_submodels[idx].device_it;
+        }
+        LOG_DEBUG("Submodel-device-before-compile: (" << idx << ") IT = " << devicename);
+    }
+
     // Parallel compilation is unstable so is disabled by default.
     const bool par_opt = m_cfg.get<::intel_npu::NPUW_PARALLEL_COMPILE>();
     if (par_opt) {
@@ -413,6 +432,32 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             compile(i);
         }
     }
+    for (size_t idx = 0; idx != m_compiled_submodels.size(); idx++) {
+        // still not initialized for some reason
+        if (m_compiled_submodels[idx].device_it == m_dev_list.cend()) {
+            const std::size_t real_id = m_compiled_submodels[idx].replaced_by.value_or(idx);
+            // strange case - need to report
+            if (real_id == idx) {
+                LOG_WARN("Might be unexpected submodel-device: (" << idx
+                    << ") IT = m_dev_list.cend(), setting to: " << *m_dev_list.cbegin());
+                m_compiled_submodels[idx].device_it = m_dev_list.cbegin();
+            } else {
+                m_compiled_submodels[idx].device_it = m_compiled_submodels[real_id].device_it;
+            }
+        }
+
+        std::string devicename;
+        if (m_compiled_submodels[idx].device_it == m_dev_list.cend()) {
+            devicename = "m_dev_list.cend()";
+        }
+
+        if (m_compiled_submodels[idx].device_it == m_dev_list.cbegin() && m_dev_list.empty()) {
+            devicename = "m_dev_list.cbegin()";
+        }
+        if (devicename.empty()) {
+            devicename = *m_compiled_submodels[idx].device_it;
+        }
+        LOG_DEBUG("Submodel-device: (" << idx << ") IT = " << devicename);    }
 
     // Finalize memory in closures and weight banks
     finalize_weights_bank();

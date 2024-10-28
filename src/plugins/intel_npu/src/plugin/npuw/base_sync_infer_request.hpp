@@ -67,6 +67,9 @@ protected:
 
     std::shared_ptr<ov::npuw::CompiledModel> m_npuw_model;
     std::vector<IBaseInferRequest::Completed> m_completion_cbs;
+
+    // subrequest not binded directly to submodel,  one compiled submodel might have many subrequests
+    virtual std::size_t get_request_id_for_submodel(std::size_t idx) const;
     RqPtrs m_subrequests;
 
     // This vector is used to track devices for individual subrequests

@@ -61,6 +61,15 @@ static constexpr ov::Property<std::string> weights_bank_alloc{"NPUW_WEIGHTS_BANK
  */
 static constexpr ov::Property<std::string> cache_dir{"NPUW_CACHE_DIR"};
 
+/**
+ * @brief
+ * Type: boolean
+ * Statically binds inputs/outputs for inferrequests, allowing then to be submitted in queue at once
+ * Default value: true.
+ */
+static constexpr ov::Property<bool> bind_ireqs{"NPUW_BIND_IREQS"};
+
+
 namespace partitioning {
 namespace online {
 /**
