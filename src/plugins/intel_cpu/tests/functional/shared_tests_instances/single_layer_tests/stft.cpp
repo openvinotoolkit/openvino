@@ -17,6 +17,12 @@ const std::vector<ov::element::Type> step_size_type = {ov::element::i32, ov::ele
 
 const std::vector<std::vector<InputShape>> input_shapes = {
     {   // Static shapes
+        {{}, {{128}}},    // 1st input
+        {{}, {{8}}},      // 2nd input
+        {{}, {{}}},       // 3rd input
+        {{}, {{}}}        // 4th input
+    },
+    {   // Static shapes
         {{}, {{1, 128}}}, // 1st input
         {{}, {{8}}},      // 2nd input
         {{}, {{}}},       // 3rd input
@@ -31,6 +37,12 @@ const std::vector<std::vector<InputShape>> input_shapes = {
     {   // Dynamic dims in the first input shape
         {{-1, -1}, {{1, 128}, {2, 226}}},   // 1st input
         {{}, {{8}}},                        // 2nd input
+        {{}, {{}}},                         // 3rd input
+        {{}, {{}}}                          // 4th input
+    },
+    {   // Dynamic dims in the first and second input shape
+        {{-1}, {{128}}},                    // 1st input
+        {{-1}, {{8}}},                      // 2nd input
         {{}, {{}}},                         // 3rd input
         {{}, {{}}}                          // 4th input
     },
