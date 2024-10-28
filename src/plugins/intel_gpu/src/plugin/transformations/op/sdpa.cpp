@@ -39,8 +39,7 @@ SDPA::SDPA(const OutputVector& inputs,
            const std::vector<int64_t>& order_k,
            const std::vector<int64_t>& order_v,
            const std::vector<int64_t>& order_out,
-           const QuantizationConfig& quantization_config,
-           const bool combine_scales_and_zp,
+           const QuantizationAttribute& quantization_attrs,
            const ov::element::Type output_type)
     : m_is_causal(is_causal)
     , m_order_q(order_q)
@@ -49,8 +48,7 @@ SDPA::SDPA(const OutputVector& inputs,
     , m_order_out(order_out)
     , m_output_type(output_type)
     , m_compressed(true)
-    , m_combine_scales_and_zp(combine_scales_and_zp)
-    , m_quantization_config(quantization_config) {
+    , m_quantization_attrs(quantization_attrs) {
     set_arguments(inputs);
     set_causal(is_causal);
     validate_and_infer_types();
@@ -108,7 +106,8 @@ size_t SDPA::get_compression_inputs_num() const {
     if (m_compressed) {
         compression_inputs += 2; // 2 * scales
 
-        if (m_quantization_config.is_asymmetric_quantization() && !m_combine_scales_and_zp)
+        if (m_quantization_attrs.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric &&
+            m_quantization_attrs.output_storage_type == ov::op::internal::DynamicQuantize::OutputStorageType::Planar)
             compression_inputs += 2; // 2 * zp
     }
 

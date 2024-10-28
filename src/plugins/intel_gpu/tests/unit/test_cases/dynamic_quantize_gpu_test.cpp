@@ -22,7 +22,7 @@
 
 using namespace cldnn;
 using namespace ::tests;
-using QuantizationType = dynamic_quantize::QuantizationConfig::QuantizationType;
+using QuantizationType = ov::op::internal::DynamicQuantize::QuantizationType;
 
 class dynamic_quantization_gpu_tests: public ::testing::Test {
 public:
@@ -51,15 +51,18 @@ public:
         auto in_layout = input_shape.is_dynamic() ? layout{ dyn_input_ps, data_types::f16, format::bfyx }
                                                   : layout{ input_ps, data_types::f16, format::bfyx };
 
-        dynamic_quantize::QuantizationConfig dq_config;
-        dq_config.type = quantization_type;
+        dynamic_quantize::Attributes dq_config;
+        dq_config.quantization_type = quantization_type;
         dq_config.quantization_dt = data_types::i8;
         dq_config.scale_dt = data_types::f16;
         dq_config.zp_dt = data_types::undefined;
         dq_config.group_sizes = group_sizes;
+        dq_config.scales_zp_output_order = { 0, 1, 2, 3 };
+        dq_config.output_storage_type = ov::op::internal::DynamicQuantize::OutputStorageType::Planar;
 
         if (quantization_type == QuantizationType::Asymmetric) {
             dq_config.zp_dt = data_types::f16;
+            dq_config.output_storage_type = ov::op::internal::DynamicQuantize::OutputStorageType::InterleavedScalesZP;
         }
 
         auto reorder_1 = reorder("reorder_1", input_info("input"), layout{ input_ps, data_types::f16, format::bfyx });

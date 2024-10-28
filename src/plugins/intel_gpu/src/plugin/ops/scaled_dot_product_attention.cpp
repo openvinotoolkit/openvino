@@ -78,9 +78,8 @@ static void CreateIndirectSDPAOp(ProgramBuilder& p, const std::shared_ptr<ov::op
                                                          op->get_input1_transpose_order(),
                                                          op->get_input2_transpose_order(),
                                                          op->get_output_transpose_order(),
-                                                         op->get_kv_compressed(),
-                                                         op->get_combine_scales_and_zp(),
-                                                         op->get_quantization_config());
+                                                         op->get_quantization_attrs(),
+                                                         op->get_kv_compressed());
 
     p.add_primitive(*op, sdpa_prim);
 }

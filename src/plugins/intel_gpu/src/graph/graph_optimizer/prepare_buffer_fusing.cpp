@@ -908,7 +908,7 @@ void prepare_buffer_fusing::run(program& p) {
                 if (desc->compressed) {
                     update_scale_zp(2, 1);
 
-                    if (desc->quantization_config.is_asymmetric_quantization() && !desc->combine_scales_and_zp) {
+                    if (desc->get_compression_zp_inputs_num() > 0) {
                         update_scale_zp(3, 2);
                     }
                 }

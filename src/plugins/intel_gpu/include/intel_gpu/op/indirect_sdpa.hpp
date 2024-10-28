@@ -37,8 +37,7 @@ public:
                  const std::vector<int64_t>& order_k,
                  const std::vector<int64_t>& order_v,
                  const std::vector<int64_t>& order_out,
-                 const QuantizationConfig& quantization_config,
-                 const bool combine_scales_and_zp,
+                 const QuantizationAttribute& quantization_attribute,
                  const ov::element::Type output_type = ov::element::undefined);
 
     bool visit_attributes(ov::AttributeVisitor &visitor) override;

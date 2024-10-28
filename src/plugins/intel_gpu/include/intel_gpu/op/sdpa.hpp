@@ -18,7 +18,7 @@ class SDPA : public ov::op::v13::ScaledDotProductAttention {
 public:
     OPENVINO_OP("SDPA", "gpu_opset");
 
-    using QuantizationConfig = ov::op::internal::QuantizationConfig;
+    using QuantizationAttribute = ov::op::internal::DynamicQuantize::Attributes;
 
     SDPA() = default;
 
@@ -36,8 +36,7 @@ public:
          const std::vector<int64_t>& order_k,
          const std::vector<int64_t>& order_v,
          const std::vector<int64_t>& order_out,
-         const QuantizationConfig& quantization_config,
-         const bool m_combine_scales_and_zp,
+         const QuantizationAttribute& quantization_attrs,
          const ov::element::Type output_type = ov::element::undefined);
 
     bool visit_attributes(ov::AttributeVisitor &visitor) override;
@@ -55,8 +54,7 @@ public:
     ov::element::Type get_output_type() const { return m_output_type; }
 
     bool get_kv_compressed() const { return m_compressed; }
-    bool get_combine_scales_and_zp() const { return m_combine_scales_and_zp; }
-    QuantizationConfig get_quantization_config() const { return m_quantization_config; }
+    QuantizationAttribute get_quantization_attrs() const { return m_quantization_attrs; }
     size_t get_compression_inputs_num() const;
 
     static std::vector<int64_t> default_order(size_t rank) {
@@ -74,8 +72,7 @@ protected:
     ov::element::Type m_output_type;
 
     bool m_compressed = false;
-    bool m_combine_scales_and_zp = false;
-    QuantizationConfig m_quantization_config = {};
+    QuantizationAttribute m_quantization_attrs = {};
 };
 
 std::vector<ov::PartialShape> shape_infer(const SDPA* op,

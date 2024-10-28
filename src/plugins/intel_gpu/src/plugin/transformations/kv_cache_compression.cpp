@@ -5,6 +5,7 @@
 #include "kv_cache_compression.hpp"
 
 #include "intel_gpu/op/kv_cache.hpp"
+#include "intel_gpu/op/kv_cache_compressed.hpp"
 #include "intel_gpu/op/indirect_sdpa.hpp"
 #include "intel_gpu/op/read_value.hpp"
 #include "intel_gpu/op/read_values.hpp"
@@ -36,32 +37,29 @@ namespace intel_gpu {
 
 namespace {
 std::vector<ov::op::util::VariableInfo> get_variable_infos(const ov::op::util::VariableInfo& data_variable_info,
-                                                           const ov::op::internal::QuantizationConfig& config,
-                                                           const std::vector<uint64_t>& scales_zp_output_order,
-                                                           const bool combine_scales_and_zp = false) {
+                                                           const ov::op::internal::DynamicQuantize::Attributes& quantization_attrs) {
     std::vector<ov::op::util::VariableInfo> infos;
 
     // Add initial data variable info
     infos.push_back(data_variable_info);
 
-
     // Infer DQ shapes
-    auto output_storage_type = combine_scales_and_zp ? ov::op::internal::DynamicQuantize::OutputStorageType::InterleavedScalesZP
-                                                     : ov::op::internal::DynamicQuantize::OutputStorageType::Planar;
     ov::op::internal::DynamicQuantize dq;
-    auto dq_shapes =
-        ov::op::internal::DynamicQuantize::shape_infer(&dq, {data_variable_info.data_shape}, config, output_storage_type, scales_zp_output_order);
+    dq.set_attrs(quantization_attrs);
+
+    auto dq_shapes = ov::op::internal::DynamicQuantize::shape_infer(&dq, {data_variable_info.data_shape});
 
     const auto variable_id = data_variable_info.variable_id;
     const auto scale_shape = dq_shapes[1];
-    const auto scale_dt = config.scale_dt;
+    const auto scale_dt = quantization_attrs.scale_dt;
 
     // Add scales variable info
     infos.push_back(ov::op::util::VariableInfo{scale_shape, scale_dt, variable_id});
 
-    if (config.is_asymmetric_quantization() && !combine_scales_and_zp) {
+    if (quantization_attrs.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric &&
+        quantization_attrs.output_storage_type == ov::op::internal::DynamicQuantize::OutputStorageType::Planar) {
         // Add zero points variable info
-        const auto zp_dt = config.zp_dt;
+        const auto zp_dt = quantization_attrs.zp_dt;
         infos.push_back(ov::op::util::VariableInfo{scale_shape, zp_dt, variable_id});
     }
 
@@ -70,30 +68,25 @@ std::vector<ov::op::util::VariableInfo> get_variable_infos(const ov::op::util::V
 
 std::shared_ptr<ov::intel_gpu::op::ReadValues>
     update_past_read_value(std::shared_ptr<ov::intel_gpu::op::ReadValue> past_rv_node,
-                           const ov::op::internal::QuantizationConfig& config,
-                           const std::vector<uint64_t>& scales_zp_output_order,
-                           const bool combine_scales_and_zp = false) {
+                           const ov::op::internal::DynamicQuantize::Attributes& quantization_attrs) {
     auto variable = past_rv_node->get_variable();
-    variable->update_data_type(config.quantization_dt);
+    variable->update_data_type(quantization_attrs.quantization_dt);
 
-    auto variable_infos = get_variable_infos(past_rv_node->get_variable()->get_info(), config, scales_zp_output_order, combine_scales_and_zp);
+    auto variable_infos = get_variable_infos(past_rv_node->get_variable()->get_info(), quantization_attrs);
     auto new_past_rv_node = std::make_shared<ov::intel_gpu::op::ReadValues>();
 
     if (past_rv_node->get_input_size() == 0) {
         new_past_rv_node = std::make_shared<ov::intel_gpu::op::ReadValues>(past_rv_node->get_variable(), variable_infos);
     } else {
-        auto output_storage_type = combine_scales_and_zp ? ov::op::internal::DynamicQuantize::OutputStorageType::InterleavedScalesZP
-                                                         : ov::op::internal::DynamicQuantize::OutputStorageType::Planar;
         auto initializer_dq = std::make_shared<ov::op::internal::DynamicQuantize>(past_rv_node->get_input_node_shared_ptr(0),
-                                                                                  config,
-                                                                                  output_storage_type,
-                                                                                  scales_zp_output_order);
+                                                                                  quantization_attrs);
         initializer_dq->set_friendly_name(past_rv_node->get_input_node_shared_ptr(0)->get_friendly_name() + "_dyn_quan");
         ov::copy_runtime_info(past_rv_node->get_input_node_shared_ptr(0), initializer_dq);
 
         OutputVector initializer_outputs = { initializer_dq->output(0), initializer_dq->output(1) };
 
-        if (config.is_asymmetric_quantization() && !combine_scales_and_zp)
+        if (quantization_attrs.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric &&
+            quantization_attrs.output_storage_type == ov::op::internal::DynamicQuantize::OutputStorageType::Planar)
             initializer_outputs.push_back(initializer_dq->output(2));
 
         new_past_rv_node = std::make_shared<ov::intel_gpu::op::ReadValues>(initializer_outputs, past_rv_node->get_variable(), variable_infos);
@@ -105,27 +98,24 @@ std::shared_ptr<ov::intel_gpu::op::ReadValues>
     return new_past_rv_node;
 }
 
-std::shared_ptr<ov::intel_gpu::op::KVCache>
+std::shared_ptr<ov::intel_gpu::op::KVCacheCompressed>
     update_kv_cache(std::shared_ptr<ov::intel_gpu::op::ReadValue> past_rv_node,
                     std::shared_ptr<ov::intel_gpu::op::KVCache> kv_cache_node,
-                    const ov::op::internal::QuantizationConfig& config,
-                    const std::vector<uint64_t>& scales_zp_output_order,
-                    const bool combine_scales_and_zp = false) {
+                    const ov::op::internal::DynamicQuantize::Attributes& quantization_attrs) {
     OutputVector kv_cache_inputs = { past_rv_node->output(0),
                                      kv_cache_node->get_input_node_shared_ptr(1),
                                      kv_cache_node->get_input_node_shared_ptr(2),
                                      past_rv_node->output(1) };
 
-    if (config.is_asymmetric_quantization() && !combine_scales_and_zp)
+    if (quantization_attrs.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric &&
+        quantization_attrs.output_storage_type == ov::op::internal::DynamicQuantize::OutputStorageType::Planar)
         kv_cache_inputs.push_back(past_rv_node->output(2));
 
-    auto new_kv_cache = std::make_shared<op::KVCache>(kv_cache_inputs,
-                                                      kv_cache_node->get_variable(),
-                                                      kv_cache_node->get_concat_axis(),
-                                                      kv_cache_node->get_gather_axis(),
-                                                      combine_scales_and_zp,
-                                                      config,
-                                                      scales_zp_output_order);
+    auto new_kv_cache = std::make_shared<op::KVCacheCompressed>(kv_cache_inputs,
+                                                                kv_cache_node->get_variable(),
+                                                                kv_cache_node->get_concat_axis(),
+                                                                kv_cache_node->get_gather_axis(),
+                                                                quantization_attrs);
 
     new_kv_cache->set_friendly_name(kv_cache_node->get_friendly_name());
     ov::copy_runtime_info(kv_cache_node, new_kv_cache);
@@ -146,12 +136,13 @@ KVCacheCompressionMatcher::KVCacheCompressionMatcher(ov::element::Type compressi
     if (compression_dt != element::i8)
         return;
 
-    auto quantization_type = ov::op::internal::QuantizationConfig::QuantizationType::Asymmetric;
-    bool combine_scales_and_zp = quantization_type == ov::op::internal::QuantizationConfig::QuantizationType::Asymmetric;
+    const auto quantization_type = ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric;
+    const auto output_storage_type = ov::op::internal::DynamicQuantize::OutputStorageType::InterleavedScalesZP;
 
+    bool combine_scales_and_zp = output_storage_type == ov::op::internal::DynamicQuantize::OutputStorageType::InterleavedScalesZP;
     GPU_DEBUG_LOG << "KV-cache compression configuration: "
                   << "dt=" << compression_dt << ", "
-                  << "asym=" << (quantization_type == ov::op::internal::QuantizationConfig::QuantizationType::Asymmetric) << ", "
+                  << "asym=" << (quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric) << ", "
                   << "single_buffer_for_scales_and_zp=" << combine_scales_and_zp << "\n";
 
     auto query = any_input();
@@ -219,23 +210,22 @@ KVCacheCompressionMatcher::KVCacheCompressionMatcher(ov::element::Type compressi
             return scales_zp_output_order;
         };
 
-        auto group_sizes = get_shape_group_sizes(sdpa_node->get_input1_transpose_order());
-        auto scales_zp_output_order = get_scales_output_order(sdpa_node->get_input1_transpose_order());
-
-        ov::op::internal::QuantizationConfig config;
-        config.type = quantization_type;
-        config.group_sizes = group_sizes;
+        ov::op::internal::DynamicQuantize::Attributes config;
+        config.quantization_type = quantization_type;
+        config.group_sizes = get_shape_group_sizes(sdpa_node->get_input1_transpose_order());
         config.quantization_dt = element::i8;
         config.scale_dt = query_node->get_output_element_type(0);
+        config.scales_zp_output_order = get_scales_output_order(sdpa_node->get_input1_transpose_order());
+        config.output_storage_type = output_storage_type;
 
-        if (config.is_asymmetric_quantization())
+        if (config.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric)
             config.zp_dt = query_node->get_output_element_type(0);
 
-        key_past_rv_node = update_past_read_value(key_past_rv_node, config, scales_zp_output_order, combine_scales_and_zp);
-        value_past_rv_node = update_past_read_value(value_past_rv_node, config, scales_zp_output_order, combine_scales_and_zp);
+        key_past_rv_node = update_past_read_value(key_past_rv_node, config);
+        value_past_rv_node = update_past_read_value(value_past_rv_node, config);
 
-        auto new_key_cache = update_kv_cache(key_past_rv_node, key_cache_node, config, scales_zp_output_order, combine_scales_and_zp);
-        auto new_value_cache = update_kv_cache(value_past_rv_node, value_cache_node, config, scales_zp_output_order, combine_scales_and_zp);
+        auto new_key_cache = update_kv_cache(key_past_rv_node, key_cache_node, config);
+        auto new_value_cache = update_kv_cache(value_past_rv_node, value_cache_node, config);
 
         OutputVector sdpa_inputs;
         // Add Query, Key, Value, attention_mask, scale inputs
@@ -251,7 +241,8 @@ KVCacheCompressionMatcher::KVCacheCompressionMatcher(ov::element::Type compressi
         sdpa_inputs.push_back(new_value_cache->output(2));
 
         // Add Key and Value compression zero points
-        if (config.is_asymmetric_quantization() && !combine_scales_and_zp) {
+        if (config.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric &&
+            config.output_storage_type == ov::op::internal::DynamicQuantize::OutputStorageType::Planar) {
             sdpa_inputs.push_back(new_key_cache->output(3));
             sdpa_inputs.push_back(new_value_cache->output(3));
         }
@@ -270,7 +261,6 @@ KVCacheCompressionMatcher::KVCacheCompressionMatcher(ov::element::Type compressi
                                                            input2_transpose_order,
                                                            output_transpose_order,
                                                            config,
-                                                           combine_scales_and_zp,
                                                            sdpa_node->get_output_type());
 
         new_key_cache->set_friendly_name(key_cache_node->get_friendly_name());

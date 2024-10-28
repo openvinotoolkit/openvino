@@ -369,10 +369,12 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         auto params = get_default_params<dq_kernel_params_t>(impl_param, is_shape_agnostic);
 
         params.append_axis = primitive->concat_axis;
-        params.group_sizes = primitive->quantization_config.group_sizes;
-        params.scales_output_order = primitive->scales_zp_output_order;
-        params.use_asymmetric_quantization = primitive->quantization_config.is_asymmetric_quantization();
-        params.combine_scales_and_zp = primitive->combine_scales_and_zp;
+        params.group_sizes = primitive->quantization_attributes.group_sizes;
+        params.scales_output_order = primitive->quantization_attributes.scales_zp_output_order;
+        params.use_asymmetric_quantization =
+            primitive->quantization_attributes.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric;
+        params.combine_scales_and_zp =
+            primitive->quantization_attributes.output_storage_type != ov::op::internal::DynamicQuantize::OutputStorageType::Planar;
 
         const auto& past_kv_cache_shape = impl_param.input_layouts[0].get_partial_shape();
         params.axis_offset = past_kv_cache_shape[primitive->concat_axis].is_static() ? past_kv_cache_shape[primitive->concat_axis].get_length() : 0;

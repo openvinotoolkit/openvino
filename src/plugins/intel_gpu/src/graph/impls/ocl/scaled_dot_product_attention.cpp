@@ -218,13 +218,15 @@ protected:
         config.is_causal = desc->is_causal;
 
         if (desc->is_kv_compressed) {
-            const auto& group_sizes = desc->quantization_config.group_sizes;
+            const auto& group_sizes = desc->quantization_attributes.group_sizes;
             const auto non_compressed_dims = std::count(group_sizes.begin(), group_sizes.end(), 1);
 
             config.per_head_quantization = (group_sizes.size() - non_compressed_dims) == 1;
             config.is_kv_compressed = desc->is_kv_compressed;
-            config.use_asymmetric_quantization = desc->quantization_config.is_asymmetric_quantization();
-            config.combine_scales_and_zp = desc->combine_scales_and_zp;
+            config.use_asymmetric_quantization =
+                desc->quantization_attributes.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric;
+            config.combine_scales_and_zp =
+                desc->quantization_attributes.output_storage_type != ov::op::internal::DynamicQuantize::OutputStorageType::Planar;
         }
 
         return config;
@@ -243,8 +245,7 @@ public:
         if (desc->is_kv_compressed) {
             data_inputs_num -= 2; // key and value compression scales are handled separately
 
-            has_zp_input_buffers = desc->quantization_config.is_asymmetric_quantization() && !desc->combine_scales_and_zp;
-            if (has_zp_input_buffers)
+            if (desc->get_compression_zp_inputs_num() > 0)
                 data_inputs_num -= 2; // key and value compression zp are handled separately
         }
 

@@ -707,9 +707,7 @@ event::ptr primitive_inst::realloc_if_needed() {
                     const auto& desc = get_node().as<dynamic_quantize>().get_primitive();
                     auto dyn_quan_scale_layout =
                         dynamic_quantize_inst::__calc_output_layouts<ov::PartialShape>(updated_layouts[dep_idx],
-                                                                                       desc->quantization_config,
-                                                                                       desc->scales_zp_output_order,
-                                                                                       desc->combine_scales_and_zp);
+                                                                                       desc->attrs);
                     GPU_DEBUG_TRACE_DETAIL << "update layout of dynamic quantize scale parameter layout "
                                         << dyn_quan_scale_layout[1].to_short_string() << std::endl;
                     updated_params.output_layouts[1] = dyn_quan_scale_layout[1];

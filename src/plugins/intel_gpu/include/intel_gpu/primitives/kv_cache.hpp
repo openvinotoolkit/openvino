@@ -18,7 +18,7 @@ namespace cldnn {
 struct kv_cache : public primitive_base<kv_cache> {
     CLDNN_DECLARE_PRIMITIVE(kv_cache)
 
-    using QuantizationConfig = ov::op::internal::QuantizationConfig;
+    using QuantizationAttributes = ov::op::internal::DynamicQuantize::Attributes;
 
     kv_cache() : primitive_base("", {}) {}
 
@@ -40,9 +40,7 @@ struct kv_cache : public primitive_base<kv_cache> {
     bool indirect = false;
 
     bool compressed = false;
-    bool combine_scales_and_zp = false;
-    QuantizationConfig quantization_config;
-    std::vector<uint64_t> scales_zp_output_order = {};
+    QuantizationAttributes quantization_attributes;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -50,13 +48,13 @@ struct kv_cache : public primitive_base<kv_cache> {
         seed = hash_combine(seed, gather_axis);
         seed = hash_combine(seed, indirect);
         seed = hash_combine(seed, compressed);
-        seed = hash_combine(seed, combine_scales_and_zp);
-        seed = hash_range(seed, scales_zp_output_order.begin(), scales_zp_output_order.end());
-        seed = hash_range(seed, quantization_config.group_sizes.begin(), quantization_config.group_sizes.end());
-        seed = hash_combine(seed, quantization_config.type);
-        seed = hash_combine(seed, quantization_config.quantization_dt.hash());
-        seed = hash_combine(seed, quantization_config.scale_dt.hash());
-        seed = hash_combine(seed, quantization_config.zp_dt.hash());
+        seed = hash_range(seed, quantization_attributes.scales_zp_output_order.begin(), quantization_attributes.scales_zp_output_order.end());
+        seed = hash_range(seed, quantization_attributes.group_sizes.begin(), quantization_attributes.group_sizes.end());
+        seed = hash_combine(seed, quantization_attributes.quantization_type);
+        seed = hash_combine(seed, quantization_attributes.quantization_dt.hash());
+        seed = hash_combine(seed, quantization_attributes.scale_dt.hash());
+        seed = hash_combine(seed, quantization_attributes.zp_dt.hash());
+        seed = hash_combine(seed, quantization_attributes.output_storage_type);;
 
         return seed;
     }
@@ -72,9 +70,13 @@ struct kv_cache : public primitive_base<kv_cache> {
                gather_axis == rhs_casted.gather_axis &&
                indirect == rhs_casted.indirect &&
                compressed == rhs_casted.compressed &&
-               scales_zp_output_order == rhs_casted.scales_zp_output_order &&
-               combine_scales_and_zp == rhs_casted.combine_scales_and_zp &&
-               quantization_config == rhs_casted.quantization_config;
+               quantization_attributes.scales_zp_output_order == rhs_casted.quantization_attributes.scales_zp_output_order &&
+               quantization_attributes.output_storage_type == rhs_casted.quantization_attributes.output_storage_type &&
+               quantization_attributes.group_sizes == rhs_casted.quantization_attributes.group_sizes &&
+               quantization_attributes.quantization_dt == rhs_casted.quantization_attributes.quantization_dt &&
+               quantization_attributes.scale_dt == rhs_casted.quantization_attributes.scale_dt &&
+               quantization_attributes.zp_dt == rhs_casted.quantization_attributes.zp_dt &&
+               quantization_attributes.quantization_type == rhs_casted.quantization_attributes.quantization_type;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -87,13 +89,13 @@ struct kv_cache : public primitive_base<kv_cache> {
         ob << gather_axis;
         ob << indirect;
         ob << compressed;
-        ob << combine_scales_and_zp;
-        ob << scales_zp_output_order;
-        ob << quantization_config.group_sizes;
-        ob << make_data(&quantization_config.type, sizeof(quantization_config.type));
-        ob << make_data(&quantization_config.quantization_dt, sizeof(quantization_config.quantization_dt));
-        ob << make_data(&quantization_config.scale_dt, sizeof(quantization_config.scale_dt));
-        ob << make_data(&quantization_config.zp_dt, sizeof(quantization_config.zp_dt));
+        ob << make_data(&quantization_attributes.quantization_type, sizeof(quantization_attributes.quantization_type));
+        ob << make_data(&quantization_attributes.quantization_dt, sizeof(quantization_attributes.quantization_dt));
+        ob << make_data(&quantization_attributes.scale_dt, sizeof(quantization_attributes.scale_dt));
+        ob << make_data(&quantization_attributes.zp_dt, sizeof(quantization_attributes.zp_dt));
+        ob << make_data(&quantization_attributes.output_storage_type, sizeof(quantization_attributes.output_storage_type));
+        ob << quantization_attributes.scales_zp_output_order;
+        ob << quantization_attributes.group_sizes;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -109,13 +111,13 @@ struct kv_cache : public primitive_base<kv_cache> {
         ib >> gather_axis;
         ib >> indirect;
         ib >> compressed;
-        ib >> combine_scales_and_zp;
-        ib >> scales_zp_output_order;
-        ib >> quantization_config.group_sizes;
-        ib >> make_data(&quantization_config.type, sizeof(quantization_config.type));
-        ib >> make_data(&quantization_config.quantization_dt, sizeof(quantization_config.quantization_dt));
-        ib >> make_data(&quantization_config.scale_dt, sizeof(quantization_config.scale_dt));
-        ib >> make_data(&quantization_config.zp_dt, sizeof(quantization_config.zp_dt));
+        ib >> make_data(&quantization_attributes.quantization_type, sizeof(quantization_attributes.quantization_type));
+        ib >> make_data(&quantization_attributes.quantization_dt, sizeof(quantization_attributes.quantization_dt));
+        ib >> make_data(&quantization_attributes.scale_dt, sizeof(quantization_attributes.scale_dt));
+        ib >> make_data(&quantization_attributes.zp_dt, sizeof(quantization_attributes.zp_dt));
+        ib >> make_data(&quantization_attributes.output_storage_type, sizeof(quantization_attributes.output_storage_type));
+        ib >> quantization_attributes.scales_zp_output_order;
+        ib >> quantization_attributes.group_sizes;
     }
 
     size_t get_compression_scales_inputs_num() const {
@@ -127,7 +129,9 @@ struct kv_cache : public primitive_base<kv_cache> {
     }
 
     size_t get_compression_zp_inputs_num() const {
-        if (compressed && quantization_config.is_asymmetric_quantization() && !combine_scales_and_zp) {
+        if (compressed &&
+            quantization_attributes.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric &&
+            quantization_attributes.output_storage_type == ov::op::internal::DynamicQuantize::OutputStorageType::Planar) {
             return 1;
         } else {
             return 0;

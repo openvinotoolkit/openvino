@@ -62,9 +62,9 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
         std::vector<uint64_t> shape_group_size(rank, 1);
         shape_group_size.back() = group_size;
 
-        ov::op::internal::QuantizationConfig config;
+        ov::op::internal::DynamicQuantize::Attributes config;
         config.quantization_dt = element::i8;
-        config.type = ov::op::internal::QuantizationConfig::QuantizationType::Symmetric;
+        config.quantization_type = ov::op::internal::DynamicQuantize::QuantizationType::Symmetric;
         config.scale_dt = element::f16;
         config.group_sizes = shape_group_size;
 

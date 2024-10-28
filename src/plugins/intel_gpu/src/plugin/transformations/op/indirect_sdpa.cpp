@@ -33,10 +33,9 @@ IndirectSDPA::IndirectSDPA(const OutputVector& data_inputs,
                            const std::vector<int64_t>& order_k,
                            const std::vector<int64_t>& order_v,
                            const std::vector<int64_t>& order_out,
-                           const QuantizationConfig& quantization_config,
-                           const bool combine_scales_and_zp,
+                           const QuantizationAttribute& quantization_attribute,
                            const ov::element::Type output_type)
-    : ov::intel_gpu::op::SDPA(data_inputs, is_causal, order_q, order_k, order_v, order_out, quantization_config, combine_scales_and_zp, output_type)
+    : ov::intel_gpu::op::SDPA(data_inputs, is_causal, order_q, order_k, order_v, order_out, quantization_attribute, output_type)
     , m_indirect_axis(indirect_axis) {
     auto beam_table_idx = data_inputs.size();
     set_argument(beam_table_idx, beam_table);
@@ -68,8 +67,7 @@ std::shared_ptr<ov::Node> IndirectSDPA::clone_with_new_inputs(const ov::OutputVe
                                               m_order_k,
                                               m_order_v,
                                               m_order_out,
-                                              m_quantization_config,
-                                              m_combine_scales_and_zp,
+                                              m_quantization_attrs,
                                               m_output_type);
     }
 }

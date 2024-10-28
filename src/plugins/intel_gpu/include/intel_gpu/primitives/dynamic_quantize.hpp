@@ -14,7 +14,7 @@ namespace cldnn {
 struct dynamic_quantize : public primitive_base<dynamic_quantize> {
     CLDNN_DECLARE_PRIMITIVE(dynamic_quantize);
 
-    using QuantizationConfig = ov::op::internal::QuantizationConfig;
+    using Attributes = ov::op::internal::DynamicQuantize::Attributes;
 
     dynamic_quantize() : primitive_base("", {}) {}
 
@@ -26,31 +26,26 @@ struct dynamic_quantize : public primitive_base<dynamic_quantize> {
     /// @param output_size Output data size of the primitive
     dynamic_quantize(const primitive_id& id,
            const input_info& input,
-           const QuantizationConfig& config,
-           const bool combine_scales_and_zp = false,
-           const std::vector<uint64_t>& scales_zp_output_order = {})
+           const Attributes& attrs)
            : primitive_base(id, {input})
-           , combine_scales_and_zp(combine_scales_and_zp)
-           , quantization_config(config)
-           , scales_zp_output_order(scales_zp_output_order) {
+           , attrs(attrs) {
         num_outputs = 2;
-        if (config.is_asymmetric_quantization() && !combine_scales_and_zp)
+        if (attrs.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric &&
+            attrs.output_storage_type == ov::op::internal::DynamicQuantize::OutputStorageType::Planar)
             num_outputs++;
     }
 
-    bool combine_scales_and_zp = false;
-    QuantizationConfig quantization_config;
-    std::vector<uint64_t> scales_zp_output_order = {};
+    Attributes attrs;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
-        seed = hash_range(seed, scales_zp_output_order.begin(), scales_zp_output_order.end());
-        seed = hash_range(seed, quantization_config.group_sizes.begin(), quantization_config.group_sizes.end());
-        seed = hash_combine(seed, quantization_config.type);
-        seed = hash_combine(seed, quantization_config.quantization_dt.hash());
-        seed = hash_combine(seed, quantization_config.scale_dt.hash());
-        seed = hash_combine(seed, quantization_config.zp_dt.hash());
-        seed = hash_combine(seed, combine_scales_and_zp);
+        seed = hash_range(seed, attrs.scales_zp_output_order.begin(), attrs.scales_zp_output_order.end());
+        seed = hash_range(seed, attrs.group_sizes.begin(), attrs.group_sizes.end());
+        seed = hash_combine(seed, attrs.quantization_type);
+        seed = hash_combine(seed, attrs.quantization_dt.hash());
+        seed = hash_combine(seed, attrs.scale_dt.hash());
+        seed = hash_combine(seed, attrs.zp_dt.hash());
+        seed = hash_combine(seed, attrs.output_storage_type);
 
         return seed;
     }
@@ -61,33 +56,37 @@ struct dynamic_quantize : public primitive_base<dynamic_quantize> {
 
         auto rhs_casted = downcast<const dynamic_quantize>(rhs);
 
-        return scales_zp_output_order == rhs_casted.scales_zp_output_order ||
-               combine_scales_and_zp == rhs_casted.combine_scales_and_zp ||
-               quantization_config == rhs_casted.quantization_config;
+        return attrs.scales_zp_output_order == rhs_casted.attrs.scales_zp_output_order &&
+               attrs.output_storage_type == rhs_casted.attrs.output_storage_type &&
+               attrs.group_sizes == rhs_casted.attrs.group_sizes &&
+               attrs.quantization_dt == rhs_casted.attrs.quantization_dt &&
+               attrs.scale_dt == rhs_casted.attrs.scale_dt &&
+               attrs.zp_dt == rhs_casted.attrs.zp_dt &&
+               attrs.quantization_type == rhs_casted.attrs.quantization_type;;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
         primitive_base<dynamic_quantize>::save(ob);
 
-        ob << combine_scales_and_zp;
-        ob << scales_zp_output_order;
-        ob << quantization_config.group_sizes;
-        ob << make_data(&quantization_config.type, sizeof(quantization_config.type));
-        ob << make_data(&quantization_config.quantization_dt, sizeof(quantization_config.quantization_dt));
-        ob << make_data(&quantization_config.scale_dt, sizeof(quantization_config.scale_dt));
-        ob << make_data(&quantization_config.zp_dt, sizeof(quantization_config.zp_dt));
+        ob << make_data(&attrs.quantization_type, sizeof(attrs.quantization_type));
+        ob << make_data(&attrs.quantization_dt, sizeof(attrs.quantization_dt));
+        ob << make_data(&attrs.scale_dt, sizeof(attrs.scale_dt));
+        ob << make_data(&attrs.zp_dt, sizeof(attrs.zp_dt));
+        ob << make_data(&attrs.output_storage_type, sizeof(attrs.output_storage_type));
+        ob << attrs.scales_zp_output_order;
+        ob << attrs.group_sizes;
     }
 
     void load(BinaryInputBuffer& ib) override {
         primitive_base<dynamic_quantize>::load(ib);
 
-        ib >> combine_scales_and_zp;
-        ib >> scales_zp_output_order;
-        ib >> quantization_config.group_sizes;
-        ib >> make_data(&quantization_config.type, sizeof(quantization_config.type));
-        ib >> make_data(&quantization_config.quantization_dt, sizeof(quantization_config.quantization_dt));
-        ib >> make_data(&quantization_config.scale_dt, sizeof(quantization_config.scale_dt));
-        ib >> make_data(&quantization_config.zp_dt, sizeof(quantization_config.zp_dt));
+        ib >> make_data(&attrs.quantization_type, sizeof(attrs.quantization_type));
+        ib >> make_data(&attrs.quantization_dt, sizeof(attrs.quantization_dt));
+        ib >> make_data(&attrs.scale_dt, sizeof(attrs.scale_dt));
+        ib >> make_data(&attrs.zp_dt, sizeof(attrs.zp_dt));
+        ib >> make_data(&attrs.output_storage_type, sizeof(attrs.output_storage_type));
+        ib >> attrs.scales_zp_output_order;
+        ib >> attrs.group_sizes;
     }
 };
 }  // namespace cldnn
