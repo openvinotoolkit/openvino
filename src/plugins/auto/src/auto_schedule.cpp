@@ -212,10 +212,12 @@ void AutoSchedule::init() {
             // initialize containers before run async task
             m_idle_worker_requests[device.device_name];
             m_worker_requests[device.device_name];
+            m_worker_requests_cvs[device.device_name];
             m_infer_pipeline_tasks_device_specific[device.device_name] = nullptr;
         }
         m_idle_worker_requests["CPU_HELP"];
         m_worker_requests["CPU_HELP"];
+        m_worker_requests_cvs["CPU_HELP"];
         m_infer_pipeline_tasks_device_specific["CPU_HELP"] = nullptr;
         m_executor->run(m_compile_context[CPU].m_task);
         m_executor->run(m_compile_context[ACTUALDEVICE].m_task);
@@ -486,7 +488,11 @@ bool AutoSchedule::schedule_to_worker_infer_request(ov::threading::Task pipeline
         if (!preferred_device.empty() && (device.device_name != preferred_device)) {
             continue;
         }
-        if (run_pipeline_task(pipeline_task, m_idle_worker_requests[device.device_name], preferred_device)) {
+        if (run_pipeline_task(pipeline_task,
+                              m_idle_worker_requests[device.device_name],
+                              preferred_device,
+                              m_worker_requests_cvs[device.device_name],
+                              m_worker_infer_mutex)) {
             return true;
         }
     }

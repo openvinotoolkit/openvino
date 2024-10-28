@@ -26,12 +26,14 @@ public:
     // the bug is e.g. manifesting on the old CentOS (and it's 4.8.x gcc) used in our testing
     // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=81880
     static thread_local const char*             m_this_preferred_device_name;
-    static std::int32_t            m_need_retry_times;
 
 protected:
     virtual void init() = 0;
-    static bool run_pipeline_task(ov::threading::Task& pipeline_task, NotBusyPriorityWorkerRequests& idle_worker_request,
-                                  const DeviceName& preferred_device);
+    static bool run_pipeline_task(ov::threading::Task& pipeline_task,
+                                  NotBusyPriorityWorkerRequests& idle_worker_request,
+                                  const DeviceName& preferred_device,
+                                  std::condition_variable& idle_worker_request_cv,
+                                  std::mutex& mutex);
     virtual void generate_workers(const std::string& device, const SoCompiledModel& compiled_model);
     virtual void try_to_compile_model(AutoCompileContext& context, const std::shared_ptr<ov::Model>& model) = 0;
     virtual bool schedule_to_worker_infer_request(ov::threading::Task, DeviceName preferred_device = "") = 0;
@@ -41,6 +43,7 @@ protected:
     std::shared_ptr<ov::threading::IStreamsExecutor>                     m_executor;
     DeviceMap<NotBusyPriorityWorkerRequests>                             m_idle_worker_requests;
     DeviceMap<std::vector<WorkerInferRequest>>                           m_worker_requests;
+    DeviceMap<std::condition_variable>                                   m_worker_requests_cvs;
     TaskQueue                                                            m_infer_pipeline_tasks;
     DeviceMap<std::unique_ptr<TaskQueue>>                                m_infer_pipeline_tasks_device_specific;
     SoCompiledModel                                                      m_passthrough_compiled_model;
@@ -51,6 +54,7 @@ protected:
     mutable std::atomic<std::size_t>                                     m_request_id = {0};
     std::mutex                                                           m_dev_infer_mutex;
     std::unordered_map<IASyncInferPtr, WorkerInferRequest*>              m_dev_infer;
+    std::mutex                                                           m_worker_infer_mutex;
 };
 
 }  // namespace auto_plugin
