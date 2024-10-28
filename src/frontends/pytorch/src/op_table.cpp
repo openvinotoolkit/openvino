@@ -220,6 +220,7 @@ OP_CONVERTER(translate_square);
 OP_CONVERTER(translate_squeeze);
 OP_CONVERTER(translate_std);
 OP_CONVERTER(translate_std_mean);
+OP_CONVERTER(translate_stft);
 OP_CONVERTER(translate_sub);
 OP_CONVERTER(translate_sub_);
 OP_CONVERTER(translate_sum);
@@ -649,6 +650,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         // aten::stack - Supported in limited set of patterns
         {"aten::std", op::translate_std},
         {"aten::std_mean", op::translate_std_mean},
+        {"aten::stft", op::translate_stft},
         {"aten::sub", op::translate_sub},
         {"aten::sub_", op::translate_sub_},
         {"aten::sum", op::translate_sum},
@@ -746,6 +748,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten._native_batch_norm_legit.no_stats", op::translate_batch_norm_legit_no_stats_fx},
         {"aten._native_batch_norm_legit_functional.default", op::translate_batch_norm_legit_fx},
         {"aten._native_batch_norm_legit_no_training.default", op::translate_batch_norm_legit_no_training_fx},
+        {"aten._safe_softmax.default", op::translate_softmax_fx},
         {"aten._scaled_dot_product_flash_attention.default", op::translate_scaled_dot_product_attention_fx},
         {"aten._scaled_dot_product_flash_attention_for_cpu.default", op::translate_scaled_dot_product_attention_fx},
         {"aten._softmax.default", op::translate_softmax_fx},
