@@ -146,8 +146,8 @@ class TestTFEqual(CommonTFLayerTest):
 
     # Values for checking important corner cases for float values
     # expect:   false   false   false    false   false   false    true    false    true
-    x_corner = [1., 1., 1., np.nan, np.nan, np.nan, np.inf, np.inf, np.NINF]
-    y_corner = [np.nan, np.inf, np.NINF, np.nan, np.inf, np.NINF, np.inf, np.NINF, np.NINF]
+    x_corner = [1., 1., 1., np.nan, np.nan, np.nan, np.inf, np.inf, -np.inf]
+    y_corner = [np.nan, np.inf, -np.inf, np.nan, np.inf, -np.inf, np.inf, -np.inf, -np.inf]
 
     test_data_float16 = [
         pytest.param(
