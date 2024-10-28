@@ -348,3 +348,38 @@ def search_sorted(
     inputs = as_nodes(sorted_sequence, values, name=name)
     attributes = {"right_mode": right_mode}
     return _get_node_factory_opset15().create("SearchSorted", inputs, attributes)
+
+
+@nameable_op
+def squeeze(
+        data: NodeInput,
+        axes: NodeInput,
+        allow_axis_skip: bool = False,
+        name: Optional[str] = None,
+) -> Node:
+    """Perform squeeze operation on input tensor.
+
+    :param data: The node with data tensor.
+    :param axes: List of non-negative integers, indicate the dimensions to squeeze.
+                  One of: input node or array.
+    :param allow_axis_skip: If true, shape inference results in a dynamic rank, when 
+                  selected axis has value 1 in its dynamic range.
+    :param name: Optional new name for output node.
+    :return: The new node performing a squeeze operation on input tensor.
+
+    Remove single-dimensional entries from the shape of a tensor.
+    Takes a parameter `axes` with a list of axes to squeeze.
+    If `axes` is not provided, all the single dimensions will be removed from the shape.
+    If an `axis` is selected with shape entry not equal to one, an error is raised.
+
+
+    For example:
+
+       Inputs: tensor with shape [1, 2, 1, 3, 1, 1], axes=[2, 4]
+
+       Result: tensor with shape [1, 2, 3, 1]
+    """
+    inputs = as_nodes(data, axes, name=name)
+    attributes = {"allow_axis_skip": allow_axis_skip}
+    print(f"\n\nI'm pulling squeeze from opset15 node factory\n\n")
+    return _get_node_factory_opset15().create("Squeeze", inputs, attributes)
