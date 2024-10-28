@@ -27,7 +27,6 @@ def test_squeeze_v1_operator():
 def test_squeeze_v15_operator(input_shape, axes, allow_axis_skip, expected_shape):
     parameter_data = ov_opset15.parameter(input_shape, name="Data", dtype=np.float32)
     model = ov_opset15.squeeze(parameter_data, axes, allow_axis_skip, name="Squeeze")
-    print(model.get_type_info())
 
     assert model.get_type_name() == "Squeeze"
     assert model.get_output_size() == 1
