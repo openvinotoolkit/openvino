@@ -1,5 +1,4 @@
 const {
-  Image,
   ImageData,
   loadImage,
   createCanvas,
@@ -50,6 +49,17 @@ class OvImage {
     const imageData = ctx2.getImageData(0, 0, newWidth, newHeight);
 
     return new OvImage(imageData);
+  }
+
+  invert() {
+    const invertedData = this.rgba.map((value, index) => {
+      if (index % 4 === 3)
+        return 255;
+
+      return 255 - value;
+    });
+
+    return OvImage.fromArray(invertedData, this.width, this.height);
   }
 
   async save(path) {
@@ -104,11 +114,39 @@ class OvImage {
       if (index % 4 === 3)
         return 255;
 
-      return (img1Data[index] + img2Data[index]) / 2;
+      return (img1Data[index] + img2Data[index]);
     });
 
     const imageData = new ImageData(
       new Uint8ClampedArray(mergedData),
+      img1.width,
+      img1.height,
+    );
+
+    ctx.putImageData(imageData, 0, 0);
+
+    return new OvImage(ctx.getImageData(0, 0, img1.width, img1.height));
+  }
+
+  static mask(img1, img2) {
+    if (img1.width !== img2.width || img1.height !== img2.height)
+      throw new Error('Images should have the same size');
+
+    const canvas = createCanvas(img1.width, img1.height);
+    const ctx = canvas.getContext('2d');
+
+    const img1Data = img1.imageData.data;
+    const img2Data = img2.imageData.data;
+
+    const subtractedData = img1Data.map((_, index) => {
+      if (index % 4 === 3)
+        return 255;
+
+      return img1Data[index] * (img2Data[index] / 255);
+    });
+
+    const imageData = new ImageData(
+      new Uint8ClampedArray(subtractedData),
       img1.width,
       img1.height,
     );
