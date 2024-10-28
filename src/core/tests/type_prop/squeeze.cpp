@@ -485,7 +485,7 @@ TEST_P(SqueezeBoundTest, propagate_symbol_and_dynamic_value_squeeze_v15) {
 }
 
 using SqueezeAxesDynamicRankTestParam = decltype(std::tuple_cat(SqueezeTypePropTestParam{}, std::make_tuple(false)));
-class SqueezeAxesPyTorchDynamicRank : public ::testing::TestWithParam<SqueezeAxesDynamicRankTestParam> {
+class SqueezeAxesDynamicRank : public ::testing::TestWithParam<SqueezeAxesDynamicRankTestParam> {
 protected:
     ov::PartialShape p_shape{}, exp_shape{};
     std::vector<int64_t> axes{};
@@ -493,8 +493,8 @@ protected:
 };
 
 INSTANTIATE_TEST_SUITE_P(
-    SqueezeAxesPyTorchDynamicRankTests,
-    SqueezeAxesPyTorchDynamicRank,
+    SqueezeAxesDynamicRankTests,
+    SqueezeAxesDynamicRank,
     ::testing::Values(
         std::make_tuple(PartialShape{1, 2, -1, 4}, std::vector<int64_t>{}, PartialShape::dynamic(), false),
         std::make_tuple(PartialShape{1, 2, -1, 4}, std::vector<int64_t>{}, PartialShape::dynamic(), true),
@@ -507,6 +507,9 @@ INSTANTIATE_TEST_SUITE_P(
 
         std::make_tuple(PartialShape{1, 2, -1, 4}, std::vector<int64_t>{0, 2}, PartialShape{2, 4}, false),
         std::make_tuple(PartialShape{1, 2, -1, 4}, std::vector<int64_t>{0, 2}, PartialShape::dynamic(), true),
+
+        std::make_tuple(PartialShape{1, 2, -1, 4}, std::vector<int64_t>{1}, PartialShape{1, 2, -1, 4}, false),
+        std::make_tuple(PartialShape{1, 2, -1, 4}, std::vector<int64_t>{1}, PartialShape{1, 2, -1, 4}, true),
 
         std::make_tuple(PartialShape{2, 4}, std::vector<int64_t>{1}, PartialShape{2, 4}, false),
         std::make_tuple(PartialShape{2, 4}, std::vector<int64_t>{1}, PartialShape{2, 4}, true),
@@ -529,7 +532,7 @@ INSTANTIATE_TEST_SUITE_P(
         std::make_tuple(PartialShape{1, 2, 3}, std::vector<int64_t>{}, PartialShape{2, 3}, false),
         std::make_tuple(PartialShape{1, 2, 3}, std::vector<int64_t>{}, PartialShape{2, 3}, true)));
 
-TEST_P(SqueezeAxesPyTorchDynamicRank, squeeze_axes_dynamic_rank_param) {
+TEST_P(SqueezeAxesDynamicRank, squeeze_axes_dynamic_rank_param) {
     const auto& params = GetParam();
     p_shape = std::get<0>(params);
     axes = std::get<1>(params);
@@ -538,6 +541,34 @@ TEST_P(SqueezeAxesPyTorchDynamicRank, squeeze_axes_dynamic_rank_param) {
 
     auto param = make_shared<ov::op::v0::Parameter>(element::f32, p_shape);
     auto axes_node = make_shared<ov::op::v0::Constant>(element::u64, Shape{axes.size()}, axes);
+    const auto squeeze = std::make_shared<op::v15::Squeeze>(param, axes_node, allow_axis_skip);
+
+    EXPECT_EQ(squeeze->get_element_type(), element::f32);
+    EXPECT_EQ(squeeze->get_output_partial_shape(0), exp_shape);
+    EXPECT_EQ(squeeze->get_allow_axis_skip(), allow_axis_skip);
+}
+
+TEST(SqueezeDynamicAxis, squeeze_dynamic_non_const_single_axis) {
+    auto p_shape = PartialShape{1, 2, -1, 4};
+    auto exp_shape = PartialShape::dynamic();
+    auto allow_axis_skip = true;
+
+    auto param = make_shared<ov::op::v0::Parameter>(element::f32, p_shape);
+    auto axes_node = make_shared<ov::op::v0::Parameter>(element::i32, Shape{1});
+    const auto squeeze = std::make_shared<op::v15::Squeeze>(param, axes_node, allow_axis_skip);
+
+    EXPECT_EQ(squeeze->get_element_type(), element::f32);
+    EXPECT_EQ(squeeze->get_output_partial_shape(0), exp_shape);
+    EXPECT_EQ(squeeze->get_allow_axis_skip(), allow_axis_skip);
+}
+
+TEST(SqueezeDynamicAxis, squeeze_dynamic_non_const_axes) {
+    auto p_shape = PartialShape{1, 2, -1, 4};
+    auto exp_shape = PartialShape::dynamic();
+    auto allow_axis_skip = true;
+
+    auto param = make_shared<ov::op::v0::Parameter>(element::f32, p_shape);
+    auto axes_node = make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{-1});
     const auto squeeze = std::make_shared<op::v15::Squeeze>(param, axes_node, allow_axis_skip);
 
     EXPECT_EQ(squeeze->get_element_type(), element::f32);

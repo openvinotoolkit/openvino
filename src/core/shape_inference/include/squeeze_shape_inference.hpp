@@ -170,7 +170,7 @@ std::vector<TRShape> shape_infer(const Squeeze* op,
                         return dim.compatible(1);
                     });
                 if (has_squeezable_dim) {
-                    output_shape = PartialShape::dynamic(arg_rank.get_length() - 1);
+                    output_shape = PartialShape::dynamic();
                 } else {
                     output_shape = arg_shape;
                 }
