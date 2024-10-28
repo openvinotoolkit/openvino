@@ -4,7 +4,7 @@ Models with only 1 input and output are supported.
 
 Run sample:
 ```bash
-node hello_classification.js ../../assets/models/v3-small_224_1.0_float.xml ../../assets/images/coco_hollywood.jpg AUTO
+node hello_classification.js ../../assets/models/v3-small_224_1.0_float.xml ../../assets/images/coco.jpg AUTO
 ```
 Where
 ```bash
