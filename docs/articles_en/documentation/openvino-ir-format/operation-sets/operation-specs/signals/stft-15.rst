@@ -41,8 +41,8 @@ Short Time Fourier Transformation for real-valued input (STFT)
 
 *   **1**: The result of STFT operation, tensor of the same type as input ``signal`` tensor and shape:
 
-    + When ``transpose_frames == false`` the output shape is ``[..., frames, fft_results, 2]``
-    + When ``transpose_frames == true`` the output shape is ``[..., fft_results, frames, 2]``
+    + When ``transpose_frames == false`` the output shape is ``[frames, fft_results, 2]`` for 1D signal input or [batch, frames, fft_results, 2] for 2D signal input.
+    + When ``transpose_frames == true`` the output shape is [fft_results, frames, 2] for 1D signal input or [batch, fft_results, frames, 2]`` for 2D signal input.
 
     where:
 
