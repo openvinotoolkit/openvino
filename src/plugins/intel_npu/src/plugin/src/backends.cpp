@@ -7,8 +7,8 @@
 #include <fstream>
 #include <memory>
 
-#include "device_helpers.hpp"
-#include "intel_npu/al/config/common.hpp"
+#include "intel_npu/common/device_helpers.hpp"
+#include "intel_npu/config/common.hpp"
 
 #if defined(ENABLE_ZEROAPI_BACKEND)
 #    include "zero_backend.hpp"
@@ -171,6 +171,14 @@ bool NPUBackends::isBatchingSupported() const {
 bool NPUBackends::isCommandQueueExtSupported() const {
     if (_backend != nullptr) {
         return _backend->isCommandQueueExtSupported();
+    }
+
+    return false;
+}
+
+bool NPUBackends::isLUIDExtSupported() const {
+    if (_backend != nullptr) {
+        return _backend->isLUIDExtSupported();
     }
 
     return false;
