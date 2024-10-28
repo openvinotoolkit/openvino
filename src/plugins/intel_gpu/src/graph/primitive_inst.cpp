@@ -655,7 +655,7 @@ event::ptr primitive_inst::realloc_if_needed() {
         }
     }
 
-    // Clear out memory if if was previously reused, but now primitive can't be optimized
+    // Clear out memory if was previously reused, but now primitive can't be optimized
     if (!_node->is_type<concatenation>() && (_node->is_runtime_skippable() || _node->is_type<crop>())) {
         if (can_be_optimized()) {
             _max_output_layout_count = _deps[0].first->_max_output_layout_count;
@@ -663,7 +663,7 @@ event::ptr primitive_inst::realloc_if_needed() {
             return ev;
         } else if (_outputs[0] && dep_memory_ptr(0) &&
                    _network.get_engine().is_the_same_buffer(dep_memory(0), output_memory(0))) {
-            // Clear out memory if if was previously reused, but now primitive can't be optimized
+            // Clear out memory if was previously reused, but now primitive can't be optimized
             _outputs[0] = nullptr;
             _max_output_layout_count[0] = 0;
         }
@@ -1527,7 +1527,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         }
 
         if (can_skip_execution) {
-            auto ev = get_network().get_stream().create_user_event(true);
+            auto ev = get_network().get_stream().aggregate_events(events);
             update_shape_done_by_other = false; // reset
             return ev;
         }
@@ -1553,8 +1553,13 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
                     auto allocated_mem = d.first->output_memory_ptr();
                     auto actual_input_layout = d.first->get_output_layout();
                     auto& engine = _network.get_engine();
+                    cldnn::memory_ptr actual_mem = nullptr;
                     // Need to use actual layout, not the fake aligned memory layout
-                    auto actual_mem = engine.reinterpret_buffer(*allocated_mem, actual_input_layout);
+                    if (actual_input_layout.count() != 0) {
+                        actual_mem = engine.reinterpret_buffer(*allocated_mem, actual_input_layout);
+                    } else {
+                        actual_mem = engine.allocate_memory(actual_input_layout);
+                    }
                     subgraph->set_input_data(d.first->id(), std::move(actual_mem));
                 }
             }
@@ -2324,6 +2329,13 @@ bool primitive_inst::is_valid_fusion() const {
     if (fused_eltwise_prims.empty())
         return true;
 
+    if (_node->is_type<fully_connected>() || _node->is_type<gemm>() || _node->is_type<convolution>()) {
+        if (_impl_params->input_layouts[0].count() == 0 ||
+            _impl_params->input_layouts[1].count() == 0) {
+            return false;
+        }
+    }
+
     if (_node->is_type<fully_connected>() && _node->get_preferred_impl_type() == impl_types::ocl) {
         // TODO: Only fc_bf_tiled_kernel & ref kernel are verified for fused eltwise. To support more fc kernels for eltwise fusion
         if (!_node->get_selected_impl())
@@ -2493,7 +2505,7 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
     }
 
     // 1. If we have static impl in the cache - use it
-    if (use_async_compilation && inst.get_impl() && inst.get_impl()->is_dynamic()) {
+    if (use_async_compilation && ((inst.get_impl() && inst.get_impl()->is_dynamic()) || inst.shape_changed())) {
         auto cached_impl = m_static_impls_cache.get(updated_params);
         if (cached_impl) {
             return cached_impl->clone();

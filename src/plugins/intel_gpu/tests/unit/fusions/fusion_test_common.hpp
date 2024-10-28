@@ -81,8 +81,9 @@ public:
         ASSERT_EQ(outputs_ref.size(), outputs_fused.size());
         ASSERT_EQ(outputs_ref.size(), size_t(1));
 
+        std::vector<float> val_opt;
         auto val_ref = get_output_values_to_float(not_fused, outputs_ref.begin()->second);
-        auto val_opt = get_output_values_to_float(fused, outputs_fused.begin()->second);
+        ASSERT_NO_THROW(val_opt = get_output_values_to_float(fused, outputs_fused.begin()->second));
         ASSERT_EQ(val_ref.size(), val_opt.size());
         for (size_t i = 0; i < val_ref.size(); i++) {
             ASSERT_NEAR(val_ref[i], val_opt[i], tolerance)

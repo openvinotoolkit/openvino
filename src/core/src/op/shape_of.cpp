@@ -168,9 +168,13 @@ bool ShapeOf::evaluate_symbol(TensorSymbolVector& output_symbols) const {
     return shape_of::evaluate_symbol(this, output_symbols);
 }
 
+bool ShapeOf::can_constant_fold(const OutputVector& input_values) const {
+    return !is_const_fold_disabled() && input_values[0].get_partial_shape().is_static();
+}
+
 bool ShapeOf::constant_fold(OutputVector& output_values, const OutputVector& input_values) {
     OV_OP_SCOPE(v3_ShapeOf_constant_fold);
-    if (is_const_fold_disabled()) {
+    if (!can_constant_fold(input_values)) {
         return false;
     }
     return shape_of::constant_fold_shape_of(this, output_values[0], input_values[0]);
@@ -222,9 +226,13 @@ bool ShapeOf::has_evaluate() const {
     }
 }
 
+bool ShapeOf::can_constant_fold(const OutputVector& input_values) const {
+    return !is_const_fold_disabled() && input_values[0].get_partial_shape().is_static();
+}
+
 bool ShapeOf::constant_fold(OutputVector& output_values, const OutputVector& input_values) {
     OV_OP_SCOPE(v0_ShapeOf_constant_fold);
-    if (is_const_fold_disabled()) {
+    if (!can_constant_fold(input_values)) {
         return false;
     }
     return shape_of::constant_fold_shape_of(this, output_values[0], input_values[0]);
