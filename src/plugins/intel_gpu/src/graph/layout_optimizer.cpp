@@ -195,39 +195,24 @@ void reorder_factory::get_weights_split(primitive_id input_id,
     p.add_connection(crop0_node, con_node, 0);
     p.add_connection(crop2_node, con_node, 0);
     p.add_connection(crop3_node, con_node, 0);
-    reorder_node.get_output_layout(false);
-    crop1_node.get_output_layout(false);
-    crop0_node.get_output_layout(false);
-    crop2_node.get_output_layout(false);
-    crop3_node.get_output_layout(false);
-    con_node.get_output_layout(false);
-
     std::string permute_id = input_id + "_perx";
     std::vector<uint16_t> ord{2, 4, 3, 0, 1};
     auto permute = std::make_shared<cldnn::permute>(permute_id, input_info{concat_id}, ord);
     auto& permute_node = p.get_or_create(permute);
     p.add_intermediate(permute_node, node, con_node,  true);
-    permute_node.get_output_layout(false);
-    select_implementation(p, con_node);
-    select_implementation(p, reorder_node);
-    select_implementation(p, crop0_node);
-    select_implementation(p, crop1_node);
-    select_implementation(p, crop2_node);
-    select_implementation(p, crop3_node);
-    select_implementation(p, permute_node);
-    p.mark_if_constant(crop0_node);
-    p.mark_if_constant(crop1_node);
-    p.mark_if_constant(crop2_node);
-    p.mark_if_constant(crop3_node);
-    p.mark_if_constant(con_node);
-    p.mark_if_constant(permute_node);
-    crop1_node.recalc_output_layout(false);
-    crop0_node.recalc_output_layout(false);
-    crop2_node.recalc_output_layout(false);
-    crop3_node.recalc_output_layout(false);
-    con_node.recalc_output_layout(false);
-    permute_node.recalc_output_layout(false);
-    reorder_node.recalc_output_layout(false);
+    auto set_implementation_and_output = [this, &p](program_node& node) {
+        node.get_output_layout(false);
+        select_implementation(p, node);
+        p.mark_if_constant(node);
+        node.recalc_output_layout(false);
+    };
+    set_implementation_and_output(reorder_node);
+    set_implementation_and_output(crop1_node);
+    set_implementation_and_output(crop0_node);
+    set_implementation_and_output(crop2_node);
+    set_implementation_and_output(crop3_node);
+    set_implementation_and_output(con_node);
+    set_implementation_and_output(permute_node);
 }
 
 void reorder_factory::get_bias_split(primitive_id input_id,
@@ -258,36 +243,23 @@ void reorder_factory::get_bias_split(primitive_id input_id,
     p.add_connection(crop0_node, con_node, 0);
     p.add_connection(crop2_node, con_node, 0);
     p.add_connection(crop3_node, con_node, 0);
-    crop1_node.get_output_layout(false);
-    crop0_node.get_output_layout(false);
-    crop2_node.get_output_layout(false);
-    crop3_node.get_output_layout(false);
-    con_node.get_output_layout(false);
-
     std::string permute_id = input_id + "_pex";
     std::vector<uint16_t> ord{0, 3, 2, 1};
     auto permute = std::make_shared<cldnn::permute>(permute_id, input_info{concat_id}, ord);
     auto& permute_node = p.get_or_create(permute);
     p.add_intermediate(permute_node, node, con_node,  true);
-    permute_node.get_output_layout(false);
-    select_implementation(p, crop0_node);
-    select_implementation(p, crop1_node);
-    select_implementation(p, crop2_node);
-    select_implementation(p, crop3_node);
-    select_implementation(p, permute_node);
-    select_implementation(p, con_node);
-    p.mark_if_constant(crop0_node);
-    p.mark_if_constant(crop1_node);
-    p.mark_if_constant(crop2_node);
-    p.mark_if_constant(crop3_node);
-    p.mark_if_constant(con_node);
-    p.mark_if_constant(permute_node);
-    crop1_node.recalc_output_layout(false);
-    crop0_node.recalc_output_layout(false);
-    crop2_node.recalc_output_layout(false);
-    crop3_node.recalc_output_layout(false);
-    con_node.recalc_output_layout(false);
-    permute_node.recalc_output_layout(false);
+    auto set_implementation_and_output = [this, &p](program_node& node) {
+        node.get_output_layout(false);
+        select_implementation(p, node);
+        p.mark_if_constant(node);
+        node.recalc_output_layout(false);
+    };
+    set_implementation_and_output(crop0_node);
+    set_implementation_and_output(crop1_node);
+    set_implementation_and_output(crop2_node);
+    set_implementation_and_output(crop3_node);
+    set_implementation_and_output(con_node);
+    set_implementation_and_output(permute_node);
 }
 
 bool layout_optimizer::is_format_supported(program_node& node, format::type fmt) {

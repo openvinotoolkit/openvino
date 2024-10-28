@@ -116,10 +116,10 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
             } else {
                 if (node.type() == lstm_seq::type_id()) {
                     program_node& prev_node = node.get_dependency(i);
-                    if (i != 5) {
-                        _rf.get_weights_split(prev_node.id(), weights_reorder_params, p, prev_node, node, i);
-                    } else {
+                    if (i == 5) {
                         _rf.get_bias_split(prev_node.id(), weights_reorder_params, p, prev_node, node);
+                    } else {
+                        _rf.get_weights_split(prev_node.id(), weights_reorder_params, p, prev_node, node, i);
                     }
                     auto& weights_reorder_node = node.get_dependency(i);
                     weights_reorder_node.get_output_layout(false);
