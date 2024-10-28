@@ -62,7 +62,9 @@ bool Squeeze::evaluate(TensorVector& outputs, const TensorVector& inputs) const 
 namespace v15 {
 Squeeze::Squeeze() : util::SqueezeBase() {}
 
-Squeeze::Squeeze(const Output<Node>& data) : util::SqueezeBase(data) {
+Squeeze::Squeeze(const Output<Node>& data, const bool allow_axis_skip)
+    : util::SqueezeBase(data),
+      m_allow_axis_skip{allow_axis_skip} {
     constructor_validate_and_infer_types();
 }
 

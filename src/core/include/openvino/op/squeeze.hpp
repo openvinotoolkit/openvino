@@ -52,7 +52,8 @@ public:
     /// \brief Constructs a squeeze v15 operation.
     ///
     /// \param data Input tensor with data
-    Squeeze(const Output<Node>& data);
+    /// \param allow_axis_skip Shape inference result dynamic rank if selected axis has 1 in range of its dynamic
+    Squeeze(const Output<Node>& data, const bool allow_axis_skip = false);
     /// \brief Constructs a squeeze v15 operation.
     ///
     /// \param data Input tensor with data
