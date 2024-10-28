@@ -1000,10 +1000,10 @@ bool extend_select_type(const std::shared_ptr<ov::Node>& node, const precisions_
         return true;
     } else if (auto casted = ov::as_type_ptr<ov::op::v1::Select>(node)) {
         if (precisions.count(ov::element::boolean) != 0) {
-            auto relaxed_op = 
-            std::make_shared<op::TypeRelaxed<ov::op::v1::Select>>(*casted,
-                                                                  ov::element::TypeVector{ov::element::boolean},
-                                                                  ov::element::TypeVector{});
+            auto relaxed_op =
+                std::make_shared<op::TypeRelaxed<ov::op::v1::Select>>(*casted,
+                                                                      ov::element::TypeVector{ov::element::boolean},
+                                                                      ov::element::TypeVector{});
             replace_node(node, relaxed_op);
             return true;
         }
