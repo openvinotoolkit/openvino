@@ -8,24 +8,24 @@
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convolution.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/swish.hpp"
-#include "openvino/op/gelu.hpp"
-#include "openvino/op/sin.hpp"
 #include "openvino/op/cos.hpp"
-#include "openvino/op/power.hpp"
-#include "openvino/op/sqrt.hpp"
-#include "openvino/op/softmax.hpp"
-#include "openvino/op/matmul.hpp"
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/result.hpp"
-#include "openvino/op/add.hpp"
-#include "openvino/op/mvn.hpp"
+#include "openvino/op/gelu.hpp"
 #include "openvino/op/group_normalization.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/mvn.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/power.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/sin.hpp"
+#include "openvino/op/softmax.hpp"
+#include "openvino/op/sqrt.hpp"
+#include "openvino/op/swish.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -46,20 +46,24 @@ bool ov::pass::ActivationsScaling::run_on_model(const std::shared_ptr<ov::Model>
     ov::Shape scale_const_shape = {1};
     std::vector<float> scale_value = {m_scale_factor};
     std::vector<float> inverse_scale_value = {(1.f / m_scale_factor)};
-    std::shared_ptr<ov::Node> scale_const_f16 = std::make_shared<ov::op::v0::Constant>(ov::element::f16, scale_const_shape, scale_value);
-    std::shared_ptr<ov::Node> scale_const_f32 = std::make_shared<ov::op::v0::Constant>(ov::element::f32, scale_const_shape, scale_value);
-    std::shared_ptr<ov::Node> inverse_scale_const_f16 = std::make_shared<ov::op::v0::Constant>(ov::element::f16, scale_const_shape, inverse_scale_value);
-    std::shared_ptr<ov::Node> inverse_scale_const_f32 = std::make_shared<ov::op::v0::Constant>(ov::element::f32, scale_const_shape, inverse_scale_value);
+    std::shared_ptr<ov::Node> scale_const_f16 =
+        std::make_shared<ov::op::v0::Constant>(ov::element::f16, scale_const_shape, scale_value);
+    std::shared_ptr<ov::Node> scale_const_f32 =
+        std::make_shared<ov::op::v0::Constant>(ov::element::f32, scale_const_shape, scale_value);
+    std::shared_ptr<ov::Node> inverse_scale_const_f16 =
+        std::make_shared<ov::op::v0::Constant>(ov::element::f16, scale_const_shape, inverse_scale_value);
+    std::shared_ptr<ov::Node> inverse_scale_const_f32 =
+        std::make_shared<ov::op::v0::Constant>(ov::element::f32, scale_const_shape, inverse_scale_value);
 
     for (auto& node : f->get_ordered_ops()) {
         auto parameter_node = std::dynamic_pointer_cast<ov::op::v0::Parameter>(node);
-        if (parameter_node &&
-            (parameter_node->get_element_type() == ov::element::f16 ||
-             parameter_node->get_element_type() == ov::element::f32)) {
-            std::shared_ptr<ov::Node> inverse_scale_const = (parameter_node->get_element_type() == ov::element::f16) ?
-                                                             inverse_scale_const_f16 : inverse_scale_const_f32;
-            auto scale_down = std::make_shared<ov::op::v1::Multiply>(parameter_node->output(0),
-                                                                     inverse_scale_const->output(0));
+        if (parameter_node && (parameter_node->get_element_type() == ov::element::f16 ||
+                               parameter_node->get_element_type() == ov::element::f32)) {
+            std::shared_ptr<ov::Node> inverse_scale_const = (parameter_node->get_element_type() == ov::element::f16)
+                                                                ? inverse_scale_const_f16
+                                                                : inverse_scale_const_f32;
+            auto scale_down =
+                std::make_shared<ov::op::v1::Multiply>(parameter_node->output(0), inverse_scale_const->output(0));
             ov::replace_node(parameter_node, scale_down);
             scaled_down_nodes.insert(node->get_friendly_name());
             scaled_down_nodes.insert(scale_down->get_friendly_name());
@@ -82,7 +86,7 @@ bool ov::pass::ActivationsScaling::run_on_model(const std::shared_ptr<ov::Model>
         size_t num_scaled_down_inputs = 0;
         size_t num_const_inputs = 0;
         size_t num_normal_inputs = 0;
-        for (auto& dep: node->inputs()) {
+        for (auto& dep : node->inputs()) {
             auto dep_name = dep.get_source_output().get_node_shared_ptr()->get_friendly_name();
 
             if (scaled_down_nodes.find(dep_name) != scaled_down_nodes.end()) {
@@ -117,8 +121,8 @@ bool ov::pass::ActivationsScaling::run_on_model(const std::shared_ptr<ov::Model>
         auto result = std::dynamic_pointer_cast<ov::op::v0::Result>(node);
         if (result && num_scaled_down_inputs == 1) {
             auto dep = node->input(0);
-            std::shared_ptr<ov::Node> scale_const = (dep.get_element_type() == ov::element::f16) ?
-                                                    scale_const_f16 : scale_const_f32;
+            std::shared_ptr<ov::Node> scale_const =
+                (dep.get_element_type() == ov::element::f16) ? scale_const_f16 : scale_const_f32;
             auto scale_up = std::make_shared<ov::op::v1::Multiply>(dep.get_source_output(), scale_const->output(0));
             dep.replace_source_output(scale_up->output(0));
         }
@@ -131,12 +135,14 @@ bool ov::pass::ActivationsScaling::run_on_model(const std::shared_ptr<ov::Model>
         //              add                              add
         auto add = std::dynamic_pointer_cast<ov::op::v1::Add>(node);
         if (add && num_scaled_down_inputs == 1) {
-            for (auto& dep: node->inputs()) {
-                if (scaled_down_nodes.find(dep.get_source_output().get_node_shared_ptr()->get_friendly_name()) == scaled_down_nodes.end()) {
-                    std::shared_ptr<ov::Node> inverse_scale_const = (dep.get_element_type() == ov::element::f16) ?
-                                                                    inverse_scale_const_f16 : inverse_scale_const_f32;
-                    auto scale_down = std::make_shared<ov::op::v1::Multiply>(dep.get_source_output(),
-                                                                             inverse_scale_const->output(0));
+            for (auto& dep : node->inputs()) {
+                if (scaled_down_nodes.find(dep.get_source_output().get_node_shared_ptr()->get_friendly_name()) ==
+                    scaled_down_nodes.end()) {
+                    std::shared_ptr<ov::Node> inverse_scale_const = (dep.get_element_type() == ov::element::f16)
+                                                                        ? inverse_scale_const_f16
+                                                                        : inverse_scale_const_f32;
+                    auto scale_down =
+                        std::make_shared<ov::op::v1::Multiply>(dep.get_source_output(), inverse_scale_const->output(0));
                     dep.replace_source_output(scale_down->output(0));
                 }
             }
@@ -146,8 +152,8 @@ bool ov::pass::ActivationsScaling::run_on_model(const std::shared_ptr<ov::Model>
         auto matmul = std::dynamic_pointer_cast<ov::op::v0::MatMul>(node);
         if ((multiply || matmul) && num_scaled_down_inputs == 2) {
             auto dep = node->input(1);
-            std::shared_ptr<ov::Node> scale_const = (dep.get_element_type() == ov::element::f16) ?
-                                                    scale_const_f16 : scale_const_f32;
+            std::shared_ptr<ov::Node> scale_const =
+                (dep.get_element_type() == ov::element::f16) ? scale_const_f16 : scale_const_f32;
             auto scale_up = std::make_shared<ov::op::v1::Multiply>(dep.get_source_output(), scale_const->output(0));
             dep.replace_source_output(scale_up->output(0));
         }
@@ -155,9 +161,13 @@ bool ov::pass::ActivationsScaling::run_on_model(const std::shared_ptr<ov::Model>
         auto sdpa = std::dynamic_pointer_cast<ov::op::v13::ScaledDotProductAttention>(node);
         if (sdpa) {
             for (size_t i = 0; i < 2; i++) {
-                if (scaled_down_nodes.find(node->input(i).get_source_output().get_node_shared_ptr()->get_friendly_name()) != scaled_down_nodes.end()) {
-                    std::shared_ptr<ov::Node> scale_const = (node->get_input_element_type(i) == ov::element::f16) ? scale_const_f16 : scale_const_f32;
-                    auto transpose = std::dynamic_pointer_cast<ov::op::v1::Transpose>(node->input(i).get_source_output().get_node_shared_ptr());
+                if (scaled_down_nodes.find(
+                        node->input(i).get_source_output().get_node_shared_ptr()->get_friendly_name()) !=
+                    scaled_down_nodes.end()) {
+                    std::shared_ptr<ov::Node> scale_const =
+                        (node->get_input_element_type(i) == ov::element::f16) ? scale_const_f16 : scale_const_f32;
+                    auto transpose = std::dynamic_pointer_cast<ov::op::v1::Transpose>(
+                        node->input(i).get_source_output().get_node_shared_ptr());
                     if (transpose) {
                         auto scale_up = std::make_shared<ov::op::v1::Multiply>(transpose->get_input_source_output(0),
                                                                                scale_const->output(0));
@@ -170,15 +180,18 @@ bool ov::pass::ActivationsScaling::run_on_model(const std::shared_ptr<ov::Model>
                 }
             }
 
-            if (scaled_down_nodes.find(node->input(2).get_source_output().get_node_shared_ptr()->get_friendly_name()) != scaled_down_nodes.end()) {
+            if (scaled_down_nodes.find(node->input(2).get_source_output().get_node_shared_ptr()->get_friendly_name()) !=
+                scaled_down_nodes.end()) {
                 scaled_down_nodes.insert(node->get_friendly_name());
             }
             continue;
         }
 
-        // input(scaled_down) -- activation
+        // input(scaled_down) -> (non-linear layers)
         // ==>
-        // input(scaled_down) -- convert(precision_up) -- multiply(scale_up) -- activation -- multiply(scale_down) -- convert(precision_down)
+        // input(scaled_down) -> convert(precision_up) -> multiply(scale_up)
+        // -> (non-linear layers) ->
+        // multiply(scale_down) -> convert(precision_down)
         auto sin = std::dynamic_pointer_cast<ov::op::v0::Sin>(node);
         auto cos = std::dynamic_pointer_cast<ov::op::v0::Cos>(node);
         auto swish = std::dynamic_pointer_cast<ov::op::v4::Swish>(node);
@@ -192,18 +205,18 @@ bool ov::pass::ActivationsScaling::run_on_model(const std::shared_ptr<ov::Model>
 
             ov::Output<ov::Node> input_src;
             if (input_prec == ov::element::f16) {
-                auto precision_up = std::make_shared<ov::op::v0::Convert>(node->get_input_source_output(0), ov::element::f32);
+                auto precision_up =
+                    std::make_shared<ov::op::v0::Convert>(node->get_input_source_output(0), ov::element::f32);
                 input_src = precision_up->output(0);
             } else {
                 input_src = node->get_input_source_output(0);
             }
-            auto scale_up = std::make_shared<ov::op::v1::Multiply>(input_src,
-                                                                   scale_const_f32->output(0));
+            auto scale_up = std::make_shared<ov::op::v1::Multiply>(input_src, scale_const_f32->output(0));
             node->input(0).replace_source_output(scale_up->output(0));
             node->revalidate_and_infer_types();
 
-            auto scale_down = std::make_shared<ov::op::v1::Multiply>(node->output(0),
-                                                                     inverse_scale_const_f32->output(0));
+            auto scale_down =
+                std::make_shared<ov::op::v1::Multiply>(node->output(0), inverse_scale_const_f32->output(0));
             ov::replace_node(node, scale_down);
             scaled_down_nodes.insert(scale_down->get_friendly_name());
 

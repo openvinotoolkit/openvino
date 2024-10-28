@@ -20,7 +20,7 @@ class TRANSFORMATIONS_API ActivationsScaling;
 class ov::pass::ActivationsScaling : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("ActivationsScaling", "0");
-    explicit ActivationsScaling(float scale_factor): m_scale_factor(scale_factor) {}
+    explicit ActivationsScaling(float scale_factor) : m_scale_factor(scale_factor) {}
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
 private:
