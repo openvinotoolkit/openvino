@@ -688,8 +688,8 @@ void MersenneTwisterGenerator<x64::avx512_core>::initVectors() {
     }
 
     // Initialize constants
-    BROADCAST_CONSTANT(vpbroadcastd, v_const_1, r64_aux, MT_CONST_1)
-    BROADCAST_CONSTANT(vpbroadcastd, v_const_2, r64_aux, MT_CONST_2)
+    BROADCAST_CONSTANT(vpbroadcastd, v_const_1, r32_aux, MT_CONST_1)
+    BROADCAST_CONSTANT(vpbroadcastd, v_const_2, r32_aux, MT_CONST_2)
 
     // Initialize constants based on the requested data type
     if (m_jcp.out_data_type == element::f32) {
