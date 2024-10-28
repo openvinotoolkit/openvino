@@ -747,7 +747,7 @@ std::vector<ov::ProfilingInfo> ZeroInferRequest::get_profiling_info() const {
         // processing to the compiler
         auto profData = get_raw_profiling_data();
         _logger.debug("InferRequest::get_profiling_info complete with compiler->process_profiling_output().");
-        return _graph->process_profiling_output(profData);
+        return _graph->process_profiling_output(profData, compilerConfig);
     } else {
         auto proftype = _config.get<PROFILING_TYPE>();
         if (proftype == ov::intel_npu::ProfilingType::INFER) {

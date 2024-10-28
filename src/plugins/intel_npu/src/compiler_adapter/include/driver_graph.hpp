@@ -23,18 +23,18 @@ public:
 
     CompiledNetwork export_blob() const override;
 
-    std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData) const override;
+    std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
+                                                            const Config& config) const override;
 
     void set_argument_value(uint32_t argi, const void* argv) const override;
 
-    void initialize() override;
+    void initialize(const Config& config) override;
 
     ~DriverGraph() override;
 
 private:
     std::shared_ptr<IZeroAdapter> _adapter;
 
-    const Config _config;
     Logger _logger;
 
     // We need to keep the compiled network inside the plugin when the model is imported.

@@ -64,7 +64,7 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::create_infer_request");
 
     if (!_config.get<CREATE_EXECUTOR>()) {
-        _graph->initialize();
+        _graph->initialize(_config);
     }
 
     const std::shared_ptr<SyncInferRequest>& syncInferRequest =

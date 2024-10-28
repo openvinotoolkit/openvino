@@ -16,14 +16,13 @@ DriverGraph::DriverGraph(const std::shared_ptr<IZeroAdapter>& adapter,
                          std::optional<std::vector<uint8_t>> network)
     : IGraph(graphHandle, std::move(metadata)),
       _adapter(adapter),
-      _config(config),
-      _logger("DriverGraph", _config.get<LOG_LEVEL>()) {
+      _logger("DriverGraph", config.get<LOG_LEVEL>()) {
     if (network.has_value()) {
         _networkStorage = std::move(*network);
     }
 
-    if (_config.get<CREATE_EXECUTOR>()) {
-        initialize();
+    if (config.get<CREATE_EXECUTOR>()) {
+        initialize(config);
     } else {
         _logger.info("Graph initialize is deferred from the \"Graph\" constructor");
     }
@@ -33,7 +32,8 @@ CompiledNetwork DriverGraph::export_blob() const {
     return _adapter->getCompiledNetwork(_handle);
 }
 
-std::vector<ov::ProfilingInfo> DriverGraph::process_profiling_output(const std::vector<uint8_t>& profData) const {
+std::vector<ov::ProfilingInfo> DriverGraph::process_profiling_output(const std::vector<uint8_t>& profData,
+                                                                     const Config& config) const {
     OPENVINO_THROW("Profiling post-processing is not supported.");
 }
 
@@ -44,18 +44,18 @@ void DriverGraph::set_argument_value(uint32_t argi, const void* argv) const {
     _adapter->setArgumentValue(_handle, argi, argv);
 }
 
-void DriverGraph::initialize() {
+void DriverGraph::initialize(const Config& config) {
     if (_adapter) {
         _logger.debug("Graph initialize start");
 
         std::tie(_input_descriptors, _output_descriptors) = _adapter->getIODesc(_handle);
-        _command_queue = _adapter->crateCommandQueue(_config);
+        _command_queue = _adapter->crateCommandQueue(config);
 
-        if (_config.has<WORKLOAD_TYPE>()) {
-            set_workload_type(_config.get<WORKLOAD_TYPE>());
+        if (config.has<WORKLOAD_TYPE>()) {
+            set_workload_type(config.get<WORKLOAD_TYPE>());
         }
 
-        _adapter->graphInitialize(_handle, _config);
+        _adapter->graphInitialize(_handle, config);
 
         _logger.debug("Graph initialize finish");
     }

@@ -46,11 +46,12 @@ public:
 
     virtual CompiledNetwork export_blob() const = 0;
 
-    virtual std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData) const = 0;
+    virtual std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
+                                                                    const Config& config) const = 0;
 
     virtual void set_argument_value(uint32_t argi, const void* argv) const = 0;
 
-    virtual void initialize() = 0;
+    virtual void initialize(const Config& config) = 0;
 
     virtual ~IGraph() = default;
 
@@ -79,6 +80,10 @@ public:
     }
 
     void set_workload_type(const ov::WorkloadType workloadType) const {
+        if (_command_queue == nullptr) {
+            return;
+        }
+
         ze_command_queue_workload_type_t zeWorkloadType;
         switch (workloadType) {
         case ov::WorkloadType::DEFAULT:

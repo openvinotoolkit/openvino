@@ -19,10 +19,9 @@ PluginGraph::PluginGraph(const std::shared_ptr<IZeroAdapter>& adapter,
       _adapter(adapter),
       _compiler(compiler),
       _compiledNetwork(std::move(compiledNetwork)),
-      _config(config),
-      _logger("PluginGraph", _config.get<LOG_LEVEL>()) {
-    if (_config.get<CREATE_EXECUTOR>()) {
-        initialize();
+      _logger("PluginGraph", config.get<LOG_LEVEL>()) {
+    if (config.get<CREATE_EXECUTOR>()) {
+        initialize(config);
     } else {
         _logger.info("Graph initialize is deferred from the \"Graph\" constructor");
     }
@@ -32,8 +31,9 @@ CompiledNetwork PluginGraph::export_blob() const {
     return CompiledNetwork(_compiledNetwork.data(), _compiledNetwork.size(), _compiledNetwork);
 }
 
-std::vector<ov::ProfilingInfo> PluginGraph::process_profiling_output(const std::vector<uint8_t>& profData) const {
-    return _compiler->process_profiling_output(profData, _compiledNetwork, _config);
+std::vector<ov::ProfilingInfo> PluginGraph::process_profiling_output(const std::vector<uint8_t>& profData,
+                                                                     const Config& config) const {
+    return _compiler->process_profiling_output(profData, _compiledNetwork, config);
 }
 
 void PluginGraph::set_argument_value(uint32_t argi, const void* argv) const {
@@ -43,18 +43,18 @@ void PluginGraph::set_argument_value(uint32_t argi, const void* argv) const {
     _adapter->setArgumentValue(_handle, argi, argv);
 }
 
-void PluginGraph::initialize() {
+void PluginGraph::initialize(const Config& config) {
     if (_adapter) {
         _logger.debug("Graph initialize start");
 
         std::tie(_input_descriptors, _output_descriptors) = _adapter->getIODesc(_handle);
-        _command_queue = _adapter->crateCommandQueue(_config);
+        _command_queue = _adapter->crateCommandQueue(config);
 
-        if (_config.has<WORKLOAD_TYPE>()) {
-            set_workload_type(_config.get<WORKLOAD_TYPE>());
+        if (config.has<WORKLOAD_TYPE>()) {
+            set_workload_type(config.get<WORKLOAD_TYPE>());
         }
 
-        _adapter->graphInitialize(_handle, _config);
+        _adapter->graphInitialize(_handle, config);
 
         _logger.debug("Graph initialize finish");
     }
