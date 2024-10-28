@@ -26,7 +26,6 @@ public:
     /// \param axis The axis along which to squeeze the input tensor.
     SqueezeBase(const Output<Node>& data, const Output<Node>& axes);
 
-public:
     bool has_evaluate() const override;
     bool evaluate_lower(TensorVector& outputs) const override;
     bool evaluate_upper(TensorVector& outputs) const override;
@@ -34,8 +33,6 @@ public:
     bool can_constant_fold(const OutputVector& inputs_values) const override;
     bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values) override;
     bool is_dynamic() const override;
-
-private:
 };
 }  // namespace util
 }  // namespace op

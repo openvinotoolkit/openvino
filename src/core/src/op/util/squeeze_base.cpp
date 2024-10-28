@@ -58,10 +58,12 @@ bool SqueezeBase::evaluate_upper(TensorVector& output_values) const {
 }
 
 bool SqueezeBase::evaluate_symbol(TensorSymbolVector& output_symbols) const {
+    OV_OP_SCOPE(util_SqueezeBase_evaluate_symbol);
     return validate::axes_has_and_set_bound(*this) && ov::util::default_symbol_evaluator(this, output_symbols);
 }
 
 bool SqueezeBase::can_constant_fold(const OutputVector& inputs_values) const {
+    OV_OP_SCOPE(util_SqueezeBase_can_constant_fold);
     return get_output_partial_shape(0).is_static() && !is_const_fold_disabled();
 }
 
@@ -80,6 +82,7 @@ bool SqueezeBase::constant_fold(OutputVector& output_values, const OutputVector&
 }
 
 bool SqueezeBase::is_dynamic() const {
+    OV_OP_SCOPE(util_SqueezeBase_is_dynamic);
     return get_output_partial_shape(0).is_dynamic();
 }
 

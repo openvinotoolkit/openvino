@@ -7,10 +7,6 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/op/broadcast.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/gather.hpp"
-#include "openvino/op/shape_of.hpp"
-#include "openvino/op/unsqueeze.hpp"
 #include "sequence_generator.hpp"
 
 using namespace std;
@@ -449,23 +445,6 @@ const auto test_values_in =
            std::make_tuple(PartialShape{Dimension(-1, 5), Dimension::dynamic()}, PartialShape{Dimension(-1, 5)}),
            std::make_tuple(PartialShape{15}, PartialShape{15}),
            std::make_tuple(PartialShape{2, 6}, PartialShape{2}));
-
-template <typename T>
-auto create_squeeze(PartialShape symboled_shape) -> std::shared_ptr<T> {
-    constexpr auto et = element::i64;
-    const auto symboled_param = std::make_shared<ov::op::v0::Parameter>(et, symboled_shape);
-    const auto symboled_shape_of = std::make_shared<op::v0::ShapeOf>(symboled_param);
-
-    const auto zero = std::vector<int64_t>{0};
-    const auto axis = std::make_shared<op::v0::Constant>(et, Shape{}, zero);
-    const auto indices = std::make_shared<op::v0::Constant>(et, Shape{}, zero);
-    const auto gather = std::make_shared<op::v7::Gather>(symboled_shape_of, indices, axis);
-    const auto axis_1 = std::make_shared<op::v0::Constant>(et, Shape{2}, std::vector<int64_t>{0, 1});
-    const auto unsqueeze = std::make_shared<op::v0::Unsqueeze>(gather, axis_1);
-    const auto squeeze = std::make_shared<T>(unsqueeze, axis);
-
-    return squeeze;
-}
 
 INSTANTIATE_TEST_SUITE_P(type_prop_bounds_propagate, SqueezeBoundTest, test_values_in, PrintToStringParamName());
 

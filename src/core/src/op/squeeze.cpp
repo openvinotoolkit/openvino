@@ -114,6 +114,7 @@ bool Squeeze::visit_attributes(AttributeVisitor& visitor) {
 }
 
 bool Squeeze::get_allow_axis_skip() const {
+    OV_OP_SCOPE(v15_Squeeze_get_allow_axis_skip);
     return m_allow_axis_skip;
 }
 }  // namespace v15
