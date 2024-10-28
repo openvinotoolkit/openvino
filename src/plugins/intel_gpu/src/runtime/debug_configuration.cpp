@@ -183,6 +183,7 @@ static void print_help_messages() {
     message_list.emplace_back("OV_GPU_DisableRuntimeSkipReorder", "Disable runtime skip reorder.");
     message_list.emplace_back("OV_GPU_DisablePrimitiveFusing", "Disable primitive fusing");
     message_list.emplace_back("OV_GPU_DisableFakeAlignment", "Disable fake alignment");
+    message_list.emplace_back("OV_GPU_KVCacheCompression", "Enable/Disable KV-cache compression");
     message_list.emplace_back("OV_GPU_DynamicQuantizeLayersWithoutOnednn", "Enable Dynamic quantization for specified Fully connected layers only, "
                                 "separated by space. Support case-insensitive and regular expression. For example .*fully_connected.*");
     message_list.emplace_back("OV_GPU_DynamicQuantizeGroupSize", "Specify a group size of dynamic quantization to enable "
@@ -253,6 +254,7 @@ debug_configuration::debug_configuration()
         , disable_runtime_skip_reorder(0)
         , disable_primitive_fusing(0)
         , disable_fake_alignment(0)
+        , use_kv_cache_compression(-1)
         , dynamic_quantize_group_size(DYNAMIC_QUANTIZE_GROUP_SIZE_NOT_SET)
         , disable_horizontal_fc_fusion(0) {
 #ifdef GPU_DEBUG_CONFIG
@@ -305,6 +307,7 @@ debug_configuration::debug_configuration()
     get_gpu_debug_env_var("DisableRuntimeSkipReorder", disable_runtime_skip_reorder);
     get_gpu_debug_env_var("DisablePrimitiveFusing", disable_primitive_fusing);
     get_gpu_debug_env_var("DisableFakeAlignment", disable_fake_alignment);
+    get_gpu_debug_env_var("KVCacheCompression", use_kv_cache_compression);
     get_gpu_debug_env_var("DynamicQuantizeGroupSize", dynamic_quantize_group_size);
     get_gpu_debug_env_var("DisableHorizontalFCFusion", disable_horizontal_fc_fusion);
     std::string dump_iteration_str;

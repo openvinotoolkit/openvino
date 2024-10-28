@@ -2,8 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <read_value_inst.h>
+#include "read_value_inst.h"
 #include "primitive_type_base.h"
+
+#include "intel_gpu/plugin/multi_tensor_variable_state.hpp"
+
 #include <sstream>
 #include <json_object.h>
 
@@ -16,7 +19,7 @@ read_value_inst::typed_primitive_inst(network& network, const read_value_node& n
 }
 
 layout read_value_inst::calc_output_layout(const read_value_node& node, kernel_impl_params const& impl_param) {
-    return impl_param.typed_desc<read_value>()->output_layout;
+    return impl_param.typed_desc<read_value>()->output_layouts[0];
 }
 
 std::string read_value_inst::to_string(const read_value_node& node) {
@@ -45,5 +48,25 @@ void read_value_inst::update_output_memory() {
     GPU_DEBUG_TRACE_DETAIL << " - layout " << variable.get_layout().to_string() << std::endl;
     GPU_DEBUG_TRACE_DETAIL << " - actual_size " << variable.get_actual_mem_size() << " bytes" << std::endl;
     set_output_memory(variable.get_memory(), false, 0);
+
+    if (auto compressed_cache_variable = dynamic_cast<const ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
+        auto scales_state = compressed_cache_variable->get_compression_scale_state();
+        set_output_memory(scales_state->get_memory(), false, 1);
+
+        GPU_DEBUG_TRACE_DETAIL << id() << " Update output memory with variable " << scales_state->get_name() << std::endl;
+        GPU_DEBUG_TRACE_DETAIL << " - ptr : " << scales_state->get_memory()->buffer_ptr() << std::endl;
+        GPU_DEBUG_TRACE_DETAIL << " - layout " << scales_state->get_layout().to_string() << std::endl;
+        GPU_DEBUG_TRACE_DETAIL << " - actual_size " << scales_state->get_actual_mem_size() << " bytes" << std::endl;
+
+        if (compressed_cache_variable->has_zp_state()) {
+            auto zp_state = compressed_cache_variable->get_compression_zp_state();
+            set_output_memory(zp_state->get_memory(), false, 2);
+
+            GPU_DEBUG_TRACE_DETAIL << id() << " Update output memory with variable " << zp_state->get_name() << std::endl;
+            GPU_DEBUG_TRACE_DETAIL << " - ptr : " << zp_state->get_memory()->buffer_ptr() << std::endl;
+            GPU_DEBUG_TRACE_DETAIL << " - layout " << zp_state->get_layout().to_string() << std::endl;
+            GPU_DEBUG_TRACE_DETAIL << " - actual_size " << zp_state->get_actual_mem_size() << " bytes" << std::endl;
+        }
+    }
 }
 } // namespace cldnn
