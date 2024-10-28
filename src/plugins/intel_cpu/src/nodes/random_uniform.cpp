@@ -96,7 +96,7 @@ void RandomUniform::initSupportedPrimitiveDescriptors() {
         if (one_of(m_algo, PHILOX, MERSENNE_TWISTER) && !one_of(out_prc, ov::element::f32, ov::element::f16, ov::element::bf16)) {
             out_prc = ov::element::f32;
         }
-        
+
         if (one_of(m_algo, STL) && !one_of(out_prc, ov::element::f32)) {
             out_prc = ov::element::f32;
         }
@@ -105,7 +105,7 @@ void RandomUniform::initSupportedPrimitiveDescriptors() {
             out_prc = ov::element::i32;
         }
     }
-    
+
     m_output_prc = out_prc;
 
     addSupportedPrimDesc({{LayoutType::ncsp, shape_prc, m_const_inputs[SHAPE]},
@@ -343,10 +343,10 @@ void RandomUniform::prepareMersenneTwisterParams() {
 
     m_mersenne_twister_thread_params.resize(m_threads_num);
     m_mersenne_twister_optimization_enabled = !(m_output_prc == element::i64 && (m_max_val.i64 > std::numeric_limits<uint32_t>::max() ||  m_min_val.i64 > std::numeric_limits<uint32_t>::max()) );
-    
+
     const auto thread_offset = static_cast<float>(MERSENNE_STATE_N) / static_cast<float>(m_threads_num) / static_cast<float>(m_uint_storage_capacity_per_thread);
     const auto byte_offset =  m_output_prc.size() / (m_mersenne_twister_optimization_enabled ? 1 : 2);
-    
+
 
     parallel_nt(m_threads_num, [&](int ithr, int nthr) {
         auto& params = m_mersenne_twister_thread_params[ithr];
@@ -356,15 +356,14 @@ void RandomUniform::prepareMersenneTwisterParams() {
 
         auto state_start = static_cast<uint64_t>(std::floor(approx_start)) * static_cast<uint64_t>(m_uint_storage_capacity_per_thread);
         auto state_end = static_cast<uint64_t>(std::floor(approx_end)) * static_cast<uint64_t>(m_uint_storage_capacity_per_thread);
-        
+
         if (ithr + 1 == m_threads_num) {
             state_end = MERSENNE_STATE_N;
         }
 
-        // auto elements_to_generate = state_end - state_start;
         auto state_accesses = (state_end - state_start) / m_uint_storage_capacity_per_thread;
 
-        // Destination index is computed in bytes, therefore the state index 
+        // Destination index is computed in bytes, therefore the state index
         // has to be divided by the byte size of dtype.
         // in addition, when optimization is off, 2 values are consumed to create
         // one output value, so the state index has to be divided by 2
@@ -373,7 +372,6 @@ void RandomUniform::prepareMersenneTwisterParams() {
         params.src_start_idx = state_start;
         params.dst_start_idx = destination_start;
         params.state_accesses_count = state_accesses;
-        // params.elements_to_generate =  elements_to_generate;
     });
 }
 
@@ -559,7 +557,7 @@ std::pair<uint64_t, uint64_t> RandomUniform::computePhilox(void* out, size_t out
                 args.min_ptr     = &m_min_val;
                 args.range_ptr   = &m_range_val;
                 args.work_amount = params.work_amount;
-                
+
                 (*m_jit_kernel)(&args);
             });
 #endif // OPENVINO_ARCH_X86_64
@@ -744,7 +742,7 @@ inline void convertToOutputTypeMersenne(const uint32_t in1,
             out[1] =  static_cast<int64_t>(in2 % range + min);
         }
     } else {
-        out[0] = static_cast<int64_t>(((static_cast<uint64_t>(in1) << 32) + in2) % range + min);    
+        out[0] = static_cast<int64_t>(((static_cast<uint64_t>(in1) << 32) + in2) % range + min);
     }
 }
 } // namespace
@@ -823,7 +821,7 @@ void RandomUniform::computeMersenneTwister(void* out, size_t output_elements_cou
 #define EXEC_CASE(P)                                                                                                                    \
                 case element::P: {                                                                                                      \
                     auto dst_dtype_ptr = reinterpret_cast<element_type_traits<element::P>::value_type *>(dst_ptr);                      \
-                    for (uint64_t j = 0; j < state_accesses_count; ++j) {                                                                \
+                    for (uint64_t j = 0; j < state_accesses_count; ++j) {                                                               \
                         if (output_idx >= max_output_idx) {                                                                             \
                             return;                                                                                                     \
                         }                                                                                                               \

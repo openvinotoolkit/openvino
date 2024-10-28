@@ -39,37 +39,37 @@ static const std::vector<ov::op::PhiloxAlignment> alignment = {
         ov::op::PhiloxAlignment::PYTORCH
 };
 
-// INSTANTIATE_TEST_SUITE_P(smoke_Param, RandomUniformLayerTestCPU,
-//         ::testing::Combine(
-//                 ::testing::ValuesIn(output_shapes),
-//                 ::testing::ValuesIn(min_max),
-//                 ::testing::ValuesIn(shape_prc),
-//                 ::testing::Values(ElementType::f32, ElementType::i32),
-//                 ::testing::ValuesIn(global_seed),
-//                 ::testing::ValuesIn(operational_seed),
-//                 ::testing::ValuesIn(alignment),
-//                 ::testing::Values(false),
-//                 ::testing::Values(false),
-//                 ::testing::Values(false),
-//                 ::testing::Values(emptyCPUSpec),
-//                 ::testing::Values(empty_plugin_config)),
-//         RandomUniformLayerTestCPU::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Param, RandomUniformLayerTestCPU,
+        ::testing::Combine(
+                ::testing::ValuesIn(output_shapes),
+                ::testing::ValuesIn(min_max),
+                ::testing::ValuesIn(shape_prc),
+                ::testing::Values(ElementType::f32, ElementType::i32),
+                ::testing::ValuesIn(global_seed),
+                ::testing::ValuesIn(operational_seed),
+                ::testing::ValuesIn(alignment),
+                ::testing::Values(false),
+                ::testing::Values(false),
+                ::testing::Values(false),
+                ::testing::Values(emptyCPUSpec),
+                ::testing::Values(empty_plugin_config)),
+        RandomUniformLayerTestCPU::getTestCaseName);
 
-// INSTANTIATE_TEST_SUITE_P(smoke_ParamConst, RandomUniformLayerTestCPU,
-//         ::testing::Combine(
-//                 ::testing::Values(output_shapes[0]),
-//                 ::testing::Values(min_max[0]),
-//                 ::testing::Values(ElementType::i32),
-//                 ::testing::Values(ElementType::f32),
-//                 ::testing::Values(1),
-//                 ::testing::Values(0),
-//                 ::testing::ValuesIn(alignment),
-//                 ::testing::Values(true, false),
-//                 ::testing::Values(true, false),
-//                 ::testing::Values(true, false),
-//                 ::testing::Values(emptyCPUSpec),
-//                 ::testing::Values(empty_plugin_config)),
-//         RandomUniformLayerTestCPU::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ParamConst, RandomUniformLayerTestCPU,
+        ::testing::Combine(
+                ::testing::Values(output_shapes[0]),
+                ::testing::Values(min_max[0]),
+                ::testing::Values(ElementType::i32),
+                ::testing::Values(ElementType::f32),
+                ::testing::Values(1),
+                ::testing::Values(0),
+                ::testing::ValuesIn(alignment),
+                ::testing::Values(true, false),
+                ::testing::Values(true, false),
+                ::testing::Values(true, false),
+                ::testing::Values(emptyCPUSpec),
+                ::testing::Values(empty_plugin_config)),
+        RandomUniformLayerTestCPU::getTestCaseName);
 
 }  // namespace RandomUniform
 }  // namespace test

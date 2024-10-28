@@ -768,7 +768,7 @@ template <x64::cpu_isa_t isa>
 void MersenneTwisterGenerator<isa>::process() {
 
     // Initialize state
-    uni_vmovdqu(v_state, ptr[r64_state]); 
+    uni_vmovdqu(v_state, ptr[r64_state]);
 
     // Generate random numbers
     generateRandomNumbers();
@@ -857,7 +857,7 @@ void MersenneTwisterGenerator<x64::avx512_core>::convertToOutputTypeMersenne() {
 
         vcvtneps2bf16(v_result, v_result);
     } else if (m_jcp.out_data_type == element::i32) {
-        // Note: 
+        // Note:
         //   - prefix x sigifies using bottom half of Zmm (Ymm)
         //   - prefix v sigifies using full length of Xmm
         // Code taken from the convert of AVX2, kept names for consistency
@@ -913,7 +913,7 @@ void MersenneTwisterGenerator<x64::avx512_core>::convertToOutputTypeMersenne() {
         // Convert uint32_t to double for accuracy
         vcvtdq2pd(v_result_high_double, x_result_high_double);
         vcvtdq2pd(v_result_low_double, x_result_low_double);
-        vcvtdq2pd(v_range_double, x_range_double); 
+        vcvtdq2pd(v_range_double, x_range_double);
 
         // Add sign as 2^31 if was present, correctly converting uint32_t to double
         vaddpd(v_result_high_double, v_result_high_double, v_msb_high_double);
@@ -933,7 +933,7 @@ void MersenneTwisterGenerator<x64::avx512_core>::convertToOutputTypeMersenne() {
         vmulpd(v_aprox_result_high_double, v_aprox_result_high_double, v_range_double); // aux = floor(double(result) / double(range)) * double(range)
         vmulpd(v_aprox_result_low_double, v_aprox_result_low_double, v_range_double); // aux = floor(double(result) / double(range)) * double(range)
 
-        // Compute remainder by subtracting approximation from the original 
+        // Compute remainder by subtracting approximation from the original
         vsubpd(v_result_high_double, v_result_high_double, v_aprox_result_high_double);
         vsubpd(v_result_low_double, v_result_low_double, v_aprox_result_low_double);
 
@@ -1023,7 +1023,7 @@ void MersenneTwisterGenerator<x64::avx2>::convertToOutputTypeMersenne() {
         // Convert uint32_t to double for accuracy
         vcvtdq2pd(v_result_high_double, x_result_high_double);
         vcvtdq2pd(v_result_low_double, x_result_low_double);
-        vcvtdq2pd(v_range_double, x_range_double); 
+        vcvtdq2pd(v_range_double, x_range_double);
 
         // Add sign as 2^31 if was present, correctly converting uint32_t to double
         vaddpd(v_result_high_double, v_result_high_double, v_msb_high_double);
@@ -1043,7 +1043,7 @@ void MersenneTwisterGenerator<x64::avx2>::convertToOutputTypeMersenne() {
         vmulpd(v_aprox_result_high_double, v_aprox_result_high_double, v_range_double); // aux = floor(double(result) / double(range)) * double(range)
         vmulpd(v_aprox_result_low_double, v_aprox_result_low_double, v_range_double); // aux = floor(double(result) / double(range)) * double(range)
 
-        // Compute remainder by subtracting approximation from the original 
+        // Compute remainder by subtracting approximation from the original
         vsubpd(v_result_high_double, v_result_high_double, v_aprox_result_high_double);
         vsubpd(v_result_low_double, v_result_low_double, v_aprox_result_low_double);
 
@@ -1076,7 +1076,7 @@ void MersenneTwisterGenerator<isa>::convertToOutputTypeMersenne() {
         mulps(v_result, v_range);
         addps(v_result, v_min);
     } else if (m_jcp.out_data_type == element::i32) {
-        // Note: 
+        // Note:
         //   - prefix x sigifies using bottom half of Xmm
         //   - prefix v sigifies using full length of Xmm
         // Code taken from the convert of AVX2, kept names for consistency
@@ -1139,7 +1139,7 @@ void MersenneTwisterGenerator<isa>::convertToOutputTypeMersenne() {
 
         cvtdq2pd(v_result_high_double, x_result_high_double);
         cvtdq2pd(v_result_low_double, x_result_low_double);
-        cvtdq2pd(v_range_double, x_range_double); 
+        cvtdq2pd(v_range_double, x_range_double);
 
         // Add sign as 2^31 if was present, correctly converting uint32_t to double
         addpd(v_result_high_double, v_msb_high_double);
@@ -1162,7 +1162,7 @@ void MersenneTwisterGenerator<isa>::convertToOutputTypeMersenne() {
         mulpd(v_aprox_result_high_double, v_range_double); // aux = floor(double(result) / double(range)) * double(range)
         mulpd(v_aprox_result_low_double, v_range_double); // aux = floor(double(result) / double(range)) * double(range)
 
-        // Compute remainder by subtracting approximation from the original 
+        // Compute remainder by subtracting approximation from the original
         subpd(v_result_high_double, v_aprox_result_high_double);
         subpd(v_result_low_double, v_aprox_result_low_double);
 
@@ -1255,8 +1255,6 @@ void MersenneTwisterGenerator<isa>::storeResults() {
         OPENVINO_THROW("RandomUniform kernel does not support precision ", m_jcp.out_data_type, " for ", x64::get_isa_info());
     }
 }
-
-
 
 template class PhiloxGenerator<x64::avx512_core>;
 template class PhiloxGenerator<x64::avx2>;

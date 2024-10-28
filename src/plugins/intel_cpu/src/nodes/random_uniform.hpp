@@ -95,7 +95,6 @@ private:
         uint64_t src_start_idx = 0lu;
         uint64_t dst_start_idx = 0lu;
         uint64_t state_accesses_count = 0lu;
-        int64_t elements_to_generate = 0lu;
     };
 
     int32_t m_threads_num = 0;
