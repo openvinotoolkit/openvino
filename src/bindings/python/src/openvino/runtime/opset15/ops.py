@@ -362,7 +362,7 @@ def squeeze(
     :param data: The node with data tensor.
     :param axes: List of non-negative integers, indicate the dimensions to squeeze.
                   One of: input node or array.
-    :param allow_axis_skip: If true, shape inference results in a dynamic rank, when 
+    :param allow_axis_skip: If true, shape inference results in a dynamic rank, when
                   selected axis has value 1 in its dynamic range.
     :param name: Optional new name for output node.
     :return: The new node performing a squeeze operation on input tensor.
