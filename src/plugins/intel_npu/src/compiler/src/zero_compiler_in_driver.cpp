@@ -4,6 +4,7 @@
 
 #include "zero_compiler_in_driver.hpp"
 
+#include <fstream>
 #include <regex>
 #include <string_view>
 

@@ -543,7 +543,7 @@ void ZeroInferRequest::set_weights_inputs(
                         weightName,
                         " weights name");
 
-        _userInputTensors.at(inputIndex) = weightTensor;
+        _userInputTensors.at(inputIndex) = {weightTensor};
         set_tensor_data(weightTensor, inputIndex, INPUT);
     }
 }

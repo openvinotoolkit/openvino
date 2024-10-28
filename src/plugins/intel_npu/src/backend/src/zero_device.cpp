@@ -161,7 +161,7 @@ std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> ZeroDevice::runIni
     const Config& config) {
     const auto zeroInitExecutor = static_cast<const ZeroExecutor*>(initExecutor.get());
     std::unordered_map<size_t, TensorData> constantIdToTensorData;
-    std::vector<std::optional<TensorData>> inputTensorsData;
+    std::vector<std::vector<std::optional<TensorData>>> inputTensorsData;
     std::vector<std::optional<TensorData>> outputTensorsData;
     std::vector<std::shared_ptr<ov::ITensor>> inputHostTensors;
     std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> outputHostTensors;
@@ -208,7 +208,7 @@ std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> ZeroDevice::runIni
                         descriptor.info.name);
         std::memcpy(hostTensor->data(), constantIdToTensorData.at(id).mem, hostTensor->get_byte_size());
 
-        inputTensorsData.push_back(TensorData{hostTensor->data(), hostTensor->get_byte_size()});
+        inputTensorsData.push_back({TensorData{hostTensor->data(), hostTensor->get_byte_size()}});
         inputHostTensors.push_back(hostTensor._ptr);
     }
     end = std::chrono::steady_clock::now();
