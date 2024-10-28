@@ -911,41 +911,53 @@ void MersenneTwisterGenerator<x64::avx2>::convertToOutputTypeMersenne() {
         vmulps(v_result, v_range);
         vaddps(v_result, v_min);
     } else if (m_jcp.out_data_type == element::i32) {
-        const auto v_aux_range = getVmm();
+        const auto v_aux_result = getVmm();
         const auto v_aux_zero = getVmm();
 
-        // const auto v_result_high = getVmm();
-        // const auto v_result_low = getVmm();
-        // const auto v_range_high = getVmm();
-        // const auto v_range_low = getVmm();
-        // vextracti128(v_result_high, v_result, 1); // Extract the high 128 bits
-        // vextracti128(v_result_low, v_result, 0);  // Extract the low 128 bits
+        // // Split result in half before converting 32 -> 64
+        const auto v_result_high = getVmm();
+        const auto v_result_low = getVmm();
+        const auto v_aux_range = getVmm();
 
-        // vcvtqq2pd(v_result_high, v_aux_high); // Convert high 128 bits to double
-        // vcvtqq2pd(v_result_low, v_aux_low);   // Convert low 128 bits to double
+        const auto x_result_high = Xbyak::Xmm(v_result_high.getIdx());
+        const auto x_result_low = Xbyak::Xmm(v_result_low.getIdx());
+        const auto x_aux_range = Xbyak::Xmm(v_aux_range.getIdx());
 
-        // Compute approximate division
-        vcvtdq2ps(v_aux, v_result); // aux = float(result)
-        vcvtdq2ps(v_aux_range, v_range); // aux2 = float(range)
-        vdivps(v_aux, v_aux_range);  // value / range = (aux = aux / aux2)
-        vcvtps2dq(v_aux, v_aux); // int(value / range) (aux = int(aux / aux2))
+        vextracti128(x_result_high, v_result, 1);
+        vextracti128(x_result_low, v_result, 0);
+        vextracti128(x_aux_range, v_range, 0);
 
-        // Closest divisible value
-        // vpmuldq
-        vpmulld(v_aux, v_aux, v_range); // aux = int(float(result) / float(range)) * range
+        // // Convert uint32_t to double for accuracy
+        vcvtdq2pd(v_result_high, x_result_high);
+        vcvtdq2pd(v_result_low, x_result_low);
+        vcvtdq2pd(v_aux_range, x_aux_range); 
 
-        // Modulo and shift
-        vpsubd(v_result, v_result, v_aux); // value - closest_div_value = remainder (modulo)
+        // // Compute approximate division
+        vdivpd(v_result_high, v_aux_range);  // value / range = (aux = aux / aux2)
+        vdivpd(v_result_low, v_aux_range);    // value / range = (aux = aux / aux2)
+
+        // // Convert 64 -> 32
+        vcvtpd2dq(x_result_high, v_result_high); // int(value / range) (aux = int(aux / aux2))
+        vcvtpd2dq(x_result_low, v_result_low); // int(value / range) (aux = int(aux / aux2))
+
+        // // Concatenate them back 
+        vinserti128(v_aux_result, v_aux_result, x_result_high, 1);
+        vinserti128(v_aux_result, v_aux_result, x_result_low, 0);
+
+        // // Closest divisible value
+        vpmulld(v_aux_result, v_aux_result, v_range); // aux = int(float(result) / float(range)) * range
+
+        // // Modulo and shift
+        vpsubd(v_result, v_result, v_aux_result); // value - closest_div_value = remainder (modulo)
 
         // Handle negative results
-        vxorps(v_aux_zero, v_aux_zero, v_aux_zero);
+        vxorps(v_aux_zero, v_aux_zero, v_aux_zero); // Set to zeros
         vpcmpgtd(v_aux, v_result, v_aux_zero); // Compare v_result with zero
         vpandn(v_aux, v_aux, v_range); // If v_result < 0, v_aux = range, else 0
         vpaddd(v_result, v_result, v_aux); // Add range to negative results
 
         // Add minimum
-        vpaddd(v_result, v_result, v_min); // remainder + min
-
+        // vpaddd(v_result, v_result, v_min); // remainder + min
     } else {
         OPENVINO_THROW("RandomUniform kernel does not support precision ", m_jcp.out_data_type, " for ", x64::get_isa_info());
     }
