@@ -30,7 +30,7 @@ uint32_t ZeroEngineBackend::getGraphExtVersion() const {
 }
 
 bool ZeroEngineBackend::isBatchingSupported() const {
-    return _instance->isExtensionSupported(std::string(ZE_GRAPH_EXT_NAME_1_6), ZE_MAKE_VERSION(1, 6));
+    return _instance->isExtensionSupported(std::string(ZE_GRAPH_EXT_NAME), ZE_MAKE_VERSION(1, 6));
 }
 
 bool ZeroEngineBackend::isCommandQueueExtSupported() const {
