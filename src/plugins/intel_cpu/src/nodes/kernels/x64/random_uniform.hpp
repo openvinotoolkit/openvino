@@ -143,7 +143,6 @@ private:
     RegistersPool::Reg<Vmm> v_range;
 
     // Vector registers for generation.
-    RegistersPool::Reg<Vmm> v_aux;
     RegistersPool::Reg<Vmm> v_const_1; // for MT_CONST_1
     RegistersPool::Reg<Vmm> v_const_2; // for MT_CONST_2
 

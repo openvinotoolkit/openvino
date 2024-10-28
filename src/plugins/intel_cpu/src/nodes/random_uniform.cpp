@@ -789,8 +789,8 @@ void RandomUniform::computeMersenneTwister(void* out, size_t output_elements_cou
                     return;
                 }
 
-                for (auto j = 0; j < args.state_accesses_count; ++j) {
-
+                // For loop could not be inside the kernel as I ran out of Reg64s available
+                for (uint64_t j = 0; j < args.state_accesses_count; ++j) {
                     (*m_jit_kernel)(&args);
 
                     args.elements_to_generate -= m_uint_storage_capacity_per_thread;
@@ -823,7 +823,7 @@ void RandomUniform::computeMersenneTwister(void* out, size_t output_elements_cou
 #define EXEC_CASE(P)                                                                                                                    \
                 case element::P: {                                                                                                      \
                     auto dst_dtype_ptr = reinterpret_cast<element_type_traits<element::P>::value_type *>(dst_ptr);                      \
-                    for (int64_t j = 0; j < state_accesses_count; ++j) {                                                                \
+                    for (uint64_t j = 0; j < state_accesses_count; ++j) {                                                                \
                         if (output_idx >= max_output_idx) {                                                                             \
                             return;                                                                                                     \
                         }                                                                                                               \
