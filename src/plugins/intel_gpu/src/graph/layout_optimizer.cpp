@@ -157,7 +157,7 @@ void reorder_factory::get_weights_split(primitive_id input_id,
     if (i == W_idx) {
         size_third = inputSize;
     } else {
-        size_third = hiddenSize;
+        size_third = static_cast<int>(hiddenSize);
     }
     auto cropSizeR = cldnn::tensor{1, static_cast<int>(hiddenSize), 1, size_third, 1};
     cldnn::layout reorder_layout;
