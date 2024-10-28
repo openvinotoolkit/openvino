@@ -21,6 +21,8 @@ To avoid manually adding the flag for each commit, we recommend setting up a Git
 2.	Open the `prepare-commit-msg.sample`  file and paste the following content:
 
 ```
+#!/bin/sh
+
 COMMIT_MSG_FILE=$1
 COMMIT_SOURCE=$2
 SHA1=$3
@@ -44,7 +46,7 @@ git interpret-trailers --if-exists doNothing --trailer \
 ```
 
 3.	Save the file with the name `prepare-commit-msg` (remove the .sample extension).
-4.	Make the file executable (on Linux: `chmod +x <openvino repository root>/.git/hooks/prepare-commit-msg`).
+4.	Make the file executable (on Linux / Git Bash: `chmod +x <openvino repository root>/.git/hooks/prepare-commit-msg`).
 
 **Note**: For both sign-off approaches, ensure your user name and email address are configured in Git first:
 
