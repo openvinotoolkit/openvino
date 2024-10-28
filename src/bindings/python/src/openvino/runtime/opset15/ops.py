@@ -353,25 +353,24 @@ def search_sorted(
 @nameable_op
 def squeeze(
     data: NodeInput,
-    axes: NodeInput,
+    axes: Optional[NodeInput] = None,
     allow_axis_skip: bool = False,
     name: Optional[str] = None,
 ) -> Node:
     """Perform squeeze operation on input tensor.
 
     :param data: The node with data tensor.
-    :param axes: List of non-negative integers, indicate the dimensions to squeeze.
-                  One of: input node or array.
+    :param axes: Optional list of integers, indicating the dimensions to squeeze.
+                  Negative indices are supported. One of: input node or array.
     :param allow_axis_skip: If true, shape inference results in a dynamic rank, when
-                  selected axis has value 1 in its dynamic range.
+                  selected axis has value 1 in its dynamic range. Used only if axes input
+                  is given. Defaults to false.
     :param name: Optional new name for output node.
     :return: The new node performing a squeeze operation on input tensor.
 
     Remove single-dimensional entries from the shape of a tensor.
-    Takes a parameter `axes` with a list of axes to squeeze.
+    Takes an optional parameter `axes` with a list of axes to squeeze.
     If `axes` is not provided, all the single dimensions will be removed from the shape.
-    If an `axis` is selected with shape entry not equal to one, an error is raised.
-
 
     For example:
 
@@ -379,8 +378,12 @@ def squeeze(
 
        Result: tensor with shape [1, 2, 3, 1]
     """
+    if axes is None:
+        inputs = as_nodes(data, name=name)
+    else:
+        inputs = as_nodes(data, axes, name=name)
     return _get_node_factory_opset15().create(
         "Squeeze",
-        as_nodes(data, axes, name=name),
+        inputs,
         {"allow_axis_skip": allow_axis_skip}
     )

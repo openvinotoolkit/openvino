@@ -40,3 +40,12 @@ def test_squeeze_v15_dynamic_rank_output():
     assert model.get_type_name() == "Squeeze"
     assert model.get_output_size() == 1
     assert model.get_output_partial_shape(0).to_string() == "[...]"
+
+
+def test_squeeze_v15_axes_not_given():
+    parameter_data = ov_opset15.parameter((1, 3, 1, 1, 3, 5), name="Data", dtype=np.float32)
+    model = ov_opset15.squeeze(data=parameter_data, name="Squeeze")
+
+    assert model.get_type_name() == "Squeeze"
+    assert model.get_output_size() == 1
+    assert list(model.get_output_shape(0)) == [3, 3, 5]
