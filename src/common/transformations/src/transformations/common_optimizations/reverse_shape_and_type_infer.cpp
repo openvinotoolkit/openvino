@@ -284,7 +284,7 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
             }
 
             // in case TensorFlow models, we can deduce predicate shape that must be a scalar
-            // If operations created by fusing Switch-Merge sub-graph contains tf_switch_merge_if rt-info
+            // If operations created by fusing Switch-Merge sub-graph contain tf_switch_merge_if rt-info
             if (if_op->get_rt_info().count("tf_switch_merge_if") &&
                 if_op->get_rt_info()["tf_switch_merge_if"].as<bool>() &&
                 if_op->input_value(0).get_partial_shape().rank().is_dynamic()) {
