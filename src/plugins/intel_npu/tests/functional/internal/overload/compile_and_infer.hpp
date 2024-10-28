@@ -11,10 +11,10 @@
 #include "base/ov_behavior_test_utils.hpp"
 #include "intel_npu/config/common.hpp"
 #include "intel_npu/npu_private_properties.hpp"
+#include "intel_npu/utils/zero/zero_init.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "zero_init.hpp"
 
 namespace ov {
 namespace test {

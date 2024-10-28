@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "zero_init.hpp"
+#include "intel_npu/utils/zero/zero_init.hpp"
 
 #include <ze_command_queue_npu_ext.h>
 
 #include <regex>
 
-#include "intel_npu/common/itt.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 
@@ -55,7 +54,6 @@ static std::tuple<uint32_t, std::string> queryDriverExtensionVersion(
 }
 
 ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder", Logger::global().level()) {
-    OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "ZeroInitStructsHolder::ZeroInitStructsHolder");
     log.debug("ZeroInitStructsHolder - performing zeInit on VPU only");
     THROW_ON_FAIL_FOR_LEVELZERO("zeInit", zeInit(ZE_INIT_FLAG_VPU_ONLY));
 

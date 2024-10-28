@@ -9,8 +9,8 @@
 #include <ze_graph_ext.h>
 
 #include "intel_npu/common/igraph.hpp"
+#include "intel_npu/utils/zero/zero_init.hpp"
 #include "ze_graph_ext_wrapper_interface.hpp"
-#include "zero_init.hpp"
 
 namespace intel_npu {
 
