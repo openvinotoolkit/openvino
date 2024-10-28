@@ -13,7 +13,6 @@
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
-
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
@@ -23,10 +22,8 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/power.hpp"
 #include "openvino/op/tanh.hpp"
-
-#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
-
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::pass::GeluFusionWithErfOne::GeluFusionWithErfOne() {
