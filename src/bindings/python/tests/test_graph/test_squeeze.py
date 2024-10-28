@@ -20,8 +20,8 @@ def test_squeeze_v1_operator():
 
 
 @pytest.mark.parametrize(("input_shape", "axes", "allow_axis_skip", "expected_shape"), [
-    ((1, 2, 1, 3, 1, 1), [2, 4], True, [1, 2, 3, 1]),
-    ((1, 2, 1, 3, 1, 1), [2, 4], False, [1, 2, 3, 1]),
+    ((1, 2, 1, 3, 1, 1), [1, 2, 4], True, [1, 2, 3, 1]),
+    ((1, 2, 1, 3, 1, 1), [1, 2, 4], False, [1, 2, 3, 1]),
     ((2, -1, 3), [1], False, [2, 3])
 ])
 def test_squeeze_v15_operator(input_shape, axes, allow_axis_skip, expected_shape):
