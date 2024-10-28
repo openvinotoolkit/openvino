@@ -90,7 +90,7 @@ public:
     }
 
 private:
-    virtual std::shared_ptr<Model> CreateFunction(const SqueezeParams& params);
+    virtual std::shared_ptr<Model> CreateFunction(const SqueezeParams&) = 0;
 };
 
 class ReferenceSqueezeLayerTest : public ReferenceSqueezeLayerTestBase {
