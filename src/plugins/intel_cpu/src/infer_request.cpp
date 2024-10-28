@@ -279,7 +279,7 @@ void SyncInferRequest::change_default_ptr() {
     }
 
     if (Graph::Status::ReadyDynamic == m_graph->getStatus()) {
-        const auto &outMemBlocksMap = m_graph->outputNodesMemBlocksMap;
+        const auto &outMemBlocksMap = m_graph->getOutputNodesMemBlocksMap();
         for (auto&& item : outMemBlocksMap) {
             const auto& name = item.first;
 
@@ -476,7 +476,7 @@ void SyncInferRequest::init_tensor(const std::size_t& port_index, const ov::ISyn
 
     ov::SoPtr<ITensor> tensor;
     if (type == ov::ISyncInferRequest::FoundPort::Type::INPUT) {
-        OPENVINO_ASSERT(m_graph->inputNodesMap.find(port_index) != m_graph->inputNodesMap.end(),
+        OPENVINO_ASSERT(m_graph->GetInputNodesMap().find(port_index) != m_graph->GetInputNodesMap().end(),
                         "Tensor with index: ",
                         port_index,
                         " exists in CPU plugin graph, but absents in model inputs");
@@ -509,7 +509,7 @@ void SyncInferRequest::init_tensor(const std::size_t& port_index, const ov::ISyn
     }
 
     if (type == ov::ISyncInferRequest::FoundPort::Type::OUTPUT) {
-        const auto& outMap = m_graph->outputNodesMap;
+        const auto& outMap = m_graph->GetOutputNodesMap();
         auto output = outMap.find(port_index);
         OPENVINO_ASSERT(output != outMap.end(),
                         "Tensor with index: ",

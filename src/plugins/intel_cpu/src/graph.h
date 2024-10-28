@@ -210,6 +210,10 @@ public:
     void Activate(const std::vector<MemoryPtr>& externalInputMemory = {},
                             const std::vector<MemoryPtr>& externalOutputMemory = {});
 
+    const std::unordered_map<std::size_t, ProxyMemoryBlockPtr>& getOutputNodesMemBlocksMap() const {
+        return outputNodesMemBlocksMap;
+    }
+
 protected:
     void ForgetGraphData() {
         status = Status::NotReady;
@@ -273,7 +277,6 @@ protected:
     template<typename UpdateStrategy>
     void InferDynamic(SyncInferRequest* request, int numaId, UpdateStrategy&& update);
 
-    friend class intel_cpu::SyncInferRequest;
     friend std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph &graph);
 
 private:
