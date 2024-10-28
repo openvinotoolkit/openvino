@@ -27,7 +27,7 @@ public:
     /// \brief Constructs a squeeze v0 operation.
     ///
     /// \param data Input tensor with data
-    /// \param axis The axis along which to squeeze the input tensor.
+    /// \param axes The axes along which to squeeze the input tensor.
     Squeeze(const Output<Node>& data, const Output<Node>& axes);
 
     void validate_and_infer_types() override;
