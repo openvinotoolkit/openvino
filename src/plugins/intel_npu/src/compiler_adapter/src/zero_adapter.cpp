@@ -393,6 +393,10 @@ template <typename TableExtension>
 ze_graph_handle_t ZeroAdapter<TableExtension>::getGraphHandle(const std::vector<uint8_t>& network) const {
     ze_graph_handle_t graphHandle;
 
+    if (network.empty()) {
+        OPENVINO_THROW("Empty blob");
+    }
+
     ze_graph_desc_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
                             nullptr,
                             ZE_GRAPH_FORMAT_NATIVE,
@@ -407,12 +411,13 @@ ze_graph_handle_t ZeroAdapter<TableExtension>::getGraphHandle(const std::vector<
 }
 
 /**
- * @brief Extracts the I/O metadata from Level Zero specific structures and converts them into OpenVINO specific ones.
+ * @brief Extracts the I/O metadata from Level Zero specific structures and converts them into OpenVINO specific
+ * ones.
  *
  * @param arg The main Level Zero structure from which most metadata will be extracted.
  * @param metadata The secondary Level Zero structure from which metadata will be extracted. More specifically, the
- * argument is used for populating "shapeFromIRModel". Not providing this argument will lead to an empty value for the
- * referenced attribute.
+ * argument is used for populating "shapeFromIRModel". Not providing this argument will lead to an empty value for
+ * the referenced attribute.
  * @returns A descriptor object containing the metadata converted in OpenVINO specific structures.
  */
 static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,

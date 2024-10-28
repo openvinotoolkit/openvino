@@ -18,7 +18,8 @@ public:
     DriverGraph(const std::shared_ptr<IZeroAdapter>& adapter,
                 ze_graph_handle_t graphHandle,
                 NetworkMetadata metadata,
-                const Config& config);
+                const Config& config,
+                std::optional<std::vector<uint8_t>> network = std::nullopt);
 
     CompiledNetwork export_blob() const override;
 
@@ -35,6 +36,9 @@ private:
 
     const Config _config;
     Logger _logger;
+
+    // We need to keep the compiled network inside the plugin when the model is imported.
+    std::vector<uint8_t> _networkStorage;
 };
 
 }  // namespace intel_npu

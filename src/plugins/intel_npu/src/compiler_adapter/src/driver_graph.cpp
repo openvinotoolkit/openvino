@@ -12,11 +12,16 @@ namespace intel_npu {
 DriverGraph::DriverGraph(const std::shared_ptr<IZeroAdapter>& adapter,
                          ze_graph_handle_t graphHandle,
                          NetworkMetadata metadata,
-                         const Config& config)
+                         const Config& config,
+                         std::optional<std::vector<uint8_t>> network)
     : IGraph(graphHandle, std::move(metadata)),
       _adapter(adapter),
       _config(config),
       _logger("DriverGraph", _config.get<LOG_LEVEL>()) {
+    if (network.has_value()) {
+        _networkStorage = std::move(*network);
+    }
+
     if (_config.get<CREATE_EXECUTOR>()) {
         initialize();
     } else {

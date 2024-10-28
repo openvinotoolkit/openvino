@@ -165,7 +165,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
     return graph;
 }
 
-std::shared_ptr<IGraph> PluginCompilerAdapter::parse(const std::vector<uint8_t>& network, const Config& config) const {
+std::shared_ptr<IGraph> PluginCompilerAdapter::parse(std::vector<uint8_t> network, const Config& config) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "parse");
 
     _logger.debug("parse start");
@@ -177,7 +177,12 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(const std::vector<uint8_t>&
         graphHandle = _zeroAdapter->getGraphHandle(network);
     }
 
-    return std::make_shared<PluginGraph>(_zeroAdapter, _compiler, graphHandle, std::move(networkMeta), network, config);
+    return std::make_shared<PluginGraph>(_zeroAdapter,
+                                         _compiler,
+                                         graphHandle,
+                                         std::move(networkMeta),
+                                         std::move(network),
+                                         config);
 }
 
 ov::SupportedOpsMap PluginCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,

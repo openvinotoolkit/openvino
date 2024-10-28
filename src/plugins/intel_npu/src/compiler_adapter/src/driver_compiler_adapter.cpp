@@ -265,7 +265,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
     return std::make_shared<DriverGraph>(_zeroAdapter, graphHandle, std::move(networkMeta), config);
 }
 
-std::shared_ptr<IGraph> DriverCompilerAdapter::parse(const std::vector<uint8_t>& network, const Config& config) const {
+std::shared_ptr<IGraph> DriverCompilerAdapter::parse(std::vector<uint8_t> network, const Config& config) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "parse");
 
     _logger.debug("parse start");
@@ -275,7 +275,11 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(const std::vector<uint8_t>&
     OV_ITT_TASK_NEXT(PARSE_BLOB, "getNetworkMeta");
     auto networkMeta = _zeroAdapter->getNetworkMeta(graphHandle);
 
-    return std::make_shared<DriverGraph>(_zeroAdapter, graphHandle, std::move(networkMeta), config);
+    return std::make_shared<DriverGraph>(_zeroAdapter,
+                                         graphHandle,
+                                         std::move(networkMeta),
+                                         config,
+                                         std::optional<std::vector<uint8_t>>(std::move(network)));
 }
 
 ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,
