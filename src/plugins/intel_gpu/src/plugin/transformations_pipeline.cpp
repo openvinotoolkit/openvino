@@ -94,7 +94,7 @@
 #include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
 #include "transformations/common_optimizations/mvn_fusion.hpp"
 #include "transformations/common_optimizations/sdpa_scale_fusion.hpp"
-#include "transformations/common_optimizations/static_scaling.hpp"
+#include "transformations/common_optimizations/activations_scaling.hpp"
 #include "transformations/common_optimizations/softmax_fusion.hpp"
 #include "transformations/common_optimizations/glu_fusion.hpp"
 #include "transformations/common_optimizations/transpose_sinking.hpp"
@@ -915,7 +915,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // not working properly.
         manager.register_pass<ov::pass::Validate>();
 
-        manager.register_pass<ov::pass::StaticScalingModel>(config.get_property(ov::hint::activations_scale_factor));
+        manager.register_pass<ov::pass::ActivationsScaling>(config.get_property(ov::hint::activations_scale_factor));
 
         manager.register_pass<ov::intel_gpu::ClampFP16Output>();
         manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>();

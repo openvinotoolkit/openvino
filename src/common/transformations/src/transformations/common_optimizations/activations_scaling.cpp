@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/common_optimizations/static_scaling.hpp"
+#include "transformations/common_optimizations/activations_scaling.hpp"
 
 #include <memory>
 
@@ -31,8 +31,8 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-bool ov::pass::StaticScalingModel::run_on_model(const std::shared_ptr<ov::Model>& f) {
-    RUN_ON_MODEL_SCOPE(StaticScalingModel);
+bool ov::pass::ActivationsScaling::run_on_model(const std::shared_ptr<ov::Model>& f) {
+    RUN_ON_MODEL_SCOPE(ActivationsScaling);
 
     if (m_scale_factor < 1.f)
         return false;
