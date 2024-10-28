@@ -147,8 +147,11 @@ bool BrgemmBlockingBase::mark_blocking_loops(snippets::lowered::LinearIR& linear
 
     const auto& loop_manager = linear_ir.get_loop_manager();
     if (!ov::snippets::utils::is_full_dim_value(k_block)) {
-        const std::vector<LoopPort> entries{LoopPort(brgemm_expr->get_input_port(0), true, 0),
-                                            LoopPort(brgemm_expr->get_input_port(1), true, 1)};
+        // const std::vector<LoopPort> entries{LoopPort(brgemm_expr->get_input_port(0), true, 0),
+        //                                     LoopPort(brgemm_expr->get_input_port(1), true, 1)};
+        // const std::vector<LoopPort> exits{LoopPort(brgemm_expr->get_output_port(0), false)};
+        const std::vector<LoopPort> entries{LoopPort(brgemm_expr->get_input_port(0), true),
+                                            LoopPort(brgemm_expr->get_input_port(1), true)};
         const std::vector<LoopPort> exits{LoopPort(brgemm_expr->get_output_port(0), false)};
         mark_k_blocking(loop_manager, brgemm_it, std::next(brgemm_it), entries, exits, k_block);
     }
