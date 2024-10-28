@@ -10,7 +10,6 @@
 #include <type_traits>
 #include <utility>
 
-#include "intel_npu/icompiler.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_types.hpp"
 #include "ze_graph_ext_wrapper_interface.hpp"

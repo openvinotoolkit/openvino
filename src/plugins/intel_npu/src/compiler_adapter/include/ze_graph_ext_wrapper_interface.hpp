@@ -6,7 +6,7 @@
 
 #include <ze_graph_ext.h>
 
-#include "intel_npu/icompiler.hpp"
+#include "intel_npu/network_metadata.hpp"
 
 namespace intel_npu {
 

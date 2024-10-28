@@ -8,9 +8,10 @@
 #include <mutex>
 #include <vector>
 
-#include "intel_npu/icompiler.hpp"
+#include "intel_npu/network_metadata.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
+#include "openvino/runtime/profiling_info.hpp"
 
 namespace intel_npu {
 
