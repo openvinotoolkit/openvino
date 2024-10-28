@@ -155,6 +155,23 @@ class OvImage {
 
     return new OvImage(ctx.getImageData(0, 0, img1.width, img1.height));
   }
+
+  static overlay(img1, img2, alpha) {
+    if (img1.width !== img2.width || img1.height !== img2.height)
+      throw new Error('Images should have the same size');
+
+    const img1Data = img1.imageData.data;
+    const img2Data = img2.imageData.data;
+
+    const overlayedData = img1Data.map((_, index) => {
+      if (index % 4 === 3)
+        return 255;
+
+      return img1Data[index] * (1 - alpha) + img2Data[index] * alpha;
+    });
+
+    return OvImage.fromArray(overlayedData, img1.width, img1.height);
+  }
 }
 
 module.exports = OvImage;

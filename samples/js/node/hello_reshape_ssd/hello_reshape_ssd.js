@@ -84,15 +84,15 @@ async function main(modelPath, imagePath, deviceName) {
   const filename = 'out.jpg';
   const [_, C, H, W] = _output.getShape();
 
-  const mask = Image.fromArray(pixels, W, H);
-  const resizedMask = mask.resize(img.width, img.height);
-  const merged = Image.merge(img, resizedMask);
+  const segmentsImg = Image.fromArray(pixels, W, H);
+  const resizedSegments = segmentsImg.resize(img.width, img.height);
+  const mergedImg = Image.overlay(img, resizedSegments, 0.6);
 
   try {
-    await merged.save(filename);
-    console.log('Image out.jpg was created!');
+    await mergedImg.save(filename);
+    console.log(`Image '${filename}' was created.`);
   } catch(err) {
-    console.log(`Image ${filename} was not created. Check your permissions.`);
+    console.log(`Image '${filename}' was not created. Check your permissions.`);
   }
 
   console.log('\nThis sample is an API example, for any performance '
