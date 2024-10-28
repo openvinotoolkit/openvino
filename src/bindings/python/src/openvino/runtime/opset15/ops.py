@@ -352,10 +352,10 @@ def search_sorted(
 
 @nameable_op
 def squeeze(
-        data: NodeInput,
-        axes: NodeInput,
-        allow_axis_skip: bool = False,
-        name: Optional[str] = None,
+    data: NodeInput,
+    axes: NodeInput,
+    allow_axis_skip: bool = True,
+    name: Optional[str] = None,
 ) -> Node:
     """Perform squeeze operation on input tensor.
 
@@ -379,7 +379,8 @@ def squeeze(
 
        Result: tensor with shape [1, 2, 3, 1]
     """
-    inputs = as_nodes(data, axes, name=name)
-    attributes = {"allow_axis_skip": allow_axis_skip}
-    print(f"\n\nI'm pulling squeeze from opset15 node factory\n\n")
-    return _get_node_factory_opset15().create("Squeeze", inputs, attributes)
+    return _get_node_factory_opset15().create(
+        "Squeeze",
+        as_nodes(data, axes, name=name),
+        {"allow_axis_skip": allow_axis_skip}
+    )

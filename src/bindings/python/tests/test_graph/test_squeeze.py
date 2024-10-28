@@ -22,16 +22,22 @@ def test_squeeze_v1_operator():
 @pytest.mark.parametrize(("input_shape", "axes", "allow_axis_skip", "expected_shape"), [
     ((1, 2, 1, 3, 1, 1), [2, 4], True, [1, 2, 3, 1]),
     ((1, 2, 1, 3, 1, 1), [2, 4], False, [1, 2, 3, 1]),
-    ((2, -1, 3), [1], True, [-1]),
     ((2, -1, 3), [1], False, [2, 3])
 ])
 def test_squeeze_v15_operator(input_shape, axes, allow_axis_skip, expected_shape):
     parameter_data = ov_opset15.parameter(input_shape, name="Data", dtype=np.float32)
-    squeeze = ov_opset15.squeeze(parameter_data, axes)
-    print(dir(squeeze))
-    print(squeeze.get_type_info())
-    model = ov_opset15.squeeze(parameter_data, axes, allow_axis_skip=allow_axis_skip, name="Squeeze")
+    model = ov_opset15.squeeze(parameter_data, axes, allow_axis_skip, name="Squeeze")
+    print(model.get_type_info())
 
     assert model.get_type_name() == "Squeeze"
     assert model.get_output_size() == 1
     assert list(model.get_output_shape(0)) == expected_shape
+
+
+def test_squeeze_v15_dynamic_rank_output():
+    parameter_data = ov_opset15.parameter((2, -1, 3), name="Data", dtype=np.float32)
+    model = ov_opset15.squeeze(parameter_data, [1], True, name="Squeeze")
+
+    assert model.get_type_name() == "Squeeze"
+    assert model.get_output_size() == 1
+    assert model.get_output_partial_shape(0).to_string() == "[...]"
