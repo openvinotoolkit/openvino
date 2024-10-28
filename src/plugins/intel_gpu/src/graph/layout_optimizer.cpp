@@ -145,7 +145,7 @@ void reorder_factory::select_implementation(program& p, program_node& node) {
     }
 }
 
-void reorder_factory::get_weights_split(primitive_id input_id,
+void reorder_factory::add_lstm_weights_reorder(primitive_id input_id,
                                                                                  std::shared_ptr<WeightsReorderParams> reorder_params, program& p, \
                                                                                  cldnn::program_node& prev, cldnn::program_node& node, size_t i) {
     OPENVINO_ASSERT(reorder_params != nullptr, "[GPU] WeightsReorderParams is not initialized.");
@@ -215,16 +215,16 @@ void reorder_factory::get_weights_split(primitive_id input_id,
     set_implementation_and_output(permute_node);
 }
 
-void reorder_factory::get_bias_split(primitive_id input_id,
+void reorder_factory::add_lstm_bias_reorder(primitive_id input_id,
                                                                                  std::shared_ptr<WeightsReorderParams> reorder_params, program& p, \
                                                                                  cldnn::program_node& prev, cldnn::program_node& node) {
     OPENVINO_ASSERT(reorder_params != nullptr, "[GPU] WeightsReorderParams is not initialized.");
     auto hiddenSize = reorder_params->get_output_layout().get_shape()[1] / 4;
-    auto cropSizeR = cldnn::tensor{1, static_cast<int>(hiddenSize), 1, 1};
+    auto cropSize = cldnn::tensor{1, static_cast<int>(hiddenSize), 1, 1};
     std::string crop_id_b = input_id + "_c";
     auto get_crop_node = [&](int cropNum) -> cldnn::program_node& {
         auto crop_id = primitive_id(crop_id_b + std::to_string(cropNum));
-        auto crop_prim = std::make_shared<cldnn::crop>(crop_id,  input_id, cropSizeR, cldnn::tensor{0, static_cast<int>(cropNum*hiddenSize), 0, 0});
+        auto crop_prim = std::make_shared<cldnn::crop>(crop_id,  input_id, cropSize, cldnn::tensor{0, static_cast<int>(cropNum*hiddenSize), 0, 0});
         return p.get_or_create(crop_prim);
     };
     auto& crop0_node = get_crop_node(0);

@@ -21,8 +21,9 @@ post_optimize_weights::post_optimize_weights(reorder_factory& rf_ref)
     : base_pass("post_optimize_weights"), _rf(rf_ref) {}
 
 template<typename T> post_optimize_weights::weights_bias_offset post_optimize_weights::get_weights_bias_offset(const T& node) {
+    const int W_idx = 3;
     if (node.type() == lstm_seq::type_id()) {
-        return weights_bias_offset(3, 3);
+        return weights_bias_offset(W_idx, 3);
     }
     return weights_bias_offset(node.get_primitive()->input.size(), program_helpers::wrap_if_single(node.get_primitive()->weights).size());
 }
@@ -117,9 +118,9 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
                 if (node.type() == lstm_seq::type_id()) {
                     program_node& prev_node = node.get_dependency(i);
                     if (i == 5) {
-                        _rf.get_bias_split(prev_node.id(), weights_reorder_params, p, prev_node, node);
+                        _rf.add_lstm_bias_reorder(prev_node.id(), weights_reorder_params, p, prev_node, node);
                     } else {
-                        _rf.get_weights_split(prev_node.id(), weights_reorder_params, p, prev_node, node, i);
+                        _rf.add_lstm_weights_reorder(prev_node.id(), weights_reorder_params, p, prev_node, node, i);
                     }
                     auto& weights_reorder_node = node.get_dependency(i);
                     weights_reorder_node.get_output_layout(false);
