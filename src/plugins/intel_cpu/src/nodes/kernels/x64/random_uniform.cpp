@@ -38,6 +38,10 @@ namespace random_uniform {
         mov(R, reinterpret_cast<uintptr_t>(A##_aligned));                                   \
     }
 
+#define INIT_1_ELEM_T_VAL(A, V, R, T)                                                       \
+    static const T A[1] = { V };                                                            \
+    mov(R, reinterpret_cast<uintptr_t>(A));                                                 \
+
 ////////////// PHILOX GENERATOR /////////////////////////
 
 template <x64::cpu_isa_t isa>
@@ -641,7 +645,7 @@ MersenneTwisterGenerator<isa>::MersenneTwisterGenerator(const MersenneTwisterGen
 template <x64::cpu_isa_t isa>
 void MersenneTwisterGenerator<isa>::generate() {
     this->preamble();
-    registersPool = RegistersPool::create(isa, {rax, rcx, rdx, rsp, rdi, k0});
+    registersPool = RegistersPool::create(isa, {rax, rcx, rsp, rdi, k0});
 
     r64_dst = getReg64();
     r64_state = getReg64();
@@ -651,16 +655,16 @@ void MersenneTwisterGenerator<isa>::generate() {
     r64_elements_to_generate = getReg64();
     r64_state_accesses_count = getReg64();
 
-    mov(r64_storage_capacity, vlen / 4);
-    mov(r64_dst,  ptr[r64_params + GET_MERSENNE_OFFSET(dst_ptr)]);
-    mov(r64_state, ptr[r64_params + GET_MERSENNE_OFFSET(state_ptr)]);
-    mov(r64_output_idx, ptr[r64_params + GET_MERSENNE_OFFSET(output_idx)]);
-    mov(r64_max_output_idx, ptr[r64_params + GET_MERSENNE_OFFSET(max_output_idx)]);
+    mov(r64_dst,                  ptr[r64_params + GET_MERSENNE_OFFSET(dst_ptr)]);
+    mov(r64_state,                ptr[r64_params + GET_MERSENNE_OFFSET(state_ptr)]);
+    mov(r64_output_idx,           ptr[r64_params + GET_MERSENNE_OFFSET(output_idx)]);
+    mov(r64_max_output_idx,       ptr[r64_params + GET_MERSENNE_OFFSET(max_output_idx)]);
     mov(r64_elements_to_generate, ptr[r64_params + GET_MERSENNE_OFFSET(elements_to_generate)]);
     mov(r64_state_accesses_count, ptr[r64_params + GET_MERSENNE_OFFSET(state_accesses_count)]);
+    INIT_1_ELEM_T_VAL(storage_capacity, static_cast<uint64_t>(vlen / sizeof(uint32_t)), r64_storage_capacity, uint64_t);
 
     initVectors();
-    // process();
+    process();
 
     registersPool.reset();
     this->postamble();
@@ -731,10 +735,10 @@ void MersenneTwisterGenerator<isa>::initVectors() {
 
     // Initialize constants.
     INIT_8_ELEM_T_ARR(const_1, MT_CONST_1, r64_aux, uint32_t);
-    uni_vmovups(v_const_1, ptr[r64_aux]);
+    uni_vmovdqu(v_const_1, ptr[r64_aux]);
 
     INIT_8_ELEM_T_ARR(const_2, MT_CONST_2, r64_aux, uint32_t);
-    uni_vmovups(v_const_2, ptr[r64_aux]);
+    uni_vmovdqu(v_const_2, ptr[r64_aux]);
 
     if (m_jcp.out_data_type == element::f32) {
         v_mask = getVmm();
@@ -765,17 +769,15 @@ void MersenneTwisterGenerator<isa>::initVectors() {
 template <x64::cpu_isa_t isa>
 void MersenneTwisterGenerator<isa>::process() {
     Xbyak::Label loop, end;
+    const auto r64_counter = getReg64();
+
+    mov(r64_counter, 0);
+
     L(loop);
     {
-        cmp(r64_state_accesses_count, 0);
-        je(end);
-
-        cmp(r64_output_idx, r64_max_output_idx);
-        jge(end);
-
         // Initialize state
         // 512 bit (64 uint32s) for Zmm, 256 bit (32 uint32s) for Ymm, 128-bit (16 uint32s) for Xmm
-        uni_vmovdqu(v_state, ptr[r64_state]);   
+        uni_vmovdqu(v_state, ptr[r64_state]); 
 
         // Generate random numbers
         generateRandomNumbers();
@@ -783,85 +785,59 @@ void MersenneTwisterGenerator<isa>::process() {
         // Convert to output type, store result
         convertToOutputTypeMersenne();
 
-        // Update pointers and necessary counters
-        dec(r64_state_accesses_count);
-        add(r64_dst, vlen);
-        add(r64_state, vlen);
-        add(r64_output_idx, r64_storage_capacity);
-        sub(r64_elements_to_generate, r64_storage_capacity);
+        // Store results
+        storeResults();
 
-        jmp(loop);
+        // Update counters
+        // inc(r64_counter);
+        // add(r64_output_idx, r64_storage_capacity);
+
+        // Check if done all work
+        cmp(r64_counter, r64_state_accesses_count);
+        je(end, T_NEAR);
+
+        // Check for tail
+        cmp(r64_output_idx, r64_max_output_idx);
+        jge(end, T_NEAR);
+
+    //     jmp(loop);
     }
     L(end);
 }
 
-template <>
-void MersenneTwisterGenerator<x64::sse41>::generateRandomNumbers() {
-    // Load values from memory, copy
-    movaps(v_result, v_state);        // x = state
-
-    // Apply Mersenne Twister transformations
-    movaps(v_aux, v_result);          // tmp = x
-
-    // x ^= (x >> 11);
-    psrld(v_aux, 11);                 // tmp >>= 11
-    pxor(v_result, v_aux);            // x ^= tmp
-
-    // x ^= (x << 7) & const_1;
-    movaps(v_aux, v_result);          // tmp = x
-    pslld(v_aux, 7);                  // tmp <<= 7
-    pand(v_aux, v_const_1);           // tmp &= const_1
-    pxor(v_result, v_aux);            // x ^= tmp
-
-    // x ^= (x << 15) & const_2;
-    movaps(v_aux, v_result);          // tmp = x
-    pslld(v_aux, 15);                 // tmp <<= 15
-    pand(v_aux, v_const_2);           // tmp &= const_2
-    pxor(v_result, v_aux);            // x ^= tmp
-
-    // x ^= (x >> 18);
-    movaps(v_aux, v_result);          // tmp = x
-    psrld(v_aux, 18);                 // tmp >>= 18
-    pxor(v_result, v_aux);            // x ^= tmp
-}
-
 template <x64::cpu_isa_t isa> // Works for AVX2, AVX512
 void MersenneTwisterGenerator<isa>::generateRandomNumbers() {
-
     // Load values from memory, copy
-    vmovaps(v_result, v_state);        // x = state
+    uni_vmovdqu(v_result, v_state);        // x = state
 
     // Apply Mersenne Twister transformations
-    vmovaps(v_aux, v_result);           // tmp = x
+    uni_vmovdqu(v_aux, v_result);           // tmp = x
 
     // x ^= (x >> 11);
-    vpsrld(v_aux, v_aux, 11);           // tmp >>= 11
-    vpxor(v_result, v_result, v_aux);   // x ^= tmp
+    uni_vpsrld(v_aux, v_aux, 11);           // tmp >>= 11
+    uni_vpxor(v_result, v_result, v_aux);   // x ^= tmp
 
     // x ^= (x << 7) & const_1;
-    vmovaps(v_aux, v_result);           // tmp = x
-    vpslld(v_aux, v_aux, 7);            // tmp <<= 7
-    vpand(v_aux, v_aux, v_const_1);     // tmp &= const_1
-    vpxor(v_result, v_result, v_aux);   // x ^= tmp
+    uni_vmovdqu(v_aux, v_result);           // tmp = x
+    uni_vpslld(v_aux, v_aux, 7);            // tmp <<= 7
+    uni_vpand(v_aux, v_aux, v_const_1);     // tmp &= const_1
+    uni_vpxor(v_result, v_result, v_aux);   // x ^= tmp
 
     // x ^= (x << 15) & const_2;
-    vmovaps(v_aux, v_result);           // tmp = x
-    vpslld(v_aux, v_aux, 15);           // tmp <<= 15
-    vpand(v_aux, v_aux, v_const_2);     // tmp &= const_2
-    vpxor(v_result, v_result, v_aux);   // x ^= tmp
+    uni_vmovdqu(v_aux, v_result);           // tmp = x
+    uni_vpslld(v_aux, v_aux, 15);           // tmp <<= 15
+    uni_vpand(v_aux, v_aux, v_const_2);     // tmp &= const_2
+    uni_vpxor(v_result, v_result, v_aux);   // x ^= tmp
 
     // x ^= (x >> 18);
-    vmovaps(v_aux, v_result);           // tmp = x
-    vpsrld(v_aux, v_aux, 18);           // tmp >>= 18
-    vpxor(v_result, v_result, v_aux);   // x ^= tmp
+    uni_vmovdqu(v_aux, v_result);           // tmp = x
+    uni_vpsrld(v_aux, v_aux, 18);           // tmp >>= 18
+    uni_vpxor(v_result, v_result, v_aux);   // x ^= tmp
 }
 
 template <>
 void MersenneTwisterGenerator<x64::avx512_core>::convertToOutputTypeMersenne() {
-    const auto k_rest_mask = getMask();
-
     if (m_jcp.out_data_type == element::f32) {
-
         // Apply mask and divisor
         vpand(v_result, v_result, v_mask);
         vcvtdq2ps(v_result, v_result);
@@ -870,10 +846,6 @@ void MersenneTwisterGenerator<x64::avx512_core>::convertToOutputTypeMersenne() {
         // Scale and shift
         vmulps(v_result, v_range);
         vaddps(v_result, v_min);
-
-        // Store result
-        fillRestWorkMask(k_rest_mask, r64_elements_to_generate);
-        vmovdqu32(ptr[r64_dst] | k_rest_mask, v_result);
     } else if (m_jcp.out_data_type == element::f16) {
         // Apply mask and divisor
         vpandd(v_result, v_result, v_mask);
@@ -888,11 +860,7 @@ void MersenneTwisterGenerator<x64::avx512_core>::convertToOutputTypeMersenne() {
 
         // Scale and shift
         vmulph(ymm_result, ymm_result, ymm_range);
-        vaddph(ymm_result, ymm_result, ymm_min);
-
-        // Store result
-        fillRestWorkMask(k_rest_mask, r64_elements_to_generate);
-        vmovdqu16(ptr[r64_dst] | k_rest_mask, ymm_result);
+        vaddph(v_result, ymm_result, ymm_min);
     } else if (m_jcp.out_data_type == element::bf16) {
         // Apply mask and divisor
         vpandd(v_result, v_result, v_mask);
@@ -907,11 +875,6 @@ void MersenneTwisterGenerator<x64::avx512_core>::convertToOutputTypeMersenne() {
         vaddps(v_result, v_min);
 
         vcvtneps2bf16(v_result, v_result);
-        auto ymm_result = Xbyak::Ymm(v_result);
-
-        // Store result
-        fillRestWorkMask(k_rest_mask, r64_elements_to_generate);
-        vmovdqu16(ptr[r64_dst] | k_rest_mask, ymm_result);
     } else if (m_jcp.out_data_type == element::i32) {
         // Compute modulo
         // Quotient
@@ -920,15 +883,11 @@ void MersenneTwisterGenerator<x64::avx512_core>::convertToOutputTypeMersenne() {
         vcvtps2dq(v_aux, v_aux);
 
         // Aprroximation
-        vpmulld(v_aux, v_aux, v_range);
+        vmulps(v_aux, v_aux, v_range);
 
         // Scale and shift
         vpsubd(v_result, v_result, v_aux);
         vaddps(v_result, v_min);
-
-        // Store result
-        fillRestWorkMask(k_rest_mask, r64_elements_to_generate);
-        vmovdqu32(ptr[r64_dst] | k_rest_mask, v_result);
     } else if (m_jcp.out_data_type == element::i64 && m_jcp.optimized) {
         // Same as in Philox - in scope of i64 enabling
         OPENVINO_THROW("RandomUniform kernel does not support precision ", m_jcp.out_data_type, " for ", x64::get_isa_info());
@@ -942,11 +901,6 @@ void MersenneTwisterGenerator<x64::avx512_core>::convertToOutputTypeMersenne() {
 
 template <>
 void MersenneTwisterGenerator<x64::avx2>::convertToOutputTypeMersenne() {
-    const auto r64_counter = getReg64();
-    const auto r64_aux = getReg64();
-
-    Xbyak::Label loop, end;
-
     if (m_jcp.out_data_type == element::f32) {
         // Apply mask and divisor
         vpand(v_result, v_result, v_mask);
@@ -956,26 +910,41 @@ void MersenneTwisterGenerator<x64::avx2>::convertToOutputTypeMersenne() {
         // Scale and shift
         vmulps(v_result, v_range);
         vaddps(v_result, v_min);
-
-        // Store result
-        store(ptr[r64_aux], v_result, r64_elements_to_generate, m_jcp.out_data_type.size());
     } else if (m_jcp.out_data_type == element::i32) {
-        // Compute modulo
-        // Quotient
-        vcvtdq2ps(v_aux, v_result);
-        vdivps(v_aux, v_aux, v_range);
-        vcvtps2dq(v_aux, v_aux);
+        const auto v_aux_range = getVmm();
+        const auto v_aux_zero = getVmm();
 
-        // Aprroximation
-        vpmulld(v_aux, v_aux, v_range);
+        // const auto v_result_high = getVmm();
+        // const auto v_result_low = getVmm();
+        // const auto v_range_high = getVmm();
+        // const auto v_range_low = getVmm();
+        // vextracti128(v_result_high, v_result, 1); // Extract the high 128 bits
+        // vextracti128(v_result_low, v_result, 0);  // Extract the low 128 bits
 
-        // Scale and shift
-        vpsubd(v_result, v_result, v_aux);
-        vaddps(v_result, v_min);
+        // vcvtqq2pd(v_result_high, v_aux_high); // Convert high 128 bits to double
+        // vcvtqq2pd(v_result_low, v_aux_low);   // Convert low 128 bits to double
 
-        // Store result
-        store(ptr[r64_aux], v_result, r64_elements_to_generate, m_jcp.out_data_type.size());
+        // Compute approximate division
+        vcvtdq2ps(v_aux, v_result); // aux = float(result)
+        vcvtdq2ps(v_aux_range, v_range); // aux2 = float(range)
+        vdivps(v_aux, v_aux_range);  // value / range = (aux = aux / aux2)
+        vcvtps2dq(v_aux, v_aux); // int(value / range) (aux = int(aux / aux2))
 
+        // Closest divisible value
+        // vpmuldq
+        vpmulld(v_aux, v_aux, v_range); // aux = int(float(result) / float(range)) * range
+
+        // Modulo and shift
+        vpsubd(v_result, v_result, v_aux); // value - closest_div_value = remainder (modulo)
+
+        // Handle negative results
+        vxorps(v_aux_zero, v_aux_zero, v_aux_zero);
+        vpcmpgtd(v_aux, v_result, v_aux_zero); // Compare v_result with zero
+        vpandn(v_aux, v_aux, v_range); // If v_result < 0, v_aux = range, else 0
+        vpaddd(v_result, v_result, v_aux); // Add range to negative results
+
+        // Add minimum
+        vpaddd(v_result, v_result, v_min); // remainder + min
 
     } else {
         OPENVINO_THROW("RandomUniform kernel does not support precision ", m_jcp.out_data_type, " for ", x64::get_isa_info());
@@ -984,10 +953,7 @@ void MersenneTwisterGenerator<x64::avx2>::convertToOutputTypeMersenne() {
 
 template <x64::cpu_isa_t isa> // Works for SSE41
 void MersenneTwisterGenerator<isa>::convertToOutputTypeMersenne() {
-    const auto r64_counter = getReg64();
     const auto r64_aux = getReg64();
-
-    Xbyak::Label loop, end;
 
     if (m_jcp.out_data_type == element::f32) {
         // Apply mask and divisor
@@ -1000,7 +966,7 @@ void MersenneTwisterGenerator<isa>::convertToOutputTypeMersenne() {
         addps(v_result, v_min);
 
         // Store result
-        store(ptr[r64_aux], v_result, r64_elements_to_generate, m_jcp.out_data_type.size());
+        store(ptr[r64_dst], v_result, r64_elements_to_generate, m_jcp.out_data_type.size());
     } else if (m_jcp.out_data_type == element::i32) {
 
         // Compute modulo
@@ -1010,18 +976,111 @@ void MersenneTwisterGenerator<isa>::convertToOutputTypeMersenne() {
         cvtps2dq(v_aux, v_aux);
 
         // Aprroximation
-        pmulld(v_aux, v_range);
+        mulps(v_aux, v_range);
 
         // Scale and shift
         psubd(v_result, v_aux);
         addps(v_result, v_min);
 
         // Store result
-        store(ptr[r64_aux], v_result, r64_elements_to_generate, m_jcp.out_data_type.size());
+        store(ptr[r64_dst], v_result, r64_elements_to_generate, m_jcp.out_data_type.size());
     } else {
         OPENVINO_THROW("RandomUniform kernel does not support precision ", m_jcp.out_data_type, " for ", x64::get_isa_info());
     }
 }
+
+template <>
+void MersenneTwisterGenerator<x64::avx512_core>::storeResults() {
+    const auto r64_aux = getReg64();
+    const auto v_rest_mask = getMask();
+
+    if (m_jcp.out_data_type.size() == sizeof(uint32_t)) {
+        // Find minimum count from elements_to_generate and storage_capacity
+        mov(r64_aux, r64_elements_to_generate);
+        cmp(r64_aux, r64_storage_capacity);
+        cmovg(r64_aux, r64_storage_capacity);
+
+        fillRestWorkMask(v_rest_mask, r64_elements_to_generate);
+        vmovdqu32(ptr[r64_dst] | v_rest_mask, v_result);
+
+        add(r64_dst, vlen);
+        add(r64_state, vlen);
+        sub(r64_elements_to_generate, r64_storage_capacity);
+    } else if (m_jcp.out_data_type.size() == sizeof(uint16_t)) {
+        mov(r64_aux, r64_elements_to_generate);
+        cmp(r64_aux, r64_storage_capacity);
+        cmovg(r64_aux, r64_storage_capacity);
+
+        // Store only the bottom half
+        auto ymm_result = Xbyak::Ymm(v_result);
+        fillRestWorkMask(v_rest_mask, r64_elements_to_generate);
+        vmovdqu16(ptr[r64_dst] | v_rest_mask, ymm_result);
+
+        add(r64_state, vlen);
+        add(r64_dst, vlen / 2);
+        sub(r64_elements_to_generate, r64_storage_capacity);
+    } else if (m_jcp.out_data_type.size() == sizeof(uint64_t)) {
+        // i64 enablement
+        OPENVINO_THROW("RandomUniform kernel does not support precision ", m_jcp.out_data_type, " for ", x64::get_isa_info());
+    } else {
+        OPENVINO_THROW("RandomUniform kernel does not support precision ", m_jcp.out_data_type, " for ", x64::get_isa_info());
+    }
+}
+
+template <>
+void MersenneTwisterGenerator<x64::avx2>::storeResults() {
+    const auto r64_aux = getReg64();
+    auto v_rest_mask = getMask();
+
+    if (m_jcp.out_data_type.size() == sizeof(uint32_t)) {
+        // Find minimum count from elements_to_generate and storage_capacity
+        mov(r64_aux, r64_elements_to_generate);
+        cmp(r64_aux, r64_storage_capacity);
+        cmovg(r64_aux, r64_storage_capacity);
+        fillRestWorkMask(v_rest_mask, r64_aux, m_jcp.out_data_type.size());
+        vmaskmovps(ptr[r64_dst], v_rest_mask, v_result);
+
+        // add(r64_dst, vlen);
+        // add(r64_state, vlen);
+        // sub(r64_elements_to_generate, r64_storage_capacity);
+    } else if (m_jcp.out_data_type.size() == sizeof(uint16_t)) {
+        // AVX2 does not support 16 bit value transfer
+        OPENVINO_THROW("RandomUniform kernel does not support precision ", m_jcp.out_data_type, " for ", x64::get_isa_info());
+    } else if (m_jcp.out_data_type.size() == sizeof(uint64_t)) {
+        // i64 enablement
+        OPENVINO_THROW("RandomUniform kernel does not support precision ", m_jcp.out_data_type, " for ", x64::get_isa_info());
+    } else {
+        OPENVINO_THROW("RandomUniform kernel does not support precision ", m_jcp.out_data_type, " for ", x64::get_isa_info());
+    }
+}
+
+template <x64::cpu_isa_t isa> // Works for SSE41
+void MersenneTwisterGenerator<isa>::storeResults() {
+    const auto r64_aux = getReg64();
+
+    if (m_jcp.out_data_type.size() == sizeof(uint32_t)) {
+        // Find minimum count from elements_to_generate and storage_capacity
+        auto v_rest_mask = getMask();
+        mov(r64_aux, r64_elements_to_generate);
+        cmp(r64_aux, r64_storage_capacity);
+        cmovg(r64_aux, r64_storage_capacity);
+        store(ptr[r64_dst], v_result, r64_aux, m_jcp.out_data_type.size());
+
+        add(r64_dst, vlen);
+        add(r64_state, vlen);
+        sub(r64_elements_to_generate, r64_storage_capacity);
+    } else if (m_jcp.out_data_type.size() == sizeof(uint16_t)) {
+        // SSE41 does not support 16 bit value transfer
+        OPENVINO_THROW("RandomUniform kernel does not support precision ", m_jcp.out_data_type, " for ", x64::get_isa_info());
+    } else if (m_jcp.out_data_type.size() == sizeof(uint64_t)) {
+        // i64 enablement
+        OPENVINO_THROW("RandomUniform kernel does not support precision ", m_jcp.out_data_type, " for ", x64::get_isa_info());
+    } else {
+        OPENVINO_THROW("RandomUniform kernel does not support precision ", m_jcp.out_data_type, " for ", x64::get_isa_info());
+    }
+}
+
+
 
 template class PhiloxGenerator<x64::avx512_core>;
 template class PhiloxGenerator<x64::avx2>;

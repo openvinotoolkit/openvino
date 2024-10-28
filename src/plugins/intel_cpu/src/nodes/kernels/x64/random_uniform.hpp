@@ -34,7 +34,7 @@ struct PhiloxGeneratorCallArgs {
 
 struct MersenneTwisterGeneratorCallArgs {
     void* dst_ptr;
-    const void* state_ptr;
+    void* state_ptr;
     const void* min_ptr;
     const void* range_ptr;
     uint64_t output_idx = 0;
@@ -161,6 +161,8 @@ private:
     void generateRandomNumbers();
 
     void convertToOutputTypeMersenne();
+
+    void storeResults();
 
     // Mersenne Twister constants
     static constexpr uint32_t MT_CONST_1 = 0x9D2C5680;

@@ -240,7 +240,9 @@ public:
             if (res) {
                 res->create_kernel();
             }
-        } catch (...) {
+        } catch (const Xbyak::Error& e) {
+            std::cerr << "Xbyak error: " << e.what() << std::endl;
+
             return nullptr;
         }
 
