@@ -254,7 +254,6 @@ bool convert_function_precision(const std::shared_ptr<Model>& f,
     // Register internal constants only after fixing input type that could lead to nodes
     // replacement
     register_constants(ops);
-
     for (auto& node : ops) {
         // skip precision sensitive nodes
         if (skip_precision_sensitive && fp16_compression_is_disabled(node) && has_fp16_compression)
@@ -1000,12 +999,14 @@ bool extend_select_type(const std::shared_ptr<ov::Node>& node, const precisions_
         type_relaxed->set_origin_input_type(ov::element::boolean, 0);
         return true;
     } else if (auto casted = ov::as_type_ptr<ov::op::v1::Select>(node)) {
-        auto relaxed_op =
-            std::make_shared<op::TypeRelaxed<ov::op::v1::Select>>(*casted,
-                                                                  ov::element::TypeVector{ov::element::boolean},
-                                                                  ov::element::TypeVector{});
-        replace_node(node, relaxed_op);
-        return true;
+        if (precisions.count(ov::element::boolean) != 0) {
+            auto relaxed_op =
+                std::make_shared<op::TypeRelaxed<ov::op::v1::Select>>(*casted,
+                                                                      ov::element::TypeVector{ov::element::boolean},
+                                                                      ov::element::TypeVector{});
+            replace_node(node, relaxed_op);
+            return true;
+        }
     }
     return false;
 }
