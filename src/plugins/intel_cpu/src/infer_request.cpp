@@ -140,7 +140,7 @@ void SyncInferRequest::infer() {
     throw_if_canceled();
 
     // update output control blocks, if any, in order to refresh internal buffers
-    if (Graph::Status::ReadyDynamic == m_graph->getStatus()) {
+    if (m_graph->IsDynamic()) {
         for (auto&& item : m_outputControlBlocks) {
             item.second.update();
         }
@@ -178,7 +178,7 @@ void SyncInferRequest::change_default_ptr() {
 
     std::unordered_set<const void*> inputPtrs;
     std::function<void(const EdgePtr &edge, ov::SoPtr<ov::ITensor>& tensor)> changeInpPtr;
-    if (Graph::Status::ReadyDynamic == m_graph->getStatus()) {
+    if (m_graph->IsDynamic()) {
         changeInpPtr = [&inputPtrs](const EdgePtr &edge, ov::SoPtr<ov::ITensor>& tensor) {
             change_edge_ptr(edge, tensor);
             inputPtrs.insert(tensor->data());
@@ -278,7 +278,7 @@ void SyncInferRequest::change_default_ptr() {
             change_edge_ptr(parentEdge, it.second);
     }
 
-    if (Graph::Status::ReadyDynamic == m_graph->getStatus()) {
+    if (m_graph->IsDynamic()) {
         const auto &outMemBlocksMap = m_graph->getOutputNodesMemBlocksMap();
         for (auto&& item : outMemBlocksMap) {
             const auto& name = item.first;

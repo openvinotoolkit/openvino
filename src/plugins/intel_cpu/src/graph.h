@@ -49,8 +49,16 @@ public:
 
     ~Graph();
 
-    bool IsReady() {
-        return one_of(status, Status::ReadyStatic, Status::ReadyDynamic, Status::ReadyDynamicSeq);
+    bool IsStatic() const {
+        return Status::ReadyStatic == status;
+    }
+
+    bool IsDynamic() const {
+        return one_of(status, Status::ReadyDynamic, Status::ReadyDynamicSeq);
+    }
+
+    bool IsReady() const {
+        return IsStatic() || IsDynamic();
     }
 
     const Config & getConfig() const {
@@ -193,7 +201,6 @@ public:
         return graphHasDynamicInput;
     }
 
-    Status getStatus() const {return status;}
     const std::unordered_map<std::string, node::MemoryStateNode*>& getInternalStateNodes() const;
 
     /**
