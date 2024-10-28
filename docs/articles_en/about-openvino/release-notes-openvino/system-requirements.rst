@@ -170,6 +170,25 @@ Operating systems and developer environment
 OpenVINO Distributions
 ######################
 
+Different OpenVINO distributions may support slightly different sets of features.
+Read installation guides for particular distributions for more details.
+Refer to the :doc:`OpenVINO Release Policy <../../../about-openvino/release-notes-openvino/release-policy>`
+to learn more about the release types.
+
+.. dropdown:: Distribution Comparison for OpenVINO 2024.4
+
+   ===============  ==========  ======  ===============  ========  ============ ========== ========== ==========
+   Device           Archives    PyPI    APT/YUM/ZYPPER    Conda     Homebrew     vcpkg      Conan       npm
+   ===============  ==========  ======  ===============  ========  ============ ========== ========== ==========
+   CPU              V           V       V                V         V            V          V          V
+   GPU              V           V       V                V         V            V          V          V
+   NPU              V\*         V\*     V\ *             n/a       n/a          n/a        n/a        V\*
+   ===============  ==========  ======  ===============  ========  ============ ========== ========== ==========
+
+   | \* **Of the Linux systems, versions 22.04 and 24.04 include drivers for NPU.**
+   |  **For Windows, CPU inference on ARM64 is not supported.**
+
+
 .. tab-set::
 
    .. tab-item:: Archive
@@ -270,14 +289,14 @@ OpenVINO Distributions
    .. tab-item:: Conan
       :name: conan-sysreq
 
-      There are many ways to work with Conan Package Manager. Before you proceed, learn more about it on the
-      `Conan distribution page <https://conan.io/downloads>`__
+      Learn more about `Conan Package Manager <https://conan.io/downloads>`__
+      before you start installation of OpenVINO.
 
    .. tab-item:: Conda
       :name: conda-sysreq
 
-      There are many ways to work with Conda. Before you proceed, learn more about it on the
-      `Anaconda distribution page <https://www.anaconda.com/products/individual/>`__
+      Learn more about `Anaconda <https://conan.io/downloads>`__
+      before you start installation of OpenVINO.
 
    .. tab-item:: Docker
       :name: docker-sysreq
@@ -326,8 +345,8 @@ OpenVINO Distributions
    .. tab-item:: vcpkg
       :name: vcpkg-sysreq
 
-      * `vcpkg <https://vcpkg.io/en/getting-started>`__
-
+      Learn more about `vcpkg <https://vcpkg.io/en/getting-started>`__
+      before you start installation of OpenVINO.
 
    .. tab-item:: YUM
       :name: yum-sysreq
