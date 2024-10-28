@@ -117,16 +117,16 @@ protected:
     }
 
     static std::shared_ptr<WeightsReorderParams> get_weights_reorder(const kernel_impl_params& impl_params, const dnnl::primitive_desc& pd) {
-        auto layout_W = get_reorder_layout(impl_params, 3);
-        auto W_desc = onednn::layout_to_memory_desc(layout_W);
-        auto layout_R = get_reorder_layout(impl_params, 4);
-        auto R_desc = onednn::layout_to_memory_desc(layout_W);
-        auto grouped_weights = format::is_grouped(layout_W.format);
+        const auto weights_layout_idx = 3;
+        auto source_weights_layout = impl_params.get_input_layout(weights_layout_idx);
+        auto target_weights_layout = get_reorder_layout(impl_params, weights_layout_idx);
+        auto W_desc = onednn::layout_to_memory_desc(source_weights_layout);
+        auto grouped_weights = format::is_grouped(source_weights_layout.format);
 
-        return std::make_shared<WeightsReorderParamsOneDNN>(layout_W,
-                                                            layout_R,
+        return std::make_shared<WeightsReorderParamsOneDNN>(source_weights_layout,
+                                                            target_weights_layout,
                                                             W_desc,
-                                                            R_desc,
+                                                            W_desc,
                                                             false,
                                                             grouped_weights);
     }

@@ -150,19 +150,24 @@ void reorder_factory::get_weights_split(primitive_id input_id,
                                                                                  cldnn::program_node& prev, cldnn::program_node& node, size_t i) {
     OPENVINO_ASSERT(reorder_params != nullptr, "[GPU] WeightsReorderParams is not initialized.");
     std::string reorder_id = input_id + "_reo_" + std::to_string(i);
-    auto hiddenSize = reorder_params->get_input_layout().get_shape()[1] / 4;
+    auto hiddenSize = reorder_params->get_output_layout().get_shape()[1] / 4;
+    auto inputSize = static_cast<int>(reorder_params->get_output_layout().get_shape()[3]);
     int size_third;
-    if (i == 3) {
-        size_third = static_cast<int>(reorder_params->get_input_layout().get_shape()[3]);
+    const int W_idx = 3;
+    if (i == W_idx) {
+        size_third = inputSize;
     } else {
-        size_third = static_cast<int>(reorder_params->get_output_layout().get_shape()[3]);
+        size_third = hiddenSize;
     }
-    auto cropSizeR = cldnn::tensor{1, static_cast<int>(1*hiddenSize), 1, size_third, 1};
+    auto cropSizeR = cldnn::tensor{1, static_cast<int>(hiddenSize), 1, size_third, 1};
     cldnn::layout reorder_layout;
-    if (i == 3) {
-        reorder_layout = reorder_params->get_input_layout();
+    if (i ==  W_idx) {
+        reorder_layout = reorder_params->get_output_layout();
     } else {
         reorder_layout = reorder_params->get_output_layout();
+        auto reorder_layout_new_shape = reorder_layout.get_shape();
+        reorder_layout_new_shape[3] = hiddenSize;
+        reorder_layout = reorder_layout.clone_with_other_shape(reorder_layout_new_shape);
     }
     auto reorder = std::make_shared<cldnn::reorder>(reorder_id, input_id, reorder_layout);
     auto& reorder_node = p.get_or_create(reorder);
@@ -229,8 +234,7 @@ void reorder_factory::get_bias_split(primitive_id input_id,
                                                                                  std::shared_ptr<WeightsReorderParams> reorder_params, program& p, \
                                                                                  cldnn::program_node& prev, cldnn::program_node& node) {
     OPENVINO_ASSERT(reorder_params != nullptr, "[GPU] WeightsReorderParams is not initialized.");
-    cache_key ckey{ input_id, reorder_params->get_output_layout(), false };
-    auto hiddenSize = reorder_params->get_input_layout().get_shape()[1] / 4;
+    auto hiddenSize = reorder_params->get_output_layout().get_shape()[1] / 4;
     auto cropSizeR = cldnn::tensor{1, static_cast<int>(hiddenSize), 1, 1};
     std::string crop_id_b = input_id + "_c";
     auto get_crop_node = [&](int cropNum) -> cldnn::program_node& {
