@@ -308,7 +308,7 @@ void ProgramBuilder::add_primitive(const ov::Node& op, std::shared_ptr<cldnn::pr
     if (auto data_prim = dynamic_cast<cldnn::data*>(prim.get())) {
         auto rt_info = op.get_rt_info();
         auto weightless_cache_attr = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
-        if (weightless_cache_attr != rt_info.end()) {
+        if (weightless_cache_attr != rt_info.end() && !this->m_config.get_property(ov::weights_path).empty()) {
             data_prim->bin_offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
             data_prim->original_size = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().original_size;
         }
