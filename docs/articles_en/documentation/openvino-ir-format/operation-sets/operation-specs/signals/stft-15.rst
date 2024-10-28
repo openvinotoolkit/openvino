@@ -78,7 +78,7 @@ Short Time Fourier Transformation for real-valued input (STFT)
             <port id="2"></port> <!-- value: 11 -->
             <port id="3"></port> <!-- value: 3 -->
         <output>
-            <port id="2">
+            <port id="4">
                 <dim>16</dim>
                 <dim>6</dim>
                 <dim>2</dim>
@@ -104,7 +104,7 @@ Short Time Fourier Transformation for real-valued input (STFT)
             <port id="2"></port> <!-- value: 11 -->
             <port id="3"></port> <!-- value: 3 -->
         <output>
-            <port id="2">
+            <port id="4">
                 <dim>6</dim>
                 <dim>16</dim>
                 <dim>2</dim>
@@ -130,7 +130,7 @@ Short Time Fourier Transformation for real-valued input (STFT)
             <port id="2"></port> <!-- value: 11 -->
             <port id="3"></port> <!-- value: 3 -->
         <output>
-            <port id="2">
+            <port id="4">
                 <dim>3</dim>
                 <dim>16</dim>
                 <dim>6</dim>
@@ -158,7 +158,7 @@ Short Time Fourier Transformation for real-valued input (STFT)
             <port id="2"></port> <!-- value: 11 -->
             <port id="3"></port> <!-- value: 3 -->
         <output>
-            <port id="2">
+            <port id="4">
                 <dim>3</dim>
                 <dim>6</dim>
                 <dim>16</dim>
