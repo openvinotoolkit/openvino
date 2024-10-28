@@ -157,6 +157,20 @@ InOutLayers OpenVINOLayersReader::Impl::readFromModel(const std::string& model_p
         model = ppp.build();
     }
 
+    std::map<std::string, ov::PartialShape> partial_shapes;
+    if (std::holds_alternative<AttrMap<std::vector<uint64_t>>>(params.shape)) {
+        auto &shapeMap = std::get<AttrMap<std::vector<uint64_t>>>(params.shape);
+        std::vector<ov::Dimension> dims;
+        for (auto& shape : shapeMap) {
+            for (auto& dim : shape.second) {
+                dims.push_back(dim);
+            }
+        partial_shapes[shape.first] = dims;
+        }
+    } else { //SeNe ToDo
+
+    }
+    model->reshape(partial_shapes);
     auto input_layers = ovToLayersInfo(model->inputs());
     auto output_layers = ovToLayersInfo(model->outputs());
 

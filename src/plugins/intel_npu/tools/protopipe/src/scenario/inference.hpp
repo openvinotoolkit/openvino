@@ -91,7 +91,7 @@ struct OpenVINOParams {
     LayerVariantAttr<std::string> output_layout;
     LayerVariantAttr<std::string> input_model_layout;
     LayerVariantAttr<std::string> output_model_layout;
-    LayerVariantAttr<std::vector<int64_t>> shape;
+    LayerVariantAttr<std::vector<uint64_t>> shape;
     std::map<std::string, std::string> config;
     size_t nireq = 1u;
 };
