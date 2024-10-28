@@ -766,7 +766,6 @@ void MersenneTwisterGenerator<isa>::initVectors() {
 
 template <x64::cpu_isa_t isa>
 void MersenneTwisterGenerator<isa>::process() {
-
     // Initialize state
     uni_vmovdqu(v_state, ptr[r64_state]);
 

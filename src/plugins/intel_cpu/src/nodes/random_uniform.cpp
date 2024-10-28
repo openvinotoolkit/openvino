@@ -766,7 +766,6 @@ void RandomUniform::computeMersenneTwister(void* out, size_t output_elements_cou
 #if defined(OPENVINO_ARCH_X86_64)
         for (uint64_t i = 0; i < state_regenerations_required; ++i) {
             next_mersenne_state(mersenne_state_ptr);
-
             parallel_nt(m_threads_num, [&](const int ithr, const int nthr) {
                 kernel::random_uniform::MersenneTwisterGeneratorCallArgs args;
                 auto& params = m_mersenne_twister_thread_params[ithr];
@@ -804,7 +803,6 @@ void RandomUniform::computeMersenneTwister(void* out, size_t output_elements_cou
 
         for (uint64_t i = 0; i < state_regenerations_required; ++i) {
             next_mersenne_state(mersenne_state_ptr);
-
             parallel_nt(m_threads_num, [&](const int ithr, const int nthr) {
                 auto& params = m_mersenne_twister_thread_params[ithr];
                 auto state_ptr              = mersenne_state_ptr + params.src_start_idx;
