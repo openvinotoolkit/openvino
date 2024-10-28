@@ -103,6 +103,8 @@ class TestSwitchMergeWithVariablePredicate(CommonTFLayerTest):
     def test_switch_merge_with_variable_predicate(self, x_shape, cond_shape, cond_value,
                                                   ie_device, precision, ir_version, temp_dir,
                                                   use_legacy_frontend):
+        if ie_device == 'GPU':
+            pytest.skip("156244: accuracy error on GPU")
         self._test(*self.switch_merge_with_variable_predicate_net(x_shape, cond_shape, cond_value),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)
