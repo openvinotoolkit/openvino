@@ -57,19 +57,14 @@ bool Schedule::run_pipeline_task(ov::threading::Task& pipeline_task,
                                  std::condition_variable& idle_workerrequests_cv,
                                  std::mutex& worker_infer_mutex) {
     WorkerInferRequest* worker_request_ptr = nullptr;
-    static int index = 0;
     std::pair<int, WorkerInferRequest*> worker;
     std::unique_lock<std::mutex> lck(worker_infer_mutex);
-    std::cout << "------- start try pop -------\n";
-    std::cout << "------- try pop index: " << index << std::endl;
     if (!idle_workerrequests.try_pop(worker)) {
-        std::cout << "------- pop failed and will wait......" << std::endl;
         idle_workerrequests_cv.wait(lck, [&idle_workerrequests, &worker] {
             return idle_workerrequests.try_pop(worker);
         });
     }
     if (worker.second) {
-        std::cout << "------- popped index: " << index++ << std::endl;
         worker_request_ptr = worker.second;
         IdleGuard<NotBusyPriorityWorkerRequests> idle_guard{worker_request_ptr, idle_workerrequests};
         m_this_worker_infer_request = worker_request_ptr;
@@ -79,8 +74,6 @@ bool Schedule::run_pipeline_task(ov::threading::Task& pipeline_task,
         }
         idle_guard.release();
         return true;
-    } else {
-        std::cout << "------- Failed to pop index: " << index << std::endl;
     }
     return false;
 }
@@ -148,17 +141,11 @@ void Schedule::generate_workers(const std::string& device, const SoCompiledModel
                     } else {
                         stop_retry_and_continue();
                     }
-                    static int index = 0;
-                    std::cout << "------- try push index: " << index++ << std::endl;
-                    // try to return the request to the idle list (fails if the overall object destruction has
-                    // began)
-                    //std::this_thread::sleep_for(std::chrono::seconds(5));
                     if (idleGuard.release()->try_push(
                             std::make_pair(worker_request_ptr->m_index, worker_request_ptr))) {
                         // let's try to pop a task, as we know there is at least one idle request, schedule if
                         // succeeded if no device-agnostic tasks, let's try pop the device specific task, schedule
                         // if succeeded
-                        std::cout << "------- pushed index: " << index << std::endl;
                         ov::threading::Task t;
                         do {
                             m_infer_pipeline_tasks.try_pop(t);
