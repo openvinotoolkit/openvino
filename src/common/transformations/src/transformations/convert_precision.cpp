@@ -29,7 +29,7 @@ bool fuse_type_to_parameter(const std::shared_ptr<ov::Node>& node,
                             bool convert_input_precision);
 
 // this function inserts Convert operations to 'data' input and outputs of `node`
-// to execute 'node' with the original type.
+// to execute 'node' with the original type. This function supports nodes with single output.
 bool wrap_into_original_type(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
 bool store_original_type_as_attribute(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
 
@@ -254,7 +254,6 @@ bool convert_function_precision(const std::shared_ptr<Model>& f,
     // Register internal constants only after fixing input type that could lead to nodes
     // replacement
     register_constants(ops);
-
     for (auto& node : ops) {
         // skip precision sensitive nodes
         if (skip_precision_sensitive && fp16_compression_is_disabled(node) && has_fp16_compression)
@@ -622,17 +621,20 @@ bool wrap_into_original_type(const std::shared_ptr<ov::Node>& node, const precis
 
     const auto& to = it->second;
     const auto& from = it->first;
-
-    auto convert_before = std::make_shared<ov::op::v0::Convert>(node->input_value(0), from);
-    node->input(0).replace_source_output(convert_before);
-    auto consumers = node->output(0).get_target_inputs();
-    auto convert_after = std::make_shared<ov::op::v0::Convert>(node, to);
-    for (auto& input : consumers) {
-        const auto consumer = input.get_node();
-        if (ov::is_type<ov::op::v0::Result>(consumer) || ov::is_type<ov::op::v0::Convert>(consumer)) {
-            continue;
+    if (node->get_input_size()) {
+        auto convert_before = std::make_shared<ov::op::v0::Convert>(node->input_value(0), from);
+        node->input(0).replace_source_output(convert_before);
+    }
+    if (node->get_output_size() == 1) {
+        auto consumers = node->output(0).get_target_inputs();
+        auto convert_after = std::make_shared<ov::op::v0::Convert>(node, to);
+        for (auto& input : consumers) {
+            const auto consumer = input.get_node();
+            if (ov::is_type<ov::op::v0::Result>(consumer) || ov::is_type<ov::op::v0::Convert>(consumer)) {
+                continue;
+            }
+            input.replace_source_output(convert_after);
         }
-        input.replace_source_output(convert_after);
     }
 
     return true;
@@ -997,12 +999,14 @@ bool extend_select_type(const std::shared_ptr<ov::Node>& node, const precisions_
         type_relaxed->set_origin_input_type(ov::element::boolean, 0);
         return true;
     } else if (auto casted = ov::as_type_ptr<ov::op::v1::Select>(node)) {
-        auto relaxed_op =
-            std::make_shared<op::TypeRelaxed<ov::op::v1::Select>>(*casted,
-                                                                  ov::element::TypeVector{ov::element::boolean},
-                                                                  ov::element::TypeVector{});
-        replace_node(node, relaxed_op);
-        return true;
+        if (precisions.count(ov::element::boolean) != 0) {
+            auto relaxed_op =
+                std::make_shared<op::TypeRelaxed<ov::op::v1::Select>>(*casted,
+                                                                      ov::element::TypeVector{ov::element::boolean},
+                                                                      ov::element::TypeVector{});
+            replace_node(node, relaxed_op);
+            return true;
+        }
     }
     return false;
 }

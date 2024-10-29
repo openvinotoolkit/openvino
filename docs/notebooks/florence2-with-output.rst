@@ -51,19 +51,11 @@ Prerequisites
 
 .. code:: ipython3
 
-    import platform
-    
-    %pip install -q "openvino>=2024.3.0" "einops" "torch>2.1" "torchvision" "timm>=0.9.8" "transformers>=4.41" "pillow" "gradio>=4.19" --extra-index-url https://download.pytorch.org/whl/cpu
-    
-    if platform.system() != "Windows":
-        %pip install -q "matplotlib>=3.4"
-    else:
-        %pip install -q "matplotlib>=3.4,<3.7"
+    %pip install -q "openvino>=2024.3.0" "einops" "torch>2.1" "torchvision" "matplotlib>=3.4" "timm>=0.9.8" "transformers>=4.41" "pillow" "gradio>=4.19" --extra-index-url https://download.pytorch.org/whl/cpu
 
 
 .. parsed-literal::
 
-    Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -108,10 +100,10 @@ available model. By default, we will use
 
 .. parsed-literal::
 
-    2024-10-08 02:10:50.200273: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-10-08 02:10:50.234398: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-10-23 01:17:38.434215: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-10-23 01:17:38.467940: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-10-08 02:10:50.883345: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-10-23 01:17:39.118965: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 
@@ -201,25 +193,13 @@ pipeline.
 
 .. parsed-literal::
 
-    config.json:   0%|          | 0.00/2.43k [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
     SECURITY.md:   0%|          | 0.00/2.66k [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    .gitattributes:   0%|          | 0.00/1.56k [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    configuration_florence2.py:   0%|          | 0.00/15.1k [00:00<?, ?B/s]
+    CODE_OF_CONDUCT.md:   0%|          | 0.00/444 [00:00<?, ?B/s]
 
 
 
@@ -231,13 +211,25 @@ pipeline.
 
 .. parsed-literal::
 
-    LICENSE:   0%|          | 0.00/1.14k [00:00<?, ?B/s]
+    configuration_florence2.py:   0%|          | 0.00/15.1k [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    CODE_OF_CONDUCT.md:   0%|          | 0.00/444 [00:00<?, ?B/s]
+    .gitattributes:   0%|          | 0.00/1.56k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    config.json:   0%|          | 0.00/2.43k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    LICENSE:   0%|          | 0.00/1.14k [00:00<?, ?B/s]
 
 
 
@@ -261,6 +253,12 @@ pipeline.
 
 .. parsed-literal::
 
+    pytorch_model.bin:   0%|          | 0.00/464M [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
     processing_florence2.py:   0%|          | 0.00/46.4k [00:00<?, ?B/s]
 
 
@@ -273,23 +271,19 @@ pipeline.
 
 .. parsed-literal::
 
-    tokenizer_config.json:   0%|          | 0.00/34.0 [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
     vocab.json:   0%|          | 0.00/1.10M [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    pytorch_model.bin:   0%|          | 0.00/464M [00:00<?, ?B/s]
+    tokenizer_config.json:   0%|          | 0.00/34.0 [00:00<?, ?B/s]
 
 
 .. parsed-literal::
 
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/timm/models/layers/__init__.py:48: FutureWarning: Importing from timm.models.layers is deprecated, please import via timm.layers
+      warnings.warn(f"Importing from {__name__} is deprecated, please import via timm.layers", FutureWarning)
     Florence2LanguageForConditionalGeneration has generative capabilities, as `prepare_inputs_for_generation` is explicitly overwritten. However, it doesn't directly inherit from `GenerationMixin`. From 👉v4.50👈 onwards, `PreTrainedModel` will NOT inherit from `GenerationMixin`, and this model will lose the ability to call `generate` and other related functions.
       - If you're using `trust_remote_code=True`, you can get rid of this warning by loading the model with an auto class. See https://huggingface.co/docs/transformers/en/model_doc/auto#auto-classes
       - If you are the owner of the model architecture code, please modify your model class such that it inherits from `GenerationMixin` (after `PreTrainedModel`, otherwise you'll get an exception).
@@ -306,7 +300,7 @@ pipeline.
 .. parsed-literal::
 
     [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4779: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4779: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
       warnings.warn(
     /opt/home/k8sworker/.cache/huggingface/modules/transformers_modules/chkpt/modeling_florence2.py:277: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert N == H * W
@@ -346,7 +340,7 @@ pipeline.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:88: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:88: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if input_shape[-1] > 1 or self.sliding_window is not None:
     /opt/home/k8sworker/.cache/huggingface/modules/transformers_modules/chkpt/modeling_florence2.py:1205: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       is_causal = True if self.is_causal and attention_mask is None and tgt_len > 1 else False

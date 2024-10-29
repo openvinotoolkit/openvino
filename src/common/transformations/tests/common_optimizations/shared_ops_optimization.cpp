@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/ceiling.hpp"
 #include "openvino/op/concat.hpp"
@@ -714,5 +715,59 @@ TEST_F(SharedTransformationTestsF, SharedMaxPool) {
 
         auto concat = std::make_shared<v0::Concat>(OutputVector{op_1, op_1}, 0);
         model_ref = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{data});
+    }
+}
+
+TEST_F(SharedTransformationTestsF, TopologicalOrder) {
+    {
+        auto data = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+
+        auto shape_of = std::make_shared<v3::ShapeOf>(data);
+
+        auto gather_0 = std::make_shared<v8::Gather>(shape_of,
+                                                     v0::Constant::create(element::i32, {1}, {0}),
+                                                     v0::Constant::create(element::i32, {}, {0}));
+
+        auto gather_1 = std::make_shared<v8::Gather>(shape_of,
+                                                     v0::Constant::create(element::i32, {1}, {0}),
+                                                     v0::Constant::create(element::i32, {}, {0}));
+
+        auto gather_2 = std::make_shared<v8::Gather>(shape_of,
+                                                     v0::Constant::create(element::i32, {1}, {0}),
+                                                     v0::Constant::create(element::i32, {}, {0}));
+
+        auto add_0 = std::make_shared<v1::Add>(gather_0, gather_0);
+        auto add_1 = std::make_shared<v1::Add>(gather_1, gather_1);
+        auto add_2 = std::make_shared<v1::Add>(gather_2, gather_2);
+
+        auto concat_0 =
+            std::make_shared<v0::Concat>(OutputVector{gather_0, add_0, v0::Constant::create(element::i64, {1}, {0})},
+                                         0);
+        auto concat_1 =
+            std::make_shared<v0::Concat>(OutputVector{gather_1, add_1, v0::Constant::create(element::i64, {1}, {0})},
+                                         0);
+        auto concat_2 =
+            std::make_shared<v0::Concat>(OutputVector{gather_2, add_2, v0::Constant::create(element::i64, {1}, {0})},
+                                         0);
+
+        auto concat = std::make_shared<v0::Concat>(OutputVector{concat_0, concat_1}, 0);
+        auto output = std::make_shared<v0::Concat>(OutputVector{concat, concat_2}, 0);
+
+        model = std::make_shared<ov::Model>(OutputVector{output}, ParameterVector{data});
+        manager.register_pass<ov::pass::SharedOpOptimization>();
+    }
+    {
+        auto data = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+        auto shape_of = std::make_shared<v3::ShapeOf>(data);
+        auto gather_0 = std::make_shared<v8::Gather>(shape_of,
+                                                     v0::Constant::create(element::i32, {1}, {0}),
+                                                     v0::Constant::create(element::i32, {}, {0}));
+        auto add_0 = std::make_shared<v1::Add>(gather_0, gather_0);
+        auto concat_0 =
+            std::make_shared<v0::Concat>(OutputVector{gather_0, add_0, v0::Constant::create(element::i64, {1}, {0})},
+                                         0);
+        auto concat = std::make_shared<v0::Concat>(OutputVector{concat_0, concat_0}, 0);
+        auto output = std::make_shared<v0::Concat>(OutputVector{concat, concat_0}, 0);
+        model_ref = std::make_shared<ov::Model>(OutputVector{output}, ParameterVector{data});
     }
 }
