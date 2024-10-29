@@ -1,10 +1,5 @@
 # Vision Background Removal Node.js Sample
 
-Make sure that static files are downloaded, you can prepare them by run:
-```bash
-node ../fetch-samples-assets.js
-```
-
 Run sample:
 ```bash
 node vision_background_removal.js ../../assets/models/unet_ir_model.xml ../../assets/images/coco_hollywood.jpg ../../assets/images/wall.jpg AUTO
