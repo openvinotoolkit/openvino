@@ -105,21 +105,21 @@ public:
         new_size = size;
 
         if (!m_enable_compression) {
-            printf("FilePosition::write NOT m_enable_compression\n");
+            // printf("FilePosition::write NOT m_enable_compression\n");
             if (!compress_to_fp16) {
                 m_binary_output.write(ptr, size);
             } else {
-                printf("FilePosition::write compress_to_fp16\n");
+                // printf("FilePosition::write compress_to_fp16\n");
                 OPENVINO_ASSERT(size % src_type.size() == 0);
                 auto fp16_buffer = compress_data_to_fp16(ptr, size, src_type, new_size);
                 m_binary_output.write(fp16_buffer.get(), new_size);
             }
             return offset;
         } else {
-            printf("FilePosition::write m_enable_compression\n");
+            // printf("FilePosition::write m_enable_compression\n");
             std::unique_ptr<char[]> fp16_buffer = nullptr;
             if (compress_to_fp16) {
-                printf("FilePosition::write compress_to_fp16\n");
+                // printf("FilePosition::write compress_to_fp16\n");
                 OPENVINO_ASSERT(size % src_type.size() == 0);
                 fp16_buffer = compress_data_to_fp16(ptr, size, src_type, new_size);
             }
@@ -1210,7 +1210,7 @@ void serializeFunc(std::ostream& xml_file,
                    std::shared_ptr<ov::Model> model,
                    ov::pass::Serialize::Version ver,
                    bool deterministic = false) {
-    printf("serializeFunc\n");
+    // printf("serializeFunc\n");
     auto version = static_cast<int64_t>(ver);
 
     auto& rt_info = model->get_rt_info();
@@ -1427,7 +1427,7 @@ public:
     }
 
     std::streamsize xsputn(const char* s, std::streamsize n) override {
-        printf("OstreamHashWrapper xsputn\n");
+        // printf("OstreamHashWrapper xsputn\n");
         uint64_t h = ov::runtime::compute_hash(s, n);
         m_res = hash_combine(m_res, h);
 
@@ -1437,7 +1437,7 @@ public:
 }  // namespace
 
 std::streamsize OstreamHashWrapperBin::xsputn(const char* s, std::streamsize n) {
-    printf("OstreamHashWrapperBin xsputn\n");
+    // printf("OstreamHashWrapperBin xsputn\n");
     m_res = hash_combine(m_res, *reinterpret_cast<const uint64_t*>(s));
     return n;
 }
