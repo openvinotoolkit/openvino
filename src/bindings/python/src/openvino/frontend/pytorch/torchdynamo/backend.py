@@ -50,7 +50,8 @@ logger.setLevel(logging.WARNING)
 openvino_options = {}
 
 # Disable regional compilation which was enabled by default from Torch 2.5.0
-torch._dynamo.config.inline_inbuilt_nn_modules=False
+if hasattr(torch._dynamo.config, "inline_inbuilt_nn_modules"):
+    torch._dynamo.config.inline_inbuilt_nn_modules=False
 
 @fake_tensor_unsupported
 def openvino(subgraph, example_inputs, options=None):
