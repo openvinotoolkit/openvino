@@ -14,7 +14,7 @@
 template <class Conv>
 ov::matcher_pass_callback ov::intel_cpu::ConvertConv1DBase::convert_conv1d_to_conv2d() {
     return [&](ov::pass::pattern::Matcher& m) {
-        auto conv = std::dynamic_pointer_cast<Conv>(m.get_match_root());
+        auto conv = ov::as_type_ptr<Conv>(m.get_match_root());
         if (!conv) {
             return false;
         }

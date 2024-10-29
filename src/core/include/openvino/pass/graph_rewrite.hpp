@@ -34,7 +34,7 @@ namespace pass {
 /// \ingroup ov_pass_cpp_api
 class OPENVINO_API GraphRewrite : public ModelPass {
 public:
-    OPENVINO_RTTI("ov::pass::GraphRewrite");
+    OPENVINO_RTTI("ov::pass::GraphRewrite","0", ModelPass);
 
     GraphRewrite() = default;
 

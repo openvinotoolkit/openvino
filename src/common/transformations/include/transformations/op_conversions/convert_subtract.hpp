@@ -21,12 +21,12 @@ class TRANSFORMATIONS_API ConvertSubtractWithConstant;
 
 class ov::pass::ConvertSubtract : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertSubtract", "0");
+    OPENVINO_RTTI("ConvertSubtract", "0", ov::pass::MatcherPass);
     ConvertSubtract();
 };
 
 class ov::pass::ConvertSubtractWithConstant : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertSubtractWithConstant", "0");
+    OPENVINO_RTTI("ConvertSubtractWithConstant", "0", ov::pass::MatcherPass);
     ConvertSubtractWithConstant();
 };

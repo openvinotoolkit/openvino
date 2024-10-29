@@ -14,7 +14,7 @@ namespace v0 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Convert : public Op {
 public:
-    OPENVINO_OP("Convert", "opset1");
+    OPENVINO_OP("Convert", "opset1", Op);
 
     /// \brief Constructs a conversion operation.
     Convert() = default;

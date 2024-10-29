@@ -15,7 +15,7 @@ namespace pass {
  */
 class TRANSFORMATIONS_API ConvertAvgPool14ToAvgPool1 : public MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertAvgPool14ToAvgPool1", "0");
+    OPENVINO_RTTI("ConvertAvgPool14ToAvgPool1", "0", MatcherPass);
     ConvertAvgPool14ToAvgPool1();
 };
 }  // namespace pass

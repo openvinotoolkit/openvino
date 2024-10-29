@@ -15,7 +15,7 @@ namespace internal {
 /// \note Performs re-scaling invariance and regularizes the summed input according to RMS statistics
 class TRANSFORMATIONS_API RMS : public ov::op::Op {
 public:
-    OPENVINO_OP("RMS", "ie_internal_opset");
+    OPENVINO_OP("RMS", "ie_internal_opset", ov::op::Op);
 
     RMS() = default;
     /// \brief Constructs an RMS operation.

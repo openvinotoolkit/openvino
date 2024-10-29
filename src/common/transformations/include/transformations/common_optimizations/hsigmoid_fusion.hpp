@@ -29,7 +29,7 @@ class TRANSFORMATIONS_API HSigmoidFusionWithClampDiv;
  */
 class ov::pass::HSigmoidFusionWithReluDiv : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("HSigmoidFusionWithReluDiv", "0");
+    OPENVINO_RTTI("HSigmoidFusionWithReluDiv", "0", ov::pass::MatcherPass);
     HSigmoidFusionWithReluDiv();
 };
 
@@ -39,7 +39,7 @@ public:
  */
 class ov::pass::HSigmoidFusionWithReluMul : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("HSigmoidFusionWithReluMul", "0");
+    OPENVINO_RTTI("HSigmoidFusionWithReluMul", "0", ov::pass::MatcherPass);
     HSigmoidFusionWithReluMul();
 };
 
@@ -49,7 +49,7 @@ public:
  */
 class ov::pass::HSigmoidFusionWithoutRelu : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("HSigmoidFusionWithoutRelu", "0");
+    OPENVINO_RTTI("HSigmoidFusionWithoutRelu", "0", ov::pass::MatcherPass);
     HSigmoidFusionWithoutRelu();
 };
 
@@ -59,7 +59,7 @@ public:
  */
 class ov::pass::HSigmoidFusionWithClampMul : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("HSigmoidFusionWithClampMul", "0");
+    OPENVINO_RTTI("HSigmoidFusionWithClampMul", "0", ov::pass::MatcherPass);
     HSigmoidFusionWithClampMul();
 };
 
@@ -69,7 +69,7 @@ public:
  */
 class ov::pass::HSigmoidFusionWithClampDiv : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("HSigmoidFusionWithClampDiv", "0");
+    OPENVINO_RTTI("HSigmoidFusionWithClampDiv", "0", ov::pass::MatcherPass);
     HSigmoidFusionWithClampDiv();
 };
 
@@ -79,7 +79,7 @@ public:
  */
 class ov::pass::HSigmoidFusion : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("HSigmoidFusion", "0");
+    OPENVINO_RTTI("HSigmoidFusion", "0", ov::pass::GraphRewrite);
     HSigmoidFusion() {
         add_matcher<ov::pass::HSigmoidFusionWithReluDiv>();
         add_matcher<ov::pass::HSigmoidFusionWithReluMul>();

@@ -17,7 +17,7 @@ namespace v0 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API NormalizeL2 : public Op {
 public:
-    OPENVINO_OP("NormalizeL2", "opset1");
+    OPENVINO_OP("NormalizeL2", "opset1", Op);
 
     NormalizeL2() = default;
     ///

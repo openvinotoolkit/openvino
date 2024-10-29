@@ -23,6 +23,6 @@ class TRANSFORMATIONS_API ReshapeSequenceFusion;
 
 class ov::pass::ReshapeSequenceFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ReshapeSequenceFusion", "0");
+    OPENVINO_RTTI("ReshapeSequenceFusion", "0", ov::pass::MatcherPass);
     ReshapeSequenceFusion(bool use_shape_for_elimination = true);
 };

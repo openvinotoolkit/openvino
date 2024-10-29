@@ -30,6 +30,6 @@ class TRANSFORMATIONS_API ConvertPadToGroupConvolution;
 
 class ov::pass::ConvertPadToGroupConvolution : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertPadToGroupConvolution", "0");
+    OPENVINO_RTTI("ConvertPadToGroupConvolution", "0", ov::pass::MatcherPass);
     ConvertPadToGroupConvolution();
 };

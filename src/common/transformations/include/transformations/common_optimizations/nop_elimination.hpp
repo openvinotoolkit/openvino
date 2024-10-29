@@ -49,7 +49,7 @@ public:
  */
 class ov::pass::EliminatePad : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("EliminatePad", "0");
+    OPENVINO_RTTI("EliminatePad", "0", ov::pass::MatcherPass);
     EliminatePad();
 };
 
@@ -59,7 +59,7 @@ public:
  */
 class ov::pass::EliminateConvert : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("EliminateConvert", "0");
+    OPENVINO_RTTI("EliminateConvert", "0", ov::pass::MatcherPass);
     EliminateConvert();
 };
 
@@ -69,7 +69,7 @@ public:
  */
 class ov::pass::EliminateConvertNonZero : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("EliminateConvertNonZero", "0");
+    OPENVINO_RTTI("EliminateConvertNonZero", "0", ov::pass::MatcherPass);
     EliminateConvertNonZero();
 };
 
@@ -79,7 +79,7 @@ public:
  */
 class ov::pass::EliminateConcat : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("EliminateConcat", "0");
+    OPENVINO_RTTI("EliminateConcat", "0", ov::pass::MatcherPass);
     EliminateConcat();
 };
 
@@ -89,7 +89,7 @@ public:
  */
 class ov::pass::EliminateSplit : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("EliminateSplit", "0");
+    OPENVINO_RTTI("EliminateSplit", "0", ov::pass::MatcherPass);
     EliminateSplit();
 };
 
@@ -99,7 +99,7 @@ public:
  */
 class ov::pass::EliminateSqueeze : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("EliminateSqueeze", "0");
+    OPENVINO_RTTI("EliminateSqueeze", "0", ov::pass::MatcherPass);
     EliminateSqueeze();
 };
 
@@ -109,7 +109,7 @@ public:
  */
 class ov::pass::EliminateUnsqueeze : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("EliminateUnsqueeze", "0");
+    OPENVINO_RTTI("EliminateUnsqueeze", "0", ov::pass::MatcherPass);
     EliminateUnsqueeze();
 };
 
@@ -119,7 +119,7 @@ public:
  */
 class ov::pass::EliminateTranspose : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("EliminateTranspose", "0");
+    OPENVINO_RTTI("EliminateTranspose", "0", ov::pass::MatcherPass);
     EliminateTranspose();
 };
 
@@ -129,7 +129,7 @@ public:
  */
 class ov::pass::EliminateEltwise : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("EliminateEltwise", "0");
+    OPENVINO_RTTI("EliminateEltwise", "0", ov::pass::MatcherPass);
     EliminateEltwise();
 };
 
@@ -139,13 +139,13 @@ public:
  */
 class ov::pass::EliminateScatterUpdate : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("EliminateScatterUpdate", "0");
+    OPENVINO_RTTI("EliminateScatterUpdate", "0", ov::pass::MatcherPass);
     EliminateScatterUpdate();
 };
 
 class ov::pass::NopElimination : public GraphRewrite {
 public:
-    OPENVINO_RTTI("NopElimination", "0");
+    OPENVINO_RTTI("NopElimination", "0", GraphRewrite);
     NopElimination(bool use_shape_for_elimination = true);
 };
 
@@ -155,7 +155,7 @@ public:
  */
 class ov::pass::EliminateSplitConcat : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("EliminateSplitConcat", "0");
+    OPENVINO_RTTI("EliminateSplitConcat", "0", ov::pass::MatcherPass);
     EliminateSplitConcat();
 };
 
@@ -165,7 +165,7 @@ public:
  */
 class ov::pass::EliminateNopBroadcast : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("EliminateNopBroadcast", "0");
+    OPENVINO_RTTI("EliminateNopBroadcast", "0", ov::pass::MatcherPass);
     EliminateNopBroadcast();
 };
 
@@ -177,7 +177,7 @@ public:
  */
 class ov::pass::EliminateSliceBeforeGatherElements : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("EliminateSliceBeforeGatherElements", "0");
+    OPENVINO_RTTI("EliminateSliceBeforeGatherElements", "0", ov::pass::MatcherPass);
     EliminateSliceBeforeGatherElements();
 };
 
@@ -188,7 +188,7 @@ public:
  */
 class ov::pass::EliminateStridedSlice : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("EliminateStridedSlice", "0");
+    OPENVINO_RTTI("EliminateStridedSlice", "0", ov::pass::MatcherPass);
     EliminateStridedSlice();
 };
 
@@ -199,7 +199,7 @@ public:
  */
 class ov::pass::EliminateSlice : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("EliminateSlice", "0");
+    OPENVINO_RTTI("EliminateSlice", "0", ov::pass::MatcherPass);
     EliminateSlice();
 };
 
@@ -210,7 +210,7 @@ public:
  */
 class ov::pass::EliminateStridedSliceByShape : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("EliminateStridedSliceByShape", "0");
+    OPENVINO_RTTI("EliminateStridedSliceByShape", "0", ov::pass::MatcherPass);
     EliminateStridedSliceByShape();
 };
 
@@ -222,6 +222,6 @@ public:
  */
 class ov::pass::PrepareShapeOpsForEliminationAroundBE : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("PrepareShapeOpsForEliminationAroundBE", "0");
+    OPENVINO_RTTI("PrepareShapeOpsForEliminationAroundBE", "0", ov::pass::MatcherPass);
     PrepareShapeOpsForEliminationAroundBE();
 };

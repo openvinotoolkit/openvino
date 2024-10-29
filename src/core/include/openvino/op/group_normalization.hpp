@@ -14,7 +14,7 @@ namespace v12 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API GroupNormalization : public Op {
 public:
-    OPENVINO_OP("GroupNormalization", "opset12");
+    OPENVINO_OP("GroupNormalization", "opset12", Op);
     GroupNormalization();
     /// \param data The input tensor to be normalized
     /// \param scale The tensor containing scale values for each channel

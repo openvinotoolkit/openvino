@@ -18,7 +18,7 @@ namespace pass {
  */
 class TRANSFORMATIONS_API Hash : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("HashPass");
+    OPENVINO_RTTI("HashPass","0", ov::pass::ModelPass);
 
     bool run_on_model(const std::shared_ptr<ov::Model>& f) override;
 

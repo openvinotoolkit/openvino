@@ -13,7 +13,7 @@ namespace util {
 /// \brief Returns embeddings for given indices
 class OPENVINO_API EmbeddingBagOffsetsBase : public Op {
 public:
-    OPENVINO_OP("EmbeddingBagOffsetsBase", "util");
+    OPENVINO_OP("EmbeddingBagOffsetsBase", "util", Op);
 
     enum class Reduction { SUM, MEAN };
 

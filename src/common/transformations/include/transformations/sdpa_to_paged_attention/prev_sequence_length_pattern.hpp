@@ -22,6 +22,6 @@ class TRANSFORMATIONS_API PrevSequenceLengthPattern;
 
 class ov::pass::PrevSequenceLengthPattern : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("PrevSequenceLengthPattern", "0");
+    OPENVINO_RTTI("PrevSequenceLengthPattern", "0", ov::pass::MatcherPass);
     explicit PrevSequenceLengthPattern(std::shared_ptr<ov::Node> prev_max_seq_len, std::shared_ptr<ov::Node> batch_dim);
 };

@@ -32,6 +32,6 @@ class TRANSFORMATIONS_API AUGRUCellFusion;
 
 class ov::pass::AUGRUCellFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("AUGRUCellFusion", "0");
+    OPENVINO_RTTI("AUGRUCellFusion", "0", ov::pass::MatcherPass);
     AUGRUCellFusion();
 };

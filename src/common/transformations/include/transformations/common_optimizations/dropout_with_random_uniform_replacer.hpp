@@ -36,6 +36,6 @@ class TRANSFORMATIONS_API DropoutWithRandomUniformReplacer;
  */
 class ov::pass::DropoutWithRandomUniformReplacer : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("DropoutWithRandomUniformReplacer", "0");
+    OPENVINO_RTTI("DropoutWithRandomUniformReplacer", "0", ov::pass::MatcherPass);
     DropoutWithRandomUniformReplacer();
 };

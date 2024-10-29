@@ -27,7 +27,7 @@ namespace v0 {
 // clang-format on
 class OPENVINO_API LRN : public Op {
 public:
-    OPENVINO_OP("LRN", "opset1");
+    OPENVINO_OP("LRN", "opset1", Op);
 
     /// \brief Constructs a LRN operation.
     LRN() = default;

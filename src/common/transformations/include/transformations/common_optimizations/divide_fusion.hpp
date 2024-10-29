@@ -24,6 +24,6 @@ class TRANSFORMATIONS_API DivideFusion;
  */
 class ov::pass::DivideFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("DivideFusion", "0");
+    OPENVINO_RTTI("DivideFusion", "0", ov::pass::MatcherPass);
     DivideFusion();
 };

@@ -21,7 +21,7 @@ namespace v0 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API DepthToSpace : public Op {
 public:
-    OPENVINO_OP("DepthToSpace", "opset1");
+    OPENVINO_OP("DepthToSpace", "opset1", Op);
 
     enum class DepthToSpaceMode {
         // The input depth is divided to [block_size, ..., block_size, new_depth]

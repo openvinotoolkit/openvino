@@ -37,6 +37,6 @@ class TRANSFORMATIONS_API LSTMCellDecomposition;
 
 class ov::pass::LSTMCellDecomposition : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("LSTMCellDecomposition", "0");
+    OPENVINO_RTTI("LSTMCellDecomposition", "0", ov::pass::MatcherPass);
     LSTMCellDecomposition();
 };

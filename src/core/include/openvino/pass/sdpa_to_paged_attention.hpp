@@ -17,7 +17,7 @@ namespace pass {
  */
 class OPENVINO_API SDPAToPagedAttention : public ModelPass {
 public:
-    OPENVINO_RTTI("SDPAToPagedAttention");
+    OPENVINO_RTTI("SDPAToPagedAttention","0", ModelPass);
 
     SDPAToPagedAttention(bool use_block_indices_inputs = false, bool use_score_outputs = false);
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;

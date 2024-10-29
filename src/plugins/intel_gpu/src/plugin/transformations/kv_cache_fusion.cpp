@@ -30,7 +30,7 @@ namespace intel_gpu {
 
 class KVCacheFusionMatcher : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("KVCacheFusionMatcher", "0");
+    OPENVINO_RTTI("KVCacheFusionMatcher", "0", ov::pass::MatcherPass);
     KVCacheFusionMatcher();
 };
 

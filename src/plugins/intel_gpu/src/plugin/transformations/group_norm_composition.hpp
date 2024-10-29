@@ -11,7 +11,7 @@ namespace intel_gpu {
 
 class GroupNormComposition : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("GroupNormComposition", "0");
+    OPENVINO_RTTI("GroupNormComposition", "0", ov::pass::MatcherPass);
     GroupNormComposition();
 };
 

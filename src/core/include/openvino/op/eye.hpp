@@ -13,7 +13,7 @@ namespace v9 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Eye : public Op {
 public:
-    OPENVINO_OP("Eye", "opset9");
+    OPENVINO_OP("Eye", "opset9", Op);
 
     Eye() = default;
 

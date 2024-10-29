@@ -804,7 +804,7 @@ public:
 
 class Constant : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("Constant", "0");
+    OPENVINO_RTTI("Constant", "0", ov::pass::ModelPass);
     Constant() = default;
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
         RUN_ON_FUNCTION_SCOPE(Constant);

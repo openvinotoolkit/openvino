@@ -38,19 +38,19 @@ namespace intel_gpu {
 ///              └───────────┘                                                                   └───────────────┘
 class IndirectKVCache : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("IndirectKVCache", "0");
+    OPENVINO_RTTI("IndirectKVCache", "0", ov::pass::GraphRewrite);
     IndirectKVCache();
 };
 
 class IndirectGemmOpt : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("IndirectGemmOpt", "0");
+    OPENVINO_RTTI("IndirectGemmOpt", "0", ov::pass::MatcherPass);
     IndirectGemmOpt();
 };
 
 class IndirectSDPAOpt : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("IndirectSDPAOpt", "0");
+    OPENVINO_RTTI("IndirectSDPAOpt", "0", ov::pass::MatcherPass);
     IndirectSDPAOpt();
 };
 }   // namespace intel_gpu

@@ -13,7 +13,7 @@ namespace intel_gpu {
 // and adds optional padding to align elements count to `alignment` value
 class BroadcastAndPadZeroPointBuffers : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("BroadcastAndPadZeroPointBuffers", "0");
+    OPENVINO_RTTI("BroadcastAndPadZeroPointBuffers", "0", ov::pass::MatcherPass);
     BroadcastAndPadZeroPointBuffers(size_t alignment = 1, bool supports_immad = false);
 };
 

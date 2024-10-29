@@ -56,7 +56,7 @@ bool SoftmaxKey::operator==(const SoftmaxKey& rhs) const {
 
 bool SoftMax::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!std::dynamic_pointer_cast<const ov::opset1::Softmax>(op)) {
+        if (!ov::as_type_ptr<const ov::opset1::Softmax>(op)) {
             errorMessage = "Only opset1 Softmax operation is supported";
             return false;
         }

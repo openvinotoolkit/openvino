@@ -15,7 +15,7 @@ namespace v0 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Concat : public Op {
 public:
-    OPENVINO_OP("Concat", "opset1");
+    OPENVINO_OP("Concat", "opset1", Op);
 
     /// \brief Constructs a concatenation operation.
     Concat() = default;

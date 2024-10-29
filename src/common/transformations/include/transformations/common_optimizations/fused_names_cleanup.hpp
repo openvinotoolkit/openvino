@@ -21,6 +21,6 @@ class TRANSFORMATIONS_API FusedNamesCleanup;
  */
 class ov::pass::FusedNamesCleanup : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("FusedNamesCleanup", "0");
+    OPENVINO_RTTI("FusedNamesCleanup", "0", ov::pass::ModelPass);
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };

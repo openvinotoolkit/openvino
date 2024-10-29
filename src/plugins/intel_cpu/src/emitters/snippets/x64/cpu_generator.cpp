@@ -354,7 +354,7 @@ ov::snippets::RegType intel_cpu::CPUGenerator::get_specific_op_out_reg_type(cons
     if (std::dynamic_pointer_cast<intel_cpu::BrgemmCPU>(op) ||
 #ifdef SNIPPETS_LIBXSMM_TPP
         std::dynamic_pointer_cast<intel_cpu::tpp::modifier::TensorProcessingPrimitive>(op) ||
-        std::dynamic_pointer_cast<intel_cpu::tpp::op::Scalar>(op) ||
+        ov::as_type_ptr<intel_cpu::tpp::op::Scalar>(op) ||
 #endif
         std::dynamic_pointer_cast<intel_cpu::BrgemmCopyB>(op))
         return ov::snippets::RegType::gpr;

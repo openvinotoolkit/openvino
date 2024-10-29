@@ -21,6 +21,6 @@ class TRANSFORMATIONS_API HardSigmoidDecomposition;
  */
 class ov::pass::HardSigmoidDecomposition : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("HardSigmoidDecomposition", "0");
+    OPENVINO_RTTI("HardSigmoidDecomposition", "0", ov::pass::MatcherPass);
     HardSigmoidDecomposition();
 };

@@ -14,7 +14,7 @@ namespace v0 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API ReorgYolo : public Op {
 public:
-    OPENVINO_OP("ReorgYolo", "opset2");
+    OPENVINO_OP("ReorgYolo", "opset2", Op);
 
     ReorgYolo() = default;
     /// \brief Constructs a ReorgYolo operation

@@ -34,6 +34,6 @@ class TRANSFORMATIONS_API ShuffleChannelsFusion;
 
 class ov::pass::ShuffleChannelsFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ShuffleChannelsFusion", "0");
+    OPENVINO_RTTI("ShuffleChannelsFusion", "0", ov::pass::MatcherPass);
     ShuffleChannelsFusion(const bool reshape_constants_check);
 };

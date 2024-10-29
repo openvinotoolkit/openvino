@@ -14,7 +14,7 @@ namespace internal {
 
 class TRANSFORMATIONS_API GatherCompressed : public ov::op::v8::Gather {
 public:
-    OPENVINO_OP("GatherCompressed", "ie_internal_opset");
+    OPENVINO_OP("GatherCompressed", "ie_internal_opset", ov::op::v8::Gather);
 
     GatherCompressed() = default;
 

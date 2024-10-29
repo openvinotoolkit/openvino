@@ -21,7 +21,7 @@ namespace v0 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Interpolate : public Op {
 public:
-    OPENVINO_OP("Interpolate", "opset1");
+    OPENVINO_OP("Interpolate", "opset1", Op);
     /// \brief Structure that specifies attributes for interpolation
     struct Attributes {
         // specify dimension indices where interpolation is applied, and `axes` is any

@@ -17,7 +17,7 @@ namespace internal {
 
 class TRANSFORMATIONS_API NonMaxSuppressionIEInternal : public Op {
 public:
-    OPENVINO_OP("NonMaxSuppressionIEInternal", "ie_internal_opset");
+    OPENVINO_OP("NonMaxSuppressionIEInternal", "ie_internal_opset", Op);
 
     NonMaxSuppressionIEInternal() = default;
 

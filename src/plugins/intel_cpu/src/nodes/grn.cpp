@@ -14,7 +14,7 @@ namespace node {
 
 bool GRN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto grn = std::dynamic_pointer_cast<const ov::opset1::GRN>(op);
+        const auto grn = ov::as_type_ptr<const ov::opset1::GRN>(op);
         if (!grn) {
             errorMessage = "Only opset1 GRN operation is supported";
             return false;
@@ -33,7 +33,7 @@ GRN::GRN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     }
 
     errorPrefix = "GRN layer with name '" + op->get_friendly_name() + "'";
-    const auto grn = std::dynamic_pointer_cast<const ov::opset1::GRN>(op);
+    const auto grn = ov::as_type_ptr<const ov::opset1::GRN>(op);
     if (grn == nullptr)
         OPENVINO_THROW("Operation with name '", op->get_friendly_name(), "' is not an instance of GRN from opset1.");
 

@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API GenerateProposalsIEInternal : public op::v9::GenerateP
     using Base = op::v9::GenerateProposals;
 
 public:
-    OPENVINO_OP("GenerateProposalsIEInternal", "ie_internal_opset");
+    OPENVINO_OP("GenerateProposalsIEInternal", "ie_internal_opset", op::v9::GenerateProposals);
 
     GenerateProposalsIEInternal() = default;
 

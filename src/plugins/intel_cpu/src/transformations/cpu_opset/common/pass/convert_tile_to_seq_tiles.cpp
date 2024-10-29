@@ -25,7 +25,7 @@ ov::intel_cpu::ConvertTileToSeqTiles::ConvertTileToSeqTiles() {
             return false;
         }
 
-        auto tiles_node = std::dynamic_pointer_cast<ov::opset1::Constant>(tile->input_value(1).get_node_shared_ptr());
+        auto tiles_node = ov::as_type_ptr<ov::opset1::Constant>(tile->input_value(1).get_node_shared_ptr());
         if (!tiles_node) return false;
 
         auto tiles = tiles_node->cast_vector<int64_t>();
@@ -47,7 +47,7 @@ ov::intel_cpu::ConvertTileToSeqTiles::ConvertTileToSeqTiles() {
         if (num_of_tile_dims == 0) {
             auto outputs = tile->get_output_target_inputs(0);
             for (const auto &out : outputs) {
-                if (std::dynamic_pointer_cast<ov::opset1::Result>(out.get_node()->shared_from_this())) {
+                if (ov::as_type_ptr<ov::opset1::Result>(out.get_node()->shared_from_this())) {
                     return false;
                 }
             }

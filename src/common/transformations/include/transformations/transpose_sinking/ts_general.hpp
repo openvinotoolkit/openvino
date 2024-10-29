@@ -29,7 +29,7 @@ using TransposeSinkingGeneral = ov::pass::transpose_sinking::TSGeneral;
  */
 class ov::pass::transpose_sinking::TSGeneralForward : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("TSGeneralForward", "0");
+    OPENVINO_RTTI("TSGeneralForward", "0", ov::pass::GraphRewrite);
     TSGeneralForward();
 };
 
@@ -40,7 +40,7 @@ public:
  */
 class ov::pass::transpose_sinking::TSGeneralBackward : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("TSGeneralBackward", "0");
+    OPENVINO_RTTI("TSGeneralBackward", "0", ov::pass::GraphRewrite);
     TSGeneralBackward();
 };
 
@@ -52,6 +52,6 @@ public:
  */
 class ov::pass::transpose_sinking::TSGeneral : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("TSGeneral", "0");
+    OPENVINO_RTTI("TSGeneral", "0", ov::pass::ModelPass);
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };

@@ -29,7 +29,7 @@ class TRANSFORMATIONS_API TransposeFuse;
  */
 class ov::pass::TransposeReduction : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("TransposeReduction", "0");
+    OPENVINO_RTTI("TransposeReduction", "0", ov::pass::MatcherPass);
     TransposeReduction();
 };
 
@@ -40,7 +40,7 @@ public:
  */
 class ov::pass::TransposeFQReduction : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("TransposeFQReduction", "0");
+    OPENVINO_RTTI("TransposeFQReduction", "0", ov::pass::MatcherPass);
     TransposeFQReduction();
 };
 
@@ -50,7 +50,7 @@ public:
  */
 class ov::pass::TransposeConvert : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("TransposeConvert", "0");
+    OPENVINO_RTTI("TransposeConvert", "0", ov::pass::MatcherPass);
     TransposeConvert();
 };
 
@@ -60,7 +60,7 @@ public:
  */
 class ov::pass::TransposeEltwise : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("TransposeEltwise", "0");
+    OPENVINO_RTTI("TransposeEltwise", "0", ov::pass::MatcherPass);
     TransposeEltwise();
 };
 
@@ -71,7 +71,7 @@ public:
  */
 class ov::pass::TransposeFuse : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("TransposeFuse", "0");
+    OPENVINO_RTTI("TransposeFuse", "0", ov::pass::MatcherPass);
     TransposeFuse();
 };
 
@@ -81,7 +81,7 @@ public:
  */
 class ov::pass::TransposeSinking : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("TransposeSinking", "0");
+    OPENVINO_RTTI("TransposeSinking", "0", ov::pass::GraphRewrite);
     TransposeSinking() {
         add_matcher<ov::pass::TransposeFQReduction>();
         add_matcher<ov::pass::TransposeReduction>();

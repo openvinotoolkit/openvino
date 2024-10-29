@@ -32,7 +32,7 @@ void tensor_iterator(uint64_t num_iterations,
     std::vector<BackEdge> back_edges;
     for (const auto& desc : input_descs) {
         inputs_to_body[desc->m_body_parameter_index] = args[desc->m_input_index];
-        if (const auto& merged_desc = std::dynamic_pointer_cast<ov::op::v5::Loop::MergedInputDescription>(desc)) {
+        if (const auto& merged_desc = ov::as_type_ptr<ov::op::v5::Loop::MergedInputDescription>(desc)) {
             back_edges.push_back({merged_desc->m_body_parameter_index, merged_desc->m_body_value_index});
         }
     }

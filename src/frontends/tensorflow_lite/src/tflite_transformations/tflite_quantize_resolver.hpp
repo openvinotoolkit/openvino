@@ -18,21 +18,21 @@ namespace pass {
 // Fuses Convert into TFLQuantize operation
 class TFLQuantizeConvert : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::frontend::tensorflow_lite::pass::TFLQuantizeConvert");
+    OPENVINO_RTTI("ov::frontend::tensorflow_lite::pass::TFLQuantizeConvert", "0", ov::pass::MatcherPass);
     TFLQuantizeConvert();
 };
 
 // Replaces TFLQuantize operation with FQ or sub-mul pattern if necessary
 class TFLQuantizeReplacer : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::frontend::tensorflow_lite::pass::TFLQuantizeReplacer");
+    OPENVINO_RTTI("ov::frontend::tensorflow_lite::pass::TFLQuantizeReplacer", "0", ov::pass::MatcherPass);
     TFLQuantizeReplacer();
 };
 
 // This transformation simplifies type manipulations in the graph
 class TFLQuantizeResolver : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("ov::frontend::tensorflow_lite::pass::TFLQuantizeResolver");
+    OPENVINO_RTTI("ov::frontend::tensorflow_lite::pass::TFLQuantizeResolver", "0", ov::pass::ModelPass);
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 

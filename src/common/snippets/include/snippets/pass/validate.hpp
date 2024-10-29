@@ -17,7 +17,7 @@ namespace pass {
  */
 class Validate: public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("Validate", "0");
+    OPENVINO_RTTI("Validate", "0", ov::pass::ModelPass);
     Validate(const std::shared_ptr<ov::pass::PassConfig>& pass_config) : m_pass_config(pass_config) {}
 
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;

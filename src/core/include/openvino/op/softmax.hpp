@@ -51,7 +51,7 @@ namespace v8 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Softmax : public Op {
 public:
-    OPENVINO_OP("Softmax", "opset8");
+    OPENVINO_OP("Softmax", "opset8", Op);
 
     Softmax() = default;
     /// \brief Constructs a softmax operation.

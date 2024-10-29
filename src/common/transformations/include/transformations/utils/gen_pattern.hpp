@@ -729,7 +729,7 @@ public:
 // from it. but we didn't use the predicate facility.
 class GenericPattern : public ov::pass::pattern::op::Pattern {
 public:
-    OPENVINO_RTTI("GenericPattern");
+    OPENVINO_RTTI("GenericPattern","0", ov::pass::pattern::op::Pattern);
 
     explicit GenericPattern(const DiscreteTypeInfo& type_info,
                             const OutputVector& args,

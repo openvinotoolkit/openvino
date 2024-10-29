@@ -17,7 +17,7 @@ namespace v0 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API CumSum : public Op {
 public:
-    OPENVINO_OP("CumSum", "opset3");
+    OPENVINO_OP("CumSum", "opset3", Op);
 
     /// \brief Constructs a cumulative summation operation.
     CumSum() = default;

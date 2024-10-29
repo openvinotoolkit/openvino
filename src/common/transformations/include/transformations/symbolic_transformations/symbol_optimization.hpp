@@ -21,7 +21,7 @@ class TRANSFORMATIONS_API OptimizeSymbolsUsedAsValues;
  */
 class ov::pass::ApplySymbolEquivalence : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("ApplySymbolEquivalence", "0");
+    OPENVINO_RTTI("ApplySymbolEquivalence", "0", ov::pass::ModelPass);
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 
@@ -32,6 +32,6 @@ public:
  */
 class ov::pass::OptimizeSymbolsUsedAsValues : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("OptimizeSymbolsUsedAsValues", "0");
+    OPENVINO_RTTI("OptimizeSymbolsUsedAsValues", "0", ov::pass::ModelPass);
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };

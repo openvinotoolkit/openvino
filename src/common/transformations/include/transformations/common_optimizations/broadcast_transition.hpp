@@ -24,6 +24,6 @@ class TRANSFORMATIONS_API BroadcastTransition;
  */
 class ov::pass::BroadcastTransition : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("BroadcastTransition", "0");
+    OPENVINO_RTTI("BroadcastTransition", "0", ov::pass::MatcherPass);
     BroadcastTransition();
 };

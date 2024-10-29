@@ -21,12 +21,12 @@ class TRANSFORMATIONS_API ConvertDivideWithConstant;
 
 class ov::pass::ConvertDivide : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertDivide", "0");
+    OPENVINO_RTTI("ConvertDivide", "0", ov::pass::MatcherPass);
     ConvertDivide();
 };
 
 class ov::pass::ConvertDivideWithConstant : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertDivideWithConstant", "0");
+    OPENVINO_RTTI("ConvertDivideWithConstant", "0", ov::pass::MatcherPass);
     ConvertDivideWithConstant();
 };

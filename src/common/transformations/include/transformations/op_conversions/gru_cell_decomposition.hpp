@@ -36,6 +36,6 @@ class TRANSFORMATIONS_API GRUCellDecomposition;
 
 class ov::pass::GRUCellDecomposition : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("GRUCellDecomposition", "0");
+    OPENVINO_RTTI("GRUCellDecomposition", "0", ov::pass::MatcherPass);
     GRUCellDecomposition();
 };

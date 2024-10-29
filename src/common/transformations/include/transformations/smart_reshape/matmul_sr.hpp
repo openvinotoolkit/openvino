@@ -30,16 +30,16 @@ class TRANSFORMATIONS_API TransposeMatMul;
 
 class ov::pass::ReshapeAMatMul : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ReshapeAMatMul", "0");
+    OPENVINO_RTTI("ReshapeAMatMul", "0", ov::pass::MatcherPass);
     ReshapeAMatMul();
 };
 class ov::pass::ReshapeBMatMul : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ReshapeBMatMul", "0");
+    OPENVINO_RTTI("ReshapeBMatMul", "0", ov::pass::MatcherPass);
     ReshapeBMatMul();
 };
 class ov::pass::TransposeMatMul : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("TransposeMatMul", "0");
+    OPENVINO_RTTI("TransposeMatMul", "0", ov::pass::MatcherPass);
     TransposeMatMul();
 };

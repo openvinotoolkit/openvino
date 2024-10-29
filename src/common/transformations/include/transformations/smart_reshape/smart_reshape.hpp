@@ -20,6 +20,6 @@ class TRANSFORMATIONS_API SmartReshape;
 
 class ov::pass::SmartReshape : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("SmartReshape", "0");
+    OPENVINO_RTTI("SmartReshape", "0", ov::pass::ModelPass);
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };

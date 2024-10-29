@@ -15,7 +15,7 @@ namespace v8 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API AdaptiveAvgPool : public Op {
 public:
-    OPENVINO_OP("AdaptiveAvgPool", "opset8");
+    OPENVINO_OP("AdaptiveAvgPool", "opset8", Op);
 
     AdaptiveAvgPool() = default;
 
