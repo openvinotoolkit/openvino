@@ -33,6 +33,7 @@ const std::vector<ov::AnyMap> gpu_compileModel_properties = {
     {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY),
      ov::hint::num_requests(10),
      ov::hint::enable_cpu_pinning(true),
+     ov::hint::enable_cpu_reservation(false),
      ov::enable_profiling(true)}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_gpuCompileModelBehaviorTests,

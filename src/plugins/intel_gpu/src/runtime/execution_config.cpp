@@ -242,6 +242,9 @@ void ExecutionConfig::apply_user_properties(const cldnn::device_info& info) {
             set_property(ov::hint::enable_cpu_reservation(true));
         }
     }
+    if (get_property(ov::hint::enable_cpu_reservation) && !get_property(ov::hint::enable_cpu_pinning)) {
+        set_property(ov::hint::enable_cpu_pinning(true));
+    }
 
     user_properties.clear();
 }
