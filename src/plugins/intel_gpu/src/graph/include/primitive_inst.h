@@ -3,6 +3,7 @@
 //
 
 #pragma once
+#include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/primitives/primitive.hpp"
 #include "intel_gpu/primitives/concatenation.hpp"
 #include "intel_gpu/runtime/event.hpp"
@@ -236,6 +237,14 @@ public:
     void add_dep_event(event::ptr ev);
     void set_out_event(event::ptr&& ev);
 
+    void set_flag(size_t flag, bool value = true);
+    void unset_flag(size_t flag);
+    bool get_flag(size_t flag) const;
+    void reset_flags();
+
+    void reset_events();
+
+    void prepare_primitive();
     void execute();
     void init_kernels(const kernels_cache& kernels_cache) {
         _impl->init_kernels(kernels_cache, *_impl_params);
@@ -246,11 +255,6 @@ public:
     void validate() const {
         OPENVINO_ASSERT(_impl != nullptr || is_dynamic(), "[GPU] Invalid impl object for ", id(), " primitive");
     }
-
-    bool shape_changed() const { return _shape_changed; }
-    bool mem_changed() const { return _mem_changed; }
-    void reset_shape_change() { _shape_changed = false; }
-    void set_shape_change() { _shape_changed = true; }
 
     void build_deps();
 
@@ -330,8 +334,6 @@ public:
     kernel_impl_params get_fake_aligned_params_if_possible(kernel_impl_params const& orig_impl_param);
     bool all_dependencies_cpu_impl() const;
 
-    void reset_events();
-
 protected:
     primitive_inst(network& network, program_node const& node, bool allocate_memory);
 
@@ -341,6 +343,7 @@ protected:
 
     bool update_shape_done_by_other = false;
     bool allocation_done_by_other = false;
+    bool _use_shared_kernels = false;
     std::unique_ptr<kernel_impl_params> _impl_params;
     std::shared_ptr<primitive_impl> _impl;
     std::shared_ptr<ImplementationsFactory> _impls_factory = nullptr;
@@ -382,8 +385,6 @@ protected:
     // Buffer to store actual shapes of dynamic tensor which is automatically asigned as 1st argument to shape agnostic kernels
     memory::ptr _shape_info_memory = nullptr;
 
-    bool _shape_changed = false;
-    bool _mem_changed = false;
     bool _has_valid_input =
         true;  // by default all primitives has valid inputs, exception is input_layout (see input_layout_inst)
     bool _has_mutable_input = false;
@@ -425,7 +426,7 @@ protected:
     void fill_shape_info_data(const layout& runtime_layout, const layout& node_layout, int32_t* shape_info_ptr, size_t& offset);
     bool use_async_compilation();
     // if primitive_inst doesn't replace impl to new impl(static impl with opt kerenl or dynamic impl), return false
-    bool update_impl(bool use_async_compilation);
+    void update_impl(bool use_async_compilation);
     void realloc_if_needed();
 
     cldnn::network::ptr get_unfused_subgraph();

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "input_layout_inst.h"
+#include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "primitive_type_base.h"
 #include "intel_gpu/runtime/memory.hpp"
 #include "json_object.h"
@@ -70,7 +71,7 @@ void input_layout_inst::update_shape() {
     OPENVINO_ASSERT(!_outputs.empty() && _outputs[0] != nullptr, "[GPU] input memory is not set");
     auto mem_layout = _outputs[0]->get_layout();
     if (_impl_params->get_output_layout() != mem_layout) {
-        set_shape_change();
+        set_flag(ExecutionFlags::SHAPE_CHANGED);
     }
     _impl_params->output_layouts[0] = mem_layout;
 }

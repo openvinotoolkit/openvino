@@ -1,6 +1,7 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "loop_inst.h"
 #include "impls/registry/implementation_map.hpp"
 #include "register.hpp"
@@ -122,7 +123,7 @@ struct loop_impl : typed_primitive_impl<loop> {
 
         if (is_dynamic) {
             instance.update_shape();
-            if (instance.shape_changed()) {
+            if (instance.get_flag(ExecutionFlags::SHAPE_CHANGED)) {
                 instance.preproc_memories_done = false;
                 instance.reset_memory();
             }

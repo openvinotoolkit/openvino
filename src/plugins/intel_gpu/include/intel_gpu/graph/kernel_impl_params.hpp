@@ -25,6 +25,13 @@ struct program;
 struct network;
 
 
+struct ExecutionFlags : public std::bitset<4> {
+    static const size_t SHAPE_CHANGED = 0;
+    static const size_t IMPL_CHANGED = 1;
+    static const size_t MEMORY_CHANGED = 2;
+    static const size_t SKIP = 3;
+};
+
 struct kernel_impl_params final {
     struct Hasher {
         size_t operator()(const kernel_impl_params &k) const {
@@ -50,6 +57,8 @@ struct kernel_impl_params final {
 
     std::vector<event::ptr> dep_events = {};
     event::ptr out_event = nullptr;
+
+    ExecutionFlags flags;
 
     optional_layout weights_layout = optional_layout();
 

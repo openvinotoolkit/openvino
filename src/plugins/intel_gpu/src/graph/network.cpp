@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/plugin/variable_state.hpp"
 #include "intel_gpu/primitives/read_value.hpp"
 
@@ -744,10 +745,19 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         NODE_DEBUG(*inst);
 
         inst->reset_events();
+
+        // TODO: Ideally, we should reset all the flags here, but for some reason
+        // SHAPE_CHANGED flag reset drops the performance
+        // inst->unset_flag(ExecutionFlags::SHAPE_CHANGED);
+        inst->unset_flag(ExecutionFlags::MEMORY_CHANGED);
+        inst->unset_flag(ExecutionFlags::SKIP);
+        inst->unset_flag(ExecutionFlags::IMPL_CHANGED);
+
         if (inst->is_input()) {
             inst->add_dep_events(events);
         }
 
+        inst->prepare_primitive();
         inst->execute();
 
         executed_prims++;
