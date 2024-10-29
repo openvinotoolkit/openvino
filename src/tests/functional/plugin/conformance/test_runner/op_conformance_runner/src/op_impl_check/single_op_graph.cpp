@@ -2009,22 +2009,6 @@ std::shared_ptr<ov::Model> generateRNNCellBase(const std::shared_ptr<ov::op::Op>
                                                        ov::op::RecurrentSequenceDirection::FORWARD);
         ov::ResultVector results{std::make_shared<ov::op::v0::Result>(gru_sequence)};
         return std::make_shared<ov::Model>(results, params, "GRUSequence");
-    } else if (ov::is_type<ov::op::v0::LSTMSequence>(node)) {
-        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{5, 10, 10}}),
-                                   std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{5, 1, 10}}),
-                                   std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{5, 1, 10}}),
-                                   std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{5})};
-
-        const auto W = std::make_shared<ov::op::v0::Constant>(utils::create_and_fill_tensor(ov::element::f32, ov::Shape{1, 40, 10}));
-        const auto R = std::make_shared<ov::op::v0::Constant>(utils::create_and_fill_tensor(ov::element::f32, ov::Shape{1, 40, 10}));
-        const auto B = std::make_shared<ov::op::v0::Constant>(utils::create_and_fill_tensor(ov::element::f32, ov::Shape{1, 40}));
-        const auto P = std::make_shared<ov::op::v0::Constant>(utils::create_and_fill_tensor(ov::element::f32, ov::Shape{1, 30}));
-        RNNCellBaseNode = std::make_shared<ov::op::v0::LSTMSequence>(params.at(0), params.at(1), params.at(2), params.at(3),
-                                                                     W, R, B, 10, ov::op::RecurrentSequenceDirection::FORWARD);
-        ov::ResultVector results{std::make_shared<ov::op::v0::Result>(RNNCellBaseNode->output(0)),
-                                 std::make_shared<ov::op::v0::Result>(RNNCellBaseNode->output(1)),
-                                 std::make_shared<ov::op::v0::Result>(RNNCellBaseNode->output(2))};
-        return std::make_shared<ov::Model>(results, params, "LSTMSeq1BaseGraph");
     } else if (ov::is_type<ov::op::v5::LSTMSequence>(node)) {
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{5, 10, 10}}),
                                    std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{5, 1, 10}}),
