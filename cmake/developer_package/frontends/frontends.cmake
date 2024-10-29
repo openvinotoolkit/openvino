@@ -304,6 +304,9 @@ macro(ov_add_frontend)
     # then we need to mark it to be CXX ABI free
     ov_abi_free_target(${TARGET_NAME})
 
+    # public target name
+    set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME frontend::${OV_FRONTEND_NAME})
+
     # installation
 
     if(NOT OV_FRONTEND_SKIP_INSTALL)
@@ -351,9 +354,6 @@ macro(ov_add_frontend)
                     COMPONENT ${dev_component}
                     ${OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL}
                     FILES_MATCHING PATTERN "*.hpp")
-
-            # public target name
-            set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME frontend::${OV_FRONTEND_NAME})
         endif()
     else()
         # skipped frontend has to be installed in static libraries case
