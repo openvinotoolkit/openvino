@@ -986,7 +986,6 @@ void MersenneTwisterGenerator<x64::avx512_core>::convertToOutputTypeMersenne() {
 
         // Add minimum
         vpaddd(v_result, v_result, v_min); // remainder + min
-        vpaddd(v_result, v_result, v_min); // remainder + min
     } else if (m_jcp.out_data_type == element::i64 && m_jcp.optimized) {
         // Same as in Philox - in scope of i64 enabling
         OPENVINO_THROW("RandomUniform kernel does not support precision ", m_jcp.out_data_type, " for ", x64::get_isa_info());
@@ -1215,7 +1214,6 @@ void MersenneTwisterGenerator<isa>::convertToOutputTypeMersenne() {
 
         // Add minimum
         paddd(v_result, v_min); // remainder + min
-        // paddd(v_result, v_min); // remainder + min
     } else {
         OPENVINO_THROW("RandomUniform kernel does not support precision ", m_jcp.out_data_type, " for ", x64::get_isa_info());
     }
