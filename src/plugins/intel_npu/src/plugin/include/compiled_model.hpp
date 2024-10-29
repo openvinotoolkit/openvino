@@ -50,7 +50,9 @@ public:
                   const std::shared_ptr<const NetworkDescription>& networkDescription,
                   const std::shared_ptr<IDevice>& device,
                   const ov::SoPtr<ICompiler>& compiler,
-                  const Config& config);
+                  const Config& config,
+                  const std::shared_ptr<ov::Model>& initModel = nullptr,
+                  const std::shared_ptr<const NetworkDescription>& initNetworkDescription = nullptr);
 
     CompiledModel(const CompiledModel&) = delete;
 
@@ -97,7 +99,6 @@ private:
 
     std::shared_ptr<const NetworkDescription> _networkPtr;
     std::shared_ptr<const NetworkDescription> _networkInitPtr;
-    mutable bool writeInit = false;
     const std::shared_ptr<const ov::Model> _model;
     std::shared_ptr<ov::Model> _initModel;
     Config _config;

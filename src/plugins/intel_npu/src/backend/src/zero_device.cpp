@@ -169,12 +169,6 @@ std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> ZeroDevice::runIni
     std::chrono::steady_clock::time_point begin;
     std::chrono::steady_clock::time_point end;
 
-    begin = std::chrono::steady_clock::now();
-    auto clonedModel = model->clone();
-    end = std::chrono::steady_clock::now();
-    std::cout << "model->clone() call " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()
-              << "[ms]" << std::endl;
-
     // Match the inputs of the "init" model with the Constant nodes of the original model
     begin = std::chrono::steady_clock::now();
     size_t constantIndex = 0;

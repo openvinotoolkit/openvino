@@ -104,11 +104,15 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                              const std::shared_ptr<const NetworkDescription>& networkDescription,
                              const std::shared_ptr<IDevice>& device,
                              const ov::SoPtr<ICompiler>& compiler,
-                             const Config& config)
+                             const Config& config,
+                             const std::shared_ptr<ov::Model>& initModel,
+                             const std::shared_ptr<const NetworkDescription>& initNetworkDescription)
     : ICompiledModel(model, plugin),
       _compiler(compiler),
       _networkPtr(networkDescription),
+      _networkInitPtr(initNetworkDescription),
       _model(model),
+      _initModel(initModel),
       _config(config),
       _logger("CompiledModel", config.get<LOG_LEVEL>()),
       _device(device) {
@@ -189,11 +193,50 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
 
 void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
-    const NetworkDescription* net = &*_networkPtr;
-    if (_networkInitPtr != nullptr && writeInit) {
-        net = &*_networkInitPtr;
+
+    if (_config.get<SEPARATE_WEIGHTS>()) {
+        std::stringstream xmlContent;
+        std::stringstream binContent;
+
+        ov::pass::Manager manager("SaveModel");
+        manager.register_pass<ov::pass::Serialize>(xmlContent, binContent);
+        manager.run_passes(_initModel);
+
+        xmlContent.seekg(0, std::ios::end);
+        size_t xmlSize = xmlContent.tellp();
+        xmlContent.seekg(0, std::ios::beg);
+        binContent.seekg(0, std::ios::end);
+        size_t binSize = binContent.tellp();
+        binContent.seekg(0, std::ios::beg);
+
+        stream << xmlSize;
+        stream << xmlContent.rdbuf();
+
+        stream << binSize;
+        stream << binContent.rdbuf();
+
+        const auto blob = _compiler->getCompiledNetwork(*_networkPtr);
+        stream << blob.size;
+        stream.write(reinterpret_cast<const char*>(blob.data), blob.size);
+
+        const auto initBlob = _compiler->getCompiledNetwork(*_networkInitPtr);
+        stream << initBlob.size;
+        stream.write(reinterpret_cast<const char*>(initBlob.data), initBlob.size);
+
+        if (!stream) {
+            _logger.error("Write blob to stream failed. Blob is broken!");
+        } else {
+            if (_logger.level() >= ov::log::Level::INFO) {
+                std::stringstream str;
+                str << "Blob size: " << blob.size + initBlob.size + 4 * sizeof(size_t) + xmlSize + binSize << std::endl;
+                _logger.info(str.str().c_str());
+            }
+            _logger.info("Write blob to stream successfully.");
+        }
+        return;
     }
-    const auto blob = _compiler->getCompiledNetwork(*net);
+
+    const auto blob = _compiler->getCompiledNetwork(*_networkPtr);
     stream.write(reinterpret_cast<const char*>(blob.data), blob.size);
 
     if (!stream) {
@@ -206,7 +249,6 @@ void CompiledModel::export_model(std::ostream& stream) const {
         }
         _logger.info("Write blob to stream successfully.");
     }
-    writeInit = true;
 }
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {

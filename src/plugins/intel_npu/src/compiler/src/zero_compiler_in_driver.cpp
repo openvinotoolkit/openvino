@@ -1229,7 +1229,8 @@ void LevelZeroCompilerInDriver<TableExtension>::getMetadata(ze_graph_dditable_ex
 
     std::optional<ze_graph_argument_metadata_t> optionalMetadata = std::nullopt;
 
-    if (!isStateInputName(arg.name) && !isStateOutputName(arg.name) && !isShapeTensorName(arg.name)) {
+    if (!isStateInputName(arg.name) && !isStateOutputName(arg.name) && !isShapeTensorName(arg.name) &&
+        !isInitInputWeightsName(arg.name) && !isInitOutputWeightsName(arg.name) && !isMainInputWeightsName(arg.name)) {
         ze_graph_argument_metadata_t metadata;
         result = graphDdiTableExt.pfnGraphGetArgumentMetadata(graphHandle, index, &metadata);
         if (ZE_RESULT_SUCCESS != result) {

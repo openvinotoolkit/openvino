@@ -19,8 +19,8 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/tensor.hpp"
 #include "remote_context.hpp"
-
 
 using namespace intel_npu;
 
@@ -763,28 +763,74 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     try {
         auto compiler = getCompiler(localConfig);
 
-        auto graphSize = getFileSize(stream);
+        if (!localConfig.get<SEPARATE_WEIGHTS>()) {
+            auto graphSize = getFileSize(stream);
 
-        std::vector<uint8_t> blob(graphSize);
-        stream.read(reinterpret_cast<char*>(blob.data()), graphSize);
-        if (!stream) {
-            OPENVINO_THROW("Failed to read data from stream!");
+            std::vector<uint8_t> blob(graphSize);
+            stream.read(reinterpret_cast<char*>(blob.data()), graphSize);
+            if (!stream) {
+                OPENVINO_THROW("Failed to read data from stream!");
+            }
+            _logger.debug("Successfully read %zu bytes into blob.", graphSize);
+
+            auto meta = compiler->parse(blob, localConfig);
+            meta.name = "net" + std::to_string(_compiledModelLoadCounter++);
+
+            const std::shared_ptr<ov::Model> modelDummy = create_dummy_model(meta.inputs, meta.outputs);
+
+            auto networkDescription = std::make_shared<const NetworkDescription>(std::move(blob), std::move(meta));
+
+            compiledModel = std::make_shared<CompiledModel>(modelDummy,
+                                                            shared_from_this(),
+                                                            networkDescription,
+                                                            device,
+                                                            compiler,
+                                                            localConfig);
+        } else {
+            size_t xmlSize;
+            size_t binSize;
+            size_t blobSize;
+            size_t initBlobSize;
+            std::string xml;
+
+            stream >> xmlSize;
+            xml.resize(xmlSize);
+            stream.read(xml.data(), xmlSize);
+
+            stream >> binSize;
+            ov::Tensor weightsTensor(ov::element::Type_t::u8, ov::Shape({binSize}));
+            stream.read(reinterpret_cast<char*>(weightsTensor.data()), binSize);
+
+            const std::shared_ptr<ov::Model> initModel = get_core()->read_model(xml, weightsTensor);
+
+            stream >> blobSize;
+            std::vector<uint8_t> blob(blobSize);
+            stream.read(reinterpret_cast<char*>(blob.data()), blobSize);
+
+            stream >> initBlobSize;
+            std::vector<uint8_t> initBlob(initBlobSize);
+            stream.read(reinterpret_cast<char*>(initBlob.data()), initBlobSize);
+
+            auto initMeta = compiler->parse(initBlob, localConfig);
+            initMeta.name = "net" + std::to_string(_compiledModelLoadCounter++);
+            auto meta = compiler->parse(blob, localConfig);
+            meta.name = "net" + std::to_string(_compiledModelLoadCounter++);
+
+            const std::shared_ptr<ov::Model> modelDummy = create_dummy_model(meta.inputs, meta.outputs);
+
+            auto initNetworkDescription =
+                std::make_shared<const NetworkDescription>(std::move(initBlob), std::move(initMeta));
+            auto networkDescription = std::make_shared<const NetworkDescription>(std::move(blob), std::move(meta));
+
+            compiledModel = std::make_shared<CompiledModel>(modelDummy,
+                                                            shared_from_this(),
+                                                            networkDescription,
+                                                            device,
+                                                            compiler,
+                                                            localConfig,
+                                                            initModel,
+                                                            initNetworkDescription);
         }
-        _logger.debug("Successfully read %zu bytes into blob.", graphSize);
-
-        auto meta = compiler->parse(blob, localConfig);
-        meta.name = "net" + std::to_string(_compiledModelLoadCounter++);
-
-        const std::shared_ptr<ov::Model> modelDummy = create_dummy_model(meta.inputs, meta.outputs);
-
-        auto networkDescription = std::make_shared<const NetworkDescription>(std::move(blob), std::move(meta));
-
-        compiledModel = std::make_shared<CompiledModel>(modelDummy,
-                                                        shared_from_this(),
-                                                        networkDescription,
-                                                        device,
-                                                        compiler,
-                                                        localConfig);
     } catch (const std::exception& ex) {
         OPENVINO_THROW("Can't import network: ", ex.what());
     } catch (...) {
