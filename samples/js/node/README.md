@@ -14,6 +14,8 @@ Note: Perform these steps also before running notebooks.
   - hello_classification
   - hello_reshape_ssd
   - classification_sample_async
+  - optical_character_recognition
+  - vision_background_removal
 
 ## Notebooks
 
