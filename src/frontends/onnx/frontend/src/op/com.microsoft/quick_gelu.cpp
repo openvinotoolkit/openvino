@@ -1,10 +1,14 @@
+// Copyright (C) 2018-2024 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/sigmoid.hpp"
-
+#include "utils/common.hpp"
 
 using namespace ov::op;
 
@@ -13,17 +17,13 @@ namespace frontend {
 namespace onnx {
 namespace com_microsoft {
 namespace opset_1 {
-ov::OutputVector quickgelu(const ov::frontend::onnx::Node& node) {
+ov::OutputVector quick_gelu(const ov::frontend::onnx::Node& node) {
     // Original Documentation:
     // https://github.com/microsoft/onnxruntime/blob/main/docs/ContribOperators.md#com.microsoft.QuickGelu
     // Goal: Compute x * Sigmoid(alpha * x)
+    common::default_op_checks(node, 1);
 
     const auto inputs = node.get_ov_inputs();
-
-    // Only one input (x) so give a check
-    auto num_inputs = inputs.size();
-    FRONT_END_GENERAL_CHECK(num_inputs == 1,
-                            "QuickGelu takes only 1 input but was provided " + std::to_string(num_inputs));
     const auto& x = inputs[0];
 
     // Constrain input type to float16, float, double (f64), bfloat16
@@ -49,7 +49,7 @@ ov::OutputVector quickgelu(const ov::frontend::onnx::Node& node) {
     return {result};
 }  // func end
 
-ONNX_OP("QuickGelu", OPSET_SINCE(1), com_microsoft::opset_1::quickgelu, MICROSOFT_DOMAIN);
+ONNX_OP("QuickGelu", OPSET_SINCE(1), com_microsoft::opset_1::quick_gelu, MICROSOFT_DOMAIN);
 
 }  // namespace opset_1
 }  // namespace com_microsoft
