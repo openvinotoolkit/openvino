@@ -71,7 +71,7 @@ public:
                                      test_sockets,
                                      test_cores,
                                      test_blocked_cores,
-                                     test_processors_with_l3
+                                     test_processors_with_l3,
                                      test_proc_type_table,
                                      test_cpu_mapping_table);
 
