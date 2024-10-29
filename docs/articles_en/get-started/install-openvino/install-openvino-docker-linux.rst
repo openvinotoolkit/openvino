@@ -6,8 +6,7 @@ Install Intel® Distribution of OpenVINO™ Toolkit From a Docker Image
                  manually to install OpenVINO™ Runtime on Linux and Windows operating systems.
 
 This guide presents information on how to use a pre-built Docker image or create a new image
-manually, to install OpenVINO™ Runtime. Full requirement listing is available on:
-:doc:`System Requirements Page <../../../about-openvino/release-notes-openvino/system-requirements>`
+manually, to install OpenVINO™ Runtime.
 
 You can get started easily with pre-built and published docker images, which are available at:
 
@@ -30,11 +29,28 @@ The Docker CI repository includes guides on how to
 `get started with docker images <https://github.com/openvinotoolkit/docker_ci/blob/master/get-started.md>`__ and how to use
 `OpenVINO™ Toolkit containers with GPU accelerators. <https://github.com/openvinotoolkit/docker_ci/blob/master/docs/accelerators.md>`__
 
-To start using Dockerfiles the following conditions must be met:
+To start using Dockerfiles, install Docker Engine or a compatible container
+engine on your system:
 
-- Linux OS or Windows (under :ref:`Windows Subsystem for Linux (WSL2) <wsl_install>`)
-- Installed docker engine or compatible container engine
-- Permissions to run containers (sudo or docker group membership)
+   .. tab-item:: Docker
+      :name: docker-sysreq
+
+      .. tab-set::
+
+         .. tab-item:: Linux
+            :sync: linux
+
+            * `Docker Desktop <https://docs.docker.com/desktop/install/linux/>`__
+            * `Docker Engine <https://docs.docker.com/engine/install/>`__
+
+         .. tab-item:: Windows (WSL2)
+            :sync: win
+
+            OpenVINO can be installed under :ref:`Windows Subsystem for Linux (WSL2) <wsl_install>`.
+
+            * `Docker Desktop <https://docs.docker.com/desktop/install/linux/>`__
+
+Also, verify you have permissions to run containers (sudo or docker group membership).
 
 .. note::
 
