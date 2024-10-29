@@ -110,6 +110,7 @@ private:
     bool have_scalar_scale = false;
     size_t zp_group_size = 1u;
     size_t scale_group_size = 1u;
+    size_t m_threads_num = 0lu;
 
     std::shared_ptr<jitGatherKernelBase> jitKernel;
 };
