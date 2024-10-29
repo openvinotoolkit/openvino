@@ -4,9 +4,6 @@
 
 #pragma once
 
-#include <functional>
-#include <utility>
-
 #include "openvino/op/util/squeeze_base.hpp"
 
 namespace ov {
