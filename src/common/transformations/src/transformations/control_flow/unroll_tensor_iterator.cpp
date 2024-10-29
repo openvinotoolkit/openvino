@@ -159,9 +159,7 @@ bool ov::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ov::Mode
                 // Connect outputs of the bodies to the corresponding TI outputs
                 auto iter = output_desc->m_iteration;
                 iter = iter >= 0 ? iter : num_iter - 1;
-                std::shared_ptr<ov::op::v0::Result> result =
-                    body_functions[iter]->get_results()[output_desc->m_body_value_index];
-                const auto& in_value = result->input_value(0);
+                auto result = body_functions[iter]->get_results()[output_desc->m_body_value_index];
 
                 for (const auto& input : sub_graph_op->output(output_desc->m_output_index).get_target_inputs()) {
                     input.replace_source_output(result->get_input_source_output(0));
