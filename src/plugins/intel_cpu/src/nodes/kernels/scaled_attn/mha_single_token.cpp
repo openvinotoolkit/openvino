@@ -1068,11 +1068,15 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
         }
     });
 
-    parallel_for3d(B, H, q_len, [&](size_t b, size_t h, size_t pq) {
+    auto bhl_loop = [&](size_t b, size_t h, size_t pq) {
         auto* temp = buf_attn_score.ptr<T3>(0, b, pq, h);
         size_t temp_stride = buf_attn_score.stride(0);
         auto* dst = has_out_transpose ? output_emb.ptr<T>(b, pq, h * SV) : output_emb.ptr<T>(b, h, pq);
         attn_reduce(dst, temp, nthr, SV, temp_stride);
+    };
+
+    parallel_nt_static(nthr, [&](const int ithr, const int nthr) {
+        for_3d(ithr, nthr, B, H, q_len, bhl_loop);
     });
 }
 

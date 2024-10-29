@@ -60,6 +60,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
     MemoryPtr m_scratchMem;
     uint8_t* m_scratch_base = nullptr;
     int m_M = 0;
+    size_t m_threads_num = 0lu;
 
     MatrixDynQuantPerRow m_quant_act;
 
@@ -79,11 +80,11 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
 
         auto K = w0.size(1);
         OPENVINO_ASSERT((K % cache_blk_k_size) == 0);
-        auto nthr = parallel_get_max_threads();
+        m_threads_num = parallel_get_max_threads();
         auto num_blk_K = K / cache_blk_k_size;
         int stride_in_bytes = K * weight_element_size;
 
-        works.resize(nthr);
+        works.resize(m_threads_num);
 
         int cur_work_id = 0;
         auto create_works = [&](void* pw, int output_id, int N, int valid_nthr) {
@@ -119,7 +120,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
         auto proj_size0 = m_node->m_config.proj_size0;
         auto proj_size1 = m_node->m_config.proj_size1;
         auto proj_size2 = m_node->m_config.proj_size2;
-        auto n_group_workers = allocate_workers({proj_size0, proj_size1, proj_size2}, nthr);
+        auto n_group_workers = allocate_workers({proj_size0, proj_size1, proj_size2}, m_threads_num);
 
         if (m_node->m_config.weights_combined) {
             auto* ptr_weights = reinterpret_cast<int8_t*>(w0.ptr_v());
@@ -140,7 +141,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
 
         wbuffer.alloc(works, weight_element_size);
 
-        ov::parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
+        ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, const size_t nthr) {
             auto& work = works[ithr];
             if (work) {
                 if (quantized_int8)
@@ -237,7 +238,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
                 strideA = m_quant_act.K;
             }
 
-            ov::parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
+            ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, const size_t nthr) {
                 auto& work = works[ithr];
                 if (work) {
                     work.run(BM, pA, strideA);

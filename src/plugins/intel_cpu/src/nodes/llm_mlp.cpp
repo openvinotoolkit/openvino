@@ -53,19 +53,19 @@ public:
 
         OPENVINO_ASSERT((N % REG_BLK_N_SIZE) == 0);
         OPENVINO_ASSERT((K % reg_blk_K_size) == 0);
-        auto nthr = parallel_get_max_threads();
+        m_threads_num = parallel_get_max_threads();
         auto num_blk_N = N / REG_BLK_N_SIZE;
-        works.resize(nthr);
+        works.resize(m_threads_num);
 
         auto K_splits = 2;
         // split task on more cores is better on TBB
-        auto valid_nthr = nthr / 2;
+        auto valid_nthr = m_threads_num / 2;
         auto blkN_per_thread = (num_blk_N) / valid_nthr;
         auto blkN_leftover = num_blk_N - (blkN_per_thread * valid_nthr);
         auto start_blkN = 0;
         used_nthr = 0;
 
-        for (int ithr = 0; ithr < nthr; ithr += K_splits) {
+        for (int ithr = 0; ithr < m_threads_num; ithr += K_splits) {
             auto blkN = std::min(num_blk_N - start_blkN, blkN_per_thread);
             if (blkN_leftover > 0) {
                 blkN_leftover--;
@@ -106,7 +106,7 @@ public:
 
         wbuffer.alloc(works, weight_element_size);
 
-        ov::parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
+        ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, const size_t nthr) {
             auto& work = works[ithr];
             if (work) {
                 if (is_quantized) {
@@ -125,7 +125,7 @@ public:
              float * w_scale) {
         static ReduceAdd2bh jit_reduce2cvt(true, std::is_same<T, ov::float16>::value);
 
-        ov::parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
+        ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, const size_t nthr) {
             auto& work = works[ithr];
             auto& workC = work.m_C;
             if (work) {
@@ -165,6 +165,9 @@ public:
             }
         });
     }
+
+private:
+    int m_threads_num = 0;
 };
 
 template<typename T>
@@ -205,18 +208,18 @@ public:
         // in unit of 32
         OPENVINO_ASSERT((N % REG_BLK_N_SIZE) == 0);
         OPENVINO_ASSERT((K % reg_blk_K_size) == 0);
-        auto nthr = parallel_get_max_threads();
+        m_threads_num = parallel_get_max_threads();
         auto num_blk_N = N / REG_BLK_N_SIZE;
-        works.resize(nthr);
+        works.resize(m_threads_num);
 
         // split task on more cores is better on TBB
-        auto valid_nthr = nthr;
+        auto valid_nthr = m_threads_num;
         auto blkN_per_thread = (num_blk_N) / valid_nthr;
         auto blkN_leftover = num_blk_N - (blkN_per_thread * valid_nthr);
         auto start_blkN = 0;
         used_nthr = 0;
 
-        for (int ithr = 0; ithr < nthr; ithr ++) {
+        for (int ithr = 0; ithr < m_threads_num; ithr ++) {
             auto blkN = std::min(num_blk_N - start_blkN, blkN_per_thread);
             if (blkN_leftover > 0) {
                 blkN_leftover--;
@@ -243,7 +246,7 @@ public:
         wbuffer.alloc(works, weight_element_size);
 
         DEBUG_LOG("Linear N,K=", N, ",", K, " used_nthr=", used_nthr);
-        ov::parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
+        ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, const size_t nthr) {
             auto& work = works[ithr];
             if (work) {
                 if (quantized_int8)
@@ -267,7 +270,7 @@ public:
                    const LLMMLPNode::Config& config,
                    MatrixDynQuantPerRow& src_dq,
                    float * w_scale) {
-        ov::parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
+        ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, const size_t nthr) {
             auto& work = works[ithr];
             if (work) {
                 work.run(M, pA, strideA_in_bytes);
@@ -303,6 +306,9 @@ public:
             }
         });
     }
+
+private:
+    int m_threads_num = 0;
 };
 
 template<typename T>
@@ -384,8 +390,8 @@ struct LLMMLP::Executor : public LLMMLP::ExecutorBase {
                                              reinterpret_cast<T*>(ptr));
             });
 
-            auto nthr = parallel_get_max_threads();
-            for (int ithr = 0; ithr < nthr; ithr++) {
+            m_threads_num = parallel_get_max_threads();
+            for (size_t ithr = 0lu; ithr < m_threads_num; ithr++) {
                 auto C1_size = gate_up.works[ithr].set_C(M, reinterpret_cast<float*>(cur_scratch_base));
                 auto C2_size = down.works[ithr].set_C(M, reinterpret_cast<float*>(cur_scratch_base));
                 auto max_C_size = std::max(C1_size, C2_size);
@@ -482,6 +488,9 @@ struct LLMMLP::Executor : public LLMMLP::ExecutorBase {
             dstC += BM * strideC / sizeof(T);
         }
     }
+
+private:
+    size_t m_threads_num = 0lu;
 };
 #else
 template<typename T>
