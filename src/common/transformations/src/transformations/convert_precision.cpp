@@ -62,7 +62,7 @@ bool fuse_type_to_ctc_greedy_decoder_seq_len(const std::shared_ptr<ov::Node>& no
 
 bool fuse_type_to_random_uniform_v8(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
 
-bool fuse_type_to_serach_sorted_v15(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
+bool fuse_type_to_search_sorted_v15(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
 
 bool extend_select_type(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
 bool extend_reverse_type(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
@@ -472,7 +472,7 @@ bool ov::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ov::Model>& 
         {ov::op::v0::PriorBox::get_type_info_static(), fuse_type_to_prior_box<ov::op::v0::PriorBox>},
         {ov::op::v8::PriorBox::get_type_info_static(), fuse_type_to_prior_box<ov::op::v8::PriorBox>},
         {ov::op::v0::PriorBoxClustered::get_type_info_static(), fuse_type_to_prior_box<ov::op::v0::PriorBoxClustered>},
-        {ov::op::v15::SearchSorted::get_type_info_static(), fuse_type_to_serach_sorted_v15}};
+        {ov::op::v15::SearchSorted::get_type_info_static(), fuse_type_to_search_sorted_v15}};
 
     for (const auto& it : m_additional_type_to_fuse_map) {
         type_to_fuse[it.first] = it.second;
@@ -557,12 +557,12 @@ bool fuse_type_to_unique_v10(const std::shared_ptr<Node>& node, const precisions
     return res;
 }
 
-bool fuse_type_to_serach_sorted_v15(const std::shared_ptr<Node>& node, const precisions_map& precisions) {
+bool fuse_type_to_search_sorted_v15(const std::shared_ptr<Node>& node, const precisions_map& precisions) {
     bool res = false;
-    if (auto unique = ov::as_type_ptr<ov::op::v15::SearchSorted>(node)) {
+    if (auto op = ov::as_type_ptr<ov::op::v15::SearchSorted>(node)) {
         auto it = precisions.find(node->get_output_element_type(0));
         if (it != precisions.end()) {
-            unique->set_output_element_type(it->second);
+            op->set_output_type_attr(it->second);
             res = true;
         }
     }
