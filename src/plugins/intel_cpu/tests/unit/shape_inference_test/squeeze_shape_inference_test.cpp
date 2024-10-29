@@ -112,7 +112,7 @@ TEST_P(SqueezeV0StaticShapeInferenceTest, shape_inference_empty_const_map) {
 }
 
 TEST_P(SqueezeV0StaticShapeInferenceTest, shape_inference_with_const_map) {
-    const auto axes_node = std::make_shared<op::v0::Parameter>(element::i64, Shape{1});
+    const auto axes_node = std::make_shared<op::v0::Parameter>(element::i64, ov::PartialShape::dynamic());
     const auto op = make_op(arg, axes_node);
 
     const auto axes_tensor = axes.empty() ? ov::Tensor(element::i64, ov::Shape{axes.size()})
@@ -222,7 +222,7 @@ TEST_P(SqueezeV15StaticShapeInferenceTest, shape_inference_empty_const_map) {
 }
 
 TEST_P(SqueezeV15StaticShapeInferenceTest, shape_inference_with_const_map) {
-    const auto axes_node = std::make_shared<op::v0::Parameter>(element::i64, Shape{1});
+    const auto axes_node = std::make_shared<op::v0::Parameter>(element::i64, ov::PartialShape::dynamic());
     const auto op = make_op(arg, axes_node);
 
     const auto axes_tensor = axes.empty() ? ov::Tensor(element::i64, ov::Shape{axes.size()})

@@ -80,7 +80,7 @@ std::shared_ptr<Node> Squeeze::clone_with_new_inputs(const OutputVector& new_arg
 
     switch (new_args.size()) {
     case 1:
-        return std::make_shared<Squeeze>(new_args[0]);
+        return std::make_shared<Squeeze>(new_args[0], m_allow_axis_skip);
     case 2:
         return std::make_shared<Squeeze>(new_args[0], new_args[1], m_allow_axis_skip);
     default:
