@@ -36,9 +36,11 @@ CPU::CPU() {
                              _sockets,
                              _cores,
                              _blocked_cores,
+                             _processors_with_l3,
                              _proc_type_table,
                              _cpu_mapping_table);
     _org_proc_type_table = _proc_type_table;
+    _org_processors = _processors;
 
     // ensure that get_org_numa_id and get_org_socket_id can return the correct value
     for (size_t i = 0; i < _cpu_mapping_table.size(); i++) {
@@ -62,6 +64,7 @@ void parse_processor_info_win(const char* base_ptr,
                               int& _sockets,
                               int& _cores,
                               int& _blocked_cores,
+                              int& _processors_with_l3,
                               std::vector<std::vector<int>>& _proc_type_table,
                               std::vector<std::vector<int>>& _cpu_mapping_table) {
     std::vector<int> list;
@@ -218,6 +221,9 @@ void parse_processor_info_win(const char* base_ptr,
                     _proc_type_table[0][MAIN_CORE_PROC]++;
                 }
             }
+        } else if ((info->Relationship == RelationCache) && (info->Cache.Level == 3)) {
+            MaskToList(info->Cache.GroupMask.Mask);
+            _processors_with_l3 = list_len;
         }
     }
     _sockets++;

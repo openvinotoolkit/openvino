@@ -294,6 +294,11 @@ int get_number_of_blocked_cores() {
     return cpu._blocked_cores;
 }
 
+int get_number_of_soc_ecores() {
+    CPU& cpu = cpu_info();
+    return cpu._org_processors - cpu._processors_with_l3;
+}
+
 bool is_cpu_map_available() {
     CPU& cpu = cpu_info();
     return cpu._proc_type_table.size() > 0;
@@ -485,6 +490,11 @@ int get_number_of_logical_cpu_cores(bool bigCoresOnly) {
 int get_number_of_blocked_cores() {
     CPU& cpu = cpu_info();
     return cpu._blocked_cores;
+}
+
+int get_number_of_soc_ecores() {
+    CPU& cpu = cpu_info();
+    return cpu._org_processors - cpu._processors_with_l3;
 }
 
 int get_org_socket_id(int socket_id) {

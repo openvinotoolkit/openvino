@@ -535,9 +535,9 @@ int get_model_prefer_threads(const int num_streams,
                              const std::shared_ptr<ov::Model>& model,
                              Config& config) {
     const int sockets = get_num_sockets();
+    const auto isa = dnnl::get_effective_cpu_isa();
     auto model_prefer = 0;
     if (-1 == config.modelPreferThreads) {
-        const auto isa = dnnl::get_effective_cpu_isa();
         float isaSpecificThreshold = 1.0f;
         switch (isa) {
         case dnnl::cpu_isa::sse41:
@@ -621,7 +621,8 @@ int get_model_prefer_threads(const int num_streams,
 
     // latency
     if (num_streams <= sockets && num_streams > 0) {
-        if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0 && proc_type_table[0][MAIN_CORE_PROC] > 0) {
+        if (proc_type_table.size() == 1 && proc_type_table[0][EFFICIENT_CORE_PROC] > 0 &&
+            proc_type_table[0][MAIN_CORE_PROC] > 0) {
 #ifdef __APPLE__
             if ((proc_type_table.size() == 1) && (proc_type_table[0][EFFICIENT_CORE_PROC] > 0)) {
                 model_prefer = proc_type_table[0][MAIN_CORE_PROC] > proc_type_table[0][EFFICIENT_CORE_PROC]
@@ -638,7 +639,9 @@ int get_model_prefer_threads(const int num_streams,
             // cores only cases except LLM.
             model_prefer = proc_type_table[0][MAIN_CORE_PROC] > (proc_type_table[0][EFFICIENT_CORE_PROC] /
                                                                  (int8_intensive ? int8_threshold : fp32_threshold))
-                               ? ((!llm_related && ov::get_number_of_blocked_cores())
+                               ? ((!llm_related &&
+                                   ((ov::get_number_of_blocked_cores() != 0) ||
+                                    ((ov::get_number_of_soc_ecores() == 0) && (isa == dnnl::cpu_isa::avx2_vnni_2))))
                                       ? proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC]
                                       : proc_type_table[0][MAIN_CORE_PROC])
                                : proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC];
