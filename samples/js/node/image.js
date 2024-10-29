@@ -3,8 +3,11 @@ const {
   loadImage,
   createCanvas,
 } = require('canvas');
+const path = require('node:path');
 const fs = require('node:fs/promises');
 const { addon: ov } = require('openvino-node');
+
+const codeENOENT = 'ENOENT';
 
 class OvImage {
   constructor(imageData) {
@@ -26,6 +29,49 @@ class OvImage {
 
   get rgba() {
     return this.imageData.data;
+  }
+
+  get grayscale() {
+    const grayData = new Uint8ClampedArray(this.width * this.height);
+
+    for (let i = 0; i < this.imageData.data.length; i += 4) {
+      const [r, g, b] = this.imageData.data.slice(i, i + 3);
+      const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+
+      grayData[i / 4] = gray;
+    }
+
+    return grayData;
+  }
+
+  drawRect(x, y, width, height, properties) {
+    const canvas = createCanvas(this.width, this.height);
+    const ctx = canvas.getContext('2d');
+
+    ctx.putImageData(this.imageData, 0, 0);
+
+    ctx.strokeStyle = properties.color || 'red';
+    ctx.lineWidth = properties.width || 1;
+    ctx.strokeRect(x, y, width, height);
+
+    const imageData = ctx.getImageData(0, 0, this.width, this.height);
+
+    return new OvImage(imageData);
+  }
+
+  drawText(text, x, y, properties) {
+    const canvas = createCanvas(this.width, this.height);
+    const ctx = canvas.getContext('2d');
+
+    ctx.putImageData(this.imageData, 0, 0);
+
+    ctx.font = properties.font || '30px Arial';
+    ctx.fillStyle = properties.color || 'red';
+    ctx.fillText(text, x, y);
+
+    const imageData = ctx.getImageData(0, 0, this.width, this.height);
+
+    return new OvImage(imageData);
   }
 
   toTensor() {
@@ -62,15 +108,40 @@ class OvImage {
     return OvImage.fromArray(invertedData, this.width, this.height);
   }
 
-  async save(path) {
+  crop(x, y, width, height) {
+    const canvas = createCanvas(this.width, this.height);
+    const ctx = canvas.getContext('2d');
+
+    ctx.putImageData(this.imageData, 0, 0);
+
+    const canvas2 = createCanvas(width, height);
+    const ctx2 = canvas2.getContext('2d');
+
+    ctx2.drawImage(canvas, x, y, width, height, 0, 0, width, height);
+
+    const imageData = ctx2.getImageData(0, 0, width, height);
+
+    return new OvImage(imageData);
+  }
+
+  async save(filepath) {
     const canvas = createCanvas(this.width, this.height);
     const ctx = canvas.getContext('2d');
 
     ctx.putImageData(this.imageData, 0, 0);
 
     const buffer = canvas.toBuffer('image/jpeg');
+    const destination = path.dirname(filepath);
 
-    return await fs.writeFile(path, buffer);
+    try {
+      await fs.access(destination);
+    } catch(error) {
+      if (error.code !== codeENOENT) throw error;
+
+      await fs.mkdir(destination, { recursive: true });
+    }
+
+    return await fs.writeFile(filepath, buffer);
   }
 
   static async load(path) {
