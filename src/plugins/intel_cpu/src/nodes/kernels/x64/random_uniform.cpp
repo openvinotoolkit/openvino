@@ -1206,7 +1206,7 @@ void MersenneTwisterGenerator<isa>::convertToOutputTypeMersenne() {
         cvtpd2dq(v_result_low_double, v_result_low_double); // value - closest_div_value = remainder (modulo)
 
         movq(r64_result_high_double, v_result_high_double);
-        movq(r64_result_low_double, v_result_high_double);
+        movq(r64_result_low_double, v_result_low_double);
 
         // Concatenate them back, now result holds all remainders (modulos)
         pinsrq(v_result, r64_result_high_double, 1);
@@ -1302,7 +1302,9 @@ template class MersenneTwisterGenerator<x64::avx512_core>;
 template class MersenneTwisterGenerator<x64::avx2>;
 template class MersenneTwisterGenerator<x64::sse41>;
 
+#undef INIT_16_ELEM_T_ARR
 #undef INIT_8_ELEM_T_ARR
+#undef INIT_1_ELEM_T_VAL
 #undef BROADCAST_MERSENNE_PARAM
 #undef BROADCAST_PHILOX_PARAM
 #undef BROADCAST_CONSTANT

@@ -87,7 +87,7 @@ private:
     struct PhiloxThreadParams {
         uint64_t work_amount = 0lu;
         uint64_t dst_shift = 0lu;
-        uint64_t state_shift = 0lu;
+        uint64_t n_shift = 0lu;
         uint64_t step = 0lu;
     };
 

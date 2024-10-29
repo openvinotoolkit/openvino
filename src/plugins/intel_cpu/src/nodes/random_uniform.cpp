@@ -318,7 +318,7 @@ void RandomUniform::preparePhiloxParams() {
             start = end;
         }
         params.work_amount = end - start;
-        params.state_shift = start / PHILOX_GROUP_SIZE;
+        params.n_shift = start / PHILOX_GROUP_SIZE;
         params.dst_shift = start * m_output_prc.size();
     });
 }
@@ -547,7 +547,7 @@ std::pair<uint64_t, uint64_t> RandomUniform::computePhilox(void* out, size_t out
                 if (params.work_amount == 0lu) {
                     return;
                 }
-                auto n = n_state + params.state_shift;
+                auto n = n_state + params.n_shift;
 
                 kernel::random_uniform::PhiloxGeneratorCallArgs args;
 
@@ -568,7 +568,7 @@ std::pair<uint64_t, uint64_t> RandomUniform::computePhilox(void* out, size_t out
             if (params.work_amount == 0lu) {
                 return;
             }
-            auto n = n_state + params.state_shift;
+            auto n = n_state + params.n_shift;
             auto out_cur = out_u8 + params.dst_shift;
             auto work_rest = static_cast<int64_t>(params.work_amount);
             uint32_t res[4];
