@@ -93,7 +93,7 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_Snippets_MHAWOTransposeBF16_4D,
     MHAWOTranspose,
     ::testing::Combine(::testing::ValuesIn(originalShape_4D),
-                       ::testing::ValuesIn(precision_bf16(3)),
+                       ::testing::ValuesIn(precision_bf16_if_supported(3)),
                        ::testing::Values(ov::element::f32),
                        ::testing::Values(true),  // Need to support False for graph builder in tests
                        ::testing::Values(MHA::default_thread_count),
@@ -107,7 +107,7 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_Snippets_MHAWOTransposeBF16_3D,
     MHAWOTranspose,
     ::testing::Combine(::testing::ValuesIn(originalShape_3D),
-                       ::testing::ValuesIn(precision_bf16(3)),
+                       ::testing::ValuesIn(precision_bf16_if_supported(3)),
                        ::testing::Values(ov::element::f32),
                        ::testing::Values(true),  // Need to support False for graph builder in tests
                        ::testing::Values(MHA::default_thread_count),
