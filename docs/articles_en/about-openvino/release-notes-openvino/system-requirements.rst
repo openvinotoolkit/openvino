@@ -273,24 +273,6 @@ to learn more about the release types.
             * Apple Xcode Command Line Tools. In the terminal, run ``xcode-select --install`` from any directory to install it.
             * (Optional) Apple Xcode IDE (not required for OpenVINO™, but useful for development)
 
-   .. tab-item:: Docker
-      :name: docker-sysreq
-
-      .. tab-set::
-
-         .. tab-item:: Linux
-            :sync: linux
-
-            * `Docker Desktop <https://docs.docker.com/desktop/install/linux/>`__
-            * `Docker Engine <https://docs.docker.com/engine/install/>`__
-
-         .. tab-item:: Windows (WSL2)
-            :sync: win
-
-            OpenVINO can be installed under :ref:`Windows Subsystem for Linux (WSL2) <wsl_install>`.
-
-            * `Docker Desktop <https://docs.docker.com/desktop/install/linux/>`__
-
    .. tab-item:: npm
       :name: npm-sysreq
 
