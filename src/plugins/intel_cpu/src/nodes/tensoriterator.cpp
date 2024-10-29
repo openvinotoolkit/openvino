@@ -938,7 +938,7 @@ int TensorIterator::getNumIteration(const std::vector<PortMap>& inputPortMap, co
 }
 
 bool TensorIterator::runAsDynamic() const {
-    return isDynamicNode() || Graph::Status::ReadyDynamic == sub_graph.getStatus();
+    return isDynamicNode() || sub_graph.IsDynamic();
 }
 
 bool TensorIterator::created() const {
