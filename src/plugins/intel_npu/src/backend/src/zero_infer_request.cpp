@@ -530,10 +530,9 @@ void ZeroInferRequest::set_weights_inputs(
     const std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>& weightsInputs) {
     for (const auto& [weightName, weightTensor] : weightsInputs) {
         size_t inputIndex;
-        for (inputIndex = 0; inputIndex < _metadata.inputs.size(); inputIndex++) {
-            std::string_view mainInputName = _metadata.inputs.at(inputIndex).nodeFriendlyName;
-            if (isMainInputWeightsName(mainInputName) &&
-                mainInputName.substr(MAIN_INPUT_WEIGHTS_PREFIX.size()) == weightName) {
+        for (inputIndex = 0; inputIndex < _metadata.inputs.size(); ++inputIndex) {
+            const IODescriptor inputDescriptor = _metadata.inputs.at(inputIndex);
+            if (inputDescriptor.isMainInputWeights && inputDescriptor.nameFromCompiler == weightName) {
                 break;
             }
         }

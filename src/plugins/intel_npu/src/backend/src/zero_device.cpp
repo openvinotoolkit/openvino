@@ -165,7 +165,6 @@ std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> ZeroDevice::runIni
     std::vector<std::optional<TensorData>> outputTensorsData;
     std::vector<std::shared_ptr<ov::ITensor>> inputHostTensors;
     std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> outputHostTensors;
-    std::vector<std::vector<uint8_t>> dummy;
 
     std::chrono::steady_clock::time_point begin;
     std::chrono::steady_clock::time_point end;
@@ -223,9 +222,8 @@ std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> ZeroDevice::runIni
                              zeroUtils::getOVShape(descriptor.info),
                              config);
         outputTensorsData.push_back(TensorData{hostTensor->data(), hostTensor->get_byte_size()});
-        outputHostTensors.emplace(
-            std::string(descriptor.info.debug_friendly_name).substr(INIT_OUTPUT_WEIGHTS_PREFIX.length()),
-            hostTensor._ptr);
+        outputHostTensors.emplace(std::string(descriptor.info.name).substr(INIT_OUTPUT_WEIGHTS_PREFIX.length()),
+                                  hostTensor._ptr);
     }
     end = std::chrono::steady_clock::now();
     std::cout << "Creating output tensors "
