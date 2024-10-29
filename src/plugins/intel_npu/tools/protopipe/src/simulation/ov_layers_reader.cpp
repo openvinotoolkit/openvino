@@ -128,8 +128,8 @@ static void cfgOutputPostproc(ov::preprocess::PrePostProcessor& ppp, const std::
     }
 }
 
-static void cfgModelPartialShapes(const std::shared_ptr<ov::Model>& model, 
-                                  const AttrMap<std::vector<uint64_t>> shape_map) {
+static void cfgPartialShapes(const std::shared_ptr<ov::Model>& model, 
+                             const AttrMap<std::vector<uint64_t>> shape_map) {
 
     std::map<std::string, ov::PartialShape> partial_shapes;
     for (const auto& shape : shape_map) {
@@ -161,7 +161,7 @@ InOutLayers OpenVINOLayersReader::Impl::readFromModel(const std::string& model_p
         cfgInputPreproc(ppp, model, ip_map, il_map, iml_map);
 
         const auto shape_map = unpackLayerAttr(params.shape, input_names, "dynamic shape");
-        cfgModelPartialShapes(model, shape_map);
+        cfgPartialShapes(model, shape_map);
 
         const auto& output_names = extractLayerNames(model->outputs());
         const auto op_map = unpackLayerAttr(params.output_precision, output_names, "output precision");
@@ -181,7 +181,7 @@ InOutLayers OpenVINOLayersReader::Impl::readFromModel(const std::string& model_p
             partial_shapes[shape.first] = dims;
         }
         model->reshape(partial_shapes);
-    } else if (std::holds_alternative<std::vector<uint64_t>>(params.shape)) {
+    } else {
         std::vector<uint64_t> vecDims = std::get<std::vector<uint64_t>>(params.shape);
         ov::PartialShape dims;
         for (auto& dim : vecDims) { dims.emplace_back(dim); }

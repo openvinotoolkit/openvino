@@ -24,7 +24,7 @@ static cv::gapi::GNetPackage getNetPackage(const std::string& tag, const OpenVIN
     }
     if (std::holds_alternative<AttrMap<std::vector<uint64_t>>>(params.shape)) {
         network->cfgReshape(std::get<AttrMap<std::vector<uint64_t>>>(params.shape));
-    } else if (std::holds_alternative<std::vector<uint64_t>>(params.shape)) {
+    } else {
         network->cfgReshape(std::get<std::vector<uint64_t>>(params.shape));
     }
 

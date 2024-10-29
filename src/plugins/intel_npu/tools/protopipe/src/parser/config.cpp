@@ -478,6 +478,7 @@ struct convert<InferOp> {
         if (node["input_data"]) {
             op.input_data = node["input_data"].as<LayerVariantAttr<std::string>>();
         }
+
         if (node["output_data"]) {
             op.output_data = node["output_data"].as<LayerVariantAttr<std::string>>();
         }
