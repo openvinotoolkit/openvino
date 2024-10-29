@@ -7,8 +7,11 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "openvino/runtime/core.hpp"
 
-TEST(RTInfoCustom, basic_RENAMEME) {
-    std::string ir = R"V0G0N(
+namespace ov {
+namespace test {
+
+TEST(RTInfoCustom, simple_entries) {
+    std::string ref_ir_xml = R"V0G0N(
 <net name="Network" version="11">
     <layers>
         <layer name="in1" type="Parameter" id="0" version="opset8">
@@ -64,8 +67,8 @@ TEST(RTInfoCustom, basic_RENAMEME) {
 </net>
 )V0G0N";
 
-    ov::Core core;
-    auto model = core.read_model(ir, ov::Tensor());
+    Core core;
+    auto model = core.read_model(ref_ir_xml, Tensor());
     ASSERT_NE(nullptr, model);
     std::string value;
 
@@ -99,3 +102,6 @@ TEST(RTInfoCustom, basic_RENAMEME) {
     OV_ASSERT_NO_THROW(value = result_rti.at("primitives_priority_0").as<std::string>());
     EXPECT_EQ(value.compare("the_prior"), 0);
 }
+
+}  // namespace test
+}  // namespace ov

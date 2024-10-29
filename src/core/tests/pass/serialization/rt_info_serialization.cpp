@@ -309,8 +309,8 @@ using ov::op::v0::Parameter;
 using ov::op::v0::Result;
 using ov::op::v1::Add;
 
-TEST(SerializeCustomRTI, basic_RENAMEME) {
-    std::string ir = R"V0G0N(<?xml version="1.0"?>
+TEST(RTInfoSerialization, custom_info) {
+    std::string ref_ir_xml = R"V0G0N(<?xml version="1.0"?>
 <net name="CustomRTI" version="11">
 	<layers>
 		<layer id="0" name="node_A" type="Parameter" version="opset1">
@@ -408,11 +408,11 @@ TEST(SerializeCustomRTI, basic_RENAMEME) {
 
     std::stringstream model_ss, weights_ss;
     EXPECT_NO_THROW((ov::pass::Serialize{model_ss, weights_ss}.run_on_model(model)));
-    EXPECT_EQ(ir.compare(model_ss.str()), 0);
+    EXPECT_EQ(ref_ir_xml.compare(model_ss.str()), 0);
 }
 
-TEST(SerializeCustomRTI, AnyMap_RENAMEME) {
-    std::string ir = R"V0G0N(<?xml version="1.0"?>
+TEST(RTInfoSerialization, AnyMap_info) {
+    std::string ref_ir_xml = R"V0G0N(<?xml version="1.0"?>
 <net name="CustomRTI" version="11">
 	<layers>
 		<layer id="0" name="data" type="Parameter" version="opset1">
@@ -478,5 +478,5 @@ TEST(SerializeCustomRTI, AnyMap_RENAMEME) {
 
     std::stringstream model_ss, weights_ss;
     EXPECT_NO_THROW((ov::pass::Serialize{model_ss, weights_ss}.run_on_model(model)));
-    EXPECT_EQ(ir.compare(model_ss.str()), 0);
+    EXPECT_EQ(ref_ir_xml.compare(model_ss.str()), 0);
 }
