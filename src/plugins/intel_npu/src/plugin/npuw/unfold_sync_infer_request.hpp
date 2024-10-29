@@ -20,6 +20,7 @@ public:
     explicit UnfoldInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model);
 
 private:
+    void prepare(std::size_t idx);
     void infer() override;
 };
 

@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "unfold_sync_infer_request.hpp"
+#include "openvino/core/parallel.hpp"
 
+#include "unfold_sync_infer_request.hpp"
 #include "compiled_model.hpp"
 #include "logging.hpp"
 
@@ -131,52 +132,93 @@ ov::npuw::UnfoldInferRequest::UnfoldInferRequest(const std::shared_ptr<ov::npuw:
     }
 }
 
-void ov::npuw::UnfoldInferRequest::infer() {
-    for (std::size_t idx = 0; idx < m_num_submodels; idx++) {
-        auto& subr = m_subrequests[idx];
-        if (!subr) {
-            continue;
-        }
+void ov::npuw::UnfoldInferRequest::prepare(std::size_t idx) {
+    if (idx >= m_subrequests.size()) {
+        return;
+    }
+    auto& subr = m_subrequests.at(idx);
+    const bool do_copy = needs_copy(idx);
 
-        // bind_global_parameters(), a simplified way
-        const auto& iodesc = m_subrequests_gio.at(idx);
-        for (auto&& it : iodesc.global_params) {
-            std::size_t param_idx{}, sub_in_idx{};
-            std::tie(param_idx, sub_in_idx) = it;
-            const auto& g_port = m_npuw_model->inputs()[param_idx];
-            const auto& g_tnsr = m_port_to_tensor.at(g_port).tensor;
-            const auto& s_port = subr->get_inputs()[sub_in_idx];
+    std::vector<std::pair<ov::SoPtr<ov::ITensor>, ov::Output<const ov::Node>>> copy_list;
+
+    // bind_global_parameters(), a simplified way
+    const auto& iodesc = m_subrequests_gio.at(idx);
+    for (auto&& it : iodesc.global_params) {
+        std::size_t param_idx{}, sub_in_idx{};
+        std::tie(param_idx, sub_in_idx) = it;
+        const auto& g_port = m_npuw_model->inputs()[param_idx];
+        const auto& g_tnsr = m_port_to_tensor.at(g_port).tensor;
+        const auto& s_port = subr->get_inputs()[sub_in_idx];
+
+        if (do_copy || m_input_allocated.count(g_tnsr->data()) == 0) {
+            copy_list.emplace_back(g_tnsr, s_port);
+        } else {
             subr->set_tensor(s_port, g_tnsr);
         }
-
-        // bind_global_results, a simplified way
-        for (auto&& it : iodesc.global_results) {
-            std::size_t result_idx{}, sub_out_idx{};
-            std::tie(result_idx, sub_out_idx) = it;
-            const auto& g_port = m_npuw_model->outputs()[result_idx];
-            const auto& s_port = subr->get_outputs()[sub_out_idx];
-            subr->set_tensor(s_port, m_port_to_tensor.at(g_port).tensor);
-        }
-
-        // run host gather, if required
-        auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
-        if (comp_model_desc.host_gather.dst_idx != -1) {
-            const auto& gport = comp_model_desc.compiled_model->inputs()[comp_model_desc.host_gather.dst_idx];
-            const auto gather = subr->get_tensor(gport);
-
-            const auto& vocab =
-                comp_model_desc.closure[comp_model_desc.host_gather.src_idx - comp_model_desc.param_base];
-            const auto& lport = comp_model_desc.compiled_model->inputs()[comp_model_desc.host_gather.idx_idx];
-            const auto lookup = subr->get_tensor(lport);
-            ov::npuw::util::gather(ov::get_tensor_impl(vocab), lookup, gather);
-        }
     }
 
-    for (std::size_t idx = 0; idx < m_num_submodels; idx++) {
-        auto& subr = m_subrequests[idx];
-        if (!subr) {
-            continue;
-        }
-        subr->infer();
+    // bind_global_results, a simplified way
+    for (auto&& it : iodesc.global_results) {
+        std::size_t result_idx{}, sub_out_idx{};
+        std::tie(result_idx, sub_out_idx) = it;
+        const auto& g_port = m_npuw_model->outputs()[result_idx];
+        const auto& s_port = subr->get_outputs()[sub_out_idx];
+        subr->set_tensor(s_port, m_port_to_tensor.at(g_port).tensor);
     }
+
+    // run copy, if required
+    ov::parallel_for(copy_list.size(), [&](std::size_t idx) {
+        auto& it = copy_list[idx];
+        ov::SoPtr<ov::ITensor> dst = subr->get_tensor(it.second);
+        it.first->copy_to(dst._ptr);
+    });
+
+    // run host gather, if required
+    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
+    if (comp_model_desc.host_gather.dst_idx != -1) {
+        const auto& gport = comp_model_desc.compiled_model->inputs()[comp_model_desc.host_gather.dst_idx];
+        const auto gather = subr->get_tensor(gport);
+
+        const auto& vocab =
+            comp_model_desc.closure[comp_model_desc.host_gather.src_idx - comp_model_desc.param_base];
+        const auto& lport = comp_model_desc.compiled_model->inputs()[comp_model_desc.host_gather.idx_idx];
+        const auto lookup = subr->get_tensor(lport);
+        ov::npuw::util::gather(ov::get_tensor_impl(vocab), lookup, gather);
+    }
+}
+
+void ov::npuw::UnfoldInferRequest::infer() {
+    const bool do_async = m_npuw_model->m_cfg.get<::intel_npu::NPUW_FUNCALL_ASYNC>();
+
+    if (do_async) {
+        for (std::size_t idx = 0; idx < m_num_submodels; idx++) {
+            prepare(idx);
+        }
+        for (std::size_t idx = 0; idx < m_num_submodels; idx++) {
+            auto& subr = m_subrequests[idx];
+            if (!subr) {
+                continue;
+            }
+            subr->start_async();
+        }
+        for (std::size_t idx = 0; idx < m_num_submodels; idx++) {
+            auto& subr = m_subrequests[idx];
+            if (!subr) {
+                continue;
+            }
+            subr->wait();
+        }
+    } else {
+        prepare(0);
+        for (std::size_t idx = 0; idx < m_num_submodels; idx++) {
+            auto& subr = m_subrequests[idx];
+            if (!subr) {
+                prepare(idx + 1);
+                continue;
+            }
+            subr->start_async();
+            prepare(idx + 1);
+            subr->wait();
+        }
+    } // (async)
 }
