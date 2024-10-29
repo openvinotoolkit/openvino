@@ -97,6 +97,32 @@ def test_export_import_advanced(device):
     assert np.argmax(res[new_compiled.outputs[0]]) == 531
 
 
+def test_export_import_via_file(device):
+    import io
+
+    core = Core()
+
+    if props.device.Capability.EXPORT_IMPORT not in core.get_property(device, props.device.capabilities):
+        pytest.skip(f"{core.get_property(device, props.device.full_name)} plugin due-to export, import model API isn't implemented.")
+
+    compiled_model = generate_relu_compiled_model(device)
+
+    user_stream = io.BytesIO()
+
+    compiled_model.export_model(user_stream)
+    # todo: use tmp dir
+    with open("test.blob", "wb") as f_w:
+        f_w.write(user_stream.getbuffer())
+
+    with open("test.blob", "rb") as f_r:
+        new_compiled = core.import_model(f_r.read(), device)
+
+    img = generate_image()
+    res = new_compiled.infer_new_request({"data": img})
+
+    assert np.argmax(res[new_compiled.outputs[0]]) == 531
+
+
 @pytest.mark.parametrize("input_arguments", [[0], ["data"], []])
 def test_get_input(device, input_arguments):
     compiled_model = generate_relu_compiled_model(device)
