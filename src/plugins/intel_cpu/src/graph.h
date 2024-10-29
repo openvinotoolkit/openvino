@@ -49,8 +49,16 @@ public:
 
     ~Graph();
 
-    bool IsReady() {
-        return one_of(status, Status::ReadyStatic, Status::ReadyDynamic, Status::ReadyDynamicSeq);
+    bool IsStatic() const {
+        return Status::ReadyStatic == status;
+    }
+
+    bool IsDynamic() const {
+        return one_of(status, Status::ReadyDynamic, Status::ReadyDynamicSeq);
+    }
+
+    bool IsReady() const {
+        return IsStatic() || IsDynamic();
     }
 
     const Config & getConfig() const {
@@ -193,7 +201,6 @@ public:
         return graphHasDynamicInput;
     }
 
-    Status getStatus() const {return status;}
     const std::unordered_map<std::string, node::MemoryStateNode*>& getInternalStateNodes() const;
 
     /**
@@ -209,6 +216,10 @@ public:
      */
     void Activate(const std::vector<MemoryPtr>& externalInputMemory = {},
                             const std::vector<MemoryPtr>& externalOutputMemory = {});
+
+    const std::unordered_map<std::size_t, ProxyMemoryBlockPtr>& getOutputNodesMemBlocksMap() const {
+        return outputNodesMemBlocksMap;
+    }
 
 protected:
     void ForgetGraphData() {
@@ -273,7 +284,6 @@ protected:
     template<typename UpdateStrategy>
     void InferDynamic(SyncInferRequest* request, int numaId, UpdateStrategy&& update);
 
-    friend class intel_cpu::SyncInferRequest;
     friend std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph &graph);
 
 private:
