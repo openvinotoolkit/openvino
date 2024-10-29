@@ -608,11 +608,11 @@ DQMatMulGQ2iP::DQMatMulGQ2iP(Context::Ref ctx) {
             matched_qcoeff->validate_and_infer_types();
 
             // Select proper activation shape
-            std::size_t act_dim_shape = act_shape[0] > act_shape[1] ? act_shape[0] : act_shape[1];
+            std::size_t act_dim = act_shape[0] > act_shape[1] ? 0 : 1;
 
             // Reshape the Act to group format
             const auto NSPLIT = qweight_shape[1];
-            std::vector<std::size_t> rshp_act_v = {act_dim_shape, NSPLIT, act_shape[2] / NSPLIT};
+            std::vector<std::size_t> rshp_act_v = {act_shape[act_dim], NSPLIT, act_shape[2] / NSPLIT};
             auto rshp_act_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, rshp_act_v);
             auto rshp_act = std::make_shared<ov::op::v1::Reshape>(matched_out_mmi, rshp_act_c, false);
 
@@ -624,7 +624,7 @@ DQMatMulGQ2iP::DQMatMulGQ2iP(Context::Ref ctx) {
             auto split_w = std::make_shared<ov::op::v1::Split>(matched_qweight, split_axis_w, NSPLIT);
             auto split_s = std::make_shared<ov::op::v1::Split>(matched_qcoeff, split_axis_w, NSPLIT);
 
-            std::vector<std::size_t> r_a_v = {1, act_dim_shape, act_shape[2] / NSPLIT};
+            std::vector<std::size_t> r_a_v = {1, act_shape[act_dim], act_shape[2] / NSPLIT};
             auto r_a_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, r_a_v);
 
             // Do the CW MM for every split
