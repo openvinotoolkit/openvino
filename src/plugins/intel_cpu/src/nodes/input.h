@@ -19,9 +19,17 @@ public:
     };
 
     struct OutputConfig {
+        OutputConfig() = default;
+        OutputConfig(bool useParentMemoryDesc_, bool inPlace_)
+            : useParentMemoryDescForOutput(useParentMemoryDesc_),
+              inPlace(inPlace_) {}
+
+        OutputConfig(MemoryDescPtr desc_, bool inPlace_) : desc(std::move(desc_)), inPlace(inPlace_) {}
+
         // @todo better to use memory desc with any layout and undefined precision
-        bool useParentMemoryDescForOutput;
-        bool inPlace;
+        MemoryDescPtr desc = nullptr;
+        bool useParentMemoryDescForOutput = false;
+        bool inPlace = false;
     };
 
     Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);

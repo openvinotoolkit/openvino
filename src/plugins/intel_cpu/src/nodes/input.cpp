@@ -430,6 +430,7 @@ Input::Input(const std::shared_ptr<ov::Node>& op,
              const GraphContext::CPtr context,
              OutputConfig config)
     : Input(op, context) {
+    extMemDesc = config.desc;
     m_useParentMemoryDescForOutput = config.useParentMemoryDescForOutput;
     m_isInPlace = config.inPlace;
 }
