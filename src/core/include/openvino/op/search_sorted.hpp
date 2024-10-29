@@ -23,7 +23,7 @@ public:
     /// \param right_mode      If False, return the first suitable index that is found for given value. If True, return
     /// the last such index.
     /// \param output_element_type The element type of the output tensor. This is purely an implementation flag, which
-    /// is needed to enable some transformation in ConvertPrecision for CPU plugin(and potentially other plugins as
+    /// is used to convert the output type for CPU plugin in ConvertPrecision transformation (and potentially other plugins as
     /// well). Setting this flag to element::i32 will result in the output tensor of i32 element type. Setting this flag
     /// to element::i64 will generally not give any effect, since it will be converted to i32 anyway, at least for CPU
     /// plugin.
