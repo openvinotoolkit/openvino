@@ -15,6 +15,7 @@
 #include "openvino/core/model.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset15.hpp"
 #include "openvino/opsets/opset3.hpp"
 #include "openvino/opsets/opset4.hpp"
 #include "openvino/opsets/opset5.hpp"
@@ -1034,6 +1035,28 @@ TEST(TransformationTests, ConvertPrecision_TypeRelaxed) {
         ASSERT_FALSE(has_type<element::Type_t::i32>(f));
         ASSERT_TRUE(has_type<element::Type_t::i64>(f));
     }
+}
+
+TEST(TransformationTests, ConvertPrecision_SearchSorted) {
+    std::shared_ptr<Model> f(nullptr);
+    {
+        auto search_sorted_input = opset15::Constant::create(ov::element::i64, {5}, {1, 2, 3, 4, 5});
+        auto indices = std::make_shared<opset15::Parameter>(ov::element::i64, Shape{3});
+        auto search_sorted = std::make_shared<opset15::SearchSorted>(search_sorted_input, indices);
+
+        auto less_input = opset15::Constant::create(ov::element::i64, {3}, {4, 5, 6});
+        auto less = std::make_shared<opset15::Less>(search_sorted, less_input);
+
+        f = std::make_shared<Model>(OutputVector{less}, ParameterVector{indices});
+
+        pass::Manager manager;
+        manager.register_pass<pass::InitNodeInfo>();
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::i64, element::i32}});
+        manager.run_passes(f);
+    }
+    OV_ASSERT_NO_THROW(check_rt_info(f));
+    ASSERT_FALSE(has_type<element::Type_t::i64>(f));
+    ASSERT_TRUE(has_type<element::Type_t::i32>(f));
 }
 
 TEST(TransformationTests, ConvertPrecision_Variables) {
