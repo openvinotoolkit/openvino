@@ -13,4 +13,3 @@ bool validate_weights_path(std::string& weights_path);
 
 } // namespace ov
 } // namespace util
-

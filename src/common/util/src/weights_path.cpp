@@ -13,4 +13,3 @@ bool ov::util::validate_weights_path(std::string& weights_path) {
 
     return true;
 }
-
