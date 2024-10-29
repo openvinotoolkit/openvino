@@ -789,7 +789,9 @@ void RandomUniform::computeMersenneTwister(void* out, size_t output_elements_cou
                 for (uint64_t j = 0; j < args.state_accesses_count; ++j) {
                     (*m_jit_kernel)(&args);
 
-                    args.elements_to_generate =  std::max(args.elements_to_generate - static_cast<int64_t>(m_uint_storage_capacity_per_thread), 0l);
+                    args.elements_to_generate =  std::max(
+                                                    args.elements_to_generate - static_cast<int64_t>(m_uint_storage_capacity_per_thread),
+                                                    static_cast<int64_t>(0));
                     args.state_ptr = reinterpret_cast<uint8_t*>(args.state_ptr) + m_uint_storage_capacity_per_thread *  m_output_prc.size();
                     args.dst_ptr = reinterpret_cast<uint8_t*>(args.dst_ptr) + m_uint_storage_capacity_per_thread * m_output_prc.size();
                     args.output_idx += m_uint_storage_capacity_per_thread;
