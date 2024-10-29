@@ -33,10 +33,11 @@ bool SetBufferRegGroup::can_be_in_one_reg_group(const UnifiedLoopInfo::LoopPortI
     const auto equal_ptr_increments =
         lhs_info.desc.ptr_increment == rhs_info.desc.ptr_increment && lhs_info.desc.finalization_offset == rhs_info.desc.finalization_offset;
     // In dynamic case, the high priority has marking "InvariantShapePath"
+    OPENVINO_ASSERT(lhs_info.port.expr_port && rhs_info.port.expr_port, "Expression ports are nullptr!");
     const auto equal_invariant_shape_paths =
         MarkInvariantShapePath::getInvariantPortShapePath(*lhs_info.port.expr_port) ==
         MarkInvariantShapePath::getInvariantPortShapePath(*rhs_info.port.expr_port);
-    const auto  equal_ptr_params_shifting = lhs_info.desc.is_static() && rhs_info.desc.is_static() ? equal_ptr_increments : equal_invariant_shape_paths;
+    const auto equal_ptr_params_shifting = lhs_info.desc.is_static() && rhs_info.desc.is_static() ? equal_ptr_increments : equal_invariant_shape_paths;
     return equal_ptr_params_shifting && (equal_element_type_sizes || (lhs_info.desc.ptr_increment == 0 && lhs_info.desc.finalization_offset == 0));
 }
 

@@ -18,7 +18,9 @@ namespace pass {
 
 namespace {
 
-static size_t NOT_AFFECTING_PATH = SIZE_MAX;
+// Specific value to mark ports which does't affect output shape of broadcastable ops.
+// For example, ops with output scalar shape or Horizon ops.
+static const size_t NOT_AFFECTING_PATH = SIZE_MAX;
 
 static bool is_elementwise_op(const ExpressionPtr& expr) {
     if (expr->get_output_count() != 1)
