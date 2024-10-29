@@ -1286,23 +1286,40 @@ public:
         if (origin_nested_levels < 2) {
             set_max_nested_levels(2);
         }
+        // In OpenMP, an exception that is thrown in a parallel region must be caught and handled in the same region by the same thread.
+        // Therefore, need to pass the error message and throw a new exception outside the parallel region.
+        const char* what = nullptr;
 
         #pragma omp parallel
         #pragma omp sections
         {
             #pragma omp section
             {
-                updateDynParams(startCounter, stopIndx);
+                try {
+                    updateDynParams(startCounter, stopIndx);
+                } catch (std::exception& e) {
+                    what = e.what();
+                } catch (...) {
+                    what = "[ CPU ] Could not update dynamic parameters.";
+                }
             }
             #pragma omp section
             {
-                updateShapes(startCounter, stopIndx);
+                try {
+                    updateShapes(startCounter, stopIndx);
+                } catch (std::exception& e) {
+                    what = e.what();
+                } catch (...) {
+                    what = "[ CPU ] Could not update shapes.";
+                }
             }
         }
 
         if (origin_nested_levels != 2) {
             set_max_nested_levels(origin_nested_levels);
         }
+
+        OPENVINO_ASSERT(what == nullptr, what);
     }
 };
 #endif
