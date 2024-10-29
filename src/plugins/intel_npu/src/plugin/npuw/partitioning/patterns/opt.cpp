@@ -359,8 +359,8 @@ DQMatMulGQ2i::DQMatMulGQ2i(Context::Ref ctx) {
 
         if (ov::element::i4 == matched_qweight->get_element_type() && qweight_shape.size() == 3 &&
             ov::element::f16 == matched_qcoeff->get_element_type() && qcoeff_shape.size() == 3 &&
-            act_shape.size() == 3 && act_shape[1] == 1 && qcoeff_shape[0] == qweight_shape[0] && qcoeff_shape[2] == 1 &&
-            qcoeff_shape[1] == qweight_shape[1] && !matched_matmul->get_transpose_a() &&
+            act_shape.size() == 3 && act_shape[0] == 1 && act_shape[1] == 1 && qcoeff_shape[0] == qweight_shape[0] &&
+            qcoeff_shape[2] == 1 && qcoeff_shape[1] == qweight_shape[1] && !matched_matmul->get_transpose_a() &&
             matched_matmul->get_transpose_b()) {
             // Mark W closure to transpose, and transpose the respective parameter
             ctx.get().permute(matched_qweight, {1, 0, 2});
@@ -386,9 +386,6 @@ DQMatMulGQ2i::DQMatMulGQ2i(Context::Ref ctx) {
             auto split_axis = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 0);
             auto split_a = std::make_shared<ov::op::v1::Split>(rshp_act, split_axis, NSPLIT);
             auto split_w = std::make_shared<ov::op::v1::Split>(matched_qweight, split_axis, NSPLIT);
-
-            std::vector<std::size_t> rshp_scale_v = {1, 1, qcoeff_shape[0]};
-            auto rshp_scale_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, rshp_scale_v);
 
             // Do the CW MM for every split
             std::vector<std::shared_ptr<ov::Node>> to_concat;
@@ -594,7 +591,7 @@ DQMatMulGQ2iP::DQMatMulGQ2iP(Context::Ref ctx) {
 
         if (ov::element::i4 == matched_qweight->get_element_type() && qweight_shape.size() == 3 &&
             ov::element::f16 == matched_qcoeff->get_element_type() && qcoeff_shape.size() == 3 &&
-            act_shape.size() == 3 && act_shape[1] > 1 &&  // multi-token case
+            act_shape.size() == 3 && (act_shape[0] > 1 || act_shape[1] > 1) &&  // multi-token case
             qcoeff_shape[0] == qweight_shape[0] && qcoeff_shape[1] == qweight_shape[1] && qcoeff_shape[2] == 1 &&
             !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
             // Mark W closure to transpose, and transpose the respective parameter
@@ -610,9 +607,12 @@ DQMatMulGQ2iP::DQMatMulGQ2iP(Context::Ref ctx) {
             matched_qcoeff->set_partial_shape(ts_shape);
             matched_qcoeff->validate_and_infer_types();
 
+            // Select proper activation shape
+            std::size_t act_dim_shape = act_shape[0] > act_shape[1] ? act_shape[0] : act_shape[1];
+
             // Reshape the Act to group format
             const auto NSPLIT = qweight_shape[1];
-            std::vector<std::size_t> rshp_act_v = {act_shape[1], NSPLIT, act_shape[2] / NSPLIT};
+            std::vector<std::size_t> rshp_act_v = {act_dim_shape, NSPLIT, act_shape[2] / NSPLIT};
             auto rshp_act_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, rshp_act_v);
             auto rshp_act = std::make_shared<ov::op::v1::Reshape>(matched_out_mmi, rshp_act_c, false);
 
@@ -624,7 +624,7 @@ DQMatMulGQ2iP::DQMatMulGQ2iP(Context::Ref ctx) {
             auto split_w = std::make_shared<ov::op::v1::Split>(matched_qweight, split_axis_w, NSPLIT);
             auto split_s = std::make_shared<ov::op::v1::Split>(matched_qcoeff, split_axis_w, NSPLIT);
 
-            std::vector<std::size_t> r_a_v = {1, act_shape[1], act_shape[2] / NSPLIT};
+            std::vector<std::size_t> r_a_v = {1, act_dim_shape, act_shape[2] / NSPLIT};
             auto r_a_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, r_a_v);
 
             // Do the CW MM for every split
@@ -649,6 +649,13 @@ DQMatMulGQ2iP::DQMatMulGQ2iP(Context::Ref ctx) {
             if (matched_matmul->output(0).get_element_type() == ov::element::f32) {
                 // Convert the result to f32 to maintain the graph contracts, if needed
                 out = std::make_shared<ov::op::v0::Convert>(out, ov::element::f32);
+            }
+
+            if (act_shape[0] > act_shape[1]) {
+                std::vector<std::size_t> new_out_size = {act_shape[0], act_shape[1], qweight_shape[0]};
+                auto new_out_shape =
+                    std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, new_out_size);
+                out = std::make_shared<ov::op::v1::Reshape>(out, new_out_shape, false);
             }
 
             // Now.. Reconnect the matmul readers to the new output (reducesum)
