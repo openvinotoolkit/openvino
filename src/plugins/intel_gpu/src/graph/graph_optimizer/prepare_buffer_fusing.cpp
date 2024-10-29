@@ -846,6 +846,26 @@ void prepare_buffer_fusing::run(program& p) {
                 if (user_info.first) {
                     node.get_users().front()->set_output_layout(user_info.second);
                 }
+
+                // In case that the rank of weight node of gemm is less than 4 and,
+                // it transforms to extend to 4 dims by adding 1 to begin().
+                // Therefore, the padding of crop_layout should be shifted properly.
+                const size_t TDIM = 4;
+                auto user = node.get_users().front();
+                if (user->is_type<gemm>() && pred_layout.is_static() && user->get_dependency(1).id().compare(node.id()) == 0) {
+                    auto input_rank = user->get_kernel_impl_params()->typed_desc<gemm>()->weight_rank;
+                    if (input_rank < TDIM) {
+                        std::vector<int32_t> l_pad = {0, 0, 0, 0};
+                        std::vector<int32_t> u_pad = {0, 0, 0, 0};
+
+                        //shift right
+                        size_t shift_right = TDIM - input_rank;
+                        std::copy_n(crop_layout.data_padding._lower_size.begin(), l_pad.size() - shift_right, l_pad.begin() + shift_right);
+                        std::copy_n(crop_layout.data_padding._upper_size.begin(), u_pad.size() - shift_right, u_pad.begin() + shift_right);
+
+                        crop_layout.data_padding = padding(l_pad, u_pad);
+                    }
+                }
             }
             node.set_output_layout(crop_layout);
             node.can_be_optimized(true);
