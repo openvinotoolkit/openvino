@@ -592,6 +592,12 @@ void SyncInferRequest::allocate_input(const ov::Output<const ov::Node>& port, si
     auto element_type = port.get_element_type();
 
     m_user_inputs[input_idx] = { create_host_tensor(shape, element_type), TensorOwner::PLUGIN };
+    if (element_type == ov::element::string) {
+        std::string* data = m_user_inputs.at(input_idx).ptr->data<std::string>();
+        for (size_t i = 0; i < m_user_inputs.at(input_idx).ptr->get_size(); ++i) {
+            data[i] = '\0';
+        }
+    }
     ov::ISyncInferRequest::set_tensor(port, m_user_inputs.at(input_idx).ptr);
 }
 

@@ -187,6 +187,7 @@ void fill_tensor_from_strings(ov::Tensor& tensor, py::array& array) {
     }
     py::buffer_info buf = array.request();
     auto data = tensor.data<std::string>();
+    std::cout << "fill_tensor_from_strings()" << std::endl;
     for (size_t i = 0; i < tensor.get_size(); ++i) {
         char* ptr = reinterpret_cast<char*>(buf.ptr) + (i * buf.itemsize);
         // TODO: check other unicode kinds? 2BYTE and 1BYTE?
@@ -194,10 +195,7 @@ void fill_tensor_from_strings(ov::Tensor& tensor, py::array& array) {
             PyUnicode_FromKindAndData(PyUnicode_4BYTE_KIND, reinterpret_cast<void*>(ptr), buf.itemsize / 4);
         PyObject* _utf8_obj = PyUnicode_AsUTF8String(_unicode_obj);
         const char* _tmp_str = PyBytes_AsString(_utf8_obj);
-        std::string d(_tmp_str);
-        if (!d.empty()) {
-            data[i] = d;
-        }
+        data[i] = std::string(_tmp_str);
         Py_XDECREF(_unicode_obj);
         Py_XDECREF(_utf8_obj);
     }
