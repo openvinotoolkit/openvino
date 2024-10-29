@@ -57,14 +57,19 @@ async function main(modelPath, imagePath, deviceName) {
 
   //----------------- Step 7. Process output -----------------------------------
   const outputLayer = compiledModel.outputs[0];
-  const _output = outputs[outputLayer];
-  const output = Float32Array.from(_output.data);
+  const output = outputs[outputLayer];
+  const outputData = output.data;
   const resultLayer = [];
-  const colormap = [[68, 1, 84, 255], [48, 103, 141, 255], [53, 183, 120, 255], [199, 216, 52, 255]];
-  const size = output.length/4;
+  const colormap = [
+    [68, 1, 84, 255],
+    [48, 103, 141, 255],
+    [53, 183, 120, 255],
+    [199, 216, 52, 255],
+  ];
+  const size = outputData.length/4;
 
   for (let i = 0; i < size; i++) {
-    const valueAt = (i, number) => output[i + number*size];
+    const valueAt = (i, number) => outputData[i + number*size];
     const currentValues = {
       bg: valueAt(i, 0),
       c: valueAt(i, 1),
@@ -80,13 +85,13 @@ async function main(modelPath, imagePath, deviceName) {
   const pixels = [];
   resultLayer.forEach(i => pixels.push(...colormap[i]));
 
-  // const alpha = 0.3;
+  const alpha = 0.6;
   const filename = 'out.jpg';
-  const [_, C, H, W] = _output.getShape();
+  const [, , H, W] = output.getShape();
 
   const segmentsImg = Image.fromArray(pixels, W, H);
   const resizedSegments = segmentsImg.resize(img.width, img.height);
-  const mergedImg = Image.overlay(img, resizedSegments, 0.6);
+  const mergedImg = Image.overlay(img, resizedSegments, alpha);
 
   try {
     await mergedImg.save(filename);
