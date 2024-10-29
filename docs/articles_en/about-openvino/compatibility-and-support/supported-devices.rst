@@ -35,18 +35,6 @@ OpenVINO offers the option of running automated inference with the following inf
 | executes inference on multiple devices. Currently, this mode is considered a legacy
   solution. Using Automatic Device Selection instead is advised.
 
-.. dropdown:: Device support across OpenVINO 2024.4 distributions
-
-   ===============  ==========  ======  ===============  ========  ============ ========== ========== ==========
-   Device           Archives    PyPI    APT/YUM/ZYPPER    Conda     Homebrew     vcpkg      Conan       npm
-   ===============  ==========  ======  ===============  ========  ============ ========== ========== ==========
-   CPU              V           V       V                V         V            V          V          V
-   GPU              V           V       V                V         V            V          V          V
-   NPU              V\*         V\*     V\ *             n/a       n/a          n/a        n/a        V\*
-   ===============  ==========  ======  ===============  ========  ============ ========== ========== ==========
-
-   | \* **Of the Linux systems, versions 22.04 and 24.04 include drivers for NPU.**
-   |  **For Windows, CPU inference on ARM64 is not supported.**
 
 Feature Support and API Coverage
 #################################
@@ -94,6 +82,19 @@ Feature Support and API Coverage
 For setting up a relevant configuration, refer to the
 :doc:`Integrate with Customer Application <../../openvino-workflow/running-inference/integrate-openvino-with-your-application>`
 topic (step 3 "Configure input and output").
+
+.. dropdown:: Device support across OpenVINO 2024.4 distributions
+
+   ===============  ==========  ======  ===============  ========  ============ ========== ========== ==========
+   Device           Archives    PyPI    APT/YUM/ZYPPER    Conda     Homebrew     vcpkg      Conan       npm
+   ===============  ==========  ======  ===============  ========  ============ ========== ========== ==========
+   CPU              V           V       V                V         V            V          V          V
+   GPU              V           V       V                V         V            V          V          V
+   NPU              V\*         V\*     V\ *             n/a       n/a          n/a        n/a        V\*
+   ===============  ==========  ======  ===============  ========  ============ ========== ========== ==========
+
+   | \* **Of the Linux systems, versions 22.04 and 24.04 include drivers for NPU.**
+   |  **For Windows, CPU inference on ARM64 is not supported.**
 
 
 .. note::
