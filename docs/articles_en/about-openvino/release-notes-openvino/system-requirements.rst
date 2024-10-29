@@ -342,19 +342,5 @@ to learn more about the release types.
             * `Python 3.9 - 3.12, 64-bit <https://www.python.org/downloads/>`_
 
 
-.. dropdown:: Distribution Comparison for OpenVINO 2024.4
-
-   ===============  ==========  ======  ===============  ========  ============ ========== ========== ==========
-   Device           Archives    PyPI    APT/YUM/ZYPPER    Conda     Homebrew     vcpkg      Conan       npm
-   ===============  ==========  ======  ===============  ========  ============ ========== ========== ==========
-   CPU              V           V       V                V         V            V          V          V
-   GPU              V           V       V                V         V            V          V          V
-   NPU              V\*         V\*     V\ *             n/a       n/a          n/a        n/a        V\*
-   ===============  ==========  ======  ===============  ========  ============ ========== ========== ==========
-
-   | \* **Of the Linux systems, versions 22.04 and 24.04 include drivers for NPU.**
-   |  **For Windows, CPU inference on ARM64 is not supported.**
-
-
 The claims stated here may not apply to all use cases and setups. See
 :doc:`Legal notices and terms of use <../additional-resources/terms-of-use>` for more information.
