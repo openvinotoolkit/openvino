@@ -86,12 +86,12 @@ private:
 
     void configure_stream_executors();
 
-    std::shared_ptr<IExecutor> create_executor(const std::shared_ptr<const NetworkDescription>& networkDescription);
+    std::shared_ptr<IExecutor> create_executor();
 
     /**
      * @brief TODO
      */
-    void run_init(const std::shared_ptr<ov::Model> initModel, const std::shared_ptr<IExecutor>& initExecutor);
+    void run_init(const std::shared_ptr<IExecutor>& initExecutor) const;
 
     const ov::SoPtr<ICompiler> _compiler;
 
@@ -99,6 +99,7 @@ private:
     std::shared_ptr<const NetworkDescription> _networkInitPtr;
     mutable bool writeInit = false;
     const std::shared_ptr<const ov::Model> _model;
+    std::shared_ptr<ov::Model> _initModel;
     Config _config;
     Logger _logger;
     const std::shared_ptr<IDevice> _device;

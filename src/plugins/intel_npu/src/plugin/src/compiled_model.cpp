@@ -55,11 +55,11 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                              const bool profiling,
                              const Config& config)
     : ICompiledModel(model, plugin),
+      _compiler(compiler),
       _model(model),
       _config(config),
       _logger("CompiledModel", config.get<LOG_LEVEL>()),
-      _device(device),
-      _compiler(compiler) {
+      _device(device) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::CompiledModel");
     OPENVINO_ASSERT(compiler != nullptr, "NPU CompiledModel: the pointer towards the compiler object is null");
 
@@ -67,37 +67,20 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
         _logger.debug("performing compile and expecting a network description");
 
         if (!config.get<SEPARATE_WEIGHTS>()) {
-            begin = std::chrono::steady_clock::now();
             _networkPtr = std::make_shared<const NetworkDescription>(_compiler->compile(model, config));
-            end = std::chrono::steady_clock::now();
-            std::cout << "compiler->compile() call "
-                      << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]"
-                      << std::endl;
         } else {
-            const std::shared_ptr<ov::Model> initModel = model->clone();
+            _initModel = model->clone();
 
+            begin = std::chrono::steady_clock::now();
             const std::vector<std::shared_ptr<NetworkDescription>> initMainNetworkDescriptions =
-                _compiler->compileWS(initModel, config);
-
-            const std::shared_ptr<NetworkDescription> initNetworkDescription = initMainNetworkDescriptions[0];
-            const std::shared_ptr<NetworkDescription> mainNetworkDescription = initMainNetworkDescriptions[1];
-
-            begin = std::chrono::steady_clock::now();
-            const std::shared_ptr<IExecutor> initExecutor = create_executor(initNetworkDescription);
+                _compiler->compileWS(_initModel, config);
             end = std::chrono::steady_clock::now();
-            std::cout << "Init create_executor() "
+            std::cout << "compiler->compileWS() call "
                       << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]"
                       << std::endl;
 
-            begin = std::chrono::steady_clock::now();
-            run_init(initModel, initExecutor);
-            end = std::chrono::steady_clock::now();
-            std::cout << "run_init() call "
-                      << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]"
-                      << std::endl;
-
-            _networkPtr = mainNetworkDescription;
-            _networkInitPtr = initNetworkDescription;
+            _networkInitPtr = initMainNetworkDescriptions[0];
+            _networkPtr = initMainNetworkDescriptions[1];
         }
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
@@ -111,7 +94,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
     configure_stream_executors();
 
     OV_ITT_TASK_NEXT(COMPILED_MODEL, "create_executor");
-    _executorPtr = create_executor(_networkPtr);
+    _executorPtr = create_executor();
 
     OV_ITT_TASK_SKIP(COMPILED_MODEL);
 }
@@ -123,12 +106,12 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                              const ov::SoPtr<ICompiler>& compiler,
                              const Config& config)
     : ICompiledModel(model, plugin),
+      _compiler(compiler),
       _networkPtr(networkDescription),
       _model(model),
       _config(config),
       _logger("CompiledModel", config.get<LOG_LEVEL>()),
-      _device(device),
-      _compiler(compiler) {
+      _device(device) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::CompiledModel");
     OPENVINO_ASSERT(_networkPtr != nullptr,
                     "NPU CompiledModel: the pointer towards the NetworkDescription object is null");
@@ -138,7 +121,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
     configure_stream_executors();
 
     OV_ITT_TASK_NEXT(COMPILED_MODEL, "create_executor");
-    _executorPtr = create_executor(_networkPtr);
+    _executorPtr = create_executor();
 
     OV_ITT_TASK_SKIP(COMPILED_MODEL);
 }
@@ -172,7 +155,19 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
         _device->createInferRequest(shared_from_this(), _executorPtr, _config);
     syncInferRequest->initialize_states();
 
-    if (!_weightsInputs.empty()) {
+    if (_config.get<SEPARATE_WEIGHTS>()) {
+        begin = std::chrono::steady_clock::now();
+        const std::shared_ptr<IExecutor> initExecutor = _device->createExecutor(_networkInitPtr, _config);
+        end = std::chrono::steady_clock::now();
+        std::cout << "Init create_executor() "
+                  << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
+
+        begin = std::chrono::steady_clock::now();
+        run_init(initExecutor);
+        end = std::chrono::steady_clock::now();
+        std::cout << "run_init() call " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()
+                  << "[ms]" << std::endl;
+
         begin = std::chrono::steady_clock::now();
         syncInferRequest->set_weights_inputs(_weightsInputs);
         end = std::chrono::steady_clock::now();
@@ -462,14 +457,13 @@ void CompiledModel::initialize_properties() {
     }
 }
 
-std::shared_ptr<IExecutor> CompiledModel::create_executor(
-    const std::shared_ptr<const NetworkDescription>& networkDescription) {
+std::shared_ptr<IExecutor> CompiledModel::create_executor() {
     if (_config.get<CREATE_EXECUTOR>() && _device != nullptr) {
         _logger.info("Creating the executor inside the \"CompiledModel\" constructor");
 
         // If no device has been defined, the executor shall keep the default value of "nullptr". In this scenario,
         // only export operations will be allowed
-        return _device->createExecutor(networkDescription, _config);
+        return _device->createExecutor(_networkPtr, _config);
     }
 
     _logger.info("Executor will not be created inside the \"CompiledModel\" constructor");
@@ -477,10 +471,9 @@ std::shared_ptr<IExecutor> CompiledModel::create_executor(
     return nullptr;
 }
 
-void CompiledModel::run_init(const std::shared_ptr<ov::Model> initModel,
-                             const std::shared_ptr<IExecutor>& initExecutor) {
+void CompiledModel::run_init(const std::shared_ptr<IExecutor>& initExecutor) const {
     if (_device != nullptr && initExecutor != nullptr) {
-        _weightsInputs = _device->runInit(initExecutor, initModel, get_context(), _config);
+        _weightsInputs = _device->runInit(initExecutor, _initModel, get_context(), _config);
     } else {
         _logger.info("The \"Init\" schedule did not run while building the \"CompiledModel\" object");
     }
