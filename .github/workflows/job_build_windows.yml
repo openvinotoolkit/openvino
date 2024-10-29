@@ -21,6 +21,11 @@ on:
         description: 'A string of options passed to CMake'
         type: string
         required: true
+      build-additional-python-wheels:
+        description: 'Whether to build additional, i.e., non-system Python wheels. Should have Python 3.9-3.12 installed'
+        type: boolean
+        required: false
+        default: false
 
 permissions: read-all
 
@@ -74,6 +79,46 @@ jobs:
           should-setup-pip-paths: 'true'
           self-hosted-runner: 'true'
           show-cache-info: 'true'
+
+      # Setup additional Python versions for wheels building
+      - name: Setup Python 3.9
+        if: ${{ inputs.build-additional-python-wheels }}
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: '3.9'
+          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
+          should-setup-pip-paths: 'true'
+          self-hosted-runner: 'true'
+
+      # Setup additional Python versions for wheels building
+      - name: Setup Python 3.10
+        if: ${{ inputs.build-additional-python-wheels }}
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: '3.10'
+          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
+          should-setup-pip-paths: 'true'
+          self-hosted-runner: 'true'
+
+      # Setup additional Python versions for wheels building
+      - name: Setup Python 3.11
+        if: ${{ inputs.build-additional-python-wheels }}
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: '3.11'
+          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
+          should-setup-pip-paths: 'true'
+          self-hosted-runner: 'true'
+
+      # Setup additional Python versions for wheels building
+      - name: Setup Python 3.12
+        if: ${{ inputs.build-additional-python-wheels }}
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: '3.12'
+          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
+          should-setup-pip-paths: 'true'
+          self-hosted-runner: 'true'
 
       - name: Generate product manifest and set CI_BUILD_NUMBER & CI_BUILD_DEV_TAG
         id: create_manifest
@@ -157,8 +202,7 @@ jobs:
         run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
 
       - name: CMake configure
-        run: |
-          cmake -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }} ${{ inputs.cmake-options }}
+        run: cmake -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }} ${{ inputs.cmake-options }}
 
       - name: Clean ccache stats
         run: '& ccache --zero-stats'
@@ -175,6 +219,20 @@ jobs:
           cmake --install . --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_WHEELS_DIR }} --component python_wheels
           cmake --install . --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_TEST_DIR }} --component tests
         working-directory: ${{ env.BUILD_DIR }}
+
+      - name: Build additional Python wheels
+        if: ${{ inputs.build-additional-python-wheels }}
+        run: |
+          $pyVersions = '3.9', '3.10', '3.11', '3.12'
+          foreach ($pyVersion in $pyVersions) {
+            $pyBuildDir = "${{ github.workspace }}/py$pyVersion"
+            New-Item -ItemType Directory -Path "$pyBuildDir" -Force
+
+            $pythonExecutablePath = $(python3 -c "import sys; print(f'{sys.executable}')")
+            cmake -DPython3_EXECUTABLE="$pythonExecutablePath" -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B "$pyBuildDir"
+            cmake --build "$pyBuildDir" --parallel
+            cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_WHEELS_DIR }} -DCOMPONENT=python_wheels -P $pyBuildDir/cmake_install.cmake
+          }
 
       - name: Pack Artifacts
         run: |

@@ -1,0 +1,73 @@
+name: 'Find and install OpenVINO Python wheels'
+description: 'Finds the OpenVINO Python wheels (core, dev and tokenizers) suitable for the "python3" executable and installs them'
+inputs:
+  wheels-dir-path:
+    description: 'Path to the directory in which wheels are located'
+    required: true
+  install-core-wheel:
+    description: 'Whether to install the OpenVINO Core wheel (openvino-*.whl)'
+    required: true
+  install-dev-wheel:
+    description: 'Whether to install the OpenVINO Dev wheel (openvino_dev*.whl)'
+    required: true
+  extras-to-install:
+    description: 'Extras to install with the OpenVINO Dev wheel (openvino_dev.whl[caffe,kaldi,onnx,tensorflow2,pytorch])'
+    required: false
+    default: ''
+  install-tokenizers-wheel:
+    description: 'Whether to install the OpenVINO Dev wheel (openvino_tokenizes*.whl)'
+    required: true
+runs:
+  using: 'composite'
+  steps:
+    - name: Install OpenVINO Python wheels (Windows)
+      shell: pwsh
+      if: runner.os == 'Windows'
+      run: |
+        if ( "${{ inputs.install-core-wheel }}" -eq "true" )
+        {
+            $pyVersion = python3 -c "import sys; print(f'{sys.version_info.major}{sys.version_info.minor}')"
+            $ovCoreWheelPath = Get-ChildItem -Path ${{ inputs.wheels-dir-path }} -Filter "openvino-*cp$pyVersion*.whl" | % { $_.FullName }
+            python3 -m pip install $ovCoreWheelPath
+        }
+        
+        if ( "${{ inputs.install-tokenizers-wheel }}" -eq "true" )
+        {
+            $ovTokenizersWheelPath = Get-ChildItem -Path ${{ inputs.wheels-dir-path }} -Filter openvino_tokenizers-*.whl | % { $_.FullName }
+            python3 -m pip install "$ovTokenizersWheelPath"
+        }
+        
+        if ( "${{ inputs.install-core-wheel }}" -eq "true" )
+        {
+            $ovDevWheelPath = Get-ChildItem -Path "${{ inputs.wheels-dir-path }}" -Filter openvino_dev*.whl | % { $_.FullName }
+            if ( "${{ inputs.extras-to-install }}" )
+            {
+              python3 -m pip install "$ovDevWheelPath[${{ inputs.extras-to-install }}]"
+            }
+            else
+            {
+              python3 -m pip install "$ovDevWheelPath"
+            }
+        }
+    - name: Install OpenVINO Python wheels (Linux and macOS)
+      shell: bash
+      if: runner.os != 'Windows'
+      run: |
+        if [[ "${{ inputs.install-core-wheel }}" == "true" ]]; then
+          py_version=$(python3 -c "import sys; print(f'{sys.version_info.major}{sys.version_info.minor}')")
+          ov_wheel_path=$(find ${{ inputs.wheels-dir-path }} -name "openvino-*cp$py_version*.whl")
+          python3 -m pip install $ov_wheel_path
+        fi
+        
+        if [[ "${{ inputs.install-tokenizers-wheel }}" == "true" ]]; then
+          python3 -m pip install ${{ inputs.wheels-dir-path }}/openvino_tokenizers-*.whl
+        fi
+        
+        if [[ "${{ inputs.install-dev-wheel }}" == "true" ]]; then
+          ov_dev_wheel_path=$(find ${{ inputs.wheels-dir-path }} -name 'openvino_dev*.whl')
+          if [[ "${{ inputs.extras-to-install }}" ]]; then
+            python3 -m pip install $ov_dev_wheel_path[${{ inputs.extras-to-install }}]
+          else
+            python3 -m pip install $ov_dev_wheel_path
+          fi
+        fi
