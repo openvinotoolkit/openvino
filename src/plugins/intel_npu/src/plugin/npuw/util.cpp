@@ -198,15 +198,18 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
         if (scale_shape.size() == 3 && scale_shape[1] == 1 && scale_shape[2] == 1) {
             // Special case for broadcasting vocab by 2 dimensions
             // FIXME: all this logic probably should be in some specific unpack or another util function
+            const auto& from_strides = from->get_strides();
+            const auto& zerop_strides = zerop->get_strides();
+            const auto& scale_strides = scale->get_strides();
             ov::Tensor wraped_from(from->get_element_type(),
                                    ov::Shape{from_shape[0], from_shape[1] * from_shape[2]},
-                                   from->data());
+                                   from->data(), ov::Strides{from_strides[0], from_strides[2]});
             ov::Tensor wraped_zerop(zerop->get_element_type(),
                                     ov::Shape{zerop_shape[0], zerop_shape[1] * zerop_shape[2]},
-                                    zerop->data());
+                                    zerop->data(), ov::Strides{zerop_strides[0], zerop_strides[2]});
             ov::Tensor wraped_scale(scale->get_element_type(),
                                     ov::Shape{scale_shape[0], scale_shape[1] * scale_shape[2]},
-                                    scale->data());
+                                    scale->data(), ov::Strides{scale_strides[0], scale_strides[2]});
 
             ov::npuw::util::XARCH::unpack_u8f16(ov::get_tensor_impl(wraped_from),
                                                 ov::get_tensor_impl(wraped_zerop),
