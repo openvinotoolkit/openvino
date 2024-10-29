@@ -23,11 +23,9 @@ static cv::gapi::GNetPackage getNetPackage(const std::string& tag, const OpenVIN
         network = std::make_unique<P>(tag, blob_path.blob, params.device);
     }
     if (std::holds_alternative<AttrMap<std::vector<uint64_t>>>(params.shape)) {
-        auto &shapeMap = std::get<AttrMap<std::vector<uint64_t>>>(params.shape);
-        network->cfgReshape(shapeMap);
+        network->cfgReshape(std::get<AttrMap<std::vector<uint64_t>>>(params.shape));
     } else if (std::holds_alternative<std::vector<uint64_t>>(params.shape)) {
-        auto &shape = std::get<std::vector<uint64_t>>(params.shape);
-        network->cfgReshape(shape);
+        network->cfgReshape(std::get<std::vector<uint64_t>>(params.shape));
     }
 
     network->cfgPluginConfig(params.config);
