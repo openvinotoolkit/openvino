@@ -187,7 +187,6 @@ void fill_tensor_from_strings(ov::Tensor& tensor, py::array& array) {
     }
     py::buffer_info buf = array.request();
     auto data = tensor.data<std::string>();
-    std::cout << "fill_tensor_from_strings()" << std::endl;
     for (size_t i = 0; i < tensor.get_size(); ++i) {
         char* ptr = reinterpret_cast<char*>(buf.ptr) + (i * buf.itemsize);
         // TODO: check other unicode kinds? 2BYTE and 1BYTE?
