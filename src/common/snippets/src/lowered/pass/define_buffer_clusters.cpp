@@ -11,6 +11,7 @@
 #include "snippets/utils/utils.hpp"
 #include "snippets/itt.hpp"
 
+
 namespace ov {
 namespace snippets {
 namespace lowered {
@@ -19,27 +20,15 @@ namespace pass {
 namespace {
 
 // Find Loops which are connected to the current `buffer_expr` (consumer of Buffer is port of these Loops)
-std::vector<size_t> get_connected_loops(const BufferExpressionPtr& buffer_expr, const ExpressionPort& consumer) {
+std::vector<size_t> get_connected_loops(const BufferExpressionPtr& buffer_expr, const ExpressionPtr& consumer_expr) {
     // [133463] Remove it please
-    if (ov::is_type<op::LoopEnd>(consumer.get_expr()->get_node()))
+    if (ov::is_type<op::LoopEnd>(consumer_expr->get_node()))
         return {};
     const auto& buffer_loops_ids = buffer_expr->get_loop_ids();
-    const auto& consumer_loop_ids = consumer.get_expr()->get_loop_ids();
+    const auto& consumer_loop_ids = consumer_expr->get_loop_ids();
     OPENVINO_ASSERT(buffer_loops_ids.size() <= consumer_loop_ids.size(), "Buffer with consumer are in incorrect loops");
-    size_t idx = 0;
-    while (idx < std::min(buffer_loops_ids.size(), consumer_loop_ids.size()) && buffer_loops_ids[idx] == consumer_loop_ids[idx]) {
-        idx++;
-    }
-    OPENVINO_ASSERT(idx <= consumer_loop_ids.size(), "Incorrect index");
-    return {consumer_loop_ids.cbegin() + idx, consumer_loop_ids.cend()};
-}
-
-UnifiedLoopInfoPtr get_direct_loop_for_buffer_out(const LoopManagerPtr& loop_manager, const BufferExpressionPtr& buffer_expr,
-                                                  const ExpressionPort& consumer) {
-    const auto inner_loops = get_connected_loops(buffer_expr, consumer);
-    if (inner_loops.empty())
-        return nullptr;
-    return loop_manager->get_loop_info<UnifiedLoopInfo>(inner_loops.front());
+    const auto mismatched_its = std::mismatch(buffer_loops_ids.begin(), buffer_loops_ids.end(), consumer_loop_ids.begin());
+    return {mismatched_its.second, consumer_loop_ids.cend()};
 }
 } // namespace
 
@@ -105,6 +94,7 @@ std::pair<DefineBufferClusters::BufferMap, DefineBufferClusters::BufferMap> Defi
             const auto& buffer_expr = ov::as_type_ptr<BufferExpression>(consumer_input.get_expr());
             if (!is_direct_buffer(buffer_expr, loop_expr))
                 continue;
+            OPENVINO_ASSERT(output_buffers.count(buffer_expr) == 0, "Only one Buffer can be on node output!");
             output_buffers[buffer_expr] = port_info;
         }
     }
@@ -170,15 +160,13 @@ void DefineBufferClusters::parse_loop(const LoopManagerPtr& loop_manager, const 
                     continue;
             }
 
-            if (input_params.data_size < output_params.data_size)
-                continue;
-
             const auto cluster_it = find_cluster_by_expr(input_buffer_expr);
             OPENVINO_ASSERT(cluster_it != m_clusters.end(), "Buffer on inputs of Loop must be already saved in clusters");
             // Add to the existing cluster
             add_buffers_to_cluster(*cluster_it, {output_buffer_expr});
             // Remove input buffer because we have already use its memory
             visited_buffers.insert(input_buffer_expr);
+            has_been_added = true;
             break;
         }
         if (!has_been_added) {
@@ -254,13 +242,20 @@ void DefineBufferClusters::parse_nested_loops(const LoopManagerPtr& loop_manager
 
 UnifiedLoopInfo::LoopPortInfo DefineBufferClusters::get_buffer_last_loop_port_info(const LoopManagerPtr& loop_manager,
                                                                                    const BufferExpressionPtr& buffer_expr) const {
+    auto get_direct_loop_for_buffer_out = [&](const BufferExpressionPtr& buffer_expr, const ExpressionPtr& consumer_expr) -> UnifiedLoopInfoPtr {
+        const auto inner_loops = get_connected_loops(buffer_expr, consumer_expr);
+        if (inner_loops.empty())
+            return nullptr;
+        return loop_manager->get_loop_info<UnifiedLoopInfo>(inner_loops.front());
+    };
+
     LoopPortInfo final_info;
     double last_loop_exec_order = -1 * std::numeric_limits<double>::max();
     const auto& buffer_outs = buffer_expr->get_output_port_connectors();
     for (const auto& buffer_out : buffer_outs) {
         const auto consumers = buffer_out->get_consumers();
         for (const auto& consumer : consumers) {
-            if (const auto& direct_loop = get_direct_loop_for_buffer_out(loop_manager, buffer_expr, consumer)) {
+            if (const auto& direct_loop = get_direct_loop_for_buffer_out(buffer_expr, consumer.get_expr())) {
                 const auto loop_order = direct_loop->get_output_ports().back().expr_port->get_expr()->get_exec_num();
                 if (loop_order > last_loop_exec_order) {
                     OPENVINO_ASSERT(direct_loop->is_loop_port(consumer), "Consumer of Buffer from another loop must be loop port");
@@ -282,7 +277,7 @@ bool DefineBufferClusters::unite_nested_clusters(const LoopManagerPtr& loop_mana
         const auto& lower_buffer_source = lower_buffer->get_input_port_connector(0)->get_source();
         const auto& upper_buffer_consumers = upper_buffer->get_output_port_connector(0)->get_consumers();
         for (const auto& upper_buffer_consumer : upper_buffer_consumers) {
-            const auto& connected_loops = get_connected_loops(upper_buffer, upper_buffer_consumer);
+            const auto& connected_loops = get_connected_loops(upper_buffer, upper_buffer_consumer.get_expr());
             for (const auto& loop_id : connected_loops) {
                 const auto& common_loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(loop_id);
                 if (!common_loop_info->is_loop_port(lower_buffer_source) || !common_loop_info->is_loop_port(upper_buffer_consumer))
@@ -299,45 +294,6 @@ bool DefineBufferClusters::unite_nested_clusters(const LoopManagerPtr& loop_mana
                     return true;
                 }
             }
-        }
-    }
-    return false;
-}
-
-bool DefineBufferClusters::are_buffer_neighbours(const BufferExpressionPtr& up, const BufferExpressionPtr& down, ExpressionPtr& loop,
-                                                 size_t& up_idx, size_t& down_idx) {
-    auto find_input = [&down](const PortConnectorPtr& in) {
-        return in->get_source().get_expr() == down;
-    };
-    auto find_output = [&down](const PortConnectorPtr& in) {
-        const auto consumers = in->get_consumers();
-        return std::any_of(consumers.cbegin(), consumers.cend(),
-                           [&down](const ExpressionPort& port) { return port.get_expr() == down; });
-    };
-    auto find = [&](const std::vector<PortConnectorPtr>::const_iterator& begin,
-                    const std::vector<PortConnectorPtr>::const_iterator& end,
-                    const std::vector<PortConnectorPtr>::const_iterator& orig_begin,
-                    const ExpressionPort& loop_port,
-                    bool is_input) -> bool {
-        const auto in_buffer_it = is_input ? std::find_if(begin, end, find_input)
-                                           : std::find_if(begin, end, find_output);
-        if (in_buffer_it != end) {
-            up_idx = loop_port.get_index();
-            down_idx = std::distance(orig_begin, in_buffer_it);
-            loop = loop_port.get_expr();
-            return true;
-        }
-        return false;
-    };
-    for (const auto& out : up->get_output_port_connectors()) {
-        for (const auto& buffer_consumer : out->get_consumers()) {
-            const auto buffer_consumer_expr = buffer_consumer.get_expr();
-            const auto loop_end = ov::as_type_ptr<op::LoopEnd>(buffer_consumer_expr->get_node());
-            if (!loop_end)
-                continue;
-            const auto& loop_inputs = buffer_consumer_expr->get_input_port_connectors();
-            if (find(loop_inputs.cbegin(), loop_inputs.cbegin() + loop_end->get_input_num(), loop_inputs.cbegin(), buffer_consumer, true)) return true;
-            if (find(loop_inputs.cbegin() + loop_end->get_input_num(), loop_inputs.cend(), loop_inputs.cbegin(), buffer_consumer, false)) return true;
         }
     }
     return false;

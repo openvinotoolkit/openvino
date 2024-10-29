@@ -18,22 +18,16 @@ namespace pass {
 
 namespace {
 
-static size_t SCALAR_PATH = SIZE_MAX;
+static size_t NOT_AFFECTING_PATH = SIZE_MAX;
 
-static bool is_planar_layout(const std::vector<size_t>& order) {
-    for (size_t i = 0; i < order.size(); ++i) {
-        if (order[i] != i) return false;
-    }
-    return true;
-}
 static bool is_elementwise_op(const ExpressionPtr& expr) {
     if (expr->get_output_count() != 1)
         return false;
     auto is_invariant_ma_op = [](const ExpressionPtr& expr) {
         const auto& op = expr->get_node();
         return (ov::is_type<op::Load>(op) || ov::is_type<op::Store>(op)) &&
-               is_planar_layout(expr->get_input_port_descriptor(0)->get_layout()) &&
-               is_planar_layout(expr->get_output_port_descriptor(0)->get_layout());
+               utils::is_planar_layout(expr->get_input_port_descriptor(0)->get_layout()) &&
+               utils::is_planar_layout(expr->get_output_port_descriptor(0)->get_layout());
     };
     const auto& node = expr->get_node();
     return is_invariant_ma_op(expr) ||
@@ -56,14 +50,35 @@ static bool is_scalar_op(const ExpressionPtr& expr) {
 }
 }  // namespace
 
+size_t MarkInvariantShapePath::getInvariantPortShapePath(const ExpressionPort& port) {
+    auto& rt = get_rt_info(port);
+    const auto rinfo = rt.find("InvariantShapePath");
+    OPENVINO_ASSERT(rinfo != rt.end(), "Invariant path for this expression port has not been marked!");
+    return rinfo->second.as<size_t>();
+}
+
+void MarkInvariantShapePath::SetInvariantPortShapePath(const ExpressionPort& port, size_t value) {
+    auto& rt = get_rt_info(port);
+    rt["InvariantShapePath"] = value;
+}
+
+ov::RTMap& MarkInvariantShapePath::get_rt_info(const ExpressionPort& port) {
+    const auto& node = port.get_expr()->get_node();
+    const auto port_idx = port.get_index();
+    const auto is_input = port.get_type() == ExpressionPort::Input;
+    OPENVINO_ASSERT((is_input && (port_idx < node->get_input_size())) || (!is_input && (port_idx < node->get_output_size())),
+                    "Node has incompatible port count with the expression");
+    return is_input ? node->input(port_idx).get_rt_info() : node->output(port_idx).get_rt_info();
+}
+
 bool MarkInvariantShapePath::run(lowered::LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::MarkInvariantShapePath");
 
     size_t color_path = 0;
 
     auto merge_paths = [&color_path](size_t lhs, size_t rhs) {
-        if (lhs == rhs || rhs == SIZE_MAX) return lhs;
-        if (lhs == SIZE_MAX) return rhs;
+        if (lhs == rhs || rhs == NOT_AFFECTING_PATH) return lhs;
+        if (lhs == NOT_AFFECTING_PATH) return rhs;
         return ++color_path;
     };
 
@@ -75,13 +90,13 @@ bool MarkInvariantShapePath::run(lowered::LinearIR& linear_ir, lowered::LinearIR
         for (size_t out_idx = 0; out_idx < expr->get_output_count(); ++out_idx) {
             size_t current_color_path;
             if (is_elementwise_op(expr)) {
-                current_color_path = SCALAR_PATH;
+                current_color_path = NOT_AFFECTING_PATH;
                 for (size_t in_idx = 0; in_idx < expr->get_input_count(); ++in_idx) {
                     const auto input_path = getInvariantPortShapePath(expr->get_input_port(in_idx));
                     current_color_path = merge_paths(current_color_path, input_path);
                 }
             } else if (is_scalar_op(expr)) {
-                current_color_path = SCALAR_PATH;
+                current_color_path = NOT_AFFECTING_PATH;
             } else {
                 current_color_path = ++color_path;
             }

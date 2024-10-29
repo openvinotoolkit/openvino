@@ -342,7 +342,7 @@ UnifiedLoopInfo::LoopPortInfo UnifiedLoopInfo::get_loop_port_info(const Expressi
     const auto it = std::find_if(ports.begin(), ports.end(),
                                 [&expr_port](const LoopPort& port) { return *port.expr_port.get() == expr_port; });
     const auto index = static_cast<size_t>(std::distance(ports.cbegin(), it));
-    OPENVINO_ASSERT(index < ports.size() && index < descs.size(), "LoopPortInfo has not ben found!");
+    OPENVINO_ASSERT(index < ports.size() && index < descs.size(), "LoopPortInfo has not been found!");
     return LoopPortInfo(ports[index], descs[index]);
 }
 

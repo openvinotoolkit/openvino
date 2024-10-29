@@ -30,15 +30,13 @@ size_t SetBufferRegGroup::get_buffer_idx(const BufferExpressionPtr& target, cons
 bool SetBufferRegGroup::can_be_in_one_reg_group(const UnifiedLoopInfo::LoopPortInfo& lhs_info,
                                                 const UnifiedLoopInfo::LoopPortInfo& rhs_info) {
     const auto equal_element_type_sizes = lhs_info.desc.data_size == rhs_info.desc.data_size;
-    bool equal_ptr_params_shifting = false;
+    const auto equal_ptr_increments =
+        lhs_info.desc.ptr_increment == rhs_info.desc.ptr_increment && lhs_info.desc.finalization_offset == rhs_info.desc.finalization_offset;
     // In dynamic case, the high priority has marking "InvariantShapePath"
-    if (lhs_info.desc.is_dynamic() || rhs_info.desc.is_dynamic()) {
-        equal_ptr_params_shifting = MarkInvariantShapePath::getInvariantPortShapePath(*lhs_info.port.expr_port) ==
-                                    MarkInvariantShapePath::getInvariantPortShapePath(*rhs_info.port.expr_port);
-    } else { // static case:
-        equal_ptr_params_shifting = lhs_info.desc.ptr_increment == rhs_info.desc.ptr_increment &&
-                                    lhs_info.desc.finalization_offset == rhs_info.desc.finalization_offset;
-    }
+    const auto equal_invariant_shape_paths =
+        MarkInvariantShapePath::getInvariantPortShapePath(*lhs_info.port.expr_port) ==
+        MarkInvariantShapePath::getInvariantPortShapePath(*rhs_info.port.expr_port);
+    const auto  equal_ptr_params_shifting = lhs_info.desc.is_static() && rhs_info.desc.is_static() ? equal_ptr_increments : equal_invariant_shape_paths;
     return equal_ptr_params_shifting && (equal_element_type_sizes || (lhs_info.desc.ptr_increment == 0 && lhs_info.desc.finalization_offset == 0));
 }
 

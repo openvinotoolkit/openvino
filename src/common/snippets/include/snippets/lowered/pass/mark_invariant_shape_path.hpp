@@ -32,27 +32,29 @@ public:
      */
     bool run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
 
-    static size_t getInvariantPortShapePath(const ExpressionPort& port) {
-        auto& rt = get_rt_info(port);
-        const auto rinfo = rt.find("InvariantShapePath");
-        OPENVINO_ASSERT(rinfo != rt.end(), "Invariant path for this path has not been marked!");
-        return rinfo->second.as<size_t>();
-    }
+    /**
+     * @brief Returns ID (color) of the current Invariant Shape path for the passed port.
+     *        Ports which have the same IDs of the paths - will have the same shapes in runtime.
+     * @param port target expression port
+     * @return ID
+     */
+    static size_t getInvariantPortShapePath(const ExpressionPort& port);
 
 private:
-    static void SetInvariantPortShapePath(const ExpressionPort& port, size_t value) {
-        auto& rt = get_rt_info(port);
-        rt["InvariantShapePath"] = value;
-    }
+    /**
+     * @brief Sets ID (color) of the current Invariant Shape path for the passed port.
+     *        Ports which have the same IDs of the paths - will have the same shapes in runtime.
+     * @param port target expression port
+     * @param value ID of the path (color)
+     */
+    static void SetInvariantPortShapePath(const ExpressionPort& port, size_t value);
 
-    static ov::RTMap& get_rt_info(const ExpressionPort& port) {
-        const auto& node = port.get_expr()->get_node();
-        const auto port_idx = port.get_index();
-        const auto is_input = port.get_type() == ExpressionPort::Input;
-        OPENVINO_ASSERT((is_input && (port_idx < node->get_input_size())) || (!is_input && (port_idx < node->get_output_size())),
-                        "Node has incompatible port count with the expression");
-        return is_input ? node->input(port_idx).get_rt_info() : node->output(port_idx).get_rt_info();
-    }
+    /**
+     * @brief Return runtime info for the passed expression port
+     * @param port target expression port
+     * @return runtime info map
+     */
+    static ov::RTMap& get_rt_info(const ExpressionPort& port);
 };
 
 } // namespace pass

@@ -115,18 +115,6 @@ private:
      */
     UnifiedLoopInfo::LoopPortInfo get_buffer_last_loop_port_info(const LoopManagerPtr& loop_manager, const BufferExpressionPtr& buffer_expr) const;
     /**
-     * @brief Check if two Buffer expressions are connected to the same Loop. Set common LoopEnd as `loop` parameter and
-     *        indexes of Loop ports `up_idx` and `down_idx` if Buffers are really neighbours
-     * @param up expression with upper Buffer op
-     * @param down expression with lower Buffer op
-     * @param loop expression with common LoopEnd op
-     * @param up_idx the reference to port index of upper Buffer op to the Loop
-     * @param down_idx the reference to port index of lower Buffer op to the Loop
-     * @return Return True if the Buffers are connected to the same Loop
-     */
-    static bool are_buffer_neighbours(const BufferExpressionPtr& up, const BufferExpressionPtr& down, ExpressionPtr& loop,
-                                      size_t& up_idx, size_t& down_idx);
-    /**
      * @brief Unite clusters
      * @param loop_manager loop manager
      * @param inner_cluster_it iterator to inner cluster - buffer cluster is in the loop
