@@ -1031,7 +1031,7 @@ NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compile(const std:
 
 template <typename TableExtension>
 std::vector<std::shared_ptr<NetworkDescription>> LevelZeroCompilerInDriver<TableExtension>::compileWS(
-    std::shared_ptr<ov::Model>& model,
+    const std::shared_ptr<ov::Model>& model,
     const Config& config) const {
     std::vector<uint8_t> compiledModel1 =
         readCompiledModel("/home/razvanapetroaie/models/weights_separation/resnet-50-blobs/MTL-resnet_f16/init.blob");

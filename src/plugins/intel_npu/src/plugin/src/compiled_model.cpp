@@ -74,7 +74,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                       << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]"
                       << std::endl;
         } else {
-            std::shared_ptr<ov::Model> initModel = model->clone();
+            const std::shared_ptr<ov::Model> initModel = model->clone();
 
             const std::vector<std::shared_ptr<NetworkDescription>> initMainNetworkDescriptions =
                 _compiler->compileWS(initModel, config);
