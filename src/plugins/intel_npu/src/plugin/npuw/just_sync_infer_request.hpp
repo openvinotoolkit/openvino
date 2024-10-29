@@ -73,15 +73,15 @@ private:
     AllocFcn m_alloc;
 };
 
-class JustInferRequest final : public IBaseInferRequest {
+class JustInferRequest : public IBaseInferRequest {
 public:
-    explicit JustInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model);
+    explicit JustInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model, bool real_work = true);
 
     // Query APIs
     std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
 
-private:
+protected:
     ////////////////////////////////////
     // implement IBaseInferRequest
     void prepare_for_infer() override;

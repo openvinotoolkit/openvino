@@ -180,9 +180,15 @@ ov::npuw::TensorPtr ov::npuw::FuncMemMgr::get_tensor(const LinkFrom& from) {
     return m_table.at(from);
 }
 
-ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model)
+ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model,
+                                             bool real_work)
     : IBaseInferRequest(compiled_model),
       m_func_mem_mgr(compiled_model) {
+    if (!real_work) {
+        // FIXME: Fragile base class
+        return;
+    }
+
     using namespace std::placeholders;
     m_func_mem_mgr.set_alloc(std::bind(&JustInferRequest::allocMem, this, _1, _2, _3));
     m_func_mem_mgr.assign_memory();

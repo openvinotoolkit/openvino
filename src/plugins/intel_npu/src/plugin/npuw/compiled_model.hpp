@@ -47,6 +47,7 @@ private:
     // FIXME: This class has many friends..
     friend class IBaseInferRequest;
     friend class JustInferRequest;
+    friend class UnfoldInferRequest;
     friend class MemAccessSim;
     friend class FuncMemMgr;
 
@@ -66,7 +67,6 @@ private:
 
     std::shared_ptr<const ::intel_npu::Plugin> get_npuw_plugin() const;
 
-    std::shared_ptr<ov::ISyncInferRequest> create_just_sync_infer_request();
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
 
     std::string submodel_device(const std::size_t idx) const;

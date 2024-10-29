@@ -21,6 +21,7 @@
 #include "openvino/util/common_util.hpp"
 #include "partitioning/patterns/opt.hpp"
 #include "plugin.hpp"
+#include "unfold_sync_infer_request.hpp"
 #include "util.hpp"
 
 // required for get_properties_per_device()
@@ -708,16 +709,20 @@ void ov::npuw::CompiledModel::dump_on_fail(std::size_t id, const std::string& de
     }
 }
 
-std::shared_ptr<ov::ISyncInferRequest> ov::npuw::CompiledModel::create_just_sync_infer_request() {
-    auto this_sptr = std::static_pointer_cast<ov::npuw::CompiledModel>(shared_from_this());
-    return std::make_shared<ov::npuw::JustInferRequest>(this_sptr);
-}
-
 std::shared_ptr<ov::ISyncInferRequest> ov::npuw::CompiledModel::create_sync_infer_request() const {
     // Synchronous infer request implementation may vary based on the
     // selected strategy
     auto* non_const_this = const_cast<ov::npuw::CompiledModel*>(this);  // because of const in API
-    return non_const_this->create_just_sync_infer_request();
+    auto non_const_this_sptr = std::static_pointer_cast<ov::npuw::CompiledModel>(non_const_this->shared_from_this());
+
+    std::shared_ptr<ov::ISyncInferRequest> result;
+    if (m_cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>()) {
+        result.reset(new ov::npuw::UnfoldInferRequest(non_const_this_sptr));
+    } else {
+        result.reset(new ov::npuw::JustInferRequest(non_const_this_sptr));
+    }
+    NPUW_ASSERT(result);
+    return result;
 }
 
 std::shared_ptr<ov::IAsyncInferRequest> ov::npuw::CompiledModel::create_infer_request() const {
@@ -934,6 +939,7 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::partitioning::dcoff_with_scale, NPUW_DCOFF_SCALE),
                           BIND(npuw::parallel_compilation, NPUW_PARALLEL_COMPILE),
                           BIND(npuw::funcall_async, NPUW_FUNCALL_ASYNC),
+                          BIND(npuw::unfold_ireqs, NPUW_UNFOLD_IREQS),
                           BIND(npuw::weights_bank, NPUW_WEIGHTS_BANK),
                           BIND(npuw::weights_bank_alloc, NPUW_WEIGHTS_BANK_ALLOC),
                           BIND(npuw::cache_dir, NPUW_CACHE_DIR),
