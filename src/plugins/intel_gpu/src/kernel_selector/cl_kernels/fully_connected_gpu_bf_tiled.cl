@@ -224,7 +224,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
     ACCUMULATOR_VEC_TYPE acc[TILE_B] = { };
     INPUT_VEC_TYPE       in_0[TILE_B] = { };
 
-    #if !USE_SLM
+    #if !USE_SLM || !COMPRESSED_WEIGHTS_INT4
         FILTER_VEC_TYPE wei = 0;
     #endif
 
