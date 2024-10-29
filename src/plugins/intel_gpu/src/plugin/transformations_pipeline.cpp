@@ -897,6 +897,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         ov::pass::Manager manager("GPU:PostLPT");
         manager.set_per_pass_validation(false);
 
+        manager.register_pass<ov::pass::ActivationsScaling>(config.get_property(ov::hint::activations_scale_factor));
+
         // Other ops support eltwise fusions
         const std::vector<DiscreteTypeInfo> allowed_data_movement_ops = {
             ov::op::v1::Reshape::get_type_info_static(),
@@ -914,8 +916,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // after 141764 is fixed as there's a clear issue with Validate passes
         // not working properly.
         manager.register_pass<ov::pass::Validate>();
-
-        manager.register_pass<ov::pass::ActivationsScaling>(config.get_property(ov::hint::activations_scale_factor));
 
         manager.register_pass<ov::intel_gpu::ClampFP16Output>();
         manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>();

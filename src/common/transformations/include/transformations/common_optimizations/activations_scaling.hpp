@@ -13,6 +13,9 @@ namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API ActivationsScaling;
+class TRANSFORMATIONS_API ScaleDownSingleLayer;
+class TRANSFORMATIONS_API MulGroupNormFusion;
+class TRANSFORMATIONS_API MulMulAddFusion;
 
 }  // namespace pass
 }  // namespace ov
@@ -25,4 +28,22 @@ public:
 
 private:
     float m_scale_factor = 0.f;
+};
+
+class ov::pass::ScaleDownSingleLayer : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("ScaleDownSingleLayer", "0");
+    ScaleDownSingleLayer(float scale_factor);
+};
+
+class ov::pass::MulGroupNormFusion : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("MulGroupNormFusion", "0");
+    MulGroupNormFusion();
+};
+
+class ov::pass::MulMulAddFusion : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("MulMulAddFusion", "0");
+    MulMulAddFusion();
 };
