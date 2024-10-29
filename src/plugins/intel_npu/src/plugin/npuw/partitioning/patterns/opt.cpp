@@ -949,7 +949,7 @@ DQLiftGatherSymGQ::DQLiftGatherSymGQ() {
 // the respective block (mainly, a head) was turned a function
 // (e.g. with FUNCALL_FOR_ALL) As in this case the DQDictMatMulCWu
 // compile-time converts asymmetric MM to fp16, do the same thing here
-DQUnpackDictGatherCWu::DQUnpackDictGatherCWu(Context::Ref ctx) {
+DQUnpackDictGatheru::DQUnpackDictGatheru(Context::Ref ctx) {
     auto pids = opp::wrap_type<ov::op::v0::Parameter>();
     auto cvtids = opp::wrap_type<ov::op::v0::Convert>({pids});
 
@@ -984,21 +984,21 @@ DQUnpackDictGatherCWu::DQUnpackDictGatherCWu(Context::Ref ctx) {
         auto new_wi = ctx.get().unpack(matched_qweight, matched_qzerop, matched_qcoeff, ov::element::f16);
         auto w_shape = matched_node_qweight->get_shape();
         auto new_w_shape = new_wi->get_shape();
-        std::shared_ptr<ov::op::v1::Reshape> opt_reshape = nullptr;
+        std::shared_ptr<ov::Node> gather_in = new_wi;
         if (new_w_shape.size() == 2 && w_shape.size() == 3) {
             NPUW_ASSERT(new_w_shape[0] == w_shape[0] && w_shape[1] * w_shape[2] == new_w_shape[1]);
             auto new_const = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, w_shape);
-            opt_reshape = std::make_shared<ov::op::v1::Reshape>(new_wi, new_const, false);
+            gather_in = std::make_shared<ov::op::v1::Reshape>(new_wi, new_const, false);
         }
+        NPUW_ASSERT(gather_in);
 
         auto gather_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 0);
-        auto new_g = opt_reshape ? std::make_shared<ov::op::v8::Gather>(opt_reshape, matched_out_ids, gather_c)
-                                 : std::make_shared<ov::op::v8::Gather>(new_wi, matched_out_ids, gather_c);
+        auto new_g = std::make_shared<ov::op::v8::Gather>(gather_in, matched_out_ids, gather_c);
         matched_node_cvt->input(0).replace_source_output(new_g);
 
         return true;  // root has changed
     };
-    register_matcher(std::make_shared<opp::Matcher>(qcvtm, "DQDictGatherCWu"), std::move(callback));
+    register_matcher(std::make_shared<opp::Matcher>(qcvtm, "DQDictGatheru"), std::move(callback));
 }
 
 // This is a follow-up to DQLiftGatherSymGQ step, which happens if the respective
