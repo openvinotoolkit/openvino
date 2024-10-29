@@ -126,6 +126,7 @@
 #include "transformations/cpu_opset/x64/pass/convert_to_interaction.hpp"
 #include "transformations/cpu_opset/x64/pass/mlp_fusion.hpp"
 #include "transformations/cpu_opset/x64/pass/qkv_proj_fusion.hpp"
+#include "transformations/cpu_opset/x64/pass/act_sparsity_fusion.hpp"
 #include "transformations/cpu_opset/arm/pass/convert_group_conv.hpp"
 #include "transformations/cpu_opset/arm/pass/convert_group_conv1d.hpp"
 #include "transformations/cpu_opset/arm/pass/convert_reduce_multi_axis.hpp"
@@ -877,6 +878,10 @@ void Transformations::PostLpt() {
             },
             QKVProjFusion2);
     }
+
+    CPU_REGISTER_PASS_X64(postLPTPassManager, ActivationSparsityFusion);
+    CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::PrintModel, "xxx.cpp");
+
 #endif // OPENVINO_ARCH_X86_64
 
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::transpose_sinking::TSShapeOfForward);
