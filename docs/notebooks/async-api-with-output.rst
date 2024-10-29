@@ -58,19 +58,12 @@ Imports
 
 .. code:: ipython3
 
-    import platform
-    
     %pip install -q "openvino>=2023.1.0"
-    %pip install -q opencv-python
-    if platform.system() != "windows":
-        %pip install -q "matplotlib>=3.4"
-    else:
-        %pip install -q "matplotlib>=3.4,<3.7"
+    %pip install -q opencv-python "matplotlib>=3.4"
 
 
 .. parsed-literal::
 
-    Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
 
@@ -355,7 +348,7 @@ Test performance in Sync Mode
 .. parsed-literal::
 
     Source ended
-    average throuput in sync mode: 63.95 fps
+    average throuput in sync mode: 63.79 fps
 
 
 Async Mode
@@ -494,7 +487,7 @@ Test the performance in Async Mode
 .. parsed-literal::
 
     Source ended
-    average throuput in async mode: 108.46 fps
+    average throuput in async mode: 106.83 fps
 
 
 Compare the performance
@@ -637,5 +630,5 @@ Test the performance with ``AsyncInferQueue``
 
 .. parsed-literal::
 
-    average throughput in async mode with async infer queue: 144.01 fps
+    average throughput in async mode with async infer queue: 145.36 fps
 

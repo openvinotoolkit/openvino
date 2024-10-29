@@ -90,6 +90,7 @@
 #include "nodes/rope.h"
 #include "nodes/scaled_attn.h"
 #include "nodes/scatter_update.h"
+#include "nodes/search_sorted.h"
 #include "nodes/string_tensor_pack.h"
 #include "nodes/string_tensor_unpack.h"
 #include "nodes/shapeof.h"
@@ -98,6 +99,7 @@
 #include "nodes/space_to_batch.h"
 #include "nodes/space_to_depth.h"
 #include "nodes/split.h"
+#include "nodes/stft.h"
 #include "nodes/strided_slice.h"
 #include "nodes/subgraph.h"
 #include "nodes/tensoriterator.h"
@@ -213,10 +215,12 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(RegionYolo, Type::RegionYolo);
     INTEL_CPU_NODE(DFT, Type::DFT);
     INTEL_CPU_NODE(RDFT, Type::RDFT);
+    INTEL_CPU_NODE(STFT, Type::STFT);
     INTEL_CPU_NODE(ExtractImagePatches, Type::ExtractImagePatches);
     INTEL_CPU_NODE(Subgraph, Type::Subgraph);
     INTEL_CPU_NODE(Composite, Type::SubModel);
     INTEL_CPU_NODE(ScaledDotProductAttention, Type::ScaledDotProductAttention);
+    INTEL_CPU_NODE(SearchSorted, Type::SearchSorted);
 #if defined(OPENVINO_ARCH_X86_64)
     INTEL_CPU_NODE(FakeQuantize, Type::FakeQuantize);
     INTEL_CPU_NODE(GridSample, Type::GridSample);

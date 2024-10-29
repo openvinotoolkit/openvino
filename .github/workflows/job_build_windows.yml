@@ -17,6 +17,10 @@ on:
         description: 'Target branch for the build'
         type: string
         required: true
+      cmake-options:
+        description: 'A string of options passed to CMake'
+        type: string
+        required: true
 
 permissions: read-all
 
@@ -33,7 +37,6 @@ jobs:
     runs-on: ${{ inputs.runner }}
     env:
       CMAKE_BUILD_TYPE: ${{ inputs.build-type }}
-      CMAKE_GENERATOR: 'Ninja Multi-Config'
       CMAKE_CXX_COMPILER_LAUNCHER: ccache
       CMAKE_C_COMPILER_LAUNCHER: ccache
       CCACHE_REMOTE_DIR: C:\\mount\\caches\\ccache\\windows2022_x86_64_${{ inputs.build-type }}\\${{ inputs.target-branch }}
@@ -51,13 +54,13 @@ jobs:
       PRODUCT_TYPE: 'public_windows_vs2019_${{ inputs.build-type }}'
     steps:
       - name: Clone OpenVINO
-        uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           path: 'openvino'
           submodules: 'true'
 
       - name: Clone OpenVINO Contrib
-        uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: 'openvinotoolkit/openvino_contrib'
           path: 'openvino_contrib'
@@ -155,25 +158,13 @@ jobs:
 
       - name: CMake configure
         run: |
-          cmake -G "${{ env.CMAKE_GENERATOR }}" `
-            -DENABLE_CPPLINT=OFF `
-            -DBUILD_SHARED_LIBS=ON `
-            -DENABLE_TESTS=ON `
-            -DCMAKE_COMPILE_WARNING_AS_ERROR=ON `
-            -DENABLE_STRICT_DEPENDENCIES=OFF `
-            -DENABLE_PYTHON=ON `
-            -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON `
-            -DCMAKE_BUILD_TYPE=${{ env.CMAKE_BUILD_TYPE }} `
-            -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" `
-            -DOPENVINO_EXTRA_MODULES="${{ env.OPENVINO_CONTRIB_REPO }}/modules/custom_operations;${{ env.OPENVINO_CONTRIB_REPO }}/modules/java_api" `
-            -S ${{ env.OPENVINO_REPO }} `
-            -B ${{ env.BUILD_DIR }}
+          cmake -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }} ${{ inputs.cmake-options }}
 
       - name: Clean ccache stats
         run: '& ccache --zero-stats'
 
       - name: Cmake build - OpenVINO
-        run: cmake --build ${{ env.BUILD_DIR }} --parallel --verbose
+        run: cmake --build ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --parallel --verbose
 
       - name: Show ccache stats
         run: '& ccache --show-stats'
@@ -225,6 +216,7 @@ jobs:
           if-no-files-found: 'error'
           
       - name: Upload openvino wheels
+        if: ${{ inputs.build-type != 'Debug' }}
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: openvino_wheels
@@ -254,7 +246,9 @@ jobs:
           artifacts: |
             ${{ env.BUILD_DIR }}/openvino_package.zip
             ${{ env.BUILD_DIR }}/openvino_tests.zip
-            ${{ env.INSTALL_WHEELS_DIR }}/wheels
             ${{ env.MANIFEST_PATH }}
+            ${{ env.STORE_WHEELS == 'true' && format('{0}/wheels', env.INSTALL_WHEELS_DIR) || '' }}
           storage_dir: ${{ env.PRODUCT_TYPE }}
           storage_root: ${{ env.ARTIFACTS_SHARE }}
+        env:
+          STORE_WHEELS: ${{ inputs.build-type != 'Debug' }}
