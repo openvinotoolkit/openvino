@@ -426,8 +426,10 @@ std::vector<memory::format_tag> Deconvolution::getAvailableFormatsForDims(const 
     else if (dims.getRank() == 2)
         return {memory::format_tag::nc};
     else if (dims.getRank() == 3)
-        return {memory::format_tag::tnc, memory::format_tag::ntc,
-                memory::format_tag::ncw, memory::format_tag::nCw8c, memory::format_tag::nCw16c };
+        return {memory::format_tag::ncw,
+                memory::format_tag::nCw8c,
+                memory::format_tag::nCw16c,
+                memory::format_tag::nwc};
     else if (dims.getRank() == 4)
         return {memory::format_tag::nchw, memory::format_tag::nChw8c,
                 memory::format_tag::nChw16c, memory::format_tag::nhwc };
