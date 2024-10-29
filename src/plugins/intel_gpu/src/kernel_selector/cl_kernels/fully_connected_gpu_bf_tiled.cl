@@ -1021,7 +1021,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                             const uint offset_ifm = ni_offset + load_iter * FILTER_LOAD_BLOCK_SIZE + kii;
                             const uint zp_offset = (offset_ofm % DECOMPRESSION_ZP_BATCH_NUM) * DECOMPRESSION_ZP_BATCH_PITCH +
                                                     (offset_ifm / DECOMPRESSION_ZP_GROUP_SIZE) * DECOMPRESSION_ZP_FEATURE_PITCH;
-                            w[W_DYN_QUAN_IDX] = w[W_DYN_QUAN_IDX] - CAT(CAT(convert_, FILTER_TYPE),_rte)(decompression_zp[zp_offset]);
+                            w[W_DYN_QUAN_IDX] = w[W_DYN_QUAN_IDX] - decompression_zp[zp_offset];
                         }
                     }
                 #else

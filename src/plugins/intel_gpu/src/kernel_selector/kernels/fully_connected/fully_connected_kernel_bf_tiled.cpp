@@ -822,7 +822,7 @@ KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &pa
         && (fc_params.weights.GetLayout() == WeightsLayout::oiyx || fc_params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2)
         && (fc_params.weights.GetDType() == WeightsType::INT4 || fc_params.weights.GetDType() == WeightsType::UINT4)
         && is_weight_horizontal(fc_params, output_f)) {
-        // Large N + `mall K case (horizontal weight) to use [osv64_isv2] + TILE_OFM 4 for batch 1
+        // Large N + small K case (horizontal weight) to use [osv64_isv2] + TILE_OFM 4 for batch 1
         weights_layout = WeightsLayout::os_is_yx_osv64_isv2;
     } else if (fc_params.compressed && fc_params.inputs[0].GetDType() == Datatype::F16
         && (fc_params.weights.GetDType() == WeightsType::INT4 || fc_params.weights.GetDType() == WeightsType::UINT4)
