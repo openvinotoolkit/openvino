@@ -59,6 +59,17 @@ jobs:
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       build-type: 'Release'
       target-branch: ${{ needs.smart_ci.outputs.target_branch }}
+      cmake-options: |-
+            -G "Ninja Multi-Config" `
+            -DENABLE_PYTHON=ON `
+            -DENABLE_CPPLINT=OFF `
+            -DBUILD_SHARED_LIBS=ON `
+            -DENABLE_TESTS=ON `
+            -DCMAKE_COMPILE_WARNING_AS_ERROR=ON `
+            -DENABLE_STRICT_DEPENDENCIES=OFF `
+            -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON `
+            -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" `
+            -DOPENVINO_EXTRA_MODULES="${env:OPENVINO_CONTRIB_REPO }}/modules/custom_operations;${env:OPENVINO_CONTRIB_REPO}/modules/java_api"
 
   Samples:
     needs: [ Build, Smart_CI ]
@@ -178,7 +189,7 @@ jobs:
           path: ${{ env.OPENVINO_JS_LIBS_DIR }}
 
       - name: Setup Node ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@0a44ba7841725637a19e28fa30b79a866c81b0a6 # v4.0.4
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -224,6 +235,7 @@ jobs:
       runner: 'aks-win-4-cores-8gb'
       shell: pwsh
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      python-version: '3.11'
     if: fromJSON(needs.smart_ci.outputs.affected_components).TOKENIZERS
 
   Python_Unit_Tests:
@@ -424,6 +436,8 @@ jobs:
       runner: 'aks-win-4-cores-8gb'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       os: 'windows_2019'
+      build-type: 'Release'
+      timeout-minutes: 50
 
   CPU_Functional_Tests:
     name: CPU functional tests
