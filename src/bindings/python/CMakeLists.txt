@@ -353,7 +353,7 @@ if(ENABLE_PYTHON_PACKAGING)
     add_custom_command(OUTPUT ${openvino_telemetry_meta_info_file}
         COMMAND ${CMAKE_COMMAND} -E remove_directory
         "${telemetry_python_package_prefix}"
-        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/wheel" -m build
+        COMMAND "${Python3_EXECUTABLE}" "${OpenVINO_Telemetry_SOURCE_DIR}/wheel" -m build
                 --config-setting=--quiet
                 --config-setting=--no-user-cfg
                 --config-setting=--build-option=--executable="/usr/bin/python3"
