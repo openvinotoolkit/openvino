@@ -691,6 +691,9 @@ void MersenneTwisterGenerator<x64::avx512_core>::initVectors() {
         v_divisor = getVmm();
     }
 
+    // Initialize state
+    uni_vmovdqu(v_state, ptr[r64_state]);
+
     // Initialize constants
     BROADCAST_CONSTANT(vpbroadcastd, v_const_1, r32_aux, MT_CONST_1)
     BROADCAST_CONSTANT(vpbroadcastd, v_const_2, r32_aux, MT_CONST_2)
@@ -741,6 +744,9 @@ void MersenneTwisterGenerator<isa>::initVectors() {
     v_const_1 = getVmm();
     v_const_2 = getVmm();
 
+    // Initialize state
+    uni_vmovdqu(v_state, ptr[r64_state]);
+
     // Initialize constants.
     INIT_8_ELEM_T_ARR(const_1, MT_CONST_1, r64_aux, uint32_t);
     uni_vmovdqu(v_const_1, ptr[r64_aux]);
@@ -776,9 +782,6 @@ void MersenneTwisterGenerator<isa>::initVectors() {
 
 template <x64::cpu_isa_t isa>
 void MersenneTwisterGenerator<isa>::process() {
-    // Initialize state
-    uni_vmovdqu(v_state, ptr[r64_state]);
-
     // Generate random numbers
     generateRandomNumbers();
 
@@ -898,63 +901,58 @@ void MersenneTwisterGenerator<x64::avx512_core>::convertToOutputTypeMersenne() {
 
         vcvtneps2bf16(v_result, v_result);
     } else if (m_jcp.out_data_type == element::i32) {
-        // Note:
-        //   - prefix x sigifies using bottom half of Zmm (Ymm)
-        //   - prefix v sigifies using full length of Xmm
-        // Code taken from the convert of AVX2, kept names for consistency
-
         // Split result before converting 32 -> 64 to fit new bits
         const auto v_result_high_double = getVmm();
         const auto v_result_low_double = getVmm();
         const auto v_range_double = getVmm();
 
-        const auto x_result_high_double = Xbyak::Ymm(v_result_high_double.getIdx());
-        const auto x_result_low_double = Xbyak::Ymm(v_result_low_double.getIdx());
-        const auto x_range_double = Xbyak::Ymm(v_range_double.getIdx());
+        const auto y_result_high_double = Xbyak::Ymm(v_result_high_double.getIdx());
+        const auto y_result_low_double = Xbyak::Ymm(v_result_low_double.getIdx());
+        const auto y_range_double = Xbyak::Ymm(v_range_double.getIdx());
 
-        vextracti32x8(x_result_high_double, v_result, 1);
-        vextracti32x8(x_result_low_double, v_result, 0);
-        vextracti32x8(x_range_double, v_range, 0);
+        vextracti32x8(y_result_high_double, v_result, 1);
+        vextracti32x8(y_result_low_double, v_result, 0);
+        vextracti32x8(y_range_double, v_range, 0);
 
         // Extract the most significant bit (MSB) using bitshift
         const auto v_msb_high_double = getVmm();
         const auto v_msb_low_double = getVmm();
-        const auto x_msb_high_double = Xbyak::Ymm(v_msb_high_double.getIdx());
-        const auto x_msb_low_double = Xbyak::Ymm(v_msb_low_double.getIdx());
+        const auto y_msb_high_double = Xbyak::Ymm(v_msb_high_double.getIdx());
+        const auto y_msb_low_double = Xbyak::Ymm(v_msb_low_double.getIdx());
 
-        vpsrld(x_msb_high_double, x_result_high_double, 31);
-        vpsrld(x_msb_low_double, x_result_low_double, 31);
+        vpsrld(y_msb_high_double, y_result_high_double, 31);
+        vpsrld(y_msb_low_double, y_result_low_double, 31);
 
         // Remove most significant digit from result by bitshift
         // One left (removes msb)
-        vpslld(x_result_high_double, x_result_high_double, 1);
-        vpslld(x_result_low_double, x_result_low_double, 1);
+        vpslld(y_result_high_double, y_result_high_double, 1);
+        vpslld(y_result_low_double, y_result_low_double, 1);
 
         // One right (shifts back, sets 0 at the front)
-        vpsrld(x_result_high_double, x_result_high_double, 1);
-        vpsrld(x_result_low_double, x_result_low_double, 1);
+        vpsrld(y_result_high_double, y_result_high_double, 1);
+        vpsrld(y_result_low_double, y_result_low_double, 1);
 
         // Create a double value of 2^31 for the most significant digit instead of -1
         const auto r64_multiplier_double = getReg64();
         const auto v_multiplier_double = getVmm();
         const auto x_multiplier_double = Xbyak::Xmm(v_multiplier_double.getIdx());
 
-        mov(r64_multiplier_double,  0x41E0000000000000); // 2^31 in IEEE 754 double format
+        mov(r64_multiplier_double, 0x41E0000000000000); // 2^31 in IEEE 754 double format
         vmovq(x_multiplier_double, r64_multiplier_double);
         vbroadcastsd(v_multiplier_double, x_multiplier_double);
 
         // Convert most significant digit to double (either 0 or 1)
-        vcvtdq2pd(v_msb_high_double, x_msb_high_double);
-        vcvtdq2pd(v_msb_low_double, x_msb_low_double);
+        vcvtdq2pd(v_msb_high_double, y_msb_high_double);
+        vcvtdq2pd(v_msb_low_double, y_msb_low_double);
 
         // Multiply (0/1) * 2^31
         vmulpd(v_msb_high_double, v_msb_high_double, v_multiplier_double);
         vmulpd(v_msb_low_double, v_msb_low_double, v_multiplier_double);
 
         // Convert uint32_t to double for accuracy
-        vcvtdq2pd(v_result_high_double, x_result_high_double);
-        vcvtdq2pd(v_result_low_double, x_result_low_double);
-        vcvtdq2pd(v_range_double, x_range_double);
+        vcvtdq2pd(v_result_high_double, y_result_high_double);
+        vcvtdq2pd(v_result_low_double, y_result_low_double);
+        vcvtdq2pd(v_range_double, y_range_double);
 
         // Add sign as 2^31 if was present, correctly converting uint32_t to double
         vaddpd(v_result_high_double, v_result_high_double, v_msb_high_double);
@@ -979,15 +977,16 @@ void MersenneTwisterGenerator<x64::avx512_core>::convertToOutputTypeMersenne() {
         vsubpd(v_result_low_double, v_result_low_double, v_aprox_result_low_double);
 
         // Convert 64 -> 32, always possible as 0 < result < range
-        vcvtpd2dq(x_result_high_double, v_result_high_double); // value - closest_div_value = remainder (modulo)
-        vcvtpd2dq(x_result_low_double, v_result_low_double); // value - closest_div_value = remainder (modulo)
+        vcvtpd2dq(y_result_high_double, v_result_high_double); // value - closest_div_value = remainder (modulo)
+        vcvtpd2dq(y_result_low_double, v_result_low_double); // value - closest_div_value = remainder (modulo)
 
         // Concatenate them back, now result holds all remainders (modulos)
-        vinserti32x8(v_result, v_result, x_result_high_double, 1);
-        vinserti32x8(v_result, v_result, x_result_low_double, 0);
+        vinserti32x8(v_result, v_result, y_result_high_double, 1);
+        vinserti32x8(v_result, v_result, y_result_low_double, 0);
 
         // Add minimum
         vpaddd(v_result, v_result, v_min); // remainder + min
+
     } else if (m_jcp.out_data_type == element::i64 && m_jcp.optimized) {
         // Same as in Philox - in scope of i64 enabling
         OPENVINO_THROW("RandomUniform kernel does not support precision ", m_jcp.out_data_type, " for ", x64::get_isa_info());
@@ -1049,7 +1048,7 @@ void MersenneTwisterGenerator<x64::avx2>::convertToOutputTypeMersenne() {
         const auto v_multiplier_double = getVmm();
         const auto x_multiplier_double = Xbyak::Xmm(v_multiplier_double.getIdx());
 
-        mov(r64_multiplier_double,  0x41E0000000000000); // 2^31 in IEEE 754 double format
+        mov(r64_multiplier_double, 0x41E0000000000000); // 2^31 in IEEE 754 double format
         vmovq(x_multiplier_double, r64_multiplier_double);
         vbroadcastsd(v_multiplier_double, x_multiplier_double);
 
@@ -1117,70 +1116,66 @@ void MersenneTwisterGenerator<isa>::convertToOutputTypeMersenne() {
         mulps(v_result, v_range);
         addps(v_result, v_min);
     } else if (m_jcp.out_data_type == element::i32) {
-        // Note:
-        //   - prefix x sigifies using bottom half of Xmm
-        //   - prefix v sigifies using full length of Xmm
-        // Code taken from the convert of AVX2, kept names for consistency
-
         // Split result before converting 32 -> 64 to fit new bits
-        const auto x_result_high_double = getReg64();
-        const auto x_result_low_double = getReg64();
-        const auto x_range_double = getReg64();
+        const auto r64_result_high_double = getReg64();
+        const auto r64_result_low_double = getReg64();
+        const auto r64_range_double = getReg64();
 
-        pextrq(x_result_high_double, v_result, 1);
-        pextrq(x_result_low_double, v_result, 0);
-        pextrq(x_range_double, v_range, 0);
+        pextrq(r64_result_high_double, v_result, 1);
+        pextrq(r64_result_low_double, v_result, 0);
+        pextrq(r64_range_double, v_range, 0);
 
         // Extract the most significant bit (MSB) using bitshift
         const auto v_msb_high_double = getVmm();
         const auto v_msb_low_double = getVmm();
-        const auto x_msb_high_double = getVmm();
-        const auto x_msb_low_double = getVmm();
 
-        movq(x_msb_high_double, x_result_high_double);
-        movq(x_msb_low_double, x_result_low_double);
+        movq(v_msb_high_double, r64_result_high_double);
+        movq(v_msb_low_double, r64_result_low_double);
 
-        psrld(x_msb_high_double, 31);
-        psrld(x_msb_low_double, 31);
+        psrld(v_msb_high_double, 31);
+        psrld(v_msb_low_double, 31);
 
         // Remove most significant digit from result by bitshift
         // One left (removes msb), one right (shifts back, sets 0 at the front)
-        const auto x_result_aux = getVmm();
+        const auto v_result_aux = getVmm(); // For transfers and later reused to store multiplier
 
-        movq(x_result_aux, x_result_high_double);
-        psllq(x_result_aux, 1);
-        psrlq(x_result_aux, 1);
-        movq(x_result_high_double, x_result_aux);
+        movq(v_result_aux, r64_result_high_double);
+        pslld(v_result_aux, 1);
+        psrld(v_result_aux, 1);
+        movq(r64_result_high_double, v_result_aux);
 
-        movq(x_result_aux, x_result_low_double);
-        psllq(x_result_aux, 1);
-        psrlq(x_result_aux, 1);
-        movq(x_result_low_double, x_result_aux);
+        movq(v_result_aux, r64_result_low_double);
+        pslld(v_result_aux, 1);
+        psrld(v_result_aux, 1);
+        movq(r64_result_low_double, v_result_aux);
 
         // Create a double value of 2^31 for the most significant digit instead of -1
         const auto r64_multiplier_double = getReg64();
-        const auto v_multiplier_double = getVmm();
 
-        mov(r64_multiplier_double,  0x41E0000000000000); // 2^31 in IEEE 754 double format
-        movq(v_multiplier_double, r64_multiplier_double);
-        pshufd(v_multiplier_double, v_multiplier_double, 0x44);
+        mov(r64_multiplier_double, 0x41E0000000000000); // 2^31 in IEEE 754 double format
+        movq(v_result_aux, r64_multiplier_double); // v_result_aux reused to store multiplier
+        pshufd(v_result_aux, v_result_aux, 0x44);
 
         // Convert most significant digit to double (either 0 or 1)
-        cvtdq2pd(v_msb_high_double, x_msb_high_double);
-        cvtdq2pd(v_msb_low_double, x_msb_low_double);
+        cvtdq2pd(v_msb_high_double, v_msb_high_double);
+        cvtdq2pd(v_msb_low_double, v_msb_low_double);
 
         // Multiply (0/1) * 2^31
-        mulpd(v_msb_high_double, v_multiplier_double);
-        mulpd(v_msb_low_double, v_multiplier_double);
+        mulpd(v_msb_high_double, v_result_aux);
+        mulpd(v_msb_low_double, v_result_aux);
 
         // Convert uint32_t to double for accuracy
         const auto v_result_high_double = getVmm();
         const auto v_result_low_double = getVmm();
         const auto v_range_double = getVmm();
 
-        cvtdq2pd(v_result_high_double, x_result_high_double);
-        cvtdq2pd(v_result_low_double, x_result_low_double);
-        cvtdq2pd(v_range_double, x_range_double);
+        movq(v_result_high_double, r64_result_high_double);
+        movq(v_result_low_double, r64_result_low_double);
+        movq(v_range_double, r64_range_double);
+
+        cvtdq2pd(v_result_high_double, v_result_high_double);
+        cvtdq2pd(v_result_low_double, v_result_low_double);
+        cvtdq2pd(v_range_double, v_range_double);
 
         // Add sign as 2^31 if was present, correctly converting uint32_t to double
         addpd(v_result_high_double, v_msb_high_double);
@@ -1190,8 +1185,8 @@ void MersenneTwisterGenerator<isa>::convertToOutputTypeMersenne() {
         const auto v_aprox_result_high_double = getVmm();
         const auto v_aprox_result_low_double = getVmm();
 
-        movaps(v_aprox_result_high_double, v_result_high_double);
-        movaps(v_aprox_result_low_double, v_result_low_double);
+        movups(v_aprox_result_high_double, v_result_high_double);
+        movups(v_aprox_result_low_double, v_result_low_double);
         divpd(v_aprox_result_high_double, v_range_double);  // value / range = (aux = aux / aux2)
         divpd(v_aprox_result_low_double, v_range_double);    // value / range = (aux = aux / aux2)
 
@@ -1211,9 +1206,12 @@ void MersenneTwisterGenerator<isa>::convertToOutputTypeMersenne() {
         cvtpd2dq(v_result_high_double, v_result_high_double); // value - closest_div_value = remainder (modulo)
         cvtpd2dq(v_result_low_double, v_result_low_double); // value - closest_div_value = remainder (modulo)
 
+        movq(r64_result_high_double, v_result_high_double);
+        movq(r64_result_low_double, v_result_high_double);
+
         // Concatenate them back, now result holds all remainders (modulos)
-        pinsrq(v_result, v_result_high_double, 1);
-        pinsrq(v_result, v_result_low_double, 0);
+        pinsrq(v_result, r64_result_high_double, 1);
+        pinsrq(v_result, r64_result_low_double, 0);
 
         // Add minimum
         paddd(v_result, v_min); // remainder + min
@@ -1240,9 +1238,9 @@ void MersenneTwisterGenerator<x64::avx512_core>::storeResults() {
         cmp(r64_aux, r64_storage_capacity);
         cmovg(r64_aux, r64_storage_capacity);
 
-        // Store only the bottom half
+        // Store only the bottom half of the register
         auto ymm_result = Xbyak::Ymm(v_result);
-        fillRestWorkMask(v_rest_mask, r64_elements_to_generate);
+        fillRestWorkMask(v_rest_mask, r64_aux);
         vmovdqu16(ptr[r64_dst] | v_rest_mask, ymm_result);
     } else if (m_jcp.out_data_type.size() == sizeof(uint64_t)) {
         // i64 enablement
