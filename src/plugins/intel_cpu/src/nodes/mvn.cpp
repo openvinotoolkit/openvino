@@ -2180,11 +2180,6 @@ void MVN::MVNJitExecutor::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, co
     size_t C2 = C1 * D;
     size_t C3 = C2 * C;
 
-#if (OV_THREAD == OV_THREAD_OMP)
-    const auto origin_nested_levels = get_max_nested_levels();
-    set_max_nested_levels(origin_nested_levels + 1);
-#endif  // OV_THREAD == OV_THREAD_OMP
-
     if (mvnAttrs.execAcrossChannels_) {
         parallel_for(N, [&](int b) {
             size_t cb = b * C3;
@@ -2303,10 +2298,6 @@ void MVN::MVNJitExecutor::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, co
             }
         });
     }
-
-#if (OV_THREAD == OV_THREAD_OMP)
-    set_max_nested_levels(origin_nested_levels);
-#endif  // OV_THREAD == OV_THREAD_OMP
 }
 
 void MVN::MVNRefExecutor::mvn_ref(const uint8_t* src_data, uint8_t* dst_data, const VectorDims& shape5d) {
@@ -2321,11 +2312,6 @@ void MVN::MVNRefExecutor::mvn_ref(const uint8_t* src_data, uint8_t* dst_data, co
     size_t C1 = H * W;
     size_t C2 = C1 * D;
     size_t C3 = C2 * C;
-
-#if (OV_THREAD == OV_THREAD_OMP)
-    const auto origin_nested_levels = get_max_nested_levels();
-    set_max_nested_levels(origin_nested_levels + 1);
-#endif  // OV_THREAD == OV_THREAD_OMP
 
     parallel_for(N, [&](int b) {
         size_t cb = b * C3;
@@ -2413,10 +2399,6 @@ void MVN::MVNRefExecutor::mvn_ref(const uint8_t* src_data, uint8_t* dst_data, co
             });
         }
     });
-
-#if (OV_THREAD == OV_THREAD_OMP)
-    set_max_nested_levels(origin_nested_levels);
-#endif  // OV_THREAD == OV_THREAD_OMP
 }
 
 void MVN::MVNJitExecutor::mvn_nspc(const uint8_t* src_data, uint8_t* dst_data, const void *post_ops_data_, const VectorDims& shape5d) {
@@ -2434,11 +2416,6 @@ void MVN::MVNJitExecutor::mvn_nspc(const uint8_t* src_data, uint8_t* dst_data, c
     const size_t D = shape5d[2];
     const size_t H = shape5d[3];
     const size_t W = shape5d[4];
-
-#if (OV_THREAD == OV_THREAD_OMP)
-    const auto origin_nested_levels = get_max_nested_levels();
-    set_max_nested_levels(origin_nested_levels + 1);
-#endif  // OV_THREAD == OV_THREAD_OMP
 
     const size_t threads_num = parallel_get_max_threads();
     size_t aux_buffer_size = mvnAttrs.execAcrossChannels_ ? 1 : rnd_up(C, blk_size) + blk_size;
@@ -2540,10 +2517,6 @@ void MVN::MVNJitExecutor::mvn_nspc(const uint8_t* src_data, uint8_t* dst_data, c
     parallel_nt_static(threads_num, [&](const int ithr, const int nthr) {
         for_1d(ithr, nthr, N, b_loop);
     });
-
-#if (OV_THREAD == OV_THREAD_OMP)
-    set_max_nested_levels(origin_nested_levels);
-#endif  // OV_THREAD == OV_THREAD_OMP
 }
 
 void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, const void *post_ops_data_, const VectorDims& shape5d) {
