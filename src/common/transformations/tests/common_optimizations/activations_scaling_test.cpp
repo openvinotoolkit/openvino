@@ -6,10 +6,9 @@
 
 #include <gtest/gtest.h>
 
-
+#include <memory>
 #include <string>
 
-#include <memory>
 #include "common_test_utils/graph_comparator.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/op/add.hpp"
