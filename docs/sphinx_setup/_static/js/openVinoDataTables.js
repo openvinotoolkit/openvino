@@ -12,6 +12,9 @@ $(document).ready(function () {
       [10, 25, 50, -1],
       ['10 rows', '25 rows', '50 rows', 'Show all rows']
     ],
+    "columnDefs": [
+      { "visible": false, "targets": [1, 2, 3, 4, 5] }
+    ],
     layout: {
       topStart: {
         buttons: [
