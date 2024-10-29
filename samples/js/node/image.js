@@ -74,6 +74,41 @@ class OvImage {
     return new OvImage(imageData);
   }
 
+  drawCircle(x, y, radius, properties) {
+    const canvas = createCanvas(this.width, this.height);
+    const ctx = canvas.getContext('2d');
+
+    ctx.putImageData(this.imageData, 0, 0);
+
+    ctx.strokeStyle = properties.color || 'red';
+    ctx.lineWidth = properties.width || 1;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, 2 * Math.PI);
+    ctx.stroke();
+
+    const imageData = ctx.getImageData(0, 0, this.width, this.height);
+
+    return new OvImage(imageData);
+  }
+
+  drawLine(x1, y1, x2, y2, properties) {
+    const canvas = createCanvas(this.width, this.height);
+    const ctx = canvas.getContext('2d');
+
+    ctx.putImageData(this.imageData, 0, 0);
+
+    ctx.strokeStyle = properties.color || 'red';
+    ctx.lineWidth = properties.width || 1;
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+
+    const imageData = ctx.getImageData(0, 0, this.width, this.height);
+
+    return new OvImage(imageData);
+  }
+
   toTensor() {
     return new ov.Tensor(
       ov.element.u8,
