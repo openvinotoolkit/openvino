@@ -4,6 +4,7 @@
 import numpy as np
 import pytest
 import torch
+from packaging import version
 
 from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
@@ -44,6 +45,9 @@ class TestLerp(PytorchLayerTest):
     @pytest.mark.precommit_fx_backend
     def test_lerp(self, ie_device, precision, ir_version,
                   weight, input_shape_rhs, op_type):
+        if (op_type == "lerp_" and PytorchLayerTest.use_torch_export() and
+                version.parse(torch.__version__) < version.parse("2.5")):
+            pytest.skip("Not supported in PyTorch versions earlier than 2.5.")
         self.input_rhs = np.random.randn(*input_shape_rhs).astype(np.float32)
         if isinstance(weight, list):
             weight = torch.rand(weight)
