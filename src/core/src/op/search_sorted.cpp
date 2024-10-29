@@ -12,9 +12,13 @@ namespace ov {
 namespace op {
 namespace v15 {
 
-SearchSorted::SearchSorted(const Output<Node>& sorted_sequence, const Output<Node>& values, bool right_mode)
+SearchSorted::SearchSorted(const Output<Node>& sorted_sequence,
+                           const Output<Node>& values,
+                           bool right_mode,
+                           const element::Type& output_element_type)
     : Op({sorted_sequence, values}),
-      m_right_mode(right_mode) {
+      m_right_mode(right_mode),
+      m_output_element_type(output_element_type) {
     constructor_validate_and_infer_types();
 }
 
@@ -23,8 +27,12 @@ void SearchSorted::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this,
                           get_input_element_type(0).compatible(get_input_element_type(1)),
                           "Sorted sequence and values must have the same element type.");
+    NODE_VALIDATION_CHECK(this,
+                          m_output_element_type == element::i32 || m_output_element_type == element::i64,
+                          "The element type of the last output can only be set to i32 or i64.");
+
     const auto& output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
-    set_output_type(0, ov::element::i64, output_shapes[0]);
+    set_output_type(0, m_output_element_type, output_shapes[0]);
 }
 
 bool SearchSorted::visit_attributes(AttributeVisitor& visitor) {
