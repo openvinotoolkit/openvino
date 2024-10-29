@@ -24,7 +24,7 @@ classifiers = [
 ]
 requires-python = ">=3.9"
 dependencies = [
-  "numpy>=1.16.6,<2.1.0",
+  "numpy>=1.16.6,<2.2.0",
 ]
 
 [project.scripts]
