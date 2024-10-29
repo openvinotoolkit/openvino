@@ -175,19 +175,6 @@ Read installation guides for particular distributions for more details.
 Refer to the :doc:`OpenVINO Release Policy <../../../about-openvino/release-notes-openvino/release-policy>`
 to learn more about the release types.
 
-.. dropdown:: Distribution Comparison for OpenVINO 2024.4
-
-   ===============  ==========  ======  ===============  ========  ============ ========== ========== ==========
-   Device           Archives    PyPI    APT/YUM/ZYPPER    Conda     Homebrew     vcpkg      Conan       npm
-   ===============  ==========  ======  ===============  ========  ============ ========== ========== ==========
-   CPU              V           V       V                V         V            V          V          V
-   GPU              V           V       V                V         V            V          V          V
-   NPU              V\*         V\*     V\ *             n/a       n/a          n/a        n/a        V\*
-   ===============  ==========  ======  ===============  ========  ============ ========== ========== ==========
-
-   | \* **Of the Linux systems, versions 22.04 and 24.04 include drivers for NPU.**
-   |  **For Windows, CPU inference on ARM64 is not supported.**
-
 
 .. tab-set::
 
@@ -286,18 +273,6 @@ to learn more about the release types.
             * Apple Xcode Command Line Tools. In the terminal, run ``xcode-select --install`` from any directory to install it.
             * (Optional) Apple Xcode IDE (not required for OpenVINO™, but useful for development)
 
-   .. tab-item:: Conan
-      :name: conan-sysreq
-
-      Learn more about `Conan Package Manager <https://conan.io/downloads>`__
-      before you start installation of OpenVINO.
-
-   .. tab-item:: Conda
-      :name: conda-sysreq
-
-      Learn more about `Anaconda <https://conan.io/downloads>`__
-      before you start installation of OpenVINO.
-
    .. tab-item:: Docker
       :name: docker-sysreq
 
@@ -342,12 +317,6 @@ to learn more about the release types.
 
             * `Node.js version 21.0.0 and higher <https://nodejs.org/en/download/package-manager/>`__
 
-   .. tab-item:: vcpkg
-      :name: vcpkg-sysreq
-
-      Learn more about `vcpkg <https://vcpkg.io/en/getting-started>`__
-      before you start installation of OpenVINO.
-
    .. tab-item:: YUM
       :name: yum-sysreq
 
@@ -389,6 +358,20 @@ to learn more about the release types.
             * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`_
             * GCC 8.2.0
             * `Python 3.9 - 3.12, 64-bit <https://www.python.org/downloads/>`_
+
+
+.. dropdown:: Distribution Comparison for OpenVINO 2024.4
+
+   ===============  ==========  ======  ===============  ========  ============ ========== ========== ==========
+   Device           Archives    PyPI    APT/YUM/ZYPPER    Conda     Homebrew     vcpkg      Conan       npm
+   ===============  ==========  ======  ===============  ========  ============ ========== ========== ==========
+   CPU              V           V       V                V         V            V          V          V
+   GPU              V           V       V                V         V            V          V          V
+   NPU              V\*         V\*     V\ *             n/a       n/a          n/a        n/a        V\*
+   ===============  ==========  ======  ===============  ========  ============ ========== ========== ==========
+
+   | \* **Of the Linux systems, versions 22.04 and 24.04 include drivers for NPU.**
+   |  **For Windows, CPU inference on ARM64 is not supported.**
 
 
 The claims stated here may not apply to all use cases and setups. See
