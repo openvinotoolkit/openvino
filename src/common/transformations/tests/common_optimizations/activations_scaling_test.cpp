@@ -6,7 +6,6 @@
 
 #include <gtest/gtest.h>
 
-
 #include <string>
 #include <memory>
 #include "common_test_utils/graph_comparator.hpp"
