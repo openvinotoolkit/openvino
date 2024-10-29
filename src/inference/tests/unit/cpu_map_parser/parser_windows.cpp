@@ -2261,7 +2261,7 @@ WinCpuMapTestCase _1sockets_6cores_hyperthreading_FMT7 = {
     1,
     6,
     0,
-    12,
+    1,
     {{12, 6, 0, 6, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},
@@ -2341,7 +2341,7 @@ WinCpuMapTestCase _1sockets_4cores = {
     1,
     4,
     0,
-    4,
+    0,
     {{4, 4, 0, 0, 0, 0}},
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
