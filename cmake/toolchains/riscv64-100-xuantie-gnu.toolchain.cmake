@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-# NOTE: use T-Head compiler:
+# NOTE: use Xuantie compiler:
 #    git clone https://github.com/XUANTIE-RV/xuantie-gnu-toolchain.git
 #    ./configure --prefix=/opt/riscv
 #    make linux
@@ -22,10 +22,10 @@
 set(CMAKE_SYSTEM_NAME Linux)
 set(CMAKE_SYSTEM_PROCESSOR riscv64)
 
-set(RISCV64_THEAD ON)
+set(RISCV64_XUANTIE ON)
 set(RISCV64_RVV1p0 ON)
 
-set(RISCV_TOOLCHAIN_ROOT $ENV{RISCV_TOOLCHAIN_ROOT} CACHE PATH "Path to CLANG for RISC-V cross compiler build directory")
+set(RISCV_TOOLCHAIN_ROOT $ENV{RISCV_TOOLCHAIN_ROOT} CACHE PATH "Path to GCC for RISC-V cross compiler build directory")
 set(CMAKE_SYSROOT "${RISCV_TOOLCHAIN_ROOT}/sysroot" CACHE PATH "RISC-V sysroot")
 
 set(CMAKE_C_COMPILER ${RISCV_TOOLCHAIN_ROOT}/bin/riscv64-unknown-linux-gnu-gcc)

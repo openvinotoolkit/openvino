@@ -178,7 +178,7 @@ std::string rankToLegacyLayoutString(const size_t rank) {
 namespace intel_npu {
 namespace driverCompilerAdapter {
 
-template <typename TableExtension>
+template <ze_graph_ext_version_t TableExtension>
 LevelZeroCompilerInDriver<TableExtension>::LevelZeroCompilerInDriver(ze_driver_handle_t driverHandle,
                                                                      ze_device_handle_t deviceHandle,
                                                                      ze_context_handle_t zeContext,
@@ -189,7 +189,7 @@ LevelZeroCompilerInDriver<TableExtension>::LevelZeroCompilerInDriver(ze_driver_h
       _graphDdiTableExt(graph_ddi_table_ext),
       _logger("LevelZeroCompilerInDriver", Logger::global().level()) {}
 
-template <typename TableExtension>
+template <ze_graph_ext_version_t TableExtension>
 LevelZeroCompilerInDriver<TableExtension>::~LevelZeroCompilerInDriver() {
     _logger.debug("LevelZeroCompilerInDriver obj destroyed");
 }
@@ -198,7 +198,7 @@ LevelZeroCompilerInDriver<TableExtension>::~LevelZeroCompilerInDriver() {
  * @brief Place xml + weights in sequential memory
  * @details Format of the memory:
  */
-template <typename TableExtension>
+template <ze_graph_ext_version_t TableExtension>
 SerializedIR LevelZeroCompilerInDriver<TableExtension>::serializeIR(
     const std::shared_ptr<const ov::Model>& model,
     ze_graph_compiler_version_info_t compilerVersion) const {
@@ -258,7 +258,7 @@ SerializedIR LevelZeroCompilerInDriver<TableExtension>::serializeIR(
     return std::make_pair(sizeOfSerializedIR, buffer);
 }
 
-template <typename TableExtension>
+template <ze_graph_ext_version_t TableExtension>
 std::string LevelZeroCompilerInDriver<TableExtension>::serializeIOInfo(const std::shared_ptr<const ov::Model>& model,
                                                                        const bool useIndices) {
     const ov::ParameterVector& parameters = model->get_parameters();
@@ -348,7 +348,7 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeIOInfo(const std
            outputsPrecisionSS.str() + VALUES_SEPARATOR.data() + outputsLayoutSS.str();
 }
 
-template <typename TableExtension>
+template <ze_graph_ext_version_t TableExtension>
 void LevelZeroCompilerInDriver<TableExtension>::release(std::shared_ptr<const NetworkDescription> networkDescription) {
     _logger.debug("performing release networkDescription");
     if (networkDescription->metadata.graphHandle != nullptr) {
@@ -366,8 +366,8 @@ void LevelZeroCompilerInDriver<TableExtension>::release(std::shared_ptr<const Ne
     _logger.debug("release completed");
 }
 
-template <typename TableExtension>
-template <typename T, std::enable_if_t<UseCopyForNativeBinary(T), bool>>
+template <ze_graph_ext_version_t TableExtension>
+template <ze_graph_ext_version_t T, std::enable_if_t<UseCopyForNativeBinary(T), bool>>
 void LevelZeroCompilerInDriver<TableExtension>::getNativeBinary(ze_graph_dditable_ext_curr_t& graphDdiTableExt,
                                                                 ze_graph_handle_t graphHandle,
                                                                 std::vector<uint8_t>& blob,
@@ -389,8 +389,8 @@ void LevelZeroCompilerInDriver<TableExtension>::getNativeBinary(ze_graph_dditabl
     blobPtr = blob.data();
 }
 
-template <typename TableExtension>
-template <typename T, std::enable_if_t<!UseCopyForNativeBinary(T), bool>>
+template <ze_graph_ext_version_t TableExtension>
+template <ze_graph_ext_version_t T, std::enable_if_t<!UseCopyForNativeBinary(T), bool>>
 void LevelZeroCompilerInDriver<TableExtension>::getNativeBinary(ze_graph_dditable_ext_curr_t& graphDdiTableExt,
                                                                 ze_graph_handle_t graphHandle,
                                                                 std::vector<uint8_t>& /* unusedBlob */,
@@ -403,7 +403,7 @@ void LevelZeroCompilerInDriver<TableExtension>::getNativeBinary(ze_graph_dditabl
                                     _graphDdiTableExt);
 }
 
-template <typename TableExtension>
+template <ze_graph_ext_version_t TableExtension>
 CompiledNetwork LevelZeroCompilerInDriver<TableExtension>::getCompiledNetwork(
     const NetworkDescription& networkDescription) {
     if (networkDescription.metadata.graphHandle != nullptr && networkDescription.compiledNetwork.size() == 0) {
@@ -425,7 +425,7 @@ CompiledNetwork LevelZeroCompilerInDriver<TableExtension>::getCompiledNetwork(
                            networkDescription.compiledNetwork);
 }
 
-template <typename TableExtension>
+template <ze_graph_ext_version_t TableExtension>
 std::string LevelZeroCompilerInDriver<TableExtension>::serializeConfig(
     const Config& config,
     ze_graph_compiler_version_info_t& compilerVersion) const {
@@ -611,8 +611,8 @@ static std::unordered_set<std::string> parseQueryResult(std::vector<char>& data)
 }
 
 // For ext version < 1.3, query is unsupported, return empty result and add debug log here
-template <typename TableExtension>
-template <typename T, std::enable_if_t<NotSupportQuery(T), bool>>
+template <ze_graph_ext_version_t TableExtension>
+template <ze_graph_ext_version_t T, std::enable_if_t<NotSupportQuery(T), bool>>
 std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::queryImpl(
     const std::shared_ptr<const ov::Model>& /*model*/,
     const Config&) const {
@@ -621,8 +621,8 @@ std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::query
 }
 
 // For ext version == 1.3 && == 1.4
-template <typename TableExtension>
-template <typename T, std::enable_if_t<SupportAPIGraphQueryNetworkV1(T), bool>>
+template <ze_graph_ext_version_t TableExtension>
+template <ze_graph_ext_version_t T, std::enable_if_t<SupportAPIGraphQueryNetworkV1(T), bool>>
 ze_result_t LevelZeroCompilerInDriver<TableExtension>::seriazlideIRModelAndQueryNetworkCreateV1(
     const std::shared_ptr<const ov::Model>& model,
     const Config& config,
@@ -652,8 +652,8 @@ ze_result_t LevelZeroCompilerInDriver<TableExtension>::seriazlideIRModelAndQuery
 }
 
 // For ext version == 1.3 && == 1.4, query is supported, calling querynetwork api in _graphDdiTableExt
-template <typename TableExtension>
-template <typename T, std::enable_if_t<SupportAPIGraphQueryNetworkV1(T), bool>>
+template <ze_graph_ext_version_t TableExtension>
+template <ze_graph_ext_version_t T, std::enable_if_t<SupportAPIGraphQueryNetworkV1(T), bool>>
 std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::queryImpl(
     const std::shared_ptr<const ov::Model>& model,
     const Config& config) const {
@@ -675,8 +675,8 @@ std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::query
 }
 
 // For ext version >= 1.5
-template <typename TableExtension>
-template <typename T, std::enable_if_t<SupportAPIGraphQueryNetworkV2(T), bool>>
+template <ze_graph_ext_version_t TableExtension>
+template <ze_graph_ext_version_t T, std::enable_if_t<SupportAPIGraphQueryNetworkV2(T), bool>>
 ze_result_t LevelZeroCompilerInDriver<TableExtension>::seriazlideIRModelAndQueryNetworkCreateV2(
     const std::shared_ptr<const ov::Model>& model,
     const Config& config,
@@ -708,8 +708,8 @@ ze_result_t LevelZeroCompilerInDriver<TableExtension>::seriazlideIRModelAndQuery
 }
 
 // For ext version >= 1.5
-template <typename TableExtension>
-template <typename T, std::enable_if_t<SupportAPIGraphQueryNetworkV2(T), bool>>
+template <ze_graph_ext_version_t TableExtension>
+template <ze_graph_ext_version_t T, std::enable_if_t<SupportAPIGraphQueryNetworkV2(T), bool>>
 std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::queryImpl(
     const std::shared_ptr<const ov::Model>& model,
     const Config& config) const {
@@ -730,8 +730,8 @@ std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::query
     return getQueryResultFromSupportedLayers(result, hGraphQueryNetwork);
 }
 
-template <typename TableExtension>
-template <typename T, std::enable_if_t<!NotSupportQuery(T), bool>>
+template <ze_graph_ext_version_t TableExtension>
+template <ze_graph_ext_version_t T, std::enable_if_t<!NotSupportQuery(T), bool>>
 std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::getQueryResultFromSupportedLayers(
     ze_result_t result,
     ze_graph_query_network_handle_t& hGraphQueryNetwork) const {
@@ -761,7 +761,7 @@ std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::getQu
     return parseQueryResult(supportedLayers);
 }
 
-template <typename TableExtension>
+template <ze_graph_ext_version_t TableExtension>
 ov::SupportedOpsMap LevelZeroCompilerInDriver<TableExtension>::query(const std::shared_ptr<const ov::Model>& model,
                                                                      const Config& config) const {
     _logger.debug("query start");
@@ -784,8 +784,8 @@ ov::SupportedOpsMap LevelZeroCompilerInDriver<TableExtension>::query(const std::
 }
 
 // For ext version <1.5, calling pfnCreate api in _graphDdiTableExt
-template <typename TableExtension>
-template <typename T, std::enable_if_t<NotSupportGraph2(T), bool>>
+template <ze_graph_ext_version_t TableExtension>
+template <ze_graph_ext_version_t T, std::enable_if_t<NotSupportGraph2(T), bool>>
 ze_result_t LevelZeroCompilerInDriver<TableExtension>::createGraph(const ze_graph_format_t& format,
                                                                    const SerializedIR& serializedIR,
                                                                    const std::string& buildFlags,
@@ -807,8 +807,8 @@ ze_result_t LevelZeroCompilerInDriver<TableExtension>::createGraph(const ze_grap
 }
 
 // For ext version >= 1.5, calling pfnCreate2 api in _graphDdiTableExt
-template <typename TableExtension>
-template <typename T, std::enable_if_t<!NotSupportGraph2(T), bool>>
+template <ze_graph_ext_version_t TableExtension>
+template <ze_graph_ext_version_t T, std::enable_if_t<!NotSupportGraph2(T), bool>>
 ze_result_t LevelZeroCompilerInDriver<TableExtension>::createGraph(const ze_graph_format_t& format,
                                                                    const SerializedIR& serializedIR,
                                                                    const std::string& buildFlags,
@@ -829,7 +829,7 @@ ze_result_t LevelZeroCompilerInDriver<TableExtension>::createGraph(const ze_grap
 
     return result;
 }
-template <typename TableExtension>
+template <ze_graph_ext_version_t TableExtension>
 ze_result_t LevelZeroCompilerInDriver<TableExtension>::seriazlideIRModelAndCreateGraph(
     const std::shared_ptr<const ov::Model>& model,
     const Config& config,
@@ -862,7 +862,7 @@ ze_result_t LevelZeroCompilerInDriver<TableExtension>::seriazlideIRModelAndCreat
     return result;
 }
 
-template <typename TableExtension>
+template <ze_graph_ext_version_t TableExtension>
 NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compile(const std::shared_ptr<const ov::Model>& model,
                                                                       const Config& config) const {
     _logger.debug("compile start");
@@ -887,7 +887,7 @@ NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compile(const std:
     return networkDescription;
 }
 
-template <typename TableExtension>
+template <ze_graph_ext_version_t TableExtension>
 NetworkMetadata LevelZeroCompilerInDriver<TableExtension>::parse(const std::vector<uint8_t>& network,
                                                                  const Config& config) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "LevelZeroCompilerInDriver::parse", "desc");
@@ -920,7 +920,7 @@ NetworkMetadata LevelZeroCompilerInDriver<TableExtension>::parse(const std::vect
     return networkMeta;
 }
 
-template <typename TableExtension>
+template <ze_graph_ext_version_t TableExtension>
 uint32_t LevelZeroCompilerInDriver<TableExtension>::getSupportedOpsetVersion() const {
     _logger.debug("getSupportedOpsetVersion start");
 
@@ -990,8 +990,8 @@ static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
             metadata.has_value() ? std::optional(shapeFromIRModel) : std::nullopt};
 }
 
-template <typename TableExtension>
-template <typename T, std::enable_if_t<NotSupportArgumentMetadata(T), bool>>
+template <ze_graph_ext_version_t TableExtension>
+template <ze_graph_ext_version_t T, std::enable_if_t<NotSupportArgumentMetadata(T), bool>>
 void LevelZeroCompilerInDriver<TableExtension>::getMetadata(ze_graph_dditable_ext_curr_t& graphDdiTableExt,
                                                             ze_graph_handle_t graphHandle,
                                                             uint32_t index,
@@ -1014,8 +1014,8 @@ void LevelZeroCompilerInDriver<TableExtension>::getMetadata(ze_graph_dditable_ex
     }
 }
 
-template <typename TableExtension>
-template <typename T, std::enable_if_t<!NotSupportArgumentMetadata(T), bool>>
+template <ze_graph_ext_version_t TableExtension>
+template <ze_graph_ext_version_t T, std::enable_if_t<!NotSupportArgumentMetadata(T), bool>>
 void LevelZeroCompilerInDriver<TableExtension>::getMetadata(ze_graph_dditable_ext_curr_t& graphDdiTableExt,
                                                             ze_graph_handle_t graphHandle,
                                                             uint32_t index,
@@ -1048,7 +1048,7 @@ void LevelZeroCompilerInDriver<TableExtension>::getMetadata(ze_graph_dditable_ex
     }
 }
 
-template <typename TableExtension>
+template <ze_graph_ext_version_t TableExtension>
 NetworkMetadata LevelZeroCompilerInDriver<TableExtension>::getNetworkMeta(ze_graph_handle_t graphHandle) const {
     ze_graph_properties_t graphProperties{};
 
@@ -1069,13 +1069,13 @@ NetworkMetadata LevelZeroCompilerInDriver<TableExtension>::getNetworkMeta(ze_gra
     return meta;
 }
 
-template class LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_2_t>;
-template class LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_3_t>;
-template class LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_4_t>;
-template class LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_5_t>;
-template class LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_6_t>;
-template class LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_7_t>;
-template class LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_8_t>;
+template class LevelZeroCompilerInDriver<ZE_GRAPH_EXT_VERSION_1_2>;
+template class LevelZeroCompilerInDriver<ZE_GRAPH_EXT_VERSION_1_3>;
+template class LevelZeroCompilerInDriver<ZE_GRAPH_EXT_VERSION_1_4>;
+template class LevelZeroCompilerInDriver<ZE_GRAPH_EXT_VERSION_1_5>;
+template class LevelZeroCompilerInDriver<ZE_GRAPH_EXT_VERSION_1_6>;
+template class LevelZeroCompilerInDriver<ZE_GRAPH_EXT_VERSION_1_7>;
+template class LevelZeroCompilerInDriver<ZE_GRAPH_EXT_VERSION_1_8>;
 
 }  // namespace driverCompilerAdapter
 }  // namespace intel_npu
