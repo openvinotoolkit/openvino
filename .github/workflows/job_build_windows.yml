@@ -228,10 +228,10 @@ jobs:
             $pyBuildDir = "${{ github.workspace }}/py$pyVersion"
             New-Item -ItemType Directory -Path "$pyBuildDir" -Force
 
-            $pythonExecutablePath = $(python3 -c "import sys; print(f'{sys.executable}')")
+            $pythonExecutablePath = $(python$pyVersions -c "import sys; print(f'{sys.executable}')")
             cmake -DPython3_EXECUTABLE="$pythonExecutablePath" -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B "$pyBuildDir"
-            cmake --build "$pyBuildDir" --parallel
-            cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_WHEELS_DIR }} -DCOMPONENT=python_wheels -P $pyBuildDir/cmake_install.cmake
+            cmake --build "$pyBuildDir" --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
+            cmake --config ${{ env.CMAKE_BUILD_TYPE }} -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_WHEELS_DIR }} -DCOMPONENT=python_wheels -P $pyBuildDir/cmake_install.cmake
           }
 
       - name: Pack Artifacts
