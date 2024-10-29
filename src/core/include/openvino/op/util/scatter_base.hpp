@@ -14,7 +14,7 @@ namespace util {
 ///
 class OPENVINO_API ScatterBase : public Op {
 public:
-    OPENVINO_OP("ScatterBase", "util");
+    OPENVINO_OP("ScatterBase", "util", Op);
     void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;
 

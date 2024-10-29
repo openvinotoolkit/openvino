@@ -12,7 +12,7 @@ namespace op {
 
 class Placeholder : public ov::op::Op {
 public:
-    OPENVINO_OP("Placeholder", "gpu_opset");
+    OPENVINO_OP("Placeholder", "gpu_opset", ov::op::Op);
 
     Placeholder();
 

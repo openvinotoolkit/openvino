@@ -14,7 +14,7 @@ namespace v0 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API ROIPooling : public Op {
 public:
-    OPENVINO_OP("ROIPooling", "opset2");
+    OPENVINO_OP("ROIPooling", "opset2", Op);
 
     ROIPooling() = default;
     /// \brief Constructs a ROIPooling operation

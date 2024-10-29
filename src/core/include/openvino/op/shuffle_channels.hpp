@@ -15,7 +15,7 @@ namespace v0 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API ShuffleChannels : public Op {
 public:
-    OPENVINO_OP("ShuffleChannels", "opset1");
+    OPENVINO_OP("ShuffleChannels", "opset1", Op);
 
     ShuffleChannels() = default;
     /// \brief Constructs a ShuffleChannels node.

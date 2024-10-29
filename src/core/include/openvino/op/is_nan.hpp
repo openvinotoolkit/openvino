@@ -13,7 +13,7 @@ namespace v10 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API IsNaN : public Op {
 public:
-    OPENVINO_OP("IsNaN", "opset10");
+    OPENVINO_OP("IsNaN", "opset10", Op);
     IsNaN() = default;
     /// \brief Constructs a IsNaN operation.
     ///

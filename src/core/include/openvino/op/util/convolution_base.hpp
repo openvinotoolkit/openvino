@@ -14,7 +14,7 @@ namespace util {
 /// \brief Base class for operations like convolutions
 class OPENVINO_API ConvolutionBase : public Op {
 public:
-    OPENVINO_OP("ConvolutionBase", "util");
+    OPENVINO_OP("ConvolutionBase", "util", Op);
 
     /// \brief Constructs a conversion operation.
     ConvolutionBase() = default;

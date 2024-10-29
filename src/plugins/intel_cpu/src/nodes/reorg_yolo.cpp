@@ -14,7 +14,7 @@ namespace node {
 
 bool ReorgYolo::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto reorgYolo = std::dynamic_pointer_cast<const ov::opset2::ReorgYolo>(op);
+        const auto reorgYolo = ov::as_type_ptr<const ov::opset2::ReorgYolo>(op);
         if (!reorgYolo) {
             errorMessage = "Only opset2 ReorgYolo operation is supported";
             return false;
@@ -36,7 +36,7 @@ ReorgYolo::ReorgYolo(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
     if (getOriginalInputsNumber() != 1 || getOriginalOutputsNumber() != 1)
         OPENVINO_THROW(errorPrefix, " has incorrect number of input/output edges!");
 
-    const auto reorgYolo = std::dynamic_pointer_cast<const ov::opset2::ReorgYolo>(op);
+    const auto reorgYolo = ov::as_type_ptr<const ov::opset2::ReorgYolo>(op);
     const auto strides = reorgYolo->get_strides();
     if (strides.empty())
         OPENVINO_THROW(errorPrefix, " has empty strides");

@@ -14,7 +14,7 @@ namespace v13 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Multinomial : public Op {
 public:
-    OPENVINO_OP("Multinomial", "opset13");
+    OPENVINO_OP("Multinomial", "opset13", Op);
     Multinomial() = default;
     /**
      * @brief Multinomial operation creates a sequence of indices of classes sampled from the multinomial distribution.

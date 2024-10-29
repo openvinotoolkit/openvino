@@ -13,7 +13,7 @@ namespace v0 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API MatMul : public Op {
 public:
-    OPENVINO_OP("MatMul", "opset1");
+    OPENVINO_OP("MatMul", "opset1", Op);
     MatMul() = default;
     /// \brief Constructs an Matrix Multiplication operation.
     ///

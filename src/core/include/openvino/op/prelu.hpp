@@ -16,7 +16,7 @@ namespace v0 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API PRelu : public Op {
 public:
-    OPENVINO_OP("PRelu", "opset1");
+    OPENVINO_OP("PRelu", "opset1", Op);
     PRelu();
     /// \brief Constructs a PRelu operation.
     ///

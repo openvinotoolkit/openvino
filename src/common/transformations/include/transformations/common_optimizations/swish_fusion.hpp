@@ -28,7 +28,7 @@ class TRANSFORMATIONS_API SwishFusionWithoutBeta;
  */
 class ov::pass::SwishFusionWithSigmoid : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("SwishFusionWithSigmoid", "0");
+    OPENVINO_RTTI("SwishFusionWithSigmoid", "0", ov::pass::MatcherPass);
     SwishFusionWithSigmoid();
 };
 
@@ -38,7 +38,7 @@ public:
  */
 class ov::pass::SwishFusionWithSigmoidWithBeta : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("SwishFusionWithSigmoidWithBeta", "0");
+    OPENVINO_RTTI("SwishFusionWithSigmoidWithBeta", "0", ov::pass::MatcherPass);
     SwishFusionWithSigmoidWithBeta();
 };
 
@@ -48,7 +48,7 @@ public:
  */
 class ov::pass::SwishFusionWithBeta : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("SwishFusionWithBeta", "0");
+    OPENVINO_RTTI("SwishFusionWithBeta", "0", ov::pass::MatcherPass);
     SwishFusionWithBeta();
 };
 
@@ -58,7 +58,7 @@ public:
  */
 class ov::pass::SwishFusionWithoutBeta : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("SwishFusionWithoutBeta", "0");
+    OPENVINO_RTTI("SwishFusionWithoutBeta", "0", ov::pass::MatcherPass);
     SwishFusionWithoutBeta();
 };
 
@@ -68,7 +68,7 @@ public:
  */
 class ov::pass::SwishFusion : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("SwishFusion", "0");
+    OPENVINO_RTTI("SwishFusion", "0", ov::pass::GraphRewrite);
     SwishFusion() {
         add_matcher<ov::pass::SwishFusionWithSigmoid>();
         add_matcher<ov::pass::SwishFusionWithSigmoidWithBeta>();

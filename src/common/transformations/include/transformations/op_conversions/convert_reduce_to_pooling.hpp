@@ -41,25 +41,25 @@ public:
 
 class ov::pass::ConvertReduceMeanToPooling : public ConvertReduceBase {
 public:
-    OPENVINO_RTTI("ConvertReduceMeanToPooling", "0");
+    OPENVINO_RTTI("ConvertReduceMeanToPooling", "0", ConvertReduceBase);
     ConvertReduceMeanToPooling();
 };
 
 class ov::pass::ConvertReduceMaxToPooling : public ConvertReduceBase {
 public:
-    OPENVINO_RTTI("ConvertReduceMaxToPooling", "0");
+    OPENVINO_RTTI("ConvertReduceMaxToPooling", "0", ConvertReduceBase);
     ConvertReduceMaxToPooling();
 };
 
 class ov::pass::ConvertReduceSumToPooling : public ConvertReduceBase {
 public:
-    OPENVINO_RTTI("ConvertReduceSumToPooling", "0");
+    OPENVINO_RTTI("ConvertReduceSumToPooling", "0", ConvertReduceBase);
     ConvertReduceSumToPooling();
 };
 
 class ov::pass::ConvertReduceToPooling : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("ConvertReduceToPooling", "0");
+    OPENVINO_RTTI("ConvertReduceToPooling", "0", ov::pass::GraphRewrite);
     ConvertReduceToPooling() {
         add_matcher<ConvertReduceMeanToPooling>();
         add_matcher<ConvertReduceMaxToPooling>();

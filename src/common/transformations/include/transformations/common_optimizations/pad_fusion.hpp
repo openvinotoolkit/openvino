@@ -30,7 +30,7 @@ class TRANSFORMATIONS_API PadFusionGroupConvolutionBackpropData;
  */
 class ov::pass::PadFusionAvgPool : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("PadFusionAvgPool", "0");
+    OPENVINO_RTTI("PadFusionAvgPool", "0", ov::pass::MatcherPass);
     PadFusionAvgPool();
 };
 
@@ -43,7 +43,7 @@ public:
  */
 class ov::pass::PadFusionConvolution : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("PadFusionConvolution", "0");
+    OPENVINO_RTTI("PadFusionConvolution", "0", ov::pass::MatcherPass);
     PadFusionConvolution();
 };
 
@@ -57,7 +57,7 @@ public:
  */
 class ov::pass::PadFusionConvolutionBackpropData : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("PadFusionConvolutionBackpropData", "0");
+    OPENVINO_RTTI("PadFusionConvolutionBackpropData", "0", ov::pass::MatcherPass);
     PadFusionConvolutionBackpropData();
 };
 
@@ -70,7 +70,7 @@ public:
  */
 class ov::pass::PadFusionGroupConvolution : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("PadFusionGroupConvolution", "0");
+    OPENVINO_RTTI("PadFusionGroupConvolution", "0", ov::pass::MatcherPass);
     PadFusionGroupConvolution();
 };
 
@@ -84,13 +84,13 @@ public:
  */
 class ov::pass::PadFusionGroupConvolutionBackpropData : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("PadFusionGroupConvolutionBackpropData", "0");
+    OPENVINO_RTTI("PadFusionGroupConvolutionBackpropData", "0", ov::pass::MatcherPass);
     PadFusionGroupConvolutionBackpropData();
 };
 
 class ov::pass::PadFusion : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("PadFusion", "0");
+    OPENVINO_RTTI("PadFusion", "0", ov::pass::GraphRewrite);
     PadFusion() {
         add_matcher<ov::pass::PadFusionAvgPool>();
         add_matcher<ov::pass::PadFusionConvolution>();

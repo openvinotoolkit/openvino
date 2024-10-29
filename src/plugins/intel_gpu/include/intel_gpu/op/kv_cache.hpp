@@ -17,7 +17,7 @@ namespace op {
 /// This operation updates data of the corresponding Variable
 class KVCache : public ov::op::Op, public ov::op::util::VariableExtension {
 public:
-    OPENVINO_OP("KVCache", "gpu_opset");
+    OPENVINO_OP("KVCache", "gpu_opset", ov::op::Op);
 
     KVCache() = default;
 

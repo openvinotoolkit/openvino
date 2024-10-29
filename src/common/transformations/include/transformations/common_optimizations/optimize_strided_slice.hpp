@@ -29,7 +29,7 @@ class TRANSFORMATIONS_API SliceSequenceToSingleSlice;
  */
 class ov::pass::UselessSliceEraser : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("UselessSliceEraser", "0");
+    OPENVINO_RTTI("UselessSliceEraser", "0", ov::pass::ModelPass);
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 
@@ -41,7 +41,7 @@ public:
  */
 class ov::pass::GroupedStridedSliceOptimizer : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("GroupedStridedSliceOptimizer", "0");
+    OPENVINO_RTTI("GroupedStridedSliceOptimizer", "0", ov::pass::ModelPass);
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 
@@ -53,7 +53,7 @@ public:
  */
 class ov::pass::GroupedSliceToVSplitOptimization : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("GroupedSliceToVSplitOptimization", "0");
+    OPENVINO_RTTI("GroupedSliceToVSplitOptimization", "0", ov::pass::ModelPass);
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 
@@ -71,7 +71,7 @@ public:
  */
 class ov::pass::SliceSequenceToSingleSlice : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("SliceSequenceToSingleSlice", "0");
+    OPENVINO_RTTI("SliceSequenceToSingleSlice", "0", ov::pass::MatcherPass);
     SliceSequenceToSingleSlice();
 };
 

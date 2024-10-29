@@ -15,7 +15,7 @@ ov::intel_cpu::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
     auto broadcast = ov::pass::pattern::wrap_type<ov::opset1::Broadcast>();
 
     ov::matcher_pass_callback callback = [this](ov::pass::pattern::Matcher& m) {
-        auto broadcast = std::dynamic_pointer_cast<ov::opset1::Broadcast>(m.get_match_root());
+        auto broadcast = ov::as_type_ptr<ov::opset1::Broadcast>(m.get_match_root());
         if (!broadcast) {
             return false;
         }
@@ -25,8 +25,8 @@ ov::intel_cpu::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
             return false;
         }
 
-        auto shape_node = std::dynamic_pointer_cast<ov::opset1::Constant>(broadcast->input_value(1).get_node_shared_ptr());
-        auto axes_node = std::dynamic_pointer_cast<ov::opset1::Constant>(broadcast->input_value(2).get_node_shared_ptr());
+        auto shape_node = ov::as_type_ptr<ov::opset1::Constant>(broadcast->input_value(1).get_node_shared_ptr());
+        auto axes_node = ov::as_type_ptr<ov::opset1::Constant>(broadcast->input_value(2).get_node_shared_ptr());
         if (!shape_node || !axes_node) return false;
 
         auto output_shape = shape_node->cast_vector<int64_t>();

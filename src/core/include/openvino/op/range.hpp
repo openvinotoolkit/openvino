@@ -54,7 +54,7 @@ namespace v0 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Range : public Op {
 public:
-    OPENVINO_OP("Range", "opset1");
+    OPENVINO_OP("Range", "opset1", Op);
 
     /// \brief Constructs an unitialized range operation.
     Range() = default;

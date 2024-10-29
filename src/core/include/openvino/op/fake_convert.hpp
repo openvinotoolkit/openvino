@@ -17,7 +17,7 @@ namespace v13 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API FakeConvert : public Op {
 public:
-    OPENVINO_OP("FakeConvert", "opset13");
+    OPENVINO_OP("FakeConvert", "opset13", Op);
 
     FakeConvert() = default;
 

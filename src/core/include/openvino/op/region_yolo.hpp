@@ -14,7 +14,7 @@ namespace v0 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API RegionYolo : public Op {
 public:
-    OPENVINO_OP("RegionYolo", "opset1");
+    OPENVINO_OP("RegionYolo", "opset1", Op);
 
     RegionYolo() = default;
     ///

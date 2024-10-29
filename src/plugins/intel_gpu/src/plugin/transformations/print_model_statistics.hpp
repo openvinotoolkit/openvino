@@ -11,7 +11,7 @@ namespace intel_gpu {
 
 class PrintModelStatistics : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("PrintModelStatistics", "0");
+    OPENVINO_RTTI("PrintModelStatistics", "0", ov::pass::ModelPass);
     PrintModelStatistics() = default;
 
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;

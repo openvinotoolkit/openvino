@@ -13,7 +13,7 @@ namespace v10 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API IsInf : public Op {
 public:
-    OPENVINO_OP("IsInf", "opset10");
+    OPENVINO_OP("IsInf", "opset10", Op);
     /// \brief A Structure which contains all IsInf attributes
     struct Attributes {
         // A flag which specifies whether to map negative infinities to true.

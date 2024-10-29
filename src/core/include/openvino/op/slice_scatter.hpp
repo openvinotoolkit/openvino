@@ -14,7 +14,7 @@ namespace v15 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API SliceScatter : public Op {
 public:
-    OPENVINO_OP("SliceScatter", "opset15");
+    OPENVINO_OP("SliceScatter", "opset15", Op);
 
     SliceScatter() = default;
 

@@ -13,7 +13,7 @@ namespace op {
 
 class FullyConnected : public ov::op::Op {
 public:
-    OPENVINO_OP("FullyConnected", "gpu_opset");
+    OPENVINO_OP("FullyConnected", "gpu_opset", ov::op::Op);
 
     FullyConnected() = default;
 

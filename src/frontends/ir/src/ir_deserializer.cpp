@@ -540,7 +540,7 @@ std::shared_ptr<ov::Model> ov::XmlDeserializer::parse_function(const pugi::xml_n
             func_nodes.results.emplace_back(result_node);
         }
 
-        if (const auto& sink = std::dynamic_pointer_cast<ov::op::Sink>(node)) {
+        if (const auto& sink = ov::as_type_ptr<ov::op::Sink>(node)) {
             auto subgraph_op = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(node);
             if (subgraph_op) {
                 for (const auto& body_model : subgraph_op->get_functions()) {
@@ -554,7 +554,7 @@ std::shared_ptr<ov::Model> ov::XmlDeserializer::parse_function(const pugi::xml_n
             }
         }
 
-        if (const auto& read_value = std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(node)) {
+        if (const auto& read_value = ov::as_type_ptr<ov::op::util::ReadValueBase>(node)) {
             variable_id_to_read_value[read_value->get_variable_id()] = read_value;
         }
 
@@ -566,7 +566,7 @@ std::shared_ptr<ov::Model> ov::XmlDeserializer::parse_function(const pugi::xml_n
                                                 func_nodes.parameters,
                                                 pugixml::get_str_attr(root, "name", ""));
     for (const auto& sink : func_nodes.sinks) {
-        if (const auto& assign = std::dynamic_pointer_cast<ov::op::util::AssignBase>(sink)) {
+        if (const auto& assign = ov::as_type_ptr<ov::op::util::AssignBase>(sink)) {
             assign->add_control_dependency(variable_id_to_read_value.at(assign->get_variable_id()));
         }
     }

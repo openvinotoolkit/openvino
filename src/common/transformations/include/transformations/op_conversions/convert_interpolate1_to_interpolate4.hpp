@@ -25,6 +25,6 @@ class TRANSFORMATIONS_API ConvertInterpolate1ToInterpolate4;
  */
 class ov::pass::ConvertInterpolate1ToInterpolate4 : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertInterpolate1ToInterpolate4", "0");
+    OPENVINO_RTTI("ConvertInterpolate1ToInterpolate4", "0", ov::pass::MatcherPass);
     ConvertInterpolate1ToInterpolate4();
 };

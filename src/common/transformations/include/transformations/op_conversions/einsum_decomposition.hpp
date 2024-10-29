@@ -24,6 +24,6 @@ class TRANSFORMATIONS_API EinsumDecomposition;
  */
 class ov::pass::EinsumDecomposition : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("EinsumDecomposition", "0");
+    OPENVINO_RTTI("EinsumDecomposition", "0", ov::pass::MatcherPass);
     EinsumDecomposition();
 };

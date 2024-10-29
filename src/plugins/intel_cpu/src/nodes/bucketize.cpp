@@ -17,7 +17,7 @@ namespace node {
 
 bool Bucketize::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto bucketsize = std::dynamic_pointer_cast<const ov::opset3::Bucketize>(op);
+        const auto bucketsize = ov::as_type_ptr<const ov::opset3::Bucketize>(op);
         if (!bucketsize) {
             errorMessage = "Only opset3 Bucketize operation is supported";
             return false;
@@ -36,7 +36,7 @@ Bucketize::Bucketize(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
     }
 
     errorPrefix = "Bucketize layer with name '" + op->get_friendly_name() + "' ";
-    const auto bucketsize = std::dynamic_pointer_cast<const ov::opset3::Bucketize>(op);
+    const auto bucketsize = ov::as_type_ptr<const ov::opset3::Bucketize>(op);
     if (bucketsize == nullptr)
         OPENVINO_THROW("Operation with name '",
                        op->get_friendly_name(),

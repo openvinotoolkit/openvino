@@ -26,7 +26,7 @@ static void CreateScatterElementsUpdateOp(ProgramBuilder& p, const std::shared_p
 
     auto mode = cldnn::ScatterElementsUpdateOp::Reduction::NONE;
     auto use_init_val = true;
-    if (const auto op_v12 = std::dynamic_pointer_cast<cldnn::ScatterElementsUpdateOp>(op)) {
+    if (const auto op_v12 = ov::as_type_ptr<cldnn::ScatterElementsUpdateOp>(op)) {
         mode = op_v12->get_reduction();
         use_init_val = op_v12->get_use_init_val();
     }

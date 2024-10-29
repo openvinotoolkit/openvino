@@ -15,7 +15,7 @@ namespace v8 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Slice : public Op {
 public:
-    OPENVINO_OP("Slice", "opset8");
+    OPENVINO_OP("Slice", "opset8", Op);
 
     Slice() = default;
 

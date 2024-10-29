@@ -28,6 +28,6 @@ class TRANSFORMATIONS_API UnrollTensorIterator;
 
 class ov::pass::UnrollTensorIterator : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("UnrollTensorIterator", "0");
+    OPENVINO_RTTI("UnrollTensorIterator", "0", ov::pass::ModelPass);
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };

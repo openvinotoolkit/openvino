@@ -17,7 +17,7 @@ namespace intel_gpu {
  */
 class IncreasePositionIdsPrecision : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("IncreasePositionIdsPrecision", "0");
+    OPENVINO_RTTI("IncreasePositionIdsPrecision", "0", ov::pass::MatcherPass);
     IncreasePositionIdsPrecision();
 };
 

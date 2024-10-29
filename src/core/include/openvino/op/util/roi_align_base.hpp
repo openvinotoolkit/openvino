@@ -15,7 +15,7 @@ namespace util {
 ///
 class OPENVINO_API ROIAlignBase : public Op {
 public:
-    OPENVINO_OP("ROIAlignBase", "util");
+    OPENVINO_OP("ROIAlignBase", "util", Op);
 
 protected:
     ROIAlignBase() = default;

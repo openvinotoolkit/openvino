@@ -231,7 +231,7 @@ private:
 
 bool RegionYolo::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto regionYolo = std::dynamic_pointer_cast<const ov::opset1::RegionYolo>(op);
+        const auto regionYolo = ov::as_type_ptr<const ov::opset1::RegionYolo>(op);
         if (!regionYolo) {
             errorMessage = "Only opset1 RegionYolo operation is supported";
             return false;
@@ -257,7 +257,7 @@ RegionYolo::RegionYolo(const std::shared_ptr<ov::Node>& op, const GraphContext::
     if (op->get_input_size() != 1 || op->get_output_size() != 1)
         OPENVINO_THROW(errorPrefix, " has incorrect number of input/output edges!");
 
-    const auto regionYolo = std::dynamic_pointer_cast<const ov::opset1::RegionYolo>(op);
+    const auto regionYolo = ov::as_type_ptr<const ov::opset1::RegionYolo>(op);
     classes = regionYolo->get_num_classes();
     coords = regionYolo->get_num_coords();
     num = regionYolo->get_num_regions();

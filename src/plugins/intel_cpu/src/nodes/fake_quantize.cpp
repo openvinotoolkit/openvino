@@ -865,7 +865,7 @@ private:
 #endif
 bool FakeQuantize::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto fq = std::dynamic_pointer_cast<const ov::opset1::FakeQuantize>(op);
+        const auto fq = ov::as_type_ptr<const ov::opset1::FakeQuantize>(op);
         if (!fq) {
             errorMessage = "Only opset1 FakeQuantize operation is supported";
             return false;
@@ -882,7 +882,7 @@ bool FakeQuantize::isSupportedOperation(const std::shared_ptr<const ov::Node>& o
             }
         }
         for (size_t i = 1; i < fq->get_input_size(); i++) {
-            if (!std::dynamic_pointer_cast<const ov::opset1::Constant>(fq->get_input_node_shared_ptr(i))) {
+            if (!ov::as_type_ptr<const ov::opset1::Constant>(fq->get_input_node_shared_ptr(i))) {
                 errorMessage = "Has non const 'range' input on " + std::to_string(i) + " port";
                 return false;
             }
@@ -964,7 +964,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphConte
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         algorithm = Algorithm::FQCommon;
-        const auto fq = std::dynamic_pointer_cast<const ov::opset1::FakeQuantize>(op);
+        const auto fq = ov::as_type_ptr<const ov::opset1::FakeQuantize>(op);
 
         errorPrefix = "FakeQuantize node with name '" + getName() + "' ";
         levels = fq->get_levels();
@@ -1032,16 +1032,16 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphConte
             OPENVINO_THROW(errorPrefix, "has different quantization axis size on 'data' and 'range' inputs");
         }
 
-        const auto inputLowNode = std::dynamic_pointer_cast<const ov::opset1::Constant>(fq->get_input_node_shared_ptr(1));
+        const auto inputLowNode = ov::as_type_ptr<const ov::opset1::Constant>(fq->get_input_node_shared_ptr(1));
         auto inputLowData = inputLowNode->cast_vector<float>();
 
-        const auto inputHighNode = std::dynamic_pointer_cast<const ov::opset1::Constant>(fq->get_input_node_shared_ptr(2));
+        const auto inputHighNode = ov::as_type_ptr<const ov::opset1::Constant>(fq->get_input_node_shared_ptr(2));
         auto inputHighData = inputHighNode->cast_vector<float>();
 
-        const auto outputLowNode = std::dynamic_pointer_cast<const ov::opset1::Constant>(fq->get_input_node_shared_ptr(3));
+        const auto outputLowNode = ov::as_type_ptr<const ov::opset1::Constant>(fq->get_input_node_shared_ptr(3));
         auto outputLowData = outputLowNode->cast_vector<float>();
 
-        const auto outputHighNode = std::dynamic_pointer_cast<const ov::opset1::Constant>(fq->get_input_node_shared_ptr(4));
+        const auto outputHighNode = ov::as_type_ptr<const ov::opset1::Constant>(fq->get_input_node_shared_ptr(4));
         auto outputHighData = outputHighNode->cast_vector<float>();
 
         binarization = levels == 2;

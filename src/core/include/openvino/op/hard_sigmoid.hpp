@@ -15,7 +15,7 @@ namespace v0 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API HardSigmoid : public Op {
 public:
-    OPENVINO_OP("HardSigmoid", "opset1");
+    OPENVINO_OP("HardSigmoid", "opset1", Op);
 
     HardSigmoid();
 

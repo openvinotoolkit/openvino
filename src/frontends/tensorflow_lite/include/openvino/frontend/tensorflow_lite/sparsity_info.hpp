@@ -25,7 +25,7 @@ public:
         const void* indices;
     };
 
-    OPENVINO_RTTI("SparsityInfo");
+    OPENVINO_RTTI("SparsityInfo", "0", ov::RuntimeAttribute);
     SparsityInfo() = default;
     explicit SparsityInfo(const std::vector<int32_t>& shape,
                           const std::vector<int32_t>& traversal_order,

@@ -14,7 +14,7 @@ namespace v10 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Unique : public Op {
 public:
-    OPENVINO_OP("Unique", "opset10");
+    OPENVINO_OP("Unique", "opset10", Op);
 
     Unique() = default;
 

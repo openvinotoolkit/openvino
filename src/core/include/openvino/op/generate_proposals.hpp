@@ -14,7 +14,7 @@ namespace v9 {
 /// computes ROIs and their scores based on input data.
 class OPENVINO_API GenerateProposals : public Op {
 public:
-    OPENVINO_OP("GenerateProposals", "opset9");
+    OPENVINO_OP("GenerateProposals", "opset9", Op);
 
     /// \brief Structure that specifies attributes of the operation
     struct Attributes {

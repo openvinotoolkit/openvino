@@ -25,6 +25,6 @@ class TRANSFORMATIONS_API SplitConcatPairToInterpolateFusion;
  */
 class ov::pass::SplitConcatPairToInterpolateFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("SplitConcatPairToInterpolateFusion", "0");
+    OPENVINO_RTTI("SplitConcatPairToInterpolateFusion", "0", ov::pass::MatcherPass);
     SplitConcatPairToInterpolateFusion(bool use_shape_for_elimination = true);
 };

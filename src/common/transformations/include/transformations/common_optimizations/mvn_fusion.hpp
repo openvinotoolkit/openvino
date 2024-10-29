@@ -28,7 +28,7 @@ class TRANSFORMATIONS_API MVNFusionWithConstantsInside;
  */
 class ov::pass::MVNFusionWithoutConstants : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("MVNFusionWithoutConstants", "0");
+    OPENVINO_RTTI("MVNFusionWithoutConstants", "0", ov::pass::MatcherPass);
     MVNFusionWithoutConstants();
 };
 
@@ -40,7 +40,7 @@ public:
  */
 class ov::pass::MVNFusionWithConstantsInside : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("MVNFusionWithConstantsInside", "0");
+    OPENVINO_RTTI("MVNFusionWithConstantsInside", "0", ov::pass::MatcherPass);
     MVNFusionWithConstantsInside();
 };
 
@@ -50,7 +50,7 @@ public:
  */
 class ov::pass::MVNFusion : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("MVNFusion", "0");
+    OPENVINO_RTTI("MVNFusion", "0", ov::pass::GraphRewrite);
     MVNFusion() {
         add_matcher<ov::pass::MVNFusionWithoutConstants>();
         add_matcher<ov::pass::MVNFusionWithConstantsInside>();

@@ -25,6 +25,6 @@ class TRANSFORMATIONS_API SplitSqueezeConcatFusion;
  */
 class ov::pass::SplitSqueezeConcatFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("SplitSqueezeConcatFusion", "0");
+    OPENVINO_RTTI("SplitSqueezeConcatFusion", "0", ov::pass::MatcherPass);
     SplitSqueezeConcatFusion(bool use_shapes);
 };

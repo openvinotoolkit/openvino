@@ -15,7 +15,7 @@ namespace pass {
  */
 class TRANSFORMATIONS_API ConvertPad12ToPad1 : public MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertPad12ToPad1", "0");
+    OPENVINO_RTTI("ConvertPad12ToPad1", "0", MatcherPass);
     ConvertPad12ToPad1();
 };
 

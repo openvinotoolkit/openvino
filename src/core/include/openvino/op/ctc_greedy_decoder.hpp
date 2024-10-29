@@ -14,7 +14,7 @@ namespace v0 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API CTCGreedyDecoder : public Op {
 public:
-    OPENVINO_OP("CTCGreedyDecoder", "opset1");
+    OPENVINO_OP("CTCGreedyDecoder", "opset1", Op);
 
     CTCGreedyDecoder() = default;
     /// \brief Constructs a CTCGreedyDecoder operation

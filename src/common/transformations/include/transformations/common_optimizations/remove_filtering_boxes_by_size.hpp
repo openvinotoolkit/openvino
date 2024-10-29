@@ -21,12 +21,12 @@ class TRANSFORMATIONS_API RemoveFilteringBoxesBySize;
 
 class ov::pass::FuseFilteringBoxesBySize : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("FuseFilteringBoxesBySize", "0");
+    OPENVINO_RTTI("FuseFilteringBoxesBySize", "0", ov::pass::GraphRewrite);
     FuseFilteringBoxesBySize();
 };
 
 class ov::pass::RemoveFilteringBoxesBySize : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("RemoveFilteringBoxesBySize", "0");
+    OPENVINO_RTTI("RemoveFilteringBoxesBySize", "0", ov::pass::MatcherPass);
     RemoveFilteringBoxesBySize();
 };

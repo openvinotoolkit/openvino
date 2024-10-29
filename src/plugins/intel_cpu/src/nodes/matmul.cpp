@@ -88,7 +88,7 @@ bool MatMul::canBeExecutedInInt8() const {
 
 bool MatMul::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto matMul = std::dynamic_pointer_cast<const ov::opset1::MatMul>(op);
+        const auto matMul = ov::as_type_ptr<const ov::opset1::MatMul>(op);
         if (!matMul) {
             errorMessage = "Only opset1 MatMul operation is supported";
             return false;
@@ -121,7 +121,7 @@ MatMul::MatMul(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr con
     if (!isSupportedOperation(op, errorMessage))
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
 
-    const auto matMul = std::dynamic_pointer_cast<const ov::opset1::MatMul>(op);
+    const auto matMul = ov::as_type_ptr<const ov::opset1::MatMul>(op);
 
     if (!matMul) {
         OPENVINO_THROW_NOT_IMPLEMENTED("Operation with name ",

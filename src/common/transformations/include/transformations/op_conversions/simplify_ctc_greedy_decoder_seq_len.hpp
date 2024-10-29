@@ -37,6 +37,6 @@ class TRANSFORMATIONS_API SimplifyCTCGreedyDecoderSeqLen;
  */
 class ov::pass::SimplifyCTCGreedyDecoderSeqLen : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("SimplifyCTCGreedyDecoderSeqLen", "0");
+    OPENVINO_RTTI("SimplifyCTCGreedyDecoderSeqLen", "0", ov::pass::MatcherPass);
     SimplifyCTCGreedyDecoderSeqLen();
 };

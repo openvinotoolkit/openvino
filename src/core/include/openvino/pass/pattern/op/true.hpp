@@ -14,7 +14,7 @@ namespace op {
 /// \brief The match always succeeds.
 class OPENVINO_API True : public Pattern {
 public:
-    OPENVINO_RTTI("patternTrue");
+    OPENVINO_RTTI("patternTrue","0", Pattern);
     /// \brief Always matches, does not add node to match list.
     True() : Pattern(OutputVector{}) {}
     bool match_value(pattern::Matcher* matcher,

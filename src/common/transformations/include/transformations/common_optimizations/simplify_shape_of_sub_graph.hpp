@@ -31,7 +31,7 @@ class TRANSFORMATIONS_API AbsSinking;
  */
 class ov::pass::GroupedGatherElimination : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("GroupedGatherElimination", "0");
+    OPENVINO_RTTI("GroupedGatherElimination", "0", ov::pass::MatcherPass);
     GroupedGatherElimination();
 };
 
@@ -41,7 +41,7 @@ public:
  */
 class ov::pass::SimplifyShapeOfSubGraph : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("SimplifyShapeOfSubGraph", "0");
+    OPENVINO_RTTI("SimplifyShapeOfSubGraph", "0", ov::pass::ModelPass);
     explicit SimplifyShapeOfSubGraph(bool use_shapes = true) : m_use_shapes(use_shapes){};
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
@@ -55,7 +55,7 @@ private:
  */
 class ov::pass::GatherNopElimination : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("GatherNopElimination", "0");
+    OPENVINO_RTTI("GatherNopElimination", "0", ov::pass::MatcherPass);
     GatherNopElimination();
 };
 
@@ -67,7 +67,7 @@ public:
  */
 class ov::pass::SimplifyGatherShapeOf : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("SimplifyGatherShapeOf", "0");
+    OPENVINO_RTTI("SimplifyGatherShapeOf", "0", ov::pass::MatcherPass);
     SimplifyGatherShapeOf();
 };
 
@@ -78,7 +78,7 @@ public:
  */
 class ov::pass::SimplifySecondInputOfReshape : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("SimplifySecondInputOfReshape", "0");
+    OPENVINO_RTTI("SimplifySecondInputOfReshape", "0", ov::pass::MatcherPass);
     SimplifySecondInputOfReshape();
 };
 
@@ -90,6 +90,6 @@ public:
  */
 class ov::pass::AbsSinking : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("AbsSinking", "0");
+    OPENVINO_RTTI("AbsSinking", "0", ov::pass::MatcherPass);
     AbsSinking();
 };

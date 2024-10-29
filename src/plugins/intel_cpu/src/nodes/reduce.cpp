@@ -1867,14 +1867,14 @@ bool Reduce::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
             return false;
         }
         if (const auto reduce = std::dynamic_pointer_cast<const ov::op::util::ArithmeticReductionKeepDims>(op)) {
-            auto reduceConst = std::dynamic_pointer_cast<const ov::opset1::Constant>(reduce->get_input_node_shared_ptr(REDUCE_INDEXES));
+            auto reduceConst = ov::as_type_ptr<const ov::opset1::Constant>(reduce->get_input_node_shared_ptr(REDUCE_INDEXES));
             if (!reduceConst) {
                 errorMessage = "Second tensor is not constant";
                 return false;
             }
         }
         if (const auto reduce = std::dynamic_pointer_cast<const ov::op::util::LogicalReductionKeepDims>(op)) {
-            auto reduceConst = std::dynamic_pointer_cast<const ov::opset1::Constant>(reduce->get_input_node_shared_ptr(REDUCE_INDEXES));
+            auto reduceConst = ov::as_type_ptr<const ov::opset1::Constant>(reduce->get_input_node_shared_ptr(REDUCE_INDEXES));
             if (!reduceConst) {
                 errorMessage = "Second tensor is not constant";
                 return false;
@@ -1884,7 +1884,7 @@ bool Reduce::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
             errorMessage = "Doesn't support Reduce algorithm: " +  std::string(op->get_type_info().name);
             return false;
         }
-        if (std::dynamic_pointer_cast<ov::opset1::Constant>(op->get_input_node_shared_ptr(REDUCE_INDEXES)) == nullptr) {
+        if (ov::as_type_ptr<ov::opset1::Constant>(op->get_input_node_shared_ptr(REDUCE_INDEXES)) == nullptr) {
             errorMessage = "Only const 'reduce_indexes' input is supported";
             return false;
         }
@@ -1902,13 +1902,13 @@ Reduce::Reduce(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr con
         getInitializers().at(op->get_type_info())(op, *this);
         if (const auto reduce = std::dynamic_pointer_cast<ov::op::util::ArithmeticReductionKeepDims>(op)) {
             keep_dims = reduce->get_keep_dims();
-            auto reduceConst = std::dynamic_pointer_cast<const ov::opset1::Constant>(reduce->get_input_node_shared_ptr(REDUCE_INDEXES));
+            auto reduceConst = ov::as_type_ptr<const ov::opset1::Constant>(reduce->get_input_node_shared_ptr(REDUCE_INDEXES));
             if (!reduceConst)
                 OPENVINO_THROW(errorPrefix, " second tensor is not constant!");
             raw_axes = reduceConst->cast_vector<int>();
         } else if (const auto reduce = std::dynamic_pointer_cast<ov::op::util::LogicalReductionKeepDims>(op)) {
             keep_dims = reduce->get_keep_dims();
-            auto reduceConst = std::dynamic_pointer_cast<const ov::opset1::Constant>(reduce->get_input_node_shared_ptr(REDUCE_INDEXES));
+            auto reduceConst = ov::as_type_ptr<const ov::opset1::Constant>(reduce->get_input_node_shared_ptr(REDUCE_INDEXES));
             if (!reduceConst)
                 OPENVINO_THROW(errorPrefix, " second tensor is not constant!");
             raw_axes = reduceConst->cast_vector<int>();

@@ -25,6 +25,6 @@ class TRANSFORMATIONS_API SoftPlusToMishFusion;
  */
 class ov::pass::SoftPlusToMishFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("SoftPlusToMishFusion", "0");
+    OPENVINO_RTTI("SoftPlusToMishFusion", "0", ov::pass::MatcherPass);
     SoftPlusToMishFusion();
 };

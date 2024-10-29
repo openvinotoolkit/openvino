@@ -11,7 +11,7 @@ namespace intel_gpu {
 
 class UnsqueezeBroadcastReshapeSDPAFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("UnsqueezeBroadcastReshapeSDPAFusion", "0");
+    OPENVINO_RTTI("UnsqueezeBroadcastReshapeSDPAFusion", "0", ov::pass::MatcherPass);
     UnsqueezeBroadcastReshapeSDPAFusion();
 };
 

@@ -19,6 +19,6 @@ class TRANSFORMATIONS_API DisableShapeOfConstantFolding;
 
 class ov::pass::DisableShapeOfConstantFolding : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("DisableShapeOfConstantFolding", "0");
+    OPENVINO_RTTI("DisableShapeOfConstantFolding", "0", ov::pass::MatcherPass);
     explicit DisableShapeOfConstantFolding(bool check_shape = true);
 };

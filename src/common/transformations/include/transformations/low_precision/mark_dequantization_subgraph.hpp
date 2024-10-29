@@ -21,7 +21,7 @@ namespace pass {
  */
 class TRANSFORMATIONS_API MarkDequantizationSubgraph : public MatcherPass {
 public:
-    OPENVINO_RTTI("MarkDequantizationSubgraph", "0");
+    OPENVINO_RTTI("MarkDequantizationSubgraph", "0", MatcherPass);
     MarkDequantizationSubgraph(const element::TypeVector& precisions,
                                const bool fold_subtract_const = false,
                                const bool disable_fold_multiply_const = false);

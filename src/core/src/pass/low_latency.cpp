@@ -251,14 +251,14 @@ bool ov::pass::LowLatency2::run_on_model(const std::shared_ptr<Model>& f) {
             const auto& params = func->get_parameters();
             for (const auto& in : sub_graph_op->get_input_descriptions()) {
                 // Process all back edges
-                if (const auto& merged_in = std::dynamic_pointer_cast<SubGraphOp::MergedInputDescription>(in)) {
+                if (const auto& merged_in = ov::as_type_ptr<SubGraphOp::MergedInputDescription>(in)) {
                     // create new Variable
                     const std::string& param_name = params.at(merged_in->m_body_parameter_index)->get_friendly_name();
                     const std::string& var_name =
                         generate_variable_name(sub_graph_op->get_friendly_name(), param_name, variable_id);
 
                     const auto& input = sub_graph_op->input(merged_in->m_input_index);
-                    if (std::dynamic_pointer_cast<ReadValueBase>(input.get_source_output().get_node_shared_ptr()) !=
+                    if (ov::as_type_ptr<ReadValueBase>(input.get_source_output().get_node_shared_ptr()) !=
                         nullptr) {
                         OPENVINO_DEBUG(msg_low_latency_2_already_applied);
                         return false;
@@ -267,7 +267,7 @@ bool ov::pass::LowLatency2::run_on_model(const std::shared_ptr<Model>& f) {
                     const auto& param =
                         sub_graph_op->get_function()->get_parameters().at(merged_in->m_body_parameter_index);
                     for (const auto& in_to : param->output(0).get_target_inputs()) {
-                        if (dynamic_cast<ReadValueBase*>(in_to.get_node()) != nullptr) {
+                        if (ov::as_type<ReadValueBase>(in_to.get_node()) != nullptr) {
                             OPENVINO_DEBUG(msg_low_latency_already_applied);
                             return false;
                         }

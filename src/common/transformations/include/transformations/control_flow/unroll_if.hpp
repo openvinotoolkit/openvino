@@ -26,6 +26,6 @@ class TRANSFORMATIONS_API UnrollIf;
 
 class ov::pass::UnrollIf : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("UnrollIf", "0");
+    OPENVINO_RTTI("UnrollIf", "0", ov::pass::ModelPass);
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };

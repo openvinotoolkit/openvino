@@ -21,6 +21,6 @@ class TRANSFORMATIONS_API ConvertU4WeightsZeroPointToScalar;
  */
 class ov::pass::ConvertU4WeightsZeroPointToScalar : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertU4WeightsZeroPointToScalar", "0");
+    OPENVINO_RTTI("ConvertU4WeightsZeroPointToScalar", "0", ov::pass::MatcherPass);
     ConvertU4WeightsZeroPointToScalar();
 };

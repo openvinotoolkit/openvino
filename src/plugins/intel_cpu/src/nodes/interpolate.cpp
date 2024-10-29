@@ -1797,7 +1797,7 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "Interpolate node with name '" + getName() + "'";
         dataRank = getInputShapeAtPort(DATA_ID).getRank();
-        if (const auto interp = std::dynamic_pointer_cast<const ov::opset4::Interpolate>(op)) {
+        if (const auto interp = ov::as_type_ptr<const ov::opset4::Interpolate>(op)) {
             is_version11 = false;
             const auto numInputs = inputShapes.size();
             if (numInputs != 3 && numInputs != 4)

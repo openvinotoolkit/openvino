@@ -61,7 +61,7 @@ convert_lstm_peepholes_format(const Output<Node>& node,
 ///
 class OPENVINO_API RNNCellBase : public Op {
 public:
-    OPENVINO_OP("RNNCellBase", "util");
+    OPENVINO_OP("RNNCellBase", "util", Op);
 
     ///
     /// \brief      Constructs a RNNCellBase class.

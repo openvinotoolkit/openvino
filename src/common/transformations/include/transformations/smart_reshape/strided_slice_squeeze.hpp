@@ -27,7 +27,7 @@ class TRANSFORMATIONS_API SqueezeStridedSlice;
 
 class ov::pass::StridedSliceSqueeze : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("StridedSliceSqueeze", "0");
+    OPENVINO_RTTI("StridedSliceSqueeze", "0", ov::pass::MatcherPass);
     StridedSliceSqueeze();
 };
 
@@ -39,6 +39,6 @@ public:
 
 class ov::pass::SqueezeStridedSlice : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("SqueezeStridedSlice", "0");
+    OPENVINO_RTTI("SqueezeStridedSlice", "0", ov::pass::MatcherPass);
     SqueezeStridedSlice();
 };
