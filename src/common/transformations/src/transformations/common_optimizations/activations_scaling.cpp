@@ -79,26 +79,40 @@ ov::pass::ScaleDownSingleLayer::ScaleDownSingleLayer(float scale_factor) {
         auto scale_down = std::make_shared<ov::op::v1::Multiply>(
             scaled_op->input(0).get_source_output(),
             (scaled_op->input(0).get_element_type() == ov::element::f32) ? scale_down_const_f32 : scale_down_const_f16);
+        scale_down->set_friendly_name(scaled_op->get_friendly_name() + "_scale_down");
+        ov::copy_runtime_info(scaled_op, scale_down);
         scaled_op->input(0).replace_source_output(scale_down->output(0));
 
         auto child = scaled_op->get_output_target_inputs(0).begin()->get_node();
         if (scaled_op->get_output_target_inputs(0).size() == 1 && ov::is_type<ov::op::v1::Add>(child)) {
             auto add = child->shared_from_this();
+            auto target_inputs = add->get_output_target_inputs(0);
             auto scale_down_bias = std::make_shared<ov::op::v1::Multiply>(
                 add->input(1).get_source_output(),
                 (add->input(1).get_element_type() == ov::element::f32) ? scale_down_const_f32 : scale_down_const_f16);
+            scale_down_bias->set_friendly_name(add->get_friendly_name() + "_scale_down");
+            ov::copy_runtime_info(add, scale_down_bias);
             add->input(1).replace_source_output(scale_down_bias->output(0));
 
-            auto scale_up = std::make_shared<ov::op::v1::Multiply>(
+            auto scale_up = register_new_node<ov::op::v1::Multiply>(
                 add->output(0),
                 (add->output(0).get_element_type() == ov::element::f32) ? scale_up_const_f32 : scale_up_const_f16);
-            ov::replace_node(add, scale_up);
+            scale_up->set_friendly_name(scaled_op->get_friendly_name() + "_scale_up");
+            ov::copy_runtime_info(scaled_op, scale_up);
+            for (auto& in : target_inputs) {
+                in.replace_source_output(scale_up);
+            }
         } else {
-            auto scale_up = std::make_shared<ov::op::v1::Multiply>(
+            auto target_inputs = scaled_op->get_output_target_inputs(0);
+            auto scale_up = register_new_node<ov::op::v1::Multiply>(
                 scaled_op->output(0),
                 (scaled_op->output(0).get_element_type() == ov::element::f32) ? scale_up_const_f32
                                                                               : scale_up_const_f16);
-            ov::replace_node(scaled_op, scale_up);
+            scale_up->set_friendly_name(scaled_op->get_friendly_name() + "_scale_up");
+            ov::copy_runtime_info(scaled_op, scale_up);
+            for (auto& in : target_inputs) {
+                in.replace_source_output(scale_up);
+            }
         }
 
         return true;
@@ -144,6 +158,7 @@ ov::pass::MulMulAddFusion::MulMulAddFusion() {
         if (transformation_callback(add)) {
             return false;
         }
+        auto target_inputs = add->get_output_target_inputs(0);
 
         auto scale_const0 =
             std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(scale_const0_m).get_node_shared_ptr());
@@ -156,9 +171,10 @@ ov::pass::MulMulAddFusion::MulMulAddFusion() {
         mul0->input(1).replace_source_output(
             ov::op::util::eltwise_fold<ov::op::v1::Divide>(scale_const0, scale_const1));
         add->input(1).replace_source_output(mul1->get_input_source_output(0));
-
-        auto new_mul = register_new_node<ov::op::v1::Multiply>(add, scale_const1);
-        replace_node(add, new_mul);
+        mul1->input(0).replace_source_output(add);
+        for (auto& in : target_inputs) {
+            in.replace_source_output(mul1);
+        }
 
         return true;
     };

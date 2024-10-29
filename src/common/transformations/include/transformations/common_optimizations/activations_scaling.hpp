@@ -20,6 +20,7 @@ class TRANSFORMATIONS_API MulMulAddFusion;
 }  // namespace pass
 }  // namespace ov
 
+// ActivationsScaling scales down activations to prevent overflow due to the limited range of FP16
 class ov::pass::ActivationsScaling : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("ActivationsScaling", "0");
