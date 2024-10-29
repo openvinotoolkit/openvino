@@ -7,8 +7,8 @@
 #include <optional>
 
 #include "common.hpp"
-#include "intel_npu/al/config/config.hpp"
-#include "intel_npu/al/config/npuw.hpp"
+#include "intel_npu/config/config.hpp"
+#include "intel_npu/config/npuw.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -148,8 +148,6 @@ private:
         execution_stats stat;
     };
     std::vector<CompiledModelDesc> m_compiled_submodels;
-
-    bool m_update_required;
 
     std::function<bool(const ov::SoPtr<ov::ITensor>&, const ov::SoPtr<ov::ITensor>&)> m_acc_check;
     std::string m_ref_device;

@@ -239,8 +239,7 @@ void AutoSchedule::init() {
                 std::pair<int, WorkerInferRequest*> worker;
                 std::list<Time> cpuhelp_all_start_times;
                 std::list<Time> cpuhelp_all_end_times;
-                std::chrono::duration<double, std::milli> first_infer_time =
-                    std::chrono::duration<double, std::milli>(0.0);
+                auto first_infer_time = std::chrono::duration<double, std::milli>(0.0);
                 while (m_idle_worker_requests["CPU_HELP"].try_pop(worker)) {
                     destroynum++;
                     INFO_RUN([&cpuhelp_all_start_times, &cpuhelp_all_end_times, &worker]() {
@@ -249,11 +248,13 @@ void AutoSchedule::init() {
                     });
                 }
                 INFO_RUN([this, &first_infer_time, &cpuhelp_all_start_times, &cpuhelp_all_end_times]() {
-                    first_infer_time = cpuhelp_all_end_times.front() - cpuhelp_all_start_times.front();
-                    cpuhelp_all_start_times.sort(std::less<Time>());
-                    cpuhelp_all_end_times.sort(std::less<Time>());
                     m_cpuhelp_infer_count = cpuhelp_all_start_times.size();
                     OPENVINO_ASSERT(m_cpuhelp_infer_count == cpuhelp_all_end_times.size());
+                    if (m_cpuhelp_infer_count != 0) {
+                        first_infer_time = cpuhelp_all_end_times.front() - cpuhelp_all_start_times.front();
+                    }
+                    cpuhelp_all_start_times.sort(std::less<Time>());
+                    cpuhelp_all_end_times.sort(std::less<Time>());
                 });
                 if (destroynum == m_worker_requests["CPU_HELP"].size()) {
                     std::lock_guard<std::mutex> lock(m_context->m_mutex);
@@ -263,9 +264,10 @@ void AutoSchedule::init() {
                             // remove last worksize num requests, so the fps will be more accuracy
                             cpuhelp_all_start_times.resize(m_cpuhelp_infer_count - destroynum);
                             cpuhelp_all_end_times.resize(m_cpuhelp_infer_count - destroynum);
-                            std::chrono::duration<double, std::milli> durtation =
-                                cpuhelp_all_end_times.back() - cpuhelp_all_start_times.front();
-                            m_cpuhelp_fps = cpuhelp_all_start_times.size() * 1000 / durtation.count();
+                            auto duration = m_cpuhelp_infer_count != 0
+                                                ? std::chrono::duration<double, std::milli>(0.0)
+                                                : cpuhelp_all_end_times.back() - cpuhelp_all_start_times.front();
+                            m_cpuhelp_fps = cpuhelp_all_start_times.size() * 1000 / duration.count();
                             LOG_INFO_TAG("CPU_HELP: first inference time:%lf ms", first_infer_time.count());
                             LOG_INFO_TAG("CPU_HELP:infer:%ld", m_cpuhelp_infer_count);
                             LOG_INFO_TAG("CPU_HELP:fps:%lf", m_cpuhelp_fps);

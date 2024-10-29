@@ -11,12 +11,8 @@
 
 #include <string_view>
 
-#include "intel_npu/al/config/runtime.hpp"
+#include "intel_npu/config/runtime.hpp"
 
-/**
- * @brief Last version of Table of Graph Extension functions used within plugin
- */
-using ze_graph_dditable_ext_last_t = ze_graph_dditable_ext_1_8_t;
 /**
  * @brief Last version of the Command Queue functions used within plugin
  */
@@ -34,7 +30,7 @@ using ze_graph_profiling_dditable_ext_last_t = ze_graph_profiling_dditable_ext_t
  */
 struct ze_graph_dditable_ext_decorator final {
 private:
-    ze_graph_dditable_ext_last_t* const _impl;
+    ze_graph_dditable_ext_t* const _impl;
     const uint32_t _driverExtVersion;
 
     ze_graph_dditable_ext_decorator(const ze_graph_dditable_ext_decorator&) = delete;
@@ -53,7 +49,7 @@ private:
     }
 
 public:
-    ze_graph_dditable_ext_decorator(ze_graph_dditable_ext_last_t* impl, uint32_t driverExtVersion)
+    ze_graph_dditable_ext_decorator(ze_graph_dditable_ext_t* impl, uint32_t driverExtVersion)
         : _impl(impl),
           _driverExtVersion(driverExtVersion),
           // version 1.0

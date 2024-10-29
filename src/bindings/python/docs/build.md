@@ -1,9 +1,18 @@
 # Building the OpenVINO™ Python API
 
 **Refer to ["How to build OpenVINO" in OpenVINO™ developer documentation](../../../../docs/dev/build.md) for general building instructions.**
-
 For each platform, you can build and install the API as a part of OpenVINO™ Toolkit or as a Python wheel.
-A Python wheel is a portable package that allows you to install OpenVINO™ in either your Python distribution or a dedicated virtual environment.
+
+## Using Python Wheels for OpenVINO™
+Wheels are portable Python packages that are ready to install upon download. They are the commonly used binary distributions in Python as they avoid the compiling of extension modules and associated dependency issues on the user end. As a result, wheels installation is faster and smoother, simplifying the process for both developers and users. The ```.whl``` format is the default preference for ```pip``` when you run a ```pip install``` command.
+
+OpenVINO wheels for various platforms are available on [PyPI](https://pypi.org/project/openvino/#files), enabling you to install OpenVINO™ in your Python distribution or a dedicated virtual environment.
+
+OpenVINO builds two different wheels with separate ```setup.py``` files for [```openvino```](../wheel/setup.py) and [```openvino-dev```](../../../../tools/openvino_dev/setup.py). To build the wheels while building the project from source, your ```cmake``` command should include ```-DENABLE_PYTHON=ON``` and ```-DENABLE_WHEEL=ON```. Once built, the wheels can be found under ```openvino_install_dir/tools```.
+
+While wheels make installation easier, using wheels for development offers less customization than building from source and exporting ```PYTHONPATH``` and other environment variables to OpenVINO directories. Wheels are usually provided for specific packaged versions and might not contain the most recent changes that are available if you choose to clone the repository and build it yourself.
+
+To learn more about wheels and their use cases, check out the article [What Are Python Wheels and Why Should You Care?](https://realpython.com/python-wheels/).
 
 ## Virtual environments
 
@@ -38,7 +47,9 @@ OpenVINO can be built based on specific virtual environments such as [venv](http
 
 5. Install developer requirements for OpenVINO™ Python API while inside virtual environment:
     ```shell
-    cd <openvino_repo>
+    git clone https://github.com/openvinotoolkit/openvino.git
+    cd openvino
+    git submodule update --init --recursive
     pip install -r src/bindings/python/requirements.txt
     pip install -r src/bindings/python/requirements_test.txt
     ```
