@@ -142,11 +142,15 @@ std::string rankToLegacyLayoutString(const size_t rank) {
 
 namespace intel_npu {
 
-DriverCompilerAdapter::DriverCompilerAdapter(const std::shared_ptr<IEngineBackend>& iEngineBackend)
+DriverCompilerAdapter::DriverCompilerAdapter(const std::shared_ptr<IEngineBackend>& backend)
     : _logger("DriverCompilerAdapter", Logger::global().level()) {
     _logger.debug("initialize DriverCompilerAdapter start");
 
-    auto zeroBackend = std::dynamic_pointer_cast<ZeroEngineBackend>(iEngineBackend);
+    if (backend->getName() != "LEVEL0") {
+        OPENVINO_THROW("NPU Compiler Adapter must be used with LEVEL0 backend");
+    }
+
+    auto zeroBackend = std::dynamic_pointer_cast<ZeroEngineBackend>(backend);
     if (!zeroBackend) {
         OPENVINO_THROW("DriverCompilerAdapter init failed to cast zeroBackend, zeroBackend is a nullptr");
     }

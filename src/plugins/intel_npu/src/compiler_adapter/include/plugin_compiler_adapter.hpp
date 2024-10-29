@@ -16,7 +16,7 @@ namespace intel_npu {
 
 class PluginCompilerAdapter final : public ICompilerAdapter {
 public:
-    PluginCompilerAdapter(const std::shared_ptr<IEngineBackend>& iEngineBackend);
+    PluginCompilerAdapter(const std::shared_ptr<IEngineBackend>& backend);
 
     std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
 

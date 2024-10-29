@@ -53,7 +53,7 @@ ov::SoPtr<intel_npu::ICompiler> loadCompiler(const std::string& libpath) {
 
 namespace intel_npu {
 
-PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<IEngineBackend>& iEngineBackend)
+PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<IEngineBackend>& backend)
     : _logger("PluginCompilerAdapter", Logger::global().level()) {
     _logger.debug("initialize PluginCompilerAdapter start");
 
@@ -62,11 +62,11 @@ PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<IEngineBacken
     auto libPath = ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(), baseName + OV_BUILD_POSTFIX);
     _compiler = loadCompiler(libPath);
 
-    if (iEngineBackend == nullptr) {
+    if (backend->getName() != "LEVEL0") {
         return;
     }
 
-    auto zeroBackend = std::dynamic_pointer_cast<ZeroEngineBackend>(iEngineBackend);
+    auto zeroBackend = std::dynamic_pointer_cast<ZeroEngineBackend>(backend);
     if (zeroBackend == nullptr) {
         return;
     }

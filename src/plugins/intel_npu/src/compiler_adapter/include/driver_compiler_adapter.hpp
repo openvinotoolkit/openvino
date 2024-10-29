@@ -22,7 +22,7 @@ namespace intel_npu {
 
 class DriverCompilerAdapter final : public ICompilerAdapter {
 public:
-    DriverCompilerAdapter(const std::shared_ptr<IEngineBackend>& iEngineBackend);
+    DriverCompilerAdapter(const std::shared_ptr<IEngineBackend>& backend);
 
     std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
 
