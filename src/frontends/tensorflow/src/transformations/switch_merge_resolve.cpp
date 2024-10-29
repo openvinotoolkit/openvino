@@ -235,6 +235,9 @@ bool pass::SwitchMergeResolver::run_on_model(const shared_ptr<Model>& m) {
         auto else_body = make_shared<Model>(else_results, else_params);
 
         auto if_op = make_shared<v8::If>(cond);
+        // in case TensorFlow models, we can deduce predicate shape that must be a scalar
+        if_op->get_rt_info()["tf_switch_merge_if"] = true;
+
         set_cf_marker(if_cf_marker, if_op);
         if_op->set_then_body(then_body);
         if_op->set_else_body(else_body);

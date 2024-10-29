@@ -282,6 +282,15 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
                 if_op->get_input_tensor(0).m_element_type = element::boolean;
                 is_changed = true;
             }
+
+            // in case TensorFlow models, we can deduce predicate shape that must be a scalar
+            // If operations created by fusing Switch-Merge sub-graph contain tf_switch_merge_if rt-info
+            if (if_op->get_rt_info().count("tf_switch_merge_if") &&
+                if_op->get_rt_info()["tf_switch_merge_if"].as<bool>() &&
+                if_op->input_value(0).get_partial_shape().rank().is_dynamic()) {
+                if_op->get_input_tensor(0).m_partial_shape = ov::PartialShape({});
+                is_changed = true;
+            }
         } else if (ov::as_type_ptr<ov::op::v1::ConvertLike>(op)) {
             is_changed |= inherit_output_shape(op, {0});
             is_changed |= inherit_output_type(op, {1});
