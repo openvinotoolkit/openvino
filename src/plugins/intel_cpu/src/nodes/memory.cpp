@@ -377,7 +377,8 @@ bool MemoryInputBase::isSupportedOperation(const std::shared_ptr<const ov::Node>
 }
 
 MemoryInputBase::MemoryInputBase(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr ctx)
-        : Input(op, ctx), MemoryStateNode(op) {
+    : Input(op, ctx),
+      MemoryStateNode(op) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
@@ -385,6 +386,7 @@ MemoryInputBase::MemoryInputBase(const std::shared_ptr<ov::Node>& op, const Grap
     if (created()) {
         context->getMemoryStatesRegister()->registerInput(this);
     }
+    executeHook = &MemoryInputBase::assignState;
 }
 
 MemoryInputBase::MemoryInputBase(const std::string id,
@@ -394,8 +396,10 @@ MemoryInputBase::MemoryInputBase(const std::string id,
                                  const ov::element::Type& output_prc,
                                  const GraphContext::CPtr context,
                                  const ov::optional<Shape>& input_shape,
-                                 const ov::optional<ov::element::Type>& input_prc) :
-    Input(output_shape, output_prc, name, type, context), MemoryStateNode(id) {
+                                 const ov::optional<ov::element::Type>& input_prc,
+                                 MemoryInputBase::mode mode)
+    : Input(output_shape, output_prc, name, type, context),
+      MemoryStateNode(id) {
     outputShapes.emplace_back(output_shape);
     addOriginalOutputPrecision(output_prc);
     if (input_shape) {
@@ -410,6 +414,17 @@ MemoryInputBase::MemoryInputBase(const std::string id,
     }
     if (created()) {
         context->getMemoryStatesRegister()->registerInput(this);
+    }
+
+    // this important to prevent identifying it as a const when it's on a const path
+    constant = ConstantType::StrictNoConst;
+
+    if (mode::read_value_assign == mode) {
+        executeHook = &MemoryInputBase::assignState;
+    } else if (mode::single_read_value == mode) {
+        executeHook = &MemoryInputBase::bypassAssignState;
+    } else {
+        THROW_CPU_NODE_ERR("Unexpected MemoryInput mode");
     }
 }
 
@@ -513,13 +528,24 @@ void MemoryInputBase::assignState(MemStatePtr newState) {
 }
 
 void MemoryInputBase::execute(dnnl::stream strm) {
-    getOutputNode().assignState(getAssignedState());
+    assert(executeHook && "executeHook is not initialized!");
+    (this->*executeHook)();
     runStatic(strm);
 }
 
 void MemoryInputBase::executeDynamicImpl(dnnl::stream strm) {
-    getOutputNode().assignState(getAssignedState());
+    assert(executeHook && "executeHook is not initialized!");
+    (this->*executeHook)();
     runDynamic(strm);
+}
+
+void MemoryInputBase::assignState() {
+    getOutputNode().assignState(getAssignedState());
+}
+
+void MemoryInputBase::bypassAssignState() {
+    // nothing to do
+    return;
 }
 
 bool MemoryInput::needInitGraphProcessing() const {
@@ -826,6 +852,89 @@ void MemoryInputSDPA::resolveInPlaceEdges(Edge::LOOK look) {
             edge->reuse(edgeMem);
         }
     }
+}
+
+MemoryInputSingle::MemoryInputSingle(const std::string id,
+                                     const std::string& name,
+                                     const std::string& type,
+                                     const Shape& output_shape,
+                                     const ov::element::Type& output_prc,
+                                     const GraphContext::CPtr context,
+                                     const ov::optional<Shape>& input_shape,
+                                     const ov::optional<ov::element::Type>& input_prc)
+    : MemoryInput(id,
+                  name,
+                  type,
+                  output_shape,
+                  output_prc,
+                  context,
+                  input_shape,
+                  input_prc,
+                  MemoryInputBase::mode::single_read_value) {}
+
+MemStatePtr MemoryInputSingle::makeState() const {
+    // assume ov::Tensor is always dense
+    auto original_desc =
+        std::make_shared<CpuBlockedMemoryDesc>(getOriginalOutputPrecisionAtPort(0), outputShapes.at(0));
+
+    auto mem_desc = getBaseMemDescAtOutputPort(0);
+    const auto& eng = getEngine();
+
+    auto state_name = getId();
+
+    // Remove suffix with pair ID. Internal information.
+    auto suffix_idx = state_name.find("/id=");
+    if (suffix_idx != std::string::npos) {
+        state_name = state_name.substr(0, suffix_idx);
+    }
+
+    return std::make_shared<VariableStateSingleBuffer>(state_name,
+                                                       std::make_shared<Memory>(eng, mem_desc),
+                                                       original_desc);
+}
+
+void MemoryInputSingle::runStatic(dnnl::stream strm) {
+    MemoryInput::runStatic(strm);
+    if (needInitGraphProcessing()) {
+        // since there is no corresponding MemoryOutput node, we need to update the state here
+        auto result = getDstMemoryAtPort(0); // only one output port
+        auto stateMem = getAssignedState()->output_mem();
+        CPU_NODE_ASSERT(stateMem, " state memory has nullptr");
+        if (result->getData() != stateMem->getData()) {
+            stateMem->load(*result);
+        }
+    }
+    getAssignedState()->commit(); // since we don't use MemoryOutput, commit must be called to change the reset state
+}
+
+void MemoryInputSingle::runDynamic(dnnl::stream strm) {
+    MemoryInput::runDynamic(strm);
+    if (needInitGraphProcessing()) {
+        // since there is no corresponding MemoryOutput node, we need to update the state here
+        auto result = getDstMemoryAtPort(0); // only one output port
+        auto state = getAssignedState();
+        auto stateMem = state->output_mem();
+        CPU_NODE_ASSERT(stateMem, " state memory has nullptr");
+
+        const auto& newShape = result->getShape();
+        const auto& stateShape = stateMem->getShape();
+
+        if (stateShape.isDynamic() || stateShape.getStaticDims() != newShape.getStaticDims()) {
+            auto extMemDesc = state->internal_desc();
+            auto newExternDesc = extMemDesc->cloneWithNewDims(newShape.getStaticDims());
+            stateMem->redefineDesc(newExternDesc);
+        }
+
+        if (result->getData() != stateMem->getData()) {
+            stateMem->load(*result);
+        }
+    }
+    getAssignedState()->commit(); // since we don't use MemoryOutput, commit must be called to change the reset state
+}
+
+bool MemoryInputSingle::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
+                                             std::string& errorMessage) noexcept {
+    return MemoryInput::isSupportedOperation(op, errorMessage);
 }
 
 }  // namespace node
