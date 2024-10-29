@@ -17,29 +17,32 @@ SearchSorted
 
 **Attributes**
 
-* *right*
+* *right_mode*
 
-  * **Description**: If False, set the first suitable index. If True, return the last suitable index for given value. Default is False.
-  * **Range of values**: true or false
-  * **Type**: boolean
+  * **Description**: flag to control whether output would contain leftmost or rightmost indices for given values.
+  * **Range of values**:
+
+    * *true* - return the rightmost (last) suitable index for given value.
+    * *false* - return the leftmost (first) suitable index for given value.
+  * **Type**: ``boolean``
   * **Default value**: false
   * **Required**: *no*
 
 **Inputs**:
 
-* **1**: ``sorted`` - ND input tensor of type *T* - cannot be a scalar, containing monotonically increasing sequence on the innermost dimension. **Required.**
+* **1**: ``sorted_sequence`` - ND input tensor of type *T* - cannot be a scalar, containing monotonically increasing sequence on the innermost dimension. **Required.**
 
 * **2**: ``values`` - ND input tensor of type *T*, containing the search values. If sorted sequence is 1D, then the values can have any shape, otherwise the rank should be equal to the rank of sorted input. **Required.**
 
 **Outputs**:
 
-* **1**: Tensor of type *TOut*, with the same shape as second input tensor, containing the indices.
+* **1**: Tensor of type *T_IND*, with the same shape as second input tensor ``values``, containing the indices.
 
 **Types**
 
 * *T*: any supported floating-point and integer type.
 
-* *TOut*: int64.
+* *T_IND*: ``int64``.
 
 **Example**
 
@@ -47,7 +50,7 @@ SearchSorted
    :force:
 
    <layer ... type="SearchSorted" ... >
-       <data right="True"/>
+       <data right_mode="true"/>
        <input>
            <port id="0">
                <dim>7</dim>
@@ -63,7 +66,7 @@ SearchSorted
            </port>
        </input>
        <output>
-           <port id="0" precision="I64">
+           <port id="2" precision="I64">
                <dim>7</dim>
                <dim>256</dim>
                <dim>200</dim>
