@@ -46,17 +46,23 @@ FullyConnectedPerLayerScaling::FullyConnectedPerLayerScaling(float scale_factor)
 
         std::shared_ptr<ov::Node> scale_down_const = (data->get_element_type() == ov::element::f16) ? scale_down_const_f16 : scale_down_const_f32;
         auto scale_down = std::make_shared<ov::op::v1::Multiply>(data, scale_down_const);
+        scale_down->set_friendly_name(fc->get_friendly_name() + "_scale_down");
+        ov::copy_runtime_info(fc, scale_down);
         fc->input(0).replace_source_output(scale_down->output(0));
 
         // If FC has bias as input, scaling must be applied to bias as well
         if (!std::dynamic_pointer_cast<op::Placeholder>(bias)) {
             std::shared_ptr<ov::Node> bias_scale_down_const = (bias->get_element_type() == ov::element::f16) ? scale_down_const_f16 : scale_down_const_f32;
             auto bias_scale_down = std::make_shared<ov::op::v1::Multiply>(bias, bias_scale_down_const);
+            bias_scale_down->set_friendly_name(fc->get_friendly_name() + "_bias_scale_down");
+            ov::copy_runtime_info(fc, bias_scale_down);
             fc->input(2).replace_source_output(bias_scale_down->output(0));
         }
 
         std::shared_ptr<ov::Node> scale_up_const = (fc->get_element_type() == ov::element::f16) ? scale_up_const_f16 : scale_up_const_f32;
         auto scale_up = std::make_shared<ov::op::v1::Multiply>(fc, scale_up_const);
+        scale_up->set_friendly_name(fc->get_friendly_name() + "_scale_up");
+        ov::copy_runtime_info(fc, scale_up);
         ov::replace_node(fc, scale_up);
 
         return true;
