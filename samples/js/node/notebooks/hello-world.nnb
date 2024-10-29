@@ -17,7 +17,7 @@
         {
             "language": "javascript",
             "source": [
-                "const { cv } = require('opencv-wasm');\nconst { display } = require('node-kernel');\nconst { addon: ov } = require('openvino-node');\n\nconst Image = require('../image.js');\nconst imagenetClassesMap = require('../../assets/datasets/imagenet_class_index.json');\n"
+                "const { display } = require('node-kernel');\nconst { addon: ov } = require('openvino-node');\n\nconst Image = require('../image.js');\nconst imagenetClassesMap = require('../../assets/datasets/imagenet_class_index.json');\n"
             ],
             "outputs": []
         },
