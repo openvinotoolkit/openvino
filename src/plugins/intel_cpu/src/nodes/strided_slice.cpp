@@ -348,6 +348,7 @@ StridedSlice::StridedSliceCommonExecutor::StridedSliceCommonExecutor(const Strid
     dimsNormalization();
     dimsGluing();
     indicesCalculation();
+    m_threads_num = parallel_get_max_threads();
 }
 
 void StridedSlice::StridedSliceCommonExecutor::orderParametersByLayouts(const BlockedMemoryDescCPtr& blockedMemoryDesc) {
@@ -642,8 +643,7 @@ void StridedSlice::StridedSliceCommonExecutor::dimsGluing() {
         for (size_t idx = secondDim.first + 1; idx < secondDim.second; idx++)
             params.attrs.begin[1] /= dstBlockedDimsBefore[idx];
 
-        const size_t maxThreads = parallel_get_max_threads();
-        if (params.dstBlockedDims[0] < maxThreads) {
+        if (params.dstBlockedDims[0] < m_threads_num) {
             params.dstBlockedDims[1] /= realDstDim;
             params.srcBlockedDims[1] /= realSrcDim;
             params.dstBlockedDims.insert(params.dstBlockedDims.begin() + 1, realDstDim);
@@ -682,8 +682,7 @@ void StridedSlice::StridedSliceCommonExecutor::indicesCalculation() {
     dstIndices.resize(workAmount, 0);
 
     // should choose more optimal thread count
-    const size_t nthr = parallel_get_max_threads();
-    nThreads = nthr > workAmount ? workAmount : nthr;
+    nThreads = m_threads_num > workAmount ? workAmount : m_threads_num;
 
     if (params.isOptimized) {
         indicesCalculationForOptimized();
