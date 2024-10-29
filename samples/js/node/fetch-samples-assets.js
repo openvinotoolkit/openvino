@@ -11,7 +11,7 @@ const models = [
   '/repositories/open_model_zoo/2022.3/models_bin/1/road-segmentation-adas-0001/FP32/road-segmentation-adas-0001.xml',
   '/repositories/open_model_zoo/2022.3/models_bin/1/road-segmentation-adas-0001/FP32/road-segmentation-adas-0001.bin',
 
-  // optical character recognition
+  // hello detection, optical character recognition
   '/repositories/open_model_zoo/2022.3/models_bin/1/horizontal-text-detection-0001/FP32/horizontal-text-detection-0001.xml',
   '/repositories/open_model_zoo/2022.3/models_bin/1/horizontal-text-detection-0001/FP32/horizontal-text-detection-0001.bin',
 
@@ -21,6 +21,10 @@ const models = [
   // vision background removal
   '/repositories/open_model_zoo/public/vision-background-removal/unet_ir_model.xml',
   '/repositories/open_model_zoo/public/vision-background-removal/unet_ir_model.bin',
+
+  // pose estimation
+  '/repositories/open_model_zoo/2022.1/models_bin/3/human-pose-estimation-0001/FP16-INT8/human-pose-estimation-0001.xml',
+  '/repositories/open_model_zoo/2022.1/models_bin/3/human-pose-estimation-0001/FP16-INT8/human-pose-estimation-0001.bin',
 ];
 const modelsDir = __dirname + '/../assets/models';
 
@@ -32,7 +36,7 @@ const images = [
   // hello reshape ssd
   '/repositories/openvino_notebooks/data/data/image/empty_road_mapillary.jpg',
 
-  // optical character recognition
+  // hello detection, optical character recognition, pose estimation
   '/repositories/openvino_notebooks/data/data/image/intel_rnb.jpg',
 
   // vision background removal
