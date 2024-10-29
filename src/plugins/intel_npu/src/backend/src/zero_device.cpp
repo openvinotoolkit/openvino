@@ -174,12 +174,9 @@ uint64_t ZeroDevice::getTotalMemSize() const {
     if (_initStructs->isExtensionSupported(std::string(ZE_GRAPH_EXT_NAME), ZE_MAKE_VERSION(1, 9))) {
         // we are safe here, can return the value directly from driver
         return query.total;
-    } else {
-        // for all older drivers we return fixed 2GB (in bytes)
-        return LEGACY_MAX_MEM_ALLOC_SIZE_BYTES;
     }
 
-    // Default: return 2GB
+    // Default for older drivers: return 2GB
     return LEGACY_MAX_MEM_ALLOC_SIZE_BYTES;
 }
 
