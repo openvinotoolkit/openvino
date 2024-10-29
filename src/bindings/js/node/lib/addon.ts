@@ -689,7 +689,7 @@ export interface NodeAddon {
    * @param compressToFp16 Whether to compress
    * floating point weights to FP16. Default is set to `true`.
    */
-  saveModelSync(model: Model, path: string, compressToFp16?: boolean) : void;
+  saveModelSync(model: Model, path: string, compressToFp16?: boolean): void;
 
   element: typeof element;
 }
