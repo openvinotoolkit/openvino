@@ -104,6 +104,7 @@ struct ONNXRTParams {
     };
     // NB: std::monostate stands for the default MLAS Execution provider
     using EP = std::variant<std::monostate, OpenVINO>;
+    std::optional<int> opt_level;
     EP ep;
 };
 

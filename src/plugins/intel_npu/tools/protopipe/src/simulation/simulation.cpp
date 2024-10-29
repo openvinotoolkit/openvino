@@ -79,6 +79,9 @@ static void cfgExecutionProvider(cv::gapi::onnx::Params<cv::gapi::Generic>& netw
 static cv::gapi::GNetPackage getNetPackage(const std::string& tag, const ONNXRTParams& params) {
     cv::gapi::onnx::Params<cv::gapi::Generic> network{tag, params.model_path};
     network.cfgSessionOptions(params.session_options);
+    if (params.opt_level.has_value()) {
+        network.cfgOptLevel(params.opt_level.value());
+    }
     cfgExecutionProvider(network, params.ep);
     return cv::gapi::networks(network);
 }

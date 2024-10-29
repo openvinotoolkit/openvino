@@ -404,6 +404,9 @@ struct convert<ONNXRTParams> {
         if (node["ep"]) {
             params.ep = node["ep"].as<ONNXRTParams::EP>();
         }
+        if (node["opt_level"]) {
+            params.opt_level = node["opt_level"].as<int>();
+        }
         return true;
     }
 };
