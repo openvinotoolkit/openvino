@@ -986,7 +986,7 @@ void MersenneTwisterGenerator<x64::avx512_core>::convertToOutputTypeMersenne() {
 
         // Add minimum
         vpaddd(v_result, v_result, v_min); // remainder + min
-
+        vpaddd(v_result, v_result, v_min); // remainder + min
     } else if (m_jcp.out_data_type == element::i64 && m_jcp.optimized) {
         // Same as in Philox - in scope of i64 enabling
         OPENVINO_THROW("RandomUniform kernel does not support precision ", m_jcp.out_data_type, " for ", x64::get_isa_info());
@@ -1154,7 +1154,7 @@ void MersenneTwisterGenerator<isa>::convertToOutputTypeMersenne() {
 
         mov(r64_multiplier_double, 0x41E0000000000000); // 2^31 in IEEE 754 double format
         movq(v_result_aux, r64_multiplier_double); // v_result_aux reused to store multiplier
-        pshufd(v_result_aux, v_result_aux, 0x44);
+        pshufd(v_result_aux, v_result_aux, 0x11);
 
         // Convert most significant digit to double (either 0 or 1)
         cvtdq2pd(v_msb_high_double, v_msb_high_double);
@@ -1215,6 +1215,7 @@ void MersenneTwisterGenerator<isa>::convertToOutputTypeMersenne() {
 
         // Add minimum
         paddd(v_result, v_min); // remainder + min
+        // paddd(v_result, v_min); // remainder + min
     } else {
         OPENVINO_THROW("RandomUniform kernel does not support precision ", m_jcp.out_data_type, " for ", x64::get_isa_info());
     }
