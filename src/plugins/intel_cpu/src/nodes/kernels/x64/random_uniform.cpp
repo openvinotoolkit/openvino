@@ -17,17 +17,21 @@ namespace random_uniform {
 
 #define GET_MERSENNE_OFFSET(field) offsetof(MersenneTwisterGeneratorCallArgs, field)
 
-#define BROADCAST_CONSTANT(func, vector, aux_register, constant)               \
-    mov(aux_register, constant);                                               \
+#define BROADCAST_CONSTANT(func, vector, aux_register, constant)                            \
+    mov(aux_register, constant);                                                            \
     func(vector, aux_register);
 
-#define BROADCAST_PHILOX_PARAM(func, vector, aux_register, param_name)         \
-    mov(aux_register, ptr[r64_params + GET_PHILOX_OFFSET(param_name)]);        \
+#define BROADCAST_PHILOX_PARAM(func, vector, aux_register, param_name)                      \
+    mov(aux_register, ptr[r64_params + GET_PHILOX_OFFSET(param_name)]);                     \
     func(vector, ptr[aux_register]);
 
-#define BROADCAST_MERSENNE_PARAM(func, vector, aux_register, param_name)       \
-    mov(aux_register, ptr[r64_params + GET_MERSENNE_OFFSET(param_name)]);      \
+#define BROADCAST_MERSENNE_PARAM(func, vector, aux_register, param_name)                    \
+    mov(aux_register, ptr[r64_params + GET_MERSENNE_OFFSET(param_name)]);                   \
     func(vector, ptr[aux_register]);
+
+#define INIT_1_ELEM_T_VAL(A, V, R, T)                                                       \
+    static const T A[1] = { V };                                                            \
+    mov(R, reinterpret_cast<uintptr_t>(A));                                                 \
 
 #define INIT_8_ELEM_T_ARR(A, V, R, T)                                                       \
     static const T A[8] = { V, V, V, V, V, V, V, V };                                       \
@@ -38,9 +42,9 @@ namespace random_uniform {
         mov(R, reinterpret_cast<uintptr_t>(A##_aligned));                                   \
     }
 
-#define INIT_1_ELEM_T_VAL(A, V, R, T)                                                       \
-    static const T A[1] = { V };                                                            \
-    mov(R, reinterpret_cast<uintptr_t>(A));                                                 \
+#define INIT_16_ELEM_T_ARR(A, V, R, T)                                                      \
+    static const T A[16] = { V, V, V, V, V, V, V, V, V, V, V, V, V, V, V, V };              \
+    mov(R, reinterpret_cast<uintptr_t>(A));
 
 ////////////// PHILOX GENERATOR /////////////////////////
 
@@ -694,18 +698,24 @@ void MersenneTwisterGenerator<x64::avx512_core>::initVectors() {
     // Initialize constants based on the requested data type
     if (m_jcp.out_data_type == element::f32) {
         BROADCAST_CONSTANT(vpbroadcastd, v_mask, r32_aux, static_cast<uint32_t>((1 << 24) - 1))
-        BROADCAST_CONSTANT(vpbroadcastd, v_divisor, r32_aux, static_cast<float>(1.0f / (1 << 24)))
+        INIT_16_ELEM_T_ARR(divisor, static_cast<float>(1.0f / (1 << 24)), r64_aux, float);
+        vmovups(v_divisor, ptr[r64_aux]);
+
         BROADCAST_MERSENNE_PARAM(vpbroadcastd, v_range,     r64_aux, range_ptr)
         BROADCAST_MERSENNE_PARAM(vpbroadcastd, v_min,       r64_aux, min_ptr)
     } else if (m_jcp.out_data_type == element::f16 && x64::mayiuse(x64::avx512_core_fp16)) {
         BROADCAST_CONSTANT(vpbroadcastd, v_mask, r32_aux, static_cast<uint32_t>((1 << 11) - 1))
-        BROADCAST_CONSTANT(vpbroadcastd, v_divisor, r32_aux, static_cast<float>(1.0f / (1 << 11)))
+        INIT_16_ELEM_T_ARR(divisor, static_cast<float>(1.0f / (1 << 11)), r64_aux, float);
+        vmovups(v_divisor, ptr[r64_aux]);
+
         // Note: two times too many values in Zmm
         BROADCAST_MERSENNE_PARAM(vpbroadcastw, v_range,     r64_aux, range_ptr)
         BROADCAST_MERSENNE_PARAM(vpbroadcastw, v_min,       r64_aux, min_ptr)
     } else if (m_jcp.out_data_type == element::bf16 && x64::mayiuse(x64::avx512_core_bf16)) {
         BROADCAST_CONSTANT(vpbroadcastd, v_mask, r32_aux, static_cast<uint32_t>((1 << 8) - 1))
-        BROADCAST_CONSTANT(vpbroadcastd, v_divisor, r32_aux, static_cast<float>(1.0f / (1 << 8)))
+        INIT_16_ELEM_T_ARR(divisor, static_cast<float>(1.0f / (1 << 8)), r64_aux, float);
+        vmovups(v_divisor, ptr[r64_aux]);
+
         // Note: two times too many values in Zmm
         BROADCAST_MERSENNE_PARAM(vpbroadcastw, v_range,     r64_aux, range_ptr)
         BROADCAST_MERSENNE_PARAM(vpbroadcastw, v_min,       r64_aux, min_ptr)
@@ -779,7 +789,39 @@ void MersenneTwisterGenerator<isa>::process() {
     storeResults();
 }
 
-template <x64::cpu_isa_t isa> // Works for AVX2, AVX512
+template <>
+void MersenneTwisterGenerator<x64::avx512_core>::generateRandomNumbers() {
+    const auto v_aux = getVmm();
+
+    // Load values from memory, copy
+    vmovdqu32(v_result, v_state);        // x = state
+
+    // Apply Mersenne Twister transformations
+    vmovdqu32(v_aux, v_result);           // tmp = x
+
+    // x ^= (x >> 11);
+    vpsrld(v_aux, v_aux, 11);           // tmp >>= 11
+    vpxord(v_result, v_result, v_aux);   // x ^= tmp
+
+    // x ^= (x << 7) & const_1;
+    vmovdqu32(v_aux, v_result);           // tmp = x
+    vpslld(v_aux, v_aux, 7);            // tmp <<= 7
+    vpandd(v_aux, v_aux, v_const_1);     // tmp &= const_1
+    vpxord(v_result, v_result, v_aux);   // x ^= tmp
+
+    // // x ^= (x << 15) & const_2;
+    vmovdqu32(v_aux, v_result);           // tmp = x
+    vpslld(v_aux, v_aux, 15);           // tmp <<= 15
+    vpandd(v_aux, v_aux, v_const_2);     // tmp &= const_2
+    vpxord(v_result, v_result, v_aux);   // x ^= tmp
+
+    // // x ^= (x >> 18);
+    vmovdqu32(v_aux, v_result);           // tmp = x
+    vpsrld(v_aux, v_aux, 18);           // tmp >>= 18
+    vpxord(v_result, v_result, v_aux);   // x ^= tmp
+}
+
+template <x64::cpu_isa_t isa> // Works for SSE41, AVX2
 void MersenneTwisterGenerator<isa>::generateRandomNumbers() {
     const auto v_aux = getVmm();
 
@@ -817,13 +859,13 @@ void MersenneTwisterGenerator<x64::avx512_core>::convertToOutputTypeMersenne() {
         // Apply mask and divisor
         // No need to do int32's voodoo with double since mask ensures
         // that most significant bit is 0
-        vpand(v_result, v_result, v_mask);
+        vpandd(v_result, v_result, v_mask);
         vcvtdq2ps(v_result, v_result);
-        vmulps(v_result, v_divisor);
+        vmulps(v_result, v_result, v_divisor);
 
-        // Scale and shift
-        vmulps(v_result, v_range);
-        vaddps(v_result, v_min);
+        // // Scale and shift
+        vmulps(v_result, v_result, v_range);
+        vaddps(v_result, v_result, v_min);
     } else if (m_jcp.out_data_type == element::f16) {
         // Apply mask and divisor
         vpandd(v_result, v_result, v_mask);
@@ -895,7 +937,7 @@ void MersenneTwisterGenerator<x64::avx512_core>::convertToOutputTypeMersenne() {
         // Create a double value of 2^31 for the most significant digit instead of -1
         const auto r64_multiplier_double = getReg64();
         const auto v_multiplier_double = getVmm();
-        const auto x_multiplier_double = Xbyak::Ymm(v_multiplier_double.getIdx());
+        const auto x_multiplier_double = Xbyak::Xmm(v_multiplier_double.getIdx());
 
         mov(r64_multiplier_double,  0x41E0000000000000); // 2^31 in IEEE 754 double format
         vmovq(x_multiplier_double, r64_multiplier_double);
@@ -914,7 +956,7 @@ void MersenneTwisterGenerator<x64::avx512_core>::convertToOutputTypeMersenne() {
         vcvtdq2pd(v_result_low_double, x_result_low_double);
         vcvtdq2pd(v_range_double, x_range_double);
 
-        // Add sign as 2^31 if was present, correctly converting uint32_t to double
+        // // Add sign as 2^31 if was present, correctly converting uint32_t to double
         vaddpd(v_result_high_double, v_result_high_double, v_msb_high_double);
         vaddpd(v_result_low_double, v_result_low_double, v_msb_low_double);
 
@@ -925,8 +967,10 @@ void MersenneTwisterGenerator<x64::avx512_core>::convertToOutputTypeMersenne() {
         vdivpd(v_aprox_result_low_double, v_result_low_double, v_range_double);    // value / range = (aux = aux / aux2)
 
         // Floor the result to nearest int (biggest multiple of divisor)
-        vroundpd(v_aprox_result_high_double, v_aprox_result_high_double, _MM_FROUND_TO_NEG_INF | _MM_FROUND_NO_EXC);
-        vroundpd(v_aprox_result_low_double, v_aprox_result_low_double, _MM_FROUND_TO_NEG_INF | _MM_FROUND_NO_EXC);
+        // vroundpd(v_aprox_result_high_double, v_aprox_result_high_double, _MM_FROUND_TO_NEG_INF | _MM_FROUND_NO_EXC);
+        // vroundpd(v_aprox_result_low_double, v_aprox_result_low_double, _MM_FROUND_TO_NEG_INF | _MM_FROUND_NO_EXC);
+        vrndscalepd(v_aprox_result_high_double, v_aprox_result_high_double, _MM_FROUND_TO_NEG_INF | _MM_FROUND_NO_EXC);
+        vrndscalepd(v_aprox_result_low_double, v_aprox_result_low_double, _MM_FROUND_TO_NEG_INF | _MM_FROUND_NO_EXC);
 
         // Compute closest divisible value by multiplying back
         vmulpd(v_aprox_result_high_double, v_aprox_result_high_double, v_range_double); // aux = floor(double(result) / double(range)) * double(range)
