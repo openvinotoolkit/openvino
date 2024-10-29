@@ -326,22 +326,10 @@ if(ENABLE_PYTHON_PACKAGING)
                 PYTHON_EXTENSIONS_ONLY=ON
                 SKIP_RPATH=ON
             "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/wheel" -m build
+                --config-setting=--quiet
                 --config-setting=--no-user-cfg
-                #--config-setting=--quiet
                 --config-setting=--build-option=--executable="/usr/bin/python3"
-                #--config-setting=--build_ext
-                #--config-setting=--executable=--executable
-                #--outdir "${ov_python_package_prefix}/dist"
-        #COMMAND ${setup_py_env}
-                # variables to reflect options (extensions only or full wheel package)
-        #        PYTHON_EXTENSIONS_ONLY=ON
-        #        SKIP_RPATH=ON
-        #    "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/wheel/setup.py"
-        #        --no-user-cfg
-        #        --quiet
-        #        build
-        #            --executable "/usr/bin/python3"
-        #        build_ext
+                --config-setting=--build-option=build_ext
                 install
                     --no-compile
                     --prefix "${ov_python_package_prefix}"
@@ -365,11 +353,10 @@ if(ENABLE_PYTHON_PACKAGING)
     add_custom_command(OUTPUT ${openvino_telemetry_meta_info_file}
         COMMAND ${CMAKE_COMMAND} -E remove_directory
         "${telemetry_python_package_prefix}"
-        COMMAND "${Python3_EXECUTABLE}" "${OpenVINO_Telemetry_SOURCE_DIR}/setup.py"
-                    --no-user-cfg
-                    --quiet
-                    build
-                        --executable "/usr/bin/python3"
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/wheel" -m build
+                --config-setting=--quiet
+                --config-setting=--no-user-cfg
+                --config-setting=--build-option=--executable="/usr/bin/python3"
                     install
                         --no-compile
                         --prefix "${telemetry_python_package_prefix}"
