@@ -2492,14 +2492,22 @@ def test_stft():
     window = ov.parameter([7], name="window", dtype=np.float32)
     frame_size = ov.constant(np.array(11, dtype=np.int32))
     frame_step = ov.constant(np.array(3, dtype=np.int32))
-    transpose_frames = True
 
+    transpose_frames = False
     op = ov_opset15.stft(data, window, frame_size, frame_step, transpose_frames)
 
     assert op.get_type_name() == "STFT"
     assert op.get_output_size() == 1
     assert op.get_output_element_type(0) == Type.f32
     assert op.get_output_shape(0) == [4, 13, 6, 2]
+
+    transpose_frames = True
+    op = ov_opset15.stft(data, window, frame_size, frame_step, transpose_frames)
+
+    assert op.get_type_name() == "STFT"
+    assert op.get_output_size() == 1
+    assert op.get_output_element_type(0) == Type.f32
+    assert op.get_output_shape(0) == [4, 6, 13, 2]
 
 
 def test_search_sorted():
