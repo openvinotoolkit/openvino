@@ -88,7 +88,7 @@ ov::pass::ScaleDownSingleLayer::ScaleDownSingleLayer(float scale_factor) {
                 add->input(1).get_source_output(),
                 (add->input(1).get_element_type() == ov::element::f32) ? scale_down_const_f32 : scale_down_const_f16);
             add->input(1).replace_source_output(scale_down_bias->output(0));
-            
+
             auto scale_up = std::make_shared<ov::op::v1::Multiply>(
                 add->output(0),
                 (add->output(0).get_element_type() == ov::element::f32) ? scale_up_const_f32 : scale_up_const_f16);
@@ -97,7 +97,7 @@ ov::pass::ScaleDownSingleLayer::ScaleDownSingleLayer(float scale_factor) {
             auto scale_up = std::make_shared<ov::op::v1::Multiply>(
                 scaled_op->output(0),
                 (scaled_op->output(0).get_element_type() == ov::element::f32) ? scale_up_const_f32
-                                                                               : scale_up_const_f16);
+                                                                              : scale_up_const_f16);
             ov::replace_node(scaled_op, scale_up);
         }
 
