@@ -809,13 +809,13 @@ void MersenneTwisterGenerator<x64::avx512_core>::generateRandomNumbers() {
     vpandd(v_aux, v_aux, v_const_1);     // tmp &= const_1
     vpxord(v_result, v_result, v_aux);   // x ^= tmp
 
-    // // x ^= (x << 15) & const_2;
+    // x ^= (x << 15) & const_2;
     vmovdqu32(v_aux, v_result);           // tmp = x
     vpslld(v_aux, v_aux, 15);           // tmp <<= 15
     vpandd(v_aux, v_aux, v_const_2);     // tmp &= const_2
     vpxord(v_result, v_result, v_aux);   // x ^= tmp
 
-    // // x ^= (x >> 18);
+    // x ^= (x >> 18);
     vmovdqu32(v_aux, v_result);           // tmp = x
     vpsrld(v_aux, v_aux, 18);           // tmp >>= 18
     vpxord(v_result, v_result, v_aux);   // x ^= tmp
@@ -863,7 +863,7 @@ void MersenneTwisterGenerator<x64::avx512_core>::convertToOutputTypeMersenne() {
         vcvtdq2ps(v_result, v_result);
         vmulps(v_result, v_result, v_divisor);
 
-        // // Scale and shift
+        // Scale and shift
         vmulps(v_result, v_result, v_range);
         vaddps(v_result, v_result, v_min);
     } else if (m_jcp.out_data_type == element::f16) {
@@ -956,7 +956,7 @@ void MersenneTwisterGenerator<x64::avx512_core>::convertToOutputTypeMersenne() {
         vcvtdq2pd(v_result_low_double, x_result_low_double);
         vcvtdq2pd(v_range_double, x_range_double);
 
-        // // Add sign as 2^31 if was present, correctly converting uint32_t to double
+        // Add sign as 2^31 if was present, correctly converting uint32_t to double
         vaddpd(v_result_high_double, v_result_high_double, v_msb_high_double);
         vaddpd(v_result_low_double, v_result_low_double, v_msb_low_double);
 
@@ -967,8 +967,6 @@ void MersenneTwisterGenerator<x64::avx512_core>::convertToOutputTypeMersenne() {
         vdivpd(v_aprox_result_low_double, v_result_low_double, v_range_double);    // value / range = (aux = aux / aux2)
 
         // Floor the result to nearest int (biggest multiple of divisor)
-        // vroundpd(v_aprox_result_high_double, v_aprox_result_high_double, _MM_FROUND_TO_NEG_INF | _MM_FROUND_NO_EXC);
-        // vroundpd(v_aprox_result_low_double, v_aprox_result_low_double, _MM_FROUND_TO_NEG_INF | _MM_FROUND_NO_EXC);
         vrndscalepd(v_aprox_result_high_double, v_aprox_result_high_double, _MM_FROUND_TO_NEG_INF | _MM_FROUND_NO_EXC);
         vrndscalepd(v_aprox_result_low_double, v_aprox_result_low_double, _MM_FROUND_TO_NEG_INF | _MM_FROUND_NO_EXC);
 
