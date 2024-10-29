@@ -49,7 +49,7 @@ public:
      *        including config options related to compilation
      * @return a shared pointer on an object implementing NetworkDescription interface
      */
-    virtual NetworkDescription compile(const std::shared_ptr<const ov::Model>&, const Config&) const = 0;
+    virtual NetworkDescription compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const = 0;
 
     /**
      * @brief Returns information about supported layers of the network passed
@@ -58,7 +58,7 @@ public:
      *        including config options related to compilation
      * @returns SupportedOpsMap structure with information about supported layers
      */
-    virtual ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>&, const Config&) const = 0;
+    virtual ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const = 0;
 
     /**
      * @brief Parses already compiled network to extract meta information:
@@ -67,15 +67,13 @@ public:
      * @param config a reference to NPUConfig containing plugin config options
      *        Note: compilation options will be ignored,
      *        since the network is already compiled
-     * @param netName a reference to the string describing network name
-     *        to be used for creating network description
      * @return a shared pointer on an object implementing NetworkDescription interface
      */
-    virtual NetworkMetadata parse(const std::vector<uint8_t>&, const Config&) const = 0;
+    virtual NetworkMetadata parse(const std::vector<uint8_t>& network, const Config& config) const = 0;
 
-    virtual std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>&,
-                                                                    const std::vector<uint8_t>&,
-                                                                    const Config&) const = 0;
+    virtual std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
+                                                                    const std::vector<uint8_t>& network,
+                                                                    const Config& config) const = 0;
 
 protected:
     virtual ~ICompiler() = default;

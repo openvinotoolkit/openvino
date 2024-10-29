@@ -28,7 +28,7 @@ public:
              std::shared_ptr<zeroProfiling::NpuInferProfiling> npu_profiling,
              const std::vector<std::vector<std::optional<TensorData>>>& inputTensorsData,
              const std::vector<std::optional<TensorData>>& outputTensorsData,
-             const size_t numberOfCommandLists,
+             size_t numberOfCommandLists,
              uint32_t group_ordinal);
 
     Pipeline(const Pipeline&) = delete;
