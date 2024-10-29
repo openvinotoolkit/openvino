@@ -51,7 +51,7 @@ CompiledModel::~CompiledModel() {
 std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::create_infer_request");
 
-    if (!_config.get<CREATE_EXECUTOR>()) {
+    if (!_config.get<CREATE_EXECUTOR>() || _config.get<DEFER_WEIGHTS_LOAD>()) {
         _graph->initialize(_config);
     }
 
@@ -304,6 +304,12 @@ void CompiledModel::initialize_properties() {
           ov::PropertyMutability::RO,
           [](const Config& config) {
               return config.get<CREATE_EXECUTOR>();
+          }}},
+        {ov::intel_npu::defer_weights_load.name(),
+         {false,
+          ov::PropertyMutability::RO,
+          [](const Config& config) {
+              return config.get<DEFER_WEIGHTS_LOAD>();
           }}},
         {ov::intel_npu::batch_mode.name(),
          {false,

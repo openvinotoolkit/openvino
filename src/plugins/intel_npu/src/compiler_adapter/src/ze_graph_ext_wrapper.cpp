@@ -172,31 +172,31 @@ void ZeGraphExtWrappers<TableExtension>::initialize_graph_through_command_list(z
                                 zeDeviceGetProperties(_zeroInitStruct->getDevice(), &deviceProperties));
     auto groupOrdinal = zeroUtils::findGroupOrdinal(_zeroInitStruct->getDevice(), deviceProperties);
 
-    _logger.debug("ZeroExecutor::ZeroExecutor init start - create graph_command_list");
+    _logger.debug("ZeGraphExtWrappers::initialize_graph_through_command_list init start - create graph_command_list");
     CommandList graph_command_list(_zeroInitStruct->getDevice(),
                                    _zeroInitStruct->getContext(),
                                    _zeroInitStruct->getGraphDdiTable(),
                                    groupOrdinal);
-    _logger.debug("ZeroExecutor::ZeroExecutor - create graph_command_queue");
+    _logger.debug("ZeGraphExtWrappers::initialize_graph_through_command_list - create graph_command_queue");
     CommandQueue graph_command_queue(_zeroInitStruct->getDevice(),
                                      _zeroInitStruct->getContext(),
                                      ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
                                      _zeroInitStruct->getCommandQueueDdiTable(),
                                      false,
                                      groupOrdinal);
-    _logger.debug("ZeroExecutor::ZeroExecutor - create fence");
+    _logger.debug("ZeGraphExtWrappers::initialize_graph_through_command_list - create fence");
     Fence fence(graph_command_queue);
 
-    _logger.debug("ZeroExecutor::ZeroExecutor - performing appendGraphInitialize");
+    _logger.debug("ZeGraphExtWrappers::initialize_graph_through_command_list - performing appendGraphInitialize");
     graph_command_list.appendGraphInitialize(graphHandle);
-    _logger.debug("ZeroExecutor::ZeroExecutor - closing graph command list");
+    _logger.debug("ZeGraphExtWrappers::initialize_graph_through_command_list - closing graph command list");
     graph_command_list.close();
 
-    _logger.debug("ZeroExecutor::ZeroExecutor - performing executeCommandList");
+    _logger.debug("ZeGraphExtWrappers::initialize_graph_through_command_list - performing executeCommandList");
     graph_command_queue.executeCommandList(graph_command_list, fence);
-    _logger.debug("ZeroExecutor::ZeroExecutor - performing hostSynchronize");
+    _logger.debug("ZeGraphExtWrappers::initialize_graph_through_command_list - performing hostSynchronize");
     fence.hostSynchronize();
-    _logger.debug("ZeroExecutor::ZeroExecutor - hostSynchronize completed");
+    _logger.debug("ZeGraphExtWrappers::initialize_graph_through_command_list - hostSynchronize completed");
 }
 
 // Parse the result string of query from foramt <name_0><name_1><name_2> to unordered_set of string

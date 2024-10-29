@@ -159,7 +159,7 @@ TEST_P(OVCompileAndInferRequest, CompiledModelWorkloadType) {
 }
 
 TEST_P(OVCompileAndInferRequest, CompiledModelWorkloadTypeDelayedExecutor) {
-    configuration[intel_npu::create_executor.name()] = 0;
+    configuration[intel_npu::defer_weights_load.name()] = true;
     OV_ASSERT_NO_THROW(execNet = core->compile_model(function, target_device, configuration));
     ov::AnyMap modelConfiguration;
     modelConfiguration[workload_type.name()] = WorkloadType::DEFAULT;
@@ -233,8 +233,8 @@ TEST_P(OVCompileAndInferRequestTurbo, CompiledModelTurbo) {
         OV_ASSERT_NO_THROW(req.wait());
         ASSERT_TRUE(is_called);
     } else {
-        auto cr_ex = configuration.find(intel_npu::create_executor.name());
-        if (cr_ex->second.as<int64_t>() == 1) {
+        auto cr_ex = configuration.find(intel_npu::defer_weights_load.name());
+        if (cr_ex->second.as<bool>() == false) {
             OV_EXPECT_THROW_HAS_SUBSTRING(core->compile_model(function, target_device, configuration),
                                           ov::Exception,
                                           "Turbo is not supported by the current driver");

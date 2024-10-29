@@ -108,7 +108,7 @@ void Pipeline::push() {
     _logger.debug("Pipeline - push() started");
 
     for (size_t i = 0; i < _command_lists.size(); ++i) {
-        OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_PUSH, itt::domains::LevelZeroBackend, "Pipeline", "push");
+        OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PUSH, itt::domains::LevelZeroBackend, "Pipeline", "push");
         if (sync_output_with_fences_) {
             _command_queue->executeCommandList(*_command_lists.at(i), *_fences.at(i));
         } else {
@@ -121,7 +121,7 @@ void Pipeline::push() {
 
 void Pipeline::pull() {
     _logger.debug("Pipeline - pull() started");
-    OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_PULL, itt::domains::LevelZeroBackend, "Pipeline", "pull");
+    OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PULL, itt::domains::LevelZeroBackend, "Pipeline", "pull");
 
     for (size_t i = 0; i < _command_lists.size(); ++i) {
         if (sync_output_with_fences_) {

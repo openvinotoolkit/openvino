@@ -21,7 +21,7 @@ PluginGraph::PluginGraph(const std::shared_ptr<ZeGraphExtWrappersInterface>& zeG
       _zeroInitStruct(zeroInitStruct),
       _compiler(compiler),
       _logger("PluginGraph", config.get<LOG_LEVEL>()) {
-    if (!config.get<CREATE_EXECUTOR>()) {
+    if (!config.get<CREATE_EXECUTOR>() || config.get<DEFER_WEIGHTS_LOAD>()) {
         _logger.info("Graph initialize is deferred from the \"Graph\" constructor");
         return;
     }

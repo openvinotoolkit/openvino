@@ -550,6 +550,12 @@ Plugin::Plugin()
           [](const Config& config) {
               return config.get<CREATE_EXECUTOR>();
           }}},
+        {ov::intel_npu::defer_weights_load.name(),
+         {false,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.get<DEFER_WEIGHTS_LOAD>();
+          }}},
         {ov::intel_npu::dynamic_shape_to_static.name(),
          {false,
           ov::PropertyMutability::RW,
