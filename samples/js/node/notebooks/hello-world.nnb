@@ -24,20 +24,6 @@
         {
             "language": "markdown",
             "source": [
-                "## Initialize parameters"
-            ],
-            "outputs": []
-        },
-        {
-            "language": "javascript",
-            "source": [
-                "const modelXMLPath = '../../assets/models/v3-small_224_1.0_float.xml';"
-            ],
-            "outputs": []
-        },
-        {
-            "language": "markdown",
-            "source": [
                 "## Load the Model"
             ],
             "outputs": []
@@ -45,7 +31,7 @@
         {
             "language": "javascript",
             "source": [
-                "const core = new ov.Core();\nconst model = await core.readModel(modelXMLPath);\nconst compiledModel = await core.compileModel(model, 'CPU');\n\nconst inputLayer = compiledModel.inputs[0];\nconst outputLayer = compiledModel.outputs[0];\n"
+                "const modelXMLPath = '../../assets/models/v3-small_224_1.0_float.xml';\n\nconst core = new ov.Core();\nconst model = await core.readModel(modelXMLPath);\nconst compiledModel = await core.compileModel(model, 'CPU');\n\nconst inputLayer = compiledModel.inputs[0];\nconst outputLayer = compiledModel.outputs[0];\n"
             ],
             "outputs": []
         },
