@@ -17,7 +17,7 @@
 namespace ov {
 namespace intel_gpu {
 
-FullyConnectedPerLayerScaling::FullyConnectedPerLayerScaling() {
+FullyConnectedPerLayerScaling::FullyConnectedPerLayerScaling(float scale_factor) {
     using namespace ov::pass::pattern;
 
     auto data_m = any_input();
@@ -36,8 +36,6 @@ FullyConnectedPerLayerScaling::FullyConnectedPerLayerScaling() {
         const auto& data = pattern_map.at(data_m).get_node_shared_ptr();
         const auto& bias = pattern_map.at(bias_m).get_node_shared_ptr();
 
-        const float scale_factor = 2.f;
-
         ov::Shape scale_const_shape = {1};
         std::vector<float> scale_down_value = {(1.f / scale_factor)};
         std::vector<float> scale_up_value = {scale_factor};
@@ -50,6 +48,7 @@ FullyConnectedPerLayerScaling::FullyConnectedPerLayerScaling() {
         auto scale_down = std::make_shared<ov::op::v1::Multiply>(data, scale_down_const);
         fc->input(0).replace_source_output(scale_down->output(0));
 
+        // If FC has bias as input, scaling must be applied to bias as well
         if (!std::dynamic_pointer_cast<op::Placeholder>(bias)) {
             std::shared_ptr<ov::Node> bias_scale_down_const = (bias->get_element_type() == ov::element::f16) ? scale_down_const_f16 : scale_down_const_f32;
             auto bias_scale_down = std::make_shared<ov::op::v1::Multiply>(bias, bias_scale_down_const);

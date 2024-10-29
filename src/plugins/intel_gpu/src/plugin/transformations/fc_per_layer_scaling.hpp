@@ -12,7 +12,7 @@ namespace intel_gpu {
 class FullyConnectedPerLayerScaling: public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("FullyConnectedPerLayerScaling", "0");
-    FullyConnectedPerLayerScaling();
+    FullyConnectedPerLayerScaling(float scale_factor);
 };
 
 }   // namespace intel_gpu
