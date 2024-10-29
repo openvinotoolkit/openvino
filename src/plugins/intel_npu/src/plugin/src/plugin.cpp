@@ -15,6 +15,7 @@
 #include "intel_npu/config/compiler.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/config/runtime.hpp"
+#include "intel_npu/utils/zero/zero_init.hpp"
 #include "npuw/compiled_model.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
@@ -22,6 +23,7 @@
 #include "openvino/runtime/properties.hpp"
 #include "plugin_compiler_adapter.hpp"
 #include "remote_context.hpp"
+#include "zero_backend.hpp"
 
 using namespace intel_npu;
 
@@ -831,10 +833,30 @@ std::unique_ptr<ICompilerAdapter> Plugin::getCompiler(const Config& config) cons
     _logger.debug("performing createCompiler");
 
     switch (compilerType) {
-    case ov::intel_npu::CompilerType::MLIR:
-        return std::make_unique<PluginCompilerAdapter>(_backends->getIEngineBackend()._ptr);
-    case ov::intel_npu::CompilerType::DRIVER:
-        return std::make_unique<DriverCompilerAdapter>(_backends->getIEngineBackend()._ptr);
+    case ov::intel_npu::CompilerType::MLIR: {
+        if (_backends->getBackendName() != "LEVEL0") {
+            return std::make_unique<PluginCompilerAdapter>(nullptr);
+        }
+
+        auto zeroBackend = std::dynamic_pointer_cast<ZeroEngineBackend>(_backends->getIEngineBackend()._ptr);
+        if (zeroBackend == nullptr) {
+            return std::make_unique<PluginCompilerAdapter>(nullptr);
+        }
+
+        return std::make_unique<PluginCompilerAdapter>(zeroBackend->getInitStruct());
+    }
+    case ov::intel_npu::CompilerType::DRIVER: {
+        if (_backends->getBackendName() != "LEVEL0") {
+            OPENVINO_THROW("NPU Compiler Adapter must be used with LEVEL0 backend");
+        }
+
+        auto zeroBackend = std::dynamic_pointer_cast<ZeroEngineBackend>(_backends->getIEngineBackend()._ptr);
+        if (!zeroBackend) {
+            OPENVINO_THROW("Failed to cast zeroBackend, zeroBackend is a nullptr");
+        }
+
+        return std::make_unique<DriverCompilerAdapter>(zeroBackend->getInitStruct());
+    }
     default:
         OPENVINO_THROW("Invalid NPU_COMPILER_TYPE");
     }

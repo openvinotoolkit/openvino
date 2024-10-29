@@ -9,9 +9,9 @@
 #include <memory>
 #include <string>
 
+#include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/compiler.hpp"
-#include "intel_npu/icompiler.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
@@ -20,7 +20,6 @@
 #include "openvino/util/shared_object.hpp"
 #include "plugin_graph.hpp"
 #include "ze_graph_ext_wrapper.hpp"
-#include "zero_backend.hpp"
 
 namespace {
 std::shared_ptr<void> loadLibrary(const std::string& libpath) {
@@ -53,8 +52,9 @@ ov::SoPtr<intel_npu::ICompiler> loadCompiler(const std::string& libpath) {
 
 namespace intel_npu {
 
-PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<IEngineBackend>& backend)
-    : _logger("PluginCompilerAdapter", Logger::global().level()) {
+PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct)
+    : _zeroInitStruct(zeroInitStruct),
+      _logger("PluginCompilerAdapter", Logger::global().level()) {
     _logger.debug("initialize PluginCompilerAdapter start");
 
     _logger.info("MLIR compiler will be used.");
@@ -62,16 +62,9 @@ PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<IEngineBacken
     auto libPath = ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(), baseName + OV_BUILD_POSTFIX);
     _compiler = loadCompiler(libPath);
 
-    if (backend->getName() != "LEVEL0") {
+    if (_zeroInitStruct == nullptr) {
         return;
     }
-
-    auto zeroBackend = std::dynamic_pointer_cast<ZeroEngineBackend>(backend);
-    if (zeroBackend == nullptr) {
-        return;
-    }
-
-    _zeroInitStruct = zeroBackend->getInitStruct();
 
     uint32_t graphExtVersion = _zeroInitStruct->getGraphDdiTable().version();
 
@@ -117,7 +110,14 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
     ze_graph_handle_t graphHandle = nullptr;
 
     if (_zeGraphExt) {
-        graphHandle = _zeGraphExt->getGraphHandle(networkDesc.compiledNetwork);
+        // Depending on the config, we may get an error when trying to get the graph handle from the compiled network
+        try {
+            graphHandle = _zeGraphExt->getGraphHandle(networkDesc.compiledNetwork);
+        } catch (const std::exception& ex) {
+            _logger.info("Got an error while getting graph handle '%s'", ex.what());
+        } catch (...) {
+            _logger.info("Got an unknown error while getting graph handle");
+        }
     }
 
     return std::make_shared<PluginGraph>(_zeGraphExt,

@@ -22,7 +22,7 @@ namespace intel_npu {
 
 class DriverCompilerAdapter final : public ICompilerAdapter {
 public:
-    DriverCompilerAdapter(const std::shared_ptr<IEngineBackend>& backend);
+    DriverCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct);
 
     std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
 
@@ -53,8 +53,8 @@ private:
 
     std::string serializeConfig(const Config& config, ze_graph_compiler_version_info_t compilerVersion) const;
 
-    std::shared_ptr<ZeGraphExtWrappersInterface> _zeGraphExt;
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
+    std::shared_ptr<ZeGraphExtWrappersInterface> _zeGraphExt;
 
     ze_device_graph_properties_t _deviceGraphProperties = {};
 

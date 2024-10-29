@@ -7,6 +7,7 @@
 #pragma once
 
 #include "intel_npu/common/npu.hpp"
+#include "intel_npu/icompiler.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -16,7 +17,7 @@ namespace intel_npu {
 
 class PluginCompilerAdapter final : public ICompilerAdapter {
 public:
-    PluginCompilerAdapter(const std::shared_ptr<IEngineBackend>& backend);
+    PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct);
 
     std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
 

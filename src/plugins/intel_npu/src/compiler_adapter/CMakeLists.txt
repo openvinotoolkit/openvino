@@ -28,7 +28,6 @@ target_link_libraries(${TARGET_NAME}
         openvino::npu_logger_utils
         openvino::runtime
         openvino::runtime::dev
-        openvino_npu_level_zero_backend
         ze_loader
 )
 

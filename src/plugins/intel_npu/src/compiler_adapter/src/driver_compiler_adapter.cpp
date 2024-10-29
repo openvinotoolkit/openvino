@@ -22,7 +22,6 @@
 #include "ir_serializer.hpp"
 #include "openvino/core/model.hpp"
 #include "ze_graph_ext_wrapper.hpp"
-#include "zero_backend.hpp"
 
 namespace {
 
@@ -142,20 +141,10 @@ std::string rankToLegacyLayoutString(const size_t rank) {
 
 namespace intel_npu {
 
-DriverCompilerAdapter::DriverCompilerAdapter(const std::shared_ptr<IEngineBackend>& backend)
-    : _logger("DriverCompilerAdapter", Logger::global().level()) {
+DriverCompilerAdapter::DriverCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct)
+    : _zeroInitStruct(zeroInitStruct),
+      _logger("DriverCompilerAdapter", Logger::global().level()) {
     _logger.debug("initialize DriverCompilerAdapter start");
-
-    if (backend->getName() != "LEVEL0") {
-        OPENVINO_THROW("NPU Compiler Adapter must be used with LEVEL0 backend");
-    }
-
-    auto zeroBackend = std::dynamic_pointer_cast<ZeroEngineBackend>(backend);
-    if (!zeroBackend) {
-        OPENVINO_THROW("DriverCompilerAdapter init failed to cast zeroBackend, zeroBackend is a nullptr");
-    }
-
-    _zeroInitStruct = zeroBackend->getInitStruct();
 
     uint32_t graphExtVersion = _zeroInitStruct->getGraphDdiTable().version();
 
