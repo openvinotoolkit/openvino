@@ -144,6 +144,18 @@ class OvImage {
     return await fs.writeFile(filepath, buffer);
   }
 
+  // Display the image using the node notebook display object
+  display(display) {
+    const canvas = createCanvas(this.width, this.height);
+    const ctx = canvas.getContext('2d');
+
+    ctx.putImageData(this.imageData, 0, 0);
+
+    const buffer = canvas.toBuffer('image/jpeg');
+
+    display.image(buffer);
+  }
+
   static async load(path) {
     const image = await loadImage(path);
     const { width, height } = image;
