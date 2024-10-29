@@ -25,11 +25,13 @@ std::shared_ptr<ov::threading::ITaskExecutor> create_task_executor(const std::sh
         // the CPU behavior
         return plugin->get_executor_manager()->get_executor("GPU");
     } else if (config.get_property(ov::hint::enable_cpu_pinning)) {
+        bool enable_cpu_reservation = config.get_property(ov::hint::enable_cpu_reservation);
         return std::make_shared<ov::threading::CPUStreamsExecutor>(
             ov::threading::IStreamsExecutor::Config{"Intel GPU plugin executor",
                                                     config.get_property(ov::num_streams),
                                                     1,
                                                     ov::hint::SchedulingCoreType::PCORE_ONLY,
+                                                    enable_cpu_reservation,
                                                     true});
     } else {
         return std::make_shared<ov::threading::CPUStreamsExecutor>(
@@ -242,6 +244,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             // Configs
             ov::PropertyName{ov::enable_profiling.name(), PropertyMutability::RO},
             ov::PropertyName{ov::hint::enable_cpu_pinning.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::hint::enable_cpu_reservation.name(), PropertyMutability::RO},
             ov::PropertyName{ov::hint::model_priority.name(), PropertyMutability::RO},
             ov::PropertyName{ov::intel_gpu::hint::host_task_priority.name(), PropertyMutability::RO},
             ov::PropertyName{ov::intel_gpu::hint::queue_priority.name(), PropertyMutability::RO},

@@ -247,6 +247,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             RO_property(ov::hint::execution_mode.name()),
             RO_property(ov::hint::num_requests.name()),
             RO_property(ov::hint::enable_cpu_pinning.name()),
+            RO_property(ov::hint::enable_cpu_reservation.name()),
             RO_property(ov::hint::scheduling_core_type.name()),
             RO_property(ov::hint::model_distribution_policy.name()),
             RO_property(ov::hint::enable_hyper_threading.name()),
@@ -307,6 +308,9 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     } else if (name == ov::hint::enable_cpu_pinning.name()) {
         const bool use_pin = config.enableCpuPinning;
         return decltype(ov::hint::enable_cpu_pinning)::value_type(use_pin);
+    } else if (name == ov::hint::enable_cpu_reservation.name()) {
+        const bool use_reserve = config.enableCpuReservation;
+        return decltype(ov::hint::enable_cpu_reservation)::value_type(use_reserve);
     } else if (name == ov::hint::scheduling_core_type) {
         const auto stream_mode = config.schedulingCoreType;
         return stream_mode;

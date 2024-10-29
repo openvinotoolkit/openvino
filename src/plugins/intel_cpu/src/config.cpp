@@ -178,6 +178,16 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                ov::hint::enable_cpu_pinning.name(),
                                ". Expected only true/false.");
             }
+        } else if (key == ov::hint::enable_cpu_reservation.name()) {
+            try {
+                enableCpuReservation = val.as<bool>();
+            } catch (ov::Exception&) {
+                OPENVINO_THROW("Wrong value ",
+                               val.as<std::string>(),
+                               "for property key ",
+                               ov::hint::enable_cpu_reservation.name(),
+                               ". Expected only true/false.");
+            }
         } else if (key == ov::hint::scheduling_core_type.name()) {
             try {
                 schedulingCoreType = val.as<ov::hint::SchedulingCoreType>();

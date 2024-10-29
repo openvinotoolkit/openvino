@@ -691,7 +691,7 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
                                                            config.streams,
                                                            config.threadsPerStream,
                                                            ov::hint::SchedulingCoreType::ANY_CORE,
-                                                           false,
+                                                           config.enableCpuReservation,
                                                            cpu_pinning,
                                                            streams_info_table};
 

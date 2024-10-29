@@ -113,11 +113,13 @@ static ov::threading::IStreamsExecutor::Config make_task_executor_config(const E
         default: OPENVINO_ASSERT(false, "[GPU] Can't create task executor: invalid host task priority value: ", priority);
     }
     bool enable_cpu_pinning = config.get_property(ov::hint::enable_cpu_pinning);
+    bool enable_cpu_reservation = config.get_property(ov::hint::enable_cpu_reservation);
 
     ov::threading::IStreamsExecutor::Config task_executor_config(tags,
                                                                  streams,
                                                                  1,
                                                                  core_type,
+                                                                 enable_cpu_reservation,
                                                                  enable_cpu_pinning);
 
     return task_executor_config;

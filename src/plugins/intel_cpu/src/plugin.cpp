@@ -346,6 +346,9 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
     } else if (name == ov::hint::enable_cpu_pinning) {
         const bool pin_value = engConfig.enableCpuPinning;
         return decltype(ov::hint::enable_cpu_pinning)::value_type(pin_value);
+    } else if (name == ov::hint::enable_cpu_reservation) {
+        const bool reserve_value = engConfig.enableCpuReservation;
+        return decltype(ov::hint::enable_cpu_reservation)::value_type(reserve_value);
     } else if (name == ov::hint::scheduling_core_type) {
         const auto core_type = engConfig.schedulingCoreType;
         return core_type;
@@ -422,6 +425,7 @@ ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& optio
             RW_property(ov::hint::execution_mode.name()),
             RW_property(ov::hint::num_requests.name()),
             RW_property(ov::hint::enable_cpu_pinning.name()),
+            RW_property(ov::hint::enable_cpu_reservation.name()),
             RW_property(ov::hint::scheduling_core_type.name()),
             RW_property(ov::hint::model_distribution_policy.name()),
             RW_property(ov::hint::enable_hyper_threading.name()),

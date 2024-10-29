@@ -46,6 +46,7 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::hint::execution_mode, ov::hint::ExecutionMode::PERFORMANCE),
         std::make_tuple(ov::hint::num_requests, 0),
         std::make_tuple(ov::hint::enable_cpu_pinning, false),
+        std::make_tuple(ov::hint::enable_cpu_reservation, false),
 
         std::make_tuple(ov::intel_gpu::hint::host_task_priority, ov::hint::Priority::MEDIUM),
         std::make_tuple(ov::intel_gpu::hint::queue_throttle, ov::intel_gpu::hint::ThrottleLevel::MEDIUM),
@@ -234,6 +235,12 @@ void ExecutionConfig::apply_user_properties(const cldnn::device_info& info) {
 
     if (info.supports_immad) {
         set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
+    }
+    if (!is_set_by_user(ov::hint::enable_cpu_reservation)) {
+        bool enable_cpu_pinning = get_property(ov::hint::enable_cpu_pinning);
+        if (enable_cpu_pinning) {
+            set_property(ov::hint::enable_cpu_reservation(true));
+        }
     }
 
     user_properties.clear();
