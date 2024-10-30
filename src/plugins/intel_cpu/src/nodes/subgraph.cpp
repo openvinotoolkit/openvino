@@ -21,6 +21,7 @@
 #include "snippets/lowered/pass/optimize_domain.hpp"
 #include "snippets/lowered/pass/insert_loops.hpp"
 #include "snippets/lowered/pass/mark_loops.hpp"
+#include "snippets/lowered/pass/insert_buffers.hpp"
 #include "transformations/defs.hpp"
 #include "transformations/cpu_opset/common/pass/convert_to_swish_cpu.hpp"
 #include "transformations/snippets/common/pass/mul_add_to_fma.hpp"
@@ -32,7 +33,7 @@
 #include "emitters/snippets/x64/cpu_generator.hpp"
 #include "transformations/snippets/x64/pass/lowered/brgemm_cpu_blocking.hpp"
 #include "transformations/snippets/x64/pass/lowered/fuse_load_store_and_convert.hpp"
-#include "transformations/snippets/x64/pass/lowered/set_brgemm_copy_b_buffers_shape.hpp"
+#include "transformations/snippets/x64/pass/lowered/insert_brgemm_copy_b_buffers.hpp"
 #include "transformations/snippets/x64/pass/remove_converts.hpp"
 #include "transformations/snippets/x64/pass/brgemm_to_brgemm_cpu.hpp"
 #include "transformations/snippets/x64/pass/enforce_precision.hpp"
@@ -58,6 +59,7 @@ std::mutex err_print_lock;
 #include "transformations/tpp/x64/pass/scalar_to_scalar_tpp.hpp"
 #include "transformations/tpp/x64/pass/lowered/set_tpp_leading_dim.hpp"
 #include "transformations/tpp/x64/pass/lowered/brgemm_tpp_blocking.hpp"
+#include "transformations/tpp/x64/pass/fuse_tpp_to_equations.hpp"
 #endif
 
 namespace ov {
@@ -507,7 +509,7 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
 }
 
 void Subgraph::selectOptimalPrimitiveDescriptor() {
-    selectPreferPrimitiveDescriptor(getImplPriority(), true);
+    selectPreferPrimitiveDescriptorWithShape(getImplPriority(), true);
 }
 
 ov::element::Type Subgraph::getRuntimePrecision() const {
@@ -655,6 +657,8 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
     SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64(Place::PipelineEnd, ov::intel_cpu::tpp::pass::ScalarToScalarTPP);
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After, ov::intel_cpu::tpp::pass::BrgemmToBrgemmTPP,
                                            ov::intel_cpu::tpp::pass::EltwiseToEltwiseTPP);
+    SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After, ov::intel_cpu::tpp::pass::EltwiseToEltwiseTPP,
+                                           ov::intel_cpu::tpp::pass::FuseTPPToEquations);
 #endif
 
 #undef SNIPPETS_REGISTER_PASS_ABSOLUTE_COMMON
@@ -681,8 +685,8 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() const {
                                     ov::intel_cpu::pass::BrgemmCPUBlocking);
     SNIPPETS_REGISTER_PASS_RELATIVE(Place::After, ov::snippets::lowered::pass::InsertLoops,
                                     ov::intel_cpu::pass::FuseLoadStoreConvert);
-    SNIPPETS_REGISTER_PASS_RELATIVE(Place::After, ov::intel_cpu::pass::FuseLoadStoreConvert,
-                                    ov::intel_cpu::pass::SetBrgemmCopyBBuffersShape);
+    SNIPPETS_REGISTER_PASS_RELATIVE(Place::Before, ov::snippets::lowered::pass::InsertBuffers,
+                                    ov::intel_cpu::pass::InsertBrgemmCopyBBuffers);
 
 #ifdef SNIPPETS_LIBXSMM_TPP
     SNIPPETS_REGISTER_PASS_RELATIVE(Place::Before, ov::intel_cpu::pass::BrgemmCPUBlocking,

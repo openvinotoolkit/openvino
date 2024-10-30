@@ -11,6 +11,7 @@
 #include "ov_ops/multiclass_nms_ie_internal.hpp"
 #include "ov_ops/nms_ie_internal.hpp"
 #include "ov_ops/nms_static_shape_ie.hpp"
+#include "ov_ops/rms.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "snippets/op/subgraph.hpp"
@@ -74,6 +75,7 @@ private:
     OP_EXTENSION(ov::intel_cpu::PowerStaticNode)                            \
     OP_EXTENSION(ov::intel_cpu::CausalMaskPreprocessNode)                   \
     OP_EXTENSION(ov::intel_cpu::SwishNode)                                  \
+    OP_EXTENSION(ov::intel_cpu::SDPAWithTransposeReshape)                   \
     OP_EXTENSION(ov::intel_cpu::NgramNode)                                  \
     OP_EXTENSION(ov::op::internal::GatherCompressed)                        \
     OP_EXTENSION(ov::op::internal::NonMaxSuppressionIEInternal)             \
@@ -81,6 +83,7 @@ private:
     OP_EXTENSION(ov::op::internal::AUGRUCell)                               \
     OP_EXTENSION(ov::op::internal::AUGRUSequence)                           \
     OP_EXTENSION(ov::op::internal::NmsStaticShapeIE<ov::op::v8::MatrixNms>) \
+    OP_EXTENSION(ov::op::internal::RMS)                                     \
     OP_EXTENSION(ov::op::internal::RoPE)                                    \
     OP_EXTENSION_X64(ov::intel_cpu::MHANode)                                \
     OP_EXTENSION_X64(ov::intel_cpu::InteractionNode)                        \
@@ -161,12 +164,11 @@ private:
     OP_EXTENSION(ov::snippets::op::HorizonSum)               \
     OP_EXTENSION(ov::snippets::op::KernelStatic)             \
     OP_EXTENSION(ov::snippets::op::KernelDynamic)            \
-    OP_EXTENSION(ov::snippets::op::IntermediateMemoryBuffer) \
     OP_EXTENSION(ov::snippets::op::Load)                     \
     OP_EXTENSION(ov::snippets::op::LoadReshape)              \
     OP_EXTENSION(ov::snippets::op::LoopBegin)                \
     OP_EXTENSION(ov::snippets::op::LoopEnd)                  \
-    OP_EXTENSION(ov::snippets::op::NewMemoryBuffer)          \
+    OP_EXTENSION(ov::snippets::op::Buffer)                   \
     OP_EXTENSION(ov::snippets::op::Nop)                      \
     OP_EXTENSION(ov::snippets::op::PowerStatic)              \
     OP_EXTENSION(ov::snippets::op::Scalar)                   \

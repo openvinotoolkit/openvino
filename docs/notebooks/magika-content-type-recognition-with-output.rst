@@ -77,6 +77,7 @@ Prerequisites
 .. parsed-literal::
 
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+    supervision 0.24.0 requires numpy<1.23.3,>=1.21.2; python_full_version <= "3.10.0", but you have numpy 1.24.4 which is incompatible.
     tensorflow 2.12.0 requires numpy<1.24,>=1.22, but you have numpy 1.24.4 which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
 
@@ -250,16 +251,16 @@ dropdown list.
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
+    import requests
 
-    core = ov.Core()
-
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
+    open("notebook_utils.py", "w").write(r.text)
+
+    from notebook_utils import device_widget
+
+    device = device_widget()
 
     device
 
@@ -350,11 +351,11 @@ click submit button and look on predicted file types.
 
 
     demo = gr.Interface(
-        classify,
-        [
+        fn=classify,
+        inputs=[
             gr.File(label="Input file", type="binary"),
         ],
-        gr.Label(label="Result"),
+        outputs=gr.Label(label="Result"),
         examples=[["./README.md"]],
         allow_flagging="never",
     )
@@ -379,3 +380,8 @@ click submit button and look on predicted file types.
 
 
 
+
+.. code:: ipython3
+
+    # please uncomment and run this cell for stopping gradio interface
+    # demo.close()

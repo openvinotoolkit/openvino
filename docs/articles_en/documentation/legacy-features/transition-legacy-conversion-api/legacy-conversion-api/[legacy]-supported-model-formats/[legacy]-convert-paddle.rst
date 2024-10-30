@@ -1,5 +1,3 @@
-.. {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Paddle}
-
 [LEGACY] Converting a PaddlePaddle Model
 ======================================================
 
@@ -126,7 +124,7 @@ When you convert certain PaddlePaddle models, you may need to set the ``example_
 Supported PaddlePaddle Layers
 #############################
 
-For the list of supported standard layers, refer to the :doc:`Supported Operations <../../../../../about-openvino/compatibility-and-support/supported-operations-framework-frontend>` page.
+For the list of supported standard layers, refer to the :doc:`Supported Operations <../../../../../about-openvino/compatibility-and-support/supported-operations>` page.
 
 Frequently Asked Questions (FAQ)
 ################################

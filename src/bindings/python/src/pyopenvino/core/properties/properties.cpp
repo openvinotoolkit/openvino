@@ -43,6 +43,7 @@ void regmodule_properties(py::module m) {
     OPENVINO_SUPPRESS_DEPRECATED_END
     wrap_property_RW(m_properties, ov::force_tbb_terminate, "force_tbb_terminate");
     wrap_property_RW(m_properties, ov::enable_mmap, "enable_mmap");
+    wrap_property_RW(m_properties, ov::weights_path, "weights_path");
 
     wrap_property_RO(m_properties, ov::supported_properties, "supported_properties");
     wrap_property_RO(m_properties, ov::available_devices, "available_devices");
@@ -54,6 +55,8 @@ void regmodule_properties(py::module m) {
     wrap_property_RO(m_properties, ov::range_for_async_infer_requests, "range_for_async_infer_requests");
     wrap_property_RO(m_properties, ov::execution_devices, "execution_devices");
     wrap_property_RO(m_properties, ov::loaded_from_cache, "loaded_from_cache");
+
+    wrap_property_WO(m_properties, ov::cache_encryption_callbacks, "cache_encryption_callbacks");
 
     // Submodule hint
     py::module m_hint =

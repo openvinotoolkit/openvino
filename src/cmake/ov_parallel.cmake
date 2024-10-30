@@ -23,7 +23,7 @@ function(_ov_get_tbb_location tbb_target _tbb_lib_location_var)
         get_target_property(_imported_configs ${target} IMPORTED_CONFIGURATIONS)
         if(NOT _imported_configs)
             # if IMPORTED_CONFIGURATIONS property is not set, then set a common list
-            set(_imported_configs RELEASE NONE)
+            set(_imported_configs RELEASE DEBUG NONE)
             if(NOT OV_GENERATOR_MULTI_CONFIG)
                 string(TOUPPER ${CMAKE_BUILD_TYPE} _build_type)
                 list(APPEND _imported_configs ${_build_type})
@@ -388,13 +388,17 @@ function(ov_set_threading_interface_for TARGET_NAME)
         endif()
     endfunction()
 
-    set(OV_THREAD_DEFINE "OV_THREAD_SEQ")
+    set(_ov_thread_define "OV_THREAD_SEQ")
+
+    if(NOT TARGET openvino::threading)
+        add_library(openvino_threading INTERFACE)
+        add_library(openvino::threading ALIAS openvino_threading)
+    endif()
 
     if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
         if(TBB_FOUND)
-            set(OV_THREAD_DEFINE "OV_THREAD_TBB")
-            _ov_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} TBB::tbb)
-            target_compile_definitions(${TARGET_NAME} ${COMPILE_DEF_TYPE} TBB_PREVIEW_WAITING_FOR_WORKERS=1)
+            set(_ov_thread_define "OV_THREAD_TBB")
+            set(_ov_threading_lib TBB::tbb)
         else()
             set(THREADING "SEQ" PARENT_SCOPE)
             message(WARNING "TBB was not found by the configured TBB_DIR path.\
@@ -404,17 +408,25 @@ function(ov_set_threading_interface_for TARGET_NAME)
         ov_find_package_openmp()
 
         if(TARGET IntelOpenMP::OpenMP_CXX)
-            set(OV_THREAD_DEFINE "OV_THREAD_OMP")
-            _ov_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} IntelOpenMP::OpenMP_CXX)
+            set(_ov_thread_define "OV_THREAD_OMP")
+            set(_ov_threading_lib IntelOpenMP::OpenMP_CXX)
         elseif(TARGET OpenMP::OpenMP_CXX)
-            set(OV_THREAD_DEFINE "OV_THREAD_OMP")
-            _ov_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} OpenMP::OpenMP_CXX)
+            set(_ov_thread_define "OV_THREAD_OMP")
+            set(_ov_threading_lib OpenMP::OpenMP_CXX)
         else()
             message(FATAL_ERROR "Internal error: OpenMP is not supported by compiler. Switch to SEQ should be performed before")
         endif()
     endif()
 
-    target_compile_definitions(${TARGET_NAME} ${COMPILE_DEF_TYPE} -DOV_THREAD=${OV_THREAD_DEFINE})
+    if(_ov_threading_lib)
+        # populate properties of openvino::threading
+        set_target_properties(openvino_threading PROPERTIES INTERFACE_LINK_LIBRARIES ${_ov_threading_lib})
+
+        # perform linkage with target
+        _ov_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} ${_ov_threading_lib})
+    endif()
+
+    target_compile_definitions(${TARGET_NAME} ${COMPILE_DEF_TYPE} OV_THREAD=${_ov_thread_define})
 
     if(NOT THREADING STREQUAL "SEQ")
         find_package(Threads REQUIRED)

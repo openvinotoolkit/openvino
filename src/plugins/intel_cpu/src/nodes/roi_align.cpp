@@ -197,8 +197,8 @@ private:
         std::vector<size_t> local_store_pool_vec_idxs = { static_cast<size_t>(vmm_dst.getIdx()) };
         local_store_pool_vec_idxs.insert(local_store_pool_vec_idxs.begin(), store_pool_vec_idxs.begin(), store_pool_vec_idxs.end());
 
-        emitters[seed]->emit_code({static_cast<size_t>(vmm_dst.getIdx()), static_cast<size_t>(offset)},
-                                  {static_cast<size_t>(reg_dst.getIdx())},
+        emitters[seed]->emit_code({static_cast<size_t>(vmm_dst.getIdx())},
+                                  {static_cast<size_t>(reg_dst.getIdx()), static_cast<size_t>(offset)},
                                   {local_store_pool_vec_idxs}, {store_pool_gpr_idxs});
     }
 
@@ -816,10 +816,10 @@ void ROIAlign::initSupportedPrimitiveDescriptors() {
 void ROIAlign::createPrimitive() {
     auto srcMemPtr = getSrcMemoryAtPort(0);
     auto dstMemPtr = getDstMemoryAtPort(0);
-    if (!srcMemPtr || !srcMemPtr->isAllocated())
-        OPENVINO_THROW(errorPrefix, " did not allocate input memory");
-    if (!dstMemPtr || !dstMemPtr->isAllocated())
-        OPENVINO_THROW(errorPrefix, " did not allocate destination memory");
+    if (!srcMemPtr)
+        OPENVINO_THROW(errorPrefix, " has null input memory");
+    if (!dstMemPtr)
+        OPENVINO_THROW(errorPrefix, " has null destination memory");
 
     if (!roi_align_kernel) {
         ROIAlignLayoutType selectedLayout = ROIAlignLayoutType::nspc;
@@ -1074,9 +1074,9 @@ void ROIAlign::executeSpecified() {
         if (!isPlainFmt) {
             std::vector<float> workingBuf;
             int bufSize = rnd_up(C, 16);
-            size_t threadsNum = parallel_get_num_threads();
+            size_t threadsNum = parallel_get_max_threads();
             workingBuf.resize(bufSize * threadsNum, 0.f);
-            parallel_for3d(realRois, pooledH, pooledW, [&](int n, int yBinInd, int xBinInd) {
+            auto rhw_loop = [&](int n, int yBinInd, int xBinInd) {
                 int numSamplesROI = numSamples[n];
                 // each sample have 4 values for srcAddressList and weight
                 size_t binOffset = numSamplesROI * BLIParamsNum * pooledW * yBinInd + numSamplesROI * BLIParamsNum * xBinInd;
@@ -1088,13 +1088,17 @@ void ROIAlign::executeSpecified() {
                 arg.num_samples = numSamplesROI;
                 float numSamplesInBinInvert = 1.f / numSamplesROI;
                 arg.scale = static_cast<const float*>(&numSamplesInBinInvert);
-                float *threadBuf = static_cast<float*>(&workingBuf[parallel_get_thread_num() * bufSize]);
+                float *threadBuf = static_cast<float*>(&workingBuf[static_cast<size_t>(parallel_get_thread_num()) * static_cast<size_t>(bufSize)]);
                 memset(threadBuf, 0, bufSize * sizeof(float));
                 arg.buffer = threadBuf;
                 size_t dstOffset = n * batchOutputStride + yBinInd * pooledW * lastBlockDim + xBinInd * lastBlockDim;
                 arg.dst = static_cast<void*>(&dst[dstOffset]);
                 arg.src_stride = lastBlockDim * W * H; // only valid for blk, nspc generate inside
                 (*roi_align_kernel)(&arg);
+            };
+
+            parallel_nt_static(threadsNum, [&](const int ithr, const int nthr) {
+                for_3d(ithr, nthr, realRois, pooledH, pooledW, rhw_loop);
             });
         } else {
             // one lane for one sample generation, then pooling all samples.

@@ -22,11 +22,41 @@ on:
         description: 'OS that is used for building in the form of "ubuntu_20_04"'
         type: string
         required: true
+      arch:
+        description: 'Target architecture'
+        type: string
+        default: 'x86_64'
+        required: false
+      cmake-options:
+        description: 'A string of options passed to CMake'
+        type: string
+        required: true
+      build-js:
+        description: 'Whether to build OpenVINO JS Bindings'
+        type: boolean
+        required: false
+        default: false
+      build-debian-packages:
+        description: 'Whether to build Debian packages'
+        type: boolean
+        required: false
+        default: false
+      build-contrib:
+        description: 'Whether to build OpenVINO Contrib'
+        type: boolean
+        required: false
+        default: false
+      build-rpm-packages:
+        description: 'Whether to build RPM Packages'
+        type: boolean
+        required: false
+        default: false
 
 permissions: read-all
 
 env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
+  TARGET_BRANCH: ${{ github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
 jobs:
   Build:
@@ -40,7 +70,6 @@ jobs:
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       CMAKE_BUILD_TYPE: 'Release'
-      CMAKE_GENERATOR: 'Ninja Multi-Config'
       CMAKE_CXX_COMPILER_LAUNCHER: sccache
       CMAKE_C_COMPILER_LAUNCHER: sccache
       SCCACHE_IGNORE_SERVER_IO_ERROR: 1
@@ -53,16 +82,16 @@ jobs:
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
       INSTALL_DIR_JS: /__w/openvino/openvino/openvino_install/js
       INSTALL_TEST_DIR: /__w/openvino/openvino/tests_install
+      INSTALL_WHEELS_DIR: /__w/openvino/openvino/install/wheels
       DEVELOPER_PACKAGE_DIR: /__w/openvino/openvino/developer_package_install
       BUILD_DIR: /__w/openvino/openvino/openvino_build
-      SCCACHE_AZURE_KEY_PREFIX: ${{ inputs.os }}_x86_64_Release
-      ONNX_RUNTIME_UTILS: /__w/openvino/openvino/openvino/src/frontends/onnx/tests/ci_utils/onnxruntime
+      SCCACHE_AZURE_KEY_PREFIX: ${{ inputs.os }}_${{ inputs.arch }}_Release
       ARTIFACTS_SHARE: "/mount/build-artifacts"
       MANIFEST_PATH: '/__w/openvino/openvino/manifest.yml'
-      PRODUCT_TYPE: public_linux_${{ inputs.os }}_release
+      PRODUCT_TYPE: public_linux_${{ inputs.os }}_${{ inputs.arch }}_release
     steps:
       - name: Clone OpenVINO
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'true'
@@ -77,12 +106,12 @@ jobs:
           git rev-parse HEAD
 
       - name: Clone OpenVINO Contrib
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: 'openvinotoolkit/openvino_contrib'
           path: ${{ env.OPENVINO_CONTRIB_REPO }}
           submodules: 'true'
-          ref: 'master'
+          ref: ${{ env.TARGET_BRANCH }}
 
       - name: Generate product manifest and set CI_BUILD_NUMBER & CI_BUILD_DEV_TAG
         id: create_manifest
@@ -92,7 +121,7 @@ jobs:
             ${{ env.OPENVINO_REPO }}
             ${{ env.OPENVINO_CONTRIB_REPO }}
           product_type: ${{ env.PRODUCT_TYPE }}
-          target_arch: 'intel64'
+          target_arch: ${{ inputs.arch }}
           build_type: 'release'
           save_to: ${{ env.MANIFEST_PATH }}
 
@@ -131,17 +160,7 @@ jobs:
       - name: CMake configure - OpenVINO
         run: |
           cmake \
-            -G "${{ env.CMAKE_GENERATOR }}" \
-            -DENABLE_CPPLINT=OFF \
-            -DENABLE_NCC_STYLE=OFF \
-            -DENABLE_TESTS=ON \
-            -DENABLE_STRICT_DEPENDENCIES=OFF \
-            -DENABLE_SYSTEM_OPENCL=ON \
-            -DCMAKE_VERBOSE_MAKEFILE=ON \
-            -DCPACK_GENERATOR=TGZ \
-            -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
-            -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
-            -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
+            ${{ inputs.cmake-options }} \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
 
@@ -156,32 +175,26 @@ jobs:
 
       - name: Cmake install - OpenVINO
         run: |
-          cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -P ${BUILD_DIR}/cmake_install.cmake
-          cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_TEST_DIR} -DCOMPONENT=tests -P ${BUILD_DIR}/cmake_install.cmake
-          cmake -DCMAKE_INSTALL_PREFIX=${DEVELOPER_PACKAGE_DIR} -DCOMPONENT=developer_package -P ${BUILD_DIR}/cmake_install.cmake
-          cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -DCOMPONENT=python_wheels -P ${BUILD_DIR}/cmake_install.cmake
-
-      - name: Pack Artifacts
-        run: |
-
-          # Add the ONNX Runtime version and skip tests list to the archive to use in the ONNX Runtime Job
-          # w/o the need to checkout repository
-
-          cp -R ${ONNX_RUNTIME_UTILS} ${INSTALL_DIR}
-
-          pushd ${INSTALL_DIR}
-            tar -czvf ${BUILD_DIR}/openvino_package.tar.gz *
-          popd
-
-          pushd ${DEVELOPER_PACKAGE_DIR}
-            tar -czvf ${BUILD_DIR}/openvino_developer_package.tar.gz *
-          popd
-
-          pushd ${INSTALL_TEST_DIR}
-            tar -czvf ${BUILD_DIR}/openvino_tests.tar.gz *
-          popd
-
+          cmake --install . --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${INSTALL_DIR}
+          cmake --install . --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${INSTALL_WHEELS_DIR} --component python_wheels
+          cmake --install . --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${INSTALL_TEST_DIR} --component tests
+          cmake --install . --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${DEVELOPER_PACKAGE_DIR} --component developer_package
+        working-directory: ${{ env.BUILD_DIR }}
+          
+      - name: Pack openvino_package
+        run: tar -cvf - * | pigz > ${BUILD_DIR}/openvino_package.tar.gz
+        working-directory: ${{ env.INSTALL_DIR }}
+        
+      - name: Pack openvino_developer_package
+        run: tar -cvf - * | pigz > ${BUILD_DIR}/openvino_developer_package.tar.gz
+        working-directory: ${{ env.DEVELOPER_PACKAGE_DIR }}
+        
+      - name: Pack openvino_tests
+        run: tar -cvf - * | pigz > ${BUILD_DIR}/openvino_tests.tar.gz
+        working-directory: ${{ env.INSTALL_TEST_DIR }}
+      
       - name: Build Debian packages
+        if: ${{ inputs.build-debian-packages }}
         run: |
           # Ubuntu 24 does not allow using the system Python directly so 
           # we have to use Python from the virtual environment created in Docker
@@ -192,6 +205,7 @@ jobs:
                 -UTBB* \
                 -DENABLE_SYSTEM_TBB=ON \
                 -DENABLE_PYTHON_PACKAGING=ON \
+                -DENABLE_WHEEL=OFF \
                 -DENABLE_TESTS=OFF \
                 -DPython3_EXECUTABLE=$python_exec \
                 -DCPACK_GENERATOR=DEB \
@@ -199,26 +213,43 @@ jobs:
           cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --target package
 
       - name: Cmake & Build - OpenVINO Contrib
+        if: ${{ inputs.build-contrib }}
         run: |
           cmake \
             -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" \
             -DOPENVINO_EXTRA_MODULES="${OPENVINO_CONTRIB_REPO}/modules/java_api;${OPENVINO_CONTRIB_REPO}/modules/custom_operations" \
+            -DENABLE_WHEEL=OFF \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
           cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
 
       - name: CMake configure, build and install - OpenVINO JS API
-        if: ${{ fromJSON(inputs.affected-components).JS_API }}
+        if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js }}
         run: |
-          cmake -UTBB* -DCPACK_GENERATOR=NPM -DENABLE_SYSTEM_TBB=OFF -S ${OPENVINO_REPO} -B ${BUILD_DIR}
+          cmake -UTBB* -S ${OPENVINO_REPO} -B ${BUILD_DIR} \
+                -DCPACK_GENERATOR=NPM \
+                -DENABLE_SYSTEM_TBB=OFF \
+                -DENABLE_WHEEL=OFF
           cmake --build ${BUILD_DIR} --parallel
-          cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR_JS} -P ${BUILD_DIR}/cmake_install.cmake
+          cmake --install ${BUILD_DIR} --prefix ${INSTALL_DIR_JS}
+
+      - name: Build RPM packages
+        if: ${{ inputs.build-rpm-packages }}
+        run: |
+          cmake -UTBB* \
+                -DCPACK_GENERATOR=RPM \
+                -DENABLE_SYSTEM_TBB=ON \
+                -DENABLE_PYTHON_PACKAGING=ON \
+                -DENABLE_WHEEL=OFF \
+                -DENABLE_TESTS=OFF \
+                ${BUILD_DIR}
+          cmake --build ${BUILD_DIR} --parallel --target package --verbose
 
       #
       # Upload build artifacts and logs
       #
       - name: Upload build logs
-        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         if: always()
         with:
           name: build_logs
@@ -227,15 +258,23 @@ jobs:
 
       - name: Upload openvino package
         if: ${{ always() }}
-        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: openvino_package
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
           if-no-files-found: 'error'
-
+          
+      - name: Upload openvino wheels
+        if: ${{ inputs.os != 'debian_10' && inputs.arch != 'arm' }}
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: openvino_wheels
+          path: ${{ env.INSTALL_WHEELS_DIR }}/wheels/*.whl
+          if-no-files-found: 'error'
+        
       - name: Upload openvino js package
-        if: ${{ fromJSON(inputs.affected-components).JS_API }}
-        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
+        if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js }}
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: openvino_js_package
           path: ${{ env.INSTALL_DIR_JS }}
@@ -243,15 +282,23 @@ jobs:
 
       - name: Upload openvino developer package
         if: ${{ always() }}
-        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: openvino_developer_package
           path: ${{ env.BUILD_DIR }}/openvino_developer_package.tar.gz
           if-no-files-found: 'error'
 
+      - name: Upload openvino RPM packages
+        if: ${{ inputs.build-rpm-packages }}
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: openvino_rpm_packages
+          path: ${{ env.BUILD_DIR }}/*.rpm
+          if-no-files-found: 'error'
+
       - name: Upload openvino debian packages
-        if: ${{ always() }}
-        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
+        if: ${{ inputs.build-debian-packages }}
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: openvino_debian_packages
           path: ${{ env.BUILD_DIR }}/*.deb
@@ -259,7 +306,7 @@ jobs:
 
       - name: Upload openvino tests package
         if: ${{ always() }}
-        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
@@ -284,5 +331,8 @@ jobs:
             ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
             ${{ env.BUILD_DIR }}/deb
             ${{ env.MANIFEST_PATH }}
+            ${{ env.STORE_WHEELS == 'true' && format('{0}/wheels', env.INSTALL_WHEELS_DIR) || '' }}
           storage_dir: ${{ env.PRODUCT_TYPE }}
           storage_root: ${{ env.ARTIFACTS_SHARE }}
+        env:
+          STORE_WHEELS: ${{ inputs.os != 'debian_10' && inputs.arch != 'arm' }}

@@ -28,6 +28,8 @@ from openvino._pyopenvino.properties import max_batch_size
 from openvino._pyopenvino.properties import range_for_async_infer_requests
 from openvino._pyopenvino.properties import execution_devices
 from openvino._pyopenvino.properties import loaded_from_cache
+from openvino._pyopenvino.properties import cache_encryption_callbacks
+from openvino._pyopenvino.properties import weights_path
 
 # Submodules
 from openvino.runtime.properties import hint

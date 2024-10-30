@@ -167,8 +167,11 @@ add_custom_command(TARGET ov_onnx_frontend_tests POST_BUILD
                    ${custom_commands}
                    COMMENT "Copy test manifest files to ${TEST_MODEL_ZOO}/onnx")
 
-# process models
+# Process models
 add_dependencies(ov_onnx_frontend_tests test_model_zoo)
+
+# Working with ModelProto
+ov_link_system_libraries(ov_onnx_frontend_tests PUBLIC onnx_proto onnx)
 
 add_subdirectory(standalone_build)
 add_dependencies(ov_onnx_frontend_tests onnx_fe_standalone_build_test)

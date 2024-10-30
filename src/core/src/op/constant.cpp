@@ -258,9 +258,41 @@ void Constant::allocate_buffer(bool memset_allocation) {
     if (m_element_type == ov::element::string) {
         m_data = std::make_shared<StringAlignedBuffer>(num_elements, byte_size, host_alignment(), memset_allocation);
     } else {
+        constexpr uint8_t init_value = 0;
         m_data = std::make_shared<AlignedBuffer>(byte_size, host_alignment());
+
         if (memset_allocation) {
-            std::memset(m_data->get_ptr(), 0, m_data->size());
+            std::memset(m_data->get_ptr(), init_value, m_data->size());
+        } else {
+            set_unused_bits(m_data->get_ptr());
+        }
+    }
+}
+
+void Constant::set_unused_bits(void* buffer) const {
+    const auto byte_size = m_data->size();
+
+    if (byte_size > 0) {
+        const auto num_elements = shape_size(m_shape);
+
+        if (element::is_bit_type(m_element_type)) {
+            constexpr size_t storage_unit_byte_size = 1;
+            const auto not_aligned_elements = num_elements % (8 / m_element_type.bitwidth());
+            const uint8_t not_used_bits_mask = 0xff >> (m_element_type.bitwidth() * not_aligned_elements);
+            reinterpret_cast<uint8_t*>(buffer)[byte_size - storage_unit_byte_size] &= ~not_used_bits_mask;
+        } else if (element::is_nibble_type(m_element_type) && (num_elements % 2)) {
+            constexpr size_t storage_unit_byte_size = 1;
+            reinterpret_cast<uint8_t*>(buffer)[byte_size - storage_unit_byte_size] &= 0x0FU;
+        } else if (element::is_split_bit_type(m_element_type)) {
+            constexpr size_t storage_unit_byte_size = 3;
+            const auto num_values = (24U / m_element_type.bitwidth());
+            const auto not_aligned_elements = num_elements % num_values;
+            const uint16_t not_used_upper_mask = ~(0xffff >> (not_aligned_elements * (16U / num_values)));
+
+            auto ptr = reinterpret_cast<uint8_t*>(buffer) + (byte_size - storage_unit_byte_size);
+            ptr[0] &= not_used_upper_mask >> 8U;
+            ptr[1] &= not_used_upper_mask & 0x00ff;
+            ptr[2] &= ~(0xff >> (not_aligned_elements * (8U / num_values)));
         }
     }
 }
@@ -290,7 +322,8 @@ Constant::Constant(const Constant& other)
       m_byte_strides{other.m_byte_strides},
       m_data{other.m_data},
       m_all_elements_bitwise_identical{other.m_all_elements_bitwise_identical.load()},
-      m_all_elements_bitwise_identical_checked{other.m_all_elements_bitwise_identical_checked.load()} {
+      m_all_elements_bitwise_identical_checked{other.m_all_elements_bitwise_identical_checked.load()},
+      m_alloc_buffer_on_visit_attributes{other.m_alloc_buffer_on_visit_attributes} {
     constructor_validate_and_infer_types();
 }
 
@@ -306,6 +339,15 @@ Constant::Constant(const Constant& other, const Shape& new_shape)
     OPENVINO_ASSERT(other_size == new_size, "ov::Shape size ", new_size, " is not equal to ", other_size);
     constructor_validate_and_infer_types();
 }
+
+Constant::Constant(const element::Type& type, const Shape& shape, const void* data, std::shared_ptr<void> so)
+    : Constant(
+          type,
+          shape,
+          // Note: const_cast used to store pointer only
+          std::make_shared<ov::SharedBuffer<std::shared_ptr<void>>>(reinterpret_cast<char*>(const_cast<void*>(data)),
+                                                                    element::get_memory_size(type, shape_size(shape)),
+                                                                    so)) {}
 
 Constant::~Constant() = default;
 
@@ -542,11 +584,6 @@ void Constant::update_identical_flags(bool is_checked, bool identical_value) con
 
 void Constant::validate_and_infer_types() {
     set_output_type(0, m_element_type, m_shape);
-    if (const auto tensor = get_tensor_view()) {
-        auto& output_tensor = get_output_tensor(0);
-        output_tensor.set_lower_value(tensor);
-        output_tensor.set_upper_value(tensor);
-    }
 }
 
 bool Constant::visit_attributes(AttributeVisitor& visitor) {
@@ -626,7 +663,7 @@ bool Constant::evaluate_upper(TensorVector& outputs) const {
     return evaluate(outputs, {});
 }
 
-bool Constant::constant_fold(OutputVector&, const OutputVector&) {
+bool Constant::can_constant_fold(const OutputVector& input_values) const {
     return false;
 }
 

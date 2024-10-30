@@ -1,4 +1,5 @@
-FROM openvinogithubactions.azurecr.io/dockerhub/ubuntu:24.04
+ARG REGISTRY="docker.io"
+FROM ${REGISTRY}/library/ubuntu:24.04
 
 USER root
 
@@ -19,6 +20,8 @@ RUN apt-get update && \
         git \
         gpg-agent \
         tzdata \
+        # parallel gzip
+        pigz \
         # Python
         python3-full \
         libhdf5-dev \

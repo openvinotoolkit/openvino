@@ -38,7 +38,7 @@ static size_t get_shape_data_size(const layout& l) {
         return 0;
 
     size_t size = layout::max_rank(); // all dimenstions are stored
-    auto dynamic_pad = l.data_padding.get_dynamic_pad_dims().sizes(format::get_default_format(layout::max_rank()));
+    const auto& dynamic_pad = l.data_padding._dynamic_dims_mask;
     for (size_t j = 0; j < layout::max_rank(); ++j) {
         if (dynamic_pad[j] == 1) {
             size += 2; // lower + upper
@@ -90,7 +90,8 @@ void program_node::replace_dependency(size_t idx, std::pair<program_node*, int32
 std::vector<layout> const program_node::get_input_layouts() const {
     std::vector<layout> layouts;
     for (size_t i = 0; i < dependencies.size(); i++) {
-        layouts.push_back(get_input_layout(i));
+        auto input_layout = get_input_layout(i);
+        layouts.push_back(input_layout);
     }
     return layouts;
 }
@@ -525,6 +526,20 @@ bool program_node::is_fused_dep(size_t dep_idx) const {
     return false;
 }
 
+std::set<size_t> program_node::get_lockable_input_ids() const {
+    const auto impl = get_selected_impl();
+    const bool has_cpu_impl = get_preferred_impl_type() == impl_types::cpu || (impl && impl->is_cpu());
+    if (has_cpu_impl && !is_type<shape_of>()) {
+        std::set<size_t> dependencies_indexes;
+        for (size_t i = 0; i < get_dependencies().size(); i++)
+            dependencies_indexes.insert(i);
+
+        return dependencies_indexes;
+    } else {
+        return {};
+    }
+}
+
 std::map<size_t, memory::ptr> program_node::get_const_memory_deps() const {
     std::map<size_t, memory::ptr> mem_deps;
     for (auto& i : get_shape_infer_dependencies()) {
@@ -594,10 +609,13 @@ bool program_node::is_padding_supported(int axis, int padding) const {
 }
 
 bool program_node::is_padded_spatial(size_t idx) const {
-    auto lower_size = get_output_layout(idx).data_padding.lower_size();
-    auto upper_size = get_output_layout(idx).data_padding.upper_size();
-    return std::any_of(lower_size.spatial.begin(), lower_size.spatial.end(), [](const tensor::value_type& el) { return el != 0; }) ||
-        std::any_of(upper_size.spatial.begin(), upper_size.spatial.end(), [](const tensor::value_type& el) { return el != 0; });
+    auto& layout = get_output_layout(idx);
+    const auto& lower_size = layout.data_padding._lower_size;
+    const auto& upper_size = layout.data_padding._upper_size;
+    return std::any_of(std::begin(lower_size) + 2, std::begin(lower_size) + 2 + layout.get_spatial_rank(),
+                        [](const tensor::value_type& el) { return el != 0; }) ||
+           std::any_of(std::begin(upper_size) + 2, std::begin(upper_size) + 2 + layout.get_spatial_rank(),
+                        [](const tensor::value_type& el) { return el != 0; });
 }
 
 void program_node::set_selected_impl(std::unique_ptr<primitive_impl> impl) {
@@ -630,6 +648,14 @@ void program_node::set_preferred_output_fmt(size_t idx, format::type type) {
         preferred_output_fmts.resize(idx+1, format::any);
 
     preferred_output_fmts.at(idx) = type;
+}
+
+bool program_node::can_use(impl_types impl_type) const {
+    return get_primitive()->type->has_impl_for(*this, impl_type);
+}
+
+void program_node::select_preferred_formats(impl_types impl_type) {
+    std::tie(preferred_input_fmts, preferred_output_fmts) = get_primitive()->type->query_preferred_formats(*this, impl_type);
 }
 
 void program_node::add_dependant_shape_of_node(const program_node* node) {
@@ -1523,6 +1549,18 @@ void program_node::create_onednn_primitive_attributes(
                             mem_desc.get_dims(), mem_desc.get_data_type());
                 } else if (is_type<gemm>()) {
                     size_t rank = cldnn::format::dimension(in.format);
+                    auto in_pshape = in.get_partial_shape();
+                    auto out_pshape = get_output_layout().get_partial_shape();
+                    size_t ones_to_add = std::max(out_pshape.size(), static_cast<size_t>(rank)) - in_pshape.size();
+                    if (ones_to_add > 0) {
+                        layout new_layout = in;
+                        ov::PartialShape new_input_pshape;
+                        std::vector<ov::Dimension> dims(in_pshape.begin(), in_pshape.begin() + in_pshape.size());
+                        new_input_pshape = ov::PartialShape(dims);
+                        new_input_pshape.insert(new_input_pshape.begin(), ones_to_add, 1ul);
+                        new_layout.set_partial_shape(new_input_pshape);
+                        in = new_layout;
+                    }
                     size_t in_batched_size = in.count() / (in.spatial(0) * in.spatial(1));
                     dnnl::memory::dims dims = onednn::convert_gemm_tensor(in.get_tensor(), rank, in_batched_size == 1);
                     dnnl::memory::data_type dt = onednn::convert_data_type(in.data_type);

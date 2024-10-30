@@ -10,3 +10,5 @@ This module provides access to experimental functionality that is subject to cha
 
 from openvino._pyopenvino.experimental import evaluate_as_partial_shape
 from openvino._pyopenvino.experimental import evaluate_both_bounds
+from openvino._pyopenvino.experimental import set_element_type
+from openvino._pyopenvino.experimental import set_tensor_type

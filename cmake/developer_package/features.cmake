@@ -11,7 +11,7 @@ else()
     set (CPACK_GENERATOR "TGZ" CACHE STRING "Cpack generator for OpenVINO")
 endif()
 
-ov_dependent_option (ENABLE_LTO "Enable Link Time Optimization" OFF "LINUX;NOT ARM;CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 4.9" OFF)
+ov_dependent_option (ENABLE_LTO "Enable Link Time Optimization" OFF "LINUX;NOT ARM;CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 9.0" OFF)
 
 ov_option (OS_FOLDER "create OS dedicated folder in output" OFF)
 
@@ -48,6 +48,8 @@ ov_dependent_option (ENABLE_SSE42 "Enable SSE4.2 optimizations" ON "X86_64 OR (X
 ov_dependent_option (ENABLE_AVX2 "Enable AVX2 optimizations" ON "X86_64 OR (X86 AND NOT EMSCRIPTEN)" OFF)
 
 ov_dependent_option (ENABLE_AVX512F "Enable AVX512 optimizations" ON "X86_64 OR (X86 AND NOT EMSCRIPTEN)" OFF)
+
+ov_dependent_option(ENABLE_NEON_FP16 "Enable ARM FP16 optimizations" ON "AARCH64" OFF)
 
 # Type of build, we add this as an explicit option to default it to ON
 get_property(BUILD_SHARED_LIBS_DEFAULT GLOBAL PROPERTY TARGET_SUPPORTS_SHARED_LIBS)

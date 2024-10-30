@@ -1,5 +1,3 @@
-.. {#openvino_docs_Extensibility_UG_Intro}
-
 OpenVINO Extensibility Mechanism
 ================================
 
@@ -27,7 +25,7 @@ OpenVINO Extensibility Mechanism
 
 The Intel® Distribution of OpenVINO™ toolkit supports neural-network models trained with various frameworks, including
 TensorFlow, PyTorch, ONNX, TensorFlow Lite, and PaddlePaddle. The list of supported operations is different for each of the supported frameworks.
-To see the operations supported by your framework, refer to :doc:`Supported Framework Operations <../about-openvino/compatibility-and-support/supported-operations-framework-frontend>`.
+To see the operations supported by your framework, refer to :doc:`Supported Framework Operations <../about-openvino/compatibility-and-support/supported-operations>`.
 
 Custom operations, which are not included in the list, are not recognized by OpenVINO out-of-the-box. The need for custom operation may appear in two cases:
 
@@ -168,6 +166,15 @@ This CMake script finds OpenVINO, using the ``find_package`` CMake command.
    $ cmake -DOpenVINO_DIR=<OpenVINO_DIR> ../
    $ cmake --build .
 
+The OpenVINO python distribution could be also used. The following code snippet demonstrates how to get the OpenVINO_DIR:
+
+.. code-block:: sh
+
+   $ cd src/core/template_extension/new
+   $ mkdir build
+   $ cd build
+   $ cmake -DOpenVINO_DIR=$(python3 -c "from openvino.utils import get_cmake_path; print(get_cmake_path(), end='')") ../
+   $ cmake --build .
 
 4. After the build, you may use the path to your extension library to load your extensions to OpenVINO Runtime:
 

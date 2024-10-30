@@ -1,5 +1,3 @@
-.. {#openvino_docs_OV_UG_Python_API_inference}
-
 OpenVINO™ Runtime Python API Advanced Inference
 =================================================
 

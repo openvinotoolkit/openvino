@@ -205,6 +205,8 @@ public:
                          OPENVINO_ASSERT(allocator, "Allocator was not initialized");
                          const auto byte_size = element::get_memory_size(element_type, shape_size(shape));
                          auto data = const_cast<Allocator&>(allocator).allocate(byte_size);
+                         OPENVINO_ASSERT(byte_size == 0 || data != nullptr, "Failed to allocate memory");
+
                          initialize_elements(data, element_type, shape);
                          return data;
                      }()},

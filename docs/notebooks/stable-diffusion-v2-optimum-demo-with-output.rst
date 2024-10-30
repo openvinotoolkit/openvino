@@ -8,13 +8,15 @@ running multiple times.
 
 |image0|
 
+
 **Table of contents:**
 
 
 -  `Showing Info Available Devices <#showing-info-available-devices>`__
 -  `Configure Inference Pipeline <#configure-inference-pipeline>`__
--  `Using full precision model in choice device with
-   OVStableDiffusionPipeline <#using-full-precision-model-in-choice-device-with-ovstablediffusionpipeline>`__
+-  `Convert model using Optimum <#convert-model-using-optimum>`__
+-  `Run model using
+   OVStableDiffusionPipeline <#run-model-using-ovstablediffusionpipeline>`__
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -38,7 +40,7 @@ this
 
 .. code:: ipython3
 
-    %pip install -q "optimum-intel[openvino,diffusers]@git+https://github.com/huggingface/optimum-intel.git" "ipywidgets" "transformers>=4.33.0" "torch>=2.1" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "git+https://github.com/huggingface/optimum-intel.git" "diffusers>=0.25.0" "openvino>=2024.4.0" "ipywidgets" "transformers>=4.33.0" "torch>=2.1" --extra-index-url https://download.pytorch.org/whl/cpu
 
 Stable Diffusion pipeline should brings 6 elements together, a text
 encoder model with a tokenizer, a UNet model with and scheduler, and an
@@ -57,7 +59,7 @@ OpenVINO’s integration into Optimum.
 .. code:: ipython3
 
     import warnings
-
+    
     warnings.filterwarnings("ignore")
 
 Showing Info Available Devices
@@ -76,12 +78,14 @@ If you just have either an iGPU or dGPU that will be assigned to
 .. code:: ipython3
 
     import openvino as ov
-
+    import openvino.properties as props
+    
+    
     core = ov.Core()
     devices = core.available_devices
-
+    
     for device in devices:
-        device_name = core.get_property(device, "FULL_DEVICE_NAME")
+        device_name = core.get_property(device, props.device.full_name)
         print(f"{device}: {device_name}")
 
 
@@ -101,15 +105,17 @@ Select device from dropdown list for running inference using OpenVINO.
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="CPU",
-        description="Device:",
-        disabled=False,
+    import requests
+    
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
-
+    open("notebook_utils.py", "w").write(r.text)
+    
+    from notebook_utils import device_widget
+    
+    device = device_widget("CPU")
+    
     device
 
 
@@ -121,26 +127,40 @@ Select device from dropdown list for running inference using OpenVINO.
 
 
 
-Using full precision model in choice device with ``OVStableDiffusionPipeline``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Convert model using Optimum
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+.. code:: ipython3
+
+    from pathlib import Path
+    
+    name = "stabilityai/stable-diffusion-2-1-base"
+    model_dir = Path(name.split("/")[-1])
+    
+    if not model_dir.exists():
+        !optimum-cli export openvino -m {name} {model_dir}
+
+Run model using ``OVStableDiffusionPipeline``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
 
 .. code:: ipython3
 
     from optimum.intel.openvino import OVStableDiffusionPipeline
-
-    # download the pre-converted SD v2.1 model from Hugging Face Hub
-    name = "helenai/stabilityai-stable-diffusion-2-1-base-ov"
-    ov_pipe = OVStableDiffusionPipeline.from_pretrained(name, compile=False)
+    
+    # download and converted SD v2.1 model from Hugging Face Hub
+    
+    ov_pipe = OVStableDiffusionPipeline.from_pretrained(model_dir, compile=False, device=device.value)
     ov_pipe.reshape(batch_size=1, height=512, width=512, num_images_per_prompt=1)
-    ov_pipe.to(device.value)
     ov_pipe.compile()
 
 .. code:: ipython3
 
     import gc
-
+    
     # Generate an image.
     prompt = "red car in snowy forest, epic vista, beautiful landscape, 4k, 8k"
     output_ov = ov_pipe(prompt, num_inference_steps=17, output_type="pil").images[0]
@@ -156,7 +176,7 @@ Using full precision model in choice device with ``OVStableDiffusionPipeline``
 
 
 
-.. image:: stable-diffusion-v2-optimum-demo-with-output_files/stable-diffusion-v2-optimum-demo-with-output_11_1.png
+.. image:: stable-diffusion-v2-optimum-demo-with-output_files/stable-diffusion-v2-optimum-demo-with-output_13_1.png
 
 
 

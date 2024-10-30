@@ -2,16 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "primitive_inst.h"
 #include "test_utils.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/data.hpp>
-
-#include "program_wrapper.h"
+#include <intel_gpu/primitives/permute.hpp>
 
 #include <cmath>
-#include <algorithm>
 
 using namespace cldnn;
 using namespace ::tests;

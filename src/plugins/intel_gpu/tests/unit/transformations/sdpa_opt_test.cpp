@@ -185,7 +185,7 @@ TEST_P(SDPAOptimizationTestsP, PassesSequence) {
                                                   num_groups);
 
     manager.register_pass<KVCacheFusion>();
-    manager.register_pass<TransposeFusion>();
+    manager.register_pass<TransposeFusion>(false);
     manager.register_pass<UnsqueezeBroadcastReshapeSDPAFusion>();
     manager.register_pass<IndirectKVCache>();
 

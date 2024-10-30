@@ -23,7 +23,7 @@ class TestDotGeneral(JaxLayerTest):
             out = lax.dot_general(lhs, rhs, dimension_numbers)
             return out
 
-        return jax_dot_general, None
+        return jax_dot_general, None, 'dot_general'
 
     test_data = [
         # 1D vector dot 1D vector

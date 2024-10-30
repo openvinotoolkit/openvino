@@ -42,6 +42,8 @@ const ov::element::Type& get_ov_element_type(int64_t onnx_type) {
         return ov::element::f16;
     case TensorProto_DataType::TensorProto_DataType_FLOAT:
         return ov::element::f32;
+    case TensorProto_DataType::TensorProto_DataType_INT4:
+        return ov::element::i4;
     case TensorProto_DataType::TensorProto_DataType_INT8:
         return ov::element::i8;
     case TensorProto_DataType::TensorProto_DataType_INT16:
@@ -50,6 +52,8 @@ const ov::element::Type& get_ov_element_type(int64_t onnx_type) {
         return ov::element::i32;
     case TensorProto_DataType::TensorProto_DataType_INT64:
         return ov::element::i64;
+    case TensorProto_DataType::TensorProto_DataType_UINT4:
+        return ov::element::u4;
     case TensorProto_DataType::TensorProto_DataType_UINT8:
         return ov::element::u8;
     case TensorProto_DataType::TensorProto_DataType_UINT16:
@@ -70,8 +74,18 @@ const ov::element::Type& get_ov_element_type(int64_t onnx_type) {
         return ov::element::string;
     }
     ONNX_UNSUPPORTED_DATA_TYPE(onnx_type,
-                               "BOOL, BFLOAT16, FLOAT8E4M3FN, FLOAT8E5M2, FLOAT, FLOAT16, DOUBLE, INT8, INT16, "
-                               "INT32, INT64, UINT8, UINT16, UINT32, UINT64, STRING, UNDEFINED");
+                               "BOOL, BFLOAT16, FLOAT8E4M3FN, FLOAT8E5M2, FLOAT, FLOAT16, DOUBLE, INT4, INT8, INT16, "
+                               "INT32, INT64, UINT4, UINT8, UINT16, UINT32, UINT64, STRING, UNDEFINED");
+}
+
+void default_op_checks(const Node& node, size_t min_inputs_size) {
+    const auto& inputs = node.get_ov_inputs();
+    FRONT_END_OP_CONVERSION_CHECK(inputs.size() >= min_inputs_size,
+                                  node.op_type(),
+                                  " expected at least ",
+                                  std::to_string(min_inputs_size),
+                                  " inputs, got: ",
+                                  inputs.size());
 }
 
 std::shared_ptr<ov::Node> get_monotonic_range_along_node_rank(const ov::Output<ov::Node>& value,
@@ -113,8 +127,10 @@ void validate_scalar_input(const char* input_name,
 
 template <typename T>
 ov::OutputVector handle_opset6_binary_op(const ov::frontend::onnx::Node& node) {
-    const ov::Output<ov::Node> lhs_node = node.get_ov_inputs().at(0);
-    ov::Output<ov::Node> rhs_node = node.get_ov_inputs().at(1);
+    default_op_checks(node, 2);
+    const auto& inputs = node.get_ov_inputs();
+    const ov::Output<ov::Node> lhs_node = inputs[0];
+    ov::Output<ov::Node> rhs_node = inputs[1];
     const bool broadcast = node.get_attribute_value<std::int64_t>("broadcast", 0);
     if (broadcast) {
         if (node.has_attribute("axis")) {

@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_type_ConvertPromoteTypes_14}
-
 ConvertPromoteTypes
 ===================
 
@@ -57,7 +55,7 @@ Examples (notation: ``ConvertPromoteTypes(lhs_type, rhs_type) -> promoted_common
     * ``ConvertPromoteTypes(f8m4e3, f8m5e3) -> f16`` - Both inputs have f8 data type, however, due to difference in mantissa and exponential, bit widening to either f16 or bf16 is necessary, where f16 was selected as result of this promotion.
     * ``ConvertPromoteTypes(u64, i8) -> f32`` - promotion of u64 and any signed integer would result in i128, which is not supported. Common type is set according to *u64_integer_promotion_target*, default f32.
 
-* Promotions for PyTorch-like mode with *pytorch_scalar_promotion* set to ``true``. Notation is extended by ``S(type)`` marking 0-dimensioned (scalar) tensor, and ``D(type)`` marking dimensioned tensor. 
+* Promotions for PyTorch-like mode with *pytorch_scalar_promotion* set to ``true``. Notation is extended by ``S(type)`` marking 0-dimensioned (scalar) tensor, and ``D(type)`` marking dimensioned tensor.
 
     * ``ConvertPromoteTypes(S(i64), D(u8)) -> u8`` - Inputs have same data type, promote to type of dimensioned input. Rules of safe promotion (controlled by *promote_unsafe*) apply in Pytorch-like conversion.
     * ``ConvertPromoteTypes(S(f16), D(i8)) -> f16`` - Inputs have mixed data types - follow general conversion rules, dimensions of inputs does not affect common type.

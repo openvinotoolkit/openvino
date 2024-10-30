@@ -4,6 +4,7 @@
 
 #include "dcoff.hpp"
 
+#include "../../lazy_tensor.hpp"
 #include "../../logging.hpp"
 #include "../../util.hpp"
 #include "../partitioning.hpp"  // Subgraph
@@ -93,6 +94,7 @@ ClosureRemap build_remap(const Function& fbody, const DCOFFParams& params_to) {
         } else if (ban_list.find(param) == ban_list.end()) {
             // If it's not in the ban list, it's an OK parameter and should be kept
             LOG_DEBUG("This is an OK parameter, will be kept");
+            m.weights_to_unpack.insert(i - fbody._param_offset);
             m.closure_remap.push_back(i - fbody._param_offset);
         }
 
@@ -115,35 +117,70 @@ ClosureRemap build_remap(const Function& fbody, const DCOFFParams& params_to) {
 
 void apply_remap(Subgraph& fcall, const ClosureRemap& m) {
     std::vector<ov::Tensor> new_closure;
+    std::vector<ov::npuw::weights::LazyTensor> new_lazy_closure;
     std::vector<ov::Tensor> new_scales;
     std::vector<ov::Tensor> new_zerops;
 
-    // For a new_closure vector by rearranging the old one.  Also
+    // For a new_lazy_closure vector by rearranging the old one.  Also
     // reserve a new_scales vector to have the same size, filled with
     // empty tensors by default.
     for (auto&& i : m.closure_remap) {
-        new_closure.push_back(fcall._closure[i]);
+        new_lazy_closure.push_back(fcall._lazy_closure[i]);
+        if (fcall._closure[i]) {
+            new_closure.push_back(fcall._closure[i]);
+        } else {
+            new_closure.push_back(m.weights_to_unpack.count(i) ? fcall._lazy_closure[i].eval() : fcall._closure[i]);
+        }
 
         auto scale_iter = m.scale_remap.find(i);
-        new_scales.push_back(scale_iter != m.scale_remap.end() ? fcall._closure[scale_iter->second] : ov::Tensor());
-        // Check for asymmetric zero points and add them to new_zerops
         auto zerop_iter = m.zerop_remap.find(i);
-        const auto& zerop = zerop_iter != m.zerop_remap.end() ? fcall._closure[zerop_iter->second] : m.zero_points[i];
-        new_zerops.push_back(zerop);
+
+        new_scales.push_back(scale_iter != m.scale_remap.end() ? fcall._lazy_closure[scale_iter->second].eval()
+                                                               : ov::Tensor());
+        // Check for asymmetric zero points and add them to new_zerops
+        new_zerops.push_back(zerop_iter != m.zerop_remap.end() ? fcall._lazy_closure[zerop_iter->second].eval()
+                                                               : m.zero_points[i]);
     }
-    fcall._closure = std::move(new_closure);
     fcall._scales = std::move(new_scales);
     fcall._zerops = std::move(new_zerops);
+    fcall._closure = std::move(new_closure);
+    fcall._lazy_closure = std::move(new_lazy_closure);
 }
 
-void finalize_remap(Function& fbody, const ClosureRemap& m) {
+void finalize_remap(Function& fbody, Subgraph& fsg, const ClosureRemap& m) {
     LOG_DEBUG("Removing retired parameters...");
     LOG_BLOCK();
+
+    // Unfortunate truth - this function has to be aware of the
+    // Host Gather existence to properly update indices after
+    // Remap.
+    using PPtr = std::shared_ptr<ov::op::v0::Parameter>;
+    struct GatherParams {
+        PPtr pidx;  // Parameter @ function body - input_ids
+        PPtr psrc;  // Parameter @ function body - vocab tensor
+        PPtr pdst;  // Parameter @ function body - gathered ids
+    };
+    GatherParams gather_params;
+    const auto& params = fbody._model->get_parameters();
+    if (fsg._host_gather.dst_idx != -1) {
+        gather_params = GatherParams{params[fsg._host_gather.idx_idx],
+                                     params[fsg._host_gather.src_idx],
+                                     params[fsg._host_gather.dst_idx]};
+    }
+
     for (auto&& p : m.params_to_remove) {
         LOG_DEBUG("Removing parameter " << p);
         LOG_BLOCK();
         fbody._model->remove_parameter(p);
     }
+
+    // Update indices for gather
+    if (fsg._host_gather.dst_idx != -1) {
+        fsg._host_gather.idx_idx = fbody._model->get_parameter_index(gather_params.pidx);
+        fsg._host_gather.src_idx = fbody._model->get_parameter_index(gather_params.psrc);
+        fsg._host_gather.dst_idx = fbody._model->get_parameter_index(gather_params.pdst);
+    }
+
     fbody._model->validate_nodes_and_infer_types();
     LOG_DEBUG("DONE");
 }
@@ -536,7 +573,7 @@ DCOFFPassReshape2::DCOFFPassReshape2(DCOffMode dcoff_mode, ov::element::Type dco
     register_matcher(std::make_shared<opp::Matcher>(reshpe, "TagDCOFFReshape2"), std::move(callback));
 }
 
-// Pattern: Phi-3 4SymW16A/GPTQ
+// Pattern: Phi-3 4SymW16A
 //
 //
 //   "tensor"       "scale"           >            "tensor"
@@ -555,7 +592,7 @@ DCOFFPassReshape2::DCOFFPassReshape2(DCOffMode dcoff_mode, ov::element::Type dco
 //            V                       >
 //         Convert
 
-DCOFFPassCWAI3::DCOFFPassCWAI3(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref) {
+DCOFFPassReshape3::DCOFFPassReshape3(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref) {
     auto paramA = opp::wrap_type<ov::op::v0::Parameter>();
     auto paramC = opp::wrap_type<ov::op::v0::Parameter>();
     auto cvtA = opp::wrap_type<ov::op::v0::Convert>({paramA});
@@ -616,7 +653,79 @@ DCOFFPassCWAI3::DCOFFPassCWAI3(DCOffMode dcoff_mode, ov::element::Type dcoff_typ
         return false;  // root node hasn't changed
     };
 
-    register_matcher(std::make_shared<opp::Matcher>(cvt, "TagDCOFFPassCWAI3"), std::move(callback));
+    register_matcher(std::make_shared<opp::Matcher>(cvt, "TagDCOFFPassReshape3"), std::move(callback));
+}
+
+// Pattern: i4 group-quant
+//
+//
+//   "tensor"       "scale"           >            "tensor"
+//    Param:A       Param:C           >             Param:A
+//      i4          f16|f32           >              f16
+//       :           :                >               :
+//       V          :                 >               V
+//     Convert     :                  >            [ Convert]
+//     f16|f32    :                   >            [   f32  ]
+//        :      :                    >                :
+//        V      V                    >                V
+//        Multiply                    >              Reshape
+//         f16|f32                    >              f16|f32
+//            :                       >
+//            :                       >
+//         Reshape                    >
+//         f16|f32                    >
+
+DCOFFPassReshape4::DCOFFPassReshape4(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref) {
+    auto paramA = opp::wrap_type<ov::op::v0::Parameter>();
+    auto paramC = opp::wrap_type<ov::op::v0::Parameter>();
+    auto cvtA = opp::wrap_type<ov::op::v0::Convert>({paramA});
+    auto mulply = opp::wrap_type<ov::op::v1::Multiply>({cvtA, paramC});
+    auto scalar = opp::wrap_type<ov::op::v0::Constant>();
+    auto reshape = opp::wrap_type<ov::op::v1::Reshape>({mulply, scalar});
+
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+        auto matched_nodeA = node_to_output.at(paramA).get_node_shared_ptr();
+        auto matched_nodeC = node_to_output.at(paramC).get_node_shared_ptr();
+
+        NPUW_ASSERT(ov::op::util::is_parameter(matched_nodeA));
+        NPUW_ASSERT(ov::op::util::is_parameter(matched_nodeC));
+
+        auto matched_paramA = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeA);
+        auto matched_paramC = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeC);
+
+        auto matched_out_mulply = node_to_output.at(mulply);
+
+        if (ov::element::i4 == matched_paramA->get_element_type() &&
+            (ov::element::f16 == matched_paramC->get_element_type() ||
+             ov::element::f32 == matched_paramC->get_element_type())) {
+            LOG_DEBUG("Matched: " << matched_paramA << ", set element type to " << dcoff_type);
+            matched_paramA->set_element_type(dcoff_type);
+
+            if (dcoff_mode == DCOffMode::CAST_SCALE) {
+                NPUW_ASSERT(dcoff_type == ov::element::f16);
+
+                LOG_DEBUG("Matched: " << matched_paramC << " - parameter to remove...");
+                LOG_BLOCK();
+
+                // Record mapping from the Scale coeff parameter to the Real weight parameter
+                pref.get().scales[matched_paramC] = matched_paramA;
+
+                std::shared_ptr<ov::Node> new_rshp_in = matched_paramA;
+                if (matched_out_mulply.get_element_type() == ov::element::f32) {
+                    new_rshp_in = std::make_shared<ov::op::v0::Convert>(matched_paramA, ov::element::f32);
+                }
+
+                LOG_DEBUG("Reconnecting the Root...");
+                auto matched_reshape = node_to_output.at(reshape).get_node_shared_ptr();
+                matched_reshape->input(0).replace_source_output(new_rshp_in);
+            }
+            LOG_DEBUG("Done");
+        }
+        return false;  // root node hasn't changed
+    };
+
+    register_matcher(std::make_shared<opp::Matcher>(reshape, "TagDCOFFPassReshape4"), std::move(callback));
 }
 
 //------------------------------------------------------------------------------

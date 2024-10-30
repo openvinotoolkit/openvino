@@ -201,6 +201,12 @@ TRANSFORMATIONS_API bool constantIsEqualTo(const std::shared_ptr<ov::op::v0::Con
 
 TRANSFORMATIONS_API bool has_f16_constants(const std::shared_ptr<const ov::Model>& function);
 
+/**
+ * \brief Check if 'other_shape' can be broadcasted to 'ref_shape'
+ *
+ * \param ref_shape  The target shape we use as reference we are trying to broadcast to.
+ * \param other_shape  The shape we use to check if it can be broadcasted to 'ref_shape'.
+ */
 TRANSFORMATIONS_API bool check_for_broadcast(const PartialShape& ref_shape, const PartialShape& other_shape);
 
 TRANSFORMATIONS_API std::shared_ptr<Node> activation(const std::string& activation_name, const Output<Node>& apply_to);

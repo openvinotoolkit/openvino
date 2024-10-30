@@ -13,6 +13,7 @@ labels and confidence scores for each box. Object detection is a good
 choice when you need to identify objects of interest in a scene, but
 don’t need to know exactly where the object is or its exact shape.
 
+
 **Table of contents:**
 
 
@@ -32,6 +33,8 @@ don’t need to know exactly where the object is or its exact shape.
 -  `Quantization <#quantization>`__
 -  `Compare inference time and model
    sizes. <#compare-inference-time-and-model-sizes>`__
+
+
 
 This is a self-contained example that relies solely on its own code.
 
@@ -65,7 +68,7 @@ notebook_utils Python module from GitHub.
 
     open("notebook_utils.py", "w").write(r.text)
 
-    from notebook_utils import download_file
+    from notebook_utils import download_file, device_widget
 
 Get PyTorch model
 ~~~~~~~~~~~~~~~~~
@@ -170,6 +173,7 @@ instance.
 
 
 
+
 Run inference
 ~~~~~~~~~~~~~
 
@@ -247,17 +251,7 @@ Select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    import openvino as ov
-
-    core = ov.Core()
-
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
 
     device
 
@@ -276,6 +270,10 @@ Compile model
 
 
 .. code:: ipython3
+
+    import openvino as ov
+
+    core = ov.Core()
 
     ov_model = core.read_model(OV_MODEL_PATH)
 

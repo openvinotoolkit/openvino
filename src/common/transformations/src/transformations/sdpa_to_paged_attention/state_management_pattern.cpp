@@ -7,6 +7,8 @@
 #include <tuple>
 
 #include "openvino/cc/pass/itt.hpp"
+#include "openvino/op/abs.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/divide.hpp"
@@ -145,6 +147,14 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
     sdpa_mask = pattern::wrap_type<v1::Reshape>({sdpa_mask, pattern::any_input()});
     sdpa_mask = pattern::wrap_type<v1::Select>({pattern::any_input(), pattern::any_input(), sdpa_mask});
 
+    // For Jais (Jais-13b has a different pattern and handling of alibi slopes)
+    auto mirroring_abs = pattern::wrap_type<v0::Abs>({pattern::any_input()});
+    auto unsqueeze = pattern::wrap_type<v0::Unsqueeze>({mirroring_abs, pattern::any_input()});
+    auto alibi_mask = pattern::wrap_type<v1::Multiply>({alibi, unsqueeze});
+    alibi_mask = pattern::wrap_type<v3::Broadcast>({alibi_mask, pattern::any_input()});
+    alibi_mask = pattern::wrap_type<v0::Unsqueeze>({alibi_mask, pattern::any_input()});
+    alibi_mask = pattern::wrap_type<v1::Add>({pattern::any_input(), alibi_mask});
+
     auto q = pattern::any_input();
     auto scale_input = pattern::any_input();
 
@@ -152,7 +162,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         std::make_shared<pattern::op::Or>(OutputVector{k_concat, k_shaped, k_shaped_transposed, k_simply_shaped});
     auto v_to_sdpa =
         std::make_shared<pattern::op::Or>(OutputVector{v_concat, v_shaped, v_shaped_transposed, v_simply_shaped});
-    auto mask_to_sdpa = std::make_shared<pattern::op::Or>(OutputVector{sdpa_mask, pattern::any_input()});
+    auto mask_to_sdpa = std::make_shared<pattern::op::Or>(OutputVector{sdpa_mask, alibi_mask, pattern::any_input()});
 
     auto sdpa_with_4_inputs =
         pattern::wrap_type<v13::ScaledDotProductAttention>({q, k_to_sdpa, v_to_sdpa, mask_to_sdpa});
@@ -195,7 +205,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
                 }
                 rank = rank.get_length();
                 auto axis = unsqueeze->input_value(1).get_node_shared_ptr();
-                auto constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(axis);
+                auto constant = ov::as_type_ptr<ov::op::v0::Constant>(axis);
                 if (!constant) {
                     return ov::Dimension();
                 }
@@ -324,6 +334,34 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
             if (alibi_slopes->get_element_type() == element::f32) {
                 alibi_slopes = std::make_shared<v0::Convert>(alibi_slopes, element::f32);
             }
+
+            // Jais-13b case
+            if (pattern_map.find(mirroring_abs) != pattern_map.end()) {
+                // For now there's no such case with Alibi slopes being not a Constant,
+                // however that may change in the future. That is why the presence of
+                // Abs is the main sign of the Jais-like topology, thus we need to multiply
+                // by -1. If we encounter the Alibi being a constant, we may do the additional
+                // checking of the values to be negative and, if it fails, we won't multiply
+                // the values by -1.
+                if (auto alibi_constant = ov::as_type_ptr<v0::Constant>(pattern_map.at(alibi).get_node_shared_ptr())) {
+                    auto alibi_constant_values = alibi_constant->cast_vector<float>();
+                    bool all_values_nagative =
+                        std::all_of(alibi_constant_values.begin(), alibi_constant_values.end(), [&](float value) {
+                            return value < 0.0;
+                        });
+
+                    if (all_values_nagative) {
+                        alibi_slopes = std::make_shared<v1::Multiply>(
+                            alibi_slopes,
+                            v0::Constant::create(alibi_slopes->get_element_type(), {}, {-1}));
+                    }
+                } else {
+                    alibi_slopes = std::make_shared<v1::Multiply>(
+                        alibi_slopes,
+                        v0::Constant::create(alibi_slopes->get_element_type(), {}, {-1}));
+                }
+            }
+
         } else {
             alibi_slopes = v0::Constant::create(element::f32, Shape{0}, {});
         }
@@ -345,12 +383,18 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
 
         auto paged_attention = std::make_shared<ov::op::PagedAttentionExtension>(pa_arguments);
 
+        // The output shape of PagedAttention will be converted to [batch, 1, head_num, head_size_v], the head_size_v
+        // may be different from head_size_q/head_size_k. The head_size_v could be got from the shape of value input
+        auto hidden_dim_v = std::make_shared<v8::Gather>(std::make_shared<v3::ShapeOf>(v_target_layout),
+                                                         v0::Constant::create(element::i64, Shape{}, {-1}),
+                                                         v0::Constant::create(element::i64, Shape{}, {0}));
+
         auto pa_shape = std::make_shared<v0::Concat>(
             OutputVector{
                 v0::Constant::create(element::i64, Shape{1}, {0}),
                 v0::Constant::create(element::i64, Shape{1}, {1}),
                 v0::Constant::create(element::i64, Shape{1}, {-1}),
-                std::make_shared<v0::Unsqueeze>(hidden_dim, v0::Constant::create(element::i64, Shape{}, {0})),
+                std::make_shared<v0::Unsqueeze>(hidden_dim_v, v0::Constant::create(element::i64, Shape{}, {0})),
             },
             0);
         auto pa_reshape = std::make_shared<v1::Reshape>(paged_attention->output(0), pa_shape, true);
@@ -370,7 +414,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         //  add_kv_parameter(mapping[v_gather])
 
         if (pattern_map.find(v_past_par) != pattern_map.end()) {
-            auto param = std::dynamic_pointer_cast<v0::Parameter>(pattern_map.at(v_past_par).get_node_shared_ptr());
+            auto param = ov::as_type_ptr<v0::Parameter>(pattern_map.at(v_past_par).get_node_shared_ptr());
             if (param) {
                 return false;
             }
@@ -378,7 +422,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         }
 
         if (pattern_map.find(k_past_par) != pattern_map.end()) {
-            auto param = std::dynamic_pointer_cast<v0::Parameter>(pattern_map.at(k_past_par).get_node_shared_ptr());
+            auto param = ov::as_type_ptr<v0::Parameter>(pattern_map.at(k_past_par).get_node_shared_ptr());
             if (param) {
                 return false;
             }

@@ -21,6 +21,7 @@ consists of the following steps:
    integration with Hugging Face Optimum.
 -  Compare sparse 8-bit vs. dense 8-bit inference performance.
 
+
 **Table of contents:**
 
 
@@ -55,7 +56,7 @@ Prerequisites
 .. code:: ipython3
 
     %pip install -q "openvino>=2023.1.0"
-    %pip install -q "git+https://github.com/huggingface/optimum-intel.git" "torch>=2.1" datasets onnx transformers>=4.33.0 --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "git+https://github.com/huggingface/optimum-intel.git" "torch>=2.1" datasets "onnx<1.16.2" transformers>=4.33.0 --extra-index-url https://download.pytorch.org/whl/cpu
 
 Imports
 -------
@@ -66,7 +67,7 @@ Imports
 
     import shutil
     from pathlib import Path
-
+    
     from optimum.intel.openvino import OVModelForSequenceClassification
     from transformers import AutoTokenizer, pipeline
     from huggingface_hub import hf_hub_download
@@ -88,17 +89,17 @@ model card on Hugging Face.
     # The following model has been quantized, sparsified using Optimum-Intel 1.7 which is enabled by OpenVINO and NNCF
     # for reproducibility, refer https://huggingface.co/OpenVINO/bert-base-uncased-sst2-int8-unstructured80
     model_id = "OpenVINO/bert-base-uncased-sst2-int8-unstructured80"
-
+    
     # The following two steps will set up the model and download them to HF Cache folder
     ov_model = OVModelForSequenceClassification.from_pretrained(model_id)
     tokenizer = AutoTokenizer.from_pretrained(model_id)
-
+    
     # Let's take the model for a spin!
     sentiment_classifier = pipeline("text-classification", model=ov_model, tokenizer=tokenizer)
-
+    
     text = "He's a dreadful magician."
     outputs = sentiment_classifier(text)
-
+    
     print(outputs)
 
 For benchmarking, we will use OpenVINO’s benchmark application and put
@@ -109,11 +110,11 @@ the IRs into a single folder.
     # create a folder
     quantized_sparse_dir = Path("bert_80pc_sparse_quantized_ir")
     quantized_sparse_dir.mkdir(parents=True, exist_ok=True)
-
+    
     # following return path to specified filename in cache folder (which we've with the
     ov_ir_xml_path = hf_hub_download(repo_id=model_id, filename="openvino_model.xml")
     ov_ir_bin_path = hf_hub_download(repo_id=model_id, filename="openvino_model.bin")
-
+    
     # copy IRs to the folder
     shutil.copy(ov_ir_xml_path, quantized_sparse_dir)
     shutil.copy(ov_ir_bin_path, quantized_sparse_dir)

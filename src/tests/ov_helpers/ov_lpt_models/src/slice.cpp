@@ -21,7 +21,11 @@ std::shared_ptr<ov::Model> SliceFunction::get(
     const std::vector<int64_t>& axes) {
     const auto input = std::make_shared<ov::opset1::Parameter>(inputPrecision, inputShape);
     input->set_friendly_name("input");
-    const auto fqOnData = makeFakeQuantize(input, inputPrecision, fakeQuantize);
+
+    std::shared_ptr<ov::Node> parent = input;
+    if (!fakeQuantize.empty()) {
+        parent = makeFakeQuantize(parent, inputPrecision, fakeQuantize);
+    }
 
     const auto start_constant = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{ start.size() }, start);
     start_constant->set_friendly_name("start");
@@ -32,7 +36,12 @@ std::shared_ptr<ov::Model> SliceFunction::get(
     const auto axes_constant = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{ axes.size() }, axes);
     axes_constant->set_friendly_name("axes ");
 
-    const auto stridedSlice = std::make_shared<ov::opset8::Slice>(fqOnData, start_constant, stop_constant, step_constant, axes_constant);
+    const auto stridedSlice = std::make_shared<ov::opset8::Slice>(
+        parent,
+        start_constant,
+        stop_constant,
+        step_constant,
+        axes_constant);
     stridedSlice->set_friendly_name("slice");
 
     const auto res = std::make_shared<ov::opset1::Result>(stridedSlice);

@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "transformations/cpu_opset/common/op/submodel.hpp"
 #include "utils/caseless.hpp"
 
 namespace ov {
@@ -67,6 +68,8 @@ enum class Type {
     ScatterUpdate,
     ScatterElementsUpdate,
     ScatterNDUpdate,
+    StringTensorPack,
+    StringTensorUnpack,
     Interpolate,
     Reduce,
     Broadcast,
@@ -86,6 +89,7 @@ enum class Type {
     ShuffleChannels,
     DFT,
     RDFT,
+    STFT,
     Math,
     CTCLoss,
     Bucketize,
@@ -114,6 +118,7 @@ enum class Type {
     MulticlassNms,
     Multinomial,
     Subgraph,
+    SubModel,
     PriorBox,
     PriorBoxClustered,
     Interaction,
@@ -127,6 +132,9 @@ enum class Type {
     CausalMaskPreprocess,
     LLMMLP,
     QKVProjection,
+    RMS,
+    SearchSorted,
+    LoRA
 };
 
 enum class Algorithm {

@@ -784,6 +784,22 @@ inline std::istream& operator>>(std::istream& is, CacheMode& mode) {
  */
 static constexpr Property<CacheMode, PropertyMutability::RW> cache_mode{"CACHE_MODE"};
 
+struct EncryptionCallbacks {
+    std::function<std::string(const std::string&)> encrypt;
+    std::function<std::string(const std::string&)> decrypt;
+};
+
+/**
+ * @brief Write-only property to set encryption/decryption function for saving/loading model cache.
+ * If cache_encryption_callbacks is set, the model topology will be encrypted when saving to the cache and decrypted
+ * when loading from the cache. This property is set in core.compile_model only.
+ * - First value of the struct is encryption function.
+ * - Second value of the struct is decryption function.
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<EncryptionCallbacks, PropertyMutability::WO> cache_encryption_callbacks{
+    "CACHE_ENCRYPTION_CALLBACKS"};
+
 /**
  * @brief Read-only property to provide information about a range for streams on platforms where streams are supported.
  * @ingroup ov_runtime_cpp_prop_api
@@ -1329,4 +1345,10 @@ static constexpr Property<Affinity> affinity{"AFFINITY"};
  */
 static constexpr Property<std::vector<std::string>, PropertyMutability::RO> execution_devices{"EXECUTION_DEVICES"};
 
+/**
+ * @brief Path to the file with model's weights.
+ *
+ * @note This property is used for weightless caching. Only used when ov::CacheMode Property is set to "OPTIMIZE_SIZE".
+ */
+static constexpr Property<std::string, PropertyMutability::RW> weights_path{"WEIGHTS_PATH"};
 }  // namespace ov

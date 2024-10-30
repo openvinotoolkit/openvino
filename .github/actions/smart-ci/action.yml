@@ -30,7 +30,6 @@ inputs:
   components_config_schema:
     description: "Path to the schema file for components configuration"
     required: false
-    default: ".github/actions/smart-ci/components_schema.yml"
   labeler_config:
     description: "Path to labeler configuration file"
     required: false
@@ -43,6 +42,10 @@ inputs:
     description: "Comma-separated list of patterns (fnmatch-style). If PR has only matching files changed, 
                   return indicator that CI can be skipped"
     required: false
+  enable_for_org:
+    description: "Enables running workflows for a given organization; triggers from other orgs are skipped"
+    required: false
+    default: "openvinotoolkit"
 
 outputs:
   all_components:
@@ -97,10 +100,12 @@ runs:
           -f "${{ inputs.ref_name }}" \
           -p "${{ inputs.component_pattern }}" \
           -c "${{ inputs.components_config }}" \
-          -m "${{ inputs.components_config_schema }}" \
+          -m "${{ inputs.components_config_schema || env.DEFAULT_CONFIG_SCHEMA }}" \
           -l "${{ inputs.labeler_config }}" \
+          --enable_for_org "${{ inputs.enable_for_org }}" \
           --skip-when-only-listed-labels-set "${{ inputs.skip_when_only_listed_labels_set }}" \
           --skip-when-only-listed-files-changed "${{ inputs.skip_when_only_listed_files_changed }}"
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.repo_token }}
+        DEFAULT_CONFIG_SCHEMA: "${{ github.action_path }}/components_schema.yml"

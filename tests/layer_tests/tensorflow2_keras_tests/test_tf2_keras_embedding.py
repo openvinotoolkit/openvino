@@ -42,6 +42,8 @@ class TestKerasEmbedding(CommonTF2LayerTest):
     @pytest.mark.precommit
     def test_keras_emb_float32(self, params, ie_device, precision, ir_version, temp_dir,
                                use_legacy_frontend):
+        if ie_device == 'CPU':
+            pytest.skip('155622: OpenVINO runtime timeout on CPU')
         self._test(*self.create_keras_emb_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
                    use_legacy_frontend=use_legacy_frontend, **params)
@@ -62,6 +64,8 @@ class TestKerasEmbedding(CommonTF2LayerTest):
     @pytest.mark.precommit
     def test_keras_emb_without_zero_mask_float32(self, params, ie_device, precision, ir_version,
                                                  temp_dir, use_legacy_frontend):
+        if ie_device == 'CPU':
+            pytest.skip('155622: OpenVINO runtime timeout on CPU')
         self._test(*self.create_keras_emb_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
                    use_legacy_frontend=use_legacy_frontend, **params)

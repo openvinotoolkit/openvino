@@ -21,7 +21,11 @@ class TestReshape(JaxLayerTest):
             out = lax.reshape(inp, new_sizes=new_sizes)
             return out
 
-        return jax_reshape, None
+        expected_op = 'reshape'
+        if input_shape == new_sizes:
+            expected_op = None
+
+        return jax_reshape, None, expected_op
 
     @pytest.mark.parametrize("input_shape", [
         [64],
@@ -33,12 +37,14 @@ class TestReshape(JaxLayerTest):
         [64], [64, 1], [16, 4], [8, 1, 8], [1, 1, 64], [8, 2, 2, 2], [2, 4, 2, 2, 2]
     ])
     @pytest.mark.nightly
+    @pytest.mark.precommit
     @pytest.mark.precommit_jax_fe
     def test_reshape(self, ie_device, precision, ir_version, input_shape, new_sizes):
         self._test(*self.create_model(input_shape=input_shape, new_sizes=new_sizes),
                    ie_device, precision,
                    ir_version)
-        
+
+
 class TestReshapeWithDimensions(JaxLayerTest):
     def _prepare_input(self):
         inp = jnp.array(np.random.rand(*self.input_shape).astype(np.float32))
@@ -51,7 +57,11 @@ class TestReshapeWithDimensions(JaxLayerTest):
             out = lax.reshape(inp, new_sizes=new_sizes, dimensions=dimensions)
             return out
 
-        return jax_reshape_with_dimensions, None
+        expected_op = 'reshape'
+        if input_shape == new_sizes:
+            expected_op = None
+
+        return jax_reshape_with_dimensions, None, expected_op
 
     @pytest.mark.parametrize("input_shape", [
         [4, 16, 1],
@@ -67,6 +77,7 @@ class TestReshapeWithDimensions(JaxLayerTest):
         [0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]
     ])
     @pytest.mark.nightly
+    @pytest.mark.precommit
     @pytest.mark.precommit_jax_fe
     def test_reshape_with_dimensions(self, ie_device, precision, ir_version, input_shape, new_sizes, dimensions):
         self._test(*self.create_model(input_shape=input_shape, new_sizes=new_sizes, dimensions=dimensions),

@@ -3,18 +3,25 @@ from __future__ import annotations
 import argparse
 import os
 from pathlib import Path
-from .constants import EventType
+from .constants import EventType, ProductType, PlatformKey
 
 
 def add_common_args(parser: argparse.ArgumentParser):
     parser.add_argument('-s', '--commit_sha', help='Commit hash for which artifacts were generated', required=True)
     parser.add_argument('-b', '--branch_name', help='Name of GitHub branch', required=False,
-                        default=os.getenv('GITHUB_BASE_REF') or os.getenv('GITHUB_REF_NAME'))
+                        default=os.getenv('GITHUB_BASE_REF') or
+                                os.getenv('MERGE_QUEUE_BASE_REF').replace('refs/heads/', '') or
+                                os.getenv('GITHUB_REF_NAME'))
     parser.add_argument('-e', '--event_name', help='Name of GitHub event', required=False,
                         default=os.getenv('GITHUB_EVENT_NAME'))
-    parser.add_argument('--storage_dir', help='Subdirectory name for artifacts, same as product type', required=True)
     parser.add_argument('--storage_root', help='Root path of the artifacts storage', required=False,
                         default=os.getenv('ARTIFACTS_SHARE'))
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument('-d', '--storage_dir', help='Subdirectory name for artifacts, same as product type',
+                       choices=[platform_key.value for platform_key in ProductType])
+    group.add_argument('-p', '--platform', type=str,
+                       help='Platform for which to restore artifacts. Used if storage_dir is not set',
+                       choices=[product_type.value for product_type in PlatformKey])
 
 
 def get_event_type(event_name: str = os.getenv('GITHUB_EVENT_NAME')) -> str:
@@ -39,7 +46,7 @@ def get_storage_dir(product_type: str, commit_hash: str, storage_root: str | Pat
     #     branch_name = merge_queue_matcher.group(1)
 
     storage_event_dir = get_storage_event_dir(storage_root, branch_name, event_name, product_name)
-    storage = storage_event_dir / commit_hash / product_type
+    storage = storage_event_dir / commit_hash / product_type.lower()
     return storage
 
 

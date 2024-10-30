@@ -149,11 +149,11 @@ void GridSample::createPrimitive() {
     }
     jitKernel->create_ker();
 
-    nthr = parallel_get_max_threads();
-    execParamsPerThread.resize(nthr);
+    m_threads_num = parallel_get_max_threads();
+    execParamsPerThread.resize(m_threads_num);
     if (!x64::mayiuse(x64::avx512_core)) {
         const auto dataElPerVec = jitKernel->getDataElPerVec();
-        parallel_nt(nthr, [&](const int ithr, const int nthr) {
+        parallel_nt(m_threads_num, [&](const int ithr, const int nthr) {
             auto& p = execParamsPerThread[ithr];
 
             p.srcHeightF.resize(dataElPerVec);
@@ -182,14 +182,14 @@ void GridSample::createPrimitive() {
 
 void GridSample::prepareParams() {
     auto dataMemPtr = getSrcMemoryAtPort(IN_DATA);
-    if (!dataMemPtr || !dataMemPtr->isAllocated())
-        THROW_CPU_NODE_ERR("has not allocated input data memory.");
+    if (!dataMemPtr || !dataMemPtr->isDefined())
+        THROW_CPU_NODE_ERR("has undefined input data memory.");
     auto gridMemPtr = getSrcMemoryAtPort(IN_GRID);
-    if (!gridMemPtr || !gridMemPtr->isAllocated())
-        THROW_CPU_NODE_ERR("has not allocated input grid memory.");
+    if (!gridMemPtr || !gridMemPtr->isDefined())
+        THROW_CPU_NODE_ERR("has undefined input grid memory.");
     auto dstMemPtr = getDstMemoryAtPort(0);
-    if (!dstMemPtr || !dstMemPtr->isAllocated())
-        THROW_CPU_NODE_ERR("has not allocated output memory.");
+    if (!dstMemPtr || !dstMemPtr->isDefined())
+        THROW_CPU_NODE_ERR("has undefined output memory.");
     if (getSelectedPrimitiveDescriptor() == nullptr)
         THROW_CPU_NODE_ERR("has unidentified preferable primitive descriptor.");
 
@@ -197,9 +197,9 @@ void GridSample::prepareParams() {
     const auto& srcDataShape = dataMemPtr->getStaticDims();
     const auto& dstShape     = dstMemPtr->getStaticDims();
     const uint64_t totalWork = dstShape[2] * dstShape[3];
-    const uint64_t wpt = ((totalWork / dataElPerVec) / nthr + 1) * dataElPerVec;
+    const uint64_t wpt = ((totalWork / dataElPerVec) / m_threads_num + 1) * dataElPerVec;
 
-    parallel_nt(nthr, [&](const int ithr, const int nthr) {
+    parallel_nt(m_threads_num, [&](const int ithr, const int nthr) {
         const uint64_t dstStart = std::min(wpt * ithr, totalWork);
         const uint64_t dstEnd = std::min(wpt * (ithr + 1), totalWork);
 
@@ -303,7 +303,7 @@ void GridSample::execute(dnnl::stream strm) {
         (*jitKernel)(&arg);
     };
 
-    parallel_nt(nthr, threadBody);
+    parallel_nt(m_threads_num, threadBody);
 }
 
 void GridSample::executeDynamicImpl(dnnl::stream strm) {

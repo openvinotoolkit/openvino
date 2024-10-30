@@ -40,13 +40,14 @@ struct ClosureRemap {
     std::map<std::size_t, std::size_t> scale_remap;  // orig closure idx -> orig scale idx
     std::map<std::size_t, std::size_t> zerop_remap;  // orig closure idx -> orig asymm zero point idx
     ov::ParameterVector params_to_remove;
+    std::set<std::size_t> weights_to_unpack;
 
     std::vector<ov::Tensor> zero_points;  // zero points for closures, if needed
 };
 
 ClosureRemap build_remap(const Function& fbody, const DCOFFParams& p);
 void apply_remap(Subgraph& fcall, const ClosureRemap& m);
-void finalize_remap(Function& fbody, const ClosureRemap& m);
+void finalize_remap(Function& fbody, Subgraph& fsg, const ClosureRemap& m);
 
 // Various patterns here
 
@@ -131,9 +132,14 @@ public:
     DCOFFPassReshape2(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref);
 };
 
-class DCOFFPassCWAI3 : public ov::pass::MatcherPass {
+class DCOFFPassReshape3 : public ov::pass::MatcherPass {
 public:
-    DCOFFPassCWAI3(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref);
+    DCOFFPassReshape3(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref);
+};
+
+class DCOFFPassReshape4 : public ov::pass::MatcherPass {
+public:
+    DCOFFPassReshape4(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref);
 };
 
 class CWAI1 : public ov::pass::MatcherPass {

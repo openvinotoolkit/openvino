@@ -80,6 +80,8 @@ OutputVector make_framework_node_ignore_bodies(const NodeContext& context, const
 OutputVector make_framework_node(const NodeContext& context, const std::string& exception);
 
 std::shared_ptr<op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> node, const std::string& type);
+std::shared_ptr<op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> node,
+                                                      std::initializer_list<std::string> types);
 
 std::shared_ptr<Node> make_list_construct(const ov::OutputVector& inputs);
 
@@ -99,15 +101,19 @@ void align_eltwise_input_types(const NodeContext& context,
                                const bool& ir_rhs_python_scalar = false);
 void align_output_types(const NodeContext& context, OutputVector& outputs);
 
-std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start);
+std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start, bool unsqueeze_for_concat = false);
 
 void copy_runtime_info_and_name(const std::shared_ptr<Node>& from,
                                 ov::NodeVector to,
                                 const ov::NodeVector& additional_rt_info_src = {});
 
+Output<Node> try_constfold(const Output<Node>& x);
+
 Output<Node> get_input_with_floating_type(const NodeContext& context, size_t idx);
 
 Output<Node> get_input_as_i32(const NodeContext& context, size_t idx);
+
+Output<Node> get_input_concat_if_list(const NodeContext& context, size_t idx);
 
 std::tuple<Output<Node>, Output<Node>> get_inputs_with_promoted_types(const NodeContext& context,
                                                                       size_t lhs_idx,
@@ -120,6 +126,17 @@ Output<Node> masked_fill(ov::pass::NodeRegistry& rg,
                          const Output<Node>& value);
 
 Output<Node> concat_list_from_inputs(const NodeContext& context, size_t begin, size_t end);
+
+Output<Node> masked_select(const NodeContext& context, const Output<Node>& data, const Output<Node>& mask);
+
+Output<Node> flatten(ov::pass::NodeRegistry& rg, const Output<Node>& value, size_t axis);
+
+bool index_tensor_on_list(ov::pass::NodeRegistry& rg,
+                          const Output<Node>& data,
+                          const ov::OutputVector& indices,
+                          const ov::Rank& rank,
+                          Output<Node>& new_output,
+                          bool& use_input_as_output);
 
 namespace op {
 template <OutputVector (*T)(const NodeContext&), size_t idx = 0>
