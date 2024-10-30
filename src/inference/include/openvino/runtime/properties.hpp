@@ -580,6 +580,12 @@ static constexpr Property<uint64_t, PropertyMutability::RW> dynamic_quantization
  */
 static constexpr Property<element::Type, PropertyMutability::RW> kv_cache_precision{"KV_CACHE_PRECISION"};
 
+/**
+ * @brief This property scales down activations to prevent overflows when inference precision is f16.
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<float, PropertyMutability::RW> activations_scale_factor{"ACTIVATIONS_SCALE_FACTOR"};
+
 }  // namespace hint
 
 /**
