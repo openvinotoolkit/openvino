@@ -258,20 +258,22 @@ std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string,
             if (!py::isinstance<py::list>(property_value)) {
                 OPENVINO_THROW("The value type of ov::cache_encryption_callbacks property is expected list");
             }
+            auto property_list = property_value.cast<py::list>();
+            auto py_encrypt = property_list[0];
+            auto py_decrypt = property_list[1];
+
             std::function<std::string(const std::string&)> encrypt_func =
-                [property_value](const std::string& in_str) -> std::string {
+                [py_encrypt](const std::string& in_str) -> std::string {
                 // Acquire GIL, execute Python function
                 py::gil_scoped_acquire acquire;
-                auto _list = property_value.cast<py::list>();
-                return _list[0](in_str).cast<std::string>();
+                return py_encrypt(in_str).cast<std::string>();
             };
 
             std::function<std::string(const std::string&)> decrypt_func =
-                [property_value](const std::string& in_str) -> std::string {
+                [py_decrypt](const std::string& in_str) -> std::string {
                 // Acquire GIL, execute Python function
                 py::gil_scoped_acquire acquire;
-                auto _list = property_value.cast<py::list>();
-                return _list[1](in_str).cast<std::string>();
+                return py_decrypt(in_str).cast<std::string>();
             };
             ov::EncryptionCallbacks encryption_callbacks{encrypt_func, decrypt_func};
             properties_to_cpp[property.first] = encryption_callbacks;
