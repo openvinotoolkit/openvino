@@ -126,11 +126,20 @@ void DriverGraph::initialize(const Config& config) {
     //  We are allowed to release the original blob because weights were loaded in NPU memory during
     //  _zeGraphExt->initializeGraph(). The driver will not access the original blob from this moment on, so we are
     //  releasing it here to avoid unnecessary memory usage.
-    _blobIsReleased = release_blob();
+    _blobIsReleased = release_blob(config);
 }
 
-bool DriverGraph::release_blob() {
-    if (_blob.empty() || _zeroInitStruct->getGraphDdiTable().version() < ZE_GRAPH_EXT_VERSION_1_8) {
+bool DriverGraph::release_blob(const Config& config) {
+    if (_blob.empty() || _zeroInitStruct->getGraphDdiTable().version() < ZE_GRAPH_EXT_VERSION_1_8 ||
+        config.get<PERF_COUNT>()) {
+        return false;
+    }
+
+    ze_graph_properties_2_t properties = {};
+    properties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES;
+    _zeroInitStruct->getGraphDdiTable().pfnGetProperties2(_handle, &properties);
+
+    if (~properties.initStageRequired & ZE_GRAPH_STAGE_INITIALIZE) {
         return false;
     }
 

@@ -35,7 +35,7 @@ public:
     ~DriverGraph() override;
 
 private:
-    bool release_blob();
+    bool release_blob(const Config& config);
 
     std::shared_ptr<ZeGraphExtWrappersInterface> _zeGraphExt;
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
