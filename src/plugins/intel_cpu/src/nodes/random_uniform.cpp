@@ -326,10 +326,13 @@ void RandomUniform::preparePhiloxParams() {
 void RandomUniform::prepareMersenneTwisterParams() {
     m_threads_num = 1; //parallel_get_max_threads();
 
+    std::cout << "RMax Threads: " << m_threads_num << std::endl;
+
     if (m_jit_kernel) {
 #if defined(OPENVINO_ARCH_X86_64)
         // m_jit_kernel->getVectorLen() either 64, 32 or 16 for Zmm, Ymm, Xmm respectively
         m_uint_storage_capacity_per_thread = m_jit_kernel->getVectorLen() / sizeof(uint32_t);
+        std::cout << "RMax Len: " << m_jit_kernel->getVectorLen() << std::endl;
         const auto maximum_jit_threads = MERSENNE_STATE_N / m_uint_storage_capacity_per_thread;
         m_threads_num = std::max(std::min(m_threads_num, maximum_jit_threads), 1);
 #endif // OPENVINO_ARCH_X86_64
@@ -339,6 +342,8 @@ void RandomUniform::prepareMersenneTwisterParams() {
         const auto maximum_threads = MERSENNE_STATE_N / m_uint_storage_capacity_per_thread;
         m_threads_num = std::max(std::min(m_threads_num, maximum_threads), 1);
     }
+
+    std::cout << "RMax Threads Fix: " << m_threads_num << std::endl;
 
     m_mersenne_twister_thread_params.resize(m_threads_num);
     m_mersenne_twister_optimization_enabled = !(m_output_prc == element::i64 &&
