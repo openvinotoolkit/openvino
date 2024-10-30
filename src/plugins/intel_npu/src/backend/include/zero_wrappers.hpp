@@ -8,8 +8,8 @@
 #include <ze_graph_ext.h>
 
 #include "intel_npu/utils/logger/logger.hpp"
+#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "zero_types.hpp"
-#include "zero_utils.hpp"
 
 namespace intel_npu {
 class CommandList;
@@ -73,7 +73,7 @@ public:
     CommandList() = delete;
     CommandList(const ze_device_handle_t& device_handle,
                 const ze_context_handle_t& context,
-                ze_graph_dditable_ext_curr_t* graph_ddi_table_ext,
+                ze_graph_dditable_ext_curr_t& graph_ddi_table_ext,
                 const Config& config,
                 const uint32_t& group_ordinal,
                 bool mtci_is_supported = false);
@@ -100,7 +100,7 @@ public:
 private:
     ze_command_list_handle_t _handle = nullptr;
     const ze_context_handle_t _context = nullptr;
-    ze_graph_dditable_ext_curr_t* _graph_ddi_table_ext = nullptr;
+    ze_graph_dditable_ext_curr_t& _graph_ddi_table_ext;
     uint64_t _command_id = 0;
 
     Logger _log;
@@ -134,7 +134,7 @@ public:
     CommandQueue(const ze_device_handle_t& device_handle,
                  const ze_context_handle_t& context,
                  const ze_command_queue_priority_t& priority,
-                 ze_command_queue_npu_dditable_ext_curr_t* command_queue_npu_dditable_ext,
+                 ze_command_queue_npu_dditable_ext_curr_t& command_queue_npu_dditable_ext,
                  const Config& config,
                  const uint32_t& group_ordinal);
     CommandQueue(const CommandQueue&) = delete;
@@ -153,7 +153,7 @@ public:
 private:
     ze_command_queue_handle_t _handle = nullptr;
     ze_context_handle_t _context = nullptr;
-    ze_command_queue_npu_dditable_ext_curr_t* _command_queue_npu_dditable_ext = nullptr;
+    ze_command_queue_npu_dditable_ext_curr_t& _command_queue_npu_dditable_ext;
 
     Logger _log;
 };

@@ -23,6 +23,23 @@ namespace ov {
 namespace npuw {
 namespace tests {
 
+// Need for remote tensor allocation in NPUW JustInferRequest and Weight bank.
+// They utilize "create_host_tensor()" method.
+// TODO: Mock "create_host_tensor()" method and add tests for it.
+class MockRemoteContext : public ov::IRemoteContext {
+    std::string m_name;
+
+public:
+    MockRemoteContext(std::string name) : m_name(std::move(name)) {}
+    const std::string& get_device_name() const override {
+        return m_name;
+    }
+    MOCK_METHOD(ov::SoPtr<ov::IRemoteTensor>,
+                create_tensor,
+                (const ov::element::Type&, const ov::Shape&, const ov::AnyMap&));
+    MOCK_METHOD(const ov::AnyMap&, get_property, (), (const));
+};
+
 class MockCompiledModelBase;
 using MockCompiledModel = testing::NiceMock<MockCompiledModelBase>;
 
@@ -57,7 +74,7 @@ public:
     MockCompiledModelBase(
             const std::shared_ptr<const ov::Model>& model, std::shared_ptr<ov::IPlugin> plugin,
             const ov::AnyMap& config,
-            std::shared_ptr<std::pair<std::function<void(MockInferRequest&)>, bool>> infer_req_expectations);
+            std::shared_ptr<std::map<int, std::pair<std::function<void(MockInferRequest&)>, bool>>> infer_reqs_to_expectations);
 
     // Methods from a base class ov::ICompiledModel
     MOCK_METHOD(const std::vector<ov::Output<const ov::Node>>&, outputs, (), (const, override));
@@ -74,7 +91,8 @@ public:
 
 private:
     std::mutex m_mock_creation_mutex;
-    std::shared_ptr<std::pair<std::function<void(MockInferRequest&)>, bool>> m_infer_req_expectations_ptr;
+    int m_num_created_infer_requests{};
+    std::shared_ptr<std::map<int, std::pair<std::function<void(MockInferRequest&)>, bool>>> m_infer_reqs_to_expectations_ptr;
 
     std::shared_ptr<const ov::Model> m_model;
     ov::AnyMap m_config;
@@ -119,7 +137,7 @@ public:
     // This must be called *before* the custom ON_CALL() statements.
     void create_implementation();
     void set_expectations_to_comp_models(int model_idx, std::function<void(MockCompiledModel&)> expectations);
-    void set_expectations_to_infer_reqs(int req_idx, std::function<void(MockInferRequest&)> expectations);
+    void set_expectations_to_infer_reqs(int model_idx, int req_idx, std::function<void(MockInferRequest&)> expectations);
 
     ~MockPluginBase() override;
 
@@ -129,7 +147,7 @@ private:
     int m_num_compiled_models{};
     // TODO: Make thread-safe and simplify.
     std::map<int, std::pair<std::function<void(MockCompiledModel&)>, bool>> m_models_to_expectations;
-    std::map<int, std::shared_ptr<std::pair<std::function<void(MockInferRequest&)>, bool>>> m_infer_reqs_to_expectations;
+    std::map<int, std::shared_ptr<std::map<int, std::pair<std::function<void(MockInferRequest&)>, bool>>>> m_models_to_reqs_to_expectations;
 
     // Properties
     int32_t num_streams{0};

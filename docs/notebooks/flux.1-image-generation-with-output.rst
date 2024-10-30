@@ -19,6 +19,7 @@ using OpenVINO.
    **Note**: Some demonstrated models can require at least 32GB RAM for
    conversion and running.
 
+
 **Table of contents:**
 
 
@@ -48,17 +49,7 @@ Prerequisites
 
     %pip install -q "gradio>=4.19" "torch>=2.1"  "transformers" "nncf>=2.12.0" "diffusers>=0.30.0" "opencv-python" "pillow" "peft>=0.7.0" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "sentencepiece" "protobuf"
-    %pip install -qU --pre "openvino" --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    openvino-dev 2024.3.0 requires openvino==2024.3.0, but you have openvino 2024.4.0.dev20240827 which is incompatible.
-    Note: you may need to restart the kernel to use updated packages.
-
+    %pip install -qU "openvino>=2024.4.0"
 
 .. code:: ipython3
 
@@ -70,7 +61,7 @@ Prerequisites
         open("flux_helper.py", "w").write(r.text)
     
     if not Path("gradio_helper.py").exists():
-        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/flux.1-image-generatio/gradio_helper.py")
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/flux.1-image-generation/gradio_helper.py")
         open("gradio_helper.py", "w").write(r.text)
     
     if not Path("notebook_utils.py").exists():
@@ -117,11 +108,17 @@ FLUX.1-dev version using widget bellow.
 
 .. parsed-literal::
 
-    2024-08-28 02:20:17.242597: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-08-28 02:20:17.277034: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-08-28 02:20:17.935317: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
+    
 
+.. parsed-literal::
+
+    2024-08-13 17:30:13.543036: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-08-13 17:30:13.544738: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
+    2024-08-13 17:30:13.579013: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+    2024-08-13 17:30:14.449873: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    
 
 
 
@@ -173,7 +170,7 @@ The pipeline consists of four important parts:
 -  Autoencoder (VAE) for decoding latent space to image.
 
 We will use ``convert_flux`` helper function defined in
-`flux_helper.py <./flux_helper.py>`__ that create original PyTorch model
+`flux_helper.py <flux_helper.py-with-output.html>`__ that create original PyTorch model
 and convert each part of pipeline using ``ov.convert_model``.
 
 .. code:: ipython3
@@ -188,71 +185,10 @@ and convert each part of pipeline using ``ov.convert_model``.
     model_dir = convert_flux(model_selector.value)
 
 
-
 .. parsed-literal::
 
-    Loading pipeline components...:   0%|          | 0/7 [00:00<?, ?it/s]
-
-
-.. parsed-literal::
-
-    You set `add_prefix_space`. The tokenizer needs to be converted from the slow tokenizers
-
-
-
-.. parsed-literal::
-
-    Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]
-
-
-.. parsed-literal::
-
-    ⌛ Transformer model conversion started
-    WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
-
-
-.. parsed-literal::
-
-    [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
-
-
-.. parsed-literal::
-
-    ✅ Transformer model conversion finished
-    ⌛ Clip Text encoder conversion started
-
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4713: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
-      warnings.warn(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:86: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if input_shape[-1] > 1 or self.sliding_window is not None:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:162: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if past_key_values_length > 0:
-
-
-.. parsed-literal::
-
-    ✅ Clip Text encoder conversion finished
-    ⌛ T5 Text encoder conversion started
-    ✅ T5 Text encoder conversion finished
-    ⌛ VAE decoder conversion started
-
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/upsampling.py:146: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      assert hidden_states.shape[1] == self.channels
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/upsampling.py:162: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if hidden_states.shape[0] >= 64:
-
-
-.. parsed-literal::
-
-    ✅ VAE decoder onversion finished
-    ✅ black-forest-labs/FLUX.1-schnell successfully converted and can be found in FLUX.1-schnell
-
+    ✅ black-forest-labs/FLUX.1-schnell model already converted and can be found in FLUX.1-schnell
+    
 
 .. code:: ipython3
 
@@ -332,136 +268,11 @@ compression.
 
 .. parsed-literal::
 
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
-    ⌛ transformer compression started
-    Compression parameters:
-    	mode = int4_sym
-    	ratio = 1.0
-    	group_size = 64
-    INFO:nncf:Statistics of the bitwidth distribution:
-    ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
-    │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
-    ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
-    │              8 │ 0% (1 / 502)                │ 0% (0 / 501)                           │
-    ├────────────────┼─────────────────────────────┼────────────────────────────────────────┤
-    │              4 │ 100% (501 / 502)            │ 100% (501 / 501)                       │
-    ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-
-
-
-
-
-
-
-.. parsed-literal::
-
-    ✅ transformer compression finished
     Compressed transformer can be found in FLUX.1-schnell/transformer/transformer_int4.xml
-    ⌛ text_encoder compression started
-    Compression parameters:
-    	mode = int4_sym
-    	ratio = 1.0
-    	group_size = 64
-    INFO:nncf:Statistics of the bitwidth distribution:
-    ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
-    │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
-    ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
-    │              8 │ 33% (3 / 74)                │ 0% (0 / 71)                            │
-    ├────────────────┼─────────────────────────────┼────────────────────────────────────────┤
-    │              4 │ 67% (71 / 74)               │ 100% (71 / 71)                         │
-    ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-
-
-
-
-
-
-
-.. parsed-literal::
-
-    ✅ text_encoder compression finished
     Compressed text_encoder can be found in FLUX.1-schnell/text_encoder/text_encoder_int4.xml
-    ⌛ text_encoder_2 compression started
-    Compression parameters:
-    	mode = int4_sym
-    	ratio = 1.0
-    	group_size = 64
-    INFO:nncf:Statistics of the bitwidth distribution:
-    ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
-    │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
-    ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
-    │              8 │ 4% (3 / 170)                │ 0% (0 / 167)                           │
-    ├────────────────┼─────────────────────────────┼────────────────────────────────────────┤
-    │              4 │ 96% (167 / 170)             │ 100% (167 / 167)                       │
-    ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-
-
-
-
-
-
-
-.. parsed-literal::
-
-    ✅ text_encoder_2 compression finished
     Compressed text_encoder_2 can be found in FLUX.1-schnell/text_encoder_2/text_encoder_2_int4.xml
-    ⌛ vae_decoder compression started
-    Compression parameters:
-    	mode = int4_sym
-    	ratio = 1.0
-    	group_size = 64
-    INFO:nncf:Statistics of the bitwidth distribution:
-    ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
-    │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
-    ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
-    │              8 │ 98% (36 / 39)               │ 0% (0 / 3)                             │
-    ├────────────────┼─────────────────────────────┼────────────────────────────────────────┤
-    │              4 │ 2% (3 / 39)                 │ 100% (3 / 3)                           │
-    ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-
-
-
-
-
-
-
-.. parsed-literal::
-
-    ✅ vae_decoder compression finished
     Compressed vae_decoder can be found in FLUX.1-schnell/vae/vae_decoder_int4.xml
-
+    
 
 Run OpenVINO model inference
 ----------------------------
@@ -507,7 +318,7 @@ model and inference device as arguments.
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', options=('CPU', 'AUTO'), value='CPU')
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
 
 
 
@@ -522,8 +333,17 @@ model and inference device as arguments.
     ✅ transformer - Done!
     ✅ text_encoder - Done!
     ✅ text_encoder_2 - Done!
-    ✅ vae - Done!
+    
 
+.. parsed-literal::
+
+    You set `add_prefix_space`. The tokenizer needs to be converted from the slow tokenizers
+    
+
+.. parsed-literal::
+
+    ✅ vae - Done!
+    
 
 .. code:: ipython3
 
@@ -566,20 +386,6 @@ Interactive demo
     # demo.launch(share=True)
     # it creates a publicly shareable link for the interface. Read more in the docs: https://gradio.app/docs/
     try:
-        demo.launch(debug=False)
+        demo.launch(debug=True)
     except Exception:
-        demo.launch(debug=False, share=True)
-
-
-.. parsed-literal::
-
-    Running on local URL:  http://127.0.0.1:7860
-    
-    To create a public link, set `share=True` in `launch()`.
-
-
-
-
-
-
-
+        demo.launch(debug=True, share=True)

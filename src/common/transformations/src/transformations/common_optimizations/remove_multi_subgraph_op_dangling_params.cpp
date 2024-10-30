@@ -24,9 +24,9 @@ bool ov::pass::RemoveMultiSubGraphOpDanglingParamsResults::run_on_model(const st
         auto multi_subgraph_op = std::dynamic_pointer_cast<MultiSubGraphOp>(*it);
         if (!multi_subgraph_op)
             continue;
-        auto if_op = std::dynamic_pointer_cast<ov::op::v8::If>(multi_subgraph_op);
-        auto loop_op = std::dynamic_pointer_cast<ov::op::v5::Loop>(multi_subgraph_op);
-        auto ti_op = std::dynamic_pointer_cast<ov::op::v0::TensorIterator>(multi_subgraph_op);
+        auto if_op = ov::as_type_ptr<ov::op::v8::If>(multi_subgraph_op);
+        auto loop_op = ov::as_type_ptr<ov::op::v5::Loop>(multi_subgraph_op);
+        auto ti_op = ov::as_type_ptr<ov::op::v0::TensorIterator>(multi_subgraph_op);
         // Only If, Loop and TensorIterator are supported
         if (!if_op && !loop_op && !ti_op)
             continue;
@@ -178,19 +178,21 @@ bool ov::pass::RemoveMultiSubGraphOpDanglingParamsResults::run_on_model(const st
                     if (std::count(std::begin(to_remove_descriptors_indexes[body_idx]),
                                    std::end(to_remove_descriptors_indexes[body_idx]),
                                    desc_idx) > 0) {
-                        auto& body_param = body_params[body_in_descriptors[desc_idx]->m_body_parameter_index];
-                        body_func->remove_parameter(body_param);
-                        // Move all body indexes which are after these indicated by to_remove_descriptors_indexes
-                        update_body_param_desc(body_in_descriptors,
-                                               body_in_descriptors[desc_idx]->m_body_parameter_index);
+                        if (body_in_descriptors[desc_idx]->m_body_parameter_index < body_params.size()) {
+                            auto& body_param = body_params[body_in_descriptors[desc_idx]->m_body_parameter_index];
+                            body_func->remove_parameter(body_param);
+                            // Move all body indexes which are after these indicated by to_remove_descriptors_indexes
+                            update_body_param_desc(body_in_descriptors,
+                                                   body_in_descriptors[desc_idx]->m_body_parameter_index);
+                        }
                         // remove dangling input of MultiSubGraphOp which was not removed earlier
                         auto current_input_idx = body_in_descriptors[desc_idx]->m_input_index;
-                        auto& current_input = op_inputs[current_input_idx];
                         // the same input tensor can go to different input ports
-                        if (std::count(std::begin(required_inputs_indices),
+                        if (current_input_idx < op_inputs.size() &&
+                            std::count(std::begin(required_inputs_indices),
                                        std::end(required_inputs_indices),
                                        current_input_idx) == 0 &&
-                            std::count(std::begin(op_inputs), std::end(op_inputs), current_input) > 0) {
+                            std::count(std::begin(op_inputs), std::end(op_inputs), op_inputs[current_input_idx]) > 0) {
                             op_inputs.erase(std::next(op_inputs.begin(), current_input_idx));
                             // Move all input indexes (in all bodies) which are after these indicated by
                             // to_remove_descriptors_indexes and are not used in any body

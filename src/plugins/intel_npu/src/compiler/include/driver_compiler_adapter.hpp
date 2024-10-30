@@ -6,9 +6,9 @@
 
 #include <ze_graph_ext.h>
 
-#include "intel_npu/al/icompiler.hpp"
+#include "intel_npu/common/npu.hpp"
+#include "intel_npu/icompiler.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
-#include "npu.hpp"
 
 namespace intel_npu {
 namespace driverCompilerAdapter {
@@ -36,7 +36,7 @@ public:
 
     void release(std::shared_ptr<const NetworkDescription> networkDescription) override;
 
-    std::vector<uint8_t> getCompiledNetwork(std::shared_ptr<const NetworkDescription> networkDescription) override;
+    CompiledNetwork getCompiledNetwork(const NetworkDescription& networkDescription) override;
 
 private:
     /**

@@ -25,11 +25,8 @@ In this tutorial we consider how to convert and run DDColor using
 OpenVINO. Additionally, we will demonstrate how to optimize this model
 using `NNCF <https://github.com/openvinotoolkit/nncf/>`__.
 
-🪄 Let’s start to explore magic of image colorization! 
-
-**Table of contents:**
-
-
+🪄 Let’s start to explore magic of image colorization! #### Table of
+contents:
 
 -  `Prerequisites <#prerequisites>`__
 -  `Load PyTorch model <#load-pytorch-model>`__
@@ -90,6 +87,7 @@ Prerequisites
 
     import sys
     from pathlib import Path
+    import requests
     
     repo_dir = Path("DDColor")
     
@@ -97,6 +95,11 @@ Prerequisites
         !git clone https://github.com/piddnad/DDColor.git
     
     sys.path.append(str(repo_dir))
+    
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+    )
+    open("notebook_utils.py", "w").write(r.text)
 
 
 .. parsed-literal::
@@ -106,8 +109,16 @@ Prerequisites
     remote: Counting objects: 100% (76/76), done.[K
     remote: Compressing objects: 100% (42/42), done.[K
     remote: Total 233 (delta 54), reused 34 (delta 34), pack-reused 157 (from 1)[K
-    Receiving objects: 100% (233/233), 13.34 MiB | 21.08 MiB/s, done.
+    Receiving objects: 100% (233/233), 13.34 MiB | 641.00 KiB/s, done.
     Resolving deltas: 100% (80/80), done.
+
+
+
+
+.. parsed-literal::
+
+    24692
+
 
 
 .. code:: ipython3
@@ -116,6 +127,13 @@ Prerequisites
         from inference.colorization_pipeline_hf import DDColorHF, ImageColorizationPipelineHF
     except Exception:
         from inference.colorization_pipeline_hf import DDColorHF, ImageColorizationPipelineHF
+
+
+.. parsed-literal::
+
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/timm/models/layers/__init__.py:48: FutureWarning: Importing from timm.models.layers is deprecated, please import via timm.layers
+      warnings.warn(f"Importing from {__name__} is deprecated, please import via timm.layers", FutureWarning)
+
 
 Load PyTorch model
 ------------------
@@ -211,16 +229,11 @@ Select one of supported devices for inference using dropdown list.
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
+    from notebook_utils import device_widget
     
     core = ov.Core()
     
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
     
     device
 
@@ -310,12 +323,9 @@ improve model inference speed.
 
 .. code:: ipython3
 
-    to_quantize = widgets.Checkbox(
-        value=True,
-        description="Quantization",
-        disabled=False,
-    )
+    from notebook_utils import quantization_widget
     
+    to_quantize = quantization_widget()
     to_quantize
 
 
@@ -402,10 +412,10 @@ Perform model quantization
 
 .. parsed-literal::
 
-    2024-08-27 23:53:59.503040: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-08-27 23:53:59.542136: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-10-22 22:45:07.339219: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-10-22 22:45:07.378241: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-08-27 23:53:59.945639: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-10-22 22:45:07.784302: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 
@@ -502,18 +512,18 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.3.0-16041-1e3b88e4e3f-releases/2024/3
+    [ INFO ] Build ................................. 2024.4.0-16579-c3152d32c9c-releases/2024/4
     [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2024.3.0-16041-1e3b88e4e3f-releases/2024/3
+    [ INFO ] Build ................................. 2024.4.0-16579-c3152d32c9c-releases/2024/4
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 41.55 ms
+    [ INFO ] Read model took 41.84 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     x (node: x) : f32 / [...] / [1,3,512,512]
@@ -529,7 +539,7 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ INFO ] Model outputs:
     [ INFO ]     ***NO_NAME*** (node: __module.refine_net.0.0/aten::_convolution/Add) : f32 / [...] / [1,2,512,512]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 1367.86 ms
+    [ INFO ] Compile model took 1322.68 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -566,17 +576,17 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ INFO ] Fill input 'x' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 536.72 ms
+    [ INFO ] First inference took 545.38 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
     [ INFO ] Count:            78 iterations
-    [ INFO ] Duration:         17247.39 ms
+    [ INFO ] Duration:         17636.85 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        1313.74 ms
-    [ INFO ]    Average:       1306.39 ms
-    [ INFO ]    Min:           1133.39 ms
-    [ INFO ]    Max:           1440.80 ms
-    [ INFO ] Throughput:   4.52 FPS
+    [ INFO ]    Median:        1348.38 ms
+    [ INFO ]    Average:       1347.67 ms
+    [ INFO ]    Min:           1203.19 ms
+    [ INFO ]    Max:           1415.43 ms
+    [ INFO ] Throughput:   4.42 FPS
 
 
 .. code:: ipython3
@@ -591,18 +601,18 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.3.0-16041-1e3b88e4e3f-releases/2024/3
+    [ INFO ] Build ................................. 2024.4.0-16579-c3152d32c9c-releases/2024/4
     [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2024.3.0-16041-1e3b88e4e3f-releases/2024/3
+    [ INFO ] Build ................................. 2024.4.0-16579-c3152d32c9c-releases/2024/4
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 70.09 ms
+    [ INFO ] Read model took 69.74 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     x (node: x) : f32 / [...] / [1,3,512,512]
@@ -618,7 +628,7 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ INFO ] Model outputs:
     [ INFO ]     ***NO_NAME*** (node: __module.refine_net.0.0/aten::_convolution/Add) : f32 / [...] / [1,2,512,512]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 2282.60 ms
+    [ INFO ] Compile model took 2263.12 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -655,17 +665,17 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ INFO ] Fill input 'x' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 274.43 ms
+    [ INFO ] First inference took 270.31 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            162 iterations
-    [ INFO ] Duration:         16048.73 ms
+    [ INFO ] Count:            156 iterations
+    [ INFO ] Duration:         15580.45 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        582.21 ms
-    [ INFO ]    Average:       588.10 ms
-    [ INFO ]    Min:           484.43 ms
-    [ INFO ]    Max:           712.11 ms
-    [ INFO ] Throughput:   10.09 FPS
+    [ INFO ]    Median:        592.37 ms
+    [ INFO ]    Average:       595.05 ms
+    [ INFO ]    Min:           334.73 ms
+    [ INFO ]    Max:           668.12 ms
+    [ INFO ] Throughput:   10.01 FPS
 
 
 Interactive inference

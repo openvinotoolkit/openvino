@@ -55,7 +55,7 @@ static size_t get_dynamic_quantize_group_size(const fully_connected_params& para
     auto dynamic_quantization_group_size = params.dynamic_quantization_group_size;
 
     GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->dynamic_quantize_group_size) {
+    GPU_DEBUG_IF(debug_config->dynamic_quantize_group_size != debug_config->DYNAMIC_QUANTIZE_GROUP_SIZE_NOT_SET) {
         dynamic_quantization_group_size = debug_config->dynamic_quantize_group_size;
 
         // Specify which Fully-connected layer would be dynamic-quantized
@@ -111,8 +111,7 @@ static bool should_dynamic_quantize(const fully_connected_params& params) {
     if ((scale_group_size % simd == 0) && (input_f % dynamic_quantization_group_size == 0) &&
         (params.is_shape_agnostic || (params.inputs[0].Batch().v > 1 && input_b > min_slm_size)) &&
         params.inputs[0].GetDType() == Datatype::F16 &&
-        (params.weights.GetDType() == WeightsType::INT4 || params.weights.GetDType() == WeightsType::UINT4) &&
-        (params.decompression_zero_point.Feature().v == 1)) {
+        (params.weights.GetDType() == WeightsType::INT4 || params.weights.GetDType() == WeightsType::UINT4)) {
         GPU_DEBUG_TRACE_DETAIL << " Dynamic quantizing for FC : scale_group_size " << scale_group_size << ", Input (" <<
             kernel_selector::toString(params.inputs[0].GetDType()) << ", " << kernel_selector::toString(params.outputs[0].GetLayout()) <<
             ") B: " << params.inputs[0].Batch().v << ", F: " << params.inputs[0].Feature().v << ", Y: " << params.inputs[0].Y().v << std ::endl;
@@ -122,17 +121,29 @@ static bool should_dynamic_quantize(const fully_connected_params& params) {
     return false;
 }
 
-static bool is_weight_with_small_ofm(const fully_connected_params& params, size_t output_f) {
+static bool is_weight_vertical(const fully_connected_params& params, size_t output_f) {
     size_t min_num_threads = params.engineInfo.computeUnitsCount * simd;
     GPU_DEBUG_TRACE_DETAIL << "out_ofm (== weight N dim) size " << output_f << " is small compared to the available threads. "
                            << "(computeUnitsCount : " << params.engineInfo.computeUnitsCount
                            << " min_num_threads : " << min_num_threads << ")" << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "Use ofm_tile size 1 if the batch size is 1." << std::endl;
-    return (output_f / 2 /*most frequently used tile_ofm*/ <= min_num_threads);
+    return (params.weights.IFM().v >= params.weights.OFM().v * 3
+            && output_f / 2 /*most frequently used tile_ofm*/ <= min_num_threads);
 }
 
-static bool is_weight_with_large_ifm(const fully_connected_params& fc_params) {
-    return (fc_params.weights.IFM().v >= fc_params.weights.OFM().v * 3 && fc_params.weights.OFM().v <= 4096);
+static bool is_weight_horizontal(const fully_connected_params& params, size_t output_f) {
+    size_t min_num_threads = params.engineInfo.computeUnitsCount * simd;
+    GPU_DEBUG_TRACE_DETAIL << "out_ofm (== weight N dim) size " << output_f << " is large compared to the available threads. "
+                           << "(computeUnitsCount : " << params.engineInfo.computeUnitsCount
+                           << " min_num_threads : " << min_num_threads << ")" << std::endl;
+    return (params.weights.OFM().v > params.weights.IFM().v * 3
+            && output_f / 4 /* tile_ofm=4 */ > min_num_threads * 1.5);
+}
+
+static bool is_suitable_outer_ofm(const fully_connected_params& params, size_t output_f) {
+    size_t min_num_threads = params.engineInfo.computeUnitsCount * simd;
+    return (params.weights.OFM().v > params.weights.IFM().v * 6
+            && output_f / 8 /* tile_ofm=4 and outer_ofm=2 */ > min_num_threads * 1.5);
 }
 
 FullyConnected_bf_tiled::FullyConnected_bf_tiled() : FullyConnectedKernelBase("fully_connected_gpu_bf_tiled") {
@@ -140,6 +151,7 @@ FullyConnected_bf_tiled::FullyConnected_bf_tiled() : FullyConnectedKernelBase("f
     for (unsigned tile_ofm = 1; tile_ofm <= 4; tile_ofm *= 2)
     for (unsigned tile_ifm = 1; tile_ifm <= 2; tile_ifm *= 2)
     for (unsigned tile_k = 1; tile_k <= 8; tile_k *= 2)
+    for (unsigned outer_ofm = 1; outer_ofm <= 2; ++outer_ofm)
     for (unsigned dispatch_bsv = 1; dispatch_bsv <= 16; ++dispatch_bsv)
     for (unsigned dispatch_fsv = 1; dispatch_fsv <= 16; ++dispatch_fsv)
     for (auto exec : Parent::autoTuneOptions) {
@@ -150,7 +162,7 @@ FullyConnected_bf_tiled::FullyConnected_bf_tiled() : FullyConnectedKernelBase("f
         if (dispatch_bsv == 1 && dispatch_fsv != 1)
             continue;
 
-        auto_tune_params.emplace_back(tile_b, tile_ofm, tile_ifm, tile_k, dispatch_bsv, dispatch_fsv, exec);
+        auto_tune_params.emplace_back(tile_b, tile_ofm, tile_ifm, tile_k, outer_ofm, dispatch_bsv, dispatch_fsv, exec);
     }
 }
 
@@ -280,14 +292,18 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
     size_t output_b = bf_size.first;
     size_t output_f = bf_size.second;
 
-    if (params.compressed &&
-        (params.weights.GetDType() == WeightsType::INT4 || params.weights.GetDType() == WeightsType::UINT4) &&
-        tparams.tile_ofm != 2)
-        return false;
-
     auto batch_size = params.is_shape_agnostic ? Align(output_b, tparams.tile_b) : output_b;
-    if (batch_size % (tparams.tile_b * tparams.dispatch_bsv) != 0)
-        return false;
+    // If batch size is prime number, still can apply tile execution to avoid poor performance.
+    if (batch_size % (tparams.tile_b * tparams.dispatch_bsv) != 0) {
+        if ((tparams.dispatch_bsv != 1) || batch_size == 1)
+            return false;
+        size_t tile = simd;
+        while (batch_size % tile != 0)
+            tile--;
+        if (tile > 1)
+            return false;
+    }
+
     if (CeilDiv(output_f, tparams.tile_ofm * simd) % tparams.dispatch_fsv != 0)
         return false;
 
@@ -298,8 +314,8 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
     if (tparams.tile_ofm * simd > 64)
         return false;
 
+    bool is_i4_u4 = (params.weights.GetDType() == WeightsType::INT4 || params.weights.GetDType() == WeightsType::UINT4);
     if (tparams.kernel_type == FullyConnected_bf_tiled::KernelType::SLM) {
-        bool is_i4_u4 = (params.weights.GetDType() == WeightsType::INT4 || params.weights.GetDType() == WeightsType::UINT4);
         const auto required_batch_alignment = 64;
         if (!params.is_shape_agnostic && (!IsAligned(output_b, required_batch_alignment) || output_b < min_slm_size))
             return false;
@@ -322,6 +338,13 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
         if (params.engineInfo.maxLocalMemSize < required_slm_size)
             return false;
 
+        return true;
+    }
+    if (params.compressed && is_i4_u4) {
+        if (!(tparams.tile_ofm == 2 || tparams.tile_ofm == 4))
+            return false;
+        if (tparams.tile_ofm == 4 && tparams.outer_ofm == 2 && !is_suitable_outer_ofm(params, output_f))
+            return false;
         return true;
     }
 
@@ -361,80 +384,88 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
 
     if (params.weights.GetDType() == WeightsType::UINT4 || params.weights.GetDType() == WeightsType::INT4) {
         if (!params.is_shape_agnostic && batch == 1) {
+            if (should_dynamic_quantize(params))
+                return selector.Default(tune_params(1, 2, 4, 2, 1, 1, 1, EXE_MODE_DEFAULT));
+
             // Tuning for Meteor Lake
-            if (is_weight_with_small_ofm(params, output_f)) {
+            if (is_weight_vertical(params, output_f)) {
                 if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2) {
-                    return selector.Default(tune_params(1, 1, 4, 2, 1, 1, EXE_MODE_DEFAULT));
+                    return selector.Default(tune_params(1, 1, 4, 2, 1, 1, 1, EXE_MODE_DEFAULT));
                 } else if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16) {
-                    return selector.Default(tune_params(1, 1, 4, 4, 1, 1, EXE_MODE_DEFAULT));
+                    return selector.Default(tune_params(1, 1, 4, 4, 1, 1, 1, EXE_MODE_DEFAULT));
                 }
             } else {
                 if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16) {
-                    return selector.Default(tune_params(1, 1, 4, 4, 1, 1, EXE_MODE_DEFAULT));
+                    return selector.Default(tune_params(1, 1, 4, 4, 1, 1, 1, EXE_MODE_DEFAULT));
+                } else if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2) {
+                    selector.Case(tune_params(1, 4, 4, 2, 2, 1, 1, EXE_MODE_DEFAULT))
+                            .Case(tune_params(1, 4, 4, 2, 1, 1, 1, EXE_MODE_DEFAULT));
                 } else {
-                    return selector.Default(tune_params(1, 2, 4, 2, 1, 1, EXE_MODE_DEFAULT));
+                    return selector.Default(tune_params(1, 2, 4, 2, 1, 1, 1, EXE_MODE_DEFAULT));
                 }
             }
         } else {
             // Try to use SLM kernels if possible
             if (preferred_kernel_type != KernelType::DEFAULT) {
                 if (params.is_shape_agnostic && !should_dynamic_quantize(params)) {
-                    selector.Case(tune_params(16, 2, 2, 4, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM))
-                            .Case(tune_params(16, 2, 1, 4, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM));
+                    selector.Case(tune_params(16, 2, 2, 4, 1, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM))
+                            .Case(tune_params(16, 2, 1, 4, 1, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM));
                 }
-                selector.Case(tune_params(8, 2, 2, 4, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM))
-                        .Case(tune_params(8, 2, 1, 4, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM));
+                selector.Case(tune_params(8, 2, 2, 4, 1, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM))
+                        .Case(tune_params(8, 2, 1, 4, 1, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM));
             }
             if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16)
-                return selector.Default(tune_params(8, 1, 1, 4, 1, 1, EXE_MODE_DEFAULT));
+                return selector.Default(tune_params(8, 1, 1, 4, 1, 1, 1, EXE_MODE_DEFAULT));
+            else if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2)
+                return selector.Default(tune_params(8, 4, 1, 2, 1, 1, 1, EXE_MODE_DEFAULT));
             else
-                return selector.Default(tune_params(8, 2, 1, 4, 1, 1, EXE_MODE_DEFAULT));
+                return selector.Default(tune_params(8, 2, 1, 4, 1, 1, 1, EXE_MODE_DEFAULT));
         }
     } else if (params.compressed && params.engineInfo.supports_immad) {
-        return selector.Default(tune_params(1, 1, 1, 4, 1, 1, EXE_MODE_DEFAULT));
+        return selector.Default(tune_params(1, 1, 1, 4, 1, 1, 1, EXE_MODE_DEFAULT));
     } else if (params.is_shape_agnostic) {
         // Use special tuning params for Gen12HP dGPUs, since these parameters demonstrate higher performance
         // due to better HW utilization (reduced TILE_OFM parameter) and better assembler kernel's code
         // generation (extended TILE_K parameter) for both FP16 and FP32 data types
         if (dtype == Datatype::F16) {
-            // tune_params(tile_b, tile_ofm, tile_ifm, tile_k, dispatch_bsv, dispatch_fsv, exec_options)
+            // tune_params(tile_b, tile_ofm, tile_ifm, tile_k, outer_ofm, dispatch_bsv, dispatch_fsv, exec_options)
             if (params.engineInfo.supports_immad)
-                selector.Case(tune_params(8, 1, 1, 4, 1, 1, EXE_MODE_AGE_BASED));
+                selector.Case(tune_params(8, 1, 1, 4, 1, 1, 1, EXE_MODE_AGE_BASED));
             else
-                selector.Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 2, 1,  1, EXE_MODE_AGE_BASED));
+                selector.Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 2, 1, 1, 1, EXE_MODE_AGE_BASED));
         } else if (dtype == Datatype::F32) {
-            // tune_params(tile_b, tile_ofm, tile_ifm, tile_k, dispatch_bsv, dispatch_fsv, exec_options)
+            // tune_params(tile_b, tile_ofm, tile_ifm, tile_k, outer_ofm, dispatch_bsv, dispatch_fsv, exec_options)
             if (params.engineInfo.supports_immad)
-                selector.Case(tune_params(8, 1, 1, 4, 1, 1, EXE_MODE_AGE_BASED));
+                selector.Case(tune_params(8, 1, 1, 4, 1, 1, 1, EXE_MODE_AGE_BASED));
             else
-                selector.Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 1, 1,  1, EXE_MODE_AGE_BASED));
+                selector.Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 1, 1, 1, 1, EXE_MODE_AGE_BASED));
         }
     } else {
         if (dtype == Datatype::F16) {
-            // tune_params(tile_b, tile_ofm, tile_ifm, tile_k, dispatch_bsv, dispatch_fsv, exec_options)
-            selector.Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 2, 16, 2, EXE_MODE_AGE_BASED))
-                    .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 2, 16, 1, EXE_MODE_AGE_BASED))
-                    .Case(tune_params(16, std::min(max_tile_ofm, 2u), 1, 2, 4,  2, EXE_MODE_AGE_BASED))
-                    .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 2, 8,  1, EXE_MODE_AGE_BASED))
-                    .Case(tune_params(16, std::min(max_tile_ofm, 2u), 1, 2, 2,  2, EXE_MODE_AGE_BASED))
-                    .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 2, 4,  1, EXE_MODE_AGE_BASED))
-                    .Case(tune_params(16, std::min(max_tile_ofm, 2u), 1, 2, 1,  1, EXE_MODE_AGE_BASED))
-                    .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 2, 1,  1, EXE_MODE_AGE_BASED));
+            // tune_params(tile_b, tile_ofm, tile_ifm, tile_k, outer_ofm, dispatch_bsv, dispatch_fsv, exec_options)
+            selector.Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 2, 1, 16, 2, EXE_MODE_AGE_BASED))
+                    .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 2, 1, 16, 1, EXE_MODE_AGE_BASED))
+                    .Case(tune_params(16, std::min(max_tile_ofm, 2u), 1, 2, 1, 4,  2, EXE_MODE_AGE_BASED))
+                    .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 2, 1, 8,  1, EXE_MODE_AGE_BASED))
+                    .Case(tune_params(16, std::min(max_tile_ofm, 2u), 1, 2, 1, 2,  2, EXE_MODE_AGE_BASED))
+                    .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 2, 1, 4,  1, EXE_MODE_AGE_BASED))
+                    .Case(tune_params(16, std::min(max_tile_ofm, 2u), 1, 2, 1, 1,  1, EXE_MODE_AGE_BASED))
+                    .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 2, 1, 1,  1, EXE_MODE_AGE_BASED));
         } else if (dtype == Datatype::F32) {
-            // tune_params(tile_b, tile_ofm, tile_ifm, tile_k, dispatch_bsv, dispatch_fsv, exec_options)
-            selector.Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 1, 16, 2, EXE_MODE_AGE_BASED))
-                    .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 1, 16, 1, EXE_MODE_AGE_BASED))
-                    .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 1, 8,  1, EXE_MODE_AGE_BASED))
-                    .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 1, 4,  1, EXE_MODE_AGE_BASED))
-                    .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 1, 2,  1, EXE_MODE_AGE_BASED))
-                    .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 1, 1,  1, EXE_MODE_AGE_BASED));
+            // tune_params(tile_b, tile_ofm, tile_ifm, tile_k, outer_ofm, dispatch_bsv, dispatch_fsv, exec_options)
+            selector.Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 1, 1, 16, 2, EXE_MODE_AGE_BASED))
+                    .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 1, 1, 16, 1, EXE_MODE_AGE_BASED))
+                    .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 1, 1, 8,  1, EXE_MODE_AGE_BASED))
+                    .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 1, 1, 4,  1, EXE_MODE_AGE_BASED))
+                    .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 1, 1, 2,  1, EXE_MODE_AGE_BASED))
+                    .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 1, 1, 1,  1, EXE_MODE_AGE_BASED));
         }
 
         if (params.compressed && batch == 1)
-            selector.Case(tune_params(1,  std::min(max_tile_ofm, 2u), 4, 2, 1, 1, EXE_MODE_AGE_BASED));
+            selector.Case(tune_params(1,  std::min(max_tile_ofm, 2u), 4, 2, 1, 1, 1, EXE_MODE_AGE_BASED));
 
         selector.Case([&](const fully_connected_params&) -> tune_params {
-            tune_params result(8, std::min(max_tile_ofm, 2u), 1, 2, 1, 1, EXE_MODE_DEFAULT);
+            tune_params result(8, std::min(max_tile_ofm, 2u), 1, 2, 1, 1, 1, EXE_MODE_DEFAULT);
 
             while (batch % result.tile_b != 0)
                 result.tile_b--;
@@ -450,7 +481,7 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
         });
     }
 
-    return selector.Default(tune_params(1, 1, 1, 1, 1, 1, EXE_MODE_DEFAULT));
+    return selector.Default(tune_params(1, 1, 1, 1, 1, 1, 1, EXE_MODE_DEFAULT));
 }
 
 FullyConnected_bf_tiled::DispatchData
@@ -466,7 +497,7 @@ FullyConnected_bf_tiled::SetDefault(const fully_connected_params& params, int au
 
     auto tparams = GetAutoTuneParams(params, kernel_type, autoTuneIndex);
 
-    auto threads = get_output_aligned_bf_size(params, true, tparams.tile_b, tparams.tile_ofm * simd);
+    auto threads = get_output_aligned_bf_size(params, true, tparams.tile_b, tparams.tile_ofm * tparams.outer_ofm * simd);
     auto batch_threads = threads.first;
     auto feature_threads = threads.second;
 
@@ -487,6 +518,7 @@ FullyConnected_bf_tiled::SetDefault(const fully_connected_params& params, int au
     dispatchData.tile_n = tparams.tile_ofm;
     dispatchData.tile_mk = tparams.tile_ifm;
     dispatchData.tile_nk = tparams.tile_k;
+    dispatchData.outer_n = tparams.outer_ofm;
     dispatchData.tile_ms = tparams.dispatch_bsv;
     dispatchData.tile_ns = tparams.dispatch_fsv;
     dispatchData.use_slm = can_use_slm;
@@ -514,6 +546,7 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     size_t tile_k_ofm_packed = tile_k_ofm;
     size_t quantize_grp_size = get_dynamic_quantize_group_size(params);
 
+    bool add_decompress_scale_post_op = false;
     WeightsType weights_dt = params.weights.GetDType();
     if (weights_dt == WeightsType::UINT4 || weights_dt == WeightsType::INT4) {
         tile_k_ofm_packed /= 2;
@@ -522,15 +555,29 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
         const size_t scale_group_size = params.weights.IFM().v / params.decompression_scale.Feature().v;
         // Do not use SCALE_POST_OP for SLM kernel, since it demonstrates worse performance
         if (scale_group_size % simd == 0 && !dispatchData.use_slm)
-            jit.AddConstant(MakeJitConstant("DECOMPRESSION_SCALE_POST_OP", 1));
+            add_decompress_scale_post_op = true;
     }
-    if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2)
+    if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2) {
         jit.AddConstant(MakeJitConstant("W_IDX", "fi * TILE_K + kii"));
-    else if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16)
+    } else if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16) {
         jit.AddConstant(MakeJitConstant("W_IDX", "fi * TILE_K + kii"));
-    else
+    } else if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2) {
+        jit.AddConstant(MakeJitConstant("W_IDX", "fi * TILE_K + kii"));
+    } else {
         jit.AddConstant(MakeJitConstant("W_IDX", "kii * TILE_OFM + fi"));
+    }
 
+    if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16 && dispatchData.tile_n == 2) {
+        jit.AddConstant(MakeJitConstant("TILE_OFM_PER_OSV_SIZE", 0.5f));
+    } else if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2 && dispatchData.tile_n == 1) {
+        jit.AddConstant(MakeJitConstant("TILE_OFM_PER_OSV_SIZE", 2));
+    } else if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2 && dispatchData.tile_n == 2) {
+        jit.AddConstant(MakeJitConstant("TILE_OFM_PER_OSV_SIZE", 2));
+    } else {
+        jit.AddConstant(MakeJitConstant("TILE_OFM_PER_OSV_SIZE", 1));
+    }
+
+    jit.AddConstant(MakeJitConstant("W_DYN_QUAN_IDX", "fi * TILE_K + kii"));
 
     if (dispatchData.use_slm) {
         OPENVINO_ASSERT(dispatchData.tile_n == 2, "[GPU] Unsupported TILE_OFM size for SLM kernel configuration");
@@ -564,6 +611,9 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
         if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16) {
             jit.AddConstant(MakeJitConstant("FILTER_ACTUAL_LOAD_BLOCK_SIZE", block_read_size / 2));
             jit.Merge(make_int4_packed_type_jit_constant("INT4_PACKED_TYPE_PRELOAD", params.weights.GetDType(), weights_elements_per_load / 2));
+        } else if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2) {
+            jit.AddConstant(MakeJitConstant("FILTER_ACTUAL_LOAD_BLOCK_SIZE", block_read_size / 2));
+            jit.Merge(make_int4_packed_type_jit_constant("INT4_PACKED_TYPE_PRELOAD", params.weights.GetDType(), weights_elements_per_load / 2));
         } else {
             jit.AddConstant(MakeJitConstant("FILTER_ACTUAL_LOAD_BLOCK_SIZE", block_read_size));
             jit.Merge(make_int4_packed_type_jit_constant("INT4_PACKED_TYPE_PRELOAD", params.weights.GetDType(), weights_elements_per_load));
@@ -576,14 +626,16 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     }
 
     // Validated perf gain, Dynamic quantize force enable SCALE_POST_OP for char type multiplication
-    if (should_dynamic_quantize(params) && dispatchData.tile_m > 1 && dispatchData.tile_n == 2) {
+    if (should_dynamic_quantize(params)) {
         jit.AddConstant(MakeJitConstant("DYNAMIC_QUANTIZE", 1));
-        jit.AddConstant(MakeJitConstant("DECOMPRESSION_SCALE_POST_OP", 1));
+        jit.AddConstant(MakeJitConstant("DQ_DECOMPRESSION_SCALE_POST_OP", 1));
         jit.AddConstant(MakeJitConstant("DQ_TYPE", "char"));
         jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", quantize_grp_size));
     } else {
+        if (add_decompress_scale_post_op)
+            jit.AddConstant(MakeJitConstant("DECOMPRESSION_SCALE_POST_OP", 1));
         jit.AddConstant(MakeJitConstant("DYNAMIC_QUANTIZE", 0));
-        jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", -1));
+        jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", min_quantize_grp_size));
     }
 
     jit.AddConstant(MakeJitConstant("IFM_SIZE", get_input_bf_size(params).second));
@@ -595,6 +647,7 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     jit.AddConstant(MakeJitConstant("TILE_K", dispatchData.tile_nk));
     jit.AddConstant(MakeJitConstant("TILE_K_OFM", tile_k_ofm));
     jit.AddConstant(MakeJitConstant("TILE_K_OFM_PACKED", tile_k_ofm_packed));
+    jit.AddConstant(MakeJitConstant("OUTER_OFM", dispatchData.outer_n));
     jit.AddConstant(MakeJitConstant("DISPATCH_BSV", dispatchData.tile_ms));
     jit.AddConstant(MakeJitConstant("DISPATCH_FSV", dispatchData.tile_ns));
     jit.AddConstant(MakeJitConstant("TILE_IFM_ELEMENTS_SIZE", (dispatchData.tile_mk * simd)));
@@ -744,10 +797,16 @@ KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &pa
 
     WeightsLayout weights_layout = WeightsLayout::os_iyx_osv16;
     if (fc_params.compressed && fc_params.inputs[0].GetDType() == Datatype::F16
+        && (fc_params.weights.GetLayout() == WeightsLayout::oiyx || fc_params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2)
         && (fc_params.weights.GetDType() == WeightsType::INT4 || fc_params.weights.GetDType() == WeightsType::UINT4)
-        && is_weight_with_small_ofm(fc_params, output_f) && is_weight_with_large_ifm(fc_params)
-        && (fc_params.weights.GetLayout() == WeightsLayout::oiyx || fc_params.weights.GetLayout() == WeightsLayout::os_iyx_osv16)) {
-        // Large K + Small N case to use [osv16 + TILE_K 4] + TILE_OFM 1 for batch 1
+        && is_weight_horizontal(fc_params, output_f)) {
+        // Large N + Small K case (horizontal weight) to use [osv64_isv2] + TILE_OFM 4 for batch 1
+        weights_layout = WeightsLayout::os_is_yx_osv64_isv2;
+    } else if (fc_params.compressed && fc_params.inputs[0].GetDType() == Datatype::F16
+        && (fc_params.weights.GetDType() == WeightsType::INT4 || fc_params.weights.GetDType() == WeightsType::UINT4)
+        && (fc_params.weights.GetLayout() == WeightsLayout::oiyx || fc_params.weights.GetLayout() == WeightsLayout::os_iyx_osv16)
+        && is_weight_vertical(fc_params, output_f)) {
+        // Large K + Small N case (vertical weight)  to use [osv16 + TILE_K 4] + TILE_OFM 1 for batch 1
         weights_layout = WeightsLayout::os_iyx_osv16;
     } else if (fc_params.compressed && fc_params.inputs[0].GetDType() == Datatype::F16
         // ioyx => os_is_yx_osv32_isv2 is not supported yet

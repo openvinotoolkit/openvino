@@ -8,12 +8,12 @@
 #include <string_view>
 
 #include "async_infer_request.hpp"
-#include "intel_npu/al/config/common.hpp"
-#include "intel_npu/al/config/compiler.hpp"
-#include "intel_npu/al/config/config.hpp"
-#include "intel_npu/al/config/runtime.hpp"
-#include "intel_npu/al/icompiler.hpp"
-#include "intel_npu/al/itt.hpp"
+#include "intel_npu/common/itt.hpp"
+#include "intel_npu/config/common.hpp"
+#include "intel_npu/config/compiler.hpp"
+#include "intel_npu/config/config.hpp"
+#include "intel_npu/config/runtime.hpp"
+#include "intel_npu/icompiler.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -24,13 +24,17 @@
 namespace {
 
 constexpr std::string_view NO_EXECUTOR_FOR_INFERENCE =
+    "Can't create infer request due to create executor failed! Only exports can be made.";
+
+constexpr std::string_view NO_EXECUTOR_FOR_INFERENCE_NODEVICE =
     "Can't create infer request!\n"
     "Please make sure that the device is available. Only exports can be made.";
 
-std::uint32_t hash(const std::vector<uint8_t>& data) {
+std::uint32_t hash(const intel_npu::CompiledNetwork& blob) {
     std::uint32_t result = 1171117u;
-    for (const auto& c : data)
-        result = ((result << 7) + result) + static_cast<uint32_t>(c);
+    for (const uint8_t* it = blob.data; it != blob.data + blob.size; ++it) {
+        result = ((result << 7) + result) + static_cast<uint32_t>(*it);
+    }
     return result;
 }
 
@@ -117,8 +121,14 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
     if (_executorPtr == nullptr && _device != nullptr) {
         _executorPtr = _device->createExecutor(_networkPtr, _config);
     }
+
     if (_executorPtr == nullptr) {
-        OPENVINO_THROW(NO_EXECUTOR_FOR_INFERENCE);
+        if (_device != nullptr) {
+            OPENVINO_THROW(NO_EXECUTOR_FOR_INFERENCE);
+        } else {
+            _logger.error("Can not find device!");
+            OPENVINO_THROW(NO_EXECUTOR_FOR_INFERENCE_NODEVICE);
+        }
     }
 
     const std::shared_ptr<SyncInferRequest>& syncInferRequest =
@@ -139,15 +149,17 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
 
 void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
-    const auto&& blob = _compiler->getCompiledNetwork(_networkPtr);
-    stream.write(reinterpret_cast<const char*>(blob.data()), blob.size());
-    std::stringstream str;
-    str << "Blob size: " << blob.size() << ", hash: " << std::hex << hash(blob);
-    _logger.info(str.str().c_str());
+    const auto blob = _compiler->getCompiledNetwork(*_networkPtr);
+    stream.write(reinterpret_cast<const char*>(blob.data), blob.size);
 
     if (!stream) {
         _logger.error("Write blob to stream failed. Blob is broken!");
     } else {
+        if (_logger.level() >= ov::log::Level::INFO) {
+            std::stringstream str;
+            str << "Blob size: " << blob.size << ", hash: " << std::hex << hash(blob);
+            _logger.info(str.str().c_str());
+        }
         _logger.info("Write blob to stream successfully.");
     }
 }

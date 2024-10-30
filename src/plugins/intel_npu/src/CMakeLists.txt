@@ -9,7 +9,11 @@ add_subdirectory(utils)
 
 add_subdirectory(al)
 
-if(ENABLE_DRIVER_COMPILER_ADAPTER)
+if (ENABLE_NPU_RUNTIME_COMMON)
+    add_subdirectory(common)
+endif()
+
+if(ENABLE_DRIVER_COMPILER_ADAPTER AND ENABLE_ZEROAPI_BACKEND)
     add_subdirectory(compiler)
 endif()
 
@@ -17,6 +21,6 @@ if(ENABLE_ZEROAPI_BACKEND)
     add_subdirectory(backend)
 endif()
 
-if (NOT BUILD_COMPILER_FOR_DRIVER)
+if (ENABLE_NPU_PLUGIN_ENGINE)
     add_subdirectory(plugin)
 endif()

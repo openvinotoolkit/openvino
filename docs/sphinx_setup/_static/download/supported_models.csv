@@ -1,923 +1,914 @@
-Model,Framework,Precision,AI PC CPU,AI PC GPU,AI PC NPU
-Denoise,tf,FP16,+,+,+
-Denoise,tf,FP32,+,,+
-GPT-2,onnx,FP16,+,+,
-GPT-2,onnx,FP32,+,+,
-Sharpen-LensBlur,tf,FP16,+,+,+
-Sharpen-LensBlur,tf,FP32,+,+,+
-Sharpen-LensBlur,tf,FP16-INT8,,+,
-Sharpen-MotionBlur,tf,FP16,+,+,+
-Sharpen-MotionBlur,tf,FP16-INT8,+,+,+
-Sharpen-MotionBlur,tf,FP32,+,+,+
-Sharpen-Sharpen,tf,FP16,+,+,+
-Sharpen-Sharpen,tf,FP16-INT8,+,+,
-Sharpen-Sharpen,tf,FP32,+,+,+
-Sphereface,caffe,FP16,+,+,+
-Sphereface,caffe,FP32,+,+,+
-aclnet,onnx,FP16,+,+,+
-aclnet,onnx,FP16-INT8,+,+,+
-aclnet,onnx,FP32,+,+,+
-aclnet-int8,onnx,FP16-INT8,,,+
-alexnet-caffe,caffe,FP16,+,+,
-alexnet-caffe,caffe,FP32,+,+,
-alexnet-onnx,onnx,FP16,+,+,+
-alexnet-onnx,onnx,FP16-INT8,+,+,
-alexnet-onnx,onnx,FP32,+,+,+
-began,onnx,FP16,+,+,+
-began,onnx,FP32,+,+,+
-bert-base-cased-onnx,onnx,FP16,+,+,+
-bert-base-cased-onnx,onnx,FP16-INT8,+,+,+
-bert-base-cased-onnx,onnx,FP32,+,,+
-bert-base-cased-paddle,paddle,FP16,+,+,
-bert-base-cased-paddle,paddle,FP16-INT8,+,+,
-bert-base-cased-paddle,paddle,FP32,+,,
-bert-base-cased-squad2,onnx,FP16,+,+,
-bert-base-cased-squad2,onnx,FP32,+,,
-bert-base-chinese-xnli-zh,tf,FP16,,,+
-bert-base-chinese-xnli-zh,tf,FP32,,,+
-bert-base-ner,onnx,FP16,+,+,+
-bert-base-ner,onnx,FP16-INT8,+,+,+
-bert-base-ner,onnx,FP32,+,,
-bert-base-uncased-mrpc,onnx,FP16,,,+
-bert-base-uncased-mrpc,onnx,FP16-INT8,,,+
-bert-base-uncased-mrpc,onnx,FP32,,,+
-bert-large-uncased-whole-word-masking-squad-0001,onnx,FP16,+,+,+
-bert-large-uncased-whole-word-masking-squad-0001,onnx,FP32,+,+,+
-bert-large-uncased-whole-word-masking-squad-int8-0001,onnx,FP16-INT8,+,+,+
-bisenet-v2,paddle,FP16,+,+,+
-bisenet-v2,paddle,FP32,+,,
-brain-tumor-segmentation-0002,onnx,FP16,+,,
-brain-tumor-segmentation-0002,onnx,FP16-INT8,+,,
-colorization-siggraph,onnx,FP16,+,,
-colorization-siggraph,onnx,FP32,+,,
-colorization-siggraph,onnx,FP16,,+,+
-colorization-siggraph,onnx,FP32,,,+
-colorization-v2,onnx,FP16-INT8,,,+
-common-sign-language-0001,onnx,FP16,+,+,+
-common-sign-language-0001,onnx,FP32,+,+,+
-crnn-tf,tf,FP16,+,+,
-crnn-tf,tf,FP32,+,,
-darknet19,tf,FP16,+,+,+
-darknet19,tf,FP16-INT8,+,+,+
-darknet19,tf,FP32,+,+,
-deeplab-v3p-resnet50-os8,paddle,FP16,+,+,
-deeplab-v3p-resnet50-os8,paddle,FP16-INT8,+,+,
-deeplab-v3p-resnet50-os8,paddle,FP32,+,+,
-deeplabv3,tf,FP16,+,+,
-deeplabv3,tf,FP16-INT8,+,+,
-deeplabv3,tf,FP32,+,+,
-densenet-121-caffe,caffe,FP16,+,+,+
-densenet-121-caffe,caffe,FP32,,,+
-densenet-121-onnx,onnx,FP16,+,+,+
-densenet-121-onnx,onnx,FP16-INT8,+,+,
-densenet-121-tf,tf,FP16,+,+,+
-densenet-121-tf,tf,FP32,+,+,
-densenet-121-tf2,tf2,FP16,+,+,+
-densenet-121-tf2,tf2,FP32,+,+,+
-detr_resnet50,onnx,FP16,+,+,
-detr_resnet50,onnx,FP32,+,,
-dien_alibaba,tf,FP16,+,,
-dien_alibaba,tf,FP32,+,,
-distilbert-base-cased,onnx,FP16,+,+,+
-distilbert-base-cased,onnx,FP32,+,+,+
-distilbert-base-uncased,onnx,FP16,,,+
-distilbert-base-uncased,onnx,FP16-INT8,,,+
-distilbert-base-uncased-sst-2,onnx,FP16,+,+,+
-distilbert-base-uncased-sst-2,onnx,FP16-INT8,+,+,
-distilbert-base-uncased-sst-2,onnx,FP32,+,,+
-dna_r9.4.1@v3,onnx,FP16,+,,
-dna_r9.4.1@v3,onnx,FP32,+,,
-dpn-68,onnx,FP16,+,+,+
-dpn-68,onnx,FP16-INT8,+,,
-dpn-68,onnx,FP32,+,+,+
-east_resnet_v1_50,tf,FP16,+,+,+
-east_resnet_v1_50,tf,FP16-INT8,+,+,
-east_resnet_v1_50,tf,FP32,+,+,
-ebgan,onnx,FP16,+,+,+
-ebgan,onnx,FP32,+,,+
-edsr3-nas,onnx,FP16,+,+,+
-edsr3-nas,onnx,FP32,+,+,+
-edsr3_super_resolution,tf,FP16,+,+,+
-edsr3_super_resolution,tf,FP32,+,+,+
-efficientdet-d0-tf,tf,FP16,+,,
-efficientdet-d0-tf,tf,FP16-INT8,+,,
-efficientdet-d0-tf,tf,FP16,,+,+
-efficientdet-d0-tf,tf,FP16-INT8,,+,+
-efficientnet-b0-onnx,onnx,FP16,+,+,+
-efficientnet-b0-onnx,onnx,FP16-INT8,+,+,+
-efficientnet-b0-onnx,onnx,FP32,+,+,+
-efficientnet-b0-tf,tf,FP16,+,+,+
-efficientnet-b0-tf,tf,FP16-INT8,+,+,+
-efficientnet-b0-tf,tf,FP32,+,+,
-efficientnet-v2-m,onnx,FP16,+,+,+
-efficientnet-v2-m,onnx,FP16-INT8,+,+,+
-efficientnet-v2-m,onnx,FP32,+,+,+
-emotions-recognition-retail-0003,caffe,FP16,,,+
-emotions-recognition-retail-0003,caffe,FP16-INT8,,,+
-esrgan,onnx,FP16,+,,
-esrgan,onnx,FP32,+,,
-esrgan,onnx,FP16,,,+
-f3net,onnx,FP16,,,+
-f3net,onnx,FP16-INT8,,,+
-f3net,onnx,FP32,,,+
-face-detection-0200,onnx,FP16,,,+
-face-detection-0202,onnx,FP16,,,+
-face-detection-0202,onnx,FP32,,,+
-face-detection-0204,onnx,FP16,,,+
-face-detection-adas-0001,caffe,FP16,,,+
-face-detection-adas-0001,caffe,FP32,,,+
-face-detection-retail-0004,caffe,FP16,,,+
-face-detection-retail-0004,caffe,FP32,,,+
-face-detection-retail-0044,caffe,FP16,,,+
-face-detection-retail-0044,caffe,FP32,,,+
-face-recognition-mobilefacenet-arcface,mxnet,FP16,,,+
-face-recognition-mobilefacenet-arcface,mxnet,FP16-INT8,,,+
-face-recognition-resnet50-arcface,mxnet,FP16,+,+,+
-face-recognition-resnet50-aws,mxnet,FP16,,,+
-face-recognition-resnet50-aws,mxnet,FP32,,,+
-face-reidentification-retail-0095,onnx,FP16,,,+
-face-reidentification-retail-0095,onnx,FP16-INT8,,,+
-faceboxes-caffe,caffe,FP16,+,+,+
-faceboxes-caffe,caffe,FP32,+,+,
-faceboxes-onnx,onnx,FP16,+,+,+
-faceboxes-onnx,onnx,FP16-INT8,+,+,+
-faceboxes-onnx,onnx,FP32,+,+,+
-facenet,onnx,FP16,,,+
-facenet,onnx,FP16-INT8,,,+
-facenet-20180408-102900,tf,FP16,+,+,+
-facenet-20180408-102900,tf,FP32,+,+,
-facial-landmarks-35-adas-0002,caffe,FP16,,,+
-facial-landmarks-35-adas-0002,caffe,FP16-INT8,,,+
-facial-landmarks-98-detection-0001,onnx,FP16,+,+,+
-facial-landmarks-98-detection-0001,onnx,FP32,+,+,+
-faster-rcnn-resnet101-coco-sparse-60-0001,tf,FP16,+,+,
-faster-rcnn-resnet101-coco-sparse-60-0001,tf,FP32,+,+,
-faster_rcnn_inception_resnet_v2_atrous_coco,tf,FP16,+,+,
-faster_rcnn_inception_resnet_v2_atrous_coco,tf,FP32,+,,
-faster_rcnn_inception_v2_coco,tf,FP16,+,+,
-faster_rcnn_inception_v2_coco,tf,FP32,+,,
-faster_rcnn_resnet101_coco,tf,FP16,+,+,
-faster_rcnn_resnet101_coco,tf,FP32,,+,
-faster_rcnn_resnet101_kitti,tf,FP16,+,+,
-faster_rcnn_resnet101_kitti,tf,FP32,+,,
-faster_rcnn_resnet50_coco,tf,FP16,+,+,
-faster_rcnn_resnet50_coco,tf,FP32,+,,
-faster_rcnn_resnet50_coco,tf,FP16-INT8,+,+,
-faster_rcnn_resnet50_fpn_coco,onnx,FP16,+,,
-fastscnn,paddle,FP16,+,+,+
-fastscnn,paddle,FP32,+,,
-fastseg-small,onnx,FP16,+,+,
-fastseg-small,onnx,FP16-INT8,+,+,
-fastseg-small,onnx,FP32,+,+,
-fcrn-dp-nyu-depth-v2-tf,tf,FP16,,,+
-fcrn-dp-nyu-depth-v2-tf,tf,FP16-INT8,,,+
-fcrn-dp-nyu-depth-v2-tf,tf,FP32,,,+
-forward-tacotron-duration-prediction,onnx,FP16,+,,+
-forward-tacotron-duration-prediction,onnx,FP32,+,,+
-fsrcnn-x4,tf,FP16,+,+,+
-fsrcnn-x4,tf,FP32,+,,
-gaze-estimation-adas-0002,onnx,FP16,,,+
-googlenet-v4-caffe,caffe,FP16,+,+,+
-googlenet-v4-caffe,caffe,FP32,+,,
-googlenet-v4-tf,tf,FP16,+,+,
-googlenet-v4-tf,tf,FP16-INT8,+,+,
-googlenet-v4-tf,tf,FP32,+,,
-handwritten-japanese-recognition-0001,onnx,FP16-INT8,,,+
-hg-s8-b1-mpii,onnx,FP16,+,+,+
-hg-s8-b1-mpii,onnx,FP16-INT8,+,+,
-higher-hrnet-w32-512,onnx,FP16,+,+,
-higher-hrnet-w32-512,onnx,FP32,+,,
-horizontal-text-detection-0001,onnx,FP16,+,+,
-horizontal-text-detection-0001,onnx,FP16-INT8,+,+,
-horizontal-text-detection-0001,onnx,FP32,+,+,
-human-pose-estimation-3d-0001,onnx,FP16,+,+,+
-human-pose-estimation-3d-0001,onnx,FP32,+,+,+
-hybrid-cs-model-mri,tf2,FP16,,,+
-hybrid-cs-model-mri,tf2,FP32,,,+
-i3d-flow,tf,FP16,+,+,
-i3d-flow,tf,FP16-INT8,+,,
-i3d-flow,tf,FP32,+,+,
-instance-segmentation-security-0002,onnx,FP16,+,,
-instance-segmentation-security-0002,onnx,FP32,+,,
-instance-segmentation-security-0010,onnx,FP16,+,,
-instance-segmentation-security-0010,onnx,FP32,+,,
-mask_rcnn_inception_resnet_v2_atrous_coco,tf,FP16,+,+,
-mask_rcnn_inception_resnet_v2_atrous_coco,tf,FP32,+,+,
-mask_rcnn_inception_v2_coco,tf,FP16,+,+,
-mask_rcnn_inception_v2_coco,tf,FP16-INT8,+,+,
-mask_rcnn_inception_v2_coco,tf,FP32,+,+,
-mask_rcnn_resnet101_atrous_coco,tf,FP16,+,+,
-mask_rcnn_resnet101_atrous_coco,tf,FP16-INT8,+,+,
-mask_rcnn_resnet50_atrous_coco,tf,FP16,+,+,
-mask_rcnn_resnet50_atrous_coco,tf,FP16-INT8,+,+,
-mask_rcnn_resnet50_atrous_coco,tf,FP32,+,+,
-midasnet,onnx,FP16,,,+
-midasnet,onnx,FP16-INT8,,,+
-midasnet,onnx,FP32,,,+
-mobilebert,onnx,FP16-INT8,+,,
-mobilebert,onnx,FP16-INT8,,+,
-mobilenet-ssd,caffe,FP16,+,+,+
-mobilenet-ssd,caffe,FP32,+,,
-mobilenet-v2-caffe,caffe,FP16,+,+,+
-mobilenet-v2-caffe,caffe,FP32,+,,
-mobilenet-v2-onnx,onnx,FP16,+,+,+
-mobilenet-v2-onnx,onnx,FP16-INT8,+,+,+
-mobilenet-v2-onnx,onnx,FP32,+,,
-mobilenet-v2-paddle,paddle,FP16,+,+,+
-mobilenet-v2-paddle,paddle,FP16-INT8,+,+,+
-mobilenet-v2-paddle,paddle,FP32,+,+,+
-mobilenet-v2-1.0-224-tf,tf,FP16,+,+,+
-mobilenet-v2-1.0-224-tf,tf,FP16-INT8,+,+,+
-mobilenet-v2-1.0-224-tf,tf,FP32,+,,
-mobilenet-v2-1.0-224-tf2,tf2,FP16,+,+,+
-mobilenet-v2-1.0-224-tf2,tf2,FP16-INT8,+,+,+
-mobilenet-v2-1.0-224-tf2,tf2,FP32,+,,
-mobilenet-v3-large-1.0-224-onnx,onnx,FP16,+,+,+
-mobilenet-v3-large-1.0-224-onnx,onnx,FP16-INT8,+,+,+
-mobilenet-v3-large-1.0-224-onnx,onnx,FP32,+,,+
-mobilenet-v3-large-1.0-224-paddle,paddle,FP16,+,+,+
-mobilenet-v3-large-1.0-224-paddle,paddle,FP16-INT8,+,+,+
-mobilenet-v3-large-1.0-224-paddle,paddle,FP32,+,+,+
-mobilenet-v3-large-1.0-224-tf,tf,FP16,+,+,+
-mobilenet-v3-large-1.0-224-tf,tf,FP32,+,+,+
-mobilenet-v3-large-1.0-224-tf2,tf2,FP16,+,+,+
-mobilenet-v3-large-1.0-224-tf2,tf2,FP16-INT8,+,+,+
-mobilenet-v3-large-1.0-224-tf2,tf2,FP32,+,,+
-mobilenet-yolo-v4-syg,tf,FP16-INT8,,,+
-mobilenet-yolo-v4-syg,tf,FP32,,,+
-modnet_webcam_portrait_matting,onnx,FP16-INT8,,,+
-mozilla-deepspeech-0.8.2,tf,FP16,+,,
-mozilla-deepspeech-0.8.2,tf,FP16-INT8,+,,+
-mozilla-deepspeech-0.8.2,tf,FP32,+,,+
-ocrnet-hrnet-w18,paddle,FP16,+,+,+
-ocrnet-hrnet-w18,paddle,FP16-INT8,+,+,
-ocrnet-hrnet-w18,paddle,FP32,+,,
-ocrnet-hrnet-w48,paddle,FP16,+,,
-ocrnet-hrnet-w48,paddle,FP32,+,,
-octave-resnext-101-0.25,mxnet,FP16,+,+,+
-octave-resnext-101-0.25,mxnet,FP32,+,,
-open-closed-eye-0001,onnx,FP16,,,+
-open-closed-eye-0001,onnx,FP16-INT8,,,+
-open-closed-eye-0001,onnx,FP32,,,+
-pedestrian-detection-adas-0002,caffe,FP16,,,+
-pedestrian-detection-adas-0002,caffe,FP16-INT8,,,+
-pedestrian-detection-adas-0002,caffe,FP32,,,+
-person-detection-0100,onnx,FP16,,,+
-person-detection-0101,onnx,FP16,,,+
-person-detection-0201,onnx,FP16,,,+
-person-detection-0201,onnx,FP32,,,+
-person-vehicle-bike-detection-crossroad-0078,caffe,FP16,+,+,+
-person-vehicle-bike-detection-crossroad-0078,caffe,FP16-INT8,+,+,+
-person-vehicle-bike-detection-crossroad-0078,caffe,FP32,,+,
-pp-ocr-det,paddle,FP16,+,,
-pp-ocr-det,paddle,FP16-INT8,+,+,+
-pp-ocr-det,paddle,FP32,+,,
-pp-ocr-rec,paddle,FP16,+,,
-pp-ocr-rec,paddle,FP32,+,,
-pp-yolo,paddle,FP16,+,,
-pp-yolo,paddle,FP32,+,,
-prnet,tf,FP16,,,+
-prnet,tf,FP16-INT8,,,+
-prnet,tf,FP32,,,+
-product-detection-0001,onnx,FP16,,,+
-product-detection-0001,onnx,FP16-INT8,,,+
-product-detection-0001,onnx,FP32,,,+
-quartznet-15x5-en,onnx,FP16,+,,
-quartznet-15x5-en,onnx,FP16-INT8,+,,
-quartznet-15x5-en,onnx,FP32,+,,
-resnet-18,onnx,FP16,+,+,+
-resnet-18,onnx,FP16-INT8,+,+,+
-resnet-18,onnx,FP32,+,,+
-resnet-50-onnx,onnx,FP16,+,+,+
-resnet-50-onnx,onnx,FP16-INT8,+,+,+
-resnet-50-onnx,onnx,FP32,+,+,+
-resnet-50-paddle,paddle,FP16,+,+,+
-resnet-50-paddle,paddle,FP16-INT8,+,+,+
-resnet-50-paddle,paddle,FP32,+,+,
-resnet-50-tf,tf,FP16,+,+,+
-resnet-50-tf,tf,FP16-INT8,+,+,+
-resnet-50-tf,tf,FP32,+,,+
-resnet-50-pytorch,onnx,FP16,+,+,+
-resnet-50-pytorch,onnx,FP16-INT8,+,+,+
-resnet-50-pytorch,onnx,FP32,+,+,+
-resnext-101-32x8d,onnx,FP16,+,+,
-resnext-101-32x8d,onnx,FP32,+,,
-resnext101-32x16d-swsl,onnx,FP16,+,+,
-resnext101-32x16d-swsl,onnx,FP16-INT8,+,+,+
-resnext101-32x16d-swsl,onnx,FP32,+,,
-retinanet,tf2,FP16,+,+,+
-retinanet,tf2,FP32,+,+,+
-retinanet_resnet34,onnx,FP16,,,+
-retinanet_resnet34,onnx,FP16-INT8,,,+
-retinanet_resnet34,onnx,FP32,,,+
-rnnt,onnx,FP16,+,,
-rnnt,onnx,FP32,+,,
-road-segmentation-adas-0001,caffe,FP16,,,+
-roberta-base,onnx,FP16,+,+,
-roberta-base,onnx,FP16-INT8,+,+,
-roberta-base,onnx,FP32,+,,
-roberta-base-mrpc,onnx,FP16-INT8,+,,
-roberta-base-mrpc,onnx,FP16-INT8,,+,+
-roberta-large,onnx,FP16,+,+,
-roberta-large,onnx,FP32,+,+,
-sbert-base-mean-tokens,onnx,FP16,,,+
-sbert-base-mean-tokens,onnx,FP16-INT8,,,+
-sbert-base-mean-tokens,onnx,FP32,,,+
-se-resnet-50,caffe,FP16,+,+,+
-se-resnet-50,caffe,FP32,+,,+
-se-resnext-101,caffe,FP16,+,+,+
-se-resnext-101,caffe,FP32,,+,
-se-resnext-50-caffe,caffe,FP16,+,+,+
-se-resnext-50-caffe,caffe,FP32,+,+,
-se-resnext-50-onnx,onnx,FP16,+,+,+
-se-resnext-50-onnx,onnx,FP16-INT8,+,,
-se-resnext-50-onnx,onnx,FP32,+,+,+
-se-resnext-50-tf,tf,FP16,+,+,+
-se-resnext-50-tf,tf,FP32,+,+,
-semantic-segmentation-adas-0001,caffe,FP16,+,+,
-semantic-segmentation-adas-0001,caffe,FP16-INT8,+,,
-semantic-segmentation-adas-0001,caffe,FP32,+,,
-shufflenet-v2-x1.0-onnx,onnx,FP16,+,+,+
-shufflenet-v2-x1.0-onnx,onnx,FP16-INT8,+,+,+
-shufflenet-v2-x1.0-onnx,onnx,FP32,+,,
-shufflenet-v2-x1.0-tf,tf,FP16,+,+,+
-shufflenet-v2-x1.0-tf,tf,FP16-INT8,+,+,+
-shufflenet-v2-x1.0-tf,tf,FP32,+,+,
-single-image-super-resolution-1032,onnx,FP16,+,+,+
-squeezenet1.1-caffe,caffe,FP16,+,+,+
-squeezenet1.1-caffe,caffe,FP32,+,+,+
-squeezenet1.1-mxnet,mxnet,FP16,+,+,+
-squeezenet1.1-mxnet,mxnet,FP32,+,+,+
-squeezenet1.1-onnx,onnx,FP32,+,,
-srgan-onnx,onnx,FP16,+,,+
-srgan-tf,tf,FP16,+,+,
-srgan-tf,tf,FP16-INT8,+,+,+
-srgan-tf,tf,FP32,+,,
-ssd-resnet34-1200,onnx,FP16,+,+,
-ssd-resnet34-1200,onnx,FP16-INT8,+,+,
-ssd-resnet34-1200,onnx,FP32,+,,
-ssd300-onnx-0001,onnx,FP16,,,+
-ssd300-onnx-0001,onnx,FP16-INT8,,,+
-ssd_mobilenet_v1_coco,tf,FP16,+,+,+
-ssd_mobilenet_v1_coco,tf,FP16-INT8,+,+,+
-ssd_mobilenet_v1_coco,tf,FP32,+,+,+
-ssdlite-mobilenet-v3-small-320-coco,paddle,FP16,+,,
-ssdlite-mobilenet-v3-small-320-coco,paddle,FP32,+,,
-ssdlite_mobilenet_v2,tf,FP16,+,+,+
-ssdlite_mobilenet_v2,tf,FP16-INT8,+,+,
-ssdlite_mobilenet_v2,tf,FP32,+,+,+
-style_transfer,onnx,FP16,+,+,+
-style_transfer,onnx,FP16-INT8,+,+,+
-style_transfer,onnx,FP32,+,+,+
-stylegan2,tf,FP16,+,+,
-stylegan2,tf,FP32,+,,
-swin-tiny-patch4-window7-224,onnx,FP16,+,+,
-swin-tiny-patch4-window7-224,onnx,FP16-INT8,+,+,+
-swin-tiny-patch4-window7-224,onnx,FP32,+,+,
-t2t-vit-7,onnx,FP16,+,+,
-t2t-vit-7,onnx,FP16-INT8,+,+,
-t2t-vit-7,onnx,FP32,+,+,
-tedlium_dnn4_smbr,kaldi,FP16,+,+,+
-tedlium_dnn4_smbr,kaldi,FP16-INT8,+,+,
-tedlium_dnn4_smbr,kaldi,FP32,+,,
-text-image-super-resolution-0001,onnx,FP16,+,+,+
-text-image-super-resolution-0001,onnx,FP16-INT8,+,+,+
-text-image-super-resolution-0001,onnx,FP32,+,+,+
-text-recognition-0012,tf,FP16,+,+,+
-text-recognition-0012,tf,FP32,+,+,
-text-recognition-0013,onnx,FP16,,,+
-text-recognition-0013,onnx,FP32,,,+
-text-recognition-0014,onnx,FP16,,,+
-text-recognition-0014,onnx,FP16-INT8,,,+
-text-recognition-0014,onnx,FP32,,,+
-text-to-speech-en-multi-0001,null,FP32,+,,
-tiny_yolo_v2,onnx,FP16,,,+
-tiny_yolo_v2,onnx,FP32,,,+
-tinybert_6layer_768dim_cola,onnx,FP16,,,+
-tinybert_6layer_768dim_cola,onnx,FP16-INT8,,,+
-tinybert_6layer_768dim_cola,onnx,FP32,,,+
-tiramisu-fc-densenet-103,tf2,FP16,,,+
-tiramisu-fc-densenet-103,tf2,FP16-INT8,,,+
-tiramisu-fc-densenet-103,tf2,FP32,,,+
-topaz_video_super_resolution,tf,FP16,+,+,+
-topaz_video_super_resolution,tf,FP32,+,+,+
-ultra-lightweight-face-detection-rfb-320,onnx,FP16,,,+
-ultra-lightweight-face-detection-slim-320,onnx,FP16,,,+
-unet-2d,onnx,FP16,,,+
-unet-camvid-onnx-0001,onnx,FP16,+,+,+
-unet-camvid-onnx-0001,onnx,FP16-INT8,+,+,+
-unet-camvid-onnx-0001,onnx,FP32,+,,
-unet3d_mlperf-onnx,onnx,FP16,+,+,
-unet3d_mlperf-onnx,onnx,FP16-INT8,+,+,
-unet3d_mlperf-onnx,onnx,FP32,+,+,
-unet3d_mlperf-tf,tf,FP16,+,+,
-unet3d_mlperf-tf,tf,FP16-INT8,+,+,
-urlnet,tf2,FP16,+,+,+
-urlnet,tf2,FP32,+,+,+
-vehicle-detection-adas-0002,caffe,FP16,,,+
-vitstr-small-patch16-224,onnx,FP16,,,+
-vitstr-small-patch16-224,onnx,FP32,,,+
-wav2vec2-base,onnx,FP16,+,,
-wav2vec2-base,onnx,FP16-INT8,+,,
-wav2vec2-base,onnx,FP32,+,,
-wavernn-rnn,onnx,FP16,,,+
-wavernn-rnn,onnx,FP32,,,+
-wavernn-upsampler,onnx,FP16,+,+,+
-wavernn-upsampler,onnx,FP32,+,,+
-wdsr-small-x4,onnx,FP16,+,+,+
-wdsr-small-x4,onnx,FP16-INT8,+,,+
-wdsr-small-x4,onnx,FP32,+,+,
-weld-porosity-detection-0001,onnx,FP16,,,+
-weld-porosity-detection-0001,onnx,FP32,,,+
-xlm-roberta-base,onnx,FP16,+,+,
-xlm-roberta-base,onnx,FP32,+,,
-yolo-v2-ava-0001,tf,FP16,+,+,+
-yolo-v2-ava-0001,tf,FP16-INT8,+,+,+
-yolo-v2-ava-0001,tf,FP32,+,+,+
-yolo-v2-ava-sparse-70-0001,tf,FP16,,,+
-yolo-v2-ava-sparse-70-0001,tf,FP16-INT8,,,+
-yolo-v2-ava-sparse-70-0001,tf,FP32,,,+
-yolo-v3-caffe,caffe,FP16,+,+,
-yolo-v3-caffe,caffe,FP32,+,+,
-yolo-v3-tf,tf,FP16,+,+,+
-yolo-v3-tf,tf,FP32,+,+,+
-yolo_v3-onnx,onnx,FP16,+,,
-yolo_v3-onnx,onnx,FP16,,+,
-yolo_v3_tiny,onnx,FP16,+,,
-yolo_v3_tiny-onnx,onnx,FP16,,+,
-yolo_v3_tiny-onnx,onnx,FP16-INT8,+,+,
-yolo_v3_tiny-onnx,onnx,FP32,+,,
-yolo_v3_tiny-tf,tf,FP16,+,+,+
-yolo_v3_tiny-tf,tf,FP16-INT8,+,+,+
-yolo_v3_tiny-tf,tf,FP32,+,,
-yolo_v4-tf,tf,FP16,+,+,
-yolo_v4-tf,tf,FP16-INT8,+,+,+
-yolo_v4-tf,tf,FP32,+,,
-yolo_v4-tf2,tf2,FP16,+,+,
-yolo_v4-tf2,tf2,FP16-INT8,+,+,+
-yolo_v5l,onnx,FP16,+,+,
-yolo_v5l,onnx,FP16-INT8,+,+,+
-yolo_v5l,onnx,FP32,+,,
-yolo_v5m,onnx,FP16,+,+,+
-yolo_v5m,onnx,FP16-INT8,+,+,+
-yolo_v5m,onnx,FP32,+,,+
-yolo_v5m-v6,onnx,FP16,+,+,+
-yolo_v5m-v6,onnx,FP16-INT8,+,+,+
-yolo_v5m-v6,onnx,FP32,+,+,+
-yolo_v5s,onnx,FP16,+,+,+
-yolo_v5s,onnx,FP16-INT8,+,+,+
-yolo_v5s,onnx,FP32,+,+,+
-yolo_v5s-v6,onnx,FP16,+,+,+
-yolo_v5s-v6,onnx,FP16-INT8,+,+,+
-yolo_v5s-v6,onnx,FP32,+,,+
-yolo_v5x,onnx,FP16,+,+,+
-yolo_v5x,onnx,FP32,+,,
-yolo_v8n,onnx,FP16,+,+,+
-yolo_v8n,onnx,FP16-INT8,+,+,+
-yolo_v8n,onnx,FP32,+,,
-yolof,onnx,FP16,+,+,
-yolof,onnx,FP16-INT8,+,+,
-yolof,onnx,FP32,+,,
-yolor_p6,onnx,FP16,+,+,+
-yolor_p6,onnx,FP32,+,,
-yolor_p6,onnx,FP16-INT8,,,+
-arcfaceresnet100-8_resnet100,onnx,FP32,+,+,+
-bertsquad-12,onnx,FP32,+,+,+
-bvlcalexnet-12,onnx,FP32,+,+,+
-caffenet-12,onnx,FP32,+,+,+
-candy-8_candy,onnx,FP32,+,+,+
-efficientnet-lite4-11_efficientnet-lite4,onnx,FP32,+,+,+
-emotion-ferplus-8_model,onnx,FP32,+,+,+
-fcn-resnet101-11,onnx,FP32,+,+,+
-fcn-resnet50-11,onnx,FP32,+,+,+
-googlenet-12,onnx,FP32,+,+,+
-gpt2-lm-head-10_GPT-2-LM-HEAD,onnx,FP32,+,+,+
-inception-v1-12,onnx,FP32,+,+,+
-inception-v2-7_model,onnx,FP32,+,+,+
-MaskRCNN-12,onnx,FP32,+,+,+
-mnist-12,onnx,FP32,+,+,+
-mosaic-8_mosaic,onnx,FP32,+,+,+
-pointilism-8_pointilism,onnx,FP32,+,+,+
-rain-princess-8_rain_princess,onnx,FP32,+,+,+
-rcnn-ilsvrc13-7_model,onnx,FP32,+,+,+
-ResNet101-DUC-12,onnx,FP32,+,+,+
-resnet101-v1-7,onnx,FP32,+,+,+
-resnet101-v2-7,onnx,FP32,+,+,+
-resnet152-v1-7,onnx,FP32,+,+,+
-resnet152-v2-7,onnx,FP32,+,+,+
-resnet18-v1-7,onnx,FP32,+,+,+
-resnet18-v2-7,onnx,FP32,+,+,+
-resnet34-v1-7,onnx,FP32,+,+,+
-resnet34-v2-7,onnx,FP32,+,+,+
-resnet50-caffe2-v1-7_model,onnx,FP32,+,+,+
-resnet50-v2-7,onnx,FP32,+,+,+
-retinanet-9_test_retinanet_resnet101,onnx,FP32,+,+,+
-shufflenet-7_model,onnx,FP32,+,+,+
-squeezenet1.0-12,onnx,FP32,+,+,+
-ssd-10,onnx,FP32,+,+,+
-super-resolution-10_super_resolution,onnx,FP32,+,+,+
-t5-decoder-with-lm-head-12_t5-decoder-with-lm-head,onnx,FP32,+,+,+
-t5-encoder-12_t5-encoder,onnx,FP32,+,+,+
-udnie-8_udnie,onnx,FP32,+,+,+
-version-RFB-320,onnx,FP32,+,+,+
-version-RFB-640,onnx,FP32,+,+,+
-vgg16-12,onnx,FP32,+,+,+
-vgg19-7_vgg19,onnx,FP32,+,+,+
-vgg19-caffe2-7_model,onnx,FP32,+,+,+
-yolov2-coco-9,onnx,FP32,+,+,+
-yolov4,onnx,FP32,+,+,+
-zfnet512-12,onnx,FP32,+,+,+
-arcfaceresnet100-8_resnet100,onnx,FP16,,,+
-bertsquad-12,onnx,FP16,,,+
-bvlcalexnet-12,onnx,FP16,,,+
-caffenet-12,onnx,FP16,,,+
-candy-8_candy,onnx,FP16,,,+
-efficientnet-lite4-11_efficientnet-lite4,onnx,FP16,,,+
-emotion-ferplus-8_model,onnx,FP16,,,+
-fcn-resnet101-11,onnx,FP16,,,+
-fcn-resnet50-11,onnx,FP16,,,+
-googlenet-12,onnx,FP16,,,+
-gpt2-lm-head-10_GPT-2-LM-HEAD,onnx,FP16,,,+
-inception-v1-12,onnx,FP16,,,+
-inception-v2-7_model,onnx,FP16,,,+
-MaskRCNN-12,onnx,FP16,,,+
-mnist-12,onnx,FP16,,,+
-mosaic-8_mosaic,onnx,FP16,,,+
-pointilism-8_pointilism,onnx,FP16,,,+
-rain-princess-8_rain_princess,onnx,FP16,,,+
-rcnn-ilsvrc13-7_model,onnx,FP16,,,+
-ResNet101-DUC-12,onnx,FP16,,,+
-resnet101-v1-7,onnx,FP16,,,+
-resnet101-v2-7,onnx,FP16,,,+
-resnet152-v1-7,onnx,FP16,,,+
-resnet152-v2-7,onnx,FP16,,,+
-resnet18-v1-7,onnx,FP16,,,+
-resnet18-v2-7,onnx,FP16,,,+
-resnet34-v1-7,onnx,FP16,,,+
-resnet34-v2-7,onnx,FP16,,,+
-resnet50-caffe2-v1-7_model,onnx,FP16,,,+
-resnet50-v2-7,onnx,FP16,,,+
-retinanet-9_test_retinanet_resnet101,onnx,FP16,,,+
-shufflenet-7_model,onnx,FP16,,,+
-squeezenet1.0-12,onnx,FP16,,,+
-ssd_mobilenet_v1_10_ssd_mobilenet_v1,onnx,FP16,,,+
-ssd-10,onnx,FP16,,,+
-super-resolution-10_super_resolution,onnx,FP16,,,+
-t5-decoder-with-lm-head-12_t5-decoder-with-lm-head,onnx,FP16,,,+
-t5-encoder-12_t5-encoder,onnx,FP16,,,+
-udnie-8_udnie,onnx,FP16,,,+
-version-RFB-320,onnx,FP16,,,+
-version-RFB-640,onnx,FP16,,,+
-vgg16-12,onnx,FP16,,,+
-vgg19-7_vgg19,onnx,FP16,,,+
-vgg19-caffe2-7_model,onnx,FP16,,,+
-yolov2-coco-9,onnx,FP16,,,+
-yolov4,onnx,FP16,,,+
-zfnet512-12,onnx,FP16,,,+
-adv_inception_v3,pytorch,FP32,+,,
-beit_base_patch16_224,pytorch,FP32,+,,
-botnet26t_256,pytorch,FP32,+,,
-cait_m36_384,pytorch,FP32,+,,
-coat_lite_mini,pytorch,FP32,+,,
-convit_base,pytorch,FP32,+,,
-convmixer_768_32,pytorch,FP32,+,,
-convnext_base,pytorch,FP32,+,,
-crossvit_9_240,pytorch,FP32,+,,
-cspdarknet53,pytorch,FP32,+,,
-deit_base_distilled_patch16_224,pytorch,FP32,+,,
-dla102,pytorch,FP32,+,,
-dm_nfnet_f0,pytorch,FP32,+,,
-dpn107,pytorch,FP32,+,,
-eca_botnext26ts_256,pytorch,FP32,+,,
-eca_halonext26ts,pytorch,FP32,+,,
-ese_vovnet19b_dw,pytorch,FP32,+,,
-fbnetc_100,pytorch,FP32,+,,
-fbnetv3_b,pytorch,FP32,+,,
-gernet_l,pytorch,FP32,+,,
-ghostnet_100,pytorch,FP32,+,,
-gluon_inception_v3,pytorch,FP32,+,,
-gmixer_24_224,pytorch,FP32,+,,
-gmlp_s16_224,pytorch,FP32,+,,
-hrnet_w18,pytorch,FP32,+,,
-inception_v3,pytorch,FP32,+,,
-jx_nest_base,pytorch,FP32,+,,
-lcnet_050,pytorch,FP32,+,,
-levit_128,pytorch,FP32,+,,
-mixer_b16_224,pytorch,FP32,+,,
-mixnet_l,pytorch,FP32,+,,
-mnasnet_100,pytorch,FP32,+,,
-mobilenetv2_100,pytorch,FP32,+,,
-mobilenetv3_large_100,pytorch,FP32,+,,
-mobilevit_s,pytorch,FP32,+,,
-nfnet_l0,pytorch,FP32,+,,
-pit_b_224,pytorch,FP32,+,,
-pnasnet5large,pytorch,FP32,+,,
-poolformer_m36,pytorch,FP32,+,,
-regnety_002,pytorch,FP32,+,,
-repvgg_a2,pytorch,FP32,+,,
-res2net101_26w_4s,pytorch,FP32,+,,
-res2net50_14w_8s,pytorch,FP32,+,,
-res2next50,pytorch,FP32,+,,
-resmlp_12_224,pytorch,FP32,+,,
-resnest101e,pytorch,FP32,+,,
-rexnet_100,pytorch,FP32,+,,
-sebotnet33ts_256,pytorch,FP32,+,,
-selecsls42b,pytorch,FP32,+,,
-spnasnet_100,pytorch,FP32,+,,
-swin_base_patch4_window7_224,pytorch,FP32,+,,
-swsl_resnext101_32x16d,pytorch,FP32,+,,
-tf_efficientnet_b0,pytorch,FP32,+,,
-tf_mixnet_l,pytorch,FP32,+,,
-tinynet_a,pytorch,FP32,+,,
-tnt_s_patch16_224,pytorch,FP32,+,,
-twins_pcpvt_base,pytorch,FP32,+,,
-visformer_small,pytorch,FP32,+,,
-vit_base_patch16_224,pytorch,FP32,+,,
-volo_d1_224,pytorch,FP32,+,,
-xcit_large_24_p8_224,pytorch,FP32,+,,
-albert-base-v2,pytorch,intel-optimum default,,+,
-albert-base-v2-sst2,pytorch,intel-optimum default,,+,
-albert-large-v2,pytorch,intel-optimum default,,+,
-albert-large-v2-finetuned-mnli,pytorch,intel-optimum default,,+,
-Aquila2-7B,pytorch,intel-optimum default,,+,
-Aquila-7B,pytorch,intel-optimum default,,+,
-AquilaChat2-7B,pytorch,intel-optimum default,,+,
-AquilaChat-7B,pytorch,intel-optimum default,,+,
-ast-finetuned-speech-commands-v2,pytorch,intel-optimum default,,+,
-Baichuan2-13B-Chat,pytorch,intel-optimum default,,+,
-Baichuan2-7B-Base,pytorch,intel-optimum default,,+,
-Baichuan2-7B-Chat,pytorch,intel-optimum default,,+,
-bart-base-japanese,pytorch,intel-optimum default,,+,
-beit-base-patch16-224-pt22k-ft22k,pytorch,intel-optimum default,,+,
-bert-base-cased-conversational,pytorch,intel-optimum default,,+,
-bert-base-NER,pytorch,intel-optimum default,,+,
-bert-base-uncased,pytorch,intel-optimum default,,+,
-bert-base-uncased-yelp-polarity,pytorch,intel-optimum default,,+,
-BERT-Large-CT-STSb,pytorch,intel-optimum default,,+,
-bert-large-NER,pytorch,intel-optimum default,,+,
-bert-large-uncased,pytorch,intel-optimum default,,+,
-bert-large-uncased-whole-word-masking-finetuned-sst-2,pytorch,intel-optimum default,,+,
-bert-small-finetuned-squadv2,pytorch,intel-optimum default,,+,
-bge-base-en-v1.5,pytorch,intel-optimum default,,+,
-bge-large-en-v1.5,pytorch,intel-optimum default,,+,
-bge-reranker-base,pytorch,intel-optimum default,,+,
-bge-reranker-large,pytorch,intel-optimum default,,+,
-BioMedLM,pytorch,intel-optimum default,,+,
-blenderbot-400M-distill,pytorch,intel-optimum default,,+,
-bloom-560m,pytorch,intel-optimum default,,+,
-bloomz-1b1,pytorch,intel-optimum default,,+,
-bloomz-3b,pytorch,intel-optimum default,,+,
-bloomz-7b1-mt,pytorch,intel-optimum default,,+,
-codegemma-1.1-2b,pytorch,intel-optimum default,,+,
-codegemma-1.1-7b-it,pytorch,intel-optimum default,,+,
-codegemma-2b,pytorch,intel-optimum default,,+,
-codegemma-7b,pytorch,intel-optimum default,,+,
-codegen2-1B_P,pytorch,intel-optimum default,,+,
-codegen2-3_7B_P,pytorch,intel-optimum default,,+,
-codegen2-7B_P,pytorch,intel-optimum default,,+,
-codegen-2B-multi,pytorch,intel-optimum default,,+,
-codegen-350M-mono,pytorch,intel-optimum default,,+,
-codegen-6B-multi,pytorch,intel-optimum default,,+,
-CodeQwen1.5-7B-Chat,pytorch,intel-optimum default,,+,
-convbert-base-turkish-mc4-toxicity-uncased,pytorch,intel-optimum default,,+,
-convnext-base-224,pytorch,intel-optimum default,,+,
-deberta-v3-large,pytorch,intel-optimum default,,+,
-distilbert-base-nli-mean-tokens,pytorch,intel-optimum default,,+,
-distilbert-base-uncased-distilled-squad,pytorch,intel-optimum default,,+,
-distilbert-NER,pytorch,intel-optimum default,,+,
-distil-large-v3,pytorch,intel-optimum default,,+,
-distil-medium.en,pytorch,intel-optimum default,,+,
-electra-base-french-europeana-cased-generator,pytorch,intel-optimum default,,+,
-electra-large-discriminator-nli-efl-tweeteval,pytorch,intel-optimum default,,+,
-falcon-11B,pytorch,intel-optimum default,,+,
-falcon-7b,pytorch,intel-optimum default,,+,
-falcon-7b-instruct,pytorch,intel-optimum default,,+,
-flaubert_base_cased,pytorch,intel-optimum default,,+,
-flaubert-base-uncased-finetuned-cooking,pytorch,intel-optimum default,,+,
-gemma-1.1-2b-it,pytorch,intel-optimum default,,+,
-gemma-1.1-7b-it,pytorch,intel-optimum default,,+,
-gemma-2b,pytorch,intel-optimum default,,+,
-gemma-2b-it,pytorch,intel-optimum default,,+,
-gemma-7b,pytorch,intel-optimum default,,+,
-gemma-7b-it,pytorch,intel-optimum default,,+,
-GPT2Neo1.3BPoints,pytorch,intel-optimum default,,+,
-granite-3b-code-base,pytorch,intel-optimum default,,+,
-granite-3b-code-instruct,pytorch,intel-optimum default,,+,
-granite-8b-code-base,pytorch,intel-optimum default,,+,
-granite-8b-code-instruct,pytorch,intel-optimum default,,+,
-hubert-large-ls960-ft,pytorch,intel-optimum default,,+,
-ibert-roberta-base,pytorch,intel-optimum default,,+,
-ibert-roberta-base-finetuned-mrpc,pytorch,intel-optimum default,,+,
-internlm2-1_8b,pytorch,intel-optimum default,,+,
-internlm2-7b,pytorch,intel-optimum default,,+,
-internlm2-chat-1_8b,pytorch,intel-optimum default,,+,
-internlm2-chat-7b,pytorch,intel-optimum default,,+,
-internlm2-chat-7b-sft,pytorch,intel-optimum default,,+,
-internlm2-math-7b,pytorch,intel-optimum default,,+,
-internlm2-math-base-7b,pytorch,intel-optimum default,,+,
-klue-roberta-base-ner,pytorch,intel-optimum default,,+,
-LCM_Dreamshaper_v7,pytorch,intel-optimum default,,+,
-levit-256,pytorch,intel-optimum default,,+,
-Llama-2-13b-chat-hf,pytorch,intel-optimum default,,+,
-Llama-2-13b-hf,pytorch,intel-optimum default,,+,
-Llama-2-7b-chat-hf,pytorch,intel-optimum default,,+,
-Llama-2-7b-hf,pytorch,intel-optimum default,,+,
-m2m100_418M,pytorch,intel-optimum default,,+,
-Magicoder-CL-7B,pytorch,intel-optimum default,,+,
-Magicoder-DS-6.7B,pytorch,intel-optimum default,,+,
-Magicoder-S-CL-7B,pytorch,intel-optimum default,,+,
-Magicoder-S-DS-6.7B,pytorch,intel-optimum default,,+,
-MarianCausalLM,pytorch,intel-optimum default,,+,
-marian-finetuned-kde4-en-to-cn-accelerate,pytorch,intel-optimum default,,+,
-mbart-large-50-many-to-one-mmt,pytorch,intel-optimum default,,+,
-Meta-Llama-3-8B,pytorch,intel-optimum default,,+,
-Meta-Llama-3-8B-Instruct,pytorch,intel-optimum default,,+,
-Meta-Llama-Guard-2-8B,pytorch,intel-optimum default,,+,
-MindChat-Qwen2-4B,pytorch,intel-optimum default,,+,
-MiniCPM-2B-sft-bf16,pytorch,intel-optimum default,,+,
-Mistral-7B-Instruct-v0.2,pytorch,intel-optimum default,,+,
-Mistral-7B-Instruct-v0.3,pytorch,intel-optimum default,,+,
-Mistral-7B-v0.3,pytorch,intel-optimum default,,+,
-mobilevit-xx-small,pytorch,intel-optimum default,,+,
-mpt-7b,pytorch,intel-optimum default,,+,
-mpt-7b-8k,pytorch,intel-optimum default,,+,
-mpt-7b-8k-chat,pytorch,intel-optimum default,,+,
-mpt-7b-chat,pytorch,intel-optimum default,,+,
-mpt-7b-instruct,pytorch,intel-optimum default,,+,
-mpt-7b-storywriter,pytorch,intel-optimum default,,+,
-ms-marco-electra-base,pytorch,intel-optimum default,,+,
-mt5-base,pytorch,intel-optimum default,,+,
-mt5-large,pytorch,intel-optimum default,,+,
-mt5-small,pytorch,intel-optimum default,,+,
-neural-chat-7b-v1-1,pytorch,intel-optimum default,,+,
-neural-chat-7b-v3-3,pytorch,intel-optimum default,,+,
-openchat-3.6-8b-20240522,pytorch,intel-optimum default,,+,
-opt-1.3b,pytorch,intel-optimum default,,+,
-opt-125m,pytorch,intel-optimum default,,+,
-opt-13b,pytorch,intel-optimum default,,+,
-opt-2.7b,pytorch,intel-optimum default,,+,
-opt-350m,pytorch,intel-optimum default,,+,
-opt-6.7b,pytorch,intel-optimum default,,+,
-opt-iml-1.3b,pytorch,intel-optimum default,,+,
-Pegasus-7b-slerp,pytorch,intel-optimum default,,+,
-pegasus-samsum,pytorch,intel-optimum default,,+,
-persimmon-8b-chat,pytorch,intel-optimum default,,+,
-phi-2,pytorch,intel-optimum default,,+,
-Phi-3-medium-4k-instruct,pytorch,intel-optimum default,,+,
-Phi-3-mini-128k-instruct,pytorch,intel-optimum default,,+,
-pix2struct-base,pytorch,intel-optimum default,,+,
-Polish_RoBERTa_large_OPI,pytorch,intel-optimum default,,+,
-pythia-1.4b,pytorch,intel-optimum default,,+,
-pythia-12b,pytorch,intel-optimum default,,+,
-pythia-14m,pytorch,intel-optimum default,,+,
-pythia-160m,pytorch,intel-optimum default,,+,
-pythia-1b,pytorch,intel-optimum default,,+,
-pythia-2.8b,pytorch,intel-optimum default,,+,
-pythia-410m,pytorch,intel-optimum default,,+,
-pythia-6.9b,pytorch,intel-optimum default,,+,
-pythia-70m,pytorch,intel-optimum default,,+,
-Pythia-Chat-Base-7B,pytorch,intel-optimum default,,+,
-Qwen1.5-0.5B,pytorch,intel-optimum default,,+,
-Qwen1.5-0.5B-Chat,pytorch,intel-optimum default,,+,
-Qwen1.5-1.8B,pytorch,intel-optimum default,,+,
-Qwen1.5-1.8B-Chat,pytorch,intel-optimum default,,+,
-Qwen1.5-4B,pytorch,intel-optimum default,,+,
-Qwen1.5-4B-Chat,pytorch,intel-optimum default,,+,
-Qwen1.5-7B,pytorch,intel-optimum default,,+,
-Qwen1.5-7B-Chat,pytorch,intel-optimum default,,+,
-Qwen-1_8B,pytorch,intel-optimum default,,+,
-Qwen-1_8B-Chat,pytorch,intel-optimum default,,+,
-Qwen-7B,pytorch,intel-optimum default,,+,
-Qwen-7B-Chat,pytorch,intel-optimum default,,+,
-RedPajama-INCITE-7B-Base,pytorch,intel-optimum default,,+,
-RedPajama-INCITE-7B-Chat,pytorch,intel-optimum default,,+,
-RedPajama-INCITE-7B-Instruct,pytorch,intel-optimum default,,+,
-RedPajama-INCITE-Chat-3B-v1,pytorch,intel-optimum default,,+,
-roberta-base-squad2,pytorch,intel-optimum default,,+,
-roberta-large-mnli,pytorch,intel-optimum default,,+,
-roberta-large-ner-english,pytorch,intel-optimum default,,+,
-roberta-large-squadv2,pytorch,intel-optimum default,,+,
-roformer_small_generator,pytorch,intel-optimum default,,+,
-stable-diffusion-2-1,pytorch,intel-optimum default,,+,
-stable-diffusion-v1-4,pytorch,intel-optimum default,,+,
-stable-diffusion-v1-5,pytorch,intel-optimum default,,+,
-stable-diffusion-xl-base-1.0,pytorch,intel-optimum default,,+,
-stablelm-2-1_6b,pytorch,intel-optimum default,,+,
-stablelm-2-1_6b-chat,pytorch,intel-optimum default,,+,
-stablelm-2-12b,pytorch,intel-optimum default,,+,
-stablelm-2-12b-chat,pytorch,intel-optimum default,,+,
-stablelm-2-zephyr-1_6b,pytorch,intel-optimum default,,+,
-stablelm-3b-4e1t,pytorch,intel-optimum default,,+,
-stablelm-base-alpha-3b,pytorch,intel-optimum default,,+,
-stablelm-tuned-alpha-7b,pytorch,intel-optimum default,,+,
-stablelm-zephyr-3b,pytorch,intel-optimum default,,+,
-sup-simcse-roberta-base,pytorch,intel-optimum default,,+,
-t5-base,pytorch,intel-optimum default,,+,
-t5-large,pytorch,intel-optimum default,,+,
-t5-small,pytorch,intel-optimum default,,+,
-trocr-base-handwritten,pytorch,intel-optimum default,,+,
-twitter-roberta-base-sentiment-latest,pytorch,intel-optimum default,,+,
-unispeech-1350-en-90-it-ft-1h,pytorch,intel-optimum default,,+,
-unispeech-sat-base-plus-sd,pytorch,intel-optimum default,,+,
-unispeech-sat-base-sv,pytorch,intel-optimum default,,+,
-unispeech-sat-large-sv,pytorch,intel-optimum default,,+,
-wav2vec2-base-superb-sd,pytorch,intel-optimum default,,+,
-wav2vec2-base-superb-sid,pytorch,intel-optimum default,,+,
-wav2vec2-base-superb-sv,pytorch,intel-optimum default,,+,
-whisper-base,pytorch,intel-optimum default,,+,
-whisper-large-v2,pytorch,intel-optimum default,,+,
-whisper-medium,pytorch,intel-optimum default,,+,
-whisper-small,pytorch,intel-optimum default,,+,
-WizardMath-7B-V1.1,pytorch,intel-optimum default,,+,
-xlm-clm-ende-1024,pytorch,intel-optimum default,,+,
-xlm-roberta-base-language-detection,pytorch,intel-optimum default,,+,
-xlm-roberta-base-uncased-conll2003,pytorch,intel-optimum default,,+,
-xlm-roberta-large,pytorch,intel-optimum default,,+,
-xlm-roberta-large-en-ru-mnli,pytorch,intel-optimum default,,+,
-xlm-roberta-large-finetuned-conll03-english,pytorch,intel-optimum default,,+,
-XVERSE-7B-Chat,pytorch,intel-optimum default,,+,
-zephyr-7b-beta,pytorch,intel-optimum default,,+,
-tiny-random-albert,pytorch,intel-optimum default,+,,
-tiny-random-bert,pytorch,intel-optimum default,+,,
-tiny-random-ConvBertForSequenceClassification,pytorch,intel-optimum default,+,,
-tiny-random-distilbert,pytorch,intel-optimum default,+,,
-tiny-random-electra,pytorch,intel-optimum default,+,,
-tiny-random-flaubert,pytorch,intel-optimum default,+,,
-tiny-random-ibert,pytorch,intel-optimum default,+,,
-tiny-random-roberta,pytorch,intel-optimum default,+,,
-tiny-random-roformer,pytorch,intel-optimum default,+,,
-tiny-random-squeezebert,pytorch,intel-optimum default,+,,
-tiny-random-xlm,pytorch,intel-optimum default,+,,
-stsb-bert-tiny-safetensors,pytorch,intel-optimum default,+,,
-tiny-random-bart,pytorch,INT4,+,,
-tiny-random-baichuan2,pytorch,INT4,+,,
-tiny-random-baichuan2-13b,pytorch,INT4,+,,
-tiny-random-BlenderbotModel,pytorch,INT4,+,,
-tiny-random-BloomModel,pytorch,INT4,+,,
-tiny-random-chatglm2,pytorch,INT4,+,,
-tiny-random-CodeGenForCausalLM,pytorch,INT4,+,,
-tiny-random-codegen2,pytorch,INT4,+,,
-tiny-random-GemmaForCausalLM,pytorch,INT4,+,,
-tiny-random-gpt2,pytorch,INT4,+,,
-tiny-random-GPTNeoModel,pytorch,INT4,+,,
-tiny-random-GPTNeoXForCausalLM,pytorch,INT4,+,,
-tiny-llama-fast-tokenizer,pytorch,INT4,+,,
-tiny-marian-en-de,pytorch,INT4,+,,
-tiny-random-minicpm,pytorch,INT4,+,,
-tiny-random-mistral,pytorch,INT4,+,,
-tiny-mixtral,pytorch,INT4,+,,
-tiny-random-MptForCausalLM,pytorch,INT4,+,,
-tiny-random-olmo-hf,pytorch,INT4,+,,
-tiny-random-OPTModel,pytorch,INT4,+,,
-tiny-random-pegasus,pytorch,INT4,+,,
-tiny-random-qwen,pytorch,INT4,+,,
-tiny-random-StableLmForCausalLM,pytorch,INT4,+,,
-tiny-random-Starcoder2ForCausalLM,pytorch,INT4,+,,
-tiny-random-PhiForCausalLM,pytorch,INT4,+,,
-tiny-random-phi3,pytorch,INT4,+,,
-tiny-random-internlm2,pytorch,INT4,+,,
-tiny-random-orion,pytorch,INT4,+,,
-really-tiny-falcon-testing,pytorch,INT4,+,,
-tiny-random-falcon-40b,pytorch,INT4,+,,
-tiny-random-PersimmonForCausalLM,pytorch,INT4,+,,
-tiny-random-CohereForCausalLM,pytorch,INT4,+,,
-tiny-random-aquilachat,pytorch,INT4,+,,
-tiny-random-aquila2,pytorch,INT4,+,,
-tiny-random-xverse,pytorch,INT4,+,,
-tiny-random-internlm,pytorch,INT4,+,,
-tiny-random-dbrx,pytorch,INT4,+,,
-tiny-random-qwen1.5-moe,pytorch,INT4,+,,
-tiny-random-deberta,pytorch,intel-optimum default,+,,
-tiny-xlm-roberta,pytorch,intel-optimum default,+,,
-tiny-random-BeitForImageClassification,pytorch,intel-optimum default,+,,
-tiny-random-convnext,pytorch,intel-optimum default,+,,
-tiny-random-LevitModel,pytorch,intel-optimum default,+,,
-tiny-random-MobileNetV2Model,pytorch,intel-optimum default,+,,
-tiny-random-mobilevit,pytorch,intel-optimum default,+,,
-tiny-random-resnet,pytorch,intel-optimum default,+,,
-tiny-random-vit,pytorch,intel-optimum default,+,,
-tiny-random-m2m_100,pytorch,intel-optimum default,+,,
-tiny-random-mbart,pytorch,intel-optimum default,+,,
-mt5-tiny-random,pytorch,intel-optimum default,+,,
-tiny-random-t5,pytorch,intel-optimum default,+,,
-tiny-random-unispeech,pytorch,intel-optimum default,+,,
-wav2vec2-random-tiny-classifier,pytorch,intel-optimum default,+,,
-tiny-random-Data2VecAudioModel,pytorch,intel-optimum default,+,,
-tiny-random-HubertModel,pytorch,intel-optimum default,+,,
-tiny-random-SEWModel,pytorch,intel-optimum default,+,,
-sew-d-tiny-100k-ft-ls100h,pytorch,intel-optimum default,+,,
-tiny-random-UnispeechSatModel,pytorch,intel-optimum default,+,,
-tiny-random-WavlmModel,pytorch,intel-optimum default,+,,
-tiny-random-Wav2Vec2Model,pytorch,intel-optimum default,+,,
-tiny-random-wav2vec2-conformer,pytorch,intel-optimum default,+,,
-pix2struct-tiny-random,pytorch,intel-optimum default,+,,
-whisper-tiny.en,pytorch,intel-optimum default,+,,
-tiny-random-VisionEncoderDecoderModel-vit-gpt2,pytorch,intel-optimum default,+,,
-trocr-small-handwritten,pytorch,intel-optimum default,+,,
-tiny-doc-qa-vision-encoder-decoder,pytorch,intel-optimum default,+,,
-vit-with-attentions,pytorch,intel-optimum default,+,,
-vit-with-hidden_states,pytorch,intel-optimum default,+,,
-tiny-stable-diffusion-torch,pytorch,intel-optimum default,+,,
-tiny-random-stable-diffusion-xl,pytorch,intel-optimum default,+,,
-tiny-random-stable-diffusion-xl-refiner,pytorch,intel-optimum default,+,,
-tiny-random-latent-consistency,pytorch,intel-optimum default,+,,
+Model,Category,Framework,Precision,AI PC CPU,AI PC GPU,AI PC NPU
+aclnet,Sound Classification,onnx,FP16,+,+,+
+aclnet,Sound Classification,onnx,FP16-INT8,+,+,+
+aclnet,Sound Classification,onnx,FP32,+,+,+
+aclnet-int8,Sound Classification,onnx,FP16-INT8,,,+
+adv_inception_v3,Image Classification,pytorch,FP32,+,,
+albert-base-v2,Natural Language Processing,pytorch,intel-optimum default,,+,
+albert-base-v2-sst2,Natural Language Processing,pytorch,intel-optimum default,,+,
+albert-large-v2,Natural Language Processing,pytorch,intel-optimum default,,+,
+albert-large-v2-finetuned-mnli,Natural Language Processing,pytorch,intel-optimum default,,+,
+alexnet-caffe,Image Classification,caffe,FP16,+,+,
+alexnet-caffe,Image Classification,caffe,FP32,+,+,
+alexnet-onnx,Image Classification,onnx,FP16,+,+,+
+alexnet-onnx,Image Classification,onnx,FP16-INT8,+,+,
+alexnet-onnx,Image Classification,onnx,FP32,+,+,+
+Aquila2-7B,Large Language Model,pytorch,intel-optimum default,,+,
+Aquila-7B,Large Language Model,pytorch,intel-optimum default,,+,
+AquilaChat2-7B,Large Language Model,pytorch,intel-optimum default,,+,
+AquilaChat-7B,Large Language Model,pytorch,intel-optimum default,,+,
+arcfaceresnet100-8_resnet100,Object Detection,onnx,FP16,,,+
+arcfaceresnet100-8_resnet100,Object Detection,onnx,FP32,+,+,+
+ast-finetuned-speech-commands-v2,Audio Classification,pytorch,intel-optimum default,,+,
+Baichuan2-13B-Chat,Large Language Model,pytorch,intel-optimum default,,+,
+Baichuan2-7B-Base,Large Language Model,pytorch,intel-optimum default,,+,
+Baichuan2-7B-Chat,Large Language Model,pytorch,intel-optimum default,,+,
+bart-base-japanese,Natural Language Processing,pytorch,intel-optimum default,,+,
+began,"Image Processing, Enhancement",onnx,FP16,+,+,+
+began,"Image Processing, Enhancement",onnx,FP32,+,+,+
+beit_base_patch16_224,Image Classification,pytorch,FP32,+,,
+beit-base-patch16-224-pt22k-ft22k,Image Classification,pytorch,intel-optimum default,,+,
+bert-base-cased-conversational,Natural Language Processing,pytorch,intel-optimum default,,+,
+bert-base-cased-onnx,Natural Language Processing,onnx,FP16,+,+,+
+bert-base-cased-onnx,Natural Language Processing,onnx,FP16-INT8,+,+,+
+bert-base-cased-onnx,Natural Language Processing,onnx,FP32,+,,+
+bert-base-cased-paddle,Natural Language Processing,paddle,FP16,+,+,
+bert-base-cased-paddle,Natural Language Processing,paddle,FP16-INT8,+,+,
+bert-base-cased-paddle,Natural Language Processing,paddle,FP32,+,,
+bert-base-cased-squad2,Natural Language Processing,onnx,FP16,+,+,
+bert-base-cased-squad2,Natural Language Processing,onnx,FP32,+,,
+bert-base-chinese-xnli-zh,Natural Language Processing,tf,FP16,,,+
+bert-base-chinese-xnli-zh,Natural Language Processing,tf,FP32,,,+
+bert-base-ner,Natural Language Processing,onnx,FP16,+,+,+
+bert-base-ner,Natural Language Processing,onnx,FP16-INT8,+,+,+
+bert-base-ner,Natural Language Processing,onnx,FP32,+,,
+bert-base-NER,Natural Language Processing,pytorch,intel-optimum default,,+,
+bert-base-uncased,Natural Language Processing,pytorch,intel-optimum default,,+,
+bert-base-uncased-mrpc,Natural Language Processing,onnx,FP16,,,+
+bert-base-uncased-mrpc,Natural Language Processing,onnx,FP16-INT8,,,+
+bert-base-uncased-mrpc,Natural Language Processing,onnx,FP32,,,+
+bert-base-uncased-yelp-polarity,Natural Language Processing,pytorch,intel-optimum default,,+,
+BERT-Large-CT-STSb,Natural Language Processing,pytorch,intel-optimum default,,+,
+bert-large-NER,Natural Language Processing,pytorch,intel-optimum default,,+,
+bert-large-uncased,Natural Language Processing,pytorch,intel-optimum default,,+,
+bert-large-uncased-whole-word-masking-finetuned-sst-2,Natural Language Processing,pytorch,intel-optimum default,,+,
+bert-large-uncased-whole-word-masking-squad-0001,Natural Language Processing,onnx,FP16,+,+,+
+bert-large-uncased-whole-word-masking-squad-0001,Natural Language Processing,onnx,FP32,+,+,+
+bert-large-uncased-whole-word-masking-squad-int8-0001,Natural Language Processing,onnx,FP16-INT8,+,+,+
+bert-small-finetuned-squadv2,Large Language Model,pytorch,intel-optimum default,,+,
+bertsquad-12,Natural Language Processing,onnx,FP16,,,+
+bertsquad-12,Natural Language Processing,onnx,FP32,+,+,+
+bge-base-en-v1.5,Natural Language Processing,pytorch,intel-optimum default,,+,
+bge-large-en-v1.5,Natural Language Processing,pytorch,intel-optimum default,,+,
+bge-reranker-base,Natural Language Processing,pytorch,intel-optimum default,,+,
+bge-reranker-large,Natural Language Processing,pytorch,intel-optimum default,,+,
+BioMedLM,Large Language Model,pytorch,intel-optimum default,,+,
+bisenet-v2,Semantic Segmentation,paddle,FP16,+,+,+
+bisenet-v2,Semantic Segmentation,paddle,FP32,+,,
+blenderbot-400M-distill,Natural Language Processing,pytorch,intel-optimum default,,+,
+bloom-560m,Large Language Model,pytorch,intel-optimum default,,+,
+bloomz-1b1,Large Language Model,pytorch,intel-optimum default,,+,
+bloomz-3b,Large Language Model,pytorch,intel-optimum default,,+,
+bloomz-7b1-mt,Large Language Model,pytorch,intel-optimum default,,+,
+botnet26t_256,Image Classification,pytorch,FP32,+,,
+brain-tumor-segmentation-0002,Image Classification,onnx,FP16,+,,
+brain-tumor-segmentation-0002,Image Classification,onnx,FP16-INT8,+,,
+bvlcalexnet-12,Image Classification,onnx,FP16,,,+
+bvlcalexnet-12,Image Classification,onnx,FP32,+,+,+
+caffenet-12,Image Classification,onnx,FP16,,,+
+caffenet-12,Image Classification,onnx,FP32,+,+,+
+cait_m36_384,Image Classification,pytorch,FP32,+,,
+candy-8_candy,Vision Style Transfer,onnx,FP16,,,+
+candy-8_candy,Vision Style Transfer,onnx,FP32,+,+,+
+coat_lite_mini,Image Classification,pytorch,FP32,+,,
+codegemma-1.1-2b,Large Language Model,pytorch,intel-optimum default,,+,
+codegemma-1.1-7b-it,Large Language Model,pytorch,intel-optimum default,,+,
+codegemma-2b,Large Language Model,pytorch,intel-optimum default,,+,
+codegemma-7b,Large Language Model,pytorch,intel-optimum default,,+,
+codegen2-1B_P,Large Language Model,pytorch,intel-optimum default,,+,
+codegen2-3_7B_P,Large Language Model,pytorch,intel-optimum default,,+,
+codegen2-7B_P,Large Language Model,pytorch,intel-optimum default,,+,
+codegen-2B-multi,Large Language Model,pytorch,intel-optimum default,,+,
+codegen-350M-mono,Large Language Model,pytorch,intel-optimum default,,+,
+codegen-6B-multi,Large Language Model,pytorch,intel-optimum default,,+,
+CodeQwen1.5-7B-Chat,Large Language Model,pytorch,intel-optimum default,,+,
+colorization-siggraph,Colorization,onnx,FP16,+,,
+colorization-siggraph,Colorization,onnx,FP16,,+,+
+colorization-siggraph,Colorization,onnx,FP32,+,,
+colorization-siggraph,Colorization,onnx,FP32,,,+
+colorization-v2,Colorization,onnx,FP16-INT8,,,+
+common-sign-language-0001,Image Classification,onnx,FP16,+,+,+
+common-sign-language-0001,Image Classification,onnx,FP32,+,+,+
+convbert-base-turkish-mc4-toxicity-uncased,Natural Language Processing,pytorch,intel-optimum default,,+,
+convit_base,Image Classification,pytorch,FP32,+,,
+convmixer_768_32,Image Classification,pytorch,FP32,+,,
+convnext_base,Image Classification,pytorch,FP32,+,,
+convnext-base-224,Image Classification,pytorch,intel-optimum default,,+,
+crnn-tf,Image-to-Text,tf,FP16,+,+,
+crnn-tf,Image-to-Text,tf,FP32,+,,
+crossvit_9_240,Image Classification,pytorch,FP32,+,,
+cspdarknet53,Image Classification,pytorch,FP32,+,,
+darknet19,Image Classification,tf,FP16,+,+,+
+darknet19,Image Classification,tf,FP16-INT8,+,+,+
+darknet19,Image Classification,tf,FP32,+,+,
+deberta-v3-large,Natural Language Processing,pytorch,intel-optimum default,,+,
+deeplabv3,Semantic Segmentation,tf,FP16,+,+,
+deeplabv3,Semantic Segmentation,tf,FP16-INT8,+,+,
+deeplabv3,Semantic Segmentation,tf,FP32,+,+,
+deeplab-v3p-resnet50-os8,Semantic Segmentation,paddle,FP16,+,+,
+deeplab-v3p-resnet50-os8,Semantic Segmentation,paddle,FP16-INT8,+,+,
+deeplab-v3p-resnet50-os8,Semantic Segmentation,paddle,FP32,+,+,
+deit_base_distilled_patch16_224,Image Classification,pytorch,FP32,+,,
+Denoise,Audio Enhancement,tf,FP16,+,+,+
+Denoise,Audio Enhancement,tf,FP32,+,,+
+densenet-121-caffe,Image Classification,caffe,FP16,+,+,+
+densenet-121-caffe,Image Classification,caffe,FP32,,,+
+densenet-121-onnx,Image Classification,onnx,FP16,+,+,+
+densenet-121-onnx,Image Classification,onnx,FP16-INT8,+,+,
+densenet-121-tf,Image Classification,tf,FP16,+,+,+
+densenet-121-tf,Image Classification,tf,FP32,+,+,
+densenet-121-tf2,Image Classification,tf2,FP16,+,+,+
+densenet-121-tf2,Image Classification,tf2,FP32,+,+,+
+detr_resnet50,Object Detection,onnx,FP16,+,+,
+detr_resnet50,Object Detection,onnx,FP32,+,,
+dien_alibaba,Behavior / Decision Prediction,tf,FP16,+,,
+dien_alibaba,Behavior / Decision Prediction,tf,FP32,+,,
+distilbert-base-cased,Natural Language Processing,onnx,FP16,+,+,+
+distilbert-base-cased,Natural Language Processing,onnx,FP32,+,+,+
+distilbert-base-nli-mean-tokens,Natural Language Processing,pytorch,intel-optimum default,,+,
+distilbert-base-uncased,Natural Language Processing,onnx,FP16,,,+
+distilbert-base-uncased,Natural Language Processing,onnx,FP16-INT8,,,+
+distilbert-base-uncased-distilled-squad,Natural Language Processing,pytorch,intel-optimum default,,+,
+distilbert-base-uncased-sst-2,Natural Language Processing,onnx,FP16,+,+,+
+distilbert-base-uncased-sst-2,Natural Language Processing,onnx,FP16-INT8,+,+,
+distilbert-base-uncased-sst-2,Natural Language Processing,onnx,FP32,+,,+
+distilbert-NER,Natural Language Processing,pytorch,intel-optimum default,,+,
+distil-large-v3,Speech Recognition,pytorch,intel-optimum default,,+,
+distil-medium.en,Speech Recognition,pytorch,intel-optimum default,,+,
+dla102,Image Classification,pytorch,FP32,+,,
+dm_nfnet_f0,Image Classification,pytorch,FP32,+,,
+dna_r9.4.1@v3,DNA Classification,onnx,FP16,+,,
+dna_r9.4.1@v3,DNA Classification,onnx,FP32,+,,
+dpn107,Image Classification,pytorch,FP32,+,,
+dpn-68,"Image Classification, Dual Path Network",onnx,FP16,+,+,+
+dpn-68,"Image Classification, Dual Path Network",onnx,FP16-INT8,+,,
+dpn-68,"Image Classification, Dual Path Network",onnx,FP32,+,+,+
+east_resnet_v1_50,Image Classification,tf,FP16,+,+,+
+east_resnet_v1_50,Image Classification,tf,FP16-INT8,+,+,
+east_resnet_v1_50,Image Classification,tf,FP32,+,+,
+ebgan,"Image Processing, Enhancement",onnx,FP16,+,+,+
+ebgan,"Image Processing, Enhancement",onnx,FP32,+,,+
+eca_botnext26ts_256,Image Classification,pytorch,FP32,+,,
+eca_halonext26ts,Image Classification,pytorch,FP32,+,,
+edsr3_super_resolution,"Image Processing, Enhancement",tf,FP16,+,+,+
+edsr3_super_resolution,"Image Processing, Enhancement",tf,FP32,+,+,+
+edsr3-nas,"Image Processing, Enhancement",onnx,FP16,+,+,+
+edsr3-nas,"Image Processing, Enhancement",onnx,FP32,+,+,+
+efficientdet-d0-tf,Object Detection,tf,FP16,+,,
+efficientdet-d0-tf,Object Detection,tf,FP16,,+,+
+efficientdet-d0-tf,Object Detection,tf,FP16-INT8,+,,
+efficientdet-d0-tf,Object Detection,tf,FP16-INT8,,+,+
+efficientnet-b0-onnx,Object Detection,onnx,FP16,+,+,+
+efficientnet-b0-onnx,Object Detection,onnx,FP16-INT8,+,+,+
+efficientnet-b0-onnx,Object Detection,onnx,FP32,+,+,+
+efficientnet-b0-tf,Object Detection,tf,FP16,+,+,+
+efficientnet-b0-tf,Object Detection,tf,FP16-INT8,+,+,+
+efficientnet-b0-tf,Object Detection,tf,FP32,+,+,
+efficientnet-lite4-11_efficientnet-lite4,Image Classification,onnx,FP16,,,+
+efficientnet-lite4-11_efficientnet-lite4,Image Classification,onnx,FP32,+,+,+
+efficientnet-v2-m,Object Detection,onnx,FP16,+,+,+
+efficientnet-v2-m,Object Detection,onnx,FP16-INT8,+,+,+
+efficientnet-v2-m,Object Detection,onnx,FP32,+,+,+
+electra-base-french-europeana-cased-generator,Natural Language Processing,pytorch,intel-optimum default,,+,
+electra-large-discriminator-nli-efl-tweeteval,Natural Language Processing,pytorch,intel-optimum default,,+,
+emotion-ferplus-8_model,Object Detection,onnx,FP16,,,+
+emotion-ferplus-8_model,Object Detection,onnx,FP32,+,+,+
+emotions-recognition-retail-0003,"Image Classification, Emotion",caffe,FP16,,,+
+emotions-recognition-retail-0003,"Image Classification, Emotion",caffe,FP16-INT8,,,+
+ese_vovnet19b_dw,Image Classification,pytorch,FP32,+,,
+esrgan,"Image Processing, Enhancement",onnx,FP16,+,,
+esrgan,"Image Processing, Enhancement",onnx,FP16,,,+
+esrgan,"Image Processing, Enhancement",onnx,FP32,+,,
+f3net,Object Detection,onnx,FP16,,,+
+f3net,Object Detection,onnx,FP16-INT8,,,+
+f3net,Object Detection,onnx,FP32,,,+
+faceboxes-caffe,Object Detection,caffe,FP16,+,+,+
+faceboxes-caffe,Object Detection,caffe,FP32,+,+,
+faceboxes-onnx,Object Detection,onnx,FP16,+,+,+
+faceboxes-onnx,Object Detection,onnx,FP16-INT8,+,+,+
+faceboxes-onnx,Object Detection,onnx,FP32,+,+,+
+face-detection-0200,Object Detection,onnx,FP16,,,+
+face-detection-0202,Object Detection,onnx,FP16,,,+
+face-detection-0202,Object Detection,onnx,FP32,,,+
+face-detection-0204,Object Detection,onnx,FP16,,,+
+face-detection-adas-0001,Object Detection,caffe,FP16,,,+
+face-detection-adas-0001,Object Detection,caffe,FP32,,,+
+face-detection-retail-0004,Object Detection,caffe,FP16,,,+
+face-detection-retail-0004,Object Detection,caffe,FP32,,,+
+face-detection-retail-0044,Object Detection,caffe,FP16,,,+
+face-detection-retail-0044,Object Detection,caffe,FP32,,,+
+facenet,Object Detection,onnx,FP16,,,+
+facenet,Object Detection,onnx,FP16-INT8,,,+
+facenet-20180408-102900,Object Detection,tf,FP16,+,+,+
+facenet-20180408-102900,Object Detection,tf,FP32,+,+,
+face-reidentification-retail-0095,Object Detection,onnx,FP16,,,+
+face-reidentification-retail-0095,Object Detection,onnx,FP16-INT8,,,+
+facial-landmarks-35-adas-0002,Object Detection,caffe,FP16,,,+
+facial-landmarks-35-adas-0002,Object Detection,caffe,FP16-INT8,,,+
+facial-landmarks-98-detection-0001,Object Detection,onnx,FP16,+,+,+
+facial-landmarks-98-detection-0001,Object Detection,onnx,FP32,+,+,+
+falcon-11B,Large Language Model,pytorch,intel-optimum default,,+,
+falcon-7b,Large Language Model,pytorch,intel-optimum default,,+,
+falcon-7b-instruct,Large Language Model,pytorch,intel-optimum default,,+,
+faster_rcnn_inception_resnet_v2_atrous_coco,Object Detection,tf,FP16,+,+,
+faster_rcnn_inception_resnet_v2_atrous_coco,Object Detection,tf,FP32,+,,
+faster_rcnn_inception_v2_coco,Object Detection,tf,FP16,+,+,
+faster_rcnn_inception_v2_coco,Object Detection,tf,FP32,+,,
+faster_rcnn_resnet101_coco,Object Detection,tf,FP16,+,+,
+faster_rcnn_resnet101_coco,Object Detection,tf,FP32,,+,
+faster_rcnn_resnet101_kitti,Object Detection,tf,FP16,+,+,
+faster_rcnn_resnet101_kitti,Object Detection,tf,FP32,+,,
+faster_rcnn_resnet50_coco,Object Detection,tf,FP16,+,+,
+faster_rcnn_resnet50_coco,Object Detection,tf,FP16-INT8,+,+,
+faster_rcnn_resnet50_coco,Object Detection,tf,FP32,+,,
+faster_rcnn_resnet50_fpn_coco,Object Detection,onnx,FP16,+,,
+faster-rcnn-resnet101-coco-sparse-60-0001,Object Detection,tf,FP16,+,+,
+faster-rcnn-resnet101-coco-sparse-60-0001,Object Detection,tf,FP32,+,+,
+fastscnn,Object Detection,paddle,FP16,+,+,+
+fastscnn,Object Detection,paddle,FP32,+,,
+fastseg-small,Semantic Segmentation,onnx,FP16,+,+,
+fastseg-small,Semantic Segmentation,onnx,FP16-INT8,+,+,
+fastseg-small,Semantic Segmentation,onnx,FP32,+,+,
+fbnetc_100,Image Classification,pytorch,FP32,+,,
+fbnetv3_b,Image Classification,pytorch,FP32,+,,
+fcn-resnet101-11,Object Detection,onnx,FP16,,,+
+fcn-resnet101-11,Object Detection,onnx,FP32,+,+,+
+fcn-resnet50-11,Object Detection,onnx,FP16,,,+
+fcn-resnet50-11,Object Detection,onnx,FP32,+,+,+
+fcrn-dp-nyu-depth-v2-tf,Monodepth,tf,FP16,,,+
+fcrn-dp-nyu-depth-v2-tf,Monodepth,tf,FP16-INT8,,,+
+fcrn-dp-nyu-depth-v2-tf,Monodepth,tf,FP32,,,+
+flaubert_base_cased,Natural Language Processing,pytorch,intel-optimum default,,+,
+flaubert-base-uncased-finetuned-cooking,Natural Language Processing,pytorch,intel-optimum default,,+,
+forward-tacotron-duration-prediction,Text-to-Speech,onnx,FP16,+,,+
+forward-tacotron-duration-prediction,Text-to-Speech,onnx,FP32,+,,+
+fsrcnn-x4,"Image Processing, Enhancement",tf,FP16,+,+,+
+fsrcnn-x4,"Image Processing, Enhancement",tf,FP32,+,,
+gaze-estimation-adas-0002,Object Detection,onnx,FP16,,,+
+gemma-1.1-2b-it,Large Language Model,pytorch,intel-optimum default,,+,
+gemma-1.1-7b-it,Large Language Model,pytorch,intel-optimum default,,+,
+gemma-2b,Large Language Model,pytorch,intel-optimum default,,+,
+gemma-2b-it,Large Language Model,pytorch,intel-optimum default,,+,
+gemma-7b,Large Language Model,pytorch,intel-optimum default,,+,
+gemma-7b-it,Large Language Model,pytorch,intel-optimum default,,+,
+gernet_l,Image Classification,pytorch,FP32,+,,
+ghostnet_100,Image Classification,pytorch,FP32,+,,
+gluon_inception_v3,Image Classification,pytorch,FP32,+,,
+gmixer_24_224,Image Classification,pytorch,FP32,+,,
+gmlp_s16_224,Image Classification,pytorch,FP32,+,,
+googlenet-12,Image Classification,onnx,FP16,,,+
+googlenet-12,Image Classification,onnx,FP32,+,+,+
+googlenet-v4-caffe,Image Classification,caffe,FP16,+,+,+
+googlenet-v4-caffe,Image Classification,caffe,FP32,+,,
+googlenet-v4-tf,Image Classification,tf,FP16,+,+,
+googlenet-v4-tf,Image Classification,tf,FP16-INT8,+,+,
+googlenet-v4-tf,Image Classification,tf,FP32,+,,
+GPT-2,Large Language Model,onnx,FP16,+,+,
+GPT-2,Large Language Model,onnx,FP32,+,+,
+gpt2-lm-head-10_GPT-2-LM-HEAD,Large Language Model,onnx,FP16,,,+
+gpt2-lm-head-10_GPT-2-LM-HEAD,Large Language Model,onnx,FP32,+,+,+
+GPT2Neo1.3BPoints,Large Language Model,pytorch,intel-optimum default,,+,
+granite-3b-code-base,Large Language Model,pytorch,intel-optimum default,,+,
+granite-3b-code-instruct,Large Language Model,pytorch,intel-optimum default,,+,
+granite-8b-code-base,Large Language Model,pytorch,intel-optimum default,,+,
+granite-8b-code-instruct,Large Language Model,pytorch,intel-optimum default,,+,
+handwritten-japanese-recognition-0001,Text Detection,onnx,FP16-INT8,,,+
+hg-s8-b1-mpii,Object Detection,onnx,FP16,+,+,+
+hg-s8-b1-mpii,Object Detection,onnx,FP16-INT8,+,+,
+higher-hrnet-w32-512,Object Detection,onnx,FP16,+,+,
+higher-hrnet-w32-512,Object Detection,onnx,FP32,+,,
+horizontal-text-detection-0001,Text Detection,onnx,FP16,+,+,
+horizontal-text-detection-0001,Text Detection,onnx,FP16-INT8,+,+,
+horizontal-text-detection-0001,Text Detection,onnx,FP32,+,+,
+hrnet_w18,Image Classification,pytorch,FP32,+,,
+hubert-large-ls960-ft,Speech Recognition,pytorch,intel-optimum default,,+,
+human-pose-estimation-3d-0001,Object Detection,onnx,FP16,+,+,+
+human-pose-estimation-3d-0001,Object Detection,onnx,FP32,+,+,+
+hybrid-cs-model-mri,"Image Processing, Enhancement",tf2,FP16,,,+
+hybrid-cs-model-mri,"Image Processing, Enhancement",tf2,FP32,,,+
+i3d-flow,Action Recognition,tf,FP16,+,+,
+i3d-flow,Action Recognition,tf,FP16-INT8,+,,
+i3d-flow,Action Recognition,tf,FP32,+,+,
+ibert-roberta-base,Natural Language Processing,pytorch,intel-optimum default,,+,
+ibert-roberta-base-finetuned-mrpc,Natural Language Processing,pytorch,intel-optimum default,,+,
+inception_v3,Image Classification,pytorch,FP32,+,,
+inception-v1-12,Image Classification,onnx,FP16,,,+
+inception-v1-12,Image Classification,onnx,FP32,+,+,+
+inception-v2-7_model,Image Classification,onnx,FP16,,,+
+inception-v2-7_model,Image Classification,onnx,FP32,+,+,+
+instance-segmentation-security-0002,Instance Segmentation,onnx,FP16,+,,
+instance-segmentation-security-0002,Instance Segmentation,onnx,FP32,+,,
+instance-segmentation-security-0010,Instance Segmentation,onnx,FP16,+,,
+instance-segmentation-security-0010,Instance Segmentation,onnx,FP32,+,,
+internlm2-1_8b,Large Language Model,pytorch,intel-optimum default,,+,
+internlm2-7b,Large Language Model,pytorch,intel-optimum default,,+,
+internlm2-chat-1_8b,Large Language Model,pytorch,intel-optimum default,,+,
+internlm2-chat-7b,Large Language Model,pytorch,intel-optimum default,,+,
+internlm2-chat-7b-sft,Large Language Model,pytorch,intel-optimum default,,+,
+internlm2-math-7b,Large Language Model,pytorch,intel-optimum default,,+,
+internlm2-math-base-7b,Large Language Model,pytorch,intel-optimum default,,+,
+jx_nest_base,Image Classification,pytorch,FP32,+,,
+klue-roberta-base-ner,Natural Language Processing,pytorch,intel-optimum default,,+,
+LCM_Dreamshaper_v7,Text-to-Image,pytorch,intel-optimum default,,+,
+lcnet_050,Image Classification,pytorch,FP32,+,,
+levit_128,Image Classification,pytorch,FP32,+,,
+levit-256,Image Classification,pytorch,intel-optimum default,,+,
+Llama-2-13b-chat-hf,Large Language Model,pytorch,intel-optimum default,,+,
+Llama-2-13b-hf,Large Language Model,pytorch,intel-optimum default,,+,
+Llama-2-7b-chat-hf,Large Language Model,pytorch,intel-optimum default,,+,
+Llama-2-7b-hf,Large Language Model,pytorch,intel-optimum default,,+,
+m2m100_418M,Natural Language Processing,pytorch,intel-optimum default,,+,
+Magicoder-CL-7B,Large Language Model,pytorch,intel-optimum default,,+,
+Magicoder-DS-6.7B,Large Language Model,pytorch,intel-optimum default,,+,
+Magicoder-S-CL-7B,Large Language Model,pytorch,intel-optimum default,,+,
+Magicoder-S-DS-6.7B,Large Language Model,pytorch,intel-optimum default,,+,
+MarianCausalLM,Large Language Model,pytorch,intel-optimum default,,+,
+marian-finetuned-kde4-en-to-cn-accelerate,Natural Language Processing,pytorch,intel-optimum default,,+,
+mask_rcnn_inception_resnet_v2_atrous_coco,Instance Segmentation,tf,FP16,+,+,
+mask_rcnn_inception_resnet_v2_atrous_coco,Instance Segmentation,tf,FP32,+,+,
+mask_rcnn_inception_v2_coco,Instance Segmentation,tf,FP16,+,+,
+mask_rcnn_inception_v2_coco,Instance Segmentation,tf,FP16-INT8,+,+,
+mask_rcnn_inception_v2_coco,Instance Segmentation,tf,FP32,+,+,
+mask_rcnn_resnet101_atrous_coco,Instance Segmentation,tf,FP16,+,+,
+mask_rcnn_resnet101_atrous_coco,Instance Segmentation,tf,FP16-INT8,+,+,
+mask_rcnn_resnet50_atrous_coco,Instance Segmentation,tf,FP16,+,+,
+mask_rcnn_resnet50_atrous_coco,Instance Segmentation,tf,FP16-INT8,+,+,
+mask_rcnn_resnet50_atrous_coco,Instance Segmentation,tf,FP32,+,+,
+MaskRCNN-12,Object Detection,onnx,FP16,,,+
+MaskRCNN-12,Object Detection,onnx,FP32,+,+,+
+mbart-large-50-many-to-one-mmt,Natural Language Processing,pytorch,intel-optimum default,,+,
+Meta-Llama-3-8B,Large Language Model,pytorch,intel-optimum default,,+,
+Meta-Llama-3-8B-Instruct,Large Language Model,pytorch,intel-optimum default,,+,
+Meta-Llama-Guard-2-8B,Large Language Model,pytorch,intel-optimum default,,+,
+midasnet,Monodepth,onnx,FP16,,,+
+midasnet,Monodepth,onnx,FP16-INT8,,,+
+midasnet,Monodepth,onnx,FP32,,,+
+MindChat-Qwen2-4B,Large Language Model,pytorch,intel-optimum default,,+,
+MiniCPM-2B-sft-bf16,Large Language Model,pytorch,intel-optimum default,,+,
+Mistral-7B-Instruct-v0.2,Large Language Model,pytorch,intel-optimum default,,+,
+Mistral-7B-Instruct-v0.3,Large Language Model,pytorch,intel-optimum default,,+,
+Mistral-7B-v0.3,Large Language Model,pytorch,intel-optimum default,,+,
+mixer_b16_224,Image Classification,pytorch,FP32,+,,
+mixnet_l,Image Classification,pytorch,FP32,+,,
+mnasnet_100,Image Classification,pytorch,FP32,+,,
+mnist-12,Image Classification,onnx,FP16,,,+
+mnist-12,Image Classification,onnx,FP32,+,+,+
+mobilebert,Natural Language Processing,onnx,FP16-INT8,+,,
+mobilebert,Natural Language Processing,onnx,FP16-INT8,,+,
+mobilenet-ssd,Object Detection,caffe,FP16,+,+,+
+mobilenet-ssd,Object Detection,caffe,FP32,+,,
+mobilenetv2_100,Image Classification,pytorch,FP32,+,,
+mobilenet-v2-1.0-224-tf,Object Detection,tf,FP16,+,+,+
+mobilenet-v2-1.0-224-tf,Object Detection,tf,FP16-INT8,+,+,+
+mobilenet-v2-1.0-224-tf,Object Detection,tf,FP32,+,,
+mobilenet-v2-1.0-224-tf2,Object Detection,tf2,FP16,+,+,+
+mobilenet-v2-1.0-224-tf2,Object Detection,tf2,FP16-INT8,+,+,+
+mobilenet-v2-1.0-224-tf2,Object Detection,tf2,FP32,+,,
+mobilenet-v2-caffe,Object Detection,caffe,FP16,+,+,+
+mobilenet-v2-caffe,Object Detection,caffe,FP32,+,,
+mobilenet-v2-onnx,Object Detection,onnx,FP16,+,+,+
+mobilenet-v2-onnx,Object Detection,onnx,FP16-INT8,+,+,+
+mobilenet-v2-onnx,Object Detection,onnx,FP32,+,,
+mobilenet-v2-paddle,Object Detection,paddle,FP16,+,+,+
+mobilenet-v2-paddle,Object Detection,paddle,FP16-INT8,+,+,+
+mobilenet-v2-paddle,Object Detection,paddle,FP32,+,+,+
+mobilenetv3_large_100,Image Classification,pytorch,FP32,+,,
+mobilenet-v3-large-1.0-224-onnx,Object Detection,onnx,FP16,+,+,+
+mobilenet-v3-large-1.0-224-onnx,Object Detection,onnx,FP16-INT8,+,+,+
+mobilenet-v3-large-1.0-224-onnx,Object Detection,onnx,FP32,+,,+
+mobilenet-v3-large-1.0-224-paddle,Object Detection,paddle,FP16,+,+,+
+mobilenet-v3-large-1.0-224-paddle,Object Detection,paddle,FP16-INT8,+,+,+
+mobilenet-v3-large-1.0-224-paddle,Object Detection,paddle,FP32,+,+,+
+mobilenet-v3-large-1.0-224-tf,Object Detection,tf,FP16,+,+,+
+mobilenet-v3-large-1.0-224-tf,Object Detection,tf,FP32,+,+,+
+mobilenet-v3-large-1.0-224-tf2,Object Detection,tf2,FP16,+,+,+
+mobilenet-v3-large-1.0-224-tf2,Object Detection,tf2,FP16-INT8,+,+,+
+mobilenet-v3-large-1.0-224-tf2,Object Detection,tf2,FP32,+,,+
+mobilenet-yolo-v4-syg,Object Detection,tf,FP16-INT8,,,+
+mobilenet-yolo-v4-syg,Object Detection,tf,FP32,,,+
+mobilevit_s,Image Classification,pytorch,FP32,+,,
+mobilevit-xx-small,Image Classification,pytorch,intel-optimum default,,+,
+modnet_webcam_portrait_matting,Background Matting,onnx,FP16-INT8,,,+
+mosaic-8_mosaic,Vision Style Transfer,onnx,FP16,,,+
+mosaic-8_mosaic,Vision Style Transfer,onnx,FP32,+,+,+
+mozilla-deepspeech-0.8.2,Speech Recognition,tf,FP16,+,,
+mozilla-deepspeech-0.8.2,Speech Recognition,tf,FP16-INT8,+,,+
+mozilla-deepspeech-0.8.2,Speech Recognition,tf,FP32,+,,+
+mpt-7b,Large Language Model,pytorch,intel-optimum default,,+,
+mpt-7b-8k,Large Language Model,pytorch,intel-optimum default,,+,
+mpt-7b-8k-chat,Large Language Model,pytorch,intel-optimum default,,+,
+mpt-7b-chat,Large Language Model,pytorch,intel-optimum default,,+,
+mpt-7b-instruct,Large Language Model,pytorch,intel-optimum default,,+,
+mpt-7b-storywriter,Large Language Model,pytorch,intel-optimum default,,+,
+ms-marco-electra-base,Natural Language Processing,pytorch,intel-optimum default,,+,
+mt5-base,Natural Language Processing,pytorch,intel-optimum default,,+,
+mt5-large,Natural Language Processing,pytorch,intel-optimum default,,+,
+mt5-small,Natural Language Processing,pytorch,intel-optimum default,,+,
+mt5-tiny-random,Natural Language Processing,pytorch,intel-optimum default,+,,
+neural-chat-7b-v1-1,Large Language Model,pytorch,intel-optimum default,,+,
+neural-chat-7b-v3-3,Large Language Model,pytorch,intel-optimum default,,+,
+nfnet_l0,Image Classification,pytorch,FP32,+,,
+ocrnet-hrnet-w18,Text Detection,paddle,FP16,+,+,+
+ocrnet-hrnet-w18,Text Detection,paddle,FP16-INT8,+,+,
+ocrnet-hrnet-w18,Text Detection,paddle,FP32,+,,
+ocrnet-hrnet-w48,Text Detection,paddle,FP16,+,,
+ocrnet-hrnet-w48,Text Detection,paddle,FP32,+,,
+openchat-3.6-8b-20240522,Large Language Model,pytorch,intel-optimum default,,+,
+open-closed-eye-0001,Image Classification,onnx,FP16,,,+
+open-closed-eye-0001,Image Classification,onnx,FP16-INT8,,,+
+open-closed-eye-0001,Image Classification,onnx,FP32,,,+
+opt-1.3b,Large Language Model,pytorch,intel-optimum default,,+,
+opt-125m,Large Language Model,pytorch,intel-optimum default,,+,
+opt-13b,Large Language Model,pytorch,intel-optimum default,,+,
+opt-2.7b,Large Language Model,pytorch,intel-optimum default,,+,
+opt-350m,Large Language Model,pytorch,intel-optimum default,,+,
+opt-6.7b,Large Language Model,pytorch,intel-optimum default,,+,
+opt-iml-1.3b,Large Language Model,pytorch,intel-optimum default,,+,
+pedestrian-detection-adas-0002,Object Detection,caffe,FP16,,,+
+pedestrian-detection-adas-0002,Object Detection,caffe,FP16-INT8,,,+
+pedestrian-detection-adas-0002,Object Detection,caffe,FP32,,,+
+Pegasus-7b-slerp,Large Language Model,pytorch,intel-optimum default,,+,
+pegasus-samsum,Large Language Model,pytorch,intel-optimum default,,+,
+persimmon-8b-chat,Large Language Model,pytorch,intel-optimum default,,+,
+person-detection-0100,Object Detection,onnx,FP16,,,+
+person-detection-0101,Object Detection,onnx,FP16,,,+
+person-detection-0201,Object Detection,onnx,FP16,,,+
+person-detection-0201,Object Detection,onnx,FP32,,,+
+person-vehicle-bike-detection-crossroad-0078,Object Detection,caffe,FP16,+,+,+
+person-vehicle-bike-detection-crossroad-0078,Object Detection,caffe,FP16-INT8,+,+,+
+person-vehicle-bike-detection-crossroad-0078,Object Detection,caffe,FP32,,+,
+phi-2,Large Language Model,pytorch,intel-optimum default,,+,
+Phi-3-medium-4k-instruct,Large Language Model,pytorch,intel-optimum default,,+,
+Phi-3-mini-128k-instruct,Large Language Model,pytorch,intel-optimum default,,+,
+pit_b_224,Image Classification,pytorch,FP32,+,,
+pix2struct-base,Image-to-Text,pytorch,intel-optimum default,,+,
+pix2struct-tiny-random,Image-to-Text,pytorch,intel-optimum default,+,,
+pnasnet5large,Image Classification,pytorch,FP32,+,,
+pointilism-8_pointilism,Vision Style Transfer,onnx,FP16,,,+
+pointilism-8_pointilism,Vision Style Transfer,onnx,FP32,+,+,+
+Polish_RoBERTa_large_OPI,Natural Language Processing,pytorch,intel-optimum default,,+,
+poolformer_m36,Image Classification,pytorch,FP32,+,,
+pp-ocr-det,Object Detection,paddle,FP16,+,,
+pp-ocr-det,Object Detection,paddle,FP16-INT8,+,+,+
+pp-ocr-det,Object Detection,paddle,FP32,+,,
+pp-ocr-rec,Object Detection,paddle,FP16,+,,
+pp-ocr-rec,Object Detection,paddle,FP32,+,,
+pp-yolo,Object Detection,paddle,FP16,+,,
+pp-yolo,Object Detection,paddle,FP32,+,,
+prnet,Object Detection,tf,FP16,,,+
+prnet,Object Detection,tf,FP16-INT8,,,+
+prnet,Object Detection,tf,FP32,,,+
+product-detection-0001,Object Detection,onnx,FP16,,,+
+product-detection-0001,Object Detection,onnx,FP16-INT8,,,+
+product-detection-0001,Object Detection,onnx,FP32,,,+
+pythia-1.4b,Large Language Model,pytorch,intel-optimum default,,+,
+pythia-12b,Large Language Model,pytorch,intel-optimum default,,+,
+pythia-14m,Large Language Model,pytorch,intel-optimum default,,+,
+pythia-160m,Large Language Model,pytorch,intel-optimum default,,+,
+pythia-1b,Large Language Model,pytorch,intel-optimum default,,+,
+pythia-2.8b,Large Language Model,pytorch,intel-optimum default,,+,
+pythia-410m,Large Language Model,pytorch,intel-optimum default,,+,
+pythia-6.9b,Large Language Model,pytorch,intel-optimum default,,+,
+pythia-70m,Large Language Model,pytorch,intel-optimum default,,+,
+Pythia-Chat-Base-7B,Large Language Model,pytorch,intel-optimum default,,+,
+quartznet-15x5-en,Speech Recognition,onnx,FP16,+,,
+quartznet-15x5-en,Speech Recognition,onnx,FP16-INT8,+,,
+quartznet-15x5-en,Speech Recognition,onnx,FP32,+,,
+Qwen1.5-0.5B,Large Language Model,pytorch,intel-optimum default,,+,
+Qwen1.5-0.5B-Chat,Large Language Model,pytorch,intel-optimum default,,+,
+Qwen1.5-1.8B,Large Language Model,pytorch,intel-optimum default,,+,
+Qwen1.5-1.8B-Chat,Large Language Model,pytorch,intel-optimum default,,+,
+Qwen1.5-4B,Large Language Model,pytorch,intel-optimum default,,+,
+Qwen1.5-4B-Chat,Large Language Model,pytorch,intel-optimum default,,+,
+Qwen1.5-7B,Large Language Model,pytorch,intel-optimum default,,+,
+Qwen1.5-7B-Chat,Large Language Model,pytorch,intel-optimum default,,+,
+Qwen-1_8B,Large Language Model,pytorch,intel-optimum default,,+,
+Qwen-1_8B-Chat,Large Language Model,pytorch,intel-optimum default,,+,
+Qwen-7B,Large Language Model,pytorch,intel-optimum default,,+,
+Qwen-7B-Chat,Large Language Model,pytorch,intel-optimum default,,+,
+rain-princess-8_rain_princess,Vision Style Transfer,onnx,FP16,,,+
+rain-princess-8_rain_princess,Vision Style Transfer,onnx,FP32,+,+,+
+rcnn-ilsvrc13-7_model,Image Classification,onnx,FP16,,,+
+rcnn-ilsvrc13-7_model,Image Classification,onnx,FP32,+,+,+
+really-tiny-falcon-testing,Large Language Model,pytorch,INT4,+,,
+RedPajama-INCITE-7B-Base,Large Language Model,pytorch,intel-optimum default,,+,
+RedPajama-INCITE-7B-Chat,Large Language Model,pytorch,intel-optimum default,,+,
+RedPajama-INCITE-7B-Instruct,Large Language Model,pytorch,intel-optimum default,,+,
+RedPajama-INCITE-Chat-3B-v1,Large Language Model,pytorch,intel-optimum default,,+,
+regnety_002,Image Classification,pytorch,FP32,+,,
+repvgg_a2,Image Classification,pytorch,FP32,+,,
+res2net101_26w_4s,Image Classification,pytorch,FP32,+,,
+res2net50_14w_8s,Image Classification,pytorch,FP32,+,,
+res2next50,Image Classification,pytorch,FP32,+,,
+resmlp_12_224,Image Classification,pytorch,FP32,+,,
+resnest101e,Image Classification,pytorch,FP32,+,,
+ResNet101-DUC-12,Object Detection,onnx,FP16,,,+
+ResNet101-DUC-12,Object Detection,onnx,FP32,+,+,+
+resnet101-v1-7,Image Classification,onnx,FP16,,,+
+resnet101-v1-7,Image Classification,onnx,FP32,+,+,+
+resnet101-v2-7,Image Classification,onnx,FP16,,,+
+resnet101-v2-7,Image Classification,onnx,FP32,+,+,+
+resnet152-v1-7,Image Classification,onnx,FP16,,,+
+resnet152-v1-7,Image Classification,onnx,FP32,+,+,+
+resnet152-v2-7,Image Classification,onnx,FP16,,,+
+resnet152-v2-7,Image Classification,onnx,FP32,+,+,+
+resnet-18,Image Classification,onnx,FP16,+,+,+
+resnet-18,Image Classification,onnx,FP16-INT8,+,+,+
+resnet-18,Image Classification,onnx,FP32,+,,+
+resnet18-v1-7,Image Classification,onnx,FP16,,,+
+resnet18-v1-7,Image Classification,onnx,FP32,+,+,+
+resnet18-v2-7,Image Classification,onnx,FP16,,,+
+resnet18-v2-7,Image Classification,onnx,FP32,+,+,+
+resnet34-v1-7,Image Classification,onnx,FP16,,,+
+resnet34-v1-7,Image Classification,onnx,FP32,+,+,+
+resnet34-v2-7,Image Classification,onnx,FP16,,,+
+resnet34-v2-7,Image Classification,onnx,FP32,+,+,+
+resnet50-caffe2-v1-7_model,Image Classification,onnx,FP16,,,+
+resnet50-caffe2-v1-7_model,Image Classification,onnx,FP32,+,+,+
+resnet-50-onnx,Image Classification,onnx,FP16,+,+,+
+resnet-50-onnx,Image Classification,onnx,FP16-INT8,+,+,+
+resnet-50-onnx,Image Classification,onnx,FP32,+,+,+
+resnet-50-paddle,Image Classification,paddle,FP16,+,+,+
+resnet-50-paddle,Image Classification,paddle,FP16-INT8,+,+,+
+resnet-50-paddle,Image Classification,paddle,FP32,+,+,
+resnet-50-pytorch,Image Classification,onnx,FP16,+,+,+
+resnet-50-pytorch,Image Classification,onnx,FP16-INT8,+,+,+
+resnet-50-pytorch,Image Classification,onnx,FP32,+,+,+
+resnet-50-tf,Image Classification,tf,FP16,+,+,+
+resnet-50-tf,Image Classification,tf,FP16-INT8,+,+,+
+resnet-50-tf,Image Classification,tf,FP32,+,,+
+resnet50-v2-7,Image Classification,onnx,FP16,,,+
+resnet50-v2-7,Image Classification,onnx,FP32,+,+,+
+resnext101-32x16d-swsl,Image Classification,onnx,FP16,+,+,
+resnext101-32x16d-swsl,Image Classification,onnx,FP16-INT8,+,+,+
+resnext101-32x16d-swsl,Image Classification,onnx,FP32,+,,
+resnext-101-32x8d,Image Classification,onnx,FP16,+,+,
+resnext-101-32x8d,Image Classification,onnx,FP32,+,,
+retinanet,Image Classification,tf2,FP16,+,+,+
+retinanet,Image Classification,tf2,FP32,+,+,+
+retinanet_resnet34,Image Classification,onnx,FP16,,,+
+retinanet_resnet34,Image Classification,onnx,FP16-INT8,,,+
+retinanet_resnet34,Image Classification,onnx,FP32,,,+
+retinanet-9_test_retinanet_resnet101,Object Detection,onnx,FP16,,,+
+retinanet-9_test_retinanet_resnet101,Object Detection,onnx,FP32,+,+,+
+rexnet_100,Image Classification,pytorch,FP32,+,,
+rnnt,Speech Recognition,onnx,FP16,+,,
+rnnt,Speech Recognition,onnx,FP32,+,,
+road-segmentation-adas-0001,Semantic Segmentation,caffe,FP16,,,+
+roberta-base,Natural Language Processing,onnx,FP16,+,+,
+roberta-base,Natural Language Processing,onnx,FP16-INT8,+,+,
+roberta-base,Natural Language Processing,onnx,FP32,+,,
+roberta-base-mrpc,Natural Language Processing,onnx,FP16-INT8,+,,
+roberta-base-mrpc,Natural Language Processing,onnx,FP16-INT8,,+,+
+roberta-base-squad2,Large Language Model,pytorch,intel-optimum default,,+,
+roberta-large,Natural Language Processing,onnx,FP16,+,+,
+roberta-large,Natural Language Processing,onnx,FP32,+,+,
+roberta-large-mnli,Natural Language Processing,pytorch,intel-optimum default,,+,
+roberta-large-ner-english,Natural Language Processing,pytorch,intel-optimum default,,+,
+roberta-large-squadv2,Large Language Model,pytorch,intel-optimum default,,+,
+roformer_small_generator,Natural Language Processing,pytorch,intel-optimum default,,+,
+sbert-base-mean-tokens,Natural Language Processing,onnx,FP16,,,+
+sbert-base-mean-tokens,Natural Language Processing,onnx,FP16-INT8,,,+
+sbert-base-mean-tokens,Natural Language Processing,onnx,FP32,,,+
+sebotnet33ts_256,Image Classification,pytorch,FP32,+,,
+selecsls42b,Image Classification,pytorch,FP32,+,,
+semantic-segmentation-adas-0001,Semantic Segmentation,caffe,FP16,+,+,
+semantic-segmentation-adas-0001,Semantic Segmentation,caffe,FP16-INT8,+,,
+semantic-segmentation-adas-0001,Semantic Segmentation,caffe,FP32,+,,
+se-resnet-50,Image Classification,caffe,FP16,+,+,+
+se-resnet-50,Image Classification,caffe,FP32,+,,+
+se-resnext-101,Image Classification,caffe,FP16,+,+,+
+se-resnext-101,Image Classification,caffe,FP32,,+,
+se-resnext-50-caffe,Image Classification,caffe,FP16,+,+,+
+se-resnext-50-caffe,Image Classification,caffe,FP32,+,+,
+se-resnext-50-onnx,Image Classification,onnx,FP16,+,+,+
+se-resnext-50-onnx,Image Classification,onnx,FP16-INT8,+,,
+se-resnext-50-onnx,Image Classification,onnx,FP32,+,+,+
+se-resnext-50-tf,Image Classification,tf,FP16,+,+,+
+se-resnext-50-tf,Image Classification,tf,FP32,+,+,
+sew-d-tiny-100k-ft-ls100h,Speech Recognition,pytorch,intel-optimum default,+,,
+Sharpen-LensBlur,"Image Processing, Enhancement",tf,FP16,+,+,+
+Sharpen-LensBlur,"Image Processing, Enhancement",tf,FP16-INT8,,+,
+Sharpen-LensBlur,"Image Processing, Enhancement",tf,FP32,+,+,+
+Sharpen-MotionBlur,"Image Processing, Enhancement",tf,FP16,+,+,+
+Sharpen-MotionBlur,"Image Processing, Enhancement",tf,FP16-INT8,+,+,+
+Sharpen-MotionBlur,"Image Processing, Enhancement",tf,FP32,+,+,+
+Sharpen-Sharpen,"Image Processing, Enhancement",tf,FP16,+,+,+
+Sharpen-Sharpen,"Image Processing, Enhancement",tf,FP16-INT8,+,+,
+Sharpen-Sharpen,"Image Processing, Enhancement",tf,FP32,+,+,+
+shufflenet-7_model,Image Classification,onnx,FP16,,,+
+shufflenet-7_model,Image Classification,onnx,FP32,+,+,+
+shufflenet-v2-x1.0-onnx,Image Classification,onnx,FP16,+,+,+
+shufflenet-v2-x1.0-onnx,Image Classification,onnx,FP16-INT8,+,+,+
+shufflenet-v2-x1.0-onnx,Image Classification,onnx,FP32,+,,
+shufflenet-v2-x1.0-tf,Image Classification,tf,FP16,+,+,+
+shufflenet-v2-x1.0-tf,Image Classification,tf,FP16-INT8,+,+,+
+shufflenet-v2-x1.0-tf,Image Classification,tf,FP32,+,+,
+single-image-super-resolution-1032,"Image Processing, Enhancement",onnx,FP16,+,+,+
+Sphereface,Image Classification,caffe,FP16,+,+,+
+Sphereface,Image Classification,caffe,FP32,+,+,+
+spnasnet_100,Image Classification,pytorch,FP32,+,,
+squeezenet1.0-12,Image Classification,onnx,FP16,,,+
+squeezenet1.0-12,Image Classification,onnx,FP32,+,+,+
+squeezenet1.1-caffe,Image Classification,caffe,FP16,+,+,+
+squeezenet1.1-caffe,Image Classification,caffe,FP32,+,+,+
+squeezenet1.1-onnx,Image Classification,onnx,FP32,+,,
+srgan-onnx,"Image Processing, Enhancement",onnx,FP16,+,,+
+srgan-tf,"Image Processing, Enhancement",tf,FP16,+,+,
+srgan-tf,"Image Processing, Enhancement",tf,FP16-INT8,+,+,+
+srgan-tf,"Image Processing, Enhancement",tf,FP32,+,,
+ssd_mobilenet_v1_10_ssd_mobilenet_v1,Object Detection,onnx,FP16,,,+
+ssd_mobilenet_v1_coco,Object Detection,tf,FP16,+,+,+
+ssd_mobilenet_v1_coco,Object Detection,tf,FP16-INT8,+,+,+
+ssd_mobilenet_v1_coco,Object Detection,tf,FP32,+,+,+
+ssd-10,Object Detection,onnx,FP16,,,+
+ssd-10,Object Detection,onnx,FP32,+,+,+
+ssd300-onnx-0001,Object Detection,onnx,FP16,,,+
+ssd300-onnx-0001,Object Detection,onnx,FP16-INT8,,,+
+ssdlite_mobilenet_v2,Object Detection,tf,FP16,+,+,+
+ssdlite_mobilenet_v2,Object Detection,tf,FP16-INT8,+,+,
+ssdlite_mobilenet_v2,Object Detection,tf,FP32,+,+,+
+ssdlite-mobilenet-v3-small-320-coco,Object Detection,paddle,FP16,+,,
+ssdlite-mobilenet-v3-small-320-coco,Object Detection,paddle,FP32,+,,
+ssd-resnet34-1200,Object Detection,onnx,FP16,+,+,
+ssd-resnet34-1200,Object Detection,onnx,FP16-INT8,+,+,
+ssd-resnet34-1200,Object Detection,onnx,FP32,+,,
+stable-diffusion-2-1,Image-to-Text & Text-to-Image ,pytorch,intel-optimum default,,+,
+stable-diffusion-v1-4,Image-to-Text & Text-to-Image ,pytorch,intel-optimum default,,+,
+stable-diffusion-v1-5,Image-to-Text & Text-to-Image ,pytorch,intel-optimum default,,+,
+stable-diffusion-xl-base-1.0,Image-to-Text & Text-to-Image ,pytorch,intel-optimum default,,+,
+stablelm-2-1_6b,Large Language Model,pytorch,intel-optimum default,,+,
+stablelm-2-1_6b-chat,Large Language Model,pytorch,intel-optimum default,,+,
+stablelm-2-12b,Large Language Model,pytorch,intel-optimum default,,+,
+stablelm-2-12b-chat,Large Language Model,pytorch,intel-optimum default,,+,
+stablelm-2-zephyr-1_6b,Large Language Model,pytorch,intel-optimum default,,+,
+stablelm-3b-4e1t,Large Language Model,pytorch,intel-optimum default,,+,
+stablelm-base-alpha-3b,Large Language Model,pytorch,intel-optimum default,,+,
+stablelm-tuned-alpha-7b,Large Language Model,pytorch,intel-optimum default,,+,
+stablelm-zephyr-3b,Large Language Model,pytorch,intel-optimum default,,+,
+stsb-bert-tiny-safetensors,Natural Language Processing,pytorch,intel-optimum default,+,,
+style_transfer,Image Processing,onnx,FP16,+,+,+
+style_transfer,Image Processing,onnx,FP16-INT8,+,+,+
+style_transfer,Image Processing,onnx,FP32,+,+,+
+stylegan2,Image Processing,tf,FP16,+,+,
+stylegan2,Image Processing,tf,FP32,+,,
+super-resolution-10_super_resolution,Image Manipulation,onnx,FP16,,,+
+super-resolution-10_super_resolution,Image Manipulation,onnx,FP32,+,+,+
+sup-simcse-roberta-base,Natural Language Processing,pytorch,intel-optimum default,,+,
+swin_base_patch4_window7_224,Image Classification,pytorch,FP32,+,,
+swin-tiny-patch4-window7-224,Image Classification,onnx,FP16,+,+,
+swin-tiny-patch4-window7-224,Image Classification,onnx,FP16-INT8,+,+,+
+swin-tiny-patch4-window7-224,Image Classification,onnx,FP32,+,+,
+swsl_resnext101_32x16d,Image Classification,pytorch,FP32,+,,
+t2t-vit-7,Image Classification,onnx,FP16,+,+,
+t2t-vit-7,Image Classification,onnx,FP16-INT8,+,+,
+t2t-vit-7,Image Classification,onnx,FP32,+,+,
+t5-base,Natural Language Processing,pytorch,intel-optimum default,,+,
+t5-decoder-with-lm-head-12_t5-decoder-with-lm-head,Natural Language Processing,onnx,FP16,,,+
+t5-decoder-with-lm-head-12_t5-decoder-with-lm-head,Natural Language Processing,onnx,FP32,+,+,+
+t5-encoder-12_t5-encoder,Natural Language Processing,onnx,FP16,,,+
+t5-encoder-12_t5-encoder,Natural Language Processing,onnx,FP32,+,+,+
+t5-large,Natural Language Processing,pytorch,intel-optimum default,,+,
+t5-small,Natural Language Processing,pytorch,intel-optimum default,,+,
+tedlium_dnn4_smbr,Speech Recognition,kaldi,FP16,+,+,+
+tedlium_dnn4_smbr,Speech Recognition,kaldi,FP16-INT8,+,+,
+tedlium_dnn4_smbr,Speech Recognition,kaldi,FP32,+,,
+text-image-super-resolution-0001,"Image Processing, Enhancement",onnx,FP16,+,+,+
+text-image-super-resolution-0001,"Image Processing, Enhancement",onnx,FP16-INT8,+,+,+
+text-image-super-resolution-0001,"Image Processing, Enhancement",onnx,FP32,+,+,+
+text-recognition-0012,Text Detection,tf,FP16,+,+,+
+text-recognition-0012,Text Detection,tf,FP32,+,+,
+text-recognition-0013,Text Detection,onnx,FP16,,,+
+text-recognition-0013,Text Detection,onnx,FP32,,,+
+text-recognition-0014,Text Detection,onnx,FP16,,,+
+text-recognition-0014,Text Detection,onnx,FP16-INT8,,,+
+text-recognition-0014,Text Detection,onnx,FP32,,,+
+text-to-speech-en-multi-0001,Text-to-Speech,null,FP32,+,,
+tf_efficientnet_b0,Image Classification,pytorch,FP32,+,,
+tf_mixnet_l,Image Classification,pytorch,FP32,+,,
+tiny_yolo_v2,Object Detection,onnx,FP16,,,+
+tiny_yolo_v2,Object Detection,onnx,FP32,,,+
+tinybert_6layer_768dim_cola,Natural Language Processing,onnx,FP16,,,+
+tinybert_6layer_768dim_cola,Natural Language Processing,onnx,FP16-INT8,,,+
+tinybert_6layer_768dim_cola,Natural Language Processing,onnx,FP32,,,+
+tiny-doc-qa-vision-encoder-decoder,Image-to-Text,pytorch,intel-optimum default,+,,
+tiny-llama-fast-tokenizer,Large Language Model,pytorch,INT4,+,,
+tiny-marian-en-de,Large Language Model,pytorch,INT4,+,,
+tiny-mixtral,Large Language Model,pytorch,INT4,+,,
+tinynet_a,Image Classification,pytorch,FP32,+,,
+tiny-random-albert,Natural Language Processing,pytorch,intel-optimum default,+,,
+tiny-random-aquila2,Large Language Model,pytorch,INT4,+,,
+tiny-random-aquilachat,Large Language Model,pytorch,INT4,+,,
+tiny-random-baichuan2,Large Language Model,pytorch,INT4,+,,
+tiny-random-baichuan2-13b,Large Language Model,pytorch,INT4,+,,
+tiny-random-bart,Large Language Model,pytorch,INT4,+,,
+tiny-random-BeitForImageClassification,Image Classification,pytorch,intel-optimum default,+,,
+tiny-random-bert,Natural Language Processing,pytorch,intel-optimum default,+,,
+tiny-random-BlenderbotModel,Large Language Model,pytorch,INT4,+,,
+tiny-random-BloomModel,Large Language Model,pytorch,INT4,+,,
+tiny-random-chatglm2,Large Language Model,pytorch,INT4,+,,
+tiny-random-codegen2,Large Language Model,pytorch,INT4,+,,
+tiny-random-CodeGenForCausalLM,Large Language Model,pytorch,INT4,+,,
+tiny-random-CohereForCausalLM,Large Language Model,pytorch,INT4,+,,
+tiny-random-ConvBertForSequenceClassification,Natural Language Processing,pytorch,intel-optimum default,+,,
+tiny-random-convnext,Image Classification,pytorch,intel-optimum default,+,,
+tiny-random-Data2VecAudioModel,Speech Recognition,pytorch,intel-optimum default,+,,
+tiny-random-dbrx,Large Language Model,pytorch,INT4,+,,
+tiny-random-deberta,Natural Language Processing,pytorch,intel-optimum default,+,,
+tiny-random-distilbert,Natural Language Processing,pytorch,intel-optimum default,+,,
+tiny-random-electra,Natural Language Processing,pytorch,intel-optimum default,+,,
+tiny-random-falcon-40b,Large Language Model,pytorch,INT4,+,,
+tiny-random-flaubert,Natural Language Processing,pytorch,intel-optimum default,+,,
+tiny-random-GemmaForCausalLM,Large Language Model,pytorch,INT4,+,,
+tiny-random-gpt2,Large Language Model,pytorch,INT4,+,,
+tiny-random-GPTNeoModel,Large Language Model,pytorch,INT4,+,,
+tiny-random-GPTNeoXForCausalLM,Large Language Model,pytorch,INT4,+,,
+tiny-random-HubertModel,Speech Recognition,pytorch,intel-optimum default,+,,
+tiny-random-ibert,Natural Language Processing,pytorch,intel-optimum default,+,,
+tiny-random-internlm,Large Language Model,pytorch,INT4,+,,
+tiny-random-internlm2,Large Language Model,pytorch,INT4,+,,
+tiny-random-latent-consistency,Text-to-Image,pytorch,intel-optimum default,+,,
+tiny-random-LevitModel,Image Classification,pytorch,intel-optimum default,+,,
+tiny-random-m2m_100,Natural Language Processing,pytorch,intel-optimum default,+,,
+tiny-random-mbart,Natural Language Processing,pytorch,intel-optimum default,+,,
+tiny-random-minicpm,Large Language Model,pytorch,INT4,+,,
+tiny-random-mistral,Large Language Model,pytorch,INT4,+,,
+tiny-random-MobileNetV2Model,Image Classification,pytorch,intel-optimum default,+,,
+tiny-random-mobilevit,Image Classification,pytorch,intel-optimum default,+,,
+tiny-random-MptForCausalLM,Large Language Model,pytorch,INT4,+,,
+tiny-random-olmo-hf,Large Language Model,pytorch,INT4,+,,
+tiny-random-OPTModel,Large Language Model,pytorch,INT4,+,,
+tiny-random-orion,Large Language Model,pytorch,INT4,+,,
+tiny-random-pegasus,Large Language Model,pytorch,INT4,+,,
+tiny-random-PersimmonForCausalLM,Large Language Model,pytorch,INT4,+,,
+tiny-random-phi3,Large Language Model,pytorch,INT4,+,,
+tiny-random-PhiForCausalLM,Large Language Model,pytorch,INT4,+,,
+tiny-random-qwen,Large Language Model,pytorch,INT4,+,,
+tiny-random-qwen1.5-moe,Large Language Model,pytorch,INT4,+,,
+tiny-random-resnet,Image Classification,pytorch,intel-optimum default,+,,
+tiny-random-roberta,Natural Language Processing,pytorch,intel-optimum default,+,,
+tiny-random-roformer,Natural Language Processing,pytorch,intel-optimum default,+,,
+tiny-random-SEWModel,Speech Recognition,pytorch,intel-optimum default,+,,
+tiny-random-squeezebert,Natural Language Processing,pytorch,intel-optimum default,+,,
+tiny-random-stable-diffusion-xl,Text-to-Image,pytorch,intel-optimum default,+,,
+tiny-random-stable-diffusion-xl-refiner,Text-to-Image,pytorch,intel-optimum default,+,,
+tiny-random-StableLmForCausalLM,Large Language Model,pytorch,INT4,+,,
+tiny-random-Starcoder2ForCausalLM,Large Language Model,pytorch,INT4,+,,
+tiny-random-t5,Natural Language Processing,pytorch,intel-optimum default,+,,
+tiny-random-unispeech,Audio Classification,pytorch,intel-optimum default,+,,
+tiny-random-UnispeechSatModel,Speech Recognition,pytorch,intel-optimum default,+,,
+tiny-random-VisionEncoderDecoderModel-vit-gpt2,Image-to-Text,pytorch,intel-optimum default,+,,
+tiny-random-vit,Image Classification,pytorch,intel-optimum default,+,,
+tiny-random-wav2vec2-conformer,Speech Recognition,pytorch,intel-optimum default,+,,
+tiny-random-Wav2Vec2Model,Speech Recognition,pytorch,intel-optimum default,+,,
+tiny-random-WavlmModel,Speech Recognition,pytorch,intel-optimum default,+,,
+tiny-random-xlm,Natural Language Processing,pytorch,intel-optimum default,+,,
+tiny-random-xverse,Large Language Model,pytorch,INT4,+,,
+tiny-stable-diffusion-torch,Text-to-Image,pytorch,intel-optimum default,+,,
+tiny-xlm-roberta,Natural Language Processing,pytorch,intel-optimum default,+,,
+tiramisu-fc-densenet-103,Object Detection,tf2,FP16,,,+
+tiramisu-fc-densenet-103,Object Detection,tf2,FP16-INT8,,,+
+tiramisu-fc-densenet-103,Object Detection,tf2,FP32,,,+
+tnt_s_patch16_224,Image Classification,pytorch,FP32,+,,
+topaz_video_super_resolution,"Image Processing, Enhancement",tf,FP16,+,+,+
+topaz_video_super_resolution,"Image Processing, Enhancement",tf,FP32,+,+,+
+trocr-base-handwritten,Image-to-Text,pytorch,intel-optimum default,,+,
+trocr-small-handwritten,Image-to-Text,pytorch,intel-optimum default,+,,
+twins_pcpvt_base,Image Classification,pytorch,FP32,+,,
+twitter-roberta-base-sentiment-latest,Natural Language Processing,pytorch,intel-optimum default,,+,
+udnie-8_udnie,Neural Style Transfer,onnx,FP16,,,+
+udnie-8_udnie,Neural Style Transfer,onnx,FP32,+,+,+
+ultra-lightweight-face-detection-rfb-320,Object Detection,onnx,FP16,,,+
+ultra-lightweight-face-detection-slim-320,Object Detection,onnx,FP16,,,+
+unet-2d,Semantic Segmentation,onnx,FP16,,,+
+unet3d_mlperf-onnx,Semantic Segmentation,onnx,FP16,+,+,
+unet3d_mlperf-onnx,Semantic Segmentation,onnx,FP16-INT8,+,+,
+unet3d_mlperf-onnx,Semantic Segmentation,onnx,FP32,+,+,
+unet3d_mlperf-tf,Semantic Segmentation,tf,FP16,+,+,
+unet3d_mlperf-tf,Semantic Segmentation,tf,FP16-INT8,+,+,
+unet-camvid-onnx-0001,Semantic Segmentation,onnx,FP16,+,+,+
+unet-camvid-onnx-0001,Semantic Segmentation,onnx,FP16-INT8,+,+,+
+unet-camvid-onnx-0001,Semantic Segmentation,onnx,FP32,+,,
+unispeech-1350-en-90-it-ft-1h,Speech Recognition,pytorch,intel-optimum default,,+,
+unispeech-sat-base-plus-sd,Audio,pytorch,intel-optimum default,,+,
+unispeech-sat-base-sv,Audio,pytorch,intel-optimum default,,+,
+unispeech-sat-large-sv,Audio,pytorch,intel-optimum default,,+,
+urlnet,URL Classification,tf2,FP16,+,+,+
+urlnet,URL Classification,tf2,FP32,+,+,+
+vehicle-detection-adas-0002,Object Detection,caffe,FP16,,,+
+version-RFB-320,Object Detection,onnx,FP16,,,+
+version-RFB-320,Object Detection,onnx,FP32,+,+,+
+version-RFB-640,Object Detection,onnx,FP16,,,+
+version-RFB-640,Object Detection,onnx,FP32,+,+,+
+vgg16-12,Image Classification,onnx,FP16,,,+
+vgg16-12,Image Classification,onnx,FP32,+,+,+
+vgg19-7_vgg19,Image Classification,onnx,FP16,,,+
+vgg19-7_vgg19,Image Classification,onnx,FP32,+,+,+
+vgg19-caffe2-7_model,Image Classification,onnx,FP16,,,+
+vgg19-caffe2-7_model,Image Classification,onnx,FP32,+,+,+
+visformer_small,Image Classification,pytorch,FP32,+,,
+vit_base_patch16_224,Image Feature Extraction,pytorch,FP32,+,,
+vitstr-small-patch16-224,Text Detection,onnx,FP16,,,+
+vitstr-small-patch16-224,Text Detection,onnx,FP32,,,+
+vit-with-attentions,Image Classification,pytorch,intel-optimum default,+,,
+vit-with-hidden_states,Image Classification,pytorch,intel-optimum default,+,,
+volo_d1_224,Image Classification,pytorch,FP32,+,,
+wav2vec2-base,Speech Recognition,onnx,FP16,+,,
+wav2vec2-base,Speech Recognition,onnx,FP16-INT8,+,,
+wav2vec2-base,Speech Recognition,onnx,FP32,+,,
+wav2vec2-base-superb-sd,Audio Classification,pytorch,intel-optimum default,,+,
+wav2vec2-base-superb-sid,Audio Classification,pytorch,intel-optimum default,,+,
+wav2vec2-base-superb-sv,Audio,pytorch,intel-optimum default,,+,
+wav2vec2-random-tiny-classifier,Audio Classification,pytorch,intel-optimum default,+,,
+wavernn-rnn,Text-to-Speech,onnx,FP16,,,+
+wavernn-rnn,Text-to-Speech,onnx,FP32,,,+
+wavernn-upsampler,Text-to-Speech,onnx,FP16,+,+,+
+wavernn-upsampler,Text-to-Speech,onnx,FP32,+,,+
+wdsr-small-x4,"Image Processing, Enhancement",onnx,FP16,+,+,+
+wdsr-small-x4,"Image Processing, Enhancement",onnx,FP16-INT8,+,,+
+wdsr-small-x4,"Image Processing, Enhancement",onnx,FP32,+,+,
+weld-porosity-detection-0001,Image Classification,onnx,FP16,,,+
+weld-porosity-detection-0001,Image Classification,onnx,FP32,,,+
+whisper-base,Speech Reognition,pytorch,intel-optimum default,,+,
+whisper-large-v2,Speech Reognition,pytorch,intel-optimum default,,+,
+whisper-medium,Speech Reognition,pytorch,intel-optimum default,,+,
+whisper-small,Speech Reognition,pytorch,intel-optimum default,,+,
+whisper-tiny.en,Speech Recognition,pytorch,intel-optimum default,+,,
+WizardMath-7B-V1.1,Large Language Model,pytorch,intel-optimum default,,+,
+xcit_large_24_p8_224,Image Classification,pytorch,FP32,+,,
+xlm-clm-ende-1024,Natural Language Processing,pytorch,intel-optimum default,,+,
+xlm-roberta-base,Natural Language Processing,onnx,FP16,+,+,
+xlm-roberta-base,Natural Language Processing,onnx,FP32,+,,
+xlm-roberta-base-language-detection,Natural Language Processing,pytorch,intel-optimum default,,+,
+xlm-roberta-base-uncased-conll2003,Natural Language Processing,pytorch,intel-optimum default,,+,
+xlm-roberta-large,Natural Language Processing,pytorch,intel-optimum default,,+,
+xlm-roberta-large-en-ru-mnli,Natural Language Processing,pytorch,intel-optimum default,,+,
+xlm-roberta-large-finetuned-conll03-english,Natural Language Processing,pytorch,intel-optimum default,,+,
+XVERSE-7B-Chat,Large Language Model,pytorch,intel-optimum default,,+,
+yolo_v3_tiny,Object Detection,onnx,FP16,+,,
+yolo_v3_tiny-onnx,Object Detection,onnx,FP16,,+,
+yolo_v3_tiny-onnx,Object Detection,onnx,FP16-INT8,+,+,
+yolo_v3_tiny-onnx,Object Detection,onnx,FP32,+,,
+yolo_v3_tiny-tf,Object Detection,tf,FP16,+,+,+
+yolo_v3_tiny-tf,Object Detection,tf,FP16-INT8,+,+,+
+yolo_v3_tiny-tf,Object Detection,tf,FP32,+,,
+yolo_v3-onnx,Object Detection,onnx,FP16,+,,
+yolo_v3-onnx,Object Detection,onnx,FP16,,+,
+yolo_v4-tf,Object Detection,tf,FP16,+,+,
+yolo_v4-tf,Object Detection,tf,FP16-INT8,+,+,+
+yolo_v4-tf,Object Detection,tf,FP32,+,,
+yolo_v4-tf2,Object Detection,tf2,FP16,+,+,
+yolo_v4-tf2,Object Detection,tf2,FP16-INT8,+,+,+
+yolo_v5l,Object Detection,onnx,FP16,+,+,
+yolo_v5l,Object Detection,onnx,FP16-INT8,+,+,+
+yolo_v5l,Object Detection,onnx,FP32,+,,
+yolo_v5m,Object Detection,onnx,FP16,+,+,+
+yolo_v5m,Object Detection,onnx,FP16-INT8,+,+,+
+yolo_v5m,Object Detection,onnx,FP32,+,,+
+yolo_v5m-v6,Object Detection,onnx,FP16,+,+,+
+yolo_v5m-v6,Object Detection,onnx,FP16-INT8,+,+,+
+yolo_v5m-v6,Object Detection,onnx,FP32,+,+,+
+yolo_v5s,Object Detection,onnx,FP16,+,+,+
+yolo_v5s,Object Detection,onnx,FP16-INT8,+,+,+
+yolo_v5s,Object Detection,onnx,FP32,+,+,+
+yolo_v5s-v6,Object Detection,onnx,FP16,+,+,+
+yolo_v5s-v6,Object Detection,onnx,FP16-INT8,+,+,+
+yolo_v5s-v6,Object Detection,onnx,FP32,+,,+
+yolo_v5x,Object Detection,onnx,FP16,+,+,+
+yolo_v5x,Object Detection,onnx,FP32,+,,
+yolo_v8n,Object Detection,onnx,FP16,+,+,+
+yolo_v8n,Object Detection,onnx,FP16-INT8,+,+,+
+yolo_v8n,Object Detection,onnx,FP32,+,,
+yolof,Object Detection,onnx,FP16,+,+,
+yolof,Object Detection,onnx,FP16-INT8,+,+,
+yolof,Object Detection,onnx,FP32,+,,
+yolor_p6,Object Detection,onnx,FP16,+,+,+
+yolor_p6,Object Detection,onnx,FP16-INT8,,,+
+yolor_p6,Object Detection,onnx,FP32,+,,
+yolo-v2-ava-0001,Object Detection,tf,FP16,+,+,+
+yolo-v2-ava-0001,Object Detection,tf,FP16-INT8,+,+,+
+yolo-v2-ava-0001,Object Detection,tf,FP32,+,+,+
+yolo-v2-ava-sparse-70-0001,Object Detection,tf,FP16,,,+
+yolo-v2-ava-sparse-70-0001,Object Detection,tf,FP16-INT8,,,+
+yolo-v2-ava-sparse-70-0001,Object Detection,tf,FP32,,,+
+yolov2-coco-9,Object Detection,onnx,FP16,,,+
+yolov2-coco-9,Object Detection,onnx,FP32,+,+,+
+yolo-v3-caffe,Object Detection,caffe,FP16,+,+,
+yolo-v3-caffe,Object Detection,caffe,FP32,+,+,
+yolo-v3-tf,Object Detection,tf,FP16,+,+,+
+yolo-v3-tf,Object Detection,tf,FP32,+,+,+
+yolov4,Object Detection,onnx,FP16,,,+
+yolov4,Object Detection,onnx,FP32,+,+,+
+zephyr-7b-beta,Large Language Model,pytorch,intel-optimum default,,+,
+zfnet512-12,Image Classification,onnx,FP16,,,+
+zfnet512-12,Image Classification,onnx,FP32,+,+,+

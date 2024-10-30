@@ -14,13 +14,12 @@ ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 target_include_directories(
   ${TARGET_NAME}
   PUBLIC
-    $<BUILD_INTERFACE:${NPU_PLUGIN_SOURCE_DIR}/thirdparty/level-zero/include>
-    $<BUILD_INTERFACE:${NPU_PLUGIN_SOURCE_DIR}/thirdparty/level-zero-ext>
+    $<TARGET_PROPERTY:LevelZero::LevelZero,INTERFACE_INCLUDE_DIRECTORIES>
+    $<TARGET_PROPERTY:LevelZero::NPUExt,INTERFACE_INCLUDE_DIRECTORIES>
     $<BUILD_INTERFACE:${NPU_UTILS_SOURCE_DIR}/include>)
 
 target_link_libraries(
   ${TARGET_NAME}
-  PUBLIC openvino::npu_al
   PRIVATE openvino::runtime openvino::runtime::dev)
 #
 # targets install

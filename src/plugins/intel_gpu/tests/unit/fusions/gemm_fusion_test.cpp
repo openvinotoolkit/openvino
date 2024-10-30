@@ -235,9 +235,6 @@ TEST_P(gemm_2in_quantize_float_in, basic) {
         reorder("reorder_bfyx", input_info("quantize"), p.default_format, data_types::f32)
     );
 
-    ov::intel_gpu::ImplementationDesc gemm_impl = { format::bfyx, "gemm_tiled_opt" };
-    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "gemm_prim", gemm_impl } }));
-
     tolerance = default_tolerance(data_types::u8);
     execute(p, false);
 }
@@ -421,9 +418,6 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, gemm_2in_add, ::testing::ValuesIn(std::vec
 class gemm_2in_dynamic_add : public gemm_2in_add {};
 TEST_P(gemm_2in_dynamic_add, add) {
     auto p = GetParam();
-
-    if (engine.get_device_info().supports_immad)
-        p.expected_fused_primitives++;
 
     cfg_fused.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     cfg_not_fused.set_property(ov::intel_gpu::allow_new_shape_infer(true));

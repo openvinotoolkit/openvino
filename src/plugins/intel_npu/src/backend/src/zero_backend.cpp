@@ -6,7 +6,7 @@
 
 #include <vector>
 
-#include "intel_npu/al/config/common.hpp"
+#include "intel_npu/config/common.hpp"
 #include "zero_device.hpp"
 
 namespace intel_npu {
@@ -25,16 +25,20 @@ uint32_t ZeroEngineBackend::getDriverVersion() const {
     return _instance->getDriverVersion();
 }
 
-uint32_t ZeroEngineBackend::getDriverExtVersion() const {
-    return _instance->getDriverExtVersion();
+uint32_t ZeroEngineBackend::getGraphExtVersion() const {
+    return _instance->getGraphDdiTable().version();
 }
 
 bool ZeroEngineBackend::isBatchingSupported() const {
-    return _instance->getDriverExtVersion() >= ZE_GRAPH_EXT_VERSION_1_6;
+    return _instance->isExtensionSupported("ZE_extension_graph_1_6", ZE_MAKE_VERSION(1, 6));
 }
 
 bool ZeroEngineBackend::isCommandQueueExtSupported() const {
-    return _instance->getCommandQueueDdiTable() != nullptr;
+    return _instance->isExtensionSupported(std::string(ZE_COMMAND_QUEUE_NPU_EXT_NAME), ZE_MAKE_VERSION(1, 0));
+}
+
+bool ZeroEngineBackend::isLUIDExtSupported() const {
+    return _instance->isExtensionSupported(std::string(ZE_DEVICE_LUID_EXT_NAME), ZE_MAKE_VERSION(1, 0));
 }
 
 ZeroEngineBackend::~ZeroEngineBackend() = default;
@@ -76,12 +80,8 @@ void* ZeroEngineBackend::getDeviceHandle() const {
     return _instance->getDevice();
 }
 
-char* ZeroEngineBackend::getGraphExtName() {
-    return _instance->getGraphExtName();
-}
-
-ze_graph_dditable_ext_last_t* ZeroEngineBackend::getGraphDDITableExt() {
-    return _instance->getGraphDDITableExt();
+ze_graph_dditable_ext_curr_t& ZeroEngineBackend::getGraphDdiTable() const {
+    return _instance->getGraphDdiTable();
 }
 
 void ZeroEngineBackend::updateInfo(const Config& config) {

@@ -7,8 +7,8 @@
 #include <map>
 #include <memory>
 
+#include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
-#include "npu.hpp"
 #include "zero_init.hpp"
 
 namespace intel_npu {
@@ -23,16 +23,16 @@ public:
     }
     const std::vector<std::string> getDeviceNames() const override;
     uint32_t getDriverVersion() const override;
-    uint32_t getDriverExtVersion() const override;
+    uint32_t getGraphExtVersion() const override;
 
     bool isBatchingSupported() const override;
     bool isCommandQueueExtSupported() const override;
+    bool isLUIDExtSupported() const override;
 
     void* getContext() const override;
     void* getDriverHandle() const;
     void* getDeviceHandle() const;
-    char* getGraphExtName();
-    ze_graph_dditable_ext_last_t* getGraphDDITableExt();
+    ze_graph_dditable_ext_curr_t& getGraphDdiTable() const;
 
     void updateInfo(const Config& config) override;
 
