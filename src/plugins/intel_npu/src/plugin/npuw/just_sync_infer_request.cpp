@@ -378,7 +378,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         LOG_VERB("Trying to preemptively set tensors for Subgraph[" << i << "]...");
         LOG_BLOCK();
         auto& comp_model_desc = m_npuw_model->m_compiled_submodels[i];
-        if (!comp_model_desc.compiled_model || !comp_model_desc.replaced_by) {
+        if (!comp_model_desc.compiled_model && !comp_model_desc.replaced_by) {
             continue;
         }
         const auto real_idx = comp_model_desc.replaced_by.value();
