@@ -169,4 +169,10 @@ if(ENABLE_SHL_FOR_CPU)
     ov_install_static_lib(shl ${OV_CPACK_COMP_CORE})
 endif()
 
+if(ENABLE_KLEIDIAI_FOR_CPU)
+    set(KLEIDIAI_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    add_subdirectory(kleidiai)
+    ov_install_static_lib(kleidiai ${OV_CPACK_COMP_CORE})
+endif()
+
 ov_add_onednn()
