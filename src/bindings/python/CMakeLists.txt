@@ -325,7 +325,9 @@ if(ENABLE_PYTHON_PACKAGING)
             # variables to reflect options (extensions only or full wheel package)
             PYTHON_EXTENSIONS_ONLY=ON
             SKIP_RPATH=ON
-            "${Python3_EXECUTABLE}" -m build --wheel --outdir "${CMAKE_CURRENT_BINARY_DIR}/dist"
+            "${Python3_EXECUTABLE}" -m build
+                --wheel
+                --outdir "${CMAKE_CURRENT_BINARY_DIR}/dist"
         COMMAND "${Python3_EXECUTABLE}" -m pip install "${CMAKE_CURRENT_BINARY_DIR}/dist/*.whl"
             --no-deps
             --target "${ov_install_lib}"
@@ -347,12 +349,11 @@ if(ENABLE_PYTHON_PACKAGING)
         COMMAND ${CMAKE_COMMAND} -E remove_directory
         "${telemetry_python_package_prefix}"
         COMMAND "${Python3_EXECUTABLE}" -m build 
-        --wheel
-        --outdir "${CMAKE_CURRENT_BINARY_DIR}/dist"
-    COMMAND "${Python3_EXECUTABLE}" -m pip install "${CMAKE_CURRENT_BINARY_DIR}/dist/*.whl"
+            --wheel
+            --outdir "${CMAKE_CURRENT_BINARY_DIR}/dist"
+        COMMAND "${Python3_EXECUTABLE}" -m pip install "${CMAKE_CURRENT_BINARY_DIR}/dist/*.whl"
             --no-deps
             --target "${telemetry_install_lib}"
-            --prefix "${telemetry_python_package_prefix}"
         WORKING_DIRECTORY "${OpenVINO_Telemetry_SOURCE_DIR}"
         DEPENDS ${telemetry_files}
         COMMENT "Create python package with ${openvino_telemetry_meta_info_subdir} folder")
