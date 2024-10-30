@@ -15,6 +15,7 @@ namespace intel_npu {
 class ZeroEngineBackend final : public IEngineBackend {
 public:
     ZeroEngineBackend(const Config& config);
+    ZeroEngineBackend();//for test umd
     virtual ~ZeroEngineBackend();
     const std::shared_ptr<IDevice> getDevice() const override;
     const std::shared_ptr<IDevice> getDevice(const std::string&) const override;
