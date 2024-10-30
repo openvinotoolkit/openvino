@@ -7,6 +7,7 @@ import shutil
 import sys
 from distutils.dir_util import copy_tree
 from distutils.errors import DistutilsFileError
+from utils.cfg_manager import CfgManager
 from utils.helpers import safeClearDir, getParams
 
 args, cfgData, customCfgPath = getParams()
@@ -50,6 +51,7 @@ elif args.isWorkingDir:
     p.printResult()
 
 else:
+    # prepare run
     workPath = cfgData["workPath"]
     if not os.path.exists(workPath):
         os.mkdir(workPath)
@@ -57,6 +59,16 @@ else:
         safeClearDir(workPath, cfgData)
     curPath = os.getcwd()
     copy_tree(curPath, workPath)
+    # handle user cache path
+    tempCachePath = CfgManager.singlestepStrFormat(cfgData["cachePath"], "workPath", workPath)
+    permCachePath = CfgManager.singlestepStrFormat(cfgData["cachePath"], "workPath", curPath)
+    # setup cache path if specified
+    if cfgData['userCachePath']:
+        permCachePath = cfgData['userCachePath']
+    else:
+        cfgData['userCachePath'] = permCachePath
+
+    # run CS
     scriptName = os.path.basename(__file__)
     argString = " ".join(sys.argv)
     formattedCmd = "{py} {workPath}/{argString} -wd".format(
@@ -65,14 +77,16 @@ else:
     subprocess.call(formattedCmd.split())
 
     # copy logs and cache back to general repo
-    tempLogPath = cfgData["logPath"].format(workPath=workPath)
-    permLogPath = cfgData["logPath"].format(workPath=curPath)
+    tempLogPath = CfgManager.singlestepStrFormat(cfgData["logPath"], "workPath", workPath)
+    permLogPath = CfgManager.singlestepStrFormat(cfgData["logPath"], "workPath", curPath)
+
+    if cfgData['userLogPath']:
+        permLogPath = cfgData['userLogPath']
+
     safeClearDir(permLogPath, cfgData)
     if not cfgData['clearLogsAposteriori']:
         copy_tree(tempLogPath, permLogPath)
 
-    tempCachePath = cfgData["cachePath"].format(workPath=workPath)
-    permCachePath = cfgData["cachePath"].format(workPath=curPath)
     safeClearDir(permCachePath, cfgData)
     try:
         copy_tree(tempCachePath, permCachePath)

@@ -8,6 +8,7 @@ import json
 import sys
 import shutil
 from os import path
+from utils.cfg_manager import CfgManager
 from test_data import TestData
 from test_data import TestError
 from utils.helpers import formatJSON
@@ -154,8 +155,15 @@ def getActualCommit(td: TestData):
 
     # prepare config
     cfg = formatJSON(td.testCfg, td.formatConfig)
-    cfg['logPath'] = td.logPath
-    cfg['clearLogsAposteriori'] = td.clearLogsAposteriori
+    td.userLogPath = CfgManager.singlestepStrFormat(
+        td.userLogPath, "testDir", os.getcwd())
+    td.userCachePath = CfgManager.singlestepStrFormat(
+        td.userCachePath, "testDir", os.getcwd())
+    for key in [
+        'userLogPath', 'clearLogsAposteriori',
+        'userCachePath', 'clearCache'
+            ]:
+        cfg[key] = getattr(td, key)
     testCfg = "test_cfg.json"
 
     with open(testCfg, "w+") as customCfg:
@@ -173,7 +181,8 @@ def getActualCommit(td: TestData):
     # clear temp data
     [shutil.rmtree(dir) for dir in [
             td.repoName,
-            td.cachePath
+            td.userCachePath,
+            td.userLogPath
             ]]
     os.remove(testCfg)
 
@@ -222,11 +231,15 @@ def requireBinarySearchData(td: TestData, rsc: map):
             'testCfg', 'patchedFile', 'repoName'
         ]]
     )
-
-    [setattr(td, key, td.commonRsc[key]) for key in [
-        'repoStructure', 'cachePath', 'logPath',
-        'clearLogsAposteriori', 'mainFile', 'repoPath'
-    ] if not hasattr(td, key)]
+    [setattr(td, key, td.commonRsc[key] \
+            if not key in td.testCfg \
+            else td.testCfg[key]) for key in [
+        'repoStructure',
+        'userCachePath',
+        'userLogPath',
+        'clearLogsAposteriori', 'clearCache',
+        'mainFile', 'repoPath'
+    ]]
     td.patternPrefix = td.commonRsc['patchGeneratorPrefix']
     td.patternPostfix = td.commonRsc['patchGeneratorPostfix']
     td.pattern = "{pre}(.+?){post}".format(

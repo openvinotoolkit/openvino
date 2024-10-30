@@ -1,9 +1,10 @@
 {
     "binarySearchRes": {
         "repoPath": "./",
-        "cachePath": "../slider_cache",
-        "logPath" : "{workPath}/log/",
+        "userCachePath": "{testDir}/test_cache/",
+        "userLogPath" : "{testDir}/test_log/",
         "clearLogsAposteriori" : true,
+        "clearCache" : true,
         "patchGeneratorPrefix": "const char \\*patchGenerator = R\"V0G0N\\(",
         "patchGeneratorPostfix": "\\)V0G0N\";",
         "mainFile": "main.cpp",
@@ -42,7 +43,8 @@
             "appCmd" : "{appCmd}",
             "appPath": "{appPath}",
             "gitPath" : "{gitPath}",
-            "logPath" : "{workPath}/sub_log/",
+            "userLogPath" : "{testDir}/test_log/sub_log/",
+            "clearLogsAposteriori" : false,
             "buildPath" : "{buildPath}",
             "verboseOutput": false,
             "runConfig" : {

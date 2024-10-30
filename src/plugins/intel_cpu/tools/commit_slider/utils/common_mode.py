@@ -35,6 +35,7 @@ class Mode(ABC):
         self.commonLogger = util.setupLogger(
             "commonLogger", logPath, "common_log.log"
         )
+        self.checkOutPathPattern = "check_output_cache.json"
 
     def isPerformanceBased(self):
         return False
@@ -45,22 +46,37 @@ class Mode(ABC):
         cp = util.getActualPath("cachePath", self.cfg)
         if not os.path.exists(cp):
             os.makedirs(cp)
-        self.cachePath = os.path.join(cp, "check_output_cache.json")
+        self.cachePath = os.path.join(cp, self.checkOutPathPattern)
         initCacheMap = {}
+        self.commonLogger.info("Cache created")
+        self.commonLogger.info("Work cache:")
+        self.commonLogger.info(self.cachePath)
+        self.commonLogger.info("User cache:")
+        self.commonLogger.info(self.cfg["userCachePath"])
+        # check if old cache must be reused
+        userCachePath = os.path.join(
+            self.cfg["userCachePath"],
+            self.checkOutPathPattern)
         try:
-            with open(self.cachePath, "r+") as cacheDump:
+            with open(userCachePath, "r+") as cacheDump:
                 if self.cfg["clearCache"]:
-                    cacheDump.truncate(0)
-                    json.dump(initCacheMap, cacheDump)
+                    # we don't need old cache
+                    pass
                 else:
                     try:
-                        json.load(cacheDump)
+                        # check if JSON is valid
+                        initCacheMap = json.load(cacheDump)
                     except json.decoder.JSONDecodeError:
                         json.dump(initCacheMap, cacheDump)
+            cacheDump.close()
         except FileNotFoundError:
-            with open(self.cachePath, "w") as cacheDump:
-                json.dump(initCacheMap, cacheDump)
-        cacheDump.close()
+            # no old cache, never mind
+            pass
+
+        # create work cache
+        with open(self.cachePath, "w") as workCacheDump:
+            json.dump(initCacheMap, workCacheDump)
+        workCacheDump.close()
 
     def getCommitIfCashed(self, commit):
         with open(self.cachePath, "r") as cacheDump:

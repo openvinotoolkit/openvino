@@ -474,6 +474,7 @@ class CompareBlobsMode(Mode):
     def createCash(self):
         # we use separate files instead of json cache,
         # so, we just set up path to cache folder
+        # todo: handle usercache for multimodel case
         self.cachePath = getActualPath("cachePath", self.cfg)
         pass
 
