@@ -324,15 +324,12 @@ void RandomUniform::preparePhiloxParams() {
 }
 
 void RandomUniform::prepareMersenneTwisterParams() {
-    m_threads_num = 1; //parallel_get_max_threads();
-
-    std::cout << "RMax Threads: " << m_threads_num << std::endl;
+    m_threads_num = parallel_get_max_threads();
 
     if (m_jit_kernel) {
 #if defined(OPENVINO_ARCH_X86_64)
         // m_jit_kernel->getVectorLen() either 64, 32 or 16 for Zmm, Ymm, Xmm respectively
         m_uint_storage_capacity_per_thread = m_jit_kernel->getVectorLen() / sizeof(uint32_t);
-        std::cout << "RMax Len: " << m_jit_kernel->getVectorLen() << std::endl;
         const auto maximum_jit_threads = MERSENNE_STATE_N / m_uint_storage_capacity_per_thread;
         m_threads_num = std::max(std::min(m_threads_num, maximum_jit_threads), 1);
 #endif // OPENVINO_ARCH_X86_64
@@ -342,8 +339,6 @@ void RandomUniform::prepareMersenneTwisterParams() {
         const auto maximum_threads = MERSENNE_STATE_N / m_uint_storage_capacity_per_thread;
         m_threads_num = std::max(std::min(m_threads_num, maximum_threads), 1);
     }
-
-    std::cout << "RMax Threads Fix: " << m_threads_num << std::endl;
 
     m_mersenne_twister_thread_params.resize(m_threads_num);
     m_mersenne_twister_optimization_enabled = !(m_output_prc == element::i64 &&
@@ -355,7 +350,6 @@ void RandomUniform::prepareMersenneTwisterParams() {
                                 static_cast<float>(m_uint_storage_capacity_per_thread);
 
     const auto byte_offset =  m_output_prc.size() / (m_mersenne_twister_optimization_enabled ? 1 : 2);
-
 
     parallel_nt(m_threads_num, [&](int ithr, int nthr) {
         auto& params = m_mersenne_twister_thread_params[ithr];
@@ -783,7 +777,7 @@ void RandomUniform::computeMersenneTwister(void* out, size_t output_elements_cou
                 args.state_accesses_count   = params.state_accesses_count;
                 args.state_ptr              = mersenne_state_ptr + params.src_start_idx;
                 args.dst_ptr                = output_byte_ptr + params.dst_start_idx + i * byte_offset;
-                args.output_idx             = (params.dst_start_idx + i * byte_offset) / m_output_prc.size();
+                args.output_idx             = params.dst_start_idx + i * MERSENNE_STATE_N;
                 args.elements_to_generate   = static_cast<int64_t>(
                                                 std::min(
                                                     static_cast<uint64_t>(m_uint_storage_capacity_per_thread) * args.state_accesses_count,
