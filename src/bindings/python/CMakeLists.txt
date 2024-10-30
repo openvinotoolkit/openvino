@@ -331,7 +331,6 @@ if(ENABLE_PYTHON_PACKAGING)
         COMMAND "${Python3_EXECUTABLE}" -m pip install "${CMAKE_CURRENT_BINARY_DIR}/dist/*.whl"
             --no-deps
             --target "${ov_install_lib}"
-            --prefix "${ov_python_package_prefix}"
         WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
         DEPENDS ${ov_setup_py_deps}
         COMMENT "Create python package with ${openvino_meta_info_subdir} folder")
