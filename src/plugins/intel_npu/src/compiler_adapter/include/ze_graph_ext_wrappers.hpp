@@ -13,7 +13,7 @@
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "intel_npu/utils/zero/zero_types.hpp"
-#include "ze_graph_ext_wrapper_interface.hpp"
+#include "ze_graph_ext_wrappers_interface.hpp"
 
 namespace intel_npu {
 

@@ -37,7 +37,7 @@ void DriverGraph::export_blob(std::ostream& stream) const {
     std::vector<uint8_t> blob;
 
     if (_blobIsReleased) {
-        OPENVINO_THROW("Model was released from NPU memory, it can not be exported any longer");
+        OPENVINO_THROW("Model was imported (not compiled) by the plugin. Model export is forbidden in this case!");
     }
 
     _zeGraphExt->getGraphBinary(_handle, blob, blobPtr, blobSize);
@@ -123,17 +123,24 @@ void DriverGraph::initialize(const Config& config) {
 
     _logger.debug("Graph initialize finish");
 
+    //  We are allowed to release the original blob because weights were loaded in NPU memory during
+    //  _zeGraphExt->initializeGraph(). The driver will not access the original blob from this moment on, so we are
+    //  releasing it here to avoid unnecessary memory usage.
+    _blobIsReleased = release_blob();
+}
+
+bool DriverGraph::release_blob() {
     if (_blob.empty() || _zeroInitStruct->getGraphDdiTable().version() < ZE_GRAPH_EXT_VERSION_1_8) {
-        return;
+        return false;
     }
 
     _blob.clear();
     _blob.shrink_to_fit();
 
-    _blobIsReleased = true;
-
     _logger.debug("Blob is released");
-}
+
+    return true;
+};
 
 DriverGraph::~DriverGraph() {
     if (_handle != nullptr) {

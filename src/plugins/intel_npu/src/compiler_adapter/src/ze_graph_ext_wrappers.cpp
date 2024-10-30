@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ze_graph_ext_wrapper.hpp"
+#include "ze_graph_ext_wrappers.hpp"
 
 #include <regex>
 #include <string_view>

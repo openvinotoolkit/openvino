@@ -21,7 +21,7 @@
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "ir_serializer.hpp"
 #include "openvino/core/model.hpp"
-#include "ze_graph_ext_wrapper.hpp"
+#include "ze_graph_ext_wrappers.hpp"
 
 namespace {
 

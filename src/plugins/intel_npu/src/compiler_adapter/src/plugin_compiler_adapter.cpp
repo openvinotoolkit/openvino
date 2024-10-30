@@ -19,7 +19,7 @@
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
 #include "plugin_graph.hpp"
-#include "ze_graph_ext_wrapper.hpp"
+#include "ze_graph_ext_wrappers.hpp"
 
 namespace {
 std::shared_ptr<void> loadLibrary(const std::string& libpath) {
@@ -113,10 +113,9 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         // Depending on the config, we may get an error when trying to get the graph handle from the compiled network
         try {
             graphHandle = _zeGraphExt->getGraphHandle(networkDesc.compiledNetwork);
-        } catch (const std::exception& ex) {
-            _logger.info("Got an error while getting graph handle '%s'", ex.what());
         } catch (...) {
-            _logger.info("Got an unknown error while getting graph handle");
+            _logger.info("Failed to obtain the level zero graph handle. Inference requests for this model are not "
+                         "allowed. Only exports are available");
         }
     }
 

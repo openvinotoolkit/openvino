@@ -10,7 +10,7 @@
 
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
-#include "ze_graph_ext_wrapper_interface.hpp"
+#include "ze_graph_ext_wrappers_interface.hpp"
 
 namespace intel_npu {
 
@@ -35,6 +35,8 @@ public:
     ~DriverGraph() override;
 
 private:
+    bool release_blob();
+
     std::shared_ptr<ZeGraphExtWrappersInterface> _zeGraphExt;
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
 

@@ -78,7 +78,7 @@ There is currently no support for multiple devices, which means only one level-z
 
 ### Inference pipeline
 
-The result of the model compilation is represented through a IGraph object. This model description is passed by the plugin to the driver to create a level zero graph instance and obtain a graph handle that can later be used to execute multiple inferences in parallel for the same model. Since the same model instance is shared across all subsequent inference objects, this initialization of the graph step(loading the weights into NPU memory) is performed by default right after the model is compiled but it can be postponed until the creation of the first inference request through the use of an internal NPU property: "NPU_DEFER_WEIGHTS_LOAD" (NPU_DEFER_WEIGHTS_LOAD=true to postpone the initialization).
+The result of the model compilation is represented through an IGraph object, which contains a valid level zero graph handle that can later be used to execute multiple inferences in parallel for the same model. By default, weights are loaded into the NPU memory right after the model is compiled, but this step can be postponed until the creation of the first inference request through the use of an internal NPU property: "NPU_DEFER_WEIGHTS_LOAD".
 
 Users can create one or more inference requests for a compiled model using OpenVINO API:
 
