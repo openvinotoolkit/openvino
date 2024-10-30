@@ -4,12 +4,12 @@
   "license": "Apache-2.0",
   "type": "commonjs",
   "devDependencies": {
+    "@tensorflow/tfjs-node": "^4.19.0",
     "args": "^5.0.3",
-    "canvas": "^2.11.2",
     "eslint": "^8.39.0",
     "https-proxy-agent": "^7.0.2",
-    "@tensorflow/tfjs-node": "^4.19.0",
-    "openvino-node": "^2024.4.0"
+    "openvino-node": "^2024.4.0",
+    "@napi-rs/canvas": "^0.1.59"
   },
   "scripts": {
     "lint": "eslint .",

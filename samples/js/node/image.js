@@ -2,7 +2,7 @@ const {
   ImageData,
   loadImage,
   createCanvas,
-} = require('canvas');
+} = require('@napi-rs/canvas');
 const path = require('node:path');
 const fs = require('node:fs/promises');
 const { addon: ov } = require('openvino-node');
