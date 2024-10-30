@@ -8,8 +8,8 @@
 #include <ze_graph_ext.h>
 
 #include "intel_npu/utils/logger/logger.hpp"
+#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "zero_types.hpp"
-#include "zero_utils.hpp"
 
 namespace intel_npu {
 class CommandList;

@@ -140,7 +140,7 @@ void SyncInferRequest::infer() {
     throw_if_canceled();
 
     // update output control blocks, if any, in order to refresh internal buffers
-    if (Graph::Status::ReadyDynamic == m_graph->getStatus()) {
+    if (m_graph->IsDynamic()) {
         for (auto&& item : m_outputControlBlocks) {
             item.second.update();
         }
@@ -178,7 +178,7 @@ void SyncInferRequest::change_default_ptr() {
 
     std::unordered_set<const void*> inputPtrs;
     std::function<void(const EdgePtr &edge, ov::SoPtr<ov::ITensor>& tensor)> changeInpPtr;
-    if (Graph::Status::ReadyDynamic == m_graph->getStatus()) {
+    if (m_graph->IsDynamic()) {
         changeInpPtr = [&inputPtrs](const EdgePtr &edge, ov::SoPtr<ov::ITensor>& tensor) {
             change_edge_ptr(edge, tensor);
             inputPtrs.insert(tensor->data());
@@ -278,8 +278,8 @@ void SyncInferRequest::change_default_ptr() {
             change_edge_ptr(parentEdge, it.second);
     }
 
-    if (Graph::Status::ReadyDynamic == m_graph->getStatus()) {
-        const auto &outMemBlocksMap = m_graph->outputNodesMemBlocksMap;
+    if (m_graph->IsDynamic()) {
+        const auto &outMemBlocksMap = m_graph->getOutputNodesMemBlocksMap();
         for (auto&& item : outMemBlocksMap) {
             const auto& name = item.first;
 
@@ -476,7 +476,7 @@ void SyncInferRequest::init_tensor(const std::size_t& port_index, const ov::ISyn
 
     ov::SoPtr<ITensor> tensor;
     if (type == ov::ISyncInferRequest::FoundPort::Type::INPUT) {
-        OPENVINO_ASSERT(m_graph->inputNodesMap.find(port_index) != m_graph->inputNodesMap.end(),
+        OPENVINO_ASSERT(m_graph->GetInputNodesMap().find(port_index) != m_graph->GetInputNodesMap().end(),
                         "Tensor with index: ",
                         port_index,
                         " exists in CPU plugin graph, but absents in model inputs");
@@ -509,7 +509,7 @@ void SyncInferRequest::init_tensor(const std::size_t& port_index, const ov::ISyn
     }
 
     if (type == ov::ISyncInferRequest::FoundPort::Type::OUTPUT) {
-        const auto& outMap = m_graph->outputNodesMap;
+        const auto& outMap = m_graph->GetOutputNodesMap();
         auto output = outMap.find(port_index);
         OPENVINO_ASSERT(output != outMap.end(),
                         "Tensor with index: ",

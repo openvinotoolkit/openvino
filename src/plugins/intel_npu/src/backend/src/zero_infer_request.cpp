@@ -4,11 +4,11 @@
 
 #include "zero_infer_request.hpp"
 
-#include "intel_npu/al/config/common.hpp"
-#include "intel_npu/al/config/compiler.hpp"
-#include "intel_npu/al/config/runtime.hpp"
-#include "intel_npu/al/itt.hpp"
-#include "intel_npu/al/prefix.hpp"
+#include "intel_npu/common/itt.hpp"
+#include "intel_npu/config/common.hpp"
+#include "intel_npu/config/compiler.hpp"
+#include "intel_npu/config/runtime.hpp"
+#include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/runtime/intel_npu/remote_properties.hpp"
@@ -188,8 +188,8 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
     }
 
     _properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
-    zeroUtils::throwOnFail("zeDeviceGetProperties",
-                           zeDeviceGetProperties(_executor->getInitStructs()->getDevice(), &_properties));
+    THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetProperties",
+                                zeDeviceGetProperties(_executor->getInitStructs()->getDevice(), &_properties));
 
     _outputAllocator = std::make_shared<const zeroMemory::HostMemAllocator>(_initStructs);
     _inputAllocator =
@@ -388,6 +388,10 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
     }
 
     if (foundPort.is_input()) {
+        if (get_user_input(foundPort.idx)._ptr == tensor._ptr) {
+            // Got set_tensor with the same object - do nothing
+            return;
+        }
         if (is_batched_input(foundPort.idx)) {
             // resize vector size to 1 if set_tensor is called after set_tensors
             get_input_tensors_data(foundPort.idx).resize(1);
@@ -397,6 +401,10 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
 
         get_user_input(foundPort.idx) = tensor;
     } else {
+        if (_userOutputTensors.at(foundPort.idx)._ptr == tensor._ptr) {
+            // Got set_tensor with the same object here too - do nothing
+            return;
+        }
         _userOutputTensors.at(foundPort.idx) = tensor;
     }
 
