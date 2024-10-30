@@ -25,9 +25,6 @@ target_link_libraries(${TARGET_NAME}
     PRIVATE
         openvino::npu_al
         openvino::npu_common
-        openvino::npu_logger_utils
-        openvino::runtime
-        openvino::runtime::dev
         ze_loader
 )
 
