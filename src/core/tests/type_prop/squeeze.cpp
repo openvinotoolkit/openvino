@@ -97,7 +97,7 @@ TEST(TypePropSqueezelOperatorV15, squeeze_data_static_param_axes_1D_single_elem_
     const auto squeeze = std::make_shared<ov::op::v15::Squeeze>(param, axes_node);
 
     EXPECT_EQ(squeeze->get_element_type(), element::f32);
-    EXPECT_EQ(squeeze->get_output_partial_shape(0), PartialShape::dynamic({2, 3}));
+    EXPECT_EQ(squeeze->get_output_partial_shape(0), PartialShape::dynamic();
 }
 
 TEST(TypePropSqueezelOperatorV0, squeeze_data_static_param_axes_scalar_static_shape_squeezable_dims_one) {
@@ -115,7 +115,7 @@ TEST(TypePropSqueezelOperatorV15, squeeze_data_static_param_axes_scalar_static_s
     const auto squeeze = std::make_shared<ov::op::v15::Squeeze>(param, axes_node);
 
     EXPECT_EQ(squeeze->get_element_type(), element::f32);
-    EXPECT_EQ(squeeze->get_output_partial_shape(0), PartialShape::dynamic({2, 3}));
+    EXPECT_EQ(squeeze->get_output_partial_shape(0), PartialShape::dynamic();
 }
 
 TYPED_TEST(SqueezelOperator, squeeze_data_scalar_param_axes_1D_single_elem_static_shape) {
@@ -160,7 +160,7 @@ TEST(TypePropSqueezelOperatorV15, squeeze_data_static_param_axes_1D_single_elem_
     const auto squeeze = std::make_shared<ov::op::v15::Squeeze>(param, axes_node);
 
     EXPECT_EQ(squeeze->get_element_type(), element::f32);
-    EXPECT_EQ(squeeze->get_output_partial_shape(0), PartialShape::dynamic({4, 5}));
+    EXPECT_EQ(squeeze->get_output_partial_shape(0), PartialShape::dynamic();
 }
 
 TEST(TypePropSqueezelOperatorV0, squeeze_data_static_param_axes_scalar_static_shape_squeezable_dims_more) {
@@ -178,7 +178,7 @@ TEST(TypePropSqueezelOperatorV15, squeeze_data_static_param_axes_scalar_static_s
     const auto squeeze = std::make_shared<ov::op::v15::Squeeze>(param, axes_node);
 
     EXPECT_EQ(squeeze->get_element_type(), element::f32);
-    EXPECT_EQ(squeeze->get_output_partial_shape(0), PartialShape::dynamic({4, 5}));
+    EXPECT_EQ(squeeze->get_output_partial_shape(0), PartialShape::dynamic();
 }
 
 TYPED_TEST(SqueezelOperator, squeeze_data_dynamic_param_axes_1D_two_elem_static_shape_squeezable_dims_more) {
@@ -205,7 +205,7 @@ TEST(TypePropSqueezelOperatorV15, squeeze_data_dynamic_param_axes_1D_single_elem
     const auto squeeze = std::make_shared<ov::op::v15::Squeeze>(param, axes_node);
 
     EXPECT_EQ(squeeze->get_element_type(), element::f32);
-    EXPECT_EQ(squeeze->get_output_partial_shape(0), PartialShape::dynamic({3, 4}));
+    EXPECT_EQ(squeeze->get_output_partial_shape(0), PartialShape::dynamic();
 }
 
 TEST(TypePropSqueezelOperatorV0, squeeze_data_dynamic_param_axes_scalar_static_shape_squeezable_dims_more) {
@@ -223,7 +223,7 @@ TEST(TypePropSqueezelOperatorV15, squeeze_data_dynamic_param_axes_scalar_static_
     const auto squeeze = std::make_shared<ov::op::v15::Squeeze>(param, axes_node);
 
     EXPECT_EQ(squeeze->get_element_type(), element::f32);
-    EXPECT_EQ(squeeze->get_output_partial_shape(0), PartialShape::dynamic({3, 4}));
+    EXPECT_EQ(squeeze->get_output_partial_shape(0), PartialShape::dynamic();
 }
 
 TYPED_TEST(SqueezelOperator, squeeze_data_dyamic_param_axes_1D_two_elem_static_shape_squeezable_dims_one) {
@@ -259,7 +259,7 @@ TEST(TypePropSqueezelOperatorV15, squeeze_data_dynamic_param_axes_1D_single_elem
     const auto squeeze = std::make_shared<ov::op::v15::Squeeze>(param, axes_node);
 
     EXPECT_EQ(squeeze->get_element_type(), element::f32);
-    EXPECT_EQ(squeeze->get_output_partial_shape(0), PartialShape::dynamic({3, 4}));
+    EXPECT_EQ(squeeze->get_output_partial_shape(0), PartialShape::dynamic();
 }
 
 using SqueezeTypePropTestParam = std::tuple<PartialShape,          // Input shape
@@ -430,12 +430,12 @@ TEST_P(SqueezeShapeTests, shape_dimension_propagation_const_axis_i64) {
     {
         const auto squeeze = std::make_shared<op::v0::Squeeze>(param, axes_node);
         EXPECT_EQ(squeeze->get_element_type(), element::f64);
-        EXPECT_EQ(squeeze->get_output_partial_shape(0), exp_shape.to_shape());
+        EXPECT_EQ(squeeze->get_output_partial_shape(0), exp_shape);
     }
     {
         const auto squeeze = std::make_shared<op::v15::Squeeze>(param, axes_node);
         EXPECT_EQ(squeeze->get_element_type(), element::f64);
-        EXPECT_EQ(squeeze->get_output_partial_shape(0), exp_shape.to_shape());
+        EXPECT_EQ(squeeze->get_output_partial_shape(0), exp_shape);
     }
 }
 
