@@ -5,11 +5,12 @@
 
 #include <iostream>
 #include <memory>
+#include <string>
 
 #include "accuracy/comparator.hpp"
+#include "intel_npu/npu_private_properties.hpp"
 #include "just_sync_infer_request.hpp"
 #include "logging.hpp"
-#include "npu_private_properties.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/constant_folding.hpp"
@@ -23,10 +24,9 @@
 #include "util.hpp"
 
 // required for get_properties_per_device()
-#include <intel_npu/al/config/config.hpp>
-#include <intel_npu/al/config/npuw.hpp>
-#include <npuw_private_properties.hpp>
-
+#include "intel_npu/config/config.hpp"
+#include "intel_npu/config/npuw.hpp"
+#include "intel_npu/npuw_private_properties.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -147,6 +147,16 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         rewr.run_on_model(model);
     }
 
+    if (m_cfg.get<::intel_npu::NPUW_SLICE_OUT>()) {
+        // Add Slice before last MatMul for the prefill model
+        ov::pass::GraphRewrite rewr;
+        rewr.add_matcher<ov::npuw::patterns::opt::SliceLastMatmul>();
+        rewr.add_matcher<ov::npuw::patterns::opt::SliceLastMatmulAdd>();
+        rewr.add_matcher<ov::npuw::patterns::opt::SliceLastMatmulTranspose>();
+        rewr.add_matcher<ov::npuw::patterns::opt::SliceLastMatmulMultiply>();
+        rewr.run_on_model(model);
+    }
+
     auto partitioning = getPartitioning(model, m_cfg);
     m_total_stat.gflops = partitioning.total_gflops;
     m_total_stat.ops = partitioning.total_ops;
@@ -236,8 +246,6 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     }  // for(ordered_subgraphs)
     // NOTE(dm): there's a better way to do it, like we do in G-API backends.
 
-    m_update_required = m_cfg.get<::intel_npu::NPUW_FOLD>();
-
     // Store mapping between manually splitted inputs/outputs
     // to connect tensors between compiled submodels
     m_submodels_input_to_prev_output = partitioning.input_to_prev_output;
@@ -247,6 +255,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     // - dump the subgraphs, if necessary
     std::map<std::string, std::size_t> compiledFunctions;
     m_compiled_submodels.resize(orderedSubgraphs.size());
+    const std::size_t end_sub_idx = orderedSubgraphs.size();
 
     const std::string dump_sub_opt = m_cfg.get<::intel_npu::NPUW_DUMP_SUBS>();
 
@@ -283,18 +292,8 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 
                 // Fill in the spatial information, if it is present
                 if (fcn_template._spatial) {
-                    using S = CompiledModelDesc::Spatial;
-                    S s;
-                    s.range = fcn_template._spatial->_range;
-                    s.nway = fcn_template._spatial->_slice;
-                    s.out_dim = fcn_template._spatial->_out_dim;
-                    s.nway_iters = s.range / s.nway;
-                    s.tail_size = s.range % s.nway;
-                    for (auto&& input : fcn_template._spatial->_inputs) {
-                        std::size_t p_idx = fcn_template._model->get_parameter_index(input.param);
-                        s.params.push_back(S::Param{p_idx, input.dim});
-                    }
-                    m_compiled_submodels[id].spatial = std::move(s);
+                    m_compiled_submodels[id].spatial =
+                        compiled::Spatial(fcn_template._spatial.value(), fcn_template._model);
                 }
                 LOG_INFO("Subgraph[" << id << "] is a function body for " << subgraph._funcall);
             } else {
@@ -324,7 +323,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             fill_empty_tensor_names(m_compiled_submodels[real_id].model);
         }
 
-        if (ov::npuw::util::is_set(id, dump_sub_opt)) {
+        if (ov::npuw::util::is_set(id, dump_sub_opt, end_sub_idx)) {
             LOG_INFO("Dumping Subgraph[" << id << "]");
             LOG_BLOCK();
             if (real_id != id) {
@@ -341,7 +340,14 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     }      // for(orderedSubgraphs)
 
     std::map<std::size_t, std::string> forced_sub_devices{};
-    const std::string fsd_opt = m_cfg.get<::intel_npu::NPUW_SUBMODEL_DEVICE>();
+    std::string fsd_opt = m_cfg.get<::intel_npu::NPUW_SUBMODEL_DEVICE>();
+    // Change "last" keyword to tail subgraph number
+    std::size_t last_pos = fsd_opt.find("last");
+    if (last_pos != std::string::npos) {
+        fsd_opt.erase(last_pos, 4);
+        fsd_opt.insert(last_pos, std::to_string(end_sub_idx));
+    }
+
     forced_sub_devices = ::intel_npu ::OptionParser<std::map<std::size_t, std::string>>::parse(fsd_opt);
 
     // Exclude optimized out subgraphs from compilation target beforehand - otherwise we might get head and repeated
@@ -695,8 +701,9 @@ ov::SoPtr<ov::ICompiledModel> ov::npuw::CompiledModel::compile_submodel(const st
 
 void ov::npuw::CompiledModel::dump_on_fail(std::size_t id, const std::string& device_to_try, const char* extra) {
     const std::string dof_opt = m_cfg.get<::intel_npu::NPUW_DUMP_SUBS_ON_FAIL>();
+    const std::size_t end_idx = m_compiled_submodels.size();
 
-    if (ov::npuw::util::is_set(id, dof_opt)) {
+    if (ov::npuw::util::is_set(id, dof_opt, end_idx)) {
         ov::npuw::dump_failure(m_compiled_submodels[id].model, device_to_try, extra);
     }
 }
@@ -917,8 +924,10 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::partitioning::cwai, NPUW_CWAI),
                           BIND(npuw::partitioning::dyn_quant, NPUW_DQ),
                           BIND(npuw::partitioning::par_matmul_merge_dims, NPUW_PMM),
+                          BIND(npuw::partitioning::slice_out, NPUW_SLICE_OUT),
                           BIND(npuw::partitioning::spatial, NPUW_SPATIAL),
-                          BIND(npuw::partitioning::spatial, NPUW_SPATIAL_NWAY),
+                          BIND(npuw::partitioning::spatial_nway, NPUW_SPATIAL_NWAY),
+                          BIND(npuw::partitioning::spatial_dyn, NPUW_SPATIAL_DYN),
                           BIND(npuw::partitioning::host_gather, NPUW_HOST_GATHER),
                           BIND(npuw::partitioning::funcall_for_all, NPUW_FUNCALL_FOR_ALL),
                           BIND(npuw::partitioning::dcoff_type, NPUW_DCOFF_TYPE),

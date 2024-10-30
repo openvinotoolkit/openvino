@@ -60,7 +60,7 @@ Prerequisites
 .. code:: ipython3
 
     %pip install -q "torch>=2.1" torchvision "pillow" "tqdm" "gradio>=4.36"  --extra-index-url https://download.pytorch.org/whl/cpu
-    %pip install -q "git+https://github.com/eaidova/optimum-intel.git@ea/llava_model"  --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "git+https://github.com/huggingface/optimum-intel.git"  --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "nncf>=2.13.0" "openvino>=2024.4"
     %pip install -q "transformers>=4.45.0"  --extra-index-url https://download.pytorch.org/whl/cpu
 
@@ -71,7 +71,6 @@ Prerequisites
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    mobileclip 0.1.0 requires torch==1.13.1, but you have torch 2.2.2+cpu which is incompatible.
     mobileclip 0.1.0 requires torchvision==0.14.1, but you have torchvision 0.17.2+cpu which is incompatible.
     parler-tts 0.2 requires transformers<=4.43.3,>=4.43.0, but you have transformers 4.45.2 which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
@@ -157,27 +156,21 @@ documentation <https://huggingface.co/docs/optimum/intel/openvino/export#export-
 
 .. parsed-literal::
 
-    2024-10-08 04:21:32.940160: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-10-08 04:21:32.974138: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-10-23 03:13:53.907119: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-10-23 03:13:53.940806: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-10-08 04:21:33.587724: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/vq_model.py:20: FutureWarning: `VQEncoderOutput` is deprecated and will be removed in version 0.31. Importing `VQEncoderOutput` from `diffusers.models.vq_model` is deprecated and this will be removed in a future version. Please use `from diffusers.models.autoencoders.vq_model import VQEncoderOutput`, instead.
+    2024-10-23 03:13:54.509755: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/vq_model.py:20: FutureWarning: `VQEncoderOutput` is deprecated and will be removed in version 0.31. Importing `VQEncoderOutput` from `diffusers.models.vq_model` is deprecated and this will be removed in a future version. Please use `from diffusers.models.autoencoders.vq_model import VQEncoderOutput`, instead.
       deprecate("VQEncoderOutput", "0.31", deprecation_message)
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/vq_model.py:25: FutureWarning: `VQModel` is deprecated and will be removed in version 0.31. Importing `VQModel` from `diffusers.models.vq_model` is deprecated and this will be removed in a future version. Please use `from diffusers.models.autoencoders.vq_model import VQModel`, instead.
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/vq_model.py:25: FutureWarning: `VQModel` is deprecated and will be removed in version 0.31. Importing `VQModel` from `diffusers.models.vq_model` is deprecated and this will be removed in a future version. Please use `from diffusers.models.autoencoders.vq_model import VQModel`, instead.
       deprecate("VQModel", "0.31", deprecation_message)
-    Framework not specified. Using pt to export the model.
-    Loading checkpoint shards: 100%|██████████████████| 6/6 [00:01<00:00,  3.44it/s]
-    Automatic task detection to image-text-to-text.
-    Using framework PyTorch: 2.2.2+cpu
-    Overriding 1 configuration item(s)
-    	- use_cache -> True
+    Loading checkpoint shards: 100%|██████████████████| 6/6 [00:01<00:00,  3.46it/s]
     We detected that you are passing `past_key_values` as a tuple of tuples. This is deprecated and will be removed in v4.47. Please convert your cache or use an appropriate `Cache` class (https://huggingface.co/docs/transformers/kv_cache#legacy-cache-format)
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/cache_utils.py:447: TracerWarning: Using len to get tensor shape might cause the trace to be incorrect. Recommended usage would be tensor.shape[0]. Passing a tensor of different shape might lead to errors or silently give incorrect results.
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/cache_utils.py:447: TracerWarning: Using len to get tensor shape might cause the trace to be incorrect. Recommended usage would be tensor.shape[0]. Passing a tensor of different shape might lead to errors or silently give incorrect results.
       or len(self.key_cache[layer_idx]) == 0  # the layer has no cache
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/cache_utils.py:432: TracerWarning: Using len to get tensor shape might cause the trace to be incorrect. Recommended usage would be tensor.shape[0]. Passing a tensor of different shape might lead to errors or silently give incorrect results.
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/cache_utils.py:432: TracerWarning: Using len to get tensor shape might cause the trace to be incorrect. Recommended usage would be tensor.shape[0]. Passing a tensor of different shape might lead to errors or silently give incorrect results.
       elif len(self.key_cache[layer_idx]) == 0:  # fills previously skipped layers; checking for tensor causes errors
     Starting from v4.46, the `logits` model output will have the same type as the model (except at train time, where it will always be FP32)
-    Using framework PyTorch: 2.2.2+cpu
     [ WARNING ] Unexpectedly found already patched module language_model.model.embed_tokens while applying ModuleExtension during PyTorch model conversion. Result of the conversion maybe broken. Depending on the exact issue it may lead to broken original model.
     [ WARNING ] Unexpectedly found already patched module language_model.model.layers.0.self_attn.q_proj while applying ModuleExtension during PyTorch model conversion. Result of the conversion maybe broken. Depending on the exact issue it may lead to broken original model.
     [ WARNING ] Unexpectedly found already patched module language_model.model.layers.0.self_attn.k_proj while applying ModuleExtension during PyTorch model conversion. Result of the conversion maybe broken. Depending on the exact issue it may lead to broken original model.
@@ -460,47 +453,41 @@ documentation <https://huggingface.co/docs/optimum/intel/openvino/export#export-
     [ WARNING ] Unexpectedly found already patched module language_model.model.layers.39.mlp.up_proj while applying ModuleExtension during PyTorch model conversion. Result of the conversion maybe broken. Depending on the exact issue it may lead to broken original model.
     [ WARNING ] Unexpectedly found already patched module language_model.model.layers.39.mlp.down_proj while applying ModuleExtension during PyTorch model conversion. Result of the conversion maybe broken. Depending on the exact issue it may lead to broken original model.
     [ WARNING ] Unexpectedly found already patched module language_model.lm_head while applying ModuleExtension during PyTorch model conversion. Result of the conversion maybe broken. Depending on the exact issue it may lead to broken original model.
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/pixtral/modeling_pixtral.py:492: TracerWarning: Iterating over a tensor might cause the trace to be incorrect. Passing a tensor of different shape won't change the number of iterations executed (and might lead to errors or silently give incorrect results).
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/pixtral/modeling_pixtral.py:492: TracerWarning: Iterating over a tensor might cause the trace to be incorrect. Passing a tensor of different shape won't change the number of iterations executed (and might lead to errors or silently give incorrect results).
       patch_embeds_list = [self.patch_conv(img.unsqueeze(0).to(self.dtype)) for img in pixel_values]
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/dynamic_graph/wrappers.py:85: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/dynamic_graph/wrappers.py:86: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
       op1 = operator(\*args, \*\*kwargs)
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/790/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/pixtral/modeling_pixtral.py:448: TracerWarning: Iterating over a tensor might cause the trace to be incorrect. Passing a tensor of different shape won't change the number of iterations executed (and might lead to errors or silently give incorrect results).
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/pixtral/modeling_pixtral.py:448: TracerWarning: Iterating over a tensor might cause the trace to be incorrect. Passing a tensor of different shape won't change the number of iterations executed (and might lead to errors or silently give incorrect results).
       for start, end in zip(block_start_idx, block_end_idx):
-    Using framework PyTorch: 2.2.2+cpu
-    Overriding 1 configuration item(s)
-    	- use_cache -> False
     [ WARNING ] Unexpectedly found already patched module  while applying ModuleExtension during PyTorch model conversion. Result of the conversion maybe broken. Depending on the exact issue it may lead to broken original model.
     Export model to OpenVINO directly failed with: 
     Config dummy inputs are not a subset of the model inputs: {'input'} vs {'args', 'kwargs'}.
     Model will be exported to ONNX
-    Using framework PyTorch: 2.2.2+cpu
-    Overriding 1 configuration item(s)
-    	- use_cache -> False
-    Saving external data to one file...
+    Exporting tokenizers to OpenVINO is not supported for tokenizers version > 0.19. Please downgrade to tokenizers version <= 0.19 to export tokenizers to OpenVINO.
     INFO:nncf:Statistics of the bitwidth distribution:
-    ┍━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
-    │ Weight compression mode   │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
-    ┝━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
-    │ int8_asym                 │ 6% (1 / 281)                │ 0% (0 / 280)                           │
-    ├───────────────────────────┼─────────────────────────────┼────────────────────────────────────────┤
-    │ int4_asym                 │ 94% (280 / 281)             │ 100% (280 / 280)                       │
-    ┕━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
-    [2KApplying Weight Compression ━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% • 0:05:07 • 0:00:00
+    ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
+    │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
+    ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
+    │              8 │ 6% (1 / 281)                │ 0% (0 / 280)                           │
+    ├────────────────┼─────────────────────────────┼────────────────────────────────────────┤
+    │              4 │ 94% (280 / 281)             │ 100% (280 / 280)                       │
+    ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
+    [2KApplying Weight Compression ━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% • 0:05:12 • 0:00:00
     INFO:nncf:Statistics of the bitwidth distribution:
-    ┍━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
-    │ Weight compression mode   │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
-    ┝━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
-    │ int8_asym                 │ 6% (3 / 172)                │ 0% (0 / 169)                           │
-    ├───────────────────────────┼─────────────────────────────┼────────────────────────────────────────┤
-    │ int4_asym                 │ 94% (169 / 172)             │ 100% (169 / 169)                       │
-    ┕━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
+    ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
+    │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
+    ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
+    │              8 │ 6% (3 / 172)                │ 0% (0 / 169)                           │
+    ├────────────────┼─────────────────────────────┼────────────────────────────────────────┤
+    │              4 │ 94% (169 / 172)             │ 100% (169 / 169)                       │
+    ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
     [2KApplying Weight Compression ━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% • 0:00:12 • 0:00:00
     INFO:nncf:Statistics of the bitwidth distribution:
-    ┍━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
-    │ Weight compression mode   │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
-    ┝━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
-    │ int8_asym                 │ 100% (1 / 1)                │ 0% (0 / 0)                             │
-    ┕━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
+    ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
+    │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
+    ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
+    │              8 │ 100% (1 / 1)                │ 0% (0 / 0)                             │
+    ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
     [2KApplying Weight Compression ━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% • 0:00:02 • 0:00:00
     
 
@@ -561,13 +548,10 @@ Intel can be found in
 
 .. parsed-literal::
 
-    2024-10-08 04:29:37.124362: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-10-08 04:29:37.158372: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-10-23 03:22:21.803644: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-10-23 03:22:21.838426: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-10-08 04:29:37.816800: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    Compiling the Language model to CPU ...
-    Compiling the Text embeddings model to CPU ...
-    Compiling the vision_embeddings to CPU ...
+    2024-10-23 03:22:22.499374: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. code:: ipython3
@@ -611,7 +595,7 @@ Intel can be found in
 
 .. parsed-literal::
 
-    The unusual aspect of this image is the presence of a cat and a dog lying together peacefully inside a cardboard box. This is not a common sight, as cats and dogs are often perceived as being natural enemies or at least not inclined to share spaces closely. The image portrays a harmonious and playful interaction between the two animals, which challenges typical stereotypes about their relationship.
+    The unusual aspect of this image is that the cat is lying inside a cardboard box, which is not a typical setting for a cat. Cats are often known for their affinity for boxes, but it is still considered unusual to see a cat comfortably resting inside a box in a living room setting. The cat appears relaxed and content, which adds to the charm of the scene. The presence of a sofa in the background further emphasizes the domestic and cozy atmosphere of the image.
 
 
 Interactive demo

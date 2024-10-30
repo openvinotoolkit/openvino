@@ -4,7 +4,7 @@
 
 #include "util.hpp"
 
-#include <intel_npu/al/config/config.hpp>
+#include <intel_npu/config/config.hpp>
 #include <iomanip>
 #include <openvino/core/parallel.hpp>
 #include <openvino/core/type/bfloat16.hpp>
@@ -17,7 +17,7 @@
 #include "openvino/runtime/make_tensor.hpp"  // get_tensor_impl
 #include "util_xarch.hpp"
 
-bool ov::npuw::util::is_set(const std::size_t sub_idx, const std::string& opt) {
+bool ov::npuw::util::is_set(const std::size_t sub_idx, const std::string& opt, const std::size_t end_idx) {
     if (opt.empty() || opt == "NO") {
         return false;
     }
@@ -25,12 +25,20 @@ bool ov::npuw::util::is_set(const std::size_t sub_idx, const std::string& opt) {
         return true;
     }
 
+    std::string str(opt);
+    std::size_t last_pos = str.find("last");
+    if (last_pos != std::string::npos) {
+        str.erase(last_pos, 4);
+        if (end_idx != SIZE_MAX && sub_idx == end_idx - 1) {
+            return true;
+        }
+    }
+
     std::vector<std::size_t> sub_inds{};
-    sub_inds = ::intel_npu ::OptionParser<std::vector<std::size_t>>::parse(opt);
+    sub_inds = ::intel_npu ::OptionParser<std::vector<std::size_t>>::parse(str);
     if (std::find(sub_inds.begin(), sub_inds.end(), sub_idx) != sub_inds.end()) {
         return true;
     }
-
     return false;
 }
 
@@ -517,4 +525,41 @@ ov::Tensor ov::npuw::util::concat(const std::vector<ov::Tensor>& tt, std::size_t
     } else {
         NPUW_ASSERT(false && "Not supported yet");
     }
+}
+
+namespace {
+template <typename T>
+ov::npuw::util::range_1d validMaskRange(const T* data, std::size_t len) {
+    using R = ov::npuw::util::range_1d;
+    std::size_t range_begin = 0u;
+    bool was_set = false;
+
+    for (std::size_t idx = 0u; idx < len; idx++) {
+        const bool is_set = static_cast<std::size_t>(data[idx] > 0);
+
+        if (is_set && !was_set) {
+            was_set = true;
+            range_begin = idx;
+        } else if (!is_set && was_set) {
+            return R{range_begin, idx};
+        }
+    }
+    return was_set ? R{range_begin, len} : R{0u, 0u};
+}
+}  // namespace
+
+ov::npuw::util::range_1d ov::npuw::util::validMaskRange(const ov::SoPtr<ov::ITensor>& src) {
+    NPUW_ASSERT(src->is_continuous());
+
+    namespace ove = ov::element;
+#define HNDL(t, T) \
+    case ove::t:   \
+        return ::validMaskRange(static_cast<const T*>(src->data()), src->get_size());
+    switch (src->get_element_type()) {
+        HNDL(i64, int64_t);
+        HNDL(i32, int32_t);
+    default:
+        OPENVINO_THROW("Unsupported type ", src->get_element_type());
+    }
+#undef HNDL
 }
