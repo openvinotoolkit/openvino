@@ -36,6 +36,10 @@ void DriverGraph::export_blob(std::ostream& stream) const {
     size_t blobSize = -1;
     std::vector<uint8_t> blob;
 
+    if (_blobIsReleased) {
+        OPENVINO_THROW("Model was released from NPU memory, it can not be exported any longer");
+    }
+
     _zeGraphExt->getGraphBinary(_handle, blob, blobPtr, blobSize);
 
     stream.write(reinterpret_cast<const char*>(blobPtr), blobSize);
@@ -90,27 +94,25 @@ void DriverGraph::initialize(const Config& config) {
         }
     }
 
+    _input_descriptors.shrink_to_fit();
+    _output_descriptors.shrink_to_fit();
+
     ze_device_properties_t deviceProperties = {};
     deviceProperties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
     THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetProperties",
                                 zeDeviceGetProperties(_zeroInitStruct->getDevice(), &deviceProperties));
     auto groupOrdinal = zeroUtils::findGroupOrdinal(_zeroInitStruct->getDevice(), deviceProperties);
 
+    bool turbo = false;
     if (config.has<TURBO>()) {
-        bool turbo = config.get<TURBO>();
-        _command_queue = std::make_shared<CommandQueue>(_zeroInitStruct->getDevice(),
-                                                        _zeroInitStruct->getContext(),
-                                                        zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
-                                                        _zeroInitStruct->getCommandQueueDdiTable(),
-                                                        turbo,
-                                                        groupOrdinal);
+        turbo = config.get<TURBO>();
     }
 
     _command_queue = std::make_shared<CommandQueue>(_zeroInitStruct->getDevice(),
                                                     _zeroInitStruct->getContext(),
                                                     zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
                                                     _zeroInitStruct->getCommandQueueDdiTable(),
-                                                    false,
+                                                    turbo,
                                                     groupOrdinal);
 
     if (config.has<WORKLOAD_TYPE>()) {
@@ -120,6 +122,17 @@ void DriverGraph::initialize(const Config& config) {
     _zeGraphExt->initializeGraph(_handle, config);
 
     _logger.debug("Graph initialize finish");
+
+    if (_blob.empty() || _zeroInitStruct->getGraphDdiTable().version() < ZE_GRAPH_EXT_VERSION_1_8) {
+        return;
+    }
+
+    _blob.clear();
+    _blob.shrink_to_fit();
+
+    _blobIsReleased = true;
+
+    _logger.debug("Blob is released");
 }
 
 DriverGraph::~DriverGraph() {

@@ -89,27 +89,25 @@ void PluginGraph::initialize(const Config& config) {
         }
     }
 
+    _input_descriptors.shrink_to_fit();
+    _output_descriptors.shrink_to_fit();
+
     ze_device_properties_t deviceProperties = {};
     deviceProperties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
     THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetProperties",
                                 zeDeviceGetProperties(_zeroInitStruct->getDevice(), &deviceProperties));
     auto groupOrdinal = zeroUtils::findGroupOrdinal(_zeroInitStruct->getDevice(), deviceProperties);
 
+    bool turbo = false;
     if (config.has<TURBO>()) {
-        bool turbo = config.get<TURBO>();
-        _command_queue = std::make_shared<CommandQueue>(_zeroInitStruct->getDevice(),
-                                                        _zeroInitStruct->getContext(),
-                                                        zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
-                                                        _zeroInitStruct->getCommandQueueDdiTable(),
-                                                        turbo,
-                                                        groupOrdinal);
+        turbo = config.get<TURBO>();
     }
 
     _command_queue = std::make_shared<CommandQueue>(_zeroInitStruct->getDevice(),
                                                     _zeroInitStruct->getContext(),
                                                     zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
                                                     _zeroInitStruct->getCommandQueueDdiTable(),
-                                                    false,
+                                                    turbo,
                                                     groupOrdinal);
 
     if (config.has<WORKLOAD_TYPE>()) {

@@ -393,13 +393,17 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
     if (foundPort.is_input()) {
         if (get_user_input(foundPort.idx)._ptr == tensor._ptr) {
             // Got set_tensor with the same object - do nothing
+            _logger.debug("ZeroInferRequest::set_tensor - got the same tensor, do nothing");
             return;
         }
         if (is_batched_input(foundPort.idx)) {
             // resize vector size to 1 if set_tensor is called after set_tensors
             get_input_tensors_data(foundPort.idx).resize(1);
+            get_input_tensors_data(foundPort.idx).shrink_to_fit();
             get_level_zero_inputs(foundPort.idx).resize(1);
+            get_level_zero_inputs(foundPort.idx).shrink_to_fit();
             get_user_inputs(foundPort.idx).resize(1);
+            get_user_inputs(foundPort.idx).shrink_to_fit();
         }
 
         get_user_input(foundPort.idx) = tensor;

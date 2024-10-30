@@ -39,6 +39,10 @@ private:
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
 
     Logger _logger;
+
+    // In the case of the import path, the blob is released after graph initialization so it can not be any longer
+    // exported
+    bool _blobIsReleased = false;
 };
 
 }  // namespace intel_npu
