@@ -1124,40 +1124,37 @@ void MersenneTwisterGenerator<isa>::convertToOutputTypeMersenne() {
         pextrq(r64_result_low_double, v_result, 0);
         pextrq(r64_range_double, v_range, 0);
 
-        // Extract the most significant bit (MSB) using bitshift
+        // Extract the most significant bit (MSB)
         const auto v_msb_high_double = getVmm();
         const auto v_msb_low_double = getVmm();
+        const auto r64_aux = getReg64();
+        const auto v_result_aux = getVmm();
 
+        mov(r64_aux, 8000000080000000); // Bitmask to check for leading 1
+
+        movq(v_result_aux, r64_aux);
         movq(v_msb_high_double, r64_result_high_double);
         movq(v_msb_low_double, r64_result_low_double);
 
+        and_(v_msb_high_double, v_result_aux);
         psrld(v_msb_high_double, 31);
+
+        and_(v_msb_low_double, v_result_aux);
         psrld(v_msb_low_double, 31);
 
-        // Remove most significant digit from result by bitshift
-        // One left (removes msb), one right (shifts back, sets 0 at the front)
-        const auto v_result_aux = getVmm(); // For transfers and later reused to store multiplier
-
-        movq(v_result_aux, r64_result_high_double);
-        pslld(v_result_aux, 1);
-        psrld(v_result_aux, 1);
-        movq(r64_result_high_double, v_result_aux);
-
-        movq(v_result_aux, r64_result_low_double);
-        pslld(v_result_aux, 1);
-        psrld(v_result_aux, 1);
-        movq(r64_result_low_double, v_result_aux);
-
-        // Create a double value of 2^31 for the most significant digit instead of -1
-        const auto r64_multiplier_double = getReg64();
-
-        mov(r64_multiplier_double, 0x41E0000000000000); // 2^31 in IEEE 754 double format
-        movq(v_result_aux, r64_multiplier_double); // v_result_aux reused to store multiplier
-        pshufd(v_result_aux, v_result_aux, 0x11);
+        // Remove most significant digit from result
+        mov(r64_aux, 0x7FFFFFFF7FFFFFFF);
+        and_(r64_result_high_double, r64_aux);
+        and_(r64_result_low_double, r64_aux);
 
         // Convert most significant digit to double (either 0 or 1)
         cvtdq2pd(v_msb_high_double, v_msb_high_double);
         cvtdq2pd(v_msb_low_double, v_msb_low_double);
+
+        // Create a double value of 2^31 for the most significant digit instead of -1
+        mov(r64_aux, 0x41E0000000000000); // 2^31 in IEEE 754 double format
+        movq(v_result_aux, r64_aux); // v_result_aux reused to store multiplier
+        pshufd(v_result_aux, v_result_aux, 0x11);
 
         // Multiply (0/1) * 2^31
         mulpd(v_msb_high_double, v_result_aux);

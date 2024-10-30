@@ -358,14 +358,17 @@ void RandomUniform::prepareMersenneTwisterParams() {
         auto approx_start = thread_offset * static_cast<float>(ithr);
         auto approx_end = thread_offset * (static_cast<float>(ithr + 1));
 
-        auto state_start = static_cast<uint64_t>(std::floor(approx_start)) * static_cast<uint64_t>(m_uint_storage_capacity_per_thread);
-        auto state_end = static_cast<uint64_t>(std::floor(approx_end)) * static_cast<uint64_t>(m_uint_storage_capacity_per_thread);
+        auto state_start = static_cast<uint64_t>(std::floor(approx_start * static_cast<float>(m_uint_storage_capacity_per_thread)));
+        auto state_end = static_cast<uint64_t>(std::floor(approx_end * static_cast<float>(m_uint_storage_capacity_per_thread)));
 
-        if (ithr + 1 == m_threads_num) {
+        // Rounding failsafes
+        if (ithr == 0) {
+            state_start = 0;
+        } else if (ithr + 1 == m_threads_num) {
             state_end = MERSENNE_STATE_N;
         }
 
-        auto state_accesses = (state_end - state_start) / m_uint_storage_capacity_per_thread;
+        auto state_accesses = std::ceil(static_cast<float>(state_end - state_start) / static_cast<float>(m_uint_storage_capacity_per_thread));
 
         // Destination index is computed in bytes, therefore the state index
         // has to be divided by the byte size of dtype.
