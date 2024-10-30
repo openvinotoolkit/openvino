@@ -175,6 +175,14 @@ uint64_t ZeroDevice::getTotalMemSize() const {
         // we are safe here, can return the value directly from driver
         return query.total;
     }
+#if defined(_WIN32) || defined(__CYGWIN__)
+    // Special case for windows drivers with graph_extension v 1.8
+    if (_initStructs->isExtensionSupported(std::string("ZE_extension_graph_1_8"), ZE_MAKE_VERSION(1, 8))) {
+        // query here returns total system memory in KB, which we need to
+        // divide by 2 (OS limitation) and convert to bytes
+        return (query.total << 9);
+    }
+#endif
 
     // Default for older drivers: return 2GB
     return LEGACY_MAX_MEM_ALLOC_SIZE_BYTES;
