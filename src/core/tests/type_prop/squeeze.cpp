@@ -430,12 +430,12 @@ TEST_P(SqueezeShapeTests, shape_dimension_propagation_const_axis_i64) {
     {
         const auto squeeze = std::make_shared<op::v0::Squeeze>(param, axes_node);
         EXPECT_EQ(squeeze->get_element_type(), element::f64);
-        EXPECT_EQ(squeeze->get_output_partial_shape(0), exp_shape);
+        EXPECT_EQ(squeeze->get_output_partial_shape(0), exp_shape.to_shape());
     }
     {
         const auto squeeze = std::make_shared<op::v15::Squeeze>(param, axes_node);
         EXPECT_EQ(squeeze->get_element_type(), element::f64);
-        EXPECT_EQ(squeeze->get_output_partial_shape(0), exp_shape);
+        EXPECT_EQ(squeeze->get_output_partial_shape(0), exp_shape.to_shape());
     }
 }
 
