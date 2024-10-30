@@ -326,7 +326,7 @@ def stft(
     :return: The new node performing STFT operation.
     """
     inputs = as_nodes(data, window, frame_size, frame_step, name=name)
-    return _get_node_factory_opset15().create("STFT", inputs)
+    return _get_node_factory_opset15().create("STFT", inputs, {"transpose_frames": transpose_frames})
 
 
 @nameable_op
