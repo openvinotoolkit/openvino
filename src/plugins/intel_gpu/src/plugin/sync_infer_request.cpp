@@ -595,10 +595,9 @@ void SyncInferRequest::allocate_input(const ov::Output<const ov::Node>& port, si
     if (element_type == ov::element::string) {
         // In case the element type is string and input data is an empty string,
         // it produces the segmentation fault unless the each element of tensor.data is initialized.
-        // So it needs to initialize tensor.data with '\0'.
         std::string* data = m_user_inputs.at(input_idx).ptr->data<std::string>();
         for (size_t i = 0; i < m_user_inputs.at(input_idx).ptr->get_size(); ++i) {
-            data[i] = '\0';
+            data->get_allocator().construct(data + i, std::string());
         }
     }
     ov::ISyncInferRequest::set_tensor(port, m_user_inputs.at(input_idx).ptr);
