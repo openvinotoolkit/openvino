@@ -324,7 +324,7 @@ void RandomUniform::preparePhiloxParams() {
 }
 
 void RandomUniform::prepareMersenneTwisterParams() {
-    m_threads_num = parallel_get_max_threads();
+    m_threads_num = 1; //parallel_get_max_threads();
 
     if (m_jit_kernel) {
 #if defined(OPENVINO_ARCH_X86_64)

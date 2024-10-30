@@ -1142,14 +1142,14 @@ void MersenneTwisterGenerator<isa>::convertToOutputTypeMersenne() {
         and_(v_msb_low_double, v_result_aux);
         psrld(v_msb_low_double, 31);
 
+        // Convert most significant digit to double (either 0 or 1)
+        cvtdq2pd(v_msb_high_double, v_msb_high_double);
+        cvtdq2pd(v_msb_low_double, v_msb_low_double);
+
         // Remove most significant digit from result
         mov(r64_aux, 0x7FFFFFFF7FFFFFFF);
         and_(r64_result_high_double, r64_aux);
         and_(r64_result_low_double, r64_aux);
-
-        // Convert most significant digit to double (either 0 or 1)
-        cvtdq2pd(v_msb_high_double, v_msb_high_double);
-        cvtdq2pd(v_msb_low_double, v_msb_low_double);
 
         // Create a double value of 2^31 for the most significant digit instead of -1
         mov(r64_aux, 0x41E0000000000000); // 2^31 in IEEE 754 double format
