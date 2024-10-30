@@ -215,7 +215,7 @@ Operation Specifications
    Sin-1 <operation-specs/arithmetic/sin-1>
    Sinh-1 <operation-specs/arithmetic/sinh-1>
    Slice-8 <operation-specs/movement/slice-8>
-   SliceScatter <operation-specs/movement/slice-scatter-15>
+   SliceScatter-15 <operation-specs/movement/slice-scatter-15>
    SoftMax-1 <operation-specs/activation/softmax-1>
    SoftMax-8 <operation-specs/activation/softmax-8>
    SoftPlus-4 <operation-specs/activation/softplus-4>
