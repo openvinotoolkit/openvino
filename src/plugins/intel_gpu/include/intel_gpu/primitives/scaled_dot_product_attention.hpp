@@ -116,6 +116,7 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
     void save(BinaryOutputBuffer& ob) const override {
         primitive_base<scaled_dot_product_attention>::save(ob);
         ob << is_causal;
+        ob << is_kv_compressed;
         ob << has_attn_mask_input;
         ob << has_scale_input;
         ob << indirect_axis;
@@ -123,7 +124,6 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
         ob << input_k_transpose_order;
         ob << input_v_transpose_order;
         ob << output_transpose_order;
-        ob << is_kv_compressed;
         ob << make_data(&quantization_attributes.quantization_type, sizeof(quantization_attributes.quantization_type));
         ob << make_data(&quantization_attributes.quantization_dt, sizeof(quantization_attributes.quantization_dt));
         ob << make_data(&quantization_attributes.scale_dt, sizeof(quantization_attributes.scale_dt));
