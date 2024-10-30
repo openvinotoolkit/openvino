@@ -1013,7 +1013,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                     SLM_WEIGHT_UNPACKED_VEC dzp = (SLM_WEIGHT_UNPACKED_VEC)(DECOMPRESSION_ZP_VALUE);
                     dq_wei_unpacked -= dzp;
                 #elif DECOMPRESSION_ZP_GROUPS_NUM > 1
-                    FILTER_TYPE* w = (FILTER_TYPE*)(&dq_wei_unpacked);
+                    SLM_WEIGHT_TYPE* w = (SLM_WEIGHT_TYPE*)(&dq_wei_unpacked);
                     const uint ni_offset = ni * TILE_IFM * SIMD + local_id * FILTER_LOAD_ITERS * FILTER_LOAD_BLOCK_SIZE;
                     unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
                         const uint offset_ofm = out_f + fi*SIMD + sglid;
@@ -1021,11 +1021,11 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                             const uint offset_ifm = ni_offset + load_iter * FILTER_LOAD_BLOCK_SIZE + kii;
                             const uint zp_offset = (offset_ofm % DECOMPRESSION_ZP_BATCH_NUM) * DECOMPRESSION_ZP_BATCH_PITCH +
                                                     (offset_ifm / DECOMPRESSION_ZP_GROUP_SIZE) * DECOMPRESSION_ZP_FEATURE_PITCH;
-                            w[W_DYN_QUAN_IDX] = w[W_DYN_QUAN_IDX] - decompression_zp[zp_offset];
+                            w[W_DYN_QUAN_IDX] = w[W_DYN_QUAN_IDX] - CAT(CAT(convert_, SLM_WEIGHT_TYPE),_rte)(decompression_zp[zp_offset]);
                         }
                     }
                 #else
-                    DQ_TYPE* w = (DQ_TYPE*)(&dq_wei_unpacked);
+                    SLM_WEIGHT_TYPE* w = (SLM_WEIGHT_TYPE*)(&dq_wei_unpacked);
                     unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
                         unroll_for(uint kii = 0; kii < FILTER_LOAD_BLOCK_SIZE; ++kii) {
                             w[W_DYN_QUAN_IDX] = w[W_DYN_QUAN_IDX] - d_zps[fi % DECOMPRESSION_ZP_LENGTH];
