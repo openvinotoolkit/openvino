@@ -4,13 +4,14 @@
 
 #pragma once
 
-#include "base/ov_behavior_test_utils.hpp"
-#include "common/utils.hpp"
-#include "npu_private_properties.hpp"
-
 #include <gtest/gtest.h>
+
 #include <openvino/runtime/device_id_parser.hpp>
 #include <string>
+
+#include "base/ov_behavior_test_utils.hpp"
+#include "common/utils.hpp"
+#include "intel_npu/npu_private_properties.hpp"
 
 using namespace ov::test::behavior;
 
@@ -77,7 +78,7 @@ namespace InferRequestParamsMapTestName {
 typedef std::tuple<std::string,                        // Device name
                    std::map<std::string, std::string>  // Config
                    >
-        InferRequestParams;
+    InferRequestParams;
 std::string getTestCaseName(testing::TestParamInfo<InferRequestParams> obj);
 
 }  // namespace InferRequestParamsMapTestName

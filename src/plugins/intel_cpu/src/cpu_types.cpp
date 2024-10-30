@@ -183,6 +183,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"IDFT", Type::DFT},
         {"RDFT", Type::RDFT},
         {"IRDFT", Type::RDFT},
+        {"STFT", Type::STFT},
         {"Abs", Type::Math},
         {"Acos", Type::Math},
         {"Acosh", Type::Math},
@@ -255,7 +256,9 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"EmbeddingBagOffsets", Type::EmbeddingBagOffsets},
         {"LLMMLP", Type::LLMMLP},
         {"QKVProjection", Type::QKVProjection},
-        {"RMS", Type::RMS}
+        {"RMS", Type::RMS},
+        {"SearchSorted", Type::SearchSorted},
+        {"LoraSubgraph", Type::LoRA}
     };
     return type_to_name_tbl;
 }
@@ -342,6 +345,7 @@ std::string NameFromType(const Type type) {
         CASE(ShuffleChannels);
         CASE(DFT);
         CASE(RDFT);
+        CASE(STFT);
         CASE(Math);
         CASE(CTCLoss);
         CASE(Bucketize);
@@ -386,6 +390,8 @@ std::string NameFromType(const Type type) {
         CASE(LLMMLP);
         CASE(QKVProjection);
         CASE(RMS);
+        CASE(SearchSorted);
+        CASE(LoRA);
         CASE(Unknown);
     }
 #undef CASE

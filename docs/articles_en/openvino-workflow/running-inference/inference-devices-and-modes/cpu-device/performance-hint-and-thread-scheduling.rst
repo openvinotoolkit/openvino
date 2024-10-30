@@ -187,3 +187,23 @@ are executed in parallel.
 
 For details on multi-stream execution check the
 :doc:`optimization guide <../../optimize-inference/optimizing-throughput/advanced_throughput_options>`.
+
+.. _Composability_of_different_threading_runtimes:
+
+Composability of different threading runtimes
+#############################################
+
+OpenVINO is by default built with the `oneTBB <https://github.com/oneapi-src/oneTBB/>`__ threading library,
+oneTBB has a feature `worker_wait`, similar to `OpenMP <https://www.openmp.org/>`__ `busy-wait <https://gcc.gnu.org/onlinedocs/libgomp/GOMP_005fSPINCOUNT.html>`__, which makes OpenVINO inference
+threads wait actively for a while after a task done. The intention is to avoid CPU inactivity in the
+transition time between inference tasks. 
+
+In the pipeline that runs OpenVINO inferences on the CPU along with other sequential application logic, using different threading runtimes (e.g., OpenVINO inferences use oneTBB,
+while other application logic uses OpenMP) will cause both to occupy CPU cores for additional time after the task done, leading to overhead. 
+
+Recommended solutions:
+
+- The most effective way is to use oneTBB for all computations made in the pipeline.
+- Rebuild OpenVINO with OpenMP if other application logic uses OpenMP.
+- Limit the number of threads for OpenVINO and other parts and let OS do the scheduling.
+- If other application logic uses OpenMP, set the environment variable `OMP_WAIT_POLICY <https://gcc.gnu.org/onlinedocs/libgomp/OMP_005fWAIT_005fPOLICY.html>`__ to `PASSIVE` to disable OpenMP `busy-wait <https://gcc.gnu.org/onlinedocs/libgomp/GOMP_005fSPINCOUNT.html>`__.

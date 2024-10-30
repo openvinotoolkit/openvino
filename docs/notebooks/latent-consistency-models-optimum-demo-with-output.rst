@@ -134,10 +134,10 @@ https://huggingface.co/docs/diffusers/en/api/pipelines/latent_consistency_models
 
 .. parsed-literal::
 
-    2024-10-08 02:50:26.200628: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-10-08 02:50:26.234856: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-10-23 01:44:02.155955: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-10-23 01:44:02.191160: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-10-08 02:50:26.890470: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-10-23 01:44:02.863862: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 
@@ -231,7 +231,6 @@ and there is no need to do it manually
 
 .. parsed-literal::
 
-    Framework not specified. Using pt to export the model.
     Keyword arguments {'subfolder': '', 'trust_remote_code': False} are not expected by LatentConsistencyModelPipeline and will be ignored.
 
 
@@ -243,20 +242,13 @@ and there is no need to do it manually
 
 .. parsed-literal::
 
-    Using framework PyTorch: 2.2.2+cpu
-
-
-.. parsed-literal::
-
     WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
 
 
 .. parsed-literal::
 
     [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
-    Using framework PyTorch: 2.2.2+cpu
-    Using framework PyTorch: 2.2.2+cpu
-    Using framework PyTorch: 2.2.2+cpu
+    You have disabled the safety checker for <class 'optimum.intel.openvino.modeling_diffusion.OVLatentConsistencyModelPipeline'> by passing `safety_checker=None`. Ensure that you abide to the conditions of the Stable Diffusion license and do not expose unfiltered results in services or applications open to the public. Both the diffusers team and Hugging Face strongly recommend to keep the safety filter enabled in all public facing circumstances, disabling it only for use-cases that involve analyzing network behavior or auditing its results. For more information, please have a look at https://github.com/huggingface/diffusers/pull/254 .
 
 
 
@@ -265,43 +257,40 @@ and there is no need to do it manually
 
     OVLatentConsistencyModelPipeline {
       "_class_name": "OVLatentConsistencyModelPipeline",
-      "_diffusers_version": "0.30.3",
+      "_diffusers_version": "0.31.0",
+      "_name_or_path": "/tmp/tmpz3tx8cvr",
       "feature_extractor": [
         "transformers",
         "CLIPImageProcessor"
       ],
+      "image_encoder": [
+        null,
+        null
+      ],
       "requires_safety_checker": true,
       "safety_checker": [
-        "stable_diffusion",
-        "StableDiffusionSafetyChecker"
+        null,
+        null
       ],
       "scheduler": [
         "diffusers",
         "LCMScheduler"
       ],
       "text_encoder": [
-        "optimum",
+        "optimum.intel.openvino.modeling_diffusion",
         "OVModelTextEncoder"
-      ],
-      "text_encoder_2": [
-        null,
-        null
       ],
       "tokenizer": [
         "transformers",
         "CLIPTokenizer"
       ],
       "unet": [
-        "optimum",
+        "optimum.intel.openvino.modeling_diffusion",
         "OVModelUnet"
       ],
-      "vae_decoder": [
-        "optimum",
-        "OVModelVaeDecoder"
-      ],
-      "vae_encoder": [
-        "optimum",
-        "OVModelVaeEncoder"
+      "vae": [
+        "optimum.intel.openvino.modeling_diffusion",
+        "OVModelVae"
       ]
     }
 
@@ -311,15 +300,6 @@ and there is no need to do it manually
 
     ov_pipeline.to(device.value)
     ov_pipeline.compile()
-
-
-.. parsed-literal::
-
-    Compiling the vae_decoder to AUTO ...
-    Compiling the unet to AUTO ...
-    Compiling the vae_encoder to AUTO ...
-    Compiling the text_encoder to AUTO ...
-
 
 .. code:: ipython3
 

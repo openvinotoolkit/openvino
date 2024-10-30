@@ -28,7 +28,7 @@ jobs:
       target_branch: ${{ steps.set_target_branch.outputs.target_branch }}
     steps:
       - name: checkout action
-        uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           sparse-checkout: .github/actions/smart-ci
 
@@ -59,6 +59,17 @@ jobs:
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       build-type: 'Release'
       target-branch: ${{ needs.smart_ci.outputs.target_branch }}
+      cmake-options: |-
+            -G "Ninja Multi-Config" `
+            -DENABLE_PYTHON=ON `
+            -DENABLE_CPPLINT=OFF `
+            -DBUILD_SHARED_LIBS=ON `
+            -DENABLE_TESTS=ON `
+            -DCMAKE_COMPILE_WARNING_AS_ERROR=ON `
+            -DENABLE_STRICT_DEPENDENCIES=OFF `
+            -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON `
+            -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" `
+            -DOPENVINO_EXTRA_MODULES="${env:OPENVINO_CONTRIB_REPO }}/modules/custom_operations;${env:OPENVINO_CONTRIB_REPO}/modules/java_api"
 
   Samples:
     needs: [ Build, Smart_CI ]
@@ -98,7 +109,7 @@ jobs:
         working-directory: ${{ env.INSTALL_DIR }}
 
       - name: Fetch setup_python action
-        uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
@@ -165,7 +176,7 @@ jobs:
 
     steps:
       - name: Fetch OpenVINO JS sources
-        uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           sparse-checkout: |
             src/bindings/js
@@ -178,7 +189,7 @@ jobs:
           path: ${{ env.OPENVINO_JS_LIBS_DIR }}
 
       - name: Setup Node ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@0a44ba7841725637a19e28fa30b79a866c81b0a6 # v4.0.4
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -224,6 +235,7 @@ jobs:
       runner: 'aks-win-4-cores-8gb'
       shell: pwsh
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      python-version: '3.11'
     if: fromJSON(needs.smart_ci.outputs.affected_components).TOKENIZERS
 
   Python_Unit_Tests:
@@ -263,7 +275,7 @@ jobs:
         working-directory: ${{ env.INSTALL_DIR }}
 
       - name: Fetch setup_python action
-        uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
@@ -424,6 +436,8 @@ jobs:
       runner: 'aks-win-4-cores-8gb'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       os: 'windows_2019'
+      build-type: 'Release'
+      timeout-minutes: 50
 
   CPU_Functional_Tests:
     name: CPU functional tests
@@ -463,7 +477,7 @@ jobs:
           popd
 
       - name: Fetch setup_python action
-        uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
@@ -481,7 +495,7 @@ jobs:
         run: python3 -m pip install -r ${{ github.workspace }}\install\tests\functional_test_utils\layer_tests_summary\requirements.txt
 
       - name: Restore tests execution time
-        uses: actions/cache/restore@3624ceb22c1c5a301c8db4169662070a689d9ea8 # v4.1.1
+        uses: actions/cache/restore@6849a6489940f00c2f30c0fb92c6274307ccb58a # v4.1.2
         with:
           path: ${{ env.PARALLEL_TEST_CACHE }}
           key: ${{ runner.os }}-tests-functional-cpu-stamp-${{ github.sha }}
@@ -495,7 +509,7 @@ jobs:
         timeout-minutes: 60
 
       - name: Save tests execution time
-        uses: actions/cache/save@3624ceb22c1c5a301c8db4169662070a689d9ea8 # v4.1.1
+        uses: actions/cache/save@6849a6489940f00c2f30c0fb92c6274307ccb58a # v4.1.2
         if: github.ref_name == 'master'
         with:
           path: ${{ env.PARALLEL_TEST_CACHE }}
