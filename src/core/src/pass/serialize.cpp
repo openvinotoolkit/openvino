@@ -105,15 +105,15 @@ public:
         new_size = size;
 
         if (!m_enable_compression) {
-            // printf("FilePosition::write NOT m_enable_compression\n");
-            if (!compress_to_fp16) {
-                m_binary_output.write(ptr, size);
-            } else {
-                // printf("FilePosition::write compress_to_fp16\n");
-                OPENVINO_ASSERT(size % src_type.size() == 0);
-                auto fp16_buffer = compress_data_to_fp16(ptr, size, src_type, new_size);
-                m_binary_output.write(fp16_buffer.get(), new_size);
-            }
+            printf("FilePosition::write NOT m_enable_compression\n");
+            // if (!compress_to_fp16) {
+            //     m_binary_output.write(ptr, size);
+            // } else {
+            //     // printf("FilePosition::write compress_to_fp16\n");
+            //     OPENVINO_ASSERT(size % src_type.size() == 0);
+            //     auto fp16_buffer = compress_data_to_fp16(ptr, size, src_type, new_size);
+            //     m_binary_output.write(fp16_buffer.get(), new_size);
+            // }
             return offset;
         } else {
             // printf("FilePosition::write m_enable_compression\n");
