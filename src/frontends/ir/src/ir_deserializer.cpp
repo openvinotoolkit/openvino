@@ -9,6 +9,7 @@
 
 #include "openvino/core/except.hpp"
 #include "openvino/core/meta_data.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/loop.hpp"
@@ -944,6 +945,13 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
         if (aw_data) {
             rtInfo["alt_width"] = aw_data.value();
         }
+        const auto size = dn.attribute("size");
+        const auto offset = dn.attribute("offset");
+        if (size && offset) {
+            rtInfo[ov::WeightlessCacheAttribute::get_type_info_static()] =
+                ov::WeightlessCacheAttribute(static_cast<size_t>(pugixml::get_uint64_attr(dn, "size")),
+                                             static_cast<size_t>(pugixml::get_uint64_attr(dn, "offset")));
+        }
     }
 
     ovNode->set_friendly_name(params.name);
@@ -960,16 +968,9 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
             std::string attribute_name, attribute_version;
             // For view:
             // <attribute name="old_api_map_order" version="0" value="0,3,1,2"/>
-            if (!getStrAttribute(item, "name", attribute_name)) {
-                std::stringstream ss;
-                item.print(ss);
-                OPENVINO_THROW("rt_info attribute has no \"name\" field: ", ss.str());
-            }
-            if (!getStrAttribute(item, "version", attribute_version)) {
-                std::stringstream ss;
-                item.print(ss);
-                OPENVINO_THROW("rt_info attribute: ", attribute_name, " has no \"version\" field: ", ss.str());
-            }
+            if (!getStrAttribute(item, "name", attribute_name) || !getStrAttribute(item, "version", attribute_version))
+                continue;
+
             const auto& type_info = ov::DiscreteTypeInfo(attribute_name.c_str(), attribute_version.c_str());
             auto attr = attrs_factory.create_by_type_info(type_info);
             if (!attr.empty()) {

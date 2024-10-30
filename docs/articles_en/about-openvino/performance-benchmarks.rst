@@ -16,14 +16,12 @@ Performance Benchmarks
    Getting Performance Numbers <performance-benchmarks/getting-performance-numbers>
 
 
-This page presents benchmark results for
+This page presents benchmark results for the
 `Intel® Distribution of OpenVINO™ toolkit <https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit.html>`__
-and :doc:`OpenVINO Model Server <../ovms_what_is_openvino_model_server>`, for a representative
+and :doc:`OpenVINO Model Server <../openvino-workflow/model-server/ovms_what_is_openvino_model_server>`, for a representative
 selection of public neural networks and Intel® devices. The results may help you decide which
 hardware to use in your applications or plan AI workload for the hardware you have already
 implemented in your solutions. Click the buttons below to see the chosen benchmark data.
-For a more detailed view of performance numbers for generative AI models, check the
-:doc:`Generative AI Benchmark Results <./performance-benchmarks/generative-ai-performance>`
 
 .. grid:: 1 1 2 2
    :gutter: 4
@@ -36,7 +34,7 @@ For a more detailed view of performance numbers for generative AI models, check 
          :outline:
          :expand:
 
-         :material-regular:`bar_chart;1.4em` OpenVINO Benchmark Graphs
+         :material-regular:`bar_chart;1.4em` OpenVINO Benchmark Graphs (general)
 
    .. grid-item::
 
@@ -46,10 +44,35 @@ For a more detailed view of performance numbers for generative AI models, check 
          :outline:
          :expand:
 
-         :material-regular:`bar_chart;1.4em` OVMS Benchmark Graphs
+         :material-regular:`bar_chart;1.4em` OVMS Benchmark Graphs (general)
+
+   .. grid-item::
+
+      .. button-link:: ./performance-benchmarks/generative-ai-performance.html
+         :class: ov-toolkit-benchmark-genai
+         :color: primary
+         :outline:
+         :expand:
+
+         :material-regular:`table_view;1.4em` LLM performance for AI PC
+
+   .. grid-item::
+
+      .. button-link:: #
+         :class: ovms-toolkit-benchmark-llm
+         :color: primary
+         :outline:
+         :expand:
+
+         :material-regular:`bar_chart;1.4em` OVMS for GenAI (coming soon)
 
 
-Key performance indicators and workload parameters.
+
+
+
+
+
+**Key performance indicators and workload parameters**
 
 .. tab-set::
 
@@ -65,13 +88,13 @@ Key performance indicators and workload parameters.
    .. tab-item:: Latency
       :sync: latency
 
-      For Vision and NLP models this mhis measures the synchronous execution of inference requests and is reported in
-      milliseconds. Each inference request (for example: preprocess, infer, postprocess) is
-      allowed to complete before the next is started. This performance metric is relevant in
-      usage scenarios where a single image input needs to be acted upon as soon as possible. An
-      example would be the healthcare sector where medical personnel only request analysis of a
-      single ultra sound scanning image or in real-time or near real-time applications for
-      example an industrial robot's response to actions in its environment or obstacle avoidance
+      For Vision and NLP models this measures the synchronous execution of inference requests and
+      is reported in milliseconds. Each inference request (for example: preprocess, infer,
+      postprocess) is allowed to complete before the next one starts. This performance metric is
+      relevant in usage scenarios where a single image input needs to be acted upon as soon as
+      possible. An example would be the healthcare sector where medical personnel only request
+      analysis of a single ultra sound scanning image or in real-time or near real-time applications
+      such as an industrial robot's response to actions in its environment or obstacle avoidance
       for autonomous vehicles.
       For Transformer models like Stable-Diffusion this measures the time it takes to convert the prompt
       or input text into a finished image. It is presented in seconds.
@@ -97,9 +120,10 @@ Key performance indicators and workload parameters.
       * input token length: 1024 (the tokens for GenAI models are in English).
 
 
-.. raw:: html
+**Platforms, Configurations, Methodology**
 
-   <h2>Platforms, Configurations, Methodology</h2>
+To see the methodology used to obtain the numbers and learn how to test performance yourself,
+see the guide on :doc:`getting performance numbers <performance-benchmarks/getting-performance-numbers>`.
 
 For a listing of all platforms and configurations used for testing, refer to the following:
 
@@ -130,59 +154,10 @@ For a listing of all platforms and configurations used for testing, refer to the
          :material-regular:`download;1.5em` Click for Performance Data [XLSX]
 
 
-The OpenVINO benchmark setup includes a single system with OpenVINO™, as well as the benchmark
-application installed. It measures the time spent on actual inference (excluding any pre or post
-processing) and then reports on the inferences per second (or Frames Per Second).
-
-OpenVINO™ Model Server (OVMS) employs the Intel® Distribution of OpenVINO™ toolkit runtime
-libraries and exposes a set of models via a convenient inference API over gRPC or HTTP/REST.
-Its benchmark results are measured with the configuration of multiple-clients-single-server,
-using two hardware platforms connected by ethernet. Network bandwidth depends on both platforms
-and models used. It is set not to be a bottleneck for workload intensity. The connection is
-dedicated only to measuring performance.
-
-.. dropdown:: See more details about OVMS benchmark setup
-
-   The benchmark setup for OVMS consists of four main parts:
-
-   .. image:: ../assets/images/performance_benchmarks_ovms_02.png
-      :alt: OVMS Benchmark Setup Diagram
-
-   * **OpenVINO™ Model Server** is launched as a docker container on the server platform and it
-     listens to (and answers) requests from clients. OpenVINO™ Model Server is run on the same
-     system as the OpenVINO™ toolkit benchmark application in corresponding benchmarking. Models
-     served by OpenVINO™ Model Server are located in a local file system mounted into the docker
-     container. The OpenVINO™ Model Server instance communicates with other components via ports
-     over a dedicated docker network.
-
-   * **Clients** are run in separated physical machine referred to as client platform. Clients
-     are implemented in Python3 programming language based on TensorFlow* API and they work as
-     parallel processes. Each client waits for a response from OpenVINO™ Model Server before it
-     will send a new next request. The role played by the clients is also verification of
-     responses.
-
-   * **Load balancer** works on the client platform in a docker container. HAProxy is used for
-     this purpose. Its main role is counting of requests forwarded from clients to OpenVINO™
-     Model Server, estimating its latency, and sharing this information by Prometheus service.
-     The reason of locating the load balancer on the client site is to simulate real life
-     scenario that includes impact of physical network on reported metrics.
-
-   * **Execution Controller** is launched on the client platform. It is responsible for
-     synchronization of the whole measurement process, downloading metrics from the load
-     balancer, and presenting the final report of the execution.
 
 
 
-.. raw:: html
-
-   <h2>Test performance yourself</h2>
-
-You can also test performance for your system yourself, following the guide on
-:doc:`getting performance numbers <performance-benchmarks/getting-performance-numbers>`.
-
-.. raw:: html
-
-   <h2>Disclaimers</h2>
+**Disclaimers**
 
 * Intel® Distribution of OpenVINO™ toolkit performance results are based on release
   2024.3, as of July 31, 2024.
@@ -192,17 +167,13 @@ You can also test performance for your system yourself, following the guide on
 
 The results may not reflect all publicly available updates. Intel technologies' features and
 benefits depend on system configuration and may require enabled hardware, software, or service
-activation. Learn more at intel.com, or from the OEM or retailer.
+activation. Learn more at intel.com, the OEM, or retailer.
 
 See configuration disclosure for details. No product can be absolutely secure.
 Performance varies by use, configuration and other factors. Learn more at
 `www.intel.com/PerformanceIndex <https://www.intel.com/PerformanceIndex>`__.
-Your costs and results may vary.
 Intel optimizations, for Intel compilers or other products, may not optimize to the same degree
 for non-Intel products.
-
-
-
 
 
 

@@ -6,7 +6,7 @@
 
 #include <vector>
 
-#include "intel_npu/al/config/common.hpp"
+#include "intel_npu/config/common.hpp"
 #include "zero_device.hpp"
 
 namespace intel_npu {
@@ -30,11 +30,15 @@ uint32_t ZeroEngineBackend::getGraphExtVersion() const {
 }
 
 bool ZeroEngineBackend::isBatchingSupported() const {
-    return _instance->getGraphDdiTable().version() >= ZE_GRAPH_EXT_VERSION_1_6;
+    return _instance->isExtensionSupported("ZE_extension_graph_1_6", ZE_MAKE_VERSION(1, 6));
 }
 
 bool ZeroEngineBackend::isCommandQueueExtSupported() const {
-    return _instance->getCommandQueueDdiTable().version() >= ZE_COMMAND_QUEUE_NPU_EXT_VERSION_1_0;
+    return _instance->isExtensionSupported(std::string(ZE_COMMAND_QUEUE_NPU_EXT_NAME), ZE_MAKE_VERSION(1, 0));
+}
+
+bool ZeroEngineBackend::isLUIDExtSupported() const {
+    return _instance->isExtensionSupported(std::string(ZE_DEVICE_LUID_EXT_NAME), ZE_MAKE_VERSION(1, 0));
 }
 
 ZeroEngineBackend::~ZeroEngineBackend() = default;

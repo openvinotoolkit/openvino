@@ -549,6 +549,7 @@ int get_model_prefer_threads(const int num_streams,
             break;
         case dnnl::cpu_isa::avx512_core_vnni:
         case dnnl::cpu_isa::avx2_vnni:
+        case dnnl::cpu_isa::avx2_vnni_2:
             isaSpecificThreshold = 2.0f;
             break;
         case dnnl::cpu_isa::avx512_core_amx:
