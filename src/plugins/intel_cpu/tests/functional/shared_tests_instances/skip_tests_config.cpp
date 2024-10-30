@@ -635,10 +635,5 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(smoke_Conv_Sum_Broadcast_FP16/ConvSumInPlaceTest.*Relu\.Multiply\(PerChannel\)\.Add\(PerChannel\).*)");
     }
 
-    if (!ov::with_cpu_x86_avx2()) {
-        // Issue: 156357
-        retVector.emplace_back(R"((smoke|nightly).*RandomUniform.*)");
-    }
-
     return retVector;
 }

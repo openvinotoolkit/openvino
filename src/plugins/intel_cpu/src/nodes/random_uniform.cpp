@@ -325,11 +325,14 @@ void RandomUniform::preparePhiloxParams() {
 
 void RandomUniform::prepareMersenneTwisterParams() {
     m_threads_num = parallel_get_max_threads();
+    std::cerr << "HXCZ max " << m_threads_num << std::endl;
+
 
     if (m_jit_kernel) {
 #if defined(OPENVINO_ARCH_X86_64)
         // m_jit_kernel->getVectorLen() either 64, 32 or 16 for Zmm, Ymm, Xmm respectively
         m_uint_storage_capacity_per_thread = m_jit_kernel->getVectorLen() / sizeof(uint32_t);
+        std::cerr << "HXCZ vec " << m_jit_kernel->getVectorLen() << std::endl;
         const auto maximum_jit_threads = MERSENNE_STATE_N / m_uint_storage_capacity_per_thread;
         m_threads_num = std::max(std::min(m_threads_num, maximum_jit_threads), 1);
 #endif // OPENVINO_ARCH_X86_64
@@ -339,6 +342,8 @@ void RandomUniform::prepareMersenneTwisterParams() {
         const auto maximum_threads = MERSENNE_STATE_N / m_uint_storage_capacity_per_thread;
         m_threads_num = std::max(std::min(m_threads_num, maximum_threads), 1);
     }
+
+    std::cerr << "HXCZ thr " << m_threads_num << std::endl;
 
     m_mersenne_twister_thread_params.resize(m_threads_num);
     m_mersenne_twister_optimization_enabled = !(m_output_prc == element::i64 &&
@@ -379,6 +384,11 @@ void RandomUniform::prepareMersenneTwisterParams() {
         params.dst_start_idx = destination_start;
         params.state_accesses_count = state_accesses;
     });
+
+    for(int32_t i = 0; i < m_threads_num; ++i) {
+        auto& params = m_mersenne_twister_thread_params[i];
+        std::cerr << "HXCZ par src " << params.src_start_idx << " dst " << params.dst_start_idx << " sa " << params.state_accesses_count << std::endl;
+    }
 }
 
 void RandomUniform::prepareGeneratorKernel() {
@@ -405,10 +415,13 @@ void RandomUniform::prepareGeneratorKernel() {
             using namespace dnnl::impl::cpu;
             if (m_jit_kernel->getIsa() == x64::avx512_core) {
                 selected_pd->setImplementationType(jit_avx512);
+                std::cerr << "HXCZ jit_avx512" << std::endl;
             } else if (m_jit_kernel->getIsa() == x64::avx2) {
                 selected_pd->setImplementationType(jit_avx2);
+                std::cerr << "HXCZ jit_avx2" << std::endl;
             } else if (m_jit_kernel->getIsa() == x64::sse41) {
                 selected_pd->setImplementationType(jit_sse42);
+                std::cerr << "HXCZ jit_sse42" << std::endl;
             }
         }
     }
