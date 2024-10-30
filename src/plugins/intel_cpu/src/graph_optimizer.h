@@ -52,6 +52,7 @@ private:
     void RemoveMemoryInputConvert(Graph &graph);
     void RemoveConvertMemoryOutput(Graph &graph);
     void MatchSdpaKvCache(Graph &graph);
+    void DropRedundantMemoryOutput(Graph &graph);
 
     bool canBeInplaced(const NodePtr& parentNode, const NodePtr& childNode);
     // Method checks that after the sequential execution of Transpose and Reorder nodes,

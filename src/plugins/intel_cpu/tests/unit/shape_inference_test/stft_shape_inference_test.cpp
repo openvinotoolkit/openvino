@@ -17,6 +17,26 @@ using testing::HasSubstr;
 
 class STFTShapeInferenceTest : public OpStaticShapeInferenceTest<op::v15::STFT> {};
 
+TEST_F(STFTShapeInferenceTest, all_input_as_params_1D_signal) {
+    const auto data_type = element::f32;
+    const auto step_size_type = element::i32;
+    const auto in_signal = std::make_shared<Parameter>(data_type, ov::PartialShape{-1});
+    const auto in_window = std::make_shared<Parameter>(data_type, ov::PartialShape{-1});
+    const auto in_frame_size = std::make_shared<Parameter>(step_size_type, ov::Shape{});
+    const auto in_frame_step = std::make_shared<Parameter>(step_size_type, ov::Shape{});
+    const auto op = make_op(in_signal, in_window, in_frame_size, in_frame_step, true);
+
+    std::vector<StaticShape> static_input_shapes = {StaticShape{48}, StaticShape{16}, StaticShape{}, StaticShape{}};
+    int32_t frame_size = 16;
+    int32_t frame_step = 16;
+
+    auto const_data = std::unordered_map<size_t, Tensor>{{2, {element::i32, Shape{}, &frame_size}},
+                                                         {3, {element::i32, Shape{}, &frame_step}}};
+    auto acc = make_tensor_accessor(const_data);
+    auto static_output_shapes = shape_infer(op.get(), static_input_shapes, acc);
+    ASSERT_EQ(static_output_shapes[0], StaticShape({9, 3, 2}));
+}
+
 TEST_F(STFTShapeInferenceTest, all_input_as_params) {
     const auto data_type = element::f32;
     const auto step_size_type = element::i32;

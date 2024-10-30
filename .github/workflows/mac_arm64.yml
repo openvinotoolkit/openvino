@@ -258,6 +258,7 @@ jobs:
       runner: 'macos-13-xlarge'
       shell: bash
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      python-version: '3.11'
     if: fromJSON(needs.smart_ci.outputs.affected_components).TOKENIZERS
 
   CXX_Unit_Tests:
