@@ -1351,7 +1351,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_quickgelu) {
     test_case.add_expected_output<float>(Shape{2, 5}, output);
 
     if (std::string("${BACKEND_NAME}") == std::string("IE_GPU")) {
-        test_case.run_with_tolerance_as_fp(1e-4);
+        test_case.run_with_tolerance_as_fp(0.0001f);
     } else {
         test_case.run();
     }
