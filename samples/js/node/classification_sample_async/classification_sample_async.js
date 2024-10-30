@@ -2,6 +2,7 @@ const { addon: ov } = require('openvino-node');
 
 const args = require('args');
 const Image = require('../image.js');
+const imagenetClassesMap = require('../../assets/datasets/imagenet_class_index.json');
 
 args.options([
   {
@@ -23,22 +24,6 @@ const {
 
 main(modelPath, imgPaths, deviceName);
 
-function completionCallback(result, imagePath) {
-  const predictions = Array.from(result.data)
-    .map((prediction, classId) => ({ prediction, classId }))
-    .sort(({ prediction: predictionA }, { prediction: predictionB }) =>
-      predictionA === predictionB ? 0 : predictionA > predictionB ? -1 : 1);
-
-  console.log(`Image path: ${imagePath}`);
-  console.log('Top 10 results:');
-  console.log('class_id probability');
-  console.log('--------------------');
-  predictions.slice(0, 10).forEach(({ classId, prediction }) =>
-    console.log(`${classId}\t ${prediction.toFixed(7)}`),
-  );
-  console.log();
-}
-
 async function main(modelPath, imgPaths, deviceName) {
   //----------- Step 1. Initialize OpenVINO Runtime Core -----------------------
   console.log('Creating OpenVINO Runtime Core');
@@ -56,15 +41,15 @@ async function main(modelPath, imgPaths, deviceName) {
     throw new Error('Sample supports only single output topologies');
 
   //----------- Step 3. Set up input -------------------------------------------
-  const inputTensors = [];
-  const [_, w, h] = model.inputs[0].getShape();
+  const inputImages = [];
+  const [, inputHeight, inputWidth] = model.inputs[0].getShape();
 
   // Read input image, resize it to the model's input size and convert it to a tensor.
   for (const path of imgPaths) {
     const img = await Image.load(path);
-    const resized = img.resize(w, h);
+    const resized = img.resize(inputWidth, inputHeight);
 
-    inputTensors.push(resized.toTensor());
+    inputImages.push(resized);
   }
 
   //----------- Step 4. Apply preprocessing ------------------------------------
@@ -74,29 +59,42 @@ async function main(modelPath, imgPaths, deviceName) {
   _ppp.output().tensor().setElementType(ov.element.f32);
   _ppp.build();
 
-  //----------------- Step 5. Loading model to the device ----------------------
+  //----------- Step 5. Loading model to the device ----------------------------
   console.log('Loading the model to the plugin');
   const compiledModel = await core.compileModel(model, deviceName);
   const outputName = compiledModel.output(0).toString();
 
-  //----------- Step 6. Collecting promises to react when they resolve ---------
-  console.log('Starting inference in asynchronous mode');
+  //----------- Step 6. Do inference -------------------------------------------
+  console.log('Starting inference\n');
 
   // Create infer request
   const inferRequest = compiledModel.createInferRequest();
-  const promises = inputTensors.map((tensor, i) => {
-    const inferPromise = inferRequest.inferAsync([tensor]);
+  for (let idx in inputImages) {
+    const tensor = inputImages[idx].toTensor();
+    const result = await inferRequest.inferAsync([tensor]);
 
-    inferPromise.then(result =>
-      completionCallback(result[outputName], imgPaths[i]));
-
-    return inferPromise;
-  });
-
-  //----------- Step 7. Do inference -------------------------------------------
-  await Promise.all(promises);
+    completionCallback(result[outputName], imgPaths[idx]);
+  }
   console.log('All inferences executed');
 
   console.log('\nThis sample is an API example, for any performance '
     + 'measurements please use the dedicated benchmark_app tool');
+}
+
+function completionCallback(result, imagePath) {
+  const predictions = Array.from(result.data)
+    .map((prediction, classId) => ({ prediction, classId }))
+    .sort(({ prediction: predictionA }, { prediction: predictionB }) =>
+      predictionA === predictionB ? 0 : predictionA > predictionB ? -1 : 1);
+
+  const imagenetClasses = ['background', ...Object.values(imagenetClassesMap)];
+
+  console.log(`Image path: ${imagePath}`);
+  console.log('Top 5 results:\n');
+  console.log('id\tprobability\tlabel');
+  console.log('---------------------------------');
+  predictions.slice(0, 5).forEach(({ classId, prediction }) =>
+    console.log(`${classId}\t${prediction.toFixed(7)}\t${imagenetClasses[classId][1]}`),
+  );
+  console.log();
 }
