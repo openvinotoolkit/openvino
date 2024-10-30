@@ -18,6 +18,7 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "transformations/rt_info/disable_constant_folding.hpp"
 #include "utils/common.hpp"
 #include "utils/reshape.hpp"
 using namespace ov::op;
@@ -227,6 +228,7 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
         zp = inputs[2];
         if (zp.get_element_type() != scale.get_element_type()) {
             zp = std::make_shared<v1::ConvertLike>(zp, scale);
+            ov::pass::disable_constant_folding(zp.get_node_shared_ptr());
         }
         zp = std::make_shared<v0::Unsqueeze>(zp, unsqueezed_axes);
     }
@@ -241,7 +243,11 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
         src_x.get_shape()[0] % block_size == 0,
         "DequantizeLinear doesn't support case when first dimension of X cannot be divided by block_size");
 
-    const auto& x = src_x.get_element_type() == scale_type ? src_x : std::make_shared<v1::ConvertLike>(src_x, scale);
+    ov::Output<ov::Node> x = src_x;
+    if (src_x.get_element_type() != scale_type) {
+        x = std::make_shared<v1::ConvertLike>(src_x, scale);
+        ov::pass::disable_constant_folding(x.get_node_shared_ptr());
+    }
     // For further broadcasting scales and zp - reshape input to a shape [x.shape[0]/block_size, block_size, x.shape[1]]
     ov::Output<ov::Node> broadcastable_x =
         op::util::reshape(x, Shape{static_cast<size_t>(x.get_shape()[0]) / block_size, block_size, x.get_shape()[1]});
