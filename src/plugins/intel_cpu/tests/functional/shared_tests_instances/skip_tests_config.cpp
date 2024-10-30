@@ -243,6 +243,10 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_LoopForCommon/LoopLayerCPUTest.CompareWithRefs/.*_netType=bf16.*)",
         R"(.*smoke_FuseScaleShiftAndFakeQuantize/FuseScaleShiftAndFakeQuantizeTest.CompareWithRefs/.*Scale=\[ 30 \]_Shift=\[ 17 \]_Intervals=\[ -1 \],\[ 5 \],\[ -5 \],\[ 1 \].*)",
         R"(.*smoke_QuantizedConvolutionBatchNorm.*/QuantizedConvolutionBatchNorm.CompareWithRefs/conv_type=convolution_quantize.*)",
+        R"(.*smoke_Param/RandomUniformLayerTestCPU.CompareWithRefs/IS=\{3\}_OS=\[4,3,210\]_Min=-50_Max=0_ShapePrc=.*_OutPrc=f32_GlobalSeed=8_OperationalSeed=(0|3).*)",
+        R"(.*smoke_Param/RandomUniformLayerTestCPU.CompareWithRefs/IS=\{3\}_OS=\[4,3,210\]_Min=-50_Max=50_ShapePrc=.*_OutPrc=f32_GlobalSeed=8_OperationalSeed=(5|3|0).*)",
+        R"(.*smoke_Param/RandomUniformLayerTestCPU.CompareWithRefs/IS=\{3\}_OS=\[4,3,210\]_Min=-50_Max=50_ShapePrc=.*_OutPrc=f32_GlobalSeed=0_OperationalSeed=5.*)",
+        R"(.*smoke_Param/RandomUniformLayerTestCPU.CompareWithRefs/IS=\{1\}_OS=\[500\]_Min=-50_Max=50_ShapePrc=.*_OutPrc=f32_GlobalSeed=0_OperationalSeed=5.*)",
         R"(.*smoke.*/RNNCellCPUTest.CompareWithRefs.*activations=.*relu.*INFERENCE_PRECISION_HINT=bf16.*)",
         R"(.*smoke_InterpolateBicubicPillow_Layout_Test/InterpolateLayerCPUTest.CompareWithRefs/ShapeCalcMode=sizes_IS=\[\?.2..20.\?.\?\]_TS=\(1.17.4.4\)_\(2.3.10.12\)_\(1.17.4.4\)_Sizes=\(4.4\)_\(10.20\)_\(10.4\)_PARAMETER.*P.*.1.1.*.*)",
         R"(.*smoke_InterpolateBicubicPillow_Layout_Test/InterpolateLayerCPUTest.CompareWithRefs/ShapeCalcMode=scales_IS=\[\?.2..20.\?.\?\]_TS=\(1.11.4.4\)_\(2.7.6.5\)_\(1.11.4.4\)_Scales=\(1.25.0.75\)_CONSTANT_.*PB=\(0.0.0.0\)_PE=\(0.0.1.1\).*)",
@@ -354,7 +358,8 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_VariableState/OVInferRequestVariableStateTest.*)");
     // Issue: 141705
     retVector.emplace_back(R"(.*smoke_arm_Deconv_2D_Planar_FP16/DeconvolutionLayerCPUTest.*INFERENCE_PRECISION_HINT=f16.*)");
-    retVector.emplace_back(R"(.*ConcatMultiQuerySDPTest.*u8.*)");
+    // Issue: 154882
+    retVector.emplace_back(R"(.*ConcatMultiQuerySDPTest.*f16.*)");
 #endif
 
 #if defined(OPENVINO_ARCH_ARM)
@@ -534,7 +539,6 @@ std::vector<std::string> disabledTestPatterns() {
         // Skip fp16 tests for paltforms that don't support fp16 precision
         retVector.emplace_back(R"(.*INFERENCE_PRECISION_HINT=(F|f)16.*)");
         retVector.emplace_back(R"(.*Prc=f16.*)");
-        retVector.emplace_back(R"(.*ConcatMultiQuerySDPTest.*f16.*HasShapeOf=1.*)");
     } else {
         // Issue 117407
         retVector.emplace_back(
