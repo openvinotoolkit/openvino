@@ -44,11 +44,21 @@ class OvImage {
     return grayData;
   }
 
-  drawRect(x, y, width, height, properties) {
+  get canvasCtx() {
     const canvas = createCanvas(this.width, this.height);
     const ctx = canvas.getContext('2d');
 
     ctx.putImageData(this.imageData, 0, 0);
+
+    return ctx;
+  }
+
+  get buffer() {
+    return this.canvasCtx.canvas.toBuffer('image/jpeg');
+  }
+
+  drawRect(x, y, width, height, properties) {
+    const ctx = this.canvasCtx;
 
     ctx.strokeStyle = properties.color || 'red';
     ctx.lineWidth = properties.width || 1;
@@ -60,10 +70,7 @@ class OvImage {
   }
 
   drawText(text, x, y, properties) {
-    const canvas = createCanvas(this.width, this.height);
-    const ctx = canvas.getContext('2d');
-
-    ctx.putImageData(this.imageData, 0, 0);
+    const ctx = this.canvasCtx;
 
     ctx.font = properties.font || '30px Arial';
     ctx.fillStyle = properties.color || 'red';
@@ -75,10 +82,7 @@ class OvImage {
   }
 
   drawCircle(x, y, radius, properties) {
-    const canvas = createCanvas(this.width, this.height);
-    const ctx = canvas.getContext('2d');
-
-    ctx.putImageData(this.imageData, 0, 0);
+    const ctx = this.canvasCtx;
 
     ctx.strokeStyle = properties.color || 'red';
     ctx.lineWidth = properties.width || 1;
@@ -92,10 +96,7 @@ class OvImage {
   }
 
   drawLine(x1, y1, x2, y2, properties) {
-    const canvas = createCanvas(this.width, this.height);
-    const ctx = canvas.getContext('2d');
-
-    ctx.putImageData(this.imageData, 0, 0);
+    const ctx = this.canvasCtx;
 
     ctx.strokeStyle = properties.color || 'red';
     ctx.lineWidth = properties.width || 1;
@@ -118,14 +119,11 @@ class OvImage {
   }
 
   resize(newWidth, newHeight) {
-    const canvas = createCanvas(this.width, this.height);
-    const ctx = canvas.getContext('2d');
-
-    ctx.putImageData(this.imageData, 0, 0);
+    const ctx = this.canvasCtx;
 
     const canvas2 = createCanvas(newWidth, newHeight);
     const ctx2 = canvas2.getContext('2d');
-    ctx2.drawImage(canvas, 0, 0, newWidth, newHeight);
+    ctx2.drawImage(ctx.canvas, 0, 0, newWidth, newHeight);
 
     const imageData = ctx2.getImageData(0, 0, newWidth, newHeight);
 
@@ -144,15 +142,10 @@ class OvImage {
   }
 
   crop(x, y, width, height) {
-    const canvas = createCanvas(this.width, this.height);
-    const ctx = canvas.getContext('2d');
-
-    ctx.putImageData(this.imageData, 0, 0);
-
     const canvas2 = createCanvas(width, height);
     const ctx2 = canvas2.getContext('2d');
 
-    ctx2.drawImage(canvas, x, y, width, height, 0, 0, width, height);
+    ctx2.drawImage(this.canvasCtx.canvas, x, y, width, height, 0, 0, width, height);
 
     const imageData = ctx2.getImageData(0, 0, width, height);
 
@@ -160,12 +153,6 @@ class OvImage {
   }
 
   async save(filepath) {
-    const canvas = createCanvas(this.width, this.height);
-    const ctx = canvas.getContext('2d');
-
-    ctx.putImageData(this.imageData, 0, 0);
-
-    const buffer = canvas.toBuffer('image/jpeg');
     const destination = path.dirname(filepath);
 
     try {
@@ -176,19 +163,12 @@ class OvImage {
       await fs.mkdir(destination, { recursive: true });
     }
 
-    return await fs.writeFile(filepath, buffer);
+    return await fs.writeFile(filepath, this.buffer);
   }
 
   // Display the image using the node notebook display object
   display(display) {
-    const canvas = createCanvas(this.width, this.height);
-    const ctx = canvas.getContext('2d');
-
-    ctx.putImageData(this.imageData, 0, 0);
-
-    const buffer = canvas.toBuffer('image/jpeg');
-
-    display.image(buffer);
+    display.image(this.buffer);
   }
 
   static async load(path) {
