@@ -4,7 +4,10 @@
 
 const { addon: ov } = require('../..');
 const assert = require('assert');
-const { describe, it, before, beforeEach } = require('node:test');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const { after, describe, it, before, beforeEach } = require('node:test');
 const {
   testModels,
   compareModels,
@@ -12,7 +15,6 @@ const {
   isModelAvailable,
 } = require('./utils.js');
 const epsilon = 0.5;
-const outDir = 'tests/unit/out/';
 
 describe('ov basic tests.', () => {
   let testXml = null;
@@ -20,8 +22,16 @@ describe('ov basic tests.', () => {
   let model = null;
   let compiledModel = null;
   let modelLike = null;
+  let outDir = null;
 
   before(async () => {
+    fs.mkdtemp(path.join(os.tmpdir(), 'ov_js_out_'), (err, directory) => {
+      if (err) {
+        throw err;
+      }
+      outDir = directory;
+    });
+
     await isModelAvailable(testModels.testModelFP32);
     testXml = getModelPath().xml;
   });
@@ -33,6 +43,10 @@ describe('ov basic tests.', () => {
     modelLike = [model, compiledModel];
   });
 
+  after(() => {
+    fs.rmSync(outDir, { recursive: true });
+  });
+
   it('Core.getAvailableDevices()', () => {
     const devices = core.getAvailableDevices();
 
@@ -41,7 +55,7 @@ describe('ov basic tests.', () => {
 
   describe('ov.saveModelSync()', () => {
     it('saveModelSync(model, path, compressToFp16=true)', () => {
-      const xmlPath = `${outDir}${model.getName()}_fp16.xml`;
+      const xmlPath = path.join(outDir, `${model.getName()}_fp16.xml`);
       assert.doesNotThrow(() => ov.saveModelSync(model, xmlPath, true));
 
       const savedModel = core.readModelSync(xmlPath);
@@ -49,14 +63,14 @@ describe('ov basic tests.', () => {
     });
 
     it('saveModelSync(model, path, compressToFp16)', () => {
-      const xmlPath = `${outDir}${model.getName()}_fp32.xml`;
+      const xmlPath = path.join(outDir, `${model.getName()}_fp32.xml`);
       assert.doesNotThrow(() => ov.saveModelSync(model, xmlPath));
 
       const savedModel = core.readModelSync(xmlPath);
       assert.doesNotThrow(() => compareModels(model, savedModel));
     });
     it('saveModelSync(model, path, compressToFp16=false)', () => {
-      const xmlPath = `${outDir}${model.getName()}_fp32.xml`;
+      const xmlPath = path.join(outDir, `${model.getName()}_fp32.xml`);
       assert.doesNotThrow(() => ov.saveModelSync(model, xmlPath, false));
 
       const savedModel = core.readModelSync(xmlPath);
