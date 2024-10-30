@@ -321,7 +321,7 @@ if(ENABLE_PYTHON_PACKAGING)
     add_custom_command(OUTPUT ${openvino_meta_info_file}
         COMMAND ${CMAKE_COMMAND} -E remove_directory
             "${ov_python_package_prefix}"
-            COMMAND ${setup_py_env}
+        COMMAND ${setup_py_env}
                 # variables to reflect options (extensions only or full wheel package)
                 PYTHON_EXTENSIONS_ONLY=ON
                 SKIP_RPATH=ON
