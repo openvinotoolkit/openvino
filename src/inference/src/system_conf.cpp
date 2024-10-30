@@ -238,6 +238,10 @@ int get_number_of_blocked_cores() {
     return 0;
 }
 
+int get_number_of_soc_ecores() {
+    return 0;
+}
+
 int get_current_socket_id() {
     return 0;
 }
