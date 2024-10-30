@@ -412,15 +412,14 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!element) return;
     
             if (version) {
-                element.innerHTML = element.innerHTML.replace('search.html', `/${version}/search.html#cf-ovversion=${version}`);
+                element.innerHTML = element.innerHTML.replace('search.html', `/${version}/search.html#f-ovversion=${version}`);
             }
     
-            const organizationEndpoints = await element.getOrganizationEndpoints('intelcorporationproductione78n25s6');
-    
+            // preProd = "intelcorporationnonproduction2ybdyblf7"
+            // prod = "intelcorporationproductione78n25s6"
             await element.initialize({
                 accessToken: "xx1f2aebd3-4307-4632-aeea-17c13378b237",
-                organizationId: "intelcorporationproductione78n25s6",
-                organizationEndpoints: organizationEndpoints
+                organizationId: "intelcorporationproductione78n25s6"
             });
     
             element.executeFirstSearch();

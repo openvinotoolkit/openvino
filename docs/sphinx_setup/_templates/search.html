@@ -9,7 +9,7 @@
 
 {% block body %}
 <atomic-search-interface id="search" localization-compatibility-version="v4"
-  fields-to-include='["ovversion", "ovdoctype", "filetype", "date", "source", "author", "sourcetype", "language", "description"]'>
+fields-to-include='["ovversion", "ovdoctype", "ovversioncategory", "filetype", "date", "source", "author", "sourcetype", "language", "description"]'>
   <atomic-search-layout>
     <atomic-layout-section section="search">
       <atomic-search-box>
@@ -25,7 +25,14 @@
           <i class="fas fa-list"></i> List
         </button>
       </div>
-      <atomic-category-facet facet-id="ovversion" field="ovversion" label="Version" sort-criteria="alphanumeric"></atomic-category-facet>
+      <atomic-facet 
+        facet-id="ovversion" field="ovversion" label="Version">
+      </atomic-facet>
+      <!-- <atomic-category-facet 
+        field="ovversioncategory" label="Categories"
+        sort-criteria="occurrences"
+        delimiting-character="/">
+      </atomic-category-facet> -->
       <atomic-facet facet-id="ovdoctype" field="ovdoctype" label="Category" with-search="true"></atomic-facet>
     </atomic-layout-section>
     <atomic-layout-section section="main">
@@ -55,7 +62,6 @@
                 <atomic-field-condition must-match-is-recommendation="true">
                   <atomic-result-badge label="Recommended"></atomic-result-badge>
                 </atomic-field-condition>
-
                 <atomic-field-condition must-match-is-top-result="true">
                   <atomic-result-badge label="Top Result"></atomic-result-badge>
                 </atomic-field-condition>
