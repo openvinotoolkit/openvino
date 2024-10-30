@@ -1330,3 +1330,29 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_3x17) {
     }
     test_case.run();
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_quickgelu) {
+    const auto model = convert_model("com.microsoft/quick_gelu.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<float> input_X{1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+    const std::vector<float> output{0.7305524f,
+                                    1.7605114f,
+                                    2.8566725f,
+                                    3.9273243f,
+                                    4.9661055f,
+                                    5.984934f,
+                                    6.9935064f,
+                                    7.997261f,
+                                    8.998864f,
+                                    9.999535f};
+
+    test_case.add_input<float>(Shape{2, 5}, input_X);
+    test_case.add_expected_output<float>(Shape{2, 5}, output);
+
+    if (std::string("${BACKEND_NAME}") == std::string("IE_GPU")) {
+        test_case.run_with_tolerance_as_fp(0.0001f);
+    } else {
+        test_case.run();
+    }
+}
