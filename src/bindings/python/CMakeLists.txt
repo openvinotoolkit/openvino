@@ -325,7 +325,7 @@ if(ENABLE_PYTHON_PACKAGING)
             # variables to reflect options (extensions only or full wheel package)
             PYTHON_EXTENSIONS_ONLY=ON
             SKIP_RPATH=ON
-            "${Python3_EXECUTABLE}" -m build
+            "${Python3_EXECUTABLE}" -m build "${CMAKE_CURRENT_SOURCE_DIR}/wheel"
                 --wheel
                 --outdir "${CMAKE_CURRENT_BINARY_DIR}/dist"
         COMMAND "${Python3_EXECUTABLE}" -m pip install "${CMAKE_CURRENT_BINARY_DIR}/dist/*.whl"
