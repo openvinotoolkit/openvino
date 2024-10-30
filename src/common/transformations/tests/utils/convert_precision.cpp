@@ -15,6 +15,7 @@
 #include "openvino/core/model.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset15.hpp"
 #include "openvino/opsets/opset3.hpp"
 #include "openvino/opsets/opset4.hpp"
 #include "openvino/opsets/opset5.hpp"
@@ -963,6 +964,34 @@ TEST(TransformationTests, ConvertPrecision_Select) {
     ASSERT_TRUE(has_type<element::Type_t::u8>(f));
 }
 
+TEST(TransformationTests, ConvertPrecision_Select_Relaxed) {
+    std::shared_ptr<Model> f(nullptr);
+    {
+        auto input1 = std::make_shared<opset4::Parameter>(element::boolean, Shape{15, 20, 3});
+        auto node = std::make_shared<opset4::LogicalNot>(input1);
+        auto select = std::make_shared<opset4::Select>(node, input1, input1);
+
+        f = std::make_shared<Model>(OutputVector{select}, ParameterVector{input1});
+
+        // Explicitly setting the element type of a node to a different one to
+        // test the appearance of TypeRelaxed within Select
+        node->set_output_type(0, ov::element::u8, node->get_output_partial_shape(0));
+
+        pass::Manager manager;
+        manager.register_pass<pass::InitNodeInfo>();
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::u8, element::boolean}});
+        manager.run_passes(f);
+    }
+    OV_ASSERT_NO_THROW(check_rt_info(f));
+    ASSERT_FALSE(has_type<element::Type_t::u8>(f));
+    ASSERT_TRUE(has_type<element::Type_t::boolean>(f));
+    int counter = 0;
+    for (const auto& node : f->get_ordered_ops())
+        if (std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(node))
+            ++counter;
+    ASSERT_EQ(counter, 1);
+}
+
 TEST(TransformationTests, ConvertPrecision_TypeRelaxedWithSelect) {
     std::shared_ptr<Model> f(nullptr);
     {
@@ -1006,6 +1035,28 @@ TEST(TransformationTests, ConvertPrecision_TypeRelaxed) {
         ASSERT_FALSE(has_type<element::Type_t::i32>(f));
         ASSERT_TRUE(has_type<element::Type_t::i64>(f));
     }
+}
+
+TEST(TransformationTests, ConvertPrecision_SearchSorted) {
+    std::shared_ptr<Model> f(nullptr);
+    {
+        auto search_sorted_input = opset15::Constant::create(ov::element::i64, {5}, {1, 2, 3, 4, 5});
+        auto indices = std::make_shared<opset15::Parameter>(ov::element::i64, Shape{3});
+        auto search_sorted = std::make_shared<opset15::SearchSorted>(search_sorted_input, indices);
+
+        auto less_input = opset15::Constant::create(ov::element::i64, {3}, {4, 5, 6});
+        auto less = std::make_shared<opset15::Less>(search_sorted, less_input);
+
+        f = std::make_shared<Model>(OutputVector{less}, ParameterVector{indices});
+
+        pass::Manager manager;
+        manager.register_pass<pass::InitNodeInfo>();
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::i64, element::i32}});
+        manager.run_passes(f);
+    }
+    OV_ASSERT_NO_THROW(check_rt_info(f));
+    ASSERT_FALSE(has_type<element::Type_t::i64>(f));
+    ASSERT_TRUE(has_type<element::Type_t::i32>(f));
 }
 
 TEST(TransformationTests, ConvertPrecision_Variables) {
