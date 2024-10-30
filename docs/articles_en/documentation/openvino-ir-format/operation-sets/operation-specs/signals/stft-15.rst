@@ -31,25 +31,25 @@ Short Time Fourier Transformation for real-valued input (STFT)
 
 **Inputs**
 
-*   **1**: ``signal`` - Tensor of type *T* and 1D shape [signal_size] or 2D shape [batch, signal_size] with signal data for the STFT. **Required.**
-*   **2**: ``window`` - Tensor of type *T* and 1D shape [window_length], specifying the window values for the signal slice multiplication. **Required.**
-*   **3**: ``frame_size`` - Scalar tensor of type *T_INT* describing the size of a single frame of the signal to be provided as input to FFT. **Required.**
-*   **4**: ``frame_step`` - Scalar tensor of type *T_INT* describing The distance (number of samples) between successive frames. **Required.**
+* **1**: ``signal`` - Tensor of type *T* and 1D shape [signal_size] or 2D shape [batch, signal_size] with signal data for the STFT. **Required.**
+* **2**: ``window`` - Tensor of type *T* and 1D shape [window_length], specifying the window values for the signal slice multiplication. **Required.**
+* **3**: ``frame_size`` - Scalar tensor of type *T_INT* describing the size of a single frame of the signal to be provided as input to FFT. **Required.**
+* **4**: ``frame_step`` - Scalar tensor of type *T_INT* describing The distance (number of samples) between successive frames. **Required.**
 
 
 **Outputs**
 
-*   **1**: The result of STFT operation, tensor of the same type as input ``signal`` tensor and shape:
+* **1**: The result of STFT operation, tensor of the same type as input ``signal`` tensor and shape:
 
-    + When ``transpose_frames == false`` the output shape is ``[frames, fft_results, 2]`` for 1D signal input or [batch, frames, fft_results, 2] for 2D signal input.
-    + When ``transpose_frames == true`` the output shape is [fft_results, frames, 2] for 1D signal input or [batch, fft_results, frames, 2]`` for 2D signal input.
+  * When ``transpose_frames == false`` the output shape is ``[frames, fft_results, 2]`` for 1D signal input or ``[batch, frames, fft_results, 2]`` for 2D signal input.
+  * When ``transpose_frames == true`` the output shape is ``[fft_results, frames, 2]`` for 1D signal input or ``[batch, fft_results, frames, 2]`` for 2D signal input.
 
-    where:
+  where:
 
-    + ``batch`` is a batch size dimension
-    + ``frames`` is a number calculated as ``(signal_shape[-1] - frame_size) / frame_step) + 1``
-    + ``fft_results`` is a number calculated as ``(frame_size / 2) + 1``
-    + ``2`` is the last dimension is for complex value real and imaginary part
+  * ``batch`` is a batch size dimension
+  * ``frames`` is a number calculated as ``(signal_shape[-1] - frame_size) / frame_step) + 1``
+  * ``fft_results`` is a number calculated as ``(frame_size / 2) + 1``
+  * ``2`` is the last dimension is for complex value real and imaginary part
 
 
 **Types**
@@ -61,7 +61,7 @@ Short Time Fourier Transformation for real-valued input (STFT)
 
 **Examples**:
 
-*Example 1D signal, transpose_frames=false: *
+*Example 1D signal, transpose_frames=false:*
 
 .. code-block:: xml
    :force:
@@ -87,7 +87,7 @@ Short Time Fourier Transformation for real-valued input (STFT)
     </layer>
 
 
-*Example 1D signal, transpose_frames=true: *
+*Example 1D signal, transpose_frames=true:*
 
 .. code-block:: xml
    :force:
@@ -112,7 +112,7 @@ Short Time Fourier Transformation for real-valued input (STFT)
         </output>
     </layer>
 
-*Example 2D signal, transpose_frames=false: *
+*Example 2D signal, transpose_frames=false:*
 
 .. code-block:: xml
    :force:
@@ -140,7 +140,7 @@ Short Time Fourier Transformation for real-valued input (STFT)
     </layer>
 
 
-*Example 2D signal, transpose_frames=true: *
+*Example 2D signal, transpose_frames=true:*
 
 .. code-block:: xml
    :force:
