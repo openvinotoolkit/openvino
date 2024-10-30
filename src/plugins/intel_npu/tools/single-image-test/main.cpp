@@ -1958,7 +1958,7 @@ static int runSingleImageTest() {
 
             // Load the input data
             for (const auto& inputInfo : inputsInfo) {
-                const auto shape = inputInfo.get_partial_shape();
+                const auto& shape = inputInfo.get_partial_shape();
                 const auto dataShape = shape.is_static() ? shape.get_shape() : parseDataShape(FLAGS_data_shape);
                 const ov::element::Type& precision = inputInfo.get_element_type();
 

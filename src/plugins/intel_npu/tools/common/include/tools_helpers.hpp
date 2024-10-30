@@ -8,8 +8,6 @@
 #include <string>
 #include <vector>
 
-#include <gflags/gflags.h>
-
 #include "openvino/openvino.hpp"
 
 struct InputInfo {
@@ -172,7 +170,9 @@ void reshape(ov::OutputVector inputsInfo, InputsInfo& infoMap, std::shared_ptr<o
         }
         model->reshape(newShapes);
     } else {
-        if (device.find("NPU") != std::string::npos) {
+        if (device.find("NPU") != std::string::npos ||
+            // FIXME: SIT on CPU also requires to bound dynamic shapes
+            device.find("CPU") != std::string::npos || device.find("TEMPLATE") != std::string::npos) {
             boundDynamicShape(model);
         }
 
