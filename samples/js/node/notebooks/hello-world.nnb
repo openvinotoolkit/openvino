@@ -73,7 +73,7 @@
         {
             "language": "javascript",
             "source": [
-                "const inferRequest = compiledModel.createInferRequest();\nconst result = await inferRequest.inferAsync([tensor]);\n\nconst outputData = result[outputLayer].data;\nconst resultIndex = outputData.indexOf(Math.max(...outputData));\n"
+                "const inferRequest = compiledModel.createInferRequest();\nconst result = await inferRequest.inferAsync([tensor]);\n\nconst outputData = result[outputLayer].data;\nconst resultIndex = outputData.indexOf(Math.max(...outputData));\nconst prediction = outputData[resultIndex];\n"
             ],
             "outputs": []
         },
@@ -87,7 +87,7 @@
         {
             "language": "javascript",
             "source": [
-                "const imagenetClassesMap = require('../../assets/datasets/imagenet_class_index.json');\nconst imagenetClasses = ['background', ...Object.values(imagenetClassesMap)];\n\nconsole.log(`Result: ${imagenetClasses[resultIndex][1]}`);\n"
+                "const imagenetClassesMap = require('../../assets/datasets/imagenet_class_index.json');\nconst imagenetClasses = ['background', ...Object.values(imagenetClassesMap)];\n\nconsole.log('Result:\\n\\nid\\tprobability\\tlabel');\nconsole.log('---------------------------------');\nconsole.log(`${resultIndex}\\t${prediction.toFixed(7)}\\t${imagenetClasses[resultIndex][1]}`);\n"
             ],
             "outputs": []
         }

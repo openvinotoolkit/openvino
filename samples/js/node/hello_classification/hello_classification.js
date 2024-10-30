@@ -63,11 +63,11 @@ async function main(modelPath, imagePath, deviceName) {
   const imagenetClasses = ['background', ...Object.values(imagenetClassesMap)];
 
   console.log(`Image path: ${imagePath}`);
-  console.log('Top 10 results:');
-  console.log('probability\tlabel');
+  console.log('Top 10 results:\n');
+  console.log('id\tprobability\tlabel');
   console.log('---------------------------------');
   predictions.slice(0, 10).forEach(({ classId, prediction }) =>
-    console.log(`${prediction.toFixed(7)}\t${imagenetClasses[classId][1]}`),
+    console.log(`${classId}\t${prediction.toFixed(7)}\t${imagenetClasses[classId][1]}`),
   );
 
   console.log('\nThis sample is an API example, for any performance '
