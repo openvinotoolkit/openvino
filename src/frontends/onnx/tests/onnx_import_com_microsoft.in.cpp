@@ -1356,3 +1356,25 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_quickgelu) {
         test_case.run();
     }
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_skip_simplified_layer_normalization) {
+    const auto model = convert_model("com.microsoft/skip_simplified_layer_normalization.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    std::vector<float> input = {1.f,  2.f,  3.f,  4.f,  5.f,  6.f,  7.f,  8.f,  9.f,  10.f, 11.f, 12.f,
+                                13.f, 14.f, 15.f, 16.f, 17.f, 18.f, 19.f, 20.f, 21.f, 22.f, 23.f, 24.f};
+    std::vector<float> skip = {1.f,  2.f,  3.f,  4.f,  5.f,  6.f,  7.f,  8.f,  9.f,  10.f, 11.f, 12.f,
+                               13.f, 14.f, 15.f, 16.f, 17.f, 18.f, 19.f, 20.f, 21.f, 22.f, 23.f, 24.f};
+    std::vector<float> expected_output = {
+        0.0353291891515255f,  0.1317980140447617f,  0.3415765166282654f,  0.5857689380645752f,  0.07553060352802277f,
+        0.1764662563800812f,  0.3244849443435669f,  0.4868034422397614f,  0.08510704338550568f, 0.1860678195953369f,
+        0.3164101839065552f,  0.4556762874126434f,  0.08931596577167511f, 0.1901365667581558f,  0.3122786283493042f,
+        0.4408963620662689f,  0.09167447686195374f, 0.19237320125103f,    0.3097965121269226f,  0.4322993457317352f,
+        0.09318139404058456f, 0.1937852799892426f,  0.3081453144550323f,  0.4266831874847412f};
+
+    test_case.add_input<float>(Shape{3, 2, 4}, input);
+    test_case.add_input<float>(Shape{3, 2, 4}, skip);
+    test_case.add_expected_output<float>({3, 2, 4}, expected_output);
+
+    test_case.run();
+}
