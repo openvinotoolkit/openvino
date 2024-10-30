@@ -20,7 +20,7 @@ Squeeze
 
 .. note::
 
-    - If index of the dimension to squeeze is provided as a constant input and it points to a dynamic dimension that might be `1`, then the dimension is considered as squeezable. Therefore the rank of the output shape will be reduced, but not dynamic.
+    - If index of the dimension to squeeze is provided as a constant input and it points to a dynamic dimension that might be `1`, and the *allow_axis_skip* attribute is ``false``, then the dimension is considered as squeezable. Therefore the rank of the output shape will be reduced, but not dynamic. If dynamic rank is expected for such case, *allow_axis_skip* attribute need to be set to ``true``.
     - If the input with indices is empty or not provided, dynamic dimension compatible with `1` leads to dynamic rank of the output shape.
 
 
@@ -28,7 +28,7 @@ Squeeze
 
 * *allow_axis_skip*
 
-  * **Description**: Shape inference result dynamic rank if selected axis has value 1 in range of its dynamic.
+  * **Description**: If true, shape inference results in a dynamic rank if selected axis has value 1 in its dimension range.
   * **Range of values**: ``false`` or ``true``
   * **Type**: ``boolean``
   * **Required**: *no*
