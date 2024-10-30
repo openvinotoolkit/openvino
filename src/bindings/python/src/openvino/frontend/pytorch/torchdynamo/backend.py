@@ -49,6 +49,9 @@ logger.setLevel(logging.WARNING)
 
 openvino_options = {}
 
+# Disable regional compilation which was enabled by default from Torch 2.5.0
+if hasattr(torch._dynamo.config, "inline_inbuilt_nn_modules"):
+    torch._dynamo.config.inline_inbuilt_nn_modules=False
 
 @fake_tensor_unsupported
 def openvino(subgraph, example_inputs, options=None):
@@ -59,15 +62,8 @@ def openvino(subgraph, example_inputs, options=None):
         return aot_autograd(fw_compiler=fx_openvino, bw_compiler=fx_openvino, decompositions=get_decompositions(decompositions))(subgraph, example_inputs)
     return fx_openvino(subgraph, example_inputs, options)
 
-
-try:
-    from packaging import version
-
-    if version.parse(torch.__version__) < version.parse("2.5.0"):
-        register_backend(compiler_fn=openvino, name="openvino")
-except ImportError:
-    logger.warning("The 'packaging' module is required but not installed")
-
+if "openvino" not in torch.compiler.list_backends():
+    register_backend(compiler_fn=openvino, name="openvino")
 
 def fx_openvino(subgraph, example_inputs, options=None):
     try:

@@ -4,6 +4,8 @@
 
 #include "zero_init.hpp"
 
+#include <regex>
+
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
@@ -114,12 +116,48 @@ ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder",
     // Query our graph extension version
     std::string graph_ext_name;
     uint32_t graph_ext_version = 0;
+    uint32_t target_graph_ext_version = ZE_GRAPH_EXT_VERSION_CURRENT;
 
+#if defined(NPU_PLUGIN_DEVELOPER_BUILD)
+    const char* extVersion = std::getenv("NPU_ZE_GRAPH_EXT_VERSION");
+    if (extVersion) {
+        std::string extVersionString(extVersion);
+        std::regex extVersionRegex(R"(^(\d+)\.(\d+)$)");
+        std::smatch match;
+
+        if (std::regex_match(extVersionString, match, extVersionRegex)) {
+            int major = std::stoi(match[1].str());
+            int minor = std::stoi(match[2].str());
+            log.debug("Try to find graph ext version: %d.%d instead of %d.%d.",
+                      major,
+                      minor,
+                      ZE_MAJOR_VERSION(target_graph_ext_version),
+                      ZE_MINOR_VERSION(target_graph_ext_version));
+            target_graph_ext_version = ZE_MAKE_VERSION(major, minor);
+        }
+    }
+#endif
+
+    log.debug("Try to find graph ext version: %d.%d",
+              ZE_MAJOR_VERSION(target_graph_ext_version),
+              ZE_MINOR_VERSION(target_graph_ext_version));
     std::tie(graph_ext_version, graph_ext_name) =
-        queryDriverExtensionVersion(ZE_GRAPH_EXT_NAME, ZE_GRAPH_EXT_VERSION_CURRENT, extProps, count);
+        queryDriverExtensionVersion(ZE_GRAPH_EXT_NAME, target_graph_ext_version, extProps, count);
 
     if (graph_ext_name.empty()) {
         OPENVINO_THROW("queryGraphExtensionVersion: Failed to find Graph extension in NPU Driver");
+    }
+
+    // Use version that plugin can support as identifier to control workflow
+    if (graph_ext_version > target_graph_ext_version) {
+        log.warning("Graph extension version from driver is %d.%d. "
+                    "Larger than plugin max graph ext version %d.%d. "
+                    "Force to use plugin ext version with the new table to control flow!",
+                    ZE_MAJOR_VERSION(graph_ext_version),
+                    ZE_MINOR_VERSION(graph_ext_version),
+                    ZE_MAJOR_VERSION(target_graph_ext_version),
+                    ZE_MINOR_VERSION(target_graph_ext_version));
+        graph_ext_version = target_graph_ext_version;
     }
 
     const uint16_t supported_driver_ext_major_version = 1;
@@ -166,7 +204,7 @@ ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder",
                                                                       command_queue_ext_version);
 
     // Load our graph extension
-    ze_graph_dditable_ext_last_t* graph_ddi_table_ext = nullptr;
+    ze_graph_dditable_ext_t* graph_ddi_table_ext = nullptr;
     THROW_ON_FAIL_FOR_LEVELZERO("zeDriverGetExtensionFunctionAddress",
                                 zeDriverGetExtensionFunctionAddress(driver_handle,
                                                                     graph_ext_name.c_str(),
