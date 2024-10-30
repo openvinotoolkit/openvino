@@ -75,7 +75,7 @@ struct Config {
     uint32_t hintNumRequests = 0;
     bool enableCpuPinning = true;
     bool changedCpuPinning = false;
-    ov::hint::SchedulingCoreType schedulingCoreType = ov::hint::SchedulingCoreType::ANY_CORE;
+    ov::hint::SchedulingCoreType schedulingCoreType = ov::hint::SchedulingCoreType::PCORE_ONLY;
     std::set<ov::hint::ModelDistributionPolicy> modelDistributionPolicy = {};
     int streamsRankLevel = 1;
     int numSubStreams = 0;
