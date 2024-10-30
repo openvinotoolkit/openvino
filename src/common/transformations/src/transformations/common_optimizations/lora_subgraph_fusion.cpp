@@ -9,8 +9,8 @@
 
 #include "itt.hpp"
 #include "openvino/op/add.hpp"
-#include "openvino/op/convolution.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/convolution.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
@@ -49,11 +49,14 @@ ov::pass::LoraSubgraphFusion::LoraSubgraphFusion() {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& lora_input = pattern_map.at(lora_input_m);
         const auto& matmul1 = pattern_map.at(matmul1_m);
-        const auto& state_1 = pattern_map.count(convert1_m) ? pattern_map.at(convert1_m) : pattern_map.at(read_value1_m);
+        const auto& state_1 =
+            pattern_map.count(convert1_m) ? pattern_map.at(convert1_m) : pattern_map.at(read_value1_m);
         const auto& multiply = pattern_map.at(multiply_m);
-        const auto& state_2 = pattern_map.count(convert2_m) ? pattern_map.at(convert2_m) : pattern_map.at(read_value2_m);
+        const auto& state_2 =
+            pattern_map.count(convert2_m) ? pattern_map.at(convert2_m) : pattern_map.at(read_value2_m);
         const auto& matmul2 = pattern_map.at(matmul2_m);
-        const auto& state_3 = pattern_map.count(convert3_m) ? pattern_map.at(convert3_m) : pattern_map.at(read_value3_m);
+        const auto& state_3 =
+            pattern_map.count(convert3_m) ? pattern_map.at(convert3_m) : pattern_map.at(read_value3_m);
         const auto& main_flow = pattern_map.at(main_flow_m);
         const auto& add = pattern_map.at(add_m);
 
