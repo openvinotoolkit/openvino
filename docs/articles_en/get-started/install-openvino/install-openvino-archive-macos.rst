@@ -16,11 +16,8 @@ Install OpenVINO™ Runtime on macOS from an Archive File
    * is dedicated to macOS users (archives for other systems are also available)
    * is only supported for CPU Plugin
 
-
-**System Requirements**
-
-Full requirement listing is available on:
-:doc:`System Requirements Page <../../../about-openvino/release-notes-openvino/system-requirements>`
+   Before installing OpenVINO, see the
+   :doc:`System Requirements page <../../../about-openvino/release-notes-openvino/system-requirements>`.
 
 
 Installing OpenVINO Runtime

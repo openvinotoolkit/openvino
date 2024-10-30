@@ -15,12 +15,8 @@ Install Intel® Distribution of OpenVINO™ Toolkit from npm Registry
      (all x86_64 / arm64 architectures)
    * macOS offers support only for CPU inference
 
-
-**System Requirements**
-
-Full requirement listing is available on:
-:doc:`System Requirements Page <../../../about-openvino/release-notes-openvino/system-requirements>`
-
+   Before installing OpenVINO, see the
+   :doc:`System Requirements page <../../../about-openvino/release-notes-openvino/system-requirements>`.
 
 Installing OpenVINO Node.js
 ###########################

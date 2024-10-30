@@ -15,38 +15,8 @@ Install OpenVINO™ Runtime on Windows from an Archive File
    * additionally includes code samples
    * is dedicated to Windows users (archives for other systems are also available)
 
-
-System Requirements
-####################
-
-.. tab-set::
-
-   .. tab-item:: System Requirements
-      :sync: system-requirements
-
-      | Full requirement listing is available on:
-      | :doc:`System Requirements Page <../../../about-openvino/release-notes-openvino/system-requirements>`
-
-   .. tab-item:: Processor Notes
-      :sync: processor-notes
-
-      | To see if your processor includes the integrated graphics technology and supports iGPU inference, refer to:
-      | `Product Specifications <https://ark.intel.com/>`__
-
-
-      .. note::
-
-         To install Microsoft Visual Studio, follow the `Microsoft Visual Studio installation guide <https://docs.microsoft.com/en-us/visualstudio/install/install-visual-studio?view=vs-2022>`__.
-         You can choose to download the Community version. During installation in the **Workloads** tab, choose **Desktop development with C++**.
-
-      .. note::
-
-         You can either use `cmake<version>.msi` which is the installation wizard or `cmake<version>.zip` where you have to go into the `bin` folder and then manually add the path to environmental variables.
-
-      .. important::
-
-         When installing Python, make sure you click the option **Add Python 3.x to PATH** to `add Python <https://docs.python.org/3/using/windows.html#installation-steps>`__ to your `PATH` environment variable.
-
+   Before installing OpenVINO, see the
+   :doc:`System Requirements page <../../../about-openvino/release-notes-openvino/system-requirements>`.
 
 
 Installing OpenVINO Runtime

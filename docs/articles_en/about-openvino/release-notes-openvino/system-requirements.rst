@@ -239,6 +239,19 @@ to learn more about the release types.
             * `CMake 3.14 or higher, 64-bit <https://cmake.org/download/>`__ (optional, only required for building sample applications)
             * `Python 3.9 - 3.12, 64-bit <https://www.python.org/downloads/windows/>`__
 
+            .. note::
+
+               To install Microsoft Visual Studio, follow the `Microsoft Visual Studio installation guide <https://docs.microsoft.com/en-us/visualstudio/install/install-visual-studio?view=vs-2022>`__.
+               You can choose to download the Community version. During installation in the **Workloads** tab, choose **Desktop development with C++**.
+
+            .. note::
+
+               You can either use `cmake<version>.msi` which is the installation wizard or `cmake<version>.zip` where you have to go into the `bin` folder and then manually add the path to environmental variables.
+
+            .. important::
+
+               When installing Python, make sure you click the option **Add Python 3.x to PATH** to `add Python <https://docs.python.org/3/using/windows.html#installation-steps>`__ to your `PATH` environment variable.
+
    .. tab-item:: APT
       :sync: apt-sysreq
 

@@ -15,21 +15,8 @@ Install OpenVINO™ Runtime on Linux From YUM Repository
    * is dedicated to Linux users only
    * additionally includes code samples
 
-
-.. tab-set::
-
-   .. tab-item:: System Requirements
-      :sync: system-requirements
-
-      | Full requirement listing is available in:
-      | :doc:`System Requirements Page <../../../about-openvino/release-notes-openvino/system-requirements>`
-
-   .. tab-item:: Processor Notes
-      :sync: processor-notes
-
-      | To see if your processor includes the integrated graphics technology and supports iGPU inference, refer to:
-      | `Product Specifications <https://ark.intel.com/>`__
-
+   Before installing OpenVINO, see the
+   :doc:`System Requirements page <../../../about-openvino/release-notes-openvino/system-requirements>`.
 
 Install OpenVINO Runtime
 ########################
