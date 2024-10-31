@@ -34,7 +34,7 @@
 #include "openvino/pass/serialize.hpp"
 
 namespace {
-class CheckWeightlessCacheAccuracy : public ::testing::Test {
+class CheckModelCache : public ::testing::Test {
 protected:
     std::shared_ptr<ov::Model> model;
     std::string xml_path;
@@ -43,25 +43,27 @@ protected:
 
     void SetUp() override;
     void TearDown() override;
-    void run();
+    void run(ov::CacheMode mode);
 };
 
-void CheckWeightlessCacheAccuracy::SetUp() {
+void CheckModelCache::SetUp() {
     std::string filePrefix = ov::test::utils::generateTestFilePrefix();
     xml_path = filePrefix + ".xml";
     bin_path = filePrefix + ".bin";
     cache_path = filePrefix + ".blob";
 }
 
-void CheckWeightlessCacheAccuracy::TearDown() {
+void CheckModelCache::TearDown() {
     std::remove(xml_path.c_str());
     std::remove(bin_path.c_str());
     std::remove(cache_path.c_str());
 }
 
-void CheckWeightlessCacheAccuracy::run() {
-    ov::AnyMap config = { ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE) };
-    ov::AnyMap config_with_weights_path = { ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE), ov::weights_path(bin_path) };
+void CheckModelCache::run(ov::CacheMode mode) {
+    ov::AnyMap config = { ov::cache_mode(mode) };
+    ov::AnyMap config_with_weights_path = { ov::cache_mode(mode) };
+    if (mode == ov::CacheMode::OPTIMIZE_SIZE)
+        config_with_weights_path.insert({ov::weights_path(bin_path)});
     auto core = ov::test::utils::PluginCache::get().core();
     ov::pass::Serialize(xml_path, bin_path).run_on_model(model);
 
@@ -96,21 +98,52 @@ void CheckWeightlessCacheAccuracy::run() {
         auto new_out = new_req.get_tensor(res);
         ov::test::utils::compare(orig_out, new_out);
     }
+
+    {
+        // for functionality check of non-weightless flow
+        ov::AnyMap config_without_weightless_cache = { ov::cache_mode(ov::CacheMode::OPTIMIZE_SPEED) };
+        ov::CompiledModel compiled_model;
+        OV_ASSERT_NO_THROW(compiled_model = core->compile_model(xml_path, ov::test::utils::DEVICE_GPU, config_without_weightless_cache));
+
+        auto ofstr = std::ofstream(cache_path, std::ofstream::binary);
+        OV_ASSERT_NO_THROW(compiled_model.export_model(ofstr));
+        ofstr.close();
+
+        auto ifstr = std::ifstream(cache_path, std::ifstream::binary);
+        ov::CompiledModel imported_model;
+        OV_ASSERT_NO_THROW(imported_model = core->import_model(ifstr, ov::test::utils::DEVICE_GPU, config_without_weightless_cache));
+        ifstr.close();
+    }
 }
 
-TEST_F(CheckWeightlessCacheAccuracy, ReadConcatSplitAssign) {
+TEST_F(CheckModelCache, WeightlessCacheReadConcatSplitAssign) {
     model = ov::test::utils::make_read_concat_split_assign({1, 1, 2, 4}, ov::element::f16);
-    run();
+    run(ov::CacheMode::OPTIMIZE_SIZE);
 }
 
-TEST_F(CheckWeightlessCacheAccuracy, SingleConcatWithConstant) {
+TEST_F(CheckModelCache, WeightlessCacheSingleConcatWithConstant) {
     model = ov::test::utils::make_single_concat_with_constant({1, 1, 2, 4}, ov::element::f16);
-    run();
+    run(ov::CacheMode::OPTIMIZE_SIZE);
 }
 
-TEST_F(CheckWeightlessCacheAccuracy, TiWithLstmCell) {
+TEST_F(CheckModelCache, WeightlessCacheTiWithLstmCell) {
     model = ov::test::utils::make_ti_with_lstm_cell(ov::element::f16);
-    run();
+    run(ov::CacheMode::OPTIMIZE_SIZE);
+}
+
+TEST_F(CheckModelCache, CacheReadConcatSplitAssign) {
+    model = ov::test::utils::make_read_concat_split_assign({1, 1, 2, 4}, ov::element::f16);
+    run(ov::CacheMode::OPTIMIZE_SPEED);
+}
+
+TEST_F(CheckModelCache, CacheSingleConcatWithConstant) {
+    model = ov::test::utils::make_single_concat_with_constant({1, 1, 2, 4}, ov::element::f16);
+    run(ov::CacheMode::OPTIMIZE_SPEED);
+}
+
+TEST_F(CheckModelCache, CacheTiWithLstmCell) {
+    model = ov::test::utils::make_ti_with_lstm_cell(ov::element::f16);
+    run(ov::CacheMode::OPTIMIZE_SPEED);
 }
 
 }  // namespace
