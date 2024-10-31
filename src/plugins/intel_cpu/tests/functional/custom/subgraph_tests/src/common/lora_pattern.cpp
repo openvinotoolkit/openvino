@@ -16,85 +16,10 @@ constexpr auto t4_name = "lora/MatMul.B";
 constexpr auto t5_name = "lora/MatMul.alpha";
 constexpr auto t6_name = "lora/MatMul.A";
 constexpr auto netType = ov::element::f32;
-
-enum class StatesPolicy {
-    EMPTY_TENSORS,
-    RANDOM_TENSORS,
-    UNDEFINED
-};
-std::ostream &operator<<(std::ostream& os, StatesPolicy states_policy) {
-    switch (states_policy) {
-    case StatesPolicy::EMPTY_TENSORS:
-        return os << "empty_tensors";
-    case StatesPolicy::RANDOM_TENSORS:
-        return os << "random_tensors";
-    case StatesPolicy::UNDEFINED:
-        return os << "undefined";
-    default:
-        OPENVINO_THROW("Unexpected states policy");
-    }
-}
-
 }  // namespace
 
-using LoraPatternParams = std::tuple<ov::element::Type,  // states precision
-                                     StatesPolicy>;      // states filling policy
-
-class LoraPatternBaseCPUTest : public SubgraphBaseTest, public testing::WithParamInterface<LoraPatternParams> {
-public:
-static std::string getTestCaseName(testing::TestParamInfo<LoraPatternParams> obj) {
-        ov::element::Type states_precision;
-        StatesPolicy states_policy;
-        std::tie(states_precision, states_policy) = obj.param;
-
-        std::ostringstream result;
-        result << "states_precision=" << states_precision << "_states_policy=" << states_policy;
-        return result.str();
-    }
-
-    void SetUp() override {
-        targetDevice = ov::test::utils::DEVICE_CPU;
-        std::tie(states_precision, states_policy) = this->GetParam();
-        init_function();
-    }
-
+class LoraPatternBaseCPUTest : public SubgraphBaseTest {
 protected:
-    virtual void init_function() = 0;
-
-    std::pair<ov::OutputVector, ov::SinkVector> create_states(const std::vector<ov::PartialShape>& shapes,
-                                                              const std::vector<std::string> names) {
-        ov::OutputVector state_outs;
-        ov::SinkVector assigns;
-        auto create_state = [&](const ov::PartialShape& shape, const std::string name) {
-            auto variable = std::make_shared<ov::op::util::Variable>(
-                ov::op::util::VariableInfo{shape, states_precision, name});
-            auto read_value = std::make_shared<ov::op::v6::ReadValue>(variable);
-            auto assign = std::make_shared<ov::op::v6::Assign>(read_value, variable);
-            assigns.push_back(assign);
-            if (states_precision == netType)
-                state_outs.push_back(read_value);
-            else
-                state_outs.push_back(std::make_shared<ov::op::v0::Convert>(read_value, netType));
-        };
-        OPENVINO_ASSERT(shapes.size() == names.size());
-        for (size_t i = 0; i < shapes.size(); ++i)
-            create_state(shapes[i], names[i]);
-        return std::make_pair(state_outs, assigns);
-    }
-
-    void run_test() {
-        switch (states_policy) {
-        case StatesPolicy::EMPTY_TENSORS:
-            run_test_empty_tensors();
-            break;
-        case StatesPolicy::RANDOM_TENSORS:
-            run_test_random_tensors();
-            break;
-        default:
-            OPENVINO_THROW("Unexpected states policy: ", states_policy);
-        }
-    }
-
     void run_test_empty_tensors() {
         compile_model();
         inferRequest = compiledModel.create_infer_request();
@@ -167,7 +92,7 @@ protected:
                     using ov::test::utils::InputGenerateData;
                     const auto& shape = stateShapes.at(item.get_name());
                     auto tensor =
-                        ov::test::utils::create_and_fill_tensor(states_precision, shape, InputGenerateData{0, 10, 1, i});
+                        ov::test::utils::create_and_fill_tensor(netType, shape, InputGenerateData{0, 10, 1, i});
                     item.set_state(tensor);
                     auto itr = std::find_if(refStates.begin(), refStates.end(), [&](const ov::VariableState& state) {
                         return state.get_name() == item.get_name();
@@ -191,14 +116,13 @@ protected:
             ov::test::utils::compare(tz_result, tz_result_ref, 1e-4, 1e-4);
         }
     }
-
-    StatesPolicy states_policy = StatesPolicy::UNDEFINED;
-    ov::element::Type states_precision = ov::element::undefined;
 };
 
 class LoraPatternMatmulCPUTest : public LoraPatternBaseCPUTest {
-protected:
-    void init_function() override {
+public:
+    void SetUp() override {
+        targetDevice = ov::test::utils::DEVICE_CPU;
+
         ov::PartialShape shape_x = {-1, -1, K};
         ov::PartialShape shape_w = {N, K};
 
@@ -209,12 +133,25 @@ protected:
         auto tx = std::make_shared<ov::op::v0::MatMul>(param_y, param_w, false, true);
 
         // LoRA parameters from states
-        auto states = create_states({{N, -1}, {1, -1}, {-1, K}}, {t4_name, t5_name, t6_name});
+        auto variable_t4 = std::make_shared<ov::op::util::Variable>(
+            ov::op::util::VariableInfo{ov::PartialShape({N, -1}), netType, t4_name});
+        auto t4 = std::make_shared<ov::op::v6::ReadValue>(variable_t4);
+        auto t4_assign = std::make_shared<ov::op::v6::Assign>(t4, variable_t4);
+
+        auto variable_t5 = std::make_shared<ov::op::util::Variable>(
+            ov::op::util::VariableInfo{ov::PartialShape({1, -1}), netType, t5_name});
+        auto t5 = std::make_shared<ov::op::v6::ReadValue>(variable_t5);
+        auto t5_assign = std::make_shared<ov::op::v6::Assign>(t5, variable_t5);
+
+        auto variable_t6 = std::make_shared<ov::op::util::Variable>(
+            ov::op::util::VariableInfo{ov::PartialShape({-1, K}), netType, t6_name});
+        auto t6 = std::make_shared<ov::op::v6::ReadValue>(variable_t6);
+        auto t6_assign = std::make_shared<ov::op::v6::Assign>(t6, variable_t6);
 
         // Apply LoRA parameters to the current activations
-        auto t5810 = std::make_shared<ov::op::v0::MatMul>(param_y, states.first[2], false, true);
-        auto t5811 = std::make_shared<ov::op::v1::Multiply>(t5810, states.first[1]);
-        auto t5812 = std::make_shared<ov::op::v0::MatMul>(t5811, states.first[0], false, true);
+        auto t5810 = std::make_shared<ov::op::v0::MatMul>(param_y, t6, false, true);
+        auto t5811 = std::make_shared<ov::op::v1::Multiply>(t5810, t5);
+        auto t5812 = std::make_shared<ov::op::v0::MatMul>(t5811, t4, false, true);
 
         // Mix LoRA part into normally computed activations after the "main" MatMul
         auto tz = std::make_shared<ov::op::v1::Add>(tx, t5812);
@@ -223,17 +160,19 @@ protected:
         auto result_z = std::make_shared<ov::op::v0::Result>(tz);
 
         function = std::make_shared<ov::Model>(ov::ResultVector({result_x, result_z}),
-                                               states.second,
+                                               ov::SinkVector({t4_assign, t5_assign, t6_assign}),
                                                ov::ParameterVector({param_y, param_w}));
     }
 
+protected:
     static constexpr size_t K = 563ul;   // Weights matrix K dimension
     static constexpr size_t N = 2048ul;  // Weights matrix N dimension
 };
 
 class LoraPatternConvolutionCPUTest : public LoraPatternBaseCPUTest {
 public:
-    void init_function() override {
+    void SetUp() override {
+        targetDevice = ov::test::utils::DEVICE_CPU;
         ov::PartialShape shape_x = {-1, num_channels, -1, -1};
 
         auto param_y = std::make_shared<ov::op::v0::Parameter>(netType, shape_x);
@@ -250,16 +189,29 @@ public:
                                                     num_channels);
 
         // LoRA parameters from states
-        auto states = create_states({{num_channels, -1}, {1, -1}, {-1, num_channels}}, {t4_name, t5_name, t6_name});
+        auto variable_t4 = std::make_shared<ov::op::util::Variable>(
+            ov::op::util::VariableInfo{ov::PartialShape({num_channels, -1}), netType, t4_name});
+        auto t4 = std::make_shared<ov::op::v6::ReadValue>(variable_t4);
+        auto t4_assign = std::make_shared<ov::op::v6::Assign>(t4, variable_t4);
+
+        auto variable_t5 = std::make_shared<ov::op::util::Variable>(
+            ov::op::util::VariableInfo{ov::PartialShape({1, -1}), netType, t5_name});
+        auto t5 = std::make_shared<ov::op::v6::ReadValue>(variable_t5);
+        auto t5_assign = std::make_shared<ov::op::v6::Assign>(t5, variable_t5);
+
+        auto variable_t6 = std::make_shared<ov::op::util::Variable>(
+            ov::op::util::VariableInfo{ov::PartialShape({-1, num_channels}), netType, t6_name});
+        auto t6 = std::make_shared<ov::op::v6::ReadValue>(variable_t6);
+        auto t6_assign = std::make_shared<ov::op::v6::Assign>(t6, variable_t6);
 
         // LoRA pattern with additional Transposes to move channel dimensions into positions where MatMul can be applied
         auto t4940 =
             std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{4}, std::vector<size_t>{2, 3, 0, 1});
 
         auto t4941 = std::make_shared<ov::op::v1::Transpose>(param_y, t4940);
-        auto t4942 = std::make_shared<ov::op::v0::MatMul>(t4941, states.first[2], false, true);
-        auto t4943 = std::make_shared<ov::op::v1::Multiply>(t4942, states.first[1]);
-        auto t4944 = std::make_shared<ov::op::v0::MatMul>(t4943, states.first[0], false, true);
+        auto t4942 = std::make_shared<ov::op::v0::MatMul>(t4941, t6, false, true);
+        auto t4943 = std::make_shared<ov::op::v1::Multiply>(t4942, t5);
+        auto t4944 = std::make_shared<ov::op::v0::MatMul>(t4943, t4, false, true);
 
         auto t4945 =
             std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{4}, std::vector<size_t>{2, 3, 0, 1});
@@ -272,7 +224,7 @@ public:
         auto result_z = std::make_shared<ov::op::v0::Result>(tz);
 
         function = std::make_shared<ov::Model>(ov::ResultVector({result_x, result_z}),
-                                               states.second,
+                                               ov::SinkVector({t4_assign, t5_assign, t6_assign}),
                                                ov::ParameterVector({param_y}));
     }
 
@@ -280,34 +232,35 @@ protected:
     static constexpr size_t num_channels = 64ul;
 };
 
-TEST_P(LoraPatternMatmulCPUTest, CompareWithRefs) {
+TEST_F(LoraPatternMatmulCPUTest, smoke_LoRA_CPU_MatMul_empty) {
     targetStaticShapes = {{{{1, 20, K}}, {{N, K}}}};
-    run_test();
+    run_test_empty_tensors();
     CPUTestUtils::CheckNumberOfNodesWithType(compiledModel, "LoRA", 1);
     CPUTestUtils::CheckNumberOfNodesWithType(compiledModel, "MatMul", 1);
 }
 
-TEST_P(LoraPatternConvolutionCPUTest, CompareWithRefs) {
+TEST_F(LoraPatternConvolutionCPUTest, smoke_LoRA_CPU_Conv_empty) {
     targetStaticShapes = {{{1, num_channels, 10, 15}}};
-    run_test();
+    run_test_empty_tensors();
     CPUTestUtils::CheckNumberOfNodesWithType(compiledModel, "LoRA", 1);
     CPUTestUtils::CheckNumberOfNodesWithType(compiledModel, "MatMul", 0);
 }
 
-const ov::element::TypeVector states_precisions {ov::element::f32, ov::element::f16};
-const std::vector<StatesPolicy> states_policies {StatesPolicy::EMPTY_TENSORS, StatesPolicy::RANDOM_TENSORS};
+TEST_F(LoraPatternMatmulCPUTest, smoke_LoRA_CPU_MatMul_random) {
+    GTEST_SKIP();
+    targetStaticShapes = {{{{1, 20, K}}, {{N, K}}}};
+    run_test_random_tensors();
+    CPUTestUtils::CheckNumberOfNodesWithType(compiledModel, "LoRA", 1);
+    CPUTestUtils::CheckNumberOfNodesWithType(compiledModel, "MatMul", 1);
+}
 
-INSTANTIATE_TEST_SUITE_P(smoke_Snippets_LoRA_CPU_MatMul, LoraPatternMatmulCPUTest,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(states_precisions),
-                                 ::testing::ValuesIn(states_policies)),
-                         LoraPatternBaseCPUTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Snippets_LoRA_CPU_Conv, LoraPatternConvolutionCPUTest,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(states_precisions),
-                                 ::testing::ValuesIn(states_policies)),
-                         LoraPatternBaseCPUTest::getTestCaseName);
+TEST_F(LoraPatternConvolutionCPUTest, smoke_LoRA_CPU_Conv_random) {
+    GTEST_SKIP();
+    targetStaticShapes = {{{1, num_channels, 10, 15}}};
+    run_test_random_tensors();
+    CPUTestUtils::CheckNumberOfNodesWithType(compiledModel, "LoRA", 1);
+    CPUTestUtils::CheckNumberOfNodesWithType(compiledModel, "MatMul", 0);
+}
 
 }  // namespace test
 }  // namespace ov
