@@ -34,7 +34,6 @@ public:
 
 private:
     Output<Node> get_default_axes_input() const;
-    bool m_allow_axis_skip{};
 };
 }  // namespace v0
 
