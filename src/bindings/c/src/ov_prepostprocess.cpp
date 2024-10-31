@@ -24,6 +24,12 @@ const std::map<ov_color_format_e, ov::preprocess::ColorFormat> color_format_map 
     {ov_color_format_e::RGBX, ov::preprocess::ColorFormat::RGBX},
     {ov_color_format_e::BGRX, ov::preprocess::ColorFormat::BGRX}};
 
+const std::unordered_map<ov_padding_mode_e, ov::preprocess::PaddingMode> padding_mode_map = {
+    {ov_padding_mode_e::CONSTANT, ov::preprocess::PaddingMode::CONSTANT},
+    {ov_padding_mode_e::EDGE, ov::preprocess::PaddingMode::EDGE},
+    {ov_padding_mode_e::REFLECT, ov::preprocess::PaddingMode::REFLECT},
+    {ov_padding_mode_e::SYMMETRIC, ov::preprocess::PaddingMode::SYMMETRIC}};
+
 #define GET_OV_COLOR_FARMAT(a)                                                                   \
     (color_format_map.find(a) == color_format_map.end() ? ov::preprocess::ColorFormat::UNDEFINED \
                                                         : color_format_map.at(a))
@@ -515,32 +521,32 @@ ov_status_e ov_preprocess_prepostprocessor_build(const ov_preprocess_prepostproc
     if (!preprocess || !model) {
         return ov_status_e::INVALID_C_PARAM;
     }
-    try {
-        std::unique_ptr<ov_model_t> _model(new ov_model_t);
-        _model->object = preprocess->object->build();
-        *model = _model.release();
-    }
-    CATCH_OV_EXCEPTIONS
+    // try {
+    std::unique_ptr<ov_model_t> _model(new ov_model_t);
+    _model->object = preprocess->object->build();
+    *model = _model.release();
+    // }
+    // CATCH_OV_EXCEPTIONS
 
     return ov_status_e::OK;
 }
 
-ov_status_e ov_preprocess_prepostprocessor_pad(ov_preprocess_prepostprocessor_t* preprocess_input_process_steps,
-                                               int32_t* pads_begin,
-                                               int32_t pads_begin_size,
-                                               int32_t* pads_end,
-                                               int32_t pads_end_size,
+ov_status_e ov_preprocess_preprocess_steps_pad(const ov_preprocess_preprocess_steps_t* preprocess_input_process_steps,
+                                               const int* const pads_begin,
+                                               size_t pads_begin_size,
+                                               const int* const pads_end,
+                                               size_t pads_end_size,
                                                float value,
-                                               ov::op::PadMode mode) {
+                                               ov_padding_mode_e mode) {
     if (!preprocess_input_process_steps) {
         return ov_status_e::INVALID_C_PARAM;
     }
-    try {
-        std::vector<int32_t> vec_begin(pads_begin, pads_begin + pads_begin_size);
-        std::vector<int32_t> vec_end(pads_end, pads_end + pads_end_size);
-        preprocess_input_process_steps->object->pad(vec_begin, vec_end, value, mode);
-    }
-    CATCH_OV_EXCEPTIONS
+    // try {
+    std::vector<int> vec_begin(pads_begin, pads_begin + pads_begin_size);
+    std::vector<int> vec_end(pads_end, pads_end + pads_end_size);
+    preprocess_input_process_steps->object->pad(vec_begin, vec_end, value, padding_mode_map.at(mode));
+    // }
+    // CATCH_OV_EXCEPTIONS
 
     return ov_status_e::OK;
 }
