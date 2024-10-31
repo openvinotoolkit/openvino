@@ -7,6 +7,7 @@
 #include "openvino/core/type.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
+#include "openvino/util/weights_path.hpp"
 
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
@@ -1839,7 +1840,8 @@ void program::load(cldnn::BinaryInputBuffer& ib) {
 
     std::shared_ptr<ov::MappedMemory> mapped_memory = nullptr;
     std::string weights_path = _config.get_property(ov::weights_path);
-    if (!weights_path.empty()) {
+    if (_config.get_property(ov::cache_mode) == ov::CacheMode::OPTIMIZE_SIZE &&
+        ov::util::validate_weights_path(weights_path)) {
         mapped_memory = ov::load_mmap_object(weights_path);
     }
 
