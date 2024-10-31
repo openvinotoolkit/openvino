@@ -24,7 +24,8 @@ ov_add_target(ADD_CPPLINT
                   PRIVATE
                       openvino::runtime
                       gflags
-                      Threads::Threads)
+                      Threads::Threads
+                      npu_tools_utils)
 
 set_target_properties(${TARGET_NAME} PROPERTIES
                           FOLDER ${CMAKE_CURRENT_SOURCE_DIR}
