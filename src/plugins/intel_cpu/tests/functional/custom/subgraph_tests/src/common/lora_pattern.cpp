@@ -112,8 +112,8 @@ protected:
             auto tx_result_ref = inferRequestRef.get_tensor(outputs[0]);
             auto tz_result_ref = inferRequestRef.get_tensor(outputs[1]);
 
-            ov::test::utils::compare(tx_result, tx_result_ref, 1e-4, 1e-4);
-            ov::test::utils::compare(tz_result, tz_result_ref, 1e-4, 1e-4);
+            ov::test::utils::compare(tx_result_ref, tx_result, 1e-4, 1e-4);
+            ov::test::utils::compare(tz_result_ref, tz_result, 1e-4, 1e-4);
         }
     }
 };
