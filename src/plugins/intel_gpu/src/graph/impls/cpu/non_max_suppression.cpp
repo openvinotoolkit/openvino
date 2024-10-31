@@ -416,7 +416,7 @@ struct non_max_suppression_impl : typed_primitive_impl<non_max_suppression> {
             return stream.group_events(events);
         }
 
-        return make_output_event(stream);
+        return make_output_event(stream, instance.is_output());
     }
 
     static std::unique_ptr<primitive_impl> create(const non_max_suppression_node&, const kernel_impl_params&) {
@@ -460,7 +460,7 @@ struct non_max_suppression_gather_impl : typed_primitive_impl<non_max_suppressio
             return stream.group_events(events);
         }
 
-        return make_output_event(stream);
+        return make_output_event(stream, instance.is_output());
     }
 
     static std::unique_ptr<primitive_impl> create(const non_max_suppression_gather_node&, const kernel_impl_params&) {

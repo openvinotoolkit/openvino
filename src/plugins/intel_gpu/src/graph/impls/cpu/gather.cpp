@@ -102,7 +102,7 @@ struct gather_impl : public typed_primitive_impl<gather> {
             return stream.group_events(events);
         }
 
-        return make_output_event(stream);
+        return make_output_event(stream, instance.is_output());
     }
 
     void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}

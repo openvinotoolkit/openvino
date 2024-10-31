@@ -36,7 +36,7 @@ struct network_output {
         // TODO: in_order queue doesn't create proper output event in some cases which leads to syncronization issues with user app
         // So call finish for associated stream to enusre that the output data is ready.
         if (do_sync) {
-            if (_stream->get_queue_type() == QueueTypes::in_order) {
+            if (_stream->get_queue_type() == QueueTypes::in_order || !_event) {
                 _stream->finish();
             } else {
                 _event->wait();

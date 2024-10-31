@@ -392,6 +392,9 @@ void ocl_stream::wait_for_events(const std::vector<event::ptr>& events) {
     bool needs_barrier = false;
     std::vector<cl_event> clevents;
     for (auto& ev : events) {
+        if (!ev)
+            continue;
+
         if (auto ocl_base_ev = downcast<ocl_base_event>(ev.get())) {
             if (ocl_base_ev->get().get() != nullptr) {
                 clevents.push_back(ocl_base_ev->get().get());
@@ -411,9 +414,11 @@ void ocl_stream::wait_for_events(const std::vector<event::ptr>& events) {
         }
     }
 
-    auto err = clWaitForEvents(clevents.size(), &clevents[0]);
-    if (err != CL_SUCCESS) {
-        OPENVINO_THROW("[GPU] clWaitForEvents failed with ", err, " code");
+    if (!clevents.empty()) {
+        auto err = clWaitForEvents(static_cast<cl_uint>(clevents.size()), &clevents[0]);
+        if (err != CL_SUCCESS) {
+            OPENVINO_THROW("[GPU] clWaitForEvents failed with ", err, " code");
+        }
     }
 }
 

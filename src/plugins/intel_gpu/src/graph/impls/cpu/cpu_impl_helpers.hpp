@@ -77,8 +77,8 @@ using vector3D = vector2D<vector1D<T>>;
 template <typename T>
 using vector4D = vector2D<vector2D<T>>;
 
-inline event::ptr make_output_event(cldnn::stream& stream) {
-    if (stream.get_sync_method() == SyncMethods::events)
+inline event::ptr make_output_event(cldnn::stream& stream, bool is_output) {
+    if (is_output)
         return stream.create_user_event(true);
     return nullptr;
 }
