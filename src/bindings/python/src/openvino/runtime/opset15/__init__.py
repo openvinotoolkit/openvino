@@ -188,7 +188,7 @@ from openvino.runtime.opset1.ops import space_to_depth
 from openvino.runtime.opset1.ops import split
 from openvino.runtime.opset1.ops import sqrt
 from openvino.runtime.opset1.ops import squared_difference
-from openvino.runtime.opset1.ops import squeeze
+from openvino.runtime.opset15.ops import squeeze
 from openvino.runtime.opset15.ops import stft
 from openvino.runtime.opset1.ops import strided_slice
 from openvino.runtime.opset1.ops import subtract
