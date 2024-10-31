@@ -88,7 +88,6 @@ WinCpuMapTestCase _2sockets_104cores_hyperthreading = {
     2,    // param[expected out]: total 2 sockets on this simulated platform
     104,  // param[expected out]: total 104 CPU cores on this simulated platform
     ov::ThreadCPUType::THREAD_CPU_NORMAL,  // param[expected out]: normal cpu type for threading scheduling
-    64,  // param[expected out]: total 64 processors have L3 cache in one package on this simulated platform
     {{208, 104, 0, 104, -1, -1},
      {104, 52, 0, 52, 0, 0},
      {104, 52, 0, 52, 1, 1}},  // param[expected out]: The proc_type_table of this simulated platform
@@ -1454,7 +1453,7 @@ WinCpuMapTestCase _1sockets_24cores_hyperthreading_set1 = {
     1,
     1,
     24,
-    ov::ThreadCPUType::THREAD_CPU_NORMAL,
+    ov::ThreadCPUType::THEAD_CPU_ONE_L3_CACHE,
     {{32, 8, 16, 8, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},   {1, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
@@ -1565,7 +1564,7 @@ WinCpuMapTestCase _1sockets_24cores_hyperthreading_set2 = {
     1,
     1,
     24,
-    ov::ThreadCPUType::THREAD_CPU_NORMAL,
+    ov::ThreadCPUType::THEAD_CPU_ONE_L3_CACHE,
     {{32, 8, 16, 8, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},   {1, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
@@ -1893,7 +1892,7 @@ WinCpuMapTestCase _1sockets_14cores_hyperthreading_set1 = {
     1,
     1,
     14,
-    ov::ThreadCPUType::THREAD_CPU_NORMAL,
+    ov::ThreadCPUType::THEAD_CPU_ONE_L3_CACHE,
     {{20, 6, 8, 6, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},  {1, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
@@ -1966,7 +1965,7 @@ WinCpuMapTestCase _1sockets_14cores_hyperthreading_set2 = {
     1,
     1,
     14,
-    ov::ThreadCPUType::THREAD_CPU_NORMAL,
+    ov::ThreadCPUType::THEAD_CPU_ONE_L3_CACHE,
     {{20, 6, 8, 6, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},   {1, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
@@ -2046,7 +2045,7 @@ WinCpuMapTestCase _1sockets_14cores_hyperthreading_set3 = {
     1,
     1,
     14,
-    ov::ThreadCPUType::THREAD_CPU_NORMAL,
+    ov::ThreadCPUType::THEAD_CPU_ONE_L3_CACHE,
     {{20, 6, 8, 6, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},  {1, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
@@ -2126,7 +2125,7 @@ WinCpuMapTestCase _1sockets_10cores_hyperthreading = {
     1,
     1,
     10,
-    ov::ThreadCPUType::THREAD_CPU_NORMAL,
+    ov::ThreadCPUType::THEAD_CPU_ONE_L3_CACHE,
     {{12, 2, 8, 2, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},
@@ -2355,7 +2354,7 @@ WinCpuMapTestCase _1sockets_4cores_hyperthreading = {
     1,
     1,
     4,
-    ov::ThreadCPUType::THREAD_CPU_NORMAL,
+    ov::ThreadCPUType::THEAD_CPU_ONE_L3_CACHE,
     {{8, 4, 0, 4, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},
@@ -2394,7 +2393,7 @@ WinCpuMapTestCase _1sockets_4cores_hyperthreading_1_FMT7 = {
     1,
     1,
     4,
-    ov::ThreadCPUType::THREAD_CPU_NORMAL,
+    ov::ThreadCPUType::THEAD_CPU_ONE_L3_CACHE,
     {{8, 4, 0, 4, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},
@@ -2433,7 +2432,7 @@ WinCpuMapTestCase _1sockets_4cores_hyperthreading_2_FMT7 = {
     1,
     1,
     4,
-    ov::ThreadCPUType::THREAD_CPU_NORMAL,
+    ov::ThreadCPUType::THEAD_CPU_ONE_L3_CACHE,
     {{8, 4, 0, 4, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},
@@ -2472,7 +2471,7 @@ WinCpuMapTestCase _1sockets_2cores_hyperthreading_FMT7 = {
     1,
     1,
     2,
-    ov::ThreadCPUType::THREAD_CPU_NORMAL,
+    ov::ThreadCPUType::THEAD_CPU_ONE_L3_CACHE,
     {{4, 2, 0, 2, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},

@@ -39,7 +39,6 @@ CPU::CPU() {
                              _proc_type_table,
                              _cpu_mapping_table);
     _org_proc_type_table = _proc_type_table;
-    _org_processors = _processors;
 
     // ensure that get_org_numa_id and get_org_socket_id can return the correct value
     for (size_t i = 0; i < _cpu_mapping_table.size(); i++) {
@@ -83,7 +82,7 @@ void parse_processor_info_win(const char* base_ptr,
 
     int num_package = 0;
     int num_proc_l3_cache = 0;
-    int num_blocked_cores = 0
+    int num_blocked_cores = 0;
 
     _processors = 0;
     _sockets = 0;
