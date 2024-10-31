@@ -33,8 +33,7 @@ struct WinCpuMapTestCase {
     int _numa_nodes;
     int _sockets;
     int _cores;
-    int _blocked_cores;
-    int _processors_with_l3;
+    int _thread_cpu_type;
     std::vector<std::vector<int>> _proc_type_table;
     std::vector<std::vector<int>> _cpu_mapping_table;
     std::string system_info;
@@ -58,8 +57,7 @@ public:
         int test_numa_nodes = 0;
         int test_sockets = 0;
         int test_cores = 0;
-        int test_blocked_cores = 0;
-        int test_processors_with_l3 = 0;
+        int test_thread_cpu_type = 0;
         unsigned long len = (unsigned long)(test_len / 2);
         std::vector<std::vector<int>> test_proc_type_table;
         std::vector<std::vector<int>> test_cpu_mapping_table;
@@ -70,8 +68,7 @@ public:
                                      test_numa_nodes,
                                      test_sockets,
                                      test_cores,
-                                     test_blocked_cores,
-                                     test_processors_with_l3,
+                                     test_thread_cpu_type,
                                      test_proc_type_table,
                                      test_cpu_mapping_table);
 
@@ -79,8 +76,7 @@ public:
         ASSERT_EQ(test_data._numa_nodes, test_numa_nodes);
         ASSERT_EQ(test_data._sockets, test_sockets);
         ASSERT_EQ(test_data._cores, test_cores);
-        ASSERT_EQ(test_data._blocked_cores, test_blocked_cores);
-        ASSERT_EQ(test_data._processors_with_l3, test_processors_with_l3);
+        ASSERT_EQ(test_data._thread_cpu_type, test_thread_cpu_type);
         ASSERT_EQ(test_data._proc_type_table, test_proc_type_table);
         ASSERT_EQ(test_data._cpu_mapping_table, test_cpu_mapping_table);
     }
@@ -91,8 +87,8 @@ WinCpuMapTestCase _2sockets_104cores_hyperthreading = {
     2,    // param[expected out]: total 2 numa nodes on this simulated platform
     2,    // param[expected out]: total 2 sockets on this simulated platform
     104,  // param[expected out]: total 104 CPU cores on this simulated platform
-    0,    // param[expected out]: total 0 processors on this simulated platform are blocked
-    64,   // param[expected out]: total 64 processors have L3 cache in one package on this simulated platform
+    ov::ThreadCPUType::THREAD_CPU_NORMAL,  // param[expected out]: normal cpu type for threading scheduling
+    64,  // param[expected out]: total 64 processors have L3 cache in one package on this simulated platform
     {{208, 104, 0, 104, -1, -1},
      {104, 52, 0, 52, 0, 0},
      {104, 52, 0, 52, 1, 1}},  // param[expected out]: The proc_type_table of this simulated platform
@@ -707,8 +703,7 @@ WinCpuMapTestCase _2sockets_48cores_hyperthreading = {
     2,
     2,
     48,
-    0,
-    48,
+    ov::ThreadCPUType::THREAD_CPU_NORMAL,
     {{96, 48, 0, 48, -1, -1}, {48, 24, 0, 24, 0, 0}, {48, 24, 0, 24, 1, 1}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},    {1, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
@@ -999,8 +994,7 @@ WinCpuMapTestCase _2sockets_36cores_hyperthreading = {
     2,
     2,
     36,
-    0,
-    36,
+    ov::ThreadCPUType::THREAD_CPU_NORMAL,
     {{72, 36, 0, 36, -1, -1}, {36, 18, 0, 18, 0, 0}, {36, 18, 0, 18, 1, 1}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},    {1, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
@@ -1193,8 +1187,7 @@ WinCpuMapTestCase _2sockets_48cores = {
     2,
     2,
     48,
-    0,
-    24,
+    ov::ThreadCPUType::THREAD_CPU_NORMAL,
     {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},    {1, 0, 0, 1, MAIN_CORE_PROC, 1, -1},
@@ -1461,8 +1454,7 @@ WinCpuMapTestCase _1sockets_24cores_hyperthreading_set1 = {
     1,
     1,
     24,
-    0,
-    32,
+    ov::ThreadCPUType::THREAD_CPU_NORMAL,
     {{32, 8, 16, 8, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},   {1, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
@@ -1573,8 +1565,7 @@ WinCpuMapTestCase _1sockets_24cores_hyperthreading_set2 = {
     1,
     1,
     24,
-    0,
-    32,
+    ov::ThreadCPUType::THREAD_CPU_NORMAL,
     {{32, 8, 16, 8, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},   {1, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
@@ -1696,8 +1687,7 @@ WinCpuMapTestCase _1sockets_24cores = {
     1,
     1,
     24,
-    0,
-    24,
+    ov::ThreadCPUType::THEAD_CPU_ONE_L3_CACHE,
     {{24, 8, 16, 0, 0, 0}},
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},        {1, 0, 0, 1, MAIN_CORE_PROC, 1, -1},
@@ -1815,8 +1805,7 @@ WinCpuMapTestCase _1sockets_22cores_hyperthreading = {
     1,
     1,
     14,
-    2,
-    20,
+    ov::ThreadCPUType::THEAD_CPU_BLOCK_CORE,
     {{20, 6, 8, 6, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},       {1, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
@@ -1904,8 +1893,7 @@ WinCpuMapTestCase _1sockets_14cores_hyperthreading_set1 = {
     1,
     1,
     14,
-    0,
-    20,
+    ov::ThreadCPUType::THREAD_CPU_NORMAL,
     {{20, 6, 8, 6, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},  {1, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
@@ -1978,8 +1966,7 @@ WinCpuMapTestCase _1sockets_14cores_hyperthreading_set2 = {
     1,
     1,
     14,
-    0,
-    20,
+    ov::ThreadCPUType::THREAD_CPU_NORMAL,
     {{20, 6, 8, 6, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},   {1, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
@@ -2059,8 +2046,7 @@ WinCpuMapTestCase _1sockets_14cores_hyperthreading_set3 = {
     1,
     1,
     14,
-    0,
-    20,
+    ov::ThreadCPUType::THREAD_CPU_NORMAL,
     {{20, 6, 8, 6, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},  {1, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
@@ -2140,8 +2126,7 @@ WinCpuMapTestCase _1sockets_10cores_hyperthreading = {
     1,
     1,
     10,
-    0,
-    12,
+    ov::ThreadCPUType::THREAD_CPU_NORMAL,
     {{12, 2, 8, 2, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},
@@ -2204,8 +2189,7 @@ WinCpuMapTestCase _1sockets_8cores = {
     1,
     1,
     8,
-    0,
-    4,
+    ov::ThreadCPUType::THREAD_CPU_NORMAL,
     {{8, 4, 4, 0, 0, 0}},
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
@@ -2260,8 +2244,7 @@ WinCpuMapTestCase _1sockets_6cores_hyperthreading_FMT7 = {
     1,
     1,
     6,
-    0,
-    1,
+    ov::ThreadCPUType::THREAD_CPU_NORMAL,
     {{12, 6, 0, 6, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},
@@ -2340,8 +2323,7 @@ WinCpuMapTestCase _1sockets_4cores = {
     1,
     1,
     4,
-    0,
-    0,
+    ov::ThreadCPUType::THREAD_CPU_NORMAL,
     {{4, 4, 0, 0, 0, 0}},
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
@@ -2373,8 +2355,7 @@ WinCpuMapTestCase _1sockets_4cores_hyperthreading = {
     1,
     1,
     4,
-    0,
-    8,
+    ov::ThreadCPUType::THREAD_CPU_NORMAL,
     {{8, 4, 0, 4, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},
@@ -2413,8 +2394,7 @@ WinCpuMapTestCase _1sockets_4cores_hyperthreading_1_FMT7 = {
     1,
     1,
     4,
-    0,
-    8,
+    ov::ThreadCPUType::THREAD_CPU_NORMAL,
     {{8, 4, 0, 4, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},
@@ -2453,8 +2433,7 @@ WinCpuMapTestCase _1sockets_4cores_hyperthreading_2_FMT7 = {
     1,
     1,
     4,
-    0,
-    8,
+    ov::ThreadCPUType::THREAD_CPU_NORMAL,
     {{8, 4, 0, 4, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},
@@ -2493,8 +2472,7 @@ WinCpuMapTestCase _1sockets_2cores_hyperthreading_FMT7 = {
     1,
     1,
     2,
-    0,
-    4,
+    ov::ThreadCPUType::THREAD_CPU_NORMAL,
     {{4, 2, 0, 2, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},

@@ -35,8 +35,7 @@ CPU::CPU() {
                              _numa_nodes,
                              _sockets,
                              _cores,
-                             _blocked_cores,
-                             _processors_with_l3,
+                             _thread_cpu_type,
                              _proc_type_table,
                              _cpu_mapping_table);
     _org_proc_type_table = _proc_type_table;
@@ -63,8 +62,7 @@ void parse_processor_info_win(const char* base_ptr,
                               int& _numa_nodes,
                               int& _sockets,
                               int& _cores,
-                              int& _blocked_cores,
-                              int& _processors_with_l3,
+                              int& _thread_cpu_type,
                               std::vector<std::vector<int>>& _proc_type_table,
                               std::vector<std::vector<int>>& _cpu_mapping_table) {
     std::vector<int> list;
@@ -84,11 +82,13 @@ void parse_processor_info_win(const char* base_ptr,
     int group_type = 0;
 
     int num_package = 0;
+    int num_proc_l3_cache = 0;
+    int num_blocked_cores = 0
 
     _processors = 0;
     _sockets = 0;
     _cores = 0;
-    _blocked_cores = 0;
+    _thread_cpu_type = ThreadCPUType::THREAD_CPU_NORMAL;
 
     PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX info = NULL;
 
@@ -163,7 +163,7 @@ void parse_processor_info_win(const char* base_ptr,
                     proc_info[CPU_MAP_GROUP_ID] = group_id;
                     if (group_id == CPU_BLOCKED) {
                         proc_info[CPU_MAP_USED_FLAG] = CPU_BLOCKED;
-                        _blocked_cores++;
+                        num_blocked_cores++;
                     } else {
                         _proc_type_table[0][group_type]++;
                     }
@@ -195,7 +195,7 @@ void parse_processor_info_win(const char* base_ptr,
                     if (_proc_type_table[0][EFFICIENT_CORE_PROC] > 0) {
                         group_id = CPU_BLOCKED;
                         group_type = EFFICIENT_CORE_PROC;
-                        _blocked_cores++;
+                        num_blocked_cores++;
                     } else {
                         group_id = group++;
                         group_type = MAIN_CORE_PROC;
@@ -223,13 +223,16 @@ void parse_processor_info_win(const char* base_ptr,
             }
         } else if ((info->Relationship == RelationCache) && (info->Cache.Level == 3)) {
             MaskToList(info->Cache.GroupMask.Mask);
-            _processors_with_l3 = list_len;
+            num_proc_l3_cache = list_len;
         }
     }
     _sockets++;
-    _processors -= _blocked_cores;
-    _cores -= _blocked_cores;
-    _proc_type_table[0][ALL_PROC] -= _blocked_cores;
+    _processors -= num_blocked_cores;
+    _cores -= num_blocked_cores;
+    _thread_cpu_type = num_blocked_cores > 0                                 ? ThreadCPUType::THEAD_CPU_BLOCK_CORE
+                       : (_processors == num_proc_l3_cache && _sockets == 1) ? ThreadCPUType::THEAD_CPU_ONE_L3_CACHE
+                                                                             : ThreadCPUType::THREAD_CPU_NORMAL;
+    _proc_type_table[0][ALL_PROC] -= num_blocked_cores;
     if (_sockets > 1) {
         _proc_type_table.push_back(_proc_type_table[0]);
         _proc_type_table[0] = proc_init_line;

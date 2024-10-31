@@ -62,20 +62,12 @@ OPENVINO_RUNTIME_API int get_number_of_cpu_cores(bool big_cores_only = false);
 OPENVINO_RUNTIME_API int get_number_of_logical_cpu_cores(bool big_cores_only = false);
 
 /**
- * @brief      Returns number of blocked CPU cores. Please note that this is a temporary interface for performance
- * optimization on a specific platform. May be removed in future release.
+ * @brief      Returns cpu type for threading scheduling. Please note that this is a temporary interface for 
+ * performance optimization on a specific platform. May be removed in future release.
  * @ingroup    ov_dev_api_system_conf
- * @return     Number of blocked CPU cores.
+ * @return     CPU type for threading scheduling.
  */
-OPENVINO_RUNTIME_API int get_number_of_blocked_cores();
-
-/**
- * @brief      Returns number of SOC E cores. Please note that this is a temporary interface for performance
- * optimization on a specific platform. May be removed in future release.
- * @ingroup    ov_dev_api_system_conf
- * @return     Number of SOC E cores.
- */
-OPENVINO_RUNTIME_API int get_number_of_soc_ecores();
+OPENVINO_RUNTIME_API int get_thread_cpu_type();
 
 /**
  * @brief      Checks whether CPU supports SSE 4.2 capability
@@ -348,5 +340,15 @@ enum ColumnOfCPUMappingTable {
     CPU_MAP_USED_FLAG = 6,     //!< column for resource management of the processor
     CPU_MAP_TABLE_SIZE = 7     //!< Size of CPU mapping table
 };
+
+/**
+ * @enum       ThreadCPUType
+ * @brief      This enum contains definition for specific CPU types in threading scheduling.
+ *
+ * THREAD_CPU_NORMAL is normal CPU for threading scheduling.
+ * THEAD_CPU_BLOCK_CORE is the CPU with blocked cores.
+ * THEAD_CPU_ONE_L3_CACHE is the CPU with one L3 cache for all cores.
+ */
+enum ThreadCPUType { THREAD_CPU_NORMAL = 0, THEAD_CPU_BLOCK_CORE = 1, THEAD_CPU_ONE_L3_CACHE = 2};
 
 }  // namespace ov

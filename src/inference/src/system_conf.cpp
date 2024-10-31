@@ -234,11 +234,8 @@ int get_number_of_logical_cpu_cores(bool) {
     return parallel_get_max_threads();
 }
 
-int get_number_of_blocked_cores() {
-    return 0;
-}
 
-int get_number_of_soc_ecores() {
+int get_thread_cpu_type() {
     return 0;
 }
 
@@ -293,14 +290,9 @@ int get_number_of_logical_cpu_cores(bool) {
     return parallel_get_max_threads();
 }
 
-int get_number_of_blocked_cores() {
+int get_thread_cpu_type() {
     CPU& cpu = cpu_info();
-    return cpu._blocked_cores;
-}
-
-int get_number_of_soc_ecores() {
-    CPU& cpu = cpu_info();
-    return cpu._org_processors - cpu._processors_with_l3;
+    return cpu._thread_cpu_type;
 }
 
 bool is_cpu_map_available() {
@@ -491,14 +483,9 @@ int get_number_of_logical_cpu_cores(bool bigCoresOnly) {
     return logical_cores;
 }
 
-int get_number_of_blocked_cores() {
+int get_thread_cpu_type() {
     CPU& cpu = cpu_info();
-    return cpu._blocked_cores;
-}
-
-int get_number_of_soc_ecores() {
-    CPU& cpu = cpu_info();
-    return cpu._org_processors - cpu._processors_with_l3;
+    return cpu._thread_cpu_type;
 }
 
 int get_org_socket_id(int socket_id) {
