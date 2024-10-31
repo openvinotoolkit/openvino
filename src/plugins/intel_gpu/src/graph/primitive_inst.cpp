@@ -1426,36 +1426,47 @@ void primitive_inst::do_runtime_skip_permute() {
     auto desc = _node->as<permute>().get_primitive();
     auto input_shape = _impl_params->get_input_layout(0).get_shape();
     const auto& permute_order = desc->permute_order;
-    // Check runtime shape
-    // Optimize when the largest value among the actual dim values in case where the permute order
-    // is different from the shape index is equal to the multiplied value
-    // Set size to zero to pass the case that permute order is same with input order like [0, 1, 2, 3]
-    int32_t size = 0;
-    int32_t max_value = 0;
-    for (int32_t i = 0; i < static_cast<int32_t>(permute_order.size()); ++i) {
-        int32_t order = static_cast<int32_t>(permute_order[i]);
-        int32_t dim = static_cast<int32_t>(input_shape[order]);
-        if (i != order) {
-            if (dim > max_value)
-                max_value = dim;
-            size = (size == 0) ? dim : (size * dim);
+    // Skippability
+    // 1. Check within "congituous transpose range"
+    // [2, 1, 0] => [2, 1, 0]
+    // [1, 0, 2, 3] => [1, 0, 2]
+    // [0, 2, 1, 3] => [2, 1]
+    // [0, 3, 1, 2] => [3, 1, 2]
+    // [2, 0, 1, 3] => [2, 0, 1]
+    // [3, 2, 1, 0] => [3, 2, 1, 0]
+    // [3, 2, 1, 0, 4] => [3, 2, 1, 0]
+    // [0, 2, 1, 3, 5, 4] => [2, 1], [5, 4]
+    // [4, 5, 2, 3, 0, 1] => [4, 5, 2, 3, 0, 1]
+    // 2. Within each transpose range, only 1 non-1 dimension allowed at max.
+    size_t range_max_dim = 0;
+    size_t count_not_one = 0;
+    bool can_skip = true;
+    for (size_t dim = 0; dim < permute_order.size(); ++dim) {
+        auto target_dim = static_cast<size_t>(permute_order[dim]);
+        if (dim == target_dim && range_max_dim <= dim) {
+            // range end => check
+            if (count_not_one > 1) {
+                can_skip = false;
+                break;
+            }
+            count_not_one = 0;
+            range_max_dim = 0;
+            continue;
         }
+        if (input_shape[dim] > 1)
+            count_not_one++;
+        range_max_dim = std::max(range_max_dim, target_dim);
     }
-
-    // If the largest value and total size are different, can_be_optimized needs to be reset
-    if (size != max_value) {
-        set_can_be_optimized(false);
-        GPU_DEBUG_TRACE_DETAIL << "--- Cannot optimize because size(" << size << ") and max_value(" << max_value
-                               << ") are different" << std::endl;
-
-        GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_permute] " << id() << " : reset can_be_optimized to false "
-                               << std::endl;
-        return;
-    }
-    GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_permute] " << id() << " : can_be_optimized" << std::endl;
+    can_skip = (count_not_one <= 1);
+    GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_permute] " << id() << " : can_be_optimized ? " << can_skip << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "            - Input layout : " << _impl_params->get_input_layout(0).to_short_string() << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "            - Output layout : " << _impl_params->get_output_layout().to_short_string() << std::endl;
-    set_can_be_optimized(true);
+    GPU_DEBUG_TRACE_DETAIL << "            - permute order : ";
+    for (auto order : permute_order) {
+        GPU_DEBUG_TRACE_DETAIL << order << ",";
+    }
+    GPU_DEBUG_TRACE_DETAIL << std::endl;
+    set_can_be_optimized(can_skip);
 }
 
 void primitive_inst::do_runtime_skip_strided_slice() {
