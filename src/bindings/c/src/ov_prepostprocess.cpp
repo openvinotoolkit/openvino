@@ -521,12 +521,12 @@ ov_status_e ov_preprocess_prepostprocessor_build(const ov_preprocess_prepostproc
     if (!preprocess || !model) {
         return ov_status_e::INVALID_C_PARAM;
     }
-    // try {
-    std::unique_ptr<ov_model_t> _model(new ov_model_t);
-    _model->object = preprocess->object->build();
-    *model = _model.release();
-    // }
-    // CATCH_OV_EXCEPTIONS
+    try {
+        std::unique_ptr<ov_model_t> _model(new ov_model_t);
+        _model->object = preprocess->object->build();
+        *model = _model.release();
+    }
+    CATCH_OV_EXCEPTIONS
 
     return ov_status_e::OK;
 }
@@ -541,12 +541,12 @@ ov_status_e ov_preprocess_preprocess_steps_pad(const ov_preprocess_preprocess_st
     if (!preprocess_input_process_steps) {
         return ov_status_e::INVALID_C_PARAM;
     }
-    // try {
-    std::vector<int> vec_begin(pads_begin, pads_begin + pads_begin_size);
-    std::vector<int> vec_end(pads_end, pads_end + pads_end_size);
-    preprocess_input_process_steps->object->pad(vec_begin, vec_end, value, padding_mode_map.at(mode));
-    // }
-    // CATCH_OV_EXCEPTIONS
+    try {
+        std::vector<int> vec_begin(pads_begin, pads_begin + pads_begin_size);
+        std::vector<int> vec_end(pads_end, pads_end + pads_end_size);
+        preprocess_input_process_steps->object->pad(vec_begin, vec_end, value, padding_mode_map.at(mode));
+    }
+    CATCH_OV_EXCEPTIONS
 
     return ov_status_e::OK;
 }
