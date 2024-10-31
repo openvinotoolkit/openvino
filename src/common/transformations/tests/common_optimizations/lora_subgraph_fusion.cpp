@@ -26,8 +26,8 @@ std::pair<ov::OutputVector, ov::SinkVector> create_states(const std::vector<ov::
     ov::SinkVector assigns;
     size_t idx = 0;
     auto create_state = [&](const ov::PartialShape& shape) {
-        auto variable =
-            std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{shape, states_precision, std::to_string(idx++)});
+        auto variable = std::make_shared<ov::op::util::Variable>(
+            ov::op::util::VariableInfo{shape, states_precision, std::to_string(idx++)});
         auto read_value = std::make_shared<ov::op::v6::ReadValue>(variable);
         auto assign = std::make_shared<ov::op::v6::Assign>(read_value, variable);
         assigns.push_back(assign);
