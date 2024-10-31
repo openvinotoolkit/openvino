@@ -150,7 +150,7 @@ void ov::npuw::UnfoldInferRequest::prepare(std::size_t idx) {
         const auto& g_tnsr = m_port_to_tensor.at(g_port).tensor;
         const auto& s_port = subr->get_inputs()[sub_in_idx];
 
-        if (do_copy || m_input_allocated.count(g_tnsr->data()) == 0) {
+        if (m_input_allocated.count(g_tnsr->data()) == 0 && do_copy) {
             copy_list.emplace_back(g_tnsr, s_port);
         } else {
             subr->set_tensor(s_port, g_tnsr);
