@@ -670,7 +670,7 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
 
     auto streams_info_table = get_streams_info_table(config.streams,
                                                      config.streamsChanged,
-                                                     proc_type_table[0][ALL_PROC],//config.threads,
+                                                     proc_type_table[0][ALL_PROC],
                                                      config.hintNumRequests,
                                                      model_prefer_threads,
                                                      input_current_socket_id,

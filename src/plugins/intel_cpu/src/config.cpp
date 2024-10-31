@@ -75,9 +75,8 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
         if (streamExecutorConfigKeys.end() !=
             std::find(std::begin(streamExecutorConfigKeys), std::end(streamExecutorConfigKeys), key)) {
             streamExecutorConfig.set_property(key, val.as<std::string>());
-            std::vector<std::vector<int>> proc_type_table = get_proc_type_table();
             streams = streamExecutorConfig.get_streams();
-            threads = proc_type_table[0][ALL_PROC];//streamExecutorConfig.get_threads();
+            threads = streamExecutorConfig.get_threads();
             threadsPerStream = streamExecutorConfig.get_threads_per_stream();
             if (key == ov::num_streams.name()) {
                 ov::Any value = val.as<std::string>();
