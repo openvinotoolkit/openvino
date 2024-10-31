@@ -234,7 +234,6 @@ int get_number_of_logical_cpu_cores(bool) {
     return parallel_get_max_threads();
 }
 
-
 int get_thread_cpu_type() {
     return 0;
 }
