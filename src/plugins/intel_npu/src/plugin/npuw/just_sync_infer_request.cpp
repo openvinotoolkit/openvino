@@ -454,6 +454,81 @@ ov::npuw::IBaseInferRequest::RqPtr ov::npuw::JustInferRequest::get_real_subreque
     return m_subrequests[real_idx];
 }
 
+void ov::npuw::JustInferRequest::log_subrequest_launch(std::size_t idx, std::size_t real_idx) {
+    LOG_INFO("Launching subrequest[" << idx << "]" <<
+        ((real_idx == idx) ? std::string("...").c_str() :
+                             std::string(std::string(", which is actually subrequest[") +
+                                 std::to_string(real_idx) + "]...").c_str())); 
+}
+
+void ov::npuw::JustInferRequest::log_launch_on_range(std::size_t real_idx, std::size_t dim,
+                                                     std::size_t offset, std::size_t len) {
+    LOG_INFO("Launch subrequest[" << real_idx << "] on range for dim=" <<
+        dim << " : [" << offset << ", " << offset + len << ")");
+}
+
+void ov::npuw::JustInferRequest::try_accurate_infer(std::size_t real_idx, bool& failover) {
+    NPUW_ASSERT(m_npuw_model->m_compiled_submodels.at(real_idx).replaced_by.value_or(real_idx) == real_idx);
+
+    m_subrequests[real_idx]->infer();
+    if (m_npuw_model->m_acc_check) {
+        ensure_subrequest_is_accurate(real_idx, failover);
+    }
+
+}
+
+void ov::npuw::JustInferRequest::ensure_subrequest_is_accurate(std::size_t idx, bool& failover) {
+    LOG_INFO("Check if subrequest[" << idx << "] is accurate...");
+    LOG_BLOCK();
+    failover = false;
+    if (m_ref_subrequests.at(idx) != nullptr && m_subrequests.at(idx)._ptr != m_ref_subrequests.at(idx)._ptr) {
+        NPUW_ASSERT(m_npuw_model->m_compiled_submodels.at(idx).switched_to_ref == false);
+        NPUW_ASSERT(m_npuw_model->m_compiled_submodels.at(idx).replaced_by.value_or(idx) == idx);
+
+        const auto& ref_comp_model = m_ref_subrequests.at(idx)->get_compiled_model();
+        const auto& actual_comp_model = m_subrequests.at(idx)->get_compiled_model();
+        NPUW_ASSERT(actual_comp_model->inputs().size() == ref_comp_model->inputs().size());
+        // Setting inputs:
+        for (size_t i = 0; i < actual_comp_model->inputs().size(); i++) {
+            const auto& itensor = m_subrequests.at(idx)->get_tensor(actual_comp_model->inputs()[i]);
+            m_ref_subrequests.at(idx)->set_tensor(ref_comp_model->inputs()[i], itensor);
+        }
+        m_ref_subrequests.at(idx)->infer();
+
+        LOG_INFO("Compare actual outputs against references:");
+        bool tensors_converge = true;
+        for (size_t i = 0; i < actual_comp_model->outputs().size(); i++) {
+            LOG_INFO(" - " << actual_comp_model->outputs()[i]);
+            const auto& actual_tensor = m_subrequests.at(idx)->get_tensor(actual_comp_model->outputs()[i]);
+            const auto& ref_tensor = m_ref_subrequests.at(idx)->get_tensor(ref_comp_model->outputs()[i]);
+            LOG_BLOCK();
+            tensors_converge &= m_npuw_model->m_acc_check(actual_tensor, ref_tensor);
+        }
+        LOG_INFO((tensors_converge ? "PASS" : "FAIL"));
+
+        if (!tensors_converge) {
+            LOG_INFO("Subrequest is inaccurate, failover to reference.");
+            // FIXME: We need to copy reference tensors to actual only in single-model-inference mode
+            //        or if our subgraph is last in the chain.
+            for (size_t i = 0; i < actual_comp_model->outputs().size(); i++) {
+                const auto& actual_tensor = m_subrequests.at(idx)->get_tensor(actual_comp_model->outputs()[i]);
+                const auto& ref_tensor = m_ref_subrequests.at(idx)->get_tensor(ref_comp_model->outputs()[i]);
+                ref_tensor->copy_to(actual_tensor._ptr);
+            }
+            m_npuw_model->m_compiled_submodels.at(idx).compiled_model =
+                m_npuw_model->m_compiled_submodels.at(idx).ref_compiled_model;
+            m_npuw_model->m_compiled_submodels.at(idx).switched_to_ref = true;
+            m_subrequests.at(idx) = m_ref_subrequests.at(idx);
+            update_subrequest_links(idx);
+            failover = true;
+        }
+
+        LOG_INFO("Done");
+    } else {
+        LOG_INFO("Skipped, subrequest is launched on reference device.");
+    }
+}
+
 bool ov::npuw::JustInferRequest::valid_subrequest(std::size_t idx) const {
     auto* ncthis = const_cast<ov::npuw::JustInferRequest*>(this);
     return ncthis->get_real_subrequest(idx) != nullptr;
@@ -577,12 +652,12 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
     LOG_DEBUG("Done");
 }
 
-void ov::npuw::JustInferRequest::recreate_subrequests(std::size_t idx) {
-    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
-    auto real_idx = comp_model_desc.replaced_by.value_or(idx);
+void ov::npuw::JustInferRequest::recreate_subrequests(std::size_t real_idx) {
+    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
+    NPUW_ASSERT(comp_model_desc.replaced_by.value_or(real_idx) == real_idx);
 
-    const auto is_piped = is_pipelined(idx);
-    auto new_rqs = create_infer_requests(idx, is_piped ? 2 : 1);
+    const auto is_piped = is_pipelined(real_idx);
+    auto new_rqs = create_infer_requests(real_idx, is_piped ? 2 : 1);
 
     // NB: Regardless if this subrequest was a function call
     // or not, always use the real_idx here - for regular
@@ -599,7 +674,7 @@ void ov::npuw::JustInferRequest::recreate_subrequests(std::size_t idx) {
     // overkill - only affected subrequest(s) could be updated instead,
     // but it is a more complex thing and can be implemented separately
     connect_subrequests();
-    m_subrequest_devices[idx] = *comp_model_desc.device_it;
+    m_subrequest_devices[real_idx] = *comp_model_desc.device_it;
 }
 
 void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, bool& failover) {
@@ -639,7 +714,7 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, boo
         try {
             LOG_DEBUG("Trying to run subrequest[" << idx << "]...");
             LOG_BLOCK();
-            unsafe_run_this_prep_next(idx, next_prepared);
+            unsafe_run_this_prep_next(idx, next_prepared, failover);
             job_done = true;
             LOG_DEBUG("Done: " << idx << "(exec subrequest)");
         } catch (const std::exception& ex) {
@@ -658,7 +733,7 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, boo
             if (!m_npuw_model->compile_for_success(real_idx)) {
                 OPENVINO_THROW("Failed to compile. No more devices are left!");
             }
-            recreate_subrequests(idx);
+            recreate_subrequests(real_idx);
         }
     }  // while(job_done)
 
@@ -672,7 +747,8 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, boo
     }
 }
 
-void ov::npuw::JustInferRequest::unsafe_during(std::size_t real_idx, const std::function<void()>& f) {
+void ov::npuw::JustInferRequest::unsafe_during(std::size_t real_idx, const std::function<void()>& f,
+                                               bool& failover) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
     if (!comp_model_desc.spatial) {
         // Non-spatial execution: trigger request asynchronously, run `f` in this context
@@ -680,21 +756,24 @@ void ov::npuw::JustInferRequest::unsafe_during(std::size_t real_idx, const std::
         r->start_async();
         f();  // expect noexcept
         r->wait();
+        if (m_npuw_model->m_acc_check) {
+            ensure_subrequest_is_accurate(real_idx, failover);
+        }
     } else {
         // Spatial execution... Do the opposite - run f asynchronously, and meanwhile run the
         // spatial inference
         auto future = std::async(std::launch::async, f);
-        unsafe_infer(real_idx);
+        unsafe_infer(real_idx, failover);
         future.wait();
     }
 }
 
-void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx) {
+void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, bool& failover) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
     auto& r = m_subrequests[real_idx];
     if (!comp_model_desc.spatial) {
         // Run normally
-        r->infer();
+        try_accurate_infer(real_idx, failover);
     } else {
         // Run over the specified range... Note: the full inputs/outputs
         // must be prepared in the m_spatial_io at this point
@@ -749,7 +828,10 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx) {
             }  // for(outputs)
 
             // Now run the part
-            r->infer();
+            if (m_npuw_model->m_acc_check) {
+                log_launch_on_range(real_idx, spatial.out_dim, offset, spatial.nway);
+            }
+            try_accurate_infer(real_idx, failover);
         }  // for(full_nway_times)
 
         // Now process the tail, if required
@@ -779,7 +861,10 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx) {
             }  // for(outputs)
 
             // Now run the tail infer
-            r->infer();
+            if (m_npuw_model->m_acc_check) {
+                log_launch_on_range(real_idx, spatial.out_dim, offset, spatial.tail_size);
+            }
+            try_accurate_infer(real_idx, failover);
 
             // Now copy the views from the output full-nway tensor to the output tensors
             for (std::size_t out_idx = 0u; out_idx < num_outputs; out_idx++) {
@@ -798,10 +883,14 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx) {
     }
 }
 
-void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool& next_prepared) {
+void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool& next_prepared, bool& failover) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
     auto real_idx = comp_model_desc.replaced_by.value_or(idx);
     const std::size_t next_idx = next(idx + 1);
+
+    if (m_npuw_model->m_acc_check) {
+        log_subrequest_launch(idx, real_idx);
+    }
 
     if (comp_model_desc.replaced_by) {
         // This is a function call!
@@ -819,11 +908,11 @@ void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool
                     // have to resubmit all the data to the recompiled pair anyway
                     bind_global_parameters(next_idx);
                     unpack_closure(next_idx, m_funcall_pipeline[real_idx].subrequest);
-                });
+                }, failover);
             } else {
                 // Function pipelining is not used. THIS infer request
                 // is also the NEXT one. Nothing much to do here
-                unsafe_infer(real_idx);
+                unsafe_infer(real_idx, failover);
                 bind_global_parameters(next_idx);
             }
         } else {
@@ -833,7 +922,7 @@ void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool
             if (next_idx == 0) {
                 // Note: even if m_function_pipelining is ON,
                 // SWAP won't happen here - see the below check for .next
-                unsafe_infer(real_idx);
+                unsafe_infer(real_idx, failover);
             } else {
                 unsafe_during(real_idx, [&]() {
                     if (!next_prepared) {
@@ -846,21 +935,21 @@ void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool
                         LOG_BLOCK();
                         unpack_closure(my_next_idx, m_funcall_pipeline[real_idx].subrequest);
                     }
-                });
+                }, failover);
             }
         }
     } else {
         // This is a regular subgraph. Start it async to prepare the next
         // parameters
         if (next_idx == 0) {
-            unsafe_infer(real_idx);
+            unsafe_infer(real_idx, failover);
         } else {
             unsafe_during(real_idx, [&]() {
                 if (!next_prepared) {
                     bind_global_parameters(next_idx);
                     next_prepared = true;
                 }
-            });
+            }, failover);
         }
     }  // if (replaced_by)
 }

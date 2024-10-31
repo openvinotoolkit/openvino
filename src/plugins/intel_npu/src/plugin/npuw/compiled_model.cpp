@@ -430,9 +430,6 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             }
         }
 
-        m_compiled_submodels[id].device_it =
-            id != real_id ? m_compiled_submodels[real_id].device_it : m_dev_list.cbegin();
-
         if (forced_sub_devices.count(id)) {
             std::string forced_device = forced_sub_devices[id];
             auto forced_dev_it = std::find(m_dev_list.begin(), m_dev_list.end(), forced_device);
@@ -473,6 +470,9 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         }
     };  // compile
 
+    for (std::size_t i = 0u; i < orderedSubgraphs.size(); i++) {
+        m_compiled_submodels[i].device_it = m_dev_list.cbegin();
+    }
     // Parallel compilation is unstable so is disabled by default.
     const bool par_opt = m_cfg.get<::intel_npu::NPUW_PARALLEL_COMPILE>();
     if (par_opt) {
@@ -481,6 +481,18 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         // TODO: Introduce npuw::serial(i, f) instead where f is a _funcall
         for (std::size_t i = 0u; i < idx_subgraph_to_compile.size(); i++) {
             compile(i);
+        }
+    }
+
+    for (std::size_t i = 0u; i < orderedSubgraphs.size(); i++) {
+        if (!m_compiled_submodels[i].replaced_by) {
+            continue;
+        } else {
+            auto real_id = m_compiled_submodels[i].replaced_by.value();
+            if (i != real_id) {
+                auto comp_desc = m_compiled_submodels[real_id];
+                m_compiled_submodels[i].device_it = m_compiled_submodels[real_id].device_it;
+            }
         }
     }
 

@@ -74,8 +74,6 @@ protected:
     // their inference requests anymore - they must be stored
     // only once in the subrequests list
     RqPtrs create_infer_requests(std::size_t id, size_t nireq = 1, bool* recompiled = nullptr);
-    void ensure_subrequest_is_accurate(std::size_t idx, bool& failover);
-    virtual void update_subrequest_links(std::size_t idx) = 0;
 
     std::shared_ptr<ov::npuw::CompiledModel> m_npuw_model;
     std::vector<IBaseInferRequest::Completed> m_completion_cbs;
