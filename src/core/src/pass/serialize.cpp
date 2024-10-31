@@ -949,25 +949,25 @@ void serialize_rt_info(pugi::xml_node& root, const std::string& name, const ov::
     }
 }
 
-bool append_custom_info(pugi::xml_node& node, const std::string& name, const ov::Any& data) {
+bool append_custom_rt_info(pugi::xml_node& node, const std::string& name, const ov::Any& data) {
     auto custom_node = node.append_child("custom");
     custom_node.append_attribute("name").set_value(name.c_str());
-    bool has_value = false;
+    bool appended = false;
 
     if (data.is<ov::AnyMap>()) {
         const auto& any_map = data.as<ov::AnyMap>();
         for (const auto& it : any_map)
-            has_value |= append_custom_info(custom_node, it.first, it.second);
+            appended |= append_custom_rt_info(custom_node, it.first, it.second);
 
     } else {
         const auto& value = data.as<std::string>();
         custom_node.append_attribute("value").set_value(value.c_str());
-        has_value = true;
+        appended = true;
     }
 
-    if (!has_value)
+    if (!appended)
         node.remove_child(custom_node);
-    return has_value;
+    return appended;
 }
 
 void ngfunction_2_ir(pugi::xml_node& netXml,
@@ -1054,7 +1054,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
 
             for (const auto& item : attributes)
                 if (!item.second.is<ov::RuntimeAttribute>())
-                    has_attrs |= append_custom_info(rt_node, item.first, item.second);
+                    has_attrs |= append_custom_rt_info(rt_node, item.first, item.second);
 
             if (!has_attrs)
                 node.remove_child(rt_node);

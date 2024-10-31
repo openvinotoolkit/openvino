@@ -816,6 +816,25 @@ static const std::string& translate_type_name(const std::string& name) {
     return name;
 }
 
+namespace {
+void set_custom_rt_info(const pugi::xml_node& rt_attrs, ov::AnyMap& rt_info) {
+    std::string custom_name, custom_value;
+    for (const auto& item : rt_attrs) {
+        if (std::strcmp(item.name(), "custom") == 0) {
+            if (ov::getStrAttribute(item, "name", custom_name)) {
+                if (ov::getStrAttribute(item, "value", custom_value)) {
+                    rt_info.emplace(custom_name, custom_value);
+                } else {
+                    rt_info.emplace(custom_name, ov::AnyMap{});
+                    auto& nested = rt_info.at(custom_name).as<ov::AnyMap>();
+                    set_custom_rt_info(item, nested);
+                }
+            }
+        }
+    }
+}
+}  // namespace
+
 std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov::Output<ov::Node>>& inputs,
                                                            const pugi::xml_node& node,
                                                            const std::shared_ptr<ov::AlignedBuffer>& weights,
@@ -994,16 +1013,7 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
             }
         }
 
-        // Predefined attributes take precedence over custom rt info
-        for (const auto& item : rt_attrs) {
-            if (std::strcmp(item.name(), "custom") == 0) {
-                std::string custom_name, custom_value;
-                if (getStrAttribute(item, "name", custom_name) && getStrAttribute(item, "value", custom_value)) {
-                    // Duplicates are not added and are ignored
-                    rt_info.emplace(custom_name, custom_value);
-                }
-            }
-        }
+        set_custom_rt_info(rt_attrs, rt_info);
     };
 
     // read runtime info only for IR v11+
