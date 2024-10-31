@@ -25,6 +25,9 @@ const models = [
   // pose estimation
   '/repositories/open_model_zoo/2022.1/models_bin/3/human-pose-estimation-0001/FP16-INT8/human-pose-estimation-0001.xml',
   '/repositories/open_model_zoo/2022.1/models_bin/3/human-pose-estimation-0001/FP16-INT8/human-pose-estimation-0001.bin',
+
+  // question answering
+  '/repositories/open_model_zoo/2022.3/models_bin/1/bert-small-uncased-whole-word-masking-squad-0001/FP16/bert-small-uncased-whole-word-masking-squad-0001.xml',
 ];
 const modelsDir = __dirname + '/../assets/models';
 
@@ -51,6 +54,11 @@ const datasets = [
 ];
 const datasetsDir = __dirname + '/../assets/datasets';
 
+const vocab = [
+  '/repositories/openvino_notebooks/data/data/text/bert-uncased/vocab.txt',
+];
+const vocabDir = __dirname + '/../assets/vocab';
+
 try {
   main();
 } catch(error) {
@@ -61,6 +69,7 @@ async function main() {
   await downloadAssets(models, modelsDir);
   await downloadAssets(images, imagesDir);
   await downloadAssets(datasets, datasetsDir);
+  await downloadAssets(vocab, vocabDir);
 }
 
 async function downloadAssets(links, destinationDir) {
