@@ -24,7 +24,7 @@ const std::map<ov_color_format_e, ov::preprocess::ColorFormat> color_format_map 
     {ov_color_format_e::RGBX, ov::preprocess::ColorFormat::RGBX},
     {ov_color_format_e::BGRX, ov::preprocess::ColorFormat::BGRX}};
 
-const std::unordered_map<ov_padding_mode_e, ov::preprocess::PaddingMode> padding_mode_map = {
+const std::map<ov_padding_mode_e, ov::preprocess::PaddingMode> padding_mode_map = {
     {ov_padding_mode_e::CONSTANT, ov::preprocess::PaddingMode::CONSTANT},
     {ov_padding_mode_e::EDGE, ov::preprocess::PaddingMode::EDGE},
     {ov_padding_mode_e::REFLECT, ov::preprocess::PaddingMode::REFLECT},
