@@ -32,12 +32,6 @@ class TestIndexFill(PytorchLayerTest):
     @pytest.mark.parametrize(
         "input_data",
         (
-            # {
-            #     "input_shape": [3, 3],
-            #     "dim": 1, 
-            #     "input_value": 2.0,
-            #     "index": [2],
-            # },
             {
                 "input_shape": [10],
                 "dim": 0, 
