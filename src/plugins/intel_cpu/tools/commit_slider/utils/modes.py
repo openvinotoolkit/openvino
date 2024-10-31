@@ -32,6 +32,11 @@ class NopMode(Mode):
         commitLogger.info(checkOut)
         return
 
+    def printResult(self):
+        msg = "Hi there"
+        print(msg)
+        self.outLogger.info(msg)
+
 
 class CheckOutputMode(Mode):
     def __init__(self, cfg):

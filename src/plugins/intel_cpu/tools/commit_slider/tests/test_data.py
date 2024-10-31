@@ -68,7 +68,8 @@ class TestData():
         BmFirstFixed = 12,
         BmLatencyMetric = 13,
         ACModeData = 14,
-        CustomizedLog = 15
+        CustomizedLog = 15,
+        MultiConfig = 16
 
     def requireTestData(self, reqLambda):
         # mapping json to test data holder
@@ -99,6 +100,19 @@ class CustomizedLogData(TestData):
 
     def getTestName(self):
         return "CustomizedLog"
+
+    def __init__(self):
+        from test_util import requireBinarySearchData
+        self.requireTestData(
+            requireBinarySearchData
+        )
+
+class MultiConfigData(TestData):
+    def getTestCase():
+        return TestData.TestCase.CustomizedLog
+
+    def getTestName(self):
+        return "MultiConfig"
 
     def __init__(self):
         from test_util import requireBinarySearchData

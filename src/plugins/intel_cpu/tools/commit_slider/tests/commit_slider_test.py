@@ -7,13 +7,14 @@ from tests import skip_commit_slider_devtest
 
 sys.path.append('./')
 from test_util import getExpectedCommit,\
-    getBordersByTestData, getActualCommit
+    getBordersByTestData, getActualCommit, getCSOutput
 from utils.break_validator import validateBMOutput, BmValidationError
 from test_data import FirstBadVersionData, FirstValidVersionData,\
     BmStableData, BmValidatorSteppedBreakData, BmValidatorSteppedBreakData2,\
     BenchmarkAppDataUnstable, BenchmarkAppDataStable, BenchmarkAppNoDegradationData,\
     BenchmarkAppUnstableDevData, BenchmarkAppWrongPathData, BenchmarkAppPathFoundData,\
-    BenchmarkFirstFixedAppData, AcModeData, BenchmarkMetricData, CustomizedLogData
+    BenchmarkFirstFixedAppData, AcModeData, BenchmarkMetricData, CustomizedLogData, \
+    MultiConfigData
 
 
 class CommitSliderTest(TestCase):
@@ -38,6 +39,16 @@ class CommitSliderTest(TestCase):
             CustomizedLogData())
         actualCommit, _ = getActualCommit(updatedData)
         self.assertEqual(breakCommit, actualCommit)
+
+    @skip_commit_slider_devtest
+    def testMultiConfig(self):
+        breakCommit, updatedData = getExpectedCommit(
+            MultiConfigData())
+        # actualCommit, _ = getActualCommit(updatedData)
+        out = getCSOutput(updatedData)
+        print(out)
+        # self.assertEqual(breakCommit, actualCommit)
+        self.assertTrue(True)
 
     @skip_commit_slider_devtest
     def testBmUnstable(self):

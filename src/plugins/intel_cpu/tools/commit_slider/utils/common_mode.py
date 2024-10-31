@@ -35,6 +35,9 @@ class Mode(ABC):
         self.commonLogger = util.setupLogger(
             "commonLogger", logPath, "common_log.log"
         )
+        self.outLogger = util.setupLogger(
+            "outLogger", logPath, "out_log.log"
+        )
         self.checkOutPathPattern = "check_output_cache.json"
 
     def isPerformanceBased(self):
@@ -238,17 +241,23 @@ class Mode(ABC):
 
     def printResult(self):
         if not self.commitPath.metaInfo["preValidationPassed"]:
-            print("Preliminary check failed, reason: {}".format(
+            msg = "Preliminary check failed, reason: {}".format(
                 self.commitPath.metaInfo["reason"]
-            ))
+            )
+            print(msg)
+            self.outLogger.info(msg)
         elif not self.commitPath.metaInfo["postValidationPassed"]:
-            print("Output results invalid, reason: {}".format(
+            msg = "Output results invalid, reason: {}".format(
                 self.commitPath.metaInfo["reason"]
-            ))
+            )
+            print(msg)
+            self.outLogger.info(msg)
         else:
             for pathcommit in self.commitPath.getList():
                 if pathcommit.state is not Mode.CommitPath.CommitState.DEFAULT:
-                    print(self.getCommitInfo(pathcommit))
+                    commitInfo = self.getCommitInfo(pathcommit)
+                    print(commitInfo)
+                    self.outLogger.info(commitInfo)
 
     def getCommitInfo(self, commit):
         # override if you need more details in output representation

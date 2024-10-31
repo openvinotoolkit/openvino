@@ -150,6 +150,31 @@ def getExpectedCommit(td: TestData):
     return breakCommit, td
 
 def getActualCommit(td: TestData):
+    sliderOutput = runCS(td)
+    rejectReason, foundCommit = parseSliderOutput(sliderOutput)
+    # clear temp data
+    [shutil.rmtree(dir) for dir in [
+            td.repoName,
+            td.userCachePath,
+            td.userLogPath
+            ]]
+    os.remove(td.testCfg)
+
+    return foundCommit, rejectReason
+
+def getCSOutput(td: TestData):
+    sliderOutput = runCS(td)
+    # clear temp data
+    [shutil.rmtree(dir) for dir in [
+            td.repoName,
+            td.userCachePath,
+            td.userLogPath
+            ]]
+    os.remove(td.testCfg)
+
+    return sliderOutput
+
+def runCS(td: TestData):
     if not td.actualDataReceived:
         raise TestError("Running actual commit before expected.")
 
@@ -159,34 +184,25 @@ def getActualCommit(td: TestData):
         td.userLogPath, "testDir", os.getcwd())
     td.userCachePath = CfgManager.singlestepStrFormat(
         td.userCachePath, "testDir", os.getcwd())
+    td.testCfg = "test_cfg.json"
     for key in [
         'userLogPath', 'clearLogsAposteriori',
         'userCachePath', 'clearCache'
             ]:
         cfg[key] = getattr(td, key)
-    testCfg = "test_cfg.json"
 
-    with open(testCfg, "w+") as customCfg:
+    with open(td.testCfg, "w+") as customCfg:
         customCfg.truncate(0)
         json.dump(cfg, customCfg)
     customCfg.close()
 
     # run slider and check output
     sliderOutput = runCmd(
-        "python3.8 commit_slider.py -cfg tests/{}".format(testCfg),
+        "python3.8 commit_slider.py -cfg tests/{}".format(td.testCfg),
         "../")
 
     sliderOutput = '\n'.join(map(str, sliderOutput))
-    rejectReason, foundCommit = parseSliderOutput(sliderOutput)
-    # clear temp data
-    [shutil.rmtree(dir) for dir in [
-            td.repoName,
-            td.userCachePath,
-            td.userLogPath
-            ]]
-    os.remove(testCfg)
-
-    return foundCommit, rejectReason
+    return sliderOutput
 
 def parseSliderOutput(sliderOutput: str):
     rejectReason, foundCommit, matcher = None, None, None
