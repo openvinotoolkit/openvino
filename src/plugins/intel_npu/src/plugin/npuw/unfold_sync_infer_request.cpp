@@ -167,11 +167,12 @@ void ov::npuw::UnfoldInferRequest::prepare(std::size_t idx) {
     }
 
     // run copy, if required
-    ov::parallel_for(copy_list.size(), [&](std::size_t idx) {
-        auto& it = copy_list[idx];
+    // NB: parallel_for was removed here as it causes more overhead for our (usually)
+    // small chunks copied. In the proper app-level pipeline, there must be no copy at all
+    for (auto &&it : copy_list) {
         ov::SoPtr<ov::ITensor> dst = subr->get_tensor(it.second);
         it.first->copy_to(dst._ptr);
-    });
+    }
 
     // run host gather, if required
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
@@ -190,24 +191,37 @@ void ov::npuw::UnfoldInferRequest::prepare(std::size_t idx) {
 void ov::npuw::UnfoldInferRequest::infer() {
     const bool do_async = m_npuw_model->m_cfg.get<::intel_npu::NPUW_FUNCALL_ASYNC>();
 
-    if (do_async) {
-        for (std::size_t idx = 0; idx < m_num_submodels; idx++) {
-            prepare(idx);
+    auto wait_and_clear = [](RqPtrs &rqs) {
+        for (auto &&r : rqs) {
+            r->wait();
         }
+        rqs.clear();
+    };
+
+    if (do_async) {
+        std::size_t past_repl_id = 0u;
+        RqPtrs previous_requests;
+
+        prepare(0);
         for (std::size_t idx = 0; idx < m_num_submodels; idx++) {
             auto& subr = m_subrequests[idx];
             if (!subr) {
                 continue;
+            }
+            auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
+            const auto this_repl_id = comp_model_desc.replaced_by.value_or(idx);
+            if (this_repl_id != past_repl_id) {
+                // For non-repeating blocks, the above value_or returns idx
+                // For repeating blocks, it returns the function group id
+                // If either is not equal to the past_repl_id, make a barrier here
+                wait_and_clear(previous_requests);
+                past_repl_id = this_repl_id;
             }
             subr->start_async();
+            previous_requests.push_back(subr);
+            prepare(idx + 1);
         }
-        for (std::size_t idx = 0; idx < m_num_submodels; idx++) {
-            auto& subr = m_subrequests[idx];
-            if (!subr) {
-                continue;
-            }
-            subr->wait();
-        }
+        wait_and_clear(previous_requests);
     } else {
         prepare(0);
         for (std::size_t idx = 0; idx < m_num_submodels; idx++) {
