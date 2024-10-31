@@ -183,8 +183,7 @@ std::vector<std::string> splitStringList(const std::string& str, char delim) {
     return out;
 }
 
-template<template<class> class Container, class T>
-std::string to_string(const Container<T>& c) {
+std::string to_string(const std::vector<std::string>& c) {
     std::stringstream stream;
     std::string ret;
     if (!c.empty()) {
