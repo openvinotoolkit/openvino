@@ -235,9 +235,7 @@ protected:
  *            FakeQuantize i8
  *                 \   /
  *                  Add
- *                Reshape0
- *                Softmax
- *                Reshape1  Transpose2[0,2,1,3]
+ *                Softmax   Transpose2[0,2,1,3]
  *                    \      /
  *                     MatMul1
  *                   FakeQuantize i8
@@ -261,9 +259,7 @@ protected:
  *            FakeQuantize i8
  *                 \   /
  *                  Add
- *                Reshape0
- *                Softmax
- *                Reshape1   FakeQuantize i8
+ *                Softmax    FakeQuantize i8
  *            FakeQuantize u8 Transpose2[0,2,1,3]
  *                    \      /
  *                     MatMul1
@@ -281,20 +277,17 @@ protected:
 };
 
 /* Graph:
- *   FakeQuantize i8      Reshape1
- *       Reshape0       Transpose1[0,2,3,1]
+ *   FakeQuantize i8      Transpose1[0,2,3,1]
  * Transpose0[0,2,1,3] FakeQuantize i8
  *              \     /
  *              MatMul0
  *                 \   /
- *                  Add        Reshape2
+ *                  Add
  *                Softmax   Transpose2[0,2,1,3]
  *                    \      /
  *                     MatMul1
  *                  FakeQuantize i8
  *                  Transpose3[0,2,1,3]
- *                    Reshape3
- * Note: Reshapes are tosplit Tokenization between FQs and deq Mul and MHA since Snippets::Ignore_Callback may be enabled
  */
 class MHAQuantMatMul0Function : public SnippetsFunctionBase {
 public:
