@@ -82,11 +82,12 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
 
     OPENVINO_ASSERT(orgInputNumber == 13, "The input number of PagedAttention should be 13.");
     // kvcache, float, []
-    auto past_kv_input_mem_precision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
+    auto past_key_input_mem_precision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
+    auto past_value_input_mem_precision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_VCACHE);
     config.inConfs[PagedAttentionExecutor::ID_KCACHE].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
-        past_kv_input_mem_precision, getInputShapeAtPort(PagedAttentionExecutor::ID_KCACHE)));
+        past_key_input_mem_precision, getInputShapeAtPort(PagedAttentionExecutor::ID_KCACHE)));
     config.inConfs[PagedAttentionExecutor::ID_VCACHE].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
-        past_kv_input_mem_precision, getInputShapeAtPort(PagedAttentionExecutor::ID_VCACHE)));
+        past_value_input_mem_precision, getInputShapeAtPort(PagedAttentionExecutor::ID_VCACHE)));
     // past_lens, int, [b_seq]
     config.inConfs[PagedAttentionExecutor::ID_PAST_LENS].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
         ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_PAST_LENS)));
@@ -128,8 +129,10 @@ void PagedAttention::createPrimitive() {
 
     auto builder = [&](const PagedAttentionKey& key) -> std::shared_ptr<PagedAttentionExecutor> {
 #ifdef OPENVINO_ARCH_X86_64
-        auto kvCachePrecision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
-        return make_pa_executor(rtPrecision, kvCachePrecision);
+        auto kCachePrecision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
+        auto vCachePrecision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_VCACHE);
+        std::cout << "PagedAttn|Kcache|" << kCachePrecision << "|Vcache|" << vCachePrecision << std::endl;
+        return make_pa_executor(rtPrecision, kCachePrecision, vCachePrecision);
 #else
         return nullptr;
 #endif

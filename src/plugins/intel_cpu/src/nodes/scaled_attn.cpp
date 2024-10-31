@@ -435,7 +435,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                                      v_ptr,
                                      fp32_out_ptr,
                                      wsp.data() + tid * wsp_size_per_thread,
-                                     wv_scratch_a ? &wv_scratch_a.at<T>({tid, 0}) : nullptr);
+                                     wv_gemm_ptr->get_scratch_a_size() > 0 ? &wv_scratch_a.at<T>({tid, 0}) : nullptr);
             if (is_xf16) {
                 if (has_out_transpose) {
                     attn_memcpy2d_kernel(&fp32_out.at<float>({b, m_start, h, 0}),
