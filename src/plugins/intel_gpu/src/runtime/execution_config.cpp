@@ -237,7 +237,7 @@ void ExecutionConfig::apply_hints(const cldnn::device_info& info) {
     apply_debug_options(info);
 }
 
-void ExecutionConfig::apply_user_properties(const cldnn::device_info& info) {
+void ExecutionConfig::apply_user_properties(const cldnn::device_info& info, bool has_lstm) {
     // Copy internal properties before applying hints to ensure that
     // a property set by hint won't be overriden by a value in user config.
     // E.g num_streams=AUTO && hint=THROUGHPUT
@@ -251,7 +251,9 @@ void ExecutionConfig::apply_user_properties(const cldnn::device_info& info) {
         set_property(ov::intel_gpu::enable_lp_transformations(info.supports_imad || info.supports_immad));
     }
 
-    set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
+    if (info.supports_immad || has_lstm) {
+        set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
+    }
 
     user_properties.clear();
 }

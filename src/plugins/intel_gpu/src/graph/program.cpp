@@ -134,6 +134,15 @@ std::shared_ptr<ICompilationContext> program::make_compilation_context(const Exe
                                                                  "Task executor config for CompilationContext in GPU plugin", _num_async_build_threads));
 }
 
+bool program::has_lstm(topology const& topology) {
+    for (auto primitive_pair : topology.get_primitives()) {
+        if (primitive_pair.second->type_string() == "lstm_seq") {
+            return true;
+        }
+    }
+    return false;
+}
+
 program::program(engine& engine_ref,
                  topology const& topology,
                  const ExecutionConfig& config,
@@ -150,7 +159,8 @@ program::program(engine& engine_ref,
       is_internal(is_internal),
       _is_body_program(is_body_program),
       _compilation_context(compilation_context) {
-    _config.apply_user_properties(_engine.get_device_info());
+    bool lstm_present = has_lstm(topology);
+    _config.apply_user_properties(_engine.get_device_info(), lstm_present);
     init_primitives();
     GPU_DEBUG_INFO << "Program config\n" << _config.to_string();
     init_program();
@@ -194,6 +204,7 @@ program::program(engine& engine_ref,
       _task_executor(std::move(task_executor)),
       processing_order(),
       is_internal(is_internal) {
+    //_config.set_property(ov::has_lstm_seq(has_lstm(nodes)));
     _config.apply_user_properties(_engine.get_device_info());
     init_primitives();
     init_program();
