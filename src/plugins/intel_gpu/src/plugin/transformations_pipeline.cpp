@@ -518,7 +518,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             } else if (std::dynamic_pointer_cast<const ov::op::v5::GRUSequence>(node)) {
                 return false;
             } else if (const auto &lstm_seq = std::dynamic_pointer_cast<const ov::op::v5::LSTMSequence>(node)) {
-                return false;
+                return lstm_seq->get_clip() == 0.0f &&
+                       lstm_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"} &&
+                       !ov::op::util::is_seq_len_provided(lstm_seq->get_input_node_shared_ptr(0),
+                                                          lstm_seq->get_input_node_shared_ptr(3));
             }
             return false;
         };
