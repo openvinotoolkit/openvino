@@ -16,6 +16,14 @@ if args.utility != "no_utility":
     from utils.helpers import runUtility
     runUtility(cfgData, args)
 
+elif args.isMultiply == "multiply":
+    argString = " ".join(sys.argv)
+    workPath = os.getcwd()
+    formattedCmd = "{py} {argString} -x 'single'".format(
+        py=sys.executable, argString=argString
+    )
+    subprocess.call(formattedCmd.split())
+
 elif args.isWorkingDir:
     # rerun script from work directory
     from utils.modes import Mode

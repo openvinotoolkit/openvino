@@ -46,6 +46,13 @@ def getParams():
         help="run utility with specified name",
         default="no_utility",
     )
+    parser.add_argument(
+        "-x",
+        "--multiply",
+        dest="isMultiply",
+        help="run multiple configs",
+        default="multiply"
+    )
     args, additionalArgs = parser.parse_known_args()
 
     argHolder = DictHolder(args.__dict__)
