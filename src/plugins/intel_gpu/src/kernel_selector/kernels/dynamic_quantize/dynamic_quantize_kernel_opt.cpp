@@ -160,8 +160,13 @@ bool DynamicQuantizeKernelOpt::Validate(const Params& params) const {
     if (dq_params.group_sizes.back() != UINT64_MAX)
         return false;
 
-    if (!dq_params.scales_output_order.empty())
-        return false;
+    // Allow only default scales order
+    const auto& scales_output_order = dq_params.scales_output_order;
+    if (!scales_output_order.empty()) {
+        for (size_t i = 0; i < scales_output_order.size(); i++)
+            if (scales_output_order[i] != i)
+                return false;
+    }
 
     return true;
 }
