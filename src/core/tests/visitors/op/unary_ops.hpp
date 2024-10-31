@@ -9,12 +9,17 @@
 #include "openvino/op/parameter.hpp"
 #include "visitors/visitors.hpp"
 
-template <typename T, ov::element::Type_t ELEMENT_TYPE>
+template <typename T, ov::element::Type_t ELEMENT_TYPE, int ATTRIBUTES_COUNT = int{}>
 class UnaryOperatorType {
 public:
     using op_type = T;
     static constexpr ov::element::Type_t element_type = ELEMENT_TYPE;
+    static constexpr int expected_attr_count = ATTRIBUTES_COUNT;
 };
+
+template <typename T, ov::element::Type_t ELEMENT_TYPE>
+using UnaryOperatorTypeWithAttribute = UnaryOperatorType<T, ELEMENT_TYPE, 1>;
+
 template <typename T>
 class UnaryOperatorVisitor : public testing::Test {};
 
@@ -43,7 +48,7 @@ TYPED_TEST_P(UnaryOperatorVisitor, No_Attribute_4D) {
 
     EXPECT_NO_THROW(auto g_op_func = ov::as_type_ptr<OP_Type>(builder.create()));
 
-    const auto expected_attr_count = 0;
+    const auto expected_attr_count = TypeParam::expected_attr_count;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
 }
 
