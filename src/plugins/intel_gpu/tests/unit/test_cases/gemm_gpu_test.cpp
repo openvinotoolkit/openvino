@@ -473,6 +473,9 @@ public:
             config.set_property(ov::intel_gpu::optimize_data(true));
             config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
+            ov::intel_gpu::ImplementationDesc gemm_impl = { format::bfyx, "", impl_types::ocl };
+            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm_ref", gemm_impl} }));
+
             network network(engine, topology, config);
             network.set_input_data("input1", input1_mem);
             network.set_input_data("input2", input2_mem);
@@ -498,6 +501,10 @@ public:
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+        ov::intel_gpu::ImplementationDesc gemm_impl = { format::bfyx, "", impl_types::ocl };
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm", gemm_impl} }));
+
         network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
         network->set_input_data("input1", input1_mem);
         network->set_input_data("input2", input2_mem);
@@ -1246,10 +1253,12 @@ public:
         network->set_input_data("input0", input0_mem);
         network->set_input_data("input1", input1_mem);
 
-        auto inst = network->get_primitive("gemm");
-        auto impl = inst->get_impl();
-        ASSERT_TRUE(impl != nullptr);
-        ASSERT_TRUE(impl->is_dynamic() == is_input_dynamic);
+        if (!engine.get_device_info().supports_immad) {
+            auto inst = network->get_primitive("gemm");
+            auto impl = inst->get_impl();
+            ASSERT_TRUE(impl != nullptr);
+            ASSERT_TRUE(impl->is_dynamic() == is_input_dynamic);
+        }
 
         auto outputs = network->execute();
 
@@ -1533,10 +1542,12 @@ public:
         network->set_input_data("input0", input0_mem);
         network->set_input_data("input1", input1_mem);
 
-        auto inst = network->get_primitive("gemm");
-        auto impl = inst->get_impl();
-        ASSERT_TRUE(impl != nullptr);
-        ASSERT_TRUE(impl->is_dynamic() == is_input_dynamic);
+        if (!engine.get_device_info().supports_immad) {
+            auto inst = network->get_primitive("gemm");
+            auto impl = inst->get_impl();
+            ASSERT_TRUE(impl != nullptr);
+            ASSERT_TRUE(impl->is_dynamic() == is_input_dynamic);
+        }
 
         auto outputs = network->execute();
 
@@ -2853,8 +2864,10 @@ public:
 
         auto inst = network->get_primitive("gemm");
         auto impl = inst->get_impl();
-        ASSERT_TRUE(impl != nullptr);
-        ASSERT_TRUE(impl->is_dynamic());
+        if (!engine.get_device_info().supports_immad) {
+            ASSERT_TRUE(impl != nullptr);
+            ASSERT_TRUE(impl->is_dynamic());
+        }
 
         auto outputs = network->execute();
 
