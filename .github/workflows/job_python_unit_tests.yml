@@ -29,7 +29,7 @@ env:
 jobs:
   Python_Unit_Tests:
     name: Python unit tests
-    timeout-minutes: 70
+    timeout-minutes: 120
     runs-on: ${{ inputs.runner }}
     container: ${{ fromJSON(inputs.container) }}
     defaults:

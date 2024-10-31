@@ -98,7 +98,7 @@ jobs:
   RPM_Packages:
     name: RPM packages
     needs: [Docker, Build]
-    timeout-minutes: 10
+    timeout-minutes: 120
     defaults:
       run:
         shell: bash

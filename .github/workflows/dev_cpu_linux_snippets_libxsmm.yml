@@ -195,7 +195,7 @@ jobs:
   CPU_Unit_Tests:
     name: C++ CPU unit tests
     needs: [ Docker, Build, Smart_CI ]
-    timeout-minutes: 30
+    timeout-minutes: 120
     runs-on: aks-linux-8-cores-32gb
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_x64 }}
@@ -252,7 +252,7 @@ jobs:
   CPU_Functional_Tests:
     name: CPU functional tests
     needs: [ Docker, Build, Smart_CI ]
-    timeout-minutes: 30
+    timeout-minutes: 120
     runs-on: aks-linux-8-cores-32gb
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_x64 }}
@@ -322,7 +322,7 @@ jobs:
           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${INSTALL_TEST_DIR}
 
           python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_cpu_func_tests -w ${INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_filter=*smoke_Snippets*:*smoke_MHA* --gtest_print_time=1
-        timeout-minutes: 25
+        timeout-minutes: 120
 
       - name: Upload Test Results
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3

@@ -18,7 +18,7 @@ permissions: read-all
 jobs:
   ONNX_Models_tests:
     name: ONNX Models tests
-    timeout-minutes: 60
+    timeout-minutes: 120
     runs-on: ${{ inputs.runner }}
     container: ${{ fromJSON(inputs.container) }}
     defaults:

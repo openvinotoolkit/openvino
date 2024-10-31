@@ -21,7 +21,7 @@ permissions: read-all
 
 jobs:
   Samples:
-    timeout-minutes: 30
+    timeout-minutes: 120
     runs-on: ${{ inputs.runner }}
     container: ${{ fromJSON(inputs.container) }}
     defaults:

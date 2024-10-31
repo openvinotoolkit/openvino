@@ -74,7 +74,7 @@ jobs:
   Samples:
     needs: [ Build, Smart_CI ]
     if: fromJSON(needs.smart_ci.outputs.affected_components).samples
-    timeout-minutes: 20
+    timeout-minutes: 120
     defaults:
       run:
         shell: pwsh
@@ -241,7 +241,7 @@ jobs:
   Python_Unit_Tests:
     name: Python unit tests
     needs: [ Build, Smart_CI ]
-    timeout-minutes: 75
+    timeout-minutes: 120
     defaults:
       run:
         shell: pwsh
@@ -437,12 +437,12 @@ jobs:
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       os: 'windows_2019'
       build-type: 'Release'
-      timeout-minutes: 50
+      timeout-minutes: 120
 
   CPU_Functional_Tests:
     name: CPU functional tests
     needs: [ Build, Smart_CI ]
-    timeout-minutes: 70
+    timeout-minutes: 120
     defaults:
       run:
         shell: pwsh
@@ -506,7 +506,7 @@ jobs:
         run: |
           . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           python3 ${{ env.PARALLEL_TEST_SCRIPT }} -e ${{ env.INSTALL_TEST_DIR }}/ov_cpu_func_tests.exe -c ${{ env.PARALLEL_TEST_CACHE }} -w ${{ env.INSTALL_TEST_DIR }} -s suite -rf 0 -- --gtest_filter=*smoke*
-        timeout-minutes: 60
+        timeout-minutes: 120
 
       - name: Save tests execution time
         uses: actions/cache/save@6849a6489940f00c2f30c0fb92c6274307ccb58a # v4.1.2

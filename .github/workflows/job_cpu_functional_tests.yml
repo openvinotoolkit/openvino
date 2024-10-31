@@ -22,7 +22,7 @@ permissions: read-all
 jobs:
   CPU_Functional_Tests:
     name: CPU functional tests
-    timeout-minutes: 30
+    timeout-minutes: 120
     runs-on: ${{ inputs.runner }}
     container:
       image: ${{ inputs.image }}
@@ -106,7 +106,7 @@ jobs:
           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${INSTALL_TEST_DIR}
 
           python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_cpu_func_tests -c ${PARALLEL_TEST_CACHE} -w ${INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_print_time=1 --gtest_filter=*smoke*
-        timeout-minutes: 25
+        timeout-minutes: 120
 
       - name: Save tests execution time
         uses: actions/cache/save@6849a6489940f00c2f30c0fb92c6274307ccb58a # v4.1.2

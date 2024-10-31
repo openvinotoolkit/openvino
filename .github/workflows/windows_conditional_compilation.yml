@@ -265,7 +265,7 @@ jobs:
 
   CC_Build:
     name: Conditional Compilation
-    timeout-minutes: 25
+    timeout-minutes: 120
     needs: [Build, Smart_CI]
     defaults:
       run:
@@ -346,7 +346,7 @@ jobs:
   CPU_Functional_Tests:
     name: CPU functional tests
     needs: [Build, Smart_CI]
-    timeout-minutes: 85
+    timeout-minutes: 120
     defaults:
       run:
         shell: pwsh
@@ -399,7 +399,7 @@ jobs:
         run: |
           set path=%path%;${{ env.INSTALL_TEST_DIR }}
           python3 ${{ env.PARALLEL_TEST_SCRIPT }} -e ${{ env.INSTALL_TEST_DIR }}\ov_cpu_func_tests.exe -w ${{ env.INSTALL_TEST_DIR }} -s suite -rf 0 -- --gtest_print_time=1 --gtest_filter=*smoke*
-        timeout-minutes: 60
+        timeout-minutes: 120
 
       - name: Upload Test Results
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3

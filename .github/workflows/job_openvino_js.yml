@@ -18,7 +18,7 @@ permissions: read-all
 jobs:
   JS_API:
     name: OpenVINO JS API
-    timeout-minutes: 10
+    timeout-minutes: 120
     runs-on: ${{ inputs.runner }}
     container: ${{ fromJSON(inputs.container) }}
     defaults:

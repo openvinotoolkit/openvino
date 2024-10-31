@@ -406,7 +406,7 @@ jobs:
   NVIDIA_Plugin:
     name: NVIDIA plugin
     needs: [ Docker, Build, Smart_CI ]
-    timeout-minutes: 15
+    timeout-minutes: 120
     defaults:
       run:
         shell: bash

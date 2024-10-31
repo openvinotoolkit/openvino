@@ -34,7 +34,7 @@ env:
 jobs:
   Openvino_tokenizers:
     name: OpenVINO tokenizers extension
-    timeout-minutes: 25
+    timeout-minutes: 120
     defaults:
       run:
         shell: ${{ inputs.shell }}

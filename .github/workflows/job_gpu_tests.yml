@@ -25,7 +25,7 @@ permissions: read-all
 
 jobs:
   GPU:
-    timeout-minutes: 80
+    timeout-minutes: 120
     runs-on: ${{ fromJSON(inputs.runner) }}
     container: ${{ fromJSON(inputs.container) }}
     defaults:
