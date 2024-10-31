@@ -95,58 +95,6 @@ ov::npuw::IBaseInferRequest::RqPtrs ov::npuw::IBaseInferRequest::create_infer_re
     return rqs;
 }
 
-void ov::npuw::IBaseInferRequest::ensure_subrequest_is_accurate(std::size_t idx, bool& failover) {
-    LOG_INFO("Check if subrequest[" << idx << "] is accurate...");
-    LOG_BLOCK();
-    failover = false;
-    if (m_ref_subrequests.at(idx) != nullptr && m_subrequests.at(idx)._ptr != m_ref_subrequests.at(idx)._ptr) {
-        NPUW_ASSERT(m_npuw_model->m_compiled_submodels.at(idx).switched_to_ref == false);
-        NPUW_ASSERT(m_npuw_model->m_compiled_submodels.at(idx).replaced_by.value_or(idx) == idx);
-
-        const auto& ref_comp_model = m_ref_subrequests.at(idx)->get_compiled_model();
-        const auto& actual_comp_model = m_subrequests.at(idx)->get_compiled_model();
-        NPUW_ASSERT(actual_comp_model->inputs().size() == ref_comp_model->inputs().size());
-        // Setting inputs:
-        for (size_t i = 0; i < actual_comp_model->inputs().size(); i++) {
-            const auto& itensor = m_subrequests.at(idx)->get_tensor(actual_comp_model->inputs()[i]);
-            m_ref_subrequests.at(idx)->set_tensor(ref_comp_model->inputs()[i], itensor);
-        }
-        m_ref_subrequests.at(idx)->infer();
-
-        LOG_INFO("Compare actual outputs against references:");
-        bool tensors_converge = true;
-        for (size_t i = 0; i < actual_comp_model->outputs().size(); i++) {
-            LOG_INFO(" - " << actual_comp_model->outputs()[i]);
-            const auto& actual_tensor = m_subrequests.at(idx)->get_tensor(actual_comp_model->outputs()[i]);
-            const auto& ref_tensor = m_ref_subrequests.at(idx)->get_tensor(ref_comp_model->outputs()[i]);
-            LOG_BLOCK();
-            tensors_converge &= m_npuw_model->m_acc_check(actual_tensor, ref_tensor);
-        }
-        LOG_INFO((tensors_converge ? "PASS" : "FAIL"));
-
-        if (!tensors_converge) {
-            LOG_INFO("Subrequest is inaccurate, failover to reference.");
-            // FIXME: We need to copy reference tensors to actual only in single-model-inference mode
-            //        or if our subgraph is last in the chain.
-            for (size_t i = 0; i < actual_comp_model->outputs().size(); i++) {
-                const auto& actual_tensor = m_subrequests.at(idx)->get_tensor(actual_comp_model->outputs()[i]);
-                const auto& ref_tensor = m_ref_subrequests.at(idx)->get_tensor(ref_comp_model->outputs()[i]);
-                ref_tensor->copy_to(actual_tensor._ptr);
-            }
-            m_npuw_model->m_compiled_submodels.at(idx).compiled_model =
-                m_npuw_model->m_compiled_submodels.at(idx).ref_compiled_model;
-            m_npuw_model->m_compiled_submodels.at(idx).switched_to_ref = true;
-            m_subrequests.at(idx) = m_ref_subrequests.at(idx);
-            update_subrequest_links(idx);
-            failover = true;
-        }
-
-        LOG_INFO("Done");
-    } else {
-        LOG_INFO("Skipped, subrequest is launched on reference device.");
-    }
-}
-
 ov::SoPtr<ov::ITensor> ov::npuw::IBaseInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
     // assert(persistent)
     return m_port_to_tensor.at(port).tensor;
@@ -216,10 +164,6 @@ void ov::npuw::IBaseInferRequest::infer() {
         run_subrequest_for_success(idx, failover);
         failover_happened |= failover;
         complete_subrequest(idx);
-        if (m_npuw_model->m_acc_check) {
-            ensure_subrequest_is_accurate(idx, failover);
-            failover_happened |= failover;
-        }
     }
 
     // Increment counter regardless if dumps etc are enabled or not.

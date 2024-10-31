@@ -81,12 +81,18 @@ protected:
     void complete_subrequest(std::size_t idx) override;
     void cancel_subrequest(std::size_t idx) override;
     bool supports_async_pipeline() const override;
-    void update_subrequest_links(std::size_t idx) override;
 
     TensorPtr alloc_global_out(std::size_t out_idx) override;
 
     ////////////////////////////////////
     // now own API
+
+    void log_subrequest_launch(std::size_t idx, std::size_t real_idx);
+    void log_launch_on_range(std::size_t real_idx, std::size_t dim,
+                             std::size_t offset, std::size_t len);
+    void try_accurate_infer(std::size_t idx, bool& failover);
+    void ensure_subrequest_is_accurate(std::size_t idx, bool& failover);
+    void update_subrequest_links(std::size_t idx);
 
     // FIXME: probably this one should go to the base class too
     RqPtr get_real_subrequest(std::size_t idx);
@@ -97,9 +103,9 @@ protected:
 
     void function_prologue(std::size_t idx);
 
-    void unsafe_during(std::size_t real_idx, const std::function<void()>& f);
-    void unsafe_infer(std::size_t real_idx);
-    void unsafe_run_this_prep_next(std::size_t idx, bool& next_prepared_p);
+    void unsafe_during(std::size_t real_idx, const std::function<void()>& f, bool& failover);
+    void unsafe_infer(std::size_t real_idx, bool& failover);
+    void unsafe_run_this_prep_next(std::size_t idx, bool& next_prepared_p, bool& failover);
 
     void connect_subrequests();
     void recreate_subrequests(std::size_t idx);

@@ -14,29 +14,43 @@ ov::npuw::metrics::NRMSE::NRMSE(double threshold) : m_threshold(threshold) {}
 
 bool ov::npuw::metrics::NRMSE::operator()(const ov::SoPtr<ov::ITensor>& actual,
                                           const ov::SoPtr<ov::ITensor>& reference) const {
-    NPUW_ASSERT(actual->is_continuous());
-    NPUW_ASSERT(reference->is_continuous());
     NPUW_ASSERT(actual->get_shape() == reference->get_shape());
     // Check for alignment:
     NPUW_ASSERT(actual->get_byte_size() == reference->get_byte_size());
-    // FIXME: Check for strides
+
+    ov::Tensor in_actual(actual->get_element_type(), actual->get_shape());
+    ov::Tensor in_reference(reference->get_element_type(), reference->get_shape());
+
+    if (!actual->is_continuous()) {
+        ov::make_tensor(actual).copy_to(in_actual);
+    } else {
+        in_actual = ov::make_tensor(actual);
+    }
+    if (!reference->is_continuous()) {
+        ov::make_tensor(reference).copy_to(in_reference);
+    } else {
+        in_reference = ov::make_tensor(reference);
+    }
+
+    NPUW_ASSERT(in_actual.is_continuous());
+    NPUW_ASSERT(in_reference.is_continuous());
 
     ov::Tensor actual_f32;
     ov::Tensor reference_f32;
 
-    if (ov::element::Type_t::f32 == actual->get_element_type()) {
-        actual_f32 = ov::make_tensor(actual);
+    if (ov::element::Type_t::f32 == in_actual.get_element_type()) {
+        actual_f32 = in_actual;
     } else {
-        ov::Tensor dst(ov::element::Type_t::f32, actual->get_shape());
-        ov::npuw::util::to_f32(ov::make_tensor(actual), dst);
+        ov::Tensor dst(ov::element::Type_t::f32, in_actual.get_shape());
+        ov::npuw::util::to_f32(in_actual, dst);
         actual_f32 = std::move(dst);
     }
 
-    if (ov::element::Type_t::f32 == reference->get_element_type()) {
-        reference_f32 = ov::make_tensor(reference);
+    if (ov::element::Type_t::f32 == in_reference.get_element_type()) {
+        reference_f32 = in_reference;
     } else {
-        ov::Tensor dst(ov::element::Type_t::f32, reference->get_shape());
-        ov::npuw::util::to_f32(ov::make_tensor(reference), dst);
+        ov::Tensor dst(ov::element::Type_t::f32, in_reference.get_shape());
+        ov::npuw::util::to_f32(in_reference, dst);
         reference_f32 = dst;
     }
 
