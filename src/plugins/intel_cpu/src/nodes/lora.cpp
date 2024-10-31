@@ -47,8 +47,14 @@ void LoRA::selectOptimalPrimitiveDescriptor() {
     std::vector<PortConfig> inConfs;
     std::vector<Input::InputConfig> graphInputConfig;
 
-    for (size_t i = 0; i < getParentEdges().size(); i++) {
-        auto desc = getParentOutputMemDesc(getParentEdgeAt(i));
+    auto mainInputDesc = getParentOutputMemDesc(getParentEdgeAt(0));
+    auto mainInputPrc = mainInputDesc->getPrecision(); // we have to align precision across all the inputs
+
+    inConfs.emplace_back(mainInputDesc);
+    graphInputConfig.emplace_back(node::Input::InputConfig{mainInputDesc, true});
+
+    for (size_t i = 1; i < getParentEdges().size(); i++) {
+        auto desc = getParentOutputMemDesc(getParentEdgeAt(i))->cloneWithNewPrecision(mainInputPrc);
         inConfs.emplace_back(desc);
         graphInputConfig.emplace_back(node::Input::InputConfig{desc, true});
     }
