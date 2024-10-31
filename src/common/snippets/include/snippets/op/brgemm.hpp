@@ -26,6 +26,9 @@ public:
     Brgemm(const Output<Node>& A, const Output<Node>& B,
            const PortDescriptor& desc_a, const PortDescriptor& desc_b, const PortDescriptor& desc_c,
            std::vector<size_t> layout_a = {}, std::vector<size_t> layout_b = {}, std::vector<size_t> layout_c = {});
+    Brgemm(const Output<Node>& A, const Output<Node>& B, const Output<Node>& C,
+           const size_t offset_a = 0lu, const size_t offset_b = 0lu, const size_t offset_c = 0lu,
+           std::vector<size_t> layout_a = {}, std::vector<size_t> layout_b = {}, std::vector<size_t> layout_c = {});
     Brgemm() = default;
 
     size_t get_offset_a() const { return get_input_offset(0); }

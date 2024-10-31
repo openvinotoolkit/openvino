@@ -49,6 +49,19 @@ Brgemm::Brgemm(const Output<Node>& A, const Output<Node>& B,
     custom_constructor_validate_and_infer_types(std::move(layout_a), std::move(layout_b), std::move(layout_c));
 }
 
+Brgemm::Brgemm(const Output<Node>& A, const Output<Node>& B, const Output<Node>& C,
+               const size_t offset_a, const size_t offset_b, const size_t offset_c,
+               std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c)
+    : MemoryAccess(std::set<size_t>{0, 1, 2}, std::set<size_t>{0}), Op({A, B, C}) {
+    set_output_size(1);
+    set_input_offset(offset_a, 0);
+    set_input_offset(offset_b, 1);
+    set_input_offset(0, 2);
+    set_output_offset(offset_c, 0);
+    // with_c_pre_ops = true;
+    custom_constructor_validate_and_infer_types(std::move(layout_a), std::move(layout_b), std::move(layout_c));
+}
+
 void Brgemm::custom_constructor_validate_and_infer_types(std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c) {
     INTERNAL_OP_SCOPE(BrgemmCPU_constructor_validate_and_infer_types);
 
