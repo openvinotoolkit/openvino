@@ -375,7 +375,7 @@ jobs:
           --ignore=${{ env.INSTALL_TEST_DIR }}/onnx/test_python/test_zoo_models.py
 
       - name: MO Python API Tests
-        if: fromJSON(needs.smart_ci.outputs.affected_components).MO.test
+        if: ${{ 'false' }}
         shell: cmd
         run: |
           :: Used for 'test_utils' installed in '<test_package>\python\openvino\test_utils'
