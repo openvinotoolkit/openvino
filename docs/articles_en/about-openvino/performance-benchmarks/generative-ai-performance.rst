@@ -17,16 +17,13 @@ running on an Intel® Core™ Ultra 7-165H, Intel® Core™ Ultra 7-265V, and In
 
 
 
-.. tab-set::
+.. csv-table::
+   :class: modeldata stripe
+   :name: supportedModelsTableOv
+   :header-rows: 1
+   :file:  ../../_static/benchmarks_files/llm_models.csv
 
-   .. tab-item:: OpenVINO
-
-      .. csv-table::
-         :class: modeldata stripe
-         :name: supportedModelsTableOv
-         :header-rows: 1
-         :file:  ../../_static/benchmarks_files/llm_models.csv
-
+|
 
 .. grid:: 1 1 2 2
    :gutter: 4
