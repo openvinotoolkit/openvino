@@ -230,9 +230,9 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
         src_x.get_shape()[0] % block_size == 0,
         "DequantizeLinear doesn't support case when first dimension of X cannot be divided by block_size");
 
-    ov::Output<ov::Node> broadcastable_x =
-        op::util::reshape(src_x,
-                          Shape{static_cast<size_t>(src_x.get_shape()[0]) / block_size, block_size, src_x.get_shape()[1]});
+    ov::Output<ov::Node> broadcastable_x = op::util::reshape(
+        src_x,
+        Shape{static_cast<size_t>(src_x.get_shape()[0]) / block_size, block_size, src_x.get_shape()[1]});
 
     const auto& unsqueezed_axes = std::make_shared<v0::Constant>(ov::element::i64, Shape{1}, std::vector<int64_t>{1});
 
@@ -245,7 +245,8 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
         zp = std::make_shared<v0::Unsqueeze>(zp, unsqueezed_axes);
     }
 
-    const auto& x = src_x.get_element_type() == scale_type ? broadcastable_x : std::make_shared<v0::Convert>(broadcastable_x, scale_type);
+    const auto& x = src_x.get_element_type() == scale_type ? broadcastable_x
+                                                           : std::make_shared<v0::Convert>(broadcastable_x, scale_type);
     // For further broadcasting scales and zp - reshape input to a shape [x.shape[0]/block_size, block_size, x.shape[1]]
 
     // Adding additional dimension for broadcasting
@@ -255,7 +256,7 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
         broadcastable_x = std::make_shared<v1::Subtract>(x, zp);
     }
 
-    const auto& scaled_x = std::make_shared<v1::Multiply>(x, scale);
+    const auto& scaled_x = std::make_shared<v1::Multiply>(broadcastable_x, scale);
 
     // Returning back a shape
     const auto& reshaped_scaled_x =
