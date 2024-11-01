@@ -54,7 +54,7 @@ std::vector<ov::DiscreteTypeInfo> ov::pass::MoveEltwiseUpThroughDataMov::get_def
     };
 }
 
-std::shared_ptr<ov::Node> recurse_up(std::shared_ptr<ov::Node> node, std::shared_ptr<ov::Node> stop_node, std::shared_ptr<ov::Node> new_eltwise) {
+static std::shared_ptr<ov::Node> recurse_up(std::shared_ptr<ov::Node> node, std::shared_ptr<ov::Node> stop_node, std::shared_ptr<ov::Node> new_eltwise) {
     if (node->input_value(0).get_node_shared_ptr() == stop_node) {
         ov::OutputVector node_inputs = node->input_values();
         node_inputs[0] = new_eltwise;
