@@ -23,6 +23,11 @@ using TensorPtr = ov::SoPtr<ov::ITensor>;
 
 class CompiledModel;
 
+using LinkFrom = std::pair<std::size_t /* Subrequest index */
+                           ,
+                           std::size_t /* Subrequest output index */
+                           >;          // FIXME: This is a third, if not fourth, definitiion of such structure
+
 // This interface is provided to npuw::AsyncInferRequest to manage the
 // individual subrequests' execution
 class IBaseInferRequest : public ov::ISyncInferRequest {
@@ -131,7 +136,10 @@ protected:
 
     TensorPtr allocMem(const ov::element::Type type, const ov::Shape& shape, const std::string& device);
     TensorPtr allocOut(const ov::Output<const ov::Node>& node, const std::string& device);
+    virtual void alloc_io();
+    virtual TensorPtr alloc_global_out(std::size_t out_idx);
 
+    virtual void init_gio();
     void unpack_closure(std::size_t idx, RqPtr request);
 
     void dump_input_tensors(std::size_t idx);

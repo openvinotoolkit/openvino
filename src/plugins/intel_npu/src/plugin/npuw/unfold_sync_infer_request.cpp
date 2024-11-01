@@ -34,38 +34,13 @@ ov::npuw::UnfoldInferRequest::UnfoldInferRequest(const std::shared_ptr<ov::npuw:
 
         const auto real_idx = comp_model_desc.replaced_by.value_or(i);
         auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
+        // NB: UnfoldInferRequest is _NOT_ fail-safe! Fail means fail here
         m_subrequests[i] = proto_comp_model_desc.compiled_model->create_infer_request();
         m_subrequest_devices[i] = *proto_comp_model_desc.device_it;
         LOG_INFO("DONE");
     }  // for(submodels)
 
-    // Preallocate input tensors. Note - there may be
-    // multiple subrequest consumers on the same input tensor
-    LOG_INFO("Preallocating input tensors...");
-    for (size_t i = 0; i < m_npuw_model->inputs().size(); i++) {
-        const auto& port = m_npuw_model->inputs()[i];
-        ov::SoPtr<ov::ITensor> allocated = allocOut(port, m_npuw_model->global_mem_device());
-        m_input_tensors.push_back(allocated);
-        m_input_allocated.insert(allocated->data());
-        m_port_to_tensor[port] = TensorStorage{m_input_tensors.back(), true};
-    }  // for(inputs)
-
-    // Preallocate output tensors
-    LOG_INFO("Preallocating output tensors...");
-    for (size_t i = 0; i < m_npuw_model->outputs().size(); i++) {
-        LOG_BLOCK();
-        const auto& port = m_npuw_model->outputs()[i];
-        LOG_INFO("Output " << i << " of " << m_npuw_model->outputs().size() << ": " << port);
-
-        // FIXME: Yes, the CompiledModel::ToSubmodel == JustInferRequest::LinkFrom
-        const auto& from_submodel = m_npuw_model->m_outputs_to_submodels_outputs.at(i);
-
-        LOG_INFO("Produced by Subgraph[" << from_submodel.first << "] / " << from_submodel.second);
-        const auto& tensor = allocOut(port, m_npuw_model->global_mem_device());
-
-        m_output_tensors.push_back(tensor);
-        m_port_to_tensor[port] = TensorStorage{tensor, true};
-    }
+    alloc_io();
 
     LOG_INFO("Connecting subrequests...");
     LOG_BLOCK();
@@ -89,36 +64,7 @@ ov::npuw::UnfoldInferRequest::UnfoldInferRequest(const std::shared_ptr<ov::npuw:
     }  // for(map)
     LOG_INFO("Done");
 
-    // Build the parameter/result mapping {{{
-    m_subrequests_gio.resize(m_subrequests.size());
-
-    // Parameters: stage 1...
-    for (size_t i = 0; i < m_npuw_model->inputs().size(); i++) {
-        const auto& to_submodel = m_npuw_model->m_inputs_to_submodels_inputs.at(i);
-        if (to_submodel != CompiledModel::NO_LINK) {
-            std::size_t sub_idx{}, in_idx{};
-            std::tie(sub_idx, in_idx) = to_submodel;
-            m_subrequests_gio.at(sub_idx).global_params[i] = in_idx;
-        }
-    }  // for(inputs)
-
-    // Parameters: stage 2...
-    for (auto&& it : m_npuw_model->m_param_subscribers) {
-        const auto param_idx = it.first;
-        for (auto&& to_submodel : it.second) {
-            std::size_t sub_idx{}, in_idx{};
-            std::tie(sub_idx, in_idx) = to_submodel;
-            m_subrequests_gio.at(sub_idx).global_params[param_idx] = in_idx;
-        }
-    }
-
-    // Results
-    for (size_t i = 0; i < m_npuw_model->outputs().size(); i++) {
-        std::size_t sub_idx{}, out_idx{};
-        std::tie(sub_idx, out_idx) = m_npuw_model->m_outputs_to_submodels_outputs.at(i);
-        m_subrequests_gio.at(sub_idx).global_results[i] = out_idx;
-    }
-    // }}}
+    init_gio();
 
     for (size_t i = 0; i < m_num_submodels; i++) {
         LOG_VERB("Trying to preemptively set tensors for Subgraph[" << i << "]...");

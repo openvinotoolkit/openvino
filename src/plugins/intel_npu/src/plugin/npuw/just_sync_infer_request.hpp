@@ -23,11 +23,6 @@ namespace npuw {
 class CompiledModel;
 class AsyncInferRequest;
 
-using LinkFrom = std::pair<std::size_t /* Subrequest index */
-                           ,
-                           std::size_t /* Subrequest output index */
-                           >;          // FIXME: This is a third, if not fourth, definitiion of such structure
-
 class MemAccessSim {
 public:
     explicit MemAccessSim(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model);
@@ -87,6 +82,8 @@ protected:
     void cancel_subrequest(std::size_t idx) override;
     bool supports_async_pipeline() const override;
     void update_subrequest_links(std::size_t idx) override;
+
+    TensorPtr alloc_global_out(std::size_t out_idx) override;
 
     ////////////////////////////////////
     // now own API

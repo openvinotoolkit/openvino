@@ -261,6 +261,71 @@ ov::npuw::TensorPtr ov::npuw::IBaseInferRequest::allocOut(const ov::Output<const
     return allocMem(node.get_element_type(), node.get_shape(), device);
 }
 
+void ov::npuw::IBaseInferRequest::alloc_io() {
+    // Preallocate input tensors
+    LOG_INFO("Preallocating input tensors...");
+    for (size_t i = 0; i < m_npuw_model->inputs().size(); i++) {
+        const auto& port = m_npuw_model->inputs()[i];
+        ov::SoPtr<ov::ITensor> allocated = allocOut(port, m_npuw_model->global_mem_device());
+        m_input_tensors.push_back(allocated);
+        m_input_allocated.insert(allocated->data());
+        m_port_to_tensor[port] = TensorStorage{m_input_tensors.back(), true};
+    }  // for(inputs)
+
+    // Preallocate output tensors
+    LOG_INFO("Preallocating output tensors...");
+    for (size_t i = 0; i < m_npuw_model->outputs().size(); i++) {
+        LOG_BLOCK();
+        const auto& port = m_npuw_model->outputs()[i];
+        LOG_INFO("Output " << i << " of " << m_npuw_model->outputs().size() << ": " << port);
+
+        // FIXME: Yes, the CompiledModel::ToSubmodel == JustInferRequest::LinkFrom
+        const auto& from_submodel = m_npuw_model->m_outputs_to_submodels_outputs.at(i);
+        LOG_INFO("Produced by Subgraph[" << from_submodel.first << "] / " << from_submodel.second);
+
+        auto tensor = alloc_global_out(i);
+        m_output_tensors.push_back(tensor);
+        m_port_to_tensor[port] = TensorStorage{tensor, true};
+    }
+}
+
+ov::npuw::TensorPtr ov::npuw::IBaseInferRequest::alloc_global_out(std::size_t out_idx) {
+    const auto& port = m_npuw_model->outputs().at(out_idx);
+    return allocOut(port, m_npuw_model->global_mem_device());
+}
+
+void ov::npuw::IBaseInferRequest::init_gio() {
+    // Build the parameter/result mapping
+    m_subrequests_gio.resize(m_subrequests.size());
+
+    // Parameters: stage 1...
+    for (size_t i = 0; i < m_npuw_model->inputs().size(); i++) {
+        const auto& to_submodel = m_npuw_model->m_inputs_to_submodels_inputs.at(i);
+        if (to_submodel != CompiledModel::NO_LINK) {
+            std::size_t sub_idx{}, in_idx{};
+            std::tie(sub_idx, in_idx) = to_submodel;
+            m_subrequests_gio.at(sub_idx).global_params[i] = in_idx;
+        }
+    }  // for(inputs)
+
+    // Parameters: stage 2...
+    for (auto&& it : m_npuw_model->m_param_subscribers) {
+        const auto param_idx = it.first;
+        for (auto&& to_submodel : it.second) {
+            std::size_t sub_idx{}, in_idx{};
+            std::tie(sub_idx, in_idx) = to_submodel;
+            m_subrequests_gio.at(sub_idx).global_params[param_idx] = in_idx;
+        }
+    }
+
+    // Results
+    for (size_t i = 0; i < m_npuw_model->outputs().size(); i++) {
+        std::size_t sub_idx{}, out_idx{};
+        std::tie(sub_idx, out_idx) = m_npuw_model->m_outputs_to_submodels_outputs.at(i);
+        m_subrequests_gio.at(sub_idx).global_results[i] = out_idx;
+    }
+}
+
 void ov::npuw::IBaseInferRequest::unpack_closure(std::size_t idx, RqPtr request) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
 
