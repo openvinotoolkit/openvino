@@ -35,6 +35,7 @@
 #include "openvino/runtime/performance_heuristics.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
+#include "openvino/util/weights_path.hpp"
 #include "transformations/common_optimizations/dimension_tracking.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
@@ -162,6 +163,22 @@ Plugin::Plugin() {
     m_compiled_model_runtime_properties["OV_VERSION"] = ov_version.buildNumber;
 }
 
+void Plugin::set_cache_info(const std::shared_ptr<const ov::Model>& model, ExecutionConfig& config) const {
+    // WEIGHTS_PATH is used for the weightless cache mechanism which is used only with
+    // ov::CacheMode::OPTIMIZE_SIZE setting. Not setting WEIGHTS_PATH will result in not
+    // using that mechanism.
+    if (config.get_property(ov::cache_mode) != ov::CacheMode::OPTIMIZE_SIZE) {
+        return;
+    }
+
+    const auto& rt_info = model->get_rt_info();
+    auto weights_path = rt_info.find("__weights_path");
+    if (weights_path != rt_info.end()) {
+        ov::AnyMap weights_path_property{{"WEIGHTS_PATH", weights_path->second}};
+        config.set_property(weights_path_property);
+    }
+}
+
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& orig_config) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::compile_model");
     std::string device_id = get_device_id(orig_config);
@@ -173,6 +190,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(orig_config);
     config.apply_user_properties(context->get_engine().get_device_info());
+
+    set_cache_info(model, config);
 
     auto transformed_model = clone_and_transform_model(model, config, context);
     {
@@ -192,6 +211,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(orig_config);
     config.apply_user_properties(context_impl->get_engine().get_device_info());
+
+    set_cache_info(model, config);
 
     auto transformed_model = clone_and_transform_model(model, config, context_impl);
     return std::make_shared<CompiledModel>(transformed_model, shared_from_this(), context_impl, config);
@@ -308,10 +329,21 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
     config.set_user_property(_orig_config);
     config.apply_user_properties(context_impl->get_engine().get_device_info());
 
-    if (config.get_property(ov::cache_mode) == ov::CacheMode::OPTIMIZE_SIZE)
-        return nullptr;
-
     cldnn::BinaryInputBuffer ib(model, context_impl->get_engine());
+
+    ov::CacheMode cache_mode;
+    ib >> cldnn::make_data(&cache_mode, sizeof(ov::CacheMode));
+
+    if (cache_mode != config.get_property(ov::cache_mode)) {
+        return nullptr;
+    }
+
+    std::string weights_path = config.get_property(ov::weights_path);
+    if (config.get_property(ov::cache_mode) == ov::CacheMode::OPTIMIZE_SIZE &&
+        !ov::util::validate_weights_path(weights_path)) {
+        return nullptr;
+    }
+
     return std::make_shared<CompiledModel>(ib, shared_from_this(), context_impl, config, loaded_from_cache);
 }
 
@@ -517,6 +549,7 @@ std::vector<ov::PropertyName> Plugin::get_caching_properties() const {
         ov::PropertyName{ov::hint::execution_mode.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::performance_mode.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::dynamic_quantization_group_size.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::hint::activations_scale_factor.name(), PropertyMutability::RW},
     };
 
     return caching_properties;
@@ -562,7 +595,8 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::hint::inference_precision.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::enable_cpu_pinning.name(), PropertyMutability::RW},
         ov::PropertyName{ov::device::id.name(), PropertyMutability::RW},
-        ov::PropertyName{ov::hint::dynamic_quantization_group_size.name(), PropertyMutability::RW}
+        ov::PropertyName{ov::hint::dynamic_quantization_group_size.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::hint::activations_scale_factor.name(), PropertyMutability::RW}
     };
 
     return supported_properties;
@@ -575,7 +609,8 @@ std::vector<ov::PropertyName> Plugin::get_supported_internal_properties() const 
             ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
             ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::internal::compiled_model_runtime_properties_supported.name(), ov::PropertyMutability::RO},
-            ov::PropertyName{ov::internal::query_model_ratio.name(), PropertyMutability::RW}};
+            ov::PropertyName{ov::internal::query_model_ratio.name(), PropertyMutability::RW},
+            ov::PropertyName{ov::internal::caching_with_mmap.name(), PropertyMutability::RO}};
     return supported_internal_properties;
 }
 

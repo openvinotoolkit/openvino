@@ -5,6 +5,7 @@
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
+#include "openvino/util/weights_path.hpp"
 
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/runtime/itt.hpp"
@@ -42,18 +43,15 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
                              RemoteContextImpl::Ptr context,
                              const ExecutionConfig& config)
-    : ov::ICompiledModel(model,
-                         plugin,
-                         context,
-                         create_task_executor(plugin, config),
-                         nullptr)
-    , m_context(context)
-    , m_config(config)
-    , m_wait_executor(std::make_shared<ov::threading::CPUStreamsExecutor>(ov::threading::IStreamsExecutor::Config{"Intel GPU plugin wait executor"}))
-    , m_model_name(model->get_friendly_name())
-    , m_inputs(ov::ICompiledModel::inputs())
-    , m_outputs(ov::ICompiledModel::outputs())
-    , m_loaded_from_cache(false) {
+    : ov::ICompiledModel(model, plugin, context, create_task_executor(plugin, config), nullptr),
+      m_context(context),
+      m_config(config),
+      m_wait_executor(std::make_shared<ov::threading::CPUStreamsExecutor>(
+          ov::threading::IStreamsExecutor::Config{"Intel GPU plugin wait executor"})),
+      m_model_name(model->get_friendly_name()),
+      m_inputs(ov::ICompiledModel::inputs()),
+      m_outputs(ov::ICompiledModel::outputs()),
+      m_loaded_from_cache(false) {
     auto graph_base = std::make_shared<Graph>(model, m_context, m_config, 0);
     for (uint16_t n = 0; n < m_config.get_property(ov::num_streams); n++) {
         auto graph = n == 0 ? graph_base : std::make_shared<Graph>(graph_base, n);
@@ -170,13 +168,19 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
 //     [ ov::Node::Input/ ov::Node::Output ]
 //     [ ov::intel_gpu::Graph ]
 void CompiledModel::export_model(std::ostream& model) const {
-    if (m_config.get_property(ov::cache_mode) == ov::CacheMode::OPTIMIZE_SIZE)
+    // If ov::CacheMode::OPTIMIZE_SIZE is set, do the export iff it's possible to do weightless caching
+    // which requires the weights_path.
+    ov::CacheMode cache_mode = m_config.get_property(ov::cache_mode);
+    std::string weights_path = m_config.get_property(ov::weights_path);
+    if (cache_mode == ov::CacheMode::OPTIMIZE_SIZE &&
+        !ov::util::validate_weights_path(weights_path))
         return;
 
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CompiledModel::export_model");
     OPENVINO_ASSERT(!m_graphs.empty(), "[GPU] Model not loaded");
 
     cldnn::BinaryOutputBuffer ob(model);
+    ob << cldnn::make_data(&cache_mode, sizeof(ov::CacheMode));
 
     // Inputs
     {
@@ -257,6 +261,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             ov::PropertyName{ov::hint::num_requests.name(), PropertyMutability::RO},
             ov::PropertyName{ov::hint::inference_precision.name(), PropertyMutability::RO},
             ov::PropertyName{ov::hint::dynamic_quantization_group_size.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::hint::activations_scale_factor.name(), PropertyMutability::RO},
             ov::PropertyName{ov::device::id.name(), PropertyMutability::RO},
             ov::PropertyName{ov::execution_devices.name(), PropertyMutability::RO},
         };

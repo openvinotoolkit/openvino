@@ -72,8 +72,6 @@ def create_sitemap(app, exception):
     else:
         version = ""
 
-    url = ET.SubElement(root, "url")
-    scheme = app.config.sitemap_url_scheme
     unique_links = set()
     while True:
         try:
@@ -84,11 +82,14 @@ def create_sitemap(app, exception):
         except queue.Empty:
             break
 
+        url = ET.SubElement(root, "url")
+        
         if app.builder.config.language:
             lang = app.builder.config.language + "/"
         else:
             lang = ""
-                
+
+        scheme = app.config.sitemap_url_scheme 
         ET.SubElement(url, "loc").text = site_url + scheme.format(
             lang=lang, version=version, link=link
         )
@@ -121,7 +122,7 @@ def process_coveo_meta(meta, url, link):
         namespace_element = ET.SubElement(url, namespace)
 
         for tag_name, tag_value in values.items():
-            if tag_name == 'ovcategory':
+            if tag_name == 'ovdoctype':
                 processed_link = process_link(link)
                 ET.SubElement(namespace_element, tag_name).text = processed_link
             else:
@@ -129,5 +130,5 @@ def process_coveo_meta(meta, url, link):
 
 def process_link(link):
     if '/' in link:
-        return link.split('/')[0]
-    return link.split('.html')[0]
+        return link.split('/')[0].replace("-", " ")
+    return link.split('.html')[0].replace("-", " ")

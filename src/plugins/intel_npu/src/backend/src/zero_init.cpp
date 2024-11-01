@@ -4,11 +4,13 @@
 
 #include "zero_init.hpp"
 
-#include "intel_npu/al/itt.hpp"
+#include <regex>
+
+#include "intel_npu/common/itt.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
+#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "ze_api.h"
 #include "ze_command_queue_npu_ext.h"
-#include "zero_utils.hpp"
 
 #ifdef _WIN32
 namespace {
@@ -54,13 +56,13 @@ static std::tuple<uint32_t, std::string> queryDriverExtensionVersion(
 ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder", Logger::global().level()) {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "ZeroInitStructsHolder::ZeroInitStructsHolder");
     log.debug("ZeroInitStructsHolder - performing zeInit on VPU only");
-    zeroUtils::throwOnFail("zeInit", zeInit(ZE_INIT_FLAG_VPU_ONLY));
+    THROW_ON_FAIL_FOR_LEVELZERO("zeInit", zeInit(ZE_INIT_FLAG_VPU_ONLY));
 
     uint32_t drivers = 0;
-    zeroUtils::throwOnFail("zeDriverGet", zeDriverGet(&drivers, nullptr));
+    THROW_ON_FAIL_FOR_LEVELZERO("zeDriverGet", zeDriverGet(&drivers, nullptr));
 
     std::vector<ze_driver_handle_t> all_drivers(drivers);
-    zeroUtils::throwOnFail("zeDriverGet", zeDriverGet(&drivers, all_drivers.data()));
+    THROW_ON_FAIL_FOR_LEVELZERO("zeDriverGet", zeDriverGet(&drivers, all_drivers.data()));
 
     // Get our target driver
     driver_properties.stype = ZE_STRUCTURE_TYPE_DRIVER_PROPERTIES;
@@ -79,7 +81,7 @@ ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder",
 
     // Check L0 API version
     ze_api_version_t ze_drv_api_version = {};
-    zeroUtils::throwOnFail("zeDriverGetApiVersion", zeDriverGetApiVersion(driver_handle, &ze_drv_api_version));
+    THROW_ON_FAIL_FOR_LEVELZERO("zeDriverGetApiVersion", zeDriverGetApiVersion(driver_handle, &ze_drv_api_version));
 
     if (ZE_MAJOR_VERSION(ZE_API_VERSION_CURRENT) != ZE_MAJOR_VERSION(ze_drv_api_version)) {
         OPENVINO_THROW("Incompatibility between NPU plugin and driver! ",
@@ -97,23 +99,65 @@ ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder",
     }
 
     uint32_t count = 0;
-    zeroUtils::throwOnFail("zeDriverGetExtensionProperties",
-                           zeDriverGetExtensionProperties(driver_handle, &count, nullptr));
+    THROW_ON_FAIL_FOR_LEVELZERO("zeDriverGetExtensionProperties",
+                                zeDriverGetExtensionProperties(driver_handle, &count, nullptr));
 
     std::vector<ze_driver_extension_properties_t> extProps;
     extProps.resize(count);
-    zeroUtils::throwOnFail("zeDriverGetExtensionProperties",
-                           zeDriverGetExtensionProperties(driver_handle, &count, extProps.data()));
+    THROW_ON_FAIL_FOR_LEVELZERO("zeDriverGetExtensionProperties",
+                                zeDriverGetExtensionProperties(driver_handle, &count, extProps.data()));
+
+    // save the list of extension properties for later searches
+    for (auto it = extProps.begin(); it != extProps.end(); ++it) {
+        ze_driver_extension_properties_t p = *it;
+        driver_extension_properties.emplace(std::string(p.name), p.version);
+    }
 
     // Query our graph extension version
     std::string graph_ext_name;
     uint32_t graph_ext_version = 0;
+    uint32_t target_graph_ext_version = ZE_GRAPH_EXT_VERSION_CURRENT;
 
+#if defined(NPU_PLUGIN_DEVELOPER_BUILD)
+    const char* extVersion = std::getenv("NPU_ZE_GRAPH_EXT_VERSION");
+    if (extVersion) {
+        std::string extVersionString(extVersion);
+        std::regex extVersionRegex(R"(^(\d+)\.(\d+)$)");
+        std::smatch match;
+
+        if (std::regex_match(extVersionString, match, extVersionRegex)) {
+            int major = std::stoi(match[1].str());
+            int minor = std::stoi(match[2].str());
+            log.debug("Try to find graph ext version: %d.%d instead of %d.%d.",
+                      major,
+                      minor,
+                      ZE_MAJOR_VERSION(target_graph_ext_version),
+                      ZE_MINOR_VERSION(target_graph_ext_version));
+            target_graph_ext_version = ZE_MAKE_VERSION(major, minor);
+        }
+    }
+#endif
+
+    log.debug("Try to find graph ext version: %d.%d",
+              ZE_MAJOR_VERSION(target_graph_ext_version),
+              ZE_MINOR_VERSION(target_graph_ext_version));
     std::tie(graph_ext_version, graph_ext_name) =
-        queryDriverExtensionVersion(ZE_GRAPH_EXT_NAME, ZE_GRAPH_EXT_VERSION_CURRENT, extProps, count);
+        queryDriverExtensionVersion(ZE_GRAPH_EXT_NAME, target_graph_ext_version, extProps, count);
 
     if (graph_ext_name.empty()) {
         OPENVINO_THROW("queryGraphExtensionVersion: Failed to find Graph extension in NPU Driver");
+    }
+
+    // Use version that plugin can support as identifier to control workflow
+    if (graph_ext_version > target_graph_ext_version) {
+        log.warning("Graph extension version from driver is %d.%d. "
+                    "Larger than plugin max graph ext version %d.%d. "
+                    "Force to use plugin ext version with the new table to control flow!",
+                    ZE_MAJOR_VERSION(graph_ext_version),
+                    ZE_MINOR_VERSION(graph_ext_version),
+                    ZE_MAJOR_VERSION(target_graph_ext_version),
+                    ZE_MINOR_VERSION(target_graph_ext_version));
+        graph_ext_version = target_graph_ext_version;
     }
 
     const uint16_t supported_driver_ext_major_version = 1;
@@ -148,7 +192,7 @@ ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder",
     // Load our command queue extension
     ze_command_queue_npu_dditable_ext_last_t* _command_queue_npu_dditable_ext = nullptr;
     if (command_queue_ext_version) {
-        zeroUtils::throwOnFail(
+        THROW_ON_FAIL_FOR_LEVELZERO(
             "zeDriverGetExtensionFunctionAddress " + command_queue_ext_name,
             zeDriverGetExtensionFunctionAddress(driver_handle,
                                                 command_queue_ext_name.c_str(),
@@ -160,11 +204,11 @@ ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder",
                                                                       command_queue_ext_version);
 
     // Load our graph extension
-    ze_graph_dditable_ext_last_t* graph_ddi_table_ext = nullptr;
-    zeroUtils::throwOnFail("zeDriverGetExtensionFunctionAddress",
-                           zeDriverGetExtensionFunctionAddress(driver_handle,
-                                                               graph_ext_name.c_str(),
-                                                               reinterpret_cast<void**>(&graph_ddi_table_ext)));
+    ze_graph_dditable_ext_t* graph_ddi_table_ext = nullptr;
+    THROW_ON_FAIL_FOR_LEVELZERO("zeDriverGetExtensionFunctionAddress",
+                                zeDriverGetExtensionFunctionAddress(driver_handle,
+                                                                    graph_ext_name.c_str(),
+                                                                    reinterpret_cast<void**>(&graph_ddi_table_ext)));
     graph_dditable_ext_decorator =
         std::make_unique<ze_graph_dditable_ext_decorator>(graph_ddi_table_ext, graph_ext_version);
 
@@ -189,7 +233,7 @@ ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder",
 
     // Load our profiling extension
     ze_graph_profiling_dditable_ext_t* _graph_profiling_ddi_table_ext = nullptr;
-    zeroUtils::throwOnFail(
+    THROW_ON_FAIL_FOR_LEVELZERO(
         "zeDriverGetExtensionFunctionAddress",
         zeDriverGetExtensionFunctionAddress(driver_handle,
                                             "ZE_extension_profiling_data",
@@ -200,11 +244,11 @@ ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder",
 
     uint32_t device_count = 1;
     // Get our target device
-    zeroUtils::throwOnFail("zeDeviceGet", zeDeviceGet(driver_handle, &device_count, &device_handle));
+    THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGet", zeDeviceGet(driver_handle, &device_count, &device_handle));
 
     // Create context - share between the compiler and the backend
     ze_context_desc_t context_desc = {ZE_STRUCTURE_TYPE_CONTEXT_DESC, 0, 0};
-    zeroUtils::throwOnFail("zeContextCreate", zeContextCreate(driver_handle, &context_desc, &context));
+    THROW_ON_FAIL_FOR_LEVELZERO("zeContextCreate", zeContextCreate(driver_handle, &context_desc, &context));
     log.debug("ZeroInitStructsHolder initialize complete");
 }
 

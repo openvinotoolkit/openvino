@@ -65,15 +65,18 @@
 #include "plugin/transformations/move_fc_reshape_to_weights.hpp"
 #include "plugin/transformations/bcast_and_pad_zp_buffers.hpp"
 #include "plugin/transformations/print_model_statistics.hpp"
+#include "plugin/transformations/fc_per_layer_scaling.hpp"
 #include "plugin/transformations/swiglu_fusion.hpp"
 #include "plugin/transformations/transpose_fusion.hpp"
 #include "plugin/transformations/indirect_kv_cache.hpp"
+#include "plugin/transformations/kv_cache_compression.hpp"
 #include "plugin/transformations/convert_convolution.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_sdpa_fusion.hpp"
 #include "plugin/transformations/increase_position_ids_precision.hpp"
 #include "plugin/transformations/group_norm_composition.hpp"
 #include "plugin/transformations/dynamic_quantize_fully_connected.hpp"
+#include "plugin/transformations/optimize_subsequent_reshapes.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/rms_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
@@ -810,7 +813,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::ClampFP16Output>();
         manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>();
         manager.register_pass<ov::intel_gpu::MoveFCReshapeToWeights>();
-        manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>(device_info.supports_immad);
+        manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>();
 
         bool disable_horizontal_fc_fusion = false;
         GPU_DEBUG_GET_INSTANCE(debug_config);
@@ -819,10 +822,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         if (!disable_horizontal_fc_fusion)
             manager.register_pass<ov::intel_gpu::FullyConnectedHorizontalFusion>();
+
+        // ZP should not be folded for FC. But still, ZP should be folded for Gather.
+        // Therefore, run MarkDequantizationSubgraph again to fold ZP constant.
+        manager.register_pass<ov::pass::MarkDequantizationSubgraph>(supported_woq_types, true);
         if (device_info.supports_immad) {
-            // For OneDNN, ZP should not be folded for FC. But still, ZP should be folded for Gather.
-            // Therefore, run MarkDequantizationSubgraph again to fold ZP constant.
-            manager.register_pass<ov::pass::MarkDequantizationSubgraph>(supported_woq_types, true);
             if (disable_horizontal_fc_fusion)
                 manager.register_pass<ov::pass::ConstantFolding>();
         }
@@ -844,6 +848,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::KVCacheFusion>();
         manager.register_pass<ov::intel_gpu::FullyConnectedConvertFusion>();
         manager.register_pass<ov::intel_gpu::TransposeFusion>(device_info.supports_immad);
+        manager.register_pass<ov::intel_gpu::FullyConnectedPerLayerScaling>(config.get_property(ov::hint::activations_scale_factor));
 
         if (!device_info.supports_immad) {
             manager.register_pass<ov::intel_gpu::UnsqueezeBroadcastReshapeMatmulFusion>();
@@ -852,6 +857,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::intel_gpu::SwiGLUFusion>();
         manager.register_pass<ov::intel_gpu::IndirectKVCache>();
+
+        auto kv_cache_compression_dt = config.get_property(ov::hint::kv_cache_precision);
+        manager.register_pass<ov::intel_gpu::KVCacheCompression>(kv_cache_compression_dt);
+
         manager.register_pass<ov::intel_gpu::ConvertConvolutionToInternal>();
 
         // This pass should be done after asymmetric quantization matching as it can move zp subtraction upper in the graph
@@ -862,17 +871,19 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         const size_t zp_pad_size = device_info.supports_immad ? 16 : 32;
         manager.register_pass<ov::intel_gpu::BroadcastAndPadZeroPointBuffers>(zp_pad_size, device_info.supports_immad);
 
-        manager.register_pass<ov::pass::RoPEFusion>();
+        manager.register_pass<ov::pass::RoPEFusion>(true);
         pass_config->disable<ov::pass::RoPEFusionGPTJ>();
         pass_config->disable<ov::pass::RoPEFusionIOSlicing>();
         pass_config->disable<ov::pass::RoPEShareCosSin>();
+
+        manager.register_pass<ov::intel_gpu::OptimizeSubsequentReshapes>();
 
         manager.register_pass<ov::intel_gpu::IncreasePositionIdsPrecision>();
         // This Validate is needed for proper data type propagation after applying IncreasePositionIdsPrecision pass
         manager.register_pass<ov::pass::Validate>();
 
         auto dynamic_quantization_group_size = config.get_property(ov::hint::dynamic_quantization_group_size);
-        if (device_info.supports_immad) { // XXX: 1048576 is considered per-token
+        if (device_info.supports_immad) {
             pass_config->set_callback<ov::intel_gpu::DynamicQuantizeFullyConnected>([=](const_node_ptr& root) -> bool {
                 if (root->get_input_node_shared_ptr(0)->get_element_type() == ov::element::Type_t::f32) {
                     GPU_DEBUG_TRACE << root->get_friendly_name() << "  Dynamic quantization is turned off because input type is not supported" << std::endl;
