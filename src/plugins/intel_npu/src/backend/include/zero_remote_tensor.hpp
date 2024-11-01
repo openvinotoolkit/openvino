@@ -9,8 +9,8 @@
 #include <string>
 
 #include "intel_npu/common/remote_tensor.hpp"
+#include "intel_npu/utils/zero/zero_init.hpp"
 #include "openvino/runtime/intel_npu/remote_properties.hpp"
-#include "zero_init.hpp"
 
 namespace intel_npu {
 

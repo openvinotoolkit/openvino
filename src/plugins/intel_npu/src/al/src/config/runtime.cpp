@@ -21,6 +21,7 @@ void intel_npu::registerRunTimeOptions(OptionsDesc& desc) {
     desc.add<PROFILING_TYPE>();
     desc.add<MODEL_PRIORITY>();
     desc.add<CREATE_EXECUTOR>();
+    desc.add<DEFER_WEIGHTS_LOAD>();
     desc.add<NUM_STREAMS>();
     desc.add<ENABLE_CPU_PINNING>();
     desc.add<WORKLOAD_TYPE>();
