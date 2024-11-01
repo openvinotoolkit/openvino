@@ -85,14 +85,15 @@ void ValidateUnifiedLoops::validate_loop_infos(const LoopManagerPtr& loop_manage
 
 void ValidateUnifiedLoops::validate_loop_port_presence(const LinearIR& linear_ir) {
     auto validate_loop_port = [](const ExpressionPort& expr_port, const LoopInfoPtr& loop_info, size_t loop_id) {
-#define VALIDATE_LOOP_PORT(check, txt) \
-    OPENVINO_ASSERT(check, "Expression port with idx ", expr_port.get_index(), " with node ", expr_port.get_expr()->get_node()->get_friendly_name(), txt);
         if (utils::should_be_loop_port(expr_port, loop_id)) {
-            VALIDATE_LOOP_PORT(loop_info->is_loop_port(expr_port), " is not Loop port but should be!");
+            OPENVINO_ASSERT(loop_info->is_loop_port(expr_port),
+                            "Expression port with idx ", expr_port.get_index(), " with node ",
+                            expr_port.get_expr()->get_node()->get_friendly_name(), " is not Loop port but should be!");
         } else {
-            VALIDATE_LOOP_PORT(!loop_info->is_loop_port(expr_port), " is Loop port but should not be!");
+            OPENVINO_ASSERT(!loop_info->is_loop_port(expr_port),
+                            "Expression port with idx ", expr_port.get_index(), " with node ",
+                            expr_port.get_expr()->get_node()->get_friendly_name(), " is Loop port but should not be!");
         }
-#undef VALIDATE_LOOP_PORT
     };
 
     const auto& loop_manager = linear_ir.get_loop_manager();
