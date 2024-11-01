@@ -18,6 +18,7 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "transformations/rt_info/disable_constant_folding.hpp"
 #include "utils/common.hpp"
 #include "utils/reshape.hpp"
 using namespace ov::op;
@@ -241,6 +242,7 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
         zp = inputs[2];
         if (zp.get_element_type() != scale.get_element_type()) {
             zp = std::make_shared<v0::Convert>(zp, scale_type);
+            disable_constant_folding(zp.get_node_shared_ptr());
         }
         zp = std::make_shared<v0::Unsqueeze>(zp, unsqueezed_axes);
     }
