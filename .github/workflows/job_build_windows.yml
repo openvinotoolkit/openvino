@@ -180,7 +180,6 @@ jobs:
           cmake --install . --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_TEST_DIR }} --component tests
         working-directory: ${{ env.BUILD_DIR }}
 
-
       # Setup additional Python versions for wheels building
       - name: Setup Python 3.9
         if: ${{ inputs.build-additional-python-wheels }}
@@ -197,16 +196,6 @@ jobs:
         uses: ./openvino/.github/actions/setup_python
         with:
           version: '3.10'
-          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
-          should-setup-pip-paths: 'true'
-          self-hosted-runner: 'true'
-
-      # Setup additional Python versions for wheels building
-      - name: Setup Python 3.11
-        if: ${{ inputs.build-additional-python-wheels }}
-        uses: ./openvino/.github/actions/setup_python
-        with:
-          version: '3.11'
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
           should-setup-pip-paths: 'true'
           self-hosted-runner: 'true'
