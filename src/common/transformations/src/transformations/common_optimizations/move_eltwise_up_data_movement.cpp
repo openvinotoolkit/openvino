@@ -137,16 +137,16 @@ ov::pass::MoveEltwiseUpThroughDataMovScalar::MoveEltwiseUpThroughDataMovScalar(
         new_eltwise->set_friendly_name("");
         ov::copy_runtime_info(eltwise, new_eltwise);
 
-        ov::OutputVector child_inputs = child->input_values();
-        child_inputs[0] = new_eltwise;
-        auto new_child = child->clone_with_new_inputs(child_inputs);
-        ov::copy_runtime_info(child, new_child);
-        new_child->set_friendly_name(child->get_friendly_name());
+        // ov::OutputVector child_inputs = child->input_values();
+        // child_inputs[0] = new_eltwise;
+        // auto new_child = child->clone_with_new_inputs(child_inputs);
+        // ov::copy_runtime_info(child, new_child);
+        // new_child->set_friendly_name(child->get_friendly_name());
 
         auto bottom = recurse_up(eltwise->input_value(0).get_node_shared_ptr(), current, new_eltwise);
         ov::replace_node(eltwise->input_value(0).get_node_shared_ptr(), bottom);
 
-        std::cout << "working on " << eltwise << std::endl;
+        std::cout << "working on " << eltwise << std::endl << std::endl;
 
         return true;
     };
