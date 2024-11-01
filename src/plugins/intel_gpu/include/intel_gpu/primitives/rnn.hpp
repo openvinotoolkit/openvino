@@ -47,7 +47,7 @@ struct RNNParams : public primitive_base<PType> {
                                                                 activation_func::hyperbolic_tan},
               const std::vector<activation_additional_params>& activation_params = {},
               const lstm_weights_order& offset_order = lstm_weights_order::iofz,
-              const uint32_t direction = 0,
+              const ov::op::RecurrentSequenceDirection direction = ov::op::RecurrentSequenceDirection::FORWARD,
               const padding& output_padding = padding(),
               const int num_outputs = 1)
         : primitive_base<PType>(id, {x}, num_outputs, {optional_data_type()}, {output_padding}),
@@ -70,6 +70,7 @@ struct RNNParams : public primitive_base<PType> {
         output_padding(output_padding),
         num_outputs(num_outputs) {
         std::vector<std::string> pids{initial_hidden_state.pid, initial_cell_state.pid, W.pid, R.pid, B.pid, seq_lenghts.pid, out1_prim_id, out2_prim_id};
+        assert(direction == ov::op::RecurrentSequenceDirection::FORWARD || direction == ov::op::RecurrentSequenceDirection::REVERSE);
         for (auto pid : pids) {
             if (!pid.empty()) {
                 primitive_base<PType>::input.push_back(pid);
@@ -96,8 +97,8 @@ struct RNNParams : public primitive_base<PType> {
     std::vector<activation_additional_params> activation_params;
     /// @brief Weights, recurrent weights, and biases order. [iofz] : ONNX, [ifoz] : Caffe
     lstm_weights_order offset_order;
-    /// @brief direction forward = 0, reverse = 1.
-    uint32_t direction;
+    /// @brief direction of LSTMSequence - only FORWARD or REVERSE, currently BIDIRECTIONAL not supported
+    ov::op::RecurrentSequenceDirection direction;
     padding output_padding;
     int num_outputs;
 
@@ -172,7 +173,7 @@ struct RNNParams : public primitive_base<PType> {
         ob << activations;
         ob << activation_params;
         ob << make_data(&offset_order, sizeof(lstm_weights_order));
-        ob << direction;
+        ob << make_data(&direction, sizeof(ov::op::RecurrentSequenceDirection));
         ob << output_padding;
         ob << num_outputs;
     }
@@ -192,7 +193,7 @@ struct RNNParams : public primitive_base<PType> {
         ib >> activations;
         ib >> activation_params;
         ib >> make_data(&offset_order, sizeof(lstm_weights_order));
-        ib >> direction;
+        ib >> make_data(&direction, sizeof(ov::op::RecurrentSequenceDirection));
         ib >> output_padding;
         ib >> num_outputs;
     }

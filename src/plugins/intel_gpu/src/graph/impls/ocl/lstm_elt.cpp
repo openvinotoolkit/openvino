@@ -44,7 +44,7 @@ public:
             params.SetCell(convert_data_tensor(cell_layout));
             // TODO: make a generic function to get the direction
             if (cell_layout.spatial(1) > 1) {
-                params.cell_direction = primitive->direction;
+                params.cell_direction = primitive->direction == ov::op::RecurrentSequenceDirection::FORWARD ? 0 : 1;
             }
         }
 
@@ -66,7 +66,7 @@ public:
         params.SetOffsetOrder(static_cast<int32_t>(primitive->offset_order));
         params.clip = primitive->clip;
         params.input_forget = primitive->input_forget;
-        params.direction = primitive->direction;
+        params.direction = primitive->direction == ov::op::RecurrentSequenceDirection::FORWARD ? 0 : 1;
 
         return params;
     }

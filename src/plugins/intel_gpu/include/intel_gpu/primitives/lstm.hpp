@@ -39,9 +39,10 @@ struct lstm_elt : public RNNParams<lstm_elt> {
              const std::vector<activation_additional_params> activation_params = {},
              const lstm_weights_order offset_order = lstm_weights_order::iofz,
              const uint32_t direction = 0)
-        : RNNParams(id, x, {}, cell, {}, {}, {}, {}, "", "", clip, input_forget, activations, activation_params, offset_order, direction) {
-            if (!cell.empty())
-                input.pop_back();
+        : RNNParams(id, x, {}, cell, {}, {}, {}, {}, "", "", clip, input_forget, activations, activation_params, offset_order, \
+          direction == 0 ? ov::op::RecurrentSequenceDirection::FORWARD : ov::op::RecurrentSequenceDirection::REVERSE) {
+        if (!cell.empty())
+            input.pop_back();
         }
 
 protected:

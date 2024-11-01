@@ -23,7 +23,7 @@ public:
         OPENVINO_ASSERT(clip_val >= 0, "Clip value < 0");
         return clip_val;
     }
-    int32_t direction() const { return get_primitive()->direction; }
+    ov::op::RecurrentSequenceDirection direction() const { return get_primitive()->direction; }
     std::vector<activation_func> activations() const {
         return get_primitive()->activations;
     }
@@ -52,7 +52,7 @@ public:
             throw std::range_error("Clip value < 0");
         return clip_val;
     }
-    uint32_t direction() const { return get_typed_desc<lstm_seq>()->direction; }
+    uint32_t direction() const { return get_typed_desc<lstm_seq>()->direction == ov::op::RecurrentSequenceDirection::FORWARD ? 0 : 1; }
     bool has_cell() const { return !get_typed_desc<lstm_seq>()->initial_cell_state.pid.empty(); }
 };
 

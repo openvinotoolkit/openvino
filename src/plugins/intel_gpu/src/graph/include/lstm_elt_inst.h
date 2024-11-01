@@ -27,7 +27,7 @@ public:
         return clip_val;
     }
     bool input_forget() const { return get_primitive()->input_forget; }
-    int32_t direction() const { return get_primitive()->direction; }
+    ov::op::RecurrentSequenceDirection direction() const { return get_primitive()->direction; }
 };
 
 using lstm_elt_node = typed_program_node<lstm_elt>;
@@ -56,7 +56,7 @@ public:
         return clip_val;
     }
     bool input_forget() const { return get_typed_desc<lstm_elt>()->input_forget; }
-    uint32_t direction() const { return get_typed_desc<lstm_elt>()->direction; }
+    uint32_t direction() const { return get_typed_desc<lstm_elt>()->direction == ov::op::RecurrentSequenceDirection::FORWARD ? 0 : 1; }
 };
 
 using lstm_elt_inst = typed_primitive_inst<lstm_elt>;

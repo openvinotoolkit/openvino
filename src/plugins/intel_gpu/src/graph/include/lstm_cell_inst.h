@@ -23,7 +23,7 @@ public:
         OPENVINO_ASSERT(clip_val >= 0, "Clip value < 0");
         return clip_val;
     }
-    int32_t direction() const { return get_primitive()->direction; }
+    ov::op::RecurrentSequenceDirection direction() const { return get_primitive()->direction; }
 };
 
 using lstm_cell_node = typed_program_node<lstm_cell>;
@@ -47,7 +47,7 @@ public:
         OPENVINO_ASSERT(clip_val >= 0, "Clip value < 0");
         return clip_val;
     }
-    uint32_t direction() const { return get_typed_desc<lstm_cell>()->direction; }
+    ov::op::RecurrentSequenceDirection direction() const { return get_typed_desc<lstm_cell>()->direction; }
     bool has_cell() const { return !get_typed_desc<lstm_cell>()->initial_cell_state.pid.empty(); }
 };
 

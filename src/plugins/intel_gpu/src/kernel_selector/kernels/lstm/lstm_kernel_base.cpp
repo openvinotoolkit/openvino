@@ -17,7 +17,8 @@ JitConstants LSTMKernelBase::GetJitConstants(const lstm_params& params, bool seq
         jit.AddConstants({MakeJitConstant("INPUT_FORGET", true)});
     }
     jit.AddConstants({MakeJitConstant("VEC_SIZE", 4)});
-    jit.AddConstants({MakeJitConstant("DIRECTION", static_cast<int>(params.direction))});
+    assert(params.direction ==  ov::op::RecurrentSequenceDirection::FORWARD || params.direction == ov::op::RecurrentSequenceDirection::REVERSE);
+    jit.AddConstants({MakeJitConstant("DIRECTION", params.direction == ov::op::RecurrentSequenceDirection::REVERSE ? 1 : 0)});
     const unsigned int gate_num = 4;
     jit.AddConstants({MakeJitConstant("GATE_NUM", gate_num)});
     if (sequential) {

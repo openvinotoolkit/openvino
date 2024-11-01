@@ -131,7 +131,8 @@ protected:
                                                             grouped_weights);
     }
     static std::shared_ptr<dnnl::lstm_forward::primitive_desc> get_lstm_primitive_descriptor(const kernel_impl_params& impl_params, cldnn::engine& engine,
-                                                                                           const dnnl::primitive_attr& attr, int direction) {
+                                                                                             const dnnl::primitive_attr& attr,
+                                                                                             ov::op::RecurrentSequenceDirection direction) {
         auto prim = impl_params.typed_desc<lstm_seq>();
         const auto& src_shape = impl_params.get_input_layout(0).get_shape();
         auto mod_src_shape = src_shape;
@@ -172,7 +173,8 @@ protected:
         return std::make_shared<dnnl::lstm_forward::primitive_desc>(
             eng,
             dnnl::prop_kind::forward_inference,
-            direction == 0 ? dnnl::rnn_direction::unidirectional_left2right : dnnl::rnn_direction::unidirectional_right2left,
+            direction == ov::op::RecurrentSequenceDirection::FORWARD ? dnnl::rnn_direction::unidirectional_left2right : \
+            dnnl::rnn_direction::unidirectional_right2left,
             input_md,
             initial_hidden,
             initial_cell,

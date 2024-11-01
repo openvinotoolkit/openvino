@@ -25,7 +25,7 @@ struct lstm_params : public base_params {
     order_type gate_order = offset_iofz;
     float clip = 0;
     bool input_forget = false;
-    uint32_t direction = 0;
+    ov::op::RecurrentSequenceDirection direction = ov::op::RecurrentSequenceDirection::FORWARD;
 
     size_t GetOffsetIndex(order_type type, size_t idx) const {
         static const std::map<order_type, std::vector<size_t>> offset_map{{offset_iofz, {0, 1, 2, 3}},
