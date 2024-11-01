@@ -1148,7 +1148,7 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                                                                            past_v_scale_zp,
                                                                            head_sum);
         } else {
-            OPENVINO_THROW("Unsupported precision: ", query.get_precision());
+            OPENVINO_THROW("Unsupported precision: ", present_key.get_precision());
         }
 #else
         if (present_key.get_precision() == ov::element::u8) {

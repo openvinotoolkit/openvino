@@ -378,6 +378,8 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         LOG_VERB("Trying to preemptively set tensors for Subgraph[" << i << "]...");
         LOG_BLOCK();
         auto& comp_model_desc = m_npuw_model->m_compiled_submodels[i];
+        // FIXME: figure out our cases and if this should be replaced with &&
+        // Note: replaced_by is utilized below unconditionally
         if (!comp_model_desc.compiled_model || !comp_model_desc.replaced_by) {
             continue;
         }
@@ -595,7 +597,7 @@ void ov::npuw::JustInferRequest::bind_global_parameters(std::size_t idx) {
         LOG_BLOCK();
         if (!is_spatial_param(sub_in_idx)) {
             // Input parameter is non-spatial, do normal handling
-            if (do_copy || m_input_allocated.count(g_tnsr->data()) == 0) {
+            if (m_input_allocated.count(g_tnsr->data()) == 0 && do_copy) {
                 LOG_DEBUG("Will be copied");
                 copy_list.emplace_back(g_tnsr, s_port);
             } else {
