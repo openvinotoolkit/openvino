@@ -6,6 +6,7 @@
 
 #include "intel_npu/config/common.hpp"
 #include "intel_npu/config/runtime.hpp"
+#include "intel_npu/utils/zero/zero_api.hpp"
 
 namespace intel_npu {
 
