@@ -5,14 +5,14 @@
 #pragma once
 
 #include <ze_api.h>
+#include <ze_command_queue_npu_ext.h>
 #include <ze_graph_ext.h>
+#include <ze_intel_npu_uuid.h>
 
 #include <memory>
 
 #include "intel_npu/utils/logger/logger.hpp"
-#include "ze_command_queue_npu_ext.h"
-#include "ze_intel_npu_uuid.h"
-#include "zero_types.hpp"
+#include "intel_npu/utils/zero/zero_types.hpp"
 
 namespace intel_npu {
 /**

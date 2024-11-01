@@ -28,5 +28,5 @@ networkx<=3.3
 flax<=0.10.0
 
 --extra-index-url https://download.pytorch.org/whl/cpu
-torch~=2.5.0; platform_system != "Darwin" or platform_machine != "x86_64"
+torch~=2.5.1; platform_system != "Darwin" or platform_machine != "x86_64"
 torch~=2.2.0; platform_system == "Darwin" and platform_machine == "x86_64"
