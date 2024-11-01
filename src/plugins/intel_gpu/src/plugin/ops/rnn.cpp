@@ -235,7 +235,7 @@ static void CreateLSTMSequenceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
     std::vector<cldnn::activation_additional_params> activation_params;
     GetLSTMActivationParams(op, activations, activation_params);
     float clip = op->get_clip();
-    if (max_seq_len == 1) {
+    if (max_seq_len.get_max_length() == 1) {
         int lstm_batch_size, lstm_input_size, lstm_hidden_size, lstm_sequence_len;
         cldnn::input_info weight = inputs[4];
         cldnn::input_info recurrent = inputs[5];
@@ -352,7 +352,7 @@ static void CreateLSTMSequenceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
             || op->get_input_shape(4).size() != 3 || op->get_input_shape(5).size() != 3 || op->get_input_shape(6).size() != 2)
             OPENVINO_THROW("Wrong input shapes for LSTMSequence op ", op->get_friendly_name());
         auto mutable_precision_firstsecond = op->get_output_element_type(1);
-       auto direction = op->get_direction();
+        auto direction = op->get_direction();
 
         if (p.use_new_shape_infer()) {
             cldnn::lstm_seq prim(layerName, inputs[0], inputs[1], \
