@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "intel_npu/al/config/config.hpp"
+#include "intel_npu/config/config.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "zero_init.hpp"
 #include "zero_remote_tensor.hpp"

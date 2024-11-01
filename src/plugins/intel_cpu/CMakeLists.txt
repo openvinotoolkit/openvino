@@ -143,7 +143,7 @@ else()
 endif()
 ov_option(ENABLE_MLAS_FOR_CPU "Enable MLAS for OpenVINO CPU Plugin" ${ENABLE_MLAS_FOR_CPU_DEFAULT})
 
-if(RISCV64_THEAD)
+if(RISCV64_XUANTIE)
     set(ENABLE_SHL_FOR_CPU_DEFAULT ON)
 else()
     set(ENABLE_SHL_FOR_CPU_DEFAULT OFF)
@@ -326,7 +326,7 @@ cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F ANY
                     src/nodes/kernels/x64/mlp_utils.cpp
         API         src/nodes/kernels/x64/mlp_utils.hpp
-        NAME        llm_mlp_transpose_epi32_16x16
+        NAME        llm_mlp_transpose_epi32_16x16  llm_mlp_quantize_bf16_i8 llm_mlp_quantize_f16_i8 llm_mlp_dequantize_i32_f32
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 

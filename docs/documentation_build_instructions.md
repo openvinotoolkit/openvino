@@ -26,7 +26,7 @@ $ source env/bin/activate
 ```
 5. Install the sphinx theme
 ```
-(env) $ cd docs/openvino_sphinx_theme && python setup.py install && cd -
+(env) $ python -m pip install docs/openvino_sphinx_theme
 ``````
 6. Install the custom sphinx sitemap
 ```
