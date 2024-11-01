@@ -1,0 +1,81 @@
+// Copyright (C) 2018-2024 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#ifdef CPU_DEBUG_CAPS
+
+#include "custom/subgraph_tests/src/classes/matmul_weights_decompression.hpp"
+
+using namespace CPUTestUtils;
+
+namespace ov {
+namespace test {
+
+namespace {
+
+std::vector<ov::AnyMap> filter_additional_config_basic() {
+    return {{}, {ov::hint::inference_precision(ov::element::f16)}};
+}
+
+const std::vector<ov::test::ElementType> decompression_precisions = {ov::element::f32};
+const std::vector<ov::test::ElementType> weights_precisions = {ov::element::u8, ov::element::i8};
+
+const std::vector<MatMulDecompressionShapeParams> input_shapes = {
+    {{{-1, -1, -1}, {{1, 4, 16}, {10, 16, 16}}}, {16, 32}},
+    {{{}, {{1, 8, 16}}}, {16, 32}, 4ul},
+    {{{}, {{1, 4, 16}}}, {1, 16, 32}},
+    {{{}, {{5, 40, 496}}}, {1, 496, 240}},
+    {{{}, {{1, 4, 48}}}, {48, 256}},
+    {{{}, {{1, 11, 154}}}, {154, 77}, 154ul},
+    {{{-1, -1, -1}, {{10, 40, 480}, {11, 40, 480}}}, {1, 480, 256}},
+};
+const std::vector<fusingSpecificParams> fusing_params{emptyFusingSpec, fusingBias};
+
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights,
+                         MatmulWeightsDecompression,
+                         ::testing::Combine(::testing::ValuesIn(input_shapes),
+                                            ::testing::ValuesIn(weights_precisions),
+                                            ::testing::ValuesIn(decompression_precisions),
+                                            ::testing::Values(ov::element::undefined),
+                                            ::testing::Values(true),
+                                            ::testing::Values(DecompressionSubtractType::full),
+                                            ::testing::Values(false),
+                                            ::testing::ValuesIn(filter_additional_config_basic()),
+                                            ::testing::ValuesIn(fusing_params),
+                                            ::testing::Values(true)),
+                         MatmulWeightsDecompression::getTestCaseName);
+
+
+const std::vector<MatMulDecompressionShapeParams> input_shapes_corner_cases = {
+    {{{-1, -1, -1}, {{1, 4, 16}}}, {1, 16, 32}},
+    {{{-1, -1, -1}, {{1, 4, 16}}}, {16, 32}},
+    {{{-1, -1, -1}, {{1, 5, 16}}}, {16, 32}, 4ul},
+    {{{-1, -1, -1}, {{1, 1, 128}}}, {128, 128}, 16ul},
+};
+
+const std::vector<bool> transpose_weights = {true, false};
+const std::vector<DecompressionSubtractType> decompression_subtract_type = {
+    DecompressionSubtractType::full, DecompressionSubtractType::scalar, DecompressionSubtractType::empty};
+const std::vector<bool> reshape_on_decompression = {true, false};
+const std::vector<ov::test::ElementType> decompression_precisions_corner_cases = {ov::element::f16, ov::element::f32};
+
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_corner_cases,
+                         MatmulWeightsDecompression,
+                         ::testing::Combine(::testing::ValuesIn(input_shapes_corner_cases),
+                                            ::testing::ValuesIn(weights_precisions),
+                                            ::testing::ValuesIn(decompression_precisions_corner_cases),
+                                            ::testing::Values(ov::element::undefined),
+                                            ::testing::ValuesIn(transpose_weights),
+                                            ::testing::ValuesIn(decompression_subtract_type),
+                                            ::testing::ValuesIn(reshape_on_decompression),
+                                            ::testing::ValuesIn(filter_additional_config_basic()),
+                                            ::testing::Values(emptyFusingSpec),
+                                            ::testing::Values(true)),
+                         MatmulWeightsDecompression::getTestCaseName);
+
+}  // namespace
+
+}  // namespace test
+}  // namespace ov
+
+#endif

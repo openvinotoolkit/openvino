@@ -113,7 +113,9 @@ bool FullyConnected::isSupportedCompressedOperation(const std::shared_ptr<ov::No
     }
     return true;
 #else
-    return false;
+    bool useMatmulPrim = false;
+    CPU_DEBUG_CAP_ENABLE(useMatmulPrim = getEnvBool("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC");)
+    return useMatmulPrim;
 #endif
 }
 
