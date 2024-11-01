@@ -22,10 +22,19 @@ if(OpenCV_VERSION VERSION_LESS 4.9)
     return()
 endif()
 
+set(DEPENDENCIES
+        Threads::Threads
+        gflags
+        yaml-cpp
+        openvino::runtime
+        opencv_gapi
+)
+
 if (WIN32)
     # WA: add_tool_target expects to have all dependencies as cmake targets.
     add_library(winmm INTERFACE)
     target_link_libraries(winmm INTERFACE "winmm.lib")
+    list(APPEND DEPENDENCIES winmm)
 endif()
 
 #
@@ -40,16 +49,7 @@ ov_add_target(ADD_CPPLINT
               ROOT ${CMAKE_CURRENT_SOURCE_DIR}
               ADDITIONAL_SOURCE_DIRS ${PROTOPIPE_SOURCE_DIR}
               INCLUDES ${PROTOPIPE_SOURCE_DIR}
-              LINK_LIBRARIES
-                  PRIVATE
-                      Threads::Threads
-                      gflags
-                      yaml-cpp
-                      openvino::runtime
-                      opencv_gapi
-                      winmm)
-
-
+              LINK_LIBRARIES PRIVATE ${DEPENDENCIES})
 
 set_target_properties(${TARGET_NAME} PROPERTIES
                           FOLDER ${CMAKE_CURRENT_SOURCE_DIR}

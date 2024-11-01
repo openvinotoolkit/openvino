@@ -20,6 +20,12 @@ ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs
       log("ZeroDevice", Logger::global().level()) {
     log.debug("ZeroDevice::ZeroDevice init");
     device_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
+
+    // Get LUID info, if supported
+    if (_initStructs->isExtensionSupported(std::string(ZE_DEVICE_LUID_EXT_NAME), ZE_MAKE_VERSION(1, 0))) {
+        device_luid.stype = ZE_STRUCTURE_TYPE_DEVICE_LUID_EXT_PROPERTIES;
+        device_properties.pNext = &device_luid;
+    }
     THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetProperties",
                                 zeDeviceGetProperties(_initStructs->getDevice(), &device_properties));
 
@@ -128,6 +134,16 @@ IDevice::Uuid ZeroDevice::getUuid() const {
     return uuid;
 }
 
+ov::device::LUID ZeroDevice::getLUID() const {
+    ov::device::LUID luidstruct;
+    // incompatibility check
+    static_assert(ZE_MAX_DEVICE_LUID_SIZE_EXT == ov::device::LUID::MAX_LUID_SIZE, "LUID size mismatch");
+    for (int i = 0; i < ZE_MAX_DEVICE_LUID_SIZE_EXT; i++) {
+        luidstruct.luid[i] = device_luid.luid.id[i];
+    }
+    return luidstruct;
+}
+
 uint32_t ZeroDevice::getSubDevId() const {
     return device_properties.subdeviceId;
 }
@@ -146,12 +162,30 @@ uint64_t ZeroDevice::getAllocMemSize() const {
 }
 
 uint64_t ZeroDevice::getTotalMemSize() const {
+#define LEGACY_MAX_MEM_ALLOC_SIZE_BYTES (2147483648)  // 2GB in base-2
+
     ze_graph_memory_query_t query{};
     ze_result_t result =
         _graph_ddi_table_ext.pfnQueryContextMemory(_initStructs->getContext(), ZE_GRAPH_QUERY_MEMORY_DDR, &query);
     THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnQueryContextMemory", result, _graph_ddi_table_ext);
 
-    return query.total;
+    // For drivers with graph_extension < 1.9 we report fixed 2GB max allocation size (old drivers don't support more)
+    // For drivers with graph_extension > 1.9 we report the value they return
+    if (_initStructs->isExtensionSupported(std::string(ZE_GRAPH_EXT_NAME), ZE_MAKE_VERSION(1, 9))) {
+        // we are safe here, can return the value directly from driver
+        return query.total;
+    }
+#if defined(_WIN32) || defined(__CYGWIN__)
+    // Special case for windows drivers with graph_extension v 1.8
+    if (_initStructs->isExtensionSupported(std::string("ZE_extension_graph_1_8"), ZE_MAKE_VERSION(1, 8))) {
+        // query here returns total system memory in KB, which we need to
+        // divide by 2 (OS limitation) and convert to bytes
+        return (query.total << 9);
+    }
+#endif
+
+    // Default for older drivers: return 2GB
+    return LEGACY_MAX_MEM_ALLOC_SIZE_BYTES;
 }
 
 ov::device::PCIInfo ZeroDevice::getPciInfo() const {

@@ -187,6 +187,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
     m_func_mem_mgr.set_alloc(std::bind(&JustInferRequest::allocMem, this, _1, _2, _3));
     m_func_mem_mgr.assign_memory();
 
+    m_closure_update_required = m_npuw_model->m_cfg.get<::intel_npu::NPUW_FOLD>();
     m_use_function_pipelining = m_npuw_model->m_cfg.get<::intel_npu::NPUW_FUNCALL_ASYNC>();
     if (m_use_function_pipelining) {
         LOG_WARN("Function call pipelining is enabled for " << m_npuw_model->m_name
@@ -377,30 +378,20 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         LOG_VERB("Trying to preemptively set tensors for Subgraph[" << i << "]...");
         LOG_BLOCK();
         auto& comp_model_desc = m_npuw_model->m_compiled_submodels[i];
-
+        // FIXME: figure out our cases and if this should be replaced with &&
+        // Note: replaced_by is utilized below unconditionally
         if (!comp_model_desc.compiled_model || !comp_model_desc.replaced_by) {
             continue;
         }
-
         const auto real_idx = comp_model_desc.replaced_by.value();
         auto& func_desc = m_npuw_model->m_compiled_submodels[real_idx];
 
-        auto& request = m_subrequests[real_idx];
-
-        for (std::size_t cidx = 0u; cidx < comp_model_desc.closure.size(); cidx++) {
-            const auto& closure = comp_model_desc.closure[cidx];
-
-            const auto closure_param_id = comp_model_desc.param_base + cidx;
-            const auto& iport = func_desc.compiled_model->inputs()[closure_param_id];
-
-            // No update required to this tensor in runtime - so it can be set only once
-            // Will be utilized when there is no FOLDing
-            if (!m_npuw_model->m_update_required) {
-                // At this point closure already contains allocated and transformed tensor ready to be used
-                request->set_tensor(iport, ov::get_tensor_impl(closure));
-            }
-        }  // for(closure)
-        LOG_VERB("DONE");
+        // So - closure update is NOT required, OR the function is SINGLE -
+        // just handle it's closure here and don't do it in runtime
+        if (!m_closure_update_required || func_desc.forced_to_fcall) {
+            unpack_closure(i, m_subrequests[real_idx]);
+        }
+        LOG_VERB("Done");
     }
 
     // Handle spatial dynamic submission
@@ -606,7 +597,7 @@ void ov::npuw::JustInferRequest::bind_global_parameters(std::size_t idx) {
         LOG_BLOCK();
         if (!is_spatial_param(sub_in_idx)) {
             // Input parameter is non-spatial, do normal handling
-            if (do_copy || m_input_allocated.count(g_tnsr->data()) == 0) {
+            if (m_input_allocated.count(g_tnsr->data()) == 0 && do_copy) {
                 LOG_DEBUG("Will be copied");
                 copy_list.emplace_back(g_tnsr, s_port);
             } else {
@@ -628,11 +619,13 @@ void ov::npuw::JustInferRequest::bind_global_parameters(std::size_t idx) {
 
     // Run host-side gather, if required
     if (comp_model_desc.host_gather.dst_idx != -1) {
-        auto& dst = comp_model_desc.closure[comp_model_desc.host_gather.dst_idx - comp_model_desc.param_base];
+        const auto& gport = comp_model_desc.compiled_model->inputs()[comp_model_desc.host_gather.dst_idx];
+        const auto gather = subr->get_tensor(gport);
+
         const auto& vocab = comp_model_desc.closure[comp_model_desc.host_gather.src_idx - comp_model_desc.param_base];
         const auto& lport = comp_model_desc.compiled_model->inputs()[comp_model_desc.host_gather.idx_idx];
         const auto lookup = subr->get_tensor(lport);
-        ov::npuw::util::gather(ov::get_tensor_impl(vocab), lookup, ov::get_tensor_impl(dst));
+        ov::npuw::util::gather(ov::get_tensor_impl(vocab), lookup, gather);
     }
 
     LOG_DEBUG("Done");
@@ -718,7 +711,7 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
     // 2. Unpack the function closure -- right here, if pipelining if not enabled.
     // If it is enabled, the flow is a little bit different - see run_subrequest_for_success()
     // for details.
-    if (!is_pipelined(idx)) {
+    if (!is_pipelined(idx) && m_closure_update_required && !func_desc.forced_to_fcall) {
         LOG_DEBUG("Unpacking closures...");
         LOG_BLOCK();
         unpack_closure(idx, m_subrequests[real_idx]);
@@ -760,12 +753,20 @@ void ov::npuw::JustInferRequest::unpack_closure(std::size_t idx, RqPtr request) 
         auto& closure = comp_model_desc.closure[cidx];
 
         const auto closure_param_id = comp_model_desc.param_base + cidx;
+
+        if (func_desc.host_gather.dst_idx != -1 &&
+            static_cast<uint64_t>(func_desc.host_gather.dst_idx) == closure_param_id) {
+            // No need to set/copy the host_gather's closure tensor int
+            // the subrequest - it is just a dummy. host_gather writes
+            // to the right buffer directly.
+            continue;
+        }
+
         auto& iport = func_desc.compiled_model->inputs()[closure_param_id];
-        const auto& clparam = request->get_tensor(iport);
-        if (closure.get_element_type() != clparam->get_element_type()) {
+        if (closure.get_element_type() != iport.get_element_type()) {
             // Remember where the unpack is required
             closure_unpack_required.push_back(cidx);
-        } else if (m_npuw_model->m_update_required) {
+        } else {
             if (needs_copy(idx, cidx)) {
                 // Remember where copy is requried
                 closure_copy_required.push_back(cidx);
