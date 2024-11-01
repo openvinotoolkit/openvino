@@ -1427,17 +1427,22 @@ void primitive_inst::do_runtime_skip_permute() {
     auto input_shape = _impl_params->get_input_layout(0).get_shape();
     const auto& permute_order = desc->permute_order;
     // Skippability
-    // 1. Check within "congituous transpose range"
-    // [2, 1, 0] => [2, 1, 0]
-    // [1, 0, 2, 3] => [1, 0, 2]
-    // [0, 2, 1, 3] => [2, 1]
-    // [0, 3, 1, 2] => [3, 1, 2]
-    // [2, 0, 1, 3] => [2, 0, 1]
-    // [3, 2, 1, 0] => [3, 2, 1, 0]
-    // [3, 2, 1, 0, 4] => [3, 2, 1, 0]
-    // [0, 2, 1, 3, 5, 4] => [2, 1], [5, 4]
-    // [4, 5, 2, 3, 0, 1] => [4, 5, 2, 3, 0, 1]
+    // 1. Focus on "congituous transpose range"
+    //    permute_order : [2, 1, 0]    => sub_ranges : permute_order[0, 1, 2]
+    //    permute_order : [1, 0, 2, 3] => sub_ranges : permute_order[0, 1, 2]
+    //    permute_order : [0, 2, 1, 3] => sub_ranges : permute_order[1, 2]
+    //    permute_order : [0, 3, 1, 2] => sub_ranges : permute_order[1, 2, 3]
+    //    permute_order : [2, 0, 1, 3] => sub_ranges : permute_order[0, 1, 2]
+    //    permute_order : [3, 2, 1, 0] => sub_ranges : permute_order[0, 1, 2, 3]
+    //    permute_order : [3, 2, 1, 0, 4] => sub_ranges : permute_order[0, 1, 2, 3]
+    //    permute_order : [0, 2, 1, 3, 5, 4] => sub_ranges : permute_order[1, 2], permute_order[4, 5]
+    //    permute_order : [4, 5, 2, 3, 0, 1] => sub_ranges : permute_order[0, 1, 2, 3, 4, 5]
     // 2. Within each transpose range, only 1 non-1 dimension allowed at max.
+    //   i.e., for the following case,
+    //   permute_order : [0, 2, 1, 3, 5, 4] => sub_ranges : permute_order[1, 2], permute_order[4, 5]
+    //   if the input shape is [1, 1, 4, 3, 1, 4] => true because there is only one non-1 dim in both {input_shape[1], input_shape[2]}
+    //      and {input_shape[4], input_shape[5]}
+    //   if the input shape is [1, 2, 4, 3, 1, 4] => false because there is more than one non-1 dim in {input_shape[1], input_shape[2]}
     size_t range_max_dim = 0;
     size_t count_not_one = 0;
     bool can_skip = true;
