@@ -19,10 +19,6 @@ std::vector<TRShape> range_shape_infer(const Node* op,
                                        const ITensorAccessor& tensor_accessor) {
     NODE_VALIDATION_CHECK(op, (input_shapes.size() == 3));
 
-    NODE_VALIDATION_CHECK(op, input_shapes[0].rank().compatible(0), "'start' input is not a scalar");
-    NODE_VALIDATION_CHECK(op, input_shapes[1].rank().compatible(0), "'stop' input is not a scalar");
-    NODE_VALIDATION_CHECK(op, input_shapes[2].rank().compatible(0), "'step' input is not a scalar");
-
     const auto start_val = get_input_const_data_as<TRShape, double>(op, 0, tensor_accessor);
     const auto stop_val = get_input_const_data_as<TRShape, double>(op, 1, tensor_accessor);
     const auto step_val = get_input_const_data_as<TRShape, double>(op, 2, tensor_accessor);
