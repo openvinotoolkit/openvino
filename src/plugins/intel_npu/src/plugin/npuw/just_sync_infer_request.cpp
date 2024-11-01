@@ -180,15 +180,9 @@ ov::npuw::TensorPtr ov::npuw::FuncMemMgr::get_tensor(const LinkFrom& from) {
     return m_table.at(from);
 }
 
-ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model,
-                                             bool real_work)
+ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model)
     : IBaseInferRequest(compiled_model),
       m_func_mem_mgr(compiled_model) {
-    if (!real_work) {
-        // FIXME: Fragile base class
-        return;
-    }
-
     using namespace std::placeholders;
     m_func_mem_mgr.set_alloc(std::bind(&JustInferRequest::allocMem, this, _1, _2, _3));
     m_func_mem_mgr.assign_memory();
@@ -484,33 +478,6 @@ void ov::npuw::JustInferRequest::connect_subrequests() {
     LOG_INFO("Done");
 }
 
-std::vector<ov::SoPtr<ov::IVariableState>> ov::npuw::JustInferRequest::query_state() const {
-    std::vector<ov::SoPtr<ov::IVariableState>> variable_states = {};
-    for (const auto& request : m_subrequests) {
-        if (!request)  // optimized out
-            continue;
-        for (auto&& state : request->query_state()) {
-            if (!state._so)
-                state._so = request._so;
-            variable_states.emplace_back(state);
-        }
-    }
-    return variable_states;
-}
-
-std::vector<ov::ProfilingInfo> ov::npuw::JustInferRequest::get_profiling_info() const {
-    std::vector<ov::ProfilingInfo> info;
-    for (size_t i = 0; i < m_subrequests.size(); ++i) {
-        if (!m_subrequests[i])  // optimized out
-            continue;
-        auto&& subreq_info = m_subrequests[i]->get_profiling_info();
-        for (auto&& rec : subreq_info)
-            rec.node_name = std::string("subgraph") + std::to_string(i) + ": " + rec.node_name;
-        info.insert(info.end(), subreq_info.begin(), subreq_info.end());
-    }
-    return info;
-}
-
 void ov::npuw::JustInferRequest::prepare_for_infer() {
     LOG_DEBUG("Preparing to infer...");
     LOG_BLOCK();
@@ -743,87 +710,6 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
     LOG_DEBUG("Done");
 }
 
-void ov::npuw::JustInferRequest::unpack_closure(std::size_t idx, RqPtr request) {
-    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
-
-    NPUW_ASSERT(comp_model_desc.replaced_by);
-    const auto real_idx = comp_model_desc.replaced_by.value();
-    auto& func_desc = m_npuw_model->m_compiled_submodels[real_idx];
-
-    // Bind extra parameters from the function's closure
-    // First, do easy things & delay heavy stuff
-    std::vector<std::size_t> closure_unpack_required;
-    std::vector<std::size_t> closure_copy_required;
-
-    for (std::size_t cidx = 0u; cidx < comp_model_desc.closure.size(); cidx++) {
-        auto& closure = comp_model_desc.closure[cidx];
-
-        const auto closure_param_id = comp_model_desc.param_base + cidx;
-
-        if (func_desc.host_gather.dst_idx != -1 &&
-            static_cast<uint64_t>(func_desc.host_gather.dst_idx) == closure_param_id) {
-            // No need to set/copy the host_gather's closure tensor int
-            // the subrequest - it is just a dummy. host_gather writes
-            // to the right buffer directly.
-            continue;
-        }
-
-        auto& iport = func_desc.compiled_model->inputs()[closure_param_id];
-        if (closure.get_element_type() != iport.get_element_type()) {
-            // Remember where the unpack is required
-            closure_unpack_required.push_back(cidx);
-        } else {
-            if (needs_copy(idx, cidx)) {
-                // Remember where copy is requried
-                closure_copy_required.push_back(cidx);
-            } else {
-                // Easy case, just set one to another
-                request->set_tensor(iport, ov::get_tensor_impl(closure));
-            }
-        }
-    }  // for(closure)
-
-    // m_ms_unpack += ov::npuw::perf::ms_to_run([&](){
-    ov::parallel_for(closure_copy_required.size(), [&](std::size_t j) {
-        auto cidx = closure_copy_required[j];
-        auto& closure = comp_model_desc.closure[cidx];
-        const auto closure_param_id = comp_model_desc.param_base + cidx;
-        auto& iport = func_desc.compiled_model->inputs()[closure_param_id];
-        auto clparam = request->get_tensor(iport);
-        ov::get_tensor_impl(closure)->copy_to(clparam._ptr);
-    });
-    // }); // ms_to_run
-
-    for (std::size_t j = 0; j != closure_unpack_required.size(); j++) {
-        // NB: No need to protect anything here as containers are all
-        // preallocated and we only access elements under particular (thread
-        // -local) indices.
-        auto cidx = closure_unpack_required[j];
-
-        // FIXME: zerops are stored with absolute indexing, this needs to be aligned
-        auto& closure = comp_model_desc.closure[cidx];
-
-        const auto closure_param_id = comp_model_desc.param_base + cidx;
-        auto& iport = func_desc.compiled_model->inputs()[closure_param_id];
-        auto clparam = request->get_tensor(iport);
-
-        if (!comp_model_desc.scales.empty() && comp_model_desc.scales[cidx] && comp_model_desc.zerops[cidx]) {
-            // Unpacking this weight requires scaling with zero points...
-            ov::npuw::util::unpack(ov::get_tensor_impl(closure),
-                                   ov::get_tensor_impl(comp_model_desc.zerops[cidx]),
-                                   ov::get_tensor_impl(comp_model_desc.scales[cidx]),
-                                   clparam);
-        } else if (!comp_model_desc.scales.empty() && comp_model_desc.scales[cidx]) {
-            // Unpacking this weight requires scaling
-            ov::npuw::util::unpack(ov::get_tensor_impl(closure),
-                                   ov::get_tensor_impl(comp_model_desc.scales[cidx]),
-                                   clparam);
-        } else {
-            // Unpacking this weight doesn't require scaling
-            ov::npuw::util::unpack(ov::get_tensor_impl(closure), clparam);
-        }
-    }
-}
 
 void ov::npuw::JustInferRequest::recreate_subrequests(std::size_t idx) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
@@ -1116,24 +1002,6 @@ void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool
     }  // if (replaced_by)
 }
 
-ov::npuw::TensorPtr ov::npuw::JustInferRequest::allocMem(const ov::element::Type type,
-                                                         const ov::Shape& shape,
-                                                         const std::string& device) {
-    if (device == "CPU" || ov::shape_size(shape) == 0) {
-        return ov::get_tensor_impl(ov::Tensor(type, shape));
-    }
-
-    // Protect access to shared context(s) - at least among infer requests
-    auto remote_ctx = m_npuw_model->get_plugin()->get_core()->get_default_context(device)._ptr;
-    auto remote_tensor = remote_ctx->create_host_tensor(type, shape);
-    return ov::get_tensor_impl(ov::make_tensor(remote_tensor));
-}
-
-ov::npuw::TensorPtr ov::npuw::JustInferRequest::allocOut(const ov::Output<const ov::Node>& node,
-                                                         const std::string& device) {
-    return allocMem(node.get_element_type(), node.get_shape(), device);
-}
-
 void ov::npuw::JustInferRequest::subscribe_subrequest(std::size_t idx, Completed cb) {
     get_real_subrequest(idx)->set_callback(std::move(cb));
 }
@@ -1144,10 +1012,6 @@ void ov::npuw::JustInferRequest::complete_subrequest(std::size_t idx) {
 
 void ov::npuw::JustInferRequest::cancel_subrequest(std::size_t idx) {
     m_subrequests[idx]->cancel();
-}
-
-std::size_t ov::npuw::JustInferRequest::total_subrequests() const {
-    return m_subrequests.size();
 }
 
 bool ov::npuw::JustInferRequest::supports_async_pipeline() const {

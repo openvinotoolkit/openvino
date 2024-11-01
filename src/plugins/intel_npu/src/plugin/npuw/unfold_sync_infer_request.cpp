@@ -9,7 +9,7 @@
 #include "logging.hpp"
 
 ov::npuw::UnfoldInferRequest::UnfoldInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model)
-    : ov::npuw::JustInferRequest(compiled_model, false) {
+    : ov::npuw::IBaseInferRequest(compiled_model) {
     // Create infer requests
     // Preallocate funcall tensors & substitute function call requests
     for (std::size_t i = 0; i < m_num_submodels; i++) {
@@ -130,6 +130,10 @@ ov::npuw::UnfoldInferRequest::UnfoldInferRequest(const std::shared_ptr<ov::npuw:
         unpack_closure(i, m_subrequests[i]);
         LOG_VERB("Done");
     }
+}
+
+bool ov::npuw::UnfoldInferRequest::valid_subrequest(std::size_t idx) const {
+    return m_subrequests.at(idx) != nullptr;
 }
 
 void ov::npuw::UnfoldInferRequest::prepare(std::size_t idx) {
