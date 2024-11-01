@@ -62,36 +62,39 @@ TEST_F(SplitLoopTest, SplitLoopHmaxInInnerDimensionBlockLoopTest) {
         auto brgemm2 = linear_ir->push_node<ov::snippets::op::Brgemm>(sub.second, param3.second);
         const auto result = linear_ir->push_node<ov::opset10::Result>(brgemm2.second);
         const auto& loop_manager = linear_ir->get_loop_manager();
-        // two loops for brgemm1
-        loop_manager->mark_loop(brgemm1.first, vector_buffer.first, 512, 32, 1,
-                                std::vector<LoopPort>{LoopPort((*brgemm1.first)->get_input_port(0), true, 1),
-                                                      LoopPort((*brgemm1.first)->get_input_port(1), false, 1)},
-                                std::vector<LoopPort>{LoopPort((*brgemm1.first)->get_output_port(0), true, 1)});
+        // two loops(N and M) for brgemm1. mark inner first as mark new loop inserted as outer loop as default.
         loop_manager->mark_loop(brgemm1.first, vector_buffer.first, 1024, 64, 0,
                                 std::vector<LoopPort>{LoopPort((*brgemm1.first)->get_input_port(0), false, 0),
                                                       LoopPort((*brgemm1.first)->get_input_port(1), true, 0)},
                                 std::vector<LoopPort>{LoopPort((*brgemm1.first)->get_output_port(0), true, 0)});
+        loop_manager->mark_loop(brgemm1.first, vector_buffer.first, 512, 32, 1,
+                                std::vector<LoopPort>{LoopPort((*brgemm1.first)->get_input_port(0), true, 1),
+                                                      LoopPort((*brgemm1.first)->get_input_port(1), false, 1)},
+                                std::vector<LoopPort>{LoopPort((*brgemm1.first)->get_output_port(0), true, 1)});
         // loops on column
         loop_manager->mark_loop(fill.first, h_max.first, 1024, vector_size, 0,
-                                std::vector<LoopPort>{LoopPort((*fill.first)->get_input_port(0), true, 0)},
+                                std::vector<LoopPort>{LoopPort((*fill.first)->get_input_port(0), true, 0),
+                                                      // skip (*max.first)->get_input_port(0) ? It is vector_buffer, not memory.
+                                                      LoopPort((*max.first)->get_input_port(0), false, 0)},
                                 std::vector<LoopPort>{LoopPort((*max.first)->get_output_port(0), true, 0)});
         loop_manager->mark_loop(sub.first, brgemm2.first, 1024, vector_size, 0,
-                                std::vector<LoopPort>{LoopPort((*sub.first)->get_input_port(0), true, 0)},
+                                std::vector<LoopPort>{LoopPort((*sub.first)->get_input_port(0), true, 0),
+                                                      LoopPort((*sub.first)->get_input_port(1), false, 0)},
                                 std::vector<LoopPort>{LoopPort((*sub.first)->get_output_port(0), true, 0)});
         // loop on row
         loop_manager->mark_loop(vector_buffer.first, brgemm2.first, 512, 1, 1,
                                 std::vector<LoopPort>{LoopPort((*fill.first)->get_input_port(0), true, 1),
                                                       LoopPort((*sub.first)->get_input_port(0), true, 1)},
                                 std::vector<LoopPort>{LoopPort((*sub.first)->get_output_port(0), true, 1)});
-        // two loops for brgemm2
-        loop_manager->mark_loop(brgemm2.first, result.first, 512, 32, 1,
-                                std::vector<LoopPort>{LoopPort((*brgemm2.first)->get_input_port(0), true, 1),
-                                                      LoopPort((*brgemm2.first)->get_input_port(1), false, 1)},
-                                std::vector<LoopPort>{LoopPort((*brgemm2.first)->get_output_port(0), true, 1)});
+        // two loops(K and M) for brgemm2
         loop_manager->mark_loop(brgemm2.first, result.first, 1024, 64, 0,
                                 std::vector<LoopPort>{LoopPort((*brgemm2.first)->get_input_port(0), true, 0),
                                                       LoopPort((*brgemm2.first)->get_input_port(1), true, 0)},
                                 std::vector<LoopPort>{LoopPort((*brgemm2.first)->get_output_port(0), false, 0)});
+        loop_manager->mark_loop(brgemm2.first, result.first, 512, 32, 1,
+                                std::vector<LoopPort>{LoopPort((*brgemm2.first)->get_input_port(0), true, 1),
+                                                      LoopPort((*brgemm2.first)->get_input_port(1), false, 1)},
+                                std::vector<LoopPort>{LoopPort((*brgemm2.first)->get_output_port(0), true, 1)});
     }
     {
         auto param1 = linear_ir_ref->push_node<ov::opset10::Parameter>(input_precision, input_shape1);
@@ -112,7 +115,8 @@ TEST_F(SplitLoopTest, SplitLoopHmaxInInnerDimensionBlockLoopTest) {
         // block inner loops for dimension 0
         loop_manager->mark_loop(fill.first, h_max.first, 64, vector_size, 0,
                                 std::vector<LoopPort>{LoopPort((*fill.first)->get_input_port(0), true, 0),
-                                                      LoopPort((*max.first)->get_input_port(0), false, 0)},  // Max(initial_fill, fill)
+                                                      // skip (*max.first)->get_input_port(0) ? It is vector_buffer, not memory.
+                                                      LoopPort((*max.first)->get_input_port(0), false, 0)},
                                 std::vector<LoopPort>{LoopPort((*max.first)->get_output_port(0), true, 0)});
         loop_manager->mark_loop(sub.first, brgemm2.first, 64, vector_size, 0,
                                 std::vector<LoopPort>{LoopPort((*sub.first)->get_input_port(0), true, 0),
@@ -124,16 +128,16 @@ TEST_F(SplitLoopTest, SplitLoopHmaxInInnerDimensionBlockLoopTest) {
                                                       LoopPort((*sub.first)->get_input_port(0), true, 1)},
                                 std::vector<LoopPort>{LoopPort((*sub.first)->get_output_port(0), true, 1)});
         // two block loops. All exprs between two brgemm including h_max should be in both block loops.
-        loop_manager->mark_loop(brgemm1.first, result.first, 512, 32, 1,
-                                std::vector<LoopPort>{LoopPort((*brgemm1.first)->get_input_port(0), true, 1),
-                                                      LoopPort((*brgemm1.first)->get_input_port(1), false, 1),
-                                                      LoopPort((*brgemm2.first)->get_input_port(1), false, 1)},
-                                std::vector<LoopPort>{LoopPort((*brgemm2.first)->get_output_port(0), true, 1)});
         loop_manager->mark_loop(brgemm1.first, result.first, 1024, 64, 0,
                                 std::vector<LoopPort>{LoopPort((*brgemm1.first)->get_input_port(0), false, 0),
                                                       LoopPort((*brgemm1.first)->get_input_port(1), true, 0),
                                                       LoopPort((*brgemm2.first)->get_input_port(1), true, 0)},
                                 std::vector<LoopPort>{LoopPort((*brgemm2.first)->get_output_port(0), false, 0)});
+        loop_manager->mark_loop(brgemm1.first, result.first, 512, 32, 1,
+                                std::vector<LoopPort>{LoopPort((*brgemm1.first)->get_input_port(0), true, 1),
+                                                      LoopPort((*brgemm1.first)->get_input_port(1), false, 1),
+                                                      LoopPort((*brgemm2.first)->get_input_port(1), false, 1)},
+                                std::vector<LoopPort>{LoopPort((*brgemm2.first)->get_output_port(0), true, 1)});
     }
 }
 
@@ -182,15 +186,15 @@ TEST_F(SplitLoopTest, SplitLoopExtendHsumChildChain) {
         const auto result = linear_ir->push_node<ov::opset10::Result>(brgemm2.second);
         const auto& loop_manager = linear_ir->get_loop_manager();
         // two loops for brgemm1
-        loop_manager->mark_loop(brgemm1.first, relu.first, 512, 32, 1,
-                                std::vector<LoopPort>{LoopPort((*brgemm1.first)->get_input_port(0), true, 1),
-                                                      LoopPort((*brgemm1.first)->get_input_port(1), false, 1)},
-                                std::vector<LoopPort>{LoopPort((*brgemm1.first)->get_output_port(0), true, 1)});
         loop_manager->mark_loop(brgemm1.first, relu.first, 1024, 64, 0,
                                 std::vector<LoopPort>{LoopPort((*brgemm1.first)->get_input_port(0), false, 0),
                                                       LoopPort((*brgemm1.first)->get_input_port(1), true, 0)},
                                 // after split, result in reused buffer, should not increment
                                 std::vector<LoopPort>{LoopPort((*brgemm1.first)->get_output_port(0), true, 0)});
+        loop_manager->mark_loop(brgemm1.first, relu.first, 512, 32, 1,
+                                std::vector<LoopPort>{LoopPort((*brgemm1.first)->get_input_port(0), true, 1),
+                                                      LoopPort((*brgemm1.first)->get_input_port(1), false, 1)},
+                                std::vector<LoopPort>{LoopPort((*brgemm1.first)->get_output_port(0), true, 1)});
         // loops on column
         loop_manager->mark_loop(relu.first, h_max.first, 1024, vector_size, 0,
                                 std::vector<LoopPort>{LoopPort((*relu.first)->get_input_port(0), true, 0)},
@@ -206,16 +210,16 @@ TEST_F(SplitLoopTest, SplitLoopExtendHsumChildChain) {
                                 std::vector<LoopPort>{LoopPort((*sub.first)->get_output_port(0), true, 1),
                                                       LoopPort((*div.first)->get_output_port(0), true, 1)});
         // two loops for brgemm2
-        loop_manager->mark_loop(brgemm2.first, result.first, 512, 32, 1,
-                                std::vector<LoopPort>{LoopPort((*brgemm2.first)->get_input_port(0), true, 1),
-                                                      LoopPort((*brgemm2.first)->get_input_port(1), false, 1),
-                                                      LoopPort((*brgemm2.first)->get_input_port(2), true, 1)},
-                                std::vector<LoopPort>{LoopPort((*brgemm2.first)->get_output_port(0), true, 1)});
         loop_manager->mark_loop(brgemm2.first, result.first, 1024, 64, 0,
                                 std::vector<LoopPort>{LoopPort((*brgemm2.first)->get_input_port(0), true, 0),
                                                       LoopPort((*brgemm2.first)->get_input_port(1), true, 0),
                                                       LoopPort((*brgemm2.first)->get_input_port(2), false, 0)},
                                 std::vector<LoopPort>{LoopPort((*brgemm2.first)->get_output_port(0), false, 0)});
+        loop_manager->mark_loop(brgemm2.first, result.first, 512, 32, 1,
+                                std::vector<LoopPort>{LoopPort((*brgemm2.first)->get_input_port(0), true, 1),
+                                                      LoopPort((*brgemm2.first)->get_input_port(1), false, 1),
+                                                      LoopPort((*brgemm2.first)->get_input_port(2), true, 1)},
+                                std::vector<LoopPort>{LoopPort((*brgemm2.first)->get_output_port(0), true, 1)});
     }
     {
         auto param1 = linear_ir_ref->push_node<ov::opset10::Parameter>(input_precision, input_shape1);
@@ -250,18 +254,18 @@ TEST_F(SplitLoopTest, SplitLoopExtendHsumChildChain) {
                                 std::vector<LoopPort>{LoopPort((*sub.first)->get_output_port(0), true, 1),
                                                       LoopPort((*div.first)->get_output_port(0), true, 1)});
         // two block loops. All exprs between two brgemm including h_max should be in both block loops.
-        loop_manager->mark_loop(brgemm1.first, result.first, 512, 32, 1,
-                                std::vector<LoopPort>{LoopPort((*brgemm1.first)->get_input_port(0), true, 1),
-                                                      LoopPort((*brgemm1.first)->get_input_port(1), false, 1),
-                                                      LoopPort((*mul.first)->get_input_port(0), true, 1),
-                                                      LoopPort((*brgemm2.first)->get_input_port(1), false, 1)},
-                                std::vector<LoopPort>{LoopPort((*brgemm2.first)->get_output_port(0), true, 1)});
         loop_manager->mark_loop(brgemm1.first, result.first, 1024, 64, 0,
                                 std::vector<LoopPort>{LoopPort((*brgemm1.first)->get_input_port(0), false, 0),
                                                       LoopPort((*brgemm1.first)->get_input_port(1), true, 0),
                                                       LoopPort((*mul.first)->get_input_port(0), false, 0),
                                                       LoopPort((*brgemm2.first)->get_input_port(1), true, 0)},
                                 std::vector<LoopPort>{LoopPort((*brgemm2.first)->get_output_port(0), false, 0)});
+        loop_manager->mark_loop(brgemm1.first, result.first, 512, 32, 1,
+                                std::vector<LoopPort>{LoopPort((*brgemm1.first)->get_input_port(0), true, 1),
+                                                      LoopPort((*brgemm1.first)->get_input_port(1), false, 1),
+                                                      LoopPort((*mul.first)->get_input_port(0), true, 1),
+                                                      LoopPort((*brgemm2.first)->get_input_port(1), false, 1)},
+                                std::vector<LoopPort>{LoopPort((*brgemm2.first)->get_output_port(0), true, 1)});
     }
 }
 
@@ -297,10 +301,10 @@ TEST_F(SplitLoopTest, SplitLoopFlashAttentionTest) {
         const auto initial_fill_sum = linear_ir->push_node<ov::snippets::op::Fill>(vector_buffer_sum.second, 0, fill_value_sum);
 
         auto max_new = linear_ir->push_node<ov::opset10::Maximum>(buffer_max.second, h_max.second);  // max of old and new
-        auto sub_softmax = linear_ir->push_node<ov::opset10::Maximum>(brgemm1.second, max_new.second);
+        auto sub_softmax = linear_ir->push_node<ov::opset10::Subtract>(brgemm1.second, max_new.second);
         auto exp = linear_ir->push_node<ov::opset10::Exp>(sub_softmax.second);
         const auto fill_sum = linear_ir->push_node<ov::snippets::op::Fill>(exp.second, vector_size, fill_value_max);
-        auto add = linear_ir->push_node<ov::opset10::Subtract>(initial_fill_sum.second, fill_sum.second);
+        auto add = linear_ir->push_node<ov::opset10::Add>(initial_fill_sum.second, fill_sum.second);
         auto h_sum = linear_ir->push_node<ov::snippets::op::HorizonSum>(add.second);
 
         // softmax multiply
@@ -310,36 +314,35 @@ TEST_F(SplitLoopTest, SplitLoopFlashAttentionTest) {
         auto mul_scale = linear_ir->push_node<ov::opset10::Multiply>(buffer_sum.second, exp_scale.second);
         auto scale = linear_ir->push_node<ov::opset10::Divide>(mul_scale.second, h_sum.second);
 
-        auto brgemm2 = linear_ir->push_node<ov::snippets::op::Brgemm>(mul_softmax.second, param2.second, scale.second);
+        auto brgemm2 = linear_ir->push_node<ov::snippets::op::Brgemm>(mul_softmax.second, param3.second, scale.second);
         const auto result = linear_ir->push_node<ov::opset10::Result>(brgemm2.second);
         const auto& loop_manager = linear_ir->get_loop_manager();
-        // two loops for brgemm1
-        loop_manager->mark_loop(brgemm1.first, vector_buffer_max.first, 512, 32, 1,
+        // two loops for brgemm1. mark inner first as mark new loop inserted as outer loop as default.
+        size_t brgemm1_n = loop_manager->mark_loop(brgemm1.first, vector_buffer_max.first, 1024, 64, 0,
+                                std::vector<LoopPort>{LoopPort((*brgemm1.first)->get_input_port(0), false, 0),
+                                                      LoopPort((*brgemm1.first)->get_input_port(1), true, 0)},
+                                std::vector<LoopPort>{LoopPort((*brgemm1.first)->get_output_port(0), true, 0)});
+        size_t brgemm1_m = loop_manager->mark_loop(brgemm1.first, vector_buffer_max.first, 512, 32, 1,
                                 std::vector<LoopPort>{LoopPort((*brgemm1.first)->get_input_port(0), true, 1),
                                                       LoopPort((*brgemm1.first)->get_input_port(1), false, 1)},
                                 std::vector<LoopPort>{LoopPort((*brgemm1.first)->get_output_port(0), true, 1)});
-        loop_manager->mark_loop(brgemm1.first, vector_buffer_max.first, 1024, 64, 0,
-                                std::vector<LoopPort>{LoopPort((*brgemm1.first)->get_input_port(0), false, 0),
-                                                      LoopPort((*brgemm1.first)->get_input_port(1), true, 0)},
-                                // after split, result in reused buffer, should not increment
-                                std::vector<LoopPort>{LoopPort((*brgemm1.first)->get_output_port(0), true, 0)});
-        // three loops on column for [512,1024]
-        loop_manager->mark_loop(fill_max.first, h_max.first, 1024, vector_size, 0,
+
+        // three loops on column-1024 [512,1024]
+        size_t column_loop1 = loop_manager->mark_loop(fill_max.first, h_max.first, 1024, vector_size, 0,
                                 std::vector<LoopPort>{LoopPort((*fill_max.first)->get_input_port(0), true, 0)},
                                 std::vector<LoopPort>{LoopPort((*max.first)->get_output_port(0), true, 0)});
-        loop_manager->mark_loop(max_new.first, h_sum.first, 1024, vector_size, 0,
+        size_t column_loop2 = loop_manager->mark_loop(max_new.first, h_sum.first, 1024, vector_size, 0,
                                 std::vector<LoopPort>{LoopPort((*max_new.first)->get_input_port(0), false, 0),
                                                       LoopPort((*max_new.first)->get_input_port(1), false, 0),
-                                                      LoopPort((*sub_softmax.first)->get_input_port(0), true, 0),
-                                                      LoopPort((*max_new.first)->get_input_port(0), true, 0)},
+                                                      LoopPort((*sub_softmax.first)->get_input_port(0), true, 0)},
                                 std::vector<LoopPort>{LoopPort((*exp.first)->get_output_port(0), true, 0),
                                                       LoopPort((*add.first)->get_output_port(0), true, 0)});
-        loop_manager->mark_loop(power_static.first, mul_scale.first, 1024, vector_size, 0,
-                                std::vector<LoopPort>{LoopPort((*power_static.first)->get_input_port(0), true, 0),
+        size_t column_loop3 = loop_manager->mark_loop(power_static.first, mul_scale.first, 1024, vector_size, 0,
+                                std::vector<LoopPort>{LoopPort((*power_static.first)->get_input_port(0), false, 0),
                                                       LoopPort((*mul_softmax.first)->get_input_port(0), true, 0)},
                                 std::vector<LoopPort>{LoopPort((*mul_softmax.first)->get_output_port(0), true, 0)});
-        // one loop on row [512,1024]
-        loop_manager->mark_loop(vector_buffer_max.first, brgemm2.first, 512, 1, 1,
+        // one loop on row-512 [512,1024]
+        size_t row_loop = loop_manager->mark_loop(vector_buffer_max.first, brgemm2.first, 512, 1, 1,
                                 std::vector<LoopPort>{LoopPort((*fill_max.first)->get_input_port(0), true, 1),
                                                       LoopPort((*sub_softmax.first)->get_input_port(0), true, 1),
                                                       LoopPort((*sub_scale.first)->get_input_port(0), true, 1),
@@ -348,16 +351,24 @@ TEST_F(SplitLoopTest, SplitLoopFlashAttentionTest) {
                                 std::vector<LoopPort>{LoopPort((*mul_softmax.first)->get_output_port(0), true, 1),
                                                       LoopPort((*scale.first)->get_output_port(0), true, 1)});
         // two loops for brgemm2
-        loop_manager->mark_loop(brgemm2.first, result.first, 512, 32, 1,
-                                std::vector<LoopPort>{LoopPort((*brgemm2.first)->get_input_port(0), true, 1),
-                                                      LoopPort((*brgemm2.first)->get_input_port(1), false, 1),
-                                                      LoopPort((*brgemm2.first)->get_input_port(2), true, 1)},
-                                std::vector<LoopPort>{LoopPort((*brgemm2.first)->get_output_port(0), true, 1)});
-        loop_manager->mark_loop(brgemm2.first, result.first, 1024, 64, 0,
+        size_t brgemm2_k = loop_manager->mark_loop(brgemm2.first, result.first, 1024, 64, 0,
                                 std::vector<LoopPort>{LoopPort((*brgemm2.first)->get_input_port(0), true, 0),
                                                       LoopPort((*brgemm2.first)->get_input_port(1), true, 0),
                                                       LoopPort((*brgemm2.first)->get_input_port(2), false, 0)},
                                 std::vector<LoopPort>{LoopPort((*brgemm2.first)->get_output_port(0), false, 0)});
+        size_t brgemm2_m = loop_manager->mark_loop(brgemm2.first, result.first, 512, 32, 1,
+                                std::vector<LoopPort>{LoopPort((*brgemm2.first)->get_input_port(0), true, 1),
+                                                      LoopPort((*brgemm2.first)->get_input_port(1), false, 1),
+                                                      LoopPort((*brgemm2.first)->get_input_port(2), true, 1)},
+                                std::vector<LoopPort>{LoopPort((*brgemm2.first)->get_output_port(0), true, 1)});
+        std::cout << "brgemm1_m:" << brgemm1_m << std::endl;
+        std::cout << "brgemm1_n:" << brgemm1_n << std::endl;
+        std::cout << "column_loop1:" << column_loop1 << std::endl;
+        std::cout << "column_loop2:" << column_loop2 << std::endl;
+        std::cout << "column_loop3:" << column_loop3 << std::endl;
+        std::cout << "row_loop:" << row_loop << std::endl;
+        std::cout << "brgemm2_m:" << brgemm2_m << std::endl;
+        std::cout << "brgemm2_k:" << brgemm2_k << std::endl;
     }
     {
         auto param1 = linear_ir_ref->push_node<ov::opset10::Parameter>(input_precision, input_shape1);
@@ -384,10 +395,10 @@ TEST_F(SplitLoopTest, SplitLoopFlashAttentionTest) {
         const auto initial_fill_sum = linear_ir_ref->push_node<ov::snippets::op::Fill>(vector_buffer_sum.second, 0, fill_value_sum);
 
         auto max_new = linear_ir_ref->push_node<ov::opset10::Maximum>(buffer_max.second, h_max.second);  // max of old and new
-        auto sub_softmax = linear_ir_ref->push_node<ov::opset10::Maximum>(brgemm1.second, max_new.second);
+        auto sub_softmax = linear_ir_ref->push_node<ov::opset10::Subtract>(brgemm1.second, max_new.second);
         auto exp = linear_ir_ref->push_node<ov::opset10::Exp>(sub_softmax.second);
         const auto fill_sum = linear_ir_ref->push_node<ov::snippets::op::Fill>(exp.second, vector_size, fill_value_max);
-        auto add = linear_ir_ref->push_node<ov::opset10::Subtract>(initial_fill_sum.second, fill_sum.second);
+        auto add = linear_ir_ref->push_node<ov::opset10::Add>(initial_fill_sum.second, fill_sum.second);
         auto h_sum = linear_ir_ref->push_node<ov::snippets::op::HorizonSum>(add.second);
         // scale, moved up here
         auto scale = linear_ir_ref->push_node<ov::opset10::Divide>(mul_scale.second, h_sum.second);
@@ -396,7 +407,7 @@ TEST_F(SplitLoopTest, SplitLoopFlashAttentionTest) {
         auto power_static = linear_ir_ref->push_node<ov::snippets::op::PowerStatic>(h_sum.second, -1);
         auto mul_softmax = linear_ir_ref->push_node<ov::opset10::Multiply>(exp.second, power_static.second);
 
-        auto brgemm2 = linear_ir_ref->push_node<ov::snippets::op::Brgemm>(mul_softmax.second, param2.second, scale.second);
+        auto brgemm2 = linear_ir_ref->push_node<ov::snippets::op::Brgemm>(mul_softmax.second, param3.second, scale.second);
         const auto result = linear_ir_ref->push_node<ov::opset10::Result>(brgemm2.second);
         const auto& loop_manager = linear_ir_ref->get_loop_manager();
 
@@ -409,9 +420,10 @@ TEST_F(SplitLoopTest, SplitLoopFlashAttentionTest) {
                                                       LoopPort((*max_new.first)->get_input_port(1), false, 0),
                                                       LoopPort((*sub_softmax.first)->get_input_port(0), true, 0)},
                                 std::vector<LoopPort>{LoopPort((*exp.first)->get_output_port(0), true, 0),
+                                                      // result of add should not store, just Hsum on vec reg.
                                                       LoopPort((*add.first)->get_output_port(0), true, 0)});
-        loop_manager->mark_loop(power_static.first, mul_scale.first, 64, vector_size, 0,
-                                std::vector<LoopPort>{LoopPort((*power_static.first)->get_input_port(0), true, 0),
+        loop_manager->mark_loop(power_static.first, brgemm2.first, 64, vector_size, 0,
+                                std::vector<LoopPort>{LoopPort((*power_static.first)->get_input_port(0), false, 0),
                                                       LoopPort((*mul_softmax.first)->get_input_port(0), true, 0)},
                                 std::vector<LoopPort>{LoopPort((*mul_softmax.first)->get_output_port(0), true, 0)});
 
@@ -419,28 +431,34 @@ TEST_F(SplitLoopTest, SplitLoopFlashAttentionTest) {
         loop_manager->mark_loop(vector_buffer_max.first, brgemm2.first, 32, 1, 1,
                                 std::vector<LoopPort>{LoopPort((*fill_max.first)->get_input_port(0), true, 1),
                                                       LoopPort((*sub_softmax.first)->get_input_port(0), true, 1),
+                                                      // three buffers inc 1 on each row loop
                                                       LoopPort((*sub_scale.first)->get_input_port(0), true, 1),
                                                       LoopPort((*max_new.first)->get_input_port(0), true, 1),
                                                       LoopPort((*mul_scale.first)->get_input_port(0), true, 1)},
+                                                      // inc 64. store to buffer, inc based on buffer shape.
                                 std::vector<LoopPort>{LoopPort((*mul_softmax.first)->get_output_port(0), true, 1),
+                                                      // one row get one scale.
                                                       LoopPort((*scale.first)->get_output_port(0), true, 1)});
+
         // two block loops. All exprs between two brgemm are in both block loops.
-        loop_manager->mark_loop(brgemm1.first, result.first, 512, 32, 1,
-                                std::vector<LoopPort>{LoopPort((*brgemm1.first)->get_input_port(0), true, 1),
-                                                      LoopPort((*brgemm1.first)->get_input_port(1), false, 1),
-                                                      LoopPort((*max_new.first)->get_input_port(0), true, 1),
-                                                      LoopPort((*sub_scale.first)->get_input_port(0), true, 1),
-                                                      LoopPort((*mul_scale.first)->get_input_port(0), true, 1),
-                                                      LoopPort((*brgemm2.first)->get_input_port(1), true, 1)},
-                                std::vector<LoopPort>{LoopPort((*brgemm2.first)->get_output_port(0), true, 1)});
-        loop_manager->mark_loop(brgemm1.first, result.first, 1024, 64, 0,
+        size_t block_nk = loop_manager->mark_loop(brgemm1.first, result.first, 1024, 64, 0,
                                 std::vector<LoopPort>{LoopPort((*brgemm1.first)->get_input_port(0), false, 0),
                                                       LoopPort((*brgemm1.first)->get_input_port(1), true, 0),
+                                                      // three buffers no increased on N/K block loop.
                                                       LoopPort((*max_new.first)->get_input_port(0), false, 0),
                                                       LoopPort((*sub_scale.first)->get_input_port(0), false, 0),
                                                       LoopPort((*mul_scale.first)->get_input_port(0), false, 0),
-                                                      LoopPort((*brgemm2.first)->get_input_port(1), true, 0)},
+                                                      LoopPort((*brgemm2.first)->get_input_port(1), true, 0)},  // V matrix inc
                                 std::vector<LoopPort>{LoopPort((*brgemm2.first)->get_output_port(0), false, 0)});
+        size_t block_m = loop_manager->mark_loop(brgemm1.first, result.first, 512, 32, 1,
+                                std::vector<LoopPort>{LoopPort((*brgemm1.first)->get_input_port(0), true, 1),
+                                                      LoopPort((*brgemm1.first)->get_input_port(1), false, 1),
+                                                      // three buffers increased 32 on M block loop
+                                                      LoopPort((*max_new.first)->get_input_port(0), true, 1),
+                                                      LoopPort((*sub_scale.first)->get_input_port(0), true, 1),
+                                                      LoopPort((*mul_scale.first)->get_input_port(0), true, 1),
+                                                      LoopPort((*brgemm2.first)->get_input_port(1), false, 1)},  // V matrix not inc
+                                std::vector<LoopPort>{LoopPort((*brgemm2.first)->get_output_port(0), true, 1)});
     }
 }
 
