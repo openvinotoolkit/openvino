@@ -33,7 +33,6 @@ public:
     void update_subrequest_links(std::size_t) override {}
 
 private:
-    void prepare(std::size_t idx);
     void infer() override;
 };
 

@@ -82,65 +82,16 @@ bool ov::npuw::UnfoldInferRequest::valid_subrequest(std::size_t idx) const {
     return m_subrequests.at(idx) != nullptr;
 }
 
-void ov::npuw::UnfoldInferRequest::prepare(std::size_t idx) {
-    if (idx >= m_subrequests.size()) {
-        return;
-    }
-    auto& subr = m_subrequests.at(idx);
-    const bool do_copy = needs_copy(idx);
-
-    std::vector<std::pair<ov::SoPtr<ov::ITensor>, ov::Output<const ov::Node>>> copy_list;
-
-    // bind_global_parameters(), a simplified way
-    const auto& iodesc = m_subrequests_gio.at(idx);
-    for (auto&& it : iodesc.global_params) {
-        std::size_t param_idx{}, sub_in_idx{};
-        std::tie(param_idx, sub_in_idx) = it;
-        const auto& g_port = m_npuw_model->inputs()[param_idx];
-        const auto& g_tnsr = m_port_to_tensor.at(g_port).tensor;
-        const auto& s_port = subr->get_inputs()[sub_in_idx];
-
-        if (m_input_allocated.count(g_tnsr->data()) == 0 && do_copy) {
-            copy_list.emplace_back(g_tnsr, s_port);
-        } else {
-            subr->set_tensor(s_port, g_tnsr);
-        }
-    }
-
-    // bind_global_results, a simplified way
-    for (auto&& it : iodesc.global_results) {
-        std::size_t result_idx{}, sub_out_idx{};
-        std::tie(result_idx, sub_out_idx) = it;
-        const auto& g_port = m_npuw_model->outputs()[result_idx];
-        const auto& s_port = subr->get_outputs()[sub_out_idx];
-        subr->set_tensor(s_port, m_port_to_tensor.at(g_port).tensor);
-    }
-
-    // run copy, if required
-    // NB: parallel_for was removed here as it causes more overhead for our (usually)
-    // small chunks copied. In the proper app-level pipeline, there must be no copy at all
-    for (auto &&it : copy_list) {
-        ov::SoPtr<ov::ITensor> dst = subr->get_tensor(it.second);
-        it.first->copy_to(dst._ptr);
-    }
-
-    // run host gather, if required
-    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
-    if (comp_model_desc.host_gather.dst_idx != -1) {
-        const auto& gport = comp_model_desc.compiled_model->inputs()[comp_model_desc.host_gather.dst_idx];
-        const auto gather = subr->get_tensor(gport);
-
-        const auto& vocab =
-            comp_model_desc.closure[comp_model_desc.host_gather.src_idx - comp_model_desc.param_base];
-        const auto& lport = comp_model_desc.compiled_model->inputs()[comp_model_desc.host_gather.idx_idx];
-        const auto lookup = subr->get_tensor(lport);
-        ov::npuw::util::gather(ov::get_tensor_impl(vocab), lookup, gather);
-    }
-}
-
 void ov::npuw::UnfoldInferRequest::infer() {
     const bool do_async = m_npuw_model->m_cfg.get<::intel_npu::NPUW_FUNCALL_ASYNC>();
 
+    auto prepare = [&](std::size_t idx) {
+        if (idx >= m_subrequests.size()) {
+            return;
+        }
+        bind_global_params(idx, m_subrequests[idx]);
+        bind_global_results(idx, m_subrequests[idx]);
+    };
     auto wait_and_clear = [](RqPtrs &rqs) {
         for (auto &&r : rqs) {
             r->wait();

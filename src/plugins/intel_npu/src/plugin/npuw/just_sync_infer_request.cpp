@@ -464,118 +464,36 @@ void ov::npuw::JustInferRequest::start_subrequest(std::size_t idx) {
 }
 
 void ov::npuw::JustInferRequest::bind_global_parameters(std::size_t idx) {
-    LOG_DEBUG("Binding parameters for Subgraph[" << idx << "]");
-    LOG_BLOCK();
-
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
     const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
 
-    const bool do_copy = needs_copy(idx);
-    const auto& iodesc = m_subrequests_gio.at(idx);
-
-    const auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
-    const bool is_spatial = proto_comp_model_desc.spatial.has_value();
-
-    // a list of ports to copy tensors, if needed: FROM -> TO
-    std::vector<std::pair<ov::SoPtr<ov::ITensor>, ov::Output<const ov::Node>>> copy_list;
-
     // pick which subrequest we actually work on here
-    auto subr = [&]() {
-        if (now_idx() && real_idx == real(now_idx().value()) && is_pipelined(now_idx().value())) {
-            LOG_DEBUG("Accessing the pipeline subrequest");
-            // The real index of request we need to prepare IS
-            // the same request which executes now AND
-            // function_pipelining enabled - select the reserve request.
-            NPUW_ASSERT(m_funcall_pipeline[real_idx].subrequest);
-            return m_funcall_pipeline[real_idx].subrequest;
-        }
+    if (now_idx() && real_idx == real(now_idx().value()) && is_pipelined(now_idx().value())) {
+        LOG_DEBUG("Accessing the pipeline subrequest");
+        // The real index of request we need to prepare IS
+        // the same request which executes now AND
+        // function_pipelining enabled - select the reserve request.
+        NPUW_ASSERT(m_funcall_pipeline[real_idx].subrequest);
+        bind_global_params(idx, m_funcall_pipeline[real_idx].subrequest);
+    } else {
         // Otherwise: Just a return a subrequest which is in place.
         // If it is a function call and we have function pipelining ON,
         // it is still the right subrequest we can use.
         LOG_DEBUG("Accessing the primary subrequest");
-        return m_subrequests[real_idx];
-    }();
-
-    // Check if the given subgraph's input is spatial
-    auto is_spatial_param = [&](std::size_t sub_in_idx) -> bool {
-        if (!is_spatial) {
-            return false;  // Early return
-        }
-        auto& spatial = proto_comp_model_desc.spatial.value();
-        return std::any_of(spatial.params.begin(), spatial.params.end(), [&](const auto& p) -> bool {
-            return p.idx == sub_in_idx;
-        });
-    };
-
-    for (auto&& it : iodesc.global_params) {
-        std::size_t param_idx{}, sub_in_idx{};
-        std::tie(param_idx, sub_in_idx) = it;
-        LOG_DEBUG("Processing " << param_idx << " -> " << sub_in_idx << std::endl);
-
-        const auto& g_port = m_npuw_model->inputs()[param_idx];
-        const auto& g_tnsr = m_port_to_tensor.at(g_port).tensor;
-        const auto& s_port = subr->get_inputs()[sub_in_idx];
-        LOG_DEBUG("Processing " << g_port << " -> " << s_port << "...");
-        LOG_BLOCK();
-        if (!is_spatial_param(sub_in_idx)) {
-            // Input parameter is non-spatial, do normal handling
-            if (m_input_allocated.count(g_tnsr->data()) == 0 && do_copy) {
-                LOG_DEBUG("Will be copied");
-                copy_list.emplace_back(g_tnsr, s_port);
-            } else {
-                LOG_DEBUG("Will be set");
-                subr->set_tensor(s_port, g_tnsr);
-            }
-        } else {
-            // Register for future use
-            m_spatial_io[real_idx].inputs.at(sub_in_idx) = g_tnsr;
-        }
+        bind_global_params(idx, m_subrequests[real_idx]);
     }
-
-    LOG_DEBUG("Running copy...");
-    ov::parallel_for(copy_list.size(), [&](std::size_t idx) {
-        auto& it = copy_list[idx];
-        ov::SoPtr<ov::ITensor> dst = subr->get_tensor(it.second);
-        it.first->copy_to(dst._ptr);
-    });
-
-    // Run host-side gather, if required
-    if (comp_model_desc.host_gather.dst_idx != -1) {
-        const auto& gport = comp_model_desc.compiled_model->inputs()[comp_model_desc.host_gather.dst_idx];
-        const auto gather = subr->get_tensor(gport);
-
-        const auto& vocab = comp_model_desc.closure[comp_model_desc.host_gather.src_idx - comp_model_desc.param_base];
-        const auto& lport = comp_model_desc.compiled_model->inputs()[comp_model_desc.host_gather.idx_idx];
-        const auto lookup = subr->get_tensor(lport);
-        ov::npuw::util::gather(ov::get_tensor_impl(vocab), lookup, gather);
-    }
-
-    LOG_DEBUG("Done");
 }
 
 void ov::npuw::JustInferRequest::bind_global_results(std::size_t idx) {
-    LOG_DEBUG("Binding results for Subgraph[" << idx << "]");
-    LOG_BLOCK();
-
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
     if (comp_model_desc.replaced_by) {
         // Don't do here - function call will take the right tensor
         // itself. Note it may be implemented more efficently than now
         // (and in some cases, the tensor can be pre-set)
-        LOG_DEBUG("Skipping this too now - function will do it for itself");
+        LOG_DEBUG("Skipping bind_glo - function will do it for itself");
         return;
     }
-
-    const auto& iodesc = m_subrequests_gio.at(idx);
-    for (auto&& it : iodesc.global_results) {
-        std::size_t result_idx{}, sub_out_idx{};
-        std::tie(result_idx, sub_out_idx) = it;
-        const auto& g_port = m_npuw_model->outputs()[result_idx];
-        const auto& s_port = m_subrequests[idx]->get_outputs()[sub_out_idx];
-        m_subrequests[idx]->set_tensor(s_port, m_port_to_tensor.at(g_port).tensor);
-    }
-
-    LOG_DEBUG("Done");
+    IBaseInferRequest::bind_global_results(idx, m_subrequests[idx]);
 }
 
 void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {

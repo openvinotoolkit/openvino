@@ -250,7 +250,6 @@ ov::npuw::TensorPtr ov::npuw::IBaseInferRequest::allocMem(const ov::element::Typ
         return ov::get_tensor_impl(ov::Tensor(type, shape));
     }
 
-    // Protect access to shared context(s) - at least among infer requests
     auto remote_ctx = m_npuw_model->get_plugin()->get_core()->get_default_context(device)._ptr;
     auto remote_tensor = remote_ctx->create_host_tensor(type, shape);
     return ov::get_tensor_impl(ov::make_tensor(remote_tensor));
@@ -406,6 +405,95 @@ void ov::npuw::IBaseInferRequest::unpack_closure(std::size_t idx, RqPtr request)
             ov::npuw::util::unpack(ov::get_tensor_impl(closure), clparam);
         }
     }
+}
+
+void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr request) {
+    LOG_DEBUG("Binding parameters for Subgraph[" << idx << "]");
+    LOG_BLOCK();
+
+    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
+    const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
+
+    const bool do_copy = needs_copy(idx);
+    const auto& iodesc = m_subrequests_gio.at(idx);
+
+    const auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
+    const bool is_spatial = proto_comp_model_desc.spatial.has_value();
+
+    // a list of ports to copy tensors, if needed: FROM -> TO
+    std::vector<std::pair<ov::SoPtr<ov::ITensor>, ov::Output<const ov::Node>>> copy_list;
+
+    // Check if the given subgraph's input is spatial
+    auto is_spatial_param = [&](std::size_t sub_in_idx) -> bool {
+        if (!is_spatial) {
+            return false;  // Early return
+        }
+        auto& spatial = proto_comp_model_desc.spatial.value();
+        return std::any_of(spatial.params.begin(), spatial.params.end(), [&](const auto& p) -> bool {
+            return p.idx == sub_in_idx;
+        });
+    };
+
+    for (auto&& it : iodesc.global_params) {
+        std::size_t param_idx{}, sub_in_idx{};
+        std::tie(param_idx, sub_in_idx) = it;
+        LOG_DEBUG("Processing " << param_idx << " -> " << sub_in_idx << std::endl);
+
+        const auto& g_port = m_npuw_model->inputs()[param_idx];
+        const auto& g_tnsr = m_port_to_tensor.at(g_port).tensor;
+        const auto& s_port = request->get_inputs()[sub_in_idx];
+        LOG_DEBUG("Processing " << g_port << " -> " << s_port << "...");
+        LOG_BLOCK();
+        if (!is_spatial_param(sub_in_idx)) {
+            // Input parameter is non-spatial, do normal handling
+            if (m_input_allocated.count(g_tnsr->data()) == 0 && do_copy) {
+                LOG_DEBUG("Will be copied");
+                copy_list.emplace_back(g_tnsr, s_port);
+            } else {
+                LOG_DEBUG("Will be set");
+                request->set_tensor(s_port, g_tnsr);
+            }
+        } else {
+            // Register for future use
+            m_spatial_io[real_idx].inputs.at(sub_in_idx) = g_tnsr;
+        }
+    }
+
+    LOG_DEBUG("Running copy...");
+    ov::parallel_for(copy_list.size(), [&](std::size_t idx) {
+        auto& it = copy_list[idx];
+        ov::SoPtr<ov::ITensor> dst = request->get_tensor(it.second);
+        it.first->copy_to(dst._ptr);
+    });
+
+    // Run host-side gather, if required
+    if (comp_model_desc.host_gather.dst_idx != -1) {
+        const auto& gport = comp_model_desc.compiled_model->inputs()[comp_model_desc.host_gather.dst_idx];
+        const auto gather = request->get_tensor(gport);
+
+        const auto& vocab = comp_model_desc.closure[comp_model_desc.host_gather.src_idx - comp_model_desc.param_base];
+        const auto& lport = comp_model_desc.compiled_model->inputs()[comp_model_desc.host_gather.idx_idx];
+        const auto lookup = request->get_tensor(lport);
+        ov::npuw::util::gather(ov::get_tensor_impl(vocab), lookup, gather);
+    }
+
+    LOG_DEBUG("Done");
+}
+
+void ov::npuw::IBaseInferRequest::bind_global_results(std::size_t idx, RqPtr request) {
+    LOG_DEBUG("Binding results for Subgraph[" << idx << "]");
+    LOG_BLOCK();
+
+    const auto& iodesc = m_subrequests_gio.at(idx);
+    for (auto&& it : iodesc.global_results) {
+        std::size_t result_idx{}, sub_out_idx{};
+        std::tie(result_idx, sub_out_idx) = it;
+        const auto& g_port = m_npuw_model->outputs()[result_idx];
+        const auto& s_port = request->get_outputs()[sub_out_idx];
+        request->set_tensor(s_port, m_port_to_tensor.at(g_port).tensor);
+    }
+
+    LOG_DEBUG("Done");
 }
 
 void ov::npuw::IBaseInferRequest::dump_input_tensors(std::size_t idx) {

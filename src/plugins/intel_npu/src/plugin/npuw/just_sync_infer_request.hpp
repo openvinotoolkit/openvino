@@ -66,7 +66,7 @@ private:
     AllocFcn m_alloc;
 };
 
-class JustInferRequest : public IBaseInferRequest {
+class JustInferRequest final : public IBaseInferRequest {
 public:
     explicit JustInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model);
 
