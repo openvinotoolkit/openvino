@@ -186,8 +186,14 @@ static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node
             return false;
         for (const auto& consumer : consumers) {
             const auto child_consumers = consumer.get_node()->get_output_target_inputs(0);
-            if (!all_has_types(child_consumers, { ov::opset1::MatMul::get_type_info_static(), ov::op::v8::Gather::get_type_info_static() }))
+            for (const auto& child_consumer : child_consumers) {
+                const auto& type_info = child_consumer.get_node()->get_type_info();
+                if (cldnn::one_of(type_info, { ov::opset1::MatMul::get_type_info_static(), ov::op::v8::Gather::get_type_info_static() }))
+                    continue;
+                if (cldnn::one_of(type_info, { ov::op::v1::Multiply::get_type_info_static() }))
+                    continue;
                 return false;
+            }
         }
         return true;
     };

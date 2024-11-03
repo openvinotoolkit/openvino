@@ -57,13 +57,16 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
     auto reshape_const_m = wrap_type<ov::op::v0::Constant>();
     auto reshape_m = wrap_type<ov::op::v1::Reshape>({mul_m, reshape_const_m}, reshape_3d_to_2d);
 
+    auto mul2_const_m = wrap_type<ov::op::v0::Constant>();
+    auto mul2_m = wrap_type<ov::op::v1::Multiply>({reshape_m, mul2_const_m});
+
     auto transpose_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{reshape_m, mul_m});
     auto transpose_const_m = wrap_type<ov::op::v0::Constant>();
     auto transpose_m = wrap_type<ov::op::v1::Transpose>({transpose_input, transpose_const_m});
 
     auto data_m = any_input();
     auto bias_m = any_input();
-    auto weights_input_m = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{reshape_m, transpose_m, mul_m});
+    auto weights_input_m = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{reshape_m, transpose_m, mul_m, mul2_m});
     auto fully_connected_m = wrap_type<op::FullyConnected>({data_m, weights_input_m, bias_m});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
@@ -167,10 +170,18 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
                                                                     fc->get_output_type());
         }
 
-        result_nodes.push_back(new_fc);
-        new_fc->set_friendly_name(fc->get_friendly_name());
-        ov::copy_runtime_info(m.get_matched_nodes(), result_nodes);
-        ov::replace_node(fc, new_fc);
+        if (!pattern_map.count(mul2_m)) {
+            result_nodes.push_back(new_fc);
+            new_fc->set_friendly_name(fc->get_friendly_name());
+            ov::copy_runtime_info(m.get_matched_nodes(), result_nodes);
+            ov::replace_node(fc, new_fc);
+        } else {
+            auto mul2_const_m_ptr = pattern_map.at(mul2_const_m).get_node_shared_ptr();
+            auto my_mul_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(mul2_const_m_ptr);
+            auto mul = std::make_shared<ov::op::v1::Multiply>(new_fc, my_mul_const);
+            ov::replace_node(fc, mul);
+        }
+
         return true;
     };
 
