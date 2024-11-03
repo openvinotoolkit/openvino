@@ -205,7 +205,6 @@ program::program(engine& engine_ref,
       _task_executor(std::move(task_executor)),
       processing_order(),
       is_internal(is_internal) {
-    //_config.set_property(ov::has_lstm_seq(has_lstm(nodes)));
     _config.apply_user_properties(_engine.get_device_info());
     init_primitives();
     init_program();

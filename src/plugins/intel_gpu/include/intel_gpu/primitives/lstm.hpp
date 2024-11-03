@@ -53,4 +53,5 @@ protected:
         return ret;
     }
 };
-} // namespace cldnn
+
+}  // namespace cldnn
