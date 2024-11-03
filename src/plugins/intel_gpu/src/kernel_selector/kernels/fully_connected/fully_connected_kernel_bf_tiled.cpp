@@ -121,7 +121,7 @@ static bool should_dynamic_quantize(const fully_connected_params& params, bool p
 
     const size_t scale_group_size = params.weights.IFM().v / params.decompression_scale.Feature().v;
     if ((scale_group_size % simd == 0) && (input_f % dynamic_quantization_group_size == 0) &&
-        (params.is_shape_agnostic || (params.inputs[0].Batch().v > 1 && input_b > min_slm_size)) &&
+        (params.is_shape_agnostic || input_b > min_slm_size) &&
         params.inputs[0].GetDType() == Datatype::F16 && is_weight_dyn_quantizable(params)) {
             if (print_log) {
                 GPU_DEBUG_TRACE_DETAIL << " Dynamic quantizing for FC : scale_group_size: " << scale_group_size <<
