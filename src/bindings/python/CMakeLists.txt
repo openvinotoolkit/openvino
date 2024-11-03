@@ -325,12 +325,16 @@ if(ENABLE_PYTHON_PACKAGING)
             # variables to reflect options (extensions only or full wheel package)
             PYTHON_EXTENSIONS_ONLY=ON
             SKIP_RPATH=ON
-            "${Python3_EXECUTABLE}" -m build "${CMAKE_CURRENT_SOURCE_DIR}/wheel"
-                --wheel
-                --outdir "${CMAKE_CURRENT_BINARY_DIR}/dist"
+            "${Python3_EXECUTABLE}" -m pip wheel "${CMAKE_CURRENT_SOURCE_DIR}/wheel"
+                --no-deps
+                --wheel-dir "${CMAKE_CURRENT_BINARY_DIR}/dist"
         COMMAND "${Python3_EXECUTABLE}" -m pip install "${CMAKE_CURRENT_BINARY_DIR}/dist/*.whl"
             --no-deps
-            --target "${ov_install_lib}"
+            --prefix "${ov_python_package_prefix}"
+            --install-option="--install-lib=${ov_install_lib}"
+            --install-option="--install-scripts=${ov_python_package_prefix}/bin"
+            --install-option="--single-version-externally-managed"
+            --install-option="--record=installed.txt"
         WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
         DEPENDS ${ov_setup_py_deps}
         COMMENT "Create python package with ${openvino_meta_info_subdir} folder")
@@ -347,12 +351,16 @@ if(ENABLE_PYTHON_PACKAGING)
     add_custom_command(OUTPUT ${openvino_telemetry_meta_info_file}
         COMMAND ${CMAKE_COMMAND} -E remove_directory
         "${telemetry_python_package_prefix}"
-        COMMAND "${Python3_EXECUTABLE}" -m build 
-            --wheel
-            --outdir "${CMAKE_CURRENT_BINARY_DIR}/dist"
+        COMMAND "${Python3_EXECUTABLE}" -m pip wheel "${OpenVINO_Telemetry_SOURCE_DIR}"
+                --no-deps
+                --wheel-dir "${CMAKE_CURRENT_BINARY_DIR}/dist"
         COMMAND "${Python3_EXECUTABLE}" -m pip install "${CMAKE_CURRENT_BINARY_DIR}/dist/*.whl"
-            --no-deps
-            --target "${telemetry_install_lib}"
+                --no-deps
+                --prefix "${telemetry_python_package_prefix}"
+                --install-option="--install-lib=${telemetry_install_lib}"
+                --install-option="--install-scripts=${telemetry_python_package_prefix}/bin"
+                --install-option="--single-version-externally-managed"
+                --install-option="--record=installed.txt"
         WORKING_DIRECTORY "${OpenVINO_Telemetry_SOURCE_DIR}"
         DEPENDS ${telemetry_files}
         COMMENT "Create python package with ${openvino_telemetry_meta_info_subdir} folder")
