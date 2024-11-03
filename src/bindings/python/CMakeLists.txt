@@ -351,16 +351,13 @@ if(ENABLE_PYTHON_PACKAGING)
     add_custom_command(OUTPUT ${openvino_telemetry_meta_info_file}
         COMMAND ${CMAKE_COMMAND} -E remove_directory
         "${telemetry_python_package_prefix}"
-        COMMAND "${Python3_EXECUTABLE}" -m pip wheel "${OpenVINO_Telemetry_SOURCE_DIR}"
-                --no-deps
-                --wheel-dir "${CMAKE_CURRENT_BINARY_DIR}/dist"
-        COMMAND "${Python3_EXECUTABLE}" -m pip install "${CMAKE_CURRENT_BINARY_DIR}/dist/*.whl"
-                --no-deps
-                --prefix "${telemetry_python_package_prefix}"
-                --install-option="--install-lib=${telemetry_install_lib}"
-                --install-option="--install-scripts=${telemetry_python_package_prefix}/bin"
-                --install-option="--single-version-externally-managed"
-                --install-option="--record=installed.txt"
+        COMMAND "${Python3_EXECUTABLE}" -m pip install -e "${OpenVINO_Telemetry_SOURCE_DIR}"
+            --no-deps
+            --prefix "${telemetry_python_package_prefix}"
+            --install-option="--install-lib=${telemetry_install_lib}"
+            --install-option="--install-scripts=${telemetry_python_package_prefix}/bin"
+            --install-option="--single-version-externally-managed"
+            --install-option="--record=installed.txt"
         WORKING_DIRECTORY "${OpenVINO_Telemetry_SOURCE_DIR}"
         DEPENDS ${telemetry_files}
         COMMENT "Create python package with ${openvino_telemetry_meta_info_subdir} folder")
