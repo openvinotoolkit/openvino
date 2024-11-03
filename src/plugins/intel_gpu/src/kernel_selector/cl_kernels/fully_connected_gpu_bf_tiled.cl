@@ -1123,8 +1123,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                         #endif
 
                         #if COMPRESSED_WEIGHTS_INT8
-                            ACCUM_DQ_TYPE modified_calc_buff = ((int *)(&acc_tmp[fi]))[bi] - ((float)(wei_zp[fi]) * (convert_float)(activation_sum[bi]));
-                            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += (convert_half)(convert_float(modified_calc_buff) * (float)ds * (float)de_quantize_scale[bi]);
+                            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += (convert_half)((((int *)(&acc_tmp[fi]))[bi] - ((float)(wei_zp[fi]) * (float)(activation_sum[bi]))) * ds * de_quantize_scale[bi]);
                         #else
                             ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += convert_half(((int *)(&acc_tmp[fi]))[bi]) * ds * de_quantize_scale[bi];
                         #endif
@@ -1150,8 +1149,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                         #endif
 
                         #if COMPRESSED_WEIGHTS_INT8
-                            ACCUM_DQ_TYPE modified_calc_buff = ((int *)(&acc_tmp[fi]))[bi] - ((float)(wei_zp[fi]) * (convert_float)(activation_sum[bi]));
-                            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += (convert_half)(convert_float(modified_calc_buff) * (float)ds * (float)de_quantize_scale[bi]);
+                            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += (convert_half)((((int *)(&acc_tmp[fi]))[bi] - ((float)(wei_zp[fi]) * (float)(activation_sum[bi]))) * ds * de_quantize_scale[bi]);
                         #else
                             ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += convert_half(((int *)(&acc_tmp[fi]))[bi]) * ds * de_quantize_scale[bi];
                         #endif

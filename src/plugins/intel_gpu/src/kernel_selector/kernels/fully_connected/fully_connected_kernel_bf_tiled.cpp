@@ -405,6 +405,9 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
         (is_weight_dyn_quantizable(params) && should_dynamic_quantize(params))) {
         // Only 4bit weight type is fully optimized to use SLM. In default kernel, SLM is not applied to 8bit weight.
         if (!params.is_shape_agnostic && batch == 1) {
+            if (should_dynamic_quantize(params))
+                return selector.Default(tune_params(1, 2, 4, 2, 1, 1, 1, EXE_MODE_DEFAULT));
+
             // Tuning for Meteor Lake
             if (is_weight_vertical(params, output_f)) {
                 if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2) {
