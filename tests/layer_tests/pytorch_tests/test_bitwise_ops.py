@@ -75,8 +75,6 @@ class TestBitwiseOp(PytorchLayerTest):
     ):
         if ie_device == "GPU" and (lhs_dtype != "bool" or rhs_dtype != "bool"):
             pytest.xfail(reason="bitwise ops are not supported on GPU")
-        if out and version.parse(np.__version__) >= version.parse("2.0.0"):
-            pytest.xfail(reason="CVS-154082: incorrect handling out type")
         self._test(
             *self.create_model(op_type, out),
             ie_device,
@@ -136,6 +134,64 @@ class TestBitwiseOperators(PytorchLayerTest):
             kwargs_to_prepare_input={
                 "lhs_dtype": lhs_dtype,
                 "rhs_dtype": rhs_dtype,
+                "lhs_shape": lhs_shape,
+                "rhs_shape": rhs_shape,
+            },
+            trace_model=True,
+            freeze_model=False,
+        )
+
+
+class TestBitwiseInplaceOp(PytorchLayerTest):
+    def _prepare_input(self, lhs_shape, rhs_shape, dtype):
+        choices = np.array([0, 1, 255, 7])
+        x = np.random.choice(choices, lhs_shape).astype(dtype)
+        y = np.random.choice(choices, rhs_shape).astype(dtype)
+        return x, y
+
+    def create_model(self, op):
+        class aten_bitwise(torch.nn.Module):
+            def __init__(self, op) -> None:
+                super().__init__()
+                if op == "aten::__ior__":
+                    self.forward = self.forward_or
+                if op == "aten::__iand__":
+                    self.forward = self.forward_and
+                if op == "aten::__ixor__":
+                    self.forward = self.forward_xor
+
+            def forward_or(self, lhs, rhs):
+                return lhs.__ior__(rhs)
+    
+            def forward_and(self, lhs, rhs):
+                return lhs.__iand__(rhs)
+    
+            def forward_xor(self, lhs, rhs):
+                return lhs.__ixor__(rhs)
+
+        return aten_bitwise(op), None, op
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.parametrize("dtype", ["bool", "int32"])
+    @pytest.mark.parametrize(
+        ("lhs_shape", "rhs_shape"),
+        [
+            ([2, 3], [2, 3]),
+            ([2, 3], []),
+        ],
+    )
+    @pytest.mark.parametrize("op", ["aten::__ior__", "aten::__iand__", "aten::__ixor__"])
+    def test_bitwise_operators(self, op, dtype, lhs_shape, rhs_shape, ie_device, precision, ir_version):
+        if ie_device == "GPU" and dtype != "bool":
+            pytest.xfail(reason="bitwise ops are not supported on GPU")
+        self._test(
+            *self.create_model(op),
+            ie_device,
+            precision,
+            ir_version,
+            kwargs_to_prepare_input={
+                "dtype": dtype,
                 "lhs_shape": lhs_shape,
                 "rhs_shape": rhs_shape,
             },
