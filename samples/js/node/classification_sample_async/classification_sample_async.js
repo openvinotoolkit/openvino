@@ -69,12 +69,17 @@ async function main(modelPath, imgPaths, deviceName) {
 
   // Create infer request
   const inferRequest = compiledModel.createInferRequest();
-  for (let idx in inputImages) {
-    const tensor = inputImages[idx].toTensor();
-    const result = await inferRequest.inferAsync([tensor]);
+  const promises = inputImages.map((img, i) => {
+    const inferPromise = inferRequest.inferAsync([img.toTensor()]);
 
-    completionCallback(result[outputName], imgPaths[idx]);
-  }
+    inferPromise.then(result =>
+      completionCallback(result[outputName], imgPaths[i]));
+
+    return inferPromise;
+  });
+
+  //----------- Step 7. Wait till all inferences execute -----------------------
+  await Promise.all(promises);
   console.log('All inferences executed');
 
   console.log('\nThis sample is an API example, for any performance '
