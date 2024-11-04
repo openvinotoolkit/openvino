@@ -48,7 +48,7 @@ runs:
       uses: docker/setup-buildx-action@v3
       with:
         driver-opts: |
-          image=openvinogithubactions.azurecr.io/lirary/moby/buildkit:buildx-stable-1
+          image=openvinogithubactions.azurecr.io/moby/buildkit:buildx-stable-1
 
     - name: Handle docker images
       id: handle_images
