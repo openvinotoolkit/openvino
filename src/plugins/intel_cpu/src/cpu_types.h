@@ -89,6 +89,7 @@ enum class Type {
     ShuffleChannels,
     DFT,
     RDFT,
+    STFT,
     Math,
     CTCLoss,
     Bucketize,
@@ -133,6 +134,7 @@ enum class Type {
     QKVProjection,
     RMS,
     SearchSorted,
+    LoRA
 };
 
 enum class Algorithm {
