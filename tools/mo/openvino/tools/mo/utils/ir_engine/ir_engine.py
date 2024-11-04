@@ -539,6 +539,10 @@ class IREngine(object):
 
     @staticmethod
     def __read_rt_info_common(attr):
+        # ignore custom info, MO is deprecated so there's no needed for compatibility
+        if 'version' not in attr.attrib:
+            return {}
+
         attr_name = attr.attrib['name']
         version = int(attr.attrib['version'])
         rt_info = OrderedDict()
