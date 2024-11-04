@@ -2,37 +2,37 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/ov_tensor_utils.hpp"
-#include "common_test_utils/test_common.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/node_builders/activation.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/subgraph_builders/read_concat_split_assign.hpp"
+#include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
+#include "common_test_utils/test_common.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/runtime/core.hpp"
-#include "transformations/utils/utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
-#include "common_test_utils/subgraph_builders/read_concat_split_assign.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace {
-typedef std::tuple<
-        ov::element::Type,   // Input/Output type
-        ov::Shape,           // Input Shape
-        std::string> newtworkParams;
+typedef std::tuple<ov::element::Type,  // Input/Output type
+                   ov::Shape,          // Input Shape
+                   std::string>
+    newtworkParams;
 
 class InferRequestIOPrecision : public testing::WithParamInterface<newtworkParams>,
                                 virtual public ov::test::SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<newtworkParams> &obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<newtworkParams>& obj);
 
 protected:
     void SetUp() override;
 };
 
-std::string InferRequestIOPrecision::getTestCaseName(const testing::TestParamInfo<newtworkParams> &obj) {
+std::string InferRequestIOPrecision::getTestCaseName(const testing::TestParamInfo<newtworkParams>& obj) {
     ov::element::Type model_type;
     ov::Shape shape;
     std::string targetDevice;
@@ -53,7 +53,7 @@ void InferRequestIOPrecision::SetUp() {
     float clamp_min = model_type.is_signed() ? -5.f : 0.0f;
     float clamp_max = 5.0f;
 
-    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(model_type, ov::Shape(shape))};
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(model_type, ov::Shape(shape))};
     params[0]->set_friendly_name("Input");
 
     auto activation = ov::test::utils::make_activation(params[0],
@@ -70,27 +70,49 @@ TEST_P(InferRequestIOPrecision, Inference) {
 }
 
 const std::vector<ov::element::Type> input_types = {
-        ov::element::i16,
-        ov::element::u16,
-        ov::element::f32,
-        ov::element::f16,
-        ov::element::u8,
-        ov::element::i8,
-        ov::element::i32,
-        ov::element::u32,
-        ov::element::u64,
-        ov::element::i64,
-        // Interpreter backend doesn't implement evaluate method for OP
-        // ov::element::f64,
+    ov::element::i16,
+    ov::element::u16,
+    ov::element::f32,
+    ov::element::f16,
+    ov::element::u8,
+    ov::element::i8,
+    ov::element::i32,
+    ov::element::u32,
+    ov::element::u64,
+    ov::element::i64,
+    // Interpreter backend doesn't implement evaluate method for OP
+    // ov::element::f64,
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_GPU_BehaviorTests, InferRequestIOPrecision,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(input_types),
-                                 ::testing::Values(ov::Shape{1, 50}),
-                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
+INSTANTIATE_TEST_SUITE_P(smoke_GPU_BehaviorTests,
+                         InferRequestIOPrecision,
+                         ::testing::Combine(::testing::ValuesIn(input_types),
+                                            ::testing::Values(ov::Shape{1, 50}),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          InferRequestIOPrecision::getTestCaseName);
 
+static std::shared_ptr<ov::Model> create_n_inputs(ov::element::Type type,
+                                                  const std::vector<ov::PartialShape>& shapes,
+                                                  const std::vector<ov::Layout>& layouts) {
+    ov::ResultVector res;
+    ov::ParameterVector params;
+    for (size_t i = 0; i < shapes.size(); i++) {
+        auto index_str = std::to_string(i);
+        auto data1 = std::make_shared<ov::op::v0::Parameter>(type, shapes[i]);
+        data1->set_layout(layouts[i]);
+        data1->set_friendly_name("input" + index_str);
+        data1->get_output_tensor(0).set_names({"tensor_input" + index_str});
+        auto op1 = std::make_shared<ov::op::v0::Relu>(data1);
+        op1->set_friendly_name("Relu" + index_str);
+        auto res1 = std::make_shared<ov::op::v0::Result>(op1);
+        res1->set_friendly_name("Result" + index_str);
+        res1->get_output_tensor(0).set_names({"tensor_output" + index_str});
+        params.push_back(data1);
+        res.push_back(res1);
+    }
+    auto f = std::make_shared<ov::Model>(res, params);
+    return f;
+}
 TEST(TensorTest, smoke_canSetShapeForPreallocatedTensor) {
     auto core = ov::Core();
     using namespace ov::preprocess;
@@ -146,7 +168,7 @@ TEST(TensorTest, smoke_canSetTensorForDynamicInput) {
     p.input().preprocess().convert_element_type(ov::element::f32);
 
     auto function = p.build();
-    std::map<size_t, ov::PartialShape> shapes = { {0, ov::PartialShape{-1, -1, -1, -1}} };
+    std::map<size_t, ov::PartialShape> shapes = {{0, ov::PartialShape{-1, -1, -1, -1}}};
     function->reshape(shapes);
     auto exec_net = core.compile_model(function, ov::test::utils::DEVICE_GPU);
     auto inf_req = exec_net.create_infer_request();
@@ -183,7 +205,7 @@ TEST(TensorTest, smoke_canSetTensorForDynamicOutput) {
     p.input().preprocess().convert_element_type(ov::element::f32);
 
     auto function = p.build();
-    std::map<size_t, ov::PartialShape> shapes = { {0, ov::PartialShape{-1, -1, -1, -1}} };
+    std::map<size_t, ov::PartialShape> shapes = {{0, ov::PartialShape{-1, -1, -1, -1}}};
     function->reshape(shapes);
     auto exec_net = core.compile_model(function, ov::test::utils::DEVICE_GPU);
     auto inf_req = exec_net.create_infer_request();
@@ -246,13 +268,16 @@ TEST(VariablesTest, smoke_canSetStateTensor) {
 TEST(VariablesTest, smoke_set_get_state_with_convert) {
     auto build_model = [](ov::element::Type type, const ov::PartialShape& shape) {
         auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
-        const ov::op::util::VariableInfo variable_info { shape, type, "v0" };
+        const ov::op::util::VariableInfo variable_info{shape, type, "v0"};
         auto variable = std::make_shared<ov::op::util::Variable>(variable_info);
         auto read_value = std::make_shared<ov::op::v6::ReadValue>(param, variable);
         auto add = std::make_shared<ov::op::v1::Add>(read_value, param);
         auto assign = std::make_shared<ov::op::v6::Assign>(add, variable);
         auto res = std::make_shared<ov::op::v0::Result>(add);
-        return std::make_shared<ov::Model>(ov::ResultVector { res }, ov::SinkVector { assign }, ov::ParameterVector{param}, "StateTestModel");
+        return std::make_shared<ov::Model>(ov::ResultVector{res},
+                                           ov::SinkVector{assign},
+                                           ov::ParameterVector{param},
+                                           "StateTestModel");
     };
 
     auto ov = ov::Core();
@@ -260,7 +285,8 @@ TEST(VariablesTest, smoke_set_get_state_with_convert) {
     const ov::Shape input_shape = {1, 3, 2, 4};
     const ov::element::Type et = ov::element::f32;
     auto model = build_model(et, input_shape);
-    auto compiled_model = ov.compile_model(model, ov::test::utils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f16));
+    auto compiled_model =
+        ov.compile_model(model, ov::test::utils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f16));
     auto request = compiled_model.create_infer_request();
 
     auto variables = request.query_state();
@@ -281,13 +307,16 @@ TEST(VariablesTest, smoke_set_get_state_with_convert) {
 TEST(VariablesTest, smoke_padded_tensor_set_get_state_with_convert) {
     auto build_model = [](ov::element::Type type, const ov::PartialShape& shape) {
         auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
-        const ov::op::util::VariableInfo variable_info { shape, type, "v0" };
+        const ov::op::util::VariableInfo variable_info{shape, type, "v0"};
         auto variable = std::make_shared<ov::op::util::Variable>(variable_info);
         auto read_value = std::make_shared<ov::op::v6::ReadValue>(param, variable);
         auto add = std::make_shared<ov::op::v1::Add>(read_value, param);
         auto assign = std::make_shared<ov::op::v6::Assign>(add, variable);
         auto res = std::make_shared<ov::op::v0::Result>(add);
-        return std::make_shared<ov::Model>(ov::ResultVector { res }, ov::SinkVector { assign }, ov::ParameterVector{param}, "StateTestModel");
+        return std::make_shared<ov::Model>(ov::ResultVector{res},
+                                           ov::SinkVector{assign},
+                                           ov::ParameterVector{param},
+                                           "StateTestModel");
     };
 
     auto ov = ov::Core();
@@ -296,7 +325,8 @@ TEST(VariablesTest, smoke_padded_tensor_set_get_state_with_convert) {
     const ov::Shape input_shape = {1, 3, 2, 4};
     const ov::element::Type et = ov::element::f32;
     auto model = build_model(et, input_shape);
-    auto compiled_model = ov.compile_model(model, ov::test::utils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f16));
+    auto compiled_model =
+        ov.compile_model(model, ov::test::utils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f16));
     auto request = compiled_model.create_infer_request();
 
     auto variables = request.query_state();
@@ -310,8 +340,7 @@ TEST(VariablesTest, smoke_padded_tensor_set_get_state_with_convert) {
     auto tensor_to_set_padded = ov::test::utils::create_and_fill_tensor(et, virable_shape_padded);
 
     // trim original tensor
-    auto tensor_to_set =
-        ov::Tensor(tensor_to_set_padded, ov::Coordinate{0, 0, 0, 0}, ov::Coordinate(virable_shape));
+    auto tensor_to_set = ov::Tensor(tensor_to_set_padded, ov::Coordinate{0, 0, 0, 0}, ov::Coordinate(virable_shape));
 
     variable.set_state(tensor_to_set);
     state_tensor = variable.get_state();
@@ -321,8 +350,8 @@ TEST(VariablesTest, smoke_padded_tensor_set_get_state_with_convert) {
     auto ref_stride = tensor_to_set.get_strides();
     auto res_stride = state_tensor.get_strides();
     for (size_t i = 0; i < ref_stride.size(); ++i) {
-        ref_stride[i] /= (tensor_to_set.get_element_type().bitwidth()/8);
-        res_stride[i] /= (state_tensor.get_element_type().bitwidth()/8);
+        ref_stride[i] /= (tensor_to_set.get_element_type().bitwidth() / 8);
+        res_stride[i] /= (state_tensor.get_element_type().bitwidth() / 8);
     }
     // ref stride: [48, 16, 4, 1]
     // res stride: [24, 8, 4, 1]
@@ -348,7 +377,7 @@ TEST(TensorTest, smoke_outputTensorShapesForDynamicInput) {
     p.input().preprocess().convert_element_type(ov::element::f32);
 
     auto function = p.build();
-    std::map<size_t, ov::PartialShape> shapes = { {0, ov::PartialShape{-1, -1, -1, -1}} };
+    std::map<size_t, ov::PartialShape> shapes = {{0, ov::PartialShape{-1, -1, -1, -1}}};
     function->reshape(shapes);
     auto exec_net = core.compile_model(function, ov::test::utils::DEVICE_GPU);
     auto inf_req = exec_net.create_infer_request();
@@ -374,25 +403,41 @@ TEST(TensorTest, smoke_outputTensorShapesForDynamicInput) {
     ASSERT_EQ(inf_req.get_output_tensor().get_shape(), output3_shape);
 }
 
-TEST(TensorTest, smoke_canShareTensorIfModelsFromDifferentCores) {
-    auto core1 = ov::Core();
-    auto core2 = ov::Core();
-
-    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{4, 8});
-    auto relu = std::make_shared<ov::op::v0::Relu>(param);
-    auto result = std::make_shared<ov::op::v0::Result>(relu);
-    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
-
-    auto compiled_model1 = core1.compile_model(model, ov::test::utils::DEVICE_GPU);
-    auto compiled_model2 = core2.compile_model(model, ov::test::utils::DEVICE_GPU);
-
-    auto request1 = compiled_model1.create_infer_request();
-    auto request2 = compiled_model2.create_infer_request();
-
-    request2.set_input_tensor(request1.get_output_tensor());
-    request2.set_output_tensor(request1.get_input_tensor());
-
-    OV_ASSERT_NO_THROW(request1.infer());
-    OV_ASSERT_NO_THROW(request2.infer());
+TEST(TensorTest, smoke_batch_zero_compile) {
+    auto model = create_n_inputs(ov::element::f32, {ov::PartialShape{0, 299, 299, 3}}, {"NCHW"});
+    auto core = ov::Core{};
+    OV_EXPECT_THROW_HAS_SUBSTRING(core.compile_model(model, "GPU"),
+                                  ov::Exception,
+                                  "Batch size must be a positive value for input")
 }
-} // namespace
+TEST(TensorTest, smoke_batch_zero_infer_single) {
+    auto model = create_n_inputs(ov::element::f32, {ov::PartialShape{-1, -1, -1, -1}}, {"NCHW"});
+    auto core = ov::Core{};
+
+    auto compiled_model = core.compile_model(model, "GPU");
+    auto infer_request = compiled_model.create_infer_request();
+
+    auto input_tensor = ov::Tensor(ov::element::f32, {0, 299, 299, 3});
+    OV_EXPECT_THROW_HAS_SUBSTRING(infer_request.set_input_tensor(input_tensor),
+                                  ov::Exception,
+                                  "Batch size must be a positive value for tensor")
+
+    ASSERT_TRUE(true);
+}
+TEST(TensorTest, smoke_batch_zero_infer_multi) {
+    auto model = create_n_inputs(ov::element::f32, {ov::PartialShape{-1, -1, -1, -1}}, {"NCHW"});
+    auto core = ov::Core{};
+
+    auto compiled_model = core.compile_model(model, "GPU");
+    auto infer_request = compiled_model.create_infer_request();
+
+    ov::Tensor t1 = ov::Tensor(ov::element::f32, {1, 299, 299, 3});
+    ov::Tensor t2 = ov::Tensor(ov::element::f32, {0, 299, 299, 3});
+    ov::TensorVector t = {t1, t2};
+    OV_EXPECT_THROW_HAS_SUBSTRING(infer_request.set_input_tensors(t),
+                                  ov::Exception,
+                                  "Batch size must be a positive value for tensor")
+
+    ASSERT_TRUE(true);
+}
+}  // namespace

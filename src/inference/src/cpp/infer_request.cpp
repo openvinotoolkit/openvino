@@ -13,6 +13,7 @@
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/exception.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
+#include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "transformations/utils/utils.hpp"
@@ -108,6 +109,24 @@ void InferRequest::set_input_tensor(size_t idx, const Tensor& tensor) {
                         " was not found! The model has only ",
                         inputs.size(),
                         " inputs.");
+        auto device_name = _impl->get_compiled_model()->get_context()->get_device_name();
+        if (device_name.substr(0, 3) == "GPU") {
+            const auto& input = inputs.at(idx);
+            const auto& p_shape = input.get_partial_shape();
+            const auto& layout = ov::layout::get_layout(input);
+            if (p_shape.rank().is_static() && p_shape.rank().get_length() != 0 && ov::layout::has_batch(layout)) {
+                const auto batch_idx = ov::layout::batch_idx(layout);
+                const auto& batch_dim = p_shape[batch_idx];
+                if (batch_dim.is_dynamic()) {
+                    int batch_val = tensor.get_shape().at(batch_idx);
+                    OPENVINO_ASSERT(batch_val > 0,
+                                    "Batch size must be a positive value for tensor '",
+                                    input,
+                                    "', but has got: ",
+                                    batch_val);
+                }
+            }
+        }
         set_tensor(inputs.at(idx), tensor);
     });
 }
@@ -117,6 +136,25 @@ void InferRequest::set_input_tensor(const Tensor& tensor) {
         const auto& inputs = _impl->get_inputs();
         OPENVINO_ASSERT(inputs.size() == 1,
                         "set_input_tensor() must be called on a function with exactly one parameter.");
+
+        auto device_name = _impl->get_compiled_model()->get_context()->get_device_name();
+        if (device_name.substr(0, 3) == "GPU") {
+            const auto& input = inputs.at(0);
+            const auto& p_shape = input.get_partial_shape();
+            const auto& layout = ov::layout::get_layout(input);
+            if (p_shape.rank().is_static() && p_shape.rank().get_length() != 0 && ov::layout::has_batch(layout)) {
+                const auto batch_idx = ov::layout::batch_idx(layout);
+                const auto& batch_dim = p_shape[batch_idx];
+                if (batch_dim.is_dynamic()) {
+                    int batch_val = tensor.get_shape().at(batch_idx);
+                    OPENVINO_ASSERT(batch_val > 0,
+                                    "Batch size must be a positive value for input '",
+                                    input,
+                                    "', but has got: ",
+                                    batch_val);
+                }
+            }
+        }
         set_tensor(inputs.at(0), tensor);
     });
 }
@@ -129,6 +167,27 @@ void InferRequest::set_input_tensors(size_t idx, const std::vector<Tensor>& tens
                         " is out of bounds. Model has only ",
                         _impl->get_inputs().size(),
                         " inputs");
+        auto device_name = _impl->get_compiled_model()->get_context()->get_device_name();
+        if (device_name.substr(0, 3) == "GPU") {
+            const auto& inputs = _impl->get_inputs();
+            const auto& input = inputs.at(idx);
+            const auto& p_shape = input.get_partial_shape();
+            const auto& layout = ov::layout::get_layout(input);
+            if (p_shape.rank().is_static() && p_shape.rank().get_length() != 0 && ov::layout::has_batch(layout)) {
+                const auto batch_idx = ov::layout::batch_idx(layout);
+                const auto& batch_dim = p_shape[batch_idx];
+                if (batch_dim.is_dynamic()) {
+                    for (int i = 0; i < tensors.size(); i++) {
+                        int batch_val = tensors[i].get_shape().at(batch_idx);
+                        OPENVINO_ASSERT(batch_val > 0,
+                                        "Batch size must be a positive value for tensor '",
+                                        input,
+                                        "', but has got: ",
+                                        batch_val);
+                    }
+                }
+            }
+        }
         set_tensors(_impl->get_inputs().at(idx), tensors);
     })
 }
@@ -139,6 +198,27 @@ void InferRequest::set_input_tensors(const std::vector<Tensor>& tensors) {
                         "set_input_tensors(tensors) must be used for single-input models only. Model has ",
                         _impl->get_inputs().size(),
                         " inputs");
+        auto device_name = _impl->get_compiled_model()->get_context()->get_device_name();
+        if (device_name.substr(0, 3) == "GPU") {
+            const auto& inputs = _impl->get_inputs();
+            const auto& input = inputs.at(0);
+            const auto& p_shape = input.get_partial_shape();
+            const auto& layout = ov::layout::get_layout(input);
+            if (p_shape.rank().is_static() && p_shape.rank().get_length() != 0 && ov::layout::has_batch(layout)) {
+                const auto batch_idx = ov::layout::batch_idx(layout);
+                const auto& batch_dim = p_shape[batch_idx];
+                if (batch_dim.is_dynamic()) {
+                    for (int i = 0; i < tensors.size(); i++) {
+                        int batch_val = tensors[i].get_shape().at(batch_idx);
+                        OPENVINO_ASSERT(batch_val > 0,
+                                        "Batch size must be a positive value for tensor '",
+                                        input,
+                                        "', but has got: ",
+                                        batch_val);
+                    }
+                }
+            }
+        }
         set_tensors(_impl->get_inputs().at(0), tensors);
     })
 }
