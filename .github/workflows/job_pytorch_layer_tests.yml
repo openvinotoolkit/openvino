@@ -100,22 +100,6 @@ jobs:
           should-setup-pip-paths: ${{ runner.os == 'Linux' }}
           self-hosted-runner: ${{ runner.os == 'Linux' }}
 
-      - name: Check dir 0
-        continue-on-error: true
-        if: runner.os != 'Windows'
-        run: ls -la ${INSTALL_DIR}
-
-      - name: Check dir 1
-        continue-on-error: true
-        if: runner.os != 'Windows'
-        run: ls -laR ${INSTALL_WHEELS_DIR}
-
-      - name: Check dir 2
-        continue-on-error: true
-        if: runner.os != 'Windows'
-        run: ls -laR ${{ env.INSTALL_WHEELS_DIR }}
-
-
       - name: Install OpenVINO Python wheels
         uses: ./openvino/.github/actions/install_ov_wheels
         with:
