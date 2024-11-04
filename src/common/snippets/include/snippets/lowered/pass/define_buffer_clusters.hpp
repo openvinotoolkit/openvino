@@ -71,14 +71,14 @@ private:
      * @param existing_cluster existing clusters
      * @param buffers buffers which will be added to the existing cluster
      */
-    void add_buffers_to_cluster(BufferCluster& existing_cluster, const std::set<BufferExpressionPtr>& buffers);
+    static void add_buffers_to_cluster(BufferCluster& existing_cluster, const std::set<BufferExpressionPtr>& buffers);
     /**
      * @brief Returns common ID of cluster if all buffer inside have the same Buffer ID. Otherwise returns the default value SIZE_MAX
      *        that means that Buffers in cluster have different IDs.
      * @param cluster set of Buffer expressions - cluster
      * @return common buffer ID or SIZE_MAX - size value
      */
-    size_t get_cluster_buffer_id(const BufferCluster& cluster) const;
+    static size_t get_cluster_buffer_id(const BufferCluster& cluster);
 
     /**
      * @brief Analyzes Loop: if Loop has Buffer ops on inputs and outputs, Loop can read and write from/to the same memory.

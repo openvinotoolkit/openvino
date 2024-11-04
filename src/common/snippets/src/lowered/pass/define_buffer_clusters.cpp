@@ -60,7 +60,7 @@ void DefineBufferClusters::add_buffers_to_cluster(BufferCluster& existing_cluste
     }
 }
 
-size_t DefineBufferClusters::get_cluster_buffer_id(const BufferCluster& cluster) const {
+size_t DefineBufferClusters::get_cluster_buffer_id(const BufferCluster& cluster) {
     OPENVINO_ASSERT(!cluster.empty(), "Buffer cluster is empty!");
     const auto id = cluster.cbegin()->get()->get_reg_group();
     if (std::all_of(cluster.cbegin(), cluster.cend(), [&id](const BufferExpressionPtr& expr) { return expr->get_reg_group() == id; })) {
@@ -130,14 +130,21 @@ void DefineBufferClusters::parse_loop(const LoopManagerPtr& loop_manager, const 
             if ((input_buffer_expr->get_data_type().size() < output_buffer_expr->get_data_type().size()))
                 continue;
 
+            const auto in_path = MarkInvariantShapePath::getInvariantPortShapePath(*input_buffer_port_info.port.expr_port);
+            const auto out_path = MarkInvariantShapePath::getInvariantPortShapePath(*output_buffer_port_info.port.expr_port);
+
             //  - Memory can be shared if Buffer has the same allocation size.
-            //    If they're undefined, check that they have the same rule for initialization of allocation size
             if (input_buffer_expr->is_defined() && output_buffer_expr->is_defined()) {
                 if (input_buffer_expr->get_allocation_size() != output_buffer_expr->get_allocation_size())
                     continue;
             } else {
-                if (input_buffer_expr->get_type_info() != BufferExpression::get_type_info_static() ||
-                    output_buffer_expr->get_type_info() != BufferExpression::get_type_info_static())
+                // If allocation sizes are undefined, we can check if they have the same allocation sizes in runtime:
+                //  - they should calculate allocation size using the common algorithm from `BufferExpression::init_allocation_size`.
+                //  - they should be on the same `shape path` - this guarantees the same shapes in runtime.
+                const auto is_the_same_init_algo =
+                    utils::everyone_is(BufferExpression::get_type_info_static(), input_buffer_expr->get_type_info(), output_buffer_expr->get_type_info());
+                const auto is_the_same_shape_paths = in_path == out_path;
+                if (!is_the_same_init_algo || !is_the_same_shape_paths)
                     continue;
             }
 
@@ -152,10 +159,8 @@ void DefineBufferClusters::parse_loop(const LoopManagerPtr& loop_manager, const 
                     input_params.finalization_offset != output_params.finalization_offset)
                     continue;
             } else {
-                // If they're undefined, they must be on the same shape-path.
+                // If they're undefined, they should be on the same shape-path.
                 // It means that in runtime they will have the same loop ptr arithmethic
-                const auto in_path = MarkInvariantShapePath::getInvariantPortShapePath(*input_buffer_port_info.port.expr_port);
-                const auto out_path = MarkInvariantShapePath::getInvariantPortShapePath(*output_buffer_port_info.port.expr_port);
                 if (in_path != out_path)
                     continue;
             }

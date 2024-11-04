@@ -22,9 +22,10 @@ namespace {
 // For example, ops with output scalar shape or Horizon ops.
 static const size_t NOT_AFFECTING_PATH = SIZE_MAX;
 
-static bool is_elementwise_op(const ExpressionPtr& expr) {
-    if (expr->get_output_count() != 1)
+static bool is_passed_through_op(const ExpressionPtr& expr) {
+    if (expr->get_input_count() != 1 || expr->get_output_count() != 1)
         return false;
+
     auto is_invariant_ma_op = [](const ExpressionPtr& expr) {
         const auto& op = expr->get_node();
         return (ov::is_type<op::Load>(op) || ov::is_type<op::Store>(op)) &&
@@ -35,15 +36,20 @@ static bool is_elementwise_op(const ExpressionPtr& expr) {
     return is_invariant_ma_op(expr) ||
            ov::is_type<ov::snippets::lowered::BufferExpression>(expr) ||
            ov::op::util::is_unary_elementwise_arithmetic(node) ||
-           ov::op::util::is_binary_elementwise_arithmetic(node) ||
-           ov::op::util::is_binary_elementwise_comparison(node) ||
-           ov::op::util::is_binary_elementwise_logical(node) ||
-           ov::is_type<ov::op::v1::Select>(node) ||
            ov::is_type<ov::snippets::op::Fill>(node) ||
            ov::is_type<ov::snippets::op::ConvertTruncation>(node) ||
            ov::is_type<ov::snippets::op::ConvertSaturation>(node);
 }
-static bool is_scalar_op(const ExpressionPtr& expr) {
+
+static bool is_shape_broadcastable_op(const ExpressionPtr& expr) {
+    const auto& node = expr->get_node();
+    return ov::op::util::is_binary_elementwise_arithmetic(node) ||
+           ov::op::util::is_binary_elementwise_comparison(node) ||
+           ov::op::util::is_binary_elementwise_logical(node) ||
+           ov::is_type<ov::op::v1::Select>(node);
+}
+
+static bool is_not_affecting_op(const ExpressionPtr& expr) {
     const auto& node = expr->get_node();
     return ov::is_type<ov::snippets::op::HorizonMax>(node) ||
            ov::is_type<ov::snippets::op::HorizonSum>(node) ||
@@ -60,22 +66,23 @@ size_t MarkInvariantShapePath::getInvariantPortShapePath(const ExpressionPort& p
 }
 
 void MarkInvariantShapePath::SetInvariantPortShapePath(const ExpressionPort& port, size_t value) {
+    OPENVINO_ASSERT(port.get_type() == ExpressionPort::Output, "SetInvariantPortShapePath can be used only for output port");
     auto& rt = get_rt_info(port);
     rt["InvariantShapePath"] = value;
 }
 
 ov::RTMap& MarkInvariantShapePath::get_rt_info(const ExpressionPort& port) {
-    const auto& node = port.get_expr()->get_node();
-    const auto port_idx = port.get_index();
-    const auto is_input = port.get_type() == ExpressionPort::Input;
-    OPENVINO_ASSERT((is_input && (port_idx < node->get_input_size())) || (!is_input && (port_idx < node->get_output_size())),
-                    "Node has incompatible port count with the expression");
-    return is_input ? node->input(port_idx).get_rt_info() : node->output(port_idx).get_rt_info();
+    const auto& source_port = port.get_type() == ExpressionPort::Input ? port.get_port_connector_ptr()->get_source() : port;
+    const auto& node = source_port.get_expr()->get_node();
+    const auto port_idx = source_port.get_index();
+    OPENVINO_ASSERT(port_idx < node->get_output_size(), "Node has incompatible port count with the expression");
+    return node->output(port_idx).get_rt_info();
 }
 
 bool MarkInvariantShapePath::run(lowered::LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::MarkInvariantShapePath");
 
+    bool modified = false;
     size_t color_path = 0;
 
     auto merge_paths = [&color_path](size_t lhs, size_t rhs) {
@@ -91,31 +98,26 @@ bool MarkInvariantShapePath::run(lowered::LinearIR& linear_ir, lowered::LinearIR
 
         for (size_t out_idx = 0; out_idx < expr->get_output_count(); ++out_idx) {
             size_t current_color_path;
-            if (is_elementwise_op(expr)) {
+            if (is_shape_broadcastable_op(expr)) {
                 current_color_path = NOT_AFFECTING_PATH;
                 for (size_t in_idx = 0; in_idx < expr->get_input_count(); ++in_idx) {
                     const auto input_path = getInvariantPortShapePath(expr->get_input_port(in_idx));
                     current_color_path = merge_paths(current_color_path, input_path);
                 }
-            } else if (is_scalar_op(expr)) {
+            } else if (is_passed_through_op(expr)) {
+                current_color_path = getInvariantPortShapePath(expr->get_input_port(0));
+            } else if (is_not_affecting_op(expr)) {
                 current_color_path = NOT_AFFECTING_PATH;
             } else {
                 current_color_path = ++color_path;
             }
 
-            const auto& output = expr->get_output_port_connector(out_idx);
-            SetInvariantPortShapePath(output->get_source(), current_color_path);
-            for (const auto& consumer : output->get_consumers()) {
-                const auto& consumer_expr = consumer.get_expr();
-                if (ov::is_type<ov::snippets::op::LoopEnd>(consumer_expr->get_node()))
-                    continue;
-
-                SetInvariantPortShapePath(consumer, current_color_path);
-            }
+            SetInvariantPortShapePath(expr->get_output_port(out_idx), current_color_path);
+            modified = true;
         }
     }
 
-    return color_path > 0;
+    return modified;
 }
 
 } // namespace pass

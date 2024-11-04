@@ -14,10 +14,10 @@ namespace pass {
 /**
  * @interface MarkInvariantShapePath
  * @brief The helper pass for BufferAllocation pipeline:
- *          - Many buffer-relates passes (SetBufferRegGroup, DefineBufferClusters) depend on loop pointer arithmethic.
- *            In dynamic case they're unknown so these passes may non effieciently set reg groups and clusters.
+ *          - Many buffer-relates passes (SetBufferRegGroup, DefineBufferClusters) depend on loop pointer increments.
+ *            The increments are unknown in dynamic case, so these passes can't set reg groups and clusters efficiently.
  *            The current pass marks expressions port which will have the same shape. The shape and layout means
- *            the same loop pointer arithmethic in runtime.
+ *            the same loop pointer arithmetic in runtime.
  * @ingroup snippets
  */
 class MarkInvariantShapePath: public RangedPass {
@@ -35,6 +35,8 @@ public:
     /**
      * @brief Returns ID (color) of the current Invariant Shape path for the passed port.
      *        Ports which have the same IDs of the paths - will have the same shapes in runtime.
+     *        Note: if passed port is input port, the method returns value for source of port connector
+     *              for the passed port. Because the shape is created by output ports of expressions.
      * @param port target expression port
      * @return ID
      */
@@ -42,7 +44,7 @@ public:
 
 private:
     /**
-     * @brief Sets ID (color) of the current Invariant Shape path for the passed port.
+     * @brief Sets ID (color) of the current Invariant Shape path for the passed output port.
      *        Ports which have the same IDs of the paths - will have the same shapes in runtime.
      * @param port target expression port
      * @param value ID of the path (color)

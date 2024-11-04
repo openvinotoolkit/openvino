@@ -7,7 +7,7 @@
 #include "snippets/lowered/pass/mark_invariant_shape_path.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
-#include "snippets/snippets_isa.hpp"
+#include "snippets/lowered/expressions/buffer_expression.hpp"
 #include "snippets/itt.hpp"
 
 namespace ov {
