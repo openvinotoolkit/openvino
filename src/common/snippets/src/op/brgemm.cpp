@@ -71,6 +71,10 @@ Brgemm::Brgemm(const Output<Node>& A, const Output<Node>& B, const Output<Node>&
     custom_constructor_validate_and_infer_types(std::move(layout_a), std::move(layout_b), std::move(layout_c));
 }
 
+Brgemm::Brgemm(bool c_pre_scale) {
+    with_c_pre_ops = c_pre_scale;
+}
+
 void Brgemm::custom_constructor_validate_and_infer_types(std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c) {
     INTERNAL_OP_SCOPE(BrgemmCPU_constructor_validate_and_infer_types);
 

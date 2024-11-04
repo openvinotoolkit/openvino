@@ -188,6 +188,39 @@ bool SplitLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, 
     return loop_was_split;
 }
 
+std::vector<ExpressionPtr> get_loop_input_exprs(const std::vector<LoopPort>& loop_in_ports) {
+    std::vector<ExpressionPtr> parent_exprs;
+    std::unordered_set<ExpressionPtr> seen_exprs;
+    for (size_t port_num = 0; port_num < loop_in_ports.size(); ++port_num) {
+        const auto& parent_expr = loop_in_ports[port_num].expr_port->get_connected_ports().begin()->get_expr();
+        if (seen_exprs.count(parent_expr) == 0) {
+            parent_exprs.push_back(parent_expr);
+            seen_exprs.insert(parent_expr);
+        }
+    }
+    return parent_exprs;
+}
+
+// std::vector<ExpressionPtr> is_parent_extend_applicable(const std::vector<LoopPort>& loop_in_ports) {
+//     parent_expr
+// }
+
+std::vector<ExpressionPtr> get_loop_output_exprs(const std::vector<LoopPort>& loop_out_ports) {
+    std::vector<ExpressionPtr> child_exprs;
+    std::unordered_set<ExpressionPtr> seen_exprs;
+    for (size_t port_num = 0; port_num < loop_out_ports.size(); ++port_num) {
+        const auto& consumers = loop_out_ports[port_num].expr_port->get_connected_ports();
+        for (const auto consumer : consumers) {
+            auto child_expr = consumer.get_expr();
+            if (seen_exprs.count(child_expr) == 0) {
+                child_exprs.push_back(child_expr);
+                seen_exprs.insert(child_expr);
+            }
+        }
+    }
+    return child_exprs;
+}
+
 size_t SplitLoops::split(LinearIR& linear_ir, size_t loop_to_split_id, size_t outer_increment, size_t loop_position) {
     const auto& loop_manager = linear_ir.get_loop_manager();
 
@@ -202,163 +235,171 @@ size_t SplitLoops::split(LinearIR& linear_ir, size_t loop_to_split_id, size_t ou
     auto in_ports = inner_loop_info->get_input_ports();
     auto out_ports = inner_loop_info->get_output_ports();
 
-    // extend outer block loop of inner most dimension to child that have no inner most loop.
-    // for example, Hmax should perform on every on M_blk*K_blk*M_in_block loops.
-    if (inner_loop_info->get_dim_idx() == 0) {
-        // extend child
-        for (auto expr_it = outer_loop_bounds_first; expr_it != outer_loop_bounds_second; expr_it++) {
-            auto expr = *expr_it;
-            std::cout << "expr:" << expr->get_node()->get_friendly_name() << std::endl;
-            const auto& expr_loop = expr->get_loop_ids();  // expr_loop is [2,3,1] child is [2,3]
-            if (expr->get_output_count() != 1)
-                break;
-            bool check_next = true;
-            while (check_next) {
-                if (expr->get_output_count() != 1)
-                    break;
-                const auto& consumers = expr->get_output_port_connector(0)->get_consumers();
-                bool extend = false;
-                for (const auto& consumer : consumers) {
-                    const auto& child_expr = consumer.get_expr();
-                    // check if child is already in outer block loop
-                    bool is_inside = false;
-                    for (auto expr_check = outer_loop_bounds_first; expr_check != outer_loop_bounds_second; expr_check++) {
-                        if (*expr_check == child_expr) {
-                            is_inside = true;
-                            break;
-                        }
-                    }
-                    if (is_inside)
-                        continue;
-                    // child_last_loop_dim is not 0(inner most dimension)
-                    const auto& child_expr_loop = child_expr->get_loop_ids();
-                    if (child_expr_loop.size() < 1)
-                        continue;
-                    const auto& child_last_loop_dim = loop_manager->get_loop_info<UnifiedLoopInfo>(child_expr_loop.back())->get_dim_idx();
-                    if ((expr_loop.size() - child_expr_loop.size() != 1) || child_last_loop_dim == 0) {
-                        continue;
-                    }
-                    // check expr and child have common outer loop id
-                    bool have_common_outer_loop = true;
-                    for (auto i = 0; i < std::min(expr_loop.size(), child_expr_loop.size()); i++) {
-                        if (expr_loop[i] != child_expr_loop[i]) {
-                            have_common_outer_loop = false;
-                            break;
-                        }
-                    }
-                    if (!have_common_outer_loop)
-                        continue;
-
-                    // all inputs of child not break data dependency
-                    bool data_conflict = false;
-                    size_t in_num = child_expr->get_input_count();
-                    for (size_t i = 0; i < in_num; i++) {
-                        auto parent = child_expr->get_input_port_connector(i)->get_source().get_expr();
-                        if (parent == expr)
-                            continue;
-                        if (parent->get_exec_num() > (*outer_loop_bounds_second)->get_exec_num()) {
-                            data_conflict = true;
-                            break;
-                        }
-                    }
-                    if (data_conflict)
-                        continue;
-
-                    // can extend
-                    auto child_expr_it = linear_ir.find(child_expr);
-                    if (child_expr_it == outer_loop_bounds_second) {
-                        outer_loop_bounds_second++;   // child is outer_loop_bounds_second, just update loop_bound_end to next
-                    } else {
-                        linear_ir.move(child_expr_it, outer_loop_bounds_second); // move new expr in this loop before loop_bounds_end
-                    }
-                    std::cout << "extend child:" << child_expr->get_node()->get_friendly_name() << std::endl;
-                    auto expr_out_port = expr->get_output_port(0);
-                    inner_loop_info->replace_with_new_ports(expr_out_port, child_expr->get_output_ports());
-
-                    expr = child_expr;
-                    extend = true;
-                    break;  // if one child is extend, stop other consumers. continue this branch
-                }
-                if (!extend) {
-                    check_next = false;  // no child extend, stop extend deeper
-                }
-            }
-        }
-        // extend parent
-        std::cout << "start extend parent" << std::endl;
-        for (auto expr_it = outer_loop_bounds_first; expr_it != outer_loop_bounds_second; expr_it++) {
-            auto expr = *expr_it;
-            std::cout << "expr_for_parent:" << expr->get_node()->get_friendly_name() << std::endl;
-            bool check_next = true;
-            const auto& expr_loop = expr->get_loop_ids();
-            bool extend = false;
-            while (check_next) {
-                auto in_num = expr->get_input_count();
-                bool extend = false;
-                for (size_t i = 0; i < in_num; i++) {
-                    auto parent_expr = expr->get_input_port_connector(i)->get_source().get_expr();
-                    bool is_inside = false;
-                    for (auto expr_check = outer_loop_bounds_first; expr_check != outer_loop_bounds_second; expr_check++) {
-                        if (*expr_check == parent_expr) {
-                            is_inside = true;
-                            break;
-                        }
-                    }
-                    std::cout << "is_inside:" << is_inside << std::endl;
-                    if (is_inside)
-                        continue;
-
-                    // child_last_loop_dim is not 0(inner most dimension)
-                    const auto& parent_expr_loop = parent_expr->get_loop_ids();
-                    if (parent_expr_loop.size() < 1)
-                        continue;
-                    const auto& parent_last_loop_dim = loop_manager->get_loop_info<UnifiedLoopInfo>(parent_expr_loop.back())->get_dim_idx();
-                    if ((expr_loop.size() - parent_expr_loop.size() != 1) || parent_last_loop_dim == 0) {
-                        continue;
-                    }
-
-                    bool common_outer_loop = true;
-                    // have common outer loop id, child w/o inner most loop
-                    for (auto i = 0; i < std::min(expr_loop.size(), parent_expr_loop.size()); i++) {
-                        if (expr_loop[i] != parent_expr_loop[i]) {
-                            common_outer_loop = false;
-                            break;
-                        }
-                    }
-                    if (!common_outer_loop) {
-                        continue;
-                    }
-
-                    // not break data dependency
-
-                    // can extend
-                    auto parent_expr_it = linear_ir.find(parent_expr);
-                    if (parent_expr_it != std::prev(outer_loop_bounds_first)) {
-                        linear_ir.move(parent_expr_it, outer_loop_bounds_first); // move new expr in this loop before outer_loop_bounds_first
-                    }
-                    outer_loop_bounds_first--;
-                    std::cout << "extend child:" << parent_expr->get_node()->get_friendly_name() << std::endl;
-
-                    // update port. If extend, in_port must be a loop port as parent expr is not in this loop.
-                    auto in_port = expr->get_input_port(i);
-                    inner_loop_info->replace_with_new_ports(in_port, parent_expr->get_input_ports());
-
-                    expr = parent_expr;
-                    extend = true;
-                    break;    // one parent extended, check this branch from parent.
-                }
-                if (!extend) {
-                    check_next = false;  // no parent extend, stop extend upper
-                }
-            }
-        }
-    }
-
+    // save loop ids before mark
+    const auto expr_loop = (*outer_loop_bounds_first)->get_loop_ids();
     const auto outer_loop_id = loop_manager->mark_loop(outer_loop_bounds_first, outer_loop_bounds_second, inner_loop_info->get_work_amount(),
                                                        outer_increment, inner_loop_info->get_dim_idx(),
                                                        in_ports, out_ports,
                                                        false, true, loop_position);
     const auto& outer_loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(outer_loop_id);
+    // extend based on loop ports
+    if (outer_loop_info->get_dim_idx() == 0) {
+        // extend parent
+        bool continue_extend_parent = true;
+        while (continue_extend_parent) {
+            const auto& input_ports = outer_loop_info->get_input_ports();
+            const auto& potential_extended_exprs = get_loop_input_exprs(input_ports);
+            bool expr_extend = false;
+            for (const auto& parent_expr : potential_extended_exprs) {
+                // child_last_loop_dim is not 0(inner most dimension)
+                std::cout << "parent_expr:" << parent_expr->get_node()->get_friendly_name() << std::endl;
+                const auto& parent_expr_loop = parent_expr->get_loop_ids();
+                // for (auto loop : parent_expr_loop) {
+                //     std::cout << "parent_expr_loop:" << loop << std::endl;
+                // }
+                // for (auto loop : expr_loop) {
+                //     std::cout << "expr_loop:" << loop << std::endl;
+                // }
+                if (parent_expr_loop.size() < 1)
+                    continue;
+                const auto& parent_last_loop_dim = loop_manager->get_loop_info<UnifiedLoopInfo>(parent_expr_loop.back())->get_dim_idx();
+                // max[0,1] h_max[0]. after outer dim split: max[2,3,1] h_max[2,3]. after inner dim split: max[2,4,3,5] h_max[2,4,3]
+                if ((expr_loop.size() - parent_expr_loop.size() != 1) || parent_last_loop_dim == 0) {
+                    continue;
+                }
+
+                bool common_outer_loop = true;
+                // have common outer loop id, child w/o inner most loop. max[2,3,1] h_max[2,3].
+                for (auto i = 0; i < std::min(expr_loop.size(), parent_expr_loop.size()); i++) {
+                    if (expr_loop[i] != parent_expr_loop[i]) {
+                        common_outer_loop = false;
+                        break;
+                    }
+                }
+                if (!common_outer_loop) {
+                    continue;
+                }
+                // std::cout << "parent_expr common_outer_loop:" << common_outer_loop  << std::endl;
+
+                // todo: check not break data dependency
+
+                // can extend
+                auto parent_expr_it = linear_ir.find(parent_expr);
+                if (parent_expr_it != std::prev(outer_loop_bounds_first)) {
+                    linear_ir.move(parent_expr_it, outer_loop_bounds_first); // move new expr in this loop before outer_loop_bounds_first
+                }
+                outer_loop_bounds_first--;
+                auto parent_loops = parent_expr_loop; // 16,17
+                // std::cout << "loop_position:" << loop_position << std::endl; // 17
+                auto insert_pos = std::find_if(parent_loops.begin(), parent_loops.end(), [&](size_t loop){
+                    return loop == loop_position;
+                });
+                // if (insert_pos != parent_loops.end()) {
+                //     std::cout << "insert_pos:" << (*insert_pos) << std::endl; // 17
+                // }
+                parent_loops.insert(insert_pos, outer_loop_id);  // insert 18 before 17
+                parent_expr->set_loop_ids(parent_loops);
+                // for (auto loop : parent_loops) {
+                //     std::cout << "parent_loops:" << loop << std::endl;
+                // }
+                // std::cout << "extend parent:" << parent_expr->get_node()->get_friendly_name() << std::endl;
+
+                // update ports
+                // if parent out port is loop input port, delete the loop input port. add parent input port as new loop input port
+                const auto& new_in_ports = parent_expr->get_input_ports();
+                bool inserted = false;
+                for (const auto& out_port : parent_expr->get_output_ports()) {
+                    for (const auto& in_port_connect : out_port.get_connected_ports()) {
+                        if (outer_loop_info->is_loop_port(in_port_connect)) {
+                            outer_loop_info->replace_with_new_ports(in_port_connect, (inserted ? std::vector<ExpressionPort>{} : new_in_ports));
+                            inserted = true;
+                        }
+                    }
+                }
+                expr_extend = true;
+                break;
+            }
+            // no more extended expr in this loop after go through all potential_extended_exprs, done for this loop.
+            if (!expr_extend)
+                continue_extend_parent = false;
+        }
+
+        // extend child
+        bool continue_extend_child = true;
+        while (continue_extend_child) {
+            const auto& output_ports = outer_loop_info->get_output_ports();
+            const auto& potential_extended_exprs = get_loop_output_exprs(output_ports);
+            bool expr_extend = false;
+            for (const auto& child_expr : potential_extended_exprs) {
+                auto child_expr_loop = child_expr->get_loop_ids();
+                if (child_expr_loop.size() < 1)
+                    continue;
+                const auto& child_last_loop_dim = loop_manager->get_loop_info<UnifiedLoopInfo>(child_expr_loop.back())->get_dim_idx();
+                // max[0,1] h_max[0]. after outer dim split: max[2,3,1] h_max[2,3]. after inner dim split: max[2,4,3,5] h_max[2,4,3]
+                if ((expr_loop.size() - child_expr_loop.size() != 1) || child_last_loop_dim == 0) {
+                    continue;
+                }
+
+                bool common_outer_loop = true;
+                // have common outer loop id, child w/o inner most loop. max[2,3,1] h_max[2,3].
+                for (auto i = 0; i < std::min(expr_loop.size(), child_expr_loop.size()); i++) {
+                    if (expr_loop[i] != child_expr_loop[i]) {
+                        common_outer_loop = false;
+                        break;
+                    }
+                }
+                if (!common_outer_loop) {
+                    continue;
+                }
+
+                // all inputs of child not break data dependency
+                bool data_conflict = false;
+                size_t in_num = child_expr->get_input_count();
+                for (size_t i = 0; i < in_num; i++) {
+                    auto parent = child_expr->get_input_port_connector(i)->get_source().get_expr();
+                    if (parent->get_exec_num() > (*outer_loop_bounds_second)->get_exec_num()) {
+                        data_conflict = true;
+                        break;
+                    }
+                }
+                if (data_conflict)
+                    continue;
+
+                // can extend
+                auto child_expr_it = linear_ir.find(child_expr);
+                if (child_expr_it != outer_loop_bounds_second) {
+                    linear_ir.move(child_expr_it, outer_loop_bounds_second); // move new expr in this loop before outer_loop_bounds_first
+                } else {
+                    outer_loop_bounds_second++;
+                }
+                auto insert_pos = std::find_if(child_expr_loop.begin(), child_expr_loop.end(), [&](size_t loop){
+                    return loop == loop_position;
+                });
+                // if (insert_pos != parent_loops.end()) {
+                //     std::cout << "insert_pos:" << (*insert_pos) << std::endl; // 17
+                // }
+                child_expr_loop.insert(insert_pos, outer_loop_id);  // insert 18 before 17
+                child_expr->set_loop_ids(child_expr_loop);
+
+                // update ports. no update, can not extend chain
+                const auto& new_out_ports = child_expr->get_output_ports();
+                bool inserted = false;
+                const auto child_in_ports = child_expr->get_input_ports();
+                for (const auto port : child_in_ports) {
+                    const auto& out_port_connect = port.get_connected_ports().begin();
+                    if (outer_loop_info->is_loop_port(*out_port_connect)) {
+                        outer_loop_info->replace_with_new_ports(*out_port_connect, (inserted ? std::vector<ExpressionPort>{} : new_out_ports));
+                        inserted = true;
+                    }
+                }
+
+                expr_extend = true;
+                break;
+            }
+            if (!expr_extend)
+                continue_extend_child = false;
+        }
+    }
 
     const auto& inner_splitted_loop_info =
         std::make_shared<InnerSplittedUnifiedLoopInfo>(inner_loop_info->get_increment(), inner_loop_info->get_input_ports(),

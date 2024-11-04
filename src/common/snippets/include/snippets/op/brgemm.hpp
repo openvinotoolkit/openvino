@@ -40,6 +40,7 @@ public:
            std::vector<size_t> layout_a = {}, std::vector<size_t> layout_b = {}, std::vector<size_t> layout_c = {},
            float beta = 0.f);
     Brgemm() = default;
+    Brgemm(bool c_pre_scale);
 
     size_t get_offset_a() const { return get_input_offset(0); }
     size_t get_offset_b() const { return get_input_offset(1); }

@@ -88,8 +88,11 @@ bool BrgemmCPUBlocking::mark_blocking_loops(LinearIR& linear_ir,
     const auto brgemm = ov::as_type_ptr<ov::intel_cpu::BrgemmCPU>(brgemm_expr->get_node());
     const auto type = brgemm->get_type();
 
-    if (stand_alone(type))
+    if (stand_alone(type)) {
+        std::cout << "BrgemmCPUBlocking stand_alone..............." << std::endl;
         return ov::snippets::lowered::pass::BrgemmBlockingBase::mark_blocking_loops(linear_ir, brgemm_it, m_block, n_block, k_block);
+    }
+        // return ov::snippets::lowered::pass::BrgemmBlockingBase::mark_blocking_loops(linear_ir, brgemm_it, m_block, n_block, k_block);
 
     brgemm_expr->get_input_port_descriptor(0)->set_subtensor({m_block, k_block});
     brgemm_expr->get_input_port_descriptor(1)->set_subtensor({k_block, n_block});

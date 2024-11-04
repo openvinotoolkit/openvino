@@ -32,7 +32,7 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A, const Output<Node>& B, BRGEMM_TYPE t
                      const size_t offset_a, const size_t offset_b, const size_t offset_c_scale, const size_t offset_c,
                      std::vector<size_t> layout_a, std::vector<size_t> layout_b,
                      std::vector<size_t> layout_c_scale, std::vector<size_t> layout_c)
-    : Brgemm(), m_type(type), has_c_pre_scale(true) {
+    : Brgemm(true), m_type(type), has_c_pre_scale(true) {
     // We call default ctor of Brgemm class to avoid incorrect shape infer in constructor_validate_and_type_infer() call
     std::cout << "BrgemmCPU1" << std::endl;
     set_arguments({A, B, C});
@@ -77,7 +77,7 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A, const Output<Node>& B, BRGEMM_TYPE t
                      const PortDescriptor& desc_c, const PortDescriptor& desc_c_scale,
                      std::vector<size_t> layout_a, std::vector<size_t> layout_b,
                      std::vector<size_t> layout_c_scale, std::vector<size_t> layout_c)
-    : Brgemm(), m_type(type), has_c_pre_scale(true) {
+    : Brgemm(true), m_type(type), has_c_pre_scale(true) {
     set_arguments({A, B, C});
     set_output_size(1);
     m_input_ports = {{0, desc_a}, {1, desc_b}, {2, desc_c_scale}};
