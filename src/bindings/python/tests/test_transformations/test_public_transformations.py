@@ -133,9 +133,9 @@ def test_low_latency2():
 def test_serialize_pass(request, tmp_path, is_path_xml, is_path_bin):
     core = Core()
     xml_path, bin_path = create_filenames_for_ir(request.node.name,
-                                                  tmp_path,
-                                                  is_path_xml,
-                                                  is_path_bin)
+                                                 tmp_path,
+                                                 is_path_xml,
+                                                 is_path_bin)
 
     model = get_relu_model()
 

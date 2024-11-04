@@ -172,9 +172,9 @@ def test_fused_names_cleanup():
 
 def prepare_test_model_for_serialize(request, tmp_path, is_path_xml, is_path_bin):
     xml_path, bin_path = create_filenames_for_ir(request.node.name,
-                                                  tmp_path,
-                                                  is_path_xml,
-                                                  is_path_bin)
+                                                 tmp_path,
+                                                 is_path_xml,
+                                                 is_path_bin)
     shape = [100, 100, 2]
     parameter_a = ov.opset8.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.opset8.parameter(shape, dtype=np.float32, name="B")
@@ -268,9 +268,9 @@ def test_compress_model_transformation():
 def test_version_default(request, tmp_path, is_path_xml, is_path_bin):
     core = Core()
     xml_path, bin_path = create_filenames_for_ir(request.node.name,
-                                                  tmp_path,
-                                                  is_path_xml,
-                                                  is_path_bin)
+                                                 tmp_path,
+                                                 is_path_xml,
+                                                 is_path_bin)
     shape = [100, 100, 2]
     parameter_a = ov.opset8.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.opset8.parameter(shape, dtype=np.float32, name="B")
@@ -298,9 +298,9 @@ def test_version_default(request, tmp_path, is_path_xml, is_path_bin):
 )
 def test_serialize_default_bin(request, tmp_path, is_path_xml, is_path_bin):
     xml_path, bin_path = create_filenames_for_ir(request.node.name,
-                                                  tmp_path,
-                                                  is_path_xml,
-                                                  is_path_bin)
+                                                 tmp_path,
+                                                 is_path_xml,
+                                                 is_path_bin)
     model = get_relu_model()
     serialize(model, xml_path)
     assert os.path.exists(bin_path)

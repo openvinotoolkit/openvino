@@ -123,7 +123,7 @@ def test_export_import_via_file(prepare_blob_path, device):
 
     compiled_model.export_model(user_stream)
     path_to_blob = prepare_blob_path
-  
+
     with open(path_to_blob, "wb") as f_w:
         f_w.write(user_stream.getbuffer())
 
