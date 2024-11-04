@@ -29,8 +29,7 @@
 void readInputFilesArguments(std::vector<std::string>& files, const std::string& arg) {
     struct stat sb;
     if (stat(arg.c_str(), &sb) != 0) {
-        slog::warn << "File " << arg << " cannot be opened!" << slog::endl;
-        return;
+        throw std::invalid_argument(arg + " file or directory not found.");
     }
     if (S_ISDIR(sb.st_mode)) {
         struct CloseDir {
@@ -43,16 +42,19 @@ void readInputFilesArguments(std::vector<std::string>& files, const std::string&
         using Dir = std::unique_ptr<DIR, CloseDir>;
         Dir dp(opendir(arg.c_str()));
         if (dp == nullptr) {
-            slog::warn << "Directory " << arg << " cannot be opened!" << slog::endl;
-            return;
+            throw std::invalid_argument(arg + " directory cannot be opened!");
         }
 
         struct dirent* ep;
+        size_t files_size = files.size();
         while (nullptr != (ep = readdir(dp.get()))) {
             std::string fileName = ep->d_name;
             if (fileName == "." || fileName == "..")
                 continue;
             files.push_back(arg + "/" + ep->d_name);
+        }
+        if (files.size() == files_size) {
+            throw std::invalid_argument("No files were found in directory " + arg);
         }
     } else {
         files.push_back(arg);
