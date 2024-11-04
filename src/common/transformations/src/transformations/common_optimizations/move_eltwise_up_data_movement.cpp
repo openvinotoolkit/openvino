@@ -82,6 +82,7 @@ ov::pass::MoveEltwiseUpThroughDataMovScalar::MoveEltwiseUpThroughDataMovScalar(
                                                         ov::op::v0::FakeQuantize>(ov::pass::pattern::has_static_rank());
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+        std::cout << "START" << std::endl;
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto eltwise = pattern_map.at(eltwise_pattern).get_node_shared_ptr();
@@ -130,7 +131,7 @@ ov::pass::MoveEltwiseUpThroughDataMovScalar::MoveEltwiseUpThroughDataMovScalar(
         ov::replace_output_update_name(eltwise->output(0), eltwise->input_value(0));
 
         ov::OutputVector eltwise_inputs = eltwise->input_values();
-        eltwise_inputs[0] = current;
+        eltwise_inputs[0] = child->input_value(0);
         auto new_eltwise = eltwise->clone_with_new_inputs(eltwise_inputs);
         // WA: it's necessary to set empty friendly name here
         // to avoid name duplication in TypeRelaxed cases
@@ -148,6 +149,7 @@ ov::pass::MoveEltwiseUpThroughDataMovScalar::MoveEltwiseUpThroughDataMovScalar(
 
         std::cout << "working on " << eltwise << std::endl << std::endl;
 
+        std::cout << "END" << std::endl;
         return true;
     };
 
