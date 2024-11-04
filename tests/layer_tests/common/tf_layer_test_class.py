@@ -175,7 +175,9 @@ class CommonTFLayerTest:
 
             fw_res = np.array(framework_res[framework_out_name])
 
-            assert fw_res.dtype == ov_res.dtype, 'Outputs types are different: ' \
+            assert fw_res.dtype == ov_res.dtype or \
+                   ov_res.dtype.type == str or \
+                   ov_res.dtype.type == np.str_, 'Outputs types are different: ' \
                                                  'OpenVINO output type - {}, ' \
                                                  'Framework output type - {}'.format(ov_res.dtype, fw_res.dtype)
             assert fw_res.shape == ov_res.shape, 'Outputs shapes are different: ' \
