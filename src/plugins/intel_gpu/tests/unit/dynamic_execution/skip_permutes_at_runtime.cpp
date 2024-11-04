@@ -56,11 +56,14 @@ TEST_P(skip_permute_at_runtime_test, runtime_skip) {
 
 INSTANTIATE_TEST_SUITE_P(smoke, skip_permute_at_runtime_test,
     testing::ValuesIn(std::vector<skip_permute_params> {
+        { layout{ov::PartialShape{8,8}, data_types::f16, format::bfyx}, {1, 0}, true, false },
+        { layout{ov::PartialShape{8,1}, data_types::f16, format::bfyx}, {1, 0}, true, true },
         { layout{ov::PartialShape{8, 2, 8}, data_types::f16, format::bfyx}, {2, 1, 0}, true, false },
         { layout{ov::PartialShape{8, 2, 1}, data_types::f16, format::bfyx}, {2, 1, 0}, true, false },
         { layout{ov::PartialShape{1, 12, 1}, data_types::f16, format::bfyx}, {2, 1, 0}, true, true },
         { layout{ov::PartialShape{2, 3, 1, 14}, data_types::f16, format::bfyx}, {1, 0, 2, 3}, true, false },
         { layout{ov::PartialShape{1, 3, 1, 14}, data_types::f16, format::bfyx}, {1, 0, 2, 3}, true, true },
+        { layout{ov::PartialShape{20, 1, 30, 1}, data_types::f16, format::bfyx}, {1, 0, 3, 2}, true, true},
         { layout{ov::PartialShape{12, 3, 1, 14}, data_types::f16, format::bfyx}, {0, 2, 1, 3}, true, true },
         { layout{ov::PartialShape{12, 3, 2, 14}, data_types::f16, format::bfyx}, {0, 2, 1, 3}, true, false },
         { layout{ov::PartialShape{12, 1, 1, 14}, data_types::f16, format::bfyx}, {0, 3, 1, 2}, true, true },
@@ -74,6 +77,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, skip_permute_at_runtime_test,
         { layout{ov::PartialShape{1, 4, 1, 3, 4, 1}, data_types::f16, format::bfwzyx}, {0, 2, 1, 3, 5, 4}, true, true },
         { layout{ov::PartialShape{1, 4, 2, 3, 4, 1}, data_types::f16, format::bfwzyx}, {0, 2, 1, 3, 5, 4}, true, false },
         { layout{ov::PartialShape{1, 1, 1, 1, 4, 1}, data_types::f16, format::bfwzyx}, {4, 5, 2, 3, 0, 1}, true, true },
-        { layout{ov::PartialShape{1, 1, 1, 1, 4, 2}, data_types::f16, format::bfwzyx}, {4, 5, 2, 3, 0, 1}, true, false },
+        { layout{ov::PartialShape{1, 1, 1, 1, 4, 2}, data_types::f16, format::bfwzyx}, {4, 5, 2, 3, 0, 1}, true, true },
+        { layout{ov::PartialShape{1, 1, 3, 1, 4, 2}, data_types::f16, format::bfwzyx}, {4, 5, 2, 3, 0, 1}, true, false },
     }));
 }  // skip permute tests
