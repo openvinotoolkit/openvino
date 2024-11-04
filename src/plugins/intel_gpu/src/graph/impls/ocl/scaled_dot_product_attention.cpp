@@ -26,7 +26,7 @@ struct scaled_dot_product_attention_impl : multi_stage_primitive<scaled_dot_prod
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::scaled_dot_product_attention_impl)
 
     const uint32_t default_sdpa = 0;
-    const uint32_t indirect_sdpa = 1;
+    const uint32_t second_sdpa = 1;
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<scaled_dot_product_attention_impl>(*this);
@@ -45,8 +45,8 @@ struct scaled_dot_product_attention_impl : multi_stage_primitive<scaled_dot_prod
             auto kernel_impl = kernel_selector.GetImplementation(_kernels_data[default_sdpa].kernelName);
             kernel_impl->GetUpdateDispatchDataFunc(_kernels_data[default_sdpa]);
             if (_kernels_data.size() == 2) {
-                auto bt_kernel_impl = kernel_selector.GetImplementation(_kernels_data[indirect_sdpa].kernelName);
-                bt_kernel_impl->GetUpdateDispatchDataFunc(_kernels_data[indirect_sdpa]);
+                auto bt_kernel_impl = kernel_selector.GetImplementation(_kernels_data[second_sdpa].kernelName);
+                bt_kernel_impl->GetUpdateDispatchDataFunc(_kernels_data[second_sdpa]);
             }
         }
     }
@@ -176,11 +176,24 @@ protected:
         return !is_prefill;
     }
 
+    bool is_prefill(const scaled_dot_product_attention_inst& instance) const {
+        const auto& deps = instance.dependencies();
+
+        const auto in_q_idx = 0;
+        const auto& in_q_dep = deps[in_q_idx].first;
+
+        auto query_layout = in_q_dep->get_impl_params()->get_output_layout(0);
+        bool is_generate = query_layout.spatial(1) == 1;  // y
+        return !is_generate;
+    }
+
     event::ptr execute_impl(const std::vector<event::ptr>& events, scaled_dot_product_attention_inst& instance) override {
-        if (need_indirect_load(instance))
-            return execute_stage(events, instance, indirect_sdpa);
-        else
-            return execute_stage(events, instance, default_sdpa);
+        if (need_indirect_load(instance)) {
+            return execute_stage(events, instance, second_sdpa);
+        } else {
+            // default_sdpa: sdpa_micro, second: sdpa_opt
+            return execute_stage(events, instance, is_prefill(instance) ? default_sdpa : second_sdpa);
+        }
     }
 
     static kernel_selector::sdpa_configuration get_sdpa_configuration(const kernel_impl_params& impl_param) {
@@ -233,7 +246,7 @@ protected:
     }
 
 public:
-    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_dynamic, bool indirect = false) {
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_dynamic, bool indirect = false, bool force_sdpa_opt = false) {
         const auto& desc = impl_param.typed_desc<scaled_dot_product_attention>();
         auto params = get_default_params<kernel_selector::sdpa_params>(impl_param, is_dynamic);
 
@@ -253,6 +266,8 @@ public:
         for (size_t i = 0; i < data_inputs_num; i++) {
             params.inputs[i] = convert_data_tensor(impl_param.get_input_layout(i));
         }
+
+        params.should_use_sdpa_opt = force_sdpa_opt;
 
         params.conf = get_sdpa_configuration(impl_param);
 
@@ -312,8 +327,8 @@ public:
         auto& kernel_selector = kernel_selector_t::Instance();
         kernels_data.push_back(kernel_selector.get_best_kernel(sdpa_kernel_params));
 
-        if (has_indirect_inputs(impl_param)) {
-            auto indirect_kernel_params = get_kernel_params(impl_param, impl_param.is_dynamic(), true);
+        if (true /*has_indirect_inputs(impl_param)*/) {
+            auto indirect_kernel_params = get_kernel_params(impl_param, impl_param.is_dynamic(), false, true /*force_sdpa_opt*/);
             kernels_data.push_back(kernel_selector.get_best_kernel(indirect_kernel_params));
         }
 
@@ -329,11 +344,11 @@ public:
         (_kernels_data[default_sdpa].update_dispatch_data_func)(*_kernels_data[default_sdpa].params, _kernels_data[default_sdpa]);
 
         if (_kernels_data.size() == 2) {
-            if (_kernels_data[indirect_sdpa].params == nullptr) {
-                _kernels_data[indirect_sdpa].params = std::make_shared<kernel_params_t>(get_kernel_params(impl_param, true));
+            if (_kernels_data[second_sdpa].params == nullptr) {
+                _kernels_data[second_sdpa].params = std::make_shared<kernel_params_t>(get_kernel_params(impl_param, true));
             }
-            update_shapes(*_kernels_data[indirect_sdpa].params, impl_param);
-            (_kernels_data[indirect_sdpa].update_dispatch_data_func)(*_kernels_data[indirect_sdpa].params, _kernels_data[indirect_sdpa]);
+            update_shapes(*_kernels_data[second_sdpa].params, impl_param);
+            (_kernels_data[second_sdpa].update_dispatch_data_func)(*_kernels_data[second_sdpa].params, _kernels_data[second_sdpa]);
         }
     }
 };
