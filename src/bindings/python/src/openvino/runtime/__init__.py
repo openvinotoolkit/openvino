@@ -10,8 +10,8 @@ import warnings
 warnings.simplefilter('always', DeprecationWarning)
 
 warnings.warn(
-    'The \'openvino.runtime\' module is deprecated and will be removed in the 2026.0 release. '
-    'Please replace \'openvino.runtime\` with \'openvino\'.',
+    'The `openvino.runtime` module is deprecated and will be removed in the 2026.0 release. '
+    'Please replace `openvino.runtime` with `openvino`.',
     DeprecationWarning,
     stacklevel=2
 )
