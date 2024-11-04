@@ -140,7 +140,14 @@ std::map<std::string, RemoteContextImpl::Ptr> Plugin::get_default_contexts() con
     return m_default_contexts;
 }
 
+static std::mutex init_lock;
+static bool m_constructed = false;
+
 Plugin::Plugin() {
+    {
+        std::unique_lock<std::mutex> lock(init_lock);
+        m_constructed = true;
+    }
     set_device_name("GPU");
     register_primitives();
 
@@ -165,11 +172,16 @@ Plugin::Plugin() {
 
 Plugin::~Plugin() {
     // reset oneDNN cache to clean up cached primitives
+    std::unique_lock<std::mutex> lock(init_lock);
+    if (m_constructed) {
+        m_constructed = false;
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    //auto capacity = dnnl::get_primitive_cache_capacity();
-    dnnl::set_primitive_cache_capacity(0);
-    //dnnl::set_primitive_cache_capacity(capacity);
+        auto capacity = dnnl::get_primitive_cache_capacity();
+        dnnl::set_primitive_cache_capacity(0);
+        dnnl::set_primitive_cache_capacity(capacity);
 #endif
+    }
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& orig_config) const {
