@@ -43,9 +43,12 @@ runs:
         update-setuptools: "false"
         update-wheel: "false"
 
-    # - name: Set up Docker Buildx
-    #   id: buildx
-    #   uses: docker/setup-buildx-action@v3
+    - name: Set up Docker Buildx
+      id: buildx
+      uses: docker/setup-buildx-action@v3
+      with:
+        driver-opts: |
+          image=openvinogithubactions.azurecr.io/lirary/moby/buildkit:buildx-stable-1
 
     - name: Handle docker images
       id: handle_images
