@@ -45,7 +45,12 @@ runs:
 
     - name: Set up Docker Buildx
       id: buildx
-      uses: docker/setup-buildx-action@v3
+      shell: bash
+      run: |
+        mkdir -p ~/.docker/cli-plugins
+        curl -Lo ~/.docker/cli-plugins/docker-buildx https://github.com/docker/buildx/releases/download/v0.18.0/buildx-v0.18.0.linux-amd64 
+        chmod +x ~/.docker/cli-plugins/docker-buildx
+        docker buildx version
 
     - name: Handle docker images
       id: handle_images
