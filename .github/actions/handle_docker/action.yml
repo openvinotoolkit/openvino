@@ -51,6 +51,12 @@ runs:
         curl -Lo ~/.docker/cli-plugins/docker-buildx https://github.com/docker/buildx/releases/download/v0.18.0/buildx-v0.18.0.linux-amd64 
         chmod +x ~/.docker/cli-plugins/docker-buildx
         docker buildx version
+        # Create a new builder instance with the docker-container driver:
+        docker buildx create --name docker_builder --driver docker-container --use
+        # Initialize the builder
+        docker buildx inspect --bootstrap
+        # Verify the builder instance
+        docker buildx ls
 
     - name: Handle docker images
       id: handle_images
