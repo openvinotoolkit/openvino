@@ -826,20 +826,8 @@ uint32_t Plugin::get_optimal_batch_size(const ov::AnyMap& options) const {
     return batch;
 }
 
-class Pluginsentry {
-public:
-    Pluginsentry() {
-        //dnnl::set_primitive_cache_capacity(1024);
-    }
-
-    ~Pluginsentry() {
-        dnnl::set_primitive_cache_capacity(2048);
-    }
-};
-
 }  // namespace intel_gpu
 }  // namespace ov
 
-static ov::intel_gpu::Pluginsentry sentry;
 static const ov::Version version = { CI_BUILD_NUMBER, "Intel GPU plugin" };
 OV_DEFINE_PLUGIN_CREATE_FUNCTION(ov::intel_gpu::Plugin, version)
