@@ -38,7 +38,7 @@ TEST_F(TransformationTestsF, ScaleDownSingleLayerTest) {
         auto result = std::make_shared<ov::op::v0::Result>(convert);
 
         model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input});
-        manager.register_pass<ov::pass::ScaleDownSingleLayer>(scale_factor);
+        manager.register_pass<ov::pass::activations_scaling::ScaleDownSingleLayer>(scale_factor);
     }
     {
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 3, 16, 16});
@@ -73,7 +73,7 @@ TEST_F(TransformationTestsF, MulMulAddFusionTest) {
         auto result = std::make_shared<ov::op::v0::Result>(convert);
 
         model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input0, input1});
-        manager.register_pass<ov::pass::MulMulAddFusion>();
+        manager.register_pass<ov::pass::activations_scaling::MulMulAddFusion>();
     }
     {
         auto input0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 3, 16, 16});
@@ -103,7 +103,7 @@ TEST_F(TransformationTestsF, MulGroupNormFusionTest) {
         auto result = std::make_shared<ov::op::v0::Result>(convert);
 
         model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input});
-        manager.register_pass<ov::pass::MulGroupNormFusion>();
+        manager.register_pass<ov::pass::activations_scaling::MulGroupNormFusion>();
     }
     {
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 3, 16, 16});
