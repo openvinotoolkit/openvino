@@ -11,8 +11,6 @@
 
 #include <string_view>
 
-#include "intel_npu/config/runtime.hpp"
-
 /**
  * @brief Last version of the Command Queue functions used within plugin
  */

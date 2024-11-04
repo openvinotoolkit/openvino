@@ -12,8 +12,8 @@
 
 #include "intel_npu/config/compiler.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
+#include "intel_npu/utils/zero/zero_types.hpp"
 #include "openvino/runtime/profiling_info.hpp"
-#include "zero_types.hpp"
 
 namespace intel_npu {
 namespace zeroProfiling {
