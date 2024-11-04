@@ -69,10 +69,6 @@ class CommonTFLayerTest:
 
     def _test(self, framework_model, ref_net, ie_device, precision, ir_version, temp_dir,
               use_legacy_frontend=False, infer_timeout=60, **kwargs):
-        """
-        :param enabled_transforms/disabled_transforms: string with idxs of transforms that should be enabled/disabled.
-                                                       Example: "transform_1,transform_2"
-        """
         model_path = self.produce_model_path(framework_model=framework_model, save_path=temp_dir)
         self.use_legacy_frontend = use_legacy_frontend
 
