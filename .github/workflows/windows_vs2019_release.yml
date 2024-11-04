@@ -492,6 +492,7 @@ jobs:
           python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/bindings/python/requirements_test.txt
           # for 'template' extension
           set PYTHONPATH=${{ env.INSTALL_TEST_DIR }};%PYTHONPATH%
+          set PATH=${{ env.INSTALL_TEST_DIR }};%PATH%
           python3 -m pytest -sv ${{ env.INSTALL_TEST_DIR }}/pyopenvino --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-Pyngraph_new_numpy.xml --ignore=${{ env.INSTALL_TEST_DIR }}/pyopenvino/tests/test_utils/test_utils.py
 
       - name: Upload Test Results
