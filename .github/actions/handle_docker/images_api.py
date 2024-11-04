@@ -57,7 +57,7 @@ class Image:
             cache_cmd += f"--cache-to type=registry,ref={self.ref()}-cache,mode=max "
 
         build_cmd = f"docker buildx build --builder={docker_builder}" if docker_builder else "docker build"
-        push_cmd = f"--push" if push else ""
+        push_cmd = f"--load" if push else ""
 
         cmd = f"{build_cmd} " \
               f"--file {self.dockerfile} " \
