@@ -1430,7 +1430,7 @@ void primitive_inst::do_runtime_skip_permute() {
     bool can_skip = true;
     auto permute_dest = permute_order;
     for (size_t i = 0; i < permute_order.size(); ++i) {
-        permute_dest[permute_order[i]] = i;
+        permute_dest[permute_order[i]] = static_cast<uint16_t>(i);
     }
     int16_t prev_dim = -1;
     for (size_t i = 0; i < permute_dest.size(); ++i) {
