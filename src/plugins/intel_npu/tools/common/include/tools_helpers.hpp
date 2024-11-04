@@ -175,7 +175,5 @@ void reshape(ov::OutputVector inputsInfo, InputsInfo& infoMap, std::shared_ptr<o
             device.find("CPU") != std::string::npos || device.find("TEMPLATE") != std::string::npos) {
             boundDynamicShape(model);
         }
-
-        setModelBatch(model, overrideModelBatchSize);
     }
 }
