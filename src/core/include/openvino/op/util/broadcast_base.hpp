@@ -63,6 +63,7 @@ protected:
 
     bool evaluate_lower(TensorVector& outputs) const override;
     bool evaluate_upper(TensorVector& outputs) const override;
+    bool evaluate_symbol(ov::TensorSymbolVector& output_symbols) const override;
 
     PartialShape get_result_shape_pdpd(const PartialShape& arg0_shape,
                                        const PartialShape& target_shape,

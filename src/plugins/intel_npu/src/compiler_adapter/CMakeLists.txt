@@ -22,14 +22,9 @@ target_include_directories(${TARGET_NAME}
 )
 
 target_link_libraries(${TARGET_NAME}
-    PUBLIC
+    PRIVATE
         openvino::npu_al
         openvino::npu_common
-    PRIVATE
-        openvino_npu_zero_result_parser
-        openvino_npu_level_zero_backend
-        openvino::runtime
-        openvino::runtime::dev
         ze_loader
 )
 
