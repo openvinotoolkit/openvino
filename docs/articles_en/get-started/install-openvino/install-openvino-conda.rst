@@ -16,28 +16,8 @@ Install OpenVINO™ Runtime from Conda Forge
    * is dedicated to users of all major OSes: Windows, Linux, and macOS
      (all x86_64 / arm64 architectures)
 
-.. tab-set::
-
-   .. tab-item:: System Requirements
-      :sync: system-requirements
-
-      | Full requirement listing is available in:
-      | :doc:`System Requirements Page <../../../about-openvino/release-notes-openvino/system-requirements>`
-
-
-   .. tab-item:: Processor Notes
-      :sync: processor-notes
-
-      | To see if your processor includes the integrated graphics technology and supports iGPU inference, refer to:
-      | `Product Specifications <https://ark.intel.com/>`__
-
-
-   .. tab-item:: Software
-      :sync: software
-
-      | There are many ways to work with Conda. Before you proceed, learn more about it on the
-      | `Anaconda distribution page <https://www.anaconda.com/products/individual/>`__
-
+   Before installing OpenVINO, see the
+   :doc:`System Requirements page <../../../about-openvino/release-notes-openvino/system-requirements>`.
 
 Installing OpenVINO Runtime with Anaconda Package Manager
 ############################################################
