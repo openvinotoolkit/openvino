@@ -1,9 +1,10 @@
 $(document).ready(function () {
   var pageTitle = document.title;
   var columnDefs;
-  if (pageTitle.includes('Most Efficient Large Language Models for AI PC')) {
-    columnDefs = [
-      { "visible": false, "targets": [1, 2, 3, 4, 5] }
+  if(pageTitle.includes('Most Efficient Large Language Models for AI PC'))
+  {
+    columnDefs= [
+      { "visible": false, "targets": [1] }
     ]
   }
   else {
