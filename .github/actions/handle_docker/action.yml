@@ -45,14 +45,14 @@ runs:
 
     - name: Pull
       shell: bash
-      run: docker pull openvinogithubactions.azurecr.io/moby/buildkit:buildx-stable-1
+      run: docker pull openvinogithubactions.azurecr.io/dockerio/moby/buildkit:buildx-stable-1
 
     - name: Set up Docker Buildx
       id: buildx
       uses: docker/setup-buildx-action@v3
       with:
         driver-opts: |
-          image=openvinogithubactions.azurecr.io/moby/buildkit:buildx-stable-1
+          image=openvinogithubactions.azurecr.io/dockerio/moby/buildkit:buildx-stable-1
 
     - name: Handle docker images
       id: handle_images
