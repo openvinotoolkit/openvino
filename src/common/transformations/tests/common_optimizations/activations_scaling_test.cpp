@@ -182,7 +182,8 @@ TEST_F(TransformationTestsF, SplitTransformationTest) {
         auto convert2 = std::make_shared<ov::op::v0::Convert>(mul2, ov::element::f32);
         auto result2 = std::make_shared<ov::op::v0::Result>(convert2);
 
-        model_ref = std::make_shared<ov::Model>(ov::ResultVector{result0, result1, result2}, ov::ParameterVector{input});
+        model_ref =
+            std::make_shared<ov::Model>(ov::ResultVector{result0, result1, result2}, ov::ParameterVector{input});
     }
 }
 
