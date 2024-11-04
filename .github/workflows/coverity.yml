@@ -1,5 +1,6 @@
 name: Coverity (Ubuntu 20.04, Python 3.11)
 on:
+  pull_request:
   workflow_dispatch:
     inputs:
       openvinoRef:
@@ -8,6 +9,7 @@ on:
       openvinoContribRef:
         description: 'Branch, tag or commit hash to clone openvino_contrib from. Taken from event context if not set'
         type: string
+
   schedule:
     # run daily at 00:00
     - cron: '0 0 * * *'
