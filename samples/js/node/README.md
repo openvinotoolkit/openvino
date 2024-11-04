@@ -7,7 +7,7 @@ To run samples, install dependencies first. In current directory run:
 npm install
 ```
 
-Note: Perform these step also before running notebooks.
+Note: Perform this step also before running notebooks.
 
 ## Samples
 
