@@ -49,7 +49,10 @@ static void CreateOneHotOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::
         }
     }
 
-    int64_t depth = depth_value_node->cast_vector<int64_t>()[0];
+    int64_t depth = 0;
+    if (depth_value_node) {
+        depth = depth_value_node->cast_vector<int64_t>()[0];
+    }
 
     auto out_pshape = op->get_output_partial_shape(0);
     cldnn::tensor out_tensor = out_pshape.is_static() ? tensor_from_dims(out_pshape.to_shape()) : cldnn::tensor{};
