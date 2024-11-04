@@ -5,6 +5,17 @@
 """openvino module namespace, exposing factory functions for all ops and other classes."""
 # noqa: F401
 
+import warnings
+
+warnings.simplefilter('always', DeprecationWarning)
+
+warnings.warn(
+    'The \'openvino.runtime\' module is deprecated and will be removed in the 2026.0 release. '
+    'Please replace \'openvino.runtime\` with \'openvino\'.',
+    DeprecationWarning,
+    stacklevel=2
+)
+
 from openvino._pyopenvino import get_version
 
 __version__ = get_version()
