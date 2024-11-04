@@ -198,7 +198,7 @@ Table of Contents
 * :doc:`Split <../operation-specs/movement/split-1>`
 * :doc:`Sqrt <../operation-specs/arithmetic/sqrt-1>`
 * :doc:`SquaredDifference <../operation-specs/arithmetic/squared-difference-1>`
-* :doc:`Squeeze <../operation-specs/shape/squeeze-1>`
+* :doc:`Squeeze <../operation-specs/shape/squeeze-15>`
 * :doc:`STFT <../operation-specs/signals/stft-15>`
 * :doc:`StridedSlice <../operation-specs/movement/strided-slice-1>`
 * :doc:`StringTensorPack <../operation-specs/type/string-tensor-pack-15>`
