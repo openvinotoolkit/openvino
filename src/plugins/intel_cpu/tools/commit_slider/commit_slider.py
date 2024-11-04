@@ -8,21 +8,26 @@ import sys
 from distutils.dir_util import copy_tree
 from distutils.errors import DistutilsFileError
 from utils.cfg_manager import CfgManager
-from utils.helpers import safeClearDir, getParams
+from utils.helpers import safeClearDir, getParams, getActualCfg
 
 args, cfgData, customCfgPath = getParams()
 
+# multiconfig handling: fetch actual config by idx
+curCfgData = getActualCfg(cfgData, args.multiconfig)
+
+if isinstance(curCfgData, list) and args.multiconfig == "undefined":
+    for idx, _ in enumerate(cfgData):
+        argString = " ".join(sys.argv)
+        workPath = os.getcwd()
+        formattedCmd = "{py} {argString} -x {idx}".format(
+            py=sys.executable, argString=argString, idx=idx
+        )
+        subprocess.call(formattedCmd.split())
+    exit()
+
 if args.utility != "no_utility":
     from utils.helpers import runUtility
-    runUtility(cfgData, args)
-
-elif args.isMultiply == "multiply":
-    argString = " ".join(sys.argv)
-    workPath = os.getcwd()
-    formattedCmd = "{py} {argString} -x 'single'".format(
-        py=sys.executable, argString=argString
-    )
-    subprocess.call(formattedCmd.split())
+    runUtility(curCfgData, args)
 
 elif args.isWorkingDir:
     # rerun script from work directory
@@ -31,14 +36,14 @@ elif args.isWorkingDir:
     from utils.helpers import checkArgAndGetCommits
 
     commitList = []
-    if "commitList" in cfgData["runConfig"] and\
-        "explicitList" in cfgData["runConfig"]["commitList"]:
-            commitList = cfgData["runConfig"]["commitList"]["explicitList"]
+    if "commitList" in curCfgData["runConfig"] and\
+        "explicitList" in curCfgData["runConfig"]["commitList"]:
+            commitList = curCfgData["runConfig"]["commitList"]["explicitList"]
     elif args.commitSeq is None:
-        if "getCommitListCmd" in cfgData["runConfig"]["commitList"]:
-            commitListCmd = cfgData["runConfig"]["commitList"]
+        if "getCommitListCmd" in curCfgData["runConfig"]["commitList"]:
+            commitListCmd = curCfgData["runConfig"]["commitList"]
             commitListCmd = commitListCmd["getCommitListCmd"]
-            cwd = cfgData["gitPath"]
+            cwd = curCfgData["gitPath"]
             try:
                 out = subprocess.check_output(commitListCmd.split(), cwd=cwd)
             except subprocess.CalledProcessError as e:
@@ -46,35 +51,35 @@ elif args.isWorkingDir:
                 raise CfgError("{msg} {e}".format(msg=msg, e=str(e)))
             out = out.decode("utf-8")
             commitList = out.split()
-        elif "explicitList" in cfgData["runConfig"]["commitList"]:
-            commitList = cfgData["runConfig"]["commitList"]["explicitList"]
+        elif "explicitList" in curCfgData["runConfig"]["commitList"]:
+            commitList = curCfgData["runConfig"]["commitList"]["explicitList"]
         else:
             raise CfgError("Commit list is mandatory")
     else:
-        commitList = checkArgAndGetCommits(args.commitSeq, cfgData)
+        commitList = checkArgAndGetCommits(args.commitSeq, curCfgData)
 
     commitList.reverse()
-    p = Mode.factory(cfgData)
-    p.run(commitList, cfgData)
+    p = Mode.factory(curCfgData)
+    p.run(commitList, curCfgData)
     p.printResult()
 
 else:
     # prepare run
-    workPath = cfgData["workPath"]
+    workPath = curCfgData["workPath"]
     if not os.path.exists(workPath):
         os.mkdir(workPath)
     else:
-        safeClearDir(workPath, cfgData)
+        safeClearDir(workPath, curCfgData)
     curPath = os.getcwd()
     copy_tree(curPath, workPath)
     # handle user cache path
-    tempCachePath = CfgManager.singlestepStrFormat(cfgData["cachePath"], "workPath", workPath)
-    permCachePath = CfgManager.singlestepStrFormat(cfgData["cachePath"], "workPath", curPath)
+    tempCachePath = CfgManager.singlestepStrFormat(curCfgData["cachePath"], "workPath", workPath)
+    permCachePath = CfgManager.singlestepStrFormat(curCfgData["cachePath"], "workPath", curPath)
     # setup cache path if specified
-    if cfgData['userCachePath']:
-        permCachePath = cfgData['userCachePath']
+    if curCfgData['userCachePath']:
+        permCachePath = curCfgData['userCachePath']
     else:
-        cfgData['userCachePath'] = permCachePath
+        curCfgData['userCachePath'] = permCachePath
 
     # run CS
     scriptName = os.path.basename(__file__)
@@ -85,17 +90,17 @@ else:
     subprocess.call(formattedCmd.split())
 
     # copy logs and cache back to general repo
-    tempLogPath = CfgManager.singlestepStrFormat(cfgData["logPath"], "workPath", workPath)
-    permLogPath = CfgManager.singlestepStrFormat(cfgData["logPath"], "workPath", curPath)
+    tempLogPath = CfgManager.singlestepStrFormat(curCfgData["logPath"], "workPath", workPath)
+    permLogPath = CfgManager.singlestepStrFormat(curCfgData["logPath"], "workPath", curPath)
 
-    if cfgData['userLogPath']:
-        permLogPath = cfgData['userLogPath']
+    if curCfgData['userLogPath']:
+        permLogPath = curCfgData['userLogPath']
 
-    safeClearDir(permLogPath, cfgData)
-    if not cfgData['clearLogsAposteriori']:
+    safeClearDir(permLogPath, curCfgData)
+    if not curCfgData['clearLogsAposteriori']:
         copy_tree(tempLogPath, permLogPath)
 
-    safeClearDir(permCachePath, cfgData)
+    safeClearDir(permCachePath, curCfgData)
     try:
         copy_tree(tempCachePath, permCachePath)
     except DistutilsFileError:
@@ -112,4 +117,4 @@ else:
         # prevent exception raising if cfg set up from outer location
         pass
 
-    safeClearDir(workPath, cfgData)
+    safeClearDir(workPath, curCfgData)

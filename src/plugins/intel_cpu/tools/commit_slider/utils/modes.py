@@ -16,9 +16,12 @@ from utils.common_mode import Mode
 class NopMode(Mode):
     # helpful with mode-ignorant traversal (brute force)
     def __init__(self, cfg):
+        self.msg = "default"
         super().__init__(cfg)
 
     def checkCfg(self, cfg):
+        if "msg" in cfg["runConfig"]:
+            self.msg = cfg["runConfig"]["msg"]
         super().checkCfg(cfg)
 
     def getPseudoMetric(self, commit, cfg):
@@ -33,9 +36,8 @@ class NopMode(Mode):
         return
 
     def printResult(self):
-        msg = "Hi there"
-        print(msg)
-        self.outLogger.info(msg)
+        print(self.msg)
+        self.outLogger.info(self.msg)
 
 
 class CheckOutputMode(Mode):

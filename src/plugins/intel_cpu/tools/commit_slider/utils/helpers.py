@@ -22,6 +22,14 @@ def extractModelPath(cmdStr):
     args = cmdStr.split()
     return args[args.index("-m") + 1]
 
+def getActualCfg(cfg, multiconfig: str):
+    if isinstance(cfg, list) and \
+        multiconfig != 'undefined':
+        return cfg[int(multiconfig)]
+    else:
+        return cfg
+
+
 def getParams():
     parser = ArgumentParser()
     parser.add_argument("-c", "--commits", dest="commitSeq", help="commit set")
@@ -46,12 +54,13 @@ def getParams():
         help="run utility with specified name",
         default="no_utility",
     )
+
     parser.add_argument(
         "-x",
-        "--multiply",
-        dest="isMultiply",
-        help="run multiple configs",
-        default="multiply"
+        "--multiconfig",
+        dest="multiconfig",
+        help="index in config array or 'undefined' mark",
+        default="undefined"
     )
     args, additionalArgs = parser.parse_known_args()
 
@@ -60,16 +69,14 @@ def getParams():
     presetCfgPath = "utils/cfg.json"
     customCfgPath = ""
     customCfgPath = argHolder.configuration
-    presetCfgData = None
-    with open(presetCfgPath) as cfgFile:
-        presetCfgData = json.load(cfgFile)
-    cfgFile.close()
+    presetCfgData = loadJSONToString(presetCfgPath)
 
     if argHolder.utility != "no_utility":
         it = iter(additionalArgs)
         addDict = dict(zip(it, it))
         mergedArgs = {**(args.__dict__), **addDict}
         argHolder = DictHolder(mergedArgs)
+        presetCfgData = loadJSONToObject(presetCfgPath)
         return argHolder, presetCfgData, presetCfgPath
 
     customCfgData = None
@@ -77,20 +84,47 @@ def getParams():
         customCfgData = json.load(cfgFile)
     cfgFile.close()
 
-    # config manager resolves templates in config,
-    # in the future, all interactions with config will
-    # be incapsulated in config manager
-    cm = CfgManager(customCfgData)
-    customCfgData = cm.applyTemplate()
+    presetCfgData = customizeCfg(customCfgData, presetCfgData)
 
-    # customize cfg
-    for key in customCfgData:
-        newVal = customCfgData[key]
-        presetCfgData[key] = newVal
-
-    presetCfgData = absolutizePaths(presetCfgData)
     return argHolder, presetCfgData, customCfgPath
 
+
+def loadJSONToString(path):
+    with open(path, 'r') as file:
+        data = file.read()
+    file.close()
+    return data
+
+
+def loadJSONToObject(path):
+    with open(path) as file:
+        obj = json.load(file)
+    file.close()
+    return obj
+
+
+def customizeCfg(customCfg, presetCfg: str):
+    if isinstance(customCfg, list):
+        returnCfgList = [{}] * len(customCfg)
+        for idx, subCfg in enumerate(customCfg):
+            returnCfgList[idx] = customizeCfg(subCfg, presetCfg)
+        return returnCfgList
+    else:
+        presetCfg = json.loads(presetCfg)
+
+        # config manager resolves templates in config,
+        # in the future, all interactions with config will
+        # be incapsulated in config manager
+        cm = CfgManager(customCfg)
+        customCfg = cm.applyTemplate()
+
+        # customize cfg
+        for key in customCfg:
+            newVal = customCfg[key]
+            presetCfg[key] = newVal
+
+        presetCfg = absolutizePaths(presetCfg)
+        return presetCfg
 
 def getBlobDiff(file1, file2):
     with open(file1) as file:

@@ -158,7 +158,7 @@ def getActualCommit(td: TestData):
             td.userCachePath,
             td.userLogPath
             ]]
-    os.remove(td.testCfg)
+    os.remove(td.testCfgName)
 
     return foundCommit, rejectReason
 
@@ -170,7 +170,7 @@ def getCSOutput(td: TestData):
             td.userCachePath,
             td.userLogPath
             ]]
-    os.remove(td.testCfg)
+    os.remove(td.testCfgName)
 
     return sliderOutput
 
@@ -184,21 +184,23 @@ def runCS(td: TestData):
         td.userLogPath, "testDir", os.getcwd())
     td.userCachePath = CfgManager.singlestepStrFormat(
         td.userCachePath, "testDir", os.getcwd())
-    td.testCfg = "test_cfg.json"
+    td.testCfgName = "test_cfg.json"
     for key in [
         'userLogPath', 'clearLogsAposteriori',
         'userCachePath', 'clearCache'
             ]:
-        cfg[key] = getattr(td, key)
-
-    with open(td.testCfg, "w+") as customCfg:
+        if isinstance(cfg, list):
+            cfg[0][key] = getattr(td, key)
+        else:
+            cfg[key] = getattr(td, key)
+    with open(td.testCfgName, "w+") as customCfg:
         customCfg.truncate(0)
         json.dump(cfg, customCfg)
     customCfg.close()
 
     # run slider and check output
     sliderOutput = runCmd(
-        "python3.8 commit_slider.py -cfg tests/{}".format(td.testCfg),
+        "python3.8 commit_slider.py -cfg tests/{}".format(td.testCfgName),
         "../")
 
     sliderOutput = '\n'.join(map(str, sliderOutput))

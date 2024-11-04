@@ -60,22 +60,59 @@
     "MultiConfig": {
         "repoName": "firstBadVersion",
         "patchedFile": "tests_res/fbv_main.cpp",
-        "testCfg": {
-            "appCmd" : "{appCmd}",
-            "appPath": "{appPath}",
-            "gitPath" : "{gitPath}",
-            "userLogPath" : "{testDir}/test_log/sub_log/",
-            "clearLogsAposteriori" : false,
-            "buildPath" : "{buildPath}",
-            "verboseOutput": false,
-            "runConfig" : {
-                "commitList" : {
-                    "getCommitListCmd" : "git log {start}..{end} --boundary --pretty=\"%h\""
-                },
-                "mode" : "nop",
-                "traversal" : "bruteForce"
+        "testCfg": [
+            {
+                "appCmd" : "{appCmd}",
+                "appPath": "{appPath}",
+                "gitPath" : "{gitPath}",
+                "userLogPath" : "{testDir}/test_log/sub_log_0/",
+                "clearLogsAposteriori" : false,
+                "buildPath" : "{buildPath}",
+                "verboseOutput": false,
+                "runConfig" : {
+                    "commitList" : {
+                        "getCommitListCmd" : "git log {start}..{end} --boundary --pretty=\"%h\""
+                    },
+                    "mode" : "nop",
+                    "traversal" : "bruteForce",
+                    "msg" : "cfg #0"
+                }
+            },
+            {
+                "appCmd" : "{appCmd}",
+                "appPath": "{appPath}",
+                "gitPath" : "{gitPath}",
+                "userLogPath" : "{testDir}/test_log/sub_log_1/",
+                "clearLogsAposteriori" : false,
+                "buildPath" : "{buildPath}",
+                "verboseOutput": false,
+                "runConfig" : {
+                    "commitList" : {
+                        "getCommitListCmd" : "git log {start}..{end} --boundary --pretty=\"%h\""
+                    },
+                    "mode" : "nop",
+                    "traversal" : "bruteForce",
+                    "msg" : "cfg #1"
+                }
+            },
+            {
+                "appCmd" : "{appCmd}",
+                "appPath": "{appPath}",
+                "gitPath" : "{gitPath}",
+                "userLogPath" : "{testDir}/test_log/sub_log_2/",
+                "clearLogsAposteriori" : false,
+                "buildPath" : "{buildPath}",
+                "verboseOutput": false,
+                "runConfig" : {
+                    "commitList" : {
+                        "getCommitListCmd" : "git log {start}..{end} --boundary --pretty=\"%h\""
+                    },
+                    "mode" : "nop",
+                    "traversal" : "bruteForce",
+                    "msg" : "cfg #2"
+                }
             }
-        }
+        ]
     },
     "BmBinarySearchUnstable": {
         "repoName": "BmBinarySearchUnstable",

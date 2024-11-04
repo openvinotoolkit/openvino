@@ -42,13 +42,12 @@ class CommitSliderTest(TestCase):
 
     @skip_commit_slider_devtest
     def testMultiConfig(self):
-        breakCommit, updatedData = getExpectedCommit(
+        _, updatedData = getExpectedCommit(
             MultiConfigData())
-        # actualCommit, _ = getActualCommit(updatedData)
-        out = getCSOutput(updatedData)
-        print(out)
-        # self.assertEqual(breakCommit, actualCommit)
-        self.assertTrue(True)
+
+        self.assertEqual(
+            getCSOutput(updatedData),
+            "\n\n".join(['cfg #{n}'.format(n=n) for n in range(3)]) + "\n")
 
     @skip_commit_slider_devtest
     def testBmUnstable(self):
