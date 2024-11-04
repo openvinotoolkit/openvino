@@ -498,7 +498,7 @@ std::list<ov::Tensor> splitBatchedTensor(const ov::Tensor &tensor, const ov::Lay
         OPENVINO_THROW("Cannot split tensor on parts: ", parts);
     }
     auto pivotShape = tensor.get_shape();
-   if (!ov::layout::has_batch(layout)) {
+    if (!ov::layout::has_batch(layout)) {
         OPENVINO_THROW("Cannot split tensor: has no batch_idx in layout", layout.to_string());
     }
     auto pivotPrecision = tensor.get_element_type();
