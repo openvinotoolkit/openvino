@@ -7,6 +7,7 @@
 #include "dynamic_quantize/dynamic_quantize_kernel_ref.h"
 #include "dynamic_quantize/dynamic_quantize_kernel_selector.h"
 #include "dynamic_quantize_inst.h"
+#include "fully_connected_inst.h"
 
 namespace cldnn {
 namespace ocl {
@@ -33,9 +34,25 @@ struct dynamic_quantize_impl : typed_primitive_impl_ocl<dynamic_quantize> {
     }
 
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
-        /// TODO: handle group_size here
         auto params = get_default_params<kernel_selector::dynamic_quantize_params>(impl_param, is_shape_agnostic);
         params.outputs.push_back(convert_data_tensor(impl_param.get_output_layout(1)));
+
+        // In Some model, the feature size could be dynamic in input0.
+        // It refers to IFM value of weight of fully connected.
+        auto user_node = impl_param.prog->get_node(impl_param.desc->id).get_users().front();
+        if (user_node != nullptr && user_node->is_type<fully_connected>()) {
+            auto& fc_node = user_node->as<fully_connected>();
+            params.fc_ifm_size = fc_node.weights().get_output_layout().feature();
+        }
+
+        if (impl_param.output_layouts.size() > 2)
+            params.outputs.push_back(convert_data_tensor(impl_param.get_output_layout(2)));
+
+        const auto& desc = impl_param.typed_desc<dynamic_quantize>();
+        params.group_sizes = desc->attrs.group_sizes;
+        params.scales_output_order = desc->attrs.scales_zp_output_order;
+        params.use_asymmetric_quantization = desc->attrs.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric;
+        params.combine_scales_and_zp = desc->attrs.output_storage_type != ov::op::internal::DynamicQuantize::OutputStorageType::Planar;
 
         return params;
     }
