@@ -327,7 +327,7 @@ if(ENABLE_PYTHON_PACKAGING)
                 # variables to reflect options (extensions only or full wheel package)
                 PYTHON_EXTENSIONS_ONLY=ON
                 SKIP_RPATH=ON
-                "${Python3_EXECUTABLE}" -m pip --python "/usr/bin/python3" install --ignore-requires-python --no-deps --no-compile --target "${ov_python_package_prefix}" "${CMAKE_CURRENT_SOURCE_DIR}" 
+                "${Python3_EXECUTABLE}" -m pip --python "/usr/bin/python3" install --ignore-requires-python --no-deps --no-compile --target "${ov_install_lib}" "${CMAKE_CURRENT_SOURCE_DIR}" 
         WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
         DEPENDS ${ov_setup_py_deps}
         COMMENT "Create python package with ${openvino_meta_info_subdir} folder")
