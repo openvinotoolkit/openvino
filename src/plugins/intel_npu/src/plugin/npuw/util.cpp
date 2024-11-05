@@ -17,7 +17,7 @@
 #include "openvino/runtime/make_tensor.hpp"  // get_tensor_impl
 #include "util_xarch.hpp"
 
-bool ov::npuw::util::is_set(const std::size_t sub_idx, const std::string& opt) {
+bool ov::npuw::util::is_set(const std::size_t sub_idx, const std::string& opt, const std::size_t end_idx) {
     if (opt.empty() || opt == "NO") {
         return false;
     }
@@ -25,12 +25,20 @@ bool ov::npuw::util::is_set(const std::size_t sub_idx, const std::string& opt) {
         return true;
     }
 
+    std::string str(opt);
+    std::size_t last_pos = str.find("last");
+    if (last_pos != std::string::npos) {
+        str.erase(last_pos, 4);
+        if (end_idx != SIZE_MAX && sub_idx == end_idx - 1) {
+            return true;
+        }
+    }
+
     std::vector<std::size_t> sub_inds{};
-    sub_inds = ::intel_npu ::OptionParser<std::vector<std::size_t>>::parse(opt);
+    sub_inds = ::intel_npu ::OptionParser<std::vector<std::size_t>>::parse(str);
     if (std::find(sub_inds.begin(), sub_inds.end(), sub_idx) != sub_inds.end()) {
         return true;
     }
-
     return false;
 }
 
@@ -168,6 +176,7 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
 
     const auto& from_shape = from->get_shape();
     const auto& scale_shape = scale->get_shape();
+    const auto& zerop_shape = zerop->get_shape();
 
     if (type_from == ov::element::u4) {
         if (scale_shape.size() == 3 && scale_shape[0] == from_shape[0] && scale_shape[1] == 1 &&
@@ -186,8 +195,31 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
             NPUW_ASSERT(false);
         }
     } else if (type_from == ov::element::u8) {
-        // Only support CW for now
-        if (scale_shape.size() == 2 && scale_shape[0] == from_shape[0] && scale_shape[1] == 1) {
+        if (scale_shape.size() == 3 && scale_shape[1] == 1 && scale_shape[2] == 1) {
+            // Special case for broadcasting vocab by 2 dimensions
+            // FIXME: all this logic probably should be in some specific unpack or another util function
+            const auto& from_strides = from->get_strides();
+            const auto& zerop_strides = zerop->get_strides();
+            const auto& scale_strides = scale->get_strides();
+            ov::Tensor wraped_from(from->get_element_type(),
+                                   ov::Shape{from_shape[0], from_shape[1] * from_shape[2]},
+                                   from->data(),
+                                   ov::Strides{from_strides[0], from_strides[2]});
+            ov::Tensor wraped_zerop(zerop->get_element_type(),
+                                    ov::Shape{zerop_shape[0], zerop_shape[1] * zerop_shape[2]},
+                                    zerop->data(),
+                                    ov::Strides{zerop_strides[0], zerop_strides[2]});
+            ov::Tensor wraped_scale(scale->get_element_type(),
+                                    ov::Shape{scale_shape[0], scale_shape[1] * scale_shape[2]},
+                                    scale->data(),
+                                    ov::Strides{scale_strides[0], scale_strides[2]});
+
+            ov::npuw::util::XARCH::unpack_u8f16(ov::get_tensor_impl(wraped_from),
+                                                ov::get_tensor_impl(wraped_zerop),
+                                                ov::get_tensor_impl(wraped_scale),
+                                                to,
+                                                unpack_options);
+        } else if (scale_shape.size() == 2 && scale_shape[0] == from_shape[0] && scale_shape[1] == 1) {
             ov::npuw::util::XARCH::unpack_u8f16(from, zerop, scale, to, unpack_options);
         } else {
             NPUW_ASSERT(false);

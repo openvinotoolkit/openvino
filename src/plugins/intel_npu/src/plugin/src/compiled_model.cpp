@@ -14,32 +14,11 @@
 #include "intel_npu/config/compiler.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/runtime.hpp"
-#include "intel_npu/icompiler.hpp"
 #include "openvino/pass/constant_folding.hpp"
-#include "openvino/pass/manager.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "transformations/utils/utils.hpp"
-
-namespace {
-
-constexpr std::string_view NO_EXECUTOR_FOR_INFERENCE =
-    "Can't create infer request due to create executor failed! Only exports can be made.";
-
-constexpr std::string_view NO_EXECUTOR_FOR_INFERENCE_NODEVICE =
-    "Can't create infer request!\n"
-    "Please make sure that the device is available. Only exports can be made.";
-
-std::uint32_t hash(const intel_npu::CompiledNetwork& blob) {
-    std::uint32_t result = 1171117u;
-    for (const uint8_t* it = blob.data; it != blob.data + blob.size; ++it) {
-        result = ((result << 7) + result) + static_cast<uint32_t>(*it);
-    }
-    return result;
-}
-
-}  // namespace
 
 namespace intel_npu {
 
@@ -51,123 +30,55 @@ std::chrono::steady_clock::time_point end;
 CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
                              const std::shared_ptr<IDevice>& device,
-                             const ov::SoPtr<ICompiler>& compiler,
-                             const bool profiling,
-                             const Config& config)
-    : ICompiledModel(model, plugin),
-      _compiler(compiler),
-      _model(model),
-      _config(config),
-      _logger("CompiledModel", config.get<LOG_LEVEL>()),
-      _device(device) {
-    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::CompiledModel");
-    OPENVINO_ASSERT(compiler != nullptr, "NPU CompiledModel: the pointer towards the compiler object is null");
-
-    try {
-        _logger.debug("performing compile and expecting a network description");
-
-        if (!config.get<SEPARATE_WEIGHTS>()) {
-            _networkPtr = std::make_shared<const NetworkDescription>(_compiler->compile(model, config));
-        } else {
-            _initModel = model->clone();
-
-            begin = std::chrono::steady_clock::now();
-            const std::vector<std::shared_ptr<NetworkDescription>> initMainNetworkDescriptions =
-                _compiler->compileWS(_initModel, config);
-            end = std::chrono::steady_clock::now();
-            std::cout << "compiler->compileWS() call "
-                      << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]"
-                      << std::endl;
-
-            _networkInitPtr = initMainNetworkDescriptions[0];
-            _networkPtr = initMainNetworkDescriptions[1];
-        }
-    } catch (const std::exception& ex) {
-        OPENVINO_THROW(ex.what());
-    } catch (...) {
-        _logger.error("Unexpected exception");
-        OPENVINO_THROW("NPU CompiledModel: got an unexpected exception from compiler");
-    }
-
-    OV_ITT_TASK_CHAIN(COMPILED_MODEL, itt::domains::NPUPlugin, "CompiledModel::CompiledModel", "initialize_properties");
-    initialize_properties();
-    configure_stream_executors();
-
-    OV_ITT_TASK_NEXT(COMPILED_MODEL, "create_executor");
-    _executorPtr = create_executor();
-
-    OV_ITT_TASK_SKIP(COMPILED_MODEL);
-}
-
-CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
-                             const std::shared_ptr<const ov::IPlugin>& plugin,
-                             const std::shared_ptr<const NetworkDescription>& networkDescription,
-                             const std::shared_ptr<IDevice>& device,
-                             const ov::SoPtr<ICompiler>& compiler,
+                             const std::shared_ptr<IGraph>& graph,
                              const Config& config,
-                             const std::shared_ptr<ov::Model>& initModel,
-                             const std::shared_ptr<const NetworkDescription>& initNetworkDescription)
+                             const std::shared_ptr<IGraph>& initGraph,
+                             const std::shared_ptr<ov::Model>& initModel)
     : ICompiledModel(model, plugin),
-      _compiler(compiler),
-      _networkPtr(networkDescription),
-      _networkInitPtr(initNetworkDescription),
       _model(model),
-      _initModel(initModel),
       _config(config),
       _logger("CompiledModel", config.get<LOG_LEVEL>()),
-      _device(device) {
+      _device(device),
+      _graph(graph),
+      _initGraph(initGraph),
+      _initModel(initModel) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::CompiledModel");
-    OPENVINO_ASSERT(_networkPtr != nullptr,
-                    "NPU CompiledModel: the pointer towards the NetworkDescription object is null");
 
     OV_ITT_TASK_CHAIN(COMPILED_MODEL, itt::domains::NPUPlugin, "CompiledModel::CompiledModel", "initialize_properties");
     initialize_properties();
     configure_stream_executors();
-
-    OV_ITT_TASK_NEXT(COMPILED_MODEL, "create_executor");
-    _executorPtr = create_executor();
 
     OV_ITT_TASK_SKIP(COMPILED_MODEL);
 }
 
 CompiledModel::~CompiledModel() {
     _logger.debug("~CompiledModel()");
-    // Call compiler to destroy graphHandle only if no executor created
-    if (_executorPtr == nullptr) {
-        _logger.debug("~CompiledModel() - _executorPtr is a nullptr, compiler release _executorPtr");
-        _compiler->release(_networkPtr);
-    }
 }
 
 std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::create_infer_request");
 
-    if (_executorPtr == nullptr && _device != nullptr) {
-        _executorPtr = _device->createExecutor(_networkPtr, _config);
-    }
-
-    if (_executorPtr == nullptr) {
-        if (_device != nullptr) {
-            OPENVINO_THROW(NO_EXECUTOR_FOR_INFERENCE);
-        } else {
-            _logger.error("Can not find device!");
-            OPENVINO_THROW(NO_EXECUTOR_FOR_INFERENCE_NODEVICE);
-        }
+    if (!_config.get<CREATE_EXECUTOR>() || _config.get<DEFER_WEIGHTS_LOAD>()) {
+        _graph->initialize(_config);
     }
 
     const std::shared_ptr<SyncInferRequest>& syncInferRequest =
-        _device->createInferRequest(shared_from_this(), _executorPtr, _config);
+        _device->createInferRequest(shared_from_this(), _config);
     syncInferRequest->initialize_states();
 
     if (_config.get<SEPARATE_WEIGHTS>()) {
-        begin = std::chrono::steady_clock::now();
-        const std::shared_ptr<IExecutor> initExecutor = _device->createExecutor(_networkInitPtr, _config);
-        end = std::chrono::steady_clock::now();
-        std::cout << "Init create_executor() "
-                  << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
+        if (!_config.get<CREATE_EXECUTOR>() || _config.get<DEFER_WEIGHTS_LOAD>()) {
+            begin = std::chrono::steady_clock::now();
+            _initGraph->initialize(_config);
+            end = std::chrono::steady_clock::now();
+            std::cout << "Init graph->initialize() "
+                      << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]"
+                      << std::endl;
+        }
 
+        OPENVINO_ASSERT(_device != nullptr);
         begin = std::chrono::steady_clock::now();
-        run_init(initExecutor);
+        _weightsInputs = _device->runInit(_initGraph, _initModel, get_context(), _config);
         end = std::chrono::steady_clock::now();
         std::cout << "run_init() call " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()
                   << "[ms]" << std::endl;
@@ -195,60 +106,10 @@ void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
 
     if (_config.get<SEPARATE_WEIGHTS>()) {
-        std::stringstream xmlContent;
-        std::stringstream binContent;
-
-        ov::pass::Manager manager("SaveModel");
-        manager.register_pass<ov::pass::Serialize>(xmlContent, binContent);
-        manager.run_passes(_initModel);
-
-        xmlContent.seekg(0, std::ios::end);
-        size_t xmlSize = xmlContent.tellp();
-        xmlContent.seekg(0, std::ios::beg);
-        binContent.seekg(0, std::ios::end);
-        size_t binSize = binContent.tellp();
-        binContent.seekg(0, std::ios::beg);
-
-        stream << xmlSize;
-        stream << xmlContent.rdbuf();
-
-        stream << binSize;
-        stream << binContent.rdbuf();
-
-        const auto blob = _compiler->getCompiledNetwork(*_networkPtr);
-        stream << blob.size;
-        stream.write(reinterpret_cast<const char*>(blob.data), blob.size);
-
-        const auto initBlob = _compiler->getCompiledNetwork(*_networkInitPtr);
-        stream << initBlob.size;
-        stream.write(reinterpret_cast<const char*>(initBlob.data), initBlob.size);
-
-        if (!stream) {
-            _logger.error("Write blob to stream failed. Blob is broken!");
-        } else {
-            if (_logger.level() >= ov::log::Level::INFO) {
-                std::stringstream str;
-                str << "Blob size: " << blob.size + initBlob.size + 4 * sizeof(size_t) + xmlSize + binSize << std::endl;
-                _logger.info(str.str().c_str());
-            }
-            _logger.info("Write blob to stream successfully.");
-        }
+        _graph->custom_export(stream, _initGraph, _initModel);
         return;
     }
-
-    const auto blob = _compiler->getCompiledNetwork(*_networkPtr);
-    stream.write(reinterpret_cast<const char*>(blob.data), blob.size);
-
-    if (!stream) {
-        _logger.error("Write blob to stream failed. Blob is broken!");
-    } else {
-        if (_logger.level() >= ov::log::Level::INFO) {
-            std::stringstream str;
-            str << "Blob size: " << blob.size << ", hash: " << std::hex << hash(blob);
-            _logger.info(str.str().c_str());
-        }
-        _logger.info("Write blob to stream successfully.");
-    }
+    _graph->export_blob(stream);
 }
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
@@ -271,9 +132,9 @@ void CompiledModel::set_property(const ov::AnyMap& properties) {
     }
 
     _config.update(config);
-    if (_executorPtr != nullptr && config.find(ov::workload_type.name()) != config.end()) {
+    if (config.find(ov::workload_type.name()) != config.end()) {
         const auto workloadType = properties.at(ov::workload_type.name()).as<ov::WorkloadType>();
-        _executorPtr->setWorkloadType(workloadType);
+        _graph->set_workload_type(workloadType);
     }
 }
 
@@ -286,16 +147,12 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     OPENVINO_THROW("Unsupported property ", name);
 }
 
-const std::shared_ptr<const NetworkDescription>& CompiledModel::get_network_description() const {
-    return _networkPtr;
+const std::shared_ptr<IGraph>& CompiledModel::get_graph() const {
+    return _graph;
 }
 
 const Config& CompiledModel::get_config() const {
     return _config;
-}
-
-const ov::SoPtr<ICompiler>& CompiledModel::get_compiler() const {
-    return _compiler;
 }
 
 void CompiledModel::configure_stream_executors() {
@@ -316,7 +173,7 @@ void CompiledModel::configure_stream_executors() {
     }
 
     set_task_executor(std::move(task_executor));
-    const auto executorId = _networkPtr->metadata.name + "_NPUResultExecutor";
+    const auto executorId = _graph->get_metadata().name + "_NPUResultExecutor";
     _resultExecutor = ov::threading::executor_manager()->get_executor(executorId);
 }
 
@@ -355,8 +212,8 @@ void CompiledModel::initialize_properties() {
          {true,
           ov::PropertyMutability::RO,
           [&](const Config&) {
-              OPENVINO_ASSERT(_networkPtr != nullptr, "Missing network descriptor");
-              return _networkPtr->metadata.name;
+              OPENVINO_ASSERT(_graph != nullptr, "Missing graph");
+              return _graph->get_metadata().name;
           }}},
         {ov::optimal_number_of_infer_requests.name(),
          {true,
@@ -484,6 +341,12 @@ void CompiledModel::initialize_properties() {
           [](const Config& config) {
               return config.get<CREATE_EXECUTOR>();
           }}},
+        {ov::intel_npu::defer_weights_load.name(),
+         {false,
+          ov::PropertyMutability::RO,
+          [](const Config& config) {
+              return config.get<DEFER_WEIGHTS_LOAD>();
+          }}},
         {ov::intel_npu::batch_mode.name(),
          {false,
           ov::PropertyMutability::RO,
@@ -496,28 +359,6 @@ void CompiledModel::initialize_properties() {
         if (std::get<0>(property.second)) {
             _supportedProperties.emplace_back(property.first, std::get<1>(property.second));
         }
-    }
-}
-
-std::shared_ptr<IExecutor> CompiledModel::create_executor() {
-    if (_config.get<CREATE_EXECUTOR>() && _device != nullptr) {
-        _logger.info("Creating the executor inside the \"CompiledModel\" constructor");
-
-        // If no device has been defined, the executor shall keep the default value of "nullptr". In this scenario,
-        // only export operations will be allowed
-        return _device->createExecutor(_networkPtr, _config);
-    }
-
-    _logger.info("Executor will not be created inside the \"CompiledModel\" constructor");
-
-    return nullptr;
-}
-
-void CompiledModel::run_init(const std::shared_ptr<IExecutor>& initExecutor) const {
-    if (_device != nullptr && initExecutor != nullptr) {
-        _weightsInputs = _device->runInit(initExecutor, _initModel, get_context(), _config);
-    } else {
-        _logger.info("The \"Init\" schedule did not run while building the \"CompiledModel\" object");
     }
 }
 

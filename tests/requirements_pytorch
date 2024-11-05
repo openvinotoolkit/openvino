@@ -3,12 +3,14 @@
 # optimum still requires numpy<2.0.0
 numpy==1.26.4; python_version < "3.12"
 numpy==2.1.1; python_version >= "3.12"
-torch==2.4.1; platform_system != "Darwin" or platform_machine != "x86_64"
+torch==2.5.1; platform_system != "Darwin" or platform_machine != "x86_64"
 torch==2.2.2; platform_system == "Darwin" and platform_machine == "x86_64"
 --extra-index-url https://download.pytorch.org/whl/cpu
 
-torchvision==0.19.1; platform_system != "Darwin" or platform_machine != "x86_64"
+torchvision==0.20.1; platform_system != "Darwin" or platform_machine != "x86_64"
 torchvision==0.17.2; platform_system == "Darwin" and platform_machine == "x86_64"
+torchaudio==2.5.1; platform_system != "Darwin" or platform_machine != "x86_64"
+torchaudio==2.2.2; platform_system == "Darwin" and platform_machine == "x86_64"
 # transformers 4.45.1 is available
 # but optimum still requires <4.45.0
 transformers==4.44.2
@@ -32,9 +34,7 @@ sacremoses==0.1.1
 sentencepiece==0.2.0
 soundfile==0.12.1
 super-image==0.1.7; python_version < "3.12"
-timm==1.0.8
-torchaudio==2.4.1; platform_system != "Darwin" or platform_machine != "x86_64"
-torchaudio==2.2.2; platform_system == "Darwin" and platform_machine == "x86_64"
+timm==1.0.11
 wheel==0.44.0
 PyYAML==6.0.2
 kornia==0.7.3

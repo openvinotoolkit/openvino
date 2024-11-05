@@ -23,7 +23,7 @@ public:
      * @param model The IR of the model to be compiled
      * @param plugin Pointer towards the NPU plugin instance
      * @param device Backend specific object through which inference requests can be created
-     * @param compiler Module used for compiling the IR model.
+     * @param graph Object holding the graph handle along with distinct fields for metadata
      * @param profiling Flag indicating if profiling was requested. Setting this to "true" will lead to storing the
      * "compiler" parameter inside the newly created "CompiledModel".
      * @param config Custom configuration object
@@ -31,28 +31,10 @@ public:
     CompiledModel(const std::shared_ptr<const ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   const std::shared_ptr<IDevice>& device,
-                  const ov::SoPtr<ICompiler>& compiler,
-                  const bool profiling,
-                  const Config& config);
-
-    /**
-     * @brief The constructor used by the "Plugin::import_model" method.
-     * @param model The IR of the already compiled model
-     * @param plugin Pointer towards the NPU plugin instance
-     * @param networkDescription Object holding the compiled model within a buffer along with distinct fields for its
-     * metadata
-     * @param device Backend specific object through which inference requests can be created
-     * @param compiler If set, the module will be stored inside the newly created "CompiledModel"
-     * @param config Custom configuration object
-     */
-    CompiledModel(const std::shared_ptr<const ov::Model>& model,
-                  const std::shared_ptr<const ov::IPlugin>& plugin,
-                  const std::shared_ptr<const NetworkDescription>& networkDescription,
-                  const std::shared_ptr<IDevice>& device,
-                  const ov::SoPtr<ICompiler>& compiler,
+                  const std::shared_ptr<IGraph>& graph,
                   const Config& config,
-                  const std::shared_ptr<ov::Model>& initModel = nullptr,
-                  const std::shared_ptr<const NetworkDescription>& initNetworkDescription = nullptr);
+                  const std::shared_ptr<IGraph>& initGraph = nullptr,
+                  const std::shared_ptr<ov::Model>& initModel = nullptr);
 
     CompiledModel(const CompiledModel&) = delete;
 
@@ -64,11 +46,6 @@ public:
 
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
 
-    // For CID path mean it get the blob from compiler through pfnGetNativeBinary using
-    // networkDescription->metadata.graphHandle.
-
-    // For CIP path mean it get the blob from
-    // networkDescription->compiledNetwork.
     void export_model(std::ostream& stream) const override;
 
     std::shared_ptr<const ov::Model> get_runtime_model() const override;
@@ -77,34 +54,19 @@ public:
 
     ov::Any get_property(const std::string& name) const override;
 
-    const std::shared_ptr<const NetworkDescription>& get_network_description() const override;
+    const std::shared_ptr<IGraph>& get_graph() const override;
 
     const Config& get_config() const override;
-
-    const ov::SoPtr<ICompiler>& get_compiler() const override;
 
 private:
     void initialize_properties();
 
     void configure_stream_executors();
 
-    std::shared_ptr<IExecutor> create_executor();
-
-    /**
-     * @brief TODO
-     */
-    void run_init(const std::shared_ptr<IExecutor>& initExecutor) const;
-
-    const ov::SoPtr<ICompiler> _compiler;
-
-    std::shared_ptr<const NetworkDescription> _networkPtr;
-    std::shared_ptr<const NetworkDescription> _networkInitPtr;
     const std::shared_ptr<const ov::Model> _model;
-    std::shared_ptr<ov::Model> _initModel;
     Config _config;
     Logger _logger;
     const std::shared_ptr<IDevice> _device;
-    mutable std::shared_ptr<IExecutor> _executorPtr;
     std::shared_ptr<ov::threading::ITaskExecutor> _resultExecutor;
 
     /**
@@ -116,6 +78,10 @@ private:
     // properties map: {name -> [supported, mutable, eval function]}
     std::map<std::string, std::tuple<bool, ov::PropertyMutability, std::function<ov::Any(const Config&)>>> _properties;
     std::vector<ov::PropertyName> _supportedProperties;
+
+    std::shared_ptr<IGraph> _graph;
+    std::shared_ptr<IGraph> _initGraph;
+    std::shared_ptr<ov::Model> _initModel;
 };
 
 }  //  namespace intel_npu

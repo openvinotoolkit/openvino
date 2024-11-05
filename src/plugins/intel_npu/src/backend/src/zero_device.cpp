@@ -64,15 +64,12 @@
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
+#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "openvino/core/type/element_iterator.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/pass/manager.hpp"
-#include "transformations/low_precision/mark_dequantization_subgraph.hpp"
-#include "zero_executor.hpp"
 #include "zero_host_tensor.hpp"
 #include "zero_infer_request.hpp"
 #include "zero_remote_tensor.hpp"
-#include "zero_utils.hpp"
 
 using namespace intel_npu;
 
@@ -82,8 +79,14 @@ ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs
       log("ZeroDevice", Logger::global().level()) {
     log.debug("ZeroDevice::ZeroDevice init");
     device_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
-    zeroUtils::throwOnFail("zeDeviceGetProperties",
-                           zeDeviceGetProperties(_initStructs->getDevice(), &device_properties));
+
+    // Get LUID info, if supported
+    if (_initStructs->isExtensionSupported(std::string(ZE_DEVICE_LUID_EXT_NAME), ZE_MAKE_VERSION(1, 0))) {
+        device_luid.stype = ZE_STRUCTURE_TYPE_DEVICE_LUID_EXT_PROPERTIES;
+        device_properties.pNext = &device_luid;
+    }
+    THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetProperties",
+                                zeDeviceGetProperties(_initStructs->getDevice(), &device_properties));
 
     // Query PCI information
     // Older drivers do not have this implementend. Linux driver returns NOT_IMPLEMENTED, while windows driver returns
@@ -120,46 +123,13 @@ ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs
         device_gops[ov::element::i8] = gops;
         device_gops[ov::element::f16] = 0.5f * gops;
     }
-
-    std::vector<ze_command_queue_group_properties_t> command_group_properties;
-    uint32_t command_queue_group_count = 0;
-    // Discover all command queue groups
-    zeroUtils::throwOnFail(
-        "zeDeviceGetCommandQueueGroupProperties",
-        zeDeviceGetCommandQueueGroupProperties(_initStructs->getDevice(), &command_queue_group_count, nullptr));
-
-    log.debug("ZeroDevice::ZeroDevice - resize command_queue_group_count");
-    command_group_properties.resize(command_queue_group_count);
-
-    for (auto& prop : command_group_properties) {
-        prop.stype = ZE_STRUCTURE_TYPE_COMMAND_QUEUE_GROUP_PROPERTIES;
-        prop.pNext = nullptr;
-    }
-
-    zeroUtils::throwOnFail("zeDeviceGetCommandQueueGroupProperties",
-                           zeDeviceGetCommandQueueGroupProperties(_initStructs->getDevice(),
-                                                                  &command_queue_group_count,
-                                                                  command_group_properties.data()));
-
-    // Find the corresponding command queue group.
-    log.debug("ZeroDevice::ZeroDevice - findGroupOrdinal");
-    _group_ordinal = zeroUtils::findGroupOrdinal(command_group_properties, device_properties);
-    log.debug("ZeroDevice::ZeroDevice - init completed");
-}
-
-std::shared_ptr<IExecutor> ZeroDevice::createExecutor(
-    const std::shared_ptr<const NetworkDescription>& networkDescription,
-    const Config& config) {
-    OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Device::createExecutor");
-    return std::make_shared<ZeroExecutor>(_initStructs, networkDescription, config, _group_ordinal);
 }
 
 std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> ZeroDevice::runInit(
-    const std::shared_ptr<IExecutor>& initExecutor,
+    const std::shared_ptr<IGraph>& initGraph,
     const std::shared_ptr<const ov::Model>& model,
     const ov::SoPtr<ov::IRemoteContext>& context,
     const Config& config) {
-    const auto zeroInitExecutor = static_cast<const ZeroExecutor*>(initExecutor.get());
     std::unordered_map<size_t, TensorData> constantIdToTensorData;
     std::vector<std::vector<std::optional<TensorData>>> inputTensorsData;
     std::vector<std::optional<TensorData>> outputTensorsData;
@@ -187,7 +157,7 @@ std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> ZeroDevice::runIni
               << "[ms]" << std::endl;
 
     begin = std::chrono::steady_clock::now();
-    for (const auto& descriptor : zeroInitExecutor->get_input_descriptors()) {
+    for (const auto& descriptor : initGraph->get_input_descriptors()) {
         size_t id = std::stoi(std::string(descriptor.info.name).substr(INIT_INPUT_WEIGHTS_PREFIX.length()));
         OPENVINO_ASSERT(constantIdToTensorData.count(id), "Mismatch between weights IDs and parsed inputs");
         const ov::SoPtr<ov::ITensor> hostTensor =
@@ -209,7 +179,7 @@ std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> ZeroDevice::runIni
               << "[ms]" << std::endl;
 
     begin = std::chrono::steady_clock::now();
-    for (const auto& descriptor : zeroInitExecutor->get_output_descriptors()) {
+    for (const auto& descriptor : initGraph->get_output_descriptors()) {
         const ov::SoPtr<ov::ITensor> hostTensor =
             createHostTensor(context._ptr,
                              zeroUtils::getOVPrecision(descriptor.info.devicePrecision),
@@ -223,20 +193,27 @@ std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> ZeroDevice::runIni
     std::cout << "Creating output tensors "
               << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
 
-    auto progilingPool = zeroProfiling::ProfilingPool(zeroInitExecutor->graph(),
+    auto progilingPool = zeroProfiling::ProfilingPool(static_cast<ze_graph_handle_t>(initGraph->get_handle()),
                                                       zeroProfiling::POOL_SIZE,
-                                                      zeroInitExecutor->getInitStructs()->getProfilingDdiTable());
-    auto profilingQuery = zeroProfiling::ProfilingQuery(0,
-                                                        zeroInitExecutor->getInitStructs()->getDevice(),
-                                                        zeroInitExecutor->getInitStructs()->getProfilingDdiTable());
+                                                      _initStructs->getProfilingDdiTable());
+    auto profilingQuery =
+        zeroProfiling::ProfilingQuery(0, _initStructs->getDevice(), _initStructs->getProfilingDdiTable());
+
+    ze_device_properties_t properties;
+    properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
+    THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetProperties", zeDeviceGetProperties(_initStructs->getDevice(), &properties));
+
+    auto groupOrdinal = zeroUtils::findGroupOrdinal(_initStructs->getDevice(), properties);
     const auto pipeline = std::make_unique<Pipeline>(config,
-                                                     initExecutor,
+                                                     _initStructs,
+                                                     initGraph,
                                                      progilingPool,
                                                      profilingQuery,
                                                      nullptr,
                                                      inputTensorsData,
                                                      outputTensorsData,
-                                                     /*numberOfCommandLists*/ 1);
+                                                     /*numberOfCommandLists*/ 1,
+                                                     groupOrdinal);
     begin = std::chrono::steady_clock::now();
     pipeline->push();
     pipeline->pull();
@@ -283,6 +260,16 @@ IDevice::Uuid ZeroDevice::getUuid() const {
     return uuid;
 }
 
+ov::device::LUID ZeroDevice::getLUID() const {
+    ov::device::LUID luidstruct;
+    // incompatibility check
+    static_assert(ZE_MAX_DEVICE_LUID_SIZE_EXT == ov::device::LUID::MAX_LUID_SIZE, "LUID size mismatch");
+    for (int i = 0; i < ZE_MAX_DEVICE_LUID_SIZE_EXT; i++) {
+        luidstruct.luid[i] = device_luid.luid.id[i];
+    }
+    return luidstruct;
+}
+
 uint32_t ZeroDevice::getSubDevId() const {
     return device_properties.subdeviceId;
 }
@@ -293,18 +280,38 @@ uint32_t ZeroDevice::getMaxNumSlices() const {
 
 uint64_t ZeroDevice::getAllocMemSize() const {
     ze_graph_memory_query_t query{};
-    zeroUtils::throwOnFail(
-        "pfnQueryContextMemory",
-        _graph_ddi_table_ext.pfnQueryContextMemory(_initStructs->getContext(), ZE_GRAPH_QUERY_MEMORY_DDR, &query));
+    ze_result_t result =
+        _graph_ddi_table_ext.pfnQueryContextMemory(_initStructs->getContext(), ZE_GRAPH_QUERY_MEMORY_DDR, &query);
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnQueryContextMemory", result, _graph_ddi_table_ext);
+
     return query.allocated;
 }
 
 uint64_t ZeroDevice::getTotalMemSize() const {
+#define LEGACY_MAX_MEM_ALLOC_SIZE_BYTES (2147483648)  // 2GB in base-2
+
     ze_graph_memory_query_t query{};
-    zeroUtils::throwOnFail(
-        "pfnQueryContextMemory",
-        _graph_ddi_table_ext.pfnQueryContextMemory(_initStructs->getContext(), ZE_GRAPH_QUERY_MEMORY_DDR, &query));
-    return query.total;
+    ze_result_t result =
+        _graph_ddi_table_ext.pfnQueryContextMemory(_initStructs->getContext(), ZE_GRAPH_QUERY_MEMORY_DDR, &query);
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnQueryContextMemory", result, _graph_ddi_table_ext);
+
+    // For drivers with graph_extension < 1.9 we report fixed 2GB max allocation size (old drivers don't support more)
+    // For drivers with graph_extension > 1.9 we report the value they return
+    if (_initStructs->isExtensionSupported(std::string(ZE_GRAPH_EXT_NAME), ZE_MAKE_VERSION(1, 9))) {
+        // we are safe here, can return the value directly from driver
+        return query.total;
+    }
+#if defined(_WIN32) || defined(__CYGWIN__)
+    // Special case for windows drivers with graph_extension v 1.8
+    if (_initStructs->isExtensionSupported(std::string("ZE_extension_graph_1_8"), ZE_MAKE_VERSION(1, 8))) {
+        // query here returns total system memory in KB, which we need to
+        // divide by 2 (OS limitation) and convert to bytes
+        return (query.total << 9);
+    }
+#endif
+
+    // Default for older drivers: return 2GB
+    return LEGACY_MAX_MEM_ALLOC_SIZE_BYTES;
 }
 
 ov::device::PCIInfo ZeroDevice::getPciInfo() const {
@@ -324,9 +331,8 @@ ov::device::Type ZeroDevice::getDeviceType() const {
 
 std::shared_ptr<SyncInferRequest> ZeroDevice::createInferRequest(
     const std::shared_ptr<const ICompiledModel>& compiledModel,
-    const std::shared_ptr<IExecutor>& executor,
     const Config& config) {
-    return std::make_shared<ZeroInferRequest>(_initStructs, compiledModel, executor, config);
+    return std::make_shared<ZeroInferRequest>(_initStructs, compiledModel, config);
 }
 
 ov::SoPtr<ov::IRemoteTensor> ZeroDevice::createRemoteTensor(std::shared_ptr<ov::IRemoteContext> context,

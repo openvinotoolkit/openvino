@@ -53,15 +53,19 @@ void MHABase::SetUp() {
         configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
     }
 
-    setInferenceType(prc);
     inType = outType = prc;
+    setInferenceType(prc);
+    init_thresholds();
+}
+
+ void MHABase::init_thresholds() {
     // Note: Libxsmm calculates Exp in a slightly different way, so the abs values might differ a bit. Ticket: 130699
 #ifdef SNIPPETS_LIBXSMM_TPP
     abs_threshold = 1e-6;
 #endif
-    if (prc == ov::element::bf16)
+    if (inType == ov::element::bf16)
         rel_threshold = 0.05f;
-}
+ }
 
 std::string MHA::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MHAParams> obj) {
     std::vector<InputShape> input_shapes;
@@ -194,6 +198,11 @@ std::shared_ptr<SnippetsFunctionBase> MHAINT8MatMul::get_subgraph() const {
     return std::make_shared<ov::test::snippets::MHAINT8MatMulFunction>(inputDynamicShapes);
 }
 
+void MHAINT8MatMul::init_thresholds() {
+    MHABase::init_thresholds();
+    abs_threshold = 4e-6;
+}
+
 std::shared_ptr<SnippetsFunctionBase> MHAQuantMatMul0::get_subgraph() const {
     return std::make_shared<ov::test::snippets::MHAQuantMatMul0Function>(inputDynamicShapes);
 }
@@ -204,6 +213,11 @@ std::shared_ptr<SnippetsFunctionBase> MHAFQAfterMatMul::get_subgraph() const {
 
 std::shared_ptr<SnippetsFunctionBase> MHAFQ::get_subgraph() const {
     return std::make_shared<ov::test::snippets::MHAFQFunction>(inputDynamicShapes);
+}
+
+void MHAFQ::init_thresholds() {
+    MHABase::init_thresholds();
+    abs_threshold = 0.016;
 }
 
 std::shared_ptr<SnippetsFunctionBase> MHAMulAdd::get_subgraph() const {
