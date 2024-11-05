@@ -1,10 +1,39 @@
 const fs = require('node:fs/promises');
 
-exports.cleanWord = cleanWord;
-exports.encodeByVoc = encodeByVoc;
-exports.textToTokens = textToTokens;
-exports.splitToWords = splitToWords;
-exports.loadVocabFile = loadVocabFile;
+class Tokenizer {
+  constructor(vocab, original) {
+    this.vocab = vocab;
+    this.original = original;
+  }
+
+  get clsToken() {
+    return this.vocab["[CLS]"];
+  }
+
+  get padToken() {
+    return this.vocab["[PAD]"];
+  }
+
+  get sepToken() {
+    return this.vocab["[SEP]"];
+  }
+
+  tokenize(text) {
+    return textToTokens(text, this.vocab);
+  }
+
+  detokenize(tokens) {
+    return tokens.map(t => this.original[t]).join(' ');
+  }
+
+  static async load(path) {
+    const { vocab, original } = await loadVocabFile(path);
+
+    return new Tokenizer(vocab, original);
+  }
+}
+
+module.exports = Tokenizer;
 
 // Load vocabulary file for encoding
 async function loadVocabFile(vocabFileName) {
@@ -17,7 +46,7 @@ async function loadVocabFile(vocabFileName) {
     vocab[token] = index;
   });
 
-  return vocab;
+  return { vocab, original: lines };
 }
 
 // Remove mark and control chars

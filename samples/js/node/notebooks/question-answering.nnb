@@ -17,61 +17,9 @@
         {
             "language": "javascript",
             "source": [
-                "const {\n  exp,\n  sum,\n  tril,\n  triu,\n  argMax,\n  reshape,\n  getShape,\n  downloadFile,\n  extractValues,\n  matrixMultiplication,\n} = require('../helpers.js');\nconst tokens = require('./tokens_bert.js');\n\nconst { addon: ov } = require('openvino-node'); \n"
+                "const {\n  exp,\n  sum,\n  tril,\n  triu,\n  argMax,\n  reshape,\n  getShape,\n  downloadFile,\n  extractValues,\n  matrixMultiplication,\n} = require('../helpers.js');\nconst Tokenizer = require('./tokenizer_bert.js');\n\nconst { addon: ov } = require('openvino-node');\n"
             ],
             "outputs": []
-        },
-        {
-            "language": "markdown",
-            "source": [
-                "## Download the Model"
-            ],
-            "outputs": []
-        },
-        {
-            "language": "typescript",
-            "source": [
-                "const baseArtifactsDir = '../../assets/models';\n\nconst modelName = 'bert-small-uncased-whole-word-masking-squad-int8-0002';\nconst modelXMLName = `${modelName}.xml`;\nconst modelBINName = `${modelName}.bin`;\n\nconst modelXMLPath = baseArtifactsDir + '/' + modelXMLName;\n\nconst baseURL = 'https://storage.openvinotoolkit.org/repositories/open_model_zoo/2022.3/models_bin/1/bert-small-uncased-whole-word-masking-squad-int8-0002/FP16-INT8/';\n\nawait downloadFile(baseURL + modelXMLName, modelXMLName, baseArtifactsDir);\nawait downloadFile(baseURL + modelBINName, modelBINName, baseArtifactsDir);\n"
-            ],
-            "outputs": [
-                {
-                    "items": [
-                        {
-                            "mime": "application/vnd.code.notebook.stdout",
-                            "value": [
-                                "File successfully stored at '/home/nvishnya/Code/wasm-openvino/samples/js/assets/models/bert-small-uncased-whole-word-masking-squad-int8-0002.bin'",
-                                ""
-                            ]
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "language": "markdown",
-            "source": [
-                "## Download the Vocab"
-            ],
-            "outputs": []
-        },
-        {
-            "language": "typescript",
-            "source": [
-                "const baseImagesDir = '../../assets/text';\nconst imgUrl = 'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/text/bert-uncased/vocab.txt';\n\nawait downloadFile(imgUrl, 'vocab.txt', baseImagesDir);\n"
-            ],
-            "outputs": [
-                {
-                    "items": [
-                        {
-                            "mime": "application/vnd.code.notebook.stdout",
-                            "value": [
-                                "File successfully stored at '/home/nvishnya/Code/wasm-openvino/samples/js/assets/text/vocab.txt'",
-                                ""
-                            ]
-                        }
-                    ]
-                }
-            ]
         },
         {
             "language": "markdown",
@@ -83,35 +31,9 @@
         {
             "language": "typescript",
             "source": [
-                "const core = new ov.Core();\nconst model = await core.readModel(modelXMLPath);\n\nconst _ppp = new ov.preprocess.PrePostProcessor(model);\n_ppp.input(0).tensor().setElementType(ov.element.f32);\n_ppp.input(1).tensor().setElementType(ov.element.f32);\n_ppp.input(2).tensor().setElementType(ov.element.f32);\n_ppp.input(3).tensor().setElementType(ov.element.f32);\n_ppp.build();\n\nconst compiledModel = await core.compileModel(model, 'CPU');\n\nconst inputs = compiledModel.inputs;\nconst outputs = compiledModel.outputs;\n\nconst inputSize = compiledModel.input(0).shape[1];\n"
+                "const modelXMLPath =\n  '../../assets/models/bert-small-uncased-whole-word-masking-squad-0001.xml',\n\nconst core = new ov.Core();\nconst model = await core.readModel(modelXMLPath);\n\nconst _ppp = new ov.preprocess.PrePostProcessor(model);\n_ppp.input(0).tensor().setElementType(ov.element.f32);\n_ppp.input(1).tensor().setElementType(ov.element.f32);\n_ppp.input(2).tensor().setElementType(ov.element.f32);\n_ppp.build();\n\nconst compiledModel = await core.compileModel(model, 'AUTO');\n\nconst { inputs, outputs } = compiledModel;\nconst inputSize = compiledModel.input(0).shape[1];\n\nconsole.log('Input size:', inputSize);\n"
             ],
             "outputs": []
-        },
-        {
-            "language": "javascript",
-            "source": [
-                "console.log('=== Model Inputs:');\ninputs.forEach(i => console.log(`${i}`));\nconsole.log('=== Model Outputs:');\noutputs.forEach(o => console.log(`${o}`));\n"
-            ],
-            "outputs": [
-                {
-                    "items": [
-                        {
-                            "mime": "application/vnd.code.notebook.stdout",
-                            "value": [
-                                "=== Model Inputs:",
-                                "input_ids",
-                                "attention_mask",
-                                "token_type_ids",
-                                "position_ids",
-                                "=== Model Outputs:",
-                                "output_s",
-                                "output_e",
-                                ""
-                            ]
-                        }
-                    ]
-                }
-            ]
         },
         {
             "language": "markdown",
@@ -123,14 +45,14 @@
         {
             "language": "javascript",
             "source": [
-                "// The path to the vocabulary file.\nconst vocabFilePath = \"../../assets/text/vocab.txt\";\n\n// Create a dictionary with words and their indices.\nconst vocab = await tokens.loadVocabFile(vocabFilePath);\n\n// Define special tokens.\nconst clsToken = vocab[\"[CLS]\"];\nconst padToken = vocab[\"[PAD]\"];\nconst sepToken = vocab[\"[SEP]\"];\n\n// A function to load text from given urls.\nfunction loadContext(sources) {\n  const input_urls = [];\n  const paragraphs = [];\n    \n  for (source of sources) {\n    paragraphs.push(source);\n\n    // Produce one big context string.\n    return paragraphs.join('\\n');\n  }\n}\n"
+                "// Initialize BERT tokenizer\nconst tokenizer = await Tokenizer.load('../../assets/vocab/vocab.txt');\n"
             ],
             "outputs": []
         },
         {
             "language": "markdown",
             "source": [
-                "## Preprocessing\n\nThe input size in this case is 384 tokens long. The main input (`input_ids`) to used BERT model consists of two parts: question tokens and context tokens separated by some special tokens. \n\nIf `question + context` are shorter than 384 tokens, padding tokens are added. If `question + context` is longer than 384 tokens, the context must be split into parts and the question with different parts of context must be fed to the network many times. \n\nUse overlapping, so neighbor parts of the context are overlapped by half size of the context part (if the context part equals 300 tokens, neighbor context parts overlap with 150 tokens). You also need to provide the following sequences of integer values: \n\n- `attention_mask` - a sequence of integer values representing the mask of valid values in the input. \n- `token_type_ids` - a sequence of integer values representing the segmentation of `input_ids` into question and context. \n- `position_ids` - a sequence of integer values from 0 to 383 representing the position index for each input token. \n\nFor more information, refer to the **Input** section of [BERT model documentation](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/intel/bert-small-uncased-whole-word-masking-squad-int8-0002#input)."
+                "## Preprocessing\n\nThe input size in this case is 384 tokens long. The main input (`input_ids`) to used BERT model consists of two parts: question tokens and context tokens separated by some special tokens. \n\nIf `question + context` are shorter than 384 tokens, padding tokens are added. If `question + context` is longer than 384 tokens, the context must be split into parts and the question with different parts of context must be fed to the network many times. \n\nUse overlapping, so neighbor parts of the context are overlapped by half size of the context part (if the context part equals 300 tokens, neighbor context parts overlap with 150 tokens). You also need to provide the following sequences of integer values: \n\n- `attention_mask` - a sequence of integer values representing the mask of valid values in the input. \n- `token_type_ids` - a sequence of integer values representing the segmentation of `input_ids` into question and context.\n\nFor more information, refer to the **Input** section of [BERT model documentation](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/intel/bert-small-uncased-whole-word-masking-squad-int8-0002#input)."
             ],
             "outputs": []
         },
@@ -158,14 +80,14 @@
         {
             "language": "javascript",
             "source": [
-                "// A function to add padding.\nfunction pad({ inputIds, attentionMask, tokenTypeIds }) {\n  // How many padding tokens.\n  const diffInputSize = inputSize - inputIds.length;\n\n  if (diffInputSize > 0) {\n    // Add padding to all the inputs.\n    inputIds = inputIds.concat(Array(diffInputSize).fill(padToken));\n    attentionMask = attentionMask.concat(Array(diffInputSize).fill(0));\n    tokenTypeIds = tokenTypeIds.concat(Array(diffInputSize).fill(0));\n  }\n\n  return [inputIds, attentionMask, tokenTypeIds, diffInputSize];\n}\n"
+                "// A function to add padding.\nfunction pad({ inputIds, attentionMask, tokenTypeIds }) {\n  // How many padding tokens.\n  const diffInputSize = inputSize - inputIds.length;\n\n  if (diffInputSize > 0) {\n    // Add padding to all the inputs.\n    inputIds = inputIds.concat(Array(diffInputSize).fill(tokenizer.padToken));\n    attentionMask = attentionMask.concat(Array(diffInputSize).fill(0));\n    tokenTypeIds = tokenTypeIds.concat(Array(diffInputSize).fill(0));\n  }\n\n  return [inputIds, attentionMask, tokenTypeIds, diffInputSize];\n}\n"
             ],
             "outputs": []
         },
         {
             "language": "javascript",
             "source": [
-                "// A generator of a sequence of inputs.\nfunction* prepareInput(questionTokens, contextTokens) {\n  // A length of question in tokens.\n  const questionLen = questionTokens.length;\n  // The context part size.\n  const contextLen = inputSize - questionLen - 3;\n\n  if (contextLen < 16)\n      throw new Error('Question is too long in comparison to input size. No space for context');\n\n  const inputLayerNames = inputs.map(i => i.toString());\n\n  // Take parts of the context with overlapping by 0.5.\n  const max = Math.max(1, contextTokens.length - contextLen);\n\n  for (let start = 0; start < max; start += parseInt(contextLen / 2)) {\n    // A part of the context.\n    const partContextTokens = contextTokens.slice(start, start + contextLen);\n    // The input: a question and the context separated by special tokens.\n    let inputIds = [clsToken, ...questionTokens, sepToken, ...partContextTokens, sepToken];\n    // 1 for any index if there is no padding token, 0 otherwise.\n    let attentionMask = Array(inputIds.length).fill(1);\n    // 0 for question tokens, 1 for context part.\n    let tokenTypeIds = [...Array(questionLen + 2).fill(0), ...Array(partContextTokens.length + 1).fill(1)];\n\n    let padNumber = 0;\n\n    // Add padding at the end.\n    [inputIds, attentionMask, tokenTypeIds, padNumber] = pad({ inputIds, attentionMask, tokenTypeIds });\n\n    // Create an input to feed the model.\n    const inputDict = {\n      'input_ids': new Float32Array(inputIds),\n      'attention_mask': new Float32Array(attentionMask),\n      'token_type_ids': new Float32Array(tokenTypeIds),\n    };\n\n    // Some models require additional position_ids.\n    if (inputLayerNames.includes('position_ids')) {\n      positionIds = inputIds.map((_, index) => index);\n      inputDict['position_ids'] = new Float32Array(positionIds);\n    }\n\n    yield [inputDict, padNumber, start];\n  }\n}\n"
+                "// A generator of a sequence of inputs.\nfunction* prepareInput(questionTokens, contextTokens) {\n  // A length of question in tokens.\n  const questionLen = questionTokens.length;\n  // The context part size.\n  const contextLen = inputSize - questionLen - 3;\n\n  if (contextLen < 16)\n      throw new Error('Question is too long in comparison to input size. No space for context');\n\n  const inputLayerNames = inputs.map(i => i.toString());\n\n  // Take parts of the context with overlapping by 0.5.\n  const max = Math.max(1, contextTokens.length - contextLen);\n\n  for (let start = 0; start < max; start += parseInt(contextLen / 2)) {\n    // A part of the context.\n    const partContextTokens = contextTokens.slice(start, start + contextLen);\n    // The input: a question and the context separated by special tokens.\n    let inputIds = [\n      tokenizer.clsToken,\n      ...questionTokens,\n      tokenizer.sepToken,\n      ...partContextTokens,\n      tokenizer.sepToken,\n    ];\n    // 1 for any index if there is no padding token, 0 otherwise.\n    let attentionMask = Array(inputIds.length).fill(1);\n    // 0 for question tokens, 1 for context part.\n    let tokenTypeIds = [...Array(questionLen + 2).fill(0), ...Array(partContextTokens.length + 1).fill(1)];\n\n    let padNumber = 0;\n\n    // Add padding at the end.\n    [inputIds, attentionMask, tokenTypeIds, padNumber] = pad({ inputIds, attentionMask, tokenTypeIds });\n\n    // Create an input to feed the model.\n    const inputDict = {\n      'input_ids': new Float32Array(inputIds),\n      'attention_mask': new Float32Array(attentionMask),\n      'token_type_ids': new Float32Array(tokenTypeIds),\n    };\n\n    // Some models require additional position_ids.\n    if (inputLayerNames.includes('position_ids')) {\n      positionIds = inputIds.map((_, index) => index);\n      inputDict['position_ids'] = new Float32Array(positionIds);\n    }\n\n    yield [inputDict, padNumber, start];\n  }\n}\n"
             ],
             "outputs": []
         },
@@ -186,7 +108,7 @@
         {
             "language": "javascript",
             "source": [
-                "function getBestAnswer(question, context) {\n  // Convert the context string to tokens.\n  const [contextTokens, contextTokensStartEnd] = tokens.textToTokens(context.toLowerCase(), vocab);\n  // Convert the question string to tokens.\n  const [questionTokens] = tokens.textToTokens(question.toLowerCase(), vocab);\n\n  const results = [];\n  // Iterate through different parts of the context.\n  for ([networkInput, padding, startIdx] of prepareInput(questionTokens, contextTokens)) {\n    // Get output layers.\n    const outputStartKey = compiledModel.output('output_s');\n    const outputEndKey = compiledModel.output('output_e');\n\n    // OpenVINO inference.\n    const inferRequest = compiledModel.createInferRequest();\n\n    const transformedInput = {\n      'input_ids': new ov.Tensor(ov.element.f32, [1, 384], networkInput['input_ids']),\n      'attention_mask': new ov.Tensor(ov.element.f32, [1, 384], networkInput['attention_mask']),\n      'token_type_ids': new ov.Tensor(ov.element.f32, [1, 384], networkInput['token_type_ids']),\n      'position_ids': new ov.Tensor(ov.element.f32, [1, 384], networkInput['position_ids']),\n    }\n\n    inferRequest.infer(transformedInput);\n\n    const resultStart = inferRequest.getTensor(outputStartKey).data;\n    const resultEnd = inferRequest.getTensor(outputEndKey).data;\n\n    // Postprocess the result, getting the score and context range for the answer.\n    const scoreStartEnd = postprocess(resultStart,\n                                  resultEnd,\n                                  questionTokens,\n                                  contextTokensStartEnd,\n                                  padding,\n                                  startIdx);\n    results.push(scoreStartEnd);\n  }\n\n  // Find the highest score.\n  const scores = results.map(r => r[0]);\n  const maxIndex = scores.indexOf(Math.max(scores));\n\n  const answer = results[maxIndex];\n  // Return the part of the context, which is already an answer.\n  return [context.slice(answer[1], answer[2]), answer[0]];\n}\n"
+                "function getBestAnswer(question, context) {\n  // Convert the context string to tokens.\n  const [contextTokens, contextTokensStartEnd] = tokenizer.tokenize(context.toLowerCase());\n  // Convert the question string to tokens.\n  const [questionTokens] = tokenizer.tokenize(question.toLowerCase());\n\n  // Get output layers.\n  const outputStartKey = compiledModel.output('output_s');\n  const outputEndKey = compiledModel.output('output_e');\n\n  const inferRequest = compiledModel.createInferRequest();\n\n  const results = [];\n  const preparedInput = prepareInput(questionTokens, contextTokens);\n\n  // Iterate through different parts of the context.\n  for ([networkInput, padding, startIdx] of preparedInput) {\n    // OpenVINO inference\n    inferRequest.infer({\n      'input_ids': new ov.Tensor(ov.element.f32, [1, inputSize], networkInput['input_ids']),\n      'attention_mask': new ov.Tensor(ov.element.f32, [1, inputSize], networkInput['attention_mask']),\n      'token_type_ids': new ov.Tensor(ov.element.f32, [1, inputSize], networkInput['token_type_ids']),\n    });\n\n    const resultStartData = inferRequest.getTensor(outputStartKey).data;\n    const resultEndData = inferRequest.getTensor(outputEndKey).data;\n\n    // Postprocess the result, getting the score and context range for the answer.\n    const scoreStartEnd = postprocess(resultStartData,\n                                  resultEndData,\n                                  questionTokens,\n                                  contextTokensStartEnd,\n                                  padding,\n                                  startIdx);\n\n    results.push(scoreStartEnd);\n  }\n\n  // Find the highest score.\n  const scores = results.map(r => r[0]);\n  const maxIndex = argMax(scores);\n\n  const answer = results[maxIndex];\n  // Return the part of the context, which is already an answer.\n  return [context.slice(answer[1], answer[2]), answer[0]];\n}\n"
             ],
             "outputs": []
         },
@@ -200,23 +122,9 @@
         {
             "language": "javascript",
             "source": [
-                "function runQuestionAnswering(sources, exampleQuestion) {\n  console.log(`Context: ${sources}`);\n  const context = loadContext(sources);\n\n  if (!context.length)\n    return console.log('Error: Empty context or outside paragraphs');\n\n  if (exampleQuestion) {\n    const startTime = process.hrtime.bigint();\n    const [answer, score] = getBestAnswer(exampleQuestion, context);\n    const execTime = Number(process.hrtime.bigint() - startTime) / 1e9;\n\n    console.log(`Question: ${exampleQuestion}`);\n    console.log(`Answer: ${answer}`);\n    console.log(`Score: ${score}`);\n    console.log(`Time: ${execTime}s`);\n  }\n}\n\nconst sources = [\"Computational complexity theory is a branch of the theory of computation in theoretical computer \" +\n  \"science that focuses on classifying computational problems according to their inherent difficulty, \" +\n  \"and relating those classes to each other. A computational problem is understood to be a task that \" +\n  \"is in principle amenable to being solved by a computer, which is equivalent to stating that the \" +\n  \"problem may be solved by mechanical application of mathematical steps, such as an algorithm.\"]\n\nrunQuestionAnswering(sources, 'What is the term for a task that generally lends itself to being solved by a computer?');\n"
+                "function runQuestionAnswering(sources, exampleQuestion) {\n  const context = sources.join('\\n');\n\n  if (!context.length)\n    return console.log('Error: Empty context or outside paragraphs');\n\n  if (exampleQuestion) {\n    const startTime = process.hrtime.bigint();\n    const [answer, score] = getBestAnswer(exampleQuestion, context);\n    const execTime = Number(process.hrtime.bigint() - startTime) / 1e9;\n\n    console.log(`Question: ${exampleQuestion}`);\n    console.log(`Answer: ${answer}`);\n    console.log(`Score: ${score}`);\n    console.log(`Time: ${execTime}s`);\n  }\n}\n\nconst context = [\n  'Computational complexity theory is a branch of the theory of computation in ' +\n  'theoretical computer science that focuses on classifying computational ' +\n  'problems according to their inherent difficulty and relating those classes ' +\n  'to each other. A computational problem is understood to be a task that is in ' +\n  'principle amenable to being solved by a computer, which is equivalent to ' +\n  'stating that the problem may be solved by mechanical application of ' +\n  'mathematical steps, such as an algorithm.',\n];\n\nconst question = 'What is the term for a task that generally lends itself to being solved by a computer?';\n\ntry {\n  runQuestionAnswering(context, question);\n} catch (error) {\n  console.error(error);\n}\n"
             ],
-            "outputs": [
-                {
-                    "items": [
-                        {
-                            "mime": "application/vnd.code.notebook.stdout",
-                            "value": [
-                                "Context: Computational complexity theory is a branch of the theory of computation in theoretical computer science that focuses on classifying computational problems according to their inherent difficulty, and relating those classes to each other. A computational problem is understood to be a task that is in principle amenable to being solved by a computer, which is equivalent to stating that the problem may be solved by mechanical application of mathematical steps, such as an algorithm.",
-                                "Score: 0.5286847737759395",
-                                "Time: 0.045750747s",
-                                ""
-                            ]
-                        }
-                    ]
-                }
-            ]
+            "outputs": []
         }
     ]
 }
