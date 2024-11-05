@@ -1447,6 +1447,19 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
 
                 ov::AnyMap update_config = config;
                 update_config[ov::loaded_from_cache.name()] = true;
+
+                if (update_config[ov::cache_mode.name()] == ov::CacheMode::OPTIMIZE_SIZE) {
+                    std::string weights_path;
+                    auto pos = cacheContent.modelPath.rfind('.');
+                    if (pos != cacheContent.modelPath.npos) {
+                        weights_path = cacheContent.modelPath.substr(0, pos);
+                    }
+                    weights_path += ".bin";
+                    if (!ov::util::file_exists(weights_path)) {
+                        OPENVINO_THROW("Weights file does not exist");
+                    }
+                    update_config[ov::weights_path.name()] = weights_path;
+                }
                 compiled_model = context ? plugin.import_model(networkStream, context, update_config)
                                          : plugin.import_model(networkStream, update_config);
             });
