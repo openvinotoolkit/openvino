@@ -332,12 +332,6 @@ bool convert_function_precision(const std::shared_ptr<Model>& f,
 
                 auto& convert_output_tensor = convert->get_output_tensor(0);
                 convert_output_tensor.set_names(result_input.get_names());
-                OPENVINO_SUPPRESS_DEPRECATED_START
-                const auto& legacy_name = ov::descriptor::get_ov_tensor_legacy_name(result_input.get_tensor());
-                if (!legacy_name.empty()) {
-                    ov::descriptor::set_ov_tensor_legacy_name(convert_output_tensor, legacy_name);
-                }
-                OPENVINO_SUPPRESS_DEPRECATED_END
 
                 result_input.set_names({});
                 result->input(0).replace_source_output(convert->output(0));
