@@ -60,6 +60,7 @@ log_level: INFO
 - `ol` - **Optional**. Output layer layout.
 - `iml` - **Optional**. Input model layout.
 - `oml` - **Optional**. Output model layout.
+- `shape` - **Optional**. Input layer shape.
 
 Examples:
 ```
