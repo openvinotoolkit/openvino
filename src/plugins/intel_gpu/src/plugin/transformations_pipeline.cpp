@@ -183,7 +183,9 @@ static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node
     };
 
     const auto consumers = node->get_output_target_inputs(0);
-    if (all_has_types(consumers, { ov::op::v0::MatMul::get_type_info_static(), ov::op::v8::Gather::get_type_info_static() }))
+    if (all_has_types(consumers, { ov::op::v0::MatMul::get_type_info_static(),
+                                   ov::op::v8::Gather::get_type_info_static(),
+                                   ov::op::v1::Convolution::get_type_info_static() }))
         return true;
 
     auto are_multiply_from_decompression = [&all_has_types](const ov::Input<ov::Node> consumer) {
@@ -202,7 +204,9 @@ static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node
             const auto child_consumers = consumer.get_node()->get_output_target_inputs(0);
             for (const auto& child_consumer : child_consumers) {
                 const auto& type_info = child_consumer.get_node()->get_type_info();
-                if (cldnn::one_of(type_info, { ov::opset1::MatMul::get_type_info_static(), ov::op::v8::Gather::get_type_info_static() }))
+                if (cldnn::one_of(type_info, { ov::opset1::MatMul::get_type_info_static(),
+                                               ov::op::v8::Gather::get_type_info_static(),
+                                               ov::op::v1::Convolution::get_type_info_static() }))
                     continue;
                 if (are_multiply_from_decompression(child_consumer)) {
                     continue;
@@ -216,7 +220,9 @@ static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node
     if (all_has_types(consumers, { ov::opset1::Reshape::get_type_info_static() })) {
         for (const auto& consumer : consumers) {
             const auto child_consumers = consumer.get_node()->get_output_target_inputs(0);
-            if (all_has_types(child_consumers, { ov::opset1::MatMul::get_type_info_static(), ov::op::v8::Gather::get_type_info_static() }) ||
+            if (all_has_types(child_consumers, { ov::opset1::MatMul::get_type_info_static(),
+                                                 ov::op::v8::Gather::get_type_info_static(),
+                                                 ov::op::v1::Convolution::get_type_info_static() }) ||
                 are_converts_from_decompression(child_consumers)) {
                 return true;
             }
@@ -756,9 +762,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             return ov::is_type<ov::opset1::Multiply>(node) && !MultiplyToGroupConvolutionTransformation::canBeTransformedToGroupConvolution(node);
         });
 
-        lptPassConfig->set_callback<AddTransformation>([](const_node_ptr& node) -> bool {
-            return ov::marked_as_bias(node);
-        });
         lptPassConfig->set_callback<FoldConvertTransformation>([](const_node_ptr& node) -> bool {
             const auto& consumers = node->get_output_target_inputs(0);
             if (consumers.size() == 1) {
