@@ -17,6 +17,7 @@ class TRANSFORMATIONS_API ActivationsScaling;
 namespace activations_scaling {
 
 class TRANSFORMATIONS_API ScaleDownSingleLayer;
+class TRANSFORMATIONS_API ScaleDownMultipleLayers;
 class TRANSFORMATIONS_API MulGroupNormTransformation;
 class TRANSFORMATIONS_API MulMulAddTransformation;
 class TRANSFORMATIONS_API SplitTransformation;
@@ -47,6 +48,12 @@ class ov::pass::activations_scaling::ScaleDownSingleLayer : public ov::pass::Mat
 public:
     OPENVINO_RTTI("ScaleDownSingleLayer", "0");
     ScaleDownSingleLayer(float scale_factor);
+};
+
+class ov::pass::activations_scaling::ScaleDownMultipleLayers : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("ScaleDownMultipleLayers", "0");
+    ScaleDownMultipleLayers(float scale_factor);
 };
 
 class ov::pass::activations_scaling::MulGroupNormTransformation : public ov::pass::MatcherPass {
