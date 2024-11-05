@@ -203,7 +203,7 @@ private:
         using VS = std::vector<ov::npuw::Subgraph::Ref>;
         VM mdls;
         VS refs;
-        std::unordered_set<std::shared_ptr<ov::Node>> consts_to_keep;
+        std::set<std::shared_ptr<ov::Node>> consts_to_keep;
 
         // Map every function call instance' Parameter and result
         // back to its prototype Parameter and Result
@@ -320,6 +320,8 @@ public:
     void spatial(const std::string& func_name);
     void optimize(const std::string& func_name);
     void decompressionCutOff(const std::string& func_name);
+
+    void dropConsts();
 
     // Final steps
     void finalizeLinks();
@@ -1630,6 +1632,12 @@ void Partitioner::createFunction(const std::string& func_name) {
     createFunction(all_functions.at(func_name));
 }
 
+void Partitioner::dropConsts() {
+    for (auto& func : all_functions) {
+        func.second.consts_to_keep.clear();
+    }
+}
+
 void Partitioner::matchRepeatedSubgraphs(const std::string& func_name) {
     using namespace ov::npuw::weights;
 
@@ -2223,22 +2231,26 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
     p.identifySubgraphs();
 
     if (!ens.repeated.empty()) {
+        // 99% sure 2..last-1 consts are kept alive here...
         if (cfg.get<::intel_npu::NPUW_FOLD>()) {
             // Do full-featured folding
             auto all_functions = p.initFunctionPipeline(Partitioner::FunctionPipelineType::FOLD);
             for (auto&& func_group : all_functions) {
                 LOG_INFO("FOLD: Process function " << func_group << "...");
                 LOG_BLOCK();
+                // sus
                 p.propagateSlices(func_group);
                 p.propagateConverts(func_group);
                 p.propagateWeights(func_group);
                 p.propagateScalars(func_group);
                 p.propagateConvertsOut(func_group);
                 p.sanityCheck(func_group);
-                p.saveRepeatedConstants(func_group);
+                p.saveRepeatedConstants(func_group); // consts_to_keep
                 p.matchParameters(func_group);
                 p.matchResults(func_group);
                 p.matchRepeatedSubgraphs(func_group);
+                // sus
+                p.dropConsts(); // not helping
                 p.spatial(func_group);
                 p.optimize(func_group);
                 p.decompressionCutOff(func_group);

@@ -41,12 +41,15 @@ public:
 
     LazyTensor() = default;
     LazyTensor(const TransformType& type, const Transform& transform);
+    //~LazyTensor();
 
     bool operator==(const LazyTensor& other) const;
     bool operator!=(const LazyTensor& other) const;
 
     void update(const TransformType& type, const Transform& transform);
     ov::Tensor eval() const;
+
+    void drop_if_const();
 
     ov::Tensor get_orig_tensor() const;
     std::size_t get_hash() const;
