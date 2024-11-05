@@ -132,6 +132,10 @@ void DefineBufferClusters::parse_loop(const LoopManagerPtr& loop_manager, const 
 
             const auto in_path = MarkInvariantShapePath::getInvariantPortShapePath(*input_buffer_port_info.port.expr_port);
             const auto out_path = MarkInvariantShapePath::getInvariantPortShapePath(*output_buffer_port_info.port.expr_port);
+            //  - Memory can be reused if there are the same loop pointer increments (data size, final offsets, ptr increments).
+            //    For that, loop ports with buffers should be on the same shape-path and have the same value of `is_incremented`.
+            if (in_path != out_path || input_buffer_port_info.port.is_incremented != output_buffer_port_info.port.is_incremented)
+                continue;
 
             //  - Memory can be shared if Buffer has the same allocation size.
             if (input_buffer_expr->is_defined() && output_buffer_expr->is_defined()) {
@@ -140,18 +144,9 @@ void DefineBufferClusters::parse_loop(const LoopManagerPtr& loop_manager, const 
             } else {
                 // If allocation sizes are undefined, we can check if they have the same allocation sizes in runtime:
                 //  - they should calculate allocation size using the common algorithm from `BufferExpression::init_allocation_size`.
-                //  - they should be on the same `shape path` - this guarantees the same shapes in runtime.
-                const auto is_the_same_init_algo =
-                    utils::everyone_is(BufferExpression::get_type_info_static(), input_buffer_expr->get_type_info(), output_buffer_expr->get_type_info());
-                const auto is_the_same_shape_paths = in_path == out_path;
-                if (!is_the_same_init_algo || !is_the_same_shape_paths)
+                if (!utils::everyone_is(BufferExpression::get_type_info_static(), input_buffer_expr->get_type_info(), output_buffer_expr->get_type_info()))
                     continue;
             }
-
-            //  - Memory can be reused if there are the same LoopPortDesc (data size, final offsets, ptr increments).
-            //    LoopPorts should be on the same shape-path and have the same value of `is_incremented`.
-            if (in_path != out_path || input_buffer_port_info.port.is_incremented != output_buffer_port_info.port.is_incremented)
-                continue;
 
             const auto cluster_it = find_cluster_by_expr(input_buffer_expr);
             OPENVINO_ASSERT(cluster_it != m_clusters.end(), "Buffer on inputs of Loop must be already saved in clusters");

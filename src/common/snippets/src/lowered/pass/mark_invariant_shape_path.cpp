@@ -18,16 +18,12 @@ namespace pass {
 
 namespace {
 
-// Specific value to mark ports which does't affect output shape of broadcastable ops.
+// Specific value to mark ports which doesn't affect output shape of broadcastable ops.
 // For example, ops with output scalar shape or Horizon ops.
 static const size_t NOT_AFFECTING_PATH = SIZE_MAX;
 
 static bool is_shape_broadcastable_op(const ExpressionPtr& expr) {
-    const auto& node = expr->get_node();
-    return ov::op::util::is_binary_elementwise_arithmetic(node) ||
-           ov::op::util::is_binary_elementwise_comparison(node) ||
-           ov::op::util::is_binary_elementwise_logical(node) ||
-           ov::is_type<ov::op::v1::Select>(node);
+    return expr->get_node()->get_autob() != ov::op::AutoBroadcastType::NONE;
 }
 
 static bool is_not_affecting_op(const ExpressionPtr& expr) {
