@@ -11,8 +11,40 @@
 #include "transformations/rt_info/keep_const_precision.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "transformations/convert_precision.hpp"
 
 using namespace ov;
+
+TEST_F(TransformationTestsF, KeepConstPrecision) {
+    {
+        auto lp_const = std::make_shared<opset10::Constant>(element::u4, Shape{27}, 1);
+
+        const auto target_shape = std::make_shared<opset10::Constant>(ov::element::i64, ov::Shape{3}, 3);
+        auto reshape = std::make_shared<opset10::Reshape>(lp_const, target_shape, false);
+
+        auto second_convert = std::make_shared<opset10::Convert>(reshape, element::f32);
+        auto zero_point = opset10::Constant::create(element::f32, Shape{}, {127});
+        auto subtract = std::make_shared<opset10::Subtract>(second_convert, zero_point);
+        auto scale = opset10::Constant::create(element::f32, Shape{}, {0.2});
+        auto multiply = std::make_shared<opset10::Multiply>(subtract, scale);
+        auto stub_op = std::make_shared<opset10::Relu>(multiply);
+        model = std::make_shared<Model>(stub_op, ParameterVector{});
+    }
+    manager.register_pass<pass::MarkDequantizationSubgraph>(element::TypeVector{element::u4});
+    manager.register_pass<pass::ConstantFolding>();
+    manager.register_pass<pass::ConvertPrecision>(ov::element::u4, ov::element::u8, type_to_fuse_map{}, false, false);
+    manager.register_pass<pass::Serialize>("keep_const_precision.xml", "keep_const_precision.bin");
+    {
+        auto lp_const = std::make_shared<opset10::Constant>(element::u4, Shape{3, 3, 3}, 1);
+        auto second_convert = std::make_shared<opset10::Convert>(lp_const, element::f32);
+        auto zero_point = opset10::Constant::create(element::f32, Shape{}, {127});
+        auto subtract = std::make_shared<opset10::Subtract>(second_convert, zero_point);
+        auto scale = opset10::Constant::create(element::f32, Shape{}, {0.2});
+        auto multiply = std::make_shared<opset10::Multiply>(subtract, scale);
+        auto stub_op = std::make_shared<opset10::Relu>(multiply);
+        model_ref = std::make_shared<Model>(stub_op, ParameterVector{});
+    }
+}
 
 TEST_F(TransformationTestsF, MarkDequantizationSubgraphTransformation) {
     // Input graph:

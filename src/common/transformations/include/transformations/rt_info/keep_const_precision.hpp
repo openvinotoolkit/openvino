@@ -26,10 +26,6 @@ public:
     OPENVINO_RTTI("keep_const_precision", "0");
 
     KeepConstPrecision() = default;
-
-    bool is_copyable() const override {
-        return false;
-    }
 };
 
 }  // namespace ov
