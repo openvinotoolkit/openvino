@@ -100,6 +100,10 @@ set(openvino_wheel_path "${openvino_wheels_output_dir}/${openvino_wheel_name}")
 # create target for openvino.wheel
 #
 
+if(ENABLE_WHEEL_NO_ISOLATION)
+    set(no_isolation_flag "--no-isolation")
+endif()
+
 # for --config-setting explanation see https://github.com/pypa/setuptools/issues/2491
 set(wheel_build_command
     ${Python3_EXECUTABLE} -m build "${CMAKE_CURRENT_SOURCE_DIR}"
@@ -107,7 +111,7 @@ set(wheel_build_command
         --config-setting=--build-option=--build-number=${WHEEL_BUILD}
         --config-setting=--build-option=--plat-name=${PLATFORM_TAG}
         --config-setting=--quiet
-        --no-isolation
+        ${no_isolation_flag}
         --wheel)
 
 add_custom_command(OUTPUT ${openvino_wheel_path}
