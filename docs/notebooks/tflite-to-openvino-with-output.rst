@@ -274,7 +274,7 @@ GPU.
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 9.48 ms
+    [ INFO ] Read model took 10.03 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     images (node: images) : f32 / [...] / [1,224,224,3]
@@ -288,7 +288,7 @@ GPU.
     [ INFO ] Model outputs:
     [ INFO ]     Softmax (node: 61) : f32 / [...] / [1,1000]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 157.24 ms
+    [ INFO ] Compile model took 165.61 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: TensorFlow_Lite_Frontend_IR
@@ -325,15 +325,15 @@ GPU.
     [ INFO ] Fill input 'images' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 7.14 ms
+    [ INFO ] First inference took 6.93 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            17436 iterations
-    [ INFO ] Duration:         15008.41 ms
+    [ INFO ] Count:            14982 iterations
+    [ INFO ] Duration:         15006.90 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        4.99 ms
-    [ INFO ]    Average:       5.03 ms
-    [ INFO ]    Min:           2.84 ms
-    [ INFO ]    Max:           24.60 ms
-    [ INFO ] Throughput:   1161.75 FPS
+    [ INFO ]    Median:        5.47 ms
+    [ INFO ]    Average:       5.91 ms
+    [ INFO ]    Min:           3.02 ms
+    [ INFO ]    Max:           34.80 ms
+    [ INFO ] Throughput:   998.34 FPS
 

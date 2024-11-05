@@ -143,7 +143,7 @@ Import required utility functions. The lower cell will download the
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization/data/intel_rnb.jpg')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization/data/intel_rnb.jpg')
 
 
 
@@ -214,14 +214,14 @@ Let us consider the examples:
 
 .. parsed-literal::
 
-    100%|██████████| 5.97M/5.97M [00:00<00:00, 25.3MB/s]
+    100%|██████████| 5.97M/5.97M [00:00<00:00, 21.1MB/s]
 
 
 .. parsed-literal::
 
     
-    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization/data/intel_rnb.jpg: 480x640 1 person, 59.6ms
-    Speed: 2.1ms preprocess, 59.6ms inference, 0.9ms postprocess per image at shape (1, 3, 480, 640)
+    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization/data/intel_rnb.jpg: 480x640 1 person, 62.6ms
+    Speed: 1.8ms preprocess, 62.6ms inference, 0.9ms postprocess per image at shape (1, 3, 480, 640)
 
 
 
@@ -258,7 +258,7 @@ preserve dynamic shapes in the model.
     OpenVINO: export success ✅ 2.0s, saved as 'yolo11n-pose_openvino_model/' (6.0 MB)
     
     Export complete (2.1s)
-    Results saved to /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization
+    Results saved to /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization
     Predict:         yolo predict task=pose model=yolo11n-pose_openvino_model imgsz=640 half 
     Validate:        yolo val task=pose model=yolo11n-pose_openvino_model imgsz=640 data=/ultralytics/ultralytics/cfg/datasets/coco-pose.yaml half 
     Visualize:       https://netron.app
@@ -338,8 +338,8 @@ ready to check model prediction.
     Loading yolo11n-pose_openvino_model for OpenVINO inference...
     Using OpenVINO LATENCY mode for batch=1 inference...
     
-    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization/data/intel_rnb.jpg: 640x640 1 person, 19.9ms
-    Speed: 2.3ms preprocess, 19.9ms inference, 0.9ms postprocess per image at shape (1, 3, 640, 640)
+    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization/data/intel_rnb.jpg: 640x640 1 person, 20.1ms
+    Speed: 2.8ms preprocess, 20.1ms inference, 1.0ms postprocess per image at shape (1, 3, 640, 640)
 
 
 
@@ -686,8 +686,8 @@ on the image.
     Loading yolo11n-pose_openvino_model for OpenVINO inference...
     Using OpenVINO LATENCY mode for batch=1 inference...
     
-    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization/data/intel_rnb.jpg: 640x640 1 person, 28.0ms
-    Speed: 2.0ms preprocess, 28.0ms inference, 1.1ms postprocess per image at shape (1, 3, 640, 640)
+    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization/data/intel_rnb.jpg: 640x640 1 person, 31.4ms
+    Speed: 2.1ms preprocess, 31.4ms inference, 1.0ms postprocess per image at shape (1, 3, 640, 640)
 
 
 
@@ -748,7 +748,7 @@ models.
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 19.55 ms
+    [ INFO ] Read model took 19.20 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     x (node: x) : f32 / [...] / [?,3,?,?]
@@ -764,7 +764,7 @@ models.
     [ INFO ] Model outputs:
     [ INFO ]     ***NO_NAME*** (node: __module.model.23/aten::cat/Concat_9) : f32 / [...] / [1,56,8400]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 329.35 ms
+    [ INFO ] Compile model took 338.50 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -801,17 +801,17 @@ models.
     [ INFO ] Fill input 'x' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 120000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 33.67 ms
+    [ INFO ] First inference took 33.80 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            17280 iterations
-    [ INFO ] Duration:         120049.75 ms
+    [ INFO ] Count:            17082 iterations
+    [ INFO ] Duration:         120040.01 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        40.74 ms
-    [ INFO ]    Average:       41.55 ms
-    [ INFO ]    Min:           24.20 ms
-    [ INFO ]    Max:           98.48 ms
-    [ INFO ] Throughput:   143.94 FPS
+    [ INFO ]    Median:        40.53 ms
+    [ INFO ]    Average:       42.03 ms
+    [ INFO ]    Min:           30.12 ms
+    [ INFO ]    Max:           171.39 ms
+    [ INFO ] Throughput:   142.30 FPS
 
 
 .. code:: ipython3
@@ -838,7 +838,7 @@ models.
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 28.39 ms
+    [ INFO ] Read model took 28.43 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     x (node: x) : f32 / [...] / [1,3,640,640]
@@ -854,7 +854,7 @@ models.
     [ INFO ] Model outputs:
     [ INFO ]     ***NO_NAME*** (node: __module.model.23/aten::cat/Concat_9) : f32 / [...] / [1,56,8400]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 556.59 ms
+    [ INFO ] Compile model took 573.24 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -891,17 +891,17 @@ models.
     [ INFO ] Fill input 'x' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 30.44 ms
+    [ INFO ] First inference took 25.90 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            5160 iterations
-    [ INFO ] Duration:         15031.11 ms
+    [ INFO ] Count:            5124 iterations
+    [ INFO ] Duration:         15036.37 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        34.62 ms
-    [ INFO ]    Average:       34.76 ms
-    [ INFO ]    Min:           25.46 ms
-    [ INFO ]    Max:           51.89 ms
-    [ INFO ] Throughput:   343.29 FPS
+    [ INFO ]    Median:        34.72 ms
+    [ INFO ]    Average:       35.02 ms
+    [ INFO ]    Min:           25.74 ms
+    [ INFO ]    Max:           52.00 ms
+    [ INFO ] Throughput:   340.77 FPS
 
 
 Compare accuracy of the Original and Quantized Models

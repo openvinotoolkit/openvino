@@ -61,13 +61,6 @@ Imports
     %pip install -q "openvino>=2023.1.0"
     %pip install -q opencv-python "matplotlib>=3.4"
 
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
-
 .. code:: ipython3
 
     import cv2
@@ -119,13 +112,11 @@ the person in each frame of the video.
 
     ################|| Downloading person-detection-0202 ||################
     
-    ========== Downloading model/intel/person-detection-0202/FP16/person-detection-0202.xml
+    ========== Retrieving model/intel/person-detection-0202/FP16/person-detection-0202.xml from the cache
+    
+    ========== Retrieving model/intel/person-detection-0202/FP16/person-detection-0202.bin from the cache
     
     
-    ========== Downloading model/intel/person-detection-0202/FP16/person-detection-0202.bin
-    
-    
-
 
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -348,8 +339,8 @@ Test performance in Sync Mode
 .. parsed-literal::
 
     Source ended
-    average throuput in sync mode: 63.79 fps
-
+    average throuput in sync mode: 55.59 fps
+    
 
 Async Mode
 ~~~~~~~~~~
@@ -487,8 +478,8 @@ Test the performance in Async Mode
 .. parsed-literal::
 
     Source ended
-    average throuput in async mode: 106.83 fps
-
+    average throuput in async mode: 75.17 fps
+    
 
 Compare the performance
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -630,5 +621,5 @@ Test the performance with ``AsyncInferQueue``
 
 .. parsed-literal::
 
-    average throughput in async mode with async infer queue: 145.36 fps
-
+    average throughput in async mode with async infer queue: 103.81 fps
+    

@@ -82,17 +82,18 @@ Install required dependencies
 
     import os
     import requests
+    from pathlib import Path
     
+    utility_files = ["notebook_utils.py", "cmd_helper.py", "pip_helper.py"]
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    open("notebook_utils.py", "w").write(r.text)
-    
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/pip_helper.py",
-    )
-    open("pip_helper.py", "w").write(r.text)
+    for utility in utility_files:
+        local_path = Path(utility)
+        if not local_path.exists():
+            r = requests.get(
+                url=f"https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/{local_path.name}",
+            )
+        with local_path.open("w") as f:
+            f.write(r.text)
     
     os.environ["GIT_CLONE_PROTECTION_ACTIVE"] = "false"
     
@@ -220,6 +221,7 @@ code:
 
     from pathlib import Path
     import huggingface_hub as hf_hub
+    from cmd_helper import optimum_cli
     
     llm_model_path = llm_model_id.value.split("/")[-1]
     repo_name = llm_model_id.value.split("/")[0]
@@ -228,7 +230,7 @@ code:
         if repo_name == "OpenVINO":
             hf_hub.snapshot_download(llm_model_id.value, local_dir=llm_model_path)
         else:
-            !optimum-cli export openvino --model {llm_model_id.value} --task text-generation-with-past --trust-remote-code --weight-format int4 --group-size 128 --ratio 0.8 {llm_model_path}
+            !optimum_cli(llm_model_id.value,  llm_model_path, additional_args=-{"task": "text-generation-with-past", "weight-format": "int4"})
 
 Download Embedding model
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -249,7 +251,7 @@ example.
     embedding_model_path = "bge-small-en-v1.5"
     
     if not Path(embedding_model_path).exists():
-        !optimum-cli export openvino --model {embedding_model_id} --task feature-extraction {embedding_model_path}
+        optimum_cli(embedding_model_id, embedding_model_path, additional_args={"task": "feature-extraction"})
 
 Create models
 -------------

@@ -105,12 +105,12 @@ Prerequisites
 .. parsed-literal::
 
     Cloning into 'DDColor'...
-    remote: Enumerating objects: 233, done.[K
-    remote: Counting objects: 100% (76/76), done.[K
-    remote: Compressing objects: 100% (42/42), done.[K
-    remote: Total 233 (delta 54), reused 34 (delta 34), pack-reused 157 (from 1)[K
-    Receiving objects: 100% (233/233), 13.34 MiB | 641.00 KiB/s, done.
-    Resolving deltas: 100% (80/80), done.
+    remote: Enumerating objects: 241, done.[K
+    remote: Counting objects: 100% (84/84), done.[K
+    remote: Compressing objects: 100% (49/49), done.[K
+    remote: Total 241 (delta 57), reused 37 (delta 35), pack-reused 157 (from 1)[K
+    Receiving objects: 100% (241/241), 14.10 MiB | 21.95 MiB/s, done.
+    Resolving deltas: 100% (83/83), done.
 
 
 
@@ -131,7 +131,7 @@ Prerequisites
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/timm/models/layers/__init__.py:48: FutureWarning: Importing from timm.models.layers is deprecated, please import via timm.layers
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/timm/models/layers/__init__.py:48: FutureWarning: Importing from timm.models.layers is deprecated, please import via timm.layers
       warnings.warn(f"Importing from {__name__} is deprecated, please import via timm.layers", FutureWarning)
 
 
@@ -412,10 +412,10 @@ Perform model quantization
 
 .. parsed-literal::
 
-    2024-10-22 22:45:07.339219: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-10-22 22:45:07.378241: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-11-04 22:52:53.152561: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-11-04 22:52:53.191342: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-10-22 22:45:07.784302: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-11-04 22:52:53.595160: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 
@@ -523,7 +523,7 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 41.84 ms
+    [ INFO ] Read model took 42.05 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     x (node: x) : f32 / [...] / [1,3,512,512]
@@ -539,7 +539,7 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ INFO ] Model outputs:
     [ INFO ]     ***NO_NAME*** (node: __module.refine_net.0.0/aten::_convolution/Add) : f32 / [...] / [1,2,512,512]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 1322.68 ms
+    [ INFO ] Compile model took 1320.85 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -576,16 +576,16 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ INFO ] Fill input 'x' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 545.38 ms
+    [ INFO ] First inference took 547.04 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            78 iterations
-    [ INFO ] Duration:         17636.85 ms
+    [ INFO ] Count:            72 iterations
+    [ INFO ] Duration:         16305.10 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        1348.38 ms
-    [ INFO ]    Average:       1347.67 ms
-    [ INFO ]    Min:           1203.19 ms
-    [ INFO ]    Max:           1415.43 ms
+    [ INFO ]    Median:        1355.96 ms
+    [ INFO ]    Average:       1348.93 ms
+    [ INFO ]    Min:           1250.65 ms
+    [ INFO ]    Max:           1404.40 ms
     [ INFO ] Throughput:   4.42 FPS
 
 
@@ -612,7 +612,7 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 69.74 ms
+    [ INFO ] Read model took 67.50 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     x (node: x) : f32 / [...] / [1,3,512,512]
@@ -628,7 +628,7 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ INFO ] Model outputs:
     [ INFO ]     ***NO_NAME*** (node: __module.refine_net.0.0/aten::_convolution/Add) : f32 / [...] / [1,2,512,512]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 2263.12 ms
+    [ INFO ] Compile model took 2214.08 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -665,17 +665,17 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ INFO ] Fill input 'x' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 270.31 ms
+    [ INFO ] First inference took 276.28 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
     [ INFO ] Count:            156 iterations
-    [ INFO ] Duration:         15580.45 ms
+    [ INFO ] Duration:         15620.78 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        592.37 ms
-    [ INFO ]    Average:       595.05 ms
-    [ INFO ]    Min:           334.73 ms
-    [ INFO ]    Max:           668.12 ms
-    [ INFO ] Throughput:   10.01 FPS
+    [ INFO ]    Median:        588.93 ms
+    [ INFO ]    Average:       596.64 ms
+    [ INFO ]    Min:           428.07 ms
+    [ INFO ]    Max:           986.90 ms
+    [ INFO ] Throughput:   9.99 FPS
 
 
 Interactive inference

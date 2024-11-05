@@ -117,10 +117,25 @@ Install required dependencies
 
 .. code:: ipython3
 
+    from pathlib import Path
+    import requests
+    
     %pip install -q "torch>=2.1.0" "torchvision" "torchaudio" --index-url https://download.pytorch.org/whl/cpu
     %pip install -q "git+https://github.com/eaidova/optimum-intel.git@ea/minicpmv"
     %pip install -q  "nncf>=2.13.0"  "sentencepiece" "tokenizers>=0.12.1" "transformers>=4.45.0" "gradio>=4.36"
-    %pip install -q -U --pre --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly openvino_tokenizers openvino openvino-genai
+    %pip install -q -U --pre --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly openvino-tokenizers openvino openvino-genai
+    
+    
+    utility_files = ["notebook_utils.py", "cmd_helper.py"]
+    
+    for utility in utility_files:
+        local_path = Path(utility)
+        if not local_path.exists():
+            r = requests.get(
+                url=f"https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/{local_path.name}",
+            )
+        with local_path.open("w") as f:
+            f.write(r.text)
 
 Convert and Optimize Model
 --------------------------
@@ -172,13 +187,13 @@ documentation <https://huggingface.co/docs/optimum/intel/openvino/export#export-
 
 .. code:: ipython3
 
-    from pathlib import Path
+    from cmd_helper import optimum_cli
     
     model_id = "llava-hf/llava-1.5-7b-hf"
     model_path = Path(model_id.split("/")[-1]) / "FP16"
     
     if not model_path.exists():
-        !optimum-cli export openvino --model {model_id} --weight-format fp16 {model_path}
+        optimum_cli(model_id, model_path, additional_args={"weight-format": "fp16"})
 
 Compress Model weights to 4 and 8 bits using NNCF
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -325,13 +340,6 @@ Select device from dropdown list for running inference using OpenVINO.
 
 .. code:: ipython3
 
-    import requests
-    
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    open("notebook_utils.py", "w").write(r.text)
-    
     from notebook_utils import device_widget
     
     device = device_widget(exclude=["NPU"])

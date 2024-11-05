@@ -338,5 +338,5 @@ performance.
 
 .. parsed-literal::
 
-    IR model in OpenVINO Runtime/CPU: 0.0010 seconds per image, FPS: 995.15
+    IR model in OpenVINO Runtime/CPU: 0.0010 seconds per image, FPS: 959.64
 

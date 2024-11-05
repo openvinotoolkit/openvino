@@ -89,11 +89,11 @@ Imports
 
 .. parsed-literal::
 
-    --2024-10-23 02:12:15--  http://nz2.archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb
+    --2024-11-05 02:15:59--  http://nz2.archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb
     Resolving proxy-dmz.intel.com (proxy-dmz.intel.com)... 10.241.208.166
     Connecting to proxy-dmz.intel.com (proxy-dmz.intel.com)|10.241.208.166|:911... connected.
     Proxy request sent, awaiting response... 404 Not Found
-    2024-10-23 02:12:15 ERROR 404: Not Found.
+    2024-11-05 02:16:00 ERROR 404: Not Found.
     
     dpkg: error: cannot access archive 'libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb': No such file or directory
 
@@ -124,8 +124,8 @@ Imports
 
 .. parsed-literal::
 
-    2024-10-23 02:12:17 INFO: Loading faiss with AVX512 support.
-    2024-10-23 02:12:17 INFO: Successfully loaded faiss with AVX512 support.
+    2024-11-05 02:16:02 INFO: Loading faiss with AVX512 support.
+    2024-11-05 02:16:02 INFO: Successfully loaded faiss with AVX512 support.
 
 
 Settings
@@ -209,7 +209,7 @@ inference on that image, and then show the top three prediction results.
 
 .. parsed-literal::
 
-    [2024/10/23 02:12:43] ppcls WARNING: The current running environment does not support the use of GPU. CPU has been used instead.
+    [2024/11/05 02:16:41] ppcls WARNING: The current running environment does not support the use of GPU. CPU has been used instead.
     Labrador retriever, 0.75138
     German short-haired pointer, 0.02373
     Great Dane, 0.01848
@@ -275,7 +275,7 @@ clipping values.
 
 .. parsed-literal::
 
-    2024-10-23 02:12:44 WARNING: Clipping input data to the valid range for imshow with RGB data ([0..1] for floats or [0..255] for integers).
+    2024-11-05 02:16:42 WARNING: Clipping input data to the valid range for imshow with RGB data ([0..1] for floats or [0..255] for integers).
 
 
 .. parsed-literal::
@@ -287,7 +287,7 @@ clipping values.
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f932c074fa0>
+    <matplotlib.image.AxesImage at 0x7f192c379400>
 
 
 
@@ -462,7 +462,7 @@ Note that many optimizations are possible to improve the performance.
 
 .. parsed-literal::
 
-    PaddlePaddle model on CPU: 0.0073 seconds per image, FPS: 137.19
+    PaddlePaddle model on CPU: 0.0074 seconds per image, FPS: 134.37
     
     PaddlePaddle result:
     Labrador retriever, 0.75138
@@ -523,7 +523,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    OpenVINO IR model in OpenVINO Runtime (AUTO): 0.0026 seconds per image, FPS: 382.97
+    OpenVINO IR model in OpenVINO Runtime (AUTO): 0.0027 seconds per image, FPS: 373.31
     
     OpenVINO result:
     Labrador retriever, 0.74909
