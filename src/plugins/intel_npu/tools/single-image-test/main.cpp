@@ -2006,9 +2006,13 @@ static int runSingleImageTest() {
                 }
             }
 
-            setModelBatch(model, FLAGS_override_model_batch_size);
+            if (FLAGS_shape.empty()) {
+                setModelBatch(model, FLAGS_override_model_batch_size);
+            }
             std::cout << "Compile model" << std::endl;
-            compiledModel = core.compile_model(ppp.build(), FLAGS_device);
+            model = ppp.build();
+            printInputAndOutputsInfoShort(*model);
+            compiledModel = core.compile_model(model, FLAGS_device);
         } else {
             std::cout << "Import network " << FLAGS_network << std::endl;
 
