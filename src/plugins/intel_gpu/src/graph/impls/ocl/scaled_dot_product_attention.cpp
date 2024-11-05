@@ -182,17 +182,32 @@ protected:
         const auto in_q_idx = 0;
         const auto& in_q_dep = deps[in_q_idx].first;
 
-        auto query_layout = in_q_dep->get_impl_params()->get_output_layout(0);
-        bool is_generate = query_layout.spatial(1) == 1;  // y
+        const auto& query_layout = in_q_dep->get_impl_params()->get_output_layout(0);
+
+        auto transpose_shape = [](const ov::PartialShape& pshape, const std::vector<int64_t>& order) {
+            if (order.empty())
+                return pshape;
+
+            auto transposed_pshape = ov::PartialShape::dynamic(pshape.rank());
+            for (size_t i = 0; i < order.size(); i++) {
+                transposed_pshape[i] = pshape[order[i]];
+            }
+            return transposed_pshape;
+        };
+
+        const auto& desc = instance.get_impl_params()->typed_desc<scaled_dot_product_attention>();
+        const auto query_shape = transpose_shape(query_layout.get_partial_shape(), desc->input_q_transpose_order);
+
+        bool is_generate = query_shape[2].get_length() == 1;  // y
         return !is_generate;
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, scaled_dot_product_attention_inst& instance) override {
-        if (need_indirect_load(instance)) {
+        // default_sdpa: sdpa_micro, second: sdpa_opt
+        if (!is_prefill(instance)) {
             return execute_stage(events, instance, second_sdpa);
         } else {
-            // default_sdpa: sdpa_micro, second: sdpa_opt
-            return execute_stage(events, instance, is_prefill(instance) ? default_sdpa : second_sdpa);
+            return execute_stage(events, instance, default_sdpa);
         }
     }
 
