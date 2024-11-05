@@ -20,21 +20,25 @@ using namespace ov;
 
 static constexpr auto netType = ov::element::f32;
 
-std::pair<ov::OutputVector, ov::SinkVector> create_states(const std::vector<ov::PartialShape>& shapes) {
-    ov::OutputVector read_values;
+std::pair<ov::OutputVector, ov::SinkVector> create_states(const std::vector<ov::PartialShape>& shapes,
+                                                          const ov::element::Type& states_precision = netType) {
+    ov::OutputVector state_outs;
     ov::SinkVector assigns;
     size_t idx = 0;
     auto create_state = [&](const ov::PartialShape& shape) {
-        auto variable =
-            std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{shape, netType, std::to_string(idx++)});
+        auto variable = std::make_shared<ov::op::util::Variable>(
+            ov::op::util::VariableInfo{shape, states_precision, std::to_string(idx++)});
         auto read_value = std::make_shared<ov::op::v6::ReadValue>(variable);
         auto assign = std::make_shared<ov::op::v6::Assign>(read_value, variable);
-        read_values.push_back(read_value);
         assigns.push_back(assign);
+        if (states_precision == netType)
+            state_outs.push_back(read_value);
+        else
+            state_outs.push_back(std::make_shared<ov::op::v0::Convert>(read_value, netType));
     };
     for (const auto& shape : shapes)
         create_state(shape);
-    return std::make_pair(read_values, assigns);
+    return std::make_pair(state_outs, assigns);
 }
 
 std::shared_ptr<ov::Node> create_lora_subgraph(const ov::Output<ov::Node>& main_flow,
@@ -125,6 +129,47 @@ TEST_F(LoraSubgraphFusionMatMulTests, StandardPattern) {
         auto inner_model = std::make_shared<Model>(OutputVector{lora_subgraph}, inner_params);
 
         auto states = create_states({shape_state_1, shape_state_2, shape_state_3});
+        ov::OutputVector lora_inputs{main_mm, param_lora, states.first[0], states.first[1], states.first[2]};
+        auto lora = std::make_shared<ov::op::internal::LoraSubgraph>(lora_inputs, inner_model);
+        lora->set_friendly_name("lora_subgraph");
+
+        model_ref =
+            std::make_shared<Model>(OutputVector{lora, main_mm}, states.second, ParameterVector{param_lora, param_w});
+    }
+}
+
+TEST_F(LoraSubgraphFusionMatMulTests, StandardPatternWithConvert) {
+    {
+        auto param_lora = std::make_shared<ov::op::v0::Parameter>(netType, shape_x);
+        auto param_w = std::make_shared<ov::op::v0::Parameter>(netType, shape_w);
+        auto main_mm = std::make_shared<ov::op::v0::MatMul>(param_lora, param_w, false, true);
+        main_mm->set_friendly_name("main_mm");
+        auto states = create_states({shape_state_1, shape_state_2, shape_state_3}, ov::element::f16);
+        auto lora_subgraph = create_lora_subgraph(main_mm, param_lora, states.first, false);
+        lora_subgraph->set_friendly_name("lora_subgraph");
+        model = std::make_shared<Model>(OutputVector{lora_subgraph, main_mm},
+                                        states.second,
+                                        ParameterVector{param_lora, param_w});
+    }
+    {
+        auto param_lora = std::make_shared<ov::op::v0::Parameter>(netType, shape_x);
+        auto param_w = std::make_shared<ov::op::v0::Parameter>(netType, shape_w);
+        auto main_mm = std::make_shared<ov::op::v0::MatMul>(param_lora, param_w, false, true);
+        main_mm->set_friendly_name("main_mm");
+
+        auto inner_param_lora = std::make_shared<ov::op::v0::Parameter>(netType, shape_x);
+        auto inner_state_1 = std::make_shared<ov::op::v0::Parameter>(netType, shape_state_1);
+        auto inner_state_2 = std::make_shared<ov::op::v0::Parameter>(netType, shape_state_2);
+        auto inner_state_3 = std::make_shared<ov::op::v0::Parameter>(netType, shape_state_3);
+        auto inner_param_mm = std::make_shared<ov::op::v0::Parameter>(netType, main_mm->get_output_partial_shape(0));
+
+        ov::OutputVector states_outs{inner_state_1, inner_state_2, inner_state_3};
+        auto lora_subgraph = create_lora_subgraph(inner_param_mm, inner_param_lora, states_outs, false);
+        lora_subgraph->set_friendly_name("lora_subgraph");
+        ov::ParameterVector inner_params{inner_param_mm, inner_param_lora, inner_state_1, inner_state_2, inner_state_3};
+        auto inner_model = std::make_shared<Model>(OutputVector{lora_subgraph}, inner_params);
+
+        auto states = create_states({shape_state_1, shape_state_2, shape_state_3}, ov::element::f16);
         ov::OutputVector lora_inputs{main_mm, param_lora, states.first[0], states.first[1], states.first[2]};
         auto lora = std::make_shared<ov::op::internal::LoraSubgraph>(lora_inputs, inner_model);
         lora->set_friendly_name("lora_subgraph");

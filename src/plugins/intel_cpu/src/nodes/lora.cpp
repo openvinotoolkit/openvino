@@ -47,8 +47,14 @@ void LoRA::selectOptimalPrimitiveDescriptor() {
     std::vector<PortConfig> inConfs;
     std::vector<Input::InputConfig> graphInputConfig;
 
-    for (size_t i = 0; i < getParentEdges().size(); i++) {
-        auto desc = getParentOutputMemDesc(getParentEdgeAt(i));
+    auto mainInputDesc = getParentOutputMemDesc(getParentEdgeAt(0));
+    auto mainInputPrc = mainInputDesc->getPrecision(); // we have to align precision across all the inputs
+
+    inConfs.emplace_back(mainInputDesc);
+    graphInputConfig.emplace_back(node::Input::InputConfig{mainInputDesc, true});
+
+    for (size_t i = 1; i < getParentEdges().size(); i++) {
+        auto desc = getParentOutputMemDesc(getParentEdgeAt(i))->cloneWithNewPrecision(mainInputPrc);
         inConfs.emplace_back(desc);
         graphInputConfig.emplace_back(node::Input::InputConfig{desc, true});
     }
@@ -87,7 +93,10 @@ void LoRA::createPrimitive() {
 
     std::vector<MemoryPtr> inputMemory;
     for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
-        inputMemory.emplace_back(getSrcMemoryAtPort(i));
+        auto srcEdgeMem = getSrcMemoryAtPort(i);
+        auto mem = std::make_shared<Memory>(getEngine(), srcEdgeMem->getDescPtr(), srcEdgeMem->getMemoryBlock());
+        subgraphMemoryPtrs.push_back(mem);
+        inputMemory.emplace_back(std::move(mem));
     }
 
     CPU_NODE_ASSERT(getOriginalOutputsNumber() == m_graph.GetOutputNodesMap().size(),
@@ -103,6 +112,13 @@ void LoRA::execute(dnnl::stream) {
 
 void LoRA::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
+}
+
+void LoRA::prepareParams() {
+    for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
+        // since the external and internal descriptors are compatible, we may pass the descriptor
+        subgraphMemoryPtrs[i]->redefineDesc(getSrcMemoryAtPort(i)->getDescPtr());
+    }
 }
 
 }  // namespace node
