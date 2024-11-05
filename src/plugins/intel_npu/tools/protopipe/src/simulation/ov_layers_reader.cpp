@@ -160,7 +160,7 @@ InOutLayers OpenVINOLayersReader::Impl::readFromModel(const std::string& model_p
         const auto iml_map = unpackLayerAttr(params.input_model_layout, input_names, "input model layout");
         cfgInputPreproc(ppp, model, ip_map, il_map, iml_map);
 
-        const auto shape_map = unpackLayerAttr(params.shape, input_names, "dynamic shape");
+        const auto shape_map = unpackLayerAttr(params.shape, input_names, "shape");
         cfgPartialShapes(model, shape_map);
 
         const auto& output_names = extractLayerNames(model->outputs());
@@ -172,22 +172,6 @@ InOutLayers OpenVINOLayersReader::Impl::readFromModel(const std::string& model_p
         model = ppp.build();
     }
 
-    std::map<std::string, ov::PartialShape> partial_shapes;
-    if (std::holds_alternative<AttrMap<std::vector<uint64_t>>>(params.shape)) {
-        auto &shapeMap = std::get<AttrMap<std::vector<uint64_t>>>(params.shape);
-        std::vector<ov::Dimension> dims;
-        for (auto& shape : shapeMap) {
-            for (auto& dim : shape.second) { dims.emplace_back(dim); }
-            partial_shapes[shape.first] = dims;
-        }
-        model->reshape(partial_shapes);
-    } else {
-        std::vector<uint64_t> vecDims = std::get<std::vector<uint64_t>>(params.shape);
-        ov::PartialShape dims;
-        for (auto& dim : vecDims) { dims.emplace_back(dim); }
-        model->reshape(dims);
-    }
-    
     auto input_layers = ovToLayersInfo(model->inputs());
     auto output_layers = ovToLayersInfo(model->outputs());
 
