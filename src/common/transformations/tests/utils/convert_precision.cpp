@@ -2304,11 +2304,6 @@ TEST(TransformationTests, ConvertPrecisionExplicitConvertsSingleNodeMultipleOutp
         split->get_output_tensor(0).add_names({"split:0"});
         split->get_output_tensor(1).add_names({"split:1"});
         split->get_output_tensor(2).add_names({"split:2"});
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        ov::descriptor::set_ov_tensor_legacy_name(split->get_output_tensor(0), "legacy_split:0");
-        ov::descriptor::set_ov_tensor_legacy_name(split->get_output_tensor(1), "legacy_split:1");
-        ov::descriptor::set_ov_tensor_legacy_name(split->get_output_tensor(2), "legacy_split:2");
-        OPENVINO_SUPPRESS_DEPRECATED_END
         model = make_shared<Model>(split->outputs(), ParameterVector{param_1});
 
         type_to_fuse_map empty_type_to_fuse_map = {};
@@ -2345,11 +2340,6 @@ TEST(TransformationTests, ConvertPrecisionExplicitConvertsSingleNodeMultipleOutp
     ASSERT_EQ("split.0", results[0]->get_input_node_ptr(0)->get_friendly_name());
     ASSERT_EQ("split.1", results[1]->get_input_node_ptr(0)->get_friendly_name());
     ASSERT_EQ("split.2", results[2]->get_input_node_ptr(0)->get_friendly_name());
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    ASSERT_EQ("legacy_split:0", ov::descriptor::get_ov_tensor_legacy_name(results[0]->get_input_tensor(0)));
-    ASSERT_EQ("legacy_split:1", ov::descriptor::get_ov_tensor_legacy_name(results[1]->get_input_tensor(0)));
-    ASSERT_EQ("legacy_split:2", ov::descriptor::get_ov_tensor_legacy_name(results[2]->get_input_tensor(0)));
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 TEST(TransformationTests, ConvertPrecisionExplicitConvertsMultiSubgraphs) {

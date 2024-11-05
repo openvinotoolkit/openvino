@@ -98,14 +98,11 @@ protected:
     PartialShape m_partial_shape;
     ov::Tensor m_lower_value, m_upper_value;
     TensorSymbol m_value_symbol;
-    std::string m_legacy_name;
 
     std::unordered_set<std::string> m_names;
     std::unordered_set<std::string>::const_iterator m_name_it;
     RTMap m_rt_info;
 
-    friend OPENVINO_API std::string get_ov_tensor_legacy_name(const Tensor& tensor);
-    friend OPENVINO_API void set_ov_tensor_legacy_name(Tensor& tensor, const std::string& tensor_name);
     friend OPENVINO_API void set_element_type(Tensor& tensor, const element::Type& elemenet_type);
     friend OPENVINO_API void set_tensor_type(Tensor& tensor,
                                              const element::Type& element_type,
