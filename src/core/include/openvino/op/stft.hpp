@@ -13,7 +13,7 @@ namespace v15 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API STFT : public Op {
 public:
-    OPENVINO_OP("STFT");
+    OPENVINO_OP("STFT", "opset15");
     STFT() = default;
 
     /// \brief Constructs a STFT operation.
