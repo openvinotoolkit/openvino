@@ -293,5 +293,13 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
     return std::make_shared<SyncInferRequest>(std::static_pointer_cast<const CompiledModel>(shared_from_this()));
 }
 
+
+void CompiledModel::release_memory() {
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    auto capacity = dnnl::get_primitive_cache_capacity();
+    dnnl::set_primitive_cache_capacity(0);
+    dnnl::set_primitive_cache_capacity(capacity);
+#endif
+}
 }  // namespace intel_gpu
 }  // namespace ov

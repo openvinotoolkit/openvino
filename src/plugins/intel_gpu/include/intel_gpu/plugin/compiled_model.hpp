@@ -61,6 +61,8 @@ public:
     const std::vector<std::shared_ptr<Graph>>& get_graphs() const;
     std::shared_ptr<Graph> get_graph(size_t n) const;
 
+    void release_memory() override;
+
 private:
     RemoteContextImpl::Ptr m_context;
     ExecutionConfig m_config;
