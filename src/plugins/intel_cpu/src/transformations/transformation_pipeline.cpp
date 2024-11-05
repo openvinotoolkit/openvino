@@ -979,7 +979,7 @@ void Transformations::MainSnippets(void) {
             (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) &&
              one_of(config.inferencePrecision, ov::element::f32, element::undefined)) ||
             (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
-             one_of(config.inferencePrecision, ov::element::bf16, ov::element::f32, element::undefined));
+             one_of(config.inferencePrecision, ov::element::f32, element::undefined));
 #endif
     if (!isMHASupported) {
         CPU_DISABLE_PASS_COMMON(snippetsManager, snippets::pass::TokenizeMHASnippets);
