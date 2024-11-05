@@ -124,14 +124,12 @@ ov::intel_cpu::OptimizeRNNSequenceTransposes::OptimizeRNNSequenceTransposes() {
 
 ov::intel_cpu::OptimizeLSTMSequenceTransposes::OptimizeLSTMSequenceTransposes() {
     MATCHER_SCOPE(OptimizeLSTMSequenceTransposes);
-    auto lstmSequenceNgraph = ov::pass::pattern::wrap_type<ov::opset1::LSTMSequence, ov::opset5::LSTMSequence>();
+    auto lstmSequenceNgraph = ov::pass::pattern::wrap_type<ov::opset5::LSTMSequence>();
 
     ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher &m) {
         auto checkSequence = [](const std::shared_ptr<ov::Node>& node) {
             if (auto lstm5 = ov::as_type_ptr<ov::opset5::LSTMSequence>(node)) {
                 return lstm5->get_direction() != ov::op::RecurrentSequenceDirection::BIDIRECTIONAL;
-            } else if (auto lstm1 = ov::as_type_ptr<ov::opset1::LSTMSequence>(node)) {
-                return lstm1->get_direction() != ov::op::RecurrentSequenceDirection::BIDIRECTIONAL;
             } else {
                 return false;
             }

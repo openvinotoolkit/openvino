@@ -77,12 +77,6 @@ extern template bool evaluate_node<ov::op::v1::ReduceMean>(std::shared_ptr<ov::N
                                                            ov::TensorVector& outputs,
                                                            const ov::TensorVector& inputs);
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-extern template bool evaluate_node<ov::op::v0::LSTMSequence>(std::shared_ptr<ov::Node> node,
-                                                             ov::TensorVector& outputs,
-                                                             const ov::TensorVector& inputs);
-OPENVINO_SUPPRESS_DEPRECATED_END
-
 extern template bool evaluate_node<ov::op::v0::MVN>(std::shared_ptr<ov::Node> node,
                                                     ov::TensorVector& outputs,
                                                     const ov::TensorVector& inputs);
