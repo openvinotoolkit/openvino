@@ -107,6 +107,7 @@ set(wheel_build_command
         --config-setting=--build-option=--build-number=${WHEEL_BUILD}
         --config-setting=--build-option=--plat-name=${PLATFORM_TAG}
         --config-setting=--quiet
+        --no-isolation
         --wheel)
 
 add_custom_command(OUTPUT ${openvino_wheel_path}
