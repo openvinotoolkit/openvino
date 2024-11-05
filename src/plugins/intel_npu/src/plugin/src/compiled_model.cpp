@@ -51,7 +51,7 @@ CompiledModel::~CompiledModel() {
 std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::create_infer_request");
 
-    if (!_config.get<CREATE_EXECUTOR>() || _config.get<DEFER_WEIGHTS_LOAD>()) {
+    if (!_config.get<CREATE_EXECUTOR>() || (_config.has<DEFER_WEIGHTS_LOAD>() && _config.get<DEFER_WEIGHTS_LOAD>())) {
         _graph->initialize(_config);
     }
 

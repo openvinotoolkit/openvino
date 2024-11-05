@@ -24,7 +24,7 @@ DriverGraph::DriverGraph(const std::shared_ptr<ZeGraphExtWrappersInterface>& zeG
         OPENVINO_THROW("Zero compiler adapter wasn't initialized");
     }
 
-    if (!config.get<CREATE_EXECUTOR>() || config.get<DEFER_WEIGHTS_LOAD>()) {
+    if (!config.get<CREATE_EXECUTOR>() || (config.has<DEFER_WEIGHTS_LOAD>() && config.get<DEFER_WEIGHTS_LOAD>())) {
         _logger.info("Graph initialize is deferred from the \"Graph\" constructor");
         return;
     }
