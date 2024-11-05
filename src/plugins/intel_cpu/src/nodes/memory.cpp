@@ -598,6 +598,9 @@ bool MemoryInput::needInitGraphProcessing() const {
 }
 
 void MemoryInput::initOptimalPrimitiveDescriptor() {
+    if (haveSubgraph()) {
+        return MemoryInputBase::initOptimalPrimitiveDescriptor();
+    }
     // Mimic the child node memory desc to avoid extra reorder
     static const Type preferredTypes[] = {
         Type::ScaledDotProductAttention,
