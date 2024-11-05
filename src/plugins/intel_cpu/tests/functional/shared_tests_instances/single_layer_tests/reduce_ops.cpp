@@ -29,6 +29,12 @@ const std::vector<std::vector<size_t>> input_shapes = {
         std::vector<size_t>{3, 5, 7, 9},
 };
 
+const std::vector<std::vector<size_t>> input_shapes_0_dim = {
+        std::vector<size_t>{2, 0, 4, 1},
+        std::vector<size_t>{8, 0, 4, 0},
+        std::vector<size_t>{0, 0, 0, 0},
+};
+
 const std::vector<std::vector<size_t>> input_shapes_one_axis = {
         std::vector<size_t>{10, 20, 30, 40},
         std::vector<size_t>{3, 5, 7, 9},
@@ -167,6 +173,16 @@ const auto params_reduction_types = testing::Combine(
         testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
+const auto params_empty_input = testing::Combine(
+        testing::ValuesIn(axes),
+        testing::Values(op_types[1]),
+        testing::ValuesIn(keep_dims),
+        testing::ValuesIn(reduction_types),
+        testing::Values(model_types[0]),
+        testing::ValuesIn(input_shapes_0_dim),
+        testing::Values(ov::test::utils::DEVICE_CPU)
+);
+
 const auto params_reduction_types_logical = testing::Combine(
         testing::Values(std::vector<int>{0, 1, 3}),
         testing::Values(op_types[1]),
@@ -247,6 +263,13 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_ReductionTypes,
         ReduceOpsLayerTest,
         params_reduction_types,
+        ReduceOpsLayerTest::getTestCaseName
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_Reduce_ReductionTypes_EmptyTensor,
+        ReduceOpsLayerTest,
+        params_empty_input,
         ReduceOpsLayerTest::getTestCaseName
 );
 
