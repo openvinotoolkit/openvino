@@ -78,3 +78,15 @@ cross_compiled_file(${TARGET_NAME}
 )
 
 ov_add_api_validator_post_build_step(TARGET ${NPU_PLUGIN_TARGET})
+
+# Ensure ASLR flags are set for this target
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    target_compile_options(${NPU_PLUGIN_TARGET} PRIVATE -fPIC)
+    target_link_options(${NPU_PLUGIN_TARGET} PRIVATE -pie)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    target_compile_options(${NPU_PLUGIN_TARGET} PRIVATE /DYNAMICBASE)
+    target_link_options(${NPU_PLUGIN_TARGET} PRIVATE /DYNAMICBASE)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    target_compile_options(${NPU_PLUGIN_TARGET} PRIVATE -fPIC)
+    target_link_options(${NPU_PLUGIN_TARGET} PRIVATE -pie)
+endif()
