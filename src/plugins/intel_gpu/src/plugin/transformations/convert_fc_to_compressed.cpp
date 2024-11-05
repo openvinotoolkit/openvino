@@ -135,10 +135,6 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         std::shared_ptr<ov::Node> fc_input_bias = pattern_map.at(bias_m).get_node_shared_ptr();
         std::vector<std::shared_ptr<ov::Node>> result_nodes = {};
 
-        if (pattern_map.count(mul2_m) && !fc_input_bias) {
-            return false;
-        }
-
         if (has_transpose) {
             const auto& transpose = pattern_map.at(transpose_m).get_node_shared_ptr();
             std::shared_ptr<ov::Node> transpose_const = pattern_map.at(transpose_const_m).get_node_shared_ptr();
@@ -159,6 +155,11 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
             }
         }
 
+        if (pattern_map.count(mul2_m)) {
+            auto mul2_op_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(mul2_const_m).get_node_shared_ptr());
+            fc_input_scale = ov::op::util::eltwise_fold<ov::op::v1::Multiply>(fc_input_scale, mul2_op_const).get_node_shared_ptr();
+        }
+
         std::shared_ptr<ov::Node> new_fc = nullptr;
         if (with_zero_point) {
             new_fc = std::make_shared<op::FullyConnectedCompressed>(fc_input_a,
@@ -175,17 +176,10 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
                                                                     fc->get_output_type());
         }
 
-        if (!pattern_map.count(mul2_m)) {
-            result_nodes.push_back(new_fc);
-            new_fc->set_friendly_name(fc->get_friendly_name());
-            ov::copy_runtime_info(m.get_matched_nodes(), result_nodes);
-            ov::replace_node(fc, new_fc);
-        } else {
-            auto mul2_const_m_ptr = pattern_map.at(mul2_const_m).get_node_shared_ptr();
-            auto my_mul_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(mul2_const_m_ptr);
-            auto mul = std::make_shared<ov::op::v1::Multiply>(new_fc, my_mul_const);
-            ov::replace_node(fc, mul);
-        }
+        result_nodes.push_back(new_fc);
+        new_fc->set_friendly_name(fc->get_friendly_name());
+        ov::copy_runtime_info(m.get_matched_nodes(), result_nodes);
+        ov::replace_node(fc, new_fc);
 
         return true;
     };
