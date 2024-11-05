@@ -57,13 +57,16 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
     auto reshape_const_m = wrap_type<ov::op::v0::Constant>();
     auto reshape_m = wrap_type<ov::op::v1::Reshape>({mul_m, reshape_const_m}, reshape_3d_to_2d);
 
+    auto mul2_const_m = wrap_type<ov::op::v0::Constant>();
+    auto mul2_m = wrap_type<ov::op::v1::Multiply>({reshape_m, mul2_const_m});
+
     auto transpose_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{reshape_m, mul_m});
     auto transpose_const_m = wrap_type<ov::op::v0::Constant>();
     auto transpose_m = wrap_type<ov::op::v1::Transpose>({transpose_input, transpose_const_m});
 
     auto data_m = any_input();
     auto bias_m = any_input();
-    auto weights_input_m = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{reshape_m, transpose_m, mul_m});
+    auto weights_input_m = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{reshape_m, transpose_m, mul_m, mul2_m});
     auto fully_connected_m = wrap_type<op::FullyConnected>({data_m, weights_input_m, bias_m});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
@@ -131,6 +134,7 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         std::shared_ptr<ov::Node> fc_input_zp = optional_zero_point;
         std::shared_ptr<ov::Node> fc_input_bias = pattern_map.at(bias_m).get_node_shared_ptr();
         std::vector<std::shared_ptr<ov::Node>> result_nodes = {};
+
         if (has_transpose) {
             const auto& transpose = pattern_map.at(transpose_m).get_node_shared_ptr();
             std::shared_ptr<ov::Node> transpose_const = pattern_map.at(transpose_const_m).get_node_shared_ptr();
@@ -149,6 +153,11 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
                 fc_input_zp = transpose->clone_with_new_inputs({ optional_zero_point->output(0), transpose_const });
                 result_nodes.push_back(fc_input_zp);
             }
+        }
+
+        if (pattern_map.count(mul2_m)) {
+            auto mul2_op_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(mul2_const_m).get_node_shared_ptr());
+            fc_input_scale = ov::op::util::eltwise_fold<ov::op::v1::Multiply>(fc_input_scale, mul2_op_const).get_node_shared_ptr();
         }
 
         std::shared_ptr<ov::Node> new_fc = nullptr;
@@ -171,6 +180,7 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         new_fc->set_friendly_name(fc->get_friendly_name());
         ov::copy_runtime_info(m.get_matched_nodes(), result_nodes);
         ov::replace_node(fc, new_fc);
+
         return true;
     };
 
