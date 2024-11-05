@@ -1,9 +1,8 @@
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import platform
-
 import numpy as np
+import platform
 import pytest
 import tensorflow as tf
 from common.tf_layer_test_class import CommonTFLayerTest
@@ -233,7 +232,7 @@ class TestEqualStr(CommonTFLayerTest):
         tf.compat.v1.reset_default_graph()
         with tf.compat.v1.Session() as sess:
             x = tf.compat.v1.placeholder(tf.string, x_shape, 'x')
-            y = tf.compat.v1.placeholder(tf.string, x_shape, 'y')
+            y = tf.compat.v1.placeholder(tf.string, y_shape, 'y')
             tf.raw_ops.Equal(x=x, y=y)
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
@@ -253,6 +252,8 @@ class TestEqualStr(CommonTFLayerTest):
     def test_equal_str(self, x_shape, y_shape,
                        ie_device, precision, ir_version, temp_dir,
                        use_legacy_frontend):
+        if x_shape == [] and y_shape == []:
+            pytest.skip("156746: EqualStr operation outputs 1D tensor for two input scalars")
         if ie_device == 'GPU' or run_in_jenkins():
             pytest.skip("operation extension is not supported on GPU")
         self._test(*self.create_equal_net(x_shape=x_shape, y_shape=y_shape),
