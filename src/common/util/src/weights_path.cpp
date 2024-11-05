@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-
 #include "openvino/util/weights_path.hpp"
 
 bool ov::util::validate_weights_path(std::string& weights_path) {
