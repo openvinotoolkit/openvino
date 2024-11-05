@@ -102,9 +102,9 @@ Model preparation stage has the following steps:
     Cloning into 'pytorch-cifar-models'...
     remote: Enumerating objects: 282, done.[K
     remote: Counting objects: 100% (281/281), done.[K
-    remote: Compressing objects: 100% (96/96), done.[K
-    remote: Total 282 (delta 135), reused 269 (delta 128), pack-reused 1 (from 1)[K
-    Receiving objects: 100% (282/282), 9.22 MiB | 24.58 MiB/s, done.
+    remote: Compressing objects: 100% (94/94), done.[K
+    remote: Total 282 (delta 135), reused 275 (delta 130), pack-reused 1 (from 1)[K
+    Receiving objects: 100% (282/282), 9.22 MiB | 9.58 MiB/s, done.
     Resolving deltas: 100% (135/135), done.
 
 
@@ -176,7 +176,7 @@ Preprocessing for model obtained from training
 
 .. parsed-literal::
 
-    100%|██████████| 170498071/170498071 [00:07<00:00, 23490143.19it/s]
+    100%|██████████| 170498071/170498071 [00:07<00:00, 22536051.32it/s]
 
 
 .. parsed-literal::
@@ -248,10 +248,10 @@ about supported parameters can be found on this
 
 .. parsed-literal::
 
-    2024-10-23 01:24:29.479834: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-10-23 01:24:29.511386: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-11-05 01:37:57.500572: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-11-05 01:37:57.532367: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-10-23 01:24:30.071901: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-11-05 01:37:58.074631: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 
@@ -419,7 +419,7 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 9.92 ms
+    [ INFO ] Read model took 9.87 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     x (node: x) : f32 / [...] / [1,3,32,32]
@@ -433,7 +433,7 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ INFO ] Model outputs:
     [ INFO ]     x.17 (node: aten::linear/Add) : f32 / [...] / [1,10]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 182.71 ms
+    [ INFO ] Compile model took 193.44 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model2
@@ -470,17 +470,17 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ INFO ] Fill input 'x' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 2.46 ms
+    [ INFO ] First inference took 3.27 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            88032 iterations
-    [ INFO ] Duration:         15002.28 ms
+    [ INFO ] Count:            88560 iterations
+    [ INFO ] Duration:         15003.24 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        1.86 ms
-    [ INFO ]    Average:       1.86 ms
-    [ INFO ]    Min:           1.39 ms
-    [ INFO ]    Max:           9.16 ms
-    [ INFO ] Throughput:   5867.91 FPS
+    [ INFO ]    Median:        1.84 ms
+    [ INFO ]    Average:       1.85 ms
+    [ INFO ]    Min:           1.26 ms
+    [ INFO ]    Max:           9.06 ms
+    [ INFO ] Throughput:   5902.73 FPS
 
 
 .. code:: ipython3
@@ -506,7 +506,7 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 15.19 ms
+    [ INFO ] Read model took 14.74 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     x (node: x) : f32 / [...] / [1,3,32,32]
@@ -520,7 +520,7 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ INFO ] Model outputs:
     [ INFO ]     x.17 (node: aten::linear/Add) : f32 / [...] / [1,10]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 263.63 ms
+    [ INFO ] Compile model took 266.00 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model2
@@ -557,17 +557,17 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ INFO ] Fill input 'x' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 2.02 ms
+    [ INFO ] First inference took 1.97 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            167544 iterations
-    [ INFO ] Duration:         15000.95 ms
+    [ INFO ] Count:            165708 iterations
+    [ INFO ] Duration:         15001.40 ms
     [ INFO ] Latency:
     [ INFO ]    Median:        1.00 ms
-    [ INFO ]    Average:       1.03 ms
-    [ INFO ]    Min:           0.72 ms
-    [ INFO ]    Max:           7.20 ms
-    [ INFO ] Throughput:   11168.89 FPS
+    [ INFO ]    Average:       1.04 ms
+    [ INFO ]    Min:           0.67 ms
+    [ INFO ]    Max:           91.64 ms
+    [ INFO ] Throughput:   11046.17 FPS
 
 
 Compare results on four pictures
