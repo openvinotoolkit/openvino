@@ -65,6 +65,7 @@ jobs:
           echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
           echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
           echo "LAYER_TESTS_INSTALL_DIR=$GITHUB_WORKSPACE/install/tests/layer_tests" >> "$GITHUB_ENV"
+          echo "INSTALL_WHEELS_DIR=$GITHUB_WORKSPACE/install/wheels" >> "$GITHUB_ENV"
 
       - name: Install OpenVINO dependencies (mac)
         if: runner.os == 'macOS'
