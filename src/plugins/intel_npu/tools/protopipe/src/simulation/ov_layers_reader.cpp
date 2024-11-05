@@ -129,7 +129,7 @@ static void cfgOutputPostproc(ov::preprocess::PrePostProcessor& ppp, const std::
 }
 
 static void cfgReshape(const std::shared_ptr<ov::Model>& model, 
-                       const AttrMap<std::vector<uint64_t>> shape_map) {
+                       const AttrMap<std::vector<size_t>> shape_map) {
     std::map<std::string, ov::PartialShape> partial_shapes;
     for (const auto& [layer_name, shape] : shape_map) {
         partial_shapes.emplace(layer_name, shape);

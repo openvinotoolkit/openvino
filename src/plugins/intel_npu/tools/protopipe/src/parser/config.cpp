@@ -346,7 +346,7 @@ struct convert<OpenVINOParams> {
         }
 
         if (node["reshape"]) {
-            params.reshape = node["reshape"].as<LayerVariantAttr<std::vector<uint64_t>>> ();
+            params.reshape = node["reshape"].as<LayerVariantAttr<std::vector<size_t>>> ();
         }
 
         if (node["config"]) {
