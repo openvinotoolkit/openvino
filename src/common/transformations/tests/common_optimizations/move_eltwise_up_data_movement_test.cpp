@@ -7,12 +7,17 @@
 #include <gtest/gtest.h>
 
 #include <openvino/core/model.hpp>
+#include <openvino/opsets/opset1.hpp>
 #include <openvino/opsets/opset8.hpp>
 #include <openvino/pass/manager.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/init_node_info.hpp"
+#include "transformations/utils/gen_pattern.hpp"
+
+#include <openvino/itt.hpp>
+#include "openvino/pass/visualize_tree.hpp"
 
 using namespace testing;
 
@@ -493,5 +498,228 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, PerChannelReshapeMultiply) {
         auto reshape = std::make_shared<ov::op::v1::Reshape>(multiply, reshape_constant, false);
 
         model_ref = std::make_shared<ov::Model>(ov::NodeVector{reshape}, ov::ParameterVector{input});
+    }
+}
+
+
+class TRANSFORMATIONS_API InnerSamplePass : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("InnerSamplePass", "0");
+    InnerSamplePass() {
+        // MATCHER_SCOPE(InnerSamplePass);
+        auto matcher_name = "InnerSamplePass";
+        auto eltwise_pattern = ov::pass::pattern::wrap_type<ov::op::util::UnaryElementwiseArithmetic,
+                                                        ov::op::util::BinaryElementwiseArithmetic,
+                                                        ov::op::v0::FakeQuantize>(ov::pass::pattern::has_static_rank());
+
+        ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+            std::cout << "found something" << std::endl;
+            return true;
+        };
+
+        auto m = std::make_shared<ov::pass::pattern::Matcher>(eltwise_pattern, matcher_name);
+        register_matcher(m, callback);
+    }
+};
+
+class TRANSFORMATIONS_API SamplePass : public ov::pass::GraphRewrite {
+public:
+    OPENVINO_RTTI("SamplePass", "0");
+    SamplePass() {
+        std::cout << "REGISTERING SamplePass" << std::endl;
+        this->add_matcher<InnerSamplePass>();
+    }
+};
+
+static inline void update_tensor_type(ov::Output<ov::Node> output, ov::element::Type_t new_type) {
+    output.set_tensor_ptr(std::make_shared<ov::descriptor::Tensor>(new_type, output.get_tensor().get_partial_shape(), output.get_tensor().get_names()));
+}
+
+TEST_F(MoveEltwiseUpThroughDataMovTest, MoveThruTwoNodes) {
+    const ov::Shape shape{15876, 1, 1, 1};
+    const std::vector<int64_t> target_shape = {1, 3, 4, 5};
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{15876, 1, 1, 1});
+        auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{15876, 1, 1, 1});
+
+        auto add = ov::gen_pattern::makeOP<ov::opset1::Add>({input, input1}, {{"auto_broadcast", "numpy"}});
+
+        auto reshape_const = ov::gen_pattern::makeConst(ov::element::i32, {1}, {15876});
+        // auto reshape = ov::gen_pattern::makeOP<ov::opset1::Reshape>({input, reshape_const}, {{"special_zero", false}});
+        auto reshape = ov::gen_pattern::makeOP<ov::opset1::Reshape>({add, reshape_const}, {{"special_zero", false}});
+
+        auto fq_cons_0 = ov::gen_pattern::makeConst(ov::element::f32, {1}, {0});
+        auto fq_cons_1 = ov::gen_pattern::makeConst(ov::element::f32, {1}, {2.53667});
+        auto fq_cons_2 = ov::gen_pattern::makeConst(ov::element::f32, {1}, {0});
+        auto fq_cons_3 = ov::gen_pattern::makeConst(ov::element::f32, {1}, {65504});
+
+        auto fq = ov::gen_pattern::makeOP<ov::opset1::FakeQuantize>({reshape, fq_cons_0, fq_cons_1, fq_cons_2, fq_cons_3}, {{"levels", 256}, {"auto_broadcast", "numpy"}});
+
+        auto sqrt = ov::gen_pattern::makeOP<ov::opset1::Sqrt>({fq}, {}); 
+
+        auto another_fq_cons_0 = ov::gen_pattern::makeConst(ov::element::f16, {1}, {0});
+        auto another_fq_cons_1 = ov::gen_pattern::makeConst(ov::element::f16, {1}, {278.75});
+        auto another_fq_cons_2 = ov::gen_pattern::makeConst(ov::element::f16, {}, {0});
+        auto another_fq_cons_3 = ov::gen_pattern::makeConst(ov::element::f16, {}, {255});
+
+        auto another_fq = ov::gen_pattern::makeOP<ov::opset1::FakeQuantize>({sqrt, another_fq_cons_0, another_fq_cons_1, another_fq_cons_2, another_fq_cons_3}, {{"levels", 256}, {"auto_broadcast", "numpy"}});
+
+        auto another_reshape_const = ov::gen_pattern::makeConst(ov::element::i32, {4}, {-1, 1, 1, 1});
+        auto another_reshape = ov::gen_pattern::makeOP<ov::opset1::Reshape>({another_fq, another_reshape_const}, {{"special_zero", false}});
+
+        auto mul_const = ov::gen_pattern::makeConst(ov::element::f32, {}, {1.09314});
+        auto mul = ov::gen_pattern::makeOP<ov::opset1::Multiply>({another_reshape, mul_const}, {{"auto_broadcast", "numpy"}});
+
+        auto pow_const = ov::gen_pattern::makeConst(ov::element::f32, {}, {-1});
+        auto pow = ov::gen_pattern::makeOP<ov::opset1::Power>({mul, pow_const}, {{"auto_broadcast", "numpy"}});
+
+        auto another_mul_input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{15876,256,3,3});
+        auto another_mul = ov::gen_pattern::makeOP<ov::opset1::Multiply>({another_mul_input, pow}, {{"auto_broadcast", "numpy"}});
+
+        auto res = ov::gen_pattern::makeOP<ov::opset1::Result>({another_mul}, {});
+
+        model = std::make_shared<ov::Model>(ov::NodeVector{res}, ov::ParameterVector{input, another_mul_input, input1});
+
+        // update_tensor_type(input->output(0), ov::element::u8);
+        update_tensor_type(add->output(0), ov::element::u8);
+
+        update_tensor_type(reshape_const->output(0), ov::element::i32);
+        update_tensor_type(reshape->output(0), ov::element::u8);
+
+        update_tensor_type(fq->output(0), ov::element::f16);
+
+        update_tensor_type(sqrt->output(0), ov::element::f16);
+        
+        update_tensor_type(another_fq->output(0), ov::element::u8);
+
+        update_tensor_type(another_reshape_const->output(0), ov::element::i32);
+        update_tensor_type(another_reshape->output(0), ov::element::u8);
+
+        update_tensor_type(mul_const->output(0), ov::element::f32);
+        update_tensor_type(mul->output(0), ov::element::f16);
+
+        update_tensor_type(pow_const->output(0), ov::element::f16);
+        update_tensor_type(pow->output(0), ov::element::f16);
+
+        update_tensor_type(another_mul_input->output(0), ov::element::f16);
+        update_tensor_type(another_mul->output(0), ov::element::f16);
+
+        update_tensor_type(res->output(0), ov::element::f32);
+
+        manager.set_per_pass_validation(false);
+        manager.register_pass<ov::pass::VisualizeTree>("test_before.svg");
+        manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMov>();
+        manager.register_pass<ov::pass::VisualizeTree>("test_after_one.svg");
+
+        std::cout << mul->input(0).get_partial_shape().rank() << std::endl;
+    }
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::u8, ov::Shape{15876, 1, 1, 1});
+
+        // auto mul_const = ov::opset1::Constant::create(ov::element::f32, {}, {1.09314});
+        // auto mul = std::make_shared<ov::opset1::Multiply>(input, mul_const);
+
+        // auto reshape_constant =
+        //     ov::opset1::Constant::create(ov::element::i32, {1}, {15876});
+        // auto reshape = std::make_shared<ov::opset1::Reshape>(mul, reshape_constant, false);
+
+        // auto another_reshape_constant =
+        //     ov::opset1::Constant::create(ov::element::i32, {4}, {-1, 1, 1, 1});
+        // auto another_reshape = std::make_shared<ov::opset1::Reshape>(reshape, another_reshape_constant, false);
+
+        // auto res = std::make_shared<ov::opset1::Result>(another_reshape);
+        auto res = std::make_shared<ov::opset1::Result>(input);
+
+        model_ref = std::make_shared<ov::Model>(ov::NodeVector{res}, ov::ParameterVector{input});
+    }
+}
+
+TEST_F(MoveEltwiseUpThroughDataMovTest, MoveThruTwoNodes2) {
+    const ov::Shape shape{15876, 1, 1, 1};
+    const std::vector<int64_t> target_shape = {1, 3, 4, 5};
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{15876, 1, 1, 1});
+        auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{15876, 1, 1, 1});
+
+        auto add = ov::gen_pattern::makeOP<ov::opset1::Add>({input, input1}, {{"auto_broadcast", "numpy"}});
+
+        auto reshape_const = ov::gen_pattern::makeConst(ov::element::i32, {1}, {15876});
+        auto reshape = ov::gen_pattern::makeOP<ov::opset1::Reshape>({add, reshape_const}, {{"special_zero", false}});
+
+        auto fq_cons_0 = ov::gen_pattern::makeConst(ov::element::f32, {1}, {0});
+        auto fq_cons_1 = ov::gen_pattern::makeConst(ov::element::f32, {1}, {2.53667});
+        auto fq_cons_2 = ov::gen_pattern::makeConst(ov::element::f32, {1}, {0});
+        auto fq_cons_3 = ov::gen_pattern::makeConst(ov::element::f32, {1}, {65504});
+
+        auto fq = ov::gen_pattern::makeOP<ov::opset1::FakeQuantize>({reshape, fq_cons_0, fq_cons_1, fq_cons_2, fq_cons_3}, {{"levels", 256}, {"auto_broadcast", "numpy"}});
+
+        auto sqrt = ov::gen_pattern::makeOP<ov::opset1::Sqrt>({fq}, {}); 
+
+        auto another_fq_cons_0 = ov::gen_pattern::makeConst(ov::element::f16, {1}, {0});
+        auto another_fq_cons_1 = ov::gen_pattern::makeConst(ov::element::f16, {1}, {278.75});
+        auto another_fq_cons_2 = ov::gen_pattern::makeConst(ov::element::f16, {}, {0});
+        auto another_fq_cons_3 = ov::gen_pattern::makeConst(ov::element::f16, {}, {255});
+
+        auto another_fq = ov::gen_pattern::makeOP<ov::opset1::FakeQuantize>({sqrt, another_fq_cons_0, another_fq_cons_1, another_fq_cons_2, another_fq_cons_3}, {{"levels", 256}, {"auto_broadcast", "numpy"}});
+
+        auto another_reshape_const = ov::gen_pattern::makeConst(ov::element::i32, {4}, {-1, 1, 1, 1});
+        auto another_reshape = ov::gen_pattern::makeOP<ov::opset1::Reshape>({another_fq, another_reshape_const}, {{"special_zero", false}});
+
+        auto mul_const = ov::gen_pattern::makeConst(ov::element::f32, {}, {1.09314});
+        auto mul = ov::gen_pattern::makeOP<ov::opset1::Multiply>({another_reshape, mul_const}, {{"auto_broadcast", "numpy"}});
+
+        auto pow_const = ov::gen_pattern::makeConst(ov::element::f32, {}, {-1});
+        auto pow = ov::gen_pattern::makeOP<ov::opset1::Power>({mul, pow_const}, {{"auto_broadcast", "numpy"}});
+
+        auto another_mul_input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{15876,256,3,3});
+        auto another_mul = ov::gen_pattern::makeOP<ov::opset1::Multiply>({another_mul_input, pow}, {{"auto_broadcast", "numpy"}});
+
+        auto res = ov::gen_pattern::makeOP<ov::opset1::Result>({another_mul}, {});
+
+        model = std::make_shared<ov::Model>(ov::NodeVector{res}, ov::ParameterVector{input, another_mul_input, input1});
+
+        manager.set_per_pass_validation(false);
+        manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMov>();
+    }
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{15876, 1, 1, 1});
+        auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{15876, 1, 1, 1});
+
+        auto add = ov::gen_pattern::makeOP<ov::opset1::Add>({input, input1}, {{"auto_broadcast", "numpy"}});
+
+        auto fq_cons_0 = ov::gen_pattern::makeConst(ov::element::f32, {}, {0});
+        auto fq_cons_1 = ov::gen_pattern::makeConst(ov::element::f32, {}, {2.53667});
+        auto fq_cons_2 = ov::gen_pattern::makeConst(ov::element::f32, {}, {0});
+        auto fq_cons_3 = ov::gen_pattern::makeConst(ov::element::f32, {}, {65504});
+
+        auto fq = ov::gen_pattern::makeOP<ov::opset1::FakeQuantize>({add, fq_cons_0, fq_cons_1, fq_cons_2, fq_cons_3}, {{"levels", 256}, {"auto_broadcast", "numpy"}});
+
+        auto sqrt = ov::gen_pattern::makeOP<ov::opset1::Sqrt>({fq}, {}); 
+
+        auto another_fq_cons_0 = ov::gen_pattern::makeConst(ov::element::f16, {}, {0});
+        auto another_fq_cons_1 = ov::gen_pattern::makeConst(ov::element::f16, {}, {278.75});
+        auto another_fq_cons_2 = ov::gen_pattern::makeConst(ov::element::f16, {}, {0});
+        auto another_fq_cons_3 = ov::gen_pattern::makeConst(ov::element::f16, {}, {255});
+
+        auto another_fq = ov::gen_pattern::makeOP<ov::opset1::FakeQuantize>({sqrt, another_fq_cons_0, another_fq_cons_1, another_fq_cons_2, another_fq_cons_3}, {{"levels", 256}, {"auto_broadcast", "numpy"}});
+
+        auto mul_const = ov::gen_pattern::makeConst(ov::element::f32, {}, {1.09314});
+        auto mul = ov::gen_pattern::makeOP<ov::opset1::Multiply>({another_fq, mul_const}, {{"auto_broadcast", "numpy"}});
+
+        auto pow_const = ov::gen_pattern::makeConst(ov::element::f32, {}, {-1});
+        auto pow = ov::gen_pattern::makeOP<ov::opset1::Power>({mul, pow_const}, {{"auto_broadcast", "numpy"}});
+
+        auto reshape_const = ov::gen_pattern::makeConst(ov::element::i32, {1}, {15876});
+        auto reshape = ov::gen_pattern::makeOP<ov::opset1::Reshape>({pow, reshape_const}, {{"special_zero", false}});
+
+        auto another_reshape_const = ov::gen_pattern::makeConst(ov::element::i32, {4}, {-1, 1, 1, 1});
+        auto another_reshape = ov::gen_pattern::makeOP<ov::opset1::Reshape>({reshape, another_reshape_const}, {{"special_zero", false}});
+
+        auto another_mul_input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{15876,256,3,3});
+        auto another_mul = ov::gen_pattern::makeOP<ov::opset1::Multiply>({another_mul_input, another_reshape}, {{"auto_broadcast", "numpy"}});
+
+        auto res = ov::gen_pattern::makeOP<ov::opset1::Result>({another_mul}, {});
+
+        model_ref = std::make_shared<ov::Model>(ov::NodeVector{res}, ov::ParameterVector{input, input1, another_mul_input});
     }
 }
