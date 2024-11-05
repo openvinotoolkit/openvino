@@ -149,21 +149,9 @@ void DefineBufferClusters::parse_loop(const LoopManagerPtr& loop_manager, const 
             }
 
             //  - Memory can be reused if there are the same LoopPortDesc (data size, final offsets, ptr increments).
-            //    If data pointer shift parameters are unknown on model compilation stage (dynamic),
-            //    we can be sure that these data pointers will be proportionally shifted in runtime
-            //    only if they are marked by the same color path in "InvariantShapePath".
-            const auto& input_params = input_buffer_port_info.desc;
-            const auto& output_params = output_buffer_port_info.desc;
-            if (input_params.is_static() && output_params.is_static()) {
-                if (input_params.ptr_increment != output_params.ptr_increment ||
-                    input_params.finalization_offset != output_params.finalization_offset)
-                    continue;
-            } else {
-                // If they're undefined, they should be on the same shape-path.
-                // It means that in runtime they will have the same loop ptr arithmethic
-                if (in_path != out_path)
-                    continue;
-            }
+            //    LoopPorts should be on the same shape-path and have the same value of `is_incremented`.
+            if (in_path != out_path || input_buffer_port_info.port.is_incremented != output_buffer_port_info.port.is_incremented)
+                continue;
 
             const auto cluster_it = find_cluster_by_expr(input_buffer_expr);
             OPENVINO_ASSERT(cluster_it != m_clusters.end(), "Buffer on inputs of Loop must be already saved in clusters");
@@ -189,20 +177,15 @@ void DefineBufferClusters::parse_nested_loops(const LoopManagerPtr& loop_manager
         return;
 
     auto can_be_data_ptr_proportionally_shifted = [](const LoopPortInfo& outer_port_info, const LoopPortInfo& inner_port_info) {
-        const auto& inner_desc = inner_port_info.desc;
-        const auto& outer_desc = outer_port_info.desc;
-
         // Outer Buffer ptr should be shifted to emulate "window" sliding
+        const auto& outer_desc = outer_port_info.desc;
         if (!outer_port_info.port.is_incremented || (!utils::is_dynamic_value(outer_desc.ptr_increment) && outer_desc.ptr_increment == 0))
             return false;
 
-        // If data pointer shift parameters are unknown on model compilation stage (dynamic),
-        // we can be sure that these data pointers will be proportionally shifted in runtime only if they're on the same invariant shape path
-        if (utils::is_dynamic_value(outer_desc.ptr_increment) || utils::is_dynamic_value(inner_desc.finalization_offset)) {
-            return MarkInvariantShapePath::getInvariantPortShapePath(*inner_port_info.port.expr_port) ==
-                   MarkInvariantShapePath::getInvariantPortShapePath(*outer_port_info.port.expr_port);
-        }
-        return inner_desc.data_size * inner_desc.finalization_offset * -1 == outer_desc.ptr_increment * outer_desc.data_size;
+        OPENVINO_ASSERT(inner_port_info.port.expr_port && outer_port_info.port.expr_port, "Expression ports are nullptr!");
+        // we can be sure that these data pointers will be proportionally shifted if they're on the same invariant shape path
+        return MarkInvariantShapePath::getInvariantPortShapePath(*inner_port_info.port.expr_port) ==
+               MarkInvariantShapePath::getInvariantPortShapePath(*outer_port_info.port.expr_port);
     };
 
     const auto outer_loop_begin = ov::as_type_ptr<op::LoopEnd>(outer_loop_end_expr_it->get()->get_node())->get_loop_begin();
@@ -214,7 +197,10 @@ void DefineBufferClusters::parse_nested_loops(const LoopManagerPtr& loop_manager
             const auto inner_cluster_id = get_cluster_buffer_id(*inner_cluster_it);
             if (inner_cluster_id == SIZE_MAX) continue;
 
-            const auto final_loop_info = get_buffer_last_loop_port_info(loop_manager, inner_buffer_expr);
+            // If inner Buffer is not connected to the Loop - `window` sliding effect is not possible
+            LoopPortInfo final_loop_info;
+            if (!init_buffer_last_loop_port_info(loop_manager, inner_buffer_expr, final_loop_info))
+                continue;
 
             auto unite = [&](const BufferMap& ports, const bool is_input) {
                 bool applied = false;
@@ -245,8 +231,8 @@ void DefineBufferClusters::parse_nested_loops(const LoopManagerPtr& loop_manager
     }
 }
 
-UnifiedLoopInfo::LoopPortInfo DefineBufferClusters::get_buffer_last_loop_port_info(const LoopManagerPtr& loop_manager,
-                                                                                   const BufferExpressionPtr& buffer_expr) const {
+bool DefineBufferClusters::init_buffer_last_loop_port_info(const LoopManagerPtr& loop_manager, const BufferExpressionPtr& buffer_expr,
+                                                           UnifiedLoopInfo::LoopPortInfo& port_info) {
     auto get_direct_loop_for_buffer_out = [&](const BufferExpressionPtr& buffer_expr, const ExpressionPtr& consumer_expr) -> UnifiedLoopInfoPtr {
         const auto inner_loops = get_connected_loops(buffer_expr, consumer_expr);
         if (inner_loops.empty())
@@ -254,7 +240,7 @@ UnifiedLoopInfo::LoopPortInfo DefineBufferClusters::get_buffer_last_loop_port_in
         return loop_manager->get_loop_info<UnifiedLoopInfo>(inner_loops.front());
     };
 
-    LoopPortInfo final_info;
+    bool found = false;
     double last_loop_exec_order = -1 * std::numeric_limits<double>::max();
     const auto& buffer_outs = buffer_expr->get_output_port_connectors();
     for (const auto& buffer_out : buffer_outs) {
@@ -264,13 +250,14 @@ UnifiedLoopInfo::LoopPortInfo DefineBufferClusters::get_buffer_last_loop_port_in
                 const auto loop_order = direct_loop->get_output_ports().back().expr_port->get_expr()->get_exec_num();
                 if (loop_order > last_loop_exec_order) {
                     OPENVINO_ASSERT(direct_loop->is_loop_port(consumer), "Consumer of Buffer from another loop must be loop port");
-                    final_info = direct_loop->get_loop_port_info(consumer);
+                    port_info = direct_loop->get_loop_port_info(consumer);
                     last_loop_exec_order = loop_order;
+                    found = true;
                 }
             }
         }
     }
-    return final_info;
+    return found;
 }
 
 bool DefineBufferClusters::unite_nested_clusters(const LoopManagerPtr& loop_manager, const BufferClusters::iterator& inner_cluster_it,

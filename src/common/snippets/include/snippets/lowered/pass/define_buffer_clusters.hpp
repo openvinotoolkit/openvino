@@ -108,12 +108,14 @@ private:
     void parse_nested_loops(const LoopManagerPtr& loop_manager, const BufferMap& input_buffers, const BufferMap& output_buffers,
                             const LinearIR::constExprIt& outer_loop_end_expr_it);
     /**
-     * @brief Finds the last connected Loop to the target Buffer and returns the corresponding loop port info
+     * @brief Finds the last connected Loop to the target Buffer and init the corresponding loop port info
      * @param loop_manager loop manager
      * @param buffer_expr expression with Buffer op
-     * @return finalization offset - int64_t value
+     * @param port_info target loop port info to be initialized
+     * @return status - True if loop port has been found. Otherwise, return false - not connected to the Loop.
      */
-    UnifiedLoopInfo::LoopPortInfo get_buffer_last_loop_port_info(const LoopManagerPtr& loop_manager, const BufferExpressionPtr& buffer_expr) const;
+    static bool init_buffer_last_loop_port_info(const LoopManagerPtr& loop_manager, const BufferExpressionPtr& buffer_expr,
+                                                UnifiedLoopInfo::LoopPortInfo& port_info);
     /**
      * @brief Unite clusters
      * @param loop_manager loop manager
