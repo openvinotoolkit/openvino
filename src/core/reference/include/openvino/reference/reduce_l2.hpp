@@ -31,6 +31,9 @@ void reduce_l2(InputIt in, OutputIt out, const Shape& in_shape, const AxisSet& r
     const auto out_shape = ov::util::reduce(in_shape, reduction_axes);
     const auto out_last = std::next(out, shape_size(out_shape));
     std::fill(out, out_last, T(0));
+    if (shape_size(in_shape) == 0) {
+        return;
+    }
 
     const auto in_strides = row_major_strides(in_shape);
     const auto out_strides = row_major_strides(out_shape);
