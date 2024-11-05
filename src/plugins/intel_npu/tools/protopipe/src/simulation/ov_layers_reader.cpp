@@ -160,7 +160,7 @@ InOutLayers OpenVINOLayersReader::Impl::readFromModel(const std::string& model_p
         const auto iml_map = unpackLayerAttr(params.input_model_layout, input_names, "input model layout");
         cfgInputPreproc(ppp, model, ip_map, il_map, iml_map);
 
-        const auto shape_map = unpackLayerAttr(params.shape, input_names, "shape");
+        const auto shape_map = unpackLayerAttr(params.reshape, input_names, "shape");
         cfgPartialShapes(model, shape_map);
 
         const auto& output_names = extractLayerNames(model->outputs());

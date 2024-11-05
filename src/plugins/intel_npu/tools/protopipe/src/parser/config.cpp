@@ -345,8 +345,8 @@ struct convert<OpenVINOParams> {
             params.output_model_layout = node["oml"].as<LayerVariantAttr<std::string>>();
         }
 
-        if (node["shape"]) {
-            params.shape = node["shape"].as<LayerVariantAttr<std::vector<uint64_t>>> ();
+        if (node["reshape"]) {
+            params.reshape = node["reshape"].as<LayerVariantAttr<std::vector<uint64_t>>> ();
         }
 
         if (node["config"]) {
