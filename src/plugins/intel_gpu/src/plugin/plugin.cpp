@@ -196,7 +196,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     std::string devices_for_tp =
         iter_devices_for_tp ? "" : config.get_property(ov::device::priorities.name()).as<std::string>();
     if (devices_for_tp == "" && device_ids.size() > 1) {
-        std::string devices_for_tp = config.get_property(ov::device::priorities.name()).as<std::string>();
+        devices_for_tp = config.get_property(ov::device::priorities.name()).as<std::string>();
+        std::cout << "devices_for_tp: " << devices_for_tp << std::endl;
     }
     auto parse_devices_id = [&](const std::string devices_for_tp,
                                 const std::string delimiter = ",") -> std::vector<std::string> {
