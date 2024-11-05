@@ -14,8 +14,7 @@ from test_data import FirstBadVersionData, FirstValidVersionData,\
     BenchmarkAppDataUnstable, BenchmarkAppDataStable, BenchmarkAppNoDegradationData,\
     BenchmarkAppUnstableDevData, BenchmarkAppWrongPathData, BenchmarkAppPathFoundData,\
     BenchmarkFirstFixedAppData, AcModeData, BenchmarkMetricData, CustomizedLogData, \
-    MultiConfigData
-
+    MultiConfigData, ConfigMultiplicatorData, ConfigMultiplicatorWithKeyData
 
 class CommitSliderTest(TestCase):
     @skip_commit_slider_devtest
@@ -48,6 +47,25 @@ class CommitSliderTest(TestCase):
         self.assertEqual(
             getCSOutput(updatedData),
             "\n\n".join(['cfg #{n}'.format(n=n) for n in range(3)]) + "\n")
+
+    @skip_commit_slider_devtest
+    def testConfigMultiplicatorByKey(self):
+        from utils.helpers import multiplyCfgByKey
+        from utils.helpers import deepCopyJSON
+        testData = ConfigMultiplicatorData()
+        self.assertEqual(
+            multiplyCfgByKey(testData.testCfg),
+            deepCopyJSON(testData.multipliedCfg))
+
+    @skip_commit_slider_devtest
+    def testRunCSMultiplicatedCfgByKey(self):
+        _, updatedData = getExpectedCommit(
+            ConfigMultiplicatorWithKeyData())
+
+        self.assertEqual(
+            getCSOutput(updatedData),
+            "\n\n".join(['cfg #{n}'.format(n=n) for n in range(3)]) + "\n")
+
 
     @skip_commit_slider_devtest
     def testBmUnstable(self):
@@ -340,7 +358,7 @@ class CommitSliderTest(TestCase):
                 }
             }
         }
-        cfg = deepMapUpdate(cfg, ["path", "to", "placeholder"], "updated")
+        deepMapUpdate(cfg, ["path", "to", "placeholder"], "updated")
         self.assertEqual(
             cfg["path"]["to"]["placeholder"],
             "updated"

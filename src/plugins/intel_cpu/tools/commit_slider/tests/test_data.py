@@ -69,7 +69,9 @@ class TestData():
         BmLatencyMetric = 13,
         ACModeData = 14,
         CustomizedLog = 15,
-        MultiConfig = 16
+        MultiConfig = 16,
+        ConfigMultiplicator = 17,
+        MultiConfigWithKey = 18
 
     def requireTestData(self, reqLambda):
         # mapping json to test data holder
@@ -118,6 +120,35 @@ class MultiConfigData(TestData):
         from test_util import requireBinarySearchData
         self.requireTestData(
             requireBinarySearchData
+        )
+
+class ConfigMultiplicatorWithKeyData(TestData):
+    def getTestCase():
+        return TestData.TestCase.MultiConfigWithKey
+
+    def getTestName(self):
+        return "MultiConfigWithKey"
+
+    def __init__(self):
+        from test_util import requireBinarySearchData
+        self.requireTestData(
+            requireBinarySearchData
+        )
+
+class ConfigMultiplicatorData(TestData):
+    def getTestCase():
+        return TestData.TestCase.ConfigMultiplicator
+
+    def getTestName(self):
+        return "ConfigMultiplicatorByKey"
+
+    def __init__(self):
+        self.requireTestData(
+            lambda td, rsc: [
+                setattr(td, key, rsc[td.getTestName()][key])
+                for key in [
+            'multipliedCfg', 'testCfg'
+            ]]
         )
 
 class BenchmarkAppDataUnstable(TestData):

@@ -15,12 +15,16 @@ from utils.cfg_manager import CfgManager
 import copy
 
 
+mulKey = 'multiplation_key'
+
 def getMeaningfullCommitTail(commit):
     return commit[:7]
+
 
 def extractModelPath(cmdStr):
     args = cmdStr.split()
     return args[args.index("-m") + 1]
+
 
 def getActualCfg(cfg, multiconfig: str):
     if isinstance(cfg, list) and \
@@ -79,10 +83,11 @@ def getParams():
         presetCfgData = loadJSONToObject(presetCfgPath)
         return argHolder, presetCfgData, presetCfgPath
 
-    customCfgData = None
-    with open(customCfgPath) as cfgFile:
-        customCfgData = json.load(cfgFile)
-    cfgFile.close()
+    customCfgData = loadJSONToString(customCfgPath)
+    if mulKey in customCfgData:
+        customCfgData = multiplyCfgByKey(json.loads(customCfgData))
+    else:
+        customCfgData = json.loads(customCfgData)
 
     presetCfgData = customizeCfg(customCfgData, presetCfgData)
 
@@ -125,6 +130,7 @@ def customizeCfg(customCfg, presetCfg: str):
 
         presetCfg = absolutizePaths(presetCfg)
         return presetCfg
+
 
 def getBlobDiff(file1, file2):
     with open(file1) as file:
@@ -676,6 +682,7 @@ class DictHolder:
             for k, v in dict.items():
                 setattr(self, k, v)
 
+
 def formatJSON(content, formatLambda):
     if isinstance(content, dict):
         for k, value in content.items():
@@ -689,6 +696,107 @@ def formatJSON(content, formatLambda):
         # bool or digit object
         pass
     return content
+
+
+def findJSONPathsByValue(content, soughtFor, curPath:list=['$']):
+    pathVector = []
+    if isinstance(content, dict):
+        for k, value in content.items():
+            newRes = findJSONPathsByValue(value, soughtFor,
+                curPath.copy() + [k])
+            if newRes:
+                pathVector.extend(newRes)
+    elif isinstance(content, list):
+        for id, item in enumerate(content):
+            newPath = curPath.copy()
+            newPath.append('[{}]'.format(id))
+            newRes = findJSONPathsByValue(item, soughtFor,
+                newPath)
+            if newRes:
+                pathVector.extend(newRes)
+    else:
+        if content == soughtFor:
+            pathVector.append(curPath)
+    return pathVector
+
+
+def findJSONPathsByKey(content, soughtFor, curPath:list=['$']):
+    pathVector = []
+    if isinstance(content, dict):
+        for k, value in content.items():
+            if k == soughtFor:
+                pathVector.append(curPath)
+            newRes = findJSONPathsByKey(value, soughtFor,
+                curPath.copy() + [k])
+            if newRes:
+                pathVector.extend(newRes)
+    elif isinstance(content, list):
+        for id, item in enumerate(content):
+            newPath = curPath.copy()
+            newPath.append('[{}]'.format(id))
+            newRes = findJSONPathsByKey(item, soughtFor,
+                newPath)
+            if newRes:
+                pathVector.extend(newRes)
+    else:
+        pass
+    return pathVector
+
+
+def multiplyCfgByKey(content):
+    substVector = getSubstVectorByKey(content)
+    pathVector = findJSONPathsByKey(content, 'multiplation_key')
+    n = -1
+    for v in substVector:
+        if n != -1 and len(v) != n:
+            raise Exception("Inconsistent multiplication keys: sizes differ")
+        n = len(v)
+    substNum = len(substVector)
+    retList = []
+    for _ in range(n):
+        retList.append(deepCopyJSON(content))
+    for substIdx in range(substNum):
+        for cfgIdx in range(n):
+            deepMapUpdate(retList[cfgIdx], pathVector[substIdx][1:],
+                          substVector[substIdx][cfgIdx])
+    return retList
+
+
+def deepCopyJSON(obj):
+    return json.loads(json.dumps(obj, sort_keys=True))
+
+
+def getSubstVectorByKey(content,
+                     soughtFor='multiplation_key'):
+    pathVector = findJSONPathsByKey(content, soughtFor)
+    keyVector = []
+    # populate configs
+    def stepInto(jObj, item):
+        try:
+            idx = int(item[1:-1])
+            if item[0] == '[' and item[-1] == ']':
+                return jObj[idx]
+        except ValueError:
+            pass
+        return jObj[item]
+    for path in pathVector: # except root '$'
+        curObj = content
+        for item in path[1:]:
+            curObj = stepInto(curObj, item)
+        curObj = curObj['multiplation_key']
+        if isinstance(curObj, list):
+            keyVector.append(curObj)
+        else:
+            print(curObj)
+            raise Exception("Wrong JSON type in multiplicaiton key")
+    return keyVector
+
+
+def doit(item):
+    try:
+        return int(item[1:-1])
+    except ValueError:
+        raise Exception("Wrong JSON path:{}".format(item))
 
 def applySubstitutionRules(cfg: map, rules: list, commit: str=None):
     # if commit is None or rule['type'] == 'static',
@@ -756,5 +864,11 @@ def deepMapUpdate(content: map, path: list, substitution):
         return substitution
     else:
         root = path.pop(0)
+        if isinstance(content, list):
+            try:
+                root = int(root[1:-1])
+            except TypeError:
+                raise Exception("Wrong index {}".format(root))
         content[root] = deepMapUpdate(content[root], path, substitution)
         return content
+    

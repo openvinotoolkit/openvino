@@ -15,7 +15,7 @@ args, cfgData, customCfgPath = getParams()
 # multiconfig handling: fetch actual config by idx
 curCfgData = getActualCfg(cfgData, args.multiconfig)
 
-if isinstance(curCfgData, list) and args.multiconfig == "undefined":
+if isinstance(cfgData, list) and args.multiconfig == "undefined":
     for idx, _ in enumerate(cfgData):
         argString = " ".join(sys.argv)
         workPath = os.getcwd()
