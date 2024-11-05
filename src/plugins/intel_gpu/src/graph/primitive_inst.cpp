@@ -25,6 +25,9 @@
 #include "shape_of_inst.h"
 #include "softmax_inst.h"
 #include "strided_slice_inst.h"
+#include "scatter_elements_update_inst.h"
+#include "scatter_nd_update_inst.h"
+#include "scatter_update_inst.h"
 #include "gemm_inst.h"
 #include "assign_inst.h"
 #include "read_value_inst.h"
@@ -741,8 +744,9 @@ event::ptr primitive_inst::realloc_if_needed() {
             _max_output_layout_count = _deps[0].first->_max_output_layout_count;
             GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("can_be_optimized");
             return ev;
-        } else if (_outputs[0] && dep_memory_ptr(0) &&
-                   _network.get_engine().is_the_same_buffer(dep_memory(0), output_memory(0))) {
+        // } else if (_outputs[0] && dep_memory_ptr(0) &&
+        //            _network.get_engine().is_the_same_buffer(dep_memory(0), output_memory(0))) {
+        } else if (_outputs[0] && dep_memory_ptr(0)) {
             // Clear out memory if was previously reused, but now primitive can't be optimized
             _outputs[0] = nullptr;
             _max_output_layout_count[0] = 0;
@@ -1583,6 +1587,40 @@ void primitive_inst::do_runtime_in_place_concat() {
     GPU_DEBUG_TRACE_DETAIL << "[In place concat] " << concat_inst->id() << ": can_be_optimized " << std::endl;
 }
 
+// scatter_elements_update (data, idx, uid)
+// scatter_update (dict, idx, idupd)
+// scatter_nd_udpate (data, idx, idupd)
+void primitive_inst::do_runtime_skip_scatter_update() {
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_skip_scatter_update: " + id()));
+    // Check pattern
+    if (!(get_node().is_type<scatter_update>()
+        || get_node().is_type<scatter_elements_update>()
+        || get_node().is_type<scatter_nd_update>())
+        || !get_node().can_be_optimized())
+        return;
+
+    GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_scatter_update] " << id() << " : check optimizability" << std::endl;
+    auto input_layout = _impl_params->get_input_layout(0);
+    auto output_layout = _impl_params->get_output_layout();
+    auto idx_layout = _impl_params->get_input_layout(1);
+    auto update_layout = _impl_params->get_input_layout(2);
+
+    if (idx_layout.count() > 0 && update_layout.count() > 0) {
+        set_can_be_optimized(false);
+        set_shape_change();
+        GPU_DEBUG_TRACE_DETAIL << "--- Cannot optimize because idx_layout (" << idx_layout.to_short_string()
+                        << ") and update_layout(" << update_layout.to_short_string() << ") are not zero" << std::endl;
+        return;
+    }
+
+    GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_scatter_update] " << id() << " : can_be_optimized" << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "            - Input layout  : " << _impl_params->get_input_layout(0).to_short_string() << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "            - Idx layout    : " << _impl_params->get_input_layout(1).to_short_string() << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "            - Update layout : " << _impl_params->get_input_layout(2).to_short_string() << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "            - Output layout : " << _impl_params->get_output_layout().to_short_string() << std::endl;
+    set_can_be_optimized(true);
+}
+
 void primitive_inst::do_runtime_in_place_crop() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_in_place_crop: " + id()));
     GPU_DEBUG_GET_INSTANCE(debug_config);
@@ -1712,6 +1750,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         do_runtime_skip_permute();
         do_runtime_skip_strided_slice();
         do_runtime_skip_broadcast();
+        do_runtime_skip_scatter_update();
         do_runtime_in_place_crop();
 
         if (!is_valid_fusion()) {

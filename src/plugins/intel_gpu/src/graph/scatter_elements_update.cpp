@@ -53,16 +53,18 @@ std::string scatter_elements_update_inst::to_string(scatter_elements_update_node
     return primitive_description.str();
 }
 
-scatter_elements_update_inst::typed_primitive_inst(network& network, scatter_elements_update_node const& node) : parent(network, node) {}
-void scatter_elements_update_inst::on_execute() {
-    auto input1_shape = _impl_params->input_layouts[1].get_partial_shape();
-    auto input2_shape = _impl_params->input_layouts[2].get_partial_shape();
+scatter_elements_update_inst::typed_primitive_inst(network& network, scatter_elements_update_node const& node) : parent(network, node) {
+    update_output_memory();
+}
 
-    if ((ov::shape_size(input1_shape.to_shape()) == 0) || (ov::shape_size(input2_shape.to_shape()) == 0))
-        update_output_memory();
+void scatter_elements_update_inst::on_execute() {
+    update_output_memory();
 }
 
 void scatter_elements_update_inst::update_output_memory() {
+    if (!can_be_optimized() || _impl_params->is_dynamic())
+        return;
+
     if (_outputs.size() > 0 && static_cast<bool>(_outputs[0])
         && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
         return;
