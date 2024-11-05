@@ -121,6 +121,16 @@ std::vector<ReductionParams> generateReductionParams(const bool keep_dims) {
                         reference_tests::Tensor(reduce(Shape{3, 3, 3, 3, 3}, AxisSet{0, 1, 2, 3, 4}, keep_dims),
                                                 element::Type(IN_ET),
                                                 std::vector<T>{243}))};
+    if (keep_dims == false) {
+        params.push_back(ReductionParams(
+            ReductionType::Sum,
+            keep_dims,
+            std::vector<int64_t>{1, 2},
+            reference_tests::Tensor({2, 0, 4}, element::Type(IN_ET), std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8}),
+            reference_tests::Tensor(Shape{2},
+                                    element::Type(IN_ET),
+                                    std::vector<T>{0, 0})));  // Keep dims false, tensor filled with zero
+    }
     return params;
 }
 
