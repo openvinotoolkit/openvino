@@ -128,15 +128,8 @@ static void cfgOutputPostproc(ov::preprocess::PrePostProcessor& ppp, const std::
     }
 }
 
-static void cfgPartialShapes(const std::shared_ptr<ov::Model>& model, 
-                             const AttrMap<std::vector<uint64_t>> shape_map) {
-
-    // std::map<std::string, ov::PartialShape> partial_shapes;
-    // for (const auto& shape : shape_map) {
-    //     std::vector<ov::Dimension> vecDimension;
-    //     for (const auto& dimension : shape.second) { vecDimension.emplace_back(dimension); }
-    //     partial_shapes[shape.first] = std::move(vecDimension);
-    // }
+static void cfgReshape(const std::shared_ptr<ov::Model>& model, 
+                       const AttrMap<std::vector<uint64_t>> shape_map) {
     std::map<std::string, ov::PartialShape> partial_shapes;
     for (const auto& [layer_name, shape] : shape_map) {
         partial_shapes.emplace(layer_name, shape);
@@ -165,7 +158,7 @@ InOutLayers OpenVINOLayersReader::Impl::readFromModel(const std::string& model_p
         cfgInputPreproc(ppp, model, ip_map, il_map, iml_map);
 
         const auto shape_map = unpackLayerAttr(params.reshape, input_names, "shape");
-        cfgPartialShapes(model, shape_map);
+        cfgReshape(model, shape_map);
 
         const auto& output_names = extractLayerNames(model->outputs());
         const auto op_map = unpackLayerAttr(params.output_precision, output_names, "output precision");
