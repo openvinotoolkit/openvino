@@ -2,61 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
-#include "transformations/utils/utils.hpp"
-
 #include "openvino/op/search_sorted.hpp"
 
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/search_sorted.hpp"
 
 namespace ov {
 namespace intel_gpu {
 
 static void CreateSearchSortedOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v15::SearchSorted>& op) {
-    validate_inputs_count(op, {4});
-    // auto inputs = p.GetInputInfo(op);
-    // std::string layerName = layer_type_name_ID(op);
-
-    // int64_t axis = op->get_axis();
-    // auto depth_value_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
-    // auto on_value_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
-    // auto off_value_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(3));
-
-    // OPENVINO_ASSERT(on_value_node != nullptr || off_value_node != nullptr || depth_value_node != nullptr,
-    //                 "[GPU] Unsupported on/off/depth nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
-
-    // float on_value;
-    // float off_value;
-
-    // if (!ov::op::util::get_single_value(on_value_node, on_value) ||
-    //     !ov::op::util::get_single_value(off_value_node, off_value)) {
-    //     OPENVINO_THROW("Unsupported parameter size in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
-    // }
-
-    // auto dims = op->get_input_partial_shape(0);
-
-    // if (axis < -1 || axis > static_cast<int16_t>(dims.size()))
-    //     OPENVINO_THROW(op->get_friendly_name(), " Incorrect OneHot axis value: ", axis, ". Should be between -1 and ", dims.size());
-
-    // if (axis == -1) {
-    //     axis = dims.size();
-    //     for (int i = static_cast<int>(dims.size() - 1); i >= 0; i--) {
-    //         if (dims[i] == 1)
-    //             axis--;
-    //         else
-    //             break;
-    //     }
-    // }
-
-    // int64_t depth = depth_value_node->cast_vector<int64_t>()[0];
-
-    // auto out_pshape = op->get_output_partial_shape(0);
-    // cldnn::tensor out_tensor = out_pshape.is_static() ? tensor_from_dims(out_pshape.to_shape()) : cldnn::tensor{};
-
-    auto oneHotPrim = cldnn::search_sorted();
-
-    p.add_primitive(*op, oneHotPrim);
+    validate_inputs_count(op, {2});
+    auto inputs = p.GetInputInfo(op);
+    auto roi_align_prim = cldnn::search_sorted(layer_type_name_ID(op), inputs[0], inputs[1], op->get_right_mode());
+    p.add_primitive(*op, roi_align_prim);
 }
 
 REGISTER_FACTORY_IMPL(v15, SearchSorted);
