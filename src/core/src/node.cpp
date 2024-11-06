@@ -157,10 +157,6 @@ std::shared_ptr<ov::Node> ov::Node::copy_with_new_inputs(
     }
     for (size_t i = 0; i < get_output_size(); i++) {
         clone->get_output_tensor(i).set_names(get_output_tensor(i).get_names());
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        ov::descriptor::set_ov_tensor_legacy_name(clone->get_output_tensor(i),
-                                                  ov::descriptor::get_ov_tensor_legacy_name(get_output_tensor(i)));
-        OPENVINO_SUPPRESS_DEPRECATED_END
     }
     return clone;
 }
@@ -696,8 +692,8 @@ bool ov::Node::evaluate_symbol(TensorSymbolVector& output_symbols) const {
     return false;
 }
 
-bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& input_values) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::core, "Node::constant_fold");
+bool ov::Node::can_constant_fold(const OutputVector& input_values) const {
+    OV_ITT_SCOPED_TASK(ov::itt::domains::core, "Node::can_constant_fold");
 
     if (is_const_fold_disabled()) {
         return false;
@@ -707,8 +703,16 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
     bool all_constants = std::all_of(input_values.begin(), input_values.end(), [](const Output<Node>& input) {
         return ov::as_type_ptr<ov::op::v0::Constant>(input.get_node_shared_ptr());
     });
-    if (!all_constants)
+
+    return all_constants;
+}
+
+bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& input_values) {
+    OV_ITT_SCOPED_TASK(ov::itt::domains::core, "Node::constant_fold");
+
+    if (!Node::can_constant_fold(input_values)) {
         return false;
+    }
 
     NodeVector nodes;
     TensorVector input_tensors;

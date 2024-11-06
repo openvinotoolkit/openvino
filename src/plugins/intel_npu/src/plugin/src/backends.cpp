@@ -7,12 +7,9 @@
 #include <fstream>
 #include <memory>
 
-#include "device_helpers.hpp"
-#include "intel_npu/al/config/common.hpp"
-
-#if defined(ENABLE_ZEROAPI_BACKEND)
-#    include "zero_backend.hpp"
-#endif
+#include "intel_npu/common/device_helpers.hpp"
+#include "intel_npu/config/common.hpp"
+#include "zero_backend.hpp"
 
 #if !defined(OPENVINO_STATIC_LIBRARY) && defined(ENABLE_IMD_BACKEND)
 #    include "openvino/util/file_util.hpp"
@@ -102,12 +99,10 @@ NPUBackends::NPUBackends(const std::vector<AvailableBackends>& backendRegistry, 
             }
 #endif
 
-#if defined(ENABLE_ZEROAPI_BACKEND)
             if (name == AvailableBackends::LEVEL_ZERO) {
                 const auto backend = ov::SoPtr<IEngineBackend>(std::make_shared<ZeroEngineBackend>(config));
                 registerBackend(backend, backendName);
             }
-#endif
         } catch (const std::exception& ex) {
             _logger.warning("Got an error during backend '%s' loading : %s", backendName.c_str(), ex.what());
         } catch (...) {
@@ -171,6 +166,14 @@ bool NPUBackends::isBatchingSupported() const {
 bool NPUBackends::isCommandQueueExtSupported() const {
     if (_backend != nullptr) {
         return _backend->isCommandQueueExtSupported();
+    }
+
+    return false;
+}
+
+bool NPUBackends::isLUIDExtSupported() const {
+    if (_backend != nullptr) {
+        return _backend->isLUIDExtSupported();
     }
 
     return false;
