@@ -17,7 +17,7 @@ from openvino.runtime.passes import (
 )
 
 from tests.test_transformations.utils.utils import count_ops, get_relu_model
-from tests.utils.helpers import create_filename_for_test, compare_models
+from tests.utils.helpers import create_filenames_for_ir, compare_models
 
 
 def get_model():
@@ -132,10 +132,10 @@ def test_low_latency2():
 )
 def test_serialize_pass(request, tmp_path, is_path_xml, is_path_bin):
     core = Core()
-    xml_path, bin_path = create_filename_for_test(request.node.name,
-                                                  tmp_path,
-                                                  is_path_xml,
-                                                  is_path_bin)
+    xml_path, bin_path = create_filenames_for_ir(request.node.name,
+                                                 tmp_path,
+                                                 is_path_xml,
+                                                 is_path_bin)
 
     model = get_relu_model()
 
