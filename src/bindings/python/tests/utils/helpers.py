@@ -303,7 +303,14 @@ def generate_abs_compiled_model_with_data(device, ov_type, numpy_dtype):
     return compiled_model, request, tensor1, array1
 
 
-def create_filename_for_test(test_name, tmp_path, is_xml_path=False, is_bin_path=False):
+def create_filename_for_test(test_name):
+    python_version = str(sys.version_info.major) + "_" + str(sys.version_info.minor)
+    filename = test_name.replace("test_", "").replace("[", "_").replace("]", "_")
+    filename = filename + "_" + python_version
+    return filename
+
+
+def create_filenames_for_ir(test_name, tmp_path, is_xml_path=False, is_bin_path=False):
     """Return a tuple with automatically generated paths for xml and bin files.
 
     :param test_name: Name used in generating.
@@ -311,9 +318,7 @@ def create_filename_for_test(test_name, tmp_path, is_xml_path=False, is_bin_path
     :param is_bin_path: True if bin file should be pathlib.Path object, otherwise return string.
     :return: Tuple with two objects representing xml and bin files.
     """
-    python_version = str(sys.version_info.major) + "_" + str(sys.version_info.minor)
-    filename = test_name.replace("test_", "").replace("[", "_").replace("]", "_")
-    filename = filename + "_" + python_version
+    filename = create_filename_for_test(test_name)
     path_to_xml = tmp_path / Path(filename + ".xml")
     path_to_bin = tmp_path / Path(filename + ".bin")
     _xml = path_to_xml if is_xml_path else str(path_to_xml)
