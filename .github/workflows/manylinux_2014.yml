@@ -118,11 +118,12 @@ jobs:
       - name: Build (inside container)
         run: |
           docker run --rm -v $GITHUB_WORKSPACE -w $GITHUB_WORKSPACE quay.io/pypa/manylinux2014_x86_64 /bin/bash -c "
-          # steps
-          python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
-          cmake -G ${CMAKE_GENERATOR} -DENABLE_CPPLINT=OFF -DENABLE_NCC_STYLE=OFF -DCMAKE_VERBOSE_MAKEFILE=ON -DBUILD_SHARED_LIBS=ON -DENABLE_WHEEL=ON -S ${OPENVINO_REPO} -B ${BUILD_DIR}
-          cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${CMAKE_BUILD_TYPE}
-          cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -P ${BUILD_DIR}/cmake_install.cmake --config ${CMAKE_BUILD_TYPE}
+            # steps
+            python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
+            cmake -G ${CMAKE_GENERATOR} -DENABLE_CPPLINT=OFF -DENABLE_NCC_STYLE=OFF -DCMAKE_VERBOSE_MAKEFILE=ON -DBUILD_SHARED_LIBS=ON -DENABLE_WHEEL=ON -S ${OPENVINO_REPO} -B ${BUILD_DIR}
+            cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${CMAKE_BUILD_TYPE}
+            cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -P ${BUILD_DIR}/cmake_install.cmake --config ${CMAKE_BUILD_TYPE}
+          "
       #
       # Build
       #
