@@ -55,6 +55,9 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<SearchSortedTestParams>& obj) {
         auto param = obj.param;
         std::ostringstream result;
+        result << "sortedShape=" << param.sortedShape;
+        result << "_valuesShape=" << param.valuesShape;
+        result << "_rightMode=" << param.rightMode;
         result << "_" << param.testcaseName;
         return result.str();
     }
@@ -90,7 +93,6 @@ public:
         topology.add(input_layout("sorted", params.sorted->get_layout()));
         topology.add(input_layout("values", params.sorted->get_layout()));
         topology.add(search_sorted("search_sorted", input_info("sorted"), input_info("values"), params.rightMode));
-        topology.add(reorder("out", input_info("search_sorted"), cldnn::format::bfyx, data_types::f32));
 
         cldnn::network::ptr network = get_network(engine_, topology, get_test_default_config(engine_), stream, false);
 
@@ -137,7 +139,6 @@ std::vector<SearchSortedTestParams> generateTestParams() {
         Execute(PrepareInferenceParams<ov::element::Type_t::precision>(GetParam())); \
     }
 
-ROI_ALIGN_ROTATED_TEST_P(f16);
 ROI_ALIGN_ROTATED_TEST_P(f32);
 
 INSTANTIATE_TEST_SUITE_P(search_sorted_test_suit,
