@@ -199,7 +199,7 @@ std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> ZeroDevice::runIni
     auto profilingQuery =
         zeroProfiling::ProfilingQuery(0, _initStructs->getDevice(), _initStructs->getProfilingDdiTable());
 
-    ze_device_properties_t properties;
+    ze_device_properties_t properties = {};
     properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
     THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetProperties", zeDeviceGetProperties(_initStructs->getDevice(), &properties));
 
