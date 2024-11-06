@@ -16,7 +16,6 @@ readme = "README.md"
 authors = [
     {name = "Intel® Corporation", email = "openvino_pushbot@intel.com"}
 ]
-license = {file = "LICENSE"}
 urls = {homepage = "https://github.com/openvinotoolkit/openvino"}
 classifiers = [
     "Programming Language :: Python :: 3",
