@@ -50,6 +50,8 @@ enum impl_desc_type : int64_t {
 
     // shl backend
     shl = 1ll<<32,
+    //brdgmm
+    brdgmm = 1ll<<33,
 
     // real types
     ref_any             = ref  | any,
@@ -116,6 +118,8 @@ enum impl_desc_type : int64_t {
     jit_sve256        = jit | sve256,
     jit_sve384        = jit | sve384,
     jit_sve512        = jit | sve512,
+
+    brdgmm_dw_avx2 = brdgmm | _dw | avx2,
 
     gemm_shl          = gemm | shl
 };

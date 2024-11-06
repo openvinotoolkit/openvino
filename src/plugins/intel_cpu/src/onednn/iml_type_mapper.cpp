@@ -3,6 +3,7 @@
 //
 
 #include "iml_type_mapper.h"
+#include "utils/debug_capabilities.h"
 #include <algorithm>
 #include <string>
 #include <vector>
@@ -51,6 +52,7 @@ impl_desc_type parse_impl_name(std::string impl_desc_name) {
     SEARCH_WORD(acl);
     SEARCH_WORD(shl);
     SEARCH_WORD(asimd);
+    SEARCH_WORD(brdgmm);
     if ((res & impl_desc_type::avx2) != impl_desc_type::avx2 &&
         (res & impl_desc_type::avx512) != impl_desc_type::avx512)
         SEARCH_WORD(avx);
@@ -138,8 +140,12 @@ const char* impl_type_to_string(impl_desc_type type) {
     CASE(jit_sve512);
     CASE(shl);
     CASE(gemm_shl);
+    CASE(brdgmm_dw_avx2);
 
 #undef CASE
+// #ifdef CPU_DEBUG_CAPS
+//     DEBUG_LOG("find a unknown impl Type:", type);
+// #endif
     return "unknown";
 }
 
