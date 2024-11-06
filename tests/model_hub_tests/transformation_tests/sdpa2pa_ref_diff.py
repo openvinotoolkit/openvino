@@ -305,6 +305,20 @@ ref_diff_map = {
 		"ReadValue" : -12,
 		"Assign" : -12,
 	},
+    "katuni4ka/tiny-random-llava-next" : {
+        "PagedAttentionExtension" : 2,
+        "Parameter" : 7,
+        "ReadValue" : -4,
+        "ScaledDotProductAttention" : -2,
+        "Assign" : -4,
+    },
+    "katuni4ka/tiny-random-minicpmv-2_6" : {
+            "PagedAttentionExtension" : 2,
+            "Parameter" : 7,
+            "ReadValue" : -4,
+            "ScaledDotProductAttention" : -2,
+            "Assign" : -4,
+    },
 }
 
 ref_diff_map_cache_eviction = {
@@ -609,4 +623,18 @@ ref_diff_map_cache_eviction = {
 		"Parameter" : 20,
 		"Assign" : -12,
 	},
+    "katuni4ka/tiny-random-llava-next" : {
+            "Parameter" : 8,
+            "Assign" : -4,
+            "ReadValue" : -4,
+            "PagedAttentionExtension" : 2,
+            "ScaledDotProductAttention" : -2,
+    },
+    "katuni4ka/tiny-random-minicpmv-2_6" : {
+            "Parameter" : 8,
+            "Assign" : -4,
+            "ReadValue" : -4,
+            "PagedAttentionExtension" : 2,
+            "ScaledDotProductAttention" : -2,
+    },
 }
