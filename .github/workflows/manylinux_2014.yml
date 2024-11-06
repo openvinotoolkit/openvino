@@ -118,6 +118,7 @@ jobs:
 
       - name: Build (inside container)
         run: |
+          docker pull ${{ fromJSON(needs.docker.outputs.images).ov_build.manylinux2014_x86_64 }}
           docker run --rm -v $OPENVINO_REPO:/src -v $INSTALL_DIR:/install -w /src ${{ fromJSON(needs.docker.outputs.images).ov_build.manylinux2014_x86_64 }} /bin/bash -c "
             # steps
             python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt && \
