@@ -170,6 +170,36 @@ jobs:
           cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_TEST_DIR }} -DCOMPONENT=tests -P ${{ env.BUILD_DIR }}/cmake_install.cmake
           cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_WHEELS_DIR }} -DCOMPONENT=python_wheels -P ${{ env.BUILD_DIR }}/cmake_install.cmake
 
+      - name: Pack Artifacts
+        run: |
+          pushd ${{ env.INSTALL_DIR }}
+            tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/openvino_package.tar.gz
+          popd
+          pushd ${{ env.INSTALL_TEST_DIR }}
+            tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/openvino_tests.tar.gz 
+          popd
+
+      - name: Cmake & Build - OpenVINO Contrib
+        run: |
+          cmake \
+            -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" \
+            -DOPENVINO_EXTRA_MODULES=${{ env.OPENVINO_CONTRIB_REPO }}/modules/custom_operations \
+            -S ${{ env.OPENVINO_REPO }} \
+            -B ${{ env.BUILD_DIR }}
+          cmake --build ${{ env.BUILD_DIR }} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
+
+      - name: CMake configure, build and install - OpenVINO JS API
+        if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
+        run: |
+          cmake \
+            -DCPACK_GENERATOR=NPM \
+            -S ${{ env.OPENVINO_REPO }} \
+            -B ${{ env.BUILD_DIR }}
+
+          cmake --build ${{ env.BUILD_DIR }} --parallel
+
+          cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR_JS }} -P ${{ env.BUILD_DIR }}/cmake_install.cmake
+
       # Setup additional Python versions for wheels building
       - name: Setup Python 3.9
         uses: ./openvino/.github/actions/setup_python
@@ -207,35 +237,6 @@ jobs:
             cmake --install "$PY_BUILD_DIR" --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_WHEELS_DIR }} --component python_wheels
           done
 
-      - name: Pack Artifacts
-        run: |
-          pushd ${{ env.INSTALL_DIR }}
-            tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/openvino_package.tar.gz
-          popd
-          pushd ${{ env.INSTALL_TEST_DIR }}
-            tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/openvino_tests.tar.gz 
-          popd
-
-      - name: Cmake & Build - OpenVINO Contrib
-        run: |
-          cmake \
-            -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" \
-            -DOPENVINO_EXTRA_MODULES=${{ env.OPENVINO_CONTRIB_REPO }}/modules/custom_operations \
-            -S ${{ env.OPENVINO_REPO }} \
-            -B ${{ env.BUILD_DIR }}
-          cmake --build ${{ env.BUILD_DIR }} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
-
-      - name: CMake configure, build and install - OpenVINO JS API
-        if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
-        run: |
-          cmake \
-            -DCPACK_GENERATOR=NPM \
-            -S ${{ env.OPENVINO_REPO }} \
-            -B ${{ env.BUILD_DIR }}
-
-          cmake --build ${{ env.BUILD_DIR }} --parallel
-
-          cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR_JS }} -P ${{ env.BUILD_DIR }}/cmake_install.cmake
       #
       # Upload build artifacts
       #
