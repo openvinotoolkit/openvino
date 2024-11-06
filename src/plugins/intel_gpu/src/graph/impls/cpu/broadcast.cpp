@@ -45,14 +45,14 @@ struct broadcast_impl : public typed_primitive_impl<broadcast> {
     void save(BinaryOutputBuffer& ob) const override {
         parent::save(ob);
         ob << make_data(&broadcast_mode, sizeof(ov::op::BroadcastModeSpec));
-        ob << make_data(&target_shape, sizeof(ov::Shape));
+        ob << target_shape;
         ob << axes_mapping;
     }
 
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
         ib >> make_data(&broadcast_mode, sizeof(ov::op::BroadcastModeSpec));
-        ib >> make_data(&target_shape, sizeof(ov::Shape));
+        ib >> target_shape;
         ib >> axes_mapping;
     }
 
@@ -60,7 +60,7 @@ struct broadcast_impl : public typed_primitive_impl<broadcast> {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "broadcast::execute_impl");
         auto& stream = instance.get_network().get_stream();
 
-        const bool pass_through_events = (stream.get_queue_type() == QueueTypes::out_of_order) && instance.get_node().is_in_shape_of_subgraph();
+        const bool pass_through_events = (stream.get_queue_type() == QueueTypes::out_of_order) && instance.all_dependencies_cpu_impl();
 
         if (!pass_through_events) {
             for (auto e : events) {

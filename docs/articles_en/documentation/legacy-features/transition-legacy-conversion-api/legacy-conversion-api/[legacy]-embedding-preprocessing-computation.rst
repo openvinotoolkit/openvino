@@ -1,5 +1,3 @@
-.. {#openvino_docs_MO_DG_Additional_Optimization_Use_Cases}
-
 [LEGACY] Embedding Preprocessing Computation
 =====================================================
 

@@ -2,8 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "impls/registry/implementation_manager.hpp"
+#include "intel_gpu/runtime/internal_properties.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
+#include "openvino/util/weights_path.hpp"
 
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
@@ -17,6 +21,7 @@
 #include "pass_manager.h"
 #include "primitive_type.h"
 #include "program_dump_graph.h"
+#include "program_node.h"
 #include "sliding_window_utils.hpp"
 #include "program_helpers.h"
 
@@ -51,6 +56,7 @@
 #include "border_inst.h"
 #include "primitive_inst.h"
 #include "prior_box_inst.h"
+#include "scatter_elements_update_inst.h"
 #include "proposal_inst.h"
 #include "reorder_inst.h"
 #include "mvn_inst.h"
@@ -66,18 +72,12 @@
 #include "to_string_utils.h"
 
 // TODO: Remove once we have interface for kernels cache
-#include "runtime/kernels_cache.hpp"
+#include "impls/ocl/kernels_cache.hpp"
 
 // TODO: implement self-registration for impls
 #include "impls/ocl/register.hpp"
 #include "impls/cpu/register.hpp"
 #include "impls/common/register.hpp"
-#ifdef ENABLE_ONEDNN_FOR_GPU
-#include "impls/onednn/register.hpp"
-#endif
-#ifdef OV_GPU_WITH_SYCL
-#include "impls/sycl/register.hpp"
-#endif
 
 #include "kernel_base.h"
 
@@ -153,7 +153,7 @@ program::program(engine& engine_ref,
       _compilation_context(compilation_context) {
     _config.apply_user_properties(_engine.get_device_info());
     init_primitives();
-    GPU_DEBUG_INFO << "Program config\n" << config.to_string();
+    GPU_DEBUG_INFO << "Program config\n" << _config.to_string();
     init_program();
     prepare_nodes(topology);
     program_node::reset_unique_id();
@@ -202,8 +202,7 @@ program::program(engine& engine_ref,
     build_program(is_internal);
 }
 
-program::program(engine& engine,
-        const ExecutionConfig& config)
+program::program(engine& engine, const ExecutionConfig& config)
     : _engine(engine),
       _stream(_engine.create_stream({})),
       _config(config),
@@ -211,6 +210,7 @@ program::program(engine& engine,
     init_primitives();
     _config.apply_user_properties(_engine.get_device_info());
     new_shape_infer = _config.get_property(ov::intel_gpu::allow_new_shape_infer);
+    _layout_optimizer = cldnn::make_unique<layout_optimizer>();
 }
 
 program::~program() {
@@ -257,13 +257,7 @@ void program::init_primitives() {
     if (!is_initialized) {
         common::register_implementations();
         ocl::register_implementations();
-#ifdef ENABLE_ONEDNN_FOR_GPU
-        onednn::register_implementations();
-#endif
         cpu::register_implementations();
-#ifdef OV_GPU_WITH_SYCL
-        sycl::register_implementations();
-#endif
         is_initialized = true;
     }
 }
@@ -610,7 +604,7 @@ void program::pre_optimize_graph(bool is_internal) {
 
     // Call shape_of subgraphs markup second time to update newely added nodes after graph
     // optimization passes
-    apply_opt_pass<mark_shape_of_subgraphs>(true);
+    apply_opt_pass<mark_shape_of_subgraphs>();
 
     // Mark operations that might be skipped at runtime as can_be_optimized.
     apply_opt_pass<mark_runtime_skippable_nodes>();
@@ -813,6 +807,7 @@ void program::apply_needed_padding(program_node& node, program_node& prev_node, 
 
         auto r_prim = std::make_shared<reorder>("reorder_input_" + node.id(), prev_node.id(), target_layout);
         add_intermediate(r_prim, node, 0);
+        get_or_create(r_prim).recalc_output_layouts(false);
         return;
     }
 
@@ -1634,10 +1629,12 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
         lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::bs_fs_yx_bsv16_fsv16_network, 1);
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
+    bool enable_onednn_for_tests = get_config().get_property(ov::intel_gpu::optimize_data) || is_internal_program();
     auto& engine = get_engine();
     if (engine.get_device_info().supports_immad &&
         engine.get_device_info().vendor_id == INTEL_VENDOR_ID &&
-        get_config().get_property(ov::intel_gpu::queue_type) == QueueTypes::in_order)
+        get_config().get_property(ov::intel_gpu::queue_type) == QueueTypes::in_order &&
+        enable_onednn_for_tests)
         lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, 1);
 #endif
 }
@@ -1724,6 +1721,7 @@ void program::cancel_compilation_context() {
 void program::save(cldnn::BinaryOutputBuffer& ob) const {
     std::map<cldnn::memory::ptr, std::vector<const cldnn::program_node*>> mutable_datas_ptrs;
     ob << nodes_map.size();
+
     for (auto& node : nodes_map) {
         ob.setKernelImplParams(node.second->get_kernel_impl_params().get());
 
@@ -1736,6 +1734,7 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
                 node.second->as<data>().typed_desc()->mem = data_node.get_attached_memory_ptr();
             }
         }
+
         ob << true;
 
         ob << node.second->desc;
@@ -1780,6 +1779,7 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
 
     ob << _is_body_program;
     ob << _can_be_optimized;
+    ob << get_layout_optimizer().get_optimization_attributes().use_onednn_impls;
     processing_order.save(ob);
 
     {
@@ -1794,6 +1794,8 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
         ob << kernels_cache;
         ob << impl_ids;
         for (auto& impl_id : impl_ids) {
+            std::string type_name = get_node_ptr(impl_id)->get_selected_impl()->m_manager->get_type_info().name;
+            ob << type_name;
             if (get_node_ptr(impl_id)->get_selected_impl()->is_onednn()) {
                 ob << true;
                 auto params = get_node_ptr(impl_id)->get_kernel_impl_params();
@@ -1836,6 +1838,13 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
 void program::load(cldnn::BinaryInputBuffer& ib) {
     init_program();
 
+    std::shared_ptr<ov::MappedMemory> mapped_memory = nullptr;
+    std::string weights_path = _config.get_property(ov::weights_path);
+    if (_config.get_property(ov::cache_mode) == ov::CacheMode::OPTIMIZE_SIZE &&
+        ov::util::validate_weights_path(weights_path)) {
+        mapped_memory = ov::load_mmap_object(weights_path);
+    }
+
     size_t num_nodes;
     ib >> num_nodes;
     bool is_valid_data_node;
@@ -1846,6 +1855,9 @@ void program::load(cldnn::BinaryInputBuffer& ib) {
 
         std::shared_ptr<cldnn::primitive> prim;
         ib >> prim;
+        if (auto data_prim = dynamic_cast<cldnn::data*>(prim.get())) {
+            data_prim->load_weights(ib, mapped_memory);
+        }
         get_or_create(prim);
     }
 
@@ -1897,9 +1909,13 @@ void program::load(cldnn::BinaryInputBuffer& ib) {
 
     ib >> _is_body_program;
     ib >> _can_be_optimized;
+    int32_t use_onednn_attr = 0;
+    ib >> use_onednn_attr;
+    get_layout_optimizer().set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, use_onednn_attr);
     _loaded_from_cache = true;
 
     processing_order.load(ib, *this);
+    set_layout_optimizer_attributes(*_layout_optimizer);
 
     {
         auto& kernels_cache = get_kernels_cache();
@@ -1910,7 +1926,10 @@ void program::load(cldnn::BinaryInputBuffer& ib) {
 
         for (auto& impl_id : impl_ids) {
             auto& p_node = get_node(impl_id);
-
+            std::string type_name;
+            ib >> type_name;
+            ov::DiscreteTypeInfo type(type_name.c_str());
+            auto impl_manager = p_node.type()->get(type);
             bool is_onednn;
             ib >> is_onednn;
             if (is_onednn) {
@@ -1920,6 +1939,8 @@ void program::load(cldnn::BinaryInputBuffer& ib) {
             } else {
                 ib >> p_node.selected_impl;
             }
+
+            p_node.selected_impl->m_manager = impl_manager.get();
 
             std::vector<std::string> cached_kernel_ids;
             ib >> cached_kernel_ids;

@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_opset6}
-
 opset6
 ======
 
@@ -95,7 +93,7 @@ Table of Contents
 * :doc:`Loop <../operation-specs/infrastructure/loop-5>`
 * :doc:`LRN <../operation-specs/normalization/lrn-1>`
 * :doc:`LSTMCell <../operation-specs/sequence/lstm-cell-1>`
-* :doc:`LSTMSequence <../operation-specs/sequence/lstm-sequence-1>`
+* :doc:`LSTMSequence <../operation-specs/sequence/lstm-sequence-5>`
 * :doc:`MatMul <../operation-specs/matrix/matmul-1>`
 * :doc:`MaxPool <../operation-specs/pooling/max-pool-1>`
 * :doc:`Maximum <../operation-specs/arithmetic/maximum-1>`
@@ -170,4 +168,3 @@ Table of Contents
 * :doc:`Transpose <../operation-specs/movement/transpose-1>`
 * :doc:`Unsqueeze <../operation-specs/shape/unsqueeze-1>`
 * :doc:`VariadicSplit <../operation-specs/movement/variadic-split-1>`
-

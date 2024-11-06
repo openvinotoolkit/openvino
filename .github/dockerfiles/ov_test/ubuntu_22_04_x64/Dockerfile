@@ -23,11 +23,15 @@ RUN apt-get update && \
         ca-certificates \
         gpg-agent \
         tzdata \
+        # parallel gzip
+        pigz \
         # Python
         python3.11-dev \
         python3.11-venv \
         python3.11-distutils \
         libhdf5-dev \
+        # For TF Models tests
+        wget \
         && \
     rm -rf /var/lib/apt/lists/*
 

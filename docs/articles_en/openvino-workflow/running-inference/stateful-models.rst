@@ -1,5 +1,3 @@
-.. {#openvino_docs_OV_UG_stateful_models_intro}
-
 Stateful models and State API
 ==============================
 
@@ -142,4 +140,4 @@ sequences.
 You can find more examples demonstrating how to work with states in other articles:
 
 * `LLM Chatbot notebook <../../notebooks/stable-zephyr-3b-chatbot-with-output.html>`__
-* :doc:`Serving Stateful Models with OpenVINO Model Server <../../ovms_docs_stateful_models>`
+* :doc:`Serving Stateful Models with OpenVINO Model Server <../../openvino-workflow/model-server/ovms_docs_stateful_models>`

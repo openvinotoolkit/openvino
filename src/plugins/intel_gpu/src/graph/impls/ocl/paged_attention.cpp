@@ -52,6 +52,15 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         PA_SDPA,
     };
 
+    bool requires_update(primitive_inst& inst, const kernel_impl_params& impl_params) const override {
+        const auto stage = get_paged_attention_stage(impl_params);
+
+        // In case of MIXED mode execution Paged Attention may require dispatch data update and internal
+        // buffers reallocation even if the input shapes haven't been changed. Therefore, check the current execution
+        // mode and update parameters if needed
+        return stage == PagedAttentionStage::MIXED;
+    }
+
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
         if (is_dynamic()) {
@@ -90,7 +99,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         return layouts;
     }
 
-    kernel_arguments_data get_arguments(const paged_attention_inst& instance, size_t stage, size_t kernel_idx) const {
+    kernel_arguments_data get_arguments(const paged_attention_inst& instance, size_t stage, size_t kernel_idx, bool is_mixed_mode) const {
         const auto desc = instance.get_node().as<paged_attention>().get_primitive();
 
         kernel_arguments_data args;
@@ -113,6 +122,10 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
                              instance.value_memory_ptr(),
                              instance.subsequence_begins_memory_ptr() };
 
+            if (!desc->scale_val.has_value()) {
+                args.inputs.push_back(instance.input_memory_ptr(9));
+            }
+
             if (desc->has_alibi) {
                 args.inputs.push_back(instance.alibi_memory_ptr());
             }
@@ -129,10 +142,14 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
                                 instance.block_indices_memory_ptr(),
                                 instance.block_indices_begins_memory_ptr() };
 
-                if (kernel_idx == 1) {
+                if (is_mixed_mode) {
                     // Multi tokens kernel version has additional subsequence_begins_memory memory
                     // dependency
                     args.inputs.push_back(instance.subsequence_begins_memory_ptr());
+                }
+
+                if (!desc->scale_val.has_value()) {
+                    args.inputs.push_back(instance.input_memory_ptr(9));
                 }
 
                 if (desc->has_alibi) {
@@ -140,6 +157,12 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
                 }
             } else {
                 args.inputs = { instance.past_lens_memory_ptr() };
+
+                if (is_mixed_mode) {
+                    // Multi tokens kernel version has additional subsequence_begins_memory memory
+                    // dependency
+                    args.inputs.push_back(instance.subsequence_begins_memory_ptr());
+                }
             }
 
             args.outputs = { instance.output_memory_ptr(0) };
@@ -153,7 +176,11 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
                                  6, /* PA_SDPA multiple tokens mode */ };
     };
 
-    void execute_stage(const std::vector<event::ptr>& events, paged_attention_inst& instance, std::vector<event::ptr>& all_events, size_t stage) {
+    void execute_stage(const std::vector<event::ptr>& events,
+                       paged_attention_inst& instance,
+                       std::vector<event::ptr>& all_events,
+                       size_t stage,
+                       bool is_mixed_mode) {
         stream& stream = instance.get_network().get_stream();
         std::vector<event::ptr> tmp_events(events);
         size_t kernel_offset = 0;
@@ -181,7 +208,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
 
             auto& params = _kernels_data[stage].kernels[kd_idx].params;
 
-            auto args = get_arguments(instance, stage, kd_idx);
+            auto args = get_arguments(instance, stage, kd_idx, is_mixed_mode);
             args.scalars = &params.scalars;
 
             const auto& intermediate_memories = instance.get_intermediates_memories();
@@ -211,14 +238,15 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
     event::ptr execute_impl(const std::vector<event::ptr>& events, paged_attention_inst& instance) override {
         std::vector<event::ptr> res_events;
         const auto stage = get_paged_attention_stage(*instance.get_impl_params());
+        const auto is_mixed_mode = stage == PagedAttentionStage::MIXED;
 
-        execute_stage(events, instance, res_events, Stage::KV_CACHE_UPDATE);
+        execute_stage(events, instance, res_events, Stage::KV_CACHE_UPDATE, is_mixed_mode);
 
         std::vector<event::ptr> dep_events(res_events.begin(), res_events.end());
         if (stage == PagedAttentionStage::PREFILL) {
-            execute_stage(dep_events, instance, res_events, Stage::SDPA);
+            execute_stage(dep_events, instance, res_events, Stage::SDPA, is_mixed_mode);
         } else if (stage == PagedAttentionStage::GENERATE || stage == PagedAttentionStage::MIXED) {
-            execute_stage(dep_events, instance, res_events, Stage::PA_SDPA);
+            execute_stage(dep_events, instance, res_events, Stage::PA_SDPA, is_mixed_mode);
         }
 
         return instance.get_network().get_stream().aggregate_events(res_events, res_events.size() > 1);
@@ -248,9 +276,45 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
             mem_lock<int32_t, mem_lock_type::read> subsequence_begins_mem_lock(subsequence_begins_mem, *impl_param.strm);
 
             auto aligned_seq_len = 0;
-            for (size_t i = 0; i < subsequence_begins_mem_lock.size() - 1; i++) {
-                auto prompt_length = subsequence_begins_mem_lock[i + 1] - subsequence_begins_mem_lock[i];
-                aligned_seq_len += align_to(prompt_length, target_seq_len_block_size);
+            if (stage == PagedAttentionStage::MIXED) {
+                const auto past_lens_idx = 5;
+                const auto past_lens_mem = input_mem.at(past_lens_idx);
+                mem_lock<int32_t, mem_lock_type::read> past_lens_mem_lock(past_lens_mem, *impl_param.strm);
+
+                for (size_t i = 0; i < subsequence_begins_mem_lock.size() - 1; i++) {
+                    auto past_len = past_lens_mem_lock[i];
+                    auto seq_length = subsequence_begins_mem_lock[i + 1] - subsequence_begins_mem_lock[i];
+
+                    // Since in MIXED execution mode the present KV-cache can be appended to the past KV-cache at any offset inside block,
+                    // to ensure proper alignment and update_kv_cache kernel scheduling, we need to account for the number of unaligned tokens
+                    // in the first block
+                    // For example, if we need to store values in the following slots:
+                    //
+                    // block0: |O|O|O|O|O|O|O|O|O|O|O|O|U|U|U|U|
+                    // block1: |U|U|U|U|U|U|U|U|U|U|U|U|U|U|U|U|
+                    // block2: |U|U|U|U|U|U|E|E|E|E|E|E|E|E|E|E|
+                    // Where O - occupied slots, U - currently beeing updated slots, E - empty slots
+                    //
+                    // We need to schedule 3 update_kv_cache operations:
+                    // - For ranges of block0: [12-15]
+                    // - For ranges of block1: [0-15]
+                    // - For ranges of block2: [0-5]
+                    //
+                    // Therefore, consider an additional increment of aligned_seq_len to properly process all the blocks
+
+                    auto occupied_slots_num = past_len % target_seq_len_block_size;
+                    if (past_len != 0 && seq_length + occupied_slots_num > target_seq_len_block_size) {
+                        aligned_seq_len += target_seq_len_block_size;
+                        seq_length -= target_seq_len_block_size - occupied_slots_num;
+                    }
+
+                    aligned_seq_len += align_to(seq_length, target_seq_len_block_size);
+                }
+            } else {
+                for (size_t i = 0; i < subsequence_begins_mem_lock.size() - 1; i++) {
+                    auto prompt_length = subsequence_begins_mem_lock[i + 1] - subsequence_begins_mem_lock[i];
+                    aligned_seq_len += align_to(prompt_length, target_seq_len_block_size);
+                }
             }
 
             return aligned_seq_len;
@@ -287,8 +351,10 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         config.paged_attention_block_size = static_cast<int64_t>(paged_attention::block_size);
 
         if (desc->scale_val.has_value()) {
-            config.has_scale_val = true;
+            config.has_const_scale_val = true;
             config.scale_val = desc->scale_val.value();
+        } else {
+            config.has_const_scale_val = false;
         }
 
         if (desc->heads_num != desc->kv_heads_num) {
@@ -353,16 +419,22 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
     }
 
     static sdpa_kernel_params_t get_sdpa_kernel_params(const kernel_impl_params& impl_param, const PagedAttentionStage& stage, bool is_dynamic = false) {
+        const auto desc = impl_param.typed_desc<paged_attention>();
         auto params = get_default_params<sdpa_kernel_params_t>(impl_param, is_dynamic);
 
         const auto& query_layout = impl_param.get_input_layout(0);
         const auto& key_layout = impl_param.get_input_layout(1);
         const auto& value_layout = impl_param.get_input_layout(2);
         const auto& subsequence_begins_layout = impl_param.get_input_layout(6);
+        const auto& scale_layout = impl_param.get_input_layout(9);
         const auto& alibi_layout = impl_param.get_input_layout(11);
         const auto has_alibi = alibi_layout.count() > 0;
+        const auto has_scale_input = !desc->scale_val.has_value();
 
         auto inputs_number = 4;
+        if (has_scale_input)
+            inputs_number++;
+
         if (has_alibi)
             inputs_number++;
 
@@ -372,6 +444,9 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         params.inputs[input_idx++] = convert_data_tensor(key_layout);
         params.inputs[input_idx++] = convert_data_tensor(value_layout);
         params.inputs[input_idx++] = convert_data_tensor(subsequence_begins_layout);
+
+        if (has_scale_input)
+            params.inputs[input_idx++] = convert_data_tensor(scale_layout);
 
         if (has_alibi)
             params.inputs[input_idx++] = convert_data_tensor(alibi_layout);
@@ -390,8 +465,12 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
             {0, out_offsets_map.at(0)},
         };
 
+        input_idx = 4;
+        if (has_scale_input)
+            in_tensor_to_offset_map.insert({input_idx++, in_offsets_map.at(9)});
+
         if (has_alibi)
-            in_tensor_to_offset_map.insert({4, in_offsets_map.at(11)});
+            in_tensor_to_offset_map.insert({input_idx++, in_offsets_map.at(11)});
 
         if ((stage == PagedAttentionStage::PREFILL || stage == PagedAttentionStage::MIXED) && !is_dynamic)
             params.conf.paged_attention_aligned_seq_len = get_aligned_seq_len(impl_param, stage);
@@ -402,6 +481,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
     }
 
     static pa_sdpa_kernel_params_t get_pa_sdpa_params(const kernel_impl_params& impl_param, const PagedAttentionStage& stage, bool is_dynamic = false) {
+        const auto desc = impl_param.typed_desc<paged_attention>();
         auto params = get_default_params<pa_sdpa_kernel_params_t>(impl_param, is_dynamic);
 
         const auto& query_layout = impl_param.get_input_layout(0);
@@ -411,10 +491,15 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         const auto& block_indices_layout = impl_param.get_input_layout(7);
         const auto& block_indices_begins_layout = impl_param.get_input_layout(8);
         const auto& subsequence_begins_layout = impl_param.get_input_layout(6);
+        const auto& scale_layout = impl_param.get_input_layout(9);
         const auto& alibi_layout = impl_param.get_input_layout(11);
         const auto has_alibi = alibi_layout.count() > 0;
+        const auto has_scale_input = !desc->scale_val.has_value();
 
         auto inputs_number = 7;
+        if (has_scale_input)
+            inputs_number++;
+
         if (has_alibi)
             inputs_number++;
 
@@ -428,6 +513,9 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         params.inputs[input_idx++] = convert_data_tensor(block_indices_begins_layout);
         params.inputs[input_idx++] = convert_data_tensor(subsequence_begins_layout);
         params.conf = get_sdpa_configuration(impl_param);
+
+        if (has_scale_input)
+            params.inputs[input_idx++] = convert_data_tensor(scale_layout);
 
         if (has_alibi)
             params.inputs[input_idx++] = convert_data_tensor(alibi_layout);
@@ -457,8 +545,12 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
             {0, out_offsets_map.at(0)},
         };
 
+        input_idx = 7;
+        if (has_scale_input)
+            in_tensor_to_offset_map.insert({input_idx++, in_offsets_map.at(9)});
+
         if (has_alibi)
-            in_tensor_to_offset_map.insert({7, in_offsets_map.at(11)});
+            in_tensor_to_offset_map.insert({input_idx++, in_offsets_map.at(11)});
 
         params.set_dynamic_shape_offsets(in_tensor_to_offset_map, out_tensor_to_offset_map);
 

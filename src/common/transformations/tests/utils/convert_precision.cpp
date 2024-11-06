@@ -15,6 +15,7 @@
 #include "openvino/core/model.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset15.hpp"
 #include "openvino/opsets/opset3.hpp"
 #include "openvino/opsets/opset4.hpp"
 #include "openvino/opsets/opset5.hpp"
@@ -657,7 +658,7 @@ TEST(TransformationTests, ConvertPrecision_Roundings) {
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
 
-        auto casted_end = std::dynamic_pointer_cast<opset1::Constant>(ss->input_value(2).get_node_shared_ptr());
+        auto casted_end = ov::as_type_ptr<opset1::Constant>(ss->input_value(2).get_node_shared_ptr());
         ASSERT_TRUE(casted_end != nullptr);
         ASSERT_EQ(casted_end->get_element_type(), element::i32);
         ASSERT_EQ(casted_end->cast_vector<int32_t>(),
@@ -963,6 +964,34 @@ TEST(TransformationTests, ConvertPrecision_Select) {
     ASSERT_TRUE(has_type<element::Type_t::u8>(f));
 }
 
+TEST(TransformationTests, ConvertPrecision_Select_Relaxed) {
+    std::shared_ptr<Model> f(nullptr);
+    {
+        auto input1 = std::make_shared<opset4::Parameter>(element::boolean, Shape{15, 20, 3});
+        auto node = std::make_shared<opset4::LogicalNot>(input1);
+        auto select = std::make_shared<opset4::Select>(node, input1, input1);
+
+        f = std::make_shared<Model>(OutputVector{select}, ParameterVector{input1});
+
+        // Explicitly setting the element type of a node to a different one to
+        // test the appearance of TypeRelaxed within Select
+        node->set_output_type(0, ov::element::u8, node->get_output_partial_shape(0));
+
+        pass::Manager manager;
+        manager.register_pass<pass::InitNodeInfo>();
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::u8, element::boolean}});
+        manager.run_passes(f);
+    }
+    OV_ASSERT_NO_THROW(check_rt_info(f));
+    ASSERT_FALSE(has_type<element::Type_t::u8>(f));
+    ASSERT_TRUE(has_type<element::Type_t::boolean>(f));
+    int counter = 0;
+    for (const auto& node : f->get_ordered_ops())
+        if (std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(node))
+            ++counter;
+    ASSERT_EQ(counter, 1);
+}
+
 TEST(TransformationTests, ConvertPrecision_TypeRelaxedWithSelect) {
     std::shared_ptr<Model> f(nullptr);
     {
@@ -1006,6 +1035,28 @@ TEST(TransformationTests, ConvertPrecision_TypeRelaxed) {
         ASSERT_FALSE(has_type<element::Type_t::i32>(f));
         ASSERT_TRUE(has_type<element::Type_t::i64>(f));
     }
+}
+
+TEST(TransformationTests, ConvertPrecision_SearchSorted) {
+    std::shared_ptr<Model> f(nullptr);
+    {
+        auto search_sorted_input = opset15::Constant::create(ov::element::i64, {5}, {1, 2, 3, 4, 5});
+        auto indices = std::make_shared<opset15::Parameter>(ov::element::i64, Shape{3});
+        auto search_sorted = std::make_shared<opset15::SearchSorted>(search_sorted_input, indices);
+
+        auto less_input = opset15::Constant::create(ov::element::i64, {3}, {4, 5, 6});
+        auto less = std::make_shared<opset15::Less>(search_sorted, less_input);
+
+        f = std::make_shared<Model>(OutputVector{less}, ParameterVector{indices});
+
+        pass::Manager manager;
+        manager.register_pass<pass::InitNodeInfo>();
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::i64, element::i32}});
+        manager.run_passes(f);
+    }
+    OV_ASSERT_NO_THROW(check_rt_info(f));
+    ASSERT_FALSE(has_type<element::Type_t::i64>(f));
+    ASSERT_TRUE(has_type<element::Type_t::i32>(f));
 }
 
 TEST(TransformationTests, ConvertPrecision_Variables) {
@@ -1409,7 +1460,7 @@ void constant_convert_test(element::Type type_from,
         manager.run_passes(f);
     }
     auto ops = f->get_ordered_ops();
-    auto c = std::dynamic_pointer_cast<opset4::Constant>(ops[0]);
+    auto c = ov::as_type_ptr<opset4::Constant>(ops[0]);
     ASSERT_NE(c, nullptr);
     ASSERT_EQ(c->get_friendly_name(), expected_friendly_name);
     std::vector<To> actual;
@@ -1439,7 +1490,7 @@ void constant_convert_test(element::Type_t type_from, element::Type_t type_to, F
         manager.run_passes(f);
     }
     auto ops = f->get_ordered_ops();
-    auto c = std::dynamic_pointer_cast<opset4::Constant>(ops[0]);
+    auto c = ov::as_type_ptr<opset4::Constant>(ops[0]);
     ASSERT_NE(c, nullptr);
     ASSERT_EQ(c->get_friendly_name(), expected_friendly_name);
 
@@ -2253,11 +2304,6 @@ TEST(TransformationTests, ConvertPrecisionExplicitConvertsSingleNodeMultipleOutp
         split->get_output_tensor(0).add_names({"split:0"});
         split->get_output_tensor(1).add_names({"split:1"});
         split->get_output_tensor(2).add_names({"split:2"});
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        ov::descriptor::set_ov_tensor_legacy_name(split->get_output_tensor(0), "legacy_split:0");
-        ov::descriptor::set_ov_tensor_legacy_name(split->get_output_tensor(1), "legacy_split:1");
-        ov::descriptor::set_ov_tensor_legacy_name(split->get_output_tensor(2), "legacy_split:2");
-        OPENVINO_SUPPRESS_DEPRECATED_END
         model = make_shared<Model>(split->outputs(), ParameterVector{param_1});
 
         type_to_fuse_map empty_type_to_fuse_map = {};
@@ -2294,11 +2340,6 @@ TEST(TransformationTests, ConvertPrecisionExplicitConvertsSingleNodeMultipleOutp
     ASSERT_EQ("split.0", results[0]->get_input_node_ptr(0)->get_friendly_name());
     ASSERT_EQ("split.1", results[1]->get_input_node_ptr(0)->get_friendly_name());
     ASSERT_EQ("split.2", results[2]->get_input_node_ptr(0)->get_friendly_name());
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    ASSERT_EQ("legacy_split:0", ov::descriptor::get_ov_tensor_legacy_name(results[0]->get_input_tensor(0)));
-    ASSERT_EQ("legacy_split:1", ov::descriptor::get_ov_tensor_legacy_name(results[1]->get_input_tensor(0)));
-    ASSERT_EQ("legacy_split:2", ov::descriptor::get_ov_tensor_legacy_name(results[2]->get_input_tensor(0)));
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 TEST(TransformationTests, ConvertPrecisionExplicitConvertsMultiSubgraphs) {

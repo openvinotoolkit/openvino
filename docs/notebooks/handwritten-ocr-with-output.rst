@@ -8,15 +8,16 @@ Latin alphabet is available in `notebook
 This model is capable of processing only one line of symbols at a time.
 
 The models used in this notebook are
-`handwritten-japanese-recognition-0001 <https://docs.openvino.ai/2024/omz_models_model_handwritten_japanese_recognition_0001.html>`__
+`handwritten-japanese-recognition-0001 <https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/intel/handwritten-japanese-recognition-0001/README.md>`__
 and
-`handwritten-simplified-chinese-0001 <https://docs.openvino.ai/2024/omz_models_model_handwritten_simplified_chinese_recognition_0001.html>`__.
+`handwritten-simplified-chinese-0001 <https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/intel/handwritten-simplified-chinese-recognition-0001/README.md>`__.
 To decode model outputs as readable text
 `kondate_nakayosi <https://github.com/openvinotoolkit/open_model_zoo/blob/master/data/dataset_classes/kondate_nakayosi.txt>`__
 and
 `scut_ept <https://github.com/openvinotoolkit/open_model_zoo/blob/master/data/dataset_classes/scut_ept.txt>`__
 charlists are used. Both models are available on `Open Model
 Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__.
+
 
 **Table of contents:**
 
@@ -48,20 +49,12 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 
 .. code:: ipython3
 
-    import platform
-    
-    # Install openvino-dev package
-    %pip install -q "openvino>=2023.1.0" opencv-python tqdm
-    
-    if platform.system() != "Windows":
-        %pip install -q "matplotlib>=3.4"
-    else:
-        %pip install -q "matplotlib>=3.4,<3.7"
+    # Install openvino package
+    %pip install -q "openvino>=2023.1.0" opencv-python tqdm "matplotlib>=3.4"
 
 
 .. parsed-literal::
 
-    Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
 
 
