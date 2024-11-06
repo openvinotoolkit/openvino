@@ -1287,11 +1287,12 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
             HANDLE_CASE(boolean, bool);
             HANDLE_CASE(i4, int8_t);
             HANDLE_CASE(u4, uint8_t);
+            HANDLE_CASE(i16, int16_t);
+            HANDLE_CASE(u16, uint16_t);
             HANDLE_CASE(i32, int);
             HANDLE_CASE(i64, int64_t);
             HANDLE_CASE(f16, uint16_t);
             HANDLE_CASE(f32, float);
-            HANDLE_CASE(u16, uint16_t);
 #undef HANDLE_CASE
         default:
             OPENVINO_THROW("Unable to handle type ", node_a->output(0));
