@@ -97,7 +97,10 @@
         "models": {
             "name": "networkmodel",
             "data": [
-                "bert-base-cased"
+                "bert-base-cased",
+                "Resnet-50",
+                "yolo-v8n",
+                "Llama-3-8B"
             ]
         },
         "parameters": {
