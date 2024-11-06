@@ -601,40 +601,40 @@ static void attn_reduce(T* dst, float* temp, size_t M, size_t S, size_t temp_str
 }
 
 // N must be multiple of 16
-template<typename TDST, typename TSRC>
-void transpose_16NxK(TDST* dst, TSRC* src, TDST* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride) {
+template<typename TDST, ov::element::Type_t SRC_PREC, typename std::enable_if<(SRC_PREC != ov::element::u8 && SRC_PREC != ov::element::u4), bool>::type = true>
+void transpose_16NxK(TDST* dst, void* src, TDST* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride) {
     size_t k = 0;
+    auto* src_ptr = reinterpret_cast<typename ov::element_type_traits<SRC_PREC>::value_type*>(src);
     for (; k + 16 <= K; k += 16) {
         for (size_t n = 0; n < N; n += 16) {
-            transpose_16x16_kernel(dst + n, src + n * src_stride, dst_stride, src_stride);
+            transpose_16x16_kernel(dst + n, src_ptr + n * src_stride, dst_stride, src_stride);
         }
 
         dst += 16 * dst_stride;
-        src += 16;
+        src_ptr += 16;
     }
     if (k < K) {
         for (size_t n = 0; n < N; n += 16) {
-            transpose_16xK_kernel(dst + n, src + n * src_stride, K - k, dst_stride, src_stride);
+            transpose_16xK_kernel(dst + n, src_ptr + n * src_stride, K - k, dst_stride, src_stride);
         }
     }
 }
-
 #if defined(HAVE_AVX512F)
-template<typename T, typename = typename std::enable_if<(std::is_same<T, ov::bfloat16>::value || std::is_same<T, ov::float16>::value), bool>::type>
+template<typename T, ov::element::Type_t SRC_PREC, typename std::enable_if<(SRC_PREC == ov::element::bf16 || SRC_PREC == ov::element::f16) && (SRC_PREC == precision_of<T>::value), bool>::type = true>
 static void transpose_16NxK(T* dst, T* src, T* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride) {
     // will treat as uint32_t transpose
     auto s = reinterpret_cast<uint32_t*>(src);
     auto d = reinterpret_cast<uint32_t*>(dst);
-    transpose_16NxK(d, s, reinterpret_cast<uint32_t*>(0), N, K >> 1, dst_stride, src_stride >> 1);
+    transpose_16NxK<uint32_t, ov::element::u32>(d, s, reinterpret_cast<uint32_t*>(0), N, K >> 1, dst_stride, src_stride >> 1);
 }
 #endif
 
-template<typename TDST>
-void transpose_16NxK(TDST* dst, uint8_t* src, TDST* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride) {
+template<typename TDST, ov::element::Type_t SRC_PREC, typename std::enable_if<SRC_PREC == ov::element::u8, bool>::type = true>
+void transpose_16NxK(TDST* dst, void* src, TDST* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride) {
     // The layout for per token per head:
     // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized feature(u8,idx_S)|
     // The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
-    auto s = src;
+    auto s = reinterpret_cast<typename ov::element_type_traits<SRC_PREC>::value_type*>(src);
     auto t = tmp;
     for (size_t n = 0; n < N; n ++) {
         auto f = reinterpret_cast<float*>(s);
@@ -642,7 +642,7 @@ void transpose_16NxK(TDST* dst, uint8_t* src, TDST* tmp, size_t N, size_t K, siz
         s += src_stride + 2 * sizeof(float);
         t += src_stride;
     }
-    transpose_16NxK(dst, tmp, reinterpret_cast<TDST*>(0), N, K, dst_stride, src_stride);
+    transpose_16NxK<TDST, precision_of<TDST>::value>(dst, tmp, reinterpret_cast<TDST*>(0), N, K, dst_stride, src_stride);
 }
 
 // dequant f16/u8 to float
@@ -726,32 +726,33 @@ static void pack_32xK_kernel(T* dst, T* src, size_t dst_stride, size_t src_strid
     }
 }
 
-template<typename T, typename = typename std::enable_if<(std::is_same<T, ov::bfloat16>::value || std::is_same<T, ov::float16>::value), bool>::type>
-static void pack_32NxK(T* dst, T* src, T* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride) {
+template<typename TDST, ov::element::Type_t SRC_PREC, typename std::enable_if<precision_of<TDST>::value != ov::element::f32 && (SRC_PREC == ov::element::bf16 || SRC_PREC == ov::element::f16), bool>::type = true>
+static void pack_32NxK(TDST* dst, void* src, TDST* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride) {
+    auto src_ptr = reinterpret_cast<typename ov::element_type_traits<SRC_PREC>::value_type*>(src);
     for (size_t n = 0; n < N; n += 32) {
         size_t k = 0;
         for (; k + 32 <= K; k += 32) {
-            pack_32x32_kernel(dst + k * 2, src + k, dst_stride, src_stride);
+            pack_32x32_kernel(dst + k * 2, src_ptr + k, dst_stride, src_stride);
         }
         if (k + 16 <= K) {
-            pack_32x16_kernel(dst + k * 2, src + k, dst_stride, src_stride);
+            pack_32x16_kernel(dst + k * 2, src_ptr + k, dst_stride, src_stride);
             k += 16;
         }
         if (k < K) {
-            pack_32xK_kernel(dst + k * 2, src + k, dst_stride, src_stride, K - k);
+            pack_32xK_kernel(dst + k * 2, src_ptr + k, dst_stride, src_stride, K - k);
         }
 
         dst += 32 * dst_stride;
-        src += 32 * src_stride;
+        src_ptr += 32 * src_stride;
     }
 }
 
-template<typename T, typename = typename std::enable_if<(std::is_same<T, ov::bfloat16>::value || std::is_same<T, ov::float16>::value), bool>::type>
-static void pack_32NxK(T* dst, uint8_t* src, T* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride) {
+template<typename TDST, ov::element::Type_t SRC_PREC, typename std::enable_if<precision_of<TDST>::value != ov::element::f32 && SRC_PREC == ov::element::u8, bool>::type = true>
+static void pack_32NxK(TDST* dst, void* src, TDST* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride) {
     // The layout for per token per head:
     // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized feature(u8,idx_S)|
     // The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
-    auto s = src;
+    auto s = reinterpret_cast<typename ov::element_type_traits<SRC_PREC>::value_type*>(src);
     auto t = tmp;
     for (size_t n = 0; n < N; n ++) {
         auto f = reinterpret_cast<float*>(s);
@@ -759,12 +760,12 @@ static void pack_32NxK(T* dst, uint8_t* src, T* tmp, size_t N, size_t K, size_t 
         s += src_stride + 2 * sizeof(float);
         t += src_stride;
     }
-    pack_32NxK(dst, tmp, reinterpret_cast<T*>(0), N, K, dst_stride, src_stride);
+    pack_32NxK<TDST, precision_of<TDST>::value>(dst, tmp, reinterpret_cast<TDST*>(0), N, K, dst_stride, src_stride);
 }
 #endif
 
-template<typename T>
-static void pack_32NxK(float* dst, T* src, float* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride) {
+template<typename TDST, ov::element::Type_t SRC_PREC, typename std::enable_if<precision_of<TDST>::value == ov::element::f32, bool>::type = true>
+static void pack_32NxK(TDST* dst, void* src, TDST* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride) {
     // never called
     OPENVINO_THROW("pack_32NxK: should not be called.");
 }
@@ -1446,19 +1447,21 @@ struct MHA {
             auto ithr = parallel_get_thread_num();
             auto* k_ptr = k_cache.ptr<KEY_CACHE_TYPE>(block_number, hk);
             auto* v_ptr = v_cache.ptr<VALUE_CACHE_TYPE>(block_number, hk);
-            transpose_16NxK(_helper._qk_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
-                k_ptr,
-                _helper._output.template ptr<DATA_TYPE>(ithr),
-                _helper._block_size,
-                _helper._S, _helper._block_size, _helper._S);
+
+            transpose_16NxK<DATA_TYPE, precision_of<KEY_CACHE_TYPE>::value>(_helper._qk_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
+            k_ptr,
+            _helper._output.template ptr<DATA_TYPE>(ithr),
+            _helper._block_size,
+            _helper._S, _helper._block_size, _helper._S);
+
             if (q_is_xf16) {
-                pack_32NxK(_helper._wv_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
-                           v_ptr,
-                           _helper._output.template ptr<DATA_TYPE>(ithr),
-                           _helper._block_size,
-                           _helper._SV,
-                           rnd_up(_helper._SV, _helper._block_size),
-                           _helper._SV);
+                pack_32NxK<DATA_TYPE, precision_of<VALUE_CACHE_TYPE>::value>(_helper._wv_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
+                            v_ptr,
+                            _helper._output.template ptr<DATA_TYPE>(ithr),
+                            _helper._block_size,
+                            _helper._SV,
+                            rnd_up(_helper._SV, _helper._block_size),
+                            _helper._SV);
             } else {
                 // need to decompress
                 if (!q_cache_is_same) {
