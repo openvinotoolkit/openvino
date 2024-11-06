@@ -436,7 +436,7 @@ KERNEL(pa_sdpa_finalization_stage)(
                                         partition_num * HEAD_SIZE +
                                         head_size_idx;
             OUTPUT_TYPE out_val = tmp_out[tmp_out_offset];
-            acc += TO_SOFTMAX_ACCUMULATOR_TYPE(out_val) * TO_SOFTMAX_ACCUMULATOR_TYPE(sub_group_broadcast(exp_sum[partition_num / SUBGROUP_SIZE], partition_num)) / TO_SOFTMAX_ACCUMULATOR_TYPE(global_sum);
+            acc += TO_SOFTMAX_ACCUMULATOR_TYPE(out_val) * TO_SOFTMAX_ACCUMULATOR_TYPE(sub_group_broadcast(exp_sum[partition_num / SUBGROUP_SIZE], partition_num % SUBGROUP_SIZE)) / TO_SOFTMAX_ACCUMULATOR_TYPE(global_sum);
         }
         const uint out_offset = seq_idx * (HEADS_NUM * HEAD_SIZE) +
                                 head_num_idx * HEAD_SIZE +
