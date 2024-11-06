@@ -24,7 +24,7 @@ jobs:
     runs-on: aks-linux-16-cores-32gb
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
     container:
-      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04
       volumes:
         - /mount:/mount
       options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
@@ -56,10 +56,10 @@ jobs:
       - name: System info
         uses: ./openvino/.github/actions/system_info
                  
-      - name: Install python dependencies
-        run: |
-          # For Python API: build and wheel packaging
-          python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
+      # - name: Install python dependencies
+      #   run: |
+      #     # For Python API: build and wheel packaging
+      #     python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
 
       - name: Build (inside container)
         run: |
