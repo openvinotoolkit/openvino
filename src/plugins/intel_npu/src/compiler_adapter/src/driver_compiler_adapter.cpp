@@ -564,15 +564,13 @@ std::string DriverCompilerAdapter::serializeConfig(const Config& config,
     }
 
     // NPU_DEFER_WEIGHTS_LOAD is not supported in versions < 6.2 - need to remove it
-    if (config.has<DEFER_WEIGHTS_LOAD>()) {
-        if ((compilerVersion.major < 6) || (compilerVersion.major == 6 && compilerVersion.minor < 2)) {
-            std::ostringstream batchstr;
-            batchstr << ov::intel_npu::defer_weights_load.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
-                     << VALUE_DELIMITER;
-            logger.debug(
-                "NPU_DEFER_WEIGHTS_LOAD property is not suppored by this compiler version. Removing from parameters");
-            content = std::regex_replace(content, std::regex(batchstr.str()), "");
-        }
+    if ((compilerVersion.major < 6) || (compilerVersion.major == 6 && compilerVersion.minor < 2)) {
+        std::ostringstream batchstr;
+        batchstr << ov::intel_npu::defer_weights_load.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
+                 << VALUE_DELIMITER;
+        logger.warning(
+            "NPU_DEFER_WEIGHTS_LOAD property is not suppored by this compiler version. Removing from parameters");
+        content = std::regex_replace(content, std::regex(batchstr.str()), "");
     }
 
     // Remove the properties that are not used by the compiler WorkloadType is used only by compiled model
