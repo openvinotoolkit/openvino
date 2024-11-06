@@ -21,16 +21,6 @@ ZeroEngineBackend::ZeroEngineBackend(const Config& config) : _logger("ZeroEngine
     _logger.debug("ZeroEngineBackend - initialize completed");
 }
 
-ZeroEngineBackend::ZeroEngineBackend() : _logger("ZeroEngineBackend", Logger::global().level()) {
-    _logger.debug("ZeroEngineBackend - initialize started");
-
-    _instance = std::make_shared<ZeroInitStructsHolder>();
-
-    auto device = std::make_shared<ZeroDevice>(_instance);
-    _devices.emplace(std::make_pair(device->getName(), device));
-    _logger.debug("ZeroEngineBackend - initialize completed");
-}
-
 uint32_t ZeroEngineBackend::getDriverVersion() const {
     return _initStruct->getDriverVersion();
 }

@@ -11,13 +11,13 @@
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/runtime/properties.hpp"
 
-#include "intel_npu/utils/zero/zero_utils.hpp"
-
 #include "stdio.h" //
 #include <stdlib.h>// env setting
 
-#include "zero_backend.hpp"
-#include "zero_types.hpp"
+// #include "zero_backend.hpp"
+// #include "zero_types.hpp"
+#include "intel_npu/utils/zero/zero_init.hpp"
+#include "intel_npu/utils/zero/zero_utils.hpp"
 
 // #include "intel_npu/config/common.hpp"
 // #include "intel_npu/config/compiler.hpp"
@@ -28,8 +28,6 @@
 // #include "/home/dl5w050/vpux/openvino/src/plugins/intel_npu/src/al/include/intel_npu/config/config.hpp"
 
 #include <filesystem>
-
-
 #include <chrono> // cal time
 
 namespace ov {
@@ -130,21 +128,16 @@ public:
     void SetUp() override {
         std::tie(function, target_device, configuration) = this->GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
-        //ov::AnyMap configuration; //using AnyMap = std::map<std::string, Any>;
-        //const std::map<std::string, std::string>& rawConfig
-        //_globalConfig.update(rawConfig);
-        
-        // const std::map<std::string, std::string> stringConfig = any_copy(configuration);
-        // // Config config;
-        // config.update(stringConfig);
-        // std::shared_ptr<ZeroEngineBackend> zeroBackend = nullptr;
-        // zeroBackend = std::make_shared<intel_npu::ZeroEngineBackend>(config);
-        zeroBackend = std::make_shared<intel_npu::ZeroEngineBackend>();
-        if (!zeroBackend) {
-            GTEST_SKIP() << "LevelZeroCompilerAdapter init failed to cast zeroBackend, zeroBackend is a nullptr";
+
+        initStruct = std::make_shared<::intel_npu::ZeroInitStructsHolder>();
+
+        //any test info?
+        if (!initStruct) {
+            GTEST_SKIP() << "ZeroInitStructsHolder init failed, ZeroInitStructsHolder is a nullptr";
         }
 
-        graph_ddi_table_ext = zeroBackend->getGraphDdiTable();
+        //this part can be used by each testcase.
+        //ze_graph_dditable_ext_decorator& graph_ddi_table_ext = initStruct->getGraphDdiTable();
 
         APIBaseTest::SetUp();
     }
@@ -162,14 +155,14 @@ public:
         APIBaseTest::TearDown();
     }
 
-private:
+protected:
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     ov::AnyMap configuration;
     std::shared_ptr<ov::Model> function;
 
     // intel_npu::Config& config;
-    std::shared_ptr<intel_npu::ZeroEngineBackend> zeroBackend;
-    ze_graph_dditable_ext_curr_t& graph_ddi_table_ext;
+    std::shared_ptr<::intel_npu::ZeroInitStructsHolder> initStruct;
+    // ze_graph_dditable_ext_decorator& graph_ddi_table_ext;
 
     std::string m_cache_dir; //it is need to be distinguished on Windows and Linux?
 };
@@ -177,6 +170,7 @@ private:
 TEST_P(CompileAndDriverCaching, CompilationCacheFlag) {
     //TODO: check driver version, if less than 1.5 will not support cache feature.
     
+    ze_graph_dditable_ext_decorator& graph_ddi_table_ext = initStruct->getGraphDdiTable();
     uint32_t graphDdiExtVersion = graph_ddi_table_ext.version();
     if (graphDdiExtVersion < ZE_GRAPH_EXT_VERSION_1_5) {
         GTEST_SKIP() << "Skipping test for Driver version less than 1.5, current driver version: " << graphDdiExtVersion;

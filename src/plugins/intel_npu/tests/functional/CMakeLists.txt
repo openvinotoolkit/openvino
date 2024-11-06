@@ -37,15 +37,13 @@ ov_add_test_target(
   "${CMAKE_CURRENT_SOURCE_DIR}/internal"
   LINK_LIBRARIES
   ${OPTIONAL_FUNC_TESTS_LIBS}
-  openvino_npu_level_zero_backend
   openvino::func_test_utils
   openvino::funcSharedTests
   openvino::format_reader
   openvino::reference
   openvino::runtime
   openvino::npu_common
-  openvino::npu_al
-  )
+  openvino::npu_al)
 
 if(WIN32)
     if(ENABLE_DX12)
