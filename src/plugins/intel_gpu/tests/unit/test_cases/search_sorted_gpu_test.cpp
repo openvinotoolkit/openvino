@@ -102,7 +102,7 @@ public:
         // Run and check results.
         auto outputs = network->execute();
 
-        auto output = outputs.at("out").get_memory();
+        auto output = outputs.at("search_sorted").get_memory();
         cldnn::mem_lock<float> output_ptr(output, get_test_stream());
         cldnn::mem_lock<float> wanted_output_ptr(params.expectedOutput, get_test_stream());
 
