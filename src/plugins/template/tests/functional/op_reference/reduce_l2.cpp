@@ -29,16 +29,19 @@ std::vector<ReductionParams> generateReductionParams(const bool keep_dims) {
         reference_tests::Tensor(reduce(Shape{3, 2, 2}, AxisSet{2}, keep_dims),
                                 element::Type(IN_ET),
                                 std::vector<T>{2.23606798, 5.0, 7.81024968, 10.63014581, 13.45362405, 16.2788206}))};
+    auto out_shape_from_empty = Shape{2, 1, 1};
     if (keep_dims == false) {
-        params.push_back(ReductionParams(
-            ReductionType::L2,
-            keep_dims,
-            std::vector<int64_t>{1, 2},
-            reference_tests::Tensor({2, 0, 4}, element::Type(IN_ET), std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8}),
-            reference_tests::Tensor(Shape{2},
-                                    element::Type(IN_ET),
-                                    std::vector<T>{0, 0})));  // Keep dims false, tensor filled with zero
+        out_shape_from_empty = Shape{2};
     }
+    params.push_back(ReductionParams(
+        ReductionType::L2,
+        keep_dims,
+        std::vector<int64_t>{1, 2},
+        reference_tests::Tensor({2, 0, 4}, element::Type(IN_ET), std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8}),
+        reference_tests::Tensor(out_shape_from_empty,
+                                element::Type(IN_ET),
+                                std::vector<T>{0, 0})));
+
     return params;
 }
 
