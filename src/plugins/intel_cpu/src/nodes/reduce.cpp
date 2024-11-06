@@ -2271,16 +2271,15 @@ void Reduce::execute(dnnl::stream strm) {
     auto dstMemPtr = getDstMemoryAtPort(0);
     auto srcMemPtr = getSrcMemoryAtPort(REDUCE_DATA);
 
-    const auto src_shape = getSrcMemoryAtPort(REDUCE_DATA)->getStaticDims();
-    if ((shape_size(src_shape) == 0 || srcMemPtr->getSize() == 0) && dstMemPtr->getSize() > 0) {
-        // If input is empty fill ouptut with zero
-        auto dst_shape = getDstMemoryAtPort(0)->getStaticDims();
-        std::fill_n(dstMemPtr->getDataAs<float>(), shape_size(dst_shape), 0.f);
-        return;
-    }
-
     const uint8_t *src_data = srcMemPtr->getDataAs<const uint8_t>();
     uint8_t *dst_data = dstMemPtr->getDataAs<uint8_t>();
+
+    const auto& src_shape = getSrcMemoryAtPort(REDUCE_DATA)->getStaticDims();
+    if ((shape_size(src_shape) == 0 || srcMemPtr->getSize() == 0) && dstMemPtr->getSize() > 0) {
+        // If input is empty fill ouptut with zero
+        std::fill_n(dst_data, dstMemPtr->getSize(), uint8_t{0});
+        return;
+    }
 
     if (jit_mode) {
         if (is_hybrid_layout) {
