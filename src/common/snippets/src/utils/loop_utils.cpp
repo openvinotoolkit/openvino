@@ -82,6 +82,15 @@ void update_runtime_parameters(const UnifiedLoopInfoPtr& loop_info) {
     update_data_pointer_shifts(loop_info);
 }
 
+bool should_be_loop_port(const ov::snippets::lowered::ExpressionPort& port, size_t loop_id) {
+    const auto& connected_ports = port.get_connected_ports();
+    return std::any_of(connected_ports.cbegin(), connected_ports.cend(),
+                       [&](const ExpressionPort& connected_port) {
+                           const auto& loops = connected_port.get_expr()->get_loop_ids();
+                           return std::find(loops.cbegin(), loops.cend(), loop_id) == loops.cend();
+                       });
+}
+
 } // namespace utils
 } // namespace snippets
 } // namespace ov

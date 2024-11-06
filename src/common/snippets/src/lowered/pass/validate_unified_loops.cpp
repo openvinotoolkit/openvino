@@ -7,6 +7,7 @@
 #include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
+#include "snippets/utils/loop_utils.hpp"
 #include "snippets/utils/utils.hpp"
 
 namespace ov {
@@ -14,14 +15,7 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
-bool ValidateUnifiedLoops::run(LinearIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::ValidateUnifiedLoops")
-    if (linear_ir.empty())
-        return false;
-
-    const auto& loop_manager = linear_ir.get_loop_manager();
-    const auto& loops = loop_manager->get_map();
-
+void ValidateUnifiedLoops::validate_loop_infos(const LoopManagerPtr& loop_manager) {
     // Already validated vectors of Loop IDs
     std::set<std::vector<size_t>> validated_nested_loops;
     auto is_already_verified = [&validated_nested_loops](const std::vector<size_t>& ids) {
@@ -66,10 +60,9 @@ bool ValidateUnifiedLoops::run(LinearIR& linear_ir) {
         validated_nested_loops.insert(loop_ids);
     };
 
-    for (const auto& pair : loops) {
+    for (const auto& pair : loop_manager->get_map()) {
         const auto& loop_info = ov::as_type_ptr<UnifiedLoopInfo>(pair.second);
-        OPENVINO_ASSERT(loop_info,
-                        "ValidateUnifiedLoops expects only UnifiedLoopInfo in LoopManager");
+        OPENVINO_ASSERT(loop_info, "ValidateUnifiedLoops expects only UnifiedLoopInfo in LoopManager");
         loop_info->iterate_through_ports(validate_loop_port);
 
         // Validate that iteration dimnsion is broadcastable
@@ -88,6 +81,46 @@ bool ValidateUnifiedLoops::run(LinearIR& linear_ir) {
         OPENVINO_ASSERT(unique_dimensions.size() <= 1,
                         "Loop ports have incompatible dimensions, by which the loop iterates");
     }
+}
+
+void ValidateUnifiedLoops::validate_loop_port_presence(const LinearIR& linear_ir) {
+    auto validate_loop_port = [](const ExpressionPort& expr_port, const LoopInfoPtr& loop_info, size_t loop_id) {
+        if (utils::should_be_loop_port(expr_port, loop_id)) {
+            OPENVINO_ASSERT(loop_info->is_loop_port(expr_port),
+                            "Expression port with idx ", expr_port.get_index(), " with node ",
+                            expr_port.get_expr()->get_node()->get_friendly_name(), " is not Loop port but should be!");
+        } else {
+            OPENVINO_ASSERT(!loop_info->is_loop_port(expr_port),
+                            "Expression port with idx ", expr_port.get_index(), " with node ",
+                            expr_port.get_expr()->get_node()->get_friendly_name(), " is Loop port but should not be!");
+        }
+    };
+
+    const auto& loop_manager = linear_ir.get_loop_manager();
+    for (const auto& expr : linear_ir) {
+        const auto& op = expr->get_node();
+        if (ov::is_type<ov::snippets::op::LoopBase>(op))
+            continue;
+
+        for (const auto& loop_id : expr->get_loop_ids()) {
+            const auto& loop_info = loop_manager->get_loop_info(loop_id);
+
+            for (size_t i = 0; i < expr->get_input_count(); ++i)
+                validate_loop_port(expr->get_input_port(i), loop_info, loop_id);
+
+            for (size_t i = 0; i < expr->get_output_count(); ++i)
+                validate_loop_port(expr->get_output_port(i), loop_info, loop_id);
+        }
+    }
+}
+
+bool ValidateUnifiedLoops::run(LinearIR& linear_ir) {
+    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::ValidateUnifiedLoops")
+    if (linear_ir.empty())
+        return false;
+
+    validate_loop_infos(linear_ir.get_loop_manager());
+    validate_loop_port_presence(linear_ir);
 
     return true;
 }
