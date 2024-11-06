@@ -1448,13 +1448,15 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                 ov::AnyMap update_config = config;
                 update_config[ov::loaded_from_cache.name()] = true;
 
-                if (update_config[ov::cache_mode.name()] == ov::CacheMode::OPTIMIZE_SIZE) {
+                if (util::contains(plugin.get_property(ov::supported_properties), ov::weights_path)) {
                     std::string weights_path;
                     auto pos = cacheContent.modelPath.rfind('.');
-                    if (pos != cacheContent.modelPath.npos) {
+                    if (cacheContent.modelPath.substr(pos) == ".xml") {
                         weights_path = cacheContent.modelPath.substr(0, pos);
+                        weights_path += ".bin";
+                    } else {
+                        weights_path = cacheContent.modelPath;
                     }
-                    weights_path += ".bin";
                     if (!ov::util::file_exists(weights_path)) {
                         OPENVINO_THROW("Weights file does not exist");
                     }
