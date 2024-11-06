@@ -4,14 +4,14 @@ on:
   schedule:
     # at 00:00 on workdays
     - cron: '0 0 * * 1,2,3,4,5'
-  #pull_request:
-  #  paths-ignore:
-  #    - '**/docs/**'
-  #    - 'docs/**'
-  #    - '**/**.md'
-  #    - '**.md'
-  #    - '**/layer_tests_summary/**'
-  #    - '**/conformance/**'
+  pull_request:
+    paths-ignore:
+      - '**/docs/**'
+      - 'docs/**'
+      - '**/**.md'
+      - '**.md'
+      - '**/layer_tests_summary/**'
+      - '**/conformance/**'
   #push:
   #  paths-ignore:
   #    - '**/docs/**'
@@ -169,6 +169,40 @@ jobs:
           cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${{ env.BUILD_DIR }}/cmake_install.cmake
           cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_TEST_DIR }} -DCOMPONENT=tests -P ${{ env.BUILD_DIR }}/cmake_install.cmake
           cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_WHEELS_DIR }} -DCOMPONENT=python_wheels -P ${{ env.BUILD_DIR }}/cmake_install.cmake
+
+      # Setup additional Python versions for wheels building
+      - name: Setup Python 3.9
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: 3.9
+          should-setup-pip-paths: 'false'
+          self-hosted-runner: 'false'
+
+      - name: Setup Python 3.10
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: 3.10
+          should-setup-pip-paths: 'false'
+          self-hosted-runner: 'false'
+
+      - name: Setup Python 3.12
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: 3.12
+          should-setup-pip-paths: 'false'
+          self-hosted-runner: 'false'
+
+      - name: Build additional Python wheels
+        run: |
+          for py_version in "3.9" "3.10" "3.12"
+          do
+            export PY_BUILD_DIR=${{ github.workspace }}/py$py_version
+            mkdir -p ${PY_BUILD_DIR}
+            python_exec_path=$(python$py_version -c "import sys; print(sys.executable)")
+            cmake -DPython3_EXECUTABLE=$python_exec_path -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B ${PY_BUILD_DIR}
+            cmake --build ${PY_BUILD_DIR} --parallel
+            cmake --install "$PY_BUILD_DIR" --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_WHEELS_DIR }} --component python_wheels
+          done
 
       - name: Pack Artifacts
         run: |
