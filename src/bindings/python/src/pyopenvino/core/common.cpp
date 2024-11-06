@@ -362,7 +362,7 @@ py::array array_from_constant_view(ov::op::v0::Constant&& c) {
     if (ov_type.bitwidth() < Common::values::min_bitwidth) {
         data = py::array(dtype, c.get_byte_size(), c.get_data_ptr(), py::cast(c));
     } else {
-        data =  py::array(dtype, c.get_shape(), constant_helpers::_get_strides(c), c.get_data_ptr(), py::cast(c));
+        data = py::array(dtype, c.get_shape(), constant_helpers::_get_strides(c), c.get_data_ptr(), py::cast(c));
     }
     data.attr("flags").attr("writeable") = false;
     return data;
