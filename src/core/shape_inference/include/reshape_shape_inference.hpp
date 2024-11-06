@@ -357,7 +357,7 @@ std::vector<TRShape> shape_infer(const Reshape* op,
                                       "Non-'-1' output dimensions do not evenly divide the input dimensions");
             }
         } else {
-            if (product.get_static_in() == product.get_static_out()) {
+            if (product.get_static_in() == product.get_static_out() && product.get_static_in()) {
                 deduce_symbol_relations(product);
             }
         }
