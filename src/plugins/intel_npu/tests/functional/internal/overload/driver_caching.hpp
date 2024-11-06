@@ -9,20 +9,20 @@
 #include "intel_npu/npu_private_properties.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/opsets/opset8.hpp"
-#include "openvino/runtime/properties.hpp"
 
 #include "stdio.h" //
 #include <stdlib.h>// env setting
 
-// #include "zero_backend.hpp"
-// #include "zero_types.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 
-// #include "intel_npu/config/common.hpp"
-// #include "intel_npu/config/compiler.hpp"
-// #include "intel_npu/config/runtime.hpp"
-// #include "intel_npu/config/config.hpp"
+#include "intel_npu/config/common.hpp"
+#include "intel_npu/config/runtime.hpp"
+#include "intel_npu/config/config.hpp"
+
+// #include "openvino/runtime/properties.hpp"  //include by config files
+#include "openvino/runtime/intel_npu/properties.hpp"
+
 
 // #include "/home/dl5w050/vpux/openvino/src/plugins/intel_npu/src/backend/include/zero_backend.hpp"
 // #include "/home/dl5w050/vpux/openvino/src/plugins/intel_npu/src/al/include/intel_npu/config/config.hpp"
@@ -80,8 +80,6 @@ bool containsCacheStatus(const std::string& str) {
     return str.find("cache_status_t::stored") != std::string::npos;  
 }
 
-
-
 inline std::vector<std::string> listFilesWithExt(const std::string& path) {
     struct dirent* ent;
     DIR* dir = opendir(path.c_str());
@@ -101,7 +99,7 @@ inline std::vector<std::string> listFilesWithExt(const std::string& path) {
     return res;
 }
 
-class CompileAndDriverCaching : public testing::WithParamInterface<CompileAndDriverCaching>,
+class CompileAndDriverCaching : public testing::WithParamInterface<CompileAndModelCachingParams>,
                                 public OVPluginTestBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<CompileAndModelCachingParams> obj) {
@@ -176,9 +174,13 @@ TEST_P(CompileAndDriverCaching, CompilationCacheFlag) {
         GTEST_SKIP() << "Skipping test for Driver version less than 1.5, current driver version: " << graphDdiExtVersion;
     }
 
-    std::string driverLogContent = intel_npu::zeroUtils::getLatestBuildError(graph_ddi_table_ext);
-    if ( driverLogContent.find( "result_t::stored" ) != std::string::npos ) {
+    std::string driverLogContent = ::intel_npu::zeroUtils::getLatestBuildError(graph_ddi_table_ext);
+    if ( driverLogContent.find( "::stored" ) != std::string::npos ) {
         std::printf("printf testsuit contain stored");
+    }
+    
+    if ( driverLogContent.find( "::found" ) != std::string::npos ) {
+        std::printf("printf testsuit contain found");
     }
     EXPECT_TRUE(containsCacheStatus(driverLogContent));
 }
@@ -209,7 +211,8 @@ TEST_P(CompileAndDriverCaching, CompilationTwiceOnWindwos) {
     blobCountInitial = listFilesWithExt(path).size();
     size_t blobCountAfterwards = -1;
     ASSERT_GT(blobCountInitial, 0);
-    
+
+    ov::CompiledModel execNet;
     //first run time will long and will generate the model cache.
     auto startFirst = std::chrono::high_resolution_clock::now(); 
     OV_ASSERT_NO_THROW(execNet = core->compile_model(function, target_device, configuration));
@@ -217,7 +220,7 @@ TEST_P(CompileAndDriverCaching, CompilationTwiceOnWindwos) {
     std::chrono::duration<double> durationFirst = endFirst - startFirst;
 
     blobCountAfterwards = listFilesWithExt(path).size();
-    if (config.get<CACHE_DIR>().empty() || config.get<BYPASS_UMD_CACHING>()) {
+    if ((configuration.find("CACHE_DIR") != configuration.end()) || configuration.find("NPU_BYPASS_UMD_CACHING") != configuration.end()) {
         ASSERT_GT(blobCountInitial, 0);
     } else {
         ASSERT_EQ(blobCountInitial, blobCountAfterwards - 1);
@@ -230,10 +233,10 @@ TEST_P(CompileAndDriverCaching, CompilationTwiceOnWindwos) {
     std::chrono::duration<double> durationSecond = endSecond - startSecond;
 
     double epsilon = 20.0;
-    if (config.get<CACHE_DIR>().empty() || config.get<BYPASS_UMD_CACHING>()) {
-        EXPECT_NEAR(durationFirst, durationSecond, epsilon);
+    if ((configuration.find("CACHE_DIR") != configuration.end()) || configuration.find("NPU_BYPASS_UMD_CACHING") != configuration.end()) {
+        EXPECT_NEAR(durationFirst.count(), durationSecond.count(), epsilon);
     } else {
-        EXPECT_NEAR(durationFirst, durationSecond, durationFirst / 2.0);
+        EXPECT_NEAR(durationFirst.count(), durationSecond.count(), durationFirst.count() / 2.0);
     }
 
     std::filesystem::remove_all(path);
@@ -244,20 +247,22 @@ TEST_P(CompileAndDriverCaching, CompilationTwiceOnWindwos) {
 TEST_P(CompileAndDriverCaching, CompilationTwiceOnLinux) {
     //ON linux, cache dir can be set by env variables.
     m_cache_dir = generateCacheDirName(GetTestName());
-    auto temp = std::setenv("ZE_INTEL_NPU_CACHE_DIR", m_cache_dir, 1);
+    auto temp = setenv("ZE_INTEL_NPU_CACHE_DIR", m_cache_dir.c_str(), 1);
     size_t blobCountInitial = -1;
     blobCountInitial = listFilesWithExt(m_cache_dir).size();
     size_t blobCountAfterwards = -1;
     ASSERT_GT(blobCountInitial, 0);
     
-    //first run time will long and will generate the model cache.
-    auto startFirst = std::chrono::high_resolution_clock::now(); 
+    //first run time is longer than second time and will generate the model cache.
+    ov::CompiledModel execNet;
+    auto startFirst = std::chrono::high_resolution_clock::now();
     OV_ASSERT_NO_THROW(execNet = core->compile_model(function, target_device, configuration));
     auto endFirst = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> durationFirst = endFirst - startFirst;
 
     blobCountAfterwards = listFilesWithExt(m_cache_dir).size();
-    if (config.get<CACHE_DIR>().empty() || config.get<BYPASS_UMD_CACHING>()) {
+
+    if ((configuration.find("CACHE_DIR") != configuration.end()) || configuration.find("NPU_BYPASS_UMD_CACHING") != configuration.end())  {
         ASSERT_GT(blobCountInitial, 0);
     } else {
         ASSERT_EQ(blobCountInitial, blobCountAfterwards - 1);
@@ -270,10 +275,10 @@ TEST_P(CompileAndDriverCaching, CompilationTwiceOnLinux) {
     std::chrono::duration<double> durationSecond = endSecond - startSecond;
 
     double epsilon = 20.0;
-    if (config.get<CACHE_DIR>().empty() || config.get<BYPASS_UMD_CACHING>()) {
-        EXPECT_NEAR(durationFirst, durationSecond, epsilon);
+    if ((configuration.find("CACHE_DIR") != configuration.end()) || configuration.find("NPU_BYPASS_UMD_CACHING") != configuration.end()) {
+        EXPECT_NEAR(durationFirst.count(), durationSecond.count(), epsilon);
     } else {
-        EXPECT_NEAR(durationFirst, durationSecond, durationFirst / 2.0);
+        EXPECT_NEAR(durationFirst.count(), durationSecond.count(), durationFirst.count() / 2.0);
     }
 }
 #endif
