@@ -164,51 +164,6 @@ std::vector<const ov::element::Type*> ov::element::Type::get_known_types() {
     return rc;
 }
 
-ov::element::Type::Type(size_t bitwidth,
-                        bool is_real,
-                        bool is_signed,
-                        bool is_quantized,
-                        const std::string& /* cname */) {
-    const ElementTypes::ElementsMap elements_map{
-        {ov::element::Type_t::undefined,
-         {std::numeric_limits<size_t>::max(), false, false, false, "undefined", "undefined"}},
-        {ov::element::Type_t::dynamic, {0, false, false, false, "dynamic", "dynamic"}},
-        {ov::element::Type_t::boolean, {8, false, true, false, "char", "boolean"}},
-        {ov::element::Type_t::bf16, {16, true, true, false, "bfloat16", "bf16"}},
-        {ov::element::Type_t::f16, {16, true, true, false, "float16", "f16"}},
-        {ov::element::Type_t::f32, {32, true, true, false, "float", "f32"}},
-        {ov::element::Type_t::f64, {64, true, true, false, "double", "f64"}},
-        {ov::element::Type_t::i4, {4, false, true, true, "int4_t", "i4"}},
-        {ov::element::Type_t::i8, {8, false, true, true, "int8_t", "i8"}},
-        {ov::element::Type_t::i16, {16, false, true, false, "int16_t", "i16"}},
-        {ov::element::Type_t::i32, {32, false, true, true, "int32_t", "i32"}},
-        {ov::element::Type_t::i64, {64, false, true, false, "int64_t", "i64"}},
-        {ov::element::Type_t::u1, {1, false, false, false, "uint1_t", "u1"}},
-        {ov::element::Type_t::u2, {2, false, false, false, "uint2_t", "u2"}},
-        {ov::element::Type_t::u3, {3, false, false, false, "uint3_t", "u3"}},
-        {ov::element::Type_t::u4, {4, false, false, false, "uint4_t", "u4"}},
-        {ov::element::Type_t::u6, {6, false, false, false, "uint6_t", "u6"}},
-        {ov::element::Type_t::u8, {8, false, false, true, "uint8_t", "u8"}},
-        {ov::element::Type_t::u16, {16, false, false, false, "uint16_t", "u16"}},
-        {ov::element::Type_t::u32, {32, false, false, false, "uint32_t", "u32"}},
-        {ov::element::Type_t::u64, {64, false, false, false, "uint64_t", "u64"}},
-        {ov::element::Type_t::nf4, {4, false, false, true, "nfloat4", "nf4"}},
-        {ov::element::Type_t::f8e4m3, {8, true, true, true, "f8e4m3", "f8e4m3"}},
-        {ov::element::Type_t::f8e5m2, {8, true, true, true, "f8e5m2", "f8e5m2"}},
-        {ov::element::Type_t::string, {8 * sizeof(std::string), false, false, false, "string", "string"}},
-        {ov::element::Type_t::f4e2m1, {4, true, true, true, "f4e2m1", "f4e2m1"}},
-        {ov::element::Type_t::f8e8m0, {4, true, true, true, "f8e8m0", "f8e8m0"}},
-    };
-    for (const auto& t : elements_map) {
-        const TypeInfo& info = t.second;
-        if (bitwidth == info.m_bitwidth && is_real == info.m_is_real && is_signed == info.m_is_signed &&
-            is_quantized == info.m_is_quantized) {
-            m_type = t.first;
-            return;
-        }
-    }
-}
-
 ov::element::Type::Type(const std::string& type) : Type(type_from_string(type)) {}
 
 std::string ov::element::Type::c_type_string() const {

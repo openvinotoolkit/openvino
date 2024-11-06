@@ -26,7 +26,11 @@ using OpenVINO.
 -  `Prerequisites <#prerequisites>`__
 -  `Select model <#select-model>`__
 -  `Convert model with OpenVINO <#convert-model-with-openvino>`__
--  `Compress model weights <#compress-model-weights>`__
+
+   -  `Convert model using Optimum
+      Intel <#convert-model-using-optimum-intel>`__
+   -  `Compress model weights <#compress-model-weights>`__
+
 -  `Run OpenVINO model inference <#run-openvino-model-inference>`__
 -  `Interactive demo <#interactive-demo>`__
 
@@ -47,26 +51,19 @@ Prerequisites
 
 .. code:: ipython3
 
-    %pip install -q "gradio>=4.19" "torch>=2.1"  "transformers" "nncf>=2.12.0" "diffusers>=0.30.0" "opencv-python" "pillow" "peft>=0.7.0" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "gradio>=4.19" "torch>=2.1"  "transformers" "nncf>=2.12.0" "diffusers>=0.31.0" "opencv-python" "pillow" "peft>=0.7.0" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "sentencepiece" "protobuf"
+    %pip install -q "git+https://github.com/huggingface/optimum-intel.git"
     %pip install -qU "openvino>=2024.4.0"
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
 
 .. code:: ipython3
 
     import requests
     from pathlib import Path
     
-    if not Path("flux_helper.py").exists():
-        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/flux.1-image-generation/flux_helper.py")
-        open("flux_helper.py", "w").write(r.text)
+    if not Path("cmd_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py")
+        open("cmd_helper.py", "w").write(r.text)
     
     if not Path("gradio_helper.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/flux.1-image-generation/gradio_helper.py")
@@ -108,18 +105,18 @@ FLUX.1-dev version using widget bellow.
 
 .. code:: ipython3
 
-    from flux_helper import get_model_selector
+    import ipywidgets as widgets
     
-    model_selector = get_model_selector()
+    model_ids = ["black-forest-labs/FLUX.1-schnell", "black-forest-labs/FLUX.1-dev"]
+    
+    model_selector = widgets.Dropdown(
+        options=model_ids,
+        default=model_ids[0],
+        description="Model:",
+    )
+    
+    
     model_selector
-
-
-.. parsed-literal::
-
-    2024-09-24 00:55:16.941633: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-09-24 00:55:16.976313: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-09-24 00:55:17.640172: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 
@@ -171,101 +168,44 @@ The pipeline consists of four important parts:
 -  Transformer for step-by-step denoising latent image representation.
 -  Autoencoder (VAE) for decoding latent space to image.
 
-We will use ``convert_flux`` helper function defined in
-`flux_helper.py <flux_helper.py-with-output.html>`__ that create original PyTorch model
-and convert each part of pipeline using ``ov.convert_model``.
-
-.. code:: ipython3
-
-    from flux_helper import convert_flux
-    
-    # uncomment the line to see model conversion code
-    # ??convert_flux
-
-.. code:: ipython3
-
-    model_dir = convert_flux(model_selector.value)
+Convert model using Optimum Intel
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
 
-.. parsed-literal::
+For convenience, we will use OpenVINO integration with HuggingFace
+Optimum. `Optimum
+Intel <https://huggingface.co/docs/optimum/intel/index>`__ is the
+interface between the Transformers and Diffusers libraries and the
+different tools and libraries provided by Intel to accelerate end-to-end
+pipelines on Intel architectures.
 
-    Loading pipeline components...:   0%|          | 0/7 [00:00<?, ?it/s]
+Among other use cases, Optimum Intel provides a simple interface to
+optimize your Transformers and Diffusers models, convert them to the
+OpenVINO Intermediate Representation (IR) format and run inference using
+OpenVINO Runtime. ``optimum-cli`` provides command line interface for
+model conversion and optimization.
 
+General command format:
 
-.. parsed-literal::
+.. code:: bash
 
-    You set `add_prefix_space`. The tokenizer needs to be converted from the slow tokenizers
+   optimum-cli export openvino --model <model_id_or_path> --task <task> <output_dir>
 
-
-
-.. parsed-literal::
-
-    Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]
-
-
-.. parsed-literal::
-
-    ⌛ Transformer model conversion started
-    WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
-
-
-.. parsed-literal::
-
-    [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
-
-
-.. parsed-literal::
-
-    ✅ Transformer model conversion finished
-    ⌛ Clip Text encoder conversion started
-
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4713: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
-      warnings.warn(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:86: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if input_shape[-1] > 1 or self.sliding_window is not None:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:162: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if past_key_values_length > 0:
-
-
-.. parsed-literal::
-
-    ✅ Clip Text encoder conversion finished
-    ⌛ T5 Text encoder conversion started
-    ✅ T5 Text encoder conversion finished
-    ⌛ VAE decoder conversion started
-
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/upsampling.py:146: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      assert hidden_states.shape[1] == self.channels
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-780/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/upsampling.py:162: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if hidden_states.shape[0] >= 64:
-
-
-.. parsed-literal::
-
-    ✅ VAE decoder onversion finished
-    ✅ black-forest-labs/FLUX.1-schnell successfully converted and can be found in FLUX.1-schnell
-
-
-.. code:: ipython3
-
-    from flux_helper import TRANSFORMER_PATH, VAE_DECODER_PATH, TEXT_ENCODER_PATH, TEXT_ENCODER_2_PATH
-    
-    model_dict = {
-        "transformer": model_dir / TRANSFORMER_PATH,
-        "text_encoder": model_dir / TEXT_ENCODER_PATH,
-        "text_encoder_2": model_dir / TEXT_ENCODER_2_PATH,
-        "vae": model_dir / VAE_DECODER_PATH,
-    }
+where task is task to export the model for, if not specified, the task
+will be auto-inferred based on the model. You can find a mapping between
+tasks and model classes in Optimum TaskManager
+`documentation <https://huggingface.co/docs/optimum/exporters/task_manager>`__.
+Additionally, you can specify weights compression using
+``--weight-format`` argument with one of following options: ``fp32``,
+``fp16``, ``int8`` and ``int4``. Fro int8 and int4
+`nncf <https://github.com/openvinotoolkit/nncf>`__ will be used for
+weight compression. More details about model export provided in `Optimum
+Intel
+documentation <https://huggingface.co/docs/optimum/intel/openvino/export#export-your-model>`__.
 
 Compress model weights
-----------------------
+~~~~~~~~~~~~~~~~~~~~~~
 
 
 
@@ -278,14 +218,16 @@ where the size of weights is relatively larger than the size of
 activations, for example, Large Language Models (LLM). Compared to INT8
 compression, INT4 compression improves performance even more, but
 introduces a minor drop in prediction quality. We will use
-`NNCF <https://github.com/openvinotoolkit/nncf>`__ for weight
-compression.
+`NNCF <https://github.com/openvinotoolkit/nncf>`__ integration to
+``optimum-cli`` tool for weight compression.
 
 .. code:: ipython3
 
-    from flux_helper import weight_compression_widget
-    
-    to_compress = weight_compression_widget()
+    to_compress = widgets.Checkbox(
+        value=True,
+        description="Weight compression",
+        disabled=False,
+    )
     
     to_compress
 
@@ -300,199 +242,40 @@ compression.
 
 .. code:: ipython3
 
-    import nncf
-    import openvino as ov
-    import gc
+    from pathlib import Path
     
-    compression_args = {"mode": nncf.CompressWeightsMode.INT4_SYM, "group_size": 64, "ratio": 1.0}
+    model_id = model_selector.value
     
-    int4_model_dict = {}
+    model_base_dir = Path(model_id.split("/")[-1])
+    additional_args = {}
     
     if to_compress.value:
-        core = ov.Core()
+        model_dir = model_base_dir / "INT4"
+        additional_args.update({"weight-format": "int4", "group-size": "64", "ratio": "1.0"})
+    else:
+        model_dir = model_base_dir / "FP16"
+        additional_args.update({"weight-format": "fp16"})
+
+.. code:: ipython3
+
+    from cmd_helper import optimum_cli
     
-        for model_name, model_path in model_dict.items():
-            int4_path = model_path.parent / (model_path.stem + "_int4.xml")
-            if not int4_path.exists():
-                print(f"⌛ {model_path.stem} compression started")
-                print(
-                    f"Compression parameters:\n\tmode = {compression_args['mode']}\n\tratio = {compression_args['ratio']}\n\tgroup_size = {compression_args['group_size']}"
-                )
-                model = core.read_model(model_path)
-                compressed_model = nncf.compress_weights(model, **compression_args)
-                ov.save_model(compressed_model, int4_path)
-                print(f"✅ {model_path.stem} compression finished")
-                del compressed_model
-                del model
-                gc.collect()
-            print(f"Compressed {model_path.stem} can be found in {int4_path}")
-            int4_model_dict[model_name] = int4_path
-
-
-.. parsed-literal::
-
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
-    ⌛ transformer compression started
-    Compression parameters:
-    	mode = int4_sym
-    	ratio = 1.0
-    	group_size = 64
-    INFO:nncf:Statistics of the bitwidth distribution:
-    ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
-    │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
-    ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
-    │              8 │ 0% (1 / 502)                │ 0% (0 / 501)                           │
-    ├────────────────┼─────────────────────────────┼────────────────────────────────────────┤
-    │              4 │ 100% (501 / 502)            │ 100% (501 / 501)                       │
-    ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-
-
-
-
-
-
-
-.. parsed-literal::
-
-    ✅ transformer compression finished
-    Compressed transformer can be found in FLUX.1-schnell/transformer/transformer_int4.xml
-    ⌛ text_encoder compression started
-    Compression parameters:
-    	mode = int4_sym
-    	ratio = 1.0
-    	group_size = 64
-    INFO:nncf:Statistics of the bitwidth distribution:
-    ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
-    │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
-    ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
-    │              8 │ 33% (3 / 74)                │ 0% (0 / 71)                            │
-    ├────────────────┼─────────────────────────────┼────────────────────────────────────────┤
-    │              4 │ 67% (71 / 74)               │ 100% (71 / 71)                         │
-    ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-
-
-
-
-
-
-
-.. parsed-literal::
-
-    ✅ text_encoder compression finished
-    Compressed text_encoder can be found in FLUX.1-schnell/text_encoder/text_encoder_int4.xml
-    ⌛ text_encoder_2 compression started
-    Compression parameters:
-    	mode = int4_sym
-    	ratio = 1.0
-    	group_size = 64
-    INFO:nncf:Statistics of the bitwidth distribution:
-    ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
-    │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
-    ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
-    │              8 │ 4% (3 / 170)                │ 0% (0 / 167)                           │
-    ├────────────────┼─────────────────────────────┼────────────────────────────────────────┤
-    │              4 │ 96% (167 / 170)             │ 100% (167 / 167)                       │
-    ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-
-
-
-
-
-
-
-.. parsed-literal::
-
-    ✅ text_encoder_2 compression finished
-    Compressed text_encoder_2 can be found in FLUX.1-schnell/text_encoder_2/text_encoder_2_int4.xml
-    ⌛ vae_decoder compression started
-    Compression parameters:
-    	mode = int4_sym
-    	ratio = 1.0
-    	group_size = 64
-    INFO:nncf:Statistics of the bitwidth distribution:
-    ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
-    │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
-    ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
-    │              8 │ 98% (36 / 39)               │ 0% (0 / 3)                             │
-    ├────────────────┼─────────────────────────────┼────────────────────────────────────────┤
-    │              4 │ 2% (3 / 39)                 │ 100% (3 / 3)                           │
-    ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-
-
-
-
-
-
-
-.. parsed-literal::
-
-    ✅ vae_decoder compression finished
-    Compressed vae_decoder can be found in FLUX.1-schnell/vae/vae_decoder_int4.xml
-
+    if not model_dir.exists():
+        optimum_cli(model_id, model_dir, additional_args=additional_args)
 
 Run OpenVINO model inference
 ----------------------------
 
 
 
-``OVFluxPipeline`` class defined in ``flux_helper.py`` provides
-convenient way for running model. It accepts directory with converted
-model and inference device as arguments.
-
-.. code:: ipython3
-
-    from flux_helper import get_pipeline_selection_option
-    
-    use_compressed = get_pipeline_selection_option(int4_model_dict)
-    use_compressed
-
-
-
-
-.. parsed-literal::
-
-    Checkbox(value=True, description='Use compressed models')
-
-
-
-.. code:: ipython3
-
-    from flux_helper import OVFluxPipeline, init_pipeline  # noqa: F401
-    
-    # uncomment the line to see model pipeline
-    # ??OVFluxPipeline
+``OVDiffusionPipeline`` from Optimum Intel provides ready-to-use
+interface for running Diffusers models using OpenVINO. It supports
+various models including Stable Diffusion, Stable Diffusion XL, LCM,
+Stable Diffusion v3 and Flux. Similar to original Diffusers pipeline,
+for initialization, we should use ``from_preptrained`` method providing
+model id from HuggingFace hub or local directory (both original PyTorch
+and OpenVINO models formats supported, in the first case model class
+additionally will trigger model conversion).
 
 .. code:: ipython3
 
@@ -512,17 +295,46 @@ model and inference device as arguments.
 
 .. code:: ipython3
 
-    ov_pipe = init_pipeline(model_dir, model_dict if not use_compressed.value else int4_model_dict, device.value)
+    import ipywidgets as widgets
+    
+    model_available = (model_base_dir / "INT4").is_dir()
+    use_quantized_models = widgets.Checkbox(
+        value=model_available,
+        description="Use compressed models",
+        disabled=not model_available,
+    )
+    
+    use_quantized_models
+
+
 
 
 .. parsed-literal::
 
-    Models compilation
-    ✅ transformer - Done!
-    ✅ text_encoder - Done!
-    ✅ text_encoder_2 - Done!
-    ✅ vae - Done!
+    Checkbox(value=True, description='Use compressed models')
 
+
+
+.. code:: ipython3
+
+    from optimum.intel.openvino import OVDiffusionPipeline
+    
+    model_dir = model_base_dir / "INT4" if use_quantized_models.value else model_base_dir / "FP16"
+    
+    ov_pipe = OVDiffusionPipeline.from_pretrained(model_dir, device=device.value)
+
+
+.. parsed-literal::
+
+    2024-10-28 18:12:30.714636: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-10-28 18:12:30.727116: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:477] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+    WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+    E0000 00:00:1730124750.741387   52454 cuda_dnn.cc:8310] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+    E0000 00:00:1730124750.745955   52454 cuda_blas.cc:1418] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+    2024-10-28 18:12:30.761443: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+    You set `add_prefix_space`. The tokenizer needs to be converted from the slow tokenizers
+    
 
 .. code:: ipython3
 
@@ -544,7 +356,7 @@ model and inference device as arguments.
 
 
 
-.. image:: flux.1-image-generation-with-output_files/flux.1-image-generation-with-output_20_1.png
+.. image:: flux.1-image-generation-with-output_files/flux.1-image-generation-with-output_16_1.png
 
 
 
@@ -565,20 +377,6 @@ Interactive demo
     # demo.launch(share=True)
     # it creates a publicly shareable link for the interface. Read more in the docs: https://gradio.app/docs/
     try:
-        demo.launch(debug=False)
+        demo.launch(debug=True)
     except Exception:
-        demo.launch(debug=False, share=True)
-
-
-.. parsed-literal::
-
-    Running on local URL:  http://127.0.0.1:7860
-    
-    To create a public link, set `share=True` in `launch()`.
-
-
-
-
-
-
-
+        demo.launch(debug=True, share=True)

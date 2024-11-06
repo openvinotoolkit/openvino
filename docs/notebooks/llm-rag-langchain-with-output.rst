@@ -127,7 +127,8 @@ Install required dependencies
         "onnx<1.16.2",
         "einops",
         "transformers_stream_generator",
-        "tiktoken" "transformers>=4.43.1",
+        "tiktoken",
+        "transformers>=4.43.1",
         "faiss-cpu",
         "sentence_transformers",
         "langchain>=0.2.0",
@@ -547,6 +548,11 @@ with INT4 precision.
                 "group_size": 128,
                 "ratio": 0.5,
             },
+            "qwen2.5-7b-instruct": {"sym": True, "group_size": 128, "ratio": 1.0},
+            "qwen2.5-3b-instruct": {"sym": True, "group_size": 128, "ratio": 1.0},
+            "qwen2.5-14b-instruct": {"sym": True, "group_size": 128, "ratio": 1.0},
+            "qwen2.5-1.5b-instruct": {"sym": True, "group_size": 128, "ratio": 1.0},
+            "qwen2.5-0.5b-instruct": {"sym": True, "group_size": 128, "ratio": 1.0},
             "default": {
                 "sym": False,
                 "group_size": 128,
@@ -1335,7 +1341,7 @@ which will help to create a chain to connect RAG components including:
         """
         streamer = TextIteratorStreamer(
             llm.pipeline.tokenizer,
-            timeout=60.0,
+            timeout=3600.0,
             skip_prompt=hide_full_prompt,
             skip_special_tokens=True,
         )

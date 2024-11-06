@@ -20,11 +20,7 @@ std::shared_ptr<ov::Model> AddFunction::initOriginal() const {
 std::shared_ptr<ov::Model> AddFunction::initReference() const {
     auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
     auto data1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
-    auto indata0 = std::make_shared<op::v0::Parameter>(precision, data0->get_shape());
-    auto indata1 = std::make_shared<op::v0::Parameter>(precision, data1->get_shape());
-    auto add = std::make_shared<ov::snippets::op::Subgraph>(NodeVector{data0, data1},
-                                          std::make_shared<ov::Model>(NodeVector{std::make_shared<op::v1::Add>(indata0, indata1)},
-                                                                      ParameterVector{indata0, indata1}));
+    auto add = std::make_shared<ov::snippets::op::Subgraph>(NodeVector{data0, data1}, getOriginal());
     return std::make_shared<ov::Model>(NodeVector{add}, ParameterVector{data0, data1});
 }
 std::shared_ptr<ov::Model> ExpFunction::initOriginal() const {
@@ -78,7 +74,7 @@ std::shared_ptr<ov::Model> EltwiseFunction::initReference() const {
     auto indata1 = std::make_shared<op::v0::Parameter>(precision, data1->get_shape());
     auto indata2 = std::make_shared<op::v0::Parameter>(precision, data1->get_shape());
     auto add = std::make_shared<op::v1::Add>(indata0, indata1);
-    auto sub = std::make_shared<op::v1::Subtract>(add, const_data);
+    auto sub = std::make_shared<op::v1::Subtract>(add, indata2);
     auto mul = std::make_shared<ov::snippets::op::Subgraph>(NodeVector{data0, data1, const_data},
                                           std::make_shared<ov::Model>(NodeVector{std::make_shared<op::v1::Multiply>(add, sub)},
                                                                   ParameterVector{indata0, indata1, indata2}));
@@ -151,10 +147,10 @@ std::shared_ptr<ov::Model> MatMulEltwiseBranchesFunction::initReference() const 
     const std::vector<float> const_values = ov::test::utils::generate_float_numbers(4, -10., 10.);
     // snippet inputs
     auto non_snippet_op = std::make_shared<op::v0::MatMul>(sinh_1, sinh_2);
-    auto mul_const_1 = std::make_shared<ov::snippets::op::Scalar>(precision, Shape{1}, const_values[0]);
-    auto add_const_1 = std::make_shared<ov::snippets::op::Scalar>(precision, Shape{1}, const_values[1]);
-    auto mul_const_2 = std::make_shared<ov::snippets::op::Scalar>(precision, Shape{1}, const_values[2]);
-    auto sub_const_2 = std::make_shared<ov::snippets::op::Scalar>(precision, Shape{1}, const_values[3]);
+    auto mul_const_1 = std::make_shared<op::v0::Constant>(precision, Shape{1}, const_values[0]);
+    auto add_const_1 = std::make_shared<op::v0::Constant>(precision, Shape{1}, const_values[1]);
+    auto mul_const_2 = std::make_shared<op::v0::Constant>(precision, Shape{1}, const_values[2]);
+    auto sub_const_2 = std::make_shared<op::v0::Constant>(precision, Shape{1}, const_values[3]);
 
     // snippet function
     Shape matMulOutShape = input_shapes[0].get_shape();
@@ -222,15 +218,11 @@ std::shared_ptr<ov::Model> EltwiseTwoResultsFunction::initOriginal() const {
     auto relu = std::make_shared<op::v0::Relu>(hswish);
     relu->set_friendly_name("relu");
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
     auto& out_tensor0 = add->get_output_tensor(0);
-    ov::descriptor::set_ov_tensor_legacy_name(out_tensor0, "add_out");
     out_tensor0.set_names({"add_out", "y0"});
 
     auto& out_tensor1 = relu->get_output_tensor(0);
-    ov::descriptor::set_ov_tensor_legacy_name(out_tensor1, "relu_out");
     out_tensor1.set_names({"relu_out", "y1"});
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     auto res0 = std::make_shared<op::v0::Result>(add);
     res0->set_friendly_name("res0");
@@ -261,15 +253,11 @@ std::shared_ptr<ov::Model> EltwiseTwoResultsFunction::initReference() const {
                                         std::make_shared<ov::Model>(NodeVector{relu},
                                                                     ParameterVector{indata2}));
     subgraph1->set_friendly_name("relu");
-    OPENVINO_SUPPRESS_DEPRECATED_START
     auto& out_tensor0 = subgraph0->get_output_tensor(0);
-    ov::descriptor::set_ov_tensor_legacy_name(out_tensor0, "add_out");
     out_tensor0.set_names({"add_out", "y0"});
 
     auto& out_tensor1 = subgraph1->get_output_tensor(0);
-    ov::descriptor::set_ov_tensor_legacy_name(out_tensor1, "relu_out");
     out_tensor1.set_names({"relu_out", "y1"});
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     auto res0 = std::make_shared<op::v0::Result>(subgraph0->output(0));
     res0->set_friendly_name("res0");

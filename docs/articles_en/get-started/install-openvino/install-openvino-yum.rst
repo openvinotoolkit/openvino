@@ -15,41 +15,8 @@ Install OpenVINO™ Runtime on Linux From YUM Repository
    * is dedicated to Linux users only
    * additionally includes code samples
 
-.. tab-set::
-
-   .. tab-item:: System Requirements
-      :sync: system-requirements
-
-      | Full requirement listing is available in:
-      | :doc:`System Requirements Page <../../../about-openvino/release-notes-openvino/system-requirements>`
-
-      .. note::
-
-         OpenVINO RPM packages are compatible with and can be run on the following operating systems:
-
-         - RHEL 8.2 and higher
-         - Amazon Linux 2022 and 2023
-         - Rocky Linux 8.7, 8.8 and 9.2-9.3
-         - Alma Linux 8.7, 8.8 and 9.2-9.4
-         - Oracle Linux 8.7, 8.8 and 9.2-9.4
-         - Fedora 29 and higher up to 41
-         - OpenEuler 20.03, 22.03, 23.03 and 24.03
-         - Anolis OS 8.6 and 8.8
-         - CentOS Stream 8 and 9
-
-   .. tab-item:: Processor Notes
-      :sync: processor-notes
-
-      | To see if your processor includes the integrated graphics technology and supports iGPU inference, refer to:
-      | `Product Specifications <https://ark.intel.com/>`__
-
-   .. tab-item:: Software
-      :sync: software
-
-      * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`_
-      * GCC 8.2.0
-      * `Python 3.9 - 3.12, 64-bit <https://www.python.org/downloads/>`_
-
+   Before installing OpenVINO, see the
+   :doc:`System Requirements page <../../../about-openvino/release-notes-openvino/system-requirements>`.
 
 Install OpenVINO Runtime
 ########################

@@ -4,9 +4,11 @@
 //
 
 #include "image_quality_helper.hpp"
+#include "openvino/core/partial_shape.hpp"
 #include "semantic_segmentation_helpers.hpp"
 #include "tensor_utils.hpp"
 #include "yolo_helpers.hpp"
+#include "tools_helpers.hpp"
 
 #include <openvino/core/parallel.hpp>
 #include <openvino/openvino.hpp>
@@ -31,7 +33,8 @@ using TensorMap = std::map<std::string, ov::Tensor>;
 
 struct TensorDescriptor {
     ov::element::Type precision;
-    ov::Shape shape;
+    ov::PartialShape shape;
+    ov::Shape dataShape;
     ov::Layout layout;
 };
 
@@ -83,6 +86,15 @@ DEFINE_string(oml, "",
               "<output> is supported");
 DEFINE_bool(img_as_bin, false, "Force binary input even if network expects an image");
 DEFINE_bool(pc, false, "Report performance counters");
+DEFINE_string(
+        shape, "",
+        "Optional. Set shape for model input. For example, \"input1[1,3,224,224],input2[1,4]\" or \"[1,3,224,224]\""
+        " in case of one input size. This parameter affects model input shape and can be dynamic."
+        " For dynamic dimensions use symbol `?` or '-1'. Ex. [?,3,?,?]."
+        " For bounded dimensions specify range 'min..max'. Ex. [1..10,3,?,?].");
+DEFINE_string(data_shape, "",
+    "Required for models with dynamic shapes. Set shape for input blobs. Only one shape can be set."
+    "In case of one input size: \"[1,3,224,224]\"");
 
 // for using input image mean and scale
 static constexpr char mean_values_message[] =
@@ -1200,7 +1212,8 @@ bool computeRRMSE(const ov::Tensor& output, const ov::Tensor& reference) {
 
     double rrmseLoss = sqrt(error / sum);
 
-    std::cout << "RRMSE loss : " << rrmseLoss << "   RRMSE threshold : " << FLAGS_rrmse_loss_threshold << std::endl;
+    std::cout << "RRMSE loss : " << std::fixed << std::setprecision(4) << rrmseLoss
+              << "   RRMSE threshold : " << FLAGS_rrmse_loss_threshold << std::endl;
     return rrmseLoss <= FLAGS_rrmse_loss_threshold;
 }
 
@@ -1267,7 +1280,8 @@ bool computeNRMSE(const ov::Tensor& output, const ov::Tensor& reference) {
     double nrmseLoss =
             sqrt(error / size) / std::max(0.001f, std::max(maxOutput - minOutput, maxReference - minReference));
 
-    std::cout << "NRMSE loss : " << nrmseLoss << "   NRMSE threshold : " << FLAGS_nrmse_loss_threshold << std::endl;
+    std::cout << "NRMSE loss : " << std::fixed << std::setprecision(4) << nrmseLoss
+              << "   NRMSE threshold : " << FLAGS_nrmse_loss_threshold << std::endl;
     return nrmseLoss <= FLAGS_nrmse_loss_threshold;
 }
 
@@ -1319,7 +1333,7 @@ bool testPSNR(const TensorMap& outputs, const TensorMap& references, const int d
 
     auto result = utils::runPSNRMetric(actOutput, refOutput, dstHeight, dstWidth, scaleBorder, normalizedImage);
 
-    if (std::fabs(result - FLAGS_psnr_reference) > FLAGS_psnr_tolerance) {
+    if (FLAGS_psnr_reference - result > FLAGS_psnr_tolerance) {
         std::cout << "Absolute difference between actual value " << result << " and reference value "
                   << FLAGS_psnr_reference << " larger then tolerance " << FLAGS_psnr_tolerance << std::endl;
         return false;
@@ -1448,65 +1462,6 @@ std::pair<TensorMap, ProfVec> runInfer(ov::InferRequest& inferRequest, ov::Compi
     return std::make_pair(out, profData);
 }
 
-void boundDynamicShape(std::shared_ptr<ov::Model>& model) {
-    for (auto&& item : model->get_parameters()) {
-        auto shape = item->get_partial_shape();
-        if (shape.is_static()) {
-            continue;
-        }
-        auto rank = shape.rank();
-        if (rank.is_dynamic()) {
-            throw std::logic_error("Rank \"" + rank.to_string() + "\" of the shape \"" + shape.to_string() +
-                                   "\" is dynamic which is not supported by SIT");
-        }
-        auto layout = item->get_layout();
-        if (!ov::layout::has_batch(layout)) {
-            item->set_layout(ov::Layout(layout.to_string().insert(1, "N,")));
-            layout = item->get_layout();
-        }
-        if (shape[ov::layout::batch_idx(layout)].is_dynamic()) {
-            std::cout << "WARNING: Shape \"" + shape.to_string() + "\"" +
-                                 " has dynamic batch size which is not supported by SIT\n"
-                                 "         Setting batch to 1 forcibly"
-                      << std::endl;
-            ov::set_batch(model, 1);
-        }
-        shape = item->get_partial_shape();
-        if (shape.is_dynamic()) {
-            throw std::logic_error("Model's input shape \"" + shape.to_string() + "\"" +
-                                   " is dynamic which is not supported by SIT");
-        }
-    }
-}
-
-void setModelBatch(std::shared_ptr<ov::Model>& model, uint32_t batch) {
-    if (batch == 1) {
-        return;
-    }
-
-    // New batch value is applicable if the model has non dynamic inputs/outputs only
-    // Amend layout by adding N if it has no batch dimension
-    for (auto&& item : model->get_parameters()) {
-        auto shape = item->get_partial_shape();
-        auto rank = shape.rank();
-        if (rank.is_dynamic()) {
-            throw std::logic_error("Rank \"" + rank.to_string() + "\" of the shape \"" + shape.to_string() +
-                                   "\" is dynamic which is not supported by SIT");
-        }
-        auto layout = item->get_layout();
-        if (!ov::layout::has_batch(layout)) {
-            item->set_layout(ov::Layout(layout.to_string().insert(1, "N,")));
-        }
-
-        shape = item->get_partial_shape();
-        if (shape.is_dynamic()) {
-            throw std::logic_error("Model's input shape \"" + shape.to_string() + "\"" +
-                                   " is dynamic which is not supported by SIT");
-        }
-    }
-    ov::set_batch(model, batch);
-}
-
 // FIXME: User must provide layout explicitly.
 // No "default" layout for IRv11 models.
 static ov::Layout getLayoutByRank(const size_t rank) {
@@ -1556,8 +1511,8 @@ bool testSSDDetection(const TensorMap& outputs, const TensorMap& references,
     const ov::Tensor& reference = references.begin()->second;
     const TensorDescriptor& inputDescriptor = inputDescriptors.begin()->second;
 
-    const auto imgWidth = inputDescriptor.shape.at(ov::layout::width_idx(inputDescriptor.layout));
-    const auto imgHeight = inputDescriptor.shape.at(ov::layout::height_idx(inputDescriptor.layout));
+    const auto imgWidth = inputDescriptor.dataShape.at(ov::layout::width_idx(inputDescriptor.layout));
+    const auto imgHeight = inputDescriptor.dataShape.at(ov::layout::height_idx(inputDescriptor.layout));
 
     auto confThresh = FLAGS_confidence_threshold;
     auto probTolerance = FLAGS_prob_tolerance;
@@ -1590,8 +1545,8 @@ bool testYoloV2(const TensorMap& outputs, const TensorMap& references, const Ten
 
     const TensorDescriptor& inputDescriptor = inputDescriptors.begin()->second;
 
-    const auto imgWidth = inputDescriptor.shape.at(ov::layout::width_idx(inputDescriptor.layout));
-    const auto imgHeight = inputDescriptor.shape.at(ov::layout::height_idx(inputDescriptor.layout));
+    const auto imgWidth = inputDescriptor.dataShape.at(ov::layout::width_idx(inputDescriptor.layout));
+    const auto imgHeight = inputDescriptor.dataShape.at(ov::layout::height_idx(inputDescriptor.layout));
     double confThresh = FLAGS_confidence_threshold;
     double probTolerance = FLAGS_prob_tolerance;
     double boxTolerance = FLAGS_box_tolerance;
@@ -1622,8 +1577,8 @@ bool testYoloV3(const TensorMap& outputs, const TensorMap& references, const Ten
                     "Mismatch between the number of model outputs and the number of references");
 
     const TensorDescriptor& inputDescriptor = inputDescriptors.begin()->second;
-    const auto imgWidth = inputDescriptor.shape.at(ov::layout::width_idx(inputDescriptor.layout));
-    const auto imgHeight = inputDescriptor.shape.at(ov::layout::height_idx(inputDescriptor.layout));
+    const auto imgWidth = inputDescriptor.dataShape.at(ov::layout::width_idx(inputDescriptor.layout));
+    const auto imgHeight = inputDescriptor.dataShape.at(ov::layout::height_idx(inputDescriptor.layout));
 
     double confThresh = FLAGS_confidence_threshold;
     double probTolerance = FLAGS_prob_tolerance;
@@ -1661,8 +1616,8 @@ bool testYoloV4(const TensorMap& outputs, const TensorMap& references, const Ten
                     "Mismatch between the number of model outputs and the number of references");
 
     const TensorDescriptor& inputDescriptor = inputDescriptors.begin()->second;
-    const auto imgWidth = inputDescriptor.shape.at(ov::layout::width_idx(inputDescriptor.layout));
-    const auto imgHeight = inputDescriptor.shape.at(ov::layout::height_idx(inputDescriptor.layout));
+    const auto imgWidth = inputDescriptor.dataShape.at(ov::layout::width_idx(inputDescriptor.layout));
+    const auto imgHeight = inputDescriptor.dataShape.at(ov::layout::height_idx(inputDescriptor.layout));
 
     double confThresh = FLAGS_confidence_threshold;
     double probTolerance = FLAGS_prob_tolerance;
@@ -1729,6 +1684,16 @@ bool testMeanIoU(const TensorMap& outputs, const TensorMap& references, const La
     iou = utils::mean_IoU(parsedOutputs, parsedReferences, classes, FLAGS_sem_seg_ignore_label);
 
     return compare_mean_IoU(iou, semSegThreshold, classes);
+}
+
+static ov::Shape parseDataShape(const std::string& dataShapeStr) {
+    std::vector<size_t> dataShape;
+    std::istringstream ss(dataShapeStr);
+    std::string token;
+    while (std::getline(ss, token, ',')) {
+        dataShape.push_back(std::stoul(token));
+    }
+    return ov::Shape(dataShape);
 }
 
 static int runSingleImageTest() {
@@ -1812,12 +1777,12 @@ static int runSingleImageTest() {
             auto model = core.read_model(FLAGS_network);
             nameIOTensors(model);
 
-            setModelBatch(model, FLAGS_override_model_batch_size);
-            if (FLAGS_device.find("NPU") != std::string::npos ||
-                // FIXME: SIT on CPU also requires to bound dynamic shapes
-                FLAGS_device.find("CPU") != std::string::npos || FLAGS_device.find("TEMPLATE") != std::string::npos) {
-                boundDynamicShape(model);
-            }
+            auto inputs_info = std::const_pointer_cast<ov::Model>(model)->inputs();
+            InputsInfo info_map;
+
+            std::cout << "Performing reshape" << std::endl;
+            reshape(std::move(inputs_info), info_map, model, FLAGS_shape,
+                    FLAGS_override_model_batch_size, FLAGS_device);
 
             ov::preprocess::PrePostProcessor ppp(model);
 
@@ -1854,11 +1819,11 @@ static int runSingleImageTest() {
                         inModelLayout.has_value()) {
                         inLayerModelLayout = inModelLayout.value();
                     } else {
-                        const auto shape = inputInfo[i].get_shape();
+                        const auto shape = inputInfo[i].get_partial_shape();
                         inLayerModelLayout = getLayoutByRank(shape.size());
                         std::cout << "WARNING: Configuring preprocessing. Since --iml option isn't set, input model "
                                      "layout for layer \""
-                                  << inputInfo[i].get_any_name() << "\" is infered from shape: " << toString(shape)
+                                  << inputInfo[i].get_any_name() << "\" is infered from shape: " << shape.to_string()
                                   << " rank (" << shape.size() << ") as " << inLayerModelLayout.to_string()
                                   << std::endl;
                     }
@@ -1915,11 +1880,11 @@ static int runSingleImageTest() {
                         outModelLayout.has_value()) {
                         outLayerModelLayout = outModelLayout.value();
                     } else {
-                        const auto shape = outputInfo[i].get_shape();
+                        const auto shape = outputInfo[i].get_partial_shape();
                         outLayerModelLayout = getLayoutByRank(shape.size());
                         std::cout << "WARNING: Configuring preprocessing. Since --oml option isn't set, output model "
                                      "layout for layer \""
-                                  << outputInfo[i].get_any_name() << "\" is infered from shape: " << toString(shape)
+                                  << outputInfo[i].get_any_name() << "\" is infered from shape: " << shape.to_shape()
                                   << " rank (" << shape.size() << ") as " << outLayerModelLayout.to_string()
                                   << std::endl;
                     }
@@ -1931,6 +1896,7 @@ static int runSingleImageTest() {
                 }
             }
 
+            std::cout << "Compile model" << std::endl;
             compiledModel = core.compile_model(ppp.build(), FLAGS_device);
         } else {
             std::cout << "Import network " << FLAGS_network << std::endl;
@@ -1992,7 +1958,8 @@ static int runSingleImageTest() {
 
             // Load the input data
             for (const auto& inputInfo : inputsInfo) {
-                const ov::Shape& shape = inputInfo.get_shape();
+                const auto& shape = inputInfo.get_partial_shape();
+                const auto dataShape = shape.is_static() ? shape.get_shape() : parseDataShape(FLAGS_data_shape);
                 const ov::element::Type& precision = inputInfo.get_element_type();
 
                 // Determine the input layout
@@ -2010,19 +1977,20 @@ static int runSingleImageTest() {
                     inputLayout = getLayoutByRank(shape.size());
                     std::cout << "WARNING: Loading input data. Since --iml option isn't set, input model layout for "
                                  "layer \""
-                              << inputInfo.get_any_name() << "\" is infered from shape: " << toString(shape)
+                              << inputInfo.get_any_name() << "\" is infered from shape: " << shape.to_shape()
                               << " rank (" << shape.size() << ") as " << inputLayout.to_string() << std::endl;
                 }
 
-                inputDescriptors.emplace(inputInfo.get_any_name(), TensorDescriptor{precision, shape, inputLayout});
+                inputDescriptors.emplace(inputInfo.get_any_name(), TensorDescriptor{precision, shape,
+                                                                                    dataShape, inputLayout});
 
                 std::cout << "Load input #" << inputInd << " from " << inputFiles[inputInd] << " as " << precision
                           << " " << inputLayout.to_string() << " " << shape << std::endl;
 
                 const ov::Tensor tensor =
                         !FLAGS_img_as_bin
-                                ? loadInput(precision, shape, inputLayout, inputFiles[inputInd], FLAGS_color_format)
-                                : loadInput(precision, shape, inputLayout, inputFiles[inputInd], FLAGS_color_format,
+                                ? loadInput(precision, dataShape, inputLayout, inputFiles[inputInd], FLAGS_color_format)
+                                : loadInput(precision, dataShape, inputLayout, inputFiles[inputInd], FLAGS_color_format,
                                             inputBinPrecisionForOneInfer[numberOfTestCase][inputInd]);
                 std::ostringstream ostr;
                 ostr << netFileName << "_input_" << inputInd << "_case_" << numberOfTestCase << ".blob";

@@ -90,7 +90,8 @@ void program_node::replace_dependency(size_t idx, std::pair<program_node*, int32
 std::vector<layout> const program_node::get_input_layouts() const {
     std::vector<layout> layouts;
     for (size_t i = 0; i < dependencies.size(); i++) {
-        layouts.push_back(get_input_layout(i));
+        auto input_layout = get_input_layout(i);
+        layouts.push_back(input_layout);
     }
     return layouts;
 }
@@ -611,9 +612,9 @@ bool program_node::is_padded_spatial(size_t idx) const {
     auto& layout = get_output_layout(idx);
     const auto& lower_size = layout.data_padding._lower_size;
     const auto& upper_size = layout.data_padding._upper_size;
-    return std::any_of(std::begin(lower_size) + 2, std::begin(lower_size) + layout.get_spatial_rank() - 1,
+    return std::any_of(std::begin(lower_size) + 2, std::begin(lower_size) + 2 + layout.get_spatial_rank(),
                         [](const tensor::value_type& el) { return el != 0; }) ||
-           std::any_of(std::begin(upper_size) + 2, std::begin(upper_size) + layout.get_spatial_rank() - 1,
+           std::any_of(std::begin(upper_size) + 2, std::begin(upper_size) + 2 + layout.get_spatial_rank(),
                         [](const tensor::value_type& el) { return el != 0; });
 }
 
@@ -1548,6 +1549,18 @@ void program_node::create_onednn_primitive_attributes(
                             mem_desc.get_dims(), mem_desc.get_data_type());
                 } else if (is_type<gemm>()) {
                     size_t rank = cldnn::format::dimension(in.format);
+                    auto in_pshape = in.get_partial_shape();
+                    auto out_pshape = get_output_layout().get_partial_shape();
+                    size_t ones_to_add = std::max(out_pshape.size(), static_cast<size_t>(rank)) - in_pshape.size();
+                    if (ones_to_add > 0) {
+                        layout new_layout = in;
+                        ov::PartialShape new_input_pshape;
+                        std::vector<ov::Dimension> dims(in_pshape.begin(), in_pshape.begin() + in_pshape.size());
+                        new_input_pshape = ov::PartialShape(dims);
+                        new_input_pshape.insert(new_input_pshape.begin(), ones_to_add, 1ul);
+                        new_layout.set_partial_shape(new_input_pshape);
+                        in = new_layout;
+                    }
                     size_t in_batched_size = in.count() / (in.spatial(0) * in.spatial(1));
                     dnnl::memory::dims dims = onednn::convert_gemm_tensor(in.get_tensor(), rank, in_batched_size == 1);
                     dnnl::memory::data_type dt = onednn::convert_data_type(in.data_type);
