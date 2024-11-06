@@ -25,7 +25,7 @@ RUN apt-get update && \
         # parallel gzip
         pigz \
         python3 \
-        python3-pip && \
+        python3-pip \
         && \
     rm -rf /var/lib/apt/lists/*
 
@@ -37,6 +37,6 @@ RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
       tee /etc/apt/sources.list.d/docker.list > /dev/null
 
 RUN apt-get update && \
-apt-get install -y docker-ce docker-ce-cli containerd.io
+    apt-get install -y docker-ce docker-ce-cli containerd.io
 
 ENV DOCKER_BUILDKIT=1
