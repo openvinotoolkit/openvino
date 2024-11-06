@@ -12,12 +12,8 @@ namespace kernel_selector {
 // search_sorted
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct search_sorted_params : public base_params {
-    search_sorted_params() : base_params(KernelType::ONE_HOT),
-    one_hot_axis(0), one_hot_limit(0), on_value(1.0), off_value(1.0) {}
-    uint16_t one_hot_axis;
-    int32_t one_hot_limit;
-    float on_value;
-    float off_value;
+    search_sorted_params() : base_params(KernelType::SEARCH_SORTED), right_mode(false) {}
+    bool right_mode;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

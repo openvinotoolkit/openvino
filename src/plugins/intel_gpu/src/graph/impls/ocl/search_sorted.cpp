@@ -27,13 +27,7 @@ struct search_sorted_impl : typed_primitive_impl_ocl<search_sorted> {
         const auto& primitive = impl_param.typed_desc<search_sorted>();
         auto params = get_default_params<kernel_selector::search_sorted_params>(impl_param);
 
-        // params.search_sorted_axis = primitive->search_sorted_axis;
-        // params.on_value = primitive->on_value;
-        // params.off_value = primitive->off_value;
-
-        auto output_sizes = impl_param.get_output_layout().get_dims();
-
-        //params.search_sorted_limit = output_sizes[params.search_sorted_axis];
+        params.right_mode = primitive->right_mode;
         return params;
     }
 };

@@ -3,19 +3,16 @@
 //
 
 #include "search_sorted_kernel_base.h"
+
 #include <vector>
+
 #include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 JitConstants SearchSortedKernelBase::GetJitConstants(const search_sorted_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
-    // jit.AddConstants({
-    //      MakeJitConstant("search_sorted_AXIS", params.search_sorted_axis),
-    //      MakeJitConstant("search_sorted_LIMIT", params.search_sorted_limit),
-    //      MakeJitConstant("ON_VALUE", params.on_value),
-    //      MakeJitConstant("OFF_VALUE", params.off_value)
-    // });
+    jit.AddConstants({MakeJitConstant("RIGHT_MODE", params.right_mode)});
 
     return jit;
 }
@@ -28,17 +25,18 @@ SearchSortedKernelBase::DispatchData SearchSortedKernelBase::SetDefault(const se
 
     DispatchData dispatchData;
     if (params.outputs[0].GetDims().size() == 5) {
-        dispatchData.gws = { input.Batch().v, input.Feature().v * input.Z().v, input.Y().v * input.X().v };
-        dims_by_gws = {{ Tensor::DataChannelName::BATCH },
-                       { Tensor::DataChannelName::Z, Tensor::DataChannelName::FEATURE },
-                       { Tensor::DataChannelName::X, Tensor::DataChannelName::Y }};
+        dispatchData.gws = {input.Batch().v, input.Feature().v * input.Z().v, input.Y().v * input.X().v};
+        dims_by_gws = {{Tensor::DataChannelName::BATCH},
+                       {Tensor::DataChannelName::Z, Tensor::DataChannelName::FEATURE},
+                       {Tensor::DataChannelName::X, Tensor::DataChannelName::Y}};
     } else {
-        dispatchData.gws = { input.Batch().v, input.Feature().v, input.Y().v * input.X().v };
-        dims_by_gws = {{ Tensor::DataChannelName::BATCH },
-                       { Tensor::DataChannelName::FEATURE },
-                       { Tensor::DataChannelName::X, Tensor::DataChannelName::Y }};
+        dispatchData.gws = {input.Batch().v, input.Feature().v, input.Y().v * input.X().v};
+        dims_by_gws = {{Tensor::DataChannelName::BATCH},
+                       {Tensor::DataChannelName::FEATURE},
+                       {Tensor::DataChannelName::X, Tensor::DataChannelName::Y}};
     }
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
+    dispatchData.lws =
+        GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
     return dispatchData;
 }
@@ -46,8 +44,7 @@ SearchSortedKernelBase::DispatchData SearchSortedKernelBase::SetDefault(const se
 KernelsData SearchSortedKernelBase::GetCommonKernelsData(const Params& params) const {
     assert(params.GetType() == KernelType::SEARCH_SORTED);
 
-    const auto& prim_params =
-        static_cast<const search_sorted_params&>(params);
+    const auto& prim_params = static_cast<const search_sorted_params&>(params);
 
     auto dispatchData = SetDefault(prim_params);
     KernelData k_data = KernelData::Default<search_sorted_params>(params);
