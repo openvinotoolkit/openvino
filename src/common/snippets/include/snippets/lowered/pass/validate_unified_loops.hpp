@@ -6,6 +6,9 @@
 
 #include "pass.hpp"
 
+#include "snippets/lowered/loop_manager.hpp"
+
+
 namespace ov {
 namespace snippets {
 namespace lowered {
@@ -27,6 +30,10 @@ public:
     OPENVINO_RTTI("ValidateUnifiedLoops", "Pass")
     ValidateUnifiedLoops() = default;
     bool run(LinearIR& linear_ir) override;
+
+private:
+    static void validate_loop_infos(const LoopManagerPtr& loop_manager);
+    static void validate_loop_port_presence(const LinearIR& linear_ir);
 };
 
 } // namespace pass
