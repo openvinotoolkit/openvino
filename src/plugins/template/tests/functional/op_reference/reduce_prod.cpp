@@ -74,18 +74,20 @@ std::vector<ReductionParams> generateReductionParams(const bool keep_dims) {
                                                                19 * 20 * 21,
                                                                22 * 23 * 24,
                                                                25 * 26 * 27}))};
+    auto out_shape_from_empty = Shape{2, 1, 1};
     if (keep_dims == false) {
-        const T default_val = T{1};
-        params.push_back(ReductionParams(
-            ReductionType::Prod,
-            keep_dims,
-            std::vector<int64_t>{1, 2},
-            reference_tests::Tensor({2, 0, 4}, element::Type(IN_ET), std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8}),
-            reference_tests::Tensor(
-                Shape{2},
-                element::Type(IN_ET),
-                std::vector<T>{default_val, default_val})));  // Keep dims false, tensor filled with one
+        out_shape_from_empty = Shape{2};
     }
+    const T default_val = T{1};
+    params.push_back(ReductionParams(
+        ReductionType::Prod,
+        keep_dims,
+        std::vector<int64_t>{1, 2},
+        reference_tests::Tensor({2, 0, 4}, element::Type(IN_ET), std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8}),
+        reference_tests::Tensor(out_shape_from_empty,
+                                element::Type(IN_ET),
+                                std::vector<T>{default_val, default_val})));
+
     return params;
 }
 
