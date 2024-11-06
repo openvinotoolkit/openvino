@@ -80,7 +80,10 @@
         "platformTypes": {
             "name": "ietype",
             "data": [
-                "Client Platforms (Intel® Core™)"
+                "Intel® Core™, CPU-only",
+                "Intel® Core™, iGPU-only",
+                "Intel® Core™, NPU-only",
+                "Intel® Core™, CPU+iGPU"
             ]
         },
         "platforms": {
@@ -98,9 +101,9 @@
             "name": "networkmodel",
             "data": [
                 "bert-base-cased",
-                "Resnet-50",
-                "yolo-v8n",
-                "Llama-3-8B"
+                "resnet-50",
+                "yolo_v8n",
+                "llama-3-8B"
             ]
         },
         "parameters": {
