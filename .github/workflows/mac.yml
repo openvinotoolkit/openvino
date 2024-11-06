@@ -174,21 +174,21 @@ jobs:
       - name: Setup Python 3.9
         uses: ./openvino/.github/actions/setup_python
         with:
-          version: 3.9
+          version: "3.9"
           should-setup-pip-paths: 'false'
           self-hosted-runner: 'false'
 
       - name: Setup Python 3.10
         uses: ./openvino/.github/actions/setup_python
         with:
-          version: 3.10
+          version: "3.10"
           should-setup-pip-paths: 'false'
           self-hosted-runner: 'false'
 
       - name: Setup Python 3.12
         uses: ./openvino/.github/actions/setup_python
         with:
-          version: 3.12
+          version: "3.12"
           should-setup-pip-paths: 'false'
           self-hosted-runner: 'false'
 
