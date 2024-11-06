@@ -452,19 +452,22 @@ network::~network() {
         for (auto& iter : tp_host_times) {
             if (tp_host_times[iter.first].size() >= 2) {
                 double first = static_cast<double>(tp_host_times[iter.first][0]);
+                double second = static_cast<double>(tp_host_times[iter.first][1]);
                 double avg = static_cast<double>(
                     std::accumulate(
-                        tp_host_times[iter.first].begin() + 1, tp_host_times[iter.first].end(),
+                        tp_host_times[iter.first].begin() + 2, tp_host_times[iter.first].end(),
                         (size_t)0, std::plus<size_t>()));
-                avg /= (tp_host_times[iter.first].size() - 1);
+                avg /= (tp_host_times[iter.first].size() - 2);
                 std::string resolution = " us";
                 if (avg > 1000.0) {
                     resolution = " ms";
                     avg /= 1000.0;
                     first /= 1000.0;
+                    second /= 1000.0;
                 }
                 GPU_DEBUG_COUT << "Network[" << net_id << "] First infer total " << iter.first << "  time: " << first << resolution << std::endl;
-                GPU_DEBUG_COUT << "Network[" << net_id << "] total " << iter.first << " avg host time: " << avg << resolution << std::endl;
+                GPU_DEBUG_COUT << "Network[" << net_id << "] second " << iter.first << " second host time: " << second << resolution << std::endl;
+                GPU_DEBUG_COUT << "Network[" << net_id << "] 3rd+ " << iter.first << " avg host time: " << avg << resolution << std::endl;
             }
         }
     }
