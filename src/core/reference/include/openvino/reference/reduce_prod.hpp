@@ -24,13 +24,11 @@ namespace reference {
 template <typename T>
 void reduce_prod(const T* arg, T* out, const Shape& in_shape, const AxisSet& reduction_axes) {
     const auto out_shape = util::reduce(in_shape, reduction_axes);
-
+    std::fill(out, out + shape_size(out_shape), T(1));
     if (shape_size(in_shape) == 0) {
-        std::fill(out, out + shape_size(out_shape), T(0));
         return;
     }
 
-    std::fill(out, out + shape_size(out_shape), T(1));
     const auto in_strides = row_major_strides(in_shape);
     const auto out_strides = row_major_strides(out_shape);
 

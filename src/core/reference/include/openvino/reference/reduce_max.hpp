@@ -28,13 +28,10 @@ void reduce_max(const T* in, T* out, const Shape& in_shape, const AxisSet& reduc
     constexpr auto min_value = std::numeric_limits<T>::lowest();
 
     const auto out_shape = util::reduce(in_shape, reduction_axes);
-
+    std::fill(out, std::next(out, shape_size(out_shape)), min_value);
     if (shape_size(in_shape) == 0) {
-        std::fill_n(out, shape_size(out_shape), T{0});
         return;
     }
-
-    std::fill(out, std::next(out, shape_size(out_shape)), min_value);
 
     const auto in_strides = row_major_strides(in_shape);
     const auto out_strides = row_major_strides(out_shape);
