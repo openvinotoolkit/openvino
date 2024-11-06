@@ -501,7 +501,7 @@ void cvToOV(const cv::Mat& cvImg, const BatchIndexer &cvImgInBatch, const ov::Te
             in.copyTo(out);
         }
 
-        // Being called sequencially with ascending `cvImgInBatch.index` value,
+        // Being called sequentially with ascending `cvImgInBatch.index` value,
         // it fills up rest of the batched tensor by
         // a last requested image data until its ending from a batched slice position
         // determined by parameter 'cvImgInBatch.index', so that filling N batched tensor
@@ -552,7 +552,7 @@ void cvToOV(const cv::Mat& cvImg, const BatchIndexer &cvImgInBatch, const ov::Te
             }
         }
 
-        // Being called sequencially with ascending `cvImgInBatch.index` value,
+        // Being called sequentially with ascending `cvImgInBatch.index` value,
         // it fills up rest of the batched tensor by
         // a last requested image data until its ending from a batched slice position
         // determined by parameter 'cvImgInBatch.index', so that filling N batched tensor

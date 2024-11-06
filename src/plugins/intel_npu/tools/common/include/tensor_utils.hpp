@@ -70,7 +70,7 @@ std::vector<std::vector<float>> parseTensorsAsFP32(const std::map<std::string, o
 ov::Tensor joinTensors(const std::list<ov::Tensor>& tensors, const ov::Layout& layout);
 
 /**
- * @brief Split a batche tensor on several non-batched tensors having the same shapes and precisions.
+ * @brief Split a batched tensor on several non-batched tensors having the same shapes and precisions.
  *
  * @param tensors The source non-batched tensors
  * @return The merged batched tensor
