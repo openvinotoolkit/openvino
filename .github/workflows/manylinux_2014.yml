@@ -64,7 +64,8 @@ jobs:
         id: handle_docker
         with:
           images: |
-            ov_build/ubuntu_22_04_x64
+            ov_build/ubuntu_22_04_x64_docker
+            ov_build/manylinux2014_x86_64
           registry: 'openvinogithubactions.azurecr.io'
           dockerfiles_root_dir: '.github/dockerfiles'
           changed_components: ${{ needs.smart_ci.outputs.changed_components }}
@@ -78,7 +79,7 @@ jobs:
     runs-on: aks-linux-16-cores-32gb
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
     container:
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64_docker }}
       volumes:
         - /mount:/mount
       options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
@@ -117,7 +118,7 @@ jobs:
 
       - name: Build (inside container)
         run: |
-          docker run --rm -v $GITHUB_WORKSPACE -w $GITHUB_WORKSPACE quay.io/pypa/manylinux2014_x86_64 /bin/bash -c "
+          docker run --rm -v $GITHUB_WORKSPACE:$GITHUB_WORKSPACE -w $GITHUB_WORKSPACE ${{ fromJSON(needs.docker.outputs.images).ov_build.manylinux2014_x86_64 }} /bin/bash -c "
             # steps
             python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
             cmake -G ${CMAKE_GENERATOR} -DENABLE_CPPLINT=OFF -DENABLE_NCC_STYLE=OFF -DCMAKE_VERBOSE_MAKEFILE=ON -DBUILD_SHARED_LIBS=ON -DENABLE_WHEEL=ON -S ${OPENVINO_REPO} -B ${BUILD_DIR}
