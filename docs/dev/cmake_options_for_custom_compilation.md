@@ -56,6 +56,8 @@ This document provides description and default values for CMake options that can
     * `ON` if python requirements are satisfied (auto-discovered by CMake).
 * `ENABLE_WHEEL` enables [Python] OpenVINO Runtime and Development wheels build:
     * `ON` if requirements are satisfied (auto-discovered by CMake).
+* `ENABLE_WHEEL_NO_ISOLATION` enables [Python] no isolation mode in wheels build (disables venv creation):
+    * `OFF` is default.
 * `ENABLE_TESTS` enables tests compilation:
     * `OFF` is default.
 * `ENABLE_DOCS` enables building the OpenVINO documentation:
