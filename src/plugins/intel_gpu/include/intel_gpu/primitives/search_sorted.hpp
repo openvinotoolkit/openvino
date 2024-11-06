@@ -7,11 +7,18 @@
 
 namespace cldnn {
 
+/// @brief
+/// @details
 struct search_sorted : public primitive_base<search_sorted> {
     CLDNN_DECLARE_PRIMITIVE(search_sorted)
 
     search_sorted() : primitive_base("", {}) {}
 
+    /// @brief Constructs search_sorted primitive.
+    /// @param id This primitive id.
+    /// @param sorted Sorted input.
+    /// @param values Values input.
+    /// @param right_mode Enable/Disable right mode(check specification for details)..
     search_sorted(const primitive_id& id, const input_info& sorted, const input_info& values, bool right_mode)
         : primitive_base(id, {sorted, values}),
           right_mode(right_mode) {}
