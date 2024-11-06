@@ -8,8 +8,8 @@
 
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
-#include "intel_npu/al/config/common.hpp"
-#include "npu_private_properties.hpp"
+#include "intel_npu/config/common.hpp"
+#include "intel_npu/npu_private_properties.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
@@ -135,7 +135,6 @@ const std::vector<ov::AnyMap> IncorrectMutablePropertiesWrongValueTypes = {
 };
 
 const std::vector<ov::AnyMap> IncorrectInexistingProperties = {
-    {{ov::affinity.name(), ov::Affinity::HYBRID_AWARE}},
     {{ov::intel_cpu::denormals_optimization.name(), true}},
     {{ov::intel_gpu::hint::host_task_priority.name(), ov::hint::Priority::LOW}},
     {{ov::intel_gpu::hint::queue_throttle.name(), ov::intel_gpu::hint::ThrottleLevel::HIGH}}};

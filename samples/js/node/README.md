@@ -7,13 +7,15 @@ To run samples, install dependencies first. In current directory run:
 npm install
 ```
 
-Note: Perform these steps also before running notebooks.
+Note: Perform this step also before running notebooks.
 
 ## Samples
 
   - hello_classification
   - hello_reshape_ssd
   - classification_sample_async
+  - optical_character_recognition
+  - vision_background_removal
 
 ## Notebooks
 

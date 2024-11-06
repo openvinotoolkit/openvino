@@ -67,6 +67,7 @@ represented on the image below:
 In this tutorial, we consider how to use ImageBind for multimodal
 zero-shot classification.
 
+
 **Table of contents:**
 
 
@@ -130,7 +131,7 @@ Prerequisites
 
     import platform
     
-    %pip install -q "torch>=2.0.1" "torchvision>=0.15.2,<0.17.0" "torchaudio>=2.0.2" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "torch>=2.0.1" "torchvision>=0.15.2,<0.17.0" "torchaudio>=2.0.2" "matplotlib>=3.4" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q datasets regex librosa soundfile pytorchvideo ftfy "timm>=0.6.7" einops fvcore "openvino>=2024.0.0" "nncf>=2.9.0" numpy scipy --extra-index-url https://download.pytorch.org/whl/cpu
     
     
@@ -264,14 +265,16 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
+    import requests
     
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
+    open("notebook_utils.py", "w").write(r.text)
+    
+    from notebook_utils import device_widget
+    
+    device = device_widget()
     
     device
 
@@ -286,6 +289,10 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
+    import openvino as ov
+    
+    core = ov.Core()
+    
     ov_modality_models = {}
     
     modalities = [ModalityType.TEXT, ModalityType.VISION, ModalityType.AUDIO]

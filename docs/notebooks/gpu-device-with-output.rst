@@ -1,6 +1,7 @@
 Working with GPUs in OpenVINO™
 ==============================
 
+
 **Table of contents:**
 
 
@@ -20,13 +21,7 @@ Working with GPUs in OpenVINO™
 
 -  `Compiling a Model on GPU <#compiling-a-model-on-gpu>`__
 
-   -  `Download and Convert a Model <#download-and-convert-a-model>`__
-
-      -  `Download and unpack the
-         Model <#download-and-unpack-the-model>`__
-      -  `Convert the Model to OpenVINO IR
-         format <#convert-the-model-to-openvino-ir-format>`__
-
+   -  `Download a Model <#download-a-model>`__
    -  `Compile with Default
       Configuration <#compile-with-default-configuration>`__
    -  `Reduce Compile Time through Model
@@ -118,13 +113,7 @@ Install required packages
 
 .. code:: ipython3
 
-    %pip install -q "openvino-dev>=2024.0.0" "opencv-python" "tqdm"
-    %pip install -q "tensorflow-macos>=2.5; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version > '3.8'" # macOS M1 and M2
-    %pip install -q "tensorflow-macos>=2.5,<=2.12.0; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version <= '3.8'" # macOS M1 and M2
-    %pip install -q "tensorflow>=2.5; sys_platform == 'darwin' and platform_machine != 'arm64' and python_version > '3.8'" # macOS x86
-    %pip install -q "tensorflow>=2.5,<=2.12.0; sys_platform == 'darwin' and platform_machine != 'arm64' and python_version <= '3.8'" # macOS x86
-    %pip install -q "tensorflow>=2.5; sys_platform != 'darwin' and python_version > '3.8'"
-    %pip install -q "tensorflow>=2.5,<=2.12.0; sys_platform != 'darwin' and python_version <= '3.8'"
+    %pip install -q "openvino>=2024.4.0" "opencv-python" "tqdm" "huggingface_hub"
 
 Checking GPUs with Query Device
 -------------------------------
@@ -190,9 +179,12 @@ To get the value of a property, such as the device name, we can use the
 
 .. code:: ipython3
 
+    import openvino.properties as props
+    
+    
     device = "GPU"
     
-    core.get_property(device, "FULL_DEVICE_NAME")
+    core.get_property(device, props.device.full_name)
 
 
 
@@ -207,13 +199,13 @@ Each device also has a specific property called
 ``SUPPORTED_PROPERTIES``, that enables viewing all the available
 properties in the device. We can check the value for each property by
 simply looping through the dictionary returned by
-``core.get_property("GPU", "SUPPORTED_PROPERTIES")`` and then querying
-for that property.
+``core.get_property("GPU", props.supported_properties)`` and then
+querying for that property.
 
 .. code:: ipython3
 
     print(f"{device} SUPPORTED_PROPERTIES:\n")
-    supported_properties = core.get_property(device, "SUPPORTED_PROPERTIES")
+    supported_properties = core.get_property(device, props.supported_properties)
     indent = len(max(supported_properties, key=len))
     
     for property_key in supported_properties:
@@ -304,8 +296,8 @@ properties. We can easily use one for compiling and running models with
 OpenVINO `GPU
 plugin <https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/gpu-device.html>`__.
 
-Download and Convert a Model
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Download a Model
+~~~~~~~~~~~~~~~~
 
 
 
@@ -316,19 +308,9 @@ was trained on `Common Objects in Context
 categories of object. For details, see the
 `paper <https://arxiv.org/abs/1801.04381>`__.
 
-Download and unpack the Model
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-
-
-Use the ``download_file`` function from the ``notebook_utils`` to
-download an archive with the model. It automatically creates a directory
-structure and downloads the selected model. This step is skipped if the
-package is already downloaded.
-
 .. code:: ipython3
 
-    import tarfile
+    import huggingface_hub as hf_hub
     from pathlib import Path
     
     # Fetch `notebook_utils` module
@@ -339,95 +321,18 @@ package is already downloaded.
     )
     
     open("notebook_utils.py", "w").write(r.text)
-    from notebook_utils import download_file
     
     # A directory where the model will be downloaded.
     base_model_dir = Path("./model").expanduser()
     
-    model_name = "ssdlite_mobilenet_v2"
-    archive_name = Path(f"{model_name}_coco_2018_05_09.tar.gz")
+    model_name = "ssdlite_mobilenet_v2_fp16"
     
-    # Download the archive
-    downloaded_model_path = base_model_dir / archive_name
-    if not downloaded_model_path.exists():
-        model_url = f"http://download.tensorflow.org/models/object_detection/{archive_name}"
-        download_file(model_url, downloaded_model_path.name, downloaded_model_path.parent)
+    ov_model_path = base_model_dir / model_name / f"{model_name}.xml"
     
-    # Unpack the model
-    tf_model_path = base_model_dir / archive_name.with_suffix("").stem / "frozen_inference_graph.pb"
-    if not tf_model_path.exists():
-        with tarfile.open(downloaded_model_path) as file:
-            file.extractall(base_model_dir)
-
-
-
-.. parsed-literal::
-
-    model/ssdlite_mobilenet_v2_coco_2018_05_09.tar.gz:   0%|          | 0.00/48.7M [00:00<?, ?B/s]
-
-
-.. parsed-literal::
-
-    IOPub message rate exceeded.
-    The notebook server will temporarily stop sending output
-    to the client in order to avoid crashing it.
-    To change this limit, set the config variable
-    `--NotebookApp.iopub_msg_rate_limit`.
+    if not (ov_model_path).exists():
+        hf_hub.snapshot_download("katuni4ka/ssdlite_mobilenet_v2_fp16", local_dir=base_model_dir)
     
-    Current values:
-    NotebookApp.iopub_msg_rate_limit=1000.0 (msgs/sec)
-    NotebookApp.rate_limit_window=3.0 (secs)
-    
-
-
-Convert the Model to OpenVINO IR format
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-
-
-To convert the model to OpenVINO IR with ``FP16`` precision, use model
-conversion API. The models are saved to the ``model/ir_model/``
-directory. For more details about model conversion, see this
-`page <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__.
-
-.. code:: ipython3
-
-    from openvino.tools.mo.front import tf as ov_tf_front
-    
-    precision = "FP16"
-    
-    # The output path for the conversion.
-    model_path = base_model_dir / "ir_model" / f"{model_name}_{precision.lower()}.xml"
-    
-    trans_config_path = Path(ov_tf_front.__file__).parent / "ssd_v2_support.json"
-    pipeline_config = base_model_dir / archive_name.with_suffix("").stem / "pipeline.config"
-    
-    model = None
-    if not model_path.exists():
-        model = ov.tools.mo.convert_model(
-            input_model=tf_model_path,
-            input_shape=[1, 300, 300, 3],
-            layout="NHWC",
-            transformations_config=trans_config_path,
-            tensorflow_object_detection_api_pipeline_config=pipeline_config,
-            reverse_input_channels=True,
-        )
-        ov.save_model(model, model_path, compress_to_fp16=(precision == "FP16"))
-        print("IR model saved to {}".format(model_path))
-    else:
-        print("Read IR model from {}".format(model_path))
-        model = core.read_model(model_path)
-
-
-.. parsed-literal::
-
-    [ WARNING ]  The Preprocessor block has been removed. Only nodes performing mean value subtraction and scaling (if applicable) are kept.
-
-
-.. parsed-literal::
-
-    IR model saved to model/ir_model/ssdlite_mobilenet_v2_fp16.xml
-
+    model = core.read_model(ov_model_path)
 
 Compile with Default Configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -480,10 +385,10 @@ following:
     core = ov.Core()
     
     # Set cache folder
-    core.set_property({"CACHE_DIR": cache_folder})
+    core.set_property({props.cache_dir(): cache_folder})
     
     # Compile the model as before
-    model = core.read_model(model=model_path)
+    model = core.read_model(ov_model_path)
     compiled_model = core.compile_model(model, device)
     print(f"Cache enabled (first time) - compile time: {time.time() - start}s")
 
@@ -500,14 +405,14 @@ compile times with caching enabled and disabled as follows:
 
     start = time.time()
     core = ov.Core()
-    core.set_property({"CACHE_DIR": "cache"})
-    model = core.read_model(model=model_path)
+    core.set_property({props.cache_dir(): "cache"})
+    model = core.read_model(model=ov_model_path)
     compiled_model = core.compile_model(model, device)
     print(f"Cache enabled  - compile time: {time.time() - start}s")
     
     start = time.time()
     core = ov.Core()
-    model = core.read_model(model=model_path)
+    model = core.read_model(ov_model_path)
     compiled_model = core.compile_model(model, device)
     print(f"Cache disabled - compile time: {time.time() - start}s")
 
@@ -537,24 +442,28 @@ performance hint optimizes for fast inference times while the
 FPS.
 
 To use the “LATENCY” performance hint, add
-``{"PERFORMANCE_HINT": "LATENCY"}`` when compiling the model as shown
-below. For GPUs, this automatically minimizes the batch size and number
-of parallel streams such that all of the compute resources can focus on
-completing a single inference as fast as possible.
+``{hints.performance_mode(): hints.PerformanceMode.LATENCY}`` when
+compiling the model as shown below. For GPUs, this automatically
+minimizes the batch size and number of parallel streams such that all of
+the compute resources can focus on completing a single inference as fast
+as possible.
 
 .. code:: ipython3
 
-    compiled_model = core.compile_model(model, device, {"PERFORMANCE_HINT": "LATENCY"})
+    import openvino.properties.hint as hints
+    
+    
+    compiled_model = core.compile_model(model, device, {hints.performance_mode(): hints.PerformanceMode.LATENCY})
 
 To use the “THROUGHPUT” performance hint, add
-``{"PERFORMANCE_HINT": "THROUGHPUT"}`` when compiling the model. For
-GPUs, this creates multiple processing streams to efficiently utilize
-all the execution cores and optimizes the batch size to fill the
-available memory.
+``{hints.performance_mode(): hints.PerformanceMode.THROUGHPUT}`` when
+compiling the model. For GPUs, this creates multiple processing streams
+to efficiently utilize all the execution cores and optimizes the batch
+size to fill the available memory.
 
 .. code:: ipython3
 
-    compiled_model = core.compile_model(model, device, {"PERFORMANCE_HINT": "THROUGHPUT"})
+    compiled_model = core.compile_model(model, device, {hints.performance_mode(): hints.PerformanceMode.THROUGHPUT})
 
 Using Multiple GPUs with Multi-Device and Cumulative Throughput
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -588,7 +497,11 @@ devices automatically selected by AUTO. This way, we do not need to
 manually specify devices to use. Below is an example showing how to use
 “CUMULATIVE_THROUGHPUT”, equivalent to the MULTI one:
 
-``compiled_model = core.compile_model(model=model, device_name="AUTO", config={"PERFORMANCE_HINT": "CUMULATIVE_THROUGHPUT"})``
+\`
+
+compiled_model = core.compile_model(model=model, device_name=“AUTO”,
+config={hints.performance_mode():
+hints.PerformanceMode.CUMULATIVE_THROUGHPUT}) \`
 
    **Important**: **The “THROUGHPUT”, “MULTI”, and
    “CUMULATIVE_THROUGHPUT” modes are only applicable to asynchronous
@@ -1160,7 +1073,7 @@ Compile the Model
     # Read model and compile it on GPU in THROUGHPUT mode
     model = core.read_model(model=model_path)
     device_name = "GPU"
-    compiled_model = core.compile_model(model=model, device_name=device_name, config={"PERFORMANCE_HINT": "THROUGHPUT"})
+    compiled_model = core.compile_model(model=model, device_name=device_name, config={hints.performance_mode(): hints.PerformanceMode.THROUGHPUT})
     
     # Get the input and output nodes
     input_layer = compiled_model.input(0)
@@ -1447,7 +1360,7 @@ Process Results
         )
         cv2.putText(
             frame,
-            f"hint {compiled_model.get_property('PERFORMANCE_HINT')}",
+            f"hint {compiled_model.get_property(hints.performance_mode)}",
             (5, 60),
             cv2.FONT_ITALIC,
             0.6,

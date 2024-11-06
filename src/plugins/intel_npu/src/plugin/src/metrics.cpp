@@ -5,8 +5,8 @@
 // Plugin
 #include "metrics.hpp"
 
-#include "device_helpers.hpp"
-#include "npu_private_properties.hpp"
+#include "intel_npu/common/device_helpers.hpp"
+#include "intel_npu/npu_private_properties.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 
 namespace intel_npu {
@@ -91,6 +91,17 @@ IDevice::Uuid Metrics::GetDeviceUuid(const std::string& specifiedDeviceName) con
     return IDevice::Uuid{};
 }
 
+ov::device::LUID Metrics::GetDeviceLUID(const std::string& specifiedDeviceName) const {
+    const auto devName = getDeviceName(specifiedDeviceName);
+    auto device = _backends->getDevice(devName);
+    if (device) {
+        return device->getLUID();
+    }
+    return ov::device::LUID{{
+        0,
+    }};
+}
+
 std::vector<ov::PropertyName> Metrics::GetCachingProperties() const {
     return _cachingProperties;
 }
@@ -115,12 +126,12 @@ uint32_t Metrics::GetDriverVersion() const {
     return _backends->getDriverVersion();
 }
 
-uint32_t Metrics::GetDriverExtVersion() const {
+uint32_t Metrics::GetGraphExtVersion() const {
     if (_backends == nullptr) {
         OPENVINO_THROW("No available backends");
     }
 
-    return _backends->getDriverExtVersion();
+    return _backends->getGraphExtVersion();
 }
 
 uint32_t Metrics::GetSteppingNumber(const std::string& specifiedDeviceName) const {
