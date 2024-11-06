@@ -17,6 +17,7 @@
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/pattern/op/label.hpp"  // any_input
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/util/common_util.hpp"
 
 namespace ov {
@@ -248,7 +249,7 @@ bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher& m) {
 
     auto matched_paramA = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeA);
     auto element_type = matched_paramA->get_element_type();
-    if (element_type == ov::element::i4 || element_type == ov::element::i8) {
+    if (element_type == ov::element::i4 || element_type == ov::element::i8 || element_type == ov::element::nf4) {
         LOG_DEBUG("Matched: " << matched_paramA << ", set element type to " << m_dcoff_type);
         matched_paramA->set_element_type(m_dcoff_type);
 
@@ -273,6 +274,7 @@ bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher& m) {
             // Disconnect Multiply and Convert from their outputs
             auto matched_mulply = node_to_output.at(mulply).get_node_shared_ptr();
             auto matched_convrt = node_to_output.at(toFP32).get_node_shared_ptr();
+
             auto drop_outputs = [](std::shared_ptr<ov::Node> node) {
                 for (auto&& node_outputs : node->outputs()) {
                     for (auto&& node_reader_port : node_outputs.get_target_inputs()) {
@@ -296,7 +298,8 @@ bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher& m) {
 void DCOFFPassMatMul::build() {
     DCOFFPassBase::build();
     auto _mmin1 = opp::any_input();
-    matmul = opp::wrap_type<ov::op::v0::MatMul>({_mmin1, mulply});
+    cvtopt = opp::optional<ov::op::v0::Convert>({mulply->output(0)});
+    matmul = opp::wrap_type<ov::op::v0::MatMul>({_mmin1, cvtopt});
     register_matcher(std::make_shared<opp::Matcher>(matmul, "TagDCOFFMatMul"),
                      std::bind(&DCOFFPassMatMul::matcher_callback, this, std::placeholders::_1));
 }
@@ -306,6 +309,13 @@ void DCOFFPassMatMul::reconnect_root_to_convert(ov::pass::pattern::Matcher& m) {
     auto& node_to_output = m.get_pattern_value_map();
     auto matched_convrt = node_to_output.at(toFP32).get_node_shared_ptr();
     auto matched_matmul = node_to_output.at(matmul).get_node_shared_ptr();
+
+    auto cvt = std::static_pointer_cast<ov::op::v0::Convert>(matched_convrt);
+    auto matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_matmul);
+
+    // NB: In case convert dst type isn't f32
+    cvt->set_destination_type(matmul->inputs()[1].get_element_type());
+
     matched_matmul->input(1).replace_source_output(matched_convrt);
 }
 
