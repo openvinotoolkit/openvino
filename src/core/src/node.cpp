@@ -157,10 +157,6 @@ std::shared_ptr<ov::Node> ov::Node::copy_with_new_inputs(
     }
     for (size_t i = 0; i < get_output_size(); i++) {
         clone->get_output_tensor(i).set_names(get_output_tensor(i).get_names());
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        ov::descriptor::set_ov_tensor_legacy_name(clone->get_output_tensor(i),
-                                                  ov::descriptor::get_ov_tensor_legacy_name(get_output_tensor(i)));
-        OPENVINO_SUPPRESS_DEPRECATED_END
     }
     return clone;
 }
