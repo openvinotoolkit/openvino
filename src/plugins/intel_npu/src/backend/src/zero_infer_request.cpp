@@ -586,8 +586,10 @@ void ZeroInferRequest::infer_async() {
     for (const auto& userTensor : _userInputTensors) {
         const IODescriptor inputDescriptor = _metadata.inputs.at(inputIndex);
 
-        OPENVINO_ASSERT(!inputDescriptor.isInitInputWeights,
-                        "This path should not be used for running inferences for the \"init\" model");
+        if (!_config.get<BENCHMARK_INIT>()) {
+            OPENVINO_ASSERT(!inputDescriptor.isInitInputWeights,
+                            "This path should not be used for running inferences for the \"init\" model");
+        }
 
         if (inputDescriptor.isShapeTensor) {
             OPENVINO_ASSERT(inputDescriptor.relatedDescriptorIndex.has_value(),

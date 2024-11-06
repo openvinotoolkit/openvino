@@ -349,6 +349,8 @@ static constexpr ov::Property<BatchMode> batch_mode{"NPU_BATCH_MODE"};
  */
 static constexpr ov::Property<bool> separate_weights{"NPU_SEPARATE_WEIGHTS"};
 
+static constexpr ov::Property<bool> benchmark_init{"NPU_BENCHMARK_INIT"};
+
 /**
  * @brief [Only for NPU Plugin]
  * Type: integer, default is 1

@@ -275,6 +275,16 @@ struct SEPARATE_WEIGHTS final : OptionBase<SEPARATE_WEIGHTS, bool> {
     }
 };
 
+struct BENCHMARK_INIT final : OptionBase<BENCHMARK_INIT, bool> {
+    static std::string_view key() {
+        return ov::intel_npu::benchmark_init.name();
+    }
+
+    static bool defaultValue() {
+        return false;
+    }
+};
+
 }  // namespace intel_npu
 
 namespace ov {

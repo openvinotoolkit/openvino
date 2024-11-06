@@ -23,6 +23,7 @@ void intel_npu::registerCommonOptions(OptionsDesc& desc) {
     desc.add<LOADED_FROM_CACHE>();
     desc.add<BATCH_MODE>();
     desc.add<SEPARATE_WEIGHTS>();
+    desc.add<BENCHMARK_INIT>();
 }
 
 //
