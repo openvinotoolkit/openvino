@@ -30,7 +30,7 @@ void reduce_min(const T* in, T* out, const Shape& in_shape, const AxisSet& reduc
     const auto out_shape = util::reduce(in_shape, reduction_axes);
 
     if (shape_size(in_shape) == 0) {
-        std::fill_n(out, shape_size(out_shape), 0);
+        std::fill_n(out, shape_size(out_shape), T{0});
         return;
     }
 
