@@ -193,7 +193,7 @@ jobs:
       - name: Build C++ samples - OpenVINO build tree
         run: |
           cmake -G "${{ env.CMAKE_GENERATOR }}" -DOpenVINO_DIR=${{ env.BUILD_DIR }} -S ${{ env.INSTALL_DIR }}/samples/cpp -B ${{ env.BUILD_DIR }}/cpp_samples
-          cmake --build ${{ env.BUILD_DIR }}/cpp_samples --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device
+          cmake --build ${{ env.BUILD_DIR }}/cpp_samples --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device
 
       - name: Build C samples - OpenVINO install tree
         run: |
@@ -331,7 +331,7 @@ jobs:
             -B ${{ env.BUILD_DIR }}
 
       - name: Cmake build - CC ON
-        run: cmake --build ${{ env.BUILD_DIR }} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --target benchmark_app --verbose
+        run: cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} --target benchmark_app --verbose
 
       - name: List bin files
         shell: cmd

@@ -213,13 +213,13 @@ jobs:
           source ${OPENVINO_BUILD_DIR}/dependencies/deactivate_conanbuild.sh
 
       - name: Cmake - Build
-        run: cmake --build ${OPENVINO_BUILD_DIR} --parallel
+        run: cmake --build ${OPENVINO_BUILD_DIR} --parallel $(nproc)
 
       - name: Show ccache stats
         run: ccache --show-stats
 
       - name: Cmake - Install
-        run: cmake --build ${OPENVINO_BUILD_DIR} --parallel --target install
+        run: cmake --build ${OPENVINO_BUILD_DIR} --parallel $(nproc) --target install
 
       - name: Build OpenVINO C++ samples
         run: |

@@ -164,7 +164,7 @@ jobs:
         run: '& ccache --zero-stats'
 
       - name: Cmake build - OpenVINO
-        run: cmake --build ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --parallel --verbose
+        run: cmake --build ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --parallel $ENV:NUMBER_OF_PROCESSORS --verbose
 
       - name: Show ccache stats
         run: '& ccache --show-stats'
@@ -201,7 +201,7 @@ jobs:
                 -DCPACK_GENERATOR=NPM `
                 -DENABLE_SYSTEM_TBB=OFF `
                 -DENABLE_WHEEL=OFF
-          cmake --build ${{ env.BUILD_DIR }} --parallel
+          cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS
           cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR_JS }}
 
       #

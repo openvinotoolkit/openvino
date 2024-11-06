@@ -168,7 +168,7 @@ jobs:
         run: ${SCCACHE_PATH} --zero-stats
 
       - name: Cmake build - OpenVINO
-        run: cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
+        run: cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }}
 
       - name: Show sccache stats
         run: ${SCCACHE_PATH} --show-stats
@@ -210,7 +210,7 @@ jobs:
                 -DPython3_EXECUTABLE=$python_exec \
                 -DCPACK_GENERATOR=DEB \
                 ${BUILD_DIR}
-          cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --target package
+          cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} --target package
 
       - name: Cmake & Build - OpenVINO Contrib
         if: ${{ inputs.build-contrib }}
@@ -221,7 +221,7 @@ jobs:
             -DENABLE_WHEEL=OFF \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
-          cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
+          cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }}
 
       - name: CMake configure, build and install - OpenVINO JS API
         if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js }}
@@ -230,7 +230,7 @@ jobs:
                 -DCPACK_GENERATOR=NPM \
                 -DENABLE_SYSTEM_TBB=OFF \
                 -DENABLE_WHEEL=OFF
-          cmake --build ${BUILD_DIR} --parallel
+          cmake --build ${BUILD_DIR} --parallel $(nproc)
           cmake --install ${BUILD_DIR} --prefix ${INSTALL_DIR_JS}
 
       - name: Build RPM packages
@@ -243,7 +243,7 @@ jobs:
                 -DENABLE_WHEEL=OFF \
                 -DENABLE_TESTS=OFF \
                 ${BUILD_DIR}
-          cmake --build ${BUILD_DIR} --parallel --target package --verbose
+          cmake --build ${BUILD_DIR} --parallel $(nproc) --target package --verbose
 
       #
       # Upload build artifacts and logs
