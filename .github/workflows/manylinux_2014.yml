@@ -24,7 +24,7 @@ jobs:
     runs-on: aks-linux-16-cores-32gb
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
     container:
-      image: quay.io/pypa/manylinux2014_x86_64
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
       volumes:
         - /mount:/mount
       options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
@@ -53,14 +53,6 @@ jobs:
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'true'
 
-      - name: Clone OpenVINO Contrib
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          repository: 'openvinotoolkit/openvino_contrib'
-          path: ${{ env.OPENVINO_CONTRIB_REPO }}
-          submodules: 'true'
-          ref: ${{ env.TARGET_BRANCH }}
-
       - name: System info
         uses: ./openvino/.github/actions/system_info
                  
@@ -69,34 +61,42 @@ jobs:
           # For Python API: build and wheel packaging
           python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
 
+      - name: Build (inside container)
+        run: |
+          docker run --rm -v $GITHUB_WORKSPACE -w $GITHUB_WORKSPACE quay.io/pypa/manylinux2014_x86_64 /bin/bash -c "
+          # steps
+          python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
+          cmake -G ${CMAKE_GENERATOR} -DENABLE_CPPLINT=OFF -DENABLE_NCC_STYLE=OFF -DCMAKE_VERBOSE_MAKEFILE=ON -DBUILD_SHARED_LIBS=ON -DENABLE_WHEEL=ON -S ${OPENVINO_REPO} -B ${BUILD_DIR}
+          cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${CMAKE_BUILD_TYPE}
+          cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -P ${BUILD_DIR}/cmake_install.cmake --config ${CMAKE_BUILD_TYPE}
       #
       # Build
       #
-      - name: Clean sccache stats
-        run: ${SCCACHE_PATH} --zero-stats
+      # - name: Clean sccache stats
+      #   run: ${SCCACHE_PATH} --zero-stats
              
-      - name: CMake configure - OpenVINO
-        run: |
-          cmake \
-            -G "${{ env.CMAKE_GENERATOR }}" \
-            -DENABLE_CPPLINT=OFF \
-            -DENABLE_NCC_STYLE=OFF \
-            -DCMAKE_VERBOSE_MAKEFILE=ON \
-            -DBUILD_SHARED_LIBS=ON \
-            -DENABLE_WHEEL=ON \
-            -S ${OPENVINO_REPO} \
-            -B ${BUILD_DIR}
+      # - name: CMake configure - OpenVINO
+      #   run: |
+      #     cmake \
+      #       -G "${{ env.CMAKE_GENERATOR }}" \
+      #       -DENABLE_CPPLINT=OFF \
+      #       -DENABLE_NCC_STYLE=OFF \
+      #       -DCMAKE_VERBOSE_MAKEFILE=ON \
+      #       -DBUILD_SHARED_LIBS=ON \
+      #       -DENABLE_WHEEL=ON \
+      #       -S ${OPENVINO_REPO} \
+      #       -B ${BUILD_DIR}
 
-      - name: Cmake build - OpenVINO
-        run: |
-          cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }}
+      # - name: Cmake build - OpenVINO
+      #   run: |
+      #     cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }}
           
-      - name: Show sccache stats
-        run: ${SCCACHE_PATH} --show-stats
+      # - name: Show sccache stats
+      #   run: ${SCCACHE_PATH} --show-stats
         
-      - name: Cmake install - OpenVINO
-        run: |
-          cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -P ${BUILD_DIR}/cmake_install.cmake --config ${{ env.CMAKE_BUILD_TYPE }}
+      # - name: Cmake install - OpenVINO
+      #   run: |
+      #     cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -P ${BUILD_DIR}/cmake_install.cmake --config ${{ env.CMAKE_BUILD_TYPE }}
 
       - name: Pack Artifacts
         run: tar -cvf - * | pigz > ${BUILD_DIR}/openvino_package.tar.gz
