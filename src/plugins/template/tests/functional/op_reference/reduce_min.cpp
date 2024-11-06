@@ -79,18 +79,22 @@ std::vector<ReductionParams> generateReductionParams(const bool keep_dims) {
                         reference_tests::Tensor(reduce(Shape{3, 3, 3}, AxisSet{0, 1, 2}, keep_dims),
                                                 element::Type(IN_ET),
                                                 std::vector<T>{1}))};
+    auto out_shape_from_empty = Shape{2, 1, 1};
     if (keep_dims == false) {
-        constexpr auto max_value =
-            std::numeric_limits<T>::has_infinity ? std::numeric_limits<T>::infinity() : std::numeric_limits<T>::max();
-        params.push_back(ReductionParams(
-            ReductionType::Min,
-            keep_dims,
-            std::vector<int64_t>{1, 2},
-            reference_tests::Tensor({2, 0, 4}, element::Type(IN_ET), std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8}),
-            reference_tests::Tensor(Shape{2},
-                                    element::Type(IN_ET),
-                                    std::vector<T>{max_value, max_value})));  // Keep dims false, tensor filled with max or inf
+        out_shape_from_empty = Shape{2};
     }
+    constexpr auto max_value =
+        std::numeric_limits<T>::has_infinity ? std::numeric_limits<T>::infinity() : std::numeric_limits<T>::max();
+    params.push_back(ReductionParams(
+        ReductionType::Min,
+        keep_dims,
+        std::vector<int64_t>{1, 2},
+        reference_tests::Tensor({2, 0, 4}, element::Type(IN_ET), std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8}),
+        reference_tests::Tensor(
+            out_shape_from_empty,
+            element::Type(IN_ET),
+            std::vector<T>{max_value, max_value})));
+
     return params;
 }
 
