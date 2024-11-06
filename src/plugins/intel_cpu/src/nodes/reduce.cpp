@@ -2276,8 +2276,7 @@ void Reduce::execute(dnnl::stream strm) {
 
     const auto& src_shape = getSrcMemoryAtPort(REDUCE_DATA)->getStaticDims();
     if ((shape_size(src_shape) == 0 || srcMemPtr->getSize() == 0) && dstMemPtr->getSize() > 0) {
-        // If input is empty fill ouptut with zero
-        std::fill_n(dst_data, dstMemPtr->getSize(), uint8_t{0});
+        init_dst_data(dst_data, dstMemPtr->getSize());
         return;
     }
 
