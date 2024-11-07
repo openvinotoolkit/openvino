@@ -1587,9 +1587,6 @@ void primitive_inst::do_runtime_in_place_concat() {
     GPU_DEBUG_TRACE_DETAIL << "[In place concat] " << concat_inst->id() << ": can_be_optimized " << std::endl;
 }
 
-// scatter_elements_update (data, idx, uid)
-// scatter_update (dict, idx, idupd)
-// scatter_nd_udpate (data, idx, idupd)
 void primitive_inst::do_runtime_skip_scatter_update() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_skip_scatter_update: " + id()));
     // Check pattern
