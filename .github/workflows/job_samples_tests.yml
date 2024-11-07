@@ -115,7 +115,7 @@ jobs:
 
       # Install Python benchmark_app by installing openvino-*.whl
       - name: Install OpenVINO Python wheels
-        uses: ./action_root/.github/actions/install_ov_wheels
+        uses: ./openvino/.github/actions/install_ov_wheels
         with:
           wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
           install-core-wheel: true

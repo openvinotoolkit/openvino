@@ -308,6 +308,19 @@ jobs:
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       os: 'mac_13'
 
+  Python_API_Tests:
+    name: Python API tests
+    needs: [ Build, Smart_CI ]
+    uses: ./.github/workflows/job_python_api_tests.yml
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [ '3.9', '3.10', '3.11', '3.12' ]
+    with:
+      runner: 'macos-13'
+      python-version: ${{ matrix.python-version }}
+    if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test
+
   Python_Unit_Tests:
     name: Python unit tests
     needs: [ Build, Smart_CI ]
