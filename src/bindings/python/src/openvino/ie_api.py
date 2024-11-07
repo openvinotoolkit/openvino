@@ -15,7 +15,7 @@ from openvino._pyopenvino import AsyncInferQueue as AsyncInferQueueBase
 from openvino._pyopenvino import Tensor
 from openvino._pyopenvino import Node
 
-from openvino.runtime.utils.data_helpers import (
+from openvino.utils.data_helpers import (
     OVDict,
     _InferRequestWrapper,
     _data_dispatch,

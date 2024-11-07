@@ -6,7 +6,7 @@
 
 from openvino.frontend.pytorch.py_pytorch_frontend import _FrontEndPytorchDecoder as Decoder
 from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
-from openvino.runtime import op, PartialShape, Type as OVType, OVAny
+from openvino._pyopenvino import op, PartialShape, Type as OVType, OVAny
 from openvino.frontend.pytorch.utils import (
     ivalue_to_constant,
     get_value_from_getattr,
