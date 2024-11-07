@@ -1677,6 +1677,31 @@ auto test_backward_unsqueeze_dyn_rank = []() {
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonUnsqueezeBackwardDynRank,
                          TSTestFixture,
                          test_backward_unsqueeze_dyn_rank());
+
+TEST_F(TransformationTestsF, TransposeSinkingCommonReshapeUnsqueezeBackwardSameShape) {
+    auto create_transpose = [](const std::shared_ptr<ov::Node>& parent) {
+        auto ts_order = std::make_shared<Constant>(element::u64, Shape{3}, Shape{1, 0, 2});
+        return std::make_shared<Transpose>(parent, ts_order);
+    };
+
+    const Shape input_shape = {4, 5, 6};
+    {
+        auto X = std::make_shared<Parameter>(element::f32, input_shape);
+        auto reshape_const = std::make_shared<Constant>(element::u64, Shape{3}, Shape{4, 5, 6});
+        auto reshape = std::make_shared<Reshape>(X, reshape_const, false);
+        auto transpose = create_transpose(reshape);
+        model = std::make_shared<Model>(ov::OutputVector{transpose}, ov::ParameterVector{X});
+    }
+
+    {
+        auto X = std::make_shared<Parameter>(element::f32, input_shape);
+        auto transpose = create_transpose(X);
+        model_ref = std::make_shared<Model>(ov::OutputVector{transpose}, ov::ParameterVector{X});
+    }
+
+    manager.register_pass<TSUnsqueezeBackward>();
+}
+
 }  // namespace common
 }  // namespace testing
 }  // namespace transpose_sinking

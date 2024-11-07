@@ -178,6 +178,14 @@ TSUnsqueezeBackward::TSUnsqueezeBackward() {
             return false;
         }
 
+        // if main_node does nothing, just remove it
+        if (main_node->get_input_partial_shape(0) == main_node->get_output_partial_shape(0)) {
+            auto parent_node = main_node->get_input_node_shared_ptr(0);
+            main_node->output(0).replace(parent_node->output(0));
+            register_new_node(transpose);
+            return true;
+        }
+
         auto transpose_order = ov::as_type_ptr<ov::op::v0::Constant>(transpose->get_input_node_shared_ptr(1));
         auto unsqueeze_axes = ov::as_type_ptr<ov::op::v0::Constant>(main_node->get_input_node_shared_ptr(1));
         if (!transpose_order || !unsqueeze_axes)
