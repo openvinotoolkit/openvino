@@ -4,25 +4,8 @@
 
 #include "openvino/op/identity.hpp"
 
-#include <gtest/gtest.h>
+#include "unary_ops.hpp"
 
-#include "openvino/op/unique.hpp"
-#include "visitors/visitors.hpp"
+using Type = ::testing::Types<UnaryOperatorType<ov::op::v16::Identity, ov::element::f32>>;
 
-namespace ov {
-namespace test {
-
-TEST(attributes, Identity) {
-    NodeBuilder::opset().insert<ov::op::v15::Identity>();
-    const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2});
-
-    const auto op = std::make_shared<ov::op::v15::Identity>(data);
-    NodeBuilder builder(op, {data});
-    auto g_identity = ov::as_type_ptr<ov::op::v15::Identity>(builder.create());
-
-    constexpr auto expected_attr_count = 0;
-    EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
-}
-
-}  // namespace test
-}  // namespace ov
+INSTANTIATE_TYPED_TEST_SUITE_P(visitor_without_attribute, UnaryOperatorVisitor, Type, UnaryOperatorTypeName);

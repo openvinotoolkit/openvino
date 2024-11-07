@@ -519,10 +519,6 @@ extern template bool evaluate_node<ov::op::v15::EmbeddingBagPacked>(std::shared_
                                                                     ov::TensorVector& outputs,
                                                                     const ov::TensorVector& inputs);
 
-extern template bool evaluate_node<ov::op::v15::Identity>(std::shared_ptr<ov::Node> node,
-                                                          ov::TensorVector& outputs,
-                                                          const ov::TensorVector& inputs);
-
 extern template bool evaluate_node<ov::op::v15::SliceScatter>(std::shared_ptr<ov::Node> node,
                                                               ov::TensorVector& outputs,
                                                               const ov::TensorVector& inputs);
@@ -554,3 +550,7 @@ extern template bool evaluate_node<ov::op::v15::StringTensorPack>(std::shared_pt
 extern template bool evaluate_node<ov::op::v15::SearchSorted>(std::shared_ptr<ov::Node> node,
                                                               ov::TensorVector& outputs,
                                                               const ov::TensorVector& inputs);
+
+extern template bool evaluate_node<ov::op::v16::Identity>(std::shared_ptr<ov::Node> node,
+                                                          ov::TensorVector& outputs,
+                                                          const ov::TensorVector& inputs);

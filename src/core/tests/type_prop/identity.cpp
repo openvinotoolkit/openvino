@@ -4,29 +4,9 @@
 
 #include "openvino/op/identity.hpp"
 
-#include <gtest/gtest.h>
+#include "unary_ops.hpp"
 
-#include "common_test_utils/test_assertions.hpp"
-#include "common_test_utils/type_prop.hpp"
-#include "openvino/op/constant.hpp"
+using Type = ::testing::Types<ov::op::v16::Identity>;
 
-using namespace testing;
+INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_identity, UnaryOperator, Type);
 
-namespace ov {
-namespace test {
-
-class TypePropIdentityV15Test : public TypePropOpTest<op::v15::Identity> {};
-
-TEST_F(TypePropIdentityV15Test, default_ctor) {
-    const auto data = op::v0::Constant::create(element::f64, Shape{2, 2}, {1.0f, 1.0f, 1.0f, 1.0f});
-    const auto op = make_op();
-    op->set_arguments(OutputVector{data});
-    op->validate_and_infer_types();
-
-    EXPECT_EQ(op->get_input_size(), 1);
-    EXPECT_EQ(op->get_output_size(), 1);
-    EXPECT_EQ(op->get_output_element_type(0), element::f64);
-    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({2, 2}));
-}
-}  // namespace test
-}  // namespace ov

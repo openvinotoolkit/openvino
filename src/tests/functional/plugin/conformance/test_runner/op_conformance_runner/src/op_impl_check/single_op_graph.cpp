@@ -525,9 +525,9 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::Interpolat
     return std::make_shared<ov::Model>(results, params, "Interpolat-1");
 }
 
-std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v15::Identity>& node) {
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v16::Identity>& node) {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4, 4, 4})};
-    const auto identity = std::make_shared<ov::op::v15::Identity>(params[0]);
+    const auto identity = std::make_shared<ov::op::v16::Identity>(params[0]);
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(identity)};
     return std::make_shared<ov::Model>(results, params, "Identity");
 }

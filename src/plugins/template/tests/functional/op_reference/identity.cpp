@@ -36,7 +36,7 @@ private:
     static std::shared_ptr<ov::Model> CreateFunction(const IdentityParams& params) {
         const auto& matrices = std::get<0>(params);
         const auto in_matrices = std::make_shared<ov::op::v0::Parameter>(matrices.type, matrices.shape);
-        const auto identity = std::make_shared<ov::op::v15::Identity>(in_matrices);
+        const auto identity = std::make_shared<ov::op::v16::Identity>(in_matrices);
         return std::make_shared<ov::Model>(identity->outputs(), ov::ParameterVector{in_matrices});
     }
 };
