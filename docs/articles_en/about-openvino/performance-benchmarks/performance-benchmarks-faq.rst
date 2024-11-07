@@ -58,11 +58,11 @@ Performance Information F.A.Q.
         - Hugginface
         - Causal Decoder-only
         - 2048
-      * - `Llama-2-7b-chat <https://ai.meta.com/llama/>`__
+      * - `Llama-2-7b-chat <https://www.llama.com/>`__
         - Meta AI
         - Auto regressive language
         - 4096
-      * - `Llama-3-8b <https://ai.meta.com/llama/>`__
+      * - `Llama-3-8b <https://www.llama.com/>`__
         - Meta AI
         - Auto regressive language
         - 8192
@@ -74,7 +74,7 @@ Performance Information F.A.Q.
         - Huggingface
         - Auto regressive language
         - 4096
-      * - `Stable-Diffusion-V1-5 <https://https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5>`__
+      * - `Stable-Diffusion-V1-5 <https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5>`__
         - Hugginface
         - Latent Diffusion Model
         - 77
@@ -118,7 +118,7 @@ Performance Information F.A.Q.
         - YOLO V5 Medium
         - object detection
         - 640x640
-      * - `yolov8n <https://https://github.com/ultralytics/ultralytics>`__
+      * - `yolov8n <https://github.com/ultralytics/ultralytics>`__
         - Yolov8nano
         - object detection
         - 608x608
