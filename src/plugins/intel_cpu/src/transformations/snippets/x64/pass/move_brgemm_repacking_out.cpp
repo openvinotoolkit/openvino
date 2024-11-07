@@ -40,14 +40,15 @@ pass::MoveBrgemmRepackingOut::MoveBrgemmRepackingOut() {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& copy_b_in = pattern_map.at(m_param);
         const auto& copy_b_out = pattern_map.at(m_copy_b);
-        const auto copy_b_node = copy_b_out.get_node_shared_ptr();
+        const auto copy_b_node = ov::as_type_ptr<BrgemmCopyB>(copy_b_out.get_node_shared_ptr());
+        OPENVINO_ASSERT(copy_b_node, "BrgemmCopyB node is null in MoveBrgemmRepackingOut transformation");
 
         const auto& in_desc = PortDescriptorUtils::get_port_descriptor_ptr(copy_b_node->input(0));
         const auto& layout = in_desc->get_layout();
         // TODO:
         // 1. handle copyB with compensations
         // 2. handle non-planar layout
-        if (!ov::snippets::utils::is_planar_layout(layout) || copy_b_node->get_output_size() != 1 ||
+        if (!ov::snippets::utils::is_planar_layout(layout) || copy_b_node->get_src_element_type() == ov::element::i8 ||
             transformation_callback(copy_b_node))
             return false;
         std::cout << "[ INFO ] MoveBrgemmRepackingOut is finished\n";
