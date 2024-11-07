@@ -79,6 +79,7 @@ ov::pass::MoveEltwiseUpThroughDataMovScalar::MoveEltwiseUpThroughDataMovScalar(
             }
         }
 
+        std::stack<std::shared_ptr<ov::Node>> node_stack;
         auto current = eltwise->get_input_node_shared_ptr(0);
         auto child = eltwise;
 
@@ -88,6 +89,7 @@ ov::pass::MoveEltwiseUpThroughDataMovScalar::MoveEltwiseUpThroughDataMovScalar(
                 return false;
             }
 
+            node_stack.push(current);
             child = current;
             current = current->get_input_node_shared_ptr(0);
         }
@@ -117,13 +119,19 @@ ov::pass::MoveEltwiseUpThroughDataMovScalar::MoveEltwiseUpThroughDataMovScalar(
         new_eltwise->set_friendly_name("");
         ov::copy_runtime_info(eltwise, new_eltwise);
 
-        ov::OutputVector child_inputs = child->input_values();
-        child_inputs[0] = new_eltwise;
-        auto new_child = child->clone_with_new_inputs(child_inputs);
-        ov::copy_runtime_info(child, new_child);
-        new_child->set_friendly_name(child->get_friendly_name());
+        auto last_inserted = new_eltwise;
 
-        ov::replace_node(child, new_child);
+        while (!node_stack.empty()) {
+            auto node = node_stack.top();
+            ov::OutputVector node_inputs = node->input_values();
+            node_inputs[0] = last_inserted;
+            auto new_node = node->clone_with_new_inputs(node_inputs);
+            ov::copy_runtime_info(node, new_node);
+            new_node->set_friendly_name(node->get_friendly_name());
+            node_stack.pop();
+            last_inserted = new_node;
+        }
+        ov::replace_node(eltwise->input_value(0).get_node_shared_ptr(), last_inserted);
         return true;
     };
 
