@@ -29,7 +29,6 @@ void Identity::Identity::validate_and_infer_types() {
     OV_OP_SCOPE(v16_Identity_validate_and_infer_types);
 
     NODE_VALIDATION_CHECK(this, get_input_size() == 1);
-    NODE_VALIDATION_CHECK(this, get_output_size() != 0);
 
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
