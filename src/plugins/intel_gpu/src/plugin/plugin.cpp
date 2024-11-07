@@ -197,11 +197,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         iter_devices_for_tp ? "" : config.get_property(ov::device::priorities.name()).as<std::string>();
     if (devices_for_tp == "" && device_ids.size() > 1) {
         devices_for_tp = config.get_property(ov::device::priorities.name()).as<std::string>();
-        std::cout << "devices_for_tp: " << devices_for_tp << std::endl;
     }
     auto parse_devices_id = [&](const std::string devices_for_tp,
                                 const std::string delimiter = ",") -> std::vector<std::string> {
-        std::cout << "devices_for_tp: " << devices_for_tp << std::endl;
         bool is_set_device_id = orig_config.find(ov::device::id.name()) != orig_config.end();
         if (device_ids.size() > 1)
             is_set_device_id = false;
@@ -524,7 +522,6 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
 
     auto parse_devices_id = [&](const std::string devices_for_tp,
                                 const std::string delimiter = ",") -> std::vector<std::string> {
-        std::cout << "devices_for_tp: " << devices_for_tp << std::endl;
         std::size_t start = 0, end = devices_for_tp.find(delimiter);
         std::vector<std::string> ret;
         while (end != std::string::npos) {
