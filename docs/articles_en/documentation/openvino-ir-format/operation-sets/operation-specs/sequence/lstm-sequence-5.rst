@@ -3,10 +3,10 @@ LSTMSequence
 
 
 .. meta::
-  :description: Learn about LSTMSequence-1 - a sequence processing operation, which
+  :description: Learn about LSTMSequence-5 - a sequence processing operation, which
                 can be performed on seven required input tensors.
 
-**Versioned name**: *LSTMSequence-1*
+**Versioned name**: *LSTMSequence-5*
 
 **Category**: *Sequence processing*
 
@@ -145,4 +145,3 @@ A single cell in the sequence is implemented in the same way as in :doc:`LSTM Ce
            </port>
        </output>
    </layer>
-

@@ -30,58 +30,8 @@ Install OpenVINO™ Runtime on Linux from an Archive File
        RHEL8 x86_64          V      V     n/a
       ===================  =====  =====  =====
 
-.. tab-set::
-
-   .. tab-item:: System Requirements
-      :sync: system-requirements
-
-      | Full requirement listing is available in:
-      | :doc:`System Requirements Page <../../../about-openvino/release-notes-openvino/system-requirements>`
-
-   .. tab-item:: Processor Notes
-      :sync: processor-notes
-
-      | To see if your processor includes the integrated graphics technology and supports iGPU inference, refer to:
-      | `Product Specifications <https://ark.intel.com/>`__
-
-   .. tab-item:: Software
-      :sync: software
-
-      * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`__
-      * `Python 3.9 - 3.12, 64-bit <https://www.python.org/downloads/>`__
-      * GCC:
-
-      .. tab-set::
-
-         .. tab-item:: Ubuntu 20.04
-            :sync: ubuntu-20
-
-            * GCC 9.3.0
-
-         .. tab-item:: RHEL 8
-            :sync: rhel-8
-
-            * GCC 8.4.1
-
-         .. tab-item:: CentOS 7
-            :sync: centos-7
-
-            * GCC 8.3.1
-              Use the following instructions to install it:
-
-            Install GCC 8.3.1 via devtoolset-8
-
-            .. code-block:: sh
-
-               sudo yum update -y && sudo yum install -y centos-release-scl epel-release
-               sudo yum install -y devtoolset-8
-
-            Enable devtoolset-8 and check current gcc version
-
-            .. code-block:: sh
-
-               source /opt/rh/devtoolset-8/enable
-               gcc -v
+   Before installing OpenVINO, see the
+   :doc:`System Requirements page <../../../about-openvino/release-notes-openvino/system-requirements>`.
 
 
 Installing OpenVINO Runtime

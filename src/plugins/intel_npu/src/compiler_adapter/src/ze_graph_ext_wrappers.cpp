@@ -396,7 +396,6 @@ ze_graph_handle_t ZeGraphExtWrappers<TableExtension>::getGraphHandle(
     const uint32_t& flags) const {
     ze_graph_handle_t graphHandle;
 
-    _logger.info("compileIR Using extension version: %s", typeid(TableExtension).name());
     createGraph(std::move(serializedIR), buildFlags, flags, &graphHandle);
 
     return graphHandle;
