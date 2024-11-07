@@ -1,4 +1,6 @@
-const BinaryManager = require('./binary-manager');
+const { join } = require('node:path');
+
+const BinaryManager = require('./lib/binary-manager');
 const packageJson = require('../package.json');
 
 if (require.main === module) main();
@@ -13,6 +15,7 @@ async function main() {
   const proxy = env.http_proxy || env.HTTP_PROXY || env.npm_config_proxy;
 
   await BinaryManager.prepareBinary(
+    join(__dirname, '..'),
     packageJson.version,
     packageJson.binary,
     { force, ignoreIfExists, proxy },
