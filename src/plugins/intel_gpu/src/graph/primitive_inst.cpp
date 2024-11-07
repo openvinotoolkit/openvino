@@ -740,16 +740,48 @@ event::ptr primitive_inst::realloc_if_needed() {
 
     // Clear out memory if was previously reused, but now primitive can't be optimized
     if (!_node->is_type<concatenation>() && (_node->is_runtime_skippable() || _node->is_type<crop>())) {
+        std::function<void(cldnn::primitive_inst*, cldnn::memory::ptr)> reset_user_output_memory;
+        reset_user_output_memory = [&](cldnn::primitive_inst* curr_inst, cldnn::memory::ptr input_mem_ptr) {
+            auto curr_output_memory_ptr = curr_inst->output_memory_ptr(0);
+            if (curr_inst->can_be_optimized()
+                    && curr_inst->get_node().is_runtime_skippable()
+                    && (curr_output_memory_ptr
+                        && get_network().get_engine().is_the_same_buffer(*curr_output_memory_ptr, *input_mem_ptr))) {
+                curr_inst->_outputs[0] = nullptr;
+                curr_inst->_max_output_layout_count[0] = 0;
+                for (auto& user_inst : curr_inst->get_user_insts()) {
+                    reset_user_output_memory(user_inst, input_mem_ptr);
+                }
+            }
+        };
         if (can_be_optimized()) {
             _max_output_layout_count = _deps[0].first->_max_output_layout_count;
             GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("can_be_optimized");
+            // If the inst is optimized out but it executed at the previous iteration,
+            // reset all output memory of users which was optimized out at the previous iteration.
+            // Ex.
+            // * iter0: node1(executed) -> node2(skipped) -> node3(skipped)
+            // * iter1: node1(skipped)  -> node2(skipped) -> node3(executed)
+            if (_outputs[0] && dep_memory_ptr(0)
+                && !_network.get_engine().is_the_same_buffer(dep_memory(0), output_memory(0))) {
+                for (auto& user_inst : get_user_insts()) {
+                    reset_user_output_memory(user_inst, dep_memory_ptr(0));
+                }
+            }
             return ev;
-        // } else if (_outputs[0] && dep_memory_ptr(0) &&
-        //            _network.get_engine().is_the_same_buffer(dep_memory(0), output_memory(0))) {
-        } else if (_outputs[0] && dep_memory_ptr(0)) {
-            // Clear out memory if was previously reused, but now primitive can't be optimized
+        } else if (_outputs[0] && dep_memory_ptr(0) &&
+                   _network.get_engine().is_the_same_buffer(dep_memory(0), output_memory(0))) {
             _outputs[0] = nullptr;
             _max_output_layout_count[0] = 0;
+            // Check users recursively and if the users is can_be_optimized && runtime_skippable
+            // && output_memory of user is same as current input memory,
+            // then reset the users output memory too.
+            // Ex.
+            // * iter0: node1(skipped)  -> node2(skipped) -> node3(skipped)
+            // * iter1: node1(executed) -> node2(skipped) -> node3(executed)
+            for (auto& user_inst : get_user_insts()) {
+                reset_user_output_memory(user_inst, dep_memory_ptr(0));
+            }
         }
     }
 
