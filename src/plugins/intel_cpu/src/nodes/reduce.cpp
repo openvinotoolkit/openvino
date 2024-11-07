@@ -2274,9 +2274,11 @@ void Reduce::execute(dnnl::stream strm) {
     const uint8_t *src_data = srcMemPtr->getDataAs<const uint8_t>();
     uint8_t *dst_data = dstMemPtr->getDataAs<uint8_t>();
 
-    const auto& src_shape = getSrcMemoryAtPort(REDUCE_DATA)->getStaticDims();
-    if ((shape_size(src_shape) == 0 || srcMemPtr->getSize() == 0) && dstMemPtr->getSize() > 0) {
-        init_dst_data(dst_data, dstMemPtr->getSize());
+    const auto& src_shape = srcMemPtr->getStaticDims();
+    if ((shape_size(src_shape) == 0 || srcMemPtr->getSize() == 0)) {
+        if (dstMemPtr->getSize() > 0) {
+            init_dst_data(dst_data, dstMemPtr->getSize());
+        }
         return;
     }
 
