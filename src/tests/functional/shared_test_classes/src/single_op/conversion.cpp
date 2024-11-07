@@ -46,6 +46,10 @@ void ConversionLayerTest::SetUp() {
     std::tie(conversion_type, shapes, input_type, convert_type, targetDevice) = GetParam();
     init_input_shapes(shapes);
 
+    if (convert_type == ov::element::f16) {
+        configuration.insert(ov::hint::inference_precision(ov::element::f16));
+    }
+
     ov::ParameterVector params;
     for (const auto& shape : inputDynamicShapes) {
         params.push_back(std::make_shared<ov::op::v0::Parameter>(input_type, shape));
