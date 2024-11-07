@@ -328,7 +328,7 @@ void RandomUniform::prepareMersenneTwisterParams() {
 
     if (m_jit_kernel) {
 #if defined(OPENVINO_ARCH_X86_64)
-        // m_jit_kernel->getVectorLen() either 64, 32 or 16 for Zmm, Ymm, Xmm respectively
+        // m_jit_kernel->getVectorLen() either 64, 32 or 16 (bytes) for Zmm, Ymm, Xmm respectively
         m_uint_storage_capacity_per_thread = m_jit_kernel->getVectorLen() / sizeof(uint32_t);
         const auto maximum_jit_threads = MERSENNE_STATE_N / m_uint_storage_capacity_per_thread;
         m_threads_num = std::max(std::min(m_threads_num, maximum_jit_threads), 1);
@@ -346,8 +346,8 @@ void RandomUniform::prepareMersenneTwisterParams() {
                                             m_min_val.i64 > std::numeric_limits<uint32_t>::max()));
 
     const auto thread_offset = static_cast<float>(MERSENNE_STATE_N) /
-                                static_cast<float>(m_threads_num) /
-                                static_cast<float>(m_uint_storage_capacity_per_thread);
+                                static_cast<float>(m_uint_storage_capacity_per_thread) /
+                                static_cast<float>(m_threads_num);
 
     const auto byte_offset =  m_output_prc.size() / (m_mersenne_twister_optimization_enabled ? 1 : 2);
 
@@ -357,8 +357,8 @@ void RandomUniform::prepareMersenneTwisterParams() {
         auto approx_start = thread_offset * static_cast<float>(ithr);
         auto approx_end = thread_offset * (static_cast<float>(ithr + 1));
 
-        auto state_start = static_cast<uint64_t>(std::floor(approx_start * static_cast<float>(m_uint_storage_capacity_per_thread)));
-        auto state_end = static_cast<uint64_t>(std::floor(approx_end * static_cast<float>(m_uint_storage_capacity_per_thread)));
+        auto state_start = static_cast<uint64_t>(std::floor(approx_start) * m_uint_storage_capacity_per_thread);
+        auto state_end = static_cast<uint64_t>(std::floor(approx_end) * m_uint_storage_capacity_per_thread);
 
         // Rounding failsafes
         if (ithr == 0) {
@@ -654,22 +654,6 @@ void runMersenneTwister(uint32_t& random_nr_1, uint32_t& random_nr_2) {
 
 inline void convertToOutputTypeMersenne(const uint32_t in1,
                                         const uint32_t in2,
-                                double min,
-                                double range,
-                                double* out,
-                                int64_t elements_remaining,
-                                bool optimization_enabled) {
-    const auto mask = static_cast<uint32_t>((uint64_t(1) << std::numeric_limits<double>::digits) - 1);
-    const auto divisor = static_cast<double>(1) / (uint64_t(1) << std::numeric_limits<double>::digits);
-
-    out[0] = static_cast<double>((in1 & mask) * divisor) * range + min;
-    if (elements_remaining >= 2l) {
-        out[1] = static_cast<double>((in2 & mask) * divisor) * range + min;
-    }
-}
-
-inline void convertToOutputTypeMersenne(const uint32_t in1,
-                                        const uint32_t in2,
                                 float min,
                                 float range,
                                 float* out,
@@ -777,7 +761,7 @@ void RandomUniform::computeMersenneTwister(void* out, size_t output_elements_cou
                 args.state_accesses_count   = params.state_accesses_count;
                 args.state_ptr              = mersenne_state_ptr + params.src_start_idx;
                 args.dst_ptr                = output_byte_ptr + params.dst_start_idx + i * byte_offset;
-                args.output_idx             = params.dst_start_idx + i * MERSENNE_STATE_N;
+                args.output_idx             = params.src_start_idx + i * MERSENNE_STATE_N;
                 args.elements_to_generate   = static_cast<int64_t>(
                                                 std::min(
                                                     static_cast<uint64_t>(m_uint_storage_capacity_per_thread) * args.state_accesses_count,
@@ -811,7 +795,7 @@ void RandomUniform::computeMersenneTwister(void* out, size_t output_elements_cou
                 auto& params = m_mersenne_twister_thread_params[ithr];
                 auto state_ptr              = mersenne_state_ptr + params.src_start_idx;
                 auto dst_ptr                = output_byte_ptr + params.dst_start_idx + i * byte_offset;
-                auto output_idx             = (params.dst_start_idx + i * byte_offset) / m_output_prc.size();
+                auto output_idx             = (params.src_start_idx + i * byte_offset) / m_output_prc.size();
                 auto max_output_idx         = output_elements_count;
                 auto state_accesses_count   = params.state_accesses_count;
                 auto elements_to_generate   = static_cast<int64_t>(
@@ -844,7 +828,6 @@ void RandomUniform::computeMersenneTwister(void* out, size_t output_elements_cou
                 } break;
 
                 switch (m_output_prc) {
-                    EXEC_CASE(f64)
                     EXEC_CASE(f32)
                     EXEC_CASE(f16)
                     EXEC_CASE(bf16)

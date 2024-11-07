@@ -21,17 +21,9 @@ namespace random_uniform {
     mov(aux_register, constant);                                                            \
     func(vector, aux_register);
 
-#define BROADCAST_PHILOX_PARAM(func, vector, aux_register, param_name)                      \
-    mov(aux_register, ptr[r64_params + GET_PHILOX_OFFSET(param_name)]);                     \
+#define BROADCAST_PARAM(func, vector, aux_register, param_args_offset)                      \
+    mov(aux_register, ptr[r64_params + param_args_offset]);                                 \
     func(vector, ptr[aux_register]);
-
-#define BROADCAST_MERSENNE_PARAM(func, vector, aux_register, param_name)                    \
-    mov(aux_register, ptr[r64_params + GET_MERSENNE_OFFSET(param_name)]);                   \
-    func(vector, ptr[aux_register]);
-
-#define INIT_1_ELEM_T_VAL(A, V, R, T)                                                       \
-    static const T A[1] = { V };                                                            \
-    mov(R, reinterpret_cast<uintptr_t>(A));                                                 \
 
 #define INIT_8_ELEM_T_ARR(A, V, R, T)                                                       \
     static const T A[8] = { V, V, V, V, V, V, V, V };                                       \
@@ -45,6 +37,11 @@ namespace random_uniform {
 #define INIT_16_ELEM_T_ARR(A, V, R, T)                                                      \
     static const T A[16] = { V, V, V, V, V, V, V, V, V, V, V, V, V, V, V, V };              \
     mov(R, reinterpret_cast<uintptr_t>(A));
+
+union FloatAsBits {
+    float f;
+    uint32_t u;
+};
 
 ////////////// PHILOX GENERATOR /////////////////////////
 
@@ -103,13 +100,13 @@ void PhiloxGenerator<x64::avx512_core>::initVectors() {
     if (m_jcp.out_data_type == element::f32) {
         BROADCAST_CONSTANT(vpbroadcastd, v_convert_0, r32_aux, 0x3f800000)
         BROADCAST_CONSTANT(vpbroadcastd, v_convert_1, r32_aux, 0x007fffff)
-        BROADCAST_PHILOX_PARAM(vpbroadcastd, v_range,     r64_aux, range_ptr)
-        BROADCAST_PHILOX_PARAM(vpbroadcastd, v_min,       r64_aux, min_ptr)
+        BROADCAST_PARAM(vpbroadcastd, v_range,     r64_aux, GET_PHILOX_OFFSET(range_ptr))
+        BROADCAST_PARAM(vpbroadcastd, v_min,       r64_aux, GET_PHILOX_OFFSET(min_ptr))
     } else if (m_jcp.out_data_type == element::f16 && x64::mayiuse(x64::avx512_core_fp16)) {
         BROADCAST_CONSTANT(vpbroadcastw, v_convert_0, r16_aux, 0x3c00)
         BROADCAST_CONSTANT(vpbroadcastw, v_convert_1, r16_aux, 0x03ff)
-        BROADCAST_PHILOX_PARAM(vpbroadcastw, v_range,     r64_aux, range_ptr)
-        BROADCAST_PHILOX_PARAM(vpbroadcastw, v_min,       r64_aux, min_ptr)
+        BROADCAST_PARAM(vpbroadcastw, v_range,     r64_aux, GET_PHILOX_OFFSET(range_ptr))
+        BROADCAST_PARAM(vpbroadcastw, v_min,       r64_aux, GET_PHILOX_OFFSET(min_ptr))
     } else if (m_jcp.out_data_type == element::bf16 && x64::mayiuse(x64::avx512_core_bf16)) {
         v_convert_2 = getVmm();
         const auto ymm_min = Xbyak::Ymm(v_min.getIdx());
@@ -119,18 +116,18 @@ void PhiloxGenerator<x64::avx512_core>::initVectors() {
         BROADCAST_CONSTANT(vpbroadcastw, v_convert_1, r16_aux, 0x007f)
         BROADCAST_CONSTANT(vpbroadcastd, v_convert_2, r32_aux, 0x3f800000)
 
-        BROADCAST_PHILOX_PARAM(vpbroadcastw, v_range, r64_aux, range_ptr)
+        BROADCAST_PARAM(vpbroadcastw, v_range, r64_aux, GET_PHILOX_OFFSET(range_ptr))
         vpmovzxwd(v_range, ymm_range);
         uni_vpslld(v_range, v_range, 16);
 
-        BROADCAST_PHILOX_PARAM(vpbroadcastw, v_min, r64_aux, min_ptr)
+        BROADCAST_PARAM(vpbroadcastw, v_min, r64_aux, GET_PHILOX_OFFSET(min_ptr))
         vpmovzxwd(v_min, ymm_min);
         uni_vpslld(v_min, v_min, 16);
     } else if (m_jcp.out_data_type == element::i32) {
         const auto ymm_range = Xbyak::Ymm(v_range.getIdx());
 
-        BROADCAST_PHILOX_PARAM(vpbroadcastd, v_range, r64_aux, range_ptr)
-        BROADCAST_PHILOX_PARAM(vpbroadcastd, v_min,   r64_aux, min_ptr)
+        BROADCAST_PARAM(vpbroadcastd, v_range, r64_aux, GET_PHILOX_OFFSET(range_ptr))
+        BROADCAST_PARAM(vpbroadcastd, v_min,   r64_aux, GET_PHILOX_OFFSET(min_ptr))
 
         uni_vcvtdq2pd(v_range, ymm_range);
     } else {
@@ -138,9 +135,9 @@ void PhiloxGenerator<x64::avx512_core>::initVectors() {
     }
 
     // Initialize inputs.
-    BROADCAST_PHILOX_PARAM(vpbroadcastq, v_key_64,     r64_aux, key_ptr)
-    BROADCAST_PHILOX_PARAM(vpbroadcastq, v_counter_64, r64_aux, counter_ptr)
-    BROADCAST_PHILOX_PARAM(vpbroadcastq, v_n_64,       r64_aux, n_ptr)
+    BROADCAST_PARAM(vpbroadcastq, v_key_64,     r64_aux, GET_PHILOX_OFFSET(key_ptr))
+    BROADCAST_PARAM(vpbroadcastq, v_counter_64, r64_aux, GET_PHILOX_OFFSET(counter_ptr))
+    BROADCAST_PARAM(vpbroadcastq, v_n_64,       r64_aux, GET_PHILOX_OFFSET(n_ptr))
 
     if (m_jcp.out_data_type.size() <= 4) {
         static const uint64_t n_inc_arr[8]  = { 0, 1, 2, 3, 4, 5, 6, 7 };
@@ -665,7 +662,7 @@ void MersenneTwisterGenerator<isa>::generate() {
     mov(r64_max_output_idx,       ptr[r64_params + GET_MERSENNE_OFFSET(max_output_idx)]);
     mov(r64_elements_to_generate, ptr[r64_params + GET_MERSENNE_OFFSET(elements_to_generate)]);
     mov(r64_state_accesses_count, ptr[r64_params + GET_MERSENNE_OFFSET(state_accesses_count)]);
-    INIT_1_ELEM_T_VAL(storage_capacity, static_cast<uint64_t>(vlen / sizeof(uint32_t)), r64_storage_capacity, uint64_t);
+    mov(r64_storage_capacity,     static_cast<uint64_t>(vlen/sizeof(uint32_t)));
 
     initVectors();
     process();
@@ -700,31 +697,34 @@ void MersenneTwisterGenerator<x64::avx512_core>::initVectors() {
 
     // Initialize constants based on the requested data type
     if (m_jcp.out_data_type == element::f32) {
+        FloatAsBits val;
+        val.f = 1.0f / (1 << 24);
+        BROADCAST_CONSTANT(vpbroadcastd, v_divisor, r32_aux, val.u);
         BROADCAST_CONSTANT(vpbroadcastd, v_mask, r32_aux, static_cast<uint32_t>((1 << 24) - 1))
-        INIT_16_ELEM_T_ARR(divisor, static_cast<float>(1.0f / (1 << 24)), r64_aux, float);
-        vmovups(v_divisor, ptr[r64_aux]);
 
-        BROADCAST_MERSENNE_PARAM(vpbroadcastd, v_range,     r64_aux, range_ptr)
-        BROADCAST_MERSENNE_PARAM(vpbroadcastd, v_min,       r64_aux, min_ptr)
+        BROADCAST_PARAM(vpbroadcastd, v_range,     r64_aux, GET_MERSENNE_OFFSET(range_ptr))
+        BROADCAST_PARAM(vpbroadcastd, v_min,       r64_aux, GET_MERSENNE_OFFSET(min_ptr))
     } else if (m_jcp.out_data_type == element::f16 && x64::mayiuse(x64::avx512_core_fp16)) {
+        FloatAsBits val;
+        val.f = 1.0f / (1 << 11);
+        BROADCAST_CONSTANT(vpbroadcastd, v_divisor, r32_aux, val.u);
         BROADCAST_CONSTANT(vpbroadcastd, v_mask, r32_aux, static_cast<uint32_t>((1 << 11) - 1))
-        INIT_16_ELEM_T_ARR(divisor, static_cast<float>(1.0f / (1 << 11)), r64_aux, float);
-        vmovups(v_divisor, ptr[r64_aux]);
 
         // Note: two times too many values in Zmm
-        BROADCAST_MERSENNE_PARAM(vpbroadcastw, v_range,     r64_aux, range_ptr)
-        BROADCAST_MERSENNE_PARAM(vpbroadcastw, v_min,       r64_aux, min_ptr)
+        BROADCAST_PARAM(vpbroadcastw, v_range,     r64_aux, GET_MERSENNE_OFFSET(range_ptr))
+        BROADCAST_PARAM(vpbroadcastw, v_min,       r64_aux, GET_MERSENNE_OFFSET(min_ptr))
     } else if (m_jcp.out_data_type == element::bf16 && x64::mayiuse(x64::avx512_core_bf16)) {
+        FloatAsBits val;
+        val.f = 1.0f / (1 << 8);
+        BROADCAST_CONSTANT(vpbroadcastd, v_divisor, r32_aux, val.u);
         BROADCAST_CONSTANT(vpbroadcastd, v_mask, r32_aux, static_cast<uint32_t>((1 << 8) - 1))
-        INIT_16_ELEM_T_ARR(divisor, static_cast<float>(1.0f / (1 << 8)), r64_aux, float);
-        vmovups(v_divisor, ptr[r64_aux]);
 
         // Note: two times too many values in Zmm
-        BROADCAST_MERSENNE_PARAM(vpbroadcastw, v_range,     r64_aux, range_ptr)
-        BROADCAST_MERSENNE_PARAM(vpbroadcastw, v_min,       r64_aux, min_ptr)
+        BROADCAST_PARAM(vpbroadcastw, v_range,     r64_aux, GET_MERSENNE_OFFSET(range_ptr))
+        BROADCAST_PARAM(vpbroadcastw, v_min,       r64_aux, GET_MERSENNE_OFFSET(min_ptr))
     } else if (m_jcp.out_data_type == element::i32) {
-        BROADCAST_MERSENNE_PARAM(vpbroadcastd, v_range, r64_aux, range_ptr)
-        BROADCAST_MERSENNE_PARAM(vpbroadcastd, v_min,   r64_aux, min_ptr)
+        BROADCAST_PARAM(vpbroadcastd, v_range, r64_aux, GET_MERSENNE_OFFSET(range_ptr))
+        BROADCAST_PARAM(vpbroadcastd, v_min,   r64_aux, GET_MERSENNE_OFFSET(min_ptr))
     } else if (m_jcp.out_data_type == element::i64) {
         // Same as in Philox - in scope of i64 enabling
         OPENVINO_THROW("RandomUniform kernel does not support precision ", m_jcp.out_data_type, " for ", x64::get_isa_info());
@@ -792,37 +792,37 @@ void MersenneTwisterGenerator<isa>::process() {
     storeResults();
 }
 
-template <>
-void MersenneTwisterGenerator<x64::avx512_core>::generateRandomNumbers() {
-    const auto v_aux = getVmm();
+// template <>
+// void MersenneTwisterGenerator<x64::avx512_core>::generateRandomNumbers() {
+//     const auto v_aux = getVmm();
 
-    // Load values from memory, copy
-    vmovdqu32(v_result, v_state);        // x = state
+//     // Load values from memory, copy
+//     vmovdqu32(v_result, v_state);        // x = state
 
-    // Apply Mersenne Twister transformations
-    vmovdqu32(v_aux, v_result);           // tmp = x
+//     // Apply Mersenne Twister transformations
+//     vmovdqu32(v_aux, v_result);           // tmp = x
 
-    // x ^= (x >> 11);
-    vpsrld(v_aux, v_aux, 11);           // tmp >>= 11
-    vpxord(v_result, v_result, v_aux);   // x ^= tmp
+//     // x ^= (x >> 11);
+//     vpsrld(v_aux, v_aux, 11);           // tmp >>= 11
+//     vpxord(v_result, v_result, v_aux);   // x ^= tmp
 
-    // x ^= (x << 7) & const_1;
-    vmovdqu32(v_aux, v_result);           // tmp = x
-    vpslld(v_aux, v_aux, 7);            // tmp <<= 7
-    vpandd(v_aux, v_aux, v_const_1);     // tmp &= const_1
-    vpxord(v_result, v_result, v_aux);   // x ^= tmp
+//     // x ^= (x << 7) & const_1;
+//     vmovdqu32(v_aux, v_result);           // tmp = x
+//     vpslld(v_aux, v_aux, 7);            // tmp <<= 7
+//     vpandd(v_aux, v_aux, v_const_1);     // tmp &= const_1
+//     vpxord(v_result, v_result, v_aux);   // x ^= tmp
 
-    // x ^= (x << 15) & const_2;
-    vmovdqu32(v_aux, v_result);           // tmp = x
-    vpslld(v_aux, v_aux, 15);           // tmp <<= 15
-    vpandd(v_aux, v_aux, v_const_2);     // tmp &= const_2
-    vpxord(v_result, v_result, v_aux);   // x ^= tmp
+//     // x ^= (x << 15) & const_2;
+//     vmovdqu32(v_aux, v_result);           // tmp = x
+//     vpslld(v_aux, v_aux, 15);           // tmp <<= 15
+//     vpandd(v_aux, v_aux, v_const_2);     // tmp &= const_2
+//     vpxord(v_result, v_result, v_aux);   // x ^= tmp
 
-    // x ^= (x >> 18);
-    vmovdqu32(v_aux, v_result);           // tmp = x
-    vpsrld(v_aux, v_aux, 18);           // tmp >>= 18
-    vpxord(v_result, v_result, v_aux);   // x ^= tmp
-}
+//     // x ^= (x >> 18);
+//     vmovdqu32(v_aux, v_result);           // tmp = x
+//     vpsrld(v_aux, v_aux, 18);           // tmp >>= 18
+//     vpxord(v_result, v_result, v_aux);   // x ^= tmp
+// }
 
 template <x64::cpu_isa_t isa> // Works for SSE41, AVX2
 void MersenneTwisterGenerator<isa>::generateRandomNumbers() {
@@ -935,11 +935,9 @@ void MersenneTwisterGenerator<x64::avx512_core>::convertToOutputTypeMersenne() {
         // Create a double value of 2^31 for the most significant digit instead of -1
         const auto r64_multiplier_double = getReg64();
         const auto v_multiplier_double = getVmm();
-        const auto x_multiplier_double = Xbyak::Xmm(v_multiplier_double.getIdx());
 
         mov(r64_multiplier_double, 0x41E0000000000000); // 2^31 in IEEE 754 double format
-        vmovq(x_multiplier_double, r64_multiplier_double);
-        vbroadcastsd(v_multiplier_double, x_multiplier_double);
+        vpbroadcastq(v_multiplier_double, r64_multiplier_double);
 
         // Convert most significant digit to double (either 0 or 1)
         vcvtdq2pd(v_msb_high_double, y_msb_high_double);
@@ -1045,11 +1043,9 @@ void MersenneTwisterGenerator<x64::avx2>::convertToOutputTypeMersenne() {
         // Create a double value of 2^31 for the most significant digit instead of -1
         const auto r64_multiplier_double = getReg64();
         const auto v_multiplier_double = getVmm();
-        const auto x_multiplier_double = Xbyak::Xmm(v_multiplier_double.getIdx());
 
         mov(r64_multiplier_double, 0x41E0000000000000); // 2^31 in IEEE 754 double format
-        vmovq(x_multiplier_double, r64_multiplier_double);
-        vbroadcastsd(v_multiplier_double, x_multiplier_double);
+        vpbroadcastq(v_multiplier_double, r64_multiplier_double);
 
         // Convert most significant digit to double (either 0 or 1)
         vcvtdq2pd(v_msb_high_double, x_msb_high_double);
@@ -1302,8 +1298,7 @@ template class MersenneTwisterGenerator<x64::sse41>;
 #undef INIT_16_ELEM_T_ARR
 #undef INIT_8_ELEM_T_ARR
 #undef INIT_1_ELEM_T_VAL
-#undef BROADCAST_MERSENNE_PARAM
-#undef BROADCAST_PHILOX_PARAM
+#undef BROADCAST_PARAM
 #undef BROADCAST_CONSTANT
 #undef GET_MERSENNE_OFFSET
 #undef GET_PHILOX_OFFSET
