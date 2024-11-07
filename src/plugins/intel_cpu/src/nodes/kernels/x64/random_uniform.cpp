@@ -1007,9 +1007,11 @@ void MersenneTwisterGenerator<x64::avx2>::convertToOutputTypeMersenne() {
         // Create a double value of 2^31 for the most significant digit instead of -1
         const auto r64_multiplier_double = getReg64();
         const auto v_multiplier_double = getVmm();
+        const auto x_multiplier_double = Xbyak::Xmm(v_multiplier_double.getIdx());
 
         mov(r64_multiplier_double, 0x41E0000000000000); // 2^31 in IEEE 754 double format
-        vpbroadcastq(v_multiplier_double, r64_multiplier_double);
+        vmovq(x_multiplier_double, r64_multiplier_double);
+        vbroadcastsd(v_multiplier_double, x_multiplier_double);
 
         // Convert most significant digit to double (either 0 or 1)
         vcvtdq2pd(v_msb_high_double, x_msb_high_double);
