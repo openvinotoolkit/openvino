@@ -51,6 +51,59 @@ inline uint8_t hi4(uint8_t x) {
 inline uint8_t lo4(uint8_t x) {
     return x & 0xF;
 }
+
+inline uint8_t get_u4(uint8_t x, bool high) {
+    return high ? hi4(x) : lo4(x);
+}
+
+void unpack_nf4f16_scale(const ov::SoPtr<ov::ITensor>& from,
+                         const ov::SoPtr<ov::ITensor>& scale,
+                         const ov::SoPtr<ov::ITensor>& to,
+                         const ov::npuw::util::UnpackOptions& unpack_options) {
+    auto from_shape = from->get_shape();
+    auto scale_shape = scale->get_shape();
+
+    NPUW_ASSERT(from->is_continuous());
+    NPUW_ASSERT(to->is_continuous());
+    NPUW_ASSERT(scale->is_continuous());
+    NPUW_ASSERT(from->get_size() == to->get_size());
+    NPUW_ASSERT(from_shape[0] == scale_shape[0]);
+
+    const auto* from_ptr  = static_cast<const uint8_t*>(from->data());
+    const auto* scale_ptr = scale->data<ov::float16>();
+          auto* to_ptr    = to->data<ov::float16>();
+
+    ov::parallel_for(from->get_size(), [&](size_t idx) {
+        to_ptr[idx] = ov::ConvertNF4::dequantize(get_u4(from_ptr[idx / 2], idx % 2)) * scale_ptr[idx / from_shape[0]];
+    });
+}
+
+void unpack_nf4f16(const ov::SoPtr<ov::ITensor>& from,
+                   const ov::SoPtr<ov::ITensor>& to,
+                   const ov::npuw::util::UnpackOptions& unpack_options) {
+    NPUW_ASSERT(from->is_continuous());
+    NPUW_ASSERT(to->is_continuous());
+    NPUW_ASSERT(from->get_size() == to->get_size());
+
+    const auto* from_ptr  = static_cast<const uint8_t*>(from->data());
+          auto* to_ptr    = to->data<ov::float16>();
+
+    ov::parallel_for(from->get_size(), [&](size_t idx) {
+        to_ptr[idx] = ov::ConvertNF4::dequantize(get_u4(from_ptr[idx / 2], idx % 2));
+    });
+
+    //const auto size = from->get_size();
+    //ov::parallel_for(size / 2, [&](size_t idx) {
+        //const uint8_t nf4_2xval = from_ptr[idx];
+        //to_ptr[idx * 2    ] = ov::ConvertNF4::dequantize(hi4(nf4_2xval));
+        //to_ptr[idx * 2 + 1] = ov::ConvertNF4::dequantize(lo4(nf4_2xval));
+    //});
+
+    //if (size % 2) {
+        //to_ptr[size - 1] = ov::ConvertNF4::dequantize(hi4(from_ptr[size / 2 + 1]));
+    //}
+}
+
 }  // namespace
 
 ov::Tensor ov::npuw::util::tensor_from_const(const std::shared_ptr<ov::Node>& node) {
@@ -82,6 +135,12 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
     auto type_from = from->get_element_type();
     auto type_to = to->get_element_type();
 
+    if (type_from == ov::element::nf4 &&
+        type_to   == ov::element::f16) {
+        unpack_nf4f16(from, to, unpack_options);
+        return;
+    }
+
     namespace ove = ov::element;
 #define CAST(x)    static_cast<int>((x).operator ove::Type_t())
 #define PAIR(f, t) (CAST(f) << 16 | CAST(t))
@@ -102,31 +161,6 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
 #undef HNDL
 #undef PAIR
 #undef CAST
-}
-
-static void unpack_nf4f16_scale(const ov::SoPtr<ov::ITensor>& from,
-                                const ov::SoPtr<ov::ITensor>& scale,
-                                const ov::SoPtr<ov::ITensor>& to,
-                                const ov::npuw::util::UnpackOptions& unpack_options) {
-    auto from_shape = from->get_shape();
-    auto scale_shape = scale->get_shape();
-
-    NPUW_ASSERT(from->is_continuous());
-    NPUW_ASSERT(to->is_continuous());
-    NPUW_ASSERT(scale->is_continuous());
-    NPUW_ASSERT(from->get_size() == to->get_size());
-    NPUW_ASSERT(from_shape[0] == scale_shape[0]);
-
-    const auto* from_ptr  = static_cast<const uint8_t*>(from->data());
-    const auto* scale_ptr = scale->data<ov::float16>();
-          auto* to_ptr    = to->data<ov::float16>();
-
-    ov::parallel_for(from->get_size() * 2, [&](size_t idx) {
-        const ov::float16 scale     = scale_ptr[idx / (2 * from_shape[0])];
-        const uint8_t     nf4_2xval = from_ptr[idx / 2];
-        to_ptr[idx / 2    ] = ov::ConvertNF4::dequantize(nf4_2xval & 0xF) * scale;
-        to_ptr[idx / 2 + 1] = ov::ConvertNF4::dequantize(nf4_2xval >> 4)  * scale;
-    });
 }
 
 void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
