@@ -121,7 +121,7 @@ jobs:
           # docker pull ${{ fromJSON(needs.docker.outputs.images).ov_build.manylinux2014_x86_64 }}
           docker run --rm -v $OPENVINO_REPO:/src -v $INSTALL_DIR:/install -w /src quay.io/pypa/manylinux2014_x86_64 /bin/bash -c "
             # steps
-            python3.11 -m pip install -r ./src/bindings/python/wheel/requirements-dev.txt --force-reinstall && \
+            python3.11 -m pip install -r /src/src/bindings/python/wheel/requirements-dev.txt --force-reinstall && \
             cmake -G ${CMAKE_GENERATOR} -DENABLE_CPPLINT=OFF -DENABLE_NCC_STYLE=OFF -DCMAKE_VERBOSE_MAKEFILE=ON -DBUILD_SHARED_LIBS=ON -DENABLE_WHEEL=ON -S /src -B /build && \
             cmake --build /build --parallel $(nproc) --config ${CMAKE_BUILD_TYPE} && \
             cmake -DCMAKE_INSTALL_PREFIX=/install -P /build/cmake_install.cmake --config ${CMAKE_BUILD_TYPE}
