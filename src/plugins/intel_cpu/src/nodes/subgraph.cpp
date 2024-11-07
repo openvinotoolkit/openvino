@@ -1011,7 +1011,8 @@ void Subgraph::SubgraphExecutor::repack_inputs(dnnl::stream strm, std::vector<Me
         auto& scratch_mem = m_requested_repackings[i].scratch_mem;
         if (requested_desc) {
             if (!scratch_mem || !scratch_mem->getDesc().isCompatible(*requested_desc)) {
-                scratch_mem = m_scratchpad->createScratchPadMem(requested_desc);
+                // scratch_mem = m_scratchpad->createScratchPadMem(requested_desc);
+                scratch_mem = std::make_shared<Memory>(strm.get_engine(), requested_desc);
                 std::cout << "scratch_mem is created for requested desc " << i << std::endl;
             }
             scratch_mem->load(*inMemPtrs[i]);
