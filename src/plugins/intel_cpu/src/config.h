@@ -51,8 +51,9 @@ struct Config {
     std::string device_id = {};
     float fcSparseWeiDecompressionRate = 1.0f;
     uint64_t fcDynamicQuantizationGroupSize = 32;
-    ov::element::Type kvCachePrecision = ov::element::f16;
+    ov::element::Type kvCachePrecision = ov::element::u8;
     bool fcDynamicQuantizationGroupSizeSetExplicitly = false;
+    bool kvCachePrecisionSetExplicitly = false;
 #if defined(OV_CPU_WITH_ACL)
     bool aclFastMath = false;
 #endif
