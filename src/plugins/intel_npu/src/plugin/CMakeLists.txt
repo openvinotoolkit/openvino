@@ -9,10 +9,11 @@ set(NPU_PLUGIN_TARGET "openvino_intel_npu_plugin")
 set(NPU_PLUGIN_ENGINE_SOURCE_FILE "src/plugin.cpp")
 set(TARGET_NAME ${NPU_PLUGIN_TARGET})
 
+ov_enable_aslr()
+
 #
 # Plugin library
 #
-
 ov_add_plugin(NAME ${NPU_PLUGIN_TARGET}
     DEVICE_NAME ${NPU_DEVICE_NAME}
     SOURCES ${SOURCES} ${NPUW_SOURCES}
@@ -78,15 +79,3 @@ cross_compiled_file(${TARGET_NAME}
 )
 
 ov_add_api_validator_post_build_step(TARGET ${NPU_PLUGIN_TARGET})
-
-# Ensure ASLR flags are set for this target
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    target_compile_options(${NPU_PLUGIN_TARGET} PRIVATE -fPIC)
-    target_link_options(${NPU_PLUGIN_TARGET} PRIVATE -pie)
-elseif(CMAKE_SYSTEM_NAME STREQUAL "Windows")
-    target_compile_options(${NPU_PLUGIN_TARGET} PRIVATE /DYNAMICBASE)
-    target_link_options(${NPU_PLUGIN_TARGET} PRIVATE /DYNAMICBASE)
-elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-    target_compile_options(${NPU_PLUGIN_TARGET} PRIVATE -fPIC)
-    target_link_options(${NPU_PLUGIN_TARGET} PRIVATE -pie)
-endif()

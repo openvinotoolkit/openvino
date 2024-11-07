@@ -184,6 +184,62 @@ macro(ov_arm_neon_optimization_flags flags)
     endif()
 endmacro()
 
+# Macro to enable ASLR support
+macro(ov_enable_aslr)
+    if(UNIX)
+        # Linux-specific settings
+        set(ASLR_FLAGS "-fPIC")
+        set(LINKER_FLAGS "-Wl,-z,relro,-z,now")
+
+        # Ensure Position Independent Code (PIC) for ASLR compatibility
+        set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ASLR_FLAGS}")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ASLR_FLAGS}")
+        set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${ASLR_FLAGS}")
+        set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} ${ASLR_FLAGS}")
+        set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -pie")
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pie")
+
+        # Security-related linker flags for ASLR on Linux
+        set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${LINKER_FLAGS}")
+
+        # Define a preprocessor macro to indicate ASLR support for Linux
+        add_definitions(-DENABLE_ASLR_SUPPORT)
+
+        # Ensure the kernel's randomize_va_space is set to 2 for full ASLR
+        execute_process(
+            COMMAND sysctl -w kernel.randomize_va_space=2
+            RESULT_VARIABLE result
+            ERROR_VARIABLE error_output
+            OUTPUT_VARIABLE output
+        )
+
+        message(STATUS "ASLR support added for Linux: PIC enabled and security flags set.")
+        
+    elseif(WIN32)
+        # Windows-specific settings
+        set(ASLR_FLAGS "/DYNAMICBASE /NXCOMPAT")
+
+        # Set the appropriate flags for Windows
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ASLR_FLAGS}")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ASLR_FLAGS}")
+        set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${ASLR_FLAGS}")
+        set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} ${ASLR_FLAGS}")
+
+        set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${ASLR_FLAGS}")
+        set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} ${ASLR_FLAGS}")
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${ASLR_FLAGS}")
+
+        # Define a preprocessor macro to indicate ASLR support for Windows
+        add_definitions(-DENABLE_ASLR_SUPPORT)
+
+        message(STATUS "ASLR support added for Windows: /DYNAMICBASE and /NXCOMPAT enabled.")
+    endif()
+endmacro()
+
+# Call the macro to enable ASLR support
+ov_enable_aslr()
+
 #
 # ov_arm_neon_fp16_optimization_flags(<output flags>)
 #
