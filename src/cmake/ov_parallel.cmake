@@ -256,6 +256,7 @@ macro(ov_find_package_openmp)
     # check if Intel OpenMP is downloaded and override system library
     if(THREADING STREQUAL "OMP")
         if(INTEL_OMP)
+            message("DEBUG src/cmake/ov_parallel INTEL_OMP TARGET_NAME: ${TARGET_NAME}")
             if(WIN32)
                 set(iomp_lib_name libiomp5md)
             else()
@@ -296,6 +297,7 @@ macro(ov_find_package_openmp)
 
             # create imported target
             if(NOT TARGET IntelOpenMP::OpenMP_CXX)
+                message("DEBUG src/cmake/ov_parallel IntelOpenMP TARGET_NAME: ${TARGET_NAME}")
                 add_library(IntelOpenMP::OpenMP_CXX SHARED IMPORTED)
                 set_property(TARGET IntelOpenMP::OpenMP_CXX APPEND PROPERTY
                     IMPORTED_CONFIGURATIONS ${iomp_imported_configurations})

@@ -54,6 +54,7 @@ find_package(OpenVINODeveloperScripts REQUIRED
 include(cmake/features.cmake)
 
 # These options are shared with 3rdparty plugins by means of developer package
+message("DEBUG CMakeList dependencies")
 include(cmake/dependencies.cmake)
 
 if(ENABLE_COVERAGE)

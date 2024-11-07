@@ -6,6 +6,7 @@ cmake_policy(SET CMP0054 NEW)
 
 # TODO: fix it, outside of source dir MO cannot find TBB dependency
 ov_set_temp_directory(TEMP "${CMAKE_SOURCE_DIR}")
+message("DEBUG cmake/dependencies TEMP: ${TEMP}; THREADING: ${THREADING}")
 
 ## Intel OMP package
 if(THREADING STREQUAL "OMP")
@@ -19,6 +20,7 @@ if(THREADING STREQUAL "OMP")
     endif()
 
     if(ENABLE_INTEL_OPENMP)
+        message("DEBUG cmake/dependencies ENABLE_INTEL_OPENMP")
         reset_deps_cache(OMP)
         if(WIN32 AND X86_64)
             RESOLVE_DEPENDENCY(INTEL_OMP
@@ -29,6 +31,7 @@ if(THREADING STREQUAL "OMP")
                     SHA256 "62c68646747fb10f19b53217cb04a1e10ff93606f992e6b35eb8c31187c68fbf"
                     USE_NEW_LOCATION TRUE)
         elseif(LINUX AND X86_64 AND OPENVINO_GNU_LIBC)
+            message("DEBUG cmake/dependencies RESOLVE_DEPENDENCY")
             RESOLVE_DEPENDENCY(INTEL_OMP
                     ARCHIVE_LIN "iomp.tgz"
                     TARGET_PATH "${TEMP}/omp"
@@ -47,6 +50,7 @@ if(THREADING STREQUAL "OMP")
         endif()
 
         if(INTEL_OMP)
+            message("DEBUG cmake/dependencies INTEL_OMP install")
             update_deps_cache(INTEL_OMP "${INTEL_OMP}" "Path to OMP root folder")
             debug_message(STATUS "intel_omp=" ${INTEL_OMP})
 

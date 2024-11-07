@@ -109,7 +109,7 @@
 @PACKAGE_INIT@
 
 set(OpenVINO_GLIBCXX_USE_CXX11_ABI "@OV_GLIBCXX_USE_CXX11_ABI@")
-
+message("DEBUG cmake/templates/OpenVINOConfig TARGET_NAME: ${TARGET_NAME}")
 #
 # Common functions
 #
@@ -157,8 +157,42 @@ macro(_ov_find_openmp)
 
     if(_ov_threading STREQUAL "OMP")
         if(_ov_enable_intel_omp)
-            # TODO: write code to import iomp libraries
+            message("DEBUG cmake/templates/OpenVINOConfig _ov_enable_intel_omp CMAKE_FIND_PACKAGE_NAME: ${CMAKE_FIND_PACKAGE_NAME}")
+            if(WIN32)
+                set(iomp_lib_name libiomp5md)
+            else()
+                set(iomp_lib_name iomp5)
+            endif()
+
+            set(lib_rel_path ${INTEL_OMP}/lib)
+            set(lib_dbg_path ${lib_rel_path})
+
+            find_library(INTEL_OMP_LIBRARIES_RELEASE NAMES ${iomp_lib_name} PATHS ${lib_rel_path} REQUIRED NO_DEFAULT_PATH)
+            list(APPEND iomp_imported_configurations RELEASE)
+
+            # create imported target
+            if(NOT TARGET IntelOpenMP::OpenMP_CXX)
+                message("DEBUG cmake/templates/OpenVINOConfig NOT TARGET IntelOpenMP::OpenMP_CXX")
+                add_library(IntelOpenMP::OpenMP_CXX SHARED IMPORTED)
+                set_property(TARGET IntelOpenMP::OpenMP_CXX APPEND PROPERTY
+                    IMPORTED_CONFIGURATIONS ${iomp_imported_configurations})
+                set_target_properties(IntelOpenMP::OpenMP_CXX PROPERTIES
+                    # reuse standard OpenMP compiler flags
+                    INTERFACE_COMPILE_OPTIONS ${OpenMP_CXX_FLAGS}
+                    # location of release library (both .dll and lib.)
+                    IMPORTED_LOCATION_RELEASE "${INTEL_OMP_LIBRARIES_RELEASE}"
+                    ${iomp_implib_location_release}
+                    # the same for debug libs
+                    ${iomp_imported_locations_debug}
+                    # linker flags to override system OpenMP
+                    ${iomp_link_flags}
+                    # map imported configurations if required
+                    ${iomp_map_imported_debug_configuration}
+                    MAP_IMPORTED_CONFIG_MINSIZEREL Release
+                    MAP_IMPORTED_CONFIG_RELWITHDEBINFO Release)
+            endif()
         else()
+            message("DEBUG cmake/templates/OpenVINOConfig _ov_threading")
             _ov_find_dependency(OpenMP)
         endif()
     endif()
@@ -604,6 +638,7 @@ if(Threading IN_LIST ${CMAKE_FIND_PACKAGE_NAME}_FIND_COMPONENTS AND NOT TARGET o
     if(TARGET TBB::tbb)
         set(_ov_threading_lib TBB::tbb)
     elseif(TARGET IntelOpenMP::OpenMP_CXX)
+        message("DEBUG cmake/templates/OpenVINOConfig IntelOpenMP")
         set(_ov_threading_lib IntelOpenMP::OpenMP_CXX)
     elseif(TARGET OpenMP::OpenMP_CXX)
         set(_ov_threading_lib OpenMP::OpenMP_CXX)

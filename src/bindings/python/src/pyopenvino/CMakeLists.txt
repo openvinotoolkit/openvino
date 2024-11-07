@@ -59,7 +59,9 @@ endif()
 file(GLOB_RECURSE SOURCES core/*.cpp experimental/*.cpp graph/*.cpp frontend/*.cpp utils/*.cpp pyopenvino.cpp)
 list(FILTER SOURCES EXCLUDE REGEX ".*(frontend/(onnx|tensorflow|paddle|pytorch|jax))/*")
 
+message("DEBUG src/pyopenvino/CMakeLists 0 pybind11_add_module")
 pybind11_add_module(${PROJECT_NAME} MODULE NO_EXTRAS ${SOURCES})
+message("DEBUG src/pyopenvino/CMakeLists 1 pybind11_add_module")
 
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
 
@@ -69,7 +71,9 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO}
     OUTPUT_NAME "_pyopenvino")
 
+message("DEBUG src/pyopenvino/CMakeLists 0 ov_add_version_defines pyopenvino.cpp")
 ov_add_version_defines(pyopenvino.cpp ${PROJECT_NAME})
+message("DEBUG src/pyopenvino/CMakeLists 1 ov_add_version_defines pyopenvino.cpp")
 
 if(OV_GENERATOR_MULTI_CONFIG)
     string(APPEND _cmd_echo
@@ -87,20 +91,24 @@ if(OV_GENERATOR_MULTI_CONFIG)
         COMMAND_EXPAND_LISTS)
 endif()
 
+message("DEBUG src/pyopenvino/CMakeLists 0 add_custom_command")
 # perform copy
 add_custom_command(TARGET ${PROJECT_NAME}
         POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory ${OpenVINOPython_SOURCE_DIR}/src/openvino ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
         COMMAND ${CMAKE_COMMAND} -E copy ${OpenVINOPython_SOURCE_DIR}/requirements.txt ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../requirements.txt
         )
+message("DEBUG src/pyopenvino/CMakeLists 1 add_custom_command")
 
 ov_python_minimal_api(${PROJECT_NAME})
 ov_add_clang_format_target(${PROJECT_NAME}_clang FOR_TARGETS ${PROJECT_NAME})
 
+message("DEBUG src/pyopenvino/CMakeLists 2")
 # install steps
 
 ov_cpack_add_component(${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion}
                         HIDDEN)
+message("DEBUG src/pyopenvino/CMakeLists 3")
 
 install(DIRECTORY ${OpenVINOPython_SOURCE_DIR}/src/openvino
         DESTINATION ${OV_CPACK_PYTHONDIR}
@@ -109,6 +117,7 @@ install(DIRECTORY ${OpenVINOPython_SOURCE_DIR}/src/openvino
         USE_SOURCE_PERMISSIONS
         PATTERN "test_utils" EXCLUDE
         PATTERN "torchvision/requirements.txt" EXCLUDE)
+message("DEBUG src/pyopenvino/CMakeLists 4")
 
 install(TARGETS ${PROJECT_NAME}
         DESTINATION ${OV_CPACK_PYTHONDIR}/openvino
@@ -142,3 +151,4 @@ install(DIRECTORY ${OpenVINOPython_SOURCE_DIR}/tests
 if(TARGET ie_wheel)
     add_dependencies(ie_wheel ${PROJECT_NAME})
 endif()
+message("DEBUG src/pyopenvino/CMakeLists 10")
