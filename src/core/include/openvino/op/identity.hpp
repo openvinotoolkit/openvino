@@ -8,13 +8,13 @@
 
 namespace ov {
 namespace op {
-namespace v15 {
+namespace v16 {
 /// \brief Identity operation is used as a placeholder op.
 ///
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Identity : public Op {
 public:
-    OPENVINO_OP("Identity", "opset15");
+    OPENVINO_OP("Identity", "opset16");
     Identity() = default;
     /**
      * @brief Identity operation is used as a placeholder. It copies the tensor data to the output.
@@ -25,6 +25,6 @@ public:
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 };
-}  // namespace v15
+}  // namespace v16
 }  // namespace op
 }  // namespace ov

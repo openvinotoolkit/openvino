@@ -15,7 +15,11 @@ namespace reference {
  * @param output Output matrix (matrices) pointer.
  **/
 static inline void identity(const char* input, char* output, const size_t size_in_bytes) {
-    std::memcpy(output, input, size_in_bytes);
+    if (input == output) {
+        return;
+    } else {
+        std::memcpy(output, input, size_in_bytes);
+    }
 }
 }  // namespace reference
 }  // namespace ov

@@ -14,7 +14,7 @@
 
 namespace ov {
 namespace op {
-namespace v15 {
+namespace v16 {
 
 Identity::Identity(const Output<Node>& data) : Op({data}) {
     constructor_validate_and_infer_types();
@@ -28,17 +28,18 @@ bool Identity::Identity::visit_attributes(AttributeVisitor& visitor) {
 void Identity::Identity::validate_and_infer_types() {
     OV_OP_SCOPE(v15_Identity_validate_and_infer_types);
 
-    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
+    NODE_VALIDATION_CHECK(this, get_input_size() == 1);
+    NODE_VALIDATION_CHECK(this, get_output_size() != 0);
 
-    set_output_type(0, get_input_element_type(0), input_shapes[0]);
+    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
 std::shared_ptr<Node> Identity::Identity::clone_with_new_inputs(const OutputVector& new_args) const {
-    OV_OP_SCOPE(v15_Identity_clone_with_new_inputs);
+    OV_OP_SCOPE(v16_Identity_clone_with_new_inputs);
     check_new_args_count(this, new_args);
 
     return std::make_shared<Identity>(new_args.at(0));
 }
-}  // namespace v15
+}  // namespace v16
 }  // namespace op
 }  // namespace ov
