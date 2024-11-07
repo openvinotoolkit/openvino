@@ -47,8 +47,11 @@ public:
         ov::AnyMap properties = {ov::hint::inference_precision(ov::element::f16),
                                  ov::intel_gpu::hint::enable_sdpa_optimization(true)};
 
-        if (p.compressed)
+        if (p.compressed) {
             properties.emplace(ov::hint::kv_cache_precision(ov::element::i8));
+        } else {
+            properties.emplace(ov::hint::kv_cache_precision(ov::element::undefined));
+        }
 
         const size_t n_heads = 16;
         const size_t n_features = 64;

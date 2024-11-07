@@ -141,6 +141,9 @@ JitConstants DynamicQuantizeKernelKVCache::GetJitConstants(const dynamic_quantiz
     jit.AddConstant(MakeJitConstant("ASYMMETRIC_QUANTIZATION", params.use_asymmetric_quantization));
     jit.AddConstant(MakeJitConstant("GROUP_SCALES_WITH_ZP", params.combine_scales_and_zp));
 
+    // Use FP32 accumulator type for scale/zp calculation
+    jit.Merge(MakeTypeJitConstants(Datatype::F32, "ACCUMULATOR"));
+
     bool rearrange_scales_order = false;
     const auto& scales_output_order = params.scales_output_order;
     if (!scales_output_order.empty()) {
