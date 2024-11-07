@@ -5,8 +5,8 @@
 import logging
 from typing import List, Optional
 
-from openvino.runtime import AxisSet, Node
-from openvino.runtime.utils.types import (
+from openvino._pyopenvino import AxisSet, Node
+from openvino.utils.types import (
     NodeInput,
     TensorShape,
     get_dtype,

@@ -9,7 +9,7 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type
 
 import numpy as np
 
-from openvino.runtime.exceptions import UserInputError
+from openvino.exceptions import UserInputError
 
 log = logging.getLogger(__name__)
 
