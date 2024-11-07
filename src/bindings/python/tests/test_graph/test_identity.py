@@ -5,7 +5,7 @@
 import numpy as np
 import pytest
 
-import openvino.runtime.opset15 as ops
+import openvino.runtime.opset16 as ops
 from openvino import PartialShape, Type
 
 
@@ -18,7 +18,7 @@ from openvino import PartialShape, Type
         ([10, -1, -1], PartialShape([10, -1, -1])),
     ],
 )
-@pytest.mark.parametrize("op_name", ["identity", "identityOpset15"])
+@pytest.mark.parametrize("op_name", ["identity", "identityOpset16"])
 def test_inverse_param_inputs(input_shape, expected_output_shape, op_name):
     data = ops.parameter(input_shape, dtype=np.float32)
 
