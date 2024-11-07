@@ -107,7 +107,7 @@ jobs:
           popd
 
       - name: Cmake build - OpenVINO with Coverity
-        run: ${COVERITY_TOOL_DIR}/cov-analysis*/bin/cov-build --dir ${BUILD_DIR}/cov-int cmake --build ${BUILD_DIR} --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }}
+        run: ${COVERITY_TOOL_DIR}/cov-analysis*/bin/cov-build --dir ${BUILD_DIR}/cov-int cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }}
 
       - name: Pack Artefacts
         run: |
