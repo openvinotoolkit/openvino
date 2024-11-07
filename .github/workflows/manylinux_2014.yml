@@ -119,7 +119,7 @@ jobs:
       - name: Build (inside container)
         run: |
           # docker pull ${{ fromJSON(needs.docker.outputs.images).ov_build.manylinux2014_x86_64 }}
-          docker run --rm -v $OPENVINO_REPO:/src -v $INSTALL_DIR:/install -w /src quay.io/pypa/manylinux2014_x86_64 /bin/bash -c "
+          docker run --rm -v ${{ env.OPENVINO_REPO }}:/src -v ${{ env.INSTALL_DIR }}:/install -w /src quay.io/pypa/manylinux2014_x86_64 /bin/bash -c "
             # steps
             ls -la /src &&
             python3.11 -m pip install -r /src/src/bindings/python/wheel/requirements-dev.txt --force-reinstall && \
