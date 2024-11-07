@@ -5,7 +5,7 @@
 #include "include/batch_headers/fetch_data.cl"
 
 KERNEL(search_sorted_ref)(const __global INPUT0_TYPE* sorted, 
-                          const __global INPUT1_TYPE* values,
+                          const __global INPUT0_TYPE* values,
                           __global OUTPUT_TYPE* output)
 {
 

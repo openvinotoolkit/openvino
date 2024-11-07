@@ -18,25 +18,11 @@ JitConstants SearchSortedKernelBase::GetJitConstants(const search_sorted_params&
 }
 
 SearchSortedKernelBase::DispatchData SearchSortedKernelBase::SetDefault(const search_sorted_params& params) {
-    const auto& input = params.inputs[0];
-    auto in_layout = params.inputs[0].GetLayout();
-    auto out_layout = params.outputs[0].GetLayout();
-    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
-
     DispatchData dispatchData;
-    if (params.outputs[0].GetDims().size() == 5) {
-        dispatchData.gws = {input.Batch().v, input.Feature().v * input.Z().v, input.Y().v * input.X().v};
-        dims_by_gws = {{Tensor::DataChannelName::BATCH},
-                       {Tensor::DataChannelName::Z, Tensor::DataChannelName::FEATURE},
-                       {Tensor::DataChannelName::X, Tensor::DataChannelName::Y}};
-    } else {
-        dispatchData.gws = {input.Batch().v, input.Feature().v, input.Y().v * input.X().v};
-        dims_by_gws = {{Tensor::DataChannelName::BATCH},
-                       {Tensor::DataChannelName::FEATURE},
-                       {Tensor::DataChannelName::X, Tensor::DataChannelName::Y}};
-    }
-    dispatchData.lws =
-        GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
+    dispatchData.gws[0] = params.outputs[0].LogicalSize();
+    dispatchData.gws[1] = 1;
+    dispatchData.gws[2] = 1;
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
     return dispatchData;
 }
@@ -54,7 +40,7 @@ KernelsData SearchSortedKernelBase::GetCommonKernelsData(const Params& params) c
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = k_data.kernels[0];
-    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
+    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point, "", false, false, 2);
 
     return {k_data};
 }

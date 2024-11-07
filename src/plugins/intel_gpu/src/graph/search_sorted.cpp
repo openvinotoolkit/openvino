@@ -27,7 +27,8 @@ std::vector<layout> search_sorted_inst::calc_output_layouts(search_sorted_node c
 
     auto input0_layout = impl_param.get_input_layout(0);
     auto input1_layout = impl_param.get_input_layout(1);
-    auto output_layout = impl_param.get_output_layout(0);
+
+    const data_types output_type = impl_param.desc->output_data_types[0].value_or(data_types::i64);
 
     std::vector<ShapeType> input_shapes = {
         input0_layout.get<ShapeType>(),  // sorted shape
@@ -40,7 +41,7 @@ std::vector<layout> search_sorted_inst::calc_output_layouts(search_sorted_node c
     op.set_right_mode(primitive->right_mode);
     output_shapes = shape_infer(&op, input_shapes);
 
-    return {layout{output_shapes[0], output_layout.data_type, output_layout.format}};
+    return {layout{output_shapes[0], output_type, input1_layout.format}};
 }
 
 std::string search_sorted_inst::to_string(search_sorted_node const& node) {

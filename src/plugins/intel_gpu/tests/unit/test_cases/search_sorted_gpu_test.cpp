@@ -80,7 +80,7 @@ public:
             helpers::AllocateTensor<T>(testParam.sortedShape, helpers::ConverFloatVector<T>(testParam.sortedData));
         ret.values =
             helpers::AllocateTensor<T>(testParam.valuesShape, helpers::ConverFloatVector<T>(testParam.valuesData));
-        ret.values = helpers::AllocateTensor<int64_t>(testParam.valuesShape, testParam.expectedOutput);
+        ret.expectedOutput = helpers::AllocateTensor<int64_t>(testParam.valuesShape, testParam.expectedOutput);
 
         return ret;
     }
@@ -91,7 +91,7 @@ public:
 
         topology topology;
         topology.add(input_layout("sorted", params.sorted->get_layout()));
-        topology.add(input_layout("values", params.sorted->get_layout()));
+        topology.add(input_layout("values", params.values->get_layout()));
         topology.add(search_sorted("search_sorted", input_info("sorted"), input_info("values"), params.rightMode));
 
         cldnn::network::ptr network = get_network(engine_, topology, get_test_default_config(engine_), stream, false);
@@ -103,8 +103,8 @@ public:
         auto outputs = network->execute();
 
         auto output = outputs.at("search_sorted").get_memory();
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
-        cldnn::mem_lock<float> wanted_output_ptr(params.expectedOutput, get_test_stream());
+        cldnn::mem_lock<int64_t> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<int64_t> wanted_output_ptr(params.expectedOutput, get_test_stream());
 
         ASSERT_EQ(output->get_layout(), params.expectedOutput->get_layout());
         ASSERT_EQ(output_ptr.size(), wanted_output_ptr.size());
