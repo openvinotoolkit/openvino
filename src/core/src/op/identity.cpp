@@ -21,12 +21,12 @@ Identity::Identity(const Output<Node>& data) : Op({data}) {
 }
 
 bool Identity::Identity::visit_attributes(AttributeVisitor& visitor) {
-    OV_OP_SCOPE(v15_Identity_visit_attributes);
+    OV_OP_SCOPE(v16_Identity_visit_attributes);
     return true;
 }
 
 void Identity::Identity::validate_and_infer_types() {
-    OV_OP_SCOPE(v15_Identity_validate_and_infer_types);
+    OV_OP_SCOPE(v16_Identity_validate_and_infer_types);
 
     NODE_VALIDATION_CHECK(this, get_input_size() == 1);
     NODE_VALIDATION_CHECK(this, get_output_size() != 0);
