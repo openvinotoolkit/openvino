@@ -71,6 +71,19 @@ std::vector<layout> one_hot_inst::calc_output_layouts(const one_hot_node& /*node
     std::unordered_map<size_t, ov::Tensor> const_data = {
         {1, depth_tensor}
     };
+
+    auto& memory_deps = impl_param.memory_deps;
+    if (memory_deps.count(1) > 0) {
+        auto depth_mem = memory_deps.at(1);
+
+        cldnn::mem_lock<uint8_t, mem_lock_type::read> depth_lock(depth_mem, impl_param.get_stream());
+        auto depth_ptr = depth_lock.data();
+
+        // update depth_tensor if depth value comes from memory_deps instead of Constant node
+        auto depth_tensor = make_tensor(depth_mem->get_layout(), depth_ptr);
+        const_data[1] = depth_tensor;
+    }
+
     std::vector<ShapeType> output_shapes =
         ov::op::v1::shape_infer(&op, input_shapes, ov::make_tensor_accessor(const_data));
     return {{output_shapes[0], dt, format::get_default_format(output_shapes[0].size())}};
