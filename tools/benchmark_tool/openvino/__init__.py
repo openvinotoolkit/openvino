@@ -27,30 +27,30 @@ from openvino import utils as utils
 from openvino import properties as properties
 
 # Import most important classes and functions from openvino.runtime
-from openvino.runtime import Model
-from openvino.runtime import Core
-from openvino.runtime import CompiledModel
-from openvino.runtime import InferRequest
-from openvino.runtime import AsyncInferQueue
+from openvino.ie_api import Model
+from openvino.ie_api import Core
+from openvino.ie_api import CompiledModel
+from openvino.ie_api import InferRequest
+from openvino.ie_api import AsyncInferQueue
 
-from openvino.runtime import Symbol
-from openvino.runtime import Dimension
-from openvino.runtime import Strides
-from openvino.runtime import PartialShape
-from openvino.runtime import Shape
-from openvino.runtime import Layout
-from openvino.runtime import Type
-from openvino.runtime import Tensor
-from openvino.runtime import OVAny
+from openvino._pyopenvino import Symbol
+from openvino._pyopenvino import Dimension
+from openvino._pyopenvino import Strides
+from openvino._pyopenvino import PartialShape
+from openvino._pyopenvino import Shape
+from openvino._pyopenvino import Layout
+from openvino._pyopenvino import Type
+from openvino._pyopenvino import Tensor
+from openvino._pyopenvino import OVAny
 
-from openvino.runtime import compile_model
-from openvino.runtime import get_batch
-from openvino.runtime import set_batch
-from openvino.runtime import serialize
-from openvino.runtime import shutdown
-from openvino.runtime import tensor_from_file
-from openvino.runtime import save_model
-from openvino.runtime import layout_helpers
+from openvino.ie_api import compile_model
+from openvino._pyopenvino import get_batch
+from openvino._pyopenvino import set_batch
+from openvino._pyopenvino import serialize
+from openvino._pyopenvino import shutdown
+from openvino.ie_api import tensor_from_file
+from openvino._pyopenvino import save_model
+from openvino._pyopenvino import layout_helpers
 
 from openvino._pyopenvino import RemoteContext
 from openvino._pyopenvino import RemoteTensor
@@ -61,7 +61,7 @@ from openvino._pyopenvino import VAContext
 from openvino._pyopenvino import VASurfaceTensor
 
 # Set version for openvino package
-from openvino.runtime import get_version
+from openvino._pyopenvino import get_version
 __version__ = get_version()
 
 # Tools

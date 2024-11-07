@@ -6,14 +6,13 @@
 # noqa: F401
 
 import warnings
-
 warnings.simplefilter('always', DeprecationWarning)
 
 warnings.warn(
-    'The `openvino.runtime` module is deprecated and will be removed in the 2026.0 release. '
-    'Please replace `openvino.runtime` with `openvino` after 25.1 release.',
-    DeprecationWarning,
-    stacklevel=2
+'The `openvino.runtime` module is deprecated and will be removed in the 2026.0 release. '
+'Please replace `openvino.runtime` with `openvino` after 25.1 release.',
+DeprecationWarning,
+stacklevel=2
 )
 
 from openvino._pyopenvino import get_version
@@ -40,11 +39,11 @@ from openvino._pyopenvino import ConstOutput
 from openvino._pyopenvino import layout_helpers
 from openvino._pyopenvino import OVAny
 from openvino._pyopenvino import RTMap
-from openvino.runtime.ie_api import Core
-from openvino.runtime.ie_api import CompiledModel
-from openvino.runtime.ie_api import InferRequest
-from openvino.runtime.ie_api import Model
-from openvino.runtime.ie_api import AsyncInferQueue
+from openvino.ie_api import Core
+from openvino.ie_api import CompiledModel
+from openvino.ie_api import InferRequest
+from openvino.ie_api import Model
+from openvino.ie_api import AsyncInferQueue
 from openvino._pyopenvino import Version
 from openvino._pyopenvino import Tensor
 from openvino._pyopenvino import Extension
@@ -74,8 +73,9 @@ from openvino.runtime import opset13
 from openvino.runtime import properties
 
 # Helper functions for openvino module
-from openvino.runtime.ie_api import tensor_from_file
-from openvino.runtime.ie_api import compile_model
+from openvino.ie_api import tensor_from_file
+from openvino.ie_api import compile_model
+from openvino import ie_api as ie_api
 
 from openvino.utils import deprecated
 
