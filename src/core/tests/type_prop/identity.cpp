@@ -15,9 +15,9 @@ using namespace testing;
 namespace ov {
 namespace test {
 
-class TypePropIdentityV15Test : public TypePropOpTest<op::v15::Identity> {};
+class TypePropIdentityV16Test : public TypePropOpTest<op::v16::Identity> {};
 
-TEST_F(TypePropIdentityV15Test, default_ctor) {
+TEST_F(TypePropIdentityV16Test, default_ctor) {
     const auto data = op::v0::Constant::create(element::f64, Shape{2, 2}, {1.0f, 1.0f, 1.0f, 1.0f});
     const auto op = make_op();
     op->set_arguments(OutputVector{data});
@@ -29,7 +29,7 @@ TEST_F(TypePropIdentityV15Test, default_ctor) {
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({2, 2}));
 }
 
-TEST_F(TypePropIdentityV15Test, input_data_ctor) {
+TEST_F(TypePropIdentityV16Test, input_data_ctor) {
     const auto data = op::v0::Constant::create(element::i64, Shape{1, 2}, {1.0f, 1.0f});
     const auto op = make_op(data);
 
