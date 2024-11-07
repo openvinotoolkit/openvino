@@ -128,14 +128,14 @@ jobs:
             -v ov_build_cache:/work/build \
             -v ${INSTALL_DIR}:/work/install \
             -w /work/src \
+            -e PATH="${{ env.PYTHON}}:$PATH" \
             quay.io/pypa/manylinux2014_x86_64 \
             /bin/bash -c "
-              ln -s ${{ env.PYTHON}} /usr/bin/python3
               python3 -m pip install -r /work/src/src/bindings/python/wheel/requirements-dev.txt --force-reinstall &&
               cmake -DENABLE_CPPLINT=OFF -DENABLE_NCC_STYLE=OFF -DCMAKE_VERBOSE_MAKEFILE=ON -DBUILD_SHARED_LIBS=ON -DENABLE_WHEEL=ON -S /work/src -B /work/build &&
               cmake --build /work/build --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }}"
         env:
-          PYTHON: /opt/python/cp39-cp39/bin/python
+          PYTHON: /opt/python/cp39-cp39/bin
       #
       # Build
       #
