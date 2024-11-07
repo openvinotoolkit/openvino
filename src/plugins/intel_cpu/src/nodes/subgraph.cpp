@@ -91,8 +91,8 @@ public:
         auto initializer = [&](jit_snippets_call_args& call_args, size_t ithr) {
             init_call_args(call_args, inMemPtrs, outMemPtrs, ithr);
         };
-        auto caller = [&](jit_snippets_call_args& call_args, const size_t* indexes) {
-            callable(&call_args, indexes);
+        auto caller = [&](jit_snippets_call_args& call_args, const std::vector<size_t>& indexes) {
+            callable(&call_args, indexes.data());
         };
 
         if (m_parallel_exec_domain.size() == rank6D) {
@@ -151,7 +151,7 @@ public:
         auto initializer = [&](jit_snippets_call_args& call_args, size_t ithr) {
             init_call_args(call_args, ithr);
         };
-        auto caller = [&](jit_snippets_call_args& call_args, const size_t* indexes) {
+        auto caller = [&](jit_snippets_call_args& call_args, const std::vector<size_t>& indexes) {
             update_ptrs(call_args, src_ptrs, dst_ptrs, indexes);
             callable(&call_args);
         };
@@ -188,17 +188,17 @@ protected:
     }
 
     inline void update_ptrs(jit_snippets_call_args& call_args, const std::vector<const uint8_t*>& src_ptrs,
-                            const std::vector<uint8_t*>& dst_ptrs, const size_t* indexes) const {
+                            const std::vector<uint8_t*>& dst_ptrs, const std::vector<size_t>& indexes) const {
         for (size_t i = 0; i < src_ptrs.size(); i++) {
             auto i_ptr = src_ptrs[i];
-            for (size_t j = 0; j < data_offsets[i].size() - 1; j++) {
+            for (size_t j = 0; j < indexes.size(); j++) {
                 i_ptr += data_offsets[i][j] * indexes[j];
             }
             call_args.src_ptrs[i] = i_ptr;
         }
         for (size_t i = 0; i < dst_ptrs.size(); i++) {
             auto i_ptr = dst_ptrs[i];
-            for (size_t j = 0; j < data_offsets[i + src_ptrs.size()].size() - 1; j++) {
+            for (size_t j = 0; j < indexes.size(); j++) {
                 i_ptr += data_offsets[i + src_ptrs.size()][j] * indexes[j];
             }
             call_args.dst_ptrs[i] = i_ptr;
@@ -948,7 +948,7 @@ void Subgraph::SubgraphExecutor::segfault_detector() {
 #endif
 
 void Subgraph::SubgraphExecutor::parallel_for6d(const std::function<void(jit_snippets_call_args&, size_t)>& initializer,
-                                                const std::function<void(jit_snippets_call_args&, const size_t*)>& caller) {
+                                                const std::function<void(jit_snippets_call_args&, const std::vector<size_t>&)>& caller) {
     const auto& dom = m_parallel_exec_domain;
 
 #if defined(__linux__) && defined(OPENVINO_ARCH_X86_64) && defined(SNIPPETS_DEBUG_CAPS)
@@ -962,7 +962,7 @@ void Subgraph::SubgraphExecutor::parallel_for6d(const std::function<void(jit_sni
         size_t start = 0, end = 0;
         splitter(m_harness_work_amount, nthr, ithr, start, end);
 
-        size_t indexes[] = {0, 0, 0, 0, 0};
+        std::vector<size_t> indexes{0, 0, 0, 0, 0};
         parallel_it_init(start, indexes[0], dom[0], indexes[1], dom[1], indexes[2], dom[2], indexes[3], dom[3], indexes[4], dom[4]);
         for (size_t iwork = start; iwork < end; ++iwork) {
             caller(call_args, indexes);
@@ -972,7 +972,7 @@ void Subgraph::SubgraphExecutor::parallel_for6d(const std::function<void(jit_sni
 }
 
 void Subgraph::SubgraphExecutor::parallel_forNd(const std::function<void(jit_snippets_call_args&, size_t)>& initializer,
-                                                const std::function<void(jit_snippets_call_args&, const size_t*)>& caller) {
+                                                const std::function<void(jit_snippets_call_args&, const std::vector<size_t>&)>& caller) {
     const auto& dom = m_parallel_exec_domain;
 
 #if defined(__linux__) && defined(OPENVINO_ARCH_X86_64) && defined(SNIPPETS_DEBUG_CAPS)
@@ -994,7 +994,7 @@ void Subgraph::SubgraphExecutor::parallel_forNd(const std::function<void(jit_sni
                 tmp /= dom[j];
             }
 
-            caller(call_args, indexes.data());
+            caller(call_args, indexes);
         }
     });
 }

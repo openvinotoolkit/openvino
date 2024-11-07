@@ -136,9 +136,9 @@ protected:
     virtual void exec_impl(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) = 0;
 
     void parallel_for6d(const std::function<void(jit_snippets_call_args&, size_t)>& initializer,
-                        const std::function<void(jit_snippets_call_args&, const size_t*)>& caller);
+                        const std::function<void(jit_snippets_call_args&, const std::vector<size_t>&)>& caller);
     void parallel_forNd(const std::function<void(jit_snippets_call_args&, size_t)>& initializer,
-                        const std::function<void(jit_snippets_call_args&, const size_t*)>& caller);
+                        const std::function<void(jit_snippets_call_args&, const std::vector<size_t>&)>& caller);
 
     inline void update_scratchpad_ptr(void*& scratchpad_ptr, size_t ithr) const {
         if (m_buffer_scratchpad_size > 0)
