@@ -91,7 +91,7 @@ jobs:
       - name: Install OpenVINO Python wheels
         uses: ./action_root/.github/actions/install_ov_wheels
         with:
-          install-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
+          wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
           install-core-wheel: true
           install-dev-wheel: true
           extras-to-install: 'caffe,kaldi,onnx,tensorflow2,pytorch'
