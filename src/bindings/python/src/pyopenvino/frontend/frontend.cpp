@@ -20,13 +20,6 @@ namespace py = pybind11;
 
 using namespace ov::frontend;
 
-class MemoryBuffer : public std::streambuf {
-public:
-    MemoryBuffer(char* data, std::size_t size) {
-        setg(data, data, data + size);
-    }
-};
-
 void regclass_frontend_FrontEnd(py::module m) {
     py::class_<FrontEnd, std::shared_ptr<FrontEnd>> fem(m, "FrontEnd", py::dynamic_attr(), py::module_local());
     fem.doc() = "openvino.frontend.FrontEnd wraps ov::frontend::FrontEnd";
@@ -57,7 +50,7 @@ void regclass_frontend_FrontEnd(py::module m) {
             } else if (py::isinstance(py_obj, pybind11::module::import("io").attr("BytesIO"))) {
                 // support of BytesIO
                 py::buffer_info info = py::buffer(py_obj.attr("getbuffer")()).request();
-                MemoryBuffer mb(reinterpret_cast<char*>(info.ptr), info.size);
+                Common::utils::MemoryBuffer mb(reinterpret_cast<char*>(info.ptr), info.size);
                 std::istream _istream(&mb);
                 return self.load(&_istream, enable_mmap);
             } else {
