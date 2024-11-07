@@ -9,13 +9,13 @@ from typing import Optional, Union
 
 from functools import partial, singledispatch
 
-from openvino.runtime import Node, Type, PartialShape, Output, Shape
-from openvino.runtime.op import assign, Constant, Parameter
-from openvino.runtime.op import read_value as _read_value
-from openvino.runtime.op.util import VariableInfo, Variable
-from openvino.runtime.opset_utils import _get_node_factory
-from openvino.runtime.utils.decorators import nameable_op, overloading
-from openvino.runtime.utils.types import (
+from openvino._pyopenvino import Node, Type, PartialShape, Output, Shape
+from openvino.opsets.op import assign, Constant, Parameter
+from openvino.opsets.op import read_value as _read_value
+from openvino.opsets.op.util import VariableInfo, Variable
+from openvino.opsets.opset_utils import _get_node_factory
+from openvino.utils.decorators import nameable_op, overloading
+from openvino.utils.types import (
     NodeInput,
     NumericType,
     TensorShape,

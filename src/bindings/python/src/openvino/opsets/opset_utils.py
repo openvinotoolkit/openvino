@@ -5,10 +5,10 @@
 from typing import Optional
 import numpy as np
 
-from openvino.runtime import Node
-from openvino.runtime.utils.decorators import nameable_op
-from openvino.runtime.utils.node_factory import NodeFactory
-from openvino.runtime.utils.types import (
+from openvino._pyopenvino import Node
+from openvino.utils.decorators import nameable_op
+from openvino.utils.node_factory import NodeFactory
+from openvino.utils.types import (
     as_node,
     NodeInput,
 )

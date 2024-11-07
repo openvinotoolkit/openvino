@@ -7,12 +7,12 @@ from functools import partial
 from typing import List, Literal, Optional
 
 import numpy as np
-from openvino.runtime import Node, Type
-from openvino.runtime.opset1 import convert_like
-from openvino.runtime.opset14 import constant
-from openvino.runtime.opset_utils import _get_node_factory
-from openvino.runtime.utils.decorators import binary_op, nameable_op
-from openvino.runtime.utils.types import NodeInput, as_nodes
+from openvino._pyopenvino import Node, Type
+from openvino.opsets.opset1 import convert_like
+from openvino.opsets.opset14 import constant
+from openvino.opsets.opset_utils import _get_node_factory
+from openvino.utils.decorators import binary_op, nameable_op
+from openvino.utils.types import NodeInput, as_nodes
 
 _get_node_factory_opset15 = partial(_get_node_factory, "opset15")
 

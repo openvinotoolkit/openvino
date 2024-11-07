@@ -55,19 +55,23 @@ from openvino._pyopenvino import save_model
 from openvino._pyopenvino import shutdown
 
 # Import opsets
-from openvino.runtime import opset1
-from openvino.runtime import opset2
-from openvino.runtime import opset3
-from openvino.runtime import opset4
-from openvino.runtime import opset5
-from openvino.runtime import opset6
-from openvino.runtime import opset7
-from openvino.runtime import opset8
-from openvino.runtime import opset9
-from openvino.runtime import opset10
-from openvino.runtime import opset11
-from openvino.runtime import opset12
-from openvino.runtime import opset13
+from openvino.opsets import op
+from openvino.opsets import opset1
+from openvino.opsets import opset2
+from openvino.opsets import opset3
+from openvino.opsets import opset4
+from openvino.opsets import opset5
+from openvino.opsets import opset6
+from openvino.opsets import opset7
+from openvino.opsets import opset8
+from openvino.opsets import opset9
+from openvino.opsets import opset10
+from openvino.opsets import opset11
+from openvino.opsets import opset12
+from openvino.opsets import opset13
+from openvino.opsets import opset14
+from openvino.opsets import opset15
+from openvino.opsets import opset_utils
 
 # Import properties API
 from openvino.runtime import properties
