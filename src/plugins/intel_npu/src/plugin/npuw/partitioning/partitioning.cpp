@@ -1781,6 +1781,27 @@ void Partitioner::optimize(const std::string& func_name) {
             });
         }
     };
+    auto do_reshape = [&](ov::npuw::patterns::opt::Context& ctx) {
+        for (auto&& p : ctx.closures_to_reshape) {
+            auto param_idx = f._model->get_parameter_index(p);
+            auto closure_idx = param_idx - f._param_offset;
+            ov::parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
+                auto& funcall = func_group.refs[f_idx].get();
+                funcall._lazy_closure[closure_idx].update(TransformType::RESHAPE, std::monostate{});
+            });
+        }
+    };
+
+    // Special case to convert specific convolutions in the function to matmuls
+    {
+        ov::npuw::patterns::opt::Context ctx;
+        ov::pass::GraphRewrite rewr;
+        rewr.add_matcher<ov::npuw::patterns::opt::ConvToMatmul>(std::ref(ctx));
+        rewr.add_matcher<ov::npuw::patterns::opt::ConvToMatmul2>(std::ref(ctx));
+        rewr.run_on_model(f._model);
+        // Drop last 2 dims from 4-dimentional params found during pass
+        do_reshape(ctx);
+    }
 
     // Regardless of DQ setting, run this first
     {

@@ -38,6 +38,9 @@ struct Context {
     std::set<PPtr> closures_to_f16;
     void to_f16(PPtr orig_param);
 
+    std::set<PPtr> closures_to_reshape;
+    void reshape(PPtr orig_param);
+
     using O = ov::Output<ov::Node>;
     struct DQParMM {
         PPtr w, s;
@@ -168,6 +171,17 @@ public:
 class SliceLastMatmulMultiply : public ov::pass::MatcherPass {
 public:
     SliceLastMatmulMultiply();
+};
+
+// Convolution to MatMul
+class ConvToMatmul : public ov::pass::MatcherPass {
+public:
+    ConvToMatmul(Context::Ref ctx);
+};
+
+class ConvToMatmul2 : public ov::pass::MatcherPass {
+public:
+    ConvToMatmul2(Context::Ref ctx);
 };
 
 }  // namespace opt

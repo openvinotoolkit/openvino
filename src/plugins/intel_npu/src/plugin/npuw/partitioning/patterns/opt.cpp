@@ -29,6 +29,15 @@ void Context::to_f16(PPtr orig_param) {
     orig_param->validate_and_infer_types();
 }
 
+void Context::reshape(PPtr orig_param) {
+    closures_to_reshape.insert(orig_param);
+
+    // Just drop last 2 dims: [x, y, 1, 1] -> [x, y]
+    const auto& shape = orig_param->get_partial_shape();
+    orig_param->set_partial_shape({shape[0], shape[1]});
+    orig_param->validate_and_infer_types();
+}
+
 void Context::register_parallel_matmul(O multiply, std::size_t axis, DQParMM&& mm) {
     par_dq_mms[std::make_pair(multiply, axis)].push_back(std::move(mm));
 }
@@ -1459,6 +1468,117 @@ SliceLastMatmulMultiply::SliceLastMatmulMultiply() {
         return false;  // root hasn't changed
     };
     register_matcher(std::make_shared<opp::Matcher>(res, "SliceLastMatmulMultiply"), std::move(callback));
+}
+
+ConvToMatmul::ConvToMatmul(Context::Ref ctx) {
+    auto param = opp::wrap_type<ov::op::v0::Parameter>();
+    auto convert = opp::optional<ov::op::v0::Convert>({param->output(0)});
+    auto param2 = opp::wrap_type<ov::op::v0::Parameter>();
+    auto multiply = opp::wrap_type<ov::op::v1::Multiply>({convert, param2});
+    auto transpose_in = opp::wrap_type<ov::op::v1::Transpose>({opp::any_input(), opp::any_input()});
+    auto conv = opp::wrap_type<ov::op::v1::Convolution>({transpose_in, multiply});
+    auto transpose_out = opp::wrap_type<ov::op::v1::Transpose>({conv, opp::any_input()});
+
+    // Note: Use [=] to make sure the above objects stay alive in the callback
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+
+        auto matched_node_param = node_to_output.at(param).get_node_shared_ptr();
+        auto matched_node_param2 = node_to_output.at(param2).get_node_shared_ptr();
+        auto matched_node_transpose_in = node_to_output.at(transpose_in).get_node_shared_ptr();
+        auto matched_node_transpose_out = node_to_output.at(transpose_out).get_node_shared_ptr();
+        auto matched_node_multiply = node_to_output.at(conv).get_node_shared_ptr();
+        auto matched_node_conv = node_to_output.at(multiply).get_node_shared_ptr();
+
+        auto matched_param = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_param);
+        auto matched_param2 = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_param2);
+
+        const auto& shape = matched_param->get_shape();
+        const auto& shape2 = matched_param2->get_shape();
+        const auto& tr_in_shape = matched_node_transpose_in->input(0).get_shape();
+        const auto& tr_out_shape = matched_node_transpose_out->output(0).get_shape();
+
+        if (matched_param->get_element_type() == ov::element::i4 &&
+            matched_param2->get_element_type() == ov::element::f32 && shape.size() == 4 && shape2.size() == 4 &&
+            shape[2] == 1 && shape[3] == 1 && shape2[2] == 1 && shape2[3] == 1 && tr_in_shape.size() == 4 &&
+            tr_out_shape.size() == 4 && tr_in_shape[0] == 1 && tr_in_shape[2] == 1 && tr_out_shape[0] == 1 &&
+            tr_out_shape[1] == 1) {
+            std::cout << "!!! ALEX MATCHED ConvToMatmul !!!" << std::endl;
+            ctx.get().reshape(matched_param);
+            ctx.get().reshape(matched_param2);
+
+            auto matmul = std::make_shared<ov::op::v0::MatMul>(matched_node_transpose_in->input(0),
+                                                               matched_node_multiply->output(0),
+                                                               false,
+                                                               true);
+
+            matched_node_transpose_in->input(0).replace_source_output(matmul);
+            matched_node_conv->input(0).replace_source_output(matmul);
+            for (auto&& r : matched_node_transpose_out->output(0).get_target_inputs()) {
+                r.replace_source_output(matmul);
+            }
+
+            return true;  // root has changed
+        }
+        return false;  // root hasn't changed
+    };
+    register_matcher(std::make_shared<opp::Matcher>(transpose_out, "ConvToMatmul"), std::move(callback));
+}
+
+ConvToMatmul2::ConvToMatmul2(Context::Ref ctx) {
+    auto param = opp::wrap_type<ov::op::v0::Parameter>();
+    auto convert = opp::optional<ov::op::v0::Convert>({param->output(0)});
+    auto constant = opp::wrap_type<ov::op::v0::Constant>();
+    auto convert2 = opp::optional<ov::op::v0::Convert>({constant->output(0)});
+    auto multiply = opp::wrap_type<ov::op::v1::Multiply>({convert, convert2});
+    auto transpose_in = opp::wrap_type<ov::op::v1::Transpose>({opp::any_input(), opp::any_input()});
+    auto conv = opp::wrap_type<ov::op::v1::Convolution>({transpose_in, multiply});
+    auto transpose_out = opp::wrap_type<ov::op::v1::Transpose>({conv, opp::any_input()});
+
+    // Note: Use [=] to make sure the above objects stay alive in the callback
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+
+        auto matched_node_param = node_to_output.at(param).get_node_shared_ptr();
+        auto matched_node_constant = node_to_output.at(constant).get_node_shared_ptr();
+        auto matched_node_transpose_in = node_to_output.at(transpose_in).get_node_shared_ptr();
+        auto matched_node_transpose_out = node_to_output.at(transpose_out).get_node_shared_ptr();
+        auto matched_node_multiply = node_to_output.at(conv).get_node_shared_ptr();
+        auto matched_node_conv = node_to_output.at(multiply).get_node_shared_ptr();
+
+        auto matched_param = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_param);
+        auto matched_constant = std::static_pointer_cast<ov::op::v0::Constant>(matched_node_constant);
+
+        const auto& shape = matched_param->get_shape();
+        const auto& shape2 = matched_constant->get_shape();
+        const auto& tr_in_shape = matched_node_transpose_in->input(0).get_shape();
+        const auto& tr_out_shape = matched_node_transpose_out->output(0).get_shape();
+
+        if (matched_param->get_element_type() == ov::element::i8 &&
+            matched_constant->get_element_type() == ov::element::f32 && shape.size() == 4 && shape2.size() == 4 &&
+            shape[2] == 1 && shape[3] == 1 && shape2[2] == 1 && shape2[3] == 1 && tr_in_shape.size() == 4 &&
+            tr_out_shape.size() == 4 && tr_in_shape[0] == 1 && tr_in_shape[2] == 1 && tr_out_shape[0] == 1 &&
+            tr_out_shape[1] == 1) {
+            std::cout << "!!! ALEX MATCHED ConvToMatmul 2 !!!" << std::endl;
+            ctx.get().reshape(matched_param);
+
+            auto matmul = std::make_shared<ov::op::v0::MatMul>(matched_node_transpose_in->input(0),
+                                                               matched_node_multiply->output(0),
+                                                               false,
+                                                               true);
+
+            matched_node_transpose_in->input(0).replace_source_output(matmul);
+            matched_node_conv->input(0).replace_source_output(matmul);
+            for (auto&& r : matched_node_transpose_out->output(0).get_target_inputs()) {
+                r.replace_source_output(matmul);
+            }
+
+            return true;  // root has changed
+        }
+
+        return false;  // root hasn't changed
+    };
+    register_matcher(std::make_shared<opp::Matcher>(transpose_out, "ConvToMatmul2"), std::move(callback));
 }
 
 }  // namespace opt
