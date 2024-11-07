@@ -124,16 +124,14 @@ jobs:
         run: |
           # docker pull ${{ fromJSON(needs.docker.outputs.images).ov_build.manylinux2014_x86_64 }}
           ls -la ${OPENVINO_REPO}
-          docker run --rm -e PATH=${PYTHON_PATH}:\$PATH -v $OPENVINO_REPO:/src -v $INSTALL_DIR:/install -w /src quay.io/pypa/manylinux2014_x86_64 /bin/bash -c "
+          docker run --rm -v ${OPENVINO_REPO}:/work/src -v ov_build_cache:/work/build -v $INSTALL_DIR:/work/install -w /work/src quay.io/pypa/manylinux2014_x86_64 /bin/bash -c "
             # steps
-            ls -la /src &&
-            python3 -m pip install -r ./src/bindings/python/wheel/requirements-dev.txt --force-reinstall && \
-            cmake -G ${CMAKE_GENERATOR} -DENABLE_CPPLINT=OFF -DENABLE_NCC_STYLE=OFF -DCMAKE_VERBOSE_MAKEFILE=ON -DBUILD_SHARED_LIBS=ON -DENABLE_WHEEL=ON -S /src -B /build && \
-            cmake --build /build --parallel $(nproc) --config ${CMAKE_BUILD_TYPE} && \
-            cmake -DCMAKE_INSTALL_PREFIX=/install -P /build/cmake_install.cmake --config ${CMAKE_BUILD_TYPE}
-          "
+            ln -s ${{ env.PYTHON}} /usr/bin/python3
+            python3 -m pip install -r /work/src/src/bindings/python/wheel/requirements-dev.txt --force-reinstall && \
+            cmake -G ${{ env.CMAKE_GENERATOR }} -DENABLE_CPPLINT=OFF -DENABLE_NCC_STYLE=OFF -DCMAKE_VERBOSE_MAKEFILE=ON -DBUILD_SHARED_LIBS=ON -DENABLE_WHEEL=ON -S /work/src -B /work/build && \
+            cmake --build /work/build --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }}"
         env:
-          PYTHON_PATH: /opt/python/cp39-cp39/bin
+          PYTHON: /opt/python/cp39-cp39/bin/python
       #
       # Build
       #
