@@ -4,8 +4,39 @@
 
 #include "openvino/op/identity.hpp"
 
-#include "unary_ops.hpp"
+#include <gtest/gtest.h>
 
-using Type = ::testing::Types<ov::op::v16::Identity>;
+#include "common_test_utils/test_assertions.hpp"
+#include "common_test_utils/type_prop.hpp"
+#include "openvino/op/constant.hpp"
 
-INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_identity, UnaryOperator, Type);
+using namespace testing;
+
+namespace ov {
+namespace test {
+
+class TypePropIdentityV15Test : public TypePropOpTest<op::v15::Identity> {};
+
+TEST_F(TypePropIdentityV15Test, default_ctor) {
+    const auto data = op::v0::Constant::create(element::f64, Shape{2, 2}, {1.0f, 1.0f, 1.0f, 1.0f});
+    const auto op = make_op();
+    op->set_arguments(OutputVector{data});
+    op->validate_and_infer_types();
+
+    EXPECT_EQ(op->get_input_size(), 1);
+    EXPECT_EQ(op->get_output_size(), 1);
+    EXPECT_EQ(op->get_output_element_type(0), element::f64);
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({2, 2}));
+}
+
+TEST_F(TypePropIdentityV15Test, input_data_ctor) {
+    const auto data = op::v0::Constant::create(element::i64, Shape{1, 2}, {1.0f, 1.0f});
+    const auto op = make_op(data);
+
+    EXPECT_EQ(op->get_input_size(), 1);
+    EXPECT_EQ(op->get_output_size(), 1);
+    EXPECT_EQ(op->get_output_element_type(0), element::i64);
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({1, 2}));
+}
+}  // namespace test
+}  // namespace ov
