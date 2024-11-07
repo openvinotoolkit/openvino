@@ -7,6 +7,6 @@ from functools import partial
 
 from openvino.runtime.opset_utils import _get_node_factory
 
-_get_node_factory_opset15 = partial(_get_node_factory, "opset16")
+_get_node_factory_opset16 = partial(_get_node_factory, "opset16")
 
 # -------------------------------------------- ops ------------------------------------------------
