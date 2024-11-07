@@ -104,6 +104,7 @@ Operation Specifications
    HardSigmoid-1 <operation-specs/activation/hard-sigmoid-1>
    HSigmoid-5 <operation-specs/activation/hsigmoid-5>
    HSwish-4 <operation-specs/activation/hswish-4>
+   Identity-16 <operation-specs/activation/identity-16>
    I420toBGR-8 <operation-specs/image/i420-to-bgr-8>
    I420toRGB-8 <operation-specs/image/i420-to-rgb-8>
    IDFT-7 <operation-specs/signals/idft-7>
