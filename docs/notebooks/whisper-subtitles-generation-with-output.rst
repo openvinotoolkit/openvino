@@ -80,7 +80,7 @@ Install dependencies.
 
     %pip install -q "nncf>=2.13.0"
     %pip install -q --pre -U "openvino" "openvino-tokenizers" "openvino-genai" --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
-    %pip install -q "python-ffmpeg<=1.0.16" "ffmpeg" "moviepy" "onnx!=1.16.2" "git+https://github.com/huggingface/optimum-intel.git" "torch>=2.1" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "python-ffmpeg<=1.0.16" "ffmpeg" "moviepy" "transformers>=4.45" "git+https://github.com/huggingface/optimum-intel.git" "torch>=2.1" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q -U "yt_dlp>=2024.8.6" soundfile librosa jiwer
     %pip install -q  "gradio>=4.19"
 
@@ -94,6 +94,12 @@ Install dependencies.
             url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
         )
         open("notebook_utils.py", "w").write(r.text)
+    
+    if not Path("cmd_helper.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py",
+        )
+        open("cmd_helper.py", "w").write(r.text)
 
 Instantiate model
 -----------------
@@ -184,10 +190,12 @@ documentation <https://huggingface.co/docs/optimum/intel/inference#export>`__.
 
 .. code:: ipython3
 
+    from cmd_helper import optimum_cli
+    
     model_dir = model_id.value.split("/")[-1]
     
     if not Path(model_dir).exists():
-        !optimum-cli export openvino -m {model_id.value} {model_dir} --weight-format fp16
+        optimum_cli(model_id.value, model_dir)
 
 Prepare inference pipeline
 --------------------------
@@ -218,13 +226,6 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import requests
-    
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    open("notebook_utils.py", "w").write(r.text)
-    
     from notebook_utils import device_widget
     
     device = device_widget(default="CPU", exclude=["NPU"])
