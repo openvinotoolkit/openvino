@@ -73,13 +73,17 @@ from openvino.opsets import opset14
 from openvino.opsets import opset15
 from openvino.opsets import opset_utils
 
+# Aliases
+from openvino import ie_api as ie_api
+from openvino import exceptions as exceptions
+import openvino.utils as utils
+
 # Import properties API
 from openvino.runtime import properties
 
 # Helper functions for openvino module
 from openvino.ie_api import tensor_from_file
 from openvino.ie_api import compile_model
-from openvino import ie_api as ie_api
 
 from openvino.utils import deprecated
 
