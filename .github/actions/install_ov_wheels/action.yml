@@ -37,7 +37,7 @@ runs:
             python3 -m pip install "$ovTokenizersWheelPath"
         }
         
-        if ( "${{ inputs.install-core-wheel }}" -eq "true" )
+        if ( "${{ inputs.install-dev-wheel }}" -eq "true" )
         {
             $ovDevWheelPath = Get-ChildItem -Path "${{ inputs.wheels-dir-path }}" -Filter openvino_dev*.whl | % { $_.FullName }
             if ( "${{ inputs.extras-to-install }}" )
