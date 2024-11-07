@@ -25,12 +25,15 @@ ExpressionPtr BufferExpression::clone() const {
 }
 
 bool BufferExpression::visit_attributes(AttributeVisitor &visitor) {
+    Expression::visit_attributes(visitor);
     auto allocation_size = utils::value2str(m_allocation_size);
     auto offset = utils::value2str(m_offset);
+    auto prc = get_data_type();
     visitor.on_attribute("allocation_size", allocation_size);
     visitor.on_attribute("offset", offset);
     visitor.on_attribute("reg_group", m_reg_group);
     visitor.on_attribute("cluster_id", m_cluster_id);
+    visitor.on_attribute("data_type", prc);
     return true;
 }
 
@@ -38,9 +41,13 @@ bool BufferExpression::is_defined() const {
     return !utils::is_dynamic_value(m_allocation_size);
 }
 
+ov::element::Type BufferExpression::get_data_type() const {
+    return get_node()->get_output_element_type(0);
+}
+
 size_t BufferExpression::get_byte_size() const {
     if (is_defined())
-        return m_allocation_size * get_node()->get_output_element_type(0).size();
+        return m_allocation_size * get_data_type().size();
     return utils::get_dynamic_value<size_t>();
 }
 

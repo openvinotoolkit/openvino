@@ -16,13 +16,6 @@ namespace tpp {
 namespace pass {
 namespace {
 using ExpressionPort = snippets::lowered::ExpressionPort;
-bool is_planar_layout(const std::vector<size_t>& layout) {
-    for (size_t i = 0; i < layout.size(); i++) {
-        if (layout[i] != i)
-            return false;
-    }
-    return true;
-}
 // Note: Buffer is directly connected to the port if it remains in the same loops with the port's expression
 //  Directly connected Buffers store data densely, so strides are defined by subternsor dims
 //  Indirectly connected Buffers (with loops between the expr and Buffer) store data according
@@ -81,12 +74,12 @@ size_t get_leading_dim(ExpressionPort port, const snippets::lowered::LoopManager
             subtensor[idx] = shape[shape.size() - i];
         }
     }
-    OPENVINO_ASSERT(!full_dim_substituted || is_planar_layout(layout),
+    OPENVINO_ASSERT(!full_dim_substituted || ov::snippets::utils::is_planar_layout(layout),
                     "Only planar layouts are supported for FULL_DIM substitution");
 
     if (has_directly_connected_buffer(port, loop_mngr)) {
         shape = port_desc->get_subtensor();
-        OPENVINO_ASSERT(is_planar_layout(layout), "Only planar layouts are supported for Buffers");
+        OPENVINO_ASSERT(ov::snippets::utils::is_planar_layout(layout), "Only planar layouts are supported for Buffers");
         const auto rank_diff = static_cast<int64_t>(layout.size()) - static_cast<int64_t>(shape.size());
         if (rank_diff > 0)
             layout.erase(layout.end() - rank_diff, layout.end());

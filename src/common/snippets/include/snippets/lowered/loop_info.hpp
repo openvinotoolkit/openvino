@@ -211,13 +211,20 @@ public:
         int64_t data_size = 0;
 
         bool is_dynamic() const;
+        bool is_static() const;
+
+        friend bool operator==(const LoopPortDesc& lhs, const LoopPortDesc& rhs);
+        friend bool operator!=(const LoopPortDesc& lhs, const LoopPortDesc& rhs);
     };
     // The structure describes full information about port
     // - TODO [140365] : UnifiedLoopInfo should have the map of LoopPorts and LoopDesc as class field
     //                   instead of the separate vectors with descriptors.
     struct LoopPortInfo {
-        LoopPort port;
-        LoopPortDesc desc;
+        LoopPortInfo() = default;
+        LoopPortInfo(LoopPort port_, LoopPortDesc desc_) : port(std::move(port_)), desc(std::move(desc_)) {}
+
+        LoopPort port = {};
+        LoopPortDesc desc = {};
     };
 
     UnifiedLoopInfo() = default;
@@ -366,6 +373,12 @@ public:
         for (size_t i = 0; i < get_output_count(); ++i)
             caller(m_output_ports[i], m_output_port_descs[i]);
     }
+
+    /**
+     * @brief Return loop port info of an expression port
+     * @param expr_port - expression port.
+     */
+    LoopPortInfo get_loop_port_info(const ExpressionPort& expr_port);
 
 protected:
     /**
