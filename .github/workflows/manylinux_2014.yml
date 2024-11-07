@@ -116,17 +116,24 @@ jobs:
       #     # For Python API: build and wheel packaging
       #     python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
 
-      - name: Build (inside container)
+      - name: Create docker build cache
+        run: |
+          docker volume create ov_build_cache
+      
+      - name: Build (Python 3.9)
         run: |
           # docker pull ${{ fromJSON(needs.docker.outputs.images).ov_build.manylinux2014_x86_64 }}
-          docker run --rm -v ${{ env.OPENVINO_REPO }}:/src -v ${{ env.INSTALL_DIR }}:/install -w /src quay.io/pypa/manylinux2014_x86_64 /bin/bash -c "
+          ls -la ${OPENVINO_REPO}
+          docker run --rm -e PATH=${PYTHON_PATH}:\$PATH -v $OPENVINO_REPO:/src -v $INSTALL_DIR:/install -w /src quay.io/pypa/manylinux2014_x86_64 /bin/bash -c "
             # steps
             ls -la /src &&
-            python3.11 -m pip install -r /src/src/bindings/python/wheel/requirements-dev.txt --force-reinstall && \
+            python3 -m pip install -r ./src/bindings/python/wheel/requirements-dev.txt --force-reinstall && \
             cmake -G ${CMAKE_GENERATOR} -DENABLE_CPPLINT=OFF -DENABLE_NCC_STYLE=OFF -DCMAKE_VERBOSE_MAKEFILE=ON -DBUILD_SHARED_LIBS=ON -DENABLE_WHEEL=ON -S /src -B /build && \
             cmake --build /build --parallel $(nproc) --config ${CMAKE_BUILD_TYPE} && \
             cmake -DCMAKE_INSTALL_PREFIX=/install -P /build/cmake_install.cmake --config ${CMAKE_BUILD_TYPE}
           "
+        env:
+          PYTHON_PATH: /opt/python/cp39-cp39/bin
       #
       # Build
       #
