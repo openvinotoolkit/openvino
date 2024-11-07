@@ -4,6 +4,7 @@
 # flake8: noqa
 # mypy: ignore-errors
 
+import functools
 import logging
 import torch
 from openvino.frontend.pytorch import ModuleExtension
@@ -70,6 +71,8 @@ def patch_model(model, module_extensions, orig_forward_name, use_meta=False):
                     Trampoline.stashed_kwargs = kwargs
                 return extension.convert(m, Trampoline.apply, *args, **kwargs)
 
+            # make signature of new_forward same as of forward
+            new_forward = functools.wraps(m.forward)(new_forward)
             setattr(m, orig_forward_name, m.forward)
             m.forward = new_forward
 
