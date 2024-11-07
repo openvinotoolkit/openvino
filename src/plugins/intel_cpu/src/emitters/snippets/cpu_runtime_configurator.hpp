@@ -24,7 +24,7 @@ public:
 #endif
 
     std::vector<jit_snippets_call_args::loop_args_t> loop_args = {};
-    std::vector<MemoryDescPtr> m_in_requested_descs = {};
+    std::unordered_map<size_t, MemoryDescPtr> m_in_requested_descs = {};
 };
 
 class CPURuntimeConfigurator : public ov::snippets::RuntimeConfigurator {

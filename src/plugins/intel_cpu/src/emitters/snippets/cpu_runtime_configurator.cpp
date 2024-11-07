@@ -146,7 +146,6 @@ void CPURuntimeConfigurator::BrgemmCopyBLoopPortsAdjuster::optimize() {
 void CPURuntimeConfigurator::update_requested_descs(const ov::snippets::lowered::LinearIRCPtr& linear_ir) const {
     const auto& cpu_config = ov::as_type_ptr<CPURuntimeConfig>(m_config);
     auto& optimal_descs = cpu_config->m_in_requested_descs;
-    optimal_descs.resize(m_in_num);
     const auto& params = linear_ir->get_parameters();
     OPENVINO_ASSERT(params.size() == m_in_num);
     for (size_t i = 0; i < m_in_num; ++i) {
@@ -186,8 +185,8 @@ void CPURuntimeConfigurator::adjust_offsets_from_descs(const ov::snippets::lower
     const auto& cpu_config = ov::as_type_ptr<CPURuntimeConfig>(m_config);
     auto& optimal_descs = cpu_config->m_in_requested_descs;
     for (size_t i = 0; i < m_in_num; ++i) {
-        const auto& optimal_desc = optimal_descs[i];
-        if (optimal_desc) {
+        if (optimal_descs.count(i)) {
+            const auto& optimal_desc = optimal_descs[i];
             // It is assumed that shape is planar
             const auto& parameter = linear_ir->get_parameters()[i];
             const auto& original_shape = parameter->get_output_port_descriptor(0)->get_shape();

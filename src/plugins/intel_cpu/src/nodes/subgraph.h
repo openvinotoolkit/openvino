@@ -169,13 +169,14 @@ protected:
 #endif
 
 private:
-    void repack_inputs(dnnl::stream strm, std::vector<MemoryPtr>& inMemPtrs);
+    void reorder_execute(dnnl::stream strm, std::vector<MemoryPtr> inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs);
 
     struct RequestedRepacking {
+        RequestedRepacking(MemoryDescPtr desc, MemoryPtr memory) : requested_desc(desc), scratch_mem(memory) {}
         MemoryDescPtr requested_desc = {};
         MemoryPtr scratch_mem = {};
     };
-    std::vector<RequestedRepacking> m_requested_repackings = {};
+    std::unordered_map<size_t, RequestedRepacking> m_in_requested_repackings = {};
     DnnlScratchPadPtr m_scratchpad = {};
 };
 

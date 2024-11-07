@@ -918,10 +918,10 @@ Subgraph::SubgraphExecutor::SubgraphExecutor(const std::shared_ptr<Subgraph::Sub
     OPENVINO_ASSERT(!ov::snippets::utils::is_dynamic_value(m_buffer_scratchpad_size), "Undefined buffer scratchpad size!");
     m_buffer_scratchpad = allocator(static_cast<size_t>(m_nthreads) * m_buffer_scratchpad_size);
 
-    const auto& requested_descs = snippet_config->m_in_requested_descs;
-    m_requested_repackings.resize(requested_descs.size());
-    for (size_t i = 0; i < requested_descs.size(); ++i) {
-        m_requested_repackings[i].requested_desc = requested_descs[i];
+    // TODO: here we need to already create memory, preliminary provide to allocator the adjusted scracth size
+    for (const auto& desc : snippet_config->m_in_requested_descs) {
+        const auto& requested_desc = desc.second;
+        m_in_requested_repackings.emplace(desc.first, RequestedRepacking(requested_desc, nullptr));
     }
 
 #if defined(__linux__) && defined(OPENVINO_ARCH_X86_64) && defined(SNIPPETS_DEBUG_CAPS)
@@ -1000,25 +1000,28 @@ void Subgraph::SubgraphExecutor::parallel_forNd(const std::function<void(jit_sni
 }
 
 void Subgraph::SubgraphExecutor::execute(dnnl::stream strm, std::vector<MemoryPtr>& inMemPtrs, std::vector<MemoryPtr>& outMemPtrs) {
-    repack_inputs(strm, inMemPtrs);
-    exec_impl(inMemPtrs, outMemPtrs);
+    if (m_in_requested_repackings.empty())
+        exec_impl(inMemPtrs, outMemPtrs);
+    else
+        reorder_execute(strm, inMemPtrs, outMemPtrs);
 }
 
-void Subgraph::SubgraphExecutor::repack_inputs(dnnl::stream strm, std::vector<MemoryPtr>& inMemPtrs) {
-    OPENVINO_ASSERT(inMemPtrs.size() == m_requested_repackings.size());
-    for (size_t i = 0; i < m_requested_repackings.size(); ++i) {
-        const auto& requested_desc = m_requested_repackings[i].requested_desc;
-        auto& scratch_mem = m_requested_repackings[i].scratch_mem;
+void Subgraph::SubgraphExecutor::reorder_execute(dnnl::stream strm, std::vector<MemoryPtr> inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) {
+    for (auto& requested_repacking : m_in_requested_repackings) {
+        const auto& requested_desc = requested_repacking.second.requested_desc;
+        auto& scratch_mem = requested_repacking.second.scratch_mem;
         if (requested_desc) {
             if (!scratch_mem || !scratch_mem->getDesc().isCompatible(*requested_desc)) {
+                // TODO: move to prepareParams and investigate why the repacking is called on each iteration
                 // scratch_mem = m_scratchpad->createScratchPadMem(requested_desc);
                 scratch_mem = std::make_shared<Memory>(strm.get_engine(), requested_desc);
-                std::cout << "scratch_mem is created for requested desc " << i << std::endl;
+                std::cout << "scratch_mem is created for requested desc " << requested_repacking.first << std::endl;
             }
-            scratch_mem->load(*inMemPtrs[i]);
-            inMemPtrs[i] = scratch_mem;
+            scratch_mem->load(*inMemPtrs[requested_repacking.first]);
+            inMemPtrs[requested_repacking.first] = scratch_mem;
         }
     }
+    exec_impl(inMemPtrs, outMemPtrs);
 }
 
 }   // namespace node
