@@ -13,6 +13,7 @@ namespace reference {
  *
  * @param input Input matrix (matrices) pointer.
  * @param output Output matrix (matrices) pointer.
+ * @param size_in_bytes Size of the input tensor in bytes.
  **/
 static inline void identity(const char* input, char* output, const size_t size_in_bytes) {
     if (input == output) {
