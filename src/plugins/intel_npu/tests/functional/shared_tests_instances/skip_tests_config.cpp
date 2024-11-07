@@ -16,6 +16,8 @@
 #include "functional_test_utils/ov_plugin_cache.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 
+#include "openvino/util/xml_parse_utils.hpp"
+
 class BackendName {
 public:
     BackendName() {
@@ -93,6 +95,32 @@ private:
     intel_npu::Logger _log = intel_npu::Logger("AvailableDevices", ov::log::Level::INFO);
 };
 
+class CurrentOS {
+public:
+    CurrentOS() {
+#ifdef WIN32
+        _name = "windows";
+#elif defined(__linux__)
+        _name = "linux";
+#endif
+    }
+
+    std::string getName() const {
+        return _name;
+    }
+
+    bool isLinux() const {
+        return _name == "linux";
+    }
+
+    bool isWindows() const {
+        return _name == "windows";
+    }
+
+private:
+    std::string _name;
+    intel_npu::Logger _log = intel_npu::Logger("CurrentOS", ov::log::Level::INFO);
+};
 class SkipRegistry {
 public:
     void addPatterns(std::string&& comment, std::vector<std::string>&& patternsToSkip) {
@@ -149,6 +177,23 @@ std::string getCurrentTestName() {
 
 std::vector<std::string> disabledTestPatterns();
 
+/** Checks if string containing rule has a "!" character
+ * If "!" is found a flag will be set and the rule will 
+ * have the character erased to be used in further conditions
+ *
+ * @param rule Input string
+ * @return true if "!" is found
+ */
+bool isRuleInverted (std::string &rule) { 
+        bool invertRule = false;
+        if (rule.find("!") != std::string::npos) {
+                invertRule = true;
+                // Extract negation character from rule string
+                rule.erase(rule.find("!"), 1);
+        }
+        return invertRule;
+}
+
 std::vector<std::string> disabledTestPatterns() {
     // Initialize skip registry
     static const auto skipRegistry = []() {
@@ -156,6 +201,107 @@ std::vector<std::string> disabledTestPatterns() {
 
         const BackendName backendName;
         const AvailableDevices devices;
+        const CurrentOS currentOS;
+
+        // Check if skip xml is set to be read
+        const auto& filePath = ov::test::utils::NpuTestEnvConfig::getInstance().IE_NPU_TESTS_SKIP_CONFIG_FILE;
+
+        if (filePath.empty())
+                std::cout << "[WARNING] IE_NPU_TESTS_SKIP_CONFIG_FILE not set, using legacy skip config" << std::endl;
+        else
+                std::cout << "IE-MDK Skip config: " << filePath << std::endl;
+
+        // Load the Skip config
+        auto parse_result = ov::util::pugixml::parse_xml(filePath.c_str());
+        pugi::xml_document& xmlSkipConfig = *parse_result.xml;
+
+        // Select the parent node
+        pugi::xml_node skipConfigsList = xmlSkipConfig.child("skip_configs");
+
+        // Iterate though each skip rule
+        FOREACH_CHILD (skipConfigRule, skipConfigsList, "skip_config") {
+
+                // Extract skip message, it will get printed in the test logs
+                auto skipMessageEntry = skipConfigRule.child("message").text().get();
+                
+                // Read enable/disable conditions:
+                // Multiple Backends, Devices, OSes can be selected
+                // If "!" is found, then rule is inverted
+                pugi::xml_node enableRules = skipConfigRule.child("enable_rules");
+                bool ruleFlag = false;
+                if (!enableRules.empty()) {
+
+                        bool backendRuleFlag = false;
+                        if (!enableRules.child("device").empty()) {
+                                FOREACH_CHILD (enableRule, enableRules, "backend") {
+                                        auto backendRule = enableRule.text().get();
+
+                                        std::string backendRuleString(backendRule);
+                                        bool invertRule = isRuleInverted(backendRuleString);
+                                        //Perform logical XOR to invert condition
+                                        if (!(backendRuleString == backendName.getName()) != !invertRule)
+                                                backendRuleFlag = true;
+                                }
+                        }
+                        else {
+                                // Rule empty, default to true
+                                backendRuleFlag = true;
+                        }
+
+                        bool deviceRuleFlag = false;
+                        if (!enableRules.child("device").empty()) {
+                                FOREACH_CHILD (enableRule, enableRules, "device") {
+                                        auto deviceRule = enableRule.text().get();
+
+                                        std::string deviceRuleString(deviceRule);
+                                        bool invertRule = isRuleInverted(deviceRuleString);
+                                        for (auto &device : devices.getAvailableDevices()) {
+                                                //Perform logical XOR to invert condition
+                                                if (!(deviceRuleString == device) != !invertRule) 
+                                                        deviceRuleFlag = true;
+                                        }
+                                }
+                        }
+                        else {
+                                // Rule empty, default to true
+                                deviceRuleFlag = true;
+                        }
+
+                        bool operatingSystemRuleFlag = false;
+                        if (!enableRules.child("operating_system").empty()) {
+                                FOREACH_CHILD (enableRule, enableRules, "operating_system") {
+                                        auto operatingSystemRule = enableRule.text().get();
+
+                                        if (operatingSystemRule == currentOS.getName())
+                                                operatingSystemRuleFlag;
+                                }
+                        }
+                        else {
+                                // Rule empty, default to true
+                                operatingSystemRuleFlag = true;
+                        }
+
+                        // Combine all rules 
+                        ruleFlag = backendRuleFlag && deviceRuleFlag && operatingSystemRuleFlag;
+                }
+                else {
+                        // All rules are empty, default to true
+                        ruleFlag = true;
+                }
+
+                // Select individual filters and add them to the skipRegistry
+                pugi::xml_node skipFiltersList = skipConfigRule.child("filters");
+                FOREACH_CHILD (skipFilter, skipFiltersList, "filter") {
+                        auto skipFilterEntry = skipFilter.text().get();
+
+                        // Add skip to regoistry
+                        count_filter++;
+                        _skipRegistry.addPatterns(ruleFlag, skipMessageEntry, { skipFilterEntry });
+                }
+        }
+
+        // IE_NPU_TESTS_SKIP_CONFIG_FILE not present
+        if (filePath.empty()) {
 
         // clang-format off
 
@@ -767,6 +913,8 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*OVExecGraphSerializationTest.ExecutionGraph.*"
         });
 
+        // IE_NPU_TESTS_SKIP_CONFIG_FILE not present
+        }
         return _skipRegistry;
     }();
     // clang-format on
