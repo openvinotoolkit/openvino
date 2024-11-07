@@ -61,9 +61,9 @@ TEST_P(OpsetTests, opset_dump) {
 
 INSTANTIATE_TEST_SUITE_P(opset,
                          OpsetTests,
-                         testing::Values(OpsetTestParams{ov::get_opset1, 110},
-                                         OpsetTestParams{ov::get_opset2, 112},
-                                         OpsetTestParams{ov::get_opset3, 127},
+                         testing::Values(OpsetTestParams{ov::get_opset1, 109},
+                                         OpsetTestParams{ov::get_opset2, 111},
+                                         OpsetTestParams{ov::get_opset3, 126},
                                          OpsetTestParams{ov::get_opset4, 137},
                                          OpsetTestParams{ov::get_opset5, 145},
                                          OpsetTestParams{ov::get_opset6, 152},
