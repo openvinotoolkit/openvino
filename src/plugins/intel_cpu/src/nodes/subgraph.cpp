@@ -17,11 +17,10 @@
 #include "snippets/pass/positioned_pass.hpp"
 #include "snippets/pass/canonicalization.hpp"
 #include "snippets/pass/analyze_broadcastable_inputs.hpp"
-#include "snippets/lowered/linear_ir.hpp"
-#include "snippets/lowered/pass/optimize_domain.hpp"
 #include "snippets/lowered/pass/insert_loops.hpp"
 #include "snippets/lowered/pass/mark_loops.hpp"
 #include "snippets/lowered/pass/insert_buffers.hpp"
+#include "snippets/lowered/pass/init_loops.hpp"
 #include "transformations/defs.hpp"
 #include "transformations/cpu_opset/common/pass/convert_to_swish_cpu.hpp"
 #include "transformations/snippets/common/pass/mul_add_to_fma.hpp"
@@ -38,6 +37,7 @@
 #include "transformations/snippets/x64/pass/brgemm_to_brgemm_cpu.hpp"
 #include "transformations/snippets/x64/pass/enforce_precision.hpp"
 #include "transformations/snippets/x64/shape_inference.hpp"
+#include "transformations/snippets/x64/pass/lowered/adjust_brgemm_copy_b_loop_ports.hpp"
 #endif
 
 #include "utils/cpu_utils.hpp"
@@ -54,6 +54,7 @@ std::mutex err_print_lock;
 #endif
 
 #ifdef SNIPPETS_LIBXSMM_TPP
+#include "snippets/lowered/pass/optimize_domain.hpp"
 #include "transformations/tpp/x64/pass/brgemm_to_brgemm_tpp.hpp"
 #include "transformations/tpp/x64/pass/eltwise_to_eltwise_tpp.hpp"
 #include "transformations/tpp/x64/pass/scalar_to_scalar_tpp.hpp"
@@ -683,6 +684,10 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() const {
 
     SNIPPETS_REGISTER_PASS_RELATIVE(Place::After, ov::snippets::lowered::pass::MarkLoops,
                                     ov::intel_cpu::pass::BrgemmCPUBlocking);
+
+    SNIPPETS_REGISTER_PASS_RELATIVE(Place::After, ov::snippets::lowered::pass::InitLoops,
+                                    ov::intel_cpu::pass::AdjustBrgemmCopyBLoopPorts);
+
     SNIPPETS_REGISTER_PASS_RELATIVE(Place::After, ov::snippets::lowered::pass::InsertLoops,
                                     ov::intel_cpu::pass::FuseLoadStoreConvert);
     SNIPPETS_REGISTER_PASS_RELATIVE(Place::Before, ov::snippets::lowered::pass::InsertBuffers,

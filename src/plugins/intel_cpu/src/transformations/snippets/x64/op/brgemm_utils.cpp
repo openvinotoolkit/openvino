@@ -6,7 +6,6 @@
 
 #include "dnnl_extension_utils.h"
 #include "emitters/utils.hpp"
-#include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "utils/general_utils.h"
 
@@ -76,10 +75,6 @@ size_t get_elems_in_vec(const ov::element::Type& precision) {
 }
 
 namespace repacking {
-size_t compute_out_leading_dim(const size_t n_block, const ov::element::Type& precision) {
-    return std::max(n_block, compute_inner_n_block(precision));
-}
-
 size_t compute_inner_n_block(const ov::element::Type& precision) {
     switch (precision) {
         case element::i8: return 64;
