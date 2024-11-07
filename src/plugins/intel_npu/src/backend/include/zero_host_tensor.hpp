@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include "intel_npu/al/config/config.hpp"
+#include "intel_npu/config/config.hpp"
+#include "intel_npu/utils/zero/zero_init.hpp"
 #include "openvino/runtime/itensor.hpp"
-#include "zero_init.hpp"
 #include "zero_remote_tensor.hpp"
 
 namespace intel_npu {

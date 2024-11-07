@@ -187,6 +187,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
     m_func_mem_mgr.set_alloc(std::bind(&JustInferRequest::allocMem, this, _1, _2, _3));
     m_func_mem_mgr.assign_memory();
 
+    m_closure_update_required = m_npuw_model->m_cfg.get<::intel_npu::NPUW_FOLD>();
     m_use_function_pipelining = m_npuw_model->m_cfg.get<::intel_npu::NPUW_FUNCALL_ASYNC>();
     if (m_use_function_pipelining) {
         LOG_WARN("Function call pipelining is enabled for " << m_npuw_model->m_name
@@ -199,6 +200,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
     // Create infer requests
     // Preallocate funcall tensors & substitute function call requests
     bool failover_happened = false;
+    bool has_spatial = false;
     for (size_t i = 0; i < m_num_submodels; i++) {
         LOG_INFO("Creating infer request for Subgraph[" << i << "]...");
         LOG_BLOCK();
@@ -221,6 +223,8 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
 
             // Initialize the spatial IO placeholders, if required
             if (proto_comp_model_desc.spatial) {
+                has_spatial = true;
+
                 m_spatial_io[real_idx].inputs.resize(proto_comp_model_desc.param_base);
                 m_spatial_io[real_idx].input_tails.resize(proto_comp_model_desc.param_base);
                 m_spatial_io[real_idx].outputs.resize(num_outputs);
@@ -374,30 +378,38 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         LOG_VERB("Trying to preemptively set tensors for Subgraph[" << i << "]...");
         LOG_BLOCK();
         auto& comp_model_desc = m_npuw_model->m_compiled_submodels[i];
-
+        // FIXME: figure out our cases and if this should be replaced with &&
+        // Note: replaced_by is utilized below unconditionally
         if (!comp_model_desc.compiled_model || !comp_model_desc.replaced_by) {
             continue;
         }
-
         const auto real_idx = comp_model_desc.replaced_by.value();
         auto& func_desc = m_npuw_model->m_compiled_submodels[real_idx];
 
-        auto& request = m_subrequests[real_idx];
+        // So - closure update is NOT required, OR the function is SINGLE -
+        // just handle it's closure here and don't do it in runtime
+        if (!m_closure_update_required || func_desc.forced_to_fcall) {
+            unpack_closure(i, m_subrequests[real_idx]);
+        }
+        LOG_VERB("Done");
+    }
 
-        for (std::size_t cidx = 0u; cidx < comp_model_desc.closure.size(); cidx++) {
-            const auto& closure = comp_model_desc.closure[cidx];
-
-            const auto closure_param_id = comp_model_desc.param_base + cidx;
-            const auto& iport = func_desc.compiled_model->inputs()[closure_param_id];
-
-            // No update required to this tensor in runtime - so it can be set only once
-            // Will be utilized when there is no FOLDing
-            if (!m_npuw_model->m_update_required) {
-                // At this point closure already contains allocated and transformed tensor ready to be used
-                request->set_tensor(iport, ov::get_tensor_impl(closure));
+    // Handle spatial dynamic submission
+    if (has_spatial) {
+        if (m_npuw_model->m_cfg.get<::intel_npu::NPUW_SPATIAL_DYN>()) {
+            LOG_VERB("Finding spatial features...");
+            LOG_BLOCK();
+            m_spatial_selector = runtime::spatial::AttentionMask::find(*this);
+            if (!m_spatial_selector) {
+                LOG_WARN("Spatial capability is enabled, but no run-time features were found.");
+                // Fallback selector to ALL
+                m_spatial_selector.reset(new runtime::spatial::All());
             }
-        }  // for(closure)
-        LOG_VERB("DONE");
+        } else {
+            // Just force selector to ALL
+            m_spatial_selector.reset(new runtime::spatial::All());
+        }
+        LOG_VERB("Done");
     }
 }
 
@@ -506,6 +518,11 @@ void ov::npuw::JustInferRequest::prepare_for_infer() {
         LOG_DEBUG("Pre-initializing weights for subgraph[" << id << "]");
         unpack_closure(id, m_subrequests[id]);
     }
+
+    // Adjust spatial input range, if supported
+    if (m_spatial_selector) {
+        m_spatial_selector->prepare();
+    }
     LOG_DEBUG("Done");
 }
 
@@ -580,7 +597,7 @@ void ov::npuw::JustInferRequest::bind_global_parameters(std::size_t idx) {
         LOG_BLOCK();
         if (!is_spatial_param(sub_in_idx)) {
             // Input parameter is non-spatial, do normal handling
-            if (do_copy || m_input_allocated.count(g_tnsr->data()) == 0) {
+            if (m_input_allocated.count(g_tnsr->data()) == 0 && do_copy) {
                 LOG_DEBUG("Will be copied");
                 copy_list.emplace_back(g_tnsr, s_port);
             } else {
@@ -602,11 +619,13 @@ void ov::npuw::JustInferRequest::bind_global_parameters(std::size_t idx) {
 
     // Run host-side gather, if required
     if (comp_model_desc.host_gather.dst_idx != -1) {
-        auto& dst = comp_model_desc.closure[comp_model_desc.host_gather.dst_idx - comp_model_desc.param_base];
+        const auto& gport = comp_model_desc.compiled_model->inputs()[comp_model_desc.host_gather.dst_idx];
+        const auto gather = subr->get_tensor(gport);
+
         const auto& vocab = comp_model_desc.closure[comp_model_desc.host_gather.src_idx - comp_model_desc.param_base];
         const auto& lport = comp_model_desc.compiled_model->inputs()[comp_model_desc.host_gather.idx_idx];
         const auto lookup = subr->get_tensor(lport);
-        ov::npuw::util::gather(ov::get_tensor_impl(vocab), lookup, ov::get_tensor_impl(dst));
+        ov::npuw::util::gather(ov::get_tensor_impl(vocab), lookup, gather);
     }
 
     LOG_DEBUG("Done");
@@ -692,7 +711,7 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
     // 2. Unpack the function closure -- right here, if pipelining if not enabled.
     // If it is enabled, the flow is a little bit different - see run_subrequest_for_success()
     // for details.
-    if (!is_pipelined(idx)) {
+    if (!is_pipelined(idx) && m_closure_update_required && !func_desc.forced_to_fcall) {
         LOG_DEBUG("Unpacking closures...");
         LOG_BLOCK();
         unpack_closure(idx, m_subrequests[real_idx]);
@@ -734,12 +753,20 @@ void ov::npuw::JustInferRequest::unpack_closure(std::size_t idx, RqPtr request) 
         auto& closure = comp_model_desc.closure[cidx];
 
         const auto closure_param_id = comp_model_desc.param_base + cidx;
+
+        if (func_desc.host_gather.dst_idx != -1 &&
+            static_cast<uint64_t>(func_desc.host_gather.dst_idx) == closure_param_id) {
+            // No need to set/copy the host_gather's closure tensor int
+            // the subrequest - it is just a dummy. host_gather writes
+            // to the right buffer directly.
+            continue;
+        }
+
         auto& iport = func_desc.compiled_model->inputs()[closure_param_id];
-        const auto& clparam = request->get_tensor(iport);
-        if (closure.get_element_type() != clparam->get_element_type()) {
+        if (closure.get_element_type() != iport.get_element_type()) {
             // Remember where the unpack is required
             closure_unpack_required.push_back(cidx);
-        } else if (m_npuw_model->m_update_required) {
+        } else {
             if (needs_copy(idx, cidx)) {
                 // Remember where copy is requried
                 closure_copy_required.push_back(cidx);
@@ -915,6 +942,7 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx) {
         // must be prepared in the m_spatial_io at this point
         const auto& spatial = comp_model_desc.spatial.value();
         const auto num_outputs = comp_model_desc.compiled_model->outputs().size();
+        NPUW_ASSERT(m_spatial_selector);
 
         // Create a sparse vector with full input sizes.
         // For the access simplicity, its size is aligned with function's
@@ -940,6 +968,10 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx) {
 
         std::size_t offset = 0u;
         for (std::size_t i = 0u; i < spatial.nway_iters; i++, offset += spatial.nway) {
+            if (!m_spatial_selector->need_submit(offset, spatial.nway)) {
+                continue;
+            }
+
             // Collect spatial inputs for this offset
             for (auto&& param : spatial.params) {
                 const auto& iport = comp_model_desc.compiled_model->inputs()[param.idx];
@@ -963,7 +995,7 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx) {
         }  // for(full_nway_times)
 
         // Now process the tail, if required
-        if (spatial.tail_size) {
+        if (spatial.tail_size && m_spatial_selector->need_submit(offset, spatial.tail_size)) {
             // Copy the sub-ranges to spatial inputs
             // NOTE: tails buffers are read from/written to at 0th offset!
             for (auto&& param : spatial.params) {
@@ -1085,7 +1117,7 @@ ov::npuw::TensorPtr ov::npuw::JustInferRequest::allocMem(const ov::element::Type
         return ov::get_tensor_impl(ov::Tensor(type, shape));
     }
 
-    std::lock_guard<std::mutex> guard(m_alloc_mutex);
+    // Protect access to shared context(s) - at least among infer requests
     auto remote_ctx = m_npuw_model->get_plugin()->get_core()->get_default_context(device)._ptr;
     auto remote_tensor = remote_ctx->create_host_tensor(type, shape);
     return ov::get_tensor_impl(ov::make_tensor(remote_tensor));

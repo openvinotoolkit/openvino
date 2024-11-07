@@ -217,6 +217,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
     size_t wsp_size_per_thread = 0;
     using tag = dnnl::memory::format_tag;
     using dt = dnnl::memory::data_type;
+    size_t m_threads_num = 0lu;
     struct brgemmKey {
         size_t M;
         size_t N;
@@ -315,21 +316,21 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
 
         wv_gemm_ptr = wv_result.first;
 
-        size_t nthr = static_cast<size_t>(parallel_get_max_threads());
+        m_threads_num = static_cast<size_t>(parallel_get_max_threads());
 
         // wsp is used to compute beta when K is blocked
         wsp_size_per_thread = wv_gemm_ptr->get_wsp_size();
-        wsp.resize(nthr * wsp_size_per_thread);
+        wsp.resize(m_threads_num * wsp_size_per_thread);
 
         // allocate scratch a/b, notice get_scratch_a_size/get_scratch_b_size returns in bytes
         size_t data_size = sizeof(T);
-        qk_scratch_a.resize<T>({nthr, qk_gemm_ptr->get_scratch_a_size() / data_size});
-        wv_scratch_a.resize<T>({nthr, wv_gemm_ptr->get_scratch_a_size() / data_size});
+        qk_scratch_a.resize<T>({m_threads_num, qk_gemm_ptr->get_scratch_a_size() / data_size});
+        wv_scratch_a.resize<T>({m_threads_num, wv_gemm_ptr->get_scratch_a_size() / data_size});
 
         qk_scratch_b.resize<T>({B, Hk, qk_gemm_ptr->get_scratch_b_size() / data_size});
         wv_scratch_b.resize<T>({B, Hk, wv_gemm_ptr->get_scratch_b_size() / data_size});
         const size_t m_block_size = qk_gemm_ptr->get_mblk_size();
-        weight_score.resize<float>({static_cast<size_t>(parallel_get_max_threads()), H, m_block_size, kv_len});
+        weight_score.resize<float>({m_threads_num, H, m_block_size, kv_len});
         if (has_out_transpose) {
             fp32_out.resize<float>({B, q_len, H, head_size_v});
         } else {
@@ -367,7 +368,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         });
 
         // attention
-        parallel_for3d(B, H, m_blocks, [&](size_t ithr, size_t b, size_t h, size_t m_blk) {
+        auto bhb_loop = [&](size_t ithr, size_t b, size_t h, size_t m_blk) {
             auto m_start = m_blk * m_block_size;
             auto m_end = std::min(m_start + m_block_size, q_len);
             auto m_cnt = m_end - m_start;
@@ -456,6 +457,10 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                                          1);
                 }
             }
+        };
+
+        parallel_nt_static(m_threads_num, [&](const int ithr, const int nthr) {
+            for_3d(ithr, nthr, B, H, m_blocks, bhb_loop);
         });
     }
 
@@ -652,12 +657,14 @@ struct MHAKernel<ScaledDotProductAttention::KT_MLAS, float> {
     size_t m_block_size;
     // buffer to hold qk temp
     std::vector<PlainTensor> qk_buffers;
+    size_t m_threads_num = 0lu;
 
     MHAKernel() = delete;
     explicit MHAKernel(GraphContext::CPtr ctx): context(ctx) {
         m_block_size = 4;
         select_nfltmax_at_0 = false;
-        qk_buffers.resize(parallel_get_max_threads());
+        m_threads_num = parallel_get_max_threads();
+        qk_buffers.resize(m_threads_num);
     }
 
     PlainTensor causal_mask;
@@ -699,7 +706,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_MLAS, float> {
 
         auto m_blocks = (q_len + m_block_size - 1) / m_block_size;
 
-        parallel_for3d(B, H, m_blocks, [&](size_t b, size_t h, size_t m_blk) {
+        auto bhb_loop = [&](size_t b, size_t h, size_t m_blk) {
             auto thread_id = parallel_get_thread_num();
             if (thread_id < 0)
                 OPENVINO_THROW("The calling thread isn't initialized!");
@@ -801,6 +808,10 @@ struct MHAKernel<ScaledDotProductAttention::KT_MLAS, float> {
                        has_out_transpose ? &output_emb.at<float>({b, m_start, h * head_size_v}) : &output_emb.at<float>({b, h, m_start}),
                        has_out_transpose ? output_emb.stride(1) : output_emb.stride(2),
                        1);
+        };
+
+        parallel_nt_static(m_threads_num, [&](const int ithr, const int nthr) {
+            for_3d(ithr, nthr, B, H, m_blocks, bhb_loop);
         });
     }
 };
@@ -866,6 +877,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
     void execute(dnnl::stream strm, const Config& config, const std::vector<MemoryPtr>& inputs, const MemoryPtr output,
                  const MemoryPtr presentk_input, const MemoryPtr presentv_input, const MemoryPtr beam_input,
                  const PlainTensor& k_scale_zp, const PlainTensor& v_scale_zp) override {
+        bool has_in_reshape = config.config.input_BLHxS;
         bool has_out_transpose = config.config.output_BLHxS;
         bool fuse_causal_attn = config.config.fuse_causal_attn;
         bool is_causal = config.config.is_causal;
@@ -881,11 +893,28 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
         float scale_input = 0.0f;
         size_t B, L1, L0, S, SV;
 
+        // B,L,H*S->B,L,H,S
+        auto get_reshape_shape = [&config](const PlainTensor& input) {
+            // [B,L,H*S]
+            auto inp_shape = input.shape();
+            // [B,L,H,S]
+            return VectorDims{inp_shape[0], inp_shape[1], config.config.order_HS[0], config.config.order_HS[1]};
+        };
+
         q_input.reset(inputs[0]);
         k_input.reset(inputs[1]);
         v_input.reset(inputs[2]);
         present_key.reset(presentk_input);
         present_value.reset(presentv_input);
+        if (has_in_reshape) {
+            q_input = q_input.reshape(get_reshape_shape(q_input));
+            auto kv_shape = get_reshape_shape(k_input);
+            k_input = k_input.reshape(kv_shape);
+            v_input = v_input.reshape(kv_shape);
+            present_key = present_key.reshape(kv_shape);
+            present_value = present_value.reshape(kv_shape);
+        }
+
         if (beam_input)
             beam_table.reset(beam_input);
         if (input_num > 3) {
@@ -985,11 +1014,11 @@ ScaledDotProductAttention::ScaledDotProductAttention(const std::shared_ptr<ov::N
         OPENVINO_THROW("CPU: " + errorMessage);
     }
 
-    const auto node = std::dynamic_pointer_cast<const ov::op::v13::ScaledDotProductAttention>(op);
-    if (node) {
+    if (const auto node = std::dynamic_pointer_cast<const ov::op::v13::ScaledDotProductAttention>(op)) {
         m_config.config.is_causal = node->get_causal();
-    } else {
-        const auto node = std::dynamic_pointer_cast<const ScaledDotProductAttentionWithKVCache>(op);
+    } else if (const auto node = std::dynamic_pointer_cast<const ScaledDotProductAttentionWithKVCache>(op)) {
+        m_config.config = node->get_config();
+    } else if (const auto node = std::dynamic_pointer_cast<const SDPAWithTransposeReshape>(op)) {
         m_config.config = node->get_config();
     }
 }
@@ -1142,17 +1171,28 @@ void ScaledDotProductAttention::execute(dnnl::stream strm) {
 
 bool ScaledDotProductAttention::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
+        auto sdpaWithTransposeReshapeOp = std::dynamic_pointer_cast<const SDPAWithTransposeReshape>(op);
         if (!std::dynamic_pointer_cast<const ov::op::v13::ScaledDotProductAttention>(op) &&
-            !std::dynamic_pointer_cast<const ScaledDotProductAttentionWithKVCache>(op)) {
-            errorMessage = "Only ScaledDotProductAttention or ScaledDotProductAttentionWithKVCache operation are supported";
+            !std::dynamic_pointer_cast<const ScaledDotProductAttentionWithKVCache>(op) && !sdpaWithTransposeReshapeOp) {
+            errorMessage = "Only ScaledDotProductAttention, ScaledDotProductAttentionWithKVCache or "
+                           "SDPAWithTransposeReshape operation are supported";
             return false;
         }
-        // expect shape of q: [B, H, L, S]
         auto inRank = op->get_input_partial_shape(0).size();
-        if (inRank != 4u) {
-            errorMessage = "Doesn't support 'data' input with rank: " + std::to_string(inRank);
-            return false;
+        if (sdpaWithTransposeReshapeOp) {
+            // inRank expect shape of q: [B, L, H*S]
+            if (inRank != 3u) {
+                errorMessage = "Doesn't support 'data' input with rank: " + std::to_string(inRank);
+                return false;
+            }
+        } else {
+            // inRank expect shape of q: [B, H, L, S]
+            if (inRank != 4u) {
+                errorMessage = "Doesn't support 'data' input with rank: " + std::to_string(inRank);
+                return false;
+            }
         }
+
         int orgSDPAInput = static_cast<int>(op->get_input_size());
         const auto node = std::dynamic_pointer_cast<const ScaledDotProductAttentionWithKVCache>(op);
         if (node) {

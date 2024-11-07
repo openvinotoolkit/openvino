@@ -20,12 +20,7 @@ void ModelSerializer::operator<<(const std::shared_ptr<ov::Model>& model) {
     auto serialize_info = [&](std::ostream& stream) {
         pugi::xml_document xml_doc;
         pugi::xml_node root = xml_doc.append_child("cnndata");
-        pugi::xml_node outputs = root.append_child("outputs");
-        for (const auto& out : model->get_results()) {
-            auto out_node = outputs.append_child("out");
-            const auto name = ov::descriptor::get_ov_tensor_legacy_name(out->input_value(0).get_tensor());
-            out_node.append_attribute("name").set_value(name.c_str());
-        }
+        root.append_child("outputs");
         xml_doc.save(stream);
     };
 
@@ -44,26 +39,15 @@ ModelDeserializer::ModelDeserializer(std::istream& model_stream, ModelBuilder fn
         }
     }
 
-void ModelDeserializer::set_info(pugi::xml_node& root, std::shared_ptr<ov::Model>& model) {
-    pugi::xml_node outputs = root.child("outputs");
-    auto nodes_it = outputs.children("out").begin();
-    size_t size = model->outputs().size();
-    for (size_t i = 0lu; i < size; ++nodes_it, i++) {
-        std::string name = nodes_it->attribute("name").value();
-        if (name.empty())
-            continue;
-        auto result = model->output(i).get_node_shared_ptr();
-        ov::descriptor::set_ov_tensor_legacy_name(result->input_value(0).get_tensor(), name);
-    }
-}
+    void ModelDeserializer::set_info(pugi::xml_node& root, std::shared_ptr<ov::Model>& model) {}
 
-void ModelDeserializer::operator>>(std::shared_ptr<ov::Model>& model) {
-    if (auto mmap_buffer = dynamic_cast<OwningSharedStreamBuffer*>(m_istream.rdbuf())) {
-        auto buffer = mmap_buffer->get_buffer();
-        process_mmap(model, buffer);
-    } else {
-        process_stream(model);
-    }
+    void ModelDeserializer::operator>>(std::shared_ptr<ov::Model>& model) {
+        if (auto mmap_buffer = dynamic_cast<OwningSharedStreamBuffer*>(m_istream.rdbuf())) {
+            auto buffer = mmap_buffer->get_buffer();
+            process_mmap(model, buffer);
+        } else {
+            process_stream(model);
+        }
 }
 
 void ModelDeserializer::process_mmap(std::shared_ptr<ov::Model>& model,

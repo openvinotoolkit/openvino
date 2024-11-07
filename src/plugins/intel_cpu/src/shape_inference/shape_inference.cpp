@@ -112,6 +112,7 @@
 #include "split_shape_inference.hpp"
 #include "squeeze_shape_inference.hpp"
 #include "static_shape.hpp"
+#include "stft_shape_inference.hpp"
 #include "strided_slice_shape_inference.hpp"
 #include "string_tensor_pack_shape_inference.hpp"
 #include "string_tensor_unpack_shape_inference.hpp"
@@ -406,6 +407,7 @@ using IStaticShapeInferFactory =
 template <>
 const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     // opset15
+    _OV_OP_SHAPE_INFER_MASK_REG(op::v15::Squeeze, ShapeInferTA, util::bit::mask(1)),
     _OV_OP_SHAPE_INFER_MASK_REG(op::v15::SearchSorted, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(op::v15::StringTensorUnpack, ShapeInferTA, util::bit::mask(0)),
     _OV_OP_SHAPE_INFER_MASK_REG(op::v15::StringTensorPack, ShapeInferTA, util::bit::mask(0, 1)),
@@ -414,6 +416,7 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     _OV_OP_SHAPE_INFER_MASK_REG(op::v15::Col2Im, ShapeInferTA, util::bit::mask(1, 2)),
     _OV_OP_SHAPE_INFER_MASK_REG(op::v15::ScatterNDUpdate, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(opset15::SliceScatter, ShapeInferTA, util::bit::mask(2, 3, 4, 5)),
+    _OV_OP_SHAPE_INFER_MASK_REG(op::v15::STFT, ShapeInferTA, util::bit::mask(2, 3)),
     // opset14
     _OV_OP_SHAPE_INFER_MASK_REG(opset14::Inverse, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(opset14::MaxPool, ShapeInferPaddingTA, util::bit::mask()),
@@ -529,7 +532,6 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     _OV_OP_SHAPE_INFER_MASK_REG(opset1::GroupConvolutionBackpropData, ShapeInferPaddingTA, util::bit::mask(2)),
     _OV_OP_SHAPE_INFER_MASK_REG(opset1::Interpolate, ShapeInferTA, util::bit::mask(1)),
     _OV_OP_SHAPE_INFER_MASK_REG(opset1::LSTMCell, ShapeInferTA, util::bit::mask()),
-    _OV_OP_SHAPE_INFER_MASK_REG(opset1::LSTMSequence, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(opset1::MatMul, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(opset1::MaxPool, ShapeInferPaddingTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(opset1::NonMaxSuppression, ShapeInferTA, util::bit::mask(2)),

@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2023-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,12 +7,13 @@
 #include <optional>
 
 #include "common.hpp"
-#include "intel_npu/al/config/config.hpp"
-#include "intel_npu/al/config/npuw.hpp"
+#include "intel_npu/config/config.hpp"
+#include "intel_npu/config/npuw.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "partitioning/partitioning.hpp"
+#include "spatial.hpp"
 #include "weights_bank.hpp"
 
 namespace intel_npu {
@@ -123,20 +124,7 @@ private:
         std::optional<std::size_t> replaced_by;
 
         Subgraph::Gather host_gather;
-        struct Spatial {
-            struct Param {
-                std::size_t idx;
-                std::size_t dim;
-            };
-            std::vector<Param> params;
-            std::size_t range = 0u;
-            std::size_t nway = 0u;
-            std::size_t out_dim = 0u;
-
-            std::size_t nway_iters = 0u;
-            std::size_t tail_size = 0u;
-        };
-        std::optional<Spatial> spatial;
+        std::optional<ov::npuw::compiled::Spatial> spatial;
 
         // FIXME: This is a 1:1 copy of the ov::npuw::Subgraph structure
         // w.r.t. function calls
@@ -160,8 +148,6 @@ private:
         execution_stats stat;
     };
     std::vector<CompiledModelDesc> m_compiled_submodels;
-
-    bool m_update_required;
 
     std::function<bool(const ov::SoPtr<ov::ITensor>&, const ov::SoPtr<ov::ITensor>&)> m_acc_check;
     std::string m_ref_device;
