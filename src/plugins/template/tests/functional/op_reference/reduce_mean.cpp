@@ -50,9 +50,7 @@ std::vector<ReductionParams> generateReductionParams(const bool keep_dims) {
         keep_dims,
         std::vector<int64_t>{1, 2},
         reference_tests::Tensor({2, 0, 4}, element::Type(IN_ET), std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8}),
-        reference_tests::Tensor(out_shape_from_empty,
-                                element::Type(IN_ET),
-                                std::vector<T>{0, 0})));
+        reference_tests::Tensor(out_shape_from_empty, element::Type(IN_ET), std::vector<T>{0, 0})));
 
     return params;
 }
