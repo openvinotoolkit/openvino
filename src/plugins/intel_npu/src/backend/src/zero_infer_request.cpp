@@ -296,7 +296,7 @@ void ZeroInferRequest::create_pipeline() {
     _logger.debug("ZeroInferRequest::create_pipeline - SyncInferRequest completed");
 }
 
-void ZeroInferRequest::set_tensor_data(const std::shared_ptr<ov::ITensor> tensor,
+void ZeroInferRequest::set_tensor_data(const std::shared_ptr<ov::ITensor>& tensor,
                                        const size_t index,
                                        const bool isInput) {
     OV_ITT_TASK_CHAIN(ZERO_SET_TENSOR, itt::domains::LevelZeroBackend, "set_tensor", "set_tensor_data");
@@ -347,7 +347,7 @@ void ZeroInferRequest::set_tensor_data(const std::shared_ptr<ov::ITensor> tensor
     }
 }
 
-void ZeroInferRequest::set_remote_tensor_data(const std::shared_ptr<ZeroRemoteTensor> tensor,
+void ZeroInferRequest::set_remote_tensor_data(const std::shared_ptr<ZeroRemoteTensor>& tensor,
                                               const size_t index,
                                               const bool isInput) {
     OV_ITT_TASK_CHAIN(ZERO_SET_REMOTE_TENSOR, itt::domains::LevelZeroBackend, "set_tensor", "set_remote_tensor_data");
