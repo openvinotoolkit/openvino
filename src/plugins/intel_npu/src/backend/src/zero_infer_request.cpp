@@ -167,10 +167,8 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
       _levelZeroOutputTensors(_metadata.outputs.size(), nullptr),
       _inputTensorsData(_metadata.inputs.size(), std::vector<std::optional<TensorData>>(1, std::nullopt)),
       _outputTensorsData(_metadata.outputs.size(), std::nullopt),
-      _profilingPool(static_cast<ze_graph_handle_t>(_graph->get_handle()),
-                     zeroProfiling::POOL_SIZE,
-                     _initStructs->getProfilingDdiTable()),
-      _profilingQuery(0, _initStructs->getDevice(), _initStructs->getProfilingDdiTable()) {
+      _profilingPool(_initStructs, _graph, zeroProfiling::POOL_SIZE),
+      _profilingQuery(_initStructs, 0) {
     _logger.debug("ZeroInferRequest::ZeroInferRequest - SyncInferRequest");
     const std::vector<ArgumentDescriptor>& executorInputDescriptors = _graph->get_input_descriptors();
     const std::vector<ArgumentDescriptor>& executorOutputDescriptors = _graph->get_output_descriptors();
@@ -178,9 +176,7 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
     auto proftype = config.get<PROFILING_TYPE>();
     if (proftype == ov::intel_npu::ProfilingType::INFER) {
         _logger.debug("ZeroInferRequest::ZeroInferRequest - profiling type == ov::intel_npu::ProfilingType::INFER");
-        _npuProfiling = std::make_shared<zeroProfiling::NpuInferProfiling>(_initStructs->getContext(),
-                                                                           _initStructs->getDevice(),
-                                                                           _config.get<LOG_LEVEL>());
+        _npuProfiling = std::make_shared<zeroProfiling::NpuInferProfiling>(_initStructs, _config.get<LOG_LEVEL>());
     }
 
     _properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
