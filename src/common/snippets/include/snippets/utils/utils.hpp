@@ -91,6 +91,12 @@ static inline auto rnd_up(const T lhs, const U rhs) -> decltype(div_up(lhs, rhs)
     return div_up_res * rhs;
 }
 
+static inline bool is_planar_layout(const std::vector<size_t>& order) {
+    for (size_t i = 0; i < order.size(); ++i)
+        if (order[i] != i) return false;
+    return true;
+}
+
 inline bool is_dynamic_vdims(const VectorDims& shape) {
     return std::any_of(shape.cbegin(), shape.cend(), [](size_t v){ return is_dynamic_value(v); });
 }
