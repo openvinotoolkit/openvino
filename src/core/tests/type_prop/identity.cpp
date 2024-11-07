@@ -9,4 +9,3 @@
 using Type = ::testing::Types<ov::op::v16::Identity>;
 
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_identity, UnaryOperator, Type);
-
