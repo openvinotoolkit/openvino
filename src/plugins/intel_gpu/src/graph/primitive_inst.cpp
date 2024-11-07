@@ -1635,8 +1635,11 @@ void primitive_inst::do_runtime_skip_scatter_update() {
     auto update_layout = _impl_params->get_input_layout(2);
 
     if (idx_layout.count() > 0 && update_layout.count() > 0) {
+        // set shape_change to realloc memory for same input shapes
+        if (can_be_optimized()) {
+            set_shape_change();
+        }
         set_can_be_optimized(false);
-        set_shape_change();
         GPU_DEBUG_TRACE_DETAIL << "--- Cannot optimize because idx_layout (" << idx_layout.to_short_string()
                         << ") and update_layout(" << update_layout.to_short_string() << ") are not zero" << std::endl;
         return;
@@ -1647,6 +1650,10 @@ void primitive_inst::do_runtime_skip_scatter_update() {
     GPU_DEBUG_TRACE_DETAIL << "            - Idx layout    : " << _impl_params->get_input_layout(1).to_short_string() << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "            - Update layout : " << _impl_params->get_input_layout(2).to_short_string() << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "            - Output layout : " << _impl_params->get_output_layout().to_short_string() << std::endl;
+    // set shape_change to realloc memory for same input shapes
+    if (!can_be_optimized()) {
+        set_shape_change();
+    }
     set_can_be_optimized(true);
 }
 
